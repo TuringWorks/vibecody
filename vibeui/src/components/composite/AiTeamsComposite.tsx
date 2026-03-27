@@ -7,4 +7,5 @@ export const AiTeamsComposite = createComposite([
   { id: "cloud", label: "Cloud", importFn: () => import("../CloudAgentPanel"), exportName: "CloudAgentPanel" },
   { id: "cibot", label: "CI Bot", importFn: () => import("../CIReviewPanel"), exportName: "CIReviewPanel" },
   { id: "agentmodes", label: "Modes", importFn: () => import("../AgentModesPanel") },
+  { id: "spawnagent", label: "Spawn", importFn: () => import("../SpawnAgentPanel") },
 ]);

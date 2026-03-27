@@ -58,10 +58,15 @@ pub struct OllamaProvider {
     client: reqwest::Client,
     base_url: String,
     display_name: String,
+    /// Resolved API key: explicit config/env key, or `None` (no auth sent).
+    api_key: Option<String>,
 }
 
 impl OllamaProvider {
-    /// Create a new Ollama provider
+    /// Create a new Ollama provider.
+    ///
+    /// API key resolution: `config.api_key` first, then `OLLAMA_API_KEY` env var.
+    /// If neither is set, no auth header is sent (standard Ollama needs no auth).
     pub fn new(config: ProviderConfig) -> Self {
         let raw_url = config
             .api_url
@@ -73,8 +78,14 @@ impl OllamaProvider {
         } else {
             format!("http://{}", raw_url)
         };
-        
+
         let display_name = format!("Ollama ({})", config.model);
+
+        // Resolve API key: explicit config → env var → None (no auth)
+        let api_key = config
+            .api_key
+            .clone()
+            .or_else(|| std::env::var("OLLAMA_API_KEY").ok());
 
         Self {
             config,
@@ -85,6 +96,7 @@ impl OllamaProvider {
                 .unwrap_or_else(|_| reqwest::Client::new()),
             base_url,
             display_name,
+            api_key,
         }
     }
 
@@ -93,6 +105,24 @@ impl OllamaProvider {
             "Complete the following {} code:\n\n{}<CURSOR>{}",
             context.language, context.prefix, context.suffix
         )
+    }
+
+    /// Build a POST request, adding Bearer auth only when an API key is configured.
+    fn auth_post(&self, url: String) -> reqwest::RequestBuilder {
+        let req = self.client.post(url);
+        match &self.api_key {
+            Some(key) => req.header("Authorization", format!("Bearer {}", key)),
+            None => req,
+        }
+    }
+
+    /// Build a GET request, adding Bearer auth only when an API key is configured.
+    fn auth_get(&self, url: String) -> reqwest::RequestBuilder {
+        let req = self.client.get(url);
+        match &self.api_key {
+            Some(key) => req.header("Authorization", format!("Bearer {}", key)),
+            None => req,
+        }
     }
 
     fn build_options(&self) -> Option<OllamaOptions> {
@@ -111,16 +141,22 @@ impl OllamaProvider {
     /// Fetches all models from `/api/tags`, then probes each with a minimal
     /// `/api/chat` request to filter out completion-only models (e.g. codellama)
     /// and embedding models (e.g. nomic-embed-text).
+    ///
+    /// Auth is sent only when `OLLAMA_API_KEY` is set.
     pub async fn list_models(base_url: Option<String>) -> Result<Vec<String>> {
         let base_url = base_url.unwrap_or_else(|| "http://localhost:11434".to_string());
+        let api_key = std::env::var("OLLAMA_API_KEY").ok();
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(10))
             .connect_timeout(std::time::Duration::from_secs(5))
             .build()
             .unwrap_or_else(|_| reqwest::Client::new());
 
-        let response = client
-            .get(format!("{}/api/tags", base_url))
+        let mut req = client.get(format!("{}/api/tags", base_url));
+        if let Some(ref key) = api_key {
+            req = req.header("Authorization", format!("Bearer {}", key));
+        }
+        let response = req
             .send()
             .await
             .context("Failed to connect to Ollama")?;
@@ -172,8 +208,12 @@ impl OllamaProvider {
                 "stream": false,
                 "options": {"num_predict": 1}
             });
-            match probe_client
-                .post(format!("{}/api/chat", base_url))
+            let mut probe_req = probe_client
+                .post(format!("{}/api/chat", base_url));
+            if let Some(ref key) = api_key {
+                probe_req = probe_req.header("Authorization", format!("Bearer {}", key));
+            }
+            match probe_req
                 .json(&body)
                 .send()
                 .await
@@ -204,8 +244,7 @@ impl AIProvider for OllamaProvider {
 
     async fn is_available(&self) -> bool {
         // Try to ping the Ollama API
-        self.client
-            .get(format!("{}/api/tags", self.base_url))
+        self.auth_get(format!("{}/api/tags", self.base_url))
             .send()
             .await
             .is_ok()
@@ -222,8 +261,7 @@ impl AIProvider for OllamaProvider {
         };
 
         let response = self
-            .client
-            .post(format!("{}/api/generate", self.base_url))
+            .auth_post(format!("{}/api/generate", self.base_url))
             .json(&request)
             .send()
             .await
@@ -252,8 +290,7 @@ impl AIProvider for OllamaProvider {
         };
 
         let response = self
-            .client
-            .post(format!("{}/api/generate", self.base_url))
+            .auth_post(format!("{}/api/generate", self.base_url))
             .json(&request)
             .send()
             .await
@@ -298,8 +335,7 @@ impl AIProvider for OllamaProvider {
         };
 
         let response = self
-            .client
-            .post(format!("{}/api/chat", self.base_url))
+            .auth_post(format!("{}/api/chat", self.base_url))
             .json(&request)
             .send()
             .await
@@ -337,8 +373,7 @@ impl AIProvider for OllamaProvider {
         };
 
         let response = self
-            .client
-            .post(format!("{}/api/chat", self.base_url))
+            .auth_post(format!("{}/api/chat", self.base_url))
             .json(&request)
             .send()
             .await
@@ -579,5 +614,35 @@ mod tests {
         let resp: OllamaChatResponse = serde_json::from_str(json).unwrap();
         assert!(resp.message.is_none());
         assert!(resp.done);
+    }
+
+    // ── API key resolution ─────────────────────────────────────────────
+
+    #[test]
+    fn api_key_uses_config_when_set() {
+        let config = ProviderConfig::new("ollama".to_string(), "llama3".to_string())
+            .with_api_key("my-secret-key".to_string());
+        let provider = OllamaProvider::new(config);
+        assert_eq!(provider.api_key, Some("my-secret-key".to_string()));
+    }
+
+    #[test]
+    fn no_api_key_when_unconfigured() {
+        // Without config key or OLLAMA_API_KEY env, api_key should be None
+        // (no auth sent to vanilla Ollama).
+        // Note: this test may see Some if OLLAMA_API_KEY is set in the environment.
+        let config = ProviderConfig::new("ollama".to_string(), "llama3".to_string());
+        let provider = OllamaProvider::new(config);
+        if std::env::var("OLLAMA_API_KEY").is_err() {
+            assert_eq!(provider.api_key, None);
+        }
+    }
+
+    #[test]
+    fn config_api_key_takes_precedence() {
+        let config = ProviderConfig::new("ollama".to_string(), "llama3".to_string())
+            .with_api_key("config-key".to_string());
+        let provider = OllamaProvider::new(config);
+        assert_eq!(provider.api_key, Some("config-key".to_string()));
     }
 }

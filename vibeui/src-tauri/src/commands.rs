@@ -5588,8 +5588,50 @@ pub struct ApiKeySettings {
     pub gemini_api_key: String,
     #[serde(default)]
     pub grok_api_key: String,
+    /// Groq ultra-fast inference (GROQ_API_KEY).
+    #[serde(default)]
+    pub groq_api_key: String,
     #[serde(default)]
     pub openrouter_api_key: String,
+    /// Azure OpenAI API key (AZURE_OPENAI_API_KEY).
+    #[serde(default)]
+    pub azure_openai_api_key: String,
+    /// Azure OpenAI endpoint URL (e.g. https://your-resource.openai.azure.com).
+    #[serde(default)]
+    pub azure_openai_api_url: String,
+    /// Mistral AI native API (MISTRAL_API_KEY).
+    #[serde(default)]
+    pub mistral_api_key: String,
+    /// Cerebras ultra-fast inference (CEREBRAS_API_KEY).
+    #[serde(default)]
+    pub cerebras_api_key: String,
+    /// DeepSeek code-focused models (DEEPSEEK_API_KEY).
+    #[serde(default)]
+    pub deepseek_api_key: String,
+    /// Zhipu GLM — Chinese market AI models (ZHIPU_API_KEY, format: "id.secret").
+    #[serde(default)]
+    pub zhipu_api_key: String,
+    /// Vercel AI Gateway API key (VERCEL_AI_API_KEY).
+    #[serde(default)]
+    pub vercel_ai_api_key: String,
+    /// Vercel AI Gateway URL (required when using Vercel AI).
+    #[serde(default)]
+    pub vercel_ai_api_url: String,
+    /// MiniMax — Chinese AI models (MINIMAX_API_KEY).
+    #[serde(default)]
+    pub minimax_api_key: String,
+    /// Perplexity — search-augmented AI (PERPLEXITY_API_KEY).
+    #[serde(default)]
+    pub perplexity_api_key: String,
+    /// Together AI — open model hosting (TOGETHER_API_KEY).
+    #[serde(default)]
+    pub together_api_key: String,
+    /// Fireworks AI — fast inference (FIREWORKS_API_KEY).
+    #[serde(default)]
+    pub fireworks_api_key: String,
+    /// SambaNova — fast inference (SAMBANOVA_API_KEY).
+    #[serde(default)]
+    pub sambanova_api_key: String,
     /// Ollama API key. If empty, a device key derived from hostname+username is used.
     #[serde(default)]
     pub ollama_api_key: String,
@@ -5736,6 +5778,172 @@ pub fn register_cloud_providers(engine: &mut ChatEngine, settings: &ApiKeySettin
         engine.add_provider(Arc::new(provider));
     }
 
+    if !settings.groq_api_key.is_empty() {
+        for model_id in &["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768", "gemma2-9b-it"] {
+            let config = vibe_ai::provider::ProviderConfig {
+                provider_type: "groq".to_string(),
+                api_key: Some(settings.groq_api_key.clone()),
+                model: model_id.to_string(),
+                api_url: None, max_tokens: None, temperature: None,
+                ..Default::default()
+            };
+            let provider = vibe_ai::providers::groq::GroqProvider::new(config);
+            engine.add_provider(Arc::new(provider));
+        }
+    }
+
+    if !settings.azure_openai_api_key.is_empty() && !settings.azure_openai_api_url.is_empty() {
+        let config = vibe_ai::provider::ProviderConfig {
+            provider_type: "azure_openai".to_string(),
+            api_key: Some(settings.azure_openai_api_key.clone()),
+            model: "gpt-4o".to_string(),
+            api_url: Some(settings.azure_openai_api_url.clone()),
+            max_tokens: None, temperature: None,
+            ..Default::default()
+        };
+        let provider = vibe_ai::providers::azure_openai::AzureOpenAIProvider::new(config);
+        engine.add_provider(Arc::new(provider));
+    }
+
+    if !settings.mistral_api_key.is_empty() {
+        for model_id in &["mistral-large-latest", "mistral-medium-latest", "mistral-small-latest", "codestral-latest"] {
+            let config = vibe_ai::provider::ProviderConfig {
+                provider_type: "mistral".to_string(),
+                api_key: Some(settings.mistral_api_key.clone()),
+                model: model_id.to_string(),
+                api_url: None, max_tokens: None, temperature: None,
+                ..Default::default()
+            };
+            let provider = vibe_ai::providers::mistral::MistralProvider::new(config);
+            engine.add_provider(Arc::new(provider));
+        }
+    }
+
+    if !settings.cerebras_api_key.is_empty() {
+        for model_id in &["llama3.3-70b", "llama3.1-8b"] {
+            let config = vibe_ai::provider::ProviderConfig {
+                provider_type: "cerebras".to_string(),
+                api_key: Some(settings.cerebras_api_key.clone()),
+                model: model_id.to_string(),
+                api_url: None, max_tokens: None, temperature: None,
+                ..Default::default()
+            };
+            let provider = vibe_ai::providers::cerebras::CerebrasProvider::new(config);
+            engine.add_provider(Arc::new(provider));
+        }
+    }
+
+    if !settings.deepseek_api_key.is_empty() {
+        for model_id in &["deepseek-chat", "deepseek-coder", "deepseek-reasoner"] {
+            let config = vibe_ai::provider::ProviderConfig {
+                provider_type: "deepseek".to_string(),
+                api_key: Some(settings.deepseek_api_key.clone()),
+                model: model_id.to_string(),
+                api_url: None, max_tokens: None, temperature: None,
+                ..Default::default()
+            };
+            let provider = vibe_ai::providers::deepseek::DeepSeekProvider::new(config);
+            engine.add_provider(Arc::new(provider));
+        }
+    }
+
+    if !settings.zhipu_api_key.is_empty() {
+        for model_id in &["glm-4", "glm-4v", "glm-3-turbo"] {
+            let config = vibe_ai::provider::ProviderConfig {
+                provider_type: "zhipu".to_string(),
+                api_key: Some(settings.zhipu_api_key.clone()),
+                model: model_id.to_string(),
+                api_url: None, max_tokens: None, temperature: None,
+                ..Default::default()
+            };
+            let provider = vibe_ai::providers::zhipu::ZhipuProvider::new(config);
+            engine.add_provider(Arc::new(provider));
+        }
+    }
+
+    if !settings.vercel_ai_api_key.is_empty() && !settings.vercel_ai_api_url.is_empty() {
+        let config = vibe_ai::provider::ProviderConfig {
+            provider_type: "vercel_ai".to_string(),
+            api_key: Some(settings.vercel_ai_api_key.clone()),
+            model: "default".to_string(),
+            api_url: Some(settings.vercel_ai_api_url.clone()),
+            max_tokens: None, temperature: None,
+            ..Default::default()
+        };
+        let provider = vibe_ai::providers::vercel_ai::VercelAIProvider::new(config);
+        engine.add_provider(Arc::new(provider));
+    }
+
+    if !settings.minimax_api_key.is_empty() {
+        for model_id in &["abab6.5-chat", "abab6-chat", "abab5.5-chat"] {
+            let config = vibe_ai::provider::ProviderConfig {
+                provider_type: "minimax".to_string(),
+                api_key: Some(settings.minimax_api_key.clone()),
+                model: model_id.to_string(),
+                api_url: None, max_tokens: None, temperature: None,
+                ..Default::default()
+            };
+            let provider = vibe_ai::providers::minimax::MiniMaxProvider::new(config);
+            engine.add_provider(Arc::new(provider));
+        }
+    }
+
+    if !settings.perplexity_api_key.is_empty() {
+        for model_id in &["sonar-pro", "sonar", "sonar-deep-research"] {
+            let config = vibe_ai::provider::ProviderConfig {
+                provider_type: "perplexity".to_string(),
+                api_key: Some(settings.perplexity_api_key.clone()),
+                model: model_id.to_string(),
+                api_url: None, max_tokens: None, temperature: None,
+                ..Default::default()
+            };
+            let provider = vibe_ai::providers::perplexity::PerplexityProvider::new(config);
+            engine.add_provider(Arc::new(provider));
+        }
+    }
+
+    if !settings.together_api_key.is_empty() {
+        for model_id in &["meta-llama/Llama-3.3-70B-Instruct-Turbo", "Qwen/Qwen2.5-72B-Instruct-Turbo"] {
+            let config = vibe_ai::provider::ProviderConfig {
+                provider_type: "together".to_string(),
+                api_key: Some(settings.together_api_key.clone()),
+                model: model_id.to_string(),
+                api_url: None, max_tokens: None, temperature: None,
+                ..Default::default()
+            };
+            let provider = vibe_ai::providers::together::TogetherProvider::new(config);
+            engine.add_provider(Arc::new(provider));
+        }
+    }
+
+    if !settings.fireworks_api_key.is_empty() {
+        for model_id in &["accounts/fireworks/models/llama-v3p3-70b-instruct", "accounts/fireworks/models/mixtral-8x22b-instruct"] {
+            let config = vibe_ai::provider::ProviderConfig {
+                provider_type: "fireworks".to_string(),
+                api_key: Some(settings.fireworks_api_key.clone()),
+                model: model_id.to_string(),
+                api_url: None, max_tokens: None, temperature: None,
+                ..Default::default()
+            };
+            let provider = vibe_ai::providers::fireworks::FireworksProvider::new(config);
+            engine.add_provider(Arc::new(provider));
+        }
+    }
+
+    if !settings.sambanova_api_key.is_empty() {
+        for model_id in &["Meta-Llama-3.3-70B-Instruct", "Meta-Llama-3.1-405B-Instruct"] {
+            let config = vibe_ai::provider::ProviderConfig {
+                provider_type: "sambanova".to_string(),
+                api_key: Some(settings.sambanova_api_key.clone()),
+                model: model_id.to_string(),
+                api_url: None, max_tokens: None, temperature: None,
+                ..Default::default()
+            };
+            let provider = vibe_ai::providers::sambanova::SambaNovaProvider::new(config);
+            engine.add_provider(Arc::new(provider));
+        }
+    }
+
     // Ollama — always registered; uses explicit key, env var, or device key fallback.
     {
         let api_url = if settings.ollama_api_url.is_empty() {
@@ -5871,6 +6079,159 @@ pub async fn validate_api_key(provider: String, api_key: String, api_url: Option
             else if resp.status().as_u16() == 401 { Err("Invalid API key".into()) }
             else { Err(format!("HTTP {}", resp.status().as_u16())) }
         }
+        "groq" => {
+            let resp = client
+                .get("https://api.groq.com/openai/v1/models")
+                .bearer_auth(&api_key)
+                .send()
+                .await
+                .map_err(|e| e.to_string())?;
+            if resp.status().is_success() { Ok(()) }
+            else if resp.status().as_u16() == 401 { Err("Invalid API key".into()) }
+            else { Err(format!("HTTP {}", resp.status().as_u16())) }
+        }
+        "azure_openai" | "azure" => {
+            let base = api_url.unwrap_or_default();
+            if base.is_empty() { return Err("Azure endpoint URL is required".into()); }
+            let url = format!("{}/openai/models?api-version=2024-06-01", base.trim_end_matches('/'));
+            let resp = client
+                .get(&url)
+                .header("api-key", &api_key)
+                .send()
+                .await
+                .map_err(|e| e.to_string())?;
+            if resp.status().is_success() { Ok(()) }
+            else if resp.status().as_u16() == 401 || resp.status().as_u16() == 403 { Err("Invalid API key or endpoint".into()) }
+            else { Err(format!("HTTP {}", resp.status().as_u16())) }
+        }
+        "mistral" => {
+            let resp = client
+                .get("https://api.mistral.ai/v1/models")
+                .bearer_auth(&api_key)
+                .send()
+                .await
+                .map_err(|e| e.to_string())?;
+            if resp.status().is_success() { Ok(()) }
+            else if resp.status().as_u16() == 401 { Err("Invalid API key".into()) }
+            else { Err(format!("HTTP {}", resp.status().as_u16())) }
+        }
+        "cerebras" => {
+            let resp = client
+                .get("https://api.cerebras.ai/v1/models")
+                .bearer_auth(&api_key)
+                .send()
+                .await
+                .map_err(|e| e.to_string())?;
+            if resp.status().is_success() { Ok(()) }
+            else if resp.status().as_u16() == 401 { Err("Invalid API key".into()) }
+            else { Err(format!("HTTP {}", resp.status().as_u16())) }
+        }
+        "deepseek" => {
+            let resp = client
+                .get("https://api.deepseek.com/models")
+                .bearer_auth(&api_key)
+                .send()
+                .await
+                .map_err(|e| e.to_string())?;
+            if resp.status().is_success() { Ok(()) }
+            else if resp.status().as_u16() == 401 { Err("Invalid API key".into()) }
+            else { Err(format!("HTTP {}", resp.status().as_u16())) }
+        }
+        "zhipu" | "glm" => {
+            let resp = client
+                .post("https://open.bigmodel.cn/api/paas/v4/chat/completions")
+                .header("Authorization", format!("Bearer {}", api_key))
+                .header("Content-Type", "application/json")
+                .body(r#"{"model":"glm-3-turbo","messages":[{"role":"user","content":"hi"}],"max_tokens":1}"#)
+                .send()
+                .await
+                .map_err(|e| e.to_string())?;
+            if resp.status().is_success() || resp.status().as_u16() == 200 { Ok(()) }
+            else if resp.status().as_u16() == 401 { Err("Invalid API key".into()) }
+            else {
+                let status = resp.status().as_u16();
+                if status == 400 { Ok(()) } else { Err(format!("HTTP {}", status)) }
+            }
+        }
+        "vercel_ai" | "vercel" => {
+            let base = api_url.unwrap_or_default();
+            if base.is_empty() { return Err("Vercel AI Gateway URL is required".into()); }
+            let url = format!("{}/models", base.trim_end_matches('/'));
+            let resp = client
+                .get(&url)
+                .bearer_auth(&api_key)
+                .send()
+                .await
+                .map_err(|e| e.to_string())?;
+            if resp.status().is_success() { Ok(()) }
+            else if resp.status().as_u16() == 401 { Err("Invalid API key".into()) }
+            else { Err(format!("HTTP {}", resp.status().as_u16())) }
+        }
+        "minimax" => {
+            let resp = client
+                .post("https://api.minimax.chat/v1/text/chatcompletion_v2")
+                .header("Authorization", format!("Bearer {}", api_key))
+                .header("Content-Type", "application/json")
+                .body(r#"{"model":"abab5.5-chat","messages":[{"role":"user","content":"hi"}],"max_tokens":1}"#)
+                .send()
+                .await
+                .map_err(|e| e.to_string())?;
+            if resp.status().is_success() { Ok(()) }
+            else if resp.status().as_u16() == 401 { Err("Invalid API key".into()) }
+            else {
+                let status = resp.status().as_u16();
+                if status == 400 { Ok(()) } else { Err(format!("HTTP {}", status)) }
+            }
+        }
+        "perplexity" => {
+            let resp = client
+                .post("https://api.perplexity.ai/chat/completions")
+                .bearer_auth(&api_key)
+                .header("Content-Type", "application/json")
+                .body(r#"{"model":"sonar","messages":[{"role":"user","content":"hi"}],"max_tokens":1}"#)
+                .send()
+                .await
+                .map_err(|e| e.to_string())?;
+            if resp.status().is_success() { Ok(()) }
+            else if resp.status().as_u16() == 401 { Err("Invalid API key".into()) }
+            else {
+                let status = resp.status().as_u16();
+                if status == 400 { Ok(()) } else { Err(format!("HTTP {}", status)) }
+            }
+        }
+        "together" => {
+            let resp = client
+                .get("https://api.together.xyz/v1/models")
+                .bearer_auth(&api_key)
+                .send()
+                .await
+                .map_err(|e| e.to_string())?;
+            if resp.status().is_success() { Ok(()) }
+            else if resp.status().as_u16() == 401 { Err("Invalid API key".into()) }
+            else { Err(format!("HTTP {}", resp.status().as_u16())) }
+        }
+        "fireworks" => {
+            let resp = client
+                .get("https://api.fireworks.ai/inference/v1/models")
+                .bearer_auth(&api_key)
+                .send()
+                .await
+                .map_err(|e| e.to_string())?;
+            if resp.status().is_success() { Ok(()) }
+            else if resp.status().as_u16() == 401 { Err("Invalid API key".into()) }
+            else { Err(format!("HTTP {}", resp.status().as_u16())) }
+        }
+        "sambanova" => {
+            let resp = client
+                .get("https://api.sambanova.ai/v1/models")
+                .bearer_auth(&api_key)
+                .send()
+                .await
+                .map_err(|e| e.to_string())?;
+            if resp.status().is_success() { Ok(()) }
+            else if resp.status().as_u16() == 401 { Err("Invalid API key".into()) }
+            else { Err(format!("HTTP {}", resp.status().as_u16())) }
+        }
         "ollama" => {
             let base = api_url.unwrap_or_else(|| "http://localhost:11434".into());
             let resp = client
@@ -5902,7 +6263,19 @@ pub async fn validate_all_api_keys() -> Result<Vec<ApiKeyValidation>, String> {
         ("openai", &settings.openai_api_key, None),
         ("gemini", &settings.gemini_api_key, None),
         ("grok", &settings.grok_api_key, None),
+        ("groq", &settings.groq_api_key, None),
         ("openrouter", &settings.openrouter_api_key, None),
+        ("azure_openai", &settings.azure_openai_api_key, Some(settings.azure_openai_api_url.clone())),
+        ("mistral", &settings.mistral_api_key, None),
+        ("cerebras", &settings.cerebras_api_key, None),
+        ("deepseek", &settings.deepseek_api_key, None),
+        ("zhipu", &settings.zhipu_api_key, None),
+        ("vercel_ai", &settings.vercel_ai_api_key, Some(settings.vercel_ai_api_url.clone())),
+        ("minimax", &settings.minimax_api_key, None),
+        ("perplexity", &settings.perplexity_api_key, None),
+        ("together", &settings.together_api_key, None),
+        ("fireworks", &settings.fireworks_api_key, None),
+        ("sambanova", &settings.sambanova_api_key, None),
         ("ollama", &settings.ollama_api_key, Some(settings.ollama_api_url.clone())),
     ];
 
@@ -32225,4 +32598,505 @@ pub async fn vulnscan_status() -> Result<serde_json::Value, String> {
         "output_formats": ["SARIF v2.1.0", "Markdown"],
         "live_apis": ["OSV.dev", "GHSA"],
     }))
+}
+
+// ── SpawnAgent — parallel agent spawning & lifecycle management ──────────
+
+fn spawn_agent_data_dir() -> std::path::PathBuf {
+    dirs::data_local_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join("vibeui")
+        .join("spawn-agents")
+}
+
+fn spawn_agent_read_json(filename: &str) -> serde_json::Value {
+    let path = spawn_agent_data_dir().join(filename);
+    std::fs::read_to_string(&path)
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or(serde_json::json!([]))
+}
+
+fn spawn_agent_write_json(filename: &str, data: &serde_json::Value) -> Result<(), String> {
+    let dir = spawn_agent_data_dir();
+    std::fs::create_dir_all(&dir).map_err(|e| format!("Failed to create dir: {}", e))?;
+    let path = dir.join(filename);
+    let json = serde_json::to_string_pretty(data).map_err(|e| format!("JSON error: {}", e))?;
+    std::fs::write(&path, json).map_err(|e| format!("Write error: {}", e))?;
+    Ok(())
+}
+
+/// Spawn a new agent.
+#[tauri::command]
+pub async fn spawn_agent_new(config: serde_json::Value) -> Result<serde_json::Value, String> {
+    let mut agents = spawn_agent_read_json("agents.json");
+    let arr = agents.as_array_mut().map(|a| a as &mut Vec<_>);
+    let id = format!("sa_{:08x}", chrono::Utc::now().timestamp_millis() as u64 & 0xFFFF_FFFF);
+    let name = config.get("name").and_then(|v| v.as_str()).unwrap_or("agent").to_string();
+    let task = config.get("task").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let _priority = config.get("priority").and_then(|v| v.as_str()).unwrap_or("normal").to_string();
+    let isolation = config.get("isolation").and_then(|v| v.as_str()).unwrap_or("worktree").to_string();
+    let max_turns = config.get("max_turns").and_then(|v| v.as_u64()).unwrap_or(25);
+
+    let branch = if isolation == "worktree" { Some(format!("spawn-{}", &id)) } else { None };
+    let now = chrono::Utc::now().timestamp_millis();
+
+    let agent = serde_json::json!({
+        "id": id,
+        "name": name,
+        "task": task,
+        "status": "running",
+        "config": config,
+        "progress": {
+            "turns_completed": 0,
+            "turns_limit": max_turns,
+            "files_modified": [],
+            "last_message": null,
+            "tool_calls": 0,
+            "tokens_used": 0,
+            "percent_complete": 0
+        },
+        "branch": branch,
+        "worktree_path": null,
+        "result_summary": null,
+        "error": null,
+        "created_at": now,
+        "started_at": now,
+        "finished_at": null,
+        "parent_id": config.get("parent_id"),
+        "child_ids": [],
+        "inbox": []
+    });
+
+    if let Some(arr) = arr {
+        arr.push(agent.clone());
+    } else {
+        agents = serde_json::json!([agent]);
+    }
+    spawn_agent_write_json("agents.json", &agents)?;
+    Ok(serde_json::json!({ "id": id, "name": name, "branch": branch }))
+}
+
+/// List all spawned agents.
+#[tauri::command]
+pub async fn spawn_agent_list() -> Result<serde_json::Value, String> {
+    Ok(spawn_agent_read_json("agents.json"))
+}
+
+/// Get pool stats.
+#[tauri::command]
+pub async fn spawn_agent_stats() -> Result<serde_json::Value, String> {
+    let agents = spawn_agent_read_json("agents.json");
+    let arr = agents.as_array().cloned().unwrap_or_default();
+    let running = arr.iter().filter(|a| a.get("status").and_then(|v| v.as_str()) == Some("running")).count();
+    let queued = arr.iter().filter(|a| a.get("status").and_then(|v| v.as_str()) == Some("queued")).count();
+    let paused = arr.iter().filter(|a| a.get("status").and_then(|v| v.as_str()) == Some("paused")).count();
+    let completed = arr.iter().filter(|a| a.get("status").and_then(|v| v.as_str()) == Some("completed")).count();
+    let failed = arr.iter().filter(|a| a.get("status").and_then(|v| v.as_str()) == Some("failed")).count();
+    let cancelled = arr.iter().filter(|a| a.get("status").and_then(|v| v.as_str()) == Some("cancelled")).count();
+    let total_tokens: u64 = arr.iter()
+        .filter_map(|a| a.get("progress").and_then(|p| p.get("tokens_used")).and_then(|v| v.as_u64()))
+        .sum();
+
+    Ok(serde_json::json!({
+        "total": arr.len(),
+        "running": running,
+        "queued": queued,
+        "paused": paused,
+        "completed": completed,
+        "failed": failed,
+        "cancelled": cancelled,
+        "max_concurrent": 5,
+        "max_total": 20,
+        "total_tokens": total_tokens,
+        "total_files_modified": 0
+    }))
+}
+
+/// Pause a running agent.
+#[tauri::command]
+pub async fn spawn_agent_pause(agent_id: String) -> Result<serde_json::Value, String> {
+    let mut agents = spawn_agent_read_json("agents.json");
+    if let Some(arr) = agents.as_array_mut() {
+        for a in arr.iter_mut() {
+            if a.get("id").and_then(|v| v.as_str()) == Some(&agent_id) {
+                a["status"] = serde_json::json!("paused");
+                spawn_agent_write_json("agents.json", &agents)?;
+                return Ok(serde_json::json!({ "ok": true }));
+            }
+        }
+    }
+    Err(format!("Agent not found: {}", agent_id))
+}
+
+/// Resume a paused agent.
+#[tauri::command]
+pub async fn spawn_agent_resume(agent_id: String) -> Result<serde_json::Value, String> {
+    let mut agents = spawn_agent_read_json("agents.json");
+    if let Some(arr) = agents.as_array_mut() {
+        for a in arr.iter_mut() {
+            if a.get("id").and_then(|v| v.as_str()) == Some(&agent_id) {
+                a["status"] = serde_json::json!("running");
+                spawn_agent_write_json("agents.json", &agents)?;
+                return Ok(serde_json::json!({ "ok": true }));
+            }
+        }
+    }
+    Err(format!("Agent not found: {}", agent_id))
+}
+
+/// Cancel an agent.
+#[tauri::command]
+pub async fn spawn_agent_cancel(agent_id: String) -> Result<serde_json::Value, String> {
+    let mut agents = spawn_agent_read_json("agents.json");
+    if let Some(arr) = agents.as_array_mut() {
+        for a in arr.iter_mut() {
+            if a.get("id").and_then(|v| v.as_str()) == Some(&agent_id) {
+                a["status"] = serde_json::json!("cancelled");
+                a["finished_at"] = serde_json::json!(chrono::Utc::now().timestamp_millis());
+                spawn_agent_write_json("agents.json", &agents)?;
+                return Ok(serde_json::json!({ "ok": true }));
+            }
+        }
+    }
+    Err(format!("Agent not found: {}", agent_id))
+}
+
+/// Decompose a task into parallel subtasks.
+#[tauri::command]
+pub async fn spawn_agent_decompose(
+    task: String,
+    strategy: String,
+    context_files: Vec<String>,
+) -> Result<serde_json::Value, String> {
+    let now = chrono::Utc::now().timestamp_millis();
+    let parent_id = format!("sa_{:08x}", now as u64 & 0xFFFF_FFFF);
+
+    let subtasks: Vec<serde_json::Value> = match strategy.as_str() {
+        "by_concern" => vec![
+            serde_json::json!({ "description": format!("Implement: {}", task), "priority": "high" }),
+            serde_json::json!({ "description": format!("Write tests for: {}", task), "priority": "normal" }),
+            serde_json::json!({ "description": format!("Write documentation for: {}", task), "priority": "low" }),
+        ],
+        "by_file" => context_files.iter().map(|f|
+            serde_json::json!({ "description": format!("Process {}: {}", f, task), "priority": "normal", "files": [f] })
+        ).collect(),
+        "by_component" => {
+            let mut components: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
+            for f in &context_files {
+                let dir = std::path::Path::new(f).parent().and_then(|p| p.to_str()).unwrap_or("root").to_string();
+                components.entry(dir).or_default().push(f.clone());
+            }
+            components.into_iter().map(|(dir, files)|
+                serde_json::json!({ "description": format!("Handle component {}: {}", dir, task), "priority": "normal", "files": files })
+            ).collect()
+        }
+        _ => vec![serde_json::json!({ "description": task.clone(), "priority": "normal" })],
+    };
+
+    let mut agents = spawn_agent_read_json("agents.json");
+    let arr = agents.as_array_mut().map(|a| a as &mut Vec<_>);
+
+    // Create coordinator
+    let coordinator = serde_json::json!({
+        "id": parent_id,
+        "name": format!("coordinator-{}", &parent_id[3..]),
+        "task": format!("[coordinator] {}", task),
+        "status": "running",
+        "config": { "task": task, "priority": "high" },
+        "progress": { "turns_completed": 0, "turns_limit": 25, "files_modified": [], "last_message": null, "tool_calls": 0, "tokens_used": 0, "percent_complete": 0 },
+        "branch": null,
+        "worktree_path": null,
+        "result_summary": null,
+        "error": null,
+        "created_at": now,
+        "started_at": now,
+        "finished_at": null,
+        "parent_id": null,
+        "child_ids": [],
+        "inbox": []
+    });
+
+    let mut child_ids = vec![];
+    let mut children = vec![];
+    for (i, st) in subtasks.iter().enumerate() {
+        let child_id = format!("sa_{:08x}", (now as u64 + i as u64 + 1) & 0xFFFF_FFFF);
+        let desc = st.get("description").and_then(|v| v.as_str()).unwrap_or("subtask");
+        let pri = st.get("priority").and_then(|v| v.as_str()).unwrap_or("normal");
+        child_ids.push(serde_json::json!(child_id));
+        children.push(serde_json::json!({
+            "id": child_id,
+            "name": format!("subtask-{}", i),
+            "task": desc,
+            "status": "running",
+            "config": { "task": desc, "priority": pri, "parent_id": parent_id },
+            "progress": { "turns_completed": 0, "turns_limit": 25, "files_modified": [], "last_message": null, "tool_calls": 0, "tokens_used": 0, "percent_complete": 0 },
+            "branch": format!("spawn-{}", child_id),
+            "worktree_path": null,
+            "result_summary": null,
+            "error": null,
+            "created_at": now,
+            "started_at": now,
+            "finished_at": null,
+            "parent_id": parent_id,
+            "child_ids": [],
+            "inbox": []
+        }));
+    }
+
+    let mut coord = coordinator;
+    coord["child_ids"] = serde_json::json!(child_ids);
+
+    if let Some(arr) = arr {
+        arr.push(coord);
+        for c in children {
+            arr.push(c);
+        }
+    }
+    spawn_agent_write_json("agents.json", &agents)?;
+    Ok(serde_json::json!({ "parent_id": parent_id, "child_count": subtasks.len() }))
+}
+
+/// Aggregate results from completed subtasks.
+#[tauri::command]
+pub async fn spawn_agent_aggregate(parent_id: String) -> Result<serde_json::Value, String> {
+    let agents = spawn_agent_read_json("agents.json");
+    let arr = agents.as_array().ok_or("No agents")?;
+
+    let parent = arr.iter().find(|a| a.get("id").and_then(|v| v.as_str()) == Some(&parent_id))
+        .ok_or_else(|| format!("Agent not found: {}", parent_id))?;
+
+    let child_ids: Vec<String> = parent.get("child_ids")
+        .and_then(|v| v.as_array())
+        .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+        .unwrap_or_default();
+
+    let children: Vec<&serde_json::Value> = arr.iter()
+        .filter(|a| {
+            a.get("id").and_then(|v| v.as_str())
+                .map(|id| child_ids.contains(&id.to_string()))
+                .unwrap_or(false)
+        })
+        .collect();
+
+    let successful = children.iter().filter(|a| a.get("status").and_then(|v| v.as_str()) == Some("completed")).count();
+    let failed = children.iter().filter(|a| a.get("status").and_then(|v| v.as_str()) == Some("failed")).count();
+
+    let summaries: Vec<serde_json::Value> = children.iter().map(|a| {
+        serde_json::json!({
+            "agent_id": a.get("id").and_then(|v| v.as_str()).unwrap_or(""),
+            "agent_name": a.get("name").and_then(|v| v.as_str()).unwrap_or(""),
+            "status": a.get("status").and_then(|v| v.as_str()).unwrap_or(""),
+            "summary": a.get("result_summary"),
+            "files_modified": a.get("progress").and_then(|p| p.get("files_modified")).and_then(|v| v.as_array()).map(|a| a.len()).unwrap_or(0),
+            "turns_taken": a.get("progress").and_then(|p| p.get("turns_completed")).and_then(|v| v.as_u64()).unwrap_or(0),
+            "tokens_used": a.get("progress").and_then(|p| p.get("tokens_used")).and_then(|v| v.as_u64()).unwrap_or(0),
+            "duration_ms": 0,
+            "branch": a.get("branch"),
+        })
+    }).collect();
+
+    let total_tokens: u64 = children.iter()
+        .filter_map(|a| a.get("progress").and_then(|p| p.get("tokens_used")).and_then(|v| v.as_u64()))
+        .sum();
+
+    Ok(serde_json::json!({
+        "strategy": "best_result",
+        "total_agents": children.len(),
+        "successful_agents": successful,
+        "failed_agents": failed,
+        "best_agent_id": children.first().and_then(|a| a.get("id")),
+        "merged_branch": null,
+        "summaries": summaries,
+        "conflicts": [],
+        "total_files_modified": 0,
+        "total_tokens_used": total_tokens,
+        "total_duration_ms": 0
+    }))
+}
+
+// ── Mobile Gateway — Dispatch Commands ──────────────────────────────────────
+
+fn dispatch_json_path(name: &str) -> std::path::PathBuf {
+    let dir = dirs::data_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join("vibecody")
+        .join("dispatch");
+    let _ = std::fs::create_dir_all(&dir);
+    dir.join(name)
+}
+
+fn dispatch_read_json(name: &str) -> serde_json::Value {
+    let path = dispatch_json_path(name);
+    std::fs::read_to_string(&path)
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or(serde_json::json!([]))
+}
+
+fn dispatch_write_json(name: &str, data: &serde_json::Value) {
+    let path = dispatch_json_path(name);
+    if let Ok(json) = serde_json::to_string_pretty(data) {
+        let _ = std::fs::write(path, json);
+    }
+}
+
+#[tauri::command]
+pub async fn dispatch_list_machines() -> Result<serde_json::Value, String> {
+    Ok(dispatch_read_json("machines.json"))
+}
+
+#[tauri::command]
+pub async fn dispatch_register_machine(registration: serde_json::Value) -> Result<serde_json::Value, String> {
+    let mut machines = dispatch_read_json("machines.json");
+    let arr = machines.as_array_mut().map(|a| a as &mut Vec<_>);
+    let id = format!("mach_{:08x}", chrono::Utc::now().timestamp_millis() as u64 & 0xFFFF_FFFF);
+    let name = registration.get("name").and_then(|v| v.as_str()).unwrap_or("Unknown Machine").to_string();
+    let hostname = registration.get("hostname").and_then(|v| v.as_str()).unwrap_or("localhost").to_string();
+    let port = registration.get("port").and_then(|v| v.as_u64()).unwrap_or(7878);
+    let workspace = registration.get("workspace_root").and_then(|v| v.as_str()).unwrap_or("/").to_string();
+    let now = chrono::Utc::now().to_rfc3339();
+
+    let entry = serde_json::json!({
+        "machine_id": id,
+        "name": name,
+        "hostname": hostname,
+        "port": port,
+        "workspace_root": workspace,
+        "status": "online",
+        "registered_at": now,
+        "last_heartbeat": now,
+        "tags": registration.get("tags").cloned().unwrap_or(serde_json::json!([])),
+    });
+
+    if let Some(arr) = arr { arr.push(entry.clone()); }
+    dispatch_write_json("machines.json", &machines);
+    Ok(serde_json::json!({ "machine_id": id, "status": "registered" }))
+}
+
+#[tauri::command]
+pub async fn dispatch_unregister_machine(machine_id: String) -> Result<serde_json::Value, String> {
+    let mut machines = dispatch_read_json("machines.json");
+    if let Some(arr) = machines.as_array_mut() {
+        arr.retain(|m| m.get("machine_id").and_then(|v| v.as_str()) != Some(&machine_id));
+    }
+    dispatch_write_json("machines.json", &machines);
+    Ok(serde_json::json!({ "status": "unregistered" }))
+}
+
+#[tauri::command]
+pub async fn dispatch_create_pairing(machine_id: String, method: String) -> Result<serde_json::Value, String> {
+    let pin = format!("{:06}", chrono::Utc::now().timestamp_millis() % 1_000_000);
+    let id = format!("pair_{:08x}", chrono::Utc::now().timestamp_millis() as u64 & 0xFFFF_FFFF);
+    let qr_data = format!("vibecody://pair?machine={}&method={}&pin={}", machine_id, method, pin);
+    let now = chrono::Utc::now().to_rfc3339();
+
+    let mut pairings = dispatch_read_json("pairings.json");
+    if let Some(arr) = pairings.as_array_mut() {
+        arr.push(serde_json::json!({
+            "id": id, "machine_id": machine_id, "method": method,
+            "pin": pin, "qr_data": qr_data, "status": "pending", "created_at": now,
+        }));
+    }
+    dispatch_write_json("pairings.json", &pairings);
+    Ok(serde_json::json!({ "pairing_id": id, "pin": pin, "qr_data": qr_data }))
+}
+
+#[tauri::command]
+pub async fn dispatch_accept_pairing(pairing_id: String, device_info: serde_json::Value) -> Result<serde_json::Value, String> {
+    let mut pairings = dispatch_read_json("pairings.json");
+    if let Some(arr) = pairings.as_array_mut() {
+        if let Some(p) = arr.iter_mut().find(|p| p.get("id").and_then(|v| v.as_str()) == Some(&pairing_id)) {
+            *p.get_mut("status").unwrap_or(&mut serde_json::Value::Null) = serde_json::json!("accepted");
+        }
+    }
+    dispatch_write_json("pairings.json", &pairings);
+
+    // Register device.
+    let mut devices = dispatch_read_json("devices.json");
+    if let Some(arr) = devices.as_array_mut() {
+        arr.push(device_info);
+    }
+    dispatch_write_json("devices.json", &devices);
+    Ok(serde_json::json!({ "status": "paired" }))
+}
+
+#[tauri::command]
+pub async fn dispatch_list_devices() -> Result<serde_json::Value, String> {
+    Ok(dispatch_read_json("devices.json"))
+}
+
+#[tauri::command]
+pub async fn dispatch_send(device_id: String, machine_id: String, dispatch_type: String, payload: String) -> Result<serde_json::Value, String> {
+    let id = format!("dsp_{:08x}", chrono::Utc::now().timestamp_millis() as u64 & 0xFFFF_FFFF);
+    let now = chrono::Utc::now().to_rfc3339();
+
+    let task = serde_json::json!({
+        "task_id": id,
+        "machine_id": machine_id,
+        "device_id": device_id,
+        "dispatch_type": dispatch_type,
+        "payload": payload,
+        "status": "queued",
+        "created_at": now,
+    });
+
+    let mut dispatches = dispatch_read_json("dispatches.json");
+    if let Some(arr) = dispatches.as_array_mut() {
+        arr.push(task);
+    }
+    dispatch_write_json("dispatches.json", &dispatches);
+    Ok(serde_json::json!({ "task_id": id, "status": "queued" }))
+}
+
+#[tauri::command]
+pub async fn dispatch_cancel(task_id: String) -> Result<serde_json::Value, String> {
+    let mut dispatches = dispatch_read_json("dispatches.json");
+    if let Some(arr) = dispatches.as_array_mut() {
+        if let Some(d) = arr.iter_mut().find(|d| d.get("task_id").and_then(|v| v.as_str()) == Some(&task_id)) {
+            *d.get_mut("status").unwrap_or(&mut serde_json::Value::Null) = serde_json::json!("cancelled");
+        }
+    }
+    dispatch_write_json("dispatches.json", &dispatches);
+    Ok(serde_json::json!({ "status": "cancelled" }))
+}
+
+#[tauri::command]
+pub async fn dispatch_stats() -> Result<serde_json::Value, String> {
+    let machines = dispatch_read_json("machines.json");
+    let devices = dispatch_read_json("devices.json");
+    let dispatches = dispatch_read_json("dispatches.json");
+
+    let total_machines = machines.as_array().map(|a| a.len()).unwrap_or(0);
+    let online = machines.as_array().map(|a| a.iter().filter(|m| m.get("status").and_then(|v| v.as_str()) == Some("online")).count()).unwrap_or(0);
+    let total_devices = devices.as_array().map(|a| a.len()).unwrap_or(0);
+    let total_dispatches = dispatches.as_array().map(|a| a.len()).unwrap_or(0);
+    let active = dispatches.as_array().map(|a| a.iter().filter(|d| {
+        let s = d.get("status").and_then(|v| v.as_str()).unwrap_or("");
+        s == "queued" || s == "running" || s == "sent"
+    }).count()).unwrap_or(0);
+    let completed = dispatches.as_array().map(|a| a.iter().filter(|d| d.get("status").and_then(|v| v.as_str()) == Some("completed")).count()).unwrap_or(0);
+
+    Ok(serde_json::json!({
+        "total_machines": total_machines,
+        "online_machines": online,
+        "total_devices": total_devices,
+        "total_dispatches": total_dispatches,
+        "active_dispatches": active,
+        "completed_dispatches": completed,
+    }))
+}
+
+#[tauri::command]
+pub async fn dispatch_heartbeat(machine_id: String) -> Result<serde_json::Value, String> {
+    let mut machines = dispatch_read_json("machines.json");
+    if let Some(arr) = machines.as_array_mut() {
+        if let Some(m) = arr.iter_mut().find(|m| m.get("machine_id").and_then(|v| v.as_str()) == Some(&machine_id)) {
+            let now = chrono::Utc::now().to_rfc3339();
+            *m.get_mut("last_heartbeat").unwrap_or(&mut serde_json::Value::Null) = serde_json::json!(now);
+            *m.get_mut("status").unwrap_or(&mut serde_json::Value::Null) = serde_json::json!("online");
+        }
+    }
+    dispatch_write_json("machines.json", &machines);
+    Ok(serde_json::json!({ "status": "ok" }))
 }

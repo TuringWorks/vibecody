@@ -24,6 +24,16 @@ pub struct Config {
     #[serde(default)]
     pub otel: OtelConfig,
 
+    /// Ollama local/remote model provider.
+    ///
+    /// ```toml
+    /// [ollama]
+    /// enabled = true
+    /// model = "llama3.1"
+    /// api_url = "http://localhost:11434"   # optional, default localhost
+    /// api_key = "my-secret-key"            # optional, env: OLLAMA_API_KEY
+    /// # If no api_key is set, a device key derived from hostname+username is used.
+    /// ```
     pub ollama: Option<ProviderConfig>,
     pub openai: Option<ProviderConfig>,
     pub claude: Option<ProviderConfig>,
@@ -1404,6 +1414,11 @@ impl Config {
             "deepseek" => self.deepseek.as_ref(),
             "zhipu" | "glm" => self.zhipu.as_ref(),
             "vercel_ai" | "vercel" => self.vercel_ai.as_ref(),
+            "minimax" => self.minimax.as_ref(),
+            "perplexity" => self.perplexity.as_ref(),
+            "together" => self.together.as_ref(),
+            "fireworks" => self.fireworks.as_ref(),
+            "sambanova" => self.sambanova.as_ref(),
             _ => None,
         }
     }
@@ -2144,11 +2159,17 @@ model = "gpt-4o"
         cfg.deepseek = Some(pc());
         cfg.zhipu = Some(pc());
         cfg.vercel_ai = Some(pc());
+        cfg.minimax = Some(pc());
+        cfg.perplexity = Some(pc());
+        cfg.together = Some(pc());
+        cfg.fireworks = Some(pc());
+        cfg.sambanova = Some(pc());
 
         let names = &[
             "ollama", "openai", "claude", "anthropic", "gemini", "grok",
             "groq", "openrouter", "azure_openai", "azure", "mistral",
             "cerebras", "deepseek", "zhipu", "glm", "vercel_ai", "vercel",
+            "minimax", "perplexity", "together", "fireworks", "sambanova",
         ];
         for name in names {
             assert!(

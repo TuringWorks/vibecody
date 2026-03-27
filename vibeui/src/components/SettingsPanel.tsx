@@ -61,7 +61,21 @@ interface ApiKeySettings {
   openai_api_key: string;
   gemini_api_key: string;
   grok_api_key: string;
+  groq_api_key: string;
   openrouter_api_key: string;
+  azure_openai_api_key: string;
+  azure_openai_api_url: string;
+  mistral_api_key: string;
+  cerebras_api_key: string;
+  deepseek_api_key: string;
+  zhipu_api_key: string;
+  vercel_ai_api_key: string;
+  vercel_ai_api_url: string;
+  minimax_api_key: string;
+  perplexity_api_key: string;
+  together_api_key: string;
+  fireworks_api_key: string;
+  sambanova_api_key: string;
   ollama_api_key: string;
   ollama_api_url: string;
   claude_model: string;
@@ -2413,7 +2427,11 @@ interface ApiKeyValidation {
 
 function ApiKeysSection() {
   const [settings, setSettings] = useState<ApiKeySettings>({
-    anthropic_api_key: "", openai_api_key: "", gemini_api_key: "", grok_api_key: "", openrouter_api_key: "",
+    anthropic_api_key: "", openai_api_key: "", gemini_api_key: "", grok_api_key: "", groq_api_key: "",
+    openrouter_api_key: "", azure_openai_api_key: "", azure_openai_api_url: "",
+    mistral_api_key: "", cerebras_api_key: "", deepseek_api_key: "", zhipu_api_key: "",
+    vercel_ai_api_key: "", vercel_ai_api_url: "", minimax_api_key: "", perplexity_api_key: "",
+    together_api_key: "", fireworks_api_key: "", sambanova_api_key: "",
     ollama_api_key: "", ollama_api_url: "",
     claude_model: "claude-3-5-sonnet-latest", openai_model: "gpt-4o", openrouter_model: "",
   });
@@ -2432,21 +2450,24 @@ function ApiKeysSection() {
     return () => { cancelled = true; };
   }, []);
 
-  // Periodic validation every 60s
+  // Listen for app-level validation events from useApiKeyMonitor (runs in App.tsx)
   useEffect(() => {
-    const runValidation = () => {
-      invoke<ApiKeyValidation[]>("validate_all_api_keys")
-        .then(results => {
-          const map: Record<string, ApiKeyValidation> = {};
-          results.forEach(r => { map[r.provider] = r; });
-          setValidations(map);
-        })
-        .catch(() => {});
+    const onValidations = (e: Event) => {
+      const map = (e as CustomEvent<Record<string, ApiKeyValidation>>).detail;
+      setValidations(map);
     };
-    // Initial validation after 2s (let keys load first)
-    const initial = setTimeout(runValidation, 2000);
-    const interval = setInterval(runValidation, 60000);
-    return () => { clearTimeout(initial); clearInterval(interval); };
+    window.addEventListener("vibeui:api-key-validations", onValidations);
+
+    // Also trigger an initial validation via Tauri for immediate feedback when panel opens
+    invoke<ApiKeyValidation[]>("validate_all_api_keys")
+      .then(results => {
+        const map: Record<string, ApiKeyValidation> = {};
+        results.forEach(r => { map[r.provider] = r; });
+        setValidations(map);
+      })
+      .catch(() => {});
+
+    return () => window.removeEventListener("vibeui:api-key-validations", onValidations);
   }, []);
 
   const validateSingle = async (provider: string, key: string, url?: string) => {
@@ -2512,7 +2533,7 @@ function ApiKeysSection() {
           </button>
           {provider && settings[fieldKey] && (
             <button
-              onClick={() => validateSingle(provider, settings[fieldKey], provider === "ollama" ? settings.ollama_api_url : undefined)}
+              onClick={() => validateSingle(provider, settings[fieldKey], provider === "ollama" ? settings.ollama_api_url : provider === "azure_openai" ? settings.azure_openai_api_url : provider === "vercel_ai" ? settings.vercel_ai_api_url : undefined)}
               disabled={isValidating}
               style={{ ...btnStyle, padding: "4px 8px", display: "flex", alignItems: "center", gap: 4, fontSize: 11, opacity: isValidating ? 0.5 : 1 }}
             >
@@ -2571,6 +2592,14 @@ function ApiKeysSection() {
       </div>
 
       <div style={{ marginBottom: 20 }}>
+        {renderSectionHeader("Groq")}
+        {renderSecretField("API Key", "groq_api_key", "gsk_...", "groq")}
+        <p style={modelsHintStyle}>
+          Models: Llama 3.3 70B, Llama 3.1 8B, Mixtral 8x7B, Gemma 2 9B
+        </p>
+      </div>
+
+      <div style={{ marginBottom: 20 }}>
         {renderSectionHeader("OpenRouter")}
         {renderSecretField("API Key", "openrouter_api_key", "sk-or-v1-...", "openrouter")}
         <div style={{ marginBottom: 12 }}>
@@ -2579,6 +2608,102 @@ function ApiKeysSection() {
         </div>
         <p style={modelsHintStyle}>
           Routes to 200+ models. Enter a model ID or browse at openrouter.ai/models
+        </p>
+      </div>
+
+      <div style={{ marginBottom: 20 }}>
+        {renderSectionHeader("Azure OpenAI")}
+        {renderSecretField("API Key", "azure_openai_api_key", "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "azure_openai")}
+        <div style={{ marginBottom: 12 }}>
+          <label style={labelStyle}>Endpoint URL</label>
+          <input style={fieldStyle} value={settings.azure_openai_api_url} onChange={e => setSettings({ ...settings, azure_openai_api_url: e.target.value })} placeholder="https://your-resource.openai.azure.com" />
+        </div>
+        <p style={modelsHintStyle}>
+          Models: GPT-4o, GPT-4 Turbo, GPT-3.5 Turbo (via your Azure deployment)
+        </p>
+      </div>
+
+      <div style={{ marginBottom: 20 }}>
+        {renderSectionHeader("Mistral AI")}
+        {renderSecretField("API Key", "mistral_api_key", "...", "mistral")}
+        <p style={modelsHintStyle}>
+          Models: Mistral Large, Mistral Medium, Mistral Small, Codestral, Mistral Nemo
+        </p>
+      </div>
+
+      <div style={{ marginBottom: 20 }}>
+        {renderSectionHeader("Cerebras")}
+        {renderSecretField("API Key", "cerebras_api_key", "csk-...", "cerebras")}
+        <p style={modelsHintStyle}>
+          Models: Llama 3.3 70B, Llama 3.1 8B (ultra-fast inference)
+        </p>
+      </div>
+
+      <div style={{ marginBottom: 20 }}>
+        {renderSectionHeader("DeepSeek")}
+        {renderSecretField("API Key", "deepseek_api_key", "sk-...", "deepseek")}
+        <p style={modelsHintStyle}>
+          Models: DeepSeek-V3, DeepSeek-Coder, DeepSeek-R1
+        </p>
+      </div>
+
+      <div style={{ marginBottom: 20 }}>
+        {renderSectionHeader("Zhipu (GLM)")}
+        {renderSecretField("API Key", "zhipu_api_key", "id.secret", "zhipu")}
+        <p style={modelsHintStyle}>
+          Models: GLM-4, GLM-4V, GLM-3 Turbo (format: &quot;id.secret&quot;)
+        </p>
+      </div>
+
+      <div style={{ marginBottom: 20 }}>
+        {renderSectionHeader("Vercel AI Gateway")}
+        {renderSecretField("API Key", "vercel_ai_api_key", "...", "vercel_ai")}
+        <div style={{ marginBottom: 12 }}>
+          <label style={labelStyle}>Gateway URL</label>
+          <input style={fieldStyle} value={settings.vercel_ai_api_url} onChange={e => setSettings({ ...settings, vercel_ai_api_url: e.target.value })} placeholder="https://gateway.vercel.ai/v1" />
+        </div>
+        <p style={modelsHintStyle}>
+          Unified proxy to multiple providers. Requires API key and gateway URL.
+        </p>
+      </div>
+
+      <div style={{ marginBottom: 20 }}>
+        {renderSectionHeader("MiniMax")}
+        {renderSecretField("API Key", "minimax_api_key", "...", "minimax")}
+        <p style={modelsHintStyle}>
+          Models: abab6.5, abab6, abab5.5
+        </p>
+      </div>
+
+      <div style={{ marginBottom: 20 }}>
+        {renderSectionHeader("Perplexity")}
+        {renderSecretField("API Key", "perplexity_api_key", "pplx-...", "perplexity")}
+        <p style={modelsHintStyle}>
+          Models: Sonar Pro, Sonar, Sonar Deep Research (search-augmented AI)
+        </p>
+      </div>
+
+      <div style={{ marginBottom: 20 }}>
+        {renderSectionHeader("Together AI")}
+        {renderSecretField("API Key", "together_api_key", "...", "together")}
+        <p style={modelsHintStyle}>
+          Models: Llama 3.3 70B, Mixtral 8x22B, Qwen 2.5, CodeLlama (open model hosting)
+        </p>
+      </div>
+
+      <div style={{ marginBottom: 20 }}>
+        {renderSectionHeader("Fireworks AI")}
+        {renderSecretField("API Key", "fireworks_api_key", "fw_...", "fireworks")}
+        <p style={modelsHintStyle}>
+          Models: Llama 3.3 70B, Mixtral MoE, FireFunction v2 (fast inference)
+        </p>
+      </div>
+
+      <div style={{ marginBottom: 20 }}>
+        {renderSectionHeader("SambaNova")}
+        {renderSecretField("API Key", "sambanova_api_key", "...", "sambanova")}
+        <p style={modelsHintStyle}>
+          Models: Llama 3.3 70B, Llama 3.1 405B (fast inference on custom silicon)
         </p>
       </div>
 

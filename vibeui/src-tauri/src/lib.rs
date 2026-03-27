@@ -966,6 +966,26 @@ pub fn run() {
             commands::vulnscan_scan_deps,
             commands::vulnscan_scan_file,
             commands::vulnscan_status,
+            // SpawnAgent — Parallel Agent Spawning & Lifecycle Management
+            commands::spawn_agent_new,
+            commands::spawn_agent_list,
+            commands::spawn_agent_stats,
+            commands::spawn_agent_pause,
+            commands::spawn_agent_resume,
+            commands::spawn_agent_cancel,
+            commands::spawn_agent_decompose,
+            commands::spawn_agent_aggregate,
+            // Mobile Gateway — machine registration, pairing, dispatch
+            commands::dispatch_list_machines,
+            commands::dispatch_register_machine,
+            commands::dispatch_unregister_machine,
+            commands::dispatch_create_pairing,
+            commands::dispatch_accept_pairing,
+            commands::dispatch_list_devices,
+            commands::dispatch_send,
+            commands::dispatch_cancel,
+            commands::dispatch_stats,
+            commands::dispatch_heartbeat,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
