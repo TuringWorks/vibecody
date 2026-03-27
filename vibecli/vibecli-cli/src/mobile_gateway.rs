@@ -1244,7 +1244,7 @@ mod tests {
     fn pair_test_device(gw: &mut MobileGateway, machine_id: &str) -> (String, String) {
         let pairing = gw.create_pairing(machine_id, PairingMethod::Pin).unwrap();
         let pairing_id = pairing.id.clone();
-        let pin = pairing.pin.clone().unwrap();
+        let _pin = pairing.pin.clone().unwrap();
         let device_id = "device-001".to_string();
         gw.accept_pairing(&pairing_id, &device_id, "iPhone 16", PushPlatform::APNs, Some("apns-token-xyz".to_string()), "1.0.0", "18.0").unwrap();
         (device_id, pairing_id)
@@ -1359,7 +1359,7 @@ mod tests {
     fn test_list_available_machines() {
         let mut gw = make_gateway();
         let mid1 = register_test_machine(&mut gw);
-        let mid2 = register_test_machine(&mut gw);
+        let _mid2 = register_test_machine(&mut gw);
         gw.machines.get_mut(&mid1).unwrap().status = MachineStatus::Offline;
         assert_eq!(gw.list_available_machines().len(), 1);
     }
