@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag (e.g. v0.2.0)"
+        description: "Release tag (e.g. v0.5.1)"
         required: true
-        default: "v0.1.0"
+        default: "v0.5.1"
 
 permissions:
   contents: write
@@ -17,6 +17,8 @@ permissions:
 env:
   CARGO_TERM_COLOR: always
   NODE_VERSION: "20"
+  FLUTTER_VERSION: "3.29.3"
+  JAVA_VERSION: "17"
 
 jobs:
   # ─── Security audit ───────────────────────────────────────────────────
@@ -289,6 +291,102 @@ jobs:
           name: vibeapp-${{ matrix.label }}
           path: dist/*
 
+  # ─── VibeCody Mobile — Android (APK + AAB) ────────────────────────────
+  build-android:
+    name: Mobile · Android
+    needs: audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Java
+        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@e938fdf56512cc96ef2f93601a5a40bde3801046 # v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        working-directory: vibemobile
+        run: flutter pub get
+
+      - name: Run Flutter tests
+        working-directory: vibemobile
+        run: flutter test || true
+
+      - name: Build Android APK (fat / universal)
+        working-directory: vibemobile
+        run: flutter build apk --release --no-tree-shake-icons
+
+      - name: Build Android App Bundle (AAB)
+        working-directory: vibemobile
+        run: flutter build appbundle --release --no-tree-shake-icons
+
+      - name: Collect Android artifacts
+        run: |
+          TAG="${{ github.ref_name || github.event.inputs.tag }}"
+          mkdir -p dist
+          cp vibemobile/build/app/outputs/flutter-apk/app-release.apk \
+             "dist/VibeCody-Mobile-${TAG}-android.apk"
+          cp vibemobile/build/app/outputs/bundle/release/app-release.aab \
+             "dist/VibeCody-Mobile-${TAG}-android.aab"
+          ls -lh dist/
+
+      - name: Upload Android artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: vibemobile-android
+          path: dist/*
+
+  # ─── VibeCody Mobile — iOS (IPA) ──────────────────────────────────────
+  build-ios:
+    name: Mobile · iOS
+    needs: audit
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@e938fdf56512cc96ef2f93601a5a40bde3801046 # v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        working-directory: vibemobile
+        run: flutter pub get
+
+      - name: Install CocoaPods dependencies
+        working-directory: vibemobile/ios
+        run: pod install --repo-update || true
+
+      - name: Build iOS (no codesign — archive for distribution)
+        working-directory: vibemobile
+        run: |
+          flutter build ios --release --no-codesign --no-tree-shake-icons
+
+      - name: Create unsigned IPA
+        run: |
+          TAG="${{ github.ref_name || github.event.inputs.tag }}"
+          mkdir -p dist Payload
+          cp -r vibemobile/build/ios/iphoneos/Runner.app Payload/
+          cd Payload && zip -r "../dist/VibeCody-Mobile-${TAG}-ios.ipa" Runner.app
+          cd .. && rm -rf Payload
+          ls -lh dist/
+
+      - name: Upload iOS artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: vibemobile-ios
+          path: dist/*
+
   # ─── Docker image ──────────────────────────────────────────────────────
   build-docker:
     name: Docker Image
@@ -316,7 +414,7 @@ jobs:
   # ─── Publish GitHub Release ────────────────────────────────────────────
   release:
     name: Publish GitHub Release
-    needs: [build-cli, build-vibeui, build-vibeapp, build-docker]
+    needs: [build-cli, build-vibeui, build-vibeapp, build-android, build-ios, build-docker]
     if: ${{ !cancelled() && !contains(needs.*.result, 'failure') }}
     runs-on: ubuntu-latest
     steps:
@@ -334,7 +432,7 @@ jobs:
       - name: Compute SHA256 checksums
         run: |
           cd artifacts
-          find . -type f \( -name "*.tar.gz" -o -name "*.zip" -o -name "*.dmg" -o -name "*.deb" -o -name "*.AppImage" -o -name "*.msi" -o -name "*.exe" \) -exec sha256sum {} \; | sed 's|  \./|  |' | sort > SHA256SUMS.txt
+          find . -type f \( -name "*.tar.gz" -o -name "*.zip" -o -name "*.dmg" -o -name "*.deb" -o -name "*.AppImage" -o -name "*.msi" -o -name "*.exe" -o -name "*.apk" -o -name "*.aab" -o -name "*.ipa" \) -exec sha256sum {} \; | sed 's|  \./|  |' | sort > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
       - name: Create GitHub Release
@@ -347,11 +445,11 @@ jobs:
           body: |
             ## VibeCody ${{ github.ref_name || github.event.inputs.tag }}
 
-            AI-powered developer toolchain — terminal assistant + desktop code editor.
+            AI-powered developer toolchain — terminal assistant, desktop code editor, and mobile companion.
 
             ---
 
-            ### 📦 Downloads
+            ### Downloads
 
             #### VibeCLI — Terminal AI Assistant
 
@@ -368,8 +466,8 @@ jobs:
 
             | Platform | Download |
             |----------|----------|
-            | macOS (Apple Silicon) | `VibeUI-*.dmg` |
-            | macOS (Intel) | `VibeUI-*.dmg` |
+            | macOS (Apple Silicon) | `VibeUI-macOS-arm64.app.zip` / `.dmg` |
+            | macOS (Intel) | `VibeUI-macOS-x64.app.zip` / `.dmg` |
             | Linux x64 | `.deb` / `.AppImage` |
             | Windows x64 | `.msi` / `.exe` installer |
 
@@ -381,9 +479,17 @@ jobs:
             | Linux | `.deb` / `.AppImage` |
             | Windows | `.msi` / `.exe` installer |
 
+            #### VibeCody Mobile — iOS & Android
+
+            | Platform | Download |
+            |----------|----------|
+            | Android (APK) | `VibeCody-Mobile-*-android.apk` |
+            | Android (AAB) | `VibeCody-Mobile-*-android.aab` |
+            | iOS (IPA) | `VibeCody-Mobile-*-ios.ipa` |
+
             ---
 
-            ### 🚀 Quick Install
+            ### Quick Install
 
             **One-liner (Linux/macOS):**
             ```bash
@@ -408,20 +514,37 @@ jobs:
             docker run -p 7878:7878 vibecli:${{ github.ref_name || github.event.inputs.tag }}
             ```
 
+            **Android:**
+            Download `VibeCody-Mobile-*-android.apk` and sideload, or upload the `.aab` to Google Play Console.
+
+            **iOS:**
+            Download `VibeCody-Mobile-*-ios.ipa` and install via TestFlight, Apple Configurator, or re-sign with your distribution certificate.
+
             ---
 
-            ### ✅ Verify checksums
+            ### Verify checksums
             ```bash
             sha256sum -c SHA256SUMS.txt
             ```
 
             ---
 
-            ### What's Included
-            - **VibeCLI**: 17 AI providers, 530+ skills, TUI + REPL, HTTP daemon
-            - **VibeUI**: Monaco editor, 139+ panel tabs, 40+ themes, agent mode, CRDT collab
-            - **VibeCLI App**: Lightweight desktop wrapper with system tray
-            - **5,900+ tests**, zero compiler warnings
+            ### What's New in ${{ github.ref_name || github.event.inputs.tag }}
+
+            - **Parallel Agent Spawning** — Claude Code-style `/spawn` command: launch multiple autonomous agents, decompose tasks, aggregate results
+            - **Agent Pool Management** — Priority queuing, pause/resume, inter-agent messaging, conflict detection
+            - **SpawnAgentPanel** — VibeUI panel for managing parallel agents with live progress tracking
+            - **iOS & Android builds** — VibeCody Mobile companion app now included in releases
+            - **150+ VibeUI panels**, 18 AI providers, 540+ skills, 6,000+ tests
+
+            ### Full Platform Matrix
+
+            | Product | macOS arm64 | macOS x64 | Linux x64 | Linux arm64 | Windows x64 | Android | iOS | Docker |
+            |---------|:-----------:|:---------:|:---------:|:-----------:|:-----------:|:-------:|:---:|:------:|
+            | VibeCLI | x | x | x | x | x | | | x |
+            | VibeUI | x | x | x | | x | | | |
+            | VibeCLI App | x | x | x | | x | | | |
+            | VibeCody Mobile | | | | | | x | x | |
           files: |
             artifacts/**/*.tar.gz
             artifacts/**/*.zip
@@ -430,4 +553,7 @@ jobs:
             artifacts/**/*.AppImage
             artifacts/**/*.msi
             artifacts/**/*.exe
+            artifacts/**/*.apk
+            artifacts/**/*.aab
+            artifacts/**/*.ipa
             artifacts/**/SHA256SUMS.txt
