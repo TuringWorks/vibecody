@@ -104,6 +104,7 @@ pub static COMMANDS: &[&str] = &[
     "/agentic",
     "/openmemory",
     "/vulnscan",
+    "/dispatch",
     "/wizard",
     "/resources",
 ];
@@ -208,6 +209,9 @@ static OPENMEMORY_SUBS: &[&str] = &["add", "query", "list", "delete", "pin", "un
 
 /// Sub-commands for `/vulnscan <sub>`
 static VULNSCAN_SUBS: &[&str] = &["scan", "deps", "file", "lockfile", "sarif", "report", "summary", "db-update", "db-status", "cache-clear"];
+
+/// Sub-commands for `/dispatch <sub>`
+static DISPATCH_SUBS: &[&str] = &["register", "unregister", "machines", "pair", "unpair", "devices", "send", "cancel", "status", "stats", "heartbeat"];
 
 /// Sub-commands for `/resources <sub>`
 static RESOURCES_SUBS: &[&str] = &["status", "export", "verify", "path"];
@@ -332,6 +336,7 @@ fn command_hint(cmd: &str) -> Option<&'static str> {
         "/idp" => Some("[status|catalog|register|golden|scorecard|infra|team|onboard|backstage|platforms|report]  — internal developer platform"),
         "/quantum" => Some("[languages|os|hardware|algorithms|circuits|projects|create|export|compat|status]  — quantum computing"),
         "/autoresearch" => Some("[new|start|stop|pause|status|list|analyze|export|suggest|lessons|config]  — autonomous iterative research agent"),
+        "/dispatch" => Some("[register|unregister|machines|pair|unpair|devices|send|cancel|status|stats|heartbeat]  — mobile gateway & dispatch"),
         _ => None,
     }
 }
@@ -438,6 +443,7 @@ fn complete_slash(line: &str) -> Option<(usize, Vec<Pair>)> {
                 "/idp" => Some(IDP_SUBS),
                 "/quantum" => Some(QUANTUM_SUBS),
                 "/autoresearch" => Some(AUTORESEARCH_SUBS),
+                "/dispatch" => Some(DISPATCH_SUBS),
                 _ => None,
             };
 

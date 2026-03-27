@@ -1310,6 +1310,27 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/v1/browse/:id", get(v1_get_browse))
         .route("/v1/browse/:id/screenshots", get(v1_browse_screenshots))
         .route("/v1/browse/:id/intervene", post(v1_browse_intervene))
+        // Mobile Gateway — machine registration & dispatch (iOS/Android remote management)
+        .route("/mobile/machines", get(mobile_list_machines))
+        .route("/mobile/machines", post(mobile_register_machine))
+        .route("/mobile/machines/:id", get(mobile_get_machine))
+        .route("/mobile/machines/:id", axum::routing::delete(mobile_unregister_machine))
+        .route("/mobile/machines/:id/heartbeat", post(mobile_heartbeat))
+        .route("/mobile/pairing", post(mobile_create_pairing))
+        .route("/mobile/pairing/:id/accept", post(mobile_accept_pairing))
+        .route("/mobile/pairing/:id/verify", post(mobile_verify_pin))
+        .route("/mobile/pairing/:id/reject", post(mobile_reject_pairing))
+        .route("/mobile/devices", get(mobile_list_devices))
+        .route("/mobile/devices/:id/push-token", post(mobile_update_push_token))
+        .route("/mobile/devices/:device_id/machines/:machine_id/unpair", post(mobile_unpair))
+        .route("/mobile/dispatch", post(mobile_dispatch))
+        .route("/mobile/dispatch/:id", get(mobile_get_dispatch))
+        .route("/mobile/dispatch/:id/cancel", post(mobile_cancel_dispatch))
+        .route("/mobile/dispatch/:id/update", post(mobile_update_dispatch))
+        .route("/mobile/dispatches/machine/:id", get(mobile_machine_dispatches))
+        .route("/mobile/dispatches/device/:id", get(mobile_device_dispatches))
+        .route("/mobile/notifications/:device_id", get(mobile_notifications))
+        .route("/mobile/stats", get(mobile_stats))
         .route_layer(middleware::from_fn_with_state(limiter, rate_limit))
         .route_layer(middleware::from_fn_with_state(state.clone(), require_auth));
 
@@ -2038,6 +2059,503 @@ async fn vulnscan_summary(_state: State<ServeState>) -> Json<serde_json::Value> 
         "snapshot_age_hours": snapshot.age_hours(),
         "lockfile_formats": ["package-lock.json", "yarn.lock", "Cargo.lock", "requirements.txt", "poetry.lock", "go.sum", "Gemfile.lock"],
         "ecosystems": ["npm", "PyPI", "crates.io", "Go", "Maven", "RubyGems", "NuGet", "Packagist"],
+    }))
+}
+
+// ── Mobile Gateway Handlers ──────────────────────────────────────────────────
+
+use std::sync::{Mutex as StdMutex, OnceLock};
+
+fn mobile_gateway() -> &'static StdMutex<crate::mobile_gateway::MobileGateway> {
+    static INSTANCE: OnceLock<StdMutex<crate::mobile_gateway::MobileGateway>> = OnceLock::new();
+    INSTANCE.get_or_init(|| StdMutex::new(crate::mobile_gateway::MobileGateway::new()))
+}
+
+// -- Request/Response types --
+
+#[derive(Deserialize)]
+struct MobileRegisterRequest {
+    name: String,
+    hostname: String,
+    port: u16,
+    workspace_root: String,
+    api_token: String,
+    #[serde(default)]
+    tags: Vec<String>,
+    #[serde(default)]
+    tailscale_ip: Option<String>,
+    #[serde(default)]
+    public_url: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct MobileHeartbeatRequest {
+    #[serde(default)]
+    cpu_usage_pct: f64,
+    #[serde(default)]
+    memory_used_gb: f64,
+    #[serde(default)]
+    memory_total_gb: f64,
+    #[serde(default)]
+    disk_used_gb: f64,
+    #[serde(default)]
+    disk_total_gb: f64,
+    #[serde(default)]
+    active_agent_sessions: usize,
+    #[serde(default)]
+    queued_tasks: usize,
+    #[serde(default)]
+    uptime_secs: u64,
+    #[serde(default)]
+    provider_name: String,
+    #[serde(default)]
+    provider_healthy: bool,
+}
+
+#[derive(Deserialize)]
+struct MobilePairingRequest {
+    machine_id: String,
+    #[serde(default = "default_pairing_method")]
+    method: String,
+}
+
+fn default_pairing_method() -> String { "qr_code".to_string() }
+
+#[derive(Deserialize)]
+struct MobileAcceptPairingRequest {
+    device_id: String,
+    device_name: String,
+    #[serde(default = "default_platform")]
+    platform: String,
+    #[serde(default)]
+    push_token: Option<String>,
+    #[serde(default = "default_version")]
+    app_version: String,
+    #[serde(default = "default_version")]
+    os_version: String,
+}
+
+fn default_platform() -> String { "apns".to_string() }
+fn default_version() -> String { "1.0.0".to_string() }
+
+#[derive(Deserialize)]
+struct MobileVerifyPinRequest {
+    pin: String,
+}
+
+#[derive(Deserialize)]
+struct MobilePushTokenRequest {
+    push_token: String,
+}
+
+#[derive(Deserialize)]
+struct MobileDispatchRequest {
+    device_id: String,
+    machine_id: String,
+    #[serde(default = "default_dispatch_type")]
+    dispatch_type: String,
+    payload: String,
+}
+
+fn default_dispatch_type() -> String { "chat".to_string() }
+
+#[derive(Deserialize)]
+struct MobileUpdateDispatchRequest {
+    status: String,
+    #[serde(default)]
+    result: Option<String>,
+    #[serde(default)]
+    error: Option<String>,
+    #[serde(default)]
+    session_id: Option<String>,
+}
+
+fn parse_pairing_method(s: &str) -> crate::mobile_gateway::PairingMethod {
+    match s {
+        "pin" => crate::mobile_gateway::PairingMethod::Pin,
+        "tailscale" => crate::mobile_gateway::PairingMethod::Tailscale,
+        "cloud_relay" => crate::mobile_gateway::PairingMethod::CloudRelay,
+        _ => crate::mobile_gateway::PairingMethod::QrCode,
+    }
+}
+
+fn parse_push_platform(s: &str) -> crate::mobile_gateway::PushPlatform {
+    match s {
+        "fcm" => crate::mobile_gateway::PushPlatform::FCM,
+        "webpush" => crate::mobile_gateway::PushPlatform::WebPush,
+        _ => crate::mobile_gateway::PushPlatform::APNs,
+    }
+}
+
+fn parse_dispatch_type(s: &str) -> crate::mobile_gateway::DispatchType {
+    match s {
+        "agent_task" => crate::mobile_gateway::DispatchType::AgentTask,
+        "command" => crate::mobile_gateway::DispatchType::Command,
+        "repl_command" => crate::mobile_gateway::DispatchType::ReplCommand,
+        "file_op" => crate::mobile_gateway::DispatchType::FileOp,
+        "git_op" => crate::mobile_gateway::DispatchType::GitOp,
+        "cancel" => crate::mobile_gateway::DispatchType::Cancel,
+        _ => crate::mobile_gateway::DispatchType::Chat,
+    }
+}
+
+fn parse_dispatch_status(s: &str) -> crate::mobile_gateway::DispatchStatus {
+    match s {
+        "sent" => crate::mobile_gateway::DispatchStatus::Sent,
+        "running" => crate::mobile_gateway::DispatchStatus::Running,
+        "completed" => crate::mobile_gateway::DispatchStatus::Completed,
+        "failed" => crate::mobile_gateway::DispatchStatus::Failed,
+        "cancelled" => crate::mobile_gateway::DispatchStatus::Cancelled,
+        "timed_out" => crate::mobile_gateway::DispatchStatus::TimedOut,
+        _ => crate::mobile_gateway::DispatchStatus::Queued,
+    }
+}
+
+// -- Handlers --
+
+async fn mobile_list_machines(
+    _state: State<ServeState>,
+) -> Json<serde_json::Value> {
+    let gw = mobile_gateway().lock().unwrap_or_else(|e| e.into_inner());
+    let summaries: Vec<serde_json::Value> = gw.machine_summaries().iter().map(|s| {
+        serde_json::json!({
+            "machine_id": s.machine_id,
+            "name": s.name,
+            "os": s.os,
+            "status": s.status,
+            "active_tasks": s.active_tasks,
+            "paired_devices": s.paired_devices,
+            "last_heartbeat": s.last_heartbeat,
+            "workspace": s.workspace,
+        })
+    }).collect();
+    Json(serde_json::json!({ "machines": summaries }))
+}
+
+async fn mobile_register_machine(
+    _state: State<ServeState>,
+    Json(req): Json<MobileRegisterRequest>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let mut gw = mobile_gateway().lock().unwrap_or_else(|e| e.into_inner());
+    let machine = gw.register_machine(&req.name, &req.hostname, req.port, &req.workspace_root, &req.api_token);
+    let mid = machine.machine_id.clone();
+
+    // Apply optional fields.
+    if !req.tags.is_empty() {
+        let _ = gw.tag_machine(&mid, req.tags);
+    }
+    if let Some(ip) = req.tailscale_ip {
+        if let Some(m) = gw.machines.get_mut(&mid) {
+            m.tailscale_ip = Some(ip);
+        }
+    }
+    if let Some(url) = req.public_url {
+        if let Some(m) = gw.machines.get_mut(&mid) {
+            m.public_url = Some(url);
+        }
+    }
+
+    (StatusCode::CREATED, Json(serde_json::json!({
+        "machine_id": mid,
+        "status": "registered",
+    })))
+}
+
+async fn mobile_get_machine(
+    Path(id): Path<String>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let gw = mobile_gateway().lock().unwrap_or_else(|e| e.into_inner());
+    match gw.get_machine(&id) {
+        Some(m) => (StatusCode::OK, Json(serde_json::json!({
+            "machine_id": m.machine_id,
+            "name": m.name,
+            "hostname": m.hostname,
+            "os": m.os.to_string(),
+            "arch": m.arch,
+            "status": m.status.to_string(),
+            "daemon_port": m.daemon_port,
+            "daemon_version": m.daemon_version,
+            "workspace_root": m.workspace_root,
+            "capabilities": m.capabilities,
+            "active_sessions": m.active_sessions,
+            "max_sessions": m.max_sessions,
+            "cpu_cores": m.cpu_cores,
+            "memory_gb": m.memory_gb,
+            "disk_free_gb": m.disk_free_gb,
+            "registered_at": m.registered_at,
+            "last_heartbeat": m.last_heartbeat,
+            "tailscale_ip": m.tailscale_ip,
+            "public_url": m.public_url,
+            "tags": m.tags,
+        }))),
+        None => json_error(StatusCode::NOT_FOUND, "Machine not found"),
+    }
+}
+
+async fn mobile_unregister_machine(
+    Path(id): Path<String>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let mut gw = mobile_gateway().lock().unwrap_or_else(|e| e.into_inner());
+    match gw.unregister_machine(&id) {
+        Ok(_) => (StatusCode::OK, Json(serde_json::json!({ "status": "unregistered" }))),
+        Err(e) => json_error(StatusCode::NOT_FOUND, e),
+    }
+}
+
+async fn mobile_heartbeat(
+    Path(id): Path<String>,
+    Json(req): Json<MobileHeartbeatRequest>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let mut gw = mobile_gateway().lock().unwrap_or_else(|e| e.into_inner());
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let metrics = crate::mobile_gateway::MachineMetrics {
+        machine_id: id.clone(),
+        timestamp: now,
+        cpu_usage_pct: req.cpu_usage_pct,
+        memory_used_gb: req.memory_used_gb,
+        memory_total_gb: req.memory_total_gb,
+        disk_used_gb: req.disk_used_gb,
+        disk_total_gb: req.disk_total_gb,
+        active_agent_sessions: req.active_agent_sessions,
+        queued_tasks: req.queued_tasks,
+        uptime_secs: req.uptime_secs,
+        provider_name: req.provider_name,
+        provider_healthy: req.provider_healthy,
+    };
+    match gw.heartbeat(&id, Some(metrics)) {
+        Ok(_) => {
+            // Also check for stale machines and timed-out dispatches.
+            gw.check_stale_machines();
+            gw.check_timeouts();
+            let pending = gw.pending_dispatches(&id).len();
+            (StatusCode::OK, Json(serde_json::json!({
+                "status": "ok",
+                "pending_dispatches": pending,
+            })))
+        }
+        Err(e) => json_error(StatusCode::NOT_FOUND, e),
+    }
+}
+
+async fn mobile_create_pairing(
+    Json(req): Json<MobilePairingRequest>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let mut gw = mobile_gateway().lock().unwrap_or_else(|e| e.into_inner());
+    let method = parse_pairing_method(&req.method);
+    match gw.create_pairing(&req.machine_id, method) {
+        Ok(p) => (StatusCode::CREATED, Json(serde_json::json!({
+            "pairing_id": p.id,
+            "pin": p.pin,
+            "qr_data": p.qr_data,
+            "expires_at": p.expires_at,
+        }))),
+        Err(e) => json_error(StatusCode::BAD_REQUEST, e),
+    }
+}
+
+async fn mobile_accept_pairing(
+    Path(id): Path<String>,
+    Json(req): Json<MobileAcceptPairingRequest>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let mut gw = mobile_gateway().lock().unwrap_or_else(|e| e.into_inner());
+    let platform = parse_push_platform(&req.platform);
+    match gw.accept_pairing(&id, &req.device_id, &req.device_name, platform, req.push_token, &req.app_version, &req.os_version) {
+        Ok(_) => (StatusCode::OK, Json(serde_json::json!({ "status": "paired" }))),
+        Err(e) => json_error(StatusCode::BAD_REQUEST, e),
+    }
+}
+
+async fn mobile_verify_pin(
+    Path(id): Path<String>,
+    Json(req): Json<MobileVerifyPinRequest>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let gw = mobile_gateway().lock().unwrap_or_else(|e| e.into_inner());
+    match gw.verify_pin(&id, &req.pin) {
+        Ok(valid) => (StatusCode::OK, Json(serde_json::json!({ "valid": valid }))),
+        Err(e) => json_error(StatusCode::BAD_REQUEST, e),
+    }
+}
+
+async fn mobile_reject_pairing(
+    Path(id): Path<String>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let mut gw = mobile_gateway().lock().unwrap_or_else(|e| e.into_inner());
+    match gw.reject_pairing(&id) {
+        Ok(_) => (StatusCode::OK, Json(serde_json::json!({ "status": "rejected" }))),
+        Err(e) => json_error(StatusCode::NOT_FOUND, e),
+    }
+}
+
+async fn mobile_list_devices(
+    _state: State<ServeState>,
+) -> Json<serde_json::Value> {
+    let gw = mobile_gateway().lock().unwrap_or_else(|e| e.into_inner());
+    let devices: Vec<serde_json::Value> = gw.devices.values().map(|d| {
+        serde_json::json!({
+            "device_id": d.device_id,
+            "device_name": d.device_name,
+            "platform": d.platform.to_string(),
+            "paired_machines": d.paired_machines,
+            "paired_at": d.paired_at,
+            "last_seen": d.last_seen,
+            "app_version": d.app_version,
+            "os_version": d.os_version,
+            "has_push_token": d.push_token.is_some(),
+        })
+    }).collect();
+    Json(serde_json::json!({ "devices": devices }))
+}
+
+async fn mobile_update_push_token(
+    Path(id): Path<String>,
+    Json(req): Json<MobilePushTokenRequest>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let mut gw = mobile_gateway().lock().unwrap_or_else(|e| e.into_inner());
+    match gw.update_push_token(&id, &req.push_token) {
+        Ok(_) => (StatusCode::OK, Json(serde_json::json!({ "status": "updated" }))),
+        Err(e) => json_error(StatusCode::NOT_FOUND, e),
+    }
+}
+
+async fn mobile_unpair(
+    Path((device_id, machine_id)): Path<(String, String)>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let mut gw = mobile_gateway().lock().unwrap_or_else(|e| e.into_inner());
+    match gw.unpair_device(&device_id, &machine_id) {
+        Ok(_) => (StatusCode::OK, Json(serde_json::json!({ "status": "unpaired" }))),
+        Err(e) => json_error(StatusCode::NOT_FOUND, e),
+    }
+}
+
+async fn mobile_dispatch(
+    Json(req): Json<MobileDispatchRequest>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let mut gw = mobile_gateway().lock().unwrap_or_else(|e| e.into_inner());
+    let dtype = parse_dispatch_type(&req.dispatch_type);
+    match gw.dispatch_task(&req.device_id, &req.machine_id, dtype, &req.payload) {
+        Ok(t) => (StatusCode::CREATED, Json(serde_json::json!({
+            "task_id": t.task_id,
+            "status": t.status.to_string(),
+        }))),
+        Err(e) => json_error(StatusCode::BAD_REQUEST, e),
+    }
+}
+
+async fn mobile_get_dispatch(
+    Path(id): Path<String>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let gw = mobile_gateway().lock().unwrap_or_else(|e| e.into_inner());
+    match gw.get_dispatch(&id) {
+        Some(t) => (StatusCode::OK, Json(serde_json::json!({
+            "task_id": t.task_id,
+            "machine_id": t.machine_id,
+            "device_id": t.device_id,
+            "dispatch_type": t.dispatch_type.to_string(),
+            "payload": t.payload,
+            "status": t.status.to_string(),
+            "created_at": t.created_at,
+            "started_at": t.started_at,
+            "completed_at": t.completed_at,
+            "result": t.result,
+            "error": t.error,
+            "session_id": t.session_id,
+        }))),
+        None => json_error(StatusCode::NOT_FOUND, "Dispatch not found"),
+    }
+}
+
+async fn mobile_cancel_dispatch(
+    Path(id): Path<String>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let mut gw = mobile_gateway().lock().unwrap_or_else(|e| e.into_inner());
+    match gw.cancel_dispatch(&id) {
+        Ok(_) => (StatusCode::OK, Json(serde_json::json!({ "status": "cancelled" }))),
+        Err(e) => json_error(StatusCode::BAD_REQUEST, e),
+    }
+}
+
+async fn mobile_update_dispatch(
+    Path(id): Path<String>,
+    Json(req): Json<MobileUpdateDispatchRequest>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let mut gw = mobile_gateway().lock().unwrap_or_else(|e| e.into_inner());
+    let status = parse_dispatch_status(&req.status);
+    match gw.update_dispatch(&id, status, req.result, req.error, req.session_id) {
+        Ok(_) => (StatusCode::OK, Json(serde_json::json!({ "status": "updated" }))),
+        Err(e) => json_error(StatusCode::NOT_FOUND, e),
+    }
+}
+
+async fn mobile_machine_dispatches(
+    Path(id): Path<String>,
+) -> Json<serde_json::Value> {
+    let gw = mobile_gateway().lock().unwrap_or_else(|e| e.into_inner());
+    let tasks: Vec<serde_json::Value> = gw.list_dispatches_for_machine(&id).iter().map(|t| {
+        serde_json::json!({
+            "task_id": t.task_id,
+            "dispatch_type": t.dispatch_type.to_string(),
+            "payload": t.payload,
+            "status": t.status.to_string(),
+            "created_at": t.created_at,
+            "result": t.result,
+        })
+    }).collect();
+    Json(serde_json::json!({ "dispatches": tasks }))
+}
+
+async fn mobile_device_dispatches(
+    Path(id): Path<String>,
+) -> Json<serde_json::Value> {
+    let gw = mobile_gateway().lock().unwrap_or_else(|e| e.into_inner());
+    let tasks: Vec<serde_json::Value> = gw.list_dispatches_for_device(&id).iter().map(|t| {
+        serde_json::json!({
+            "task_id": t.task_id,
+            "machine_id": t.machine_id,
+            "dispatch_type": t.dispatch_type.to_string(),
+            "payload": t.payload,
+            "status": t.status.to_string(),
+            "created_at": t.created_at,
+            "result": t.result,
+        })
+    }).collect();
+    Json(serde_json::json!({ "dispatches": tasks }))
+}
+
+async fn mobile_notifications(
+    Path(device_id): Path<String>,
+) -> Json<serde_json::Value> {
+    let gw = mobile_gateway().lock().unwrap_or_else(|e| e.into_inner());
+    let notifs: Vec<serde_json::Value> = gw.unsent_notifications(&device_id).iter().map(|n| {
+        serde_json::json!({
+            "id": n.id,
+            "title": n.title,
+            "body": n.body,
+            "category": n.category.to_string(),
+            "data": n.data,
+            "created_at": n.created_at,
+        })
+    }).collect();
+    Json(serde_json::json!({ "notifications": notifs }))
+}
+
+async fn mobile_stats(
+    _state: State<ServeState>,
+) -> Json<serde_json::Value> {
+    let gw = mobile_gateway().lock().unwrap_or_else(|e| e.into_inner());
+    let s = gw.stats();
+    Json(serde_json::json!({
+        "total_machines": s.total_machines,
+        "online_machines": s.online_machines,
+        "total_devices": s.total_devices,
+        "total_dispatches": s.total_dispatches,
+        "active_dispatches": s.active_dispatches,
+        "completed_dispatches": s.completed_dispatches,
+        "failed_dispatches": s.failed_dispatches,
+        "pending_notifications": s.pending_notifications,
+        "pending_pairings": s.pending_pairings,
     }))
 }
 
