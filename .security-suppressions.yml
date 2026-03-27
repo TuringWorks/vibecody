@@ -1,0 +1,160 @@
+# ============================================================================
+# VibeCody Security Scanner Suppressions — Grouped by CWE
+# ============================================================================
+# All entries below are verified false positives. Each CWE group explains
+# WHY the findings are false positives and lists affected files.
+#
+# Last audited: 2026-03-27
+# ============================================================================
+
+# ── CWE-78: Command Injection (Critical) ────────────────────────────────────
+# Reason: These files DEFINE SAST detection rules containing vulnerable
+#         patterns as string literals (e.g. "os.system("). The patterns are
+#         never executed — they're regex match targets for scanning user code.
+CWE-78:
+  status: false_positive
+  reason: "SAST rule definitions contain vulnerable patterns as detection signatures, not executable code"
+  files:
+    - path: vibecli/vibecli-cli/src/bugbot.rs
+      lines: [122]
+      context: "Regex pattern defining command injection detection rule"
+    - path: vibecli/vibecli-cli/src/vulnerability_db.rs
+      lines: [1074, 1075, 1077, 2895]
+      context: "SAST rule database entries and test cases verifying scanner detects os.system()"
+
+# ── CWE-89: SQL Injection (Critical) ────────────────────────────────────────
+# Reason: All flagged lines are Rust format!() macros building UI display
+#         strings, TOML config output, or status messages. No SQL database
+#         queries exist in any of these files.
+CWE-89:
+  status: false_positive
+  reason: "format!() string interpolation for UI/config output, not SQL queries"
+  files:
+    - path: vibecli/vibecli-cli/src/doc_sync.rs
+      lines: [367]
+      context: "format!(\"Update spec section '{}'\", alert.spec_section_id) — drift alert description"
+    - path: vibecli/vibecli-cli/src/browser_agent.rs
+      lines: [892]
+      context: "format!(\"Selector '{selector}' found\") — browser automation status message"
+    - path: vibecli/vibecli-cli/src/feature_demo.rs
+      lines: [262]
+      context: "format!(\"Selector '{selector}' found\") — demo result string"
+    - path: vibecli/vibecli-cli/src/context_bundles.rs
+      lines: [370]
+      context: "format!(\"updated_at = {}\", bundle.updated_at) — TOML file generation"
+    - path: vibecli/vibecli-cli/src/agentic_cicd.rs
+      lines: [327]
+      context: "format!(\"Update failing test: {}\", failure.error_message) — fix strategy description"
+
+# ── CWE-79: Cross-Site Scripting / XSS (High) ───────────────────────────────
+# Reason: Code uses .textContent (safe) not .innerHTML. The textContent
+#         property auto-escapes HTML and cannot execute scripts.
+CWE-79:
+  status: false_positive
+  reason: "Uses .textContent (safe, auto-escaped) not .innerHTML"
+  files:
+    - path: docs/assets/js/docs.js
+      lines: [110]
+      context: "results.textContent = '' — clearing search results via safe DOM API"
+
+# ── CWE-798: Hardcoded Secrets (High) ───────────────────────────────────────
+# Reason: Three categories of false positives:
+#   (a) Environment variable READS: std::env::var("AWS_SECRET_ACCESS_KEY")
+#   (b) Error messages mentioning variable NAMES (not values)
+#   (c) Test data with well-known example keys (AWS AKIAIOSFODNN7EXAMPLE)
+CWE-798:
+  status: false_positive
+  reason: "Env var reads, error message variable names, and test fixture example keys"
+  files:
+    # (a) Environment variable reads — correct credential handling
+    - path: vibeui/crates/vibe-ai/src/providers/bedrock.rs
+      lines: [183, 271]
+      context: "env::var(\"AWS_SECRET_ACCESS_KEY\") read + error message if unset"
+    - path: vibecli/vibecli-cli/src/voice.rs
+      lines: [194]
+      context: "env::var read for API key"
+    # (b) Test fixture data for secret redaction verification
+    - path: vibeui/crates/vibe-ai/src/trace.rs
+      lines: [277, 380, 419, 420, 423]
+      context: "Test cases verifying API key redaction (AKIAIOSFODNN7EXAMPLE etc.)"
+    # (c) Test API keys in security test fixtures
+    - path: vibecli/vibecli-cli/src/bugbot.rs
+      lines: [525, 635, 655]
+      context: "Test data for secret detection scanning"
+    - path: vibecli/vibecli-cli/src/ci_gates.rs
+      lines: [1079, 1101]
+      context: "Test fixture API tokens"
+    - path: vibecli/vibecli-cli/src/config.rs
+      lines: [1856, 2038, 2326, 2391]
+      context: "Test config with example API key values"
+    - path: vibecli/vibecli-cli/src/proactive_agent.rs
+      lines: [953, 961, 1084, 1094, 1104, 1120, 1130, 1318, 1519, 1545, 1556]
+      context: "Test fixture data"
+    - path: vibecli/vibecli-cli/src/security_scan.rs
+      lines: [139, 215, 762]
+      context: "SAST rule patterns for detecting hardcoded secrets in scanned code"
+    - path: vibecli/vibecli-cli/src/warp_features.rs
+      lines: [315]
+      context: "Test fixture"
+    - path: vibecli/vibecli-cli/src/session_sharing.rs
+      lines: [624, 662, 663]
+      context: "Test fixture tokens"
+
+# ── CWE-22: Path Traversal (High) ───────────────────────────────────────────
+# Reason: All flagged locations are TEST CASES that verify path traversal
+#         IS BLOCKED. Each test asserts the operation returns an error.
+CWE-22:
+  status: false_positive
+  reason: "Test cases verifying path traversal prevention (all assert!(result.is_err()))"
+  files:
+    - path: vibeui/src-tauri/src/shadow_workspace.rs
+      lines: [371, 416, 417]
+      context: "Tests: sync_file(\"../../etc/passwd\") → assert!(result.is_err())"
+    - path: vibeui/src-tauri/src/agent_executor.rs
+      lines: [367]
+      context: "Test: resolve(\"../../etc/passwd\") → assert!(result.is_err())"
+    - path: vibeui/src/hooks/useEditorTheme.ts
+      lines: [10]
+      context: "Relative import path, not user-controlled file access"
+    - path: vibecli/vibecli-cli/src/security_hardening.rs
+      lines: [490, 771]
+      context: "Path traversal detection rules and test cases"
+    - path: vibecli/vibecli-cli/src/vulnerability_db.rs
+      lines: [1101]
+      context: "SAST rule for detecting path traversal in scanned code"
+    - path: vibecli/vibecli-cli/src/tool_executor.rs
+      lines: [1104]
+      context: "Test: resolve_safe(\"../../etc/passwd\") → assert!(result.is_err())"
+    - path: vibecli/vibecli-cli/src/redteam.rs
+      lines: [719]
+      context: "Red team test payload (intentionally vulnerable for testing)"
+
+# ── CWE-327: Weak Cryptographic Algorithm (Medium) ──────────────────────────
+# Reason: ~3,200+ hits across the codebase. These are:
+#   - SHA-256 content hashes for file deduplication (not password hashing)
+#   - Hex-encoded UUIDs and session IDs
+#   - DefaultHasher for HashMap keys (non-cryptographic)
+#   - HMAC-SHA256 for webhook signature verification (industry standard)
+# None are used for password storage or encryption of sensitive data.
+CWE-327:
+  status: false_positive
+  reason: "SHA-256 content hashes, hex UUIDs, HashMap keys — not used for password/encryption"
+  scope: project-wide
+  file_count: 100+
+  note: |
+    The scanner flags any use of hash functions as "weak crypto". In this codebase:
+    - SHA-256 is used for content-addressable storage and file checksums
+    - Hex encoding is used for session/trace IDs
+    - DefaultHasher is Rust's HashMap implementation detail
+    - HMAC-SHA256 is used for webhook signatures (GitHub standard)
+    None of these require bcrypt/argon2 — they are not password hashing.
+
+# ── CWE-319: Insecure HTTP Connection (Medium) ──────────────────────────────
+# Reason: Test URLs and localhost development connections.
+CWE-319:
+  status: false_positive
+  reason: "Test fixture URLs and localhost development connections"
+  files:
+    - path: vibecli/vibecli-cli/src/vulnerability_db.rs
+      lines: [1098, 1099]
+      context: "Test case URLs in SAST rule validation"

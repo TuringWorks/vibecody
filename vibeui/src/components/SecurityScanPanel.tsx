@@ -5,6 +5,7 @@ import { invoke } from "@tauri-apps/api/core";
 
 type Severity = "Critical" | "High" | "Medium" | "Low" | "Info";
 type TabName = "Findings" | "Summary" | "Patterns" | "History";
+type GroupMode = "none" | "cwe" | "file" | "severity";
 
 interface Finding {
   id: string;
@@ -54,6 +55,19 @@ const DEFAULT_PATTERNS: ScanPattern[] = [
   { id: "p-010", name: "Insecure HTTP", vulnerabilityClass: "Transport", languages: ["*"], enabled: true, matchCount: 0 },
 ];
 
+// -- CWE descriptions for group headers ---------------------------------------
+
+const CWE_NAMES: Record<string, string> = {
+  "CWE-78": "Command Injection",
+  "CWE-79": "Cross-Site Scripting (XSS)",
+  "CWE-89": "SQL Injection",
+  "CWE-22": "Path Traversal",
+  "CWE-327": "Weak Cryptographic Algorithm",
+  "CWE-319": "Insecure HTTP Connection",
+  "CWE-798": "Hardcoded Secret or API Key",
+  "CWE-916": "Weak Password Hashing",
+};
+
 // -- Helpers ------------------------------------------------------------------
 
 const severityColor = (s: Severity): string => {
@@ -68,6 +82,16 @@ const severityColor = (s: Severity): string => {
 
 const severityOrder: Record<Severity, number> = { Critical: 0, High: 1, Medium: 2, Low: 3, Info: 4 };
 
+/** Group an array by a key function. */
+function groupBy<T>(items: T[], keyFn: (item: T) => string): Record<string, T[]> {
+  const result: Record<string, T[]> = {};
+  for (const item of items) {
+    const key = keyFn(item);
+    (result[key] ??= []).push(item);
+  }
+  return result;
+}
+
 // -- Component ----------------------------------------------------------------
 
 const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, onOpenFile }) => {
@@ -81,6 +105,8 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
   const [filterSeverity, setFilterSeverity] = useState<Severity | "All">("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [lastScanTime, setLastScanTime] = useState<string | null>(null);
+  const [groupMode, setGroupMode] = useState<GroupMode>("cwe");
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
   const tabs: TabName[] = ["Findings", "Summary", "Patterns", "History"];
 
@@ -127,11 +153,6 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
       setLastScanTime(new Date().toLocaleString());
 
       // Update pattern match counts
-      const countMap: Record<string, number> = {};
-      for (const f of result) {
-        const patternId = f.cwe; // Map CWE to patterns loosely
-        countMap[patternId] = (countMap[patternId] || 0) + 1;
-      }
       setPatterns((prev) =>
         prev.map((p) => ({
           ...p,
@@ -161,6 +182,49 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
     }
   }
 
+  // Persist suppress/unsuppress to backend
+  async function toggleSuppress(f: Finding) {
+    const newSuppressed = !f.suppressed;
+    setFindings((prev) => prev.map((x) => x.id === f.id ? { ...x, suppressed: newSuppressed } : x));
+    try {
+      await invoke("suppress_security_finding", {
+        cwe: f.cwe,
+        file: f.file,
+        line: f.line,
+        reason: "Suppressed via Security Scanner panel",
+      });
+    } catch {
+      // Revert on failure
+      setFindings((prev) => prev.map((x) => x.id === f.id ? { ...x, suppressed: !newSuppressed } : x));
+    }
+  }
+
+  // Suppress all findings for a CWE project-wide
+  async function suppressCwe(cwe: string) {
+    setFindings((prev) => prev.map((f) => f.cwe === cwe ? { ...f, suppressed: true } : f));
+    try {
+      await invoke("suppress_security_cwe", {
+        cwe,
+        reason: `All ${cwe} findings suppressed via Security Scanner panel`,
+      });
+    } catch {
+      // Revert on failure
+      setFindings((prev) => prev.map((f) => f.cwe === cwe ? { ...f, suppressed: false } : f));
+    }
+  }
+
+  const togglePattern = (id: string) => {
+    setPatterns((prev) => prev.map((p) => p.id === id ? { ...p, enabled: !p.enabled } : p));
+  };
+
+  const toggleGroup = (key: string) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
+
   const activeFindings = findings.filter((f) => !f.suppressed);
   const suppressedFindings = findings.filter((f) => f.suppressed);
 
@@ -173,14 +237,6 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
     })
     .sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
 
-  const toggleSuppress = (id: string) => {
-    setFindings((prev) => prev.map((f) => f.id === id ? { ...f, suppressed: !f.suppressed } : f));
-  };
-
-  const togglePattern = (id: string) => {
-    setPatterns((prev) => prev.map((p) => p.id === id ? { ...p, enabled: !p.enabled } : p));
-  };
-
   const countBySeverity = (sev: Severity) => activeFindings.filter((f) => f.severity === sev).length;
 
   const handleFileClick = (file: string, line: number) => {
@@ -189,6 +245,95 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
       onOpenFile(fullPath, line);
     }
   };
+
+  // Group findings for display
+  const groupedFindings: [string, Finding[]][] = groupMode === "none"
+    ? [["", filteredFindings]]
+    : Object.entries(groupBy(filteredFindings, (f) => {
+        if (groupMode === "cwe") return f.cwe;
+        if (groupMode === "file") return f.file;
+        return f.severity;
+      })).sort((a, b) => {
+        // Sort groups: by severity of worst finding, then alphabetically
+        if (groupMode === "severity") return severityOrder[a[0] as Severity] - severityOrder[b[0] as Severity];
+        const aWorst = Math.min(...a[1].map((f) => severityOrder[f.severity]));
+        const bWorst = Math.min(...b[1].map((f) => severityOrder[f.severity]));
+        return aWorst !== bWorst ? aWorst - bWorst : a[0].localeCompare(b[0]);
+      });
+
+  // Group suppressed findings by CWE
+  const suppressedByCwe = groupBy(suppressedFindings, (f) => f.cwe);
+
+  // Render a single finding row
+  const renderFinding = (f: Finding) => (
+    <div
+      key={f.id}
+      style={{
+        borderRadius: 6, background: "var(--bg-tertiary)",
+        borderLeft: `3px solid ${severityColor(f.severity)}`,
+        border: `1px solid ${severityColor(f.severity)}44`,
+      }}
+    >
+      <div
+        onClick={() => setExpandedId(expandedId === f.id ? null : f.id)}
+        style={{ padding: "8px 10px", cursor: "pointer", display: "flex", alignItems: "flex-start", gap: 8 }}
+      >
+        <span style={{
+          fontSize: 10, padding: "2px 8px", borderRadius: 3,
+          background: `${severityColor(f.severity)}22`, color: severityColor(f.severity),
+          fontWeight: 600, flexShrink: 0, marginTop: 1,
+        }}>
+          {f.severity}
+        </span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 600, fontSize: 12 }}>{f.title}</div>
+          <div style={{ display: "flex", gap: 8, marginTop: 3, flexWrap: "wrap", alignItems: "center" }}>
+            <span
+              onClick={(e) => { e.stopPropagation(); handleFileClick(f.file, f.line); }}
+              style={{
+                fontSize: 10, color: "var(--accent-blue)", fontFamily: "var(--font-mono)",
+                cursor: onOpenFile ? "pointer" : "default",
+                textDecoration: onOpenFile ? "underline" : "none",
+              }}
+              title="Open in editor"
+            >
+              {f.file}:{f.line}
+            </span>
+            {groupMode !== "cwe" && (
+              <span style={{ fontSize: 10, padding: "1px 5px", borderRadius: 3, background: "var(--bg-secondary)", color: "var(--text-secondary)" }}>
+                {f.cwe}
+              </span>
+            )}
+          </div>
+        </div>
+        <button
+          onClick={(e) => { e.stopPropagation(); toggleSuppress(f); }}
+          style={{
+            padding: "2px 8px", fontSize: 10, borderRadius: 3,
+            border: "1px solid var(--border-color)", background: "none",
+            color: "var(--text-secondary)", cursor: "pointer", flexShrink: 0,
+          }}
+        >
+          Suppress
+        </button>
+      </div>
+
+      {expandedId === f.id && (
+        <div style={{ borderTop: "1px solid var(--bg-secondary)", padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 3 }}>PROBLEM</div>
+            <div style={{ fontSize: 12, lineHeight: 1.6 }}>{f.description}</div>
+          </div>
+          {f.remediation && (
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 3 }}>REMEDIATION</div>
+              <div style={{ fontSize: 12, lineHeight: 1.6, color: "var(--success-color)" }}>{f.remediation}</div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div style={{ padding: 12, fontSize: 13, height: "100%", display: "flex", flexDirection: "column", gap: 10, color: "var(--text-primary)", background: "var(--bg-primary)" }}>
@@ -217,13 +362,13 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
       {error && (
         <div style={{ padding: "6px 10px", background: "color-mix(in srgb, var(--accent-rose) 13%, transparent)", color: "var(--error-color)", borderRadius: 5, fontSize: 12, display: "flex", justifyContent: "space-between" }}>
           <span>{error}</span>
-          <button aria-label="Dismiss error" onClick={() => setError(null)} style={{ background: "none", border: "none", color: "var(--error-color)", cursor: "pointer" }}>×</button>
+          <button aria-label="Dismiss error" onClick={() => setError(null)} style={{ background: "none", border: "none", color: "var(--error-color)", cursor: "pointer" }}>x</button>
         </div>
       )}
 
-      {/* Severity badges summary */}
+      {/* Severity badges + group toggle */}
       {activeFindings.length > 0 && (
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
           {(["Critical", "High", "Medium", "Low", "Info"] as Severity[]).map((sev) => {
             const count = countBySeverity(sev);
             if (count === 0) return null;
@@ -250,6 +395,21 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
               Clear filter
             </button>
           )}
+          <span style={{ flex: 1 }} />
+          <select
+            value={groupMode}
+            onChange={(e) => { setGroupMode(e.target.value as GroupMode); setCollapsedGroups(new Set()); }}
+            style={{
+              padding: "2px 6px", fontSize: 10, borderRadius: 3,
+              background: "var(--bg-tertiary)", border: "1px solid var(--border-color)",
+              color: "var(--text-secondary)", cursor: "pointer",
+            }}
+          >
+            <option value="cwe">Group by CWE</option>
+            <option value="severity">Group by Severity</option>
+            <option value="file">Group by File</option>
+            <option value="none">No grouping</option>
+          </select>
         </div>
       )}
 
@@ -299,88 +459,80 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
               </div>
             )}
 
-            {filteredFindings.map((f) => (
-              <div
-                key={f.id}
-                style={{
-                  borderRadius: 6, background: "var(--bg-tertiary)",
-                  borderLeft: `3px solid ${severityColor(f.severity)}`,
-                  border: `1px solid ${severityColor(f.severity)}44`,
-                }}
-              >
-                <div
-                  onClick={() => setExpandedId(expandedId === f.id ? null : f.id)}
-                  style={{ padding: "8px 10px", cursor: "pointer", display: "flex", alignItems: "flex-start", gap: 8 }}
-                >
-                  <span style={{
-                    fontSize: 10, padding: "2px 8px", borderRadius: 3,
-                    background: `${severityColor(f.severity)}22`, color: severityColor(f.severity),
-                    fontWeight: 600, flexShrink: 0, marginTop: 1,
-                  }}>
-                    {f.severity}
-                  </span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: 12 }}>{f.title}</div>
-                    <div style={{ display: "flex", gap: 8, marginTop: 3, flexWrap: "wrap", alignItems: "center" }}>
-                      <span
-                        onClick={(e) => { e.stopPropagation(); handleFileClick(f.file, f.line); }}
-                        style={{
-                          fontSize: 10, color: "var(--accent-blue)", fontFamily: "var(--font-mono)",
-                          cursor: onOpenFile ? "pointer" : "default",
-                          textDecoration: onOpenFile ? "underline" : "none",
-                        }}
-                        title="Open in editor"
-                      >
-                        {f.file}:{f.line}
-                      </span>
-                      <span style={{ fontSize: 10, padding: "1px 5px", borderRadius: 3, background: "var(--bg-secondary)", color: "var(--text-secondary)" }}>
-                        {f.cwe}
-                      </span>
-                    </div>
-                  </div>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); toggleSuppress(f.id); }}
+            {/* Grouped findings */}
+            {groupedFindings.map(([groupKey, groupFindings]) => (
+              <div key={groupKey || "__ungrouped"}>
+                {groupKey && (
+                  <div
+                    onClick={() => toggleGroup(groupKey)}
                     style={{
-                      padding: "2px 8px", fontSize: 10, borderRadius: 3,
-                      border: "1px solid var(--border-color)", background: "none",
-                      color: "var(--text-secondary)", cursor: "pointer", flexShrink: 0,
+                      display: "flex", alignItems: "center", gap: 8, padding: "6px 8px",
+                      cursor: "pointer", userSelect: "none", marginTop: 4, marginBottom: 2,
+                      background: "var(--bg-secondary)", borderRadius: 5,
                     }}
                   >
-                    Suppress
-                  </button>
-                </div>
-
-                {expandedId === f.id && (
-                  <div style={{ borderTop: "1px solid var(--bg-secondary)", padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
-                    <div>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 3 }}>PROBLEM</div>
-                      <div style={{ fontSize: 12, lineHeight: 1.6 }}>{f.description}</div>
-                    </div>
-                    {f.remediation && (
-                      <div>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 3 }}>REMEDIATION</div>
-                        <div style={{ fontSize: 12, lineHeight: 1.6, color: "var(--success-color)" }}>{f.remediation}</div>
-                      </div>
+                    <span style={{ fontSize: 10, opacity: 0.6 }}>
+                      {collapsedGroups.has(groupKey) ? "\u25B6" : "\u25BC"}
+                    </span>
+                    <span style={{ fontWeight: 600, fontSize: 12, flex: 1 }}>
+                      {groupMode === "cwe" ? `${groupKey} — ${CWE_NAMES[groupKey] || "Unknown"}` : groupKey}
+                    </span>
+                    <span style={{
+                      fontSize: 10, padding: "2px 6px", borderRadius: 10,
+                      background: "var(--bg-tertiary)", color: "var(--text-secondary)", fontWeight: 600,
+                    }}>
+                      {groupFindings.length}
+                    </span>
+                    {groupMode === "cwe" && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); suppressCwe(groupKey); }}
+                        style={{
+                          padding: "2px 8px", fontSize: 10, borderRadius: 3,
+                          border: "1px solid var(--border-color)", background: "none",
+                          color: "var(--text-secondary)", cursor: "pointer",
+                        }}
+                        title={`Suppress all ${groupKey} findings`}
+                      >
+                        Suppress All
+                      </button>
                     )}
                   </div>
                 )}
+                {!collapsedGroups.has(groupKey) && groupFindings.map(renderFinding)}
               </div>
             ))}
 
+            {/* Suppressed findings section — grouped by CWE */}
             {suppressedFindings.length > 0 && (
-              <div style={{ marginTop: 8, padding: "8px 10px", background: "var(--bg-secondary)", borderRadius: 4 }}>
-                <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>
+              <div style={{ marginTop: 12, padding: "8px 10px", background: "var(--bg-secondary)", borderRadius: 6 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>
                   {suppressedFindings.length} suppressed finding(s)
                 </div>
-                {suppressedFindings.map((f) => (
-                  <div key={f.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "3px 0" }}>
-                    <span style={{ textDecoration: "line-through", fontSize: 11, flex: 1 }}>{f.title}</span>
-                    <button
-                      onClick={() => toggleSuppress(f.id)}
-                      style={{ padding: "2px 6px", fontSize: 10, borderRadius: 3, border: "1px solid var(--border-color)", background: "none", color: "var(--text-secondary)", cursor: "pointer" }}
-                    >
-                      Restore
-                    </button>
+                {Object.entries(suppressedByCwe)
+                  .sort((a, b) => a[0].localeCompare(b[0]))
+                  .map(([cwe, cweFindngs]) => (
+                  <div key={cwe} style={{ marginBottom: 6 }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", padding: "4px 0 2px" }}>
+                      {cwe} — {CWE_NAMES[cwe] || "Unknown"} ({cweFindngs.length})
+                    </div>
+                    {cweFindngs.slice(0, 5).map((f) => (
+                      <div key={f.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "2px 0" }}>
+                        <span style={{ textDecoration: "line-through", fontSize: 11, flex: 1, opacity: 0.6 }}>
+                          {f.file}:{f.line}
+                        </span>
+                        <button
+                          onClick={() => toggleSuppress(f)}
+                          style={{ padding: "2px 6px", fontSize: 10, borderRadius: 3, border: "1px solid var(--border-color)", background: "none", color: "var(--text-secondary)", cursor: "pointer" }}
+                        >
+                          Restore
+                        </button>
+                      </div>
+                    ))}
+                    {cweFindngs.length > 5 && (
+                      <div style={{ fontSize: 10, color: "var(--text-secondary)", padding: "2px 0" }}>
+                        ...and {cweFindngs.length - 5} more
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -419,6 +571,24 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
                 </div>
               );
             })}
+
+            {/* CWE Breakdown */}
+            {activeFindings.length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>By CWE Category</div>
+                {Object.entries(groupBy(activeFindings, (f) => f.cwe))
+                  .sort((a, b) => b[1].length - a[1].length)
+                  .map(([cwe, items]) => (
+                    <div key={cwe} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", fontSize: 11 }}>
+                      <span style={{ fontWeight: 600, minWidth: 60 }}>{cwe}</span>
+                      <span style={{ flex: 1, color: "var(--text-secondary)" }}>{CWE_NAMES[cwe] || "Unknown"}</span>
+                      <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 10, background: "var(--bg-tertiary)", color: "var(--text-secondary)", fontWeight: 600 }}>
+                        {items.length}
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            )}
 
             {/* Top affected files */}
             {activeFindings.length > 0 && (

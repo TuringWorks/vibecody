@@ -23748,6 +23748,122 @@ fn secscan_write_json(filename: &str, data: &serde_json::Value) -> Result<(), St
     std::fs::write(path, s).map_err(|e| e.to_string())
 }
 
+/// A persisted suppression rule. Matches findings by CWE + file + optional line.
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+struct SecSuppression {
+    /// CWE identifier, e.g. "CWE-327"
+    cwe: String,
+    /// Relative file path (empty string = suppress CWE project-wide)
+    file: String,
+    /// Optional line number (0 = all lines in that file)
+    line: u32,
+    /// Why this was suppressed
+    reason: String,
+}
+
+/// Load persisted suppressions from `~/.vibecli/secscan/suppressions.json`
+/// AND from workspace `.security-suppressions.yml` (if present).
+fn secscan_load_suppressions(workspace: &std::path::Path) -> Vec<SecSuppression> {
+    let mut result: Vec<SecSuppression> = Vec::new();
+
+    // 1. Load from persisted JSON (user-toggled suppressions)
+    let json = secscan_read_json("suppressions.json");
+    if let Ok(list) = serde_json::from_value::<Vec<SecSuppression>>(json) {
+        result.extend(list);
+    }
+
+    // 2. Load from workspace .security-suppressions.yml
+    let yml_path = workspace.join(".security-suppressions.yml");
+    if let Ok(content) = std::fs::read_to_string(&yml_path) {
+        // Parse the YAML structure: top-level keys are CWE IDs, each has a `files` array
+        if let Ok(doc) = serde_yaml::from_str::<serde_yaml::Value>(&content) {
+            if let Some(map) = doc.as_mapping() {
+                for (key, section) in map {
+                    let cwe = key.as_str().unwrap_or("").to_string();
+                    if !cwe.starts_with("CWE-") { continue; }
+
+                    let reason = section.get("reason")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("Suppressed via .security-suppressions.yml")
+                        .to_string();
+
+                    // Check for project-wide scope
+                    if let Some(scope) = section.get("scope").and_then(|v| v.as_str()) {
+                        if scope == "project-wide" {
+                            result.push(SecSuppression {
+                                cwe: cwe.clone(),
+                                file: String::new(),
+                                line: 0,
+                                reason: reason.clone(),
+                            });
+                            continue;
+                        }
+                    }
+
+                    // Per-file suppressions
+                    if let Some(files) = section.get("files").and_then(|v| v.as_sequence()) {
+                        for entry in files {
+                            let file = entry.get("path")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("")
+                                .to_string();
+                            if file.is_empty() { continue; }
+
+                            let lines = entry.get("lines")
+                                .and_then(|v| v.as_sequence())
+                                .map(|seq| {
+                                    seq.iter()
+                                        .filter_map(|v| v.as_u64().map(|n| n as u32))
+                                        .collect::<Vec<_>>()
+                                })
+                                .unwrap_or_default();
+
+                            if lines.is_empty() {
+                                // Suppress entire file for this CWE
+                                result.push(SecSuppression {
+                                    cwe: cwe.clone(),
+                                    file: file.clone(),
+                                    line: 0,
+                                    reason: reason.clone(),
+                                });
+                            } else {
+                                for ln in lines {
+                                    result.push(SecSuppression {
+                                        cwe: cwe.clone(),
+                                        file: file.clone(),
+                                        line: ln,
+                                        reason: reason.clone(),
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    result
+}
+
+/// Check if a finding matches any suppression rule.
+fn secscan_is_suppressed(
+    suppressions: &[SecSuppression],
+    cwe: &str,
+    file: &str,
+    line: u32,
+) -> bool {
+    suppressions.iter().any(|s| {
+        if s.cwe != cwe { return false; }
+        // Project-wide suppression (empty file)
+        if s.file.is_empty() { return true; }
+        // File match
+        if s.file != file { return false; }
+        // Line match (0 = all lines)
+        s.line == 0 || s.line == line
+    })
+}
+
 /// Security patterns with regex and metadata
 struct SecPattern {
     id: &'static str,
@@ -23875,6 +23991,9 @@ pub async fn run_security_scan(
 
     let _ = &pattern_ids; // All patterns are checked; pattern_ids can filter in future
 
+    // Load suppression rules from config + persisted state
+    let suppressions = secscan_load_suppressions(&workspace);
+
     for file_path in &files {
         let ext = file_path.extension().and_then(|e| e.to_str()).unwrap_or("");
         let rel_path = file_path.strip_prefix(&workspace)
@@ -23917,17 +24036,30 @@ pub async fn run_security_scan(
                             continue;
                         }
 
+                        // Skip lines with inline suppression comments
+                        if trimmed.contains("// nosec") || trimmed.contains("# nosec")
+                            || trimmed.contains("// NOSONAR") || trimmed.contains("# NOSONAR")
+                            || trimmed.contains("// security-ignore")
+                        {
+                            continue;
+                        }
+
+                        let line_1 = (line_num + 1) as u32;
+                        let suppressed = secscan_is_suppressed(
+                            &suppressions, pattern.cwe, &rel_path, line_1,
+                        );
+
                         finding_id += 1;
                         findings.push(serde_json::json!({
                             "id": format!("SEC-{:04}", finding_id),
                             "title": pattern.title,
                             "severity": pattern.severity,
                             "file": rel_path,
-                            "line": line_num + 1,
+                            "line": line_1,
                             "description": pattern.description,
                             "cwe": pattern.cwe,
                             "remediation": pattern.remediation,
-                            "suppressed": false,
+                            "suppressed": suppressed,
                         }));
                         break; // One finding per pattern per line
                     }
@@ -23967,6 +24099,64 @@ pub async fn get_security_scan_results(workspace_path: String) -> Result<serde_j
 pub async fn get_security_scan_history(workspace_path: String) -> Result<serde_json::Value, String> {
     let _ = workspace_path;
     Ok(secscan_read_json("history.json"))
+}
+
+/// Persist a suppression rule (toggle suppress on a finding).
+#[tauri::command]
+pub async fn suppress_security_finding(
+    cwe: String,
+    file: String,
+    line: u32,
+    reason: String,
+) -> Result<(), String> {
+    let json = secscan_read_json("suppressions.json");
+    let mut list: Vec<SecSuppression> = serde_json::from_value(json).unwrap_or_default();
+
+    // Check if this exact suppression already exists → remove it (unsuppress)
+    let before = list.len();
+    list.retain(|s| !(s.cwe == cwe && s.file == file && s.line == line));
+
+    if list.len() == before {
+        // Not found → add new suppression
+        list.push(SecSuppression { cwe, file, line, reason });
+    }
+
+    let data = serde_json::to_value(&list).map_err(|e| e.to_string())?;
+    secscan_write_json("suppressions.json", &data)?;
+    Ok(())
+}
+
+/// Suppress all findings for a given CWE project-wide.
+#[tauri::command]
+pub async fn suppress_security_cwe(
+    cwe: String,
+    reason: String,
+) -> Result<(), String> {
+    let json = secscan_read_json("suppressions.json");
+    let mut list: Vec<SecSuppression> = serde_json::from_value(json).unwrap_or_default();
+
+    // Remove any existing project-wide suppression for this CWE
+    let before = list.len();
+    list.retain(|s| !(s.cwe == cwe && s.file.is_empty()));
+
+    if list.len() == before {
+        // Not found → add project-wide suppression
+        list.push(SecSuppression { cwe, file: String::new(), line: 0, reason });
+    }
+
+    let data = serde_json::to_value(&list).map_err(|e| e.to_string())?;
+    secscan_write_json("suppressions.json", &data)?;
+    Ok(())
+}
+
+/// Get current suppression rules.
+#[tauri::command]
+pub async fn get_security_suppressions(
+    workspace_path: String,
+) -> Result<serde_json::Value, String> {
+    let workspace = PathBuf::from(&workspace_path);
+    let suppressions = secscan_load_suppressions(&workspace);
+    serde_json::to_value(&suppressions).map_err(|e| e.to_string())
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

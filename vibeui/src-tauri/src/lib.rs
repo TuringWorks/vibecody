@@ -675,6 +675,9 @@ pub fn run() {
             commands::run_security_scan,
             commands::get_security_scan_results,
             commands::get_security_scan_history,
+            commands::suppress_security_finding,
+            commands::suppress_security_cwe,
+            commands::get_security_suppressions,
             // Agile Project Management
             commands::agile_get_board,
             commands::agile_update_card,
