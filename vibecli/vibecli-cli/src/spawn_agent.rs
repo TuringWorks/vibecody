@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Parallel agent spawning and lifecycle management — Claude Code-style.
 //!
 //! Enables spawning autonomous agents from the REPL or chat interface that run

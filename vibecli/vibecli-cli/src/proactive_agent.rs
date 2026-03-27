@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Proactive Agent Intelligence — Gap 3 from FIT-GAP v7
 //!
 //! Implements background code scanning with heuristic-based pattern detection,
