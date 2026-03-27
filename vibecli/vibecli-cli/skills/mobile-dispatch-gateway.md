@@ -18,7 +18,7 @@ Machines running `vibecli --serve` register themselves with the Mobile Gateway:
 
 ```bash
 # Start daemon and register for mobile access
-vibecli --serve --port 7878
+vibecli --serve --host 0.0.0.0 --port 7878
 # The daemon prints an API token and pairing QR code
 
 # In REPL mode

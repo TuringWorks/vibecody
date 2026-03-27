@@ -7,9 +7,7 @@
  * without running its own polling loop.
  *
  * Usage:
- *   const monitor = useApiKeyMonitor({ toast, addNotification });
- *   // monitor.validations — current validation map
- *   // monitor.lastChecked — timestamp of last check
+ *   useApiKeyMonitor({ toast, addNotification });
  */
 
 import { useEffect, useRef, useCallback, useState } from "react";
@@ -64,9 +62,18 @@ export function useApiKeyMonitor({ toast, addNotification, osNotifications }: Us
   const [lastChecked, setLastChecked] = useState<number | null>(null);
   const prevStatusRef = useRef<Record<string, boolean>>({});
   const isFirstRunRef = useRef(true);
+  // Store callbacks in refs so the interval closure never goes stale.
+  // This avoids the infinite timer-reset bug caused by `toast` being a
+  // new object reference on every render.
+  const toastRef = useRef(toast);
+  const addNotificationRef = useRef(addNotification);
+  const osNotificationsRef = useRef(osNotifications);
+  toastRef.current = toast;
+  addNotificationRef.current = addNotification;
+  osNotificationsRef.current = osNotifications;
 
   const sendOsNotification = useCallback((title: string, body: string) => {
-    if (!osNotifications) return;
+    if (!osNotificationsRef.current) return;
     if ("Notification" in window && Notification.permission === "granted") {
       new Notification(title, { body, icon: "/icons/128x128.png" });
     } else if ("Notification" in window && Notification.permission === "default") {
@@ -76,7 +83,7 @@ export function useApiKeyMonitor({ toast, addNotification, osNotifications }: Us
         }
       });
     }
-  }, [osNotifications]);
+  }, []);
 
   const runValidation = useCallback(async () => {
     try {
@@ -113,6 +120,9 @@ export function useApiKeyMonitor({ toast, addNotification, osNotifications }: Us
         }
       }
 
+      const currentToast = toastRef.current;
+      const currentAddNotif = addNotificationRef.current;
+
       // On first run, report all currently-failing keys as a batch
       if (isFirstRunRef.current) {
         const failingOnStartup = results.filter(
@@ -123,18 +133,18 @@ export function useApiKeyMonitor({ toast, addNotification, osNotifications }: Us
           if (failingOnStartup.length === 1) {
             const r = failingOnStartup[0];
             const label = PROVIDER_LABELS[r.provider] || r.provider;
-            toast.warn(`${label} API key is not working: ${r.error}`);
-            addNotification({
+            currentToast.warn(`${label} API key is not working: ${r.error}`);
+            currentAddNotif({
               title: `${label} API key invalid`,
               body: r.error || "Validation failed",
               severity: "warn",
               category: "api-keys",
             });
           } else {
-            toast.warn(`${failingOnStartup.length} API keys need attention: ${names.join(", ")}`);
+            currentToast.warn(`${failingOnStartup.length} API keys need attention: ${names.join(", ")}`);
             for (const r of failingOnStartup) {
               const label = PROVIDER_LABELS[r.provider] || r.provider;
-              addNotification({
+              currentAddNotif({
                 title: `${label} API key invalid`,
                 body: r.error || "Validation failed",
                 severity: "warn",
@@ -148,8 +158,8 @@ export function useApiKeyMonitor({ toast, addNotification, osNotifications }: Us
         // Subsequent runs — only notify on changes
         for (const r of newlyFailed) {
           const label = PROVIDER_LABELS[r.provider] || r.provider;
-          toast.error(`${label} API key failed: ${r.error}`);
-          addNotification({
+          currentToast.error(`${label} API key failed: ${r.error}`);
+          currentAddNotif({
             title: `${label} API key failed`,
             body: `${r.error || "Validation failed"}. Check Settings > API Keys.`,
             severity: "error",
@@ -163,8 +173,8 @@ export function useApiKeyMonitor({ toast, addNotification, osNotifications }: Us
 
         for (const r of recovered) {
           const label = PROVIDER_LABELS[r.provider] || r.provider;
-          toast.success(`${label} API key recovered (${r.latency_ms}ms)`);
-          addNotification({
+          currentToast.success(`${label} API key recovered (${r.latency_ms}ms)`);
+          currentAddNotif({
             title: `${label} API key recovered`,
             body: `Key is working again. Latency: ${r.latency_ms}ms`,
             severity: "success",
@@ -185,8 +195,10 @@ export function useApiKeyMonitor({ toast, addNotification, osNotifications }: Us
     } catch (err) {
       console.warn("[ApiKeyMonitor] validation failed:", err);
     }
-  }, [toast, addNotification, sendOsNotification]);
+  }, [sendOsNotification]);
 
+  // Stable effect — runValidation's deps are all refs/stable, so this
+  // runs exactly once on mount and cleans up on unmount.
   useEffect(() => {
     const initial = setTimeout(runValidation, INITIAL_DELAY);
     const interval = setInterval(runValidation, VALIDATION_INTERVAL);

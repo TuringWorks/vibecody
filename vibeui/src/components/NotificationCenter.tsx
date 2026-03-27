@@ -17,7 +17,6 @@ interface NotificationCenterProps {
   onMarkRead: (id: number) => void;
   onMarkAllRead: () => void;
   onDismiss: (id: number) => void;
-  onAction?: (id: number) => void;
 }
 
 const SEVERITY_ICON: Record<string, typeof AlertCircle> = {

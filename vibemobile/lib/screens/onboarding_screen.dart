@@ -81,7 +81,7 @@ class OnboardingScreen extends StatelessWidget {
               ),
               const Spacer(),
               Text(
-                'Start VibeCody daemon on your machine:\nvibecli --serve --port 7878',
+                'Start VibeCody daemon on your machine:\nvibecli --serve --host 0.0.0.0 --port 7878',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   fontFamily: 'JetBrainsMono',

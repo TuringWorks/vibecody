@@ -387,6 +387,11 @@ struct Cli {
     #[arg(long, default_value = "7878")]
     port: u16,
 
+    /// Host/IP to bind the daemon to (default: 127.0.0.1).
+    /// Use 0.0.0.0 to listen on all interfaces (required for mobile app access).
+    #[arg(long, default_value = "127.0.0.1")]
+    host: String,
+
     // ── MCP server mode ───────────────────────────────────────────────────────
 
     /// Run as an MCP (Model Context Protocol) server over stdio.
@@ -716,7 +721,7 @@ async fn main() -> Result<()> {
         let llm = create_provider(&effective_provider, effective_model.clone())?;
         let cwd = std::env::current_dir()?;
         let approval = ApprovalPolicy::from_str(&approval_policy);
-        return serve::serve(llm, effective_provider.clone(), approval, cwd, cli.port).await;
+        return serve::serve(llm, effective_provider.clone(), approval, cwd, cli.port, cli.host.clone()).await;
     }
 
     // MCP server mode: vibecli --mcp-server

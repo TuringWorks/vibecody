@@ -22,7 +22,7 @@
 //! # Usage
 //!
 //! ```bash
-//! vibecli --serve --port 7878 --provider ollama
+//! vibecli --serve --host 0.0.0.0 --port 7878 --provider ollama
 //! ```
 
 use anyhow::Result;
@@ -1391,6 +1391,7 @@ pub async fn serve(
     approval: ApprovalPolicy,
     workspace_root: PathBuf,
     port: u16,
+    host: String,
 ) -> Result<()> {
     // Initialise persistent jobs directory at ~/.vibecli/jobs/
     let jobs_dir = dirs::home_dir()
@@ -1456,7 +1457,7 @@ pub async fn serve(
         }
     });
 
-    let addr = format!("127.0.0.1:{port}");
+    let addr = format!("{host}:{port}");
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     eprintln!("[vibecli serve] Listening on http://{addr}");
     // Write the full token to a file (mode 0600) instead of logging it

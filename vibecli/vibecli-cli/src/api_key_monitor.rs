@@ -162,11 +162,11 @@ fn configured_providers(cfg: &Config) -> Vec<(String, Arc<dyn vibe_ai::provider:
                     providers.push((name.to_string(), p));
                 }
             }
-        } else if resolve_env_key(name).is_some() {
+        } else if let Some(env_key) = resolve_env_key(name) {
             // Provider not in config but env var is set — still check it
             let pc = CfgProviderConfig {
                 enabled: true,
-                api_key: resolve_env_key(name),
+                api_key: Some(env_key),
                 ..Default::default()
             };
             if let Some(p) = build_provider(name, &pc) {

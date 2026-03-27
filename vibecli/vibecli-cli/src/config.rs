@@ -1244,9 +1244,9 @@ impl Default for OpenMemoryConfig {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderConfig {
-    #[serde(default)]
+    #[serde(default = "default_true")]
     pub enabled: bool,
     pub api_url: Option<String>,
     pub model: Option<String>,
@@ -1258,6 +1258,19 @@ pub struct ProviderConfig {
     /// Extended thinking budget tokens (Claude only).
     #[serde(default)]
     pub thinking_budget_tokens: Option<u32>,
+}
+
+impl Default for ProviderConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            api_url: None,
+            model: None,
+            api_key: None,
+            api_key_helper: None,
+            thinking_budget_tokens: None,
+        }
+    }
 }
 
 /// AWS Bedrock provider configuration.

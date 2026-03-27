@@ -9,7 +9,7 @@
  *   add({ title: "API key expired", body: "OpenAI key returned 401", severity: "error", category: "api-keys" });
  */
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useMemo } from "react";
 
 export type NotificationSeverity = "info" | "warn" | "error" | "success";
 export type NotificationCategory = "api-keys" | "system" | "build" | "git" | "provider" | "general";
@@ -41,7 +41,6 @@ const MAX_NOTIFICATIONS = 100;
 
 export function useNotifications() {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
-  const notificationsRef = useRef<AppNotification[]>([]);
 
   const add = useCallback((opts: AddNotificationOpts): AppNotification => {
     const notif: AppNotification = {
@@ -54,51 +53,30 @@ export function useNotifications() {
       read: false,
       action: opts.action,
     };
-    setNotifications(prev => {
-      const next = [notif, ...prev].slice(0, MAX_NOTIFICATIONS);
-      notificationsRef.current = next;
-      return next;
-    });
+    setNotifications(prev => [notif, ...prev].slice(0, MAX_NOTIFICATIONS));
     return notif;
   }, []);
 
   const markRead = useCallback((id: number) => {
-    setNotifications(prev => {
-      const next = prev.map(n => n.id === id ? { ...n, read: true } : n);
-      notificationsRef.current = next;
-      return next;
-    });
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
   }, []);
 
   const markAllRead = useCallback(() => {
-    setNotifications(prev => {
-      const next = prev.map(n => ({ ...n, read: true }));
-      notificationsRef.current = next;
-      return next;
-    });
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
   }, []);
 
   const dismiss = useCallback((id: number) => {
-    setNotifications(prev => {
-      const next = prev.filter(n => n.id !== id);
-      notificationsRef.current = next;
-      return next;
-    });
+    setNotifications(prev => prev.filter(n => n.id !== id));
   }, []);
 
   const clearCategory = useCallback((category: NotificationCategory) => {
-    setNotifications(prev => {
-      const next = prev.filter(n => n.category !== category);
-      notificationsRef.current = next;
-      return next;
-    });
+    setNotifications(prev => prev.filter(n => n.category !== category));
   }, []);
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = useMemo(() => notifications.filter(n => !n.read).length, [notifications]);
 
   return {
     notifications,
-    notificationsRef,
     add,
     markRead,
     markAllRead,
