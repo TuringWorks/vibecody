@@ -291,6 +291,7 @@ mod sketch_canvas;
 mod mcts_repair;
 #[allow(dead_code)]
 mod langgraph_bridge;
+mod api_key_monitor;
 
 #[derive(Parser)]
 #[command(name = "vibecli")]
@@ -1591,6 +1592,14 @@ async fn main() -> Result<()> {
         let _ = rl.load_history(path);
     }
 
+    // ── API key health monitor ────────────────────────────────────────────
+    // Background task validates all configured provider keys every 5 minutes
+    // and prints coloured warnings when a key's status changes.
+    let _api_key_monitor = api_key_monitor::ApiKeyMonitor::start(
+        std::time::Duration::from_secs(300),  // 5 minute interval
+        std::time::Duration::from_secs(5),    // initial delay
+    );
+
     // Voice mode indicator
     if cli.voice {
         let voice_cfg = Config::load().unwrap_or_default().voice;
@@ -2477,6 +2486,29 @@ async fn main() -> Result<()> {
                             println!("   Messages:         {}", messages.len());
                             println!("   ~Characters:      {}", char_count);
                             println!("   ~Tokens (est.):   {}", approx_tokens);
+                            println!();
+                        }
+                        "/health" => {
+                            println!("Checking API key health for all configured providers...");
+                            let cfg = Config::load().unwrap_or_default();
+                            let results = api_key_monitor::check_all_providers(&cfg).await;
+                            if results.is_empty() {
+                                println!("  No providers configured.");
+                            } else {
+                                for r in &results {
+                                    let label = api_key_monitor::provider_label(&r.provider);
+                                    if r.available {
+                                        println!("  \x1b[32m  {}: OK ({}ms)\x1b[0m", label, r.latency_ms);
+                                    } else {
+                                        println!("  \x1b[31m  {}: FAILED{}\x1b[0m",
+                                            label,
+                                            r.error.as_deref().map(|e| format!(" ({})", e)).unwrap_or_default());
+                                    }
+                                }
+                                let ok = results.iter().filter(|r| r.available).count();
+                                let fail = results.len() - ok;
+                                println!("  {} OK, {} failed out of {} providers", ok, fail, results.len());
+                            }
                             println!();
                         }
                         "/status" => {

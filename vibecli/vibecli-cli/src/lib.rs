@@ -4,6 +4,7 @@ pub mod cost_router;
 pub mod agent_skills_compat;
 #[allow(dead_code)]
 pub mod quantum_computing;
+#[allow(dead_code)]
 pub mod spawn_agent;
 #[allow(dead_code)]
 pub mod browser_agent;

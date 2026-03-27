@@ -1244,8 +1244,9 @@ impl Default for OpenMemoryConfig {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ProviderConfig {
+    #[serde(default)]
     pub enabled: bool,
     pub api_url: Option<String>,
     pub model: Option<String>,
