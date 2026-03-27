@@ -596,7 +596,7 @@ async fn call_tool(
             let subject_filter = args["subject"].as_str();
             let facts = store.query_current_facts();
             let filtered: Vec<_> = facts.iter()
-                .filter(|f| subject_filter.map_or(true, |s| f.subject == s))
+                .filter(|f| subject_filter.is_none_or(|s| f.subject == s))
                 .collect();
             if filtered.is_empty() {
                 "No current temporal facts.".to_string()
@@ -765,7 +765,7 @@ async fn call_tool(
                     snapshot.advisory_count(),
                     snapshot.age_hours().unwrap_or(0.0)));
             } else {
-                lines.push(format!("  Local snapshot: not downloaded"));
+                lines.push("  Local snapshot: not downloaded".to_string());
             }
             lines.join("\n")
         }

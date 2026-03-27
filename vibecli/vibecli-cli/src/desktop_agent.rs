@@ -476,7 +476,6 @@ fn parse_screen_size_macos(output: &str) -> Option<ScreenInfo> {
             if parts.len() >= 2 {
                 let w = parts[0].trim().parse::<u32>().ok()?;
                 let h = parts[1]
-                    .trim()
                     .split_whitespace()
                     .next()?
                     .parse::<u32>()

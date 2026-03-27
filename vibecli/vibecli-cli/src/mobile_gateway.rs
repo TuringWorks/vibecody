@@ -624,10 +624,8 @@ impl MobileGateway {
             } else {
                 machine.status = MachineStatus::Idle;
             }
-        } else {
-            if machine.status == MachineStatus::Offline || machine.status == MachineStatus::Unreachable {
-                machine.status = MachineStatus::Online;
-            }
+        } else if machine.status == MachineStatus::Offline || machine.status == MachineStatus::Unreachable {
+            machine.status = MachineStatus::Online;
         }
 
         Ok(())

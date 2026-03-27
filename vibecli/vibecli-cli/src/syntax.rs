@@ -200,12 +200,7 @@ fn render_inline_markdown(line: &str) -> String {
 fn find_closing(chars: &[char], from: usize, delim: &[char]) -> Option<usize> {
     let dlen = delim.len();
     if from + dlen > chars.len() { return None; }
-    for i in from..=chars.len() - dlen {
-        if chars[i..i+dlen] == *delim {
-            return Some(i);
-        }
-    }
-    None
+    (from..=chars.len() - dlen).find(|&i| chars[i..i+dlen] == *delim)
 }
 
 /// Render a single markdown prose line with ANSI colors.

@@ -753,7 +753,7 @@ CMD ["echo", "Configure your start command"]
                     && d.id != deploy_id
                     && d.status == DeployStatus::Live
             })
-            .last();
+            .next_back();
 
         let rollback_to_id = match previous {
             Some(prev) => prev.id.clone(),

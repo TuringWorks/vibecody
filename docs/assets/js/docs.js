@@ -107,13 +107,28 @@
         return item.title.toLowerCase().includes(query);
       });
 
-      results.innerHTML = matches.length === 0
-        ? '<div style="padding:20px;text-align:center;color:var(--text-muted)">No results for "' + query + '"</div>'
-        : matches.map(function (m) {
-            return '<a href="' + m.url + '" class="search-result-item">'
-              + '<div class="search-result-title">' + m.title + '</div>'
-              + '<div class="search-result-url">' + m.url + '</div></a>';
-          }).join('');
+      results.textContent = '';
+      if (matches.length === 0) {
+        var empty = document.createElement('div');
+        empty.style.cssText = 'padding:20px;text-align:center;color:var(--text-muted)';
+        empty.textContent = 'No results for \u201c' + query + '\u201d';
+        results.appendChild(empty);
+      } else {
+        matches.forEach(function (m) {
+          var a = document.createElement('a');
+          a.href = m.url;
+          a.className = 'search-result-item';
+          var title = document.createElement('div');
+          title.className = 'search-result-title';
+          title.textContent = m.title;
+          var url = document.createElement('div');
+          url.className = 'search-result-url';
+          url.textContent = m.url;
+          a.appendChild(title);
+          a.appendChild(url);
+          results.appendChild(a);
+        });
+      }
     });
 
     overlay.addEventListener('click', function (e) {

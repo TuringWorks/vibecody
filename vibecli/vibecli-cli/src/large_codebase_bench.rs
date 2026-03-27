@@ -695,7 +695,7 @@ pub fn format_report(report: &BenchReport) -> String {
             .unwrap_or_else(|| "N/A".into());
         let memory = m
             .memory_bytes
-            .map(|b| format_bytes(b))
+            .map(format_bytes)
             .unwrap_or_else(|| "N/A".into());
         let std_dev = m
             .std_dev_ms

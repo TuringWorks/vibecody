@@ -1530,7 +1530,7 @@ async fn main() -> Result<()> {
         return Ok(());
     }
 
-    println!("{}{}VibeCLI{} — AI-Powered Coding Assistant", "\x1b[1m", "\x1b[92m", "\x1b[0m");
+    println!("\x1b[1m\x1b[92mVibeCLI\x1b[0m — AI-Powered Coding Assistant");
     print!("Provider: {}", effective_provider);
     if let Some(ref m) = effective_model {
         print!(" / {}", m);
@@ -7483,7 +7483,7 @@ async fn main() -> Result<()> {
                         }
 
                         "/resources" => {
-                            let sub = args.trim().split_whitespace().next().unwrap_or("status");
+                            let sub = args.split_whitespace().next().unwrap_or("status");
                             let mgr = resource_manager::ResourceManager::default_manager();
                             match sub {
                                 "export" => {
@@ -7598,7 +7598,7 @@ async fn main() -> Result<()> {
                                 } else {
                                     highlight_code_blocks(&full_response)
                                 };
-                                print!("{}\n", rendered);
+                                println!("{}", rendered);
                             }
                             if !full_response.is_empty() {
                                 messages.push(Message {
@@ -8152,7 +8152,7 @@ async fn run_agent_repl_with_context(
                         let content = format!("Session: {} — {}", task_for_mem, summary_for_mem);
                         store.add_dedup(content, dedup_threshold);
                         // Trigger auto-reflection at configured interval
-                        if reflect_interval > 0 && store.total_memories() % reflect_interval == 0 {
+                        if reflect_interval > 0 && store.total_memories().is_multiple_of(reflect_interval) {
                             store.auto_reflect();
                         }
                         // Reinforce memories that were used in context

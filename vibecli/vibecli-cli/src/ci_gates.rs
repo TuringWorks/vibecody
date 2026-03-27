@@ -721,7 +721,7 @@ impl CiGateRunner {
     fn check_required_header(&self, header: &str, files: &[&DiffFile], rule: &CiRule) -> Vec<CheckResult> {
         let mut results = Vec::new();
         for file in files {
-            let has_header = file.additions.first().map_or(false, |l| l.contains(header));
+            let has_header = file.additions.first().is_some_and(|l| l.contains(header));
             if !has_header {
                 results.push(CheckResult {
                     rule_id: rule.id.clone(),
@@ -800,7 +800,7 @@ impl CiGateRunner {
         let mut out = String::new();
         let status = if report.overall_passed { "PASSED" } else { "FAILED" };
         out.push_str(&format!("# CI Gate Report: {}\n\n", status));
-        out.push_str(&format!("| Metric | Count |\n|--------|-------|\n"));
+        out.push_str("| Metric | Count |\n|--------|-------|\n");
         out.push_str(&format!("| Total  | {} |\n", report.total_checks));
         out.push_str(&format!("| Passed | {} |\n", report.passed));
         out.push_str(&format!("| Failed | {} |\n", report.failed));

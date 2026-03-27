@@ -4170,7 +4170,7 @@ pub async fn detect_build_system(workspace: String) -> Result<Vec<BuildSystem>, 
         if has_ext(".zig") {
             let zig_files: Vec<&String> = entries.iter().filter(|f| f.ends_with(".zig")).collect();
             let main_file = zig_files.iter().find(|f| **f == "main.zig").unwrap_or_else(|| zig_files.first().unwrap());
-            systems.push(build_sys("zig", &format!("zig build-exe {}", main_file), &format!("./main"), main_file, "zig",
+            systems.push(build_sys("zig", &format!("zig build-exe {}", main_file), "./main", main_file, "zig",
                 "Install Zig: https://ziglang.org/download/ or `brew install zig`"));
         }
 
@@ -26401,7 +26401,7 @@ pub async fn superbrain_route(prompt: String) -> Result<serde_json::Value, Strin
 
     let rules = SmartRouter::default_rules();
     let decision = SmartRouter::route(&prompt, &rules);
-    Ok(serde_json::to_value(&decision).map_err(|e| e.to_string())?)
+    serde_json::to_value(&decision).map_err(|e| e.to_string())
 }
 
 #[tauri::command]

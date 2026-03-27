@@ -174,6 +174,11 @@ async fn start_index(
                     job.error = Some(e.to_string());
                 }
             }
+        } else {
+            warn!(
+                "Job {} completed but was removed from the job map before results could be recorded (workspace: {})",
+                job_id_clone, workspace
+            );
         }
     });
 

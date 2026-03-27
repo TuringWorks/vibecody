@@ -297,7 +297,7 @@ impl TemporalFact {
 
     /// Whether this fact is valid at a given point in time.
     pub fn is_valid_at(&self, epoch: u64) -> bool {
-        epoch >= self.valid_from && self.valid_to.map_or(true, |end| epoch < end)
+        epoch >= self.valid_from && self.valid_to.is_none_or(|end| epoch < end)
     }
 
     /// Close this fact (set valid_to to now).
@@ -2356,7 +2356,7 @@ pub fn import_from_auto_memory(store: &mut OpenMemoryStore, json: &str) -> Resul
         }
         // Set salience based on confidence
         if let Some(node) = store.get_mut(&id) {
-            node.salience = confidence as f64;
+            node.salience = confidence;
         }
         count += 1;
     }

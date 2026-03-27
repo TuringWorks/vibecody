@@ -358,7 +358,9 @@ pub struct GeneratedChart {
 
 /// Layout strategy for a dashboard.
 #[derive(Debug, Clone, PartialEq)]
+#[derive(Default)]
 pub enum DashboardLayout {
+    #[default]
     Grid,
     Vertical,
     Horizontal,
@@ -374,11 +376,6 @@ impl DashboardLayout {
     }
 }
 
-impl Default for DashboardLayout {
-    fn default() -> Self {
-        Self::Grid
-    }
-}
 
 /// A collection of charts assembled into a dashboard page.
 #[derive(Debug, Clone, PartialEq)]

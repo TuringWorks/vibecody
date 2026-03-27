@@ -38,6 +38,9 @@ const DIR_ICONS: Record<MsgDirection, string> = {
  error: "✕",
 };
 
+/** Maximum number of messages retained in the log. Older messages are dropped. */
+const MAX_MESSAGES = 500;
+
 let msgCounter = 0;
 
 function makeMsg(direction: MsgDirection, data: string, latency?: number): WsMessage {
@@ -45,8 +48,9 @@ function makeMsg(direction: MsgDirection, data: string, latency?: number): WsMes
 }
 
 function fmt(ts: number) {
- return new Date(ts).toLocaleTimeString([], { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" }) +
- "." + String(ts % 1000).padStart(3, "0");
+ const d = new Date(ts);
+ return d.toLocaleTimeString([], { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" }) +
+ "." + String(d.getMilliseconds()).padStart(3, "0");
 }
 
 const PRESETS: WsConfig[] = [
@@ -82,7 +86,7 @@ export function WebSocketPanel() {
  // Cleanup on unmount
  useEffect(() => () => { wsRef.current?.close(); }, []);
 
- const push = useCallback((m: WsMessage) => setMessages(prev => [...prev.slice(-500), m]), []);
+ const push = useCallback((m: WsMessage) => setMessages(prev => [...prev.slice(-MAX_MESSAGES), m]), []);
 
  const connect = () => {
  if (wsRef.current && wsRef.current.readyState < 2) wsRef.current.close();

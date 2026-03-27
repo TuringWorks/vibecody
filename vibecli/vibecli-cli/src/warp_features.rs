@@ -121,7 +121,7 @@ pub fn suggest_correction(cmd: &str, exit_code: i32, stderr: &str) -> Option<Com
         if exit_code == 126 || stderr_lower.contains("execute") {
             return Some(CommandCorrection {
                 failed_command: cmd.to_string(),
-                suggested_command: format!("chmod +x {} && {}", parts.get(0).unwrap_or(&""), cmd),
+                suggested_command: format!("chmod +x {} && {}", parts.first().unwrap_or(&""), cmd),
                 reason: "File is not executable. Adding execute permission.".to_string(),
             });
         }
@@ -624,7 +624,7 @@ pub fn send_notification(title: &str, body: &str) -> Result<(), String> {
         if status.success() {
             return Ok(());
         }
-        return Err("osascript returned non-zero".to_string());
+        Err("osascript returned non-zero".to_string())
     }
 
     #[cfg(target_os = "linux")]

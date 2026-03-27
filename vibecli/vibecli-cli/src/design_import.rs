@@ -386,9 +386,9 @@ impl DesignImporter {
             query
                 .split('&')
                 .find_map(|pair| {
-                    let mut kv = pair.splitn(2, '=');
-                    let key = kv.next()?;
-                    let val = kv.next()?;
+                    let (key, val) = pair.split_once('=')?;
+                    
+                    
                     if key == "node-id" {
                         Some(val.to_string())
                     } else {
@@ -673,11 +673,10 @@ impl DesignImporter {
             return trimmed.to_string();
         }
         // Bare 6- or 8-char hex without #
-        if trimmed.len() == 6 || trimmed.len() == 8 {
-            if trimmed.chars().all(|c| c.is_ascii_hexdigit()) {
+        if (trimmed.len() == 6 || trimmed.len() == 8)
+            && trimmed.chars().all(|c| c.is_ascii_hexdigit()) {
                 return format!("#{}", trimmed.to_lowercase());
             }
-        }
         // Named CSS color — pass through
         trimmed.to_lowercase()
     }

@@ -306,7 +306,7 @@ impl ExtensionCompatManager {
                         let lang = file
                             .path
                             .split('/')
-                            .last()
+                            .next_back()
                             .and_then(|f| f.strip_suffix(".json"))
                             .unwrap_or("unknown");
                         if let Ok(snips) = Self::parse_snippets(content, lang) {

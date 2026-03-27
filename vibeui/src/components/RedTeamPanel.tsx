@@ -68,6 +68,7 @@ export function RedTeamPanel({ workspacePath, provider: _provider }: Props) {
   const [activeSession, setActiveSession] = useState<RedTeamSession | null>(null);
   const [expandedFinding, setExpandedFinding] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showFullStageNames, setShowFullStageNames] = useState(false);
 
   // Track mount status so polling loop stops on unmount
   const mountedRef = useRef(true);
@@ -236,38 +237,54 @@ export function RedTeamPanel({ workspacePath, provider: _provider }: Props) {
       </div>
 
       {/* Pipeline stages */}
-      <div style={{ display: "flex", gap: 4, marginBottom: 16, alignItems: "center" }}>
+      <div style={{ display: "flex", gap: 0, marginBottom: 16, alignItems: "flex-start" }}>
         {STAGES.map((stage, i) => {
           const isActive = scanning && currentStage === stage;
           const isDone = scanning
             ? STAGES.indexOf(currentStage || "") > i
             : activeSession != null;
+          const abbrev = stage.slice(0, 3);
 
           return (
             <React.Fragment key={stage}>
               {i > 0 && (
-                <div style={{ width: 20, height: 2, background: isDone ? "var(--success-color)" : "var(--border-color)" }} />
+                <div style={{ display: "flex", alignItems: "center", height: 28, paddingTop: 0 }}>
+                  <div style={{ width: 20, height: 2, background: isDone ? "var(--success-color)" : "var(--border-color)" }} />
+                </div>
               )}
               <div
-                style={{
-                  width: 28, height: 28, borderRadius: "50%",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 11, fontWeight: 600,
-                  background: isActive ? "var(--error-color)" : isDone ? "var(--success-color)" : "var(--bg-secondary)",
-                  color: isActive || isDone ? "white" : "var(--text-secondary)",
-                  border: `2px solid ${isActive ? "var(--error-color)" : isDone ? "var(--success-color)" : "var(--border-color)"}`,
-                  animation: isActive ? "pulse 1.5s infinite" : "none",
-                }}
+                style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: 48, cursor: "pointer" }}
                 title={stage}
+                onClick={() => setShowFullStageNames((v: boolean) => !v)}
               >
-                {i + 1}
+                <div
+                  style={{
+                    width: 28, height: 28, borderRadius: "50%",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 11, fontWeight: 600,
+                    background: isActive ? "var(--error-color)" : isDone ? "var(--success-color)" : "var(--bg-secondary)",
+                    color: isActive || isDone ? "white" : "var(--text-secondary)",
+                    border: `2px solid ${isActive ? "var(--error-color)" : isDone ? "var(--success-color)" : "var(--border-color)"}`,
+                    animation: isActive ? "pulse 1.5s infinite" : "none",
+                    flexShrink: 0,
+                  }}
+                >
+                  {i + 1}
+                </div>
+                <span
+                  style={{
+                    marginTop: 4, fontSize: 10, fontWeight: isActive ? 600 : 400,
+                    color: isActive ? "var(--error-color)" : isDone ? "var(--success-color)" : "var(--text-secondary)",
+                    whiteSpace: "nowrap",
+                    transition: "all 0.15s ease",
+                  }}
+                >
+                  {showFullStageNames ? stage : abbrev}
+                </span>
               </div>
             </React.Fragment>
           );
         })}
-        <span style={{ marginLeft: 8, fontSize: 11, color: "var(--text-secondary)" }}>
-          {STAGES.map((s) => s.slice(0, 3)).join(" > ")}
-        </span>
       </div>
 
       {error && (

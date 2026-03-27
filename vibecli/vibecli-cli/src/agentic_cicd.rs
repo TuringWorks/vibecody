@@ -422,8 +422,8 @@ impl AgenticCiCd {
                         function_name: fn_name,
                         coverage_percent: pct,
                         suggested_tests: vec![
-                            format!("test_{}_basic", file.replace('/', "_").replace('.', "_")),
-                            format!("test_{}_edge_cases", file.replace('/', "_").replace('.', "_")),
+                            format!("test_{}_basic", file.replace(['/', '.'], "_")),
+                            format!("test_{}_edge_cases", file.replace(['/', '.'], "_")),
                         ],
                         priority,
                     })
