@@ -52,10 +52,6 @@ class _MachinesScreenState extends State<MachinesScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthService>();
-<<<<<<< HEAD
-=======
-    final c = context.vibeColors;
->>>>>>> c137a77b261988cafc873fac496424c3f2c18d3d
 
     return Scaffold(
       appBar: AppBar(

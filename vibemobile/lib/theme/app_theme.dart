@@ -205,11 +205,7 @@ class VibeColors {
   final Color accentRed;
   final Color accentOrange;
 
-<<<<<<< HEAD
   const VibeColors({
-=======
-  const _VibeColors({
->>>>>>> c137a77b261988cafc873fac496424c3f2c18d3d
     required this.bgPrimary,
     required this.bgSecondary,
     required this.bgTertiary,
@@ -222,11 +218,7 @@ class VibeColors {
     required this.accentOrange,
   });
 
-<<<<<<< HEAD
   static const dark = VibeColors(
-=======
-  static const dark = _VibeColors(
->>>>>>> c137a77b261988cafc873fac496424c3f2c18d3d
     bgPrimary: Color(0xFF1E1E2E),
     bgSecondary: Color(0xFF252536),
     bgTertiary: Color(0xFF2A2A3C),
@@ -239,11 +231,7 @@ class VibeColors {
     accentOrange: Color(0xFFE5C07B),
   );
 
-<<<<<<< HEAD
   static const light = VibeColors(
-=======
-  static const light = _VibeColors(
->>>>>>> c137a77b261988cafc873fac496424c3f2c18d3d
     bgPrimary: Color(0xFFF8F8FA),
     bgSecondary: Color(0xFFFFFFFF),
     bgTertiary: Color(0xFFF0F0F4),
