@@ -5,4 +5,5 @@ export const TerminalComposite = createComposite([
   { id: "ssh", label: "SSH", importFn: () => import("../SshPanel"), exportName: "SshPanel" },
   { id: "notebook", label: "Notebook", importFn: () => import("../NotebookPanel"), exportName: "NotebookPanel" },
   { id: "logs", label: "Logs", importFn: () => import("../LogPanel"), exportName: "LogPanel" },
+  { id: "voicelocal", label: "Voice", importFn: () => import("../VoiceLocalPanel"), exportName: "VoiceLocalPanel" },
 ]);

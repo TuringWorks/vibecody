@@ -7,5 +7,6 @@ export const AiContextComposite = createComposite([
   { id: "fastcontext", label: "Fast Context", importFn: () => import("../FastContextPanel") },
   { id: "semanticindex", label: "Semantic", importFn: () => import("../SemanticIndexPanel"), exportName: "SemanticIndexPanel" },
   { id: "webgrounding", label: "Web Search", importFn: () => import("../WebGroundingPanel"), exportName: "WebGroundingPanel" },
-  { id: "nexttask", label: "Next Task", importFn: () => import("../NextTaskPanel"), exportName: "NextTaskPanel" },
+  { id: "sessionmemory", label: "Session Memory", importFn: () => import("../SessionMemoryPanel"), exportName: "SessionMemoryPanel" },
+  { id: "artifacts", label: "Artifacts", importFn: () => import("../ArtifactsPanel"), exportName: "ArtifactsPanel" },
 ]);

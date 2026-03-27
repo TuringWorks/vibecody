@@ -8,4 +8,5 @@ export const AdministrationComposite = createComposite([
   { id: "manager", label: "Manager", importFn: () => import("../ManagerView"), exportName: "ManagerView" },
   { id: "analytics", label: "Analytics", importFn: () => import("../AnalyticsPanel"), exportName: "AnalyticsPanel" },
   { id: "trust", label: "Trust", importFn: () => import("../TrustPanel"), exportName: "TrustPanel" },
+  { id: "compliance", label: "Compliance", importFn: () => import("../CompliancePanel"), exportName: "CompliancePanel" },
 ]);
