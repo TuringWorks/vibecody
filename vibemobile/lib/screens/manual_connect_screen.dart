@@ -68,7 +68,7 @@ class _ManualConnectScreenState extends State<ManualConnectScreen> {
                   child: TextField(
                     controller: _urlController,
                     keyboardType: TextInputType.url,
-                    decoration: const InputDecoration(hintText: 'http://192.168.1.100:7878'),
+                    decoration: const InputDecoration(hintText: 'http://10.0.2.2:7878 or local IP'),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -130,7 +130,9 @@ class _ManualConnectScreenState extends State<ManualConnectScreen> {
               title: const Text('Connection Help', style: TextStyle(fontSize: 13)),
               tilePadding: EdgeInsets.zero,
               children: [
-                _HelpItem(icon: Icons.wifi_rounded, color: c.accentBlue, title: 'Local Network', desc: 'Use your machine\'s local IP (e.g., 192.168.1.x:7878)'),
+                _HelpItem(icon: Icons.phone_android_rounded, color: c.accentBlue, title: 'Android Emulator', desc: 'Use http://10.0.2.2:7878 (maps to host\'s localhost)'),
+                _HelpItem(icon: Icons.phone_iphone_rounded, color: c.accentBlue, title: 'iOS Simulator', desc: 'Use http://localhost:7878 (shares host network)'),
+                _HelpItem(icon: Icons.wifi_rounded, color: c.accentBlue, title: 'Physical Device', desc: 'Use your machine\'s local IP (e.g., 192.168.1.x:7878)'),
                 _HelpItem(icon: Icons.vpn_key_rounded, color: c.accentBlue, title: 'Tailscale', desc: 'Use your Tailscale IP (100.x.y.z:7878) for secure remote access'),
                 _HelpItem(icon: Icons.public_rounded, color: c.accentBlue, title: 'Tailscale Funnel', desc: 'Use the public HTTPS URL for access from anywhere'),
               ],
