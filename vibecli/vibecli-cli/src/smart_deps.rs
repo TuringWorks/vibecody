@@ -518,7 +518,7 @@ mod tests {
 
     #[test]
     fn test_check_license_compliance_allowed() {
-        let a = analyzer();
+        let _a = analyzer();
         let mut a2 = analyzer();
         a2.add_dep(Dependency::new("x", "1.0", PackageManager::Npm));
         let mut licenses = HashMap::new();

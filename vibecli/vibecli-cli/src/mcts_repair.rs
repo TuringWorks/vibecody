@@ -437,6 +437,12 @@ pub struct AgentlessPipeline {
     pub validated: bool,
 }
 
+impl Default for AgentlessPipeline {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AgentlessPipeline {
     /// Create a new pipeline in the Localize phase.
     pub fn new() -> Self {

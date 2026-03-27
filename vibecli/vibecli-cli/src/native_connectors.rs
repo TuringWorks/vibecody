@@ -163,6 +163,7 @@ impl PartialEq for ConnectorInstance {
 
 /// Aggregate metrics across all connectors.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct ConnectorMetrics {
     pub total_connectors: usize,
     pub connected_count: usize,
@@ -171,17 +172,6 @@ pub struct ConnectorMetrics {
     pub auto_discovered: u64,
 }
 
-impl Default for ConnectorMetrics {
-    fn default() -> Self {
-        Self {
-            total_connectors: 0,
-            connected_count: 0,
-            total_requests: 0,
-            total_errors: 0,
-            auto_discovered: 0,
-        }
-    }
-}
 
 /// Webhook event received by the registry.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -199,6 +189,12 @@ pub struct ConnectorRegistry {
     pub webhook_endpoint: Option<String>,
     pub webhook_events: Vec<WebhookEvent>,
     pub metrics: ConnectorMetrics,
+}
+
+impl Default for ConnectorRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ConnectorRegistry {
@@ -266,9 +262,7 @@ impl ConnectorRegistry {
         conn.last_health_check = Some(conn.requests_count + 1);
         conn.requests_count += 1;
 
-        let new_status = if conn.config.api_key.is_some() {
-            ConnectorStatus::Connected
-        } else if conn.config.oauth_config.is_some() {
+        let new_status = if conn.config.api_key.is_some() || conn.config.oauth_config.is_some() {
             ConnectorStatus::Connected
         } else {
             ConnectorStatus::AuthRequired
@@ -288,26 +282,22 @@ impl ConnectorRegistry {
             let lower_name = filename.to_lowercase();
             let lower_content = content.to_lowercase();
 
-            if lower_name.contains("package.json") || lower_content.contains("stripe") {
-                if !self.has_type(&ConnectorType::Stripe) {
+            if (lower_name.contains("package.json") || lower_content.contains("stripe"))
+                && !self.has_type(&ConnectorType::Stripe) {
                     discovered.push(ConnectorType::Stripe);
                 }
-            }
-            if lower_content.contains("sentry") {
-                if !self.has_type(&ConnectorType::Sentry) {
+            if lower_content.contains("sentry")
+                && !self.has_type(&ConnectorType::Sentry) {
                     discovered.push(ConnectorType::Sentry);
                 }
-            }
-            if lower_content.contains("supabase") {
-                if !self.has_type(&ConnectorType::Supabase) {
+            if lower_content.contains("supabase")
+                && !self.has_type(&ConnectorType::Supabase) {
                     discovered.push(ConnectorType::Supabase);
                 }
-            }
-            if lower_content.contains("firebase") {
-                if !self.has_type(&ConnectorType::Firebase) {
+            if lower_content.contains("firebase")
+                && !self.has_type(&ConnectorType::Firebase) {
                     discovered.push(ConnectorType::Firebase);
                 }
-            }
             if lower_name.contains(".env") {
                 if lower_content.contains("datadog") && !self.has_type(&ConnectorType::Datadog) {
                     discovered.push(ConnectorType::Datadog);

@@ -154,6 +154,12 @@ pub struct TransitionMatrix {
     pub transitions: HashMap<String, HashMap<String, u32>>,
 }
 
+impl Default for TransitionMatrix {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TransitionMatrix {
     pub fn new() -> Self {
         Self {
@@ -164,7 +170,7 @@ impl TransitionMatrix {
     pub fn record_transition(&mut self, from: &DevAction, to: &DevAction) {
         let from_key = from.key();
         let to_key = to.key();
-        let inner = self.transitions.entry(from_key).or_insert_with(HashMap::new);
+        let inner = self.transitions.entry(from_key).or_default();
         *inner.entry(to_key).or_insert(0) += 1;
     }
 
@@ -539,7 +545,7 @@ impl PredictionEngine {
             .metrics
             .by_phase
             .entry(phase_key)
-            .or_insert_with(PhaseStats::default);
+            .or_default();
         ps.suggestions += deduped.len() as u32;
 
         self.suggestions = deduped.clone();
@@ -563,7 +569,7 @@ impl PredictionEngine {
             .metrics
             .by_phase
             .entry(phase_key)
-            .or_insert_with(PhaseStats::default);
+            .or_default();
         ps.accepted += 1;
         ps.accuracy = if ps.suggestions > 0 {
             ps.accepted as f64 / ps.suggestions as f64

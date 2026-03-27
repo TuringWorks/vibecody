@@ -461,7 +461,7 @@ impl WebGroundingEngine {
     }
 
     /// Adjust relevance scores based on how well results relate to the context.
-    pub fn rank_results(results: &mut Vec<SearchResult>, context: &str) {
+    pub fn rank_results(results: &mut [SearchResult], context: &str) {
         let ctx_lower = context.to_lowercase();
         let ctx_words: Vec<&str> = ctx_lower.split_whitespace().collect();
 

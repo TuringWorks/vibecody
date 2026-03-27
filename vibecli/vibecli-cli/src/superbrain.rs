@@ -1,4 +1,3 @@
-#![allow(dead_code)] // Module prepared for /superbrain REPL command integration
 
 use serde::{Serialize, Deserialize};
 

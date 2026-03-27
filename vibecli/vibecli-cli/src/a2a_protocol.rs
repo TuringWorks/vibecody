@@ -320,6 +320,12 @@ pub struct A2aMetrics {
     pub agents_discovered: u64,
 }
 
+impl Default for A2aMetrics {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl A2aMetrics {
     pub fn new() -> Self {
         Self {
@@ -366,6 +372,12 @@ impl A2aMetrics {
 /// Registry for discovering A2A-compatible agents.
 pub struct A2aRegistry {
     pub agents: HashMap<String, AgentCard>,
+}
+
+impl Default for A2aRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl A2aRegistry {
@@ -415,6 +427,12 @@ impl A2aRegistry {
 
 /// Negotiates capability matching between agents.
 pub struct CapabilityNegotiator;
+
+impl Default for CapabilityNegotiator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl CapabilityNegotiator {
     pub fn new() -> Self {
@@ -481,6 +499,12 @@ pub struct TaskLifecycleManager {
     tasks: HashMap<String, A2aTask>,
     next_id: u64,
     timestamp_counter: u64,
+}
+
+impl Default for TaskLifecycleManager {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl TaskLifecycleManager {
@@ -639,6 +663,12 @@ impl TaskLifecycleManager {
 pub struct A2aEventStream {
     events: Vec<A2aEvent>,
     timestamp_counter: u64,
+}
+
+impl Default for A2aEventStream {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl A2aEventStream {

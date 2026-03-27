@@ -70,16 +70,15 @@ impl std::fmt::Display for SpawnStatus {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum AgentPriority {
     Low = 0,
+    #[default]
     Normal = 1,
     High = 2,
     Critical = 3,
 }
 
-impl Default for AgentPriority {
-    fn default() -> Self { Self::Normal }
-}
 
 impl std::fmt::Display for AgentPriority {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -96,8 +95,10 @@ impl std::fmt::Display for AgentPriority {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum IsolationMode {
     /// Git worktree — separate branch, shared repo.
+    #[default]
     Worktree,
     /// Docker container — full isolation.
     Container,
@@ -105,9 +106,6 @@ pub enum IsolationMode {
     None,
 }
 
-impl Default for IsolationMode {
-    fn default() -> Self { Self::Worktree }
-}
 
 // ─── Spawn Config ───────────────────────────────────────────────────────────
 
@@ -562,8 +560,7 @@ impl TaskDecomposer {
 
         context_files
             .iter()
-            .enumerate()
-            .map(|(_, file)| SubTask {
+            .map(|file| SubTask {
                 description: format!("Process {}: {}", file, _task),
                 files: vec![file.clone()],
                 depends_on: vec![],

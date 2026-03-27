@@ -166,7 +166,7 @@ impl TrustEngine {
         if let Some(ref d) = domain {
             let model_domains = self.domain_scores
                 .entry(model_id.clone())
-                .or_insert_with(HashMap::new);
+                .or_default();
             let dt = model_domains.entry(d.clone())
                 .or_insert_with(|| DomainTrust::new(d));
             dt.event_count += 1;
@@ -277,7 +277,7 @@ impl TrustEngine {
 
     /// Calibrate a model's score to a specific value.
     pub fn calibrate(&mut self, model_id: &str, new_score: f64) -> Result<(), String> {
-        if new_score < 0.0 || new_score > 100.0 {
+        if !(0.0..=100.0).contains(&new_score) {
             return Err("Score must be between 0 and 100".to_string());
         }
         let entry = self.scores.entry(model_id.to_string())

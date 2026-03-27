@@ -122,21 +122,13 @@ pub struct OAuthToken {
 
 /// Client-side OAuth state machine.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct OAuthState {
     pub current_token: Option<OAuthToken>,
     pub pending_auth: Option<AuthRequest>,
     pub token_history: Vec<OAuthToken>,
 }
 
-impl Default for OAuthState {
-    fn default() -> Self {
-        Self {
-            current_token: None,
-            pending_auth: None,
-            token_history: Vec::new(),
-        }
-    }
-}
 
 /// A pending authorization request.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

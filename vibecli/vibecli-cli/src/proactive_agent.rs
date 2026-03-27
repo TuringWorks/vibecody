@@ -38,7 +38,7 @@ impl ScanCategory {
         }
     }
 
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse_str(s: &str) -> Option<Self> {
         match s {
             "Performance" => Some(ScanCategory::Performance),
             "Security" => Some(ScanCategory::Security),
@@ -151,21 +151,13 @@ pub struct PatternRecord {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct LearningStore {
     pub accepted_patterns: Vec<PatternRecord>,
     pub rejected_patterns: Vec<PatternRecord>,
     pub category_acceptance_rates: HashMap<String, f64>,
 }
 
-impl Default for LearningStore {
-    fn default() -> Self {
-        Self {
-            accepted_patterns: Vec::new(),
-            rejected_patterns: Vec::new(),
-            category_acceptance_rates: HashMap::new(),
-        }
-    }
-}
 
 impl LearningStore {
     pub fn record_acceptance(&mut self, suggestion: &ProactiveSuggestion) {
@@ -247,7 +239,7 @@ impl LearningStore {
         let mut entries: Vec<(ScanCategory, f64)> = self
             .category_acceptance_rates
             .iter()
-            .filter_map(|(k, v)| ScanCategory::from_str(k).map(|c| (c, *v)))
+            .filter_map(|(k, v)| ScanCategory::parse_str(k).map(|c| (c, *v)))
             .collect();
         entries.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
         entries.truncate(n);
@@ -681,7 +673,7 @@ impl ProactiveScanner {
                         priority: Priority::Low,
                         suggested_fix: Some(format!(
                             "const {}: &str = \"{}\";",
-                            literal.to_uppercase().replace(' ', "_").replace('-', "_"),
+                            literal.to_uppercase().replace([' ', '-'], "_"),
                             literal
                         )),
                         created_at: 0,
@@ -1508,14 +1500,14 @@ let token = "tok-xyz";"#;
         ];
         for cat in cats {
             let s = cat.as_str();
-            let back = ScanCategory::from_str(s).unwrap();
+            let back = ScanCategory::parse_str(s).unwrap();
             assert_eq!(cat, back);
         }
     }
 
     #[test]
     fn test_scan_category_from_str_invalid() {
-        assert!(ScanCategory::from_str("Nonexistent").is_none());
+        assert!(ScanCategory::parse_str("Nonexistent").is_none());
     }
 
     // --- Suggestion fields ---

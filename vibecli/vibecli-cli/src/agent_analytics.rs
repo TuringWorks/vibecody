@@ -335,7 +335,7 @@ impl AnalyticsEngine {
             .filter(|r| {
                 r.timestamp >= self.date_range.0
                     && r.timestamp <= self.date_range.1
-                    && user_id.map_or(true, |u| r.user_id == u)
+                    && user_id.is_none_or(|u| r.user_id == u)
             })
             .collect();
 

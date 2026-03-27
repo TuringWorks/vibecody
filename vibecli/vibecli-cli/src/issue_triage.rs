@@ -160,6 +160,12 @@ pub struct TriageLearning {
     pub type_accuracy: HashMap<String, (u32, u32)>,
 }
 
+impl Default for TriageLearning {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TriageLearning {
     pub fn new() -> Self {
         Self {
@@ -247,6 +253,12 @@ pub struct TriageMetrics {
     pub by_severity: HashMap<String, u32>,
     pub avg_confidence: f64,
     pub corrections_count: u32,
+}
+
+impl Default for TriageMetrics {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl TriageMetrics {
@@ -398,7 +410,7 @@ impl TriageEngine {
         } else {
             // Scale confidence so a single-keyword hit yields ~0.5 and multiple
             // hits approach 1.0.
-            let confidence = (best.1 * 5.0).min(1.0).max(0.1);
+            let confidence = (best.1 * 5.0).clamp(0.1, 1.0);
             (best.0, confidence)
         }
     }

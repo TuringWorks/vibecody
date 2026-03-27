@@ -249,6 +249,12 @@ pub struct SemanticIndex {
     pub metrics: IndexMetrics,
 }
 
+impl Default for SemanticIndex {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SemanticIndex {
     /// Create an empty index.
     pub fn new() -> Self {
@@ -650,10 +656,12 @@ impl SimpleParser {
             }
 
             let (kind, name, vis, sig) = if trimmed.starts_with("def ") || trimmed.starts_with("async def ") {
-                let rest = if trimmed.starts_with("async def ") {
-                    &trimmed[10..]
+                let rest = if let Some(r) = trimmed.strip_prefix("async def ") {
+                    r
+                } else if let Some(r) = trimmed.strip_prefix("def ") {
+                    r
                 } else {
-                    &trimmed[4..]
+                    unreachable!()
                 };
                 let name = Self::extract_ident(rest);
                 let vis = if name.starts_with('_') {
@@ -663,8 +671,7 @@ impl SimpleParser {
                 };
                 let sig = Self::extract_until(trimmed, ':').or_else(|| Some(trimmed.to_string()));
                 (SymbolKind::Function, name, vis, sig)
-            } else if trimmed.starts_with("class ") {
-                let rest = &trimmed[6..];
+            } else if let Some(rest) = trimmed.strip_prefix("class ") {
                 let name = Self::extract_ident(rest);
                 (SymbolKind::Class, name, Visibility::Public, None)
             } else {
@@ -703,18 +710,14 @@ impl SimpleParser {
     /// Strip optional `pub`/`pub(crate)` prefix and the keyword, returning the rest.
     fn strip_rust_item<'a>(line: &'a str, keyword: &str) -> Option<&'a str> {
         // e.g. "pub fn foo()" → "foo()"
-        let candidate = if line.starts_with("pub(crate) ") {
-            &line[11..]
-        } else if line.starts_with("pub ") {
-            &line[4..]
+        let candidate = if let Some(r) = line.strip_prefix("pub(crate) ") {
+            r
+        } else if let Some(r) = line.strip_prefix("pub ") {
+            r
         } else {
             line
         };
-        if candidate.starts_with(keyword) {
-            Some(&candidate[keyword.len()..])
-        } else {
-            None
-        }
+        candidate.strip_prefix(keyword)
     }
 
     fn rust_visibility(line: &str) -> Visibility {

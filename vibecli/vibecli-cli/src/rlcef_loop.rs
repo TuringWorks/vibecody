@@ -190,14 +190,14 @@ impl RlcefEngine {
             1.0
         } else {
             let ratio = outcome.runtime_ms as f64 / self.config.time_budget_ms as f64;
-            (1.0 - ratio).max(0.0).min(1.0)
+            (1.0 - ratio).clamp(0.0, 1.0)
         };
 
         let memory_score = if self.config.memory_budget_kb == 0 {
             1.0
         } else {
             let ratio = outcome.memory_kb as f64 / self.config.memory_budget_kb as f64;
-            (1.0 - ratio).max(0.0).min(1.0)
+            (1.0 - ratio).clamp(0.0, 1.0)
         };
 
         let total = test_score * self.config.test_weight

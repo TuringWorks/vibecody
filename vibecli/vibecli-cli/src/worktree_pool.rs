@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Parallel git worktree agent execution pool for VibeCody.
 //!
 //! Enables multiple AI agents to work simultaneously on different tasks,
@@ -713,7 +712,7 @@ impl TaskSplitter {
             }
         } else {
             // More parts than agents; merge parts into num_agents buckets
-            let bucket_size = (parts.len() + num_agents - 1) / num_agents;
+            let bucket_size = parts.len().div_ceil(num_agents);
             for (i, chunk) in parts.chunks(bucket_size).enumerate() {
                 let desc = chunk.join(". ");
                 let complexity = estimate_complexity(&desc);

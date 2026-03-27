@@ -171,6 +171,12 @@ pub struct DocSyncEngine {
     pub metrics: SyncMetrics,
 }
 
+impl Default for DocSyncEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DocSyncEngine {
     /// Create a new engine with default configuration.
     pub fn new() -> Self {

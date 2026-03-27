@@ -4,7 +4,6 @@
 //! a distinct role/persona. Supports multi-round deliberation with user
 //! interjections, voting, and moderator-driven synthesis.
 
-#![allow(dead_code)] // Module prepared for /counsel REPL command integration
 
 use serde::{Deserialize, Serialize};
 use vibe_ai::provider::{Message, MessageRole};

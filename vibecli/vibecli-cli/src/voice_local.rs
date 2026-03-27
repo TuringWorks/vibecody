@@ -174,7 +174,7 @@ impl LocalVoiceEngine {
         // Simulated transcription — confidence based on energy
         let energy: f64 = audio_samples.iter().map(|s| (*s as f64).abs()).sum::<f64>()
             / audio_samples.len() as f64;
-        let confidence = (energy * 10.0).min(1.0).max(0.1);
+        let confidence = (energy * 10.0).clamp(0.1, 1.0);
 
         let text = if energy < 0.01 {
             "[silence]".to_string()

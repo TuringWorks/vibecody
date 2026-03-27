@@ -220,6 +220,12 @@ pub struct AbRouter {
     pub active_experiment: Option<String>,
 }
 
+impl Default for AbRouter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AbRouter {
     pub fn new() -> Self {
         Self {
@@ -516,9 +522,9 @@ impl CostRouter {
         Ok(decision)
     }
 
-    fn select_cheapest<'a>(
+    fn select_cheapest(
         &self,
-        eligible: &[&'a ModelInfo],
+        eligible: &[&ModelInfo],
         profile: &TaskProfile,
     ) -> Result<(ModelInfo, String), String> {
         let best = eligible
@@ -539,9 +545,9 @@ impl CostRouter {
         ))
     }
 
-    fn select_quality<'a>(
+    fn select_quality(
         &self,
-        eligible: &[&'a ModelInfo],
+        eligible: &[&ModelInfo],
     ) -> Result<(ModelInfo, String), String> {
         let best = eligible
             .iter()
@@ -561,9 +567,9 @@ impl CostRouter {
         ))
     }
 
-    fn select_balanced<'a>(
+    fn select_balanced(
         &self,
-        eligible: &[&'a ModelInfo],
+        eligible: &[&ModelInfo],
         profile: &TaskProfile,
     ) -> Result<(ModelInfo, String), String> {
         // Balanced: maximize quality_score / cost ratio
@@ -589,9 +595,9 @@ impl CostRouter {
         ))
     }
 
-    fn select_budget_constrained<'a>(
+    fn select_budget_constrained(
         &self,
-        eligible: &[&'a ModelInfo],
+        eligible: &[&ModelInfo],
         profile: &TaskProfile,
         limit: f64,
     ) -> Result<(ModelInfo, String), String> {

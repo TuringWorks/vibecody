@@ -1359,7 +1359,7 @@ impl AlgorithmTemplates {
     }
 
     pub fn qaoa_layer(n: usize, gamma: f64, beta: f64) -> QuantumCircuit {
-        let n = n.max(2).min(16);
+        let n = n.clamp(2, 16);
         let mut c = QuantumCircuit::new(&format!("QAOA {}-qubit", n), n, n);
         // Initial superposition
         for q in 0..n { c.add_gate(QuantumGate::H(q)); }

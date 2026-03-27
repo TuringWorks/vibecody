@@ -48,6 +48,12 @@ pub struct AgentState {
     pub step_count: u32,
 }
 
+impl Default for AgentState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AgentState {
     pub fn new() -> Self {
         Self {
@@ -151,6 +157,12 @@ pub struct BridgeMetrics {
     pub events_logged: u64,
 }
 
+impl Default for BridgeMetrics {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BridgeMetrics {
     pub fn new() -> Self {
         Self {
@@ -172,6 +184,12 @@ pub struct LangGraphBridge {
     pub event_log: Vec<PipelineEvent>,
     pub config: BridgeConfig,
     pub metrics: BridgeMetrics,
+}
+
+impl Default for LangGraphBridge {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl LangGraphBridge {
