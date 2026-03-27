@@ -8,4 +8,8 @@ export const AiTeamsComposite = createComposite([
   { id: "cibot", label: "CI Bot", importFn: () => import("../CIReviewPanel"), exportName: "CIReviewPanel" },
   { id: "agentmodes", label: "Modes", importFn: () => import("../AgentModesPanel") },
   { id: "spawnagent", label: "Spawn", importFn: () => import("../SpawnAgentPanel") },
+  { id: "a2a", label: "A2A", importFn: () => import("../A2aPanel"), exportName: "A2aPanel" },
+  { id: "agenthost", label: "Host", importFn: () => import("../AgentHostPanel"), exportName: "AgentHostPanel" },
+  { id: "worktreepool", label: "Worktrees", importFn: () => import("../WorktreePoolPanel"), exportName: "WorktreePoolPanel" },
+  { id: "proactive", label: "Proactive", importFn: () => import("../ProactivePanel"), exportName: "ProactivePanel" },
 ]);

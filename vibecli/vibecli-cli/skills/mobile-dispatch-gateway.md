@@ -14,11 +14,11 @@ Remote management of VibeCody CLI/UI sessions from iOS and Android devices. Simi
 
 ## Machine Registration
 
-Machines running `vibecli serve` register themselves with the Mobile Gateway:
+Machines running `vibecli --serve` register themselves with the Mobile Gateway:
 
 ```bash
 # Start daemon and register for mobile access
-vibecli serve --port 7878
+vibecli --serve --port 7878
 # The daemon prints an API token and pairing QR code
 
 # In REPL mode

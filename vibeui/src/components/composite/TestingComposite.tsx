@@ -7,4 +7,5 @@ export const TestingComposite = createComposite([
   { id: "autofix", label: "Autofix", importFn: () => import("../AutofixPanel"), exportName: "AutofixPanel" },
   { id: "cloudautofix", label: "Cloud Fix", importFn: () => import("../CloudAutofixPanel") },
   { id: "qa-validation", label: "QA", importFn: () => import("../QaValidationPanel"), exportName: "QaValidationPanel" },
+  { id: "visualverify", label: "Visual Verify", importFn: () => import("../VisualVerifyPanel"), exportName: "VisualVerifyPanel" },
 ]);

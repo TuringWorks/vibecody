@@ -1,4 +1,4 @@
-//! VibeCLI HTTP daemon (`vibecli serve`).
+//! VibeCLI HTTP daemon (`vibecli --serve`).
 //!
 //! Exposes a REST/SSE API that the VS Code extension and Agent SDK can talk to.
 //!
@@ -22,7 +22,7 @@
 //! # Usage
 //!
 //! ```bash
-//! vibecli serve --port 7878 --provider ollama
+//! vibecli --serve --port 7878 --provider ollama
 //! ```
 
 use anyhow::Result;

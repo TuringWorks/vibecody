@@ -6,4 +6,5 @@ export const BuildDeployComposite = createComposite([
   { id: "scaffold", label: "Scaffold", importFn: () => import("../ScaffoldPanel"), exportName: "ScaffoldPanel" },
   { id: "appbuilder", label: "App Builder", importFn: () => import("../AppBuilderPanel"), exportName: "AppBuilderPanel" },
   { id: "fullstack", label: "Full Stack", importFn: () => import("../FullStackGenPanel") },
+  { id: "smartdeps", label: "Smart Deps", importFn: () => import("../SmartDepsPanel"), exportName: "SmartDepsPanel" },
 ]);

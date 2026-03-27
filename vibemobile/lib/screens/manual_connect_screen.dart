@@ -44,7 +44,7 @@ class _ManualConnectScreenState extends State<ManualConnectScreen> {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: SelectableText(
-                'vibecli serve --port 7878',
+                'vibecli --serve --port 7878',
                 style: TextStyle(fontFamily: 'JetBrainsMono', fontSize: 14, color: c.accentGreen),
               ),
             ),

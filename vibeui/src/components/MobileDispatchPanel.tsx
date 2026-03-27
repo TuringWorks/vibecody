@@ -224,7 +224,7 @@ function PairingTab() {
         <div style={{ fontWeight: 600, marginBottom: 12 }}>How to Pair</div>
         <ol style={{ margin: 0, paddingLeft: 20, fontSize: 13, lineHeight: 1.8 }}>
           <li>Install <strong>VibeCody Mobile</strong> from App Store or Play Store</li>
-          <li>Run <code style={{ padding: "2px 6px", borderRadius: 4, background: "var(--bg-tertiary)" }}>vibecli serve --port 7878</code> on your machine</li>
+          <li>Run <code style={{ padding: "2px 6px", borderRadius: 4, background: "var(--bg-tertiary)" }}>vibecli --serve --port 7878</code> on your machine</li>
           <li>Open the mobile app and tap <strong>Scan QR Code</strong> or enter the 6-digit PIN</li>
           <li>Start managing your sessions remotely!</li>
         </ol>
