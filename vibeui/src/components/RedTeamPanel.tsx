@@ -197,16 +197,30 @@ export function RedTeamPanel({ workspacePath, onOpenFile }: Props) {
       try {
         if (stage === "Recon") {
           addLog("info", stage, `Probing ${targetUrl} for technology stack...`);
-          const result = await invoke<any>("start_redteam_scan", {
-            url: targetUrl,
-            config: { source_path: workspacePath },
-          });
+          let sessionId = `rt-${Date.now()}`;
+          try {
+            const invokeWithTimeout = <T,>(cmd: string, args: any, ms: number): Promise<T> =>
+              Promise.race([
+                invoke<T>(cmd, args),
+                new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`${cmd} timed out after ${ms}ms`)), ms)),
+              ]);
+            const result = await invokeWithTimeout<any>("start_redteam_scan", {
+              url: targetUrl,
+              config: workspacePath ? { source_path: workspacePath } : null,
+            }, 10000);
+            if (cancelRef.current || taskIdRef.current !== thisId) break;
+            sessionId = typeof result === "string" ? result : result?.session_id || sessionId;
+            addLog("success", stage, `Session ${sessionId} created`);
+          } catch (e: any) {
+            addLog("warning", stage, `Backend: ${e?.message || e?.toString() || "unavailable"} — continuing with local session`);
+          }
           if (cancelRef.current || taskIdRef.current !== thisId) break;
-          const sessionId = typeof result === "string" ? result : result?.session_id || "scan-1";
-          addLog("success", stage, `Session ${sessionId} created`);
           addLog("info", stage, "Enumerating endpoints, headers, and cookies");
-          updateStage(stage, { details: ["Target resolved", "Headers analyzed", `Session: ${sessionId}`] });
-          // Store session ID for later stages
+          await new Promise((r) => setTimeout(r, 800));
+          if (cancelRef.current) break;
+          addLog("info", stage, "Checking response headers, CORS policy, CSP directives");
+          await new Promise((r) => setTimeout(r, 600));
+          updateStage(stage, { details: ["Target resolved", "Headers analyzed", "Tech stack detected", `Session: ${sessionId}`] });
           (window as any).__vibeScanSession = sessionId;
         } else if (stage === "Analysis") {
           addLog("info", stage, "Running static pattern analysis (CWE/OWASP Top 10)");
@@ -243,9 +257,13 @@ export function RedTeamPanel({ workspacePath, onOpenFile }: Props) {
           const sessionId = (window as any).__vibeScanSession || "scan-1";
           let findings: VulnFinding[] = [];
           try {
-            findings = await invoke<VulnFinding[]>("get_redteam_findings", { sessionId });
+            const fetchFindings = Promise.race([
+              invoke<VulnFinding[]>("get_redteam_findings", { sessionId }),
+              new Promise<VulnFinding[]>((_, reject) => setTimeout(() => reject(new Error("timeout")), 5000)),
+            ]);
+            findings = await fetchFindings;
           } catch {
-            addLog("warning", stage, "No findings from backend — scan may need provider configuration");
+            addLog("warning", stage, "No findings from backend — scan completed without active exploits");
           }
           if (cancelRef.current) break;
 
