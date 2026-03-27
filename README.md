@@ -11,6 +11,7 @@
 | [VibeCLI](./vibecli/) | AI coding assistant for the terminal (TUI + REPL) | Active |
 | [VibeUI](./vibeui/) | AI-powered desktop code editor (Tauri + Monaco) | Active |
 | [VibeApp](./vibeapp/) | Secondary Tauri app | Active |
+| **VibeMobile** | `vibemobile/` | Mobile companion app (Flutter — iOS, Android, macOS, Linux, Windows, Web) |
 
 ---
 
@@ -94,11 +95,15 @@ vibecody/
 │   ├── src-tauri/              # Tauri Rust backend
 │   └── crates/                 # Shared Rust library crates
 │       ├── vibe-core/          # Text buffer, FS, workspace, Git, index
-│       ├── vibe-ai/            # 22 AI providers, agents, hooks, planner
+│       ├── vibe-ai/            # 23 AI providers, agents, hooks, planner
 │       ├── vibe-lsp/           # Language Server Protocol client
 │       ├── vibe-extensions/    # WASM-based extension system
 │       └── vibe-collab/        # CRDT multiplayer collaboration
 ├── vibeapp/                    # Secondary Tauri app
+├── vibemobile/                 # Flutter mobile companion app
+│   ├── lib/screens/            # 9 screens (home, chat, pair, machines, sessions, settings...)
+│   ├── lib/services/           # API client, auth, notifications
+│   └── lib/models/             # Machine/device models
 ├── vibe-indexer/               # Remote indexing service
 ├── vscode-extension/           # VS Code extension (chat + completions)
 ├── jetbrains-plugin/           # JetBrains IDE plugin
@@ -121,7 +126,7 @@ Core editor primitives — text buffer (rope-based), file system operations, wor
 
 ### `vibe-ai`
 
-Unified AI provider abstraction with agent loop, hooks, planner, multi-agent orchestration, skills, artifacts, admin policy, trace/session resume, and OpenTelemetry. Supports 22 providers:
+Unified AI provider abstraction with agent loop, hooks, planner, multi-agent orchestration, skills, artifacts, admin policy, trace/session resume, and OpenTelemetry. Supports 23 providers:
 
 - **Ollama** — Local/private models (default)
 - **Anthropic Claude** — Claude 4 Sonnet/Opus
@@ -215,12 +220,47 @@ enabled = false
 api_key = "..."
 model = "mistral-large-latest"
 
-# See docs/configuration.md for all 17 providers
+# See docs/configuration.md for all 23 providers
 
 [safety]
 require_approval_for_commands = true
 require_approval_for_file_changes = true
 ```
+
+---
+
+## Mobile Companion App
+
+VibeMobile (`vibemobile/`) is a Flutter app for remote management of VibeCody sessions from any device.
+
+**Features:**
+- QR code pairing with VibeCLI/VibeUI instances
+- Remote chat with AI providers
+- Machine management (register, monitor, heartbeat)
+- Session browser and management
+- Push notifications for agent task completion
+- Dark/light theme with Material Design 3
+
+**Platforms:** iOS, Android, macOS, Linux, Windows, Web
+
+```bash
+cd vibemobile
+flutter pub get
+flutter run            # Run on connected device
+flutter run -d chrome  # Run in browser
+```
+
+**Requirements:** Flutter SDK >=3.2.0, Dart >=3.2.0
+
+---
+
+## IDE Plugins
+
+| Plugin | Path | Status |
+|--------|------|--------|
+| **VS Code** | `vscode-extension/` | Extension with inline chat, code actions, sidebar panel |
+| **JetBrains** | `jetbrains-plugin/` | IntelliJ/WebStorm/PyCharm plugin with agent integration |
+| **Neovim** | `neovim-plugin/` | Lua plugin with Telescope integration |
 
 ---
 
@@ -254,7 +294,7 @@ sudo pacman -S webkit2gtk-4.1 gtk3 libappindicator-gtk3 librsvg patchelf openssl
 
 ## Running Tests
 
-**5,900+ unit tests** across the workspace.
+**7,300+ unit tests** across the workspace.
 
 ```bash
 make test          # All workspace tests
@@ -291,6 +331,8 @@ Full documentation is available at the [GitHub Pages site](https://vibecody.gith
 - [VibeUI Reference](./docs/vibeui.md)
 - [Roadmap](./docs/ROADMAP.md)
 - [Roadmap v2 (Phases 6–9)](./docs/ROADMAP-v2.md)
+- [FIT-GAP Analysis v7](docs/FIT-GAP-ANALYSIS-v7.md) — Competitive analysis (35+ tools)
+- [Roadmap v5](docs/ROADMAP-v5.md) — Implementation phases 23-31
 - [Configuration Guide](./docs/configuration.md)
 - [Contributing](./docs/contributing.md)
 

@@ -27,7 +27,10 @@ Both tools are backed by a shared set of Rust library crates for AI provider int
 | [Architecture](./architecture/) | Crate structure, data flow, and design decisions |
 | [Roadmap v2](./roadmap-v2/) | Current roadmap and planned features |
 | [Plugin Development](./plugin-development/) | Build plugins, skills, hooks, WASM extensions, and MCP integrations |
+| [VibeMobile](vibemobile/) | Mobile companion app — Flutter, pairing, remote chat |
 | [Competitive Analysis](./shannon-comparison/) | Feature comparison with other AI coding tools |
+| [FIT-GAP v7](fit-gap-analysis-v7/) | Competitive analysis — 35+ agentic tools |
+| [Roadmap v5](roadmap-v5/) | Implementation phases 23-31 |
 | [Development Guide](./development/) | Build, test, debug, and code organization for contributors |
 | [Security](./security/) | Security model, SSRF/path-traversal prevention, command blocklists |
 | [Release Notes](./release/) | What's new in v0.4.0 — downloads, upgrade guide |
@@ -69,7 +72,7 @@ All providers support streaming. Local providers require no API key.
 ### VibeUI Highlights
 
 - Monaco Editor integration (same engine as VS Code)
-- 162+ AI panel tabs (Chat, Agent, Counsel, Tests, Docker, K8s, Profiler, Design Canvas, and many more)
+- 184+ AI panel tabs (Chat, Agent, Counsel, Tests, Docker, K8s, Profiler, Design Canvas, and many more)
 - CSS variable theming across all panels with dark/light toggle
 - Multiplayer CRDT collaboration (real-time co-editing)
 - Agent teams with inter-agent messaging bus
@@ -80,6 +83,13 @@ All providers support streaming. Local providers require no API key.
 - Deploy to 6 targets from the editor
 - Rope-based text buffer, async file I/O with file-watching
 - Full Git panel, integrated terminal (PTY), LSP client, WASM extension system
+
+
+### VibeMobile (Flutter Companion)
+- QR code pairing with VibeCLI/VibeUI instances
+- Remote AI chat from iOS, Android, macOS, Linux, Windows, Web
+- Machine management with health monitoring
+- Session browser and push notifications
 
 
 ## Getting Started in 60 Seconds

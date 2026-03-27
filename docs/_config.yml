@@ -48,6 +48,9 @@ sidebar:
   - title: VibeUI
     icon: layout
     url: /vibeui/
+  - title: VibeMobile
+    icon: smartphone
+    url: /vibemobile/
   - title: Providers
     icon: cloud
     children:
@@ -114,6 +117,7 @@ header_pages:
   - tutorials/index.md
   - vibecli.md
   - vibeui.md
+  - vibemobile.md
   - providers/index.md
   - configuration.md
   - api-reference.md
