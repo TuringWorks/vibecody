@@ -1,4 +1,13 @@
 import { useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
+
+interface RecognizedComponent {
+  shape: string;
+  component: string;
+  confidence: number;
+  x: number;
+  y: number;
+}
 
 const panelStyle: React.CSSProperties = {
   padding: 16,
@@ -60,6 +69,11 @@ export function SketchCanvasPanel() {
   const [tab, setTab] = useState("canvas");
   const [activeTool, setActiveTool] = useState("rect");
   const [framework, setFramework] = useState("react");
+  const [recognized, setRecognized] = useState<RecognizedComponent[]>([]);
+  const [generatedCode, setGeneratedCode] = useState<string>("");
+  const [recognizing, setRecognizing] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const tools = [
     { id: "rect", label: "Rect" },
@@ -69,79 +83,37 @@ export function SketchCanvasPanel() {
     { id: "arrow", label: "Arrow" },
   ];
 
-  const recognized = [
-    { shape: "Rectangle", component: "Card", confidence: 94, x: 20, y: 30 },
-    { shape: "Rectangle", component: "Button", confidence: 88, x: 20, y: 120 },
-    { shape: "Circle", component: "Avatar", confidence: 82, x: 200, y: 40 },
-    { shape: "Text", component: "Heading", confidence: 91, x: 20, y: 10 },
-    { shape: "Arrow", component: "Navigation Link", confidence: 76, x: 150, y: 80 },
-  ];
-
-  const codeSnippets: Record<string, string> = {
-    react: `import React from "react";
-
-export function GeneratedLayout() {
-  return (
-    <div style={{ padding: 16 }}>
-      <h1>Heading</h1>
-      <div style={{ display: "flex", gap: 16 }}>
-        <div style={{
-          width: 200, height: 120,
-          borderRadius: 8, border: "1px solid #ccc",
-          padding: 12
-        }}>
-          <p>Card Content</p>
-        </div>
-        <div style={{
-          width: 48, height: 48,
-          borderRadius: "50%", background: "#ddd"
-        }} />
-      </div>
-      <button style={{ marginTop: 12 }}>
-        Click Me
-      </button>
-    </div>
-  );
-}`,
-    html: `<!DOCTYPE html>
-<html>
-<body>
-  <h1>Heading</h1>
-  <div style="display:flex;gap:16px">
-    <div style="width:200px;height:120px;
-      border-radius:8px;border:1px solid #ccc;
-      padding:12px">
-      <p>Card Content</p>
-    </div>
-    <div style="width:48px;height:48px;
-      border-radius:50%;background:#ddd"></div>
-  </div>
-  <button style="margin-top:12px">
-    Click Me
-  </button>
-</body>
-</html>`,
-    swiftui: `import SwiftUI
-
-struct GeneratedLayout: View {
-    var body: some View {
-        VStack(alignment: .leading) {
-            Text("Heading")
-                .font(.title)
-            HStack(spacing: 16) {
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color.gray)
-                    .frame(width: 200, height: 120)
-                    .overlay(Text("Card Content"))
-                Circle()
-                    .fill(Color.gray.opacity(0.3))
-                    .frame(width: 48, height: 48)
-            }
-            Button("Click Me") {}
-        }
-        .padding()
+  const handleRecognize = async () => {
+    setRecognizing(true);
+    try {
+      const result = await invoke<RecognizedComponent[]>("sketch_recognize", { elements: [] });
+      setRecognized(result);
+    } catch (e) {
+      console.error("Failed to recognize shapes:", e);
     }
-}`,
+    setRecognizing(false);
+  };
+
+  const handleGenerate = async () => {
+    setGenerating(true);
+    try {
+      const components = recognized.map((r) => r.component);
+      const result = await invoke<string>("sketch_generate", { framework, components });
+      setGeneratedCode(result);
+    } catch (e) {
+      console.error("Failed to generate code:", e);
+    }
+    setGenerating(false);
+  };
+
+  const handleExport = async (format: string) => {
+    setExporting(true);
+    try {
+      await invoke("sketch_export", { format });
+    } catch (e) {
+      console.error("Failed to export:", e);
+    }
+    setExporting(false);
   };
 
   const confColor = (c: number) => c >= 85 ? "#22c55e" : c >= 70 ? "#eab308" : "#ef4444";
@@ -178,6 +150,13 @@ struct GeneratedLayout: View {
 
       {tab === "recognize" && (
         <div>
+          <div style={{ marginBottom: 12 }}>
+            <button style={btnStyle} onClick={handleRecognize} disabled={recognizing}>
+              {recognizing ? "Recognizing..." : "Recognize"}
+            </button>
+          </div>
+          {recognizing && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>Analyzing shapes...</div>}
+          {!recognizing && recognized.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>No shapes recognized yet. Draw on the canvas and click Recognize.</div>}
           {recognized.map((r, i) => (
             <div key={i} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
@@ -202,13 +181,20 @@ struct GeneratedLayout: View {
                 {f === "swiftui" ? "SwiftUI" : f === "html" ? "HTML" : "React"}
               </button>
             ))}
+            <button style={btnStyle} onClick={handleGenerate} disabled={generating}>
+              {generating ? "Generating..." : "Generate Code"}
+            </button>
           </div>
-          <pre style={{
-            ...cardStyle, fontFamily: "monospace", fontSize: 12, whiteSpace: "pre-wrap",
-            lineHeight: 1.5, maxHeight: 400, overflow: "auto",
-          }}>
-            {codeSnippets[framework]}
-          </pre>
+          {generating && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>Generating code...</div>}
+          {!generating && !generatedCode && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>Recognize shapes first, then click Generate Code.</div>}
+          {generatedCode && (
+            <pre style={{
+              ...cardStyle, fontFamily: "monospace", fontSize: 12, whiteSpace: "pre-wrap",
+              lineHeight: 1.5, maxHeight: 400, overflow: "auto",
+            }}>
+              {generatedCode}
+            </pre>
+          )}
         </div>
       )}
 
@@ -217,8 +203,12 @@ struct GeneratedLayout: View {
           <div style={cardStyle}>
             <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Export Canvas</div>
             <div style={{ display: "flex", gap: 8 }}>
-              <button style={btnStyle}>Export SVG</button>
-              <button style={btnStyle}>Export PNG</button>
+              <button style={btnStyle} onClick={() => handleExport("svg")} disabled={exporting}>
+                {exporting ? "Exporting..." : "Export SVG"}
+              </button>
+              <button style={btnStyle} onClick={() => handleExport("png")} disabled={exporting}>
+                {exporting ? "Exporting..." : "Export PNG"}
+              </button>
             </div>
           </div>
           <div style={{ ...cardStyle, fontSize: 13, color: "var(--text-secondary)" }}>

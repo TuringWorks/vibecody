@@ -1,4 +1,5 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 interface HostedAgent {
   id: string;
@@ -82,26 +83,51 @@ const agentColors = ["#3b82f6", "#8b5cf6", "#ec4899", "#f59e0b", "#22c55e"];
 
 export function AgentHostPanel() {
   const [tab, setTab] = useState("agents");
-  const [agents, setAgents] = useState<HostedAgent[]>([
-    { id: "h1", name: "Coder", type: "code-gen", status: "running" },
-    { id: "h2", name: "Reviewer", type: "review", status: "running" },
-    { id: "h3", name: "Tester", type: "test", status: "stopped" },
-  ]);
-  const [output] = useState<OutputLine[]>([
-    { agentId: "h1", agentName: "Coder", text: "Generated auth middleware", timestamp: "10:15:02", color: agentColors[0] },
-    { agentId: "h2", agentName: "Reviewer", text: "Found unused import in auth.ts", timestamp: "10:15:04", color: agentColors[1] },
-    { agentId: "h1", agentName: "Coder", text: "Fixed import, re-running lint", timestamp: "10:15:06", color: agentColors[0] },
-  ]);
-  const [clipboard] = useState<ClipboardEntry[]>([
-    { id: "c1", key: "api_schema", value: '{"endpoints": [...]}', setBy: "Coder" },
-    { id: "c2", key: "test_results", value: "12 passed, 0 failed", setBy: "Tester" },
-  ]);
+  const [agents, setAgents] = useState<HostedAgent[]>([]);
+  const [output, setOutput] = useState<OutputLine[]>([]);
+  const [clipboard] = useState<ClipboardEntry[]>([]);
   const [maxAgents, setMaxAgents] = useState(5);
   const [interleave, setInterleave] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  const toggleAgent = useCallback((id: string) => {
-    setAgents((prev) => prev.map((a) => a.id === id ? { ...a, status: a.status === "running" ? "stopped" : "running" } : a));
+  useEffect(() => {
+    async function loadData() {
+      setLoading(true);
+      try {
+        const agentList = await invoke<HostedAgent[]>("host_list_agents");
+        setAgents(agentList);
+      } catch (e) {
+        console.error("Failed to load agents:", e);
+      }
+      try {
+        const outputLines = await invoke<OutputLine[]>("host_get_output", { agentId: "all", lastN: 50 });
+        setOutput(outputLines);
+      } catch (e) {
+        console.error("Failed to load output:", e);
+      }
+      setLoading(false);
+    }
+    loadData();
   }, []);
+
+  const toggleAgent = useCallback(async (id: string) => {
+    const agent = agents.find((a) => a.id === id);
+    if (!agent) return;
+    setActionLoading(id);
+    try {
+      if (agent.status === "running") {
+        await invoke("host_stop", { agentId: id });
+        setAgents((prev) => prev.map((a) => a.id === id ? { ...a, status: "stopped" as const } : a));
+      } else {
+        await invoke("host_start", { agentId: id });
+        setAgents((prev) => prev.map((a) => a.id === id ? { ...a, status: "running" as const } : a));
+      }
+    } catch (e) {
+      console.error("Failed to toggle agent:", e);
+    }
+    setActionLoading(null);
+  }, [agents]);
 
   const statusColor: Record<string, string> = { running: "#22c55e", stopped: "#6b7280", error: "#ef4444" };
 
@@ -117,6 +143,8 @@ export function AgentHostPanel() {
 
       {tab === "agents" && (
         <div>
+          {loading && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>Loading agents...</div>}
+          {!loading && agents.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>No agents configured. Start a new agent to get going.</div>}
           {agents.map((a) => (
             <div key={a.id} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
@@ -126,7 +154,9 @@ export function AgentHostPanel() {
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={{ width: 8, height: 8, borderRadius: "50%", background: statusColor[a.status], display: "inline-block" }} />
                 <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>{a.status}</span>
-                <button style={btnStyle} onClick={() => toggleAgent(a.id)}>{a.status === "running" ? "Stop" : "Start"}</button>
+                <button style={btnStyle} disabled={actionLoading === a.id} onClick={() => toggleAgent(a.id)}>
+                  {actionLoading === a.id ? "..." : a.status === "running" ? "Stop" : "Start"}
+                </button>
               </div>
             </div>
           ))}
@@ -135,10 +165,12 @@ export function AgentHostPanel() {
 
       {tab === "output" && (
         <div style={{ fontFamily: "monospace", fontSize: 12 }}>
+          {loading && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>Loading output...</div>}
+          {!loading && output.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>No output yet.</div>}
           {output.map((line, i) => (
             <div key={i} style={{ padding: "4px 0", borderBottom: "1px solid var(--border-color)" }}>
               <span style={{ color: "var(--text-secondary)", marginRight: 8 }}>{line.timestamp}</span>
-              <span style={{ color: line.color, fontWeight: 600, marginRight: 8 }}>[{line.agentName}]</span>
+              <span style={{ color: line.color || agentColors[i % agentColors.length], fontWeight: 600, marginRight: 8 }}>[{line.agentName}]</span>
               <span>{line.text}</span>
             </div>
           ))}
@@ -148,6 +180,7 @@ export function AgentHostPanel() {
       {tab === "context" && (
         <div>
           <div style={{ fontWeight: 600, marginBottom: 8 }}>Shared Clipboard</div>
+          {clipboard.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>Clipboard is empty.</div>}
           {clipboard.map((c) => (
             <div key={c.id} style={cardStyle}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>

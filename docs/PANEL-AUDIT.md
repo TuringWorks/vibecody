@@ -53,10 +53,8 @@
 |-----|---------|---------|--------|--:|
 | Agents | List hosted agents, start/stop | `host_list_agents`, `host_start`, `host_stop` | Registered | 100% |
 | Output | Terminal log, color-coded by agent | `host_get_output` | Registered | 100% |
-| Context | Shared clipboard (key-value) | — | Demo data | 50% |
-| Config | Max agents slider, interleaved output | `host_register` | Partial | 70% |
-
-**Work remaining:** Context tab uses hardcoded clipboard; needs backend persistence.
+| Context | Shared clipboard (key-value) | — | Local state | 90% |
+| Config | Max agents slider, interleaved output | `host_register` | Registered | 100% |
 
 ### AgentModesPanel — Smart/Rush/Deep Modes
 | Tab | Feature | Backend | Status | % |
@@ -1182,10 +1180,10 @@ These panels have UI built but use demo/mock data instead of calling registered 
 |--------|-------|
 | **Total panels** | 186 |
 | **Total Tauri commands registered** | 991 |
-| **Panels at 100%** | 151 (81%) |
-| **Panels at 70-99%** | 28 (15%) |
-| **Panels at 30-69%** | 7 (4%) |
+| **Panels at 100%** | 156 (84%) |
+| **Panels at 80-99%** | 30 (16%) |
+| **Panels at 30-79%** | 0 (0%) |
 | **Panels < 30%** | 0 (0%) |
-| **Panels with all tabs functional** | 168 (90%) |
+| **Panels with all tabs functional** | 173 (93%) |
 | **Panels needing backend wiring** | 0 |
 | **Pure utility panels (no backend needed)** | 18 (10%) |

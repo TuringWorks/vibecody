@@ -1,4 +1,18 @@
-import { useState, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
+
+interface VoiceModel {
+  name: string;
+  size: string;
+  downloaded: boolean;
+  selected: boolean;
+}
+
+interface HistoryEntry {
+  text: string;
+  time: string;
+  confidence: number;
+}
 
 const panelStyle: React.CSSProperties = {
   padding: 16,
@@ -53,32 +67,53 @@ export function VoiceLocalPanel() {
   const [language, setLanguage] = useState("en");
   const [vad, setVad] = useState(true);
   const [sampleRate, setSampleRate] = useState("16000");
-  const [models] = useState([
-    { name: "tiny", size: "75 MB", downloaded: true, selected: false },
-    { name: "base", size: "142 MB", downloaded: true, selected: true },
-    { name: "small", size: "466 MB", downloaded: false, selected: false },
-    { name: "medium", size: "1.5 GB", downloaded: false, selected: false },
-    { name: "large-v3", size: "2.9 GB", downloaded: false, selected: false },
-  ]);
-  const [history] = useState([
-    { text: "Create a new function called parse config", time: "2026-03-26 10:15:32", confidence: 0.94 },
-    { text: "Add error handling to the HTTP client", time: "2026-03-26 10:12:07", confidence: 0.89 },
-    { text: "Run the test suite for the auth module", time: "2026-03-26 10:08:44", confidence: 0.97 },
-    { text: "Refactor the database connection pool", time: "2026-03-26 09:55:21", confidence: 0.82 },
-  ]);
+  const [models, setModels] = useState<VoiceModel[]>([]);
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [loadingModels, setLoadingModels] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
 
-  const toggleRecording = useCallback(() => {
+  useEffect(() => {
+    async function loadModels() {
+      setLoadingModels(true);
+      try {
+        const modelList = await invoke<VoiceModel[]>("voice_list_models");
+        setModels(modelList);
+      } catch (e) {
+        console.error("Failed to load voice models:", e);
+      }
+      setLoadingModels(false);
+    }
+    loadModels();
+  }, []);
+
+  const toggleRecording = useCallback(async () => {
     if (!recording) {
       setRecording(true);
       setTranscription("Listening...");
       setConfidence(0);
-      setTimeout(() => {
-        setTranscription("Add a new endpoint for user authentication");
-        setConfidence(92);
+      setActionLoading(true);
+      try {
+        await invoke("voice_start_recording");
+      } catch (e) {
+        console.error("Failed to start recording:", e);
         setRecording(false);
-      }, 2000);
+        setTranscription("");
+        setActionLoading(false);
+      }
     } else {
+      try {
+        const result = await invoke<{ text: string; confidence: number }>("voice_stop_recording");
+        setTranscription(result.text);
+        setConfidence(Math.round(result.confidence * 100));
+        setHistory((prev) => [
+          { text: result.text, time: new Date().toISOString().replace("T", " ").slice(0, 19), confidence: result.confidence },
+          ...prev,
+        ]);
+      } catch (e) {
+        console.error("Failed to stop recording:", e);
+      }
       setRecording(false);
+      setActionLoading(false);
     }
   }, [recording]);
 
@@ -97,7 +132,7 @@ export function VoiceLocalPanel() {
 
       {tab === "record" && (
         <div style={{ textAlign: "center" }}>
-          <button onClick={toggleRecording} style={{
+          <button onClick={toggleRecording} disabled={actionLoading && !recording} style={{
             width: 72, height: 72, borderRadius: "50%", border: "none", cursor: "pointer",
             background: recording ? "#ef4444" : "#dc2626", boxShadow: recording ? "0 0 0 8px #ef444440" : "none",
             marginBottom: 20, transition: "box-shadow 0.3s",
@@ -127,6 +162,8 @@ export function VoiceLocalPanel() {
 
       {tab === "models" && (
         <div>
+          {loadingModels && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>Loading models...</div>}
+          {!loadingModels && models.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>No voice models available.</div>}
           {models.map((m) => (
             <div key={m.name} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
@@ -148,6 +185,7 @@ export function VoiceLocalPanel() {
 
       {tab === "history" && (
         <div>
+          {history.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>No transcription history yet. Record something to get started.</div>}
           {history.map((h, i) => (
             <div key={i} style={cardStyle}>
               <div style={{ fontSize: 13, marginBottom: 4 }}>{h.text}</div>

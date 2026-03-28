@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 interface WorktreeAgent {
   id: string;
@@ -40,6 +41,16 @@ const cardStyle: React.CSSProperties = {
   border: "1px solid var(--border-color)",
 };
 
+const btnStyle: React.CSSProperties = {
+  padding: "6px 14px",
+  borderRadius: 6,
+  border: "1px solid var(--border-color)",
+  background: "var(--accent-color)",
+  color: "#fff",
+  cursor: "pointer",
+  fontSize: 13,
+  marginRight: 8,
+};
 
 const tabStyle = (active: boolean): React.CSSProperties => ({
   padding: "8px 16px",
@@ -66,24 +77,87 @@ const statusColor: Record<string, string> = { running: "#3b82f6", merging: "#f59
 
 export function WorktreePoolPanel() {
   const [tab, setTab] = useState("active");
-  const [agents] = useState<WorktreeAgent[]>([
-    { id: "w1", branch: "feat/auth-refactor", status: "running", progress: 65, filesChanged: 8, startedAt: "10:15" },
-    { id: "w2", branch: "fix/api-timeout", status: "merging", progress: 100, filesChanged: 3, startedAt: "09:45" },
-    { id: "w3", branch: "feat/dashboard", status: "done", progress: 100, filesChanged: 12, startedAt: "08:30", duration: "1h 42m" },
-  ]);
-  const [queue] = useState<QueueItem[]>([
-    { id: "q1", branch: "feat/auth-refactor", hasConflicts: false, position: 1 },
-    { id: "q2", branch: "fix/api-timeout", hasConflicts: true, position: 2 },
-  ]);
+  const [agents, setAgents] = useState<WorktreeAgent[]>([]);
+  const [queue, setQueue] = useState<QueueItem[]>([]);
   const [maxWorktrees, setMaxWorktrees] = useState(4);
   const [baseBranch, setBaseBranch] = useState("main");
   const [autoCleanup, setAutoCleanup] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [spawnTask, setSpawnTask] = useState("");
+
+  useEffect(() => {
+    async function loadWorktrees() {
+      setLoading(true);
+      try {
+        const list = await invoke<WorktreeAgent[]>("worktree_list");
+        setAgents(list);
+        // Derive queue from agents that are in merging state
+        const mergeQueue: QueueItem[] = list
+          .filter((a) => a.status === "merging")
+          .map((a, i) => ({ id: a.id, branch: a.branch, hasConflicts: false, position: i + 1 }));
+        setQueue(mergeQueue);
+      } catch (e) {
+        console.error("Failed to load worktrees:", e);
+      }
+      setLoading(false);
+    }
+    loadWorktrees();
+  }, []);
+
+  const handleSpawn = async () => {
+    if (!spawnTask.trim()) return;
+    setActionLoading("spawn");
+    try {
+      await invoke("worktree_spawn", { task: spawnTask });
+      setSpawnTask("");
+      // Refresh list
+      const list = await invoke<WorktreeAgent[]>("worktree_list");
+      setAgents(list);
+    } catch (e) {
+      console.error("Failed to spawn worktree:", e);
+    }
+    setActionLoading(null);
+  };
+
+  const handleMerge = async (agentId: string) => {
+    setActionLoading(agentId);
+    try {
+      await invoke("worktree_merge", { agentId });
+      const list = await invoke<WorktreeAgent[]>("worktree_list");
+      setAgents(list);
+    } catch (e) {
+      console.error("Failed to merge worktree:", e);
+    }
+    setActionLoading(null);
+  };
+
+  const handleCleanup = async () => {
+    setActionLoading("cleanup");
+    try {
+      await invoke("worktree_cleanup");
+      const list = await invoke<WorktreeAgent[]>("worktree_list");
+      setAgents(list);
+    } catch (e) {
+      console.error("Failed to cleanup worktrees:", e);
+    }
+    setActionLoading(null);
+  };
 
   const inputStyle: React.CSSProperties = { width: "100%", padding: 8, borderRadius: 6, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)", fontSize: 13 };
 
   return (
     <div style={panelStyle}>
       <h2 style={headingStyle}>Parallel Worktree Agents</h2>
+      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+        <input style={{ ...inputStyle, flex: 1 }} placeholder="Task description for new worktree..." value={spawnTask} onChange={(e) => setSpawnTask(e.target.value)} />
+        <button style={btnStyle} onClick={handleSpawn} disabled={actionLoading === "spawn"}>
+          {actionLoading === "spawn" ? "Spawning..." : "Spawn"}
+        </button>
+        <button style={{ ...btnStyle, background: "var(--bg-secondary)", color: "var(--text-primary)" }} onClick={handleCleanup} disabled={actionLoading === "cleanup"}>
+          {actionLoading === "cleanup" ? "Cleaning..." : "Cleanup"}
+        </button>
+      </div>
       <div style={{ display: "flex", gap: 0, borderBottom: "1px solid var(--border-color)", marginBottom: 16 }}>
         <button style={tabStyle(tab === "active")} onClick={() => setTab("active")}>Active</button>
         <button style={tabStyle(tab === "queue")} onClick={() => setTab("queue")}>Queue</button>
@@ -93,6 +167,10 @@ export function WorktreePoolPanel() {
 
       {tab === "active" && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+          {loading && <div style={{ color: "var(--text-secondary)", fontSize: 13, gridColumn: "1 / -1" }}>Loading worktrees...</div>}
+          {!loading && agents.filter((a) => a.status === "running" || a.status === "merging").length === 0 && (
+            <div style={{ color: "var(--text-secondary)", fontSize: 13, gridColumn: "1 / -1" }}>No active worktrees. Spawn a task to get started.</div>
+          )}
           {agents.filter((a) => a.status === "running" || a.status === "merging").map((a) => (
             <div key={a.id} style={cardStyle}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
@@ -102,7 +180,14 @@ export function WorktreePoolPanel() {
               <div style={{ background: "var(--bg-primary)", borderRadius: 4, height: 8, marginBottom: 6 }}>
                 <div style={{ background: statusColor[a.status], borderRadius: 4, height: 8, width: `${a.progress}%`, transition: "width 0.3s" }} />
               </div>
-              <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{a.filesChanged} files changed | Started {a.startedAt}</div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{a.filesChanged} files changed | Started {a.startedAt}</div>
+                {a.status === "running" && (
+                  <button style={{ ...btnStyle, fontSize: 11, padding: "4px 10px" }} onClick={() => handleMerge(a.id)} disabled={actionLoading === a.id}>
+                    {actionLoading === a.id ? "..." : "Merge"}
+                  </button>
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -110,6 +195,8 @@ export function WorktreePoolPanel() {
 
       {tab === "queue" && (
         <div>
+          {loading && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>Loading queue...</div>}
+          {!loading && queue.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>Merge queue is empty</div>}
           {queue.map((q) => (
             <div key={q.id} style={cardStyle}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -119,12 +206,15 @@ export function WorktreePoolPanel() {
               </div>
             </div>
           ))}
-          {queue.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>Merge queue is empty</div>}
         </div>
       )}
 
       {tab === "history" && (
         <div>
+          {loading && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>Loading history...</div>}
+          {!loading && agents.filter((a) => a.status === "done" || a.status === "failed").length === 0 && (
+            <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>No completed worktrees yet.</div>
+          )}
           {agents.filter((a) => a.status === "done" || a.status === "failed").map((a) => (
             <div key={a.id} style={cardStyle}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
