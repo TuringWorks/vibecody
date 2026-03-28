@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { invoke } from "@tauri-apps/api/core";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -37,42 +38,6 @@ interface ReviewConfig {
 }
 
 // ---------------------------------------------------------------------------
-// Demo data
-// ---------------------------------------------------------------------------
-
-const DEMO_CONFIG: ReviewConfig = {
-  enabled: true, maxRetries: 3, checks: ['build', 'lint', 'test', 'security'],
-  failOnWarning: false, minBlockingSeverity: 'error',
-};
-
-const DEMO_ITERATIONS: ReviewIteration[] = [
-  {
-    iteration: 1, passed: false,
-    feedback: 'Self-review found issues:\n## lint check FAILED\n- [lint] error: unused import `std::io` (main.rs:3)\n- [lint] warning: variable `x` unused (lib.rs:42)\n\n## security check FAILED\n- [security] critical: Potential AWS Access Key (config.rs:15)',
-    checks: [
-      { kind: 'build', passed: true, findings: [], durationMs: 2100, command: 'cargo check --quiet' },
-      { kind: 'lint', passed: false, durationMs: 3400, command: 'cargo clippy --quiet', findings: [
-        { check: 'lint', severity: 'error', message: 'unused import `std::io`', file: 'main.rs', line: 3, suggestion: 'Remove the import' },
-        { check: 'lint', severity: 'warning', message: 'variable `x` is unused', file: 'lib.rs', line: 42 },
-      ]},
-      { kind: 'test', passed: true, findings: [], durationMs: 8200, command: 'cargo test --quiet' },
-      { kind: 'security', passed: false, durationMs: 450, command: 'secret-scan', findings: [
-        { check: 'security', severity: 'critical', message: 'Potential AWS Access Key', file: 'config.rs', line: 15, suggestion: 'Move to environment variable' },
-      ]},
-    ],
-  },
-  {
-    iteration: 2, passed: true,
-    checks: [
-      { kind: 'build', passed: true, findings: [], durationMs: 1800, command: 'cargo check --quiet' },
-      { kind: 'lint', passed: true, findings: [], durationMs: 3100, command: 'cargo clippy --quiet' },
-      { kind: 'test', passed: true, findings: [], durationMs: 8500, command: 'cargo test --quiet' },
-      { kind: 'security', passed: true, findings: [], durationMs: 380, command: 'secret-scan' },
-    ],
-  },
-];
-
-// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
@@ -87,39 +52,97 @@ const checkIcons: Record<string, string> = {
   build: 'B', lint: 'L', test: 'T', security: 'S', format: 'F', typecheck: 'TC',
 };
 
+const DEFAULT_CONFIG: ReviewConfig = {
+  enabled: true, maxRetries: 3, checks: ['build', 'lint', 'test', 'security'],
+  failOnWarning: false, minBlockingSeverity: 'error',
+};
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
 const SelfReviewPanel: React.FC = () => {
-  const [config, setConfig] = useState<ReviewConfig>(DEMO_CONFIG);
-  const [iterations] = useState<ReviewIteration[]>(DEMO_ITERATIONS);
+  const [config, setConfig] = useState<ReviewConfig>(DEFAULT_CONFIG);
+  const [iterations, setIterations] = useState<ReviewIteration[]>([]);
   const [tab, setTab] = useState<'results' | 'config' | 'report'>('results');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        const [iterationsData, configData] = await Promise.all([
+          invoke<ReviewIteration[]>("get_selfreview_iterations"),
+          invoke<ReviewConfig>("get_selfreview_config"),
+        ]);
+        setIterations(iterationsData);
+        setConfig(configData);
+      } catch (err) {
+        console.error("Failed to load self-review data:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, []);
+
+  const handleSaveConfig = async (newConfig: ReviewConfig) => {
+    setConfig(newConfig);
+    try {
+      await invoke("save_selfreview_config", { config: newConfig });
+    } catch (err) {
+      console.error("Failed to save self-review config:", err);
+    }
+  };
 
   const latestIteration = iterations[iterations.length - 1];
   const totalFindings = iterations.reduce((sum, it) => sum + it.checks.reduce((s, c) => s + c.findings.length, 0), 0);
+
+  if (loading) {
+    return (
+      <div style={{ padding: 16, color: 'var(--text-primary)', background: 'var(--bg-primary)', minHeight: '100%' }}>
+        <h2 style={{ margin: '0 0 12px' }}>Agent Self-Review Gate</h2>
+        <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-secondary)', fontSize: 13 }}>Loading self-review data...</div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: 16, color: 'var(--text-primary)', background: 'var(--bg-primary)', minHeight: '100%' }}>
       <h2 style={{ margin: '0 0 12px' }}>Agent Self-Review Gate</h2>
 
       {/* Status banner */}
-      <div style={{
-        padding: '10px 16px', borderRadius: 8, marginBottom: 16,
-        background: latestIteration?.passed ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-        border: `1px solid ${latestIteration?.passed ? 'var(--success-color)' : 'var(--error-color)'}`,
-        display: 'flex', alignItems: 'center', gap: 12,
-      }}>
-        <span style={{ fontSize: 24 }}>{latestIteration?.passed ? '\u2713' : '\u2717'}</span>
-        <div>
-          <div style={{ fontWeight: 700 }}>
-            {latestIteration?.passed ? 'All checks passed' : 'Checks failed — agent iterating'}
-          </div>
-          <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-            {iterations.length} iteration(s) · {totalFindings} total findings
+      {iterations.length === 0 ? (
+        <div style={{
+          padding: '10px 16px', borderRadius: 8, marginBottom: 16,
+          background: 'rgba(107, 114, 128, 0.1)',
+          border: '1px solid var(--text-secondary)',
+          display: 'flex', alignItems: 'center', gap: 12,
+        }}>
+          <span style={{ fontSize: 24 }}>-</span>
+          <div>
+            <div style={{ fontWeight: 700 }}>No review iterations yet</div>
+            <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Run an agent self-review to see results here.</div>
           </div>
         </div>
-      </div>
+      ) : (
+        <div style={{
+          padding: '10px 16px', borderRadius: 8, marginBottom: 16,
+          background: latestIteration?.passed ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+          border: `1px solid ${latestIteration?.passed ? 'var(--success-color)' : 'var(--error-color)'}`,
+          display: 'flex', alignItems: 'center', gap: 12,
+        }}>
+          <span style={{ fontSize: 24 }}>{latestIteration?.passed ? '\u2713' : '\u2717'}</span>
+          <div>
+            <div style={{ fontWeight: 700 }}>
+              {latestIteration?.passed ? 'All checks passed' : 'Checks failed — agent iterating'}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+              {iterations.length} iteration(s) · {totalFindings} total findings
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stats */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
@@ -152,65 +175,69 @@ const SelfReviewPanel: React.FC = () => {
       {/* Results tab */}
       {tab === 'results' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {iterations.map((iter) => (
-            <div key={iter.iteration} style={{
-              background: 'var(--bg-secondary)', padding: 12, borderRadius: 8,
-              border: `1px solid ${iter.passed ? 'var(--success-color)' : 'var(--error-color)'}`,
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <strong>Iteration {iter.iteration}</strong>
-                <span style={{
-                  fontSize: 11, padding: '1px 8px', borderRadius: 3,
-                  background: iter.passed ? 'var(--success-color)' : 'var(--error-color)',
-                  color: 'var(--btn-primary-fg)', fontWeight: 600,
-                }}>
-                  {iter.passed ? 'PASS' : 'FAIL'}
-                </span>
-              </div>
-
-              {/* Check results grid */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 8, marginBottom: iter.checks.some(c => c.findings.length > 0) ? 8 : 0 }}>
-                {iter.checks.map((check) => (
-                  <div key={check.kind} style={{
-                    padding: 8, borderRadius: 6,
-                    background: check.passed ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)',
-                    border: `1px solid ${check.passed ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+          {iterations.length === 0 ? (
+            <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-secondary)', fontSize: 13 }}>No review iterations found. Run an agent task with self-review enabled.</div>
+          ) : (
+            iterations.map((iter) => (
+              <div key={iter.iteration} style={{
+                background: 'var(--bg-secondary)', padding: 12, borderRadius: 8,
+                border: `1px solid ${iter.passed ? 'var(--success-color)' : 'var(--error-color)'}`,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <strong>Iteration {iter.iteration}</strong>
+                  <span style={{
+                    fontSize: 11, padding: '1px 8px', borderRadius: 3,
+                    background: iter.passed ? 'var(--success-color)' : 'var(--error-color)',
+                    color: 'var(--btn-primary-fg)', fontWeight: 600,
                   }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{
-                        display: 'inline-block', width: 22, height: 22, lineHeight: '22px', textAlign: 'center',
-                        borderRadius: 4, fontSize: 10, fontWeight: 700,
-                        background: check.passed ? 'var(--success-color)' : 'var(--error-color)', color: 'var(--btn-primary-fg)',
-                      }}>{checkIcons[check.kind] || check.kind[0].toUpperCase()}</span>
-                      <span style={{ fontWeight: 600, fontSize: 13 }}>{check.kind}</span>
-                      <span style={{ fontSize: 11, color: 'var(--text-secondary)', marginLeft: 'auto' }}>{check.durationMs}ms</span>
-                    </div>
-                    {check.command && (
-                      <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', marginTop: 4 }}>{check.command}</div>
-                    )}
-                    {check.findings.length > 0 && (
-                      <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>
-                        {check.findings.length} finding(s)
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
+                    {iter.passed ? 'PASS' : 'FAIL'}
+                  </span>
+                </div>
 
-              {/* Findings */}
-              {iter.checks.some(c => c.findings.length > 0) && (
-                <div style={{ fontSize: 12 }}>
-                  {iter.checks.filter(c => c.findings.length > 0).flatMap(c => c.findings).map((f, i) => (
-                    <div key={i} style={{ display: 'flex', gap: 6, padding: '3px 0', borderBottom: '1px solid var(--border-color)' }}>
-                      <span style={{ color: severityColors[f.severity], fontWeight: 600, fontSize: 11, minWidth: 55 }}>{f.severity}</span>
-                      <span style={{ color: 'var(--text-primary)' }}>{f.message}</span>
-                      {f.file && <span style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', marginLeft: 'auto', fontSize: 11 }}>{f.file}{f.line ? `:${f.line}` : ''}</span>}
+                {/* Check results grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 8, marginBottom: iter.checks.some(c => c.findings.length > 0) ? 8 : 0 }}>
+                  {iter.checks.map((check) => (
+                    <div key={check.kind} style={{
+                      padding: 8, borderRadius: 6,
+                      background: check.passed ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)',
+                      border: `1px solid ${check.passed ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{
+                          display: 'inline-block', width: 22, height: 22, lineHeight: '22px', textAlign: 'center',
+                          borderRadius: 4, fontSize: 10, fontWeight: 700,
+                          background: check.passed ? 'var(--success-color)' : 'var(--error-color)', color: 'var(--btn-primary-fg)',
+                        }}>{checkIcons[check.kind] || check.kind[0].toUpperCase()}</span>
+                        <span style={{ fontWeight: 600, fontSize: 13 }}>{check.kind}</span>
+                        <span style={{ fontSize: 11, color: 'var(--text-secondary)', marginLeft: 'auto' }}>{check.durationMs}ms</span>
+                      </div>
+                      {check.command && (
+                        <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', marginTop: 4 }}>{check.command}</div>
+                      )}
+                      {check.findings.length > 0 && (
+                        <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>
+                          {check.findings.length} finding(s)
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
-              )}
-            </div>
-          ))}
+
+                {/* Findings */}
+                {iter.checks.some(c => c.findings.length > 0) && (
+                  <div style={{ fontSize: 12 }}>
+                    {iter.checks.filter(c => c.findings.length > 0).flatMap(c => c.findings).map((f, i) => (
+                      <div key={i} style={{ display: 'flex', gap: 6, padding: '3px 0', borderBottom: '1px solid var(--border-color)' }}>
+                        <span style={{ color: severityColors[f.severity], fontWeight: 600, fontSize: 11, minWidth: 55 }}>{f.severity}</span>
+                        <span style={{ color: 'var(--text-primary)' }}>{f.message}</span>
+                        {f.file && <span style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', marginLeft: 'auto', fontSize: 11 }}>{f.file}{f.line ? `:${f.line}` : ''}</span>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))
+          )}
         </div>
       )}
 
@@ -220,18 +247,18 @@ const SelfReviewPanel: React.FC = () => {
           <h3 style={{ margin: '0 0 12px' }}>Self-Review Configuration</h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <label style={{ fontSize: 12 }}>
-              <input type="checkbox" checked={config.enabled} onChange={(e) => setConfig({ ...config, enabled: e.target.checked })} /> Enabled
+              <input type="checkbox" checked={config.enabled} onChange={(e) => handleSaveConfig({ ...config, enabled: e.target.checked })} /> Enabled
             </label>
             <label style={{ fontSize: 12 }}>
-              <input type="checkbox" checked={config.failOnWarning} onChange={(e) => setConfig({ ...config, failOnWarning: e.target.checked })} /> Fail on warnings
+              <input type="checkbox" checked={config.failOnWarning} onChange={(e) => handleSaveConfig({ ...config, failOnWarning: e.target.checked })} /> Fail on warnings
             </label>
             <label style={{ fontSize: 12 }}>
               Max retries
-              <input type="number" value={config.maxRetries} min={1} max={10} onChange={(e) => setConfig({ ...config, maxRetries: parseInt(e.target.value) || 3 })} style={{ width: '100%', padding: 6, background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4 }} />
+              <input type="number" value={config.maxRetries} min={1} max={10} onChange={(e) => handleSaveConfig({ ...config, maxRetries: parseInt(e.target.value) || 3 })} style={{ width: '100%', padding: 6, background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4 }} />
             </label>
             <label style={{ fontSize: 12 }}>
               Min blocking severity
-              <select value={config.minBlockingSeverity} onChange={(e) => setConfig({ ...config, minBlockingSeverity: e.target.value })} style={{ width: '100%', padding: 6, background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4 }}>
+              <select value={config.minBlockingSeverity} onChange={(e) => handleSaveConfig({ ...config, minBlockingSeverity: e.target.value })} style={{ width: '100%', padding: 6, background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4 }}>
                 <option value="info">Info</option>
                 <option value="warning">Warning</option>
                 <option value="error">Error</option>
@@ -244,11 +271,10 @@ const SelfReviewPanel: React.FC = () => {
             {['build', 'lint', 'test', 'security', 'format', 'typecheck', 'diff_review'].map((check) => (
               <label key={check} style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 4, background: 'var(--bg-primary)', padding: '4px 10px', borderRadius: 4 }}>
                 <input type="checkbox" checked={config.checks.includes(check)} onChange={(e) => {
-                  if (e.target.checked) {
-                    setConfig({ ...config, checks: [...config.checks, check] });
-                  } else {
-                    setConfig({ ...config, checks: config.checks.filter(c => c !== check) });
-                  }
+                  const newConfig = e.target.checked
+                    ? { ...config, checks: [...config.checks, check] }
+                    : { ...config, checks: config.checks.filter(c => c !== check) };
+                  handleSaveConfig(newConfig);
                 }} />
                 {check}
               </label>
@@ -269,7 +295,7 @@ const SelfReviewPanel: React.FC = () => {
       {/* Report tab */}
       {tab === 'report' && (
         <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, background: 'var(--bg-secondary)', padding: 16, borderRadius: 8, whiteSpace: 'pre-wrap', color: 'var(--text-primary)', lineHeight: 1.6 }}>
-{`# Self-Review Report
+{iterations.length === 0 ? 'No review data available.' : `# Self-Review Report
 
 **Status**: ${latestIteration?.passed ? 'PASSED' : 'FAILED'}
 **Iterations**: ${iterations.length}

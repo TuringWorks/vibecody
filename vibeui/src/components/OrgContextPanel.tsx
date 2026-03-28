@@ -3,10 +3,39 @@
  *
  * Tabs: Repositories, Patterns, Conventions, Dependencies
  */
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 type Tab = "Repositories" | "Patterns" | "Conventions" | "Dependencies";
 const TABS: Tab[] = ["Repositories", "Patterns", "Conventions", "Dependencies"];
+
+interface Repo {
+  name: string;
+  lang: string;
+  files: number;
+  status: string;
+  lastIndexed: string;
+}
+
+interface Pattern {
+  type: string;
+  count: number;
+  desc: string;
+  repos: number;
+}
+
+interface Convention {
+  name: string;
+  rule: string;
+  adoption: number;
+}
+
+interface Dependency {
+  from: string;
+  to: string;
+  type: string;
+  version: string;
+}
 
 const STATUS_COLORS: Record<string, string> = {
   Indexed: "var(--success-color)", Indexing: "var(--info-color)",
@@ -47,43 +76,56 @@ const barBg: React.CSSProperties = {
   height: 6, borderRadius: 3, background: "var(--bg-tertiary)", overflow: "hidden", flex: 1, maxWidth: 120,
 };
 
-const REPOS = [
-  { name: "org/backend-api", lang: "Rust", files: 1240, status: "Indexed", lastIndexed: "2 min ago" },
-  { name: "org/frontend-app", lang: "TypeScript", files: 890, status: "Indexed", lastIndexed: "5 min ago" },
-  { name: "org/ml-pipeline", lang: "Python", files: 420, status: "Indexing", lastIndexed: "-" },
-  { name: "org/infra-configs", lang: "HCL", files: 180, status: "Stale", lastIndexed: "3 days ago" },
-  { name: "org/mobile-app", lang: "Kotlin", files: 650, status: "Error", lastIndexed: "Failed" },
-];
-const PATTERNS = [
-  { type: "Error Handling", count: 42, desc: "Result/Option pattern with custom error types", repos: 3 },
-  { type: "API Design", count: 28, desc: "RESTful with OpenAPI specs, versioned endpoints", repos: 2 },
-  { type: "Testing", count: 35, desc: "Unit + integration with fixture factories", repos: 4 },
-  { type: "Auth", count: 12, desc: "JWT bearer tokens with refresh rotation", repos: 2 },
-  { type: "Logging", count: 24, desc: "Structured JSON logging with trace IDs", repos: 3 },
-];
-const CONVENTIONS = [
-  { name: "Branch naming", rule: "type/description (e.g., feat/auth-v2)", adoption: 94 },
-  { name: "Commit messages", rule: "Conventional Commits (feat:, fix:, chore:)", adoption: 87 },
-  { name: "Code review", rule: "Min 2 approvals, 1 from CODEOWNERS", adoption: 100 },
-  { name: "Test coverage", rule: ">80% line coverage required", adoption: 72 },
-  { name: "Documentation", rule: "JSDoc/rustdoc on all public APIs", adoption: 65 },
-];
-const DEPS = [
-  { from: "frontend-app", to: "backend-api", type: "HTTP API", version: "v2" },
-  { from: "ml-pipeline", to: "backend-api", type: "gRPC", version: "v1" },
-  { from: "backend-api", to: "infra-configs", type: "Config", version: "-" },
-  { from: "mobile-app", to: "backend-api", type: "HTTP API", version: "v2" },
-];
-
-const indexed = REPOS.filter(r => r.status === "Indexed").length;
-
 const OrgContextPanel: React.FC = () => {
   const [tab, setTab] = useState<Tab>("Repositories");
+  const [repos, setRepos] = useState<Repo[]>([]);
+  const [patterns, setPatterns] = useState<Pattern[]>([]);
+  const [conventions, setConventions] = useState<Convention[]>([]);
+  const [deps, setDeps] = useState<Dependency[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadData() {
+      setLoading(true);
+      try {
+        const [r, p, c, d] = await Promise.all([
+          invoke<Repo[]>("get_org_repos"),
+          invoke<Pattern[]>("get_org_patterns"),
+          invoke<Convention[]>("get_org_conventions"),
+          invoke<Dependency[]>("get_org_dependencies"),
+        ]);
+        if (!cancelled) {
+          setRepos(r);
+          setPatterns(p);
+          setConventions(c);
+          setDeps(d);
+        }
+      } catch (err) {
+        console.error("Failed to load org context data:", err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    loadData();
+    return () => { cancelled = true; };
+  }, []);
+
+  const indexed = repos.filter(r => r.status === "Indexed").length;
+
+  if (loading) {
+    return (
+      <div style={containerStyle} role="region" aria-label="Org Context Panel">
+        <div style={{ ...contentStyle, textAlign: "center", color: "var(--text-secondary)", fontSize: 12, marginTop: 32 }}>Loading...</div>
+      </div>
+    );
+  }
+
   return (
     <div style={containerStyle} role="region" aria-label="Org Context Panel">
       <div style={statusBarStyle}>
-        <span>Index: <strong>{indexed}/{REPOS.length}</strong> repos indexed</span>
-        <span>Total files: {REPOS.reduce((s, r) => s + r.files, 0).toLocaleString()}</span>
+        <span>Index: <strong>{indexed}/{repos.length}</strong> repos indexed</span>
+        <span>Total files: {repos.reduce((s, r) => s + r.files, 0).toLocaleString()}</span>
       </div>
       <div style={tabBarStyle} role="tablist" aria-label="Org Context tabs">
         {TABS.map(t => (
@@ -91,7 +133,10 @@ const OrgContextPanel: React.FC = () => {
         ))}
       </div>
       <div style={contentStyle} role="tabpanel" aria-label={tab}>
-        {tab === "Repositories" && REPOS.map((r, i) => (
+        {tab === "Repositories" && repos.length === 0 && (
+          <div style={{ textAlign: "center", opacity: 0.4, fontSize: 12, marginTop: 32 }}>No repositories indexed yet.</div>
+        )}
+        {tab === "Repositories" && repos.map((r, i) => (
           <div key={i} style={cardStyle}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
               <strong>{r.name}</strong>
@@ -100,7 +145,10 @@ const OrgContextPanel: React.FC = () => {
             <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{r.lang} &middot; {r.files} files &middot; Last indexed: {r.lastIndexed}</div>
           </div>
         ))}
-        {tab === "Patterns" && PATTERNS.map((p, i) => (
+        {tab === "Patterns" && patterns.length === 0 && (
+          <div style={{ textAlign: "center", opacity: 0.4, fontSize: 12, marginTop: 32 }}>No patterns detected yet.</div>
+        )}
+        {tab === "Patterns" && patterns.map((p, i) => (
           <div key={i} style={cardStyle}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
               <strong>{p.type}</strong>
@@ -109,7 +157,10 @@ const OrgContextPanel: React.FC = () => {
             <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{p.desc}</div>
           </div>
         ))}
-        {tab === "Conventions" && CONVENTIONS.map((c, i) => (
+        {tab === "Conventions" && conventions.length === 0 && (
+          <div style={{ textAlign: "center", opacity: 0.4, fontSize: 12, marginTop: 32 }}>No conventions configured yet.</div>
+        )}
+        {tab === "Conventions" && conventions.map((c, i) => (
           <div key={i} style={cardStyle}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
               <strong>{c.name}</strong>
@@ -121,7 +172,10 @@ const OrgContextPanel: React.FC = () => {
             </div>
           </div>
         ))}
-        {tab === "Dependencies" && DEPS.map((d, i) => (
+        {tab === "Dependencies" && deps.length === 0 && (
+          <div style={{ textAlign: "center", opacity: 0.4, fontSize: 12, marginTop: 32 }}>No cross-repo dependencies detected.</div>
+        )}
+        {tab === "Dependencies" && deps.map((d, i) => (
           <div key={i} style={cardStyle}>
             <div style={{ fontSize: 13 }}><strong>{d.from}</strong> <span style={{ color: "var(--text-secondary)" }}>&rarr;</span> <strong>{d.to}</strong></div>
             <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>Type: {d.type} &middot; Version: {d.version}</div>

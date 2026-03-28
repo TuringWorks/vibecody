@@ -3,10 +3,45 @@
  *
  * Tabs: Environments, Pull Requests, Conflicts, Config
  */
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 type Tab = "Environments" | "Pull Requests" | "Conflicts" | "Config";
 const TABS: Tab[] = ["Environments", "Pull Requests", "Conflicts", "Config"];
+
+interface VmEnvironment {
+  name: string;
+  branch: string;
+  status: string;
+  cpu: string;
+  mem: string;
+  uptime: string;
+}
+
+interface VmPullRequest {
+  title: string;
+  branch: string;
+  status: string;
+  author: string;
+  checks: string;
+}
+
+interface VmConflict {
+  branch1: string;
+  branch2: string;
+  file: string;
+  status: string;
+  suggestion: string;
+}
+
+interface VmConfig {
+  maxConcurrentVms: number;
+  activeVms: number;
+  defaultCpu: string;
+  defaultMem: string;
+  autoCleanupMinutes: number;
+  snapshotIntervalMinutes: number;
+}
 
 const STATUS_COLORS: Record<string, string> = {
   Running: "var(--success-color)", Stopped: "var(--text-secondary)",
@@ -41,25 +76,84 @@ const badgeStyle = (color: string): React.CSSProperties => ({
   display: "inline-block", padding: "2px 8px", borderRadius: 10,
   fontSize: 11, background: color, color: "var(--bg-primary)", fontWeight: 600,
 });
-
-const ENVS = [
-  { name: "feature/auth-v2", branch: "feature/auth-v2", status: "Running", cpu: "2 vCPU", mem: "4 GB", uptime: "2h 14m" },
-  { name: "fix/race-condition", branch: "fix/race-condition", status: "Running", cpu: "1 vCPU", mem: "2 GB", uptime: "45m" },
-  { name: "feat/dashboard", branch: "feat/dashboard", status: "Provisioning", cpu: "2 vCPU", mem: "4 GB", uptime: "-" },
-  { name: "refactor/api", branch: "refactor/api", status: "Stopped", cpu: "-", mem: "-", uptime: "-" },
-];
-const PRS = [
-  { title: "Add OAuth2 flow", branch: "feature/auth-v2", status: "Open", author: "agent-01", checks: "3/3 passed" },
-  { title: "Fix data race in worker pool", branch: "fix/race-condition", status: "Open", author: "agent-02", checks: "2/3 pending" },
-  { title: "Refactor REST endpoints", branch: "refactor/api", status: "Merged", author: "agent-03", checks: "3/3 passed" },
-];
-const CONFLICTS = [
-  { branch1: "feature/auth-v2", branch2: "feat/dashboard", file: "src/routes.ts", status: "Pending", suggestion: "Rebase feat/dashboard onto feature/auth-v2" },
-  { branch1: "fix/race-condition", branch2: "refactor/api", file: "src/worker.rs", status: "Resolved", suggestion: "Merged manually" },
-];
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  background: "var(--bg-secondary)",
+  border: "1px solid var(--border-color)",
+  borderRadius: 4,
+  color: "var(--text-primary)",
+  padding: "6px 8px",
+  fontSize: 12,
+  boxSizing: "border-box",
+};
+const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", display: "block", marginBottom: 4 };
+const btnPrimary: React.CSSProperties = {
+  background: "var(--accent-color)",
+  color: "#fff",
+  border: "none",
+  borderRadius: 4,
+  padding: "8px 16px",
+  cursor: "pointer",
+  fontSize: 12,
+  fontWeight: 600,
+};
 
 const VmOrchestratorPanel: React.FC = () => {
   const [tab, setTab] = useState<Tab>("Environments");
+  const [envs, setEnvs] = useState<VmEnvironment[]>([]);
+  const [prs, setPrs] = useState<VmPullRequest[]>([]);
+  const [conflicts, setConflicts] = useState<VmConflict[]>([]);
+  const [config, setConfig] = useState<VmConfig | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadData() {
+      setLoading(true);
+      try {
+        const [e, p, c, cfg] = await Promise.all([
+          invoke<VmEnvironment[]>("get_vm_environments"),
+          invoke<VmPullRequest[]>("get_vm_pull_requests"),
+          invoke<VmConflict[]>("get_vm_conflicts"),
+          invoke<VmConfig>("get_vm_config"),
+        ]);
+        if (!cancelled) {
+          setEnvs(e);
+          setPrs(p);
+          setConflicts(c);
+          setConfig(cfg);
+        }
+      } catch (err) {
+        console.error("Failed to load VM orchestrator data:", err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    loadData();
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleSaveConfig = async () => {
+    if (!config) return;
+    setSaving(true);
+    try {
+      await invoke("save_vm_config", { config });
+    } catch (err) {
+      console.error("Failed to save VM config:", err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div style={containerStyle} role="region" aria-label="VM Orchestrator Panel">
+        <div style={{ ...contentStyle, textAlign: "center", color: "var(--text-secondary)", fontSize: 12, marginTop: 32 }}>Loading...</div>
+      </div>
+    );
+  }
+
   return (
     <div style={containerStyle} role="region" aria-label="VM Orchestrator Panel">
       <div style={tabBarStyle} role="tablist" aria-label="VM Orchestrator tabs">
@@ -68,7 +162,10 @@ const VmOrchestratorPanel: React.FC = () => {
         ))}
       </div>
       <div style={contentStyle} role="tabpanel" aria-label={tab}>
-        {tab === "Environments" && ENVS.map((e, i) => (
+        {tab === "Environments" && envs.length === 0 && (
+          <div style={{ textAlign: "center", opacity: 0.4, fontSize: 12, marginTop: 32 }}>No VM environments provisioned yet.</div>
+        )}
+        {tab === "Environments" && envs.map((e, i) => (
           <div key={i} style={cardStyle}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
               <strong>{e.name}</strong>
@@ -79,7 +176,10 @@ const VmOrchestratorPanel: React.FC = () => {
             </div>
           </div>
         ))}
-        {tab === "Pull Requests" && PRS.map((pr, i) => (
+        {tab === "Pull Requests" && prs.length === 0 && (
+          <div style={{ textAlign: "center", opacity: 0.4, fontSize: 12, marginTop: 32 }}>No pull requests from agents yet.</div>
+        )}
+        {tab === "Pull Requests" && prs.map((pr, i) => (
           <div key={i} style={cardStyle}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
               <strong>{pr.title}</strong>
@@ -90,7 +190,10 @@ const VmOrchestratorPanel: React.FC = () => {
             </div>
           </div>
         ))}
-        {tab === "Conflicts" && CONFLICTS.map((c, i) => (
+        {tab === "Conflicts" && conflicts.length === 0 && (
+          <div style={{ textAlign: "center", opacity: 0.4, fontSize: 12, marginTop: 32 }}>No branch conflicts detected.</div>
+        )}
+        {tab === "Conflicts" && conflicts.map((c, i) => (
           <div key={i} style={cardStyle}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
               <strong>{c.file}</strong>
@@ -102,13 +205,71 @@ const VmOrchestratorPanel: React.FC = () => {
             <div style={{ fontSize: 12, color: "var(--accent-color)", marginTop: 4 }}>{c.suggestion}</div>
           </div>
         ))}
-        {tab === "Config" && (
-          <div>
-            <div style={cardStyle}><strong>Max concurrent VMs</strong><div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>Limit: 8 VMs (4 currently active)</div></div>
-            <div style={cardStyle}><strong>Default resources</strong><div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>2 vCPU, 4 GB RAM per environment</div></div>
-            <div style={cardStyle}><strong>Auto-cleanup</strong><div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>Stop idle VMs after 30 minutes</div></div>
-            <div style={cardStyle}><strong>Snapshot policy</strong><div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>Checkpoint every 10 minutes during active sessions</div></div>
+        {tab === "Config" && config && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div>
+              <label style={labelStyle}>Max Concurrent VMs</label>
+              <input
+                type="number"
+                min={1}
+                max={64}
+                value={config.maxConcurrentVms}
+                onChange={(e) => setConfig({ ...config, maxConcurrentVms: Number(e.target.value) })}
+                style={inputStyle}
+              />
+              <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>{config.activeVms} currently active</div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div>
+                <label style={labelStyle}>Default CPU</label>
+                <input
+                  value={config.defaultCpu}
+                  onChange={(e) => setConfig({ ...config, defaultCpu: e.target.value })}
+                  style={inputStyle}
+                />
+              </div>
+              <div>
+                <label style={labelStyle}>Default Memory</label>
+                <input
+                  value={config.defaultMem}
+                  onChange={(e) => setConfig({ ...config, defaultMem: e.target.value })}
+                  style={inputStyle}
+                />
+              </div>
+            </div>
+            <div>
+              <label style={labelStyle}>Auto-cleanup (minutes idle)</label>
+              <input
+                type="number"
+                min={1}
+                max={1440}
+                value={config.autoCleanupMinutes}
+                onChange={(e) => setConfig({ ...config, autoCleanupMinutes: Number(e.target.value) })}
+                style={inputStyle}
+              />
+            </div>
+            <div>
+              <label style={labelStyle}>Snapshot Interval (minutes)</label>
+              <input
+                type="number"
+                min={1}
+                max={60}
+                value={config.snapshotIntervalMinutes}
+                onChange={(e) => setConfig({ ...config, snapshotIntervalMinutes: Number(e.target.value) })}
+                style={inputStyle}
+              />
+            </div>
+            <button
+              onClick={handleSaveConfig}
+              disabled={saving}
+              style={{ ...btnPrimary, alignSelf: "flex-start", opacity: saving ? 0.5 : 1 }}
+            >
+              {saving ? "Saving..." : "Save Config"}
+            </button>
           </div>
+        )}
+        {tab === "Config" && !config && (
+          <div style={{ textAlign: "center", opacity: 0.4, fontSize: 12, marginTop: 32 }}>Failed to load configuration.</div>
         )}
       </div>
     </div>

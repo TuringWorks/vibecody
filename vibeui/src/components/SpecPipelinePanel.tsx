@@ -3,10 +3,34 @@
  *
  * Tabs: Requirements, Design, Tasks
  */
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 type Tab = "Requirements" | "Design" | "Tasks";
 const TABS: Tab[] = ["Requirements", "Design", "Tasks"];
+
+interface Requirement {
+  id: string;
+  text: string;
+  status: string;
+  priority: string;
+}
+
+interface Design {
+  id: string;
+  title: string;
+  reqs: string[];
+  status: string;
+  rationale: string;
+}
+
+interface Task {
+  id: string;
+  title: string;
+  status: string;
+  deps: string[];
+  progress: number;
+}
 
 const STATUS_COLORS: Record<string, string> = {
   Verified: "var(--success-color)", Implemented: "var(--info-color)",
@@ -49,34 +73,56 @@ const statusBarStyle: React.CSSProperties = {
   display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, flexShrink: 0, gap: 12,
 };
 
-const REQS = [
-  { id: "EARS-001", text: "When a user logs in, the system shall create a session token", status: "Verified", priority: "P0" },
-  { id: "EARS-002", text: "The system shall respond within 200ms for all API calls", status: "Implemented", priority: "P1" },
-  { id: "EARS-003", text: "While processing a batch, the system shall display progress", status: "Pending", priority: "P1" },
-  { id: "EARS-004", text: "If the network is unavailable, the system shall queue requests", status: "Draft", priority: "P2" },
-];
-const DESIGNS = [
-  { id: "DES-01", title: "JWT session tokens", reqs: ["EARS-001"], status: "Accepted", rationale: "Stateless, scalable" },
-  { id: "DES-02", title: "Redis response caching", reqs: ["EARS-002"], status: "Accepted", rationale: "Sub-ms cache hits" },
-  { id: "DES-03", title: "SSE progress streaming", reqs: ["EARS-003"], status: "Draft", rationale: "Real-time updates" },
-];
-const TASKS = [
-  { id: "T-01", title: "Implement JWT middleware", status: "Done", deps: [], progress: 100 },
-  { id: "T-02", title: "Add Redis caching layer", status: "In Progress", deps: ["T-01"], progress: 60 },
-  { id: "T-03", title: "SSE endpoint for progress", status: "Pending", deps: ["T-02"], progress: 0 },
-  { id: "T-04", title: "Offline request queue", status: "Blocked", deps: ["T-01"], progress: 0 },
-];
-
-const coverage = Math.round((REQS.filter(r => r.status === "Verified" || r.status === "Implemented").length / REQS.length) * 100);
-
 const SpecPipelinePanel: React.FC = () => {
   const [tab, setTab] = useState<Tab>("Requirements");
+  const [reqs, setReqs] = useState<Requirement[]>([]);
+  const [designs, setDesigns] = useState<Design[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadData() {
+      setLoading(true);
+      try {
+        const [r, d, t] = await Promise.all([
+          invoke<Requirement[]>("get_spec_requirements"),
+          invoke<Design[]>("get_spec_designs"),
+          invoke<Task[]>("get_spec_tasks"),
+        ]);
+        if (!cancelled) {
+          setReqs(r);
+          setDesigns(d);
+          setTasks(t);
+        }
+      } catch (err) {
+        console.error("Failed to load spec pipeline data:", err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    loadData();
+    return () => { cancelled = true; };
+  }, []);
+
+  const coverage = reqs.length > 0
+    ? Math.round((reqs.filter(r => r.status === "Verified" || r.status === "Implemented").length / reqs.length) * 100)
+    : 0;
+
+  if (loading) {
+    return (
+      <div style={containerStyle} role="region" aria-label="Spec Pipeline Panel">
+        <div style={{ ...contentStyle, textAlign: "center", color: "var(--text-secondary)", fontSize: 12, marginTop: 32 }}>Loading...</div>
+      </div>
+    );
+  }
+
   return (
     <div style={containerStyle} role="region" aria-label="Spec Pipeline Panel">
       <div style={statusBarStyle}>
         <span>Coverage: <strong>{coverage}%</strong></span>
         <div style={barBg}><div style={{ height: "100%", borderRadius: 4, background: "var(--success-color)", width: `${coverage}%` }} /></div>
-        <span>{REQS.filter(r => r.status === "Verified").length} verified / {REQS.length} total</span>
+        <span>{reqs.filter(r => r.status === "Verified").length} verified / {reqs.length} total</span>
       </div>
       <div style={tabBarStyle} role="tablist" aria-label="Spec Pipeline tabs">
         {TABS.map(t => (
@@ -84,7 +130,10 @@ const SpecPipelinePanel: React.FC = () => {
         ))}
       </div>
       <div style={contentStyle} role="tabpanel" aria-label={tab}>
-        {tab === "Requirements" && REQS.map((r, i) => (
+        {tab === "Requirements" && reqs.length === 0 && (
+          <div style={{ textAlign: "center", opacity: 0.4, fontSize: 12, marginTop: 32 }}>No requirements defined yet.</div>
+        )}
+        {tab === "Requirements" && reqs.map((r, i) => (
           <div key={i} style={cardStyle}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
               <span><strong>{r.id}</strong> <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>[{r.priority}]</span></span>
@@ -93,7 +142,10 @@ const SpecPipelinePanel: React.FC = () => {
             <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{r.text}</div>
           </div>
         ))}
-        {tab === "Design" && DESIGNS.map((d, i) => (
+        {tab === "Design" && designs.length === 0 && (
+          <div style={{ textAlign: "center", opacity: 0.4, fontSize: 12, marginTop: 32 }}>No design documents yet.</div>
+        )}
+        {tab === "Design" && designs.map((d, i) => (
           <div key={i} style={cardStyle}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
               <strong>{d.id}: {d.title}</strong>
@@ -103,7 +155,10 @@ const SpecPipelinePanel: React.FC = () => {
             <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4 }}>Links: {d.reqs.join(", ")}</div>
           </div>
         ))}
-        {tab === "Tasks" && TASKS.map((t, i) => (
+        {tab === "Tasks" && tasks.length === 0 && (
+          <div style={{ textAlign: "center", opacity: 0.4, fontSize: 12, marginTop: 32 }}>No tasks created yet.</div>
+        )}
+        {tab === "Tasks" && tasks.map((t, i) => (
           <div key={i} style={cardStyle}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
               <strong>{t.id}: {t.title}</strong>

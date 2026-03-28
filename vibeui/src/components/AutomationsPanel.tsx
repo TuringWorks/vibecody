@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -41,83 +42,10 @@ interface AutomationStats {
   failedTasks: number;
 }
 
-// ---------------------------------------------------------------------------
-// Demo data
-// ---------------------------------------------------------------------------
-
-const DEMO_RULES: AutomationRule[] = [
-  {
-    id: 'auto-1', name: 'PR Review Agent', description: 'Auto-review pull requests on open',
-    enabled: true, trigger: 'github', events: ['pull_request.opened', 'pull_request.synchronize'],
-    filter: 'repository == "vibecody"', promptTemplate: 'Review PR #{{number}} in {{repository}}: {{title}}',
-    provider: 'claude', maxTurns: 15, sandbox: true, fireCount: 23, lastFired: '2 min ago',
-  },
-  {
-    id: 'auto-2', name: 'Incident Triage', description: 'Triage PagerDuty critical incidents',
-    enabled: true, trigger: 'pagerduty', events: ['incident.triggered'],
-    filter: 'severity == "critical"', promptTemplate: 'Triage incident: {{title}}. Service: {{service}}',
-    provider: 'openai', maxTurns: 10, sandbox: false, fireCount: 5, lastFired: '1 hour ago',
-  },
-  {
-    id: 'auto-3', name: 'Slack Q&A Bot', description: 'Answer questions when mentioned in #dev',
-    enabled: true, trigger: 'slack', events: ['app_mention'],
-    filter: 'channel == "#dev"', promptTemplate: 'Answer: {{text}}',
-    provider: 'ollama', maxTurns: 5, sandbox: false, fireCount: 142, lastFired: '5 min ago',
-  },
-  {
-    id: 'auto-4', name: 'Linear Issue Handler', description: 'Auto-assign and plan new Linear issues',
-    enabled: false, trigger: 'linear', events: ['issue.created'],
-    filter: 'team_id == "ENG"', promptTemplate: 'Plan implementation for: {{title}}',
-    provider: 'claude', maxTurns: 8, sandbox: true, fireCount: 0, lastFired: null,
-  },
-  {
-    id: 'auto-5', name: 'Telegram Support Bot', description: 'Answer support questions in Telegram group',
-    enabled: true, trigger: 'telegram', events: ['message'],
-    filter: 'chat_id == "dev-group"', promptTemplate: 'Answer Telegram question: {{text}}',
-    provider: 'ollama', maxTurns: 5, sandbox: false, fireCount: 87, lastFired: '3 min ago',
-  },
-  {
-    id: 'auto-6', name: 'Signal Alert Handler', description: 'Handle urgent Signal messages from ops group',
-    enabled: true, trigger: 'signal', events: ['message'],
-    filter: 'group_id == "ops-alerts"', promptTemplate: 'Triage Signal alert: {{text}}',
-    provider: 'claude', maxTurns: 8, sandbox: false, fireCount: 12, lastFired: '20 min ago',
-  },
-  {
-    id: 'auto-7', name: 'WhatsApp Customer Agent', description: 'Auto-respond to WhatsApp business messages',
-    enabled: true, trigger: 'whatsapp', events: ['message'],
-    filter: '', promptTemplate: 'Respond to customer: {{text}} (from {{from}})',
-    provider: 'openai', maxTurns: 6, sandbox: false, fireCount: 234, lastFired: '1 min ago',
-  },
-  {
-    id: 'auto-8', name: 'Discord Community Bot', description: 'Answer questions in #help channel',
-    enabled: true, trigger: 'discord', events: ['MESSAGE_CREATE'],
-    filter: 'channel_id == "help"', promptTemplate: 'Help Discord user: {{text}}',
-    provider: 'ollama', maxTurns: 5, sandbox: false, fireCount: 56, lastFired: '8 min ago',
-  },
-  {
-    id: 'auto-9', name: 'Matrix Room Assistant', description: 'AI assistant for Matrix dev room',
-    enabled: false, trigger: 'matrix', events: ['m.room.message'],
-    filter: 'room_id == "!dev:matrix.org"', promptTemplate: 'Assist: {{text}}',
-    provider: 'claude', maxTurns: 5, sandbox: false, fireCount: 0, lastFired: null,
-  },
-  {
-    id: 'auto-10', name: 'Twitch Chat Responder', description: 'Respond to chat commands during streams',
-    enabled: true, trigger: 'twitch', events: ['chat.message'],
-    filter: 'channel == "vibecody"', promptTemplate: 'Respond to Twitch chat: {{text}}',
-    provider: 'ollama', maxTurns: 3, sandbox: false, fireCount: 321, lastFired: '30 sec ago',
-  },
-];
-
-const DEMO_TASKS: AutomationTask[] = [
-  { taskId: 'task-1', ruleId: 'auto-1', prompt: 'Review PR #47 in vibecody: Add GPU terminal', status: 'completed', createdAt: '2 min ago', completedAt: '1 min ago', output: 'Approved with 2 suggestions' },
-  { taskId: 'task-2', ruleId: 'auto-2', prompt: 'Triage incident: High latency on API', status: 'running', createdAt: '30 sec ago', completedAt: null, output: null },
-  { taskId: 'task-3', ruleId: 'auto-3', prompt: 'Answer: How do I configure MCP?', status: 'completed', createdAt: '5 min ago', completedAt: '4 min ago', output: 'Provided MCP setup guide' },
-  { taskId: 'task-4', ruleId: 'auto-1', prompt: 'Review PR #46 in vibecody: Fix auth flow', status: 'failed', createdAt: '1 hour ago', completedAt: '58 min ago', output: 'Agent timeout after 300s' },
-];
-
-const DEMO_STATS: AutomationStats = {
-  totalRules: 10, enabledRules: 8, totalTasks: 880, runningTasks: 2, completedTasks: 865, failedTasks: 13,
-};
+interface LogEntry {
+  timestamp: string;
+  message: string;
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -142,11 +70,83 @@ const statusColors: Record<string, string> = {
 
 const AutomationsPanel: React.FC = () => {
   const [tab, setTab] = useState<'rules' | 'tasks' | 'logs'>('rules');
-  const [rules] = useState<AutomationRule[]>(DEMO_RULES);
-  const [tasks] = useState<AutomationTask[]>(DEMO_TASKS);
-  const [stats] = useState<AutomationStats>(DEMO_STATS);
+  const [rules, setRules] = useState<AutomationRule[]>([]);
+  const [tasks, setTasks] = useState<AutomationTask[]>([]);
+  const [stats, setStats] = useState<AutomationStats>({ totalRules: 0, enabledRules: 0, totalTasks: 0, runningTasks: 0, completedTasks: 0, failedTasks: 0 });
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newTrigger, setNewTrigger] = useState<TriggerSource>('github');
+  const [newName, setNewName] = useState('');
+  const [newEvents, setNewEvents] = useState('');
+  const [newPrompt, setNewPrompt] = useState('');
+
+  useEffect(() => { loadAll(); }, []);
+
+  async function loadAll() {
+    setLoading(true);
+    try {
+      const [r, t, s, l] = await Promise.all([
+        invoke<AutomationRule[]>('get_automation_rules').catch(() => []),
+        invoke<AutomationTask[]>('get_automation_tasks').catch(() => []),
+        invoke<AutomationStats>('get_automation_stats').catch(() => stats),
+        invoke<LogEntry[]>('get_automation_logs').catch(() => []),
+      ]);
+      setRules(r);
+      setTasks(t);
+      setStats(s);
+      setLogs(l);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleToggle(ruleId: string) {
+    try {
+      const newState = await invoke<boolean>('toggle_automation_rule', { ruleId });
+      setRules((prev) => prev.map((r) => r.id === ruleId ? { ...r, enabled: newState } : r));
+      setStats((prev) => ({
+        ...prev,
+        enabledRules: prev.enabledRules + (newState ? 1 : -1),
+      }));
+    } catch { /* ignore */ }
+  }
+
+  async function handleDelete(ruleId: string) {
+    try {
+      await invoke('delete_automation_rule', { ruleId });
+      setRules((prev) => prev.filter((r) => r.id !== ruleId));
+      const s = await invoke<AutomationStats>('get_automation_stats').catch(() => stats);
+      setStats(s);
+    } catch { /* ignore */ }
+  }
+
+  async function handleCreate() {
+    if (!newName.trim()) return;
+    try {
+      const rule = await invoke<AutomationRule>('create_automation_rule', {
+        rule: {
+          name: newName.trim(),
+          description: '',
+          enabled: true,
+          trigger: newTrigger,
+          events: newEvents.split(',').map((e) => e.trim()).filter(Boolean),
+          filter: '',
+          promptTemplate: newPrompt,
+          provider: 'claude',
+          maxTurns: 10,
+          sandbox: false,
+        },
+      });
+      setRules((prev) => [...prev, rule]);
+      setShowCreateModal(false);
+      setNewName('');
+      setNewEvents('');
+      setNewPrompt('');
+      const s = await invoke<AutomationStats>('get_automation_stats').catch(() => stats);
+      setStats(s);
+    } catch { /* ignore */ }
+  }
 
   return (
     <div style={{ padding: 16, color: 'var(--text-primary)', background: 'var(--bg-primary)', minHeight: '100%' }}>
@@ -194,7 +194,7 @@ const AutomationsPanel: React.FC = () => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             <label style={{ fontSize: 12 }}>
               Name
-              <input type="text" placeholder="e.g. PR Review Agent" style={{ width: '100%', padding: 6, background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4 }} />
+              <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="e.g. PR Review Agent" style={{ width: '100%', padding: 6, background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4 }} />
             </label>
             <label style={{ fontSize: 12 }}>
               Trigger Source
@@ -220,23 +220,32 @@ const AutomationsPanel: React.FC = () => {
             </label>
             <label style={{ fontSize: 12, gridColumn: 'span 2' }}>
               Events (comma-separated)
-              <input type="text" placeholder="e.g. push, pull_request.opened" style={{ width: '100%', padding: 6, background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4 }} />
+              <input type="text" value={newEvents} onChange={(e) => setNewEvents(e.target.value)} placeholder="e.g. push, pull_request.opened" style={{ width: '100%', padding: 6, background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4 }} />
             </label>
             <label style={{ fontSize: 12, gridColumn: 'span 2' }}>
               Prompt Template
-              <textarea placeholder="Use {{variables}} from event payload" rows={3} style={{ width: '100%', padding: 6, background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4, fontFamily: 'var(--font-mono)' }} />
+              <textarea value={newPrompt} onChange={(e) => setNewPrompt(e.target.value)} placeholder="Use {{variables}} from event payload" rows={3} style={{ width: '100%', padding: 6, background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4, fontFamily: 'var(--font-mono)' }} />
             </label>
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-            <button style={{ padding: '6px 14px', background: 'var(--accent-color)', color: 'var(--text-primary)', border: 'none', borderRadius: 4, cursor: 'pointer' }}>Create</button>
+            <button onClick={handleCreate} style={{ padding: '6px 14px', background: 'var(--accent-color)', color: 'var(--text-primary)', border: 'none', borderRadius: 4, cursor: 'pointer' }}>Create</button>
             <button onClick={() => setShowCreateModal(false)} style={{ padding: '6px 14px', background: 'var(--bg-primary)', color: 'var(--text-secondary)', border: '1px solid var(--border-color)', borderRadius: 4, cursor: 'pointer' }}>Cancel</button>
           </div>
         </div>
       )}
 
+      {loading && (
+        <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-secondary)' }}>Loading...</div>
+      )}
+
       {/* Rules tab */}
-      {tab === 'rules' && (
+      {!loading && tab === 'rules' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {rules.length === 0 && (
+            <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-secondary)', lineHeight: 1.7 }}>
+              No automation rules yet.<br />Click <strong>+ New Rule</strong> to create one.
+            </div>
+          )}
           {rules.map((rule) => (
             <div key={rule.id} style={{
               background: 'var(--bg-secondary)', padding: 12, borderRadius: 8,
@@ -252,23 +261,44 @@ const AutomationsPanel: React.FC = () => {
                 <span style={{ fontSize: 11, color: 'var(--text-secondary)', marginLeft: 'auto' }}>
                   {rule.fireCount} runs {rule.lastFired ? `· last ${rule.lastFired}` : ''}
                 </span>
+                <button onClick={() => handleToggle(rule.id)} style={{
+                  padding: '2px 8px', fontSize: 10, borderRadius: 3, cursor: 'pointer',
+                  border: '1px solid var(--border-color)', background: 'none',
+                  color: rule.enabled ? 'var(--success-color)' : 'var(--text-secondary)',
+                }}>
+                  {rule.enabled ? 'Enabled' : 'Disabled'}
+                </button>
+                <button onClick={() => handleDelete(rule.id)} style={{
+                  padding: '2px 8px', fontSize: 10, borderRadius: 3, cursor: 'pointer',
+                  border: '1px solid var(--border-color)', background: 'none',
+                  color: 'var(--error-color)',
+                }}>
+                  Delete
+                </button>
               </div>
-              <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4 }}>{rule.description}</div>
+              {rule.description && <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4 }}>{rule.description}</div>}
               <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
                 Events: {rule.events.join(', ')} · Provider: {rule.provider} · Max turns: {rule.maxTurns}
                 {rule.sandbox && ' · Sandbox'}
               </div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-secondary)', marginTop: 4, padding: 4, background: 'var(--bg-primary)', borderRadius: 4 }}>
-                {rule.promptTemplate}
-              </div>
+              {rule.promptTemplate && (
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-secondary)', marginTop: 4, padding: 4, background: 'var(--bg-primary)', borderRadius: 4 }}>
+                  {rule.promptTemplate}
+                </div>
+              )}
             </div>
           ))}
         </div>
       )}
 
       {/* Tasks tab */}
-      {tab === 'tasks' && (
+      {!loading && tab === 'tasks' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {tasks.length === 0 && (
+            <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-secondary)' }}>
+              No tasks yet. Tasks appear here when automation rules fire.
+            </div>
+          )}
           {tasks.map((task) => (
             <div key={task.taskId} style={{
               background: 'var(--bg-secondary)', padding: 10, borderRadius: 6,
@@ -294,16 +324,12 @@ const AutomationsPanel: React.FC = () => {
       )}
 
       {/* Logs tab */}
-      {tab === 'logs' && (
-        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, background: 'var(--bg-secondary)', padding: 12, borderRadius: 8, lineHeight: 1.8, color: 'var(--text-secondary)' }}>
-          <div>[14:32:05] Webhook received: github/pull_request.opened → matched rule auto-1</div>
-          <div>[14:32:05] Spawning agent task-1 (provider: claude, sandbox: true)</div>
-          <div>[14:33:12] Task task-1 completed (67s, 12 turns)</div>
-          <div>[14:35:22] Webhook received: pagerduty/incident.triggered → matched rule auto-2</div>
-          <div>[14:35:22] Spawning agent task-2 (provider: openai, sandbox: false)</div>
-          <div>[14:35:44] Slack event: app_mention in #dev → matched rule auto-3</div>
-          <div>[14:35:44] Spawning agent task-3 (provider: ollama, sandbox: false)</div>
-          <div>[14:36:01] Task task-3 completed (17s, 3 turns)</div>
+      {!loading && tab === 'logs' && (
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, background: 'var(--bg-secondary)', padding: 12, borderRadius: 8, lineHeight: 1.8, color: 'var(--text-secondary)', minHeight: 100 }}>
+          {logs.length === 0 && <div>No log entries yet. Logs appear when automation rules fire.</div>}
+          {logs.map((entry, i) => (
+            <div key={i}>[{entry.timestamp}] {entry.message}</div>
+          ))}
         </div>
       )}
     </div>

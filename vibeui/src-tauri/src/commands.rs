@@ -6283,14 +6283,16 @@ pub async fn validate_api_key(provider: String, api_key: String, api_url: Option
             else { Err(format!("HTTP {}", resp.status().as_u16())) }
         }
         "ollama" => {
-            let base = api_url.unwrap_or_else(|| "http://localhost:11434".into());
+            let base = api_url
+                .filter(|u| !u.is_empty())
+                .unwrap_or_else(|| "http://localhost:11434".into());
             let resp = client
-                .get(format!("{}/api/tags", base))
+                .get(format!("{}/api/tags", base.trim_end_matches('/')))
                 .send()
                 .await
-                .map_err(|e| format!("Connection failed: {}", e))?;
+                .map_err(|e| format!("Connection failed: {} — is Ollama running at {}?", e, base))?;
             if resp.status().is_success() { Ok(()) }
-            else { Err(format!("HTTP {}", resp.status().as_u16())) }
+            else { Err(format!("HTTP {} from {}", resp.status().as_u16(), base)) }
         }
         _ => Err(format!("Unknown provider: {}", provider)),
     };

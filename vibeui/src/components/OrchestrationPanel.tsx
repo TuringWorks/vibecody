@@ -1,4 +1,5 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 /* ── Types ───────────────────────────────────────────────────────────── */
 
@@ -51,7 +52,6 @@ interface OrchestrationPanelProps {
 export function OrchestrationPanel({ workspacePath: _workspacePath }: OrchestrationPanelProps) {
   const [activeTab, setActiveTab] = useState<"tasks" | "lessons" | "rules">("tasks");
 
-  // Task state (local — no Tauri commands needed, pure TypeScript)
   const [state, setState] = useState<OrchestrationState>({
     goal: "",
     complexity: "moderate",
@@ -60,8 +60,13 @@ export function OrchestrationPanel({ workspacePath: _workspacePath }: Orchestrat
     verified: false,
   });
 
-  // Lessons state
   const [lessons, setLessons] = useState<Lesson[]>([]);
+
+  // Load persisted state on mount
+  useEffect(() => {
+    invoke<OrchestrationState>("get_orch_state").then(s => setState(s)).catch(() => {});
+    invoke<Lesson[]>("get_orch_lessons").then(l => setLessons(l)).catch(() => {});
+  }, []);
 
   // Forms
   const [newGoal, setNewGoal] = useState("");
@@ -72,9 +77,19 @@ export function OrchestrationPanel({ workspacePath: _workspacePath }: Orchestrat
 
   /* ── Task actions ─────────────────────────────────────────────────── */
 
+  const persistState = useCallback((s: OrchestrationState) => {
+    setState(s);
+    invoke("save_orch_state", { state: s }).catch(() => {});
+  }, []);
+
+  const persistLessons = useCallback((l: Lesson[]) => {
+    setLessons(l);
+    invoke("save_orch_lessons", { lessons: l }).catch(() => {});
+  }, []);
+
   const createTask = useCallback(() => {
     if (!newGoal.trim()) return;
-    setState({
+    persistState({
       goal: newGoal,
       complexity: newGoal.length > 80 ? "complex" : "moderate",
       todos: [],
@@ -82,56 +97,47 @@ export function OrchestrationPanel({ workspacePath: _workspacePath }: Orchestrat
       verified: false,
     });
     setNewGoal("");
-  }, [newGoal]);
+  }, [newGoal, persistState]);
 
   const addTodo = useCallback(() => {
     if (!newTodo.trim()) return;
     const nextId = state.todos.length > 0 ? Math.max(...state.todos.map(t => t.id)) + 1 : 1;
-    setState(prev => ({
-      ...prev,
-      todos: [...prev.todos, { id: nextId, description: newTodo, done: false, stepType: "build" }],
-    }));
+    const updated = { ...state, todos: [...state.todos, { id: nextId, description: newTodo, done: false, stepType: "build" }] };
+    persistState(updated);
     setNewTodo("");
-  }, [newTodo, state.todos]);
+  }, [newTodo, state, persistState]);
 
   const toggleTodo = useCallback((id: number) => {
-    setState(prev => ({
-      ...prev,
-      todos: prev.todos.map(t => t.id === id ? { ...t, done: !t.done } : t),
-    }));
-  }, []);
+    const updated = { ...state, todos: state.todos.map(t => t.id === id ? { ...t, done: !t.done } : t) };
+    persistState(updated);
+  }, [state, persistState]);
 
   const markVerified = useCallback(() => {
-    setState(prev => ({ ...prev, verified: true }));
-  }, []);
+    persistState({ ...state, verified: true });
+  }, [state, persistState]);
 
   const markPlanned = useCallback(() => {
-    setState(prev => ({ ...prev, planned: true }));
-  }, []);
+    persistState({ ...state, planned: true });
+  }, [state, persistState]);
 
   const resetTask = useCallback(() => {
-    setState({ goal: "", complexity: "moderate", todos: [], planned: false, verified: false });
-  }, []);
+    persistState({ goal: "", complexity: "moderate", todos: [], planned: false, verified: false });
+  }, [persistState]);
 
   /* ── Lesson actions ───────────────────────────────────────────────── */
 
   const addLesson = useCallback(() => {
     if (!newPattern.trim()) return;
     const nextId = lessons.length > 0 ? Math.max(...lessons.map(l => l.id)) + 1 : 1;
-    setLessons(prev => [...prev, {
-      id: nextId,
-      pattern: newPattern,
-      rule: newRule,
-      category: newCategory,
-      hitCount: 0,
-    }]);
+    const updated = [...lessons, { id: nextId, pattern: newPattern, rule: newRule, category: newCategory, hitCount: 0 }];
+    persistLessons(updated);
     setNewPattern("");
     setNewRule("");
-  }, [newPattern, newRule, newCategory, lessons]);
+  }, [newPattern, newRule, newCategory, lessons, persistLessons]);
 
   const deleteLesson = useCallback((id: number) => {
-    setLessons(prev => prev.filter(l => l.id !== id));
-  }, []);
+    persistLessons(lessons.filter(l => l.id !== id));
+  }, [lessons, persistLessons]);
 
   /* ── Progress calculation ─────────────────────────────────────────── */
 

@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 type SubTab = "setup" | "monitor" | "history" | "safety";
 
@@ -15,6 +16,18 @@ interface Step {
   durationMs: number;
 }
 
+interface ObserveActConfig {
+  mode: "cautious" | "autonomous" | "restricted";
+  maxSteps: number;
+  interval: number;
+  maxActionsPerStep: number;
+  rateLimitMs: number;
+  maxConsecutiveFailures: number;
+  forbiddenKeyCombos: string;
+  forbiddenScreenRegions: string;
+  verifyAfterAction: boolean;
+}
+
 export function ObserveActPanel() {
   const [tab, setTab] = useState<SubTab>("setup");
   const [task, setTask] = useState("");
@@ -22,10 +35,42 @@ export function ObserveActPanel() {
   const [maxSteps, setMaxSteps] = useState(50);
   const [interval, setInterval_] = useState(2000);
   const [status, setStatus] = useState<"idle" | "running" | "completed" | "failed">("idle");
-  const [steps] = useState<Step[]>([
-    { num: 1, reasoning: "Navigate to login page and locate the username field", actions: ["Click(320, 240)", "Type('admin@example.com')"], verified: true, durationMs: 3200 },
-    { num: 2, reasoning: "Enter password and click sign in button", actions: ["Click(320, 290)", "Type('***')", "Click(320, 340)"], verified: true, durationMs: 2800 },
-  ]);
+  const [steps, setSteps] = useState<Step[]>([]);
+  const [config, setConfig] = useState<ObserveActConfig | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        const [stepsData, configData] = await Promise.all([
+          invoke<Step[]>("get_observeact_steps"),
+          invoke<ObserveActConfig>("get_observeact_config"),
+        ]);
+        setSteps(stepsData);
+        setConfig(configData);
+        if (configData) {
+          setMode(configData.mode);
+          setMaxSteps(configData.maxSteps);
+          setInterval_(configData.interval);
+        }
+      } catch (err) {
+        console.error("Failed to load observe-act data:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, []);
+
+  const handleSaveConfig = async (newConfig: ObserveActConfig) => {
+    setConfig(newConfig);
+    try {
+      await invoke("save_observeact_config", { config: newConfig });
+    } catch (err) {
+      console.error("Failed to save observe-act config:", err);
+    }
+  };
 
   return (
     <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 16, fontSize: 13, color: "var(--text-primary)" }}>
@@ -70,6 +115,15 @@ export function ObserveActPanel() {
             <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
               <button style={{ ...btn, opacity: !task ? 0.5 : 1 }} disabled={!task} onClick={() => setStatus("running")}>Start Observe-Act Loop</button>
               {status === "running" && <button style={{ ...btn, background: "var(--accent-rose)" }} onClick={() => setStatus("idle")}>Stop</button>}
+              <button style={{ ...btn, background: "var(--bg-tertiary)" }} onClick={() => handleSaveConfig({
+                mode, maxSteps, interval,
+                maxActionsPerStep: config?.maxActionsPerStep ?? 3,
+                rateLimitMs: config?.rateLimitMs ?? 200,
+                maxConsecutiveFailures: config?.maxConsecutiveFailures ?? 3,
+                forbiddenKeyCombos: config?.forbiddenKeyCombos ?? "Ctrl+Alt+Del",
+                forbiddenScreenRegions: config?.forbiddenScreenRegions ?? "",
+                verifyAfterAction: config?.verifyAfterAction ?? true,
+              })}>Save Config</button>
             </div>
           </div>
         </div>
@@ -78,69 +132,85 @@ export function ObserveActPanel() {
       {tab === "monitor" && (
         <div>
           <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Live Monitor</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
-            {[
-              { label: "Status", value: status.toUpperCase(), color: status === "running" ? "var(--accent-green)" : status === "completed" ? "#2196f3" : "var(--text-secondary)" },
-              { label: "Steps", value: `${steps.length}/${maxSteps}`, color: "var(--text-primary)" },
-              { label: "Actions", value: `${steps.reduce((a, s) => a + s.actions.length, 0)}`, color: "var(--text-primary)" },
-              { label: "Success Rate", value: `${steps.length > 0 ? Math.round(steps.filter(s => s.verified).length / steps.length * 100) : 0}%`, color: "var(--accent-green)" },
-            ].map(m => (
-              <div key={m.label} style={card}>
-                <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>{m.label}</div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: m.color, marginTop: 2 }}>{m.value}</div>
+          {loading ? (
+            <div style={{ padding: 24, textAlign: "center", color: "var(--text-secondary)", fontSize: 13 }}>Loading monitor data...</div>
+          ) : (
+            <>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
+                {[
+                  { label: "Status", value: status.toUpperCase(), color: status === "running" ? "var(--accent-green)" : status === "completed" ? "#2196f3" : "var(--text-secondary)" },
+                  { label: "Steps", value: `${steps.length}/${maxSteps}`, color: "var(--text-primary)" },
+                  { label: "Actions", value: `${steps.reduce((a, s) => a + s.actions.length, 0)}`, color: "var(--text-primary)" },
+                  { label: "Success Rate", value: `${steps.length > 0 ? Math.round(steps.filter(s => s.verified).length / steps.length * 100) : 0}%`, color: "var(--accent-green)" },
+                ].map(m => (
+                  <div key={m.label} style={card}>
+                    <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>{m.label}</div>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: m.color, marginTop: 2 }}>{m.value}</div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-          <div style={card}>
-            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Latest Screenshot</div>
-            <div style={{ background: "var(--bg-tertiary)", borderRadius: 4, height: 200, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-secondary)", fontSize: 12 }}>
-              {status === "running" ? "Capturing..." : "No active session"}
-            </div>
-          </div>
+              <div style={card}>
+                <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Latest Screenshot</div>
+                <div style={{ background: "var(--bg-tertiary)", borderRadius: 4, height: 200, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-secondary)", fontSize: 12 }}>
+                  {status === "running" ? "Capturing..." : "No active session"}
+                </div>
+              </div>
+            </>
+          )}
         </div>
       )}
 
       {tab === "history" && (
         <div>
           <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Step History</div>
-          {steps.map(s => (
-            <div key={s.num} style={{ ...card, marginBottom: 8 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                <span style={{ fontWeight: 600 }}>Step {s.num}</span>
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>{s.durationMs}ms</span>
-                  <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 3, background: s.verified ? "#4caf5022" : "#f4433622", color: s.verified ? "var(--accent-green)" : "var(--accent-rose)" }}>
-                    {s.verified ? "Verified" : "Failed"}
-                  </span>
+          {loading ? (
+            <div style={{ padding: 24, textAlign: "center", color: "var(--text-secondary)", fontSize: 13 }}>Loading step history...</div>
+          ) : steps.length === 0 ? (
+            <div style={{ padding: 24, textAlign: "center", color: "var(--text-secondary)", fontSize: 13 }}>No steps recorded yet. Start an observe-act session to see history.</div>
+          ) : (
+            steps.map(s => (
+              <div key={s.num} style={{ ...card, marginBottom: 8 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                  <span style={{ fontWeight: 600 }}>Step {s.num}</span>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>{s.durationMs}ms</span>
+                    <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 3, background: s.verified ? "#4caf5022" : "#f4433622", color: s.verified ? "var(--accent-green)" : "var(--accent-rose)" }}>
+                      {s.verified ? "Verified" : "Failed"}
+                    </span>
+                  </div>
+                </div>
+                <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>{s.reasoning}</div>
+                <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                  {s.actions.map((a, i) => (
+                    <span key={i} style={{ fontSize: 10, padding: "2px 6px", borderRadius: 3, background: "var(--bg-tertiary)", fontFamily: "var(--font-mono)" }}>{a}</span>
+                  ))}
                 </div>
               </div>
-              <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>{s.reasoning}</div>
-              <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                {s.actions.map((a, i) => (
-                  <span key={i} style={{ fontSize: 10, padding: "2px 6px", borderRadius: 3, background: "var(--bg-tertiary)", fontFamily: "var(--font-mono)" }}>{a}</span>
-                ))}
-              </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       )}
 
       {tab === "safety" && (
         <div>
           <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Safety Configuration</div>
-          <div style={card}>
-            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Safety Rails</div>
-            <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
-              <tbody>
-                <tr><td style={{ padding: "4px 0", color: "var(--text-secondary)" }}>Max Actions per Step</td><td style={{ padding: "4px 0" }}>5</td></tr>
-                <tr><td style={{ padding: "4px 0", color: "var(--text-secondary)" }}>Rate Limit (ms between actions)</td><td style={{ padding: "4px 0" }}>200ms</td></tr>
-                <tr><td style={{ padding: "4px 0", color: "var(--text-secondary)" }}>Max Consecutive Failures</td><td style={{ padding: "4px 0" }}>3</td></tr>
-                <tr><td style={{ padding: "4px 0", color: "var(--text-secondary)" }}>Forbidden Key Combos</td><td style={{ padding: "4px 0" }}>Alt+F4, Ctrl+Alt+Del, Cmd+Q</td></tr>
-                <tr><td style={{ padding: "4px 0", color: "var(--text-secondary)" }}>Forbidden Screen Regions</td><td style={{ padding: "4px 0" }}>System tray, menu bar</td></tr>
-                <tr><td style={{ padding: "4px 0", color: "var(--text-secondary)" }}>Verify After Action</td><td style={{ padding: "4px 0" }}>Enabled</td></tr>
-              </tbody>
-            </table>
-          </div>
+          {loading ? (
+            <div style={{ padding: 24, textAlign: "center", color: "var(--text-secondary)", fontSize: 13 }}>Loading safety config...</div>
+          ) : (
+            <div style={card}>
+              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Safety Rails</div>
+              <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
+                <tbody>
+                  <tr><td style={{ padding: "4px 0", color: "var(--text-secondary)" }}>Max Actions per Step</td><td style={{ padding: "4px 0" }}>{config?.maxActionsPerStep ?? 5}</td></tr>
+                  <tr><td style={{ padding: "4px 0", color: "var(--text-secondary)" }}>Rate Limit (ms between actions)</td><td style={{ padding: "4px 0" }}>{config?.rateLimitMs ?? 200}ms</td></tr>
+                  <tr><td style={{ padding: "4px 0", color: "var(--text-secondary)" }}>Max Consecutive Failures</td><td style={{ padding: "4px 0" }}>{config?.maxConsecutiveFailures ?? 3}</td></tr>
+                  <tr><td style={{ padding: "4px 0", color: "var(--text-secondary)" }}>Forbidden Key Combos</td><td style={{ padding: "4px 0" }}>{config?.forbiddenKeyCombos ?? "Alt+F4, Ctrl+Alt+Del, Cmd+Q"}</td></tr>
+                  <tr><td style={{ padding: "4px 0", color: "var(--text-secondary)" }}>Forbidden Screen Regions</td><td style={{ padding: "4px 0" }}>{config?.forbiddenScreenRegions ?? "System tray, menu bar"}</td></tr>
+                  <tr><td style={{ padding: "4px 0", color: "var(--text-secondary)" }}>Verify After Action</td><td style={{ padding: "4px 0" }}>{config?.verifyAfterAction !== false ? "Enabled" : "Disabled"}</td></tr>
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
     </div>

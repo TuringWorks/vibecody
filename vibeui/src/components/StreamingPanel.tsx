@@ -2,9 +2,9 @@
  * StreamingPanel — Kafka / event streaming management panel.
  *
  * Tabs: Topics, Producer/Consumer, Infrastructure
- * Pure TypeScript — no Tauri commands required.
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 type Tab = "topics" | "prodcon" | "infra";
 type CleanupPolicy = "delete" | "compact" | "compact,delete";
@@ -28,6 +28,7 @@ interface ConnectorConfig {
 
 export function StreamingPanel() {
   const [tab, setTab] = useState<Tab>("topics");
+  const [loading, setLoading] = useState(true);
 
   // Topics state
   const [topicName, setTopicName] = useState("");
@@ -56,6 +57,22 @@ export function StreamingPanel() {
     connectionUrl: "jdbc:postgresql://localhost:5432/mydb",
   });
   const [connectorJson, setConnectorJson] = useState("");
+
+  // Load topics from backend on mount
+  useEffect(() => {
+    const loadTopics = async () => {
+      setLoading(true);
+      try {
+        const data = await invoke<TopicEntry[]>("get_streaming_topics");
+        setTopics(data);
+      } catch (err) {
+        console.error("Failed to load streaming topics:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadTopics();
+  }, []);
 
   const inputStyle: React.CSSProperties = {
     width: "100%",
@@ -113,16 +130,27 @@ export function StreamingPanel() {
 
   // --- Topics ---
 
-  const handleAddTopic = () => {
+  const handleAddTopic = async () => {
     const name = topicName.trim();
     if (!name) return;
     if (topics.some((t) => t.name === name)) return;
-    setTopics([...topics, { name, partitions, replicationFactor, cleanupPolicy }]);
+    const newTopic: TopicEntry = { name, partitions, replicationFactor, cleanupPolicy };
+    setTopics([...topics, newTopic]);
     setTopicName("");
+    try {
+      await invoke("save_streaming_topic", { topic: newTopic });
+    } catch (err) {
+      console.error("Failed to save topic:", err);
+    }
   };
 
-  const handleDeleteTopic = (name: string) => {
+  const handleDeleteTopic = async (name: string) => {
     setTopics(topics.filter((t) => t.name !== name));
+    try {
+      await invoke("delete_streaming_topic", { name });
+    } catch (err) {
+      console.error("Failed to delete topic:", err);
+    }
   };
 
   // --- Producer / Consumer ---
@@ -312,7 +340,9 @@ export function StreamingPanel() {
             </div>
 
             {/* Topics table */}
-            {topics.length === 0 ? (
+            {loading ? (
+              <div style={{ opacity: 0.5, fontSize: 12 }}>Loading topics...</div>
+            ) : topics.length === 0 ? (
               <div style={{ opacity: 0.5, fontSize: 12 }}>No topics created yet. Use the form above to add topics.</div>
             ) : (
               <div style={{ overflowX: "auto" }}>

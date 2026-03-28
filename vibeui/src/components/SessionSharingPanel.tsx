@@ -3,7 +3,8 @@
  *
  * Tabs: Shared Sessions, Annotations, Export
  */
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 type Tab = "Shared Sessions" | "Annotations" | "Export";
 const TABS: Tab[] = ["Shared Sessions", "Annotations", "Export"];
@@ -49,24 +50,51 @@ const selectStyle: React.CSSProperties = {
   width: "100%", boxSizing: "border-box" as const,
 };
 
-const SESSIONS = [
-  { id: "sess-a1b2", title: "Auth refactor session", owner: "alice", visibility: "Team", messages: 24, date: "2026-03-19", views: 12 },
-  { id: "sess-c3d4", title: "Bug investigation #142", owner: "bob", visibility: "Public", messages: 38, date: "2026-03-18", views: 45 },
-  { id: "sess-e5f6", title: "Performance tuning", owner: "carol", visibility: "Link Only", messages: 15, date: "2026-03-17", views: 8 },
-  { id: "sess-g7h8", title: "Architecture review", owner: "dave", visibility: "Private", messages: 52, date: "2026-03-16", views: 0 },
-];
-const ANNOTATIONS = [
-  { session: "sess-a1b2", author: "bob", text: "Great approach to middleware injection", line: 12, date: "2026-03-19" },
-  { session: "sess-c3d4", author: "alice", text: "Root cause was the unchecked unwrap on line 45", line: 8, date: "2026-03-18" },
-  { session: "sess-c3d4", author: "carol", text: "Could also add a regression test here", line: 22, date: "2026-03-18" },
-  { session: "sess-e5f6", author: "dave", text: "The caching strategy is spot on", line: 5, date: "2026-03-17" },
-];
+interface Session {
+  id: string;
+  title: string;
+  owner: string;
+  visibility: string;
+  messages: number;
+  date: string;
+  views: number;
+}
+
+interface Annotation {
+  session: string;
+  author: string;
+  text: string;
+  line: number;
+  date: string;
+}
 
 const FORMATS = ["Markdown", "JSON", "HTML", "PDF"];
 
 const SessionSharingPanel: React.FC = () => {
   const [tab, setTab] = useState<Tab>("Shared Sessions");
   const [exportFormat, setExportFormat] = useState("Markdown");
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [annotations, setAnnotations] = useState<Annotation[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        const [sessionsData, annotationsData] = await Promise.all([
+          invoke<Session[]>("get_shared_sessions"),
+          invoke<Annotation[]>("get_session_annotations"),
+        ]);
+        setSessions(sessionsData);
+        setAnnotations(annotationsData);
+      } catch (err) {
+        console.error("Failed to load session sharing data:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, []);
 
   return (
     <div style={containerStyle} role="region" aria-label="Session Sharing Panel">
@@ -76,27 +104,43 @@ const SessionSharingPanel: React.FC = () => {
         ))}
       </div>
       <div style={contentStyle} role="tabpanel" aria-label={tab}>
-        {tab === "Shared Sessions" && SESSIONS.map((s, i) => (
-          <div key={i} style={cardStyle}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-              <strong>{s.title}</strong>
-              <span style={badgeStyle(VIS_COLORS[s.visibility] || "var(--text-secondary)")}>{s.visibility}</span>
-            </div>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-              {s.owner} &middot; {s.messages} messages &middot; {s.views} views &middot; {s.date}
-            </div>
-          </div>
-        ))}
-        {tab === "Annotations" && ANNOTATIONS.map((a, i) => (
-          <div key={i} style={cardStyle}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-              <strong>{a.author}</strong>
-              <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{a.session} line {a.line}</span>
-            </div>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{a.text}</div>
-            <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4 }}>{a.date}</div>
-          </div>
-        ))}
+        {tab === "Shared Sessions" && (
+          loading ? (
+            <div style={{ padding: 24, textAlign: "center", color: "var(--text-secondary)", fontSize: 13 }}>Loading sessions...</div>
+          ) : sessions.length === 0 ? (
+            <div style={{ padding: 24, textAlign: "center", color: "var(--text-secondary)", fontSize: 13 }}>No shared sessions found.</div>
+          ) : (
+            sessions.map((s, i) => (
+              <div key={i} style={cardStyle}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                  <strong>{s.title}</strong>
+                  <span style={badgeStyle(VIS_COLORS[s.visibility] || "var(--text-secondary)")}>{s.visibility}</span>
+                </div>
+                <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                  {s.owner} &middot; {s.messages} messages &middot; {s.views} views &middot; {s.date}
+                </div>
+              </div>
+            ))
+          )
+        )}
+        {tab === "Annotations" && (
+          loading ? (
+            <div style={{ padding: 24, textAlign: "center", color: "var(--text-secondary)", fontSize: 13 }}>Loading annotations...</div>
+          ) : annotations.length === 0 ? (
+            <div style={{ padding: 24, textAlign: "center", color: "var(--text-secondary)", fontSize: 13 }}>No annotations found.</div>
+          ) : (
+            annotations.map((a, i) => (
+              <div key={i} style={cardStyle}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                  <strong>{a.author}</strong>
+                  <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{a.session} line {a.line}</span>
+                </div>
+                <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{a.text}</div>
+                <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4 }}>{a.date}</div>
+              </div>
+            ))
+          )
+        )}
         {tab === "Export" && (
           <div>
             <div style={cardStyle}>

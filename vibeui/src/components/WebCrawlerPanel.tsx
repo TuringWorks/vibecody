@@ -3,7 +3,8 @@
  *
  * Tabs: Crawl (URL crawling with config), Sitemap (sitemap/robots.txt parsing)
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 type Tab = "crawl" | "sitemap";
 
@@ -36,6 +37,7 @@ export function WebCrawlerPanel() {
   });
   const [crawlResults, setCrawlResults] = useState<CrawlResult[]>([]);
   const [isCrawling, setIsCrawling] = useState(false);
+  const [loadingResults, setLoadingResults] = useState(true);
 
   // Sitemap state
   const [sitemapUrl, setSitemapUrl] = useState("");
@@ -44,40 +46,57 @@ export function WebCrawlerPanel() {
   const [robotsResult, setRobotsResult] = useState("");
   const [isLoadingSitemap, setIsLoadingSitemap] = useState(false);
 
-  const handleStartCrawl = () => {
+  // Load previous crawl results on mount
+  useEffect(() => {
+    const loadResults = async () => {
+      setLoadingResults(true);
+      try {
+        const data = await invoke<CrawlResult[]>("get_crawl_results");
+        setCrawlResults(data);
+      } catch (err) {
+        console.error("Failed to load crawl results:", err);
+      } finally {
+        setLoadingResults(false);
+      }
+    };
+    loadResults();
+  }, []);
+
+  const handleStartCrawl = async () => {
     if (!crawlConfig.url.trim()) return;
     setIsCrawling(true);
     setCrawlResults([]);
-    // Simulate crawl results
-    setTimeout(() => {
-      const count = Math.min(crawlConfig.maxPages, Math.floor(Math.random() * 15) + 3);
-      const results: CrawlResult[] = Array.from({ length: count }, (_, i) => {
-        const path = i === 0 ? "/" : `/page-${i}`;
-        return {
-          url: `${crawlConfig.url.replace(/\/$/, "")}${path}`,
-          status: Math.random() > 0.1 ? 200 : (Math.random() > 0.5 ? 301 : 404),
-          contentType: "text/html",
-        };
-      });
+    try {
+      const results = await invoke<CrawlResult[]>("run_web_crawl", { config: crawlConfig });
       setCrawlResults(results);
+    } catch (err) {
+      console.error("Failed to run crawl:", err);
+    } finally {
       setIsCrawling(false);
-    }, 1200);
+    }
   };
 
-  const handleParseSitemap = () => {
+  const handleParseSitemap = async () => {
     if (!sitemapUrl.trim()) return;
     setIsLoadingSitemap(true);
-    setTimeout(() => {
-      const count = Math.floor(Math.random() * 20) + 5;
-      const base = sitemapUrl.replace(/\/sitemap\.xml.*/, "");
-      setSitemapUrls(Array.from({ length: count }, (_, i) => `${base}/page-${i + 1}`));
+    try {
+      const urls = await invoke<string[]>("parse_sitemap", { url: sitemapUrl });
+      setSitemapUrls(urls);
+    } catch (err) {
+      console.error("Failed to parse sitemap:", err);
+    } finally {
       setIsLoadingSitemap(false);
-    }, 700);
+    }
   };
 
-  const handleCheckRobots = () => {
+  const handleCheckRobots = async () => {
     if (!robotsUrl.trim()) return;
-    setRobotsResult(`User-agent: *\nDisallow: /admin/\nDisallow: /api/\nAllow: /\n\nSitemap: ${robotsUrl.replace(/\/robots\.txt$/, "")}/sitemap.xml`);
+    try {
+      const result = await invoke<string>("check_robots_txt", { url: robotsUrl });
+      setRobotsResult(result);
+    } catch (err) {
+      console.error("Failed to check robots.txt:", err);
+    }
   };
 
   const tabs: { key: Tab; label: string }[] = [
@@ -254,7 +273,9 @@ export function WebCrawlerPanel() {
             </button>
 
             {/* Results table */}
-            {crawlResults.length > 0 && (
+            {loadingResults ? (
+              <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 8 }}>Loading previous results...</div>
+            ) : crawlResults.length > 0 ? (
               <div style={{ marginTop: 8 }}>
                 <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 8 }}>{crawlResults.length} page(s) crawled</div>
                 <div style={{ overflowX: "auto" }}>
@@ -278,7 +299,9 @@ export function WebCrawlerPanel() {
                   </table>
                 </div>
               </div>
-            )}
+            ) : !isCrawling ? (
+              <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 8 }}>No crawl results yet. Enter a URL and start a crawl.</div>
+            ) : null}
           </div>
         )}
 

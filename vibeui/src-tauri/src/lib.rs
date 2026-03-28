@@ -671,6 +671,98 @@ pub fn run() {
             commands::fullstack_generate,
             commands::fullstack_read_file,
             commands::fullstack_write_file,
+            // Clarifying Questions
+            commands::get_clarify_questions,
+            commands::get_clarify_plan,
+            commands::get_clarify_risks,
+            commands::save_clarify_questions,
+            commands::save_clarify_plan,
+            // Orchestration
+            commands::get_orch_state,
+            commands::save_orch_state,
+            commands::get_orch_lessons,
+            commands::save_orch_lessons,
+            // AI/ML Workflow
+            commands::get_aiml_pipeline_config,
+            commands::save_aiml_pipeline_config,
+            // Next-Task ML
+            commands::get_nexttask_predictions,
+            commands::get_nexttask_history,
+            commands::get_nexttask_transitions,
+            commands::get_nexttask_rules,
+            commands::accept_nexttask,
+            commands::toggle_nexttask_rule,
+            // QA Validation
+            commands::run_qa_validation,
+            commands::get_qa_history,
+            // Vector DB
+            commands::list_vector_collections,
+            commands::create_vector_collection,
+            commands::delete_vector_collection,
+            commands::vector_search,
+            // Org Context
+            commands::get_org_repos,
+            commands::get_org_patterns,
+            commands::get_org_conventions,
+            commands::get_org_dependencies,
+            commands::save_org_repo,
+            // Spec Pipeline
+            commands::get_spec_requirements,
+            commands::get_spec_designs,
+            commands::get_spec_tasks,
+            commands::save_spec_requirement,
+            commands::save_spec_design,
+            commands::save_spec_task_item,
+            // VM Orchestrator
+            commands::get_vm_environments,
+            commands::get_vm_pull_requests,
+            commands::get_vm_conflicts,
+            commands::get_vm_config,
+            commands::save_vm_config,
+            // Session Sharing
+            commands::get_shared_sessions,
+            commands::get_session_annotations,
+            commands::share_session,
+            commands::add_session_annotation,
+            // Self-Review
+            commands::get_selfreview_iterations,
+            commands::get_selfreview_config,
+            commands::save_selfreview_config,
+            // Streaming
+            commands::get_streaming_topics,
+            commands::save_streaming_topic,
+            commands::delete_streaming_topic,
+            // Observe-Act
+            commands::get_observeact_steps,
+            commands::get_observeact_config,
+            commands::save_observeact_config,
+            // Web Crawler
+            commands::run_web_crawl,
+            commands::get_crawl_results,
+            commands::parse_sitemap,
+            commands::check_robots_txt,
+            // Visual Verify
+            commands::get_visual_baselines,
+            commands::save_visual_baseline,
+            commands::get_visual_diffs,
+            commands::delete_visual_baseline,
+            // Automations
+            commands::get_automation_rules,
+            commands::get_automation_tasks,
+            commands::get_automation_stats,
+            commands::get_automation_logs,
+            commands::create_automation_rule,
+            commands::update_automation_rule,
+            commands::delete_automation_rule,
+            commands::toggle_automation_rule,
+            // Resilience
+            commands::get_provider_health,
+            commands::get_circuit_breaker_state,
+            commands::get_failure_records,
+            commands::get_failure_patterns,
+            commands::get_resilience_config,
+            commands::save_resilience_config,
+            commands::record_failure,
             // Security Scan
             commands::run_security_scan,
             commands::get_security_scan_results,
@@ -978,6 +1070,8 @@ pub fn run() {
             commands::spawn_agent_cancel,
             commands::spawn_agent_decompose,
             commands::spawn_agent_aggregate,
+            // Agent Recordings
+            commands::list_agent_recordings,
             // Mobile Gateway — machine registration, pairing, dispatch
             commands::dispatch_list_machines,
             commands::dispatch_register_machine,

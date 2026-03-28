@@ -1,4 +1,5 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 interface Baseline {
   id: string;
@@ -91,28 +92,55 @@ export function VisualVerifyPanel() {
   const [tab, setTab] = useState("verify");
   const [url, setUrl] = useState("");
   const [viewport, setViewport] = useState("1920x1080");
-  const [baselines, setBaselines] = useState<Baseline[]>([
-    { id: "b1", name: "Homepage", url: "https://example.com", viewport: "1920x1080", capturedAt: "2026-03-25 14:00" },
-    { id: "b2", name: "Dashboard", url: "https://example.com/dash", viewport: "1440x900", capturedAt: "2026-03-25 14:05" },
-    { id: "b3", name: "Mobile Login", url: "https://example.com/login", viewport: "375x812", capturedAt: "2026-03-25 14:10" },
-  ]);
-  const [diffs] = useState<DiffResult[]>([
-    { id: "d1", baseline: "Homepage", viewport: "1920x1080", complianceScore: 98, pixelDiff: 0.2, status: "pass" },
-    { id: "d2", baseline: "Dashboard", viewport: "1440x900", complianceScore: 85, pixelDiff: 3.1, status: "warning" },
-    { id: "d3", baseline: "Mobile Login", viewport: "375x812", complianceScore: 72, pixelDiff: 8.5, status: "fail" },
-  ]);
+  const [baselines, setBaselines] = useState<Baseline[]>([]);
+  const [diffs, setDiffs] = useState<DiffResult[]>([]);
+  const [loading, setLoading] = useState(true);
   const [reportFormat, setReportFormat] = useState("json");
 
-  const handleCapture = useCallback(() => {
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        const [baselinesData, diffsData] = await Promise.all([
+          invoke<Baseline[]>("get_visual_baselines"),
+          invoke<DiffResult[]>("get_visual_diffs"),
+        ]);
+        setBaselines(baselinesData);
+        setDiffs(diffsData);
+      } catch (err) {
+        console.error("Failed to load visual verify data:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, []);
+
+  const handleCapture = useCallback(async () => {
     if (!url.trim()) return;
-    setBaselines((prev) => [...prev, {
+    const newBaseline: Baseline = {
       id: `b${Date.now()}`,
       name: new URL(url).pathname || "/",
       url,
       viewport,
       capturedAt: new Date().toISOString().slice(0, 16).replace("T", " "),
-    }]);
+    };
+    setBaselines((prev) => [...prev, newBaseline]);
+    try {
+      await invoke("save_visual_baseline", { baseline: newBaseline });
+    } catch (err) {
+      console.error("Failed to save baseline:", err);
+    }
   }, [url, viewport]);
+
+  const handleDeleteBaseline = useCallback(async (id: string) => {
+    setBaselines((prev) => prev.filter((b) => b.id !== id));
+    try {
+      await invoke("delete_visual_baseline", { id });
+    } catch (err) {
+      console.error("Failed to delete baseline:", err);
+    }
+  }, []);
 
   return (
     <div style={panelStyle}>
@@ -142,36 +170,57 @@ export function VisualVerifyPanel() {
 
       {tab === "baselines" && (
         <div>
-          {baselines.map((b) => (
-            <div key={b.id} style={cardStyle}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <strong>{b.name}</strong>
-                <span style={badgeStyle("#6366f1")}>{b.viewport}</span>
+          {loading ? (
+            <div style={{ padding: 24, textAlign: "center", color: "var(--text-secondary)", fontSize: 13 }}>Loading baselines...</div>
+          ) : baselines.length === 0 ? (
+            <div style={{ padding: 24, textAlign: "center", color: "var(--text-secondary)", fontSize: 13 }}>No baselines captured yet. Use the Verify tab to capture a page.</div>
+          ) : (
+            baselines.map((b) => (
+              <div key={b.id} style={cardStyle}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <strong>{b.name}</strong>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={badgeStyle("#6366f1")}>{b.viewport}</span>
+                    <button
+                      onClick={() => handleDeleteBaseline(b.id)}
+                      style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: 14 }}
+                      title="Delete baseline"
+                    >
+                      x
+                    </button>
+                  </div>
+                </div>
+                <div style={{ fontSize: 12, color: "var(--accent-color)", marginTop: 2 }}>{b.url}</div>
+                <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 2 }}>Captured: {b.capturedAt}</div>
+                <div style={{ marginTop: 6, background: "var(--bg-primary)", borderRadius: 4, height: 60, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "var(--text-secondary)" }}>
+                  [{b.viewport} thumbnail]
+                </div>
               </div>
-              <div style={{ fontSize: 12, color: "var(--accent-color)", marginTop: 2 }}>{b.url}</div>
-              <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 2 }}>Captured: {b.capturedAt}</div>
-              <div style={{ marginTop: 6, background: "var(--bg-primary)", borderRadius: 4, height: 60, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "var(--text-secondary)" }}>
-                [{b.viewport} thumbnail]
-              </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       )}
 
       {tab === "diffs" && (
         <div>
-          {diffs.map((d) => (
-            <div key={d.id} style={cardStyle}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                <strong>{d.baseline}</strong>
-                <div>
-                  <span style={badgeStyle(scoreColor(d.complianceScore))}>{d.complianceScore}%</span>
-                  <span style={badgeStyle(statusColor[d.status])}>{d.status}</span>
+          {loading ? (
+            <div style={{ padding: 24, textAlign: "center", color: "var(--text-secondary)", fontSize: 13 }}>Loading diffs...</div>
+          ) : diffs.length === 0 ? (
+            <div style={{ padding: 24, textAlign: "center", color: "var(--text-secondary)", fontSize: 13 }}>No visual diffs found. Capture baselines and run comparisons to see diffs.</div>
+          ) : (
+            diffs.map((d) => (
+              <div key={d.id} style={cardStyle}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                  <strong>{d.baseline}</strong>
+                  <div>
+                    <span style={badgeStyle(scoreColor(d.complianceScore))}>{d.complianceScore}%</span>
+                    <span style={badgeStyle(statusColor[d.status])}>{d.status}</span>
+                  </div>
                 </div>
+                <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Viewport: {d.viewport} | Pixel diff: {d.pixelDiff}%</div>
               </div>
-              <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Viewport: {d.viewport} | Pixel diff: {d.pixelDiff}%</div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       )}
 

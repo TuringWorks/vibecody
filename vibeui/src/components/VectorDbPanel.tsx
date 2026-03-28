@@ -3,7 +3,8 @@
  *
  * Tabs: Collections (create/list), Search (vector similarity), Schema (provider-specific DDL)
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 type Tab = "collections" | "search" | "schema";
 type Metric = "cosine" | "euclidean" | "dot_product" | "manhattan";
@@ -31,6 +32,7 @@ interface SearchResult {
 
 export function VectorDbPanel() {
   const [tab, setTab] = useState<Tab>("collections");
+  const [loading, setLoading] = useState(true);
 
   // Collections state
   const [collName, setCollName] = useState("");
@@ -40,6 +42,7 @@ export function VectorDbPanel() {
   const [collections, setCollections] = useState<Collection[]>([]);
 
   // Search state
+  const [searchCollection, setSearchCollection] = useState("");
   const [vectorInput, setVectorInput] = useState("");
   const [topK, setTopK] = useState(10);
   const [minScore, setMinScore] = useState(0.0);
@@ -50,34 +53,68 @@ export function VectorDbPanel() {
   const [schemaProvider, setSchemaProvider] = useState<Provider>("qdrant");
   const [schemaOutput, setSchemaOutput] = useState("");
 
-  const handleCreateCollection = () => {
+  useEffect(() => {
+    let cancelled = false;
+    async function loadCollections() {
+      setLoading(true);
+      try {
+        const colls = await invoke<Collection[]>("list_vector_collections");
+        if (!cancelled) setCollections(colls);
+      } catch (err) {
+        console.error("Failed to load vector collections:", err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    loadCollections();
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleCreateCollection = async () => {
     if (!collName.trim()) return;
     if (collections.some((c) => c.name === collName)) return;
-    setCollections((prev) => [
-      ...prev,
-      { name: collName, dimension: collDimension, metric: collMetric, vectorCount: 0, hnsw: { ...hnsw } },
-    ]);
-    setCollName("");
+    try {
+      const collection: Collection = {
+        name: collName,
+        dimension: collDimension,
+        metric: collMetric,
+        vectorCount: 0,
+        hnsw: { ...hnsw },
+      };
+      await invoke("create_vector_collection", { collection });
+      setCollections((prev) => [...prev, collection]);
+      setCollName("");
+    } catch (err) {
+      console.error("Failed to create collection:", err);
+    }
   };
 
-  const handleDeleteCollection = (name: string) => {
-    setCollections((prev) => prev.filter((c) => c.name !== name));
+  const handleDeleteCollection = async (name: string) => {
+    try {
+      await invoke("delete_vector_collection", { name });
+      setCollections((prev) => prev.filter((c) => c.name !== name));
+    } catch (err) {
+      console.error("Failed to delete collection:", err);
+    }
   };
 
-  const handleSearch = () => {
+  const handleSearch = async () => {
     const parts = vectorInput.split(",").map((s) => parseFloat(s.trim())).filter((n) => !isNaN(n));
     if (parts.length === 0) return;
     setIsSearching(true);
-    setTimeout(() => {
-      const count = Math.min(topK, Math.floor(Math.random() * 8) + 2);
-      const results: SearchResult[] = Array.from({ length: count }, (_, i) => ({
-        id: crypto.randomUUID().slice(0, 12),
-        score: parseFloat((1 - i * 0.08 - Math.random() * 0.03).toFixed(4)),
-        payload: { text: `Sample document chunk ${i + 1}`, source: `doc_${Math.floor(Math.random() * 100)}.pdf` },
-      })).filter((r) => r.score >= minScore);
+    try {
+      const results = await invoke<SearchResult[]>("vector_search", {
+        collection: searchCollection,
+        query: parts,
+        topK,
+        minScore,
+      });
       setSearchResults(results);
+    } catch (err) {
+      console.error("Failed to search vectors:", err);
+    } finally {
       setIsSearching(false);
-    }, 500);
+    }
   };
 
   const handleGenerateSchema = () => {
@@ -223,7 +260,11 @@ collection = client.create_collection(
       </div>
 
       <div style={{ flex: 1, overflow: "auto", padding: 16 }}>
-        {tab === "collections" && (
+        {loading && (
+          <div style={{ color: "var(--text-secondary)", fontSize: 12, textAlign: "center", marginTop: 32 }}>Loading...</div>
+        )}
+
+        {!loading && tab === "collections" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div style={{ fontSize: 13, fontWeight: 600 }}>Create Collection</div>
 
@@ -309,8 +350,17 @@ collection = client.create_collection(
           </div>
         )}
 
-        {tab === "search" && (
+        {!loading && tab === "search" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div>
+              <label style={labelStyle}>Collection</label>
+              <select value={searchCollection} onChange={(e) => setSearchCollection(e.target.value)} style={inputStyle}>
+                <option value="">Select a collection...</option>
+                {collections.map((c) => (
+                  <option key={c.name} value={c.name}>{c.name}</option>
+                ))}
+              </select>
+            </div>
             <div>
               <label style={labelStyle}>Query Vector (comma-separated floats)</label>
               <textarea
@@ -371,7 +421,7 @@ collection = client.create_collection(
           </div>
         )}
 
-        {tab === "schema" && (
+        {!loading && tab === "schema" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div>
               <label style={labelStyle}>Vector Database Provider</label>

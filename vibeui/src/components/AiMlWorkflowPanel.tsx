@@ -8,7 +8,8 @@
  * Supports building agents from foundation models through to deployment
  * on cloud, edge, and IoT environments.
  */
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -182,6 +183,13 @@ export function AiMlWorkflowPanel() {
     STAGE_TEMPLATES.map(s => ({ ...s, status: "pending", config: {} }))
   );
   const [selectedStage, setSelectedStage] = useState<string | null>(null);
+
+  // Load persisted pipeline config on mount
+  useEffect(() => {
+    invoke<WorkflowStage[]>("get_aiml_pipeline_config").then(saved => {
+      if (Array.isArray(saved) && saved.length > 0) setStages(saved);
+    }).catch(() => {});
+  }, []);
   const [expandedExample, setExpandedExample] = useState<number | null>(null);
   const [deployFilter, setDeployFilter] = useState<string>("all");
 
@@ -194,9 +202,13 @@ export function AiMlWorkflowPanel() {
   }, [deployFilter]);
 
   const toggleStage = (id: string) => {
-    setStages(prev => prev.map(s =>
-      s.id === id ? { ...s, status: s.status === "pending" ? "configuring" : "pending" } : s
-    ));
+    setStages(prev => {
+      const updated = prev.map(s =>
+        s.id === id ? { ...s, status: s.status === "pending" ? "configuring" as const : "pending" as const } : s
+      );
+      invoke("save_aiml_pipeline_config", { config: updated }).catch(() => {});
+      return updated;
+    });
   };
 
   const difficultyColor = (d: string) => {

@@ -3,7 +3,8 @@
  *
  * Tabs: Validate (run test assertions), Reports (validation history)
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 type Tab = "validate" | "reports";
 
@@ -30,34 +31,38 @@ export function QaValidationPanel() {
   const [isRunning, setIsRunning] = useState(false);
   const [history, setHistory] = useState<ValidationRun[]>([]);
   const [selectedRun, setSelectedRun] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const handleRunValidation = () => {
+  useEffect(() => {
+    let cancelled = false;
+    async function loadHistory() {
+      setLoading(true);
+      try {
+        const runs = await invoke<ValidationRun[]>("get_qa_history");
+        if (!cancelled) setHistory(runs);
+      } catch (err) {
+        console.error("Failed to load QA history:", err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    loadHistory();
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleRunValidation = async () => {
     const lines = inputText.split("\n").map((l) => l.trim()).filter((l) => l.length > 0);
     if (lines.length === 0) return;
     setIsRunning(true);
-    setTimeout(() => {
-      const cases: ValidationCase[] = lines.map((line) => {
-        const passed = Math.random() > 0.25;
-        return {
-          id: crypto.randomUUID().slice(0, 8),
-          assertion: line,
-          passed,
-          message: passed ? "Assertion passed" : "Expected condition not met",
-        };
-      });
-      setCurrentResults(cases);
-
-      const run: ValidationRun = {
-        id: crypto.randomUUID().slice(0, 8),
-        timestamp: new Date().toISOString(),
-        total: cases.length,
-        passed: cases.filter((c) => c.passed).length,
-        failed: cases.filter((c) => !c.passed).length,
-        cases,
-      };
-      setHistory((prev) => [run, ...prev]);
+    try {
+      const result = await invoke<{ cases: ValidationCase[]; run: ValidationRun }>("run_qa_validation", { assertions: lines });
+      setCurrentResults(result.cases);
+      setHistory((prev) => [result.run, ...prev]);
+    } catch (err) {
+      console.error("Failed to run QA validation:", err);
+    } finally {
       setIsRunning(false);
-    }, 800);
+    }
   };
 
   const selectedRunData = history.find((r) => r.id === selectedRun);
@@ -114,7 +119,11 @@ export function QaValidationPanel() {
       </div>
 
       <div style={{ flex: 1, overflow: "auto", padding: 16 }}>
-        {tab === "validate" && (
+        {loading && (
+          <div style={{ color: "var(--text-secondary)", fontSize: 12, textAlign: "center", marginTop: 32 }}>Loading...</div>
+        )}
+
+        {!loading && tab === "validate" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div>
               <label style={{ fontSize: 11, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Assertions / Test Cases (one per line)</label>
@@ -173,7 +182,7 @@ export function QaValidationPanel() {
           </div>
         )}
 
-        {tab === "reports" && (
+        {!loading && tab === "reports" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {history.length === 0 && (
               <div style={{ textAlign: "center", opacity: 0.4, fontSize: 12, marginTop: 32 }}>No validation runs yet. Go to the Validate tab to run assertions.</div>
