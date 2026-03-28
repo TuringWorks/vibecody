@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react";
-import { AIChat } from "./AIChat";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { AIChat, Message } from "./AIChat";
 
 interface ChatTab {
     id: string;
@@ -9,6 +9,15 @@ interface ChatTab {
     manualOverride: boolean;
 }
 
+/** Persisted session snapshot */
+interface ChatSession {
+    id: string;
+    title: string;
+    provider: string;
+    messages: Message[];
+    savedAt: number;
+}
+
 interface ChatTabManagerProps {
     defaultProvider: string;
     availableProviders: string[];
@@ -16,6 +25,32 @@ interface ChatTabManagerProps {
     fileTree?: string[];
     currentFile?: string | null;
     onPendingWrite?: (path: string, content: string) => void;
+}
+
+const STORAGE_KEY = "vibecody:chat-sessions";
+const HISTORY_KEY = "vibecody:chat-history";
+const MAX_HISTORY = 50;
+
+function loadPersistedSessions(): Record<string, Message[]> {
+    try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : {};
+    } catch { return {}; }
+}
+
+function savePersistedSessions(sessions: Record<string, Message[]>) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions)); } catch { /* quota */ }
+}
+
+function loadHistory(): ChatSession[] {
+    try {
+        const raw = localStorage.getItem(HISTORY_KEY);
+        return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+}
+
+function saveHistory(history: ChatSession[]) {
+    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, MAX_HISTORY))); } catch { /* quota */ }
 }
 
 let nextTabId = 1;
@@ -28,10 +63,42 @@ export function ChatTabManager({
     currentFile,
     onPendingWrite,
 }: ChatTabManagerProps) {
+    // Restore persisted sessions on mount
+    const initialSessions = useRef(loadPersistedSessions());
+
     const [tabs, setTabs] = useState<ChatTab[]>([
         { id: "tab-1", title: "Chat 1", provider: defaultProvider, manualOverride: false },
     ]);
     const [activeTabId, setActiveTabId] = useState("tab-1");
+    const [showHistory, setShowHistory] = useState(false);
+    const [history, setHistory] = useState<ChatSession[]>(loadHistory);
+
+    // Per-tab message storage (lifted from AIChat)
+    const [tabMessages, setTabMessages] = useState<Record<string, Message[]>>(() => {
+        return initialSessions.current;
+    });
+
+    // Persist messages to localStorage on change (debounced)
+    const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    useEffect(() => {
+        if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = setTimeout(() => {
+            savePersistedSessions(tabMessages);
+        }, 500);
+        return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
+    }, [tabMessages]);
+
+    const getMessages = useCallback((tabId: string): Message[] => {
+        return tabMessages[tabId] ?? [];
+    }, [tabMessages]);
+
+    const setMessagesForTab = useCallback((tabId: string, msgs: Message[] | ((prev: Message[]) => Message[])) => {
+        setTabMessages(prev => {
+            const current = prev[tabId] ?? [];
+            const next = typeof msgs === "function" ? msgs(current) : msgs;
+            return { ...prev, [tabId]: next };
+        });
+    }, []);
 
     // When the top-bar provider changes, update all tabs that haven't been
     // manually overridden by the user.
@@ -45,7 +112,6 @@ export function ChatTabManager({
                 )
             );
         }
-        // Also fix initial empty provider on first load
         if (defaultProvider) {
             setTabs((prev) =>
                 prev.map((t) =>
@@ -69,7 +135,31 @@ export function ChatTabManager({
 
     const closeTab = (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
-        if (tabs.length === 1) return; // keep at least one tab
+        if (tabs.length === 1) return;
+
+        // Save to history before closing if there are messages
+        const msgs = tabMessages[id] ?? [];
+        if (msgs.length > 0) {
+            const tab = tabs.find(t => t.id === id);
+            const session: ChatSession = {
+                id: `session-${Date.now()}`,
+                title: tab?.title ?? id,
+                provider: tab?.provider ?? defaultProvider,
+                messages: msgs,
+                savedAt: Date.now(),
+            };
+            const updated = [session, ...history].slice(0, MAX_HISTORY);
+            setHistory(updated);
+            saveHistory(updated);
+        }
+
+        // Clean up persisted messages
+        setTabMessages(prev => {
+            const next = { ...prev };
+            delete next[id];
+            return next;
+        });
+
         const idx = tabs.findIndex((t) => t.id === id);
         const newTabs = tabs.filter((t) => t.id !== id);
         setTabs(newTabs);
@@ -87,7 +177,6 @@ export function ChatTabManager({
         );
     };
 
-    /** Reset a tab back to following the top-bar provider */
     const resetTabProvider = (id: string) => {
         setTabs((prev) =>
             prev.map((t) =>
@@ -96,6 +185,55 @@ export function ChatTabManager({
                     : t
             )
         );
+    };
+
+    /** Restore a session from history into a new tab */
+    const restoreSession = (session: ChatSession) => {
+        nextTabId++;
+        const newTab: ChatTab = {
+            id: `tab-${nextTabId}`,
+            title: session.title,
+            provider: session.provider || defaultProvider,
+            manualOverride: !!session.provider,
+        };
+        setTabs(prev => [...prev, newTab]);
+        setTabMessages(prev => ({ ...prev, [newTab.id]: session.messages }));
+        setActiveTabId(newTab.id);
+        setShowHistory(false);
+    };
+
+    const deleteHistorySession = (sessionId: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        const updated = history.filter(h => h.id !== sessionId);
+        setHistory(updated);
+        saveHistory(updated);
+    };
+
+    const clearHistory = () => {
+        setHistory([]);
+        saveHistory([]);
+    };
+
+    /** Save current tab to history explicitly */
+    const saveCurrentToHistory = () => {
+        const msgs = tabMessages[activeTabId] ?? [];
+        if (msgs.length === 0) return;
+        const tab = tabs.find(t => t.id === activeTabId);
+        // Auto-title from first user message
+        const firstUserMsg = msgs.find(m => m.role === "user");
+        const title = firstUserMsg
+            ? firstUserMsg.content.slice(0, 50) + (firstUserMsg.content.length > 50 ? "..." : "")
+            : tab?.title ?? activeTabId;
+        const session: ChatSession = {
+            id: `session-${Date.now()}`,
+            title,
+            provider: tab?.provider ?? defaultProvider,
+            messages: msgs,
+            savedAt: Date.now(),
+        };
+        const updated = [session, ...history].slice(0, MAX_HISTORY);
+        setHistory(updated);
+        saveHistory(updated);
     };
 
     const activeTab = tabs.find((t) => t.id === activeTabId);
@@ -116,6 +254,16 @@ export function ChatTabManager({
         return () => window.removeEventListener("vibeui:inject-context", handler);
     }, [activeTabId]);
 
+    const formatDate = (ts: number) => {
+        const d = new Date(ts);
+        const now = new Date();
+        if (d.toDateString() === now.toDateString()) {
+            return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        }
+        return d.toLocaleDateString([], { month: "short", day: "numeric" }) + " " +
+            d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    };
+
     return (
         <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
             {/* Tab strip */}
@@ -124,37 +272,43 @@ export function ChatTabManager({
                 background: "var(--bg-secondary)", borderBottom: "1px solid var(--border-color)",
                 flexShrink: 0, overflowX: "auto", minHeight: "32px",
             }}>
-                {tabs.map((tab) => (
-                    <div
-                        key={tab.id}
-                        onClick={() => setActiveTabId(tab.id)}
-                        style={{
-                            display: "flex", alignItems: "center", gap: "4px",
-                            padding: "4px 10px", cursor: "pointer", flexShrink: 0,
-                            fontSize: "12px", userSelect: "none",
-                            background: activeTabId === tab.id ? "var(--bg-primary)" : "transparent",
-                            color: activeTabId === tab.id ? "var(--text-primary)" : "var(--text-secondary)",
-                            borderBottom: activeTabId === tab.id
-                                ? "2px solid var(--accent-blue)"
-                                : "2px solid transparent",
-                        }}
-                    >
-                        <span>{tab.title}</span>
-                        {tabs.length > 1 && (
-                            <button
-                                onClick={(e) => closeTab(tab.id, e)}
-                                style={{
-                                    background: "none", border: "none", color: "inherit",
-                                    cursor: "pointer", padding: "0 2px", fontSize: "14px",
-                                    lineHeight: 1,
-                                }}
-                                title="Close tab"
-                            >
-                                ×
-                            </button>
-                        )}
-                    </div>
-                ))}
+                {tabs.map((tab) => {
+                    const msgCount = (tabMessages[tab.id] ?? []).length;
+                    return (
+                        <div
+                            key={tab.id}
+                            onClick={() => { setActiveTabId(tab.id); setShowHistory(false); }}
+                            style={{
+                                display: "flex", alignItems: "center", gap: "4px",
+                                padding: "4px 10px", cursor: "pointer", flexShrink: 0,
+                                fontSize: "12px", userSelect: "none",
+                                background: activeTabId === tab.id && !showHistory ? "var(--bg-primary)" : "transparent",
+                                color: activeTabId === tab.id && !showHistory ? "var(--text-primary)" : "var(--text-secondary)",
+                                borderBottom: activeTabId === tab.id && !showHistory
+                                    ? "2px solid var(--accent-blue)"
+                                    : "2px solid transparent",
+                            }}
+                        >
+                            <span>{tab.title}</span>
+                            {msgCount > 0 && (
+                                <span style={{ fontSize: "10px", color: "var(--text-secondary)", opacity: 0.7 }}>({msgCount})</span>
+                            )}
+                            {tabs.length > 1 && (
+                                <button
+                                    onClick={(e) => closeTab(tab.id, e)}
+                                    style={{
+                                        background: "none", border: "none", color: "inherit",
+                                        cursor: "pointer", padding: "0 2px", fontSize: "14px",
+                                        lineHeight: 1,
+                                    }}
+                                    title="Close tab"
+                                >
+                                    ×
+                                </button>
+                            )}
+                        </div>
+                    );
+                })}
                 <button
                     onClick={addTab}
                     title="New chat tab"
@@ -167,8 +321,38 @@ export function ChatTabManager({
                     +
                 </button>
 
+                {/* History button */}
+                <button
+                    onClick={() => setShowHistory(prev => !prev)}
+                    title="Session history"
+                    style={{
+                        background: showHistory ? "var(--bg-primary)" : "none",
+                        border: "none", color: showHistory ? "var(--accent-color)" : "var(--text-secondary)",
+                        cursor: "pointer", padding: "4px 8px", fontSize: "12px",
+                        lineHeight: 1, flexShrink: 0,
+                        borderBottom: showHistory ? "2px solid var(--accent-color)" : "2px solid transparent",
+                    }}
+                >
+                    History{history.length > 0 ? ` (${history.length})` : ""}
+                </button>
+
+                {/* Save current session button */}
+                {!showHistory && (tabMessages[activeTabId] ?? []).length > 0 && (
+                    <button
+                        onClick={saveCurrentToHistory}
+                        title="Save current session to history"
+                        style={{
+                            background: "none", border: "none", color: "var(--text-secondary)",
+                            cursor: "pointer", padding: "4px 8px", fontSize: "11px",
+                            flexShrink: 0,
+                        }}
+                    >
+                        Save
+                    </button>
+                )}
+
                 {/* Per-tab model selector */}
-                {activeTab && availableProviders.length > 1 && (
+                {!showHistory && activeTab && availableProviders.length > 1 && (
                     <div style={{ marginLeft: "auto", marginRight: "6px", display: "flex", alignItems: "center", gap: "4px" }}>
                         <select
                             value={activeTab.provider}
@@ -207,8 +391,93 @@ export function ChatTabManager({
                 )}
             </div>
 
-            {/* Tab content — render only active tab, but mount all to preserve history */}
-            <div style={{ flex: 1, overflow: "hidden" }}>
+            {/* History panel */}
+            {showHistory && (
+                <div style={{ flex: 1, overflow: "auto", padding: 12 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                        <h3 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
+                            Session History
+                        </h3>
+                        {history.length > 0 && (
+                            <button
+                                onClick={clearHistory}
+                                style={{
+                                    background: "none", border: "1px solid var(--border-color)",
+                                    color: "var(--text-secondary)", cursor: "pointer",
+                                    padding: "2px 8px", fontSize: "11px", borderRadius: 4,
+                                }}
+                            >
+                                Clear All
+                            </button>
+                        )}
+                    </div>
+                    {history.length === 0 ? (
+                        <div style={{ color: "var(--text-secondary)", fontSize: 13, textAlign: "center", padding: 24 }}>
+                            No saved sessions yet. Sessions are auto-saved when you close a tab with messages.
+                        </div>
+                    ) : (
+                        history.map(session => {
+                            const userMsgs = session.messages.filter(m => m.role === "user").length;
+                            const assistantMsgs = session.messages.filter(m => m.role === "assistant").length;
+                            const preview = session.messages.find(m => m.role === "user")?.content.slice(0, 80) ?? "";
+                            return (
+                                <div
+                                    key={session.id}
+                                    onClick={() => restoreSession(session)}
+                                    style={{
+                                        background: "var(--bg-secondary)", borderRadius: 6,
+                                        padding: "10px 12px", marginBottom: 6,
+                                        border: "1px solid var(--border-color)", cursor: "pointer",
+                                    }}
+                                >
+                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            <div style={{ fontWeight: 600, fontSize: 13, color: "var(--text-primary)", marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                                {session.title}
+                                            </div>
+                                            <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>
+                                                {session.provider} · {userMsgs} questions · {assistantMsgs} responses · {formatDate(session.savedAt)}
+                                            </div>
+                                            {preview && (
+                                                <div style={{ fontSize: 11, color: "var(--text-secondary)", opacity: 0.7, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                                    {preview}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div style={{ display: "flex", gap: 4, flexShrink: 0, marginLeft: 8 }}>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); restoreSession(session); }}
+                                                title="Restore into new tab"
+                                                style={{
+                                                    background: "var(--bg-tertiary)", border: "1px solid var(--border-color)",
+                                                    color: "var(--text-primary)", cursor: "pointer",
+                                                    padding: "2px 8px", fontSize: "11px", borderRadius: 3,
+                                                }}
+                                            >
+                                                Restore
+                                            </button>
+                                            <button
+                                                onClick={(e) => deleteHistorySession(session.id, e)}
+                                                title="Delete from history"
+                                                style={{
+                                                    background: "none", border: "1px solid var(--border-color)",
+                                                    color: "var(--text-secondary)", cursor: "pointer",
+                                                    padding: "2px 6px", fontSize: "11px", borderRadius: 3,
+                                                }}
+                                            >
+                                                ×
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
+            )}
+
+            {/* Tab content — render all tabs but only show active, preserving state */}
+            <div style={{ flex: 1, overflow: "hidden", display: showHistory ? "none" : "block" }}>
                 {tabs.map((tab) => (
                     <div
                         key={tab.id}
@@ -230,6 +499,8 @@ export function ChatTabManager({
                             }
                             availableProviders={availableProviders}
                             onProviderChange={(p) => setTabProvider(tab.id, p)}
+                            messages={getMessages(tab.id)}
+                            onMessagesChange={(msgs) => setMessagesForTab(tab.id, msgs)}
                         />
                     </div>
                 ))}

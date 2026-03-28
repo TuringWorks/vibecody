@@ -162,7 +162,7 @@ function useVoiceInput(onTranscript: (text: string) => void) {
  return { isListening, isTranscribing, interimText, toggle };
 }
 
-interface Message {
+export interface Message {
  role: "user" | "assistant";
  content: string;
  timestamp?: number;
@@ -194,6 +194,10 @@ interface AIChatProps {
  availableProviders?: string[];
  /** Callback when the user changes the provider via the inline selector. */
  onProviderChange?: (provider: string) => void;
+ /** Controlled messages from parent (for persistence across tab switches). */
+ messages?: Message[];
+ /** Called when messages change (controlled mode). */
+ onMessagesChange?: (msgs: Message[]) => void;
 }
 
 /** Extract the `@query` fragment at the cursor position, or null if none. */
@@ -214,9 +218,19 @@ function formatTime(ts?: number): string {
  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-export function AIChat({ provider, context, fileTree, currentFile, onFileAction, onPendingWrite, pendingInput, onPendingInputConsumed }: AIChatProps) {
+export function AIChat({ provider, context, fileTree, currentFile, onFileAction, onPendingWrite, pendingInput, onPendingInputConsumed, messages: controlledMessages, onMessagesChange }: AIChatProps) {
  const [chatMode, setChatMode] = useState<"chat" | "planning">("chat");
- const [messages, setMessages] = useState<Message[]>([]);
+ const [localMessages, setLocalMessages] = useState<Message[]>([]);
+ // Use controlled messages if provided, otherwise fall back to local state
+ const messages = controlledMessages ?? localMessages;
+ const setMessages = useCallback((update: Message[] | ((prev: Message[]) => Message[])) => {
+   if (onMessagesChange) {
+     const next = typeof update === "function" ? update(controlledMessages ?? []) : update;
+     onMessagesChange(next);
+   } else {
+     setLocalMessages(update as Parameters<typeof setLocalMessages>[0]);
+   }
+ }, [controlledMessages, onMessagesChange]);
  const [input, setInput] = useState("");
  const [isLoading, setIsLoading] = useState(false);
  const [streamingText, setStreamingText] = useState(""); // live assistant text while streaming
@@ -224,7 +238,9 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
  const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
  const textareaRef = useRef<HTMLTextAreaElement>(null);
  const messagesEndRef = useRef<HTMLDivElement>(null);
+ const messagesContainerRef = useRef<HTMLDivElement>(null);
  const cancelledRef = useRef(false);
+ const [isNearBottom, setIsNearBottom] = useState(true);
  // Streaming speed metrics
  const streamStartMsRef = useRef<number | null>(null);
  const streamCharsRef = useRef<number>(0);
@@ -233,10 +249,25 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
  setInput((prev) => (prev ? prev + " " : "") + transcript)
  );
 
- // Auto-scroll to latest message or new streaming chunk
+ // Track scroll position to decide if auto-scroll should apply
+ const handleScroll = useCallback(() => {
+   const el = messagesContainerRef.current;
+   if (!el) return;
+   const threshold = 80;
+   setIsNearBottom(el.scrollHeight - el.scrollTop - el.clientHeight < threshold);
+ }, []);
+
+ // Auto-scroll only when user is near the bottom
  useEffect(() => {
- messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
- }, [messages, streamingText, isLoading]);
+   if (isNearBottom) {
+     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+   }
+ }, [messages, streamingText, isLoading, isNearBottom]);
+
+ const scrollToBottom = useCallback(() => {
+   messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+   setIsNearBottom(true);
+ }, []);
 
  // Register Tauri chat stream event listeners once
  useEffect(() => {
@@ -319,7 +350,7 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
   };
   window.addEventListener("vibeui:workspace-changed", handler);
   return () => window.removeEventListener("vibeui:workspace-changed", handler);
- }, []);
+ }, [setMessages]);
 
  const cleanMessage = (content: string): string => {
  let cleaned = content.replace(/<write_file path="([^"]+)">[\s\S]*?<\/write_file>/g, "📄 Proposed changes to `$1`");
@@ -346,6 +377,7 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
  setMessages((prev) => [...prev, userMessage]);
  setInput("");
  setPickerQuery(null);
+ setIsNearBottom(true); // auto-scroll after sending
  cancelledRef.current = false;
  setIsLoading(true);
  setStreamingText("");
@@ -442,7 +474,7 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
  };
 
  return (
- <div className="ai-chat">
+ <div className="ai-chat" style={{ position: "relative" }}>
  <div className="chat-header">
  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
  <h3 style={{ margin: 0 }}>AI Assistant</h3>
@@ -472,7 +504,7 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
  </p>
  </div>
 
- <div className="chat-messages" role="log" aria-live="polite" aria-label="Chat messages">
+ <div className="chat-messages" ref={messagesContainerRef} onScroll={handleScroll} role="log" aria-live="polite" aria-label="Chat messages" style={{ position: "relative" }}>
  {messages.length === 0 ? (
  <div className="chat-empty">
  <p>Hi! I'm your AI coding assistant.</p>
@@ -558,6 +590,36 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
  )}
  <div ref={messagesEndRef} />
  </div>
+
+ {/* Scroll-to-bottom button when user has scrolled up */}
+ {!isNearBottom && (
+ <button
+   onClick={scrollToBottom}
+   style={{
+     position: "absolute",
+     bottom: 90,
+     right: 20,
+     zIndex: 10,
+     width: 32,
+     height: 32,
+     borderRadius: "50%",
+     background: "var(--accent-color)",
+     color: "#fff",
+     border: "none",
+     cursor: "pointer",
+     display: "flex",
+     alignItems: "center",
+     justifyContent: "center",
+     boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+     fontSize: 16,
+     lineHeight: 1,
+   }}
+   title="Scroll to bottom"
+   aria-label="Scroll to bottom"
+ >
+   ↓
+ </button>
+ )}
 
  <div className="chat-input-card" style={{ position: "relative" }}>
  {pickerQuery !== null && (

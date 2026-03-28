@@ -1735,7 +1735,7 @@ async fn fetch_github_issue(url: &str, token: Option<String>) -> Result<GithubIs
 
 async fn process_tool_calls(response: &str, workspace_lock: &Arc<Mutex<Workspace>>) -> (String, Option<PendingWrite>) {
     let mut output = String::new();
-    let mut pending_write: Option<PendingWrite> = None;
+    let pending_write: Option<PendingWrite> = None;
     let workspace = workspace_lock.lock().await;
 
     // Resolve workspace root for relative paths
@@ -1767,10 +1767,9 @@ async fn process_tool_calls(response: &str, workspace_lock: &Arc<Mutex<Workspace
     }
 
     // Process ALL <write_file path="...">content</write_file> tags
-    // If the response also contains <build /> or <run />, write files immediately
-    // so the build/run commands can use them. Otherwise defer to user approval.
-    let has_build_or_run = response.contains("<build") || response.contains("<run");
+    // Write files immediately so the model's code generation takes effect.
     let write_tag_start = "<write_file path=\"";
+    let mut wrote_any = false;
     search_from = 0;
     while let Some(rel_start) = response[search_from..].find(write_tag_start) {
         let start = search_from + rel_start;
@@ -1780,23 +1779,16 @@ async fn process_tool_calls(response: &str, workspace_lock: &Arc<Mutex<Workspace
                 let content_start = start + path_end + 2;
                 let content = &response[content_start..start + content_end];
 
-                if has_build_or_run {
-                    // Write immediately so build/run can use the files
-                    let target = resolve(path);
-                    if let Some(parent) = target.parent() {
-                        let _ = std::fs::create_dir_all(parent);
+                let target = resolve(path);
+                if let Some(parent) = target.parent() {
+                    let _ = std::fs::create_dir_all(parent);
+                }
+                match std::fs::write(&target, content) {
+                    Ok(_) => {
+                        output.push_str(&format!("Wrote file '{}'.\n", path));
+                        wrote_any = true;
                     }
-                    match std::fs::write(&target, content) {
-                        Ok(_) => output.push_str(&format!("Wrote file '{}'.\n", path)),
-                        Err(e) => output.push_str(&format!("Failed to write '{}': {}\n", path, e)),
-                    }
-                } else {
-                    // Defer to user approval via diff review
-                    pending_write = Some(PendingWrite {
-                        path: path.to_string(),
-                        content: content.to_string(),
-                    });
-                    output.push_str(&format!("Proposed write to file '{}'. Waiting for user approval.\n", path));
+                    Err(e) => output.push_str(&format!("Failed to write '{}': {}\n", path, e)),
                 }
                 search_from = start + content_end + 13; // len("</write_file>")
             } else {
@@ -1809,7 +1801,8 @@ async fn process_tool_calls(response: &str, workspace_lock: &Arc<Mutex<Workspace
 
     // Fallback: if no <write_file> found, look for fenced code blocks with file paths
     // Pattern: ```path/to/file.ext or ```lang:path/to/file.ext
-    if pending_write.is_none() {
+    // Write these directly as well.
+    if !wrote_any {
         let mut pos = 0;
         while let Some(fence_start) = response[pos..].find("```") {
             let abs_start = pos + fence_start;
@@ -1834,12 +1827,14 @@ async fn process_tool_calls(response: &str, workspace_lock: &Arc<Mutex<Workspace
                     if let Some(close) = response[content_start..].find("```") {
                         let content = &response[content_start..content_start + close];
                         if !content.trim().is_empty() {
-                            pending_write = Some(PendingWrite {
-                                path: file_path.to_string(),
-                                content: content.to_string(),
-                            });
-                            output.push_str(&format!("Detected file '{}' from code block. Waiting for user approval.\n", file_path));
-                            break;
+                            let target = resolve(file_path);
+                            if let Some(parent) = target.parent() {
+                                let _ = std::fs::create_dir_all(parent);
+                            }
+                            match std::fs::write(&target, content) {
+                                Ok(_) => output.push_str(&format!("Wrote file '{}' (from code block).\n", file_path)),
+                                Err(e) => output.push_str(&format!("Failed to write '{}': {}\n", file_path, e)),
+                            }
                         }
                     }
                 }
@@ -4749,6 +4744,40 @@ pub async fn load_trace_session(session_id: String) -> Result<Vec<TraceEntryInfo
         .collect())
 }
 
+/// Aggregate trust metrics across all trace sessions.
+/// Returns per-tool success/failure counts and per-session entries for scoring.
+#[derive(Serialize)]
+pub struct TrustTraceEntry {
+    pub session_id: String,
+    pub timestamp: u64,
+    pub tool: String,
+    pub success: bool,
+    pub duration_ms: u64,
+}
+
+#[tauri::command]
+pub async fn get_all_trace_entries() -> Result<Vec<TrustTraceEntry>, String> {
+    let dir = vibeui_trace_dir();
+    let sessions = vibe_ai::list_traces(&dir);
+    let mut all_entries = Vec::new();
+    for s in &sessions {
+        let path = dir.join(format!("{}.jsonl", s.session_id));
+        let entries = vibe_ai::load_trace(&path);
+        for e in entries {
+            all_entries.push(TrustTraceEntry {
+                session_id: e.session_id,
+                timestamp: e.timestamp,
+                tool: e.tool,
+                success: e.success,
+                duration_ms: e.duration_ms,
+            });
+        }
+    }
+    // Sort newest first
+    all_entries.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+    Ok(all_entries)
+}
+
 // ── Session Browser Commands ──────────────────────────────────────────────────
 
 #[derive(Serialize)]
@@ -5837,12 +5866,10 @@ pub fn register_cloud_providers(engine: &mut ChatEngine, settings: &ApiKeySettin
 
     if !settings.gemini_api_key.is_empty() {
         let gemini_models = [
-            "gemini-2.5-pro-preview-06-05",
-            "gemini-2.5-flash-preview-05-20",
+            "gemini-2.5-pro",
+            "gemini-2.5-flash",
             "gemini-2.0-flash",
             "gemini-2.0-flash-lite",
-            "gemini-1.5-pro",
-            "gemini-1.5-flash",
         ];
         for model_id in &gemini_models {
             let config = vibe_ai::provider::ProviderConfig {
@@ -9432,14 +9459,17 @@ pub struct CompareResult {
     pub b: ModelResponse,
 }
 
-/// Build a temporary provider instance by type name (reads API key from env).
+/// Build a temporary provider instance by type name.
+/// Checks environment variables first, then falls back to saved API keys
+/// from `~/.vibeui/api_keys.json`.
 fn build_temp_provider(provider_type: &str, model: &str)
     -> Option<Arc<dyn vibe_ai::provider::AIProvider>>
 {
     use vibe_ai::providers;
     use vibe_ai::provider::ProviderConfig;
 
-    let api_key = match provider_type {
+    // Try env var first
+    let api_key_from_env = match provider_type {
         "claude" | "anthropic" => std::env::var("ANTHROPIC_API_KEY").ok(),
         "openai"               => std::env::var("OPENAI_API_KEY").ok(),
         "gemini" | "google"    => std::env::var("GEMINI_API_KEY").or_else(|_| std::env::var("GOOGLE_API_KEY")).ok(),
@@ -9454,6 +9484,35 @@ fn build_temp_provider(provider_type: &str, model: &str)
         "fireworks"            => std::env::var("FIREWORKS_API_KEY").ok(),
         "ollama"               => Some(String::new()),
         _                      => std::env::var(&format!("{}_API_KEY", provider_type.to_uppercase())).ok(),
+    };
+
+    // Fall back to saved settings from ~/.vibeui/api_keys.json
+    let api_key = match api_key_from_env {
+        Some(ref k) if !k.is_empty() || provider_type == "ollama" => api_key_from_env,
+        _ => {
+            let path = api_keys_path();
+            let saved = std::fs::read_to_string(&path).ok()
+                .and_then(|json| serde_json::from_str::<ApiKeySettings>(&json).ok());
+            saved.and_then(|s| {
+                let key = match provider_type {
+                    "claude" | "anthropic" => s.anthropic_api_key,
+                    "openai"               => s.openai_api_key,
+                    "gemini" | "google"    => s.gemini_api_key,
+                    "grok"                 => s.grok_api_key,
+                    "groq"                 => s.groq_api_key,
+                    "mistral"              => s.mistral_api_key,
+                    "deepseek"             => s.deepseek_api_key,
+                    "cerebras"             => s.cerebras_api_key,
+                    "openrouter"           => s.openrouter_api_key,
+                    "perplexity"           => s.perplexity_api_key,
+                    "together"             => s.together_api_key,
+                    "fireworks"            => s.fireworks_api_key,
+                    "ollama"               => return Some(String::new()),
+                    _                      => return None,
+                };
+                if key.is_empty() { None } else { Some(key) }
+            })
+        }
     };
 
     // Reject providers that need an API key but don't have one

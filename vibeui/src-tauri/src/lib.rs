@@ -223,6 +223,7 @@ pub fn run() {
             // Phase 5 commands — Trace / History
             commands::list_trace_sessions,
             commands::load_trace_session,
+            commands::get_all_trace_entries,
             // Session Browser commands
             commands::list_sessions,
             commands::get_session_detail,

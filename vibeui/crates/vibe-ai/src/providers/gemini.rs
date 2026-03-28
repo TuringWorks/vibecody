@@ -65,21 +65,24 @@ impl fmt::Display for GeminiModel {
 
 /// Harm category for safety settings.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum HarmCategory {
+    #[serde(rename = "HARM_CATEGORY_HATE_SPEECH")]
     HateSpeech,
+    #[serde(rename = "HARM_CATEGORY_HARASSMENT")]
     Harassment,
+    #[serde(rename = "HARM_CATEGORY_SEXUALLY_EXPLICIT")]
     SexuallyExplicit,
+    #[serde(rename = "HARM_CATEGORY_DANGEROUS_CONTENT")]
     DangerousContent,
 }
 
 impl fmt::Display for HarmCategory {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::HateSpeech => write!(f, "HATE_SPEECH"),
-            Self::Harassment => write!(f, "HARASSMENT"),
-            Self::SexuallyExplicit => write!(f, "SEXUALLY_EXPLICIT"),
-            Self::DangerousContent => write!(f, "DANGEROUS_CONTENT"),
+            Self::HateSpeech => write!(f, "HARM_CATEGORY_HATE_SPEECH"),
+            Self::Harassment => write!(f, "HARM_CATEGORY_HARASSMENT"),
+            Self::SexuallyExplicit => write!(f, "HARM_CATEGORY_SEXUALLY_EXPLICIT"),
+            Self::DangerousContent => write!(f, "HARM_CATEGORY_DANGEROUS_CONTENT"),
         }
     }
 }
@@ -1197,15 +1200,15 @@ mod tests {
 
     #[test]
     fn harm_category_display() {
-        assert_eq!(format!("{}", HarmCategory::HateSpeech), "HATE_SPEECH");
-        assert_eq!(format!("{}", HarmCategory::Harassment), "HARASSMENT");
+        assert_eq!(format!("{}", HarmCategory::HateSpeech), "HARM_CATEGORY_HATE_SPEECH");
+        assert_eq!(format!("{}", HarmCategory::Harassment), "HARM_CATEGORY_HARASSMENT");
         assert_eq!(
             format!("{}", HarmCategory::SexuallyExplicit),
-            "SEXUALLY_EXPLICIT"
+            "HARM_CATEGORY_SEXUALLY_EXPLICIT"
         );
         assert_eq!(
             format!("{}", HarmCategory::DangerousContent),
-            "DANGEROUS_CONTENT"
+            "HARM_CATEGORY_DANGEROUS_CONTENT"
         );
     }
 
