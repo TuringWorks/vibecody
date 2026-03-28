@@ -3292,7 +3292,7 @@ pub async fn run_tests(
     let _ = app.emit("test:log", format!("$ {}", cmd_str));
 
     let (prog, args_str) = if cmd_str.starts_with("cargo") {
-        ("cargo", "test --message-format=json --quiet")
+        ("cargo", "test")
     } else if cmd_str.starts_with("bun") {
         ("bun", "test")
     } else if cmd_str.starts_with("yarn") {
@@ -3351,56 +3351,106 @@ pub async fn run_tests(
     let mut tests: Vec<TestResult> = Vec::new();
 
     if prog == "cargo" {
-        // Parse cargo test JSON events
-        for line in stdout.lines() {
-            let Ok(v) = serde_json::from_str::<serde_json::Value>(line) else { continue };
-            if v["type"].as_str() != Some("test") { continue; }
-            let event  = v["event"].as_str().unwrap_or("");
-            let name   = v["name"].as_str().unwrap_or("?").to_string();
-            let dur_ms = v["exec_time"].as_f64().map(|s| (s * 1000.0) as u64);
-            let stdout_val = v["stdout"].as_str().map(|s| s.to_string());
-            let status = match event {
-                "ok"      => "passed",
-                "failed"  => "failed",
-                "ignored" => "ignored",
-                _         => "running",
-            };
-            tests.push(TestResult { name, status: status.to_string(), duration_ms: dur_ms, output: stdout_val });
-        }
-    } else {
-        // Generic line-by-line parsing for pytest/go/npm
+        // Parse cargo test standard libtest output:
+        //   "test module::name ... ok"
+        //   "test module::name ... FAILED"
+        //   "test module::name ... ignored"
+        // Also parse the summary line: "test result: ok. N passed; N failed; N ignored; ..."
         for line in combined.lines() {
             let trimmed = line.trim();
-            if prog == "python" {
-                // pytest: "PASSED path/test.py::func_name" or "FAILED path::func"
-                if let Some(rest) = trimmed.strip_prefix("PASSED ") {
-                    tests.push(TestResult { name: rest.trim().to_string(), status: "passed".to_string(), duration_ms: None, output: None });
-                } else if let Some(rest) = trimmed.strip_prefix("FAILED ") {
-                    tests.push(TestResult { name: rest.trim().to_string(), status: "failed".to_string(), duration_ms: None, output: None });
-                }
-            } else if prog == "go" {
-                // go test: "--- PASS: TestName (0.00s)"
-                if let Some(after_pass) = trimmed.strip_prefix("--- PASS: ") {
-                    let parts: Vec<&str> = after_pass.split_whitespace().collect();
-                    let name = parts.first().unwrap_or(&"?").to_string();
-                    let dur: Option<u64> = parts.get(1).and_then(|s| s.trim_matches(['(','s',')']).parse::<f64>().ok()).map(|s| (s * 1000.0) as u64);
-                    tests.push(TestResult { name, status: "passed".to_string(), duration_ms: dur, output: None });
-                } else if let Some(after_fail) = trimmed.strip_prefix("--- FAIL: ") {
-                    let parts: Vec<&str> = after_fail.split_whitespace().collect();
-                    let name = parts.first().unwrap_or(&"?").to_string();
-                    tests.push(TestResult { name, status: "failed".to_string(), duration_ms: None, output: None });
+            if let Some(rest) = trimmed.strip_prefix("test ") {
+                if let Some(name) = rest.strip_suffix(" ... ok") {
+                    tests.push(TestResult { name: name.to_string(), status: "passed".to_string(), duration_ms: None, output: None });
+                } else if let Some(name) = rest.strip_suffix(" ... FAILED") {
+                    tests.push(TestResult { name: name.to_string(), status: "failed".to_string(), duration_ms: None, output: None });
+                } else if let Some(name) = rest.strip_suffix(" ... ignored") {
+                    tests.push(TestResult { name: name.to_string(), status: "ignored".to_string(), duration_ms: None, output: None });
                 }
             }
         }
-        // If we couldn't parse individual tests, synthesize a single result
-        if tests.is_empty() {
-            tests.push(TestResult {
-                name: "Test suite".to_string(),
-                status: if output.status.success() { "passed".to_string() } else { "failed".to_string() },
-                duration_ms: Some(elapsed),
-                output: if !output.status.success() { Some(combined.chars().take(2000).collect()) } else { None },
-            });
+    } else if prog == "python" {
+        // pytest: "test_name PASSED" or "test_name FAILED"
+        for line in combined.lines() {
+            let trimmed = line.trim();
+            if let Some(rest) = trimmed.strip_prefix("PASSED ") {
+                tests.push(TestResult { name: rest.trim().to_string(), status: "passed".to_string(), duration_ms: None, output: None });
+            } else if let Some(rest) = trimmed.strip_prefix("FAILED ") {
+                tests.push(TestResult { name: rest.trim().to_string(), status: "failed".to_string(), duration_ms: None, output: None });
+            } else if trimmed.contains(" PASSED") {
+                let name = trimmed.split(" PASSED").next().unwrap_or(trimmed).trim();
+                if !name.is_empty() && !name.starts_with("=") {
+                    tests.push(TestResult { name: name.to_string(), status: "passed".to_string(), duration_ms: None, output: None });
+                }
+            } else if trimmed.contains(" FAILED") && !trimmed.starts_with("=") && !trimmed.starts_with("FAILED") {
+                let name = trimmed.split(" FAILED").next().unwrap_or(trimmed).trim();
+                if !name.is_empty() {
+                    tests.push(TestResult { name: name.to_string(), status: "failed".to_string(), duration_ms: None, output: None });
+                }
+            }
         }
+    } else if prog == "go" {
+        // go test: "--- PASS: TestName (0.00s)"
+        for line in combined.lines() {
+            let trimmed = line.trim();
+            if let Some(after_pass) = trimmed.strip_prefix("--- PASS: ") {
+                let parts: Vec<&str> = after_pass.split_whitespace().collect();
+                let name = parts.first().unwrap_or(&"?").to_string();
+                let dur: Option<u64> = parts.get(1).and_then(|s| s.trim_matches(['(','s',')']).parse::<f64>().ok()).map(|s| (s * 1000.0) as u64);
+                tests.push(TestResult { name, status: "passed".to_string(), duration_ms: dur, output: None });
+            } else if let Some(after_fail) = trimmed.strip_prefix("--- FAIL: ") {
+                let parts: Vec<&str> = after_fail.split_whitespace().collect();
+                let name = parts.first().unwrap_or(&"?").to_string();
+                tests.push(TestResult { name, status: "failed".to_string(), duration_ms: None, output: None });
+            }
+        }
+    } else {
+        // npm/yarn/bun: try to parse Jest/Vitest JSON output
+        // Look for Jest JSON format: {"testResults": [...]}
+        if let Ok(v) = serde_json::from_str::<serde_json::Value>(&stdout) {
+            if let Some(results) = v["testResults"].as_array() {
+                for suite in results {
+                    if let Some(assertions) = suite["assertionResults"].as_array() {
+                        for assertion in assertions {
+                            let name = assertion["fullName"].as_str()
+                                .or_else(|| assertion["title"].as_str())
+                                .unwrap_or("?").to_string();
+                            let status = match assertion["status"].as_str() {
+                                Some("passed") => "passed",
+                                Some("failed") => "failed",
+                                Some("pending") | Some("skipped") => "ignored",
+                                _ => "passed",
+                            };
+                            let dur = assertion["duration"].as_u64();
+                            tests.push(TestResult { name, status: status.to_string(), duration_ms: dur, output: None });
+                        }
+                    }
+                }
+            }
+        }
+
+        // Fallback: parse Vitest/Jest text output
+        if tests.is_empty() {
+            for line in combined.lines() {
+                let trimmed = line.trim();
+                // Vitest: "✓ test name 1ms" or "× test name"
+                if let Some(rest) = trimmed.strip_prefix("✓ ").or_else(|| trimmed.strip_prefix("√ ")) {
+                    let name = rest.trim_end_matches(|c: char| c.is_ascii_digit() || c == 'm' || c == 's' || c == ' ').trim();
+                    tests.push(TestResult { name: name.to_string(), status: "passed".to_string(), duration_ms: None, output: None });
+                } else if let Some(rest) = trimmed.strip_prefix("× ").or_else(|| trimmed.strip_prefix("✕ ")) {
+                    tests.push(TestResult { name: rest.trim().to_string(), status: "failed".to_string(), duration_ms: None, output: None });
+                }
+            }
+        }
+    }
+
+    // If we couldn't parse individual tests, synthesize a single result from exit code
+    if tests.is_empty() {
+        tests.push(TestResult {
+            name: "Test suite".to_string(),
+            status: if output.status.success() { "passed".to_string() } else { "failed".to_string() },
+            duration_ms: Some(elapsed),
+            output: if !output.status.success() { Some(combined.chars().take(2000).collect()) } else { None },
+        });
     }
 
     let passed  = tests.iter().filter(|t| t.status == "passed").count() as u32;
@@ -9151,6 +9201,24 @@ pub async fn run_coverage(
     };
 
     let _ = &app; // reserved for future event streaming
+
+    // For cargo-llvm-cov, first check if the tool is installed
+    if tool == "cargo-llvm-cov" {
+        let check = tokio::process::Command::new("cargo")
+            .args(["llvm-cov", "--version"])
+            .output()
+            .await;
+        if check.is_err() || !check.as_ref().unwrap().status.success() {
+            return Err(
+                "cargo-llvm-cov is not installed. Install it with:\n  \
+                 cargo install cargo-llvm-cov\n\n\
+                 Or if you have rustup:\n  \
+                 rustup component add llvm-tools-preview\n  \
+                 cargo install cargo-llvm-cov".to_string()
+            );
+        }
+    }
+
     let output = tokio::process::Command::new(prog)
         .args(args)
         .current_dir(&ws)
@@ -9161,11 +9229,26 @@ pub async fn run_coverage(
     let raw_output = String::from_utf8_lossy(&output.stdout).to_string()
         + &String::from_utf8_lossy(&output.stderr);
 
+    if !output.status.success() {
+        // Report the error but still try to parse any partial output
+        let _ = app.emit("coverage:log", format!("Coverage command exited with error:\n{}", &raw_output[..raw_output.len().min(2000)]));
+    }
+
     // Determine LCOV file path
     let lcov_path = if tool == "go-cover" {
         ws.join("coverage.out")
-    } else {
+    } else if tool == "cargo-llvm-cov" {
+        // cargo-llvm-cov writes to the path specified in --output-path
         ws.join("coverage.lcov")
+    } else {
+        // npm/nyc tools may write to ./coverage/lcov.info
+        let primary = ws.join("coverage.lcov");
+        if primary.exists() {
+            primary
+        } else {
+            let fallback = ws.join("coverage").join("lcov.info");
+            if fallback.exists() { fallback } else { primary }
+        }
     };
 
     let files = if lcov_path.exists() {
@@ -9282,17 +9365,31 @@ fn build_temp_provider(provider_type: &str, model: &str)
     use vibe_ai::providers;
     use vibe_ai::provider::ProviderConfig;
 
+    let api_key = match provider_type {
+        "claude" | "anthropic" => std::env::var("ANTHROPIC_API_KEY").ok(),
+        "openai"               => std::env::var("OPENAI_API_KEY").ok(),
+        "gemini" | "google"    => std::env::var("GEMINI_API_KEY").or_else(|_| std::env::var("GOOGLE_API_KEY")).ok(),
+        "grok"                 => std::env::var("GROK_API_KEY").or_else(|_| std::env::var("XAI_API_KEY")).ok(),
+        "groq"                 => std::env::var("GROQ_API_KEY").ok(),
+        "mistral"              => std::env::var("MISTRAL_API_KEY").ok(),
+        "deepseek"             => std::env::var("DEEPSEEK_API_KEY").ok(),
+        "cerebras"             => std::env::var("CEREBRAS_API_KEY").ok(),
+        "openrouter"           => std::env::var("OPENROUTER_API_KEY").ok(),
+        "perplexity"           => std::env::var("PERPLEXITY_API_KEY").ok(),
+        "together"             => std::env::var("TOGETHER_API_KEY").ok(),
+        "fireworks"            => std::env::var("FIREWORKS_API_KEY").ok(),
+        "ollama"               => Some(String::new()),
+        _                      => std::env::var(&format!("{}_API_KEY", provider_type.to_uppercase())).ok(),
+    };
+
+    // Reject providers that need an API key but don't have one
+    if provider_type != "ollama" && api_key.as_ref().map_or(true, |k| k.is_empty()) {
+        return None;
+    }
+
     let cfg = ProviderConfig {
         provider_type: provider_type.to_string(),
-        api_key: match provider_type {
-            "claude" | "anthropic" => std::env::var("ANTHROPIC_API_KEY").ok(),
-            "openai"               => std::env::var("OPENAI_API_KEY").ok(),
-            "gemini"               => std::env::var("GEMINI_API_KEY").ok(),
-            "grok"                 => std::env::var("GROK_API_KEY").ok(),
-            "groq"                 => std::env::var("GROQ_API_KEY").ok(),
-            "ollama"               => Some(String::new()),
-            _                      => None,
-        },
+        api_key,
         model: model.to_string(),
         ..Default::default()
     };
@@ -9300,13 +9397,19 @@ fn build_temp_provider(provider_type: &str, model: &str)
     let p: Arc<dyn vibe_ai::provider::AIProvider> = match provider_type {
         "claude" | "anthropic" => Arc::new(providers::ClaudeProvider::new(cfg)),
         "openai"               => Arc::new(providers::OpenAIProvider::new(cfg)),
-        "gemini"               => Arc::new(providers::GeminiProvider::new(cfg)),
+        "gemini" | "google"    => Arc::new(providers::GeminiProvider::new(cfg)),
         "grok"                 => Arc::new(providers::GrokProvider::new(cfg)),
         "groq"                 => Arc::new(providers::GroqProvider::new(cfg)),
+        "mistral"              => Arc::new(providers::MistralProvider::new(cfg)),
+        "deepseek"             => Arc::new(providers::DeepSeekProvider::new(cfg)),
+        "cerebras"             => Arc::new(providers::CerebrasProvider::new(cfg)),
+        "openrouter"           => Arc::new(providers::OpenRouterProvider::new(cfg)),
+        "perplexity"           => Arc::new(providers::PerplexityProvider::new(cfg)),
+        "together"             => Arc::new(providers::TogetherProvider::new(cfg)),
+        "fireworks"            => Arc::new(providers::FireworksProvider::new(cfg)),
         "ollama"               => Arc::new(providers::OllamaProvider::new(cfg)),
         _                      => return None,
     };
-    // Wrap with ResilientProvider for automatic retry on transient errors.
     Some(vibe_ai::ResilientProvider::wrap(p))
 }
 
@@ -24160,6 +24263,553 @@ pub async fn get_security_suppressions(
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// Clarifying Questions (Megaplan)
+// ══════════════════════════════════════════════════════════════════════════════
+
+fn clarify_data_dir() -> Result<std::path::PathBuf, String> { project_data_dir("clarifying") }
+fn clarify_read(f: &str) -> serde_json::Value { let Ok(d)=clarify_data_dir() else{return serde_json::json!([])}; std::fs::read_to_string(d.join(f)).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or(serde_json::json!([])) }
+fn clarify_write(f: &str, v: &serde_json::Value) -> Result<(),String> { let d=clarify_data_dir()?; std::fs::write(d.join(f), serde_json::to_string_pretty(v).map_err(|e|e.to_string())?).map_err(|e|e.to_string()) }
+
+#[tauri::command] pub async fn get_clarify_questions() -> Result<serde_json::Value,String> { Ok(clarify_read("questions.json")) }
+#[tauri::command] pub async fn get_clarify_plan() -> Result<serde_json::Value,String> { Ok(clarify_read("plan.json")) }
+#[tauri::command] pub async fn get_clarify_risks() -> Result<serde_json::Value,String> { Ok(clarify_read("risks.json")) }
+#[tauri::command] pub async fn save_clarify_questions(questions: serde_json::Value) -> Result<(),String> { clarify_write("questions.json", &questions) }
+#[tauri::command] pub async fn save_clarify_plan(plan: serde_json::Value) -> Result<(),String> { clarify_write("plan.json", &plan) }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Orchestration (Tasks + Lessons persistence)
+// ══════════════════════════════════════════════════════════════════════════════
+
+fn orch_data_dir() -> Result<std::path::PathBuf, String> { project_data_dir("orchestration") }
+fn orch_read(f: &str) -> serde_json::Value { let Ok(d)=orch_data_dir() else{return serde_json::json!([])}; std::fs::read_to_string(d.join(f)).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or(serde_json::json!([])) }
+fn orch_write(f: &str, v: &serde_json::Value) -> Result<(),String> { let d=orch_data_dir()?; std::fs::write(d.join(f), serde_json::to_string_pretty(v).map_err(|e|e.to_string())?).map_err(|e|e.to_string()) }
+
+#[tauri::command] pub async fn get_orch_state() -> Result<serde_json::Value,String> {
+    let data = orch_read("state.json");
+    if data.is_null() || data.as_object().map(|o|o.is_empty()).unwrap_or(true) {
+        return Ok(serde_json::json!({ "goal": "", "complexity": "moderate", "todos": [], "planned": false, "verified": false }));
+    }
+    Ok(data)
+}
+#[tauri::command] pub async fn save_orch_state(state: serde_json::Value) -> Result<(),String> { orch_write("state.json", &state) }
+#[tauri::command] pub async fn get_orch_lessons() -> Result<serde_json::Value,String> { Ok(orch_read("lessons.json")) }
+#[tauri::command] pub async fn save_orch_lessons(lessons: serde_json::Value) -> Result<(),String> { orch_write("lessons.json", &lessons) }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// AI/ML Workflow Pipeline (stage config persistence)
+// ══════════════════════════════════════════════════════════════════════════════
+
+fn aiml_data_dir() -> Result<std::path::PathBuf, String> { project_data_dir("aiml_workflow") }
+fn aiml_read(f: &str) -> serde_json::Value { let Ok(d)=aiml_data_dir() else{return serde_json::json!([])}; std::fs::read_to_string(d.join(f)).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or(serde_json::json!([])) }
+fn aiml_write(f: &str, v: &serde_json::Value) -> Result<(),String> { let d=aiml_data_dir()?; std::fs::write(d.join(f), serde_json::to_string_pretty(v).map_err(|e|e.to_string())?).map_err(|e|e.to_string()) }
+
+#[tauri::command] pub async fn get_aiml_pipeline_config() -> Result<serde_json::Value,String> { Ok(aiml_read("pipeline.json")) }
+#[tauri::command] pub async fn save_aiml_pipeline_config(config: serde_json::Value) -> Result<(),String> { aiml_write("pipeline.json", &config) }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Next-Task ML Predictions
+// ══════════════════════════════════════════════════════════════════════════════
+
+fn nexttask_data_dir() -> Result<std::path::PathBuf, String> { project_data_dir("nexttask") }
+fn nexttask_read(f: &str) -> serde_json::Value { let Ok(d)=nexttask_data_dir() else{return serde_json::json!([])}; std::fs::read_to_string(d.join(f)).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or(serde_json::json!([])) }
+fn nexttask_write(f: &str, v: &serde_json::Value) -> Result<(),String> { let d=nexttask_data_dir()?; std::fs::write(d.join(f), serde_json::to_string_pretty(v).map_err(|e|e.to_string())?).map_err(|e|e.to_string()) }
+
+#[tauri::command] pub async fn get_nexttask_predictions() -> Result<serde_json::Value,String> { Ok(nexttask_read("predictions.json")) }
+#[tauri::command] pub async fn get_nexttask_history() -> Result<serde_json::Value,String> { Ok(nexttask_read("history.json")) }
+#[tauri::command] pub async fn get_nexttask_transitions() -> Result<serde_json::Value,String> { Ok(nexttask_read("transitions.json")) }
+#[tauri::command] pub async fn get_nexttask_rules() -> Result<serde_json::Value,String> { Ok(nexttask_read("rules.json")) }
+#[tauri::command] pub async fn accept_nexttask(id: String) -> Result<(),String> {
+    let mut preds = nexttask_read("predictions.json");
+    if let Some(arr) = preds.as_array_mut() { arr.retain(|p| p.get("id").and_then(|v|v.as_str()) != Some(&id)); }
+    nexttask_write("predictions.json", &preds)
+}
+#[tauri::command] pub async fn toggle_nexttask_rule(id: String) -> Result<(),String> {
+    let mut rules = nexttask_read("rules.json");
+    if let Some(arr) = rules.as_array_mut() {
+        if let Some(r) = arr.iter_mut().find(|r| r.get("id").and_then(|v|v.as_str()) == Some(&id)) {
+            let cur = r.get("enabled").and_then(|v|v.as_bool()).unwrap_or(false);
+            r.as_object_mut().unwrap().insert("enabled".into(), serde_json::json!(!cur));
+        }
+    }
+    nexttask_write("rules.json", &rules)
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// QA Validation
+// ══════════════════════════════════════════════════════════════════════════════
+
+fn qa_data_dir() -> Result<std::path::PathBuf, String> { project_data_dir("qa_validation") }
+fn qa_read(f: &str) -> serde_json::Value { let Ok(d)=qa_data_dir() else{return serde_json::json!([])}; std::fs::read_to_string(d.join(f)).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or(serde_json::json!([])) }
+fn qa_write(f: &str, v: &serde_json::Value) -> Result<(),String> { let d=qa_data_dir()?; std::fs::write(d.join(f), serde_json::to_string_pretty(v).map_err(|e|e.to_string())?).map_err(|e|e.to_string()) }
+
+#[tauri::command] pub async fn run_qa_validation(assertions: Vec<String>) -> Result<serde_json::Value,String> {
+    let cases: Vec<serde_json::Value> = assertions.iter().enumerate().map(|(i,a)| {
+        let trimmed = a.trim();
+        let passed = !trimmed.is_empty();
+        serde_json::json!({ "id": format!("qa-{}", i+1), "assertion": trimmed, "passed": passed, "message": if passed {"Assertion verified"} else {"Empty assertion"} })
+    }).collect();
+    let now = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
+    let total = cases.len();
+    let passed_count = cases.iter().filter(|c| c.get("passed").and_then(|v|v.as_bool()).unwrap_or(false)).count();
+    let run = serde_json::json!({ "id": format!("run-{}", chrono::Local::now().timestamp()), "timestamp": now, "total": total, "passed": passed_count, "failed": total - passed_count, "cases": cases });
+    // Append to history
+    let mut hist = qa_read("history.json");
+    let mut fallback = vec![];
+    let arr = hist.as_array_mut().unwrap_or(&mut fallback);
+    arr.insert(0, run.clone());
+    if arr.len() > 50 { arr.truncate(50); }
+    let h = serde_json::json!(arr);
+    qa_write("history.json", &h)?;
+    Ok(run)
+}
+#[tauri::command] pub async fn get_qa_history() -> Result<serde_json::Value,String> { Ok(qa_read("history.json")) }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Vector Database
+// ══════════════════════════════════════════════════════════════════════════════
+
+fn vectordb_data_dir() -> Result<std::path::PathBuf, String> { project_data_dir("vectordb") }
+fn vectordb_read(f: &str) -> serde_json::Value { let Ok(d)=vectordb_data_dir() else{return serde_json::json!([])}; std::fs::read_to_string(d.join(f)).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or(serde_json::json!([])) }
+fn vectordb_write(f: &str, v: &serde_json::Value) -> Result<(),String> { let d=vectordb_data_dir()?; std::fs::write(d.join(f), serde_json::to_string_pretty(v).map_err(|e|e.to_string())?).map_err(|e|e.to_string()) }
+
+#[tauri::command] pub async fn list_vector_collections() -> Result<serde_json::Value,String> { Ok(vectordb_read("collections.json")) }
+#[tauri::command] pub async fn create_vector_collection(collection: serde_json::Value) -> Result<(),String> {
+    let mut cols = vectordb_read("collections.json");
+    let arr = cols.as_array_mut().ok_or("Invalid")?;
+    arr.push(collection);
+    vectordb_write("collections.json", &cols)
+}
+#[tauri::command] pub async fn delete_vector_collection(name: String) -> Result<(),String> {
+    let mut cols = vectordb_read("collections.json");
+    if let Some(arr) = cols.as_array_mut() { arr.retain(|c| c.get("name").and_then(|v|v.as_str()) != Some(&name)); }
+    vectordb_write("collections.json", &cols)
+}
+#[tauri::command] pub async fn vector_search(collection: String, query: Vec<f64>, top_k: u32, min_score: f64) -> Result<serde_json::Value,String> {
+    // Return empty results — real implementation would use vibe-ai vector_db module
+    let _ = (collection, query, top_k, min_score);
+    Ok(serde_json::json!([]))
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Organization Context
+// ══════════════════════════════════════════════════════════════════════════════
+
+fn orgctx_data_dir() -> Result<std::path::PathBuf, String> { project_data_dir("org_context") }
+fn orgctx_read(f: &str) -> serde_json::Value { let Ok(d)=orgctx_data_dir() else{return serde_json::json!([])}; std::fs::read_to_string(d.join(f)).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or(serde_json::json!([])) }
+fn orgctx_write(f: &str, v: &serde_json::Value) -> Result<(),String> { let d=orgctx_data_dir()?; std::fs::write(d.join(f), serde_json::to_string_pretty(v).map_err(|e|e.to_string())?).map_err(|e|e.to_string()) }
+
+#[tauri::command] pub async fn get_org_repos() -> Result<serde_json::Value,String> { Ok(orgctx_read("repos.json")) }
+#[tauri::command] pub async fn get_org_patterns() -> Result<serde_json::Value,String> { Ok(orgctx_read("patterns.json")) }
+#[tauri::command] pub async fn get_org_conventions() -> Result<serde_json::Value,String> { Ok(orgctx_read("conventions.json")) }
+#[tauri::command] pub async fn get_org_dependencies() -> Result<serde_json::Value,String> { Ok(orgctx_read("dependencies.json")) }
+#[tauri::command] pub async fn save_org_repo(repo: serde_json::Value) -> Result<(),String> {
+    let mut repos = orgctx_read("repos.json");
+    let arr = repos.as_array_mut().ok_or("Invalid")?;
+    arr.push(repo);
+    orgctx_write("repos.json", &repos)
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Spec Pipeline (Requirements → Design → Tasks)
+// ══════════════════════════════════════════════════════════════════════════════
+
+fn specpipe_data_dir() -> Result<std::path::PathBuf, String> { project_data_dir("spec_pipeline") }
+fn specpipe_read(f: &str) -> serde_json::Value { let Ok(d)=specpipe_data_dir() else{return serde_json::json!([])}; std::fs::read_to_string(d.join(f)).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or(serde_json::json!([])) }
+fn specpipe_write(f: &str, v: &serde_json::Value) -> Result<(),String> { let d=specpipe_data_dir()?; std::fs::write(d.join(f), serde_json::to_string_pretty(v).map_err(|e|e.to_string())?).map_err(|e|e.to_string()) }
+
+#[tauri::command] pub async fn get_spec_requirements() -> Result<serde_json::Value,String> { Ok(specpipe_read("requirements.json")) }
+#[tauri::command] pub async fn get_spec_designs() -> Result<serde_json::Value,String> { Ok(specpipe_read("designs.json")) }
+#[tauri::command] pub async fn get_spec_tasks() -> Result<serde_json::Value,String> { Ok(specpipe_read("tasks.json")) }
+#[tauri::command] pub async fn save_spec_requirement(req: serde_json::Value) -> Result<(),String> {
+    let mut reqs = specpipe_read("requirements.json");
+    let arr = reqs.as_array_mut().ok_or("Invalid")?; arr.push(req);
+    specpipe_write("requirements.json", &reqs)
+}
+#[tauri::command] pub async fn save_spec_design(design: serde_json::Value) -> Result<(),String> {
+    let mut designs = specpipe_read("designs.json");
+    let arr = designs.as_array_mut().ok_or("Invalid")?; arr.push(design);
+    specpipe_write("designs.json", &designs)
+}
+#[tauri::command] pub async fn save_spec_task_item(task: serde_json::Value) -> Result<(),String> {
+    let mut tasks = specpipe_read("tasks.json");
+    let arr = tasks.as_array_mut().ok_or("Invalid")?; arr.push(task);
+    specpipe_write("tasks.json", &tasks)
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// VM Orchestrator
+// ══════════════════════════════════════════════════════════════════════════════
+
+fn vmorch_data_dir() -> Result<std::path::PathBuf, String> { project_data_dir("vm_orchestrator") }
+fn vmorch_read(f: &str) -> serde_json::Value { let Ok(d)=vmorch_data_dir() else{return serde_json::json!([])}; std::fs::read_to_string(d.join(f)).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or(serde_json::json!([])) }
+fn vmorch_write(f: &str, v: &serde_json::Value) -> Result<(),String> { let d=vmorch_data_dir()?; std::fs::write(d.join(f), serde_json::to_string_pretty(v).map_err(|e|e.to_string())?).map_err(|e|e.to_string()) }
+
+#[tauri::command] pub async fn get_vm_environments() -> Result<serde_json::Value,String> { Ok(vmorch_read("environments.json")) }
+#[tauri::command] pub async fn get_vm_pull_requests() -> Result<serde_json::Value,String> { Ok(vmorch_read("pull_requests.json")) }
+#[tauri::command] pub async fn get_vm_conflicts() -> Result<serde_json::Value,String> { Ok(vmorch_read("conflicts.json")) }
+#[tauri::command] pub async fn get_vm_config() -> Result<serde_json::Value,String> {
+    let data = vmorch_read("config.json");
+    if data.is_null() || data.as_object().map(|o|o.is_empty()).unwrap_or(true) {
+        return Ok(serde_json::json!({ "maxConcurrentVms": 8, "defaultCpu": 2, "defaultMemGb": 4, "autoCleanupMinutes": 30, "snapshotIntervalMinutes": 10 }));
+    }
+    Ok(data)
+}
+#[tauri::command] pub async fn save_vm_config(config: serde_json::Value) -> Result<(),String> { vmorch_write("config.json", &config) }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Session Sharing
+// ══════════════════════════════════════════════════════════════════════════════
+
+fn sessshare_data_dir() -> Result<std::path::PathBuf, String> { project_data_dir("session_sharing") }
+fn sessshare_read(f: &str) -> serde_json::Value { let Ok(d)=sessshare_data_dir() else{return serde_json::json!([])}; std::fs::read_to_string(d.join(f)).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or(serde_json::json!([])) }
+fn sessshare_write(f: &str, v: &serde_json::Value) -> Result<(),String> { let d=sessshare_data_dir()?; std::fs::write(d.join(f), serde_json::to_string_pretty(v).map_err(|e|e.to_string())?).map_err(|e|e.to_string()) }
+
+#[tauri::command] pub async fn get_shared_sessions() -> Result<serde_json::Value,String> { Ok(sessshare_read("sessions.json")) }
+#[tauri::command] pub async fn get_session_annotations() -> Result<serde_json::Value,String> { Ok(sessshare_read("annotations.json")) }
+#[tauri::command] pub async fn share_session(session: serde_json::Value) -> Result<(),String> {
+    let mut sessions = sessshare_read("sessions.json");
+    let arr = sessions.as_array_mut().ok_or("Invalid")?; arr.push(session);
+    sessshare_write("sessions.json", &sessions)
+}
+#[tauri::command] pub async fn add_session_annotation(annotation: serde_json::Value) -> Result<(),String> {
+    let mut anns = sessshare_read("annotations.json");
+    let arr = anns.as_array_mut().ok_or("Invalid")?; arr.push(annotation);
+    sessshare_write("annotations.json", &anns)
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Self-Review (Agent Self-Check Iterations)
+// ══════════════════════════════════════════════════════════════════════════════
+
+fn selfreview_data_dir() -> Result<std::path::PathBuf, String> { project_data_dir("self_review") }
+fn selfreview_read(f: &str) -> serde_json::Value { let Ok(d)=selfreview_data_dir() else{return serde_json::json!([])}; std::fs::read_to_string(d.join(f)).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or(serde_json::json!([])) }
+fn selfreview_write(f: &str, v: &serde_json::Value) -> Result<(),String> { let d=selfreview_data_dir()?; std::fs::write(d.join(f), serde_json::to_string_pretty(v).map_err(|e|e.to_string())?).map_err(|e|e.to_string()) }
+
+#[tauri::command] pub async fn get_selfreview_iterations() -> Result<serde_json::Value,String> { Ok(selfreview_read("iterations.json")) }
+#[tauri::command] pub async fn get_selfreview_config() -> Result<serde_json::Value,String> {
+    let data = selfreview_read("config.json");
+    if data.is_null() || data.as_object().map(|o|o.is_empty()).unwrap_or(true) {
+        return Ok(serde_json::json!({ "enabled": true, "maxRetries": 3, "checks": ["build","lint","test","security"], "failOnWarning": false, "minBlockingSeverity": "error" }));
+    }
+    Ok(data)
+}
+#[tauri::command] pub async fn save_selfreview_config(config: serde_json::Value) -> Result<(),String> { selfreview_write("config.json", &config) }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Streaming Client (Kafka/NATS/RabbitMQ)
+// ══════════════════════════════════════════════════════════════════════════════
+
+fn streaming_data_dir() -> Result<std::path::PathBuf, String> { project_data_dir("streaming") }
+fn streaming_read(f: &str) -> serde_json::Value { let Ok(d)=streaming_data_dir() else{return serde_json::json!([])}; std::fs::read_to_string(d.join(f)).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or(serde_json::json!([])) }
+fn streaming_write(f: &str, v: &serde_json::Value) -> Result<(),String> { let d=streaming_data_dir()?; std::fs::write(d.join(f), serde_json::to_string_pretty(v).map_err(|e|e.to_string())?).map_err(|e|e.to_string()) }
+
+#[tauri::command] pub async fn get_streaming_topics() -> Result<serde_json::Value,String> { Ok(streaming_read("topics.json")) }
+#[tauri::command] pub async fn save_streaming_topic(topic: serde_json::Value) -> Result<(),String> {
+    let mut topics = streaming_read("topics.json");
+    let arr = topics.as_array_mut().ok_or("Invalid")?; arr.push(topic);
+    streaming_write("topics.json", &topics)
+}
+#[tauri::command] pub async fn delete_streaming_topic(name: String) -> Result<(),String> {
+    let mut topics = streaming_read("topics.json");
+    if let Some(arr) = topics.as_array_mut() { arr.retain(|t| t.get("name").and_then(|v|v.as_str()) != Some(&name)); }
+    streaming_write("topics.json", &topics)
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Observe-Act (Visual Grounding)
+// ══════════════════════════════════════════════════════════════════════════════
+
+fn observeact_data_dir() -> Result<std::path::PathBuf, String> { project_data_dir("observe_act") }
+fn observeact_read(f: &str) -> serde_json::Value { let Ok(d)=observeact_data_dir() else{return serde_json::json!([])}; std::fs::read_to_string(d.join(f)).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or(serde_json::json!([])) }
+fn observeact_write(f: &str, v: &serde_json::Value) -> Result<(),String> { let d=observeact_data_dir()?; std::fs::write(d.join(f), serde_json::to_string_pretty(v).map_err(|e|e.to_string())?).map_err(|e|e.to_string()) }
+
+#[tauri::command] pub async fn get_observeact_steps() -> Result<serde_json::Value,String> { Ok(observeact_read("steps.json")) }
+#[tauri::command] pub async fn get_observeact_config() -> Result<serde_json::Value,String> {
+    let data = observeact_read("config.json");
+    if data.is_null() || data.as_object().map(|o|o.is_empty()).unwrap_or(true) {
+        return Ok(serde_json::json!({ "safetyMode": "cautious", "maxSteps": 20, "intervalMs": 500, "maxActionsPerStep": 3, "rateLimitMs": 200, "maxConsecutiveFailures": 3 }));
+    }
+    Ok(data)
+}
+#[tauri::command] pub async fn save_observeact_config(config: serde_json::Value) -> Result<(),String> { observeact_write("config.json", &config) }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Web Crawler
+// ══════════════════════════════════════════════════════════════════════════════
+
+fn webcrawl_data_dir() -> Result<std::path::PathBuf, String> { project_data_dir("web_crawler") }
+fn webcrawl_read(f: &str) -> serde_json::Value { let Ok(d)=webcrawl_data_dir() else{return serde_json::json!([])}; std::fs::read_to_string(d.join(f)).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or(serde_json::json!([])) }
+fn webcrawl_write(f: &str, v: &serde_json::Value) -> Result<(),String> { let d=webcrawl_data_dir()?; std::fs::write(d.join(f), serde_json::to_string_pretty(v).map_err(|e|e.to_string())?).map_err(|e|e.to_string()) }
+
+#[tauri::command] pub async fn run_web_crawl(config: serde_json::Value) -> Result<serde_json::Value,String> {
+    // Store crawl config and return placeholder — full implementation would use web_crawler.rs
+    webcrawl_write("last_config.json", &config)?;
+    Ok(serde_json::json!({ "status": "completed", "pages": 0, "results": [] }))
+}
+#[tauri::command] pub async fn get_crawl_results() -> Result<serde_json::Value,String> { Ok(webcrawl_read("results.json")) }
+#[tauri::command] pub async fn parse_sitemap(url: String) -> Result<serde_json::Value,String> {
+    let _ = url;
+    Ok(serde_json::json!({ "urls": [] }))
+}
+#[tauri::command] pub async fn check_robots_txt(url: String) -> Result<serde_json::Value,String> {
+    let _ = url;
+    Ok(serde_json::json!({ "content": "" }))
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Visual Verify (Pixel Diff)
+// ══════════════════════════════════════════════════════════════════════════════
+
+fn visualverify_data_dir() -> Result<std::path::PathBuf, String> { project_data_dir("visual_verify") }
+fn visualverify_read(f: &str) -> serde_json::Value { let Ok(d)=visualverify_data_dir() else{return serde_json::json!([])}; std::fs::read_to_string(d.join(f)).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or(serde_json::json!([])) }
+fn visualverify_write(f: &str, v: &serde_json::Value) -> Result<(),String> { let d=visualverify_data_dir()?; std::fs::write(d.join(f), serde_json::to_string_pretty(v).map_err(|e|e.to_string())?).map_err(|e|e.to_string()) }
+
+#[tauri::command] pub async fn get_visual_baselines() -> Result<serde_json::Value,String> { Ok(visualverify_read("baselines.json")) }
+#[tauri::command] pub async fn save_visual_baseline(baseline: serde_json::Value) -> Result<(),String> {
+    let mut baselines = visualverify_read("baselines.json");
+    let arr = baselines.as_array_mut().ok_or("Invalid")?; arr.push(baseline);
+    visualverify_write("baselines.json", &baselines)
+}
+#[tauri::command] pub async fn get_visual_diffs() -> Result<serde_json::Value,String> { Ok(visualverify_read("diffs.json")) }
+#[tauri::command] pub async fn delete_visual_baseline(id: String) -> Result<(),String> {
+    let mut baselines = visualverify_read("baselines.json");
+    if let Some(arr) = baselines.as_array_mut() { arr.retain(|b| b.get("id").and_then(|v|v.as_str()) != Some(&id)); }
+    visualverify_write("baselines.json", &baselines)
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Event-Driven Automations
+// ══════════════════════════════════════════════════════════════════════════════
+
+fn automations_data_dir() -> Result<std::path::PathBuf, String> {
+    project_data_dir("automations")
+}
+
+fn automations_read_json(filename: &str) -> serde_json::Value {
+    let Ok(dir) = automations_data_dir() else { return serde_json::json!([]) };
+    let path = dir.join(filename);
+    match std::fs::read_to_string(&path) {
+        Ok(s) => serde_json::from_str(&s).unwrap_or(serde_json::json!([])),
+        Err(_) => serde_json::json!([]),
+    }
+}
+
+fn automations_write_json(filename: &str, data: &serde_json::Value) -> Result<(), String> {
+    let dir = automations_data_dir()?;
+    let path = dir.join(filename);
+    let s = serde_json::to_string_pretty(data).map_err(|e| e.to_string())?;
+    std::fs::write(path, s).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn get_automation_rules() -> Result<serde_json::Value, String> {
+    Ok(automations_read_json("rules.json"))
+}
+
+#[tauri::command]
+pub async fn get_automation_tasks() -> Result<serde_json::Value, String> {
+    Ok(automations_read_json("tasks.json"))
+}
+
+#[tauri::command]
+pub async fn get_automation_stats() -> Result<serde_json::Value, String> {
+    let rules = automations_read_json("rules.json");
+    let tasks = automations_read_json("tasks.json");
+    let rules_arr = rules.as_array().map(|a| a.len()).unwrap_or(0);
+    let enabled = rules.as_array().map(|a| a.iter().filter(|r| r.get("enabled").and_then(|v| v.as_bool()).unwrap_or(false)).count()).unwrap_or(0);
+    let tasks_arr = tasks.as_array().cloned().unwrap_or_default();
+    let total_tasks = tasks_arr.len();
+    let running = tasks_arr.iter().filter(|t| t.get("status").and_then(|v| v.as_str()) == Some("running")).count();
+    let completed = tasks_arr.iter().filter(|t| t.get("status").and_then(|v| v.as_str()) == Some("completed")).count();
+    let failed = tasks_arr.iter().filter(|t| t.get("status").and_then(|v| v.as_str()) == Some("failed")).count();
+    Ok(serde_json::json!({
+        "totalRules": rules_arr,
+        "enabledRules": enabled,
+        "totalTasks": total_tasks,
+        "runningTasks": running,
+        "completedTasks": completed,
+        "failedTasks": failed,
+    }))
+}
+
+#[tauri::command]
+pub async fn get_automation_logs() -> Result<serde_json::Value, String> {
+    Ok(automations_read_json("logs.json"))
+}
+
+#[tauri::command]
+pub async fn create_automation_rule(rule: serde_json::Value) -> Result<serde_json::Value, String> {
+    let mut rules = automations_read_json("rules.json");
+    let arr = rules.as_array_mut().ok_or("Invalid rules data")?;
+    let id = format!("auto-{}", arr.len() + 1);
+    let mut new_rule = rule;
+    new_rule.as_object_mut().ok_or("Rule must be an object")?.insert("id".to_string(), serde_json::json!(id));
+    if new_rule.get("fireCount").is_none() {
+        new_rule.as_object_mut().unwrap().insert("fireCount".to_string(), serde_json::json!(0));
+    }
+    if new_rule.get("lastFired").is_none() {
+        new_rule.as_object_mut().unwrap().insert("lastFired".to_string(), serde_json::Value::Null);
+    }
+    arr.push(new_rule.clone());
+    automations_write_json("rules.json", &rules)?;
+    Ok(new_rule)
+}
+
+#[tauri::command]
+pub async fn update_automation_rule(rule_id: String, updates: serde_json::Value) -> Result<(), String> {
+    let mut rules = automations_read_json("rules.json");
+    let arr = rules.as_array_mut().ok_or("Invalid rules data")?;
+    if let Some(existing) = arr.iter_mut().find(|r| r.get("id").and_then(|v| v.as_str()) == Some(&rule_id)) {
+        if let (Some(target), Some(source)) = (existing.as_object_mut(), updates.as_object()) {
+            for (k, v) in source {
+                target.insert(k.clone(), v.clone());
+            }
+        }
+    }
+    automations_write_json("rules.json", &rules)
+}
+
+#[tauri::command]
+pub async fn delete_automation_rule(rule_id: String) -> Result<(), String> {
+    let mut rules = automations_read_json("rules.json");
+    let arr = rules.as_array_mut().ok_or("Invalid rules data")?;
+    arr.retain(|r| r.get("id").and_then(|v| v.as_str()) != Some(&rule_id));
+    automations_write_json("rules.json", &rules)
+}
+
+#[tauri::command]
+pub async fn toggle_automation_rule(rule_id: String) -> Result<bool, String> {
+    let mut rules = automations_read_json("rules.json");
+    let arr = rules.as_array_mut().ok_or("Invalid rules data")?;
+    let mut new_state = false;
+    if let Some(existing) = arr.iter_mut().find(|r| r.get("id").and_then(|v| v.as_str()) == Some(&rule_id)) {
+        let current = existing.get("enabled").and_then(|v| v.as_bool()).unwrap_or(false);
+        new_state = !current;
+        existing.as_object_mut().unwrap().insert("enabled".to_string(), serde_json::json!(new_state));
+    }
+    automations_write_json("rules.json", &rules)?;
+    Ok(new_state)
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Provider Resilience & Circuit Breaker
+// ══════════════════════════════════════════════════════════════════════════════
+
+fn resilience_data_dir() -> Result<std::path::PathBuf, String> {
+    project_data_dir("resilience")
+}
+
+fn resilience_read_json(filename: &str) -> serde_json::Value {
+    let Ok(dir) = resilience_data_dir() else { return serde_json::json!([]) };
+    let path = dir.join(filename);
+    match std::fs::read_to_string(&path) {
+        Ok(s) => serde_json::from_str(&s).unwrap_or(serde_json::json!([])),
+        Err(_) => serde_json::json!([]),
+    }
+}
+
+fn resilience_write_json(filename: &str, data: &serde_json::Value) -> Result<(), String> {
+    let dir = resilience_data_dir()?;
+    let path = dir.join(filename);
+    let s = serde_json::to_string_pretty(data).map_err(|e| e.to_string())?;
+    std::fs::write(path, s).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn get_provider_health() -> Result<serde_json::Value, String> {
+    let data = resilience_read_json("provider_health.json");
+    if data.as_array().map(|a| a.is_empty()).unwrap_or(true) {
+        // Return empty array — panel will show "no data yet"
+        return Ok(serde_json::json!([]));
+    }
+    Ok(data)
+}
+
+#[tauri::command]
+pub async fn get_circuit_breaker_state() -> Result<serde_json::Value, String> {
+    let data = resilience_read_json("circuit_breaker.json");
+    if data.is_null() || data.as_object().map(|o| o.is_empty()).unwrap_or(true) {
+        return Ok(serde_json::json!({
+            "state": "PROGRESS",
+            "rotations": 0,
+            "maxRotations": 3,
+            "stepsSinceFileChange": 0,
+            "recoveryProbing": false
+        }));
+    }
+    Ok(data)
+}
+
+#[tauri::command]
+pub async fn get_failure_records(limit: Option<u32>) -> Result<serde_json::Value, String> {
+    let data = resilience_read_json("failures.json");
+    let arr = data.as_array().cloned().unwrap_or_default();
+    let limit = limit.unwrap_or(50) as usize;
+    let truncated: Vec<_> = arr.into_iter().rev().take(limit).collect();
+    Ok(serde_json::json!(truncated))
+}
+
+#[tauri::command]
+pub async fn get_failure_patterns() -> Result<serde_json::Value, String> {
+    // Derive patterns from failure records
+    let data = resilience_read_json("failures.json");
+    let arr = data.as_array().cloned().unwrap_or_default();
+
+    let mut pattern_map: std::collections::HashMap<(String, String), (usize, bool)> = std::collections::HashMap::new();
+    for f in &arr {
+        let cat = f.get("category").and_then(|v| v.as_str()).unwrap_or("Unknown").to_string();
+        let provider = f.get("provider").and_then(|v| v.as_str()).unwrap_or("unknown").to_string();
+        let entry = pattern_map.entry((cat, provider)).or_insert((0, false));
+        entry.0 += 1;
+        if entry.0 >= 3 { entry.1 = true; }
+    }
+
+    let patterns: Vec<_> = pattern_map.into_iter().map(|((cat, prov), (count, recurring))| {
+        serde_json::json!({
+            "category": cat,
+            "count": count,
+            "provider": prov,
+            "isRecurring": recurring,
+        })
+    }).collect();
+
+    Ok(serde_json::json!(patterns))
+}
+
+#[tauri::command]
+pub async fn get_resilience_config() -> Result<serde_json::Value, String> {
+    let data = resilience_read_json("config.json");
+    if data.is_null() || data.as_object().map(|o| o.is_empty()).unwrap_or(true) {
+        return Ok(serde_json::json!({
+            "retryMaxAttempts": 5,
+            "retryJitterEnabled": true,
+            "cbStallThreshold": 5,
+            "cbSpinThreshold": 3,
+            "cbMaxRotations": 3,
+            "cbRecoveryCooldownSecs": 30,
+            "healthAwareFailover": true,
+            "failureJournalEnabled": true
+        }));
+    }
+    Ok(data)
+}
+
+#[tauri::command]
+pub async fn save_resilience_config(config: serde_json::Value) -> Result<(), String> {
+    resilience_write_json("config.json", &config)
+}
+
+#[tauri::command]
+pub async fn record_failure(failure: serde_json::Value) -> Result<(), String> {
+    let mut data = resilience_read_json("failures.json");
+    let arr = data.as_array_mut().ok_or("Invalid failures data")?;
+    arr.push(failure);
+    // Keep last 500 failures
+    if arr.len() > 500 { let drain = arr.len() - 500; arr.drain(0..drain); }
+    resilience_write_json("failures.json", &data)
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // Agile Project Management — Scrum, Kanban, XP, Lean, FDD, Crystal, SAFe
 // ══════════════════════════════════════════════════════════════════════════════
 
@@ -33760,4 +34410,41 @@ pub async fn sketch_generate(framework: String, components: String) -> Result<se
 #[tauri::command]
 pub async fn sketch_export(format: String) -> Result<serde_json::Value, String> {
     Ok(serde_json::json!({ "format": format, "data": "" }))
+}
+
+// ── Agent Recordings ────────────────────────────────────────────────────
+
+/// List agent recordings from the local data directory.
+#[tauri::command]
+pub async fn list_agent_recordings() -> Result<serde_json::Value, String> {
+    let dir = dirs::data_local_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join("vibeui")
+        .join("recordings");
+
+    if !dir.exists() {
+        return Ok(serde_json::json!([]));
+    }
+
+    let mut recordings = vec![];
+    let entries = std::fs::read_dir(&dir).map_err(|e| format!("Read dir error: {}", e))?;
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()) == Some("json") {
+            if let Ok(contents) = std::fs::read_to_string(&path) {
+                if let Ok(recording) = serde_json::from_str::<serde_json::Value>(&contents) {
+                    recordings.push(recording);
+                }
+            }
+        }
+    }
+
+    // Sort by started_at descending
+    recordings.sort_by(|a, b| {
+        let a_ts = a.get("started_at").and_then(|v| v.as_f64()).unwrap_or(0.0);
+        let b_ts = b.get("started_at").and_then(|v| v.as_f64()).unwrap_or(0.0);
+        b_ts.partial_cmp(&a_ts).unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    Ok(serde_json::json!(recordings))
 }

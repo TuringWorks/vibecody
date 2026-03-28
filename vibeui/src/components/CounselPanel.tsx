@@ -60,9 +60,9 @@ const ROLE_COLORS: Record<string, string> = {
 };
 
 const DEFAULT_PARTICIPANTS: Participant[] = [
-  { provider: "claude", model: "claude-3.5-sonnet", role: "Expert" },
+  { provider: "claude", model: "claude-sonnet-4-6", role: "Expert" },
   { provider: "openai", model: "gpt-4o", role: "Skeptic" },
-  { provider: "gemini", model: "gemini-2.0-flash", role: "Creative" },
+  { provider: "gemini", model: "gemini-2.5-flash", role: "Creative" },
 ];
 
 // ── Styles ───────────────────────────────────────────────────────────────────
@@ -119,6 +119,7 @@ export function CounselPanel() {
   const [deliberating, setDeliberating] = useState(false);
   const [synthesizing, setSynthesizing] = useState(false);
   const [interjection, setInterjection] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   // Load sessions on mount
   useEffect(() => {
@@ -148,6 +149,7 @@ export function CounselPanel() {
 
   const startSession = useCallback(async () => {
     if (!topic.trim() || participants.length === 0) return;
+    setError(null);
     try {
       const s = await invoke<CounselSession>("counsel_create_session", {
         topic: topic.trim(),
@@ -162,8 +164,8 @@ export function CounselPanel() {
       setActiveSession(s);
       setShowSetup(false);
       loadSessions();
-    } catch (e) {
-      console.error("Failed to create session:", e);
+    } catch (e: any) {
+      setError(`Failed to create session: ${e?.toString() || "unknown error"}`);
     }
   }, [topic, participants, moderatorIdx, loadSessions]);
 
@@ -173,8 +175,8 @@ export function CounselPanel() {
     try {
       await invoke("counsel_run_round", { sessionId: activeSession.id });
       await loadSession(activeSession.id);
-    } catch (e) {
-      console.error("Round failed:", e);
+    } catch (e: any) {
+      setError(`Round failed: ${e?.toString() || "unknown error"}`);
     } finally {
       setDeliberating(false);
     }
@@ -186,8 +188,8 @@ export function CounselPanel() {
     try {
       await invoke("counsel_synthesize", { sessionId: activeSession.id });
       await loadSession(activeSession.id);
-    } catch (e) {
-      console.error("Synthesis failed:", e);
+    } catch (e: any) {
+      setError(`Synthesis failed: ${e?.toString() || "unknown error"}`);
     } finally {
       setSynthesizing(false);
     }
@@ -273,6 +275,13 @@ export function CounselPanel() {
           <div>
             <h2 style={S.h2}>New Counsel Session</h2>
 
+            {error && (
+              <div style={{ padding: "8px 12px", marginBottom: 12, borderRadius: 6, background: "#f4433622", border: "1px solid #f44336", color: "#f44336", fontSize: 12 }}>
+                {error}
+                <button onClick={() => setError(null)} style={{ float: "right", background: "none", border: "none", color: "#f44336", cursor: "pointer", fontWeight: 600 }}>x</button>
+              </div>
+            )}
+
             <div style={{ marginBottom: 16 }}>
               <label style={S.label}>Topic</label>
               <textarea
@@ -349,6 +358,13 @@ export function CounselPanel() {
               <h2 style={{ ...S.h2, margin: 0 }}>{activeSession.topic}</h2>
               <span style={S.badge("var(--accent-blue)")}>{activeSession.status}</span>
             </div>
+
+            {error && (
+              <div style={{ padding: "8px 12px", marginBottom: 12, borderRadius: 6, background: "#f4433622", border: "1px solid #f44336", color: "#f44336", fontSize: 12 }}>
+                {error}
+                <button onClick={() => setError(null)} style={{ float: "right", background: "none", border: "none", color: "#f44336", cursor: "pointer", fontWeight: 600 }}>x</button>
+              </div>
+            )}
 
             {/* Participant badges */}
             <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
