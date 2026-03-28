@@ -47,6 +47,29 @@ impl WhisperModel {
             WhisperModel::Large,
         ]
     }
+
+    /// Parse a model name string into a WhisperModel variant.
+    pub fn from_name(name: &str) -> Option<WhisperModel> {
+        match name.to_lowercase().as_str() {
+            "tiny" => Some(WhisperModel::Tiny),
+            "base" => Some(WhisperModel::Base),
+            "small" => Some(WhisperModel::Small),
+            "medium" => Some(WhisperModel::Medium),
+            "large" => Some(WhisperModel::Large),
+            _ => None,
+        }
+    }
+
+    /// URL to download the GGML model file from Hugging Face.
+    pub fn ggml_url(&self) -> &str {
+        match self {
+            WhisperModel::Tiny   => "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin",
+            WhisperModel::Base   => "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin",
+            WhisperModel::Small  => "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin",
+            WhisperModel::Medium => "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.bin",
+            WhisperModel::Large  => "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3.bin",
+        }
+    }
 }
 
 /// Configuration for the local voice engine.
@@ -531,5 +554,37 @@ mod tests {
         assert_eq!(m.total_transcriptions, 0);
         assert_eq!(m.total_duration, 0.0);
         assert_eq!(m.errors, 0);
+    }
+
+    #[test]
+    fn test_from_name_valid() {
+        assert_eq!(WhisperModel::from_name("tiny"), Some(WhisperModel::Tiny));
+        assert_eq!(WhisperModel::from_name("base"), Some(WhisperModel::Base));
+        assert_eq!(WhisperModel::from_name("small"), Some(WhisperModel::Small));
+        assert_eq!(WhisperModel::from_name("MEDIUM"), Some(WhisperModel::Medium));
+        assert_eq!(WhisperModel::from_name("Large"), Some(WhisperModel::Large));
+    }
+
+    #[test]
+    fn test_from_name_invalid() {
+        assert_eq!(WhisperModel::from_name("huge"), None);
+        assert_eq!(WhisperModel::from_name(""), None);
+        assert_eq!(WhisperModel::from_name("base.en"), None);
+    }
+
+    #[test]
+    fn test_ggml_urls() {
+        for model in WhisperModel::all() {
+            let url = model.ggml_url();
+            assert!(url.starts_with("https://huggingface.co/ggerganov/whisper.cpp/"));
+            assert!(url.ends_with(".bin"));
+        }
+    }
+
+    #[test]
+    fn test_ggml_url_contains_model_name() {
+        assert!(WhisperModel::Tiny.ggml_url().contains("tiny"));
+        assert!(WhisperModel::Base.ggml_url().contains("base"));
+        assert!(WhisperModel::Large.ggml_url().contains("large"));
     }
 }

@@ -6268,41 +6268,64 @@ async fn main() -> Result<()> {
                             let subcmd = sub_parts.first().copied().unwrap_or("").trim();
                             let sub_args = if sub_parts.len() > 1 { sub_parts[1].trim() } else { "" };
                             let vcfg = Config::load().unwrap_or_default().voice;
+                            let groq_key = Config::load().ok()
+                                .and_then(|c| c.groq.and_then(|g| g.api_key));
+                            let dispatcher = voice::VoiceDispatcher::from_config(&vcfg, groq_key.as_deref());
 
                             match subcmd {
                                 "transcribe" if !sub_args.is_empty() => {
-                                    let key = vcfg.resolve_whisper_api_key(None).unwrap_or_default();
-                                    if key.is_empty() {
-                                        println!("❌ Set GROQ_API_KEY or voice.whisper_api_key in config.\n");
-                                    } else {
-                                        let audio_path = std::path::Path::new(sub_args);
-                                        match voice::transcribe_audio(audio_path, &key).await {
-                                            Ok(text) => println!("Transcription:\n{}\n", text),
-                                            Err(e) => println!("❌ Transcription failed: {e}\n"),
-                                        }
+                                    let audio_path = std::path::Path::new(sub_args);
+                                    match dispatcher.transcribe_file(audio_path).await {
+                                        Ok(text) => println!("Transcription:\n{}\n", text),
+                                        Err(e) => println!("Transcription failed: {e}\n"),
                                     }
                                 }
                                 "speak" if !sub_args.is_empty() => {
-                                    let key = vcfg.resolve_elevenlabs_api_key().unwrap_or_default();
-                                    let voice_id = vcfg.resolve_elevenlabs_voice_id();
-                                    if key.is_empty() {
-                                        println!("❌ Set ELEVENLABS_API_KEY or voice.elevenlabs_api_key in config.\n");
-                                    } else {
-                                        match voice::text_to_speech(sub_args, &key, &voice_id).await {
-                                            Ok(bytes) => {
-                                                let out_path = std::env::temp_dir().join("vibecli_tts.mp3");
-                                                if let Err(e) = std::fs::write(&out_path, &bytes) {
-                                                    println!("❌ Failed to write audio: {e}\n");
-                                                } else {
-                                                    println!("🔊 Audio saved to {}\n", out_path.display());
-                                                }
+                                    match dispatcher.speak(sub_args).await {
+                                        Ok(()) => println!(),
+                                        Err(e) => println!("TTS failed: {e}\n"),
+                                    }
+                                }
+                                "listen" => {
+                                    match dispatcher.listen(vcfg.silence_timeout_ms).await {
+                                        Ok(text) => println!("You said: {}\n", text),
+                                        Err(e) => println!("Listen failed: {e}\n"),
+                                    }
+                                }
+                                "download" => {
+                                    let model_name = if sub_args.is_empty() { &vcfg.local_model } else { sub_args };
+                                    match voice_local::WhisperModel::from_name(model_name) {
+                                        Some(model) => {
+                                            match voice::download_model(&model).await {
+                                                Ok(path) => println!("Model ready at {}\n", path.display()),
+                                                Err(e) => println!("Download failed: {e}\n"),
                                             }
-                                            Err(e) => println!("❌ TTS failed: {e}\n"),
+                                        }
+                                        None => {
+                                            println!("Unknown model '{}'. Available: tiny, base, small, medium, large\n", model_name);
                                         }
                                     }
                                 }
+                                "models" => {
+                                    println!("Available Whisper models:\n");
+                                    for model in voice_local::WhisperModel::all() {
+                                        let downloaded = voice::is_model_downloaded(&model);
+                                        let marker = if downloaded { "[downloaded]" } else { "" };
+                                        println!("  {:8} {:>5}MB  {}", model.name(), model.size_mb(), marker);
+                                    }
+                                    println!("\nUse /voice download <model> to download.\n");
+                                }
+                                "status" => {
+                                    println!("{}\n", dispatcher.status());
+                                }
                                 _ => {
-                                    println!("Usage: /voice [transcribe <file>|speak <text>]\n");
+                                    println!("Usage: /voice <command>\n");
+                                    println!("  transcribe <file>  Transcribe an audio file (auto cloud/local)");
+                                    println!("  speak <text>       Text-to-speech (cloud ElevenLabs or local)");
+                                    println!("  listen             Record from mic and transcribe");
+                                    println!("  download [model]   Download a Whisper model for offline use");
+                                    println!("  models             List available models");
+                                    println!("  status             Show voice engine configuration\n");
                                 }
                             }
                         }

@@ -2851,6 +2851,8 @@ fn cloud_oauth_config(provider: &str) -> Result<serde_json::Value, String> {
 }
 
 /// Initiate OAuth flow for a cloud provider — opens browser to auth URL.
+/// Automatically starts a temporary local server on the redirect_uri port to
+/// catch the callback and emit a `oauth-callback` Tauri event with the code.
 #[tauri::command]
 pub async fn cloud_oauth_initiate(
     app: tauri::AppHandle,
@@ -2888,6 +2890,76 @@ pub async fn cloud_oauth_initiate(
             .finish();
         format!("{}?{}", auth_url, qs)
     };
+
+    // Start a temporary local HTTP server to capture the OAuth callback.
+    // Parse port from redirect_uri, default to 7878.
+    let port: u16 = url::Url::parse(&redirect_uri)
+        .ok()
+        .and_then(|u| u.port())
+        .unwrap_or(7878);
+    let provider_clone = provider.clone();
+    let app_clone = app.clone();
+    tokio::spawn(async move {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let listener = match tokio::net::TcpListener::bind(("127.0.0.1", port)).await {
+            Ok(l) => l,
+            Err(_) => return, // port busy — fall back to manual code entry
+        };
+        // Accept one connection with a 120-second timeout
+        let accept_result = tokio::time::timeout(
+            std::time::Duration::from_secs(120),
+            listener.accept(),
+        ).await;
+        let (mut stream, _) = match accept_result {
+            Ok(Ok(pair)) => pair,
+            _ => return,
+        };
+        let mut buf = vec![0u8; 4096];
+        let n = stream.read(&mut buf).await.unwrap_or(0);
+        let request = String::from_utf8_lossy(&buf[..n]);
+
+        // Extract the query string from "GET /oauth/callback?code=...&state=... HTTP/1.1"
+        let mut code = String::new();
+        let mut error = String::new();
+        if let Some(query_start) = request.find('?') {
+            if let Some(line_end) = request[query_start..].find(' ') {
+                let qs = &request[query_start + 1..query_start + line_end];
+                for (key, val) in url::form_urlencoded::parse(qs.as_bytes()) {
+                    match key.as_ref() {
+                        "code" => code = val.into_owned(),
+                        "error" => error = val.into_owned(),
+                        _ => {}
+                    }
+                }
+            }
+        }
+
+        // Send a response page to the browser
+        let (status, body_html) = if !code.is_empty() {
+            ("200 OK", "<html><body style=\"font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#1a1a2e;color:#e0e0e0\"><div style=\"text-align:center\"><h1 style=\"color:#4ade80\">&#10003; Authentication Successful</h1><p>You can close this tab and return to VibeCody.</p></div></body></html>")
+        } else {
+            ("400 Bad Request", "<html><body style=\"font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#1a1a2e;color:#e0e0e0\"><div style=\"text-align:center\"><h1 style=\"color:#f87171\">&#10007; Authentication Failed</h1><p>Please try again from VibeCody.</p></div></body></html>")
+        };
+        let response = format!(
+            "HTTP/1.1 {}\r\nContent-Type: text/html; charset=utf-8\r\nConnection: close\r\n\r\n{}",
+            status, body_html
+        );
+        let _ = stream.write_all(response.as_bytes()).await;
+        let _ = stream.shutdown().await;
+
+        // Emit Tauri event so the frontend can auto-complete the flow
+        if !code.is_empty() {
+            let _ = app_clone.emit("oauth-callback", serde_json::json!({
+                "provider": provider_clone,
+                "code": code,
+            }));
+        } else if !error.is_empty() {
+            let _ = app_clone.emit("oauth-callback", serde_json::json!({
+                "provider": provider_clone,
+                "error": error,
+            }));
+        }
+    });
 
     app.opener()
         .open_url(&oauth_url, None::<&str>)

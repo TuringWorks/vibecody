@@ -8,8 +8,9 @@
  *   4. Saved Customizations — Export/import/reset workspace preferences
  *   5. API Keys — BYOK provider keys (existing functionality preserved)
  */
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import {
   User, Palette, LogIn, Save, Key, X, Check, Upload, Download, RotateCcw,
   Sun, Moon, Eye, EyeOff, ChevronRight, CheckCircle, MinusCircle, AlertCircle,
@@ -1627,6 +1628,53 @@ function ProfileSection() {
     checkGoogleStatus();
   }, []);
 
+  // Listen for OAuth callback from the temporary local server
+  useEffect(() => {
+    const unlisten = listen<{ provider: string; code?: string; error?: string }>("oauth-callback", (event) => {
+      if (event.payload.provider !== "google") return;
+      if (event.payload.code) {
+        setGAuthCode(event.payload.code);
+        // Auto-complete the OAuth flow
+        (async () => {
+          setGoogleLoading(true);
+          setGoogleError(null);
+          try {
+            const config = await invoke<{ client_id: string; client_secret: string }>("cloud_oauth_get_client_config", { provider: "google" });
+            await invoke<{ provider: string; email: string; display_name: string; connected: boolean }>("cloud_oauth_complete", {
+              provider: "google",
+              code: event.payload.code,
+              clientId: config.client_id,
+              clientSecret: config.client_secret || "",
+              redirectUri: "http://localhost:7878/oauth/callback",
+            });
+            setGAwaitingCode(false);
+            setGAuthCode("");
+            const gProfile = await invoke<{ displayName: string; email: string; avatarUrl: string }>("cloud_oauth_google_profile");
+            const updated = {
+              ...profile,
+              displayName: gProfile.displayName || profile.displayName,
+              email: gProfile.email || profile.email,
+              avatarUrl: gProfile.avatarUrl || profile.avatarUrl,
+            };
+            setProfile(updated);
+            localStorage.setItem(STORAGE_KEYS.profile, JSON.stringify(updated));
+            setGoogleConnected(true);
+            setSaved(true);
+            setTimeout(() => setSaved(false), 2000);
+          } catch (e) {
+            setGoogleError(String(e));
+          } finally {
+            setGoogleLoading(false);
+          }
+        })();
+      } else if (event.payload.error) {
+        setGoogleError(`OAuth error: ${event.payload.error}`);
+        setGAwaitingCode(false);
+      }
+    });
+    return () => { unlisten.then(fn => fn()); };
+  }, [profile]);
+
   const checkGoogleStatus = async () => {
     try {
       const status = await invoke<{ connected: boolean; expired: boolean; email: string }>("cloud_oauth_status", { provider: "google" });
@@ -2440,15 +2488,39 @@ function ApiKeysSection() {
   const [showKey, setShowKey] = useState<Record<string, boolean>>({});
   const [validations, setValidations] = useState<Record<string, ApiKeyValidation>>({});
   const [validating, setValidating] = useState<Record<string, boolean>>({});
+  const loadedRef = useRef(false);
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load keys on mount
   useEffect(() => {
     let cancelled = false;
     invoke<ApiKeySettings>("get_provider_api_keys")
-      .then(s => { if (!cancelled) setSettings(s); })
-      .catch(() => {});
+      .then(s => {
+        if (!cancelled) {
+          setSettings(s);
+          // Mark as loaded after a tick so the auto-save effect skips the initial set
+          setTimeout(() => { loadedRef.current = true; }, 0);
+        }
+      })
+      .catch(() => { loadedRef.current = true; });
     return () => { cancelled = true; };
   }, []);
+
+  // Auto-save: debounce 1s after any settings change (skip the initial load)
+  useEffect(() => {
+    if (!loadedRef.current) return;
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(async () => {
+      try {
+        const providers = await invoke<string[]>("save_provider_api_keys", { settings });
+        window.dispatchEvent(new CustomEvent("vibeui:providers-updated", { detail: providers }));
+        setMessage({ type: "success", text: `Auto-saved. ${providers.length} model(s) available.` });
+      } catch (e) {
+        setMessage({ type: "error", text: String(e) });
+      }
+    }, 1000);
+    return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current); };
+  }, [settings]);
 
   // Listen for app-level validation events from useApiKeyMonitor (runs in App.tsx)
   useEffect(() => {
@@ -2513,9 +2585,11 @@ function ApiKeysSection() {
             }}>
               {v.valid
                 ? <><CheckCircle size={10} strokeWidth={2} /> OK ({v.latency_ms}ms)</>
-                : v.error === "No key configured"
+                : v.error === "No key configured" && provider !== "ollama"
                   ? <><MinusCircle size={10} strokeWidth={2} /> Not set</>
-                  : <><AlertCircle size={10} strokeWidth={2} /> {v.error}</>
+                  : v.error === "No key configured" && provider === "ollama"
+                    ? <><MinusCircle size={10} strokeWidth={2} /> Using device key</>
+                    : <><AlertCircle size={10} strokeWidth={2} /> {v.error}</>
               }
             </span>
           )}
@@ -2531,9 +2605,9 @@ function ApiKeysSection() {
           <button onClick={() => setShowKey({ ...showKey, [fieldKey]: !showKey[fieldKey] })} style={{ ...btnStyle, padding: "4px 8px", display: "flex", alignItems: "center" }}>
             {showKey[fieldKey] ? <EyeOff size={14} /> : <Eye size={14} />}
           </button>
-          {provider && settings[fieldKey] && (
+          {provider && (settings[fieldKey] || provider === "ollama") && (
             <button
-              onClick={() => validateSingle(provider, settings[fieldKey], provider === "ollama" ? settings.ollama_api_url : provider === "azure_openai" ? settings.azure_openai_api_url : provider === "vercel_ai" ? settings.vercel_ai_api_url : undefined)}
+              onClick={() => validateSingle(provider, settings[fieldKey] || "", provider === "ollama" ? settings.ollama_api_url : provider === "azure_openai" ? settings.azure_openai_api_url : provider === "vercel_ai" ? settings.vercel_ai_api_url : undefined)}
               disabled={isValidating}
               style={{ ...btnStyle, padding: "4px 8px", display: "flex", alignItems: "center", gap: 4, fontSize: 11, opacity: isValidating ? 0.5 : 1 }}
             >

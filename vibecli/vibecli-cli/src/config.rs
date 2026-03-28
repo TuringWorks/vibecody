@@ -458,10 +458,26 @@ pub struct VoiceConfig {
     /// Enable TTS output for gateway responses.
     #[serde(default)]
     pub tts_enabled: bool,
+    /// Prefer local offline transcription even when a cloud key is available.
+    #[serde(default)]
+    pub prefer_local: bool,
+    /// Local Whisper model variant: "tiny", "base", "small", "medium", "large".
+    #[serde(default = "VoiceConfig::default_local_model")]
+    pub local_model: String,
+    /// Language code for local transcription (e.g. "en", "fr", "de").
+    #[serde(default = "VoiceConfig::default_language")]
+    pub language: String,
+    /// Silence timeout in ms for live mic capture — stop recording after this much silence.
+    #[serde(default = "VoiceConfig::default_silence_timeout")]
+    pub silence_timeout_ms: u64,
 }
 
 #[allow(dead_code)]
 impl VoiceConfig {
+    fn default_local_model() -> String { "base".to_string() }
+    fn default_language() -> String { "en".to_string() }
+    fn default_silence_timeout() -> u64 { 1500 }
+
     pub fn resolve_whisper_api_key(&self, groq_key: Option<&str>) -> Option<String> {
         self.whisper_api_key.clone()
             .or_else(|| groq_key.map(|s| s.to_string()))
@@ -475,6 +491,10 @@ impl VoiceConfig {
         self.elevenlabs_voice_id.clone()
             .or_else(|| std::env::var("ELEVENLABS_VOICE_ID").ok())
             .unwrap_or_else(|| "21m00Tcm4TlvDq8ikWAM".to_string()) // Rachel default
+    }
+    /// Whether local voice should be tried (prefer_local or no cloud key available).
+    pub fn should_use_local(&self, groq_key: Option<&str>) -> bool {
+        self.prefer_local || self.resolve_whisper_api_key(groq_key).is_none()
     }
 }
 
