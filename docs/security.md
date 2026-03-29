@@ -9,6 +9,8 @@ This document describes VibeCody's security model, data privacy practices, and h
 
 ## Security Model Overview
 
+![Security Architecture](security-architecture.svg)
+
 VibeCody follows a **defense-in-depth** approach with multiple independent layers of protection:
 
 1. **Approval policies** gate what the agent can do.

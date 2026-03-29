@@ -1,0 +1,261 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700" font-family="Inter, -apple-system, system-ui, sans-serif">
+  <defs>
+    <marker id="arrow-white" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#e0e0e0"/>
+    </marker>
+    <marker id="arrow-green" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#27ae60"/>
+    </marker>
+    <marker id="arrow-orange" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#f39c12"/>
+    </marker>
+    <marker id="arrow-blue" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#3498db"/>
+    </marker>
+    <marker id="arrow-purple" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#9b59b6"/>
+    </marker>
+    <marker id="arrow-red" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#e74c3c"/>
+    </marker>
+    <filter id="shadow">
+      <feDropShadow dx="1" dy="2" stdDeviation="2" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="700" fill="#0d1117" rx="8"/>
+
+  <!-- Title -->
+  <text x="440" y="32" text-anchor="middle" fill="#e0e0e0" font-size="18" font-weight="700">VibeCody Plugin Architecture — 5-Layer Extensibility System</text>
+  <text x="440" y="50" text-anchor="middle" fill="#555" font-size="10">Simplest (top) to most complex (bottom)</text>
+
+  <!-- ═══════════ LAYER 1: SKILLS ═══════════ -->
+  <rect x="30" y="68" width="820" height="104" rx="8" fill="#0a1a10" stroke="#27ae60" stroke-width="1.5" filter="url(#shadow)"/>
+  <rect x="30" y="68" width="820" height="22" rx="8" fill="#27ae60" opacity="0.15"/>
+  <text x="50" y="84" fill="#27ae60" font-size="13" font-weight="700">Layer 1 — Skills</text>
+  <text x="270" y="84" fill="#1a8045" font-size="10">Simplest extensibility — zero code required</text>
+
+  <rect x="50" y="98" width="175" height="60" rx="6" fill="#102a15" stroke="#27ae60" stroke-width="0.8"/>
+  <text x="138" y="115" text-anchor="middle" fill="#6dce6d" font-size="10" font-weight="600">Format</text>
+  <text x="138" y="130" text-anchor="middle" fill="#448844" font-size="8">Markdown + YAML frontmatter</text>
+  <text x="138" y="142" text-anchor="middle" fill="#448844" font-size="8">name, triggers, category</text>
+
+  <rect x="240" y="98" width="175" height="60" rx="6" fill="#102a15" stroke="#27ae60" stroke-width="0.8"/>
+  <text x="328" y="115" text-anchor="middle" fill="#6dce6d" font-size="10" font-weight="600">Lifecycle</text>
+  <text x="328" y="130" text-anchor="middle" fill="#448844" font-size="8">Loaded at startup</text>
+  <text x="328" y="142" text-anchor="middle" fill="#448844" font-size="8">Matched by trigger keywords</text>
+
+  <rect x="430" y="98" width="175" height="60" rx="6" fill="#102a15" stroke="#27ae60" stroke-width="0.8"/>
+  <text x="518" y="115" text-anchor="middle" fill="#6dce6d" font-size="10" font-weight="600">Location</text>
+  <text x="518" y="130" text-anchor="middle" fill="#448844" font-size="8">~/.vibecli/skills/</text>
+  <text x="518" y="142" text-anchor="middle" fill="#448844" font-size="8">511+ built-in skill files</text>
+
+  <rect x="620" y="98" width="215" height="60" rx="6" fill="#102a15" stroke="#27ae60" stroke-width="0.8"/>
+  <text x="728" y="115" text-anchor="middle" fill="#6dce6d" font-size="10" font-weight="600">Capabilities</text>
+  <text x="728" y="130" text-anchor="middle" fill="#448844" font-size="8">System prompt injection</text>
+  <text x="728" y="142" text-anchor="middle" fill="#448844" font-size="8">25+ categories (cloud, security, ML ...)</text>
+
+  <!-- ═══════════ LAYER 2: HOOKS ═══════════ -->
+  <rect x="30" y="182" width="820" height="104" rx="8" fill="#1a1508" stroke="#f39c12" stroke-width="1.5" filter="url(#shadow)"/>
+  <rect x="30" y="182" width="820" height="22" rx="8" fill="#f39c12" opacity="0.12"/>
+  <text x="50" y="198" fill="#f39c12" font-size="13" font-weight="700">Layer 2 — Hooks</text>
+  <text x="225" y="198" fill="#a06a08" font-size="10">Event-driven automation — shell, LLM, or HTTP</text>
+
+  <rect x="50" y="212" width="175" height="60" rx="6" fill="#201a08" stroke="#f39c12" stroke-width="0.8"/>
+  <text x="138" y="229" text-anchor="middle" fill="#f3bc52" font-size="10" font-weight="600">Types</text>
+  <text x="138" y="244" text-anchor="middle" fill="#aa8844" font-size="8">Shell scripts</text>
+  <text x="138" y="256" text-anchor="middle" fill="#aa8844" font-size="8">LLM prompts / HTTP webhooks</text>
+
+  <rect x="240" y="212" width="175" height="60" rx="6" fill="#201a08" stroke="#f39c12" stroke-width="0.8"/>
+  <text x="328" y="229" text-anchor="middle" fill="#f3bc52" font-size="10" font-weight="600">Events</text>
+  <text x="328" y="244" text-anchor="middle" fill="#aa8844" font-size="8">PreToolUse, PostToolUse</text>
+  <text x="328" y="256" text-anchor="middle" fill="#aa8844" font-size="8">FileSaved, SessionStart</text>
+
+  <rect x="430" y="212" width="175" height="60" rx="6" fill="#201a08" stroke="#f39c12" stroke-width="0.8"/>
+  <text x="518" y="229" text-anchor="middle" fill="#f3bc52" font-size="10" font-weight="600">Protocol</text>
+  <text x="518" y="244" text-anchor="middle" fill="#aa8844" font-size="8">JSON stdin/stdout</text>
+  <text x="518" y="256" text-anchor="middle" fill="#aa8844" font-size="8">Exit 0=allow, 2=block</text>
+
+  <rect x="620" y="212" width="215" height="60" rx="6" fill="#201a08" stroke="#f39c12" stroke-width="0.8"/>
+  <text x="728" y="229" text-anchor="middle" fill="#f3bc52" font-size="10" font-weight="600">Use Cases</text>
+  <text x="728" y="244" text-anchor="middle" fill="#aa8844" font-size="8">Linting gates, auto-formatting</text>
+  <text x="728" y="256" text-anchor="middle" fill="#aa8844" font-size="8">Notifications, audit logging</text>
+
+  <!-- ═══════════ LAYER 3: PLUGINS ═══════════ -->
+  <rect x="30" y="296" width="820" height="104" rx="8" fill="#081620" stroke="#3498db" stroke-width="1.5" filter="url(#shadow)"/>
+  <rect x="30" y="296" width="820" height="22" rx="8" fill="#3498db" opacity="0.12"/>
+  <text x="50" y="312" fill="#3498db" font-size="13" font-weight="700">Layer 3 — Plugins</text>
+  <text x="230" y="312" fill="#1a6090" font-size="10">Composable bundles — skills + hooks + commands</text>
+
+  <rect x="50" y="326" width="175" height="60" rx="6" fill="#0a2030" stroke="#3498db" stroke-width="0.8"/>
+  <text x="138" y="343" text-anchor="middle" fill="#88bbdd" font-size="10" font-weight="600">Structure</text>
+  <text x="138" y="358" text-anchor="middle" fill="#4488aa" font-size="8">Bundle of skills + hooks</text>
+  <text x="138" y="370" text-anchor="middle" fill="#4488aa" font-size="8">+ custom REPL commands</text>
+
+  <rect x="240" y="326" width="175" height="60" rx="6" fill="#0a2030" stroke="#3498db" stroke-width="0.8"/>
+  <text x="328" y="343" text-anchor="middle" fill="#88bbdd" font-size="10" font-weight="600">Manifest</text>
+  <text x="328" y="358" text-anchor="middle" fill="#4488aa" font-size="8">plugin.toml</text>
+  <text x="328" y="370" text-anchor="middle" fill="#4488aa" font-size="8">Declared permissions</text>
+
+  <rect x="430" y="326" width="175" height="60" rx="6" fill="#0a2030" stroke="#3498db" stroke-width="0.8"/>
+  <text x="518" y="343" text-anchor="middle" fill="#88bbdd" font-size="10" font-weight="600">Location</text>
+  <text x="518" y="358" text-anchor="middle" fill="#4488aa" font-size="8">~/.vibecli/plugins/</text>
+  <text x="518" y="370" text-anchor="middle" fill="#4488aa" font-size="8">Installed via CLI or registry</text>
+
+  <rect x="620" y="326" width="215" height="60" rx="6" fill="#0a2030" stroke="#3498db" stroke-width="0.8"/>
+  <text x="728" y="343" text-anchor="middle" fill="#88bbdd" font-size="10" font-weight="600">Registry</text>
+  <text x="728" y="358" text-anchor="middle" fill="#4488aa" font-size="8">registry.vibecody.dev</text>
+  <text x="728" y="370" text-anchor="middle" fill="#4488aa" font-size="8">Verified, searchable directory</text>
+
+  <!-- ═══════════ LAYER 4: WASM EXTENSIONS ═══════════ -->
+  <rect x="30" y="410" width="820" height="104" rx="8" fill="#1a0a28" stroke="#9b59b6" stroke-width="1.5" filter="url(#shadow)"/>
+  <rect x="30" y="410" width="820" height="22" rx="8" fill="#9b59b6" opacity="0.12"/>
+  <text x="50" y="426" fill="#9b59b6" font-size="13" font-weight="700">Layer 4 — WASM Extensions</text>
+  <text x="310" y="426" fill="#6a3a8a" font-size="10">Sandboxed modules for the VibeUI desktop app</text>
+
+  <rect x="50" y="440" width="175" height="60" rx="6" fill="#1a1030" stroke="#9b59b6" stroke-width="0.8"/>
+  <text x="138" y="457" text-anchor="middle" fill="#c090e0" font-size="10" font-weight="600">Runtime</text>
+  <text x="138" y="472" text-anchor="middle" fill="#806098" font-size="8">WebAssembly (wasmtime)</text>
+  <text x="138" y="484" text-anchor="middle" fill="#806098" font-size="8">Sandboxed execution</text>
+
+  <rect x="240" y="440" width="175" height="60" rx="6" fill="#1a1030" stroke="#9b59b6" stroke-width="0.8"/>
+  <text x="328" y="457" text-anchor="middle" fill="#c090e0" font-size="10" font-weight="600">Host API</text>
+  <text x="328" y="472" text-anchor="middle" fill="#806098" font-size="8">File read/write access</text>
+  <text x="328" y="484" text-anchor="middle" fill="#806098" font-size="8">UI panel integration</text>
+
+  <rect x="430" y="440" width="175" height="60" rx="6" fill="#1a1030" stroke="#9b59b6" stroke-width="0.8"/>
+  <text x="518" y="457" text-anchor="middle" fill="#c090e0" font-size="10" font-weight="600">Permissions</text>
+  <text x="518" y="472" text-anchor="middle" fill="#806098" font-size="8">read / write / net</text>
+  <text x="518" y="484" text-anchor="middle" fill="#806098" font-size="8">Declared in manifest</text>
+
+  <rect x="620" y="440" width="215" height="60" rx="6" fill="#1a1030" stroke="#9b59b6" stroke-width="0.8"/>
+  <text x="728" y="457" text-anchor="middle" fill="#c090e0" font-size="10" font-weight="600">Integration</text>
+  <text x="728" y="472" text-anchor="middle" fill="#806098" font-size="8">Loaded by VibeUI desktop</text>
+  <text x="728" y="484" text-anchor="middle" fill="#806098" font-size="8">vibe-extensions crate</text>
+
+  <!-- ═══════════ LAYER 5: MCP/ACP ═══════════ -->
+  <rect x="30" y="524" width="820" height="104" rx="8" fill="#1a0808" stroke="#e74c3c" stroke-width="1.5" filter="url(#shadow)"/>
+  <rect x="30" y="524" width="820" height="22" rx="8" fill="#e74c3c" opacity="0.12"/>
+  <text x="50" y="540" fill="#e74c3c" font-size="13" font-weight="700">Layer 5 — MCP / ACP</text>
+  <text x="265" y="540" fill="#a02020" font-size="10">Full protocol integration — agent-to-agent</text>
+
+  <rect x="50" y="554" width="175" height="60" rx="6" fill="#200a0a" stroke="#e74c3c" stroke-width="0.8"/>
+  <text x="138" y="571" text-anchor="middle" fill="#e88" font-size="10" font-weight="600">Transport</text>
+  <text x="138" y="586" text-anchor="middle" fill="#995050" font-size="8">JSON-RPC 2.0</text>
+  <text x="138" y="598" text-anchor="middle" fill="#995050" font-size="8">Over stdio or HTTP</text>
+
+  <rect x="240" y="554" width="175" height="60" rx="6" fill="#200a0a" stroke="#e74c3c" stroke-width="0.8"/>
+  <text x="328" y="571" text-anchor="middle" fill="#e88" font-size="10" font-weight="600">Tools</text>
+  <text x="328" y="586" text-anchor="middle" fill="#995050" font-size="8">Bidirectional tool integration</text>
+  <text x="328" y="598" text-anchor="middle" fill="#995050" font-size="8">Lazy schema loading + LRU</text>
+
+  <rect x="430" y="554" width="175" height="60" rx="6" fill="#200a0a" stroke="#e74c3c" stroke-width="0.8"/>
+  <text x="518" y="571" text-anchor="middle" fill="#e88" font-size="10" font-weight="600">ACP Protocol</text>
+  <text x="518" y="586" text-anchor="middle" fill="#995050" font-size="8">Agent capability negotiation</text>
+  <text x="518" y="598" text-anchor="middle" fill="#995050" font-size="8">Server + client modes</text>
+
+  <rect x="620" y="554" width="215" height="60" rx="6" fill="#200a0a" stroke="#e74c3c" stroke-width="0.8"/>
+  <text x="728" y="571" text-anchor="middle" fill="#e88" font-size="10" font-weight="600">Directory</text>
+  <text x="728" y="586" text-anchor="middle" fill="#995050" font-size="8">Verified MCP plugin registry</text>
+  <text x="728" y="598" text-anchor="middle" fill="#995050" font-size="8">Search, install, review pipeline</text>
+
+  <!-- ═══════════ RIGHT SIDE: AGENT LOOP ═══════════ -->
+  <rect x="885" y="68" width="290" height="560" rx="10" fill="#111820" stroke="#e0e0e0" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="1030" y="92" text-anchor="middle" fill="#e0e0e0" font-size="14" font-weight="700">Agent Loop</text>
+  <text x="1030" y="108" text-anchor="middle" fill="#666" font-size="9">Runtime extensibility flow</text>
+
+  <!-- Flow steps -->
+  <rect x="920" y="125" width="220" height="42" rx="8" fill="#1a2030" stroke="#4a9eff" stroke-width="1.2"/>
+  <text x="1030" y="144" text-anchor="middle" fill="#88bbdd" font-size="11" font-weight="600">1. Trigger</text>
+  <text x="1030" y="158" text-anchor="middle" fill="#556688" font-size="8">User input, event, or agent action</text>
+
+  <line x1="1030" y1="167" x2="1030" y2="190" stroke="#e0e0e0" stroke-width="1.5" marker-end="url(#arrow-white)"/>
+
+  <rect x="920" y="192" width="220" height="42" rx="8" fill="#1a2030" stroke="#4a9eff" stroke-width="1.2"/>
+  <text x="1030" y="211" text-anchor="middle" fill="#88bbdd" font-size="11" font-weight="600">2. Match</text>
+  <text x="1030" y="225" text-anchor="middle" fill="#556688" font-size="8">Find matching skills, hooks, plugins</text>
+
+  <line x1="1030" y1="234" x2="1030" y2="257" stroke="#e0e0e0" stroke-width="1.5" marker-end="url(#arrow-white)"/>
+
+  <rect x="920" y="259" width="220" height="42" rx="8" fill="#1a2030" stroke="#4a9eff" stroke-width="1.2"/>
+  <text x="1030" y="278" text-anchor="middle" fill="#88bbdd" font-size="11" font-weight="600">3. Execute</text>
+  <text x="1030" y="292" text-anchor="middle" fill="#556688" font-size="8">Run extension in appropriate sandbox</text>
+
+  <line x1="1030" y1="301" x2="1030" y2="324" stroke="#e0e0e0" stroke-width="1.5" marker-end="url(#arrow-white)"/>
+
+  <rect x="920" y="326" width="220" height="42" rx="8" fill="#1a2030" stroke="#4a9eff" stroke-width="1.2"/>
+  <text x="1030" y="345" text-anchor="middle" fill="#88bbdd" font-size="11" font-weight="600">4. Result</text>
+  <text x="1030" y="359" text-anchor="middle" fill="#556688" font-size="8">Inject output into agent context</text>
+
+  <!-- Connecting arrows from Agent Loop to each layer -->
+  <!-- Layer 1 arrow -->
+  <line x1="920" y1="140" x2="852" y2="120" stroke="#27ae60" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+  <text x="878" y="122" fill="#27ae60" font-size="7" font-weight="600">skills</text>
+
+  <!-- Layer 2 arrow -->
+  <line x1="920" y1="170" x2="852" y2="234" stroke="#f39c12" stroke-width="1.5" marker-end="url(#arrow-orange)"/>
+  <text x="878" y="208" fill="#f39c12" font-size="7" font-weight="600">hooks</text>
+
+  <!-- Layer 3 arrow -->
+  <line x1="920" y1="280" x2="852" y2="348" stroke="#3498db" stroke-width="1.5" marker-end="url(#arrow-blue)"/>
+  <text x="878" y="320" fill="#3498db" font-size="7" font-weight="600">plugins</text>
+
+  <!-- Layer 4 arrow -->
+  <line x1="920" y1="340" x2="852" y2="462" stroke="#9b59b6" stroke-width="1.5" marker-end="url(#arrow-purple)"/>
+  <text x="878" y="408" fill="#9b59b6" font-size="7" font-weight="600">wasm</text>
+
+  <!-- Layer 5 arrow -->
+  <line x1="920" y1="355" x2="852" y2="576" stroke="#e74c3c" stroke-width="1.5" marker-end="url(#arrow-red)"/>
+  <text x="878" y="480" fill="#e74c3c" font-size="7" font-weight="600">mcp/acp</text>
+
+  <!-- Key files section inside Agent Loop panel -->
+  <rect x="905" y="390" width="255" height="225" rx="6" fill="#0d1117" stroke="#333" stroke-width="0.8"/>
+  <text x="920" y="410" fill="#666" font-size="9" font-weight="700">Key Implementation Files</text>
+
+  <circle cx="918" cy="430" r="4" fill="#27ae60"/>
+  <text x="928" y="433" fill="#27ae60" font-size="8">vibecli/skills/*.md</text>
+
+  <circle cx="918" cy="450" r="4" fill="#f39c12"/>
+  <text x="928" y="453" fill="#f39c12" font-size="8">vibecli/src/hooks.rs</text>
+
+  <circle cx="918" cy="470" r="4" fill="#3498db"/>
+  <text x="928" y="473" fill="#3498db" font-size="8">vibecli/src/plugins.rs</text>
+
+  <circle cx="918" cy="490" r="4" fill="#9b59b6"/>
+  <text x="928" y="493" fill="#9b59b6" font-size="8">vibeui/crates/vibe-extensions/</text>
+
+  <circle cx="918" cy="510" r="4" fill="#e74c3c"/>
+  <text x="928" y="513" fill="#e74c3c" font-size="8">vibecli/src/mcp_lazy.rs</text>
+
+  <circle cx="918" cy="530" r="4" fill="#e74c3c"/>
+  <text x="928" y="533" fill="#e74c3c" font-size="8">vibecli/src/acp_protocol.rs</text>
+
+  <line x1="905" y1="548" x2="1160" y2="548" stroke="#333" stroke-width="0.5"/>
+  <text x="920" y="565" fill="#556" font-size="8">Agent dispatches to the correct</text>
+  <text x="920" y="578" fill="#556" font-size="8">layer based on extension type,</text>
+  <text x="920" y="591" fill="#556" font-size="8">enforcing per-layer permissions</text>
+  <text x="920" y="604" fill="#556" font-size="8">and sandbox boundaries.</text>
+
+  <!-- ═══════════ BOTTOM LEGEND ═══════════ -->
+  <rect x="30" y="645" width="820" height="42" rx="6" fill="#0d1117" stroke="#333" stroke-width="1"/>
+  <text x="50" y="664" fill="#555" font-size="9" font-weight="600">Complexity</text>
+  <line x1="110" y1="660" x2="360" y2="660" stroke="#444" stroke-width="1.5"/>
+  <polygon points="358,656 366,660 358,664" fill="#444"/>
+  <text x="118" y="674" fill="#27ae60" font-size="8">Simple</text>
+  <text x="345" y="674" fill="#e74c3c" font-size="8" text-anchor="end">Complex</text>
+
+  <rect x="390" y="650" width="12" height="12" rx="2" fill="#27ae60" opacity="0.5"/>
+  <text x="408" y="660" fill="#888" font-size="8">Skills</text>
+  <rect x="455" y="650" width="12" height="12" rx="2" fill="#f39c12" opacity="0.5"/>
+  <text x="473" y="660" fill="#888" font-size="8">Hooks</text>
+  <rect x="515" y="650" width="12" height="12" rx="2" fill="#3498db" opacity="0.5"/>
+  <text x="533" y="660" fill="#888" font-size="8">Plugins</text>
+  <rect x="580" y="650" width="12" height="12" rx="2" fill="#9b59b6" opacity="0.5"/>
+  <text x="598" y="660" fill="#888" font-size="8">WASM</text>
+  <rect x="640" y="650" width="12" height="12" rx="2" fill="#e74c3c" opacity="0.5"/>
+  <text x="658" y="660" fill="#888" font-size="8">MCP/ACP</text>
+
+  <text x="740" y="664" fill="#444" font-size="8">|</text>
+  <text x="758" y="664" fill="#666" font-size="8">All layers enforce permission boundaries and sandbox isolation</text>
+</svg>

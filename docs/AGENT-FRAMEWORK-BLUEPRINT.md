@@ -13,6 +13,10 @@
 
 ---
 
+## Architecture Diagram
+
+![Agent Framework Architecture](agent-framework.svg)
+
 ## 1. Executive Summary
 
 VibeCody already possesses ~85% of the infrastructure needed to function as a full autonomous agent framework. Its agent loop, tool system, multi-provider support, container sandboxing, MCP integration, and 18-platform gateway form a foundation that exceeds many dedicated agent frameworks. The primary gaps are **native browser automation** (DOM interaction via CDP/Playwright), **real-time visual grounding** (continuous screen observation), and a **unified agent-as-a-service API** that exposes these capabilities to external consumers.

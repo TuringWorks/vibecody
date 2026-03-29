@@ -1,0 +1,257 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1300 820" font-family="Inter, -apple-system, system-ui, sans-serif">
+  <defs>
+    <marker id="arr-blue" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#4a9eff"/></marker>
+    <marker id="arr-green" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#27ae60"/></marker>
+    <marker id="arr-orange" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#e67e22"/></marker>
+    <marker id="arr-purple" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#9b59b6"/></marker>
+    <filter id="sh"><feDropShadow dx="1" dy="2" stdDeviation="2" flood-opacity="0.3"/></filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1300" height="820" fill="#0d1117" rx="8"/>
+
+  <!-- Title -->
+  <text x="650" y="30" text-anchor="middle" fill="#e0e0e0" font-size="18" font-weight="700">VibeCody Architecture — Crate Hierarchy &amp; Data Flow</text>
+
+  <!-- ═══════ BINARY LAYER (top) ═══════ -->
+  <rect x="15" y="48" width="1270" height="130" rx="8" fill="#0a1a2d" stroke="#4a9eff" stroke-width="1.2" filter="url(#sh)"/>
+  <text x="650" y="68" text-anchor="middle" fill="#4a9eff" font-size="12" font-weight="700">BINARIES &amp; APPS</text>
+
+  <!-- VibeCLI -->
+  <rect x="35" y="80" width="280" height="85" rx="8" fill="#12243d" stroke="#4a9eff" stroke-width="1"/>
+  <text x="175" y="100" text-anchor="middle" fill="#e0e0e0" font-size="13" font-weight="700">vibecli-cli</text>
+  <text x="175" y="116" text-anchor="middle" fill="#6699cc" font-size="9">Terminal AI Assistant (TUI + REPL)</text>
+  <text x="175" y="130" text-anchor="middle" fill="#556688" font-size="8">main.rs · 178 Rust modules · 543 skills</text>
+  <text x="175" y="144" text-anchor="middle" fill="#556688" font-size="8">Ratatui + Rustyline · 85+ REPL commands</text>
+  <text x="175" y="157" text-anchor="middle" fill="#445566" font-size="7">serve.rs HTTP daemon · gateway.rs 18 platforms</text>
+
+  <!-- VibeUI -->
+  <rect x="340" y="80" width="320" height="85" rx="8" fill="#12243d" stroke="#4a9eff" stroke-width="1"/>
+  <text x="500" y="100" text-anchor="middle" fill="#e0e0e0" font-size="13" font-weight="700">vibe-ui (Tauri 2)</text>
+  <text x="500" y="116" text-anchor="middle" fill="#6699cc" font-size="9">Desktop Code Editor (macOS / Linux / Windows)</text>
+  <text x="500" y="130" text-anchor="middle" fill="#556688" font-size="8">React + TypeScript · Monaco Editor · 160+ panels</text>
+  <text x="500" y="144" text-anchor="middle" fill="#556688" font-size="8">commands.rs · 874 Tauri IPC commands</text>
+  <text x="500" y="157" text-anchor="middle" fill="#445566" font-size="7">lib.rs AppState · CSP security · devtools</text>
+
+  <!-- VibeApp -->
+  <rect x="685" y="80" width="140" height="85" rx="8" fill="#12243d" stroke="#4a9eff" stroke-width="0.8" stroke-dasharray="4,3"/>
+  <text x="755" y="100" text-anchor="middle" fill="#b0c0d0" font-size="11" font-weight="600">vibeapp</text>
+  <text x="755" y="116" text-anchor="middle" fill="#556688" font-size="8">Alternate Tauri shell</text>
+
+  <!-- Vibe Indexer -->
+  <rect x="850" y="80" width="140" height="85" rx="8" fill="#12243d" stroke="#4a9eff" stroke-width="0.8" stroke-dasharray="4,3"/>
+  <text x="920" y="100" text-anchor="middle" fill="#b0c0d0" font-size="11" font-weight="600">vibe-indexer</text>
+  <text x="920" y="116" text-anchor="middle" fill="#556688" font-size="8">Standalone indexing</text>
+  <text x="920" y="130" text-anchor="middle" fill="#556688" font-size="8">service</text>
+
+  <!-- IDE Plugins -->
+  <rect x="1015" y="80" width="250" height="85" rx="8" fill="#0a1e0a" stroke="#27ae60" stroke-width="0.8"/>
+  <text x="1140" y="100" text-anchor="middle" fill="#27ae60" font-size="11" font-weight="600">Editor Plugins</text>
+  <text x="1140" y="118" text-anchor="middle" fill="#447744" font-size="9">VS Code Extension</text>
+  <text x="1140" y="132" text-anchor="middle" fill="#447744" font-size="9">JetBrains Plugin (Gradle)</text>
+  <text x="1140" y="146" text-anchor="middle" fill="#447744" font-size="9">Neovim Plugin</text>
+  <text x="1140" y="160" text-anchor="middle" fill="#447744" font-size="9">Agent SDK (TypeScript)</text>
+
+  <!-- ═══════ AI LAYER ═══════ -->
+  <rect x="15" y="195" width="625" height="200" rx="8" fill="#1a0a20" stroke="#9b59b6" stroke-width="1.2" filter="url(#sh)"/>
+  <text x="328" y="215" text-anchor="middle" fill="#9b59b6" font-size="12" font-weight="700">vibe-ai — AI Provider Abstraction &amp; Agent Framework</text>
+
+  <!-- AIProvider trait -->
+  <rect x="35" y="228" width="230" height="80" rx="6" fill="#1e1030" stroke="#9b59b6" stroke-width="0.8"/>
+  <text x="150" y="246" text-anchor="middle" fill="#c090e0" font-size="10" font-weight="600">AIProvider Trait</text>
+  <text x="150" y="260" text-anchor="middle" fill="#806098" font-size="8">chat() · stream_chat() · chat_with_images()</text>
+  <text x="150" y="274" text-anchor="middle" fill="#806098" font-size="8">complete() · name() · supports_vision()</text>
+  <text x="150" y="288" text-anchor="middle" fill="#806098" font-size="8">18 providers: Gemini, Ollama, Claude,</text>
+  <text x="150" y="300" text-anchor="middle" fill="#605078" font-size="8">OpenAI, Grok, Groq, Bedrock, Copilot, ...</text>
+
+  <!-- Agent Loop -->
+  <rect x="280" y="228" width="175" height="80" rx="6" fill="#1e1030" stroke="#9b59b6" stroke-width="0.8"/>
+  <text x="368" y="246" text-anchor="middle" fill="#c090e0" font-size="10" font-weight="600">Agent Loop</text>
+  <text x="368" y="260" text-anchor="middle" fill="#806098" font-size="8">Think → Plan → Execute → Observe</text>
+  <text x="368" y="274" text-anchor="middle" fill="#806098" font-size="8">11 built-in tools + MCP tools</text>
+  <text x="368" y="288" text-anchor="middle" fill="#806098" font-size="8">Circuit breaker (5 states)</text>
+  <text x="368" y="300" text-anchor="middle" fill="#605078" font-size="8">80K token context budget</text>
+
+  <!-- Resilience -->
+  <rect x="470" y="228" width="155" height="80" rx="6" fill="#1e1030" stroke="#9b59b6" stroke-width="0.8"/>
+  <text x="548" y="246" text-anchor="middle" fill="#c090e0" font-size="10" font-weight="600">Resilience</text>
+  <text x="548" y="260" text-anchor="middle" fill="#806098" font-size="8">RetryConfig (exp. backoff)</text>
+  <text x="548" y="274" text-anchor="middle" fill="#806098" font-size="8">ProviderHealthTracker</text>
+  <text x="548" y="288" text-anchor="middle" fill="#806098" font-size="8">FailoverProvider</text>
+  <text x="548" y="300" text-anchor="middle" fill="#605078" font-size="8">Error classification</text>
+
+  <!-- Skills/Hooks/MCP -->
+  <rect x="35" y="318" width="285" height="65" rx="6" fill="#201020" stroke="#8e44ad" stroke-width="0.8"/>
+  <text x="178" y="336" text-anchor="middle" fill="#a070c0" font-size="10" font-weight="600">Extensions: Skills · Hooks · MCP · ACP</text>
+  <text x="178" y="352" text-anchor="middle" fill="#806098" font-size="8">543 skill files · JSON-RPC 2.0 · Lazy schema loading</text>
+  <text x="178" y="366" text-anchor="middle" fill="#806098" font-size="8">Hook events: PreToolUse, PostToolUse, FileSaved, SessionStart</text>
+  <text x="178" y="378" text-anchor="middle" fill="#605078" font-size="8">A2A protocol · Agent teams · Capability negotiation</text>
+
+  <!-- Streaming -->
+  <rect x="335" y="318" width="290" height="65" rx="6" fill="#201020" stroke="#8e44ad" stroke-width="0.8"/>
+  <text x="480" y="336" text-anchor="middle" fill="#a070c0" font-size="10" font-weight="600">Streaming &amp; Embeddings</text>
+  <text x="480" y="352" text-anchor="middle" fill="#806098" font-size="8">CompletionStream (futures::Stream)</text>
+  <text x="480" y="366" text-anchor="middle" fill="#806098" font-size="8">EmbeddingProvider · VectorDB (cosine, HNSW)</text>
+  <text x="480" y="378" text-anchor="middle" fill="#605078" font-size="8">ImageAttachment · Vision API</text>
+
+  <!-- ═══════ CORE LAYER ═══════ -->
+  <rect x="15" y="410" width="625" height="160" rx="8" fill="#0a1a0a" stroke="#27ae60" stroke-width="1.2" filter="url(#sh)"/>
+  <text x="328" y="430" text-anchor="middle" fill="#27ae60" font-size="12" font-weight="700">vibe-core — Editor Primitives (no AI, no UI)</text>
+
+  <rect x="35" y="442" width="140" height="55" rx="6" fill="#102210" stroke="#27ae60" stroke-width="0.8"/>
+  <text x="105" y="460" text-anchor="middle" fill="#6dce6d" font-size="10" font-weight="600">TextBuffer</text>
+  <text x="105" y="474" text-anchor="middle" fill="#447744" font-size="8">Rope (ropey) · O(log n)</text>
+  <text x="105" y="486" text-anchor="middle" fill="#447744" font-size="8">Undo/redo · Multi-cursor</text>
+
+  <rect x="190" y="442" width="140" height="55" rx="6" fill="#102210" stroke="#27ae60" stroke-width="0.8"/>
+  <text x="260" y="460" text-anchor="middle" fill="#6dce6d" font-size="10" font-weight="600">FileSystem</text>
+  <text x="260" y="474" text-anchor="middle" fill="#447744" font-size="8">Async tokio I/O</text>
+  <text x="260" y="486" text-anchor="middle" fill="#447744" font-size="8">Watch (notify crate)</text>
+
+  <rect x="345" y="442" width="140" height="55" rx="6" fill="#102210" stroke="#27ae60" stroke-width="0.8"/>
+  <text x="415" y="460" text-anchor="middle" fill="#6dce6d" font-size="10" font-weight="600">Git</text>
+  <text x="415" y="474" text-anchor="middle" fill="#447744" font-size="8">git2 (libgit2)</text>
+  <text x="415" y="486" text-anchor="middle" fill="#447744" font-size="8">Diff · Blame �� Branch</text>
+
+  <rect x="500" y="442" width="125" height="55" rx="6" fill="#102210" stroke="#27ae60" stroke-width="0.8"/>
+  <text x="563" y="460" text-anchor="middle" fill="#6dce6d" font-size="10" font-weight="600">Search</text>
+  <text x="563" y="474" text-anchor="middle" fill="#447744" font-size="8">Regex · ripgrep-style</text>
+  <text x="563" y="486" text-anchor="middle" fill="#447744" font-size="8">Glob · Fuzzy match</text>
+
+  <rect x="35" y="506" width="205" height="50" rx="6" fill="#102210" stroke="#27ae60" stroke-width="0.8"/>
+  <text x="138" y="524" text-anchor="middle" fill="#6dce6d" font-size="10" font-weight="600">Terminal (portable-pty)</text>
+  <text x="138" y="540" text-anchor="middle" fill="#447744" font-size="8">PTY multiplexer · Shell integration</text>
+
+  <rect x="255" y="506" width="205" height="50" rx="6" fill="#102210" stroke="#27ae60" stroke-width="0.8"/>
+  <text x="358" y="524" text-anchor="middle" fill="#6dce6d" font-size="10" font-weight="600">DiffEngine (similar)</text>
+  <text x="358" y="540" text-anchor="middle" fill="#447744" font-size="8">Unified/side-by-side · Syntax-aware</text>
+
+  <rect x="475" y="506" width="150" height="50" rx="6" fill="#102210" stroke="#27ae60" stroke-width="0.8"/>
+  <text x="550" y="524" text-anchor="middle" fill="#6dce6d" font-size="10" font-weight="600">Workspace</text>
+  <text x="550" y="540" text-anchor="middle" fill="#447744" font-size="8">Multi-folder · Project</text>
+
+  <!-- ═══════ RIGHT COLUMN: vibe-lsp, vibe-extensions, vibe-collab ═══════ -->
+  <rect x="660" y="195" width="310" height="110" rx="8" fill="#1a1a0a" stroke="#f39c12" stroke-width="1.2" filter="url(#sh)"/>
+  <text x="815" y="215" text-anchor="middle" fill="#f39c12" font-size="12" font-weight="700">vibe-lsp</text>
+  <text x="815" y="234" text-anchor="middle" fill="#c0a040" font-size="9">Language Server Protocol Client</text>
+  <text x="815" y="252" text-anchor="middle" fill="#887733" font-size="8">lsp-types �� jsonrpc-core · tokio-util</text>
+  <text x="815" y="268" text-anchor="middle" fill="#887733" font-size="8">Auto-complete · Diagnostics · Go-to-definition</text>
+  <text x="815" y="284" text-anchor="middle" fill="#887733" font-size="8">Hover · References · Code actions</text>
+
+  <rect x="660" y="320" width="310" height="100" rx="8" fill="#1a0a1a" stroke="#e74c3c" stroke-width="1.2" filter="url(#sh)"/>
+  <text x="815" y="340" text-anchor="middle" fill="#e74c3c" font-size="12" font-weight="700">vibe-extensions</text>
+  <text x="815" y="358" text-anchor="middle" fill="#c06060" font-size="9">WASM Extension System</text>
+  <text x="815" y="376" text-anchor="middle" fill="#884444" font-size="8">wasmtime · wasmtime-wasi</text>
+  <text x="815" y="392" text-anchor="middle" fill="#884444" font-size="8">Sandboxed execution · Host API</text>
+  <text x="815" y="408" text-anchor="middle" fill="#884444" font-size="8">ExtensionManifest · Permission model</text>
+
+  <rect x="660" y="435" width="310" height="100" rx="8" fill="#0a1a1a" stroke="#1abc9c" stroke-width="1.2" filter="url(#sh)"/>
+  <text x="815" y="455" text-anchor="middle" fill="#1abc9c" font-size="12" font-weight="700">vibe-collab</text>
+  <text x="815" y="473" text-anchor="middle" fill="#33aa88" font-size="9">CRDT Real-time Collaboration</text>
+  <text x="815" y="491" text-anchor="middle" fill="#338877" font-size="8">Yjs · WebSocket sync</text>
+  <text x="815" y="507" text-anchor="middle" fill="#338877" font-size="8">Cursor awareness · Conflict-free editing</text>
+  <text x="815" y="523" text-anchor="middle" fill="#338877" font-size="8">Session sharing · QR pairing</text>
+
+  <!-- ═══════ FRONTEND LAYER ═══════ -->
+  <rect x="990" y="195" width="295" height="340" rx="8" fill="#12182a" stroke="#4a9eff" stroke-width="1.2" filter="url(#sh)"/>
+  <text x="1138" y="215" text-anchor="middle" fill="#4a9eff" font-size="12" font-weight="700">React + TypeScript Frontend</text>
+
+  <rect x="1005" y="228" width="265" height="38" rx="5" fill="#1e2a44" stroke="#4a9eff" stroke-width="0.6"/>
+  <text x="1138" y="245" text-anchor="middle" fill="#88aadd" font-size="10" font-weight="600">Monaco Editor</text>
+  <text x="1138" y="258" text-anchor="middle" fill="#556688" font-size="8">Syntax highlighting · IntelliSense · Multi-cursor</text>
+
+  <rect x="1005" y="274" width="265" height="38" rx="5" fill="#1e2a44" stroke="#4a9eff" stroke-width="0.6"/>
+  <text x="1138" y="291" text-anchor="middle" fill="#88aadd" font-size="10" font-weight="600">AIChat Component</text>
+  <text x="1138" y="304" text-anchor="middle" fill="#556688" font-size="8">Streaming · Attachments · Tool calls · Markdown</text>
+
+  <rect x="1005" y="320" width="265" height="38" rx="5" fill="#1e2a44" stroke="#4a9eff" stroke-width="0.6"/>
+  <text x="1138" y="337" text-anchor="middle" fill="#88aadd" font-size="10" font-weight="600">160+ Panel Components</text>
+  <text x="1138" y="350" text-anchor="middle" fill="#556688" font-size="8">Agent · Docker · K8s · Git · MCP · Analytics · ...</text>
+
+  <rect x="1005" y="366" width="265" height="38" rx="5" fill="#1e2a44" stroke="#4a9eff" stroke-width="0.6"/>
+  <text x="1138" y="383" text-anchor="middle" fill="#88aadd" font-size="10" font-weight="600">Terminal (xterm.js)</text>
+  <text x="1138" y="396" text-anchor="middle" fill="#556688" font-size="8">PTY bridge · Integrated shell</text>
+
+  <rect x="1005" y="412" width="130" height="34" rx="5" fill="#1e2a44" stroke="#4a9eff" stroke-width="0.6"/>
+  <text x="1070" y="433" text-anchor="middle" fill="#88aadd" font-size="9" font-weight="600">File Explorer</text>
+
+  <rect x="1140" y="412" width="130" height="34" rx="5" fill="#1e2a44" stroke="#4a9eff" stroke-width="0.6"/>
+  <text x="1205" y="433" text-anchor="middle" fill="#88aadd" font-size="9" font-weight="600">Git Panel</text>
+
+  <rect x="1005" y="454" width="265" height="34" rx="5" fill="#1e2a44" stroke="#4a9eff" stroke-width="0.6"/>
+  <text x="1138" y="475" text-anchor="middle" fill="#88aadd" font-size="9" font-weight="600">Tauri IPC Bridge → commands.rs</text>
+
+  <rect x="1005" y="496" width="265" height="28" rx="5" fill="#0a1020" stroke="#3366aa" stroke-width="0.6" stroke-dasharray="3,3"/>
+  <text x="1138" y="515" text-anchor="middle" fill="#5577aa" font-size="8">@tauri-apps/api · plugin-dialog · plugin-opener</text>
+
+  <!-- ═══════ DEPENDENCY ARROWS ═══════ -->
+
+  <!-- vibecli → vibe-ai -->
+  <line x1="175" y1="165" x2="175" y2="193" stroke="#9b59b6" stroke-width="1.8" marker-end="url(#arr-purple)"/>
+
+  <!-- vibeui → vibe-ai -->
+  <line x1="460" y1="165" x2="400" y2="193" stroke="#9b59b6" stroke-width="1.8" marker-end="url(#arr-purple)"/>
+
+  <!-- vibeui → vibe-core -->
+  <line x1="500" y1="165" x2="500" y2="408" stroke="#27ae60" stroke-width="1.2" marker-end="url(#arr-green)" stroke-dasharray="6,3"/>
+
+  <!-- vibe-ai → vibe-core -->
+  <line x1="328" y1="395" x2="328" y2="408" stroke="#27ae60" stroke-width="1.8" marker-end="url(#arr-green)"/>
+
+  <!-- vibeui → vibe-lsp -->
+  <line x1="560" y1="130" x2="658" y2="230" stroke="#f39c12" stroke-width="1.2" marker-end="url(#arr-orange)"/>
+
+  <!-- vibeui → vibe-extensions -->
+  <line x1="580" y1="145" x2="658" y2="360" stroke="#e74c3c" stroke-width="1" marker-end="url(#arr-orange)" stroke-dasharray="4,3"/>
+
+  <!-- vibeui → vibe-collab -->
+  <path d="M 590,155 Q 640,300 658,475" stroke="#1abc9c" stroke-width="1" fill="none" marker-end="url(#arr-green)" stroke-dasharray="4,3"/>
+
+  <!-- vibeui → React frontend -->
+  <line x1="660" y1="120" x2="988" y2="350" stroke="#4a9eff" stroke-width="1.2" marker-end="url(#arr-blue)" stroke-dasharray="5,3"/>
+
+  <!-- ═══════ EXTERNAL DEPS ═══════ -->
+  <rect x="15" y="590" width="1270" height="105" rx="8" fill="#0f0f0f" stroke="#444" stroke-width="0.8"/>
+  <text x="650" y="610" text-anchor="middle" fill="#666" font-size="11" font-weight="700">Key External Dependencies</text>
+
+  <text x="50" y="635" fill="#4a9eff" font-size="9" font-weight="600">Rust</text>
+  <text x="50" y="650" fill="#555" font-size="8">tokio · serde · reqwest · futures · anyhow</text>
+  <text x="50" y="664" fill="#555" font-size="8">axum · hyper · tonic (gRPC) · tracing</text>
+  <text x="50" y="678" fill="#555" font-size="8">chrono · regex · dirs · base64 · sha2</text>
+
+  <text x="350" y="635" fill="#27ae60" font-size="9" font-weight="600">Editor</text>
+  <text x="350" y="650" fill="#555" font-size="8">ropey · git2 (libgit2) · similar (diff)</text>
+  <text x="350" y="664" fill="#555" font-size="8">portable-pty · notify · walkdir · ignore</text>
+  <text x="350" y="678" fill="#555" font-size="8">syntect · ratatui · rustyline · crossterm</text>
+
+  <text x="650" y="635" fill="#9b59b6" font-size="9" font-weight="600">AI / ML</text>
+  <text x="650" y="650" fill="#555" font-size="8">async-trait · futures-util · pin-project</text>
+  <text x="650" y="664" fill="#555" font-size="8">lsp-types · jsonrpc-core · wasmtime</text>
+  <text x="650" y="678" fill="#555" font-size="8">opentelemetry · opentelemetry-otlp</text>
+
+  <text x="950" y="635" fill="#e67e22" font-size="9" font-weight="600">Frontend</text>
+  <text x="950" y="650" fill="#555" font-size="8">React 19 · TypeScript · Vite 7 · Monaco Editor</text>
+  <text x="950" y="664" fill="#555" font-size="8">xterm.js · Yjs · lucide-react · react-markdown</text>
+  <text x="950" y="678" fill="#555" font-size="8">Tauri 2 · plugin-dialog · plugin-opener</text>
+
+  <!-- ═══════ STATS FOOTER ═══════ -->
+  <rect x="15" y="710" width="1270" height="100" rx="8" fill="#0d1117" stroke="#333" stroke-width="0.8"/>
+  <text x="30" y="730" fill="#666" font-size="10" font-weight="700">Project Stats</text>
+
+  <text x="30" y="752" fill="#4a9eff" font-size="9" font-weight="600">Crates</text>
+  <text x="30" y="766" fill="#555" font-size="8">9 workspace members (3 binaries + 5 libs + 1 indexer)</text>
+
+  <text x="280" y="752" fill="#9b59b6" font-size="9" font-weight="600">Modules</text>
+  <text x="280" y="766" fill="#555" font-size="8">178+ Rust modules · 160+ React panels</text>
+
+  <text x="530" y="752" fill="#27ae60" font-size="9" font-weight="600">Tests</text>
+  <text x="530" y="766" fill="#555" font-size="8">8,831 Rust tests · 43 frontend tests · 0 failures</text>
+
+  <text x="780" y="752" fill="#e67e22" font-size="9" font-weight="600">AI Providers</text>
+  <text x="780" y="766" fill="#555" font-size="8">18 providers · streaming · vision · embeddings</text>
+
+  <text x="1030" y="752" fill="#f39c12" font-size="9" font-weight="600">Integrations</text>
+  <text x="1030" y="766" fill="#555" font-size="8">85+ REPL commands · 874 Tauri commands · 543 skills</text>
+
+  <text x="30" y="798" fill="#444" font-size="8">Architecture: Rust workspace monorepo · Tauri 2 desktop · React 19 frontend · tokio async runtime · defense-in-depth security</text>
+</svg>
