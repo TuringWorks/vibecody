@@ -7,9 +7,11 @@
 pub mod symbol;
 pub mod embeddings;
 pub mod remote;
+pub mod turboquant;
 
 pub use symbol::{Language, SymbolInfo, SymbolKind};
 pub use embeddings::{EmbeddingIndex, EmbeddingProvider, EmbeddingDoc, SearchHit, cosine_similarity};
+pub use turboquant::{TurboQuantIndex, TurboQuantConfig, TurboQuantStats, TurboQuantSearchResult, compress_batch};
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};

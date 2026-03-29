@@ -49,6 +49,9 @@ pub enum QuantizationMethod {
     GgufQ4Km,
     GgufQ5Km,
     GgufQ80,
+    /// TurboQuant: PolarQuant + QJL two-stage KV-cache compression (~3 bits/dim).
+    /// Requires backend support (vLLM ≥ 0.7, llama.cpp with --kv-quant turbo).
+    TurboQuant,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -462,6 +465,8 @@ pub fn estimate_gpu_memory(model_params_b: f64, quantization: &QuantizationMetho
         QuantizationMethod::Int4 | QuantizationMethod::Gptq | QuantizationMethod::Awq
         | QuantizationMethod::GgufQ4Km | QuantizationMethod::GgufQ5Km
         | QuantizationMethod::SqueezeLlm => 0.5,
+        // TurboQuant: ~3 bits/param for KV cache, ~0.375 bytes/param
+        QuantizationMethod::TurboQuant => 0.375,
     };
     let model_mb = (model_params_b * 1_000.0 * bytes_per_param) as u64;
     // Add ~20% overhead for KV cache, activations
