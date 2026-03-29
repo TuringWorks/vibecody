@@ -168,7 +168,7 @@ impl PolarQuantized {
             } else if val < 0.5 {
                 2u8
             } else {
-                3u8
+                POLAR_LEVELS - 1
             };
             let byte_idx = i / 4;
             let bit_offset = (i % 4) * 2;
