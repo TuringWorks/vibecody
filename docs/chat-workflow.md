@@ -4,6 +4,14 @@ This document traces a chat message from keypress to rendered response, covering
 
 ---
 
+## Architecture Diagram
+
+![Chat Workflow Architecture](chat-workflow.svg)
+
+> [Open in draw.io](chat-workflow.drawio) for editable version.
+
+---
+
 ## Overview
 
 ```
@@ -11,31 +19,31 @@ User types message
        │
        ▼
 ┌─────────────────┐
-│  AIChat.tsx      │  React component
-│  sendMessage()   │
+│  AIChat.tsx     │  React component
+│  sendMessage()  │
 └───────┬─────────┘
         │ invoke("stream_chat_message", { request })
         ▼
 ┌─────────────────┐
-│  commands.rs     │  Tauri command handler
-│  stream_chat_    │
-│  message()       │
+│  commands.rs    │  Tauri command handler
+│  stream_chat_   │
+│  message()      │
 └───────┬─────────┘
         │ tokio::spawn (async task)
         ▼
 ┌─────────────────┐
-│  AIProvider      │  vibe-ai crate
-│  stream_chat()   │  (Gemini, Ollama, Claude, OpenAI, ...)
+│  AIProvider     │  vibe-ai crate
+│  stream_chat()  │  (Gemini, Ollama, Claude, OpenAI, ...)
 └───────┬─────────┘
         │ SSE / streaming HTTP chunks
         ▼
 ┌─────────────────┐
-│  Event emitter   │  app_handle.emit()
-│  chat:chunk      │──► Frontend accumulates streamingText
-│  chat:complete   │──► Frontend finalizes message
-│  chat:error      │──► Frontend shows error
-│  chat:status     │──► Frontend shows retry/thinking
-│  chat:metrics    │──► Frontend shows token stats
+│  Event emitter  │  app_handle.emit()
+│  chat:chunk     │──► Frontend accumulates streamingText
+│  chat:complete  │──► Frontend finalizes message
+│  chat:error     │──► Frontend shows error
+│  chat:status    │──► Frontend shows retry/thinking
+│  chat:metrics   │──► Frontend shows token stats
 └─────────────────┘
 ```
 

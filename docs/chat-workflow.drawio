@@ -1,0 +1,257 @@
+<mxfile host="app.diagrams.net" modified="2026-03-29T00:00:00.000Z" agent="VibeCody" version="24.0.0" type="device">
+  <diagram id="chat-workflow" name="Chat Workflow">
+    <mxGraphModel dx="1800" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Title -->
+        <mxCell id="title" value="VibeCody Chat Workflow — End-to-End Architecture" style="text;html=1;fontSize=20;fontStyle=1;align=center;fillColor=none;strokeColor=none;fontColor=#E0E0E0;" vertex="1" parent="1">
+          <mxGeometry x="300" y="10" width="600" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- ════════════════ LAYER 1: FRONTEND ════════════════ -->
+        <mxCell id="frontend-group" value="Frontend (React + TypeScript)" style="swimlane;startSize=30;fillColor=#1a1a2e;strokeColor=#4a9eff;fontColor=#4a9eff;fontSize=14;fontStyle=1;rounded=1;arcSize=8;swimlaneLine=0;" vertex="1" parent="1">
+          <mxGeometry x="20" y="60" width="460" height="520" as="geometry" />
+        </mxCell>
+
+        <!-- User Input -->
+        <mxCell id="user-input" value="&lt;b&gt;User Input&lt;/b&gt;&lt;br&gt;Textarea + Attachments" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2d2d44;strokeColor=#4a9eff;fontColor=#E0E0E0;fontSize=12;arcSize=20;" vertex="1" parent="frontend-group">
+          <mxGeometry x="30" y="50" width="180" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- sendMessage() -->
+        <mxCell id="send-msg" value="&lt;b&gt;sendMessage()&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;Validate → Build msg → Clear input&lt;br&gt;Set loading → Reset stream state&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1e3a5f;strokeColor=#4a9eff;fontColor=#E0E0E0;fontSize=11;arcSize=15;" vertex="1" parent="frontend-group">
+          <mxGeometry x="30" y="120" width="200" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Attachments -->
+        <mxCell id="attachments" value="&lt;b&gt;Attachment Processing&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;Images → base64 data&lt;br&gt;Text/code → text_content&lt;br&gt;Max 20MB, 10 files&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2d2d44;strokeColor=#6c6c8a;fontColor=#B0B0C0;fontSize=11;arcSize=15;dashed=1;" vertex="1" parent="frontend-group">
+          <mxGeometry x="250" y="50" width="180" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- invoke -->
+        <mxCell id="invoke-call" value="&lt;b&gt;invoke(&quot;stream_chat_message&quot;)&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;{ messages, provider, context,&lt;br&gt;file_tree, current_file, mode, attachments }&lt;/font&gt;" style="shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fillColor=#3d1f6d;strokeColor=#9b59b6;fontColor=#E0E0E0;fontSize=11;size=0.1;" vertex="1" parent="frontend-group">
+          <mxGeometry x="50" y="200" width="350" height="55" as="geometry" />
+        </mxCell>
+
+        <!-- Event Listeners Box -->
+        <mxCell id="listeners-box" value="&lt;b&gt;Event Listeners&lt;/b&gt; (registered once on mount via refs)" style="swimlane;startSize=25;fillColor=#1a2a1a;strokeColor=#27ae60;fontColor=#27ae60;fontSize=11;fontStyle=1;rounded=1;arcSize=8;swimlaneLine=0;" vertex="1" parent="frontend-group">
+          <mxGeometry x="30" y="280" width="400" height="220" as="geometry" />
+        </mxCell>
+
+        <mxCell id="evt-chunk" value="&lt;b&gt;chat:chunk&lt;/b&gt; → setStreamingText(prev + chunk)&lt;br&gt;&lt;font style=&quot;font-size:9px;color:#888&quot;&gt;Update tokens/sec, detect &amp;lt;thinking&amp;gt; blocks&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1e3322;strokeColor=#27ae60;fontColor=#C0E0C0;fontSize=10;arcSize=12;" vertex="1" parent="listeners-box">
+          <mxGeometry x="10" y="35" width="380" height="35" as="geometry" />
+        </mxCell>
+
+        <mxCell id="evt-complete" value="&lt;b&gt;chat:complete&lt;/b&gt; → extractThinking → parseToolCalls → setMessages&lt;br&gt;&lt;font style=&quot;font-size:9px;color:#888&quot;&gt;Clear streaming text, set loading=false, trigger pending write&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1e3322;strokeColor=#27ae60;fontColor=#C0E0C0;fontSize=10;arcSize=12;" vertex="1" parent="listeners-box">
+          <mxGeometry x="10" y="78" width="380" height="35" as="geometry" />
+        </mxCell>
+
+        <mxCell id="evt-error" value="&lt;b&gt;chat:error&lt;/b&gt; → setMessages([...prev, { isError: true }])&lt;br&gt;&lt;font style=&quot;font-size:9px;color:#888&quot;&gt;Show error message with retry button&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#331a1a;strokeColor=#e74c3c;fontColor=#E0C0C0;fontSize=10;arcSize=12;" vertex="1" parent="listeners-box">
+          <mxGeometry x="10" y="121" width="380" height="35" as="geometry" />
+        </mxCell>
+
+        <mxCell id="evt-status" value="&lt;b&gt;chat:status&lt;/b&gt; → retry indicator / thinking badge / health score" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2d2d1a;strokeColor=#f39c12;fontColor=#E0D8C0;fontSize=10;arcSize=12;" vertex="1" parent="listeners-box">
+          <mxGeometry x="10" y="164" width="260" height="30" as="geometry" />
+        </mxCell>
+
+        <mxCell id="evt-metrics" value="&lt;b&gt;chat:metrics&lt;/b&gt; → token stats" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1a2a2d;strokeColor=#1abc9c;fontColor=#C0E0E0;fontSize=10;arcSize=12;" vertex="1" parent="listeners-box">
+          <mxGeometry x="280" y="164" width="110" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Arrows within frontend -->
+        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#4a9eff;fontColor=#999;" edge="1" source="user-input" target="send-msg" parent="frontend-group">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#4a9eff;fontColor=#999;" edge="1" source="send-msg" target="invoke-call" parent="frontend-group">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-att" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#6c6c8a;dashed=1;" edge="1" source="attachments" target="invoke-call" parent="frontend-group">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ════════════════ LAYER 2: TAURI BACKEND ════════════════ -->
+        <mxCell id="backend-group" value="Backend (Rust + Tauri 2)" style="swimlane;startSize=30;fillColor=#1a1a1a;strokeColor=#e67e22;fontColor=#e67e22;fontSize=14;fontStyle=1;rounded=1;arcSize=8;swimlaneLine=0;" vertex="1" parent="1">
+          <mxGeometry x="520" y="60" width="520" height="520" as="geometry" />
+        </mxCell>
+
+        <!-- stream_chat_message -->
+        <mxCell id="stream-cmd" value="&lt;b&gt;stream_chat_message()&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;commands.rs — Tauri command handler&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#3d2a0a;strokeColor=#e67e22;fontColor=#E0D0B0;fontSize=12;arcSize=15;" vertex="1" parent="backend-group">
+          <mxGeometry x="30" y="50" width="240" height="45" as="geometry" />
+        </mxCell>
+
+        <!-- Cancel Previous -->
+        <mxCell id="cancel-prev" value="Cancel previous stream&lt;br&gt;&lt;font style=&quot;font-size:9px&quot;&gt;abort_handle.abort()&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2d1a1a;strokeColor=#c0392b;fontColor=#D0B0B0;fontSize=10;arcSize=12;" vertex="1" parent="backend-group">
+          <mxGeometry x="300" y="45" width="170" height="35" as="geometry" />
+        </mxCell>
+
+        <!-- Pipeline steps -->
+        <mxCell id="step-provider" value="1. Resolve Provider&lt;br&gt;&lt;font style=&quot;font-size:9px&quot;&gt;ChatEngine.set_provider_by_name()&lt;br&gt;Clone Arc&amp;lt;dyn AIProvider&amp;gt;&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2d2d2d;strokeColor=#95a5a6;fontColor=#C0C0C0;fontSize=10;arcSize=12;" vertex="1" parent="backend-group">
+          <mxGeometry x="30" y="115" width="200" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="step-prompt" value="2. Build System Prompt&lt;br&gt;&lt;font style=&quot;font-size:9px&quot;&gt;XML tools + AI Rules + file tree + mode&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2d2d2d;strokeColor=#95a5a6;fontColor=#C0C0C0;fontSize=10;arcSize=12;" vertex="1" parent="backend-group">
+          <mxGeometry x="250" y="115" width="200" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="step-refs" value="3. Resolve @-References&lt;br&gt;&lt;font style=&quot;font-size:9px&quot;&gt;@file: @folder: @web: @git @terminal @docs:&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2d2d2d;strokeColor=#95a5a6;fontColor=#C0C0C0;fontSize=10;arcSize=12;" vertex="1" parent="backend-group">
+          <mxGeometry x="30" y="180" width="200" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="step-attach" value="4. Process Attachments&lt;br&gt;&lt;font style=&quot;font-size:9px&quot;&gt;Images → vision API&lt;br&gt;Docs → inject as context (≤32K)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2d2d2d;strokeColor=#95a5a6;fontColor=#C0C0C0;fontSize=10;arcSize=12;" vertex="1" parent="backend-group">
+          <mxGeometry x="250" y="180" width="200" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- tokio::spawn -->
+        <mxCell id="spawn" value="&lt;b&gt;tokio::spawn&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;Returns Ok(()) immediately&lt;br&gt;Stores AbortHandle for cancellation&lt;/font&gt;" style="shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fillColor=#3d1f6d;strokeColor=#9b59b6;fontColor=#E0E0E0;fontSize=11;size=0.1;" vertex="1" parent="backend-group">
+          <mxGeometry x="100" y="250" width="300" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Streaming Loop -->
+        <mxCell id="stream-loop" value="&lt;b&gt;Streaming Loop&lt;/b&gt;" style="swimlane;startSize=22;fillColor=#0a1a2d;strokeColor=#3498db;fontColor=#3498db;fontSize=11;fontStyle=1;rounded=1;arcSize=8;swimlaneLine=0;" vertex="1" parent="backend-group">
+          <mxGeometry x="30" y="320" width="460" height="180" as="geometry" />
+        </mxCell>
+
+        <mxCell id="stream-call" value="provider.stream_chat(&amp;messages)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0a2d3d;strokeColor=#3498db;fontColor=#B0D0E0;fontSize=10;arcSize=12;" vertex="1" parent="stream-loop">
+          <mxGeometry x="10" y="30" width="210" height="30" as="geometry" />
+        </mxCell>
+
+        <mxCell id="chunk-loop" value="while let Some(chunk)&lt;br&gt;= stream.next().await" style="shape=trapezoid;whiteSpace=wrap;html=1;fillColor=#0a2d3d;strokeColor=#3498db;fontColor=#B0D0E0;fontSize=10;perimeter=trapezoidPerimeter;size=0.15;" vertex="1" parent="stream-loop">
+          <mxGeometry x="10" y="70" width="175" height="35" as="geometry" />
+        </mxCell>
+
+        <mxCell id="emit-chunk" value="emit(&quot;chat:chunk&quot;, text)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1a3322;strokeColor=#27ae60;fontColor=#C0E0C0;fontSize=10;arcSize=12;" vertex="1" parent="stream-loop">
+          <mxGeometry x="10" y="115" width="160" height="28" as="geometry" />
+        </mxCell>
+
+        <!-- Retry -->
+        <mxCell id="retry-box" value="&lt;b&gt;Retry Logic&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px&quot;&gt;3 attempts, exp. backoff&lt;br&gt;1s → 2s → 4s (max 30s)&lt;br&gt;Retryable: 429, 500, 502, 503&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2d2d1a;strokeColor=#f39c12;fontColor=#E0D8C0;fontSize=10;arcSize=12;" vertex="1" parent="stream-loop">
+          <mxGeometry x="240" y="30" width="200" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Tool Processing -->
+        <mxCell id="tool-proc" value="&lt;b&gt;process_tool_calls()&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px&quot;&gt;&amp;lt;write_file&amp;gt; → fs::write&lt;br&gt;&amp;lt;read_file&amp;gt; → fs::read&lt;br&gt;&amp;lt;build /&amp;gt; → sh -c &quot;cargo build&quot;&lt;br&gt;&amp;lt;run /&amp;gt; → sh -c detected_cmd&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2d1a0a;strokeColor=#e67e22;fontColor=#E0D0B0;fontSize=10;arcSize=12;" vertex="1" parent="stream-loop">
+          <mxGeometry x="240" y="100" width="200" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- Emit complete -->
+        <mxCell id="emit-complete" value="emit(&quot;chat:complete&quot;, { message, tool_output, pending_write })" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1a3322;strokeColor=#27ae60;fontColor=#C0E0C0;fontSize=10;arcSize=12;" vertex="1" parent="stream-loop">
+          <mxGeometry x="10" y="148" width="430" height="25" as="geometry" />
+        </mxCell>
+
+        <!-- Arrows backend -->
+        <mxCell id="eb1" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#e67e22;" edge="1" source="stream-cmd" target="cancel-prev" parent="backend-group">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eb2" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#95a5a6;" edge="1" source="stream-cmd" target="step-provider" parent="backend-group">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eb5" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#9b59b6;" edge="1" source="step-attach" target="spawn" parent="backend-group">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ════════════════ LAYER 3: AI PROVIDERS ════════════════ -->
+        <mxCell id="providers-group" value="AI Providers (vibe-ai crate)" style="swimlane;startSize=30;fillColor=#1a0a2d;strokeColor=#8e44ad;fontColor=#8e44ad;fontSize=14;fontStyle=1;rounded=1;arcSize=8;swimlaneLine=0;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="60" width="230" height="520" as="geometry" />
+        </mxCell>
+
+        <mxCell id="prov-gemini" value="&lt;b&gt;Gemini&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px&quot;&gt;streamGenerateContent&lt;br&gt;JSON array, buffered parse&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2d1a3d;strokeColor=#8e44ad;fontColor=#D0B0E0;fontSize=10;arcSize=12;" vertex="1" parent="providers-group">
+          <mxGeometry x="15" y="50" width="200" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="prov-ollama" value="&lt;b&gt;Ollama&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px&quot;&gt;/api/chat stream:true&lt;br&gt;NDJSON lines&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2d1a3d;strokeColor=#8e44ad;fontColor=#D0B0E0;fontSize=10;arcSize=12;" vertex="1" parent="providers-group">
+          <mxGeometry x="15" y="115" width="200" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="prov-claude" value="&lt;b&gt;Claude&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px&quot;&gt;/v1/messages stream:true&lt;br&gt;SSE content_block_delta&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2d1a3d;strokeColor=#8e44ad;fontColor=#D0B0E0;fontSize=10;arcSize=12;" vertex="1" parent="providers-group">
+          <mxGeometry x="15" y="180" width="200" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="prov-openai" value="&lt;b&gt;OpenAI&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px&quot;&gt;/v1/chat/completions stream:true&lt;br&gt;SSE delta.content&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2d1a3d;strokeColor=#8e44ad;fontColor=#D0B0E0;fontSize=10;arcSize=12;" vertex="1" parent="providers-group">
+          <mxGeometry x="15" y="245" width="200" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="prov-more" value="&lt;font style=&quot;font-size:10px&quot;&gt;+ Grok, Groq, OpenRouter,&lt;br&gt;Azure, Bedrock, Copilot,&lt;br&gt;Mistral, Cerebras, DeepSeek,&lt;br&gt;Zhipu, Vercel AI, Failover&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1a0a2d;strokeColor=#6c3483;fontColor=#9B7DB8;fontSize=10;arcSize=12;dashed=1;" vertex="1" parent="providers-group">
+          <mxGeometry x="15" y="310" width="200" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- Health Tracker -->
+        <mxCell id="health" value="&lt;b&gt;ProviderHealthTracker&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px&quot;&gt;Score 0-100, success rate,&lt;br&gt;latency, failure categories&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0a2d1a;strokeColor=#1abc9c;fontColor=#B0E0D0;fontSize=10;arcSize=12;" vertex="1" parent="providers-group">
+          <mxGeometry x="15" y="400" width="200" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Security -->
+        <mxCell id="security" value="&lt;b&gt;Security Blocklist&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px&quot;&gt;rm -rf, mkfs, dd if=,&lt;br&gt;fork bomb, base64|sh, ...&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2d1a1a;strokeColor=#c0392b;fontColor=#E0B0B0;fontSize=10;arcSize=12;" vertex="1" parent="providers-group">
+          <mxGeometry x="15" y="460" width="200" height="42" as="geometry" />
+        </mxCell>
+
+        <!-- ════════════════ CROSS-LAYER ARROWS ════════════════ -->
+
+        <!-- Frontend → Backend (IPC) -->
+        <mxCell id="ipc-arrow" value="Tauri IPC" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#9b59b6;strokeWidth=2;fontColor=#9b59b6;fontSize=10;fontStyle=1;" edge="1" source="invoke-call" target="stream-cmd" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="500" y="288" />
+              <mxPoint x="500" y="133" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Backend → Providers -->
+        <mxCell id="prov-arrow" value="stream_chat()" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#8e44ad;strokeWidth=2;fontColor=#8e44ad;fontSize=10;fontStyle=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1040" y="430" as="sourcePoint" />
+            <mxPoint x="1080" y="200" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="1060" y="430" />
+              <mxPoint x="1060" y="200" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Backend events → Frontend listeners -->
+        <mxCell id="events-arrow" value="Tauri Events" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#27ae60;strokeWidth=2;fontColor=#27ae60;fontSize=10;fontStyle=1;dashed=1;dashPattern=8 4;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="520" y="490" as="sourcePoint" />
+            <mxPoint x="480" y="490" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ════════════════ RENDERING LAYER ════════════════ -->
+        <mxCell id="render-group" value="Message Rendering" style="swimlane;startSize=25;fillColor=#1a1a2e;strokeColor=#2ecc71;fontColor=#2ecc71;fontSize=12;fontStyle=1;rounded=1;arcSize=8;swimlaneLine=0;" vertex="1" parent="1">
+          <mxGeometry x="20" y="600" width="1290" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="render-stream" value="&lt;b&gt;Streaming Bubble&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px&quot;&gt;Partial text + blinking cursor&lt;br&gt;Visible while isLoading=true&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1e3322;strokeColor=#27ae60;fontColor=#C0E0C0;fontSize=10;arcSize=12;" vertex="1" parent="render-group">
+          <mxGeometry x="15" y="32" width="180" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="render-msg" value="&lt;b&gt;Final Message&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px&quot;&gt;Markdown → HTML + syntax highlight&lt;br&gt;Code blocks with Copy / Apply buttons&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1e3322;strokeColor=#27ae60;fontColor=#C0E0C0;fontSize=10;arcSize=12;" vertex="1" parent="render-group">
+          <mxGeometry x="210" y="32" width="220" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="render-think" value="&lt;b&gt;Thinking Block&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px&quot;&gt;Collapsible, dimmed&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2d2d1a;strokeColor=#f39c12;fontColor=#E0D8C0;fontSize=10;arcSize=12;" vertex="1" parent="render-group">
+          <mxGeometry x="445" y="32" width="140" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="render-tools" value="&lt;b&gt;Tool Calls&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px&quot;&gt;Expandable cards with status&lt;br&gt;write_file / read_file / build / run&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2d2d2d;strokeColor=#95a5a6;fontColor=#C0C0C0;fontSize=10;arcSize=12;" vertex="1" parent="render-group">
+          <mxGeometry x="600" y="32" width="200" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="render-error" value="&lt;b&gt;Error Message&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px&quot;&gt;Red tint + Retry button&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#331a1a;strokeColor=#e74c3c;fontColor=#E0C0C0;fontSize=10;arcSize=12;" vertex="1" parent="render-group">
+          <mxGeometry x="815" y="32" width="140" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="render-metrics" value="&lt;b&gt;Metrics Footer&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px&quot;&gt;Tokens, latency, provider badge&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1a2a2d;strokeColor=#1abc9c;fontColor=#C0E0E0;fontSize=10;arcSize=12;" vertex="1" parent="render-group">
+          <mxGeometry x="970" y="32" width="155" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="render-attach" value="&lt;b&gt;Attachments&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px&quot;&gt;Image thumbnails, file badges&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2d2d44;strokeColor=#6c6c8a;fontColor=#B0B0C0;fontSize=10;arcSize=12;" vertex="1" parent="render-group">
+          <mxGeometry x="1140" y="32" width="135" height="50" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

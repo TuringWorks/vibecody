@@ -1,0 +1,273 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1340 750" font-family="Inter, -apple-system, system-ui, sans-serif">
+  <defs>
+    <marker id="arrow-blue" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#4a9eff"/>
+    </marker>
+    <marker id="arrow-purple" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#9b59b6"/>
+    </marker>
+    <marker id="arrow-green" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#27ae60"/>
+    </marker>
+    <marker id="arrow-orange" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#e67e22"/>
+    </marker>
+    <filter id="shadow">
+      <feDropShadow dx="1" dy="2" stdDeviation="2" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1340" height="750" fill="#0d1117" rx="8"/>
+
+  <!-- Title -->
+  <text x="670" y="30" text-anchor="middle" fill="#e0e0e0" font-size="18" font-weight="700">VibeCody Chat Workflow — End-to-End Architecture</text>
+
+  <!-- ═══════════ FRONTEND SWIMLANE ═══════════ -->
+  <rect x="15" y="50" width="430" height="490" rx="8" fill="#12182a" stroke="#4a9eff" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="230" y="72" text-anchor="middle" fill="#4a9eff" font-size="13" font-weight="700">Frontend (React + TypeScript)</text>
+
+  <!-- User Input -->
+  <rect x="35" y="88" width="170" height="40" rx="10" fill="#1e2a44" stroke="#4a9eff" stroke-width="1"/>
+  <text x="120" y="105" text-anchor="middle" fill="#e0e0e0" font-size="11" font-weight="600">User Input</text>
+  <text x="120" y="120" text-anchor="middle" fill="#8899aa" font-size="9">Textarea + Attachments</text>
+
+  <!-- Attachments -->
+  <rect x="230" y="88" width="195" height="56" rx="8" fill="#1a1e30" stroke="#6c6c8a" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="328" y="105" text-anchor="middle" fill="#b0b0c0" font-size="10" font-weight="600">Attachment Processing</text>
+  <text x="328" y="118" text-anchor="middle" fill="#777" font-size="8">Images → base64 | Text → text_content</text>
+  <text x="328" y="130" text-anchor="middle" fill="#777" font-size="8">Max 20MB, 10 files per message</text>
+
+  <!-- Arrow: input → sendMessage -->
+  <line x1="120" y1="128" x2="120" y2="150" stroke="#4a9eff" stroke-width="1.5" marker-end="url(#arrow-blue)"/>
+
+  <!-- sendMessage() -->
+  <rect x="35" y="152" width="390" height="44" rx="10" fill="#152040" stroke="#4a9eff" stroke-width="1"/>
+  <text x="230" y="170" text-anchor="middle" fill="#e0e0e0" font-size="11" font-weight="600">sendMessage()</text>
+  <text x="230" y="184" text-anchor="middle" fill="#7799bb" font-size="8">Validate → Build message → Clear input → Set loading → Reset stream state</text>
+
+  <!-- Arrow: sendMessage → invoke -->
+  <line x1="230" y1="196" x2="230" y2="210" stroke="#4a9eff" stroke-width="1.5" marker-end="url(#arrow-blue)"/>
+
+  <!-- invoke() -->
+  <polygon points="120,214 340,214 360,234 340,254 120,254 100,234" fill="#2a1450" stroke="#9b59b6" stroke-width="1.5"/>
+  <text x="230" y="233" text-anchor="middle" fill="#e0d0f0" font-size="10" font-weight="600">invoke("stream_chat_message", { request })</text>
+  <text x="230" y="248" text-anchor="middle" fill="#9b7db8" font-size="8">messages, provider, context, file_tree, mode, attachments</text>
+
+  <!-- Event Listeners Section -->
+  <rect x="30" y="280" width="400" height="250" rx="6" fill="#101f10" stroke="#27ae60" stroke-width="1.2"/>
+  <text x="230" y="298" text-anchor="middle" fill="#27ae60" font-size="11" font-weight="700">Event Listeners (registered once via refs)</text>
+
+  <!-- chat:chunk -->
+  <rect x="42" y="308" width="376" height="34" rx="6" fill="#142214" stroke="#27ae60" stroke-width="0.8"/>
+  <text x="52" y="325" fill="#5dde5d" font-size="10" font-weight="700">chat:chunk</text>
+  <text x="140" y="325" fill="#a0c0a0" font-size="9">→ setStreamingText(prev + chunk) · update tokens/sec</text>
+
+  <!-- chat:complete -->
+  <rect x="42" y="348" width="376" height="40" rx="6" fill="#142214" stroke="#27ae60" stroke-width="0.8"/>
+  <text x="52" y="364" fill="#5dde5d" font-size="10" font-weight="700">chat:complete</text>
+  <text x="156" y="364" fill="#a0c0a0" font-size="9">→ extractThinking → parseToolCalls → setMessages</text>
+  <text x="52" y="378" fill="#668866" font-size="8">Clear streamingText, set loading=false, trigger pending write diff</text>
+
+  <!-- chat:error -->
+  <rect x="42" y="394" width="376" height="34" rx="6" fill="#221414" stroke="#e74c3c" stroke-width="0.8"/>
+  <text x="52" y="411" fill="#e76c6c" font-size="10" font-weight="700">chat:error</text>
+  <text x="130" y="411" fill="#c0a0a0" font-size="9">→ Add error message with retry button</text>
+
+  <!-- chat:status -->
+  <rect x="42" y="434" width="250" height="30" rx="6" fill="#1e1e0f" stroke="#f39c12" stroke-width="0.8"/>
+  <text x="52" y="453" fill="#f3bc52" font-size="10" font-weight="700">chat:status</text>
+  <text x="130" y="453" fill="#c0b080" font-size="9">→ retry / thinking / health</text>
+
+  <!-- chat:metrics -->
+  <rect x="300" y="434" width="118" height="30" rx="6" fill="#0f1e1e" stroke="#1abc9c" stroke-width="0.8"/>
+  <text x="310" y="453" fill="#3cd8b8" font-size="10" font-weight="700">chat:metrics</text>
+
+  <!-- Stop button -->
+  <rect x="42" y="474" width="376" height="24" rx="6" fill="#1a0a0a" stroke="#c0392b" stroke-width="0.8" stroke-dasharray="3,3"/>
+  <text x="230" y="490" text-anchor="middle" fill="#cc5555" font-size="9">Stop → invoke("stop_chat_stream") → AbortHandle.abort()</text>
+
+  <!-- ═══════════ IPC ARROW ═══════════ -->
+  <path d="M 425,234 L 465,234" stroke="#9b59b6" stroke-width="2.5" marker-end="url(#arrow-purple)" fill="none"/>
+  <text x="445" y="226" text-anchor="middle" fill="#9b59b6" font-size="8" font-weight="600">IPC</text>
+
+  <!-- ═══════════ BACKEND SWIMLANE ═══════════ -->
+  <rect x="470" y="50" width="530" height="490" rx="8" fill="#141414" stroke="#e67e22" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="735" y="72" text-anchor="middle" fill="#e67e22" font-size="13" font-weight="700">Backend (Rust + Tauri 2)</text>
+
+  <!-- stream_chat_message -->
+  <rect x="490" y="86" width="230" height="36" rx="8" fill="#2a1a08" stroke="#e67e22" stroke-width="1"/>
+  <text x="605" y="102" text-anchor="middle" fill="#e0d0b0" font-size="11" font-weight="600">stream_chat_message()</text>
+  <text x="605" y="116" text-anchor="middle" fill="#aa8844" font-size="8">commands.rs — Tauri command</text>
+
+  <!-- Cancel previous -->
+  <rect x="740" y="86" width="150" height="32" rx="6" fill="#2a1010" stroke="#c0392b" stroke-width="0.8"/>
+  <text x="815" y="106" text-anchor="middle" fill="#d09090" font-size="9">Cancel previous stream</text>
+
+  <!-- Arrow -->
+  <line x1="720" y1="102" x2="738" y2="102" stroke="#c0392b" stroke-width="1" marker-end="url(#arrow-orange)"/>
+
+  <!-- Pipeline steps -->
+  <rect x="490" y="130" width="230" height="36" rx="6" fill="#1e1e1e" stroke="#7f8c8d" stroke-width="0.8"/>
+  <text x="498" y="147" fill="#ddd" font-size="9" font-weight="600">1. Resolve Provider</text>
+  <text x="498" y="160" fill="#888" font-size="8">ChatEngine.set_provider_by_name() → Clone Arc</text>
+
+  <rect x="490" y="172" width="230" height="36" rx="6" fill="#1e1e1e" stroke="#7f8c8d" stroke-width="0.8"/>
+  <text x="498" y="189" fill="#ddd" font-size="9" font-weight="600">2. Build System Prompt</text>
+  <text x="498" y="202" fill="#888" font-size="8">XML tools + AI Rules + file_tree + mode</text>
+
+  <rect x="740" y="130" width="240" height="36" rx="6" fill="#1e1e1e" stroke="#7f8c8d" stroke-width="0.8"/>
+  <text x="748" y="147" fill="#ddd" font-size="9" font-weight="600">3. Resolve @-References</text>
+  <text x="748" y="160" fill="#888" font-size="8">@file: @folder: @web: @git @terminal @docs:</text>
+
+  <rect x="740" y="172" width="240" height="36" rx="6" fill="#1e1e1e" stroke="#7f8c8d" stroke-width="0.8"/>
+  <text x="748" y="189" fill="#ddd" font-size="9" font-weight="600">4. Process Attachments</text>
+  <text x="748" y="202" fill="#888" font-size="8">Images → vision API | Docs → context (≤32K)</text>
+
+  <!-- tokio::spawn -->
+  <polygon points="560,224 890,224 910,244 890,264 560,264 540,244" fill="#2a1450" stroke="#9b59b6" stroke-width="1.5"/>
+  <text x="725" y="244" text-anchor="middle" fill="#e0d0f0" font-size="10" font-weight="600">tokio::spawn → returns Ok(()) immediately</text>
+  <text x="725" y="258" text-anchor="middle" fill="#9b7db8" font-size="8">Stores AbortHandle for cancellation</text>
+
+  <!-- Streaming Loop -->
+  <rect x="485" y="280" width="500" height="250" rx="6" fill="#081620" stroke="#3498db" stroke-width="1.2"/>
+  <text x="735" y="298" text-anchor="middle" fill="#3498db" font-size="11" font-weight="700">Streaming Loop</text>
+
+  <rect x="498" y="308" width="220" height="26" rx="5" fill="#0a2030" stroke="#3498db" stroke-width="0.8"/>
+  <text x="608" y="325" text-anchor="middle" fill="#88bbdd" font-size="9">provider.stream_chat(&amp;messages).await</text>
+
+  <!-- while loop -->
+  <polygon points="498,346 718,346 730,360 718,374 498,374 486,360" fill="#0a2030" stroke="#3498db" stroke-width="0.8"/>
+  <text x="610" y="364" text-anchor="middle" fill="#88bbdd" font-size="9">while let Some(chunk) = stream.next().await</text>
+
+  <!-- emit chunk -->
+  <rect x="498" y="384" width="220" height="24" rx="5" fill="#102210" stroke="#27ae60" stroke-width="0.8"/>
+  <text x="608" y="400" text-anchor="middle" fill="#6dce6d" font-size="9">emit("chat:chunk", text)</text>
+
+  <!-- Retry box -->
+  <rect x="740" y="308" width="230" height="62" rx="6" fill="#201e0a" stroke="#f39c12" stroke-width="0.8"/>
+  <text x="855" y="325" text-anchor="middle" fill="#f3bc52" font-size="10" font-weight="600">Retry Logic</text>
+  <text x="855" y="340" text-anchor="middle" fill="#aa9044" font-size="8">3 attempts, exponential backoff</text>
+  <text x="855" y="352" text-anchor="middle" fill="#aa9044" font-size="8">1s → 2s → 4s (max 30s)</text>
+  <text x="855" y="364" text-anchor="middle" fill="#aa9044" font-size="8">Retryable: 429, 500, 502, 503</text>
+
+  <!-- Tool processing -->
+  <rect x="740" y="380" width="230" height="78" rx="6" fill="#201408" stroke="#e67e22" stroke-width="0.8"/>
+  <text x="855" y="397" text-anchor="middle" fill="#e6a044" font-size="10" font-weight="600">process_tool_calls()</text>
+  <text x="855" y="412" text-anchor="middle" fill="#aa8044" font-size="8">&lt;write_file&gt; → fs::write</text>
+  <text x="855" y="424" text-anchor="middle" fill="#aa8044" font-size="8">&lt;read_file&gt; → fs::read</text>
+  <text x="855" y="436" text-anchor="middle" fill="#aa8044" font-size="8">&lt;build /&gt; → sh -c "cargo build"</text>
+  <text x="855" y="448" text-anchor="middle" fill="#aa8044" font-size="8">&lt;run /&gt; → sh -c detected_cmd</text>
+
+  <!-- emit complete -->
+  <rect x="498" y="418" width="472" height="24" rx="5" fill="#102210" stroke="#27ae60" stroke-width="0.8"/>
+  <text x="734" y="434" text-anchor="middle" fill="#6dce6d" font-size="9">emit("chat:complete", { message, tool_output, pending_write })</text>
+
+  <!-- emit metrics -->
+  <rect x="498" y="450" width="472" height="22" rx="5" fill="#0f1e1e" stroke="#1abc9c" stroke-width="0.8"/>
+  <text x="734" y="465" text-anchor="middle" fill="#3cd8b8" font-size="9">emit("chat:metrics", { prompt_tokens, completion_tokens, provider, model, latency_ms })</text>
+
+  <!-- Health recording -->
+  <rect x="498" y="480" width="472" height="22" rx="5" fill="#0a1e10" stroke="#1abc9c" stroke-width="0.8" stroke-dasharray="3,3"/>
+  <text x="734" y="496" text-anchor="middle" fill="#33aa88" font-size="9">health_tracker.record(ProviderCallOutcome { success, latency, error_category })</text>
+
+  <!-- ═══════════ EVENTS ARROWS (Backend → Frontend) ═══════════ -->
+  <path d="M 485,365 C 460,365 460,400 430,400" stroke="#27ae60" stroke-width="2" stroke-dasharray="6,4" fill="none" marker-end="url(#arrow-green)"/>
+  <text x="442" y="378" fill="#27ae60" font-size="8" font-weight="600">Events</text>
+
+  <!-- ═══════════ PROVIDERS SWIMLANE ═══════════ -->
+  <rect x="1020" y="50" width="305" height="490" rx="8" fill="#100a20" stroke="#8e44ad" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="1172" y="72" text-anchor="middle" fill="#8e44ad" font-size="13" font-weight="700">AI Providers (vibe-ai)</text>
+
+  <rect x="1035" y="88" width="275" height="42" rx="6" fill="#1a1030" stroke="#8e44ad" stroke-width="0.8"/>
+  <text x="1172" y="106" text-anchor="middle" fill="#c090e0" font-size="10" font-weight="600">Gemini</text>
+  <text x="1172" y="122" text-anchor="middle" fill="#806098" font-size="8">streamGenerateContent — JSON array, buffered parse</text>
+
+  <rect x="1035" y="138" width="275" height="42" rx="6" fill="#1a1030" stroke="#8e44ad" stroke-width="0.8"/>
+  <text x="1172" y="156" text-anchor="middle" fill="#c090e0" font-size="10" font-weight="600">Ollama</text>
+  <text x="1172" y="172" text-anchor="middle" fill="#806098" font-size="8">/api/chat stream:true — NDJSON lines</text>
+
+  <rect x="1035" y="188" width="275" height="42" rx="6" fill="#1a1030" stroke="#8e44ad" stroke-width="0.8"/>
+  <text x="1172" y="206" text-anchor="middle" fill="#c090e0" font-size="10" font-weight="600">Claude (Anthropic)</text>
+  <text x="1172" y="222" text-anchor="middle" fill="#806098" font-size="8">/v1/messages stream:true — SSE content_block_delta</text>
+
+  <rect x="1035" y="238" width="275" height="42" rx="6" fill="#1a1030" stroke="#8e44ad" stroke-width="0.8"/>
+  <text x="1172" y="256" text-anchor="middle" fill="#c090e0" font-size="10" font-weight="600">OpenAI / GPT-4o</text>
+  <text x="1172" y="272" text-anchor="middle" fill="#806098" font-size="8">/v1/chat/completions stream:true — SSE delta.content</text>
+
+  <rect x="1035" y="290" width="275" height="60" rx="6" fill="#100a20" stroke="#5a3480" stroke-width="0.8" stroke-dasharray="3,3"/>
+  <text x="1172" y="312" text-anchor="middle" fill="#7060a0" font-size="9">+ Grok, Groq, OpenRouter, Azure, Bedrock,</text>
+  <text x="1172" y="326" text-anchor="middle" fill="#7060a0" font-size="9">Copilot, Mistral, Cerebras, DeepSeek,</text>
+  <text x="1172" y="340" text-anchor="middle" fill="#7060a0" font-size="9">Zhipu, Vercel AI, Failover (18 total)</text>
+
+  <!-- Health Tracker -->
+  <rect x="1035" y="365" width="275" height="48" rx="6" fill="#081e10" stroke="#1abc9c" stroke-width="0.8"/>
+  <text x="1172" y="385" text-anchor="middle" fill="#3cd8b8" font-size="10" font-weight="600">ProviderHealthTracker</text>
+  <text x="1172" y="400" text-anchor="middle" fill="#338877" font-size="8">Score 0-100 · success rate · latency · failure categories</text>
+
+  <!-- Security -->
+  <rect x="1035" y="425" width="275" height="42" rx="6" fill="#200a0a" stroke="#c0392b" stroke-width="0.8"/>
+  <text x="1172" y="443" text-anchor="middle" fill="#dd6060" font-size="10" font-weight="600">Security Blocklist</text>
+  <text x="1172" y="458" text-anchor="middle" fill="#995050" font-size="8">rm -rf, mkfs, dd, fork bomb, base64|sh, ...</text>
+
+  <!-- Vision path -->
+  <rect x="1035" y="480" width="275" height="48" rx="6" fill="#1a1030" stroke="#8e44ad" stroke-width="0.8" stroke-dasharray="4,3"/>
+  <text x="1172" y="498" text-anchor="middle" fill="#c090e0" font-size="10" font-weight="600">Vision Path (images)</text>
+  <text x="1172" y="515" text-anchor="middle" fill="#806098" font-size="8">chat_with_images() — non-streaming, single response</text>
+
+  <!-- Backend → Providers arrow -->
+  <line x1="985" y1="360" x2="1033" y2="300" stroke="#8e44ad" stroke-width="2" marker-end="url(#arrow-purple)"/>
+  <text x="1005" y="322" fill="#8e44ad" font-size="8" font-weight="600" transform="rotate(-30 1005 322)">stream</text>
+
+  <!-- ═══════════ RENDERING LAYER ═══════════ -->
+  <rect x="15" y="555" width="1310" height="90" rx="8" fill="#0a1a10" stroke="#2ecc71" stroke-width="1.2" filter="url(#shadow)"/>
+  <text x="670" y="575" text-anchor="middle" fill="#2ecc71" font-size="12" font-weight="700">Message Rendering</text>
+
+  <rect x="30" y="588" width="145" height="44" rx="6" fill="#142214" stroke="#27ae60" stroke-width="0.8"/>
+  <text x="103" y="604" text-anchor="middle" fill="#6dce6d" font-size="9" font-weight="600">Streaming Bubble</text>
+  <text x="103" y="618" text-anchor="middle" fill="#447744" font-size="7">Partial text + blinking cursor</text>
+
+  <rect x="188" y="588" width="185" height="44" rx="6" fill="#142214" stroke="#27ae60" stroke-width="0.8"/>
+  <text x="281" y="604" text-anchor="middle" fill="#6dce6d" font-size="9" font-weight="600">Final Message</text>
+  <text x="281" y="618" text-anchor="middle" fill="#447744" font-size="7">Markdown → HTML + syntax highlight + Copy/Apply</text>
+
+  <rect x="386" y="588" width="125" height="44" rx="6" fill="#1e1e0f" stroke="#f39c12" stroke-width="0.8"/>
+  <text x="449" y="604" text-anchor="middle" fill="#f3bc52" font-size="9" font-weight="600">Thinking Block</text>
+  <text x="449" y="618" text-anchor="middle" fill="#887744" font-size="7">Collapsible, dimmed</text>
+
+  <rect x="524" y="588" width="165" height="44" rx="6" fill="#1a1a1a" stroke="#7f8c8d" stroke-width="0.8"/>
+  <text x="607" y="604" text-anchor="middle" fill="#aabbcc" font-size="9" font-weight="600">Tool Call Cards</text>
+  <text x="607" y="618" text-anchor="middle" fill="#667788" font-size="7">write_file / read_file / build / run</text>
+
+  <rect x="702" y="588" width="120" height="44" rx="6" fill="#221414" stroke="#e74c3c" stroke-width="0.8"/>
+  <text x="762" y="604" text-anchor="middle" fill="#e76c6c" font-size="9" font-weight="600">Error + Retry</text>
+  <text x="762" y="618" text-anchor="middle" fill="#884444" font-size="7">Red tint + Retry button</text>
+
+  <rect x="835" y="588" width="140" height="44" rx="6" fill="#0f1e1e" stroke="#1abc9c" stroke-width="0.8"/>
+  <text x="905" y="604" text-anchor="middle" fill="#3cd8b8" font-size="9" font-weight="600">Metrics Footer</text>
+  <text x="905" y="618" text-anchor="middle" fill="#338877" font-size="7">Tokens, latency, provider badge</text>
+
+  <rect x="988" y="588" width="130" height="44" rx="6" fill="#1a1a2e" stroke="#6c6c8a" stroke-width="0.8"/>
+  <text x="1053" y="604" text-anchor="middle" fill="#b0b0c0" font-size="9" font-weight="600">Attachments</text>
+  <text x="1053" y="618" text-anchor="middle" fill="#666688" font-size="7">Thumbnails + file badges</text>
+
+  <rect x="1131" y="588" width="180" height="44" rx="6" fill="#1a1020" stroke="#8e44ad" stroke-width="0.8"/>
+  <text x="1221" y="604" text-anchor="middle" fill="#c090e0" font-size="9" font-weight="600">Code Blocks</text>
+  <text x="1221" y="618" text-anchor="middle" fill="#806098" font-size="7">Syntax highlight + Copy + Apply to file</text>
+
+  <!-- ═══════════ KEY FILES LEGEND ═══════════ -->
+  <rect x="15" y="658" width="1310" height="80" rx="8" fill="#0d1117" stroke="#333" stroke-width="1"/>
+  <text x="30" y="678" fill="#666" font-size="10" font-weight="600">Key Files</text>
+  <text x="30" y="696" fill="#4a9eff" font-size="9">vibeui/src/components/AIChat.tsx</text>
+  <text x="265" y="696" fill="#555" font-size="9">— React chat UI, event listeners, rendering</text>
+  <text x="30" y="712" fill="#e67e22" font-size="9">vibeui/src-tauri/src/commands.rs</text>
+  <text x="265" y="712" fill="#555" font-size="9">— stream_chat_message, process_tool_calls, resolve_at_references</text>
+  <text x="30" y="728" fill="#8e44ad" font-size="9">vibeui/crates/vibe-ai/src/providers/*.rs</text>
+  <text x="265" y="728" fill="#555" font-size="9">— Gemini, Ollama, Claude, OpenAI streaming implementations</text>
+  <text x="670" y="696" fill="#1abc9c" font-size="9">vibeui/crates/vibe-ai/src/resilient.rs</text>
+  <text x="920" y="696" fill="#555" font-size="9">— RetryConfig, is_retryable(), classify_error()</text>
+  <text x="670" y="712" fill="#27ae60" font-size="9">vibeui/crates/vibe-ai/src/provider.rs</text>
+  <text x="920" y="712" fill="#555" font-size="9">— AIProvider trait, Message, CompletionStream</text>
+  <text x="670" y="728" fill="#c0392b" font-size="9">vibeui/src-tauri/src/lib.rs</text>
+  <text x="920" y="728" fill="#555" font-size="9">— AppState initialization, command registration</text>
+</svg>
