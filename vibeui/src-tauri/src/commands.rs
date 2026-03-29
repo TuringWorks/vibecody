@@ -198,6 +198,8 @@ pub struct AppState {
     pub training_jobs: Arc<Mutex<Vec<serde_json::Value>>>,
     // Browser Agent
     pub browser_sessions: Arc<Mutex<Vec<serde_json::Value>>>,
+    // TurboQuant compressed vector index
+    pub turboquant_index: Arc<Mutex<Option<serde_json::Value>>>,
 }
 
 const MAX_TERMINAL_LINES: usize = 500;
@@ -1505,19 +1507,25 @@ pub async fn stream_chat_message(
 
             let mut stream_failed = false;
             let mut thinking_active = false;
+            let mut has_thinking_open = false;
             while let Some(chunk) = stream.next().await {
                 match chunk {
                     Ok(text) => {
+                        // Emit before accumulating to avoid clone
+                        let _ = app_handle.emit("chat:chunk", &text);
                         accumulated.push_str(&text);
-                        let _ = app_handle.emit("chat:chunk", text.clone());
 
-                        // Detect thinking blocks
-                        if accumulated.contains("<thinking>") && !accumulated.contains("</thinking>") {
-                            if !thinking_active {
-                                thinking_active = true;
-                                let _ = app_handle.emit("chat:status", serde_json::json!({"type": "thinking", "active": true}));
-                            }
-                        } else if thinking_active && accumulated.contains("</thinking>") {
+                        // Detect thinking blocks — only scan new chunk, not entire accumulated string
+                        if text.contains("<thinking>") {
+                            has_thinking_open = true;
+                        }
+                        if text.contains("</thinking>") {
+                            has_thinking_open = false;
+                        }
+                        if has_thinking_open && !thinking_active {
+                            thinking_active = true;
+                            let _ = app_handle.emit("chat:status", serde_json::json!({"type": "thinking", "active": true}));
+                        } else if !has_thinking_open && thinking_active {
                             thinking_active = false;
                             let _ = app_handle.emit("chat:status", serde_json::json!({"type": "thinking", "active": false}));
                         }
@@ -36456,4 +36464,148 @@ pub async fn browser_create_session(
     let mut sessions = state.browser_sessions.lock().await;
     sessions.insert(0, entry.clone());
     Ok(entry)
+}
+
+// ── TurboQuant commands ──────────────────────────────────────────────────────
+
+use vibe_core::index::turboquant::{TurboQuantIndex, TurboQuantConfig};
+
+/// Lazy-initialise the TurboQuant index, defaulting to 384-dim (nomic-embed-text).
+async fn get_or_init_tq(state: &tauri::State<'_, AppState>, dim: Option<usize>) -> TurboQuantIndex {
+    let mut guard = state.turboquant_index.lock().await;
+    if let Some(ref val) = *guard {
+        if let Ok(idx) = serde_json::from_value::<TurboQuantIndex>(val.clone()) {
+            let mut idx = idx;
+            idx.rebuild_matrices();
+            return idx;
+        }
+    }
+    let config = TurboQuantConfig {
+        dimension: dim.unwrap_or(384),
+        seed: 42,
+        qjl_proj_dim: None,
+    };
+    let idx = TurboQuantIndex::new(config);
+    *guard = Some(serde_json::to_value(&idx).unwrap_or_default());
+    idx
+}
+
+async fn save_tq(state: &tauri::State<'_, AppState>, idx: &TurboQuantIndex) {
+    let mut guard = state.turboquant_index.lock().await;
+    *guard = Some(serde_json::to_value(idx).unwrap_or_default());
+}
+
+#[tauri::command]
+pub async fn turboquant_stats(
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let idx = get_or_init_tq(&state, None).await;
+    serde_json::to_value(idx.stats()).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn turboquant_insert(
+    id: String,
+    vector: Vec<f32>,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    let dim = vector.len();
+    let mut idx = get_or_init_tq(&state, Some(dim)).await;
+    idx.insert(id, &vector, std::collections::HashMap::new())
+        .map_err(|e| e.to_string())?;
+    save_tq(&state, &idx).await;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn turboquant_search(
+    vector: Vec<f32>,
+    top_k: usize,
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let idx = get_or_init_tq(&state, Some(vector.len())).await;
+    let results = idx.search(&vector, top_k);
+    serde_json::to_value(results).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn turboquant_benchmark(
+    num_vectors: usize,
+    dimension: usize,
+) -> Result<serde_json::Value, String> {
+    use std::time::Instant;
+
+    let config = TurboQuantConfig {
+        dimension,
+        seed: 42,
+        qjl_proj_dim: None,
+    };
+    let mut idx = TurboQuantIndex::new(config);
+
+    // Simple deterministic pseudo-random vectors
+    let mut state_val = 12345u64;
+    let mut rand_f32 = || -> f32 {
+        state_val ^= state_val << 13;
+        state_val ^= state_val >> 7;
+        state_val ^= state_val << 17;
+        (state_val as f64 / u64::MAX as f64) as f32 * 2.0 - 1.0
+    };
+
+    let mut vectors: Vec<Vec<f32>> = Vec::with_capacity(num_vectors);
+    for i in 0..num_vectors {
+        let v: Vec<f32> = (0..dimension).map(|_| rand_f32()).collect();
+        let norm: f32 = v.iter().map(|x| x * x).sum::<f32>().sqrt();
+        let v: Vec<f32> = v.into_iter().map(|x| x / norm).collect();
+        idx.insert(format!("{i}"), &v, std::collections::HashMap::new())
+            .map_err(|e| e.to_string())?;
+        vectors.push(v);
+    }
+
+    // Benchmark: average query time over 10 queries
+    let num_queries = 10.min(num_vectors);
+    let k = 10;
+    let start = Instant::now();
+    let mut total_recall = 0.0f64;
+
+    for qi in 0..num_queries {
+        let query = &vectors[qi];
+
+        // Ground truth via brute-force cosine
+        let mut gt: Vec<(f32, usize)> = vectors.iter().enumerate().map(|(i, v)| {
+            let dot: f32 = query.iter().zip(v.iter()).map(|(a, b)| a * b).sum();
+            let na: f32 = query.iter().map(|x| x * x).sum::<f32>().sqrt();
+            let nb: f32 = v.iter().map(|x| x * x).sum::<f32>().sqrt();
+            let sim = if na * nb > 0.0 { dot / (na * nb) } else { 0.0 };
+            (sim, i)
+        }).collect();
+        gt.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+        let gt_ids: Vec<usize> = gt.iter().take(k).map(|(_, i)| *i).collect();
+
+        let results = idx.search(query, k);
+        let tq_ids: Vec<usize> = results.iter().filter_map(|r| r.id.parse().ok()).collect();
+        let hits = tq_ids.iter().filter(|id| gt_ids.contains(id)).count();
+        total_recall += hits as f64 / k as f64;
+    }
+    let elapsed = start.elapsed();
+    let avg_query_ms = elapsed.as_secs_f64() * 1000.0 / num_queries as f64;
+    let stats = idx.stats();
+
+    Ok(serde_json::json!({
+        "num_vectors": num_vectors,
+        "dimension": dimension,
+        "compressed_bytes": stats.compressed_bytes,
+        "uncompressed_bytes": stats.uncompressed_bytes,
+        "compression_ratio": stats.compression_ratio,
+        "recall_at_10": total_recall / num_queries as f64,
+        "avg_query_ms": avg_query_ms,
+    }))
+}
+
+#[tauri::command]
+pub async fn turboquant_clear(
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    let mut guard = state.turboquant_index.lock().await;
+    *guard = None;
+    Ok(())
 }

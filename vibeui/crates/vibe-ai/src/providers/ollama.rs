@@ -347,8 +347,6 @@ impl AIProvider for OllamaProvider {
 
         let status = response.status();
         let body_text = response.text().await.context("Failed to read response body")?;
-        
-
 
         if !status.is_success() {
             anyhow::bail!("Ollama API error: {}", body_text);
@@ -382,7 +380,13 @@ impl AIProvider for OllamaProvider {
             .json(&request)
             .send()
             .await
-            .context("Failed to send chat request to Ollama")?;
+            .context("Failed to send streaming chat request to Ollama")?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let error_text = response.text().await.unwrap_or_default();
+            anyhow::bail!("Ollama API error ({}): {}", status, error_text);
+        }
 
         let stream = response.bytes_stream();
 
