@@ -41,7 +41,8 @@ pub fn run() {
                     } else {
                         format!("{shell_path}:{current}")
                     };
-                    std::env::set_var("PATH", &merged);
+                    // SAFETY: Called before the async runtime starts, so no other threads are running.
+                    unsafe { std::env::set_var("PATH", &merged); }
                 }
             }
         }
@@ -50,8 +51,11 @@ pub fn run() {
     // Initialize workspace
     let workspace = Arc::new(Mutex::new(Workspace::new("VibeUI Workspace".to_string())));
 
-    // Load AI configuration
-    let config_path = PathBuf::from("vibe.toml");
+    // Load AI configuration — resolve from ~/.vibeui/vibe.toml so it works
+    // when the app is launched from Finder (where cwd is /).
+    let config_path = dirs::home_dir()
+        .map(|h| h.join(".vibeui").join("vibe.toml"))
+        .unwrap_or_else(|| PathBuf::from("vibe.toml"));
     let ai_config = AIConfig::load_from_file(&config_path).unwrap_or_default();
 
     // Initialize Chat Engine
@@ -104,6 +108,7 @@ pub fn run() {
     let terminal_buffer = Arc::new(Mutex::new(Vec::<String>::new()));
     let agent_abort_handle = Arc::new(Mutex::new(None));
     let chat_abort_handle = Arc::new(Mutex::new(None));
+    let provider_health = Arc::new(vibe_ai::ProviderHealthTracker::new(100, std::time::Duration::from_secs(3600)));
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
@@ -150,6 +155,7 @@ pub fn run() {
             terminal_buffer,
             agent_abort_handle,
             chat_abort_handle,
+            provider_health,
             mock_server_handle: Arc::new(Mutex::new(None)),
             mock_routes: Arc::new(Mutex::new(Vec::new())),
             mock_request_log: Arc::new(Mutex::new(Vec::new())),
@@ -224,6 +230,8 @@ pub fn run() {
             commands::list_trace_sessions,
             commands::load_trace_session,
             commands::get_all_trace_entries,
+            // Attachment commands
+            commands::read_attachment,
             // Session Browser commands
             commands::list_sessions,
             commands::get_session_detail,

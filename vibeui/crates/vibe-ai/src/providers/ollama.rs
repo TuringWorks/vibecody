@@ -43,6 +43,9 @@ struct OllamaChatRequest {
 struct OllamaChatMessage {
     role: String,
     content: String,
+    /// Base64-encoded images for vision models (Qwen2-VL, GLM-4V, LLaVA, etc.)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    images: Option<Vec<String>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -315,6 +318,7 @@ impl AIProvider for OllamaProvider {
             .map(|m| OllamaChatMessage {
                 role: m.role.as_str().to_string(),
                 content: m.content.clone(),
+                images: None,
             })
             .collect();
 
@@ -362,6 +366,7 @@ impl AIProvider for OllamaProvider {
             .map(|m| OllamaChatMessage {
                 role: m.role.as_str().to_string(),
                 content: m.content.clone(),
+                images: None,
             })
             .collect();
 
@@ -400,6 +405,74 @@ impl AIProvider for OllamaProvider {
             .boxed();
 
         Ok(completion_stream)
+    }
+
+    fn supports_vision(&self) -> bool {
+        // Ollama vision support depends on the model. Common vision models:
+        // qwen2-vl, qwen2.5-vl, glm-4v, llava, bakllava, moondream, deepseek-vl
+        // We return true and let the model handle it — Ollama will error if the
+        // model doesn't support images, which is better than silently dropping them.
+        true
+    }
+
+    async fn chat_with_images(
+        &self,
+        messages: &[Message],
+        images: &[crate::provider::ImageAttachment],
+        context: Option<String>,
+    ) -> Result<String> {
+        let mut ollama_messages: Vec<OllamaChatMessage> = messages
+            .iter()
+            .map(|m| OllamaChatMessage {
+                role: m.role.as_str().to_string(),
+                content: m.content.clone(),
+                images: None,
+            })
+            .collect();
+
+        // Inject context into the last user message if available
+        if let Some(ctx) = context {
+            if let Some(last_msg) = ollama_messages.last_mut() {
+                if last_msg.role == "user" {
+                    last_msg.content = format!("Context:\n{}\n\nUser: {}", ctx, last_msg.content);
+                }
+            }
+        }
+
+        // Attach images to the last user message (Ollama expects base64 strings)
+        if !images.is_empty() {
+            if let Some(last_user) = ollama_messages.iter_mut().rev().find(|m| m.role == "user") {
+                last_user.images = Some(
+                    images.iter().map(|img| img.base64.clone()).collect()
+                );
+            }
+        }
+
+        let request = OllamaChatRequest {
+            model: self.config.model.clone(),
+            messages: ollama_messages,
+            stream: false,
+            options: self.build_options(),
+        };
+
+        let response = self
+            .auth_post(format!("{}/api/chat", self.base_url))
+            .json(&request)
+            .send()
+            .await
+            .context("Failed to send vision request to Ollama")?;
+
+        let status = response.status();
+        let body_text = response.text().await.context("Failed to read response body")?;
+
+        if !status.is_success() {
+            anyhow::bail!("Ollama vision API error: {}", body_text);
+        }
+
+        let ollama_response: OllamaChatResponse = serde_json::from_str(&body_text)
+            .context(format!("Failed to parse Ollama vision response: {}", body_text))?;
+
+        Ok(ollama_response.message.map(|m| m.content).unwrap_or_default())
     }
 }
 
@@ -582,6 +655,7 @@ mod tests {
             messages: vec![OllamaChatMessage {
                 role: "user".to_string(),
                 content: "hello".to_string(),
+                images: None,
             }],
             stream: false,
             options: None,

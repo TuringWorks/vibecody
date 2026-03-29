@@ -2086,16 +2086,22 @@ async fn main() -> Result<()> {
                         }
                         "/chat" => {
                             if args.is_empty() {
-                                println!("Usage: /chat <message>  or  /chat [image.png] <message>");
+                                println!("Usage: /chat <message>  or  /chat [image.png] [file.rs] <message>");
                                 continue;
                             }
                             conversation_active = true;
 
-                            // Detect [image.png] patterns and load images.
-                            let (text_content, images) = extract_images_from_input(args);
+                            // Detect [file.ext] patterns and load images + documents.
+                            let (text_content, images, doc_context) = extract_attachments_from_input(args);
+                            // Inject document content into the user message
+                            let full_content = if doc_context.is_empty() {
+                                text_content.clone()
+                            } else {
+                                format!("[Attached Documents]\n{}\n\n{}", doc_context, text_content)
+                            };
                             messages.push(Message {
                                 role: MessageRole::User,
-                                content: text_content.clone(),
+                                content: full_content.clone(),
                             });
                             io::stdout().flush()?;
                             let chat_result = if images.is_empty() {
@@ -7596,23 +7602,35 @@ async fn main() -> Result<()> {
                         }
                     }
                 } else {
-                    // Regular chat (with @ context expansion and streaming)
+                    // Regular chat (with @ context expansion, attachments, and streaming)
                     if !conversation_active {
                         messages.clear();
                         conversation_active = true;
                         messages.push(Message {
                             role: MessageRole::System,
-                            content: "You are a helpful coding assistant. If the user asks you to run a command, output it in a ```execute block.\n\nContext references (@file:, @web:, @docs:, @git) are automatically expanded before each message.".to_string(),
+                            content: "You are a helpful coding assistant. If the user asks you to run a command, output it in a ```execute block.\n\nContext references (@file:, @web:, @docs:, @git) are automatically expanded before each message.\nFile attachments [file.ext] are also supported for images and documents.".to_string(),
                         });
                     }
-                    // Expand @file:, @web:, @docs:, @git references
-                    let expanded = expand_at_refs(input).await;
+                    // Extract file attachments [file.ext] and expand @-references
+                    let (text_content, images, doc_context) = extract_attachments_from_input(input);
+                    let expanded = expand_at_refs(&text_content).await;
+                    let full_content = if doc_context.is_empty() {
+                        expanded
+                    } else {
+                        format!("[Attached Documents]\n{}\n\n{}", doc_context, expanded)
+                    };
                     messages.push(Message {
                         role: MessageRole::User,
-                        content: expanded,
+                        content: full_content,
                     });
                     // Collect full response then render with markdown highlighting
-                    match llm.chat(&messages, None).await {
+                    let chat_result = if images.is_empty() {
+                        llm.chat(&messages, None).await
+                    } else {
+                        println!("({} image{})", images.len(), if images.len() > 1 { "s" } else { "" });
+                        llm.chat_with_images(&messages, &images, None).await
+                    };
+                    match chat_result {
                         Ok(full_response) => {
                             if !full_response.is_empty() {
                                 let rendered = if full_response.contains("```mermaid") {
@@ -8325,22 +8343,74 @@ async fn maybe_offer_commit(workspace: &std::path::Path, task: &str, llm: &dyn L
 }
 
 /// Detect `[path/to/image.png]` patterns in `input`, load images, return (clean_text, images).
-fn extract_images_from_input(input: &str) -> (String, Vec<ImageAttachment>) {
-    let re = re_image_attachment();
+/// Extract image and document attachments from user input.
+///
+/// Syntax: `[path/to/file.ext]`
+/// - Image files (.png, .jpg, .gif, .webp): returned as ImageAttachment for vision API
+/// - Document/code files (.pdf, .csv, .json, .rs, .py, etc.): content read and injected as context
+///
+/// Returns `(cleaned_text, images, document_context)`.
+fn extract_attachments_from_input(input: &str) -> (String, Vec<ImageAttachment>, String) {
+    let img_re = re_image_attachment();
+    let file_re = re_file_attachment();
     let mut images = Vec::new();
+    let mut doc_parts = Vec::new();
 
-    // First pass: collect images.
-    for caps in re.captures_iter(input) {
+    // Collect images
+    for caps in img_re.captures_iter(input) {
         let img_path = caps.get(1).map(|m| m.as_str()).unwrap_or("");
         match ImageAttachment::from_path(std::path::Path::new(img_path)) {
-            Ok(img) => images.push(img),
+            Ok(img) => {
+                images.push(img);
+                eprintln!("📎 Attached image: {}", img_path);
+            }
             Err(e) => eprintln!("⚠️  Could not load image '{}': {}", img_path, e),
         }
     }
 
-    // Second pass: strip image markers from text.
-    let clean = re.replace_all(input, "").trim().to_string();
-    (clean, images)
+    // Collect document/code files
+    for caps in file_re.captures_iter(input) {
+        let file_path = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+        let path = std::path::Path::new(file_path);
+        // Skip if this was already matched as an image
+        if img_re.is_match(&format!("[{}]", file_path)) {
+            continue;
+        }
+        match std::fs::read_to_string(path) {
+            Ok(content) => {
+                let truncated = if content.len() > 32_000 {
+                    format!("{}...\n\n[Truncated — file is {} bytes total]", &content[..32_000], content.len())
+                } else {
+                    content
+                };
+                let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+                doc_parts.push(format!(
+                    "=== Attached file: {} ({}) ===\n{}\n=== End of {} ===",
+                    file_path, ext, truncated, file_path
+                ));
+                eprintln!("📎 Attached file: {} ({} bytes)", file_path, truncated.len());
+            }
+            Err(e) => {
+                // Try reading as binary (e.g. PDF)
+                match std::fs::read(path) {
+                    Ok(bytes) => {
+                        doc_parts.push(format!(
+                            "=== Attached binary file: {} ({} bytes, cannot display content) ===",
+                            file_path, bytes.len()
+                        ));
+                        eprintln!("📎 Attached binary file: {} ({} bytes)", file_path, bytes.len());
+                    }
+                    Err(_) => eprintln!("⚠️  Could not load file '{}': {}", file_path, e),
+                }
+            }
+        }
+    }
+
+    // Strip all attachment markers from text
+    let clean = img_re.replace_all(input, "");
+    let clean = file_re.replace_all(&clean, "").trim().to_string();
+    let doc_context = doc_parts.join("\n\n");
+    (clean, images, doc_context)
 }
 
 fn create_provider(provider_name: &str, model: Option<String>) -> Result<Arc<dyn LLMProvider>> {
@@ -8908,7 +8978,7 @@ fn find_closest_command(input: &str) -> Option<&'static str> {
 
 fn show_help() {
     println!("\nVibeCLI Commands:");
-    println!("  /chat <message>          - Chat with AI (supports [image.png] for vision)");
+    println!("  /chat <message>          - Chat with AI (supports [image.png] and [file.rs] attachments)");
     println!("  /agent <task>            - Run autonomous coding agent on a task");
     println!("  /plan <task>             - Generate execution plan, then run agent");
     println!("  /resume [id] [task]      - List resumable sessions or resume one");
@@ -9039,9 +9109,12 @@ fn show_help() {
     println!("  azure                    - Azure OpenAI      (AZURE_OPENAI_API_KEY + api_url)");
     println!("  zhipu                    - Zhipu GLM-4       (ZHIPU_API_KEY)");
     println!("  vercel_ai                - Vercel AI Gateway (VERCEL_AI_API_KEY + api_url)");
-    println!("\nMultimodal:");
-    println!("  /chat [screenshot.png] What is this error?  - Attach image to chat");
-    println!("\nTip: You can also just type a message to chat\n");
+    println!("\nAttachments (use [brackets] syntax):");
+    println!("  [screenshot.png] What is this error?  - Attach image for vision analysis");
+    println!("  [data.csv] Analyze this data           - Attach document/code for review");
+    println!("  [main.rs] [test.rs] Review these files  - Attach multiple files");
+    println!("  Supported: images (png/jpg/gif/webp), code, text, JSON, CSV, YAML, TOML, etc.");
+    println!("\nTip: You can also just type a message to chat (attachments work everywhere)\n");
 }
 
 /// Run a health check of the VibeCLI installation: config, providers, git, plugins, profiles.
@@ -9445,6 +9518,12 @@ fn re_at_memory() -> &'static regex::Regex {
 fn re_image_attachment() -> &'static regex::Regex {
     static R: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
     R.get_or_init(|| regex::Regex::new(r"\[([^\]]+\.(png|jpg|jpeg|gif|webp))\]").expect("valid regex: image_attachment"))
+}
+fn re_file_attachment() -> &'static regex::Regex {
+    static R: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    R.get_or_init(|| regex::Regex::new(
+        r"\[([^\]]+\.(pdf|csv|json|xml|html|htm|md|markdown|txt|log|rs|py|js|ts|tsx|jsx|go|java|c|cpp|h|rb|php|swift|kt|scala|sh|bash|sql|yaml|yml|toml|ini|cfg|conf|env|css|scss|less|vue|svelte))\]"
+    ).expect("valid regex: file_attachment"))
 }
 fn re_html_tags() -> &'static regex::Regex {
     static R: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
@@ -10294,42 +10373,23 @@ mod tests {
         assert_eq!(result, "");
     }
 
-    // ── extract_images_from_input tests ─────────────────────────────────────
-
     #[test]
-    fn extract_images_no_images_in_text() {
-        let (clean, images) = extract_images_from_input("just a normal message");
-        assert_eq!(clean, "just a normal message");
+    fn extract_attachments_handles_document_files() {
+        // extract_attachments_from_input strips document file brackets too
+        let (clean, images, _docs) = extract_attachments_from_input("see [readme.md] for info");
+        assert!(!clean.contains("[readme.md]")); // .md IS a valid document attachment
+        assert_eq!(clean, "see  for info");
         assert!(images.is_empty());
     }
 
     #[test]
-    fn extract_images_strips_image_markers() {
-        // The image file won't exist so images vec will be empty,
-        // but the marker text should still be stripped from the clean output.
-        let (clean, _images) = extract_images_from_input("look at [missing.png] please");
-        assert!(!clean.contains("[missing.png]"));
-    }
-
-    #[test]
-    fn extract_images_multiple_markers_stripped() {
-        let (clean, _) = extract_images_from_input("[a.png] and [b.jpg] end");
-        assert!(!clean.contains("[a.png]"));
-        assert!(!clean.contains("[b.jpg]"));
-    }
-
-    #[test]
-    fn extract_images_empty_input() {
-        let (clean, images) = extract_images_from_input("");
-        assert_eq!(clean, "");
-        assert!(images.is_empty());
-    }
-
-    #[test]
-    fn extract_images_non_image_brackets_preserved() {
-        // Brackets with non-image extension should not be stripped
-        let (clean, images) = extract_images_from_input("see [readme.md] for info");
-        assert!(clean.contains("[readme.md]"));
-        assert!(images.is_empty());
+    fn extract_attachments_handles_mixed() {
+        let (clean, images, _docs) = extract_attachments_from_input("[logo.png] review [main.rs] please");
+        assert!(!clean.contains("[logo.png]"));
+        assert!(!clean.contains("[main.rs]"));
+        assert_eq!(clean, "review  please");
+        // logo.png would be an image (if file existed), main.rs would be a doc
+        // Images from non-existent files just fail silently
+        assert!(images.is_empty()); // file doesn't exist
     }
 }

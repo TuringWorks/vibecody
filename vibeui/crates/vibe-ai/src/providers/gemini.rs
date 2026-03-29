@@ -654,49 +654,187 @@ impl AIProvider for GeminiProvider {
             anyhow::bail!("Gemini API error: {}", error_text);
         }
 
-        let stream = response.bytes_stream();
+        // Gemini streamGenerateContent returns a JSON array: [{...},{...},...]
+        // Raw bytes_stream() chunks can split mid-JSON object, causing parse
+        // failures ("error decoding response body").  We buffer the incoming
+        // bytes and extract complete JSON objects delimited by balanced braces
+        // at the top-level array depth.
+        let byte_stream = response.bytes_stream();
 
-        let completion_stream = stream
-            .map(|chunk| {
-                let chunk = chunk?;
-                // Gemini streamGenerateContent returns a JSON array of response objects.
-                if let Ok(resp) = serde_json::from_slice::<GeminiResponse>(&chunk) {
-                    if let Some(candidates) = resp.candidates {
-                        if let Some(candidate) = candidates.first() {
-                            if let Some(part) = candidate.content.parts.first() {
-                                return Ok(part.text.clone());
-                            }
-                        }
-                    }
-                }
-
-                if let Ok(responses) = serde_json::from_slice::<Vec<GeminiResponse>>(&chunk) {
-                    let mut content = String::new();
-                    for resp in responses {
-                        if let Some(candidates) = resp.candidates {
-                            if let Some(candidate) = candidates.first() {
-                                if let Some(part) = candidate.content.parts.first() {
-                                    content.push_str(&part.text);
+        let completion_stream = futures::stream::unfold(
+            (byte_stream.boxed(), String::new()),
+            |(mut stream, mut buf)| async move {
+                loop {
+                    // Try to extract a complete JSON object from the buffer.
+                    if let Some((json_str, rest)) = extract_json_object(&buf) {
+                        buf = rest;
+                        if let Ok(resp) = serde_json::from_str::<GeminiResponse>(&json_str) {
+                            if let Some(candidates) = resp.candidates {
+                                if let Some(candidate) = candidates.first() {
+                                    if let Some(part) = candidate.content.parts.first() {
+                                        if !part.text.is_empty() {
+                                            return Some((Ok(part.text.clone()), (stream, buf)));
+                                        }
+                                    }
                                 }
                             }
                         }
+                        // Parsed but no text (e.g. safety-only block) — continue
+                        continue;
                     }
-                    if !content.is_empty() {
-                        return Ok(content);
+
+                    // Need more data from the network.
+                    match stream.next().await {
+                        Some(Ok(bytes)) => {
+                            buf.push_str(&String::from_utf8_lossy(&bytes));
+                        }
+                        Some(Err(e)) => {
+                            return Some((Err(anyhow::anyhow!("{}", e)), (stream, buf)));
+                        }
+                        None => {
+                            // Stream ended — try to parse any remaining buffer.
+                            let trimmed = buf.trim()
+                                .trim_start_matches('[')
+                                .trim_end_matches(']')
+                                .trim_start_matches(',')
+                                .trim();
+                            if !trimmed.is_empty() {
+                                if let Ok(resp) = serde_json::from_str::<GeminiResponse>(trimmed) {
+                                    buf.clear();
+                                    if let Some(candidates) = resp.candidates {
+                                        if let Some(candidate) = candidates.first() {
+                                            if let Some(part) = candidate.content.parts.first() {
+                                                if !part.text.is_empty() {
+                                                    return Some((Ok(part.text.clone()), (stream, buf)));
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            return None; // truly done
+                        }
                     }
                 }
-
-                let text = String::from_utf8_lossy(&chunk);
-                if let Some(parsed) = Self::parse_streaming_chunk(&text) {
-                    return Ok(parsed);
-                }
-
-                Ok(String::new())
-            })
-            .boxed();
+            },
+        )
+        .boxed();
 
         Ok(completion_stream)
     }
+
+    fn supports_vision(&self) -> bool {
+        // All Gemini 2.x models support multimodal (vision) input
+        true
+    }
+
+    async fn chat_with_images(
+        &self,
+        messages: &[Message],
+        images: &[crate::provider::ImageAttachment],
+        context: Option<String>,
+    ) -> Result<String> {
+        let api_key = self
+            .config
+            .api_key
+            .as_ref()
+            .context("Gemini API key not found")?;
+
+        // Build contents with images attached to the last user message
+        let mut contents = self.build_contents(messages, context);
+
+        // Attach images as inlineData parts to the last user content
+        if let Some(last_user) = contents.iter_mut().rev().find(|c| c.role == "user") {
+            for img in images {
+                last_user.parts.push(Part::InlineData {
+                    inline_data: InlineDataPayload {
+                        mime_type: img.media_type.clone(),
+                        data: img.base64.clone(),
+                    },
+                });
+            }
+        }
+
+        let request = self.build_request(&contents, None);
+        let url = self.build_url(&self.config.model, false);
+
+        let response = self
+            .client
+            .post(&url)
+            .header("x-goog-api-key", api_key)
+            .json(&request)
+            .send()
+            .await
+            .context("Failed to send vision request to Gemini")?;
+
+        if !response.status().is_success() {
+            let status = response.status().as_u16();
+            let error_text = response.text().await?;
+            anyhow::bail!("Gemini vision API error ({}): {}", status, error_text);
+        }
+
+        let body = response
+            .text()
+            .await
+            .context("Failed to read Gemini vision response body")?;
+
+        Self::parse_response(&body).map_err(|e| anyhow::anyhow!("{}", e))
+    }
+}
+
+// ─── Streaming helpers ─────────────────────────────────────────────────────
+
+/// Extract the first complete JSON object from a buffer that may contain
+/// fragments of the Gemini `[{...},{...},...]` streaming array.
+///
+/// Returns `Some((json_str, remaining))` when a balanced `{…}` is found,
+/// skipping leading `[`, `,`, and whitespace.  Handles nested braces and
+/// strings (including escaped quotes) correctly.
+fn extract_json_object(buf: &str) -> Option<(String, String)> {
+    // Skip leading array/separator chars
+    let trimmed = buf.trim_start_matches(|c: char| c == '[' || c == ',' || c.is_whitespace());
+    if !trimmed.starts_with('{') {
+        return None;
+    }
+
+    let mut depth = 0i32;
+    let mut in_string = false;
+    let mut escape_next = false;
+    let mut end_idx = None;
+
+    for (i, ch) in trimmed.char_indices() {
+        if escape_next {
+            escape_next = false;
+            continue;
+        }
+        if ch == '\\' && in_string {
+            escape_next = true;
+            continue;
+        }
+        if ch == '"' {
+            in_string = !in_string;
+            continue;
+        }
+        if in_string {
+            continue;
+        }
+        if ch == '{' {
+            depth += 1;
+        } else if ch == '}' {
+            depth -= 1;
+            if depth == 0 {
+                end_idx = Some(i + ch.len_utf8());
+                break;
+            }
+        }
+    }
+
+    let end = end_idx?;
+    let json = trimmed[..end].to_string();
+    // Calculate byte offset into original buf
+    let skip = buf.len() - trimmed.len();
+    let remaining = buf[skip + end..].to_string();
+    Some((json, remaining))
 }
 
 // ─── Tests ──────────────────────────────────────────────────────────────────
@@ -1230,5 +1368,52 @@ mod tests {
             format!("{}", HarmBlockThreshold::BlockHighAndAbove),
             "BLOCK_HIGH_AND_ABOVE"
         );
+    }
+
+    // ── extract_json_object tests ──────────────────────────────────────
+
+    #[test]
+    fn extract_single_object() {
+        let buf = r#"[{"candidates":[{"content":{"parts":[{"text":"hi"}]}}]}]"#;
+        let (json, rest) = extract_json_object(buf).unwrap();
+        assert!(json.starts_with('{'));
+        assert!(json.ends_with('}'));
+        let _: GeminiResponse = serde_json::from_str(&json).unwrap();
+        assert_eq!(rest.trim(), "]");
+    }
+
+    #[test]
+    fn extract_from_split_chunks() {
+        // Simulate two objects in the array
+        let buf = r#"[{"candidates":[{"content":{"parts":[{"text":"hello"}]}}]},{"candidates":[{"content":{"parts":[{"text":" world"}]}}]}]"#;
+        let (json1, rest1) = extract_json_object(buf).unwrap();
+        let r1: GeminiResponse = serde_json::from_str(&json1).unwrap();
+        assert_eq!(r1.candidates.unwrap()[0].content.parts[0].text, "hello");
+
+        let (json2, rest2) = extract_json_object(&rest1).unwrap();
+        let r2: GeminiResponse = serde_json::from_str(&json2).unwrap();
+        assert_eq!(r2.candidates.unwrap()[0].content.parts[0].text, " world");
+        assert_eq!(rest2.trim(), "]");
+    }
+
+    #[test]
+    fn extract_handles_incomplete() {
+        let buf = r#"[{"candidates":[{"content":{"par"#;
+        assert!(extract_json_object(buf).is_none());
+    }
+
+    #[test]
+    fn extract_handles_escaped_braces_in_strings() {
+        let buf = r#"[{"candidates":[{"content":{"parts":[{"text":"code: { x }"}]}}]}]"#;
+        let (json, _) = extract_json_object(buf).unwrap();
+        let r: GeminiResponse = serde_json::from_str(&json).unwrap();
+        assert_eq!(r.candidates.unwrap()[0].content.parts[0].text, "code: { x }");
+    }
+
+    #[test]
+    fn extract_empty_buffer() {
+        assert!(extract_json_object("").is_none());
+        assert!(extract_json_object("[").is_none());
+        assert!(extract_json_object("[,").is_none());
     }
 }

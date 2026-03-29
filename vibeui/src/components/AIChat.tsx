@@ -1,10 +1,11 @@
-import { useRef, useState, useEffect, useCallback } from "react";
+import { useRef, useState, useEffect, useCallback, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { open } from "@tauri-apps/plugin-dialog";
 import { useToast } from "../hooks/useToast";
 import { ContextPicker } from "./ContextPicker";
 import { flowContext } from "../utils/FlowContext";
-import { Mic, User } from "lucide-react";
+import { Mic, User, Paperclip, X, FileText } from "lucide-react";
 import "./AIChat.css";
 
 // ── Voice input hook ─────────────────────────────────────────────────────────
@@ -26,7 +27,6 @@ function useVoiceInput(onTranscript: (text: string) => void) {
  const chunksRef = useRef<Blob[]>([]);
  const { toast } = useToast();
 
- // Cleanup on unmount
  useEffect(() => {
    return () => {
      if (recognitionRef.current) {
@@ -36,7 +36,6 @@ function useVoiceInput(onTranscript: (text: string) => void) {
  }, []);
 
  const toggle = useCallback(async () => {
-   // ── Stop ──
    if (isListening) {
      if (recognitionRef.current) {
        recognitionRef.current.stop();
@@ -46,7 +45,6 @@ function useVoiceInput(onTranscript: (text: string) => void) {
      return;
    }
 
-   // ── Start — prefer Web Speech API ──
    if (SpeechRecognition) {
      try {
        const recognition = new SpeechRecognition();
@@ -101,7 +99,7 @@ function useVoiceInput(onTranscript: (text: string) => void) {
      return;
    }
 
-   // ── Fallback: MediaRecorder + Groq Whisper ──
+   // Fallback: MediaRecorder + Groq Whisper
    try {
      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
@@ -162,10 +160,49 @@ function useVoiceInput(onTranscript: (text: string) => void) {
  return { isListening, isTranscribing, interimText, toggle };
 }
 
+// ── Types ────────────────────────────────────────────────────────────────────
+
+export interface ToolCallInfo {
+  tool: string;
+  path?: string;
+  status: "running" | "success" | "error";
+  output?: string;
+  duration_ms?: number;
+}
+
+export interface MessageMetrics {
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  provider?: string;
+  model?: string;
+  latency_ms?: number;
+  tokens_per_sec?: number;
+}
+
+/** Attachment sent with a chat message. */
+export interface ChatAttachment {
+  name: string;
+  mime_type: string;
+  /** Base64-encoded file content (for images/binary). */
+  data: string;
+  size: number;
+  /** Plain text content for text/code files (avoids base64 round-trip). */
+  text_content?: string;
+  /** Object URL for local preview (images). Not serialized to backend. */
+  previewUrl?: string;
+}
+
 export interface Message {
  role: "user" | "assistant";
  content: string;
  timestamp?: number;
+ thinking?: string;
+ toolCalls?: ToolCallInfo[];
+ metrics?: MessageMetrics;
+ isError?: boolean;
+ isRetry?: boolean;
+ /** Attachments sent with this message (for display in chat history). */
+ attachments?: ChatAttachment[];
 }
 
 interface PendingWrite {
@@ -200,14 +237,34 @@ interface AIChatProps {
  onMessagesChange?: (msgs: Message[]) => void;
 }
 
+// ── Slash commands ───────────────────────────────────────────────────────────
+
+interface SlashCommand {
+  command: string;
+  label: string;
+  description: string;
+  prefix: string;
+}
+
+const SLASH_COMMANDS: SlashCommand[] = [
+  { command: "/fix",      label: "Fix",        description: "Fix errors in the current file",    prefix: "Fix the following errors:\n" },
+  { command: "/explain",  label: "Explain",    description: "Explain selected code",             prefix: "Explain the following code in detail:\n" },
+  { command: "/test",     label: "Test",       description: "Generate tests",                    prefix: "Generate comprehensive tests for:\n" },
+  { command: "/doc",      label: "Doc",        description: "Generate documentation",            prefix: "Generate documentation for:\n" },
+  { command: "/refactor", label: "Refactor",   description: "Refactor code",                     prefix: "Refactor the following code for better readability, performance, and maintainability:\n" },
+  { command: "/review",   label: "Review",     description: "Code review",                       prefix: "Perform a thorough code review of:\n" },
+  { command: "/compact",  label: "Compact",    description: "Summarize conversation",            prefix: "Summarize our conversation so far into key points and action items:\n" },
+];
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
 /** Extract the `@query` fragment at the cursor position, or null if none. */
 function getAtQuery(text: string, cursorPos: number): { query: string; start: number } | null {
  const beforeCursor = text.slice(0, cursorPos);
- // Find the last `@` that is not preceded by a non-whitespace character
  const match = beforeCursor.match(/(?:^|[\s\n])(@(\S*))$/);
  if (!match) return null;
- const fullMatch = match[1]; // the "@..." token
- const query = match[2]; // everything after @
+ const fullMatch = match[1];
+ const query = match[2];
  const start = beforeCursor.lastIndexOf(fullMatch);
  return { query, start };
 }
@@ -218,471 +275,1397 @@ function formatTime(ts?: number): string {
  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-export function AIChat({ provider, context, fileTree, currentFile, onFileAction, onPendingWrite, pendingInput, onPendingInputConsumed, messages: controlledMessages, onMessagesChange }: AIChatProps) {
- const [chatMode, setChatMode] = useState<"chat" | "planning">("chat");
- const [localMessages, setLocalMessages] = useState<Message[]>([]);
- // Use controlled messages if provided, otherwise fall back to local state
- const messages = controlledMessages ?? localMessages;
- const setMessages = useCallback((update: Message[] | ((prev: Message[]) => Message[])) => {
-   if (onMessagesChange) {
-     const next = typeof update === "function" ? update(controlledMessages ?? []) : update;
-     onMessagesChange(next);
-   } else {
-     setLocalMessages(update as Parameters<typeof setLocalMessages>[0]);
-   }
- }, [controlledMessages, onMessagesChange]);
- const [input, setInput] = useState("");
- const [isLoading, setIsLoading] = useState(false);
- const [streamingText, setStreamingText] = useState(""); // live assistant text while streaming
- const [pickerQuery, setPickerQuery] = useState<string | null>(null);
- const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
- const textareaRef = useRef<HTMLTextAreaElement>(null);
- const messagesEndRef = useRef<HTMLDivElement>(null);
- const messagesContainerRef = useRef<HTMLDivElement>(null);
- const cancelledRef = useRef(false);
- const [isNearBottom, setIsNearBottom] = useState(true);
- // Streaming speed metrics
- const streamStartMsRef = useRef<number | null>(null);
- const streamCharsRef = useRef<number>(0);
- const [tokensPerSec, setTokensPerSec] = useState<number | null>(null);
- const { isListening, isTranscribing, interimText, toggle: toggleVoice } = useVoiceInput((transcript) =>
- setInput((prev) => (prev ? prev + " " : "") + transcript)
- );
+type AgentMode = "fast" | "chat" | "planning";
 
- // Track scroll position to decide if auto-scroll should apply
- const handleScroll = useCallback(() => {
-   const el = messagesContainerRef.current;
-   if (!el) return;
-   const threshold = 80;
-   setIsNearBottom(el.scrollHeight - el.scrollTop - el.clientHeight < threshold);
- }, []);
+/** Extract <thinking>...</thinking> blocks from content. Returns [cleanedContent, thinkingText]. */
+function extractThinking(content: string): [string, string] {
+  const thinkingRegex = /<thinking>([\s\S]*?)<\/thinking>/g;
+  let thinkingText = "";
+  let match: RegExpExecArray | null;
+  while ((match = thinkingRegex.exec(content)) !== null) {
+    thinkingText += (thinkingText ? "\n" : "") + match[1].trim();
+  }
+  const cleaned = content.replace(thinkingRegex, "").trim();
+  return [cleaned, thinkingText];
+}
 
- // Auto-scroll only when user is near the bottom
- useEffect(() => {
-   if (isNearBottom) {
-     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-   }
- }, [messages, streamingText, isLoading, isNearBottom]);
+/** Parse tool XML tags from content into ToolCallInfo[], return cleaned content. */
+function parseToolCalls(content: string): [string, ToolCallInfo[]] {
+  const tools: ToolCallInfo[] = [];
+  let cleaned = content;
 
- const scrollToBottom = useCallback(() => {
-   messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-   setIsNearBottom(true);
- }, []);
+  // <write_file path="...">...</write_file>
+  cleaned = cleaned.replace(/<write_file path="([^"]+)">([\s\S]*?)<\/write_file>/g, (_m, path, output) => {
+    tools.push({ tool: "write_file", path, status: "success", output: output.trim() });
+    return "";
+  });
 
- // Register Tauri chat stream event listeners once
- useEffect(() => {
- let cancelled = false;
- const unlisteners: Array<() => void> = [];
- (async () => {
- const u1 = await listen<string>("chat:chunk", (e) => {
- const now = Date.now();
- const chunk = e.payload;
- if (streamStartMsRef.current === null) streamStartMsRef.current = now;
- streamCharsRef.current += chunk.length;
- const elapsedSec = (now - streamStartMsRef.current) / 1000;
- if (elapsedSec > 0) {
- setTokensPerSec(Math.round((streamCharsRef.current / 4) / elapsedSec));
- }
- setStreamingText((prev) => prev + chunk);
- });
- if (cancelled) { u1(); return; }
- unlisteners.push(u1);
+  // <read_file path="..." />
+  cleaned = cleaned.replace(/<read_file path="([^"]+)"\s*\/>/g, (_m, path) => {
+    tools.push({ tool: "read_file", path, status: "success" });
+    return "";
+  });
 
- const u2 = await listen<ChatResponse>("chat:complete", (e) => {
- const response = e.payload;
- const displayContent = cleanMessage(response.message);
- setMessages((prev) => {
- const updated = [...prev, { role: "assistant" as const, content: displayContent, timestamp: Date.now() }];
- // If tools produced output (build results, file reads, etc.), add as a follow-up message
- if (response.tool_output && response.tool_output.trim()) {
-   updated.push({ role: "assistant" as const, content: "```\n" + response.tool_output.trim() + "\n```", timestamp: Date.now() });
- }
- return updated;
- });
- setStreamingText("");
- setTokensPerSec(null);
- setIsLoading(false);
- if (response.pending_write && onPendingWrite) {
- onPendingWrite(response.pending_write.path, response.pending_write.content);
- }
- if (onFileAction) onFileAction();
- });
- if (cancelled) { u2(); return; }
- unlisteners.push(u2);
+  // <list_dir path="..." />
+  cleaned = cleaned.replace(/<list_dir path="([^"]+)"\s*\/>/g, (_m, path) => {
+    tools.push({ tool: "list_dir", path, status: "success" });
+    return "";
+  });
 
- const u3 = await listen<string>("chat:error", (e) => {
- setMessages((prev) => [...prev, {
- role: "assistant",
- content: ` ${e.payload}`,
- timestamp: Date.now(),
- }]);
- setStreamingText("");
- setTokensPerSec(null);
- setIsLoading(false);
- });
- if (cancelled) { u3(); return; }
- unlisteners.push(u3);
- })();
- return () => {
- cancelled = true;
- unlisteners.forEach((fn) => fn());
- };
- // eslint-disable-next-line react-hooks/exhaustive-deps
- }, [onFileAction, onPendingWrite]);
+  // <build /> or <build command="..." />
+  cleaned = cleaned.replace(/<build\s+command="([^"]+)"\s*\/>/g, (_m, cmd) => {
+    tools.push({ tool: "build", path: cmd, status: "success" });
+    return "";
+  });
+  cleaned = cleaned.replace(/<build\s*\/>/g, () => {
+    tools.push({ tool: "build", status: "success" });
+    return "";
+  });
 
- // Consume pendingInput from Cascade "Inject into chat"
- useEffect(() => {
- if (pendingInput) {
- setInput((prev) => prev ? `${prev}\n${pendingInput}` : pendingInput);
- onPendingInputConsumed?.();
- textareaRef.current?.focus();
- }
- // eslint-disable-next-line react-hooks/exhaustive-deps
- }, [pendingInput]);
+  // <run /> or <run command="..." />
+  cleaned = cleaned.replace(/<run\s+command="([^"]+)"\s*\/>/g, (_m, cmd) => {
+    tools.push({ tool: "run", path: cmd, status: "success" });
+    return "";
+  });
+  cleaned = cleaned.replace(/<run\s*\/>/g, () => {
+    tools.push({ tool: "run", status: "success" });
+    return "";
+  });
 
- // Clear chat when workspace changes
- useEffect(() => {
-  const handler = () => {
-   setMessages([]);
-   setStreamingText("");
-   setInput("");
-   setIsLoading(false);
+  return [cleaned.trim(), tools];
+}
+
+/** Detect file paths in text and return segments. */
+function parseFileReferences(text: string): Array<{ type: "text" | "file"; value: string }> {
+  const fileRegex = /(?:^|\s)((?:\.{0,2}\/)?(?:[a-zA-Z0-9_\-]+\/)*[a-zA-Z0-9_\-]+\.[a-zA-Z0-9]{1,10})(?=\s|$|[),;:])/g;
+  const segments: Array<{ type: "text" | "file"; value: string }> = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = fileRegex.exec(text)) !== null) {
+    const filePath = match[1];
+    const start = match.index + (match[0].length - filePath.length);
+    if (start > lastIndex) {
+      segments.push({ type: "text", value: text.slice(lastIndex, start) });
+    }
+    segments.push({ type: "file", value: filePath });
+    lastIndex = start + filePath.length;
+  }
+
+  if (lastIndex < text.length) {
+    segments.push({ type: "text", value: text.slice(lastIndex) });
+  }
+
+  return segments.length > 0 ? segments : [{ type: "text", value: text }];
+}
+
+// ── Tool call icon/label helpers ─────────────────────────────────────────────
+
+function toolIcon(tool: string): string {
+  switch (tool) {
+    case "write_file": return "\u{1F4DD}";
+    case "read_file":  return "\u{1F4D6}";
+    case "list_dir":   return "\u{1F4C1}";
+    case "build":      return "\u{1F528}";
+    case "run":        return "\u25B6\uFE0F";
+    default:           return "\u{1F527}";
+  }
+}
+
+function toolLabel(tool: string, path?: string): string {
+  switch (tool) {
+    case "write_file": return path ? `Writing ${path.split("/").pop()}` : "Writing file";
+    case "read_file":  return path ? `Reading ${path.split("/").pop()}` : "Reading file";
+    case "list_dir":   return path ? `Listing ${path}` : "Listing directory";
+    case "build":      return path ? `Building: ${path}` : "Building project";
+    case "run":        return path ? `Running: ${path}` : "Running application";
+    default:           return tool;
+  }
+}
+
+function toolStatusIcon(status: "running" | "success" | "error"): string {
+  switch (status) {
+    case "running": return "\u23F3";
+    case "success": return "\u2705";
+    case "error":   return "\u274C";
+  }
+}
+
+// ── Content renderer ─────────────────────────────────────────────────────────
+
+interface CodeBlockProps {
+  language: string;
+  code: string;
+  filename?: string;
+  onApply?: (code: string, filename: string) => void;
+}
+
+function CodeBlock({ language, code, filename, onApply }: CodeBlockProps) {
+  const [copied, setCopied] = useState(false);
+  const [showLines, setShowLines] = useState(false);
+
+  const detectedFilename = useMemo(() => {
+    if (filename) return filename;
+    // Try to detect from first line comment or language
+    const extMap: Record<string, string> = {
+      typescript: "file.ts", javascript: "file.js", tsx: "file.tsx", jsx: "file.jsx",
+      rust: "file.rs", python: "file.py", go: "file.go", java: "File.java",
+      css: "file.css", html: "file.html", json: "file.json", yaml: "file.yaml",
+      toml: "file.toml", sql: "file.sql", bash: "script.sh", sh: "script.sh",
+      cpp: "file.cpp", c: "file.c", ruby: "file.rb", swift: "file.swift",
+      kotlin: "file.kt", scala: "file.scala", php: "file.php",
+    };
+    return extMap[language] || "file.txt";
+  }, [language, filename]);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(code).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    }).catch(() => {});
   };
-  window.addEventListener("vibeui:workspace-changed", handler);
-  return () => window.removeEventListener("vibeui:workspace-changed", handler);
- }, [setMessages]);
 
- const cleanMessage = (content: string): string => {
- let cleaned = content.replace(/<write_file path="([^"]+)">[\s\S]*?<\/write_file>/g, "📄 Proposed changes to `$1`");
- cleaned = cleaned.replace(/<read_file path="([^"]+)" \/>/g, "📖 Read `$1`");
- cleaned = cleaned.replace(/<list_dir path="([^"]+)" \/>/g, "📁 Listed `$1`");
- cleaned = cleaned.replace(/<build\s*\/>/g, "🔨 Building project...");
- cleaned = cleaned.replace(/<build\s+command="([^"]+)"\s*\/>/g, "🔨 Running: `$1`");
- cleaned = cleaned.replace(/<run\s*\/>/g, "▶ Running application...");
- cleaned = cleaned.replace(/<run\s+command="([^"]+)"\s*\/>/g, "▶ Running: `$1`");
- return cleaned;
- };
+  const lines = code.split("\n");
 
- const sendMessage = useCallback(async () => {
- if (!input.trim()) return;
- if (!provider) {
- setMessages(prev => [...prev, {
- role: "assistant",
- content: "Please select an AI provider from the dropdown menu first."
- }]);
- return;
- }
+  return (
+    <div className="cb-container">
+      <div className="cb-header">
+        <span className="cb-lang">{language || "text"}</span>
+        {detectedFilename && <span className="cb-filename">{detectedFilename}</span>}
+        <div className="cb-actions">
+          <button className="cb-btn" onClick={() => setShowLines(!showLines)} title="Toggle line numbers">
+            #
+          </button>
+          <button className="cb-btn" onClick={handleCopy} title="Copy code">
+            {copied ? "\u2713" : "Copy"}
+          </button>
+          {onApply && (
+            <button className="cb-btn cb-btn-apply" onClick={() => onApply(code, detectedFilename)} title="Apply to file">
+              Apply
+            </button>
+          )}
+        </div>
+      </div>
+      <pre className={`cb-code syntax-${language || "text"}`}>
+        <code>
+          {showLines
+            ? lines.map((line, i) => (
+                <span key={i} className="cb-line">
+                  <span className="cb-line-num">{i + 1}</span>
+                  {line}
+                  {i < lines.length - 1 ? "\n" : ""}
+                </span>
+              ))
+            : code
+          }
+        </code>
+      </pre>
+    </div>
+  );
+}
 
- const userMessage: Message = { role: "user", content: input, timestamp: Date.now() };
- setMessages((prev) => [...prev, userMessage]);
- setInput("");
- setPickerQuery(null);
- setIsNearBottom(true); // auto-scroll after sending
- cancelledRef.current = false;
- setIsLoading(true);
- setStreamingText("");
- setTokensPerSec(null);
- streamStartMsRef.current = null;
- streamCharsRef.current = 0;
+/** Render message content: parse code blocks, file references, plain text. */
+function renderContent(
+  content: string,
+  onApply?: (code: string, filename: string) => void,
+): React.ReactNode[] {
+  const parts: React.ReactNode[] = [];
+  // Split by code fences: ```lang\n...\n```
+  const fenceRegex = /```(\w*)\n([\s\S]*?)```/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  let key = 0;
 
- // Record user message in Cascade flow immediately
- flowContext.add({
- kind: "chat",
- summary: userMessage.content.slice(0, 100),
- detail: `Q: ${userMessage.content}`,
- });
+  while ((match = fenceRegex.exec(content)) !== null) {
+    // Text before this code block
+    if (match.index > lastIndex) {
+      const textBefore = content.slice(lastIndex, match.index);
+      parts.push(<TextSegment key={key++} text={textBefore} />);
+    }
+    parts.push(
+      <CodeBlock
+        key={key++}
+        language={match[1]}
+        code={match[2]}
+        onApply={onApply}
+      />
+    );
+    lastIndex = match.index + match[0].length;
+  }
 
- try {
- // Kick off streaming — response arrives via chat:chunk / chat:complete / chat:error events.
- await invoke("stream_chat_message", {
- request: {
- messages: [...messages, userMessage],
- provider,
- context,
- file_tree: fileTree,
- current_file: currentFile,
- mode: chatMode,
- },
- });
- } catch (error) {
- console.error("Failed to start chat stream:", error);
- setMessages((prev) => [...prev, {
- role: "assistant",
- content: "Sorry, I encountered an error. Please make sure an AI provider is configured.",
- }]);
- setStreamingText("");
- setIsLoading(false);
- }
- // eslint-disable-next-line react-hooks/exhaustive-deps
- }, [input, provider, context, fileTree, currentFile, messages]);
+  // Remaining text (or if there was a partial unclosed code block during streaming)
+  if (lastIndex < content.length) {
+    const remaining = content.slice(lastIndex);
+    // Check for unclosed code fence (streaming in progress)
+    const unfinishedFence = remaining.match(/```(\w*)\n([\s\S]*)$/);
+    if (unfinishedFence) {
+      const beforeFence = remaining.slice(0, remaining.indexOf("```"));
+      if (beforeFence) {
+        parts.push(<TextSegment key={key++} text={beforeFence} />);
+      }
+      parts.push(
+        <div key={key++} className="cb-container cb-streaming">
+          <div className="cb-header">
+            <span className="cb-lang">{unfinishedFence[1] || "text"}</span>
+            <span className="cb-streaming-badge">streaming...</span>
+          </div>
+          <pre className={`cb-code syntax-${unfinishedFence[1] || "text"}`}>
+            <code>{unfinishedFence[2]}</code>
+          </pre>
+        </div>
+      );
+    } else {
+      parts.push(<TextSegment key={key++} text={remaining} />);
+    }
+  }
 
- const stopMessage = useCallback(async () => {
- cancelledRef.current = true;
- await invoke("stop_chat_stream").catch(() => {});
- // Commit whatever was streamed so far as the final message
- setMessages((prev) => {
- if (streamingText) {
- return [...prev, { role: "assistant" as const, content: cleanMessage(streamingText) }];
- }
- return prev;
- });
- setStreamingText("");
- setTokensPerSec(null);
- setIsLoading(false);
- // eslint-disable-next-line react-hooks/exhaustive-deps
- }, [streamingText]);
+  return parts;
+}
 
- const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
- const val = e.target.value;
- setInput(val);
- const cursor = e.target.selectionStart ?? val.length;
- const atInfo = getAtQuery(val, cursor);
- setPickerQuery(atInfo ? atInfo.query : null);
- };
+/** Render a text segment with file path chips. */
+function TextSegment({ text }: { text: string }) {
+  const segments = parseFileReferences(text);
+  if (segments.length === 1 && segments[0].type === "text") {
+    return <pre className="msg-text">{text}</pre>;
+  }
+  return (
+    <pre className="msg-text">
+      {segments.map((seg, i) =>
+        seg.type === "file" ? (
+          <span key={i} className="file-chip" title={`Open ${seg.value}`}>
+            {seg.value}
+          </span>
+        ) : (
+          <span key={i}>{seg.value}</span>
+        )
+      )}
+    </pre>
+  );
+}
 
- const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
- // Let ContextPicker handle arrow/enter/escape when visible
- if (pickerQuery !== null && ["ArrowUp", "ArrowDown", "Enter", "Escape"].includes(e.key)) {
- e.preventDefault();
- return;
- }
- if (e.key === "Enter" && !e.shiftKey) {
- e.preventDefault();
- sendMessage();
- }
- // Hide picker on space (token ended without selection)
- if (e.key === " ") {
- setPickerQuery(null);
- }
- };
+// ── Thinking block component ─────────────────────────────────────────────────
 
- const handlePickerSelect = (insertion: string) => {
- if (!textareaRef.current) return;
- const cursor = textareaRef.current.selectionStart ?? input.length;
- const atInfo = getAtQuery(input, cursor);
- if (atInfo === null) return;
+function ThinkingBlock({ text }: { text: string }) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <div className="thinking-block">
+      <button className="thinking-toggle" onClick={() => setExpanded(!expanded)}>
+        <span className="thinking-icon">{expanded ? "\u25BE" : "\u25B8"}</span>
+        <span className="thinking-label">Thinking...</span>
+      </button>
+      {expanded && (
+        <div className="thinking-content">
+          <pre>{text}</pre>
+        </div>
+      )}
+    </div>
+  );
+}
 
- // Replace `@<query>` at atInfo.start with the selected insertion
- const before = input.slice(0, atInfo.start);
- const after = input.slice(atInfo.start + 1 + atInfo.query.length); // skip "@query"
- const newInput = before + insertion + " " + after;
- setInput(newInput);
- setPickerQuery(null);
+// ── Tool call card ───────────────────────────────────────────────────────────
 
- // Restore focus
- setTimeout(() => textareaRef.current?.focus(), 0);
- };
+function ToolCallCard({ call }: { call: ToolCallInfo }) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <div className={`tool-card tool-card-${call.status}`}>
+      <div className="tool-card-header" onClick={() => call.output && setExpanded(!expanded)}>
+        <span className="tool-card-icon">{toolIcon(call.tool)}</span>
+        <span className="tool-card-label">{toolLabel(call.tool, call.path)}</span>
+        {call.path && <span className="tool-card-path" title={call.path}>{call.path}</span>}
+        <span className="tool-card-status">{toolStatusIcon(call.status)}</span>
+        {call.duration_ms != null && (
+          <span className="tool-card-duration">{call.duration_ms}ms</span>
+        )}
+        {call.output && (
+          <span className="tool-card-expand">{expanded ? "\u25BE" : "\u25B8"}</span>
+        )}
+      </div>
+      {expanded && call.output && (
+        <pre className="tool-card-output">{call.output}</pre>
+      )}
+    </div>
+  );
+}
 
- return (
- <div className="ai-chat" style={{ position: "relative" }}>
- <div className="chat-header">
- <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
- <h3 style={{ margin: 0 }}>AI Assistant</h3>
- <div style={{ display: "flex", gap: "6px" }}>
- {isLoading && (
- <button
- onClick={stopMessage}
- style={{ fontSize: "11px", padding: "2px 8px", background: "var(--text-danger)", color: "var(--btn-primary-fg)", border: "none", borderRadius: "4px", cursor: "pointer" }}
- title="Stop generation"
- >
- Stop
- </button>
- )}
- {messages.length > 0 && !isLoading && (
- <button
- onClick={() => setMessages([])}
- style={{ fontSize: "11px", padding: "2px 8px", background: "var(--bg-tertiary)", color: "var(--text-secondary)", border: "1px solid var(--border-color)", borderRadius: "4px", cursor: "pointer" }}
- title="Clear chat history"
- >
- Clear
- </button>
- )}
- </div>
- </div>
- <p className="chat-subtitle">
- Ask questions about your code. Type <kbd>@file:</kbd>, <kbd>@git</kbd>, or <kbd>@web:</kbd> to inject context. Click the mic icon for voice input.
- </p>
- </div>
+// ── Metrics badge ────────────────────────────────────────────────────────────
 
- <div className="chat-messages" ref={messagesContainerRef} onScroll={handleScroll} role="log" aria-live="polite" aria-label="Chat messages" style={{ position: "relative" }}>
- {messages.length === 0 ? (
- <div className="chat-empty">
- <p>Hi! I'm your AI coding assistant.</p>
- <p>Ask me anything about your code, or use <kbd>@file:path</kbd> and <kbd>@git</kbd> to inject context.</p>
- </div>
- ) : (
- messages.map((msg, idx) => (
- <div key={idx} className={`message message-${msg.role}`}>
- <div className="message-icon">
- {msg.role === "user" ? <User size={14} strokeWidth={1.5} /> : ""}
- </div>
- {msg.timestamp && (
- <time className="message-time" dateTime={new Date(msg.timestamp).toISOString()}>
- {formatTime(msg.timestamp)}
- </time>
- )}
- <div className="message-content" style={{ position: "relative" }}>
- <pre>{msg.content}</pre>
- {msg.role === "assistant" && (
- <button
- onClick={() => {
- navigator.clipboard.writeText(msg.content).then(() => {
- setCopiedIdx(idx);
- setTimeout(() => setCopiedIdx(null), 1500);
- }).catch(() => {});
- }}
- title="Copy response"
- style={{
- position: "absolute", top: "4px", right: "4px",
- background: "var(--bg-tertiary)", border: "1px solid var(--border-color)",
- borderRadius: "4px", cursor: "pointer", fontSize: "11px",
- padding: "2px 6px", color: copiedIdx === idx ? "var(--text-success)" : "var(--text-secondary)",
- opacity: 0.8,
- }}
- >
- {copiedIdx === idx ? "✓ Copied" : "Copy"}
- </button>
- )}
- </div>
- </div>
- ))
- )}
- {isLoading && (
- <div className="message message-assistant">
- <div className="message-icon"></div>
- <div className="message-content">
- {streamingText ? (
- <>
- <div style={{ whiteSpace: "pre-wrap" }}>
- {streamingText}
- {/* blinking cursor */}
- <span style={{
- display: "inline-block",
- width: "2px",
- height: "1em",
- background: "currentColor",
- verticalAlign: "text-bottom",
- animation: "blink 1s step-end infinite",
- marginLeft: 1,
- }} />
- </div>
- {tokensPerSec !== null && (
- <div
- aria-live="polite"
- style={{
- marginTop: 4,
- fontSize: 11,
- color: "var(--text-secondary)",
- fontVariantNumeric: "tabular-nums",
- }}
- >
- {tokensPerSec} tok/s · ~{Math.round(streamCharsRef.current / 4)} tokens
- </div>
- )}
- </>
- ) : (
- <div className="typing-indicator">
- <span></span><span></span><span></span>
- </div>
- )}
- </div>
- </div>
- )}
- <div ref={messagesEndRef} />
- </div>
+function MetricsBadge({ metrics }: { metrics: MessageMetrics }) {
+  const parts: string[] = [];
+  if (metrics.completion_tokens) parts.push(`${metrics.completion_tokens} tokens`);
+  if (metrics.latency_ms) parts.push(`${metrics.latency_ms}ms`);
+  if (metrics.tokens_per_sec) parts.push(`${Math.round(metrics.tokens_per_sec)} tok/s`);
+  if (metrics.model) parts.push(metrics.model);
 
- {/* Scroll-to-bottom button when user has scrolled up */}
- {!isNearBottom && (
- <button
-   onClick={scrollToBottom}
-   style={{
-     position: "absolute",
-     bottom: 90,
-     right: 20,
-     zIndex: 10,
-     width: 32,
-     height: 32,
-     borderRadius: "50%",
-     background: "var(--accent-color)",
-     color: "#fff",
-     border: "none",
-     cursor: "pointer",
-     display: "flex",
-     alignItems: "center",
-     justifyContent: "center",
-     boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
-     fontSize: 16,
-     lineHeight: 1,
-   }}
-   title="Scroll to bottom"
-   aria-label="Scroll to bottom"
- >
-   ↓
- </button>
- )}
+  if (parts.length === 0) return null;
 
- <div className="chat-input-card" style={{ position: "relative" }}>
- {pickerQuery !== null && (
- <ContextPicker
- query={pickerQuery}
- onSelect={handlePickerSelect}
- onClose={() => setPickerQuery(null)}
- />
- )}
- {isListening && interimText && (
- <div className="voice-interim">
- <span className="voice-interim-dot" />
- {interimText}
- </div>
- )}
- <textarea
- ref={textareaRef}
- value={input}
- onChange={handleInputChange}
- onKeyDown={handleKeyDown}
- placeholder={isListening ? "Listening…" : "Ask anything, @ to mention, / for workflows"}
- rows={3}
- />
- <div className="chat-input-toolbar">
- <button
- className="chat-toolbar-btn"
- title="Add context (@file, @web, @git)"
- onClick={() => {
-   const ta = textareaRef.current;
-   if (ta) { const v = input + "@"; setInput(v); ta.focus(); handleInputChange({ target: { value: v, selectionStart: v.length } } as React.ChangeEvent<HTMLTextAreaElement>); }
- }}
- >+</button>
- <select
- className="chat-toolbar-select"
- value={chatMode}
- onChange={e => setChatMode(e.target.value as "chat" | "planning")}
- title="Chat mode"
- >
- <option value="chat">Chat</option>
- <option value="planning">Planning</option>
- </select>
- <div style={{ flex: 1 }} />
- <button
- onClick={toggleVoice}
- title={isTranscribing ? "Transcribing..." : isListening ? "Click to stop" : "Voice input"}
- className={`chat-toolbar-btn mic-icon${isListening ? " listening" : ""}${isTranscribing ? " transcribing" : ""}`}
- disabled={isTranscribing}
- aria-label={isListening ? "Stop voice recording" : "Start voice input"}
- >
- <Mic size={14} strokeWidth={1.5} />
- {isListening && <span className="mic-recording-badge">REC</span>}
- </button>
- <button
- className="chat-toolbar-send"
- onClick={sendMessage}
- disabled={!input.trim() || isLoading}
- aria-label="Send message"
- title="Send (Enter)"
- >
- <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
- </button>
- </div>
- </div>
- </div>
- );
+  return (
+    <div className="metrics-badge">
+      {parts.join(" \u00B7 ")}
+    </div>
+  );
+}
+
+// ── Provider health dot ──────────────────────────────────────────────────────
+
+function HealthDot({ score }: { score: number }) {
+  const cls = score > 0.8 ? "health-green" : score > 0.5 ? "health-yellow" : "health-red";
+  return <span className={`health-dot ${cls}`} title={`Health: ${Math.round(score * 100)}%`} />;
+}
+
+// ── Slash command palette ────────────────────────────────────────────────────
+
+function SlashPalette({ query, onSelect, onClose }: {
+  query: string;
+  onSelect: (cmd: SlashCommand) => void;
+  onClose: () => void;
+}) {
+  const filtered = SLASH_COMMANDS.filter(
+    (c) => c.command.startsWith(query.toLowerCase())
+  );
+  const [selectedIdx, setSelectedIdx] = useState(0);
+
+  useEffect(() => {
+    setSelectedIdx(0);
+  }, [query]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { onClose(); return; }
+      if (e.key === "ArrowDown") { e.preventDefault(); setSelectedIdx((i) => Math.min(i + 1, filtered.length - 1)); }
+      if (e.key === "ArrowUp") { e.preventDefault(); setSelectedIdx((i) => Math.max(i - 1, 0)); }
+      if (e.key === "Enter" && filtered.length > 0) { e.preventDefault(); onSelect(filtered[selectedIdx]); }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [filtered, selectedIdx, onSelect, onClose]);
+
+  if (filtered.length === 0) return null;
+
+  return (
+    <div className="slash-palette">
+      {filtered.map((cmd, i) => (
+        <div
+          key={cmd.command}
+          className={`slash-item ${i === selectedIdx ? "slash-item-active" : ""}`}
+          onClick={() => onSelect(cmd)}
+          onMouseEnter={() => setSelectedIdx(i)}
+        >
+          <span className="slash-cmd">{cmd.command}</span>
+          <span className="slash-desc">{cmd.description}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Main component ───────────────────────────────────────────────────────────
+
+export function AIChat({
+  provider,
+  context,
+  fileTree,
+  currentFile,
+  onFileAction,
+  onPendingWrite,
+  pendingInput,
+  onPendingInputConsumed,
+  messages: controlledMessages,
+  onMessagesChange,
+}: AIChatProps) {
+  const [agentMode, setAgentMode] = useState<AgentMode>("chat");
+  const [localMessages, setLocalMessages] = useState<Message[]>([]);
+  const messages = controlledMessages ?? localMessages;
+
+  // Keep a ref to the latest messages so event-listener closures never go stale.
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
+
+  const setMessages = useCallback((update: Message[] | ((prev: Message[]) => Message[])) => {
+    if (onMessagesChange) {
+      const current = messagesRef.current;
+      const next = typeof update === "function" ? update(current) : update;
+      onMessagesChange(next);
+    } else {
+      setLocalMessages(update as Parameters<typeof setLocalMessages>[0]);
+    }
+  }, [onMessagesChange]);
+
+  const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [streamingText, setStreamingText] = useState("");
+  const [pickerQuery, setPickerQuery] = useState<string | null>(null);
+  const [slashQuery, setSlashQuery] = useState<string | null>(null);
+  const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+  const [providerHealth, setProviderHealth] = useState<number>(1.0);
+  const [streamStatus, setStreamStatus] = useState<string | null>(null);
+  const [retryInfo, setRetryInfo] = useState<{ attempt: number; max: number } | null>(null);
+  const [expandedThinking, setExpandedThinking] = useState<Record<number, boolean>>({});
+
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const cancelledRef = useRef(false);
+  const [isNearBottom, setIsNearBottom] = useState(true);
+
+  // Streaming speed metrics
+  const streamStartMsRef = useRef<number | null>(null);
+  const streamCharsRef = useRef<number>(0);
+  const [tokensPerSec, setTokensPerSec] = useState<number | null>(null);
+  const [streamTokenCount, setStreamTokenCount] = useState<number>(0);
+
+  const { isListening, isTranscribing, interimText, toggle: toggleVoice } = useVoiceInput((transcript) =>
+    setInput((prev) => (prev ? prev + " " : "") + transcript)
+  );
+
+  const { toast } = useToast();
+
+  // ── Attachment handlers ─────────────────────────────────────────────────────
+
+  const MAX_ATTACHMENT_SIZE = 20 * 1024 * 1024; // 20 MB
+  const MAX_ATTACHMENTS = 10;
+
+  const IMAGE_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml"];
+
+  const TEXT_MIME_PREFIXES = ["text/", "application/json", "application/xml", "application/javascript"];
+  const isTextFile = (mime: string, name: string): boolean => {
+    if (TEXT_MIME_PREFIXES.some(p => mime.startsWith(p))) return true;
+    // Fallback: check extension for code files that may have octet-stream MIME
+    const ext = name.split(".").pop()?.toLowerCase() || "";
+    const textExts = new Set(["rs","py","js","ts","tsx","jsx","go","java","c","cpp","h","rb","php","swift","kt","scala",
+      "sh","bash","sql","yaml","yml","toml","ini","cfg","conf","env","css","scss","less","vue","svelte",
+      "md","txt","log","csv","json","xml","html","htm","svg"]);
+    return textExts.has(ext);
+  };
+
+  /** Convert a browser File to a ChatAttachment. */
+  const fileToAttachment = useCallback(async (file: File): Promise<ChatAttachment | null> => {
+    if (file.size > MAX_ATTACHMENT_SIZE) {
+      toast.warn(`File "${file.name}" is too large (max 20 MB).`);
+      return null;
+    }
+
+    const mime = file.type || "application/octet-stream";
+
+    // For text/code files, read as text directly (no base64 round-trip)
+    if (isTextFile(mime, file.name)) {
+      try {
+        const textContent = await file.text();
+        return {
+          name: file.name,
+          mime_type: mime,
+          data: "",  // no base64 needed
+          size: file.size,
+          text_content: textContent,
+        };
+      } catch {
+        // Fall through to binary path if text read fails
+      }
+    }
+
+    // For images/binary: base64 encode
+    const arrayBuf = await file.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuf);
+    let binary = "";
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    const data = btoa(binary);
+
+    const att: ChatAttachment = {
+      name: file.name,
+      mime_type: mime,
+      data,
+      size: file.size,
+    };
+
+    // Generate preview URL for images
+    if (IMAGE_TYPES.includes(file.type)) {
+      att.previewUrl = URL.createObjectURL(file);
+    }
+
+    return att;
+  }, [toast]);
+
+  /** Add files from a FileList (drop, paste, or native input). */
+  const addFiles = useCallback(async (files: FileList | File[]) => {
+    const fileArray = Array.from(files);
+    const remaining = MAX_ATTACHMENTS - attachments.length;
+    if (remaining <= 0) {
+      toast.warn(`Maximum ${MAX_ATTACHMENTS} attachments per message.`);
+      return;
+    }
+    const toProcess = fileArray.slice(0, remaining);
+    const results = await Promise.all(toProcess.map(fileToAttachment));
+    const valid = results.filter((a): a is ChatAttachment => a !== null);
+    if (valid.length > 0) {
+      setAttachments((prev) => [...prev, ...valid]);
+    }
+  }, [attachments.length, fileToAttachment, toast]);
+
+  /** Open native file picker via Tauri dialog. */
+  const openFilePicker = useCallback(async () => {
+    try {
+      const selected = await open({
+        multiple: true,
+        title: "Attach files to chat",
+        filters: [
+          { name: "All Files", extensions: ["*"] },
+          { name: "Images", extensions: ["png", "jpg", "jpeg", "gif", "webp", "svg"] },
+          { name: "Documents", extensions: ["pdf", "csv", "json", "xml", "md", "txt", "log"] },
+          { name: "Code", extensions: ["rs", "py", "js", "ts", "tsx", "jsx", "go", "java", "c", "cpp", "rb", "swift", "kt", "sql", "yaml", "toml", "html", "css"] },
+        ],
+      });
+      if (!selected) return;
+      const paths = Array.isArray(selected) ? selected : [selected];
+      const remaining = MAX_ATTACHMENTS - attachments.length;
+      if (remaining <= 0) {
+        toast.warn(`Maximum ${MAX_ATTACHMENTS} attachments per message.`);
+        return;
+      }
+      for (const filePath of paths.slice(0, remaining)) {
+        try {
+          const att = await invoke<ChatAttachment>("read_attachment", { path: filePath });
+          // Generate preview for images
+          if (att.mime_type.startsWith("image/")) {
+            att.previewUrl = `data:${att.mime_type};base64,${att.data}`;
+          }
+          setAttachments((prev) => [...prev, att]);
+        } catch (e) {
+          toast.error(`Failed to read "${filePath}": ${e}`);
+        }
+      }
+    } catch (e) {
+      console.error("File picker error:", e);
+    }
+  }, [attachments.length, toast]);
+
+  /** Remove an attachment by index. */
+  const removeAttachment = useCallback((idx: number) => {
+    setAttachments((prev) => {
+      const removed = prev[idx];
+      if (removed?.previewUrl?.startsWith("blob:")) {
+        URL.revokeObjectURL(removed.previewUrl);
+      }
+      return prev.filter((_, i) => i !== idx);
+    });
+  }, []);
+
+  /** Handle drag over the chat area. */
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+    if (e.dataTransfer.files.length > 0) {
+      addFiles(e.dataTransfer.files);
+    }
+  }, [addFiles]);
+
+  /** Handle paste — detect images from clipboard. */
+  const handlePaste = useCallback((e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    const files: File[] = [];
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.kind === "file") {
+        const file = item.getAsFile();
+        if (file) files.push(file);
+      }
+    }
+    if (files.length > 0) {
+      e.preventDefault(); // prevent pasting file name as text
+      addFiles(files);
+    }
+    // If no files, let the default paste behavior handle text
+  }, [addFiles]);
+
+  // Cleanup preview URLs on unmount
+  useEffect(() => {
+    return () => {
+      attachments.forEach((a) => {
+        if (a.previewUrl?.startsWith("blob:")) URL.revokeObjectURL(a.previewUrl);
+      });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Map agent mode to backend mode string
+  const backendMode = useMemo(() => {
+    switch (agentMode) {
+      case "fast": return "fast";
+      case "chat": return "chat";
+      case "planning": return "planning";
+    }
+  }, [agentMode]);
+
+  // Track scroll position
+  const handleScroll = useCallback(() => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    const threshold = 80;
+    setIsNearBottom(el.scrollHeight - el.scrollTop - el.clientHeight < threshold);
+  }, []);
+
+  // Auto-scroll
+  useEffect(() => {
+    if (isNearBottom) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages, streamingText, isLoading, isNearBottom]);
+
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    setIsNearBottom(true);
+  }, []);
+
+  // Register Tauri event listeners
+  useEffect(() => {
+    let cancelled = false;
+    const unlisteners: Array<() => void> = [];
+
+    (async () => {
+      // chat:chunk
+      const u1 = await listen<string>("chat:chunk", (e) => {
+        const now = Date.now();
+        const chunk = e.payload;
+        if (streamStartMsRef.current === null) streamStartMsRef.current = now;
+        streamCharsRef.current += chunk.length;
+        const elapsedSec = (now - streamStartMsRef.current) / 1000;
+        const approxTokens = Math.round(streamCharsRef.current / 4);
+        if (elapsedSec > 0) {
+          setTokensPerSec(Math.round(approxTokens / elapsedSec));
+        }
+        setStreamTokenCount(approxTokens);
+        setStreamingText((prev) => prev + chunk);
+
+        // Check for thinking blocks in streaming text for status bar
+        if (chunk.includes("<thinking>") || chunk.includes("</thinking>")) {
+          setStreamStatus("Thinking...");
+        }
+      });
+      if (cancelled) { u1(); return; }
+      unlisteners.push(u1);
+
+      // chat:complete
+      const u2 = await listen<ChatResponse>("chat:complete", (e) => {
+        const response = e.payload;
+        const [cleanedContent, thinkingText] = extractThinking(response.message);
+        const [finalContent, toolCalls] = parseToolCalls(cleanedContent);
+
+        setMessages((prev) => {
+          const msg: Message = {
+            role: "assistant",
+            content: finalContent,
+            timestamp: Date.now(),
+            thinking: thinkingText || undefined,
+            toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+          };
+          const updated = [...prev, msg];
+
+          if (response.tool_output && response.tool_output.trim()) {
+            updated.push({
+              role: "assistant",
+              content: "```\n" + response.tool_output.trim() + "\n```",
+              timestamp: Date.now(),
+            });
+          }
+          return updated;
+        });
+
+        setStreamingText("");
+        setTokensPerSec(null);
+        setStreamTokenCount(0);
+        setStreamStatus(null);
+        setRetryInfo(null);
+        setIsLoading(false);
+
+        if (response.pending_write && onPendingWrite) {
+          onPendingWrite(response.pending_write.path, response.pending_write.content);
+        }
+        if (onFileAction) onFileAction();
+      });
+      if (cancelled) { u2(); return; }
+      unlisteners.push(u2);
+
+      // chat:error
+      const u3 = await listen<string>("chat:error", (e) => {
+        setMessages((prev) => [...prev, {
+          role: "assistant",
+          content: e.payload,
+          timestamp: Date.now(),
+          isError: true,
+        }]);
+        setStreamingText("");
+        setTokensPerSec(null);
+        setStreamTokenCount(0);
+        setStreamStatus(null);
+        setRetryInfo(null);
+        setIsLoading(false);
+      });
+      if (cancelled) { u3(); return; }
+      unlisteners.push(u3);
+
+      // chat:status — retry, thinking, provider_health
+      const u4 = await listen<{ type: string; attempt?: number; max_retries?: number; score?: number; message?: string }>("chat:status", (e) => {
+        const payload = e.payload;
+        if (payload.type === "retry" && payload.attempt != null && payload.max_retries != null) {
+          // Backend clears its accumulator on retry — reset frontend to match
+          // so the final message won't be shorter than what was streaming.
+          setStreamingText("");
+          streamStartMsRef.current = null;
+          streamCharsRef.current = 0;
+          setTokensPerSec(null);
+          setStreamTokenCount(0);
+          setRetryInfo({ attempt: payload.attempt, max: payload.max_retries });
+          setStreamStatus(`Retrying (${payload.attempt}/${payload.max_retries})...`);
+        } else if (payload.type === "thinking") {
+          setStreamStatus("Thinking...");
+        } else if (payload.type === "provider_health" && payload.score != null) {
+          setProviderHealth(payload.score);
+        }
+      });
+      if (cancelled) { u4(); return; }
+      unlisteners.push(u4);
+
+      // chat:metrics — token/cost data
+      const u5 = await listen<MessageMetrics>("chat:metrics", (e) => {
+        const metrics = e.payload;
+        setMessages((prev) => {
+          if (prev.length === 0) return prev;
+          const last = prev[prev.length - 1];
+          if (last.role !== "assistant") return prev;
+          const updated = [...prev];
+          updated[updated.length - 1] = { ...last, metrics };
+          return updated;
+        });
+      });
+      if (cancelled) { u5(); return; }
+      unlisteners.push(u5);
+    })();
+
+    return () => {
+      cancelled = true;
+      unlisteners.forEach((fn) => fn());
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onFileAction, onPendingWrite, setMessages]);
+
+  // Consume pendingInput from Cascade
+  useEffect(() => {
+    if (pendingInput) {
+      setInput((prev) => prev ? `${prev}\n${pendingInput}` : pendingInput);
+      onPendingInputConsumed?.();
+      textareaRef.current?.focus();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingInput]);
+
+  // Clear chat when workspace changes
+  useEffect(() => {
+    const handler = () => {
+      setMessages([]);
+      setStreamingText("");
+      setInput("");
+      setIsLoading(false);
+    };
+    window.addEventListener("vibeui:workspace-changed", handler);
+    return () => window.removeEventListener("vibeui:workspace-changed", handler);
+  }, [setMessages]);
+
+  // ── Send message ─────────────────────────────────────────────────────────
+
+  const sendMessage = useCallback(async (overrideInput?: string) => {
+    const text = overrideInput ?? input;
+    if (!text.trim() && attachments.length === 0) return;
+    const messageText = text.trim() || (attachments.length > 0 ? `[Attached ${attachments.length} file(s) — please review]` : "");
+    if (!provider) {
+      setMessages(prev => [...prev, {
+        role: "assistant",
+        content: "Please select an AI provider from the dropdown menu first.",
+      }]);
+      return;
+    }
+
+    // Capture current attachments and clear them
+    const currentAttachments = [...attachments];
+    const userMessage: Message = {
+      role: "user",
+      content: messageText,
+      timestamp: Date.now(),
+      attachments: currentAttachments.length > 0 ? currentAttachments : undefined,
+    };
+    setMessages((prev) => [...prev, userMessage]);
+    setInput("");
+    setAttachments([]);
+    setPickerQuery(null);
+    setSlashQuery(null);
+    setIsNearBottom(true);
+    cancelledRef.current = false;
+    setIsLoading(true);
+    setStreamingText("");
+    setTokensPerSec(null);
+    setStreamTokenCount(0);
+    setStreamStatus(null);
+    setRetryInfo(null);
+    streamStartMsRef.current = null;
+    streamCharsRef.current = 0;
+
+    flowContext.add({
+      kind: "chat",
+      summary: userMessage.content.slice(0, 100),
+      detail: `Q: ${userMessage.content}${currentAttachments.length > 0 ? ` [${currentAttachments.length} file(s)]` : ""}`,
+    });
+
+    try {
+      await invoke("stream_chat_message", {
+        request: {
+          messages: [...messages, userMessage],
+          provider,
+          context,
+          file_tree: fileTree,
+          current_file: currentFile,
+          mode: backendMode,
+          attachments: currentAttachments.map(({ name, mime_type, data, size, text_content }) => ({
+            name, mime_type, data, size, text_content: text_content ?? null,
+          })),
+        },
+      });
+    } catch (error) {
+      console.error("Failed to start chat stream:", error);
+      setMessages((prev) => [...prev, {
+        role: "assistant",
+        content: "Sorry, I encountered an error. Please make sure an AI provider is configured.",
+        isError: true,
+      }]);
+      setStreamingText("");
+      setIsLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [input, provider, context, fileTree, currentFile, messages, backendMode, attachments]);
+
+  const stopMessage = useCallback(async () => {
+    cancelledRef.current = true;
+    await invoke("stop_chat_stream").catch(() => {});
+    setMessages((prev) => {
+      if (streamingText) {
+        const [cleaned, thinking] = extractThinking(streamingText);
+        const [finalContent, toolCalls] = parseToolCalls(cleaned);
+        return [...prev, {
+          role: "assistant" as const,
+          content: finalContent,
+          thinking: thinking || undefined,
+          toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+        }];
+      }
+      return prev;
+    });
+    setStreamingText("");
+    setTokensPerSec(null);
+    setStreamTokenCount(0);
+    setStreamStatus(null);
+    setRetryInfo(null);
+    setIsLoading(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [streamingText]);
+
+  // Retry: resend last user message
+  const retryLastMessage = useCallback(() => {
+    const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
+    if (lastUserMsg) {
+      sendMessage(lastUserMsg.content);
+    }
+  }, [messages, sendMessage]);
+
+  // ── Input handling ─────────────────────────────────────────────────────────
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setInput(val);
+    const cursor = e.target.selectionStart ?? val.length;
+
+    // Check for @ context picker
+    const atInfo = getAtQuery(val, cursor);
+    setPickerQuery(atInfo ? atInfo.query : null);
+
+    // Check for / slash commands
+    if (val.startsWith("/") && !val.includes(" ")) {
+      setSlashQuery(val);
+    } else {
+      setSlashQuery(null);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Let ContextPicker or SlashPalette handle navigation keys when visible
+    if ((pickerQuery !== null || slashQuery !== null) && ["ArrowUp", "ArrowDown", "Enter", "Escape"].includes(e.key)) {
+      e.preventDefault();
+      return;
+    }
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+    if (e.key === " ") {
+      setPickerQuery(null);
+    }
+    if (e.key === "Escape") {
+      setSlashQuery(null);
+      setPickerQuery(null);
+    }
+  };
+
+  const handlePickerSelect = (insertion: string) => {
+    if (!textareaRef.current) return;
+    const cursor = textareaRef.current.selectionStart ?? input.length;
+    const atInfo = getAtQuery(input, cursor);
+    if (atInfo === null) return;
+
+    const before = input.slice(0, atInfo.start);
+    const after = input.slice(atInfo.start + 1 + atInfo.query.length);
+    const newInput = before + insertion + " " + after;
+    setInput(newInput);
+    setPickerQuery(null);
+    setTimeout(() => textareaRef.current?.focus(), 0);
+  };
+
+  const handleSlashSelect = (cmd: SlashCommand) => {
+    setInput(cmd.prefix);
+    setSlashQuery(null);
+    setTimeout(() => textareaRef.current?.focus(), 0);
+  };
+
+  const handleApplyCode = useCallback((code: string, filename: string) => {
+    if (onPendingWrite) {
+      onPendingWrite(filename, code);
+    }
+  }, [onPendingWrite]);
+
+  // ── Streaming content processing ───────────────────────────────────────────
+
+  const streamingParts = useMemo(() => {
+    if (!streamingText) return null;
+    const [cleaned, thinking] = extractThinking(streamingText);
+    return { cleaned, thinking };
+  }, [streamingText]);
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+
+  return (
+    <div
+      className={`ai-chat${isDragOver ? " ai-chat-dragover" : ""}`}
+      style={{ position: "relative" }}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {/* Drag overlay */}
+      {isDragOver && (
+        <div className="drag-overlay">
+          <div className="drag-overlay-content">
+            <Paperclip size={32} />
+            <span>Drop files to attach</span>
+          </div>
+        </div>
+      )}
+
+      {/* Header */}
+      <div className="chat-header">
+        <div className="chat-header-row">
+          <div className="chat-header-left">
+            <h3 style={{ margin: 0 }}>AI Assistant</h3>
+            <HealthDot score={providerHealth} />
+            {provider && <span className="chat-provider-label">{provider}</span>}
+          </div>
+          <div className="chat-header-actions">
+            {isLoading && (
+              <button className="chat-action-btn chat-action-stop" onClick={stopMessage} title="Stop generation">
+                Stop
+              </button>
+            )}
+            {messages.length > 0 && !isLoading && (
+              <button className="chat-action-btn" onClick={() => setMessages([])} title="Clear chat history">
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+        <p className="chat-subtitle">
+          Ask questions about your code. Type <kbd>@</kbd> to inject context, <kbd>/</kbd> for commands. Click the mic for voice.
+        </p>
+      </div>
+
+      {/* Messages */}
+      <div className="chat-messages" ref={messagesContainerRef} onScroll={handleScroll} role="log" aria-live="polite" aria-label="Chat messages" style={{ position: "relative" }}>
+        {messages.length === 0 ? (
+          <div className="chat-empty">
+            <div className="chat-empty-icon">{"</>"}</div>
+            <p className="chat-empty-title">AI Coding Assistant</p>
+            <p>Ask me anything about your code, or use <kbd>@file:path</kbd> and <kbd>@git</kbd> to inject context.</p>
+            <div className="chat-empty-hints">
+              <span className="chat-hint" onClick={() => setInput("/fix ")}>
+                /fix
+              </span>
+              <span className="chat-hint" onClick={() => setInput("/explain ")}>
+                /explain
+              </span>
+              <span className="chat-hint" onClick={() => setInput("/test ")}>
+                /test
+              </span>
+              <span className="chat-hint" onClick={() => setInput("/review ")}>
+                /review
+              </span>
+            </div>
+          </div>
+        ) : (
+          messages.map((msg, idx) => (
+            <div key={idx} className={`message message-${msg.role}${msg.isError ? " message-error" : ""}`}>
+              <div className="message-icon">
+                {msg.role === "user" ? <User size={14} strokeWidth={1.5} /> : <span className="assistant-icon">AI</span>}
+              </div>
+              {msg.timestamp && (
+                <time className="message-time" dateTime={new Date(msg.timestamp).toISOString()}>
+                  {formatTime(msg.timestamp)}
+                </time>
+              )}
+              <div className="message-content" style={{ position: "relative" }}>
+                {/* Thinking block */}
+                {msg.thinking && (
+                  <div className="thinking-block">
+                    <button
+                      className="thinking-toggle"
+                      onClick={() => setExpandedThinking((prev) => ({ ...prev, [idx]: !prev[idx] }))}
+                    >
+                      <span className="thinking-icon">{expandedThinking[idx] ? "\u25BE" : "\u25B8"}</span>
+                      <span className="thinking-label">Thinking...</span>
+                    </button>
+                    {expandedThinking[idx] && (
+                      <div className="thinking-content">
+                        <pre>{msg.thinking}</pre>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Tool call cards */}
+                {msg.toolCalls && msg.toolCalls.length > 0 && (
+                  <div className="tool-cards">
+                    {msg.toolCalls.map((tc, ti) => (
+                      <ToolCallCard key={ti} call={tc} />
+                    ))}
+                  </div>
+                )}
+
+                {/* Attachments on user messages */}
+                {msg.attachments && msg.attachments.length > 0 && (
+                  <div className="msg-attachments">
+                    <div className="msg-attachments-label">
+                      <Paperclip size={11} />
+                      {msg.attachments.length} file{msg.attachments.length > 1 ? "s" : ""} attached
+                    </div>
+                    {msg.attachments.map((att, ai) => {
+                      const isImage = att.mime_type.startsWith("image/");
+                      const sizeStr = att.size < 1024 ? `${att.size} B`
+                        : att.size < 1024 * 1024 ? `${(att.size / 1024).toFixed(1)} KB`
+                        : `${(att.size / (1024 * 1024)).toFixed(1)} MB`;
+                      return (
+                        <div key={ai} className="msg-attachment-chip">
+                          {isImage ? (
+                            <div className="msg-attachment-image">
+                              <img
+                                src={att.previewUrl || (att.data ? `data:${att.mime_type};base64,${att.data}` : undefined)}
+                                alt={att.name}
+                                className="msg-attachment-thumb"
+                              />
+                              <span className="msg-attachment-name">{att.name}</span>
+                            </div>
+                          ) : (
+                            <div className="msg-attachment-file">
+                              <FileText size={14} />
+                              <span className="msg-attachment-name" title={att.name}>{att.name}</span>
+                              <span className="msg-attachment-size">{sizeStr}</span>
+                              {att.text_content && <span className="msg-attachment-check" title="Content sent to AI">&#10003;</span>}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Main content */}
+                {msg.role === "assistant" ? (
+                  <div className="msg-rendered">
+                    {renderContent(msg.content, onPendingWrite ? handleApplyCode : undefined)}
+                  </div>
+                ) : (
+                  <pre className="msg-text">{msg.content}</pre>
+                )}
+
+                {/* Copy button for assistant messages */}
+                {msg.role === "assistant" && !msg.isError && (
+                  <button
+                    className="msg-copy-btn"
+                    onClick={() => {
+                      navigator.clipboard.writeText(msg.content).then(() => {
+                        setCopiedIdx(idx);
+                        setTimeout(() => setCopiedIdx(null), 1500);
+                      }).catch(() => {});
+                    }}
+                    title="Copy response"
+                  >
+                    {copiedIdx === idx ? "\u2713 Copied" : "Copy"}
+                  </button>
+                )}
+
+                {/* Error retry button */}
+                {msg.isError && idx === messages.length - 1 && (
+                  <button className="msg-retry-btn" onClick={retryLastMessage} title="Retry last message">
+                    Retry
+                  </button>
+                )}
+
+                {/* Metrics badge */}
+                {msg.metrics && <MetricsBadge metrics={msg.metrics} />}
+              </div>
+            </div>
+          ))
+        )}
+
+        {/* Streaming message */}
+        {isLoading && (
+          <div className="message message-assistant">
+            <div className="message-icon"><span className="assistant-icon">AI</span></div>
+            <div className="message-content">
+              {streamingText ? (
+                <>
+                  {/* Streaming thinking block */}
+                  {streamingParts?.thinking && (
+                    <ThinkingBlock text={streamingParts.thinking} />
+                  )}
+
+                  <div className="msg-rendered">
+                    {renderContent(streamingParts?.cleaned || streamingText)}
+                    <span className="streaming-cursor" />
+                  </div>
+                </>
+              ) : (
+                <div className="typing-indicator">
+                  <span></span><span></span><span></span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Scroll-to-bottom button */}
+      {!isNearBottom && (
+        <button
+          className="scroll-to-bottom"
+          onClick={scrollToBottom}
+          title="Scroll to bottom"
+          aria-label="Scroll to bottom"
+        >
+          &#8595;
+        </button>
+      )}
+
+      {/* Streaming status bar */}
+      {isLoading && (streamStatus || tokensPerSec !== null) && (
+        <div className="stream-status-bar">
+          {streamStatus && <span className="stream-status-text">{streamStatus}</span>}
+          {retryInfo && (
+            <span className="stream-retry-badge">Attempt {retryInfo.attempt}/{retryInfo.max}</span>
+          )}
+          <div style={{ flex: 1 }} />
+          {tokensPerSec !== null && (
+            <span className="stream-metrics">
+              {streamTokenCount} tokens &middot; {tokensPerSec} tok/s
+              {provider && <> &middot; {provider}</>}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Input area */}
+      <div className="chat-input-card" style={{ position: "relative" }}>
+        {pickerQuery !== null && (
+          <ContextPicker
+            query={pickerQuery}
+            onSelect={handlePickerSelect}
+            onClose={() => setPickerQuery(null)}
+          />
+        )}
+        {slashQuery !== null && (
+          <SlashPalette
+            query={slashQuery}
+            onSelect={handleSlashSelect}
+            onClose={() => setSlashQuery(null)}
+          />
+        )}
+        {isListening && interimText && (
+          <div className="voice-interim">
+            <span className="voice-interim-dot" />
+            {interimText}
+          </div>
+        )}
+        {/* Attachment preview strip */}
+        {attachments.length > 0 && (
+          <div className="attachment-strip">
+            <div className="attachment-strip-header">
+              <Paperclip size={12} />
+              <span>{attachments.length} file{attachments.length > 1 ? "s" : ""} attached</span>
+              <button className="attachment-clear-all" onClick={() => setAttachments([])} title="Remove all">
+                Clear all
+              </button>
+            </div>
+            <div className="attachment-chips">
+              {attachments.map((att, i) => {
+                const isImage = att.mime_type.startsWith("image/");
+                const hasText = !!att.text_content;
+                const sizeStr = att.size < 1024 ? `${att.size} B`
+                  : att.size < 1024 * 1024 ? `${(att.size / 1024).toFixed(1)} KB`
+                  : `${(att.size / (1024 * 1024)).toFixed(1)} MB`;
+
+                return (
+                  <div key={i} className={`attachment-chip ${isImage ? "attachment-chip-image" : "attachment-chip-doc"}`}>
+                    {isImage && att.previewUrl ? (
+                      <img src={att.previewUrl} alt={att.name} className="attachment-thumb" />
+                    ) : (
+                      <FileText size={14} className="attachment-file-icon" />
+                    )}
+                    <div className="attachment-info">
+                      <span className="attachment-name" title={att.name}>
+                        {att.name.length > 25 ? att.name.slice(0, 22) + "..." : att.name}
+                      </span>
+                      <span className="attachment-meta">
+                        {sizeStr}
+                        {hasText && " \u00B7 text"}
+                        {isImage && " \u00B7 image"}
+                      </span>
+                    </div>
+                    <button className="attachment-remove" onClick={() => removeAttachment(i)} title="Remove">
+                      <X size={12} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+        <textarea
+          ref={textareaRef}
+          value={input}
+          onChange={handleInputChange}
+          onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
+          placeholder={isListening ? "Listening\u2026" : "Ask anything, @ to mention, / for commands. Drop files or paste images."}
+          rows={3}
+        />
+        {/* Hidden file input for fallback */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          style={{ display: "none" }}
+          onChange={(e) => { if (e.target.files) addFiles(e.target.files); e.target.value = ""; }}
+        />
+        <div className="chat-input-toolbar">
+          {/* Context button */}
+          <button
+            className="chat-toolbar-btn"
+            title="Add context (@file, @web, @git)"
+            onClick={() => {
+              const ta = textareaRef.current;
+              if (ta) {
+                const v = input + "@";
+                setInput(v);
+                ta.focus();
+                handleInputChange({ target: { value: v, selectionStart: v.length } } as React.ChangeEvent<HTMLTextAreaElement>);
+              }
+            }}
+          >+</button>
+
+          {/* Attach files button */}
+          <button
+            className="chat-toolbar-btn"
+            title="Attach files, images, or documents"
+            onClick={openFilePicker}
+          >
+            <Paperclip size={14} strokeWidth={1.5} />
+            {attachments.length > 0 && (
+              <span className="attach-badge">{attachments.length}</span>
+            )}
+          </button>
+
+          {/* Agent mode selector */}
+          <div className="mode-selector">
+            <button
+              className={`mode-btn ${agentMode === "fast" ? "mode-btn-active" : ""}`}
+              onClick={() => setAgentMode("fast")}
+              title="Fast — Quick answers, less context"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+              <span>Fast</span>
+            </button>
+            <button
+              className={`mode-btn ${agentMode === "chat" ? "mode-btn-active" : ""}`}
+              onClick={() => setAgentMode("chat")}
+              title="Balanced — Default, good context"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8v8"/></svg>
+              <span>Balanced</span>
+            </button>
+            <button
+              className={`mode-btn ${agentMode === "planning" ? "mode-btn-active" : ""}`}
+              onClick={() => setAgentMode("planning")}
+              title="Thorough — Deep analysis, max context"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+              <span>Thorough</span>
+            </button>
+          </div>
+
+          <div style={{ flex: 1 }} />
+
+          {/* Voice button */}
+          <button
+            onClick={toggleVoice}
+            title={isTranscribing ? "Transcribing..." : isListening ? "Click to stop" : "Voice input"}
+            className={`chat-toolbar-btn mic-icon${isListening ? " listening" : ""}${isTranscribing ? " transcribing" : ""}`}
+            disabled={isTranscribing}
+            aria-label={isListening ? "Stop voice recording" : "Start voice input"}
+          >
+            <Mic size={14} strokeWidth={1.5} />
+            {isListening && <span className="mic-recording-badge">REC</span>}
+          </button>
+
+          {/* Send button */}
+          <button
+            className="chat-toolbar-send"
+            onClick={() => sendMessage()}
+            disabled={(!input.trim() && attachments.length === 0) || isLoading}
+            aria-label="Send message"
+            title="Send (Enter)"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }

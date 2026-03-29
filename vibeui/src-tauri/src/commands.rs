@@ -115,6 +115,8 @@ pub struct AppState {
     pub agent_abort_handle: Arc<Mutex<Option<tokio::task::AbortHandle>>>,
     /// Abort handle for the currently running chat stream (if any).
     pub chat_abort_handle: Arc<Mutex<Option<tokio::task::AbortHandle>>>,
+    /// Provider health tracker for circuit-breaker and health scoring.
+    pub provider_health: Arc<vibe_ai::ProviderHealthTracker>,
     /// Mock server handle (Phase 7.30).
     pub mock_server_handle: Arc<Mutex<Option<tokio::task::JoinHandle<()>>>>,
     /// Mock server route registry.
@@ -939,6 +941,25 @@ pub async fn request_ai_completion(
     Ok(clean)
 }
 
+/// A file/image/document attached to a chat message.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChatAttachment {
+    /// Original filename (e.g. "screenshot.png", "report.pdf").
+    pub name: String,
+    /// MIME type (e.g. "image/png", "text/plain", "application/pdf").
+    pub mime_type: String,
+    /// Base64-encoded file content (used for images/binary).
+    #[serde(default)]
+    pub data: String,
+    /// File size in bytes.
+    #[serde(default)]
+    pub size: usize,
+    /// Plain text content for text/code files (avoids base64 round-trip).
+    /// When present, this is used instead of decoding `data`.
+    #[serde(default)]
+    pub text_content: Option<String>,
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct ChatRequest {
     pub messages: Vec<Message>,
@@ -948,6 +969,9 @@ pub struct ChatRequest {
     pub current_file: Option<String>,
     #[serde(default)]
     pub mode: Option<String>,
+    /// File/image/document attachments for the current message.
+    #[serde(default)]
+    pub attachments: Vec<ChatAttachment>,
 }
 
 #[derive(Serialize, Clone)]
@@ -1206,21 +1230,177 @@ pub async fn stream_chat_message(
         }
     }
 
+    // Process attachments: split into images (for vision API) and documents (injected as context)
+    let mut image_attachments: Vec<vibe_ai::ImageAttachment> = Vec::new();
+    let mut doc_context_parts: Vec<String> = Vec::new();
+    let mut attachment_count = 0usize;
+    for att in &request.attachments {
+        attachment_count += 1;
+        if att.mime_type.starts_with("image/") && att.text_content.is_none() {
+            // Image → send via vision API
+            image_attachments.push(vibe_ai::ImageAttachment {
+                base64: att.data.clone(),
+                media_type: att.mime_type.clone(),
+            });
+            eprintln!("[attachments] Image: {} ({})", att.name, att.mime_type);
+        } else {
+            // Document/code/text → inject content directly into prompt
+            let content = if let Some(ref text) = att.text_content {
+                // text_content is populated by read_attachment for text files — use directly
+                text.clone()
+            } else if !att.data.is_empty() {
+                // Fallback: try to decode base64 (for files sent from frontend via drag/paste)
+                base64_decode_to_string(&att.data).unwrap_or_else(|| {
+                    format!("[Binary file: {} ({} bytes) — content cannot be displayed]", att.name, att.size)
+                })
+            } else {
+                format!("[Empty file: {}]", att.name)
+            };
+
+            // Truncate very large documents to ~32k chars
+            let truncated = if content.len() > 32_000 {
+                format!("{}...\n\n[Truncated — file is {} bytes total]", &content[..32_000], content.len())
+            } else {
+                content
+            };
+            doc_context_parts.push(format!(
+                "=== Attached file: {} ({}) ===\n{}\n=== End of {} ===",
+                att.name, att.mime_type, truncated, att.name
+            ));
+            eprintln!("[attachments] Document: {} ({}, {} bytes of content)", att.name, att.mime_type, truncated.len());
+        }
+    }
+    if attachment_count > 0 {
+        eprintln!("[attachments] Total: {} attachment(s) — {} image(s), {} document(s)",
+            attachment_count, image_attachments.len(), doc_context_parts.len());
+    }
+    let has_images = !image_attachments.is_empty();
+    let has_docs = !doc_context_parts.is_empty();
+
+    // Inject document content into messages as additional context
+    if has_docs {
+        let doc_text = doc_context_parts.join("\n\n");
+        // Find the last user message and prepend document context
+        if let Some(last_user) = messages.iter_mut().rev().find(|m| m.role == vibe_ai::MessageRole::User) {
+            last_user.content = format!("{}\n\n[Attached Documents]\n{}", last_user.content, doc_text);
+        }
+    }
+
     let workspace = state.workspace.clone();
     let abort_store = state.chat_abort_handle.clone();
+    let health_tracker = state.provider_health.clone();
+    let provider_name = provider.name().to_string();
+    let model_name = request.provider.clone();
 
     let join_handle = tokio::spawn(async move {
         use futures::StreamExt;
+        use std::time::Instant;
+
         let retry_config = vibe_ai::RetryConfig::default();
         let mut accumulated = String::with_capacity(4096);
         let mut success = false;
+        let stream_start = Instant::now();
+
+        // If we have images and the provider supports vision, use chat_with_images
+        // (non-streaming, since most providers don't support streaming vision).
+        // Then emit the response as if it were streamed.
+        // Warn if provider lacks vision support
+        if has_images && !provider.supports_vision() {
+            let warning = format!("\u{26a0}\u{fe0f} Provider ({}) does not support images. Switch to Gemini, Claude, or GPT-4o.", provider_name);
+            let _ = app_handle.emit("chat:chunk", warning);
+            let _ = app_handle.emit("chat:chunk", "\n\n".to_string());
+        }
+        if has_images && provider.supports_vision() {
+            let _ = app_handle.emit("chat:status", serde_json::json!({"type": "thinking", "active": true}));
+            for attempt in 0..retry_config.max_attempts {
+                if attempt > 0 {
+                    let backoff = retry_config.initial_backoff_ms * 2u64.pow(attempt - 1);
+                    let backoff = backoff.min(retry_config.max_backoff_ms);
+                    let _ = app_handle.emit("chat:status", serde_json::json!({
+                        "type": "retry", "attempt": attempt + 1, "max": retry_config.max_attempts,
+                        "backoff_ms": backoff,
+                    }));
+                    tokio::time::sleep(std::time::Duration::from_millis(backoff)).await;
+                }
+
+                match provider.chat_with_images(&messages, &image_attachments, None).await {
+                    Ok(response_text) => {
+                        accumulated = response_text;
+                        success = true;
+                        break;
+                    }
+                    Err(e) => {
+                        let err_str = e.to_string();
+                        if vibe_ai::is_retryable(&err_str) && attempt + 1 < retry_config.max_attempts {
+                            continue;
+                        }
+                        health_tracker.record(vibe_ai::ProviderCallOutcome {
+                            provider_name: provider_name.clone(),
+                            success: false,
+                            latency: stream_start.elapsed(),
+                            timestamp: Instant::now(),
+                            error_category: Some(vibe_ai::classify_error(&err_str)),
+                        });
+                        let _ = app_handle.emit("chat:status", serde_json::json!({"type": "thinking", "active": false}));
+                        let _ = app_handle.emit("chat:error", err_str);
+                        return;
+                    }
+                }
+            }
+            let _ = app_handle.emit("chat:status", serde_json::json!({"type": "thinking", "active": false}));
+
+            if !success {
+                health_tracker.record(vibe_ai::ProviderCallOutcome {
+                    provider_name: provider_name.clone(), success: false,
+                    latency: stream_start.elapsed(), timestamp: Instant::now(),
+                    error_category: Some(vibe_ai::FailureCategory::Unknown),
+                });
+                let _ = app_handle.emit("chat:error", "All retry attempts exhausted".to_string());
+                return;
+            }
+
+            // Emit the full response as a single chunk + complete
+            let _ = app_handle.emit("chat:chunk", accumulated.clone());
+            health_tracker.record(vibe_ai::ProviderCallOutcome {
+                provider_name: provider_name.clone(), success: true,
+                latency: stream_start.elapsed(), timestamp: Instant::now(),
+                error_category: None,
+            });
+            let (tool_output, pending_write) = process_tool_calls(&accumulated, &workspace).await;
+            let response = ChatResponse { message: accumulated.clone(), tool_output, pending_write };
+            let _ = app_handle.emit("chat:complete", response);
+            let estimated_tokens = accumulated.len() / 4;
+            let _ = app_handle.emit("chat:metrics", serde_json::json!({
+                "prompt_tokens": messages.iter().map(|m| m.content.len() / 4).sum::<usize>(),
+                "completion_tokens": estimated_tokens,
+                "provider": provider_name, "model": model_name,
+                "latency_ms": stream_start.elapsed().as_millis() as u64,
+            }));
+            return;
+        }
+
+        // Emit initial provider health status
+        let health = health_tracker.health(&provider_name);
+        let _ = app_handle.emit("chat:status", serde_json::json!({
+            "type": "provider_health",
+            "provider": &provider_name,
+            "score": health.score,
+            "success_rate": health.success_rate,
+            "recent_failures": health.recent_failures,
+        }));
 
         for attempt in 0..retry_config.max_attempts {
             if attempt > 0 {
                 let backoff = retry_config.initial_backoff_ms * 2u64.pow(attempt - 1);
                 let backoff = backoff.min(retry_config.max_backoff_ms);
                 eprintln!("[stream_chat] Retrying attempt {}/{}, backoff {}ms", attempt + 1, retry_config.max_attempts, backoff);
-                let _ = app_handle.emit("chat:chunk", format!("\n⟳ Retrying ({}/{})...\n", attempt + 1, retry_config.max_attempts));
+                let _ = app_handle.emit("chat:chunk", format!("\n\u{27f3} Retrying ({}/{})...\n", attempt + 1, retry_config.max_attempts));
+                let _ = app_handle.emit("chat:status", serde_json::json!({
+                    "type": "retry",
+                    "attempt": attempt + 1,
+                    "max": retry_config.max_attempts,
+                    "backoff_ms": backoff,
+                }));
                 tokio::time::sleep(std::time::Duration::from_millis(backoff)).await;
                 accumulated.clear();
             }
@@ -1230,26 +1410,68 @@ pub async fn stream_chat_message(
                 Err(e) => {
                     let err_str = e.to_string();
                     if vibe_ai::is_retryable(&err_str) && attempt + 1 < retry_config.max_attempts {
+                        let _ = app_handle.emit("chat:status", serde_json::json!({
+                            "type": "retry",
+                            "attempt": attempt + 1,
+                            "max": retry_config.max_attempts,
+                            "backoff_ms": retry_config.initial_backoff_ms * 2u64.pow(attempt),
+                            "error_category": vibe_ai::classify_error(&err_str).to_string(),
+                        }));
                         continue;
                     }
+                    // Record final failure
+                    health_tracker.record(vibe_ai::ProviderCallOutcome {
+                        provider_name: provider_name.clone(),
+                        success: false,
+                        latency: stream_start.elapsed(),
+                        timestamp: Instant::now(),
+                        error_category: Some(vibe_ai::classify_error(&err_str)),
+                    });
                     let _ = app_handle.emit("chat:error", err_str);
                     return;
                 }
             };
 
             let mut stream_failed = false;
+            let mut thinking_active = false;
             while let Some(chunk) = stream.next().await {
                 match chunk {
                     Ok(text) => {
                         accumulated.push_str(&text);
                         let _ = app_handle.emit("chat:chunk", text.clone());
+
+                        // Detect thinking blocks
+                        if accumulated.contains("<thinking>") && !accumulated.contains("</thinking>") {
+                            if !thinking_active {
+                                thinking_active = true;
+                                let _ = app_handle.emit("chat:status", serde_json::json!({"type": "thinking", "active": true}));
+                            }
+                        } else if thinking_active && accumulated.contains("</thinking>") {
+                            thinking_active = false;
+                            let _ = app_handle.emit("chat:status", serde_json::json!({"type": "thinking", "active": false}));
+                        }
                     }
                     Err(e) => {
                         let err_str = e.to_string();
                         if vibe_ai::is_retryable(&err_str) && attempt + 1 < retry_config.max_attempts {
+                            let _ = app_handle.emit("chat:status", serde_json::json!({
+                                "type": "retry",
+                                "attempt": attempt + 1,
+                                "max": retry_config.max_attempts,
+                                "backoff_ms": retry_config.initial_backoff_ms * 2u64.pow(attempt),
+                                "error_category": vibe_ai::classify_error(&err_str).to_string(),
+                            }));
                             stream_failed = true;
                             break;
                         }
+                        // Record final failure
+                        health_tracker.record(vibe_ai::ProviderCallOutcome {
+                            provider_name: provider_name.clone(),
+                            success: false,
+                            latency: stream_start.elapsed(),
+                            timestamp: Instant::now(),
+                            error_category: Some(vibe_ai::classify_error(&err_str)),
+                        });
                         let _ = app_handle.emit("chat:error", err_str);
                         return;
                     }
@@ -1262,18 +1484,46 @@ pub async fn stream_chat_message(
         }
 
         if !success {
+            // Record final failure after all retries exhausted
+            health_tracker.record(vibe_ai::ProviderCallOutcome {
+                provider_name: provider_name.clone(),
+                success: false,
+                latency: stream_start.elapsed(),
+                timestamp: Instant::now(),
+                error_category: Some(vibe_ai::FailureCategory::Unknown),
+            });
             let _ = app_handle.emit("chat:error", "All retry attempts exhausted".to_string());
             return;
         }
+
+        // Record success
+        health_tracker.record(vibe_ai::ProviderCallOutcome {
+            provider_name: provider_name.clone(),
+            success: true,
+            latency: stream_start.elapsed(),
+            timestamp: Instant::now(),
+            error_category: None,
+        });
+
         // Process tool calls in the completed response (same as send_chat_message)
         let (tool_output, pending_write) = process_tool_calls(&accumulated, &workspace).await;
 
         let response = ChatResponse {
-            message: accumulated,
+            message: accumulated.clone(),
             tool_output,
             pending_write,
         };
         let _ = app_handle.emit("chat:complete", response);
+
+        // Emit token/cost metrics
+        let estimated_tokens = accumulated.len() / 4;
+        let _ = app_handle.emit("chat:metrics", serde_json::json!({
+            "prompt_tokens": messages.iter().map(|m| m.content.len() / 4).sum::<usize>(),
+            "completion_tokens": estimated_tokens,
+            "provider": provider_name,
+            "model": model_name,
+            "latency_ms": stream_start.elapsed().as_millis() as u64,
+        }));
     });
 
     // Store abort handle so stop_chat_stream can cancel it.
@@ -4243,18 +4493,19 @@ pub async fn detect_build_system(workspace: String) -> Result<Vec<BuildSystem>, 
         // Rust standalone (no Cargo.toml)
         if has_ext(".rs") {
             let rs_files: Vec<&String> = entries.iter().filter(|f| f.ends_with(".rs")).collect();
-            let main_file = rs_files.iter().find(|f| **f == "main.rs").unwrap_or_else(|| rs_files.first().unwrap());
-            systems.push(build_sys("rustc", &format!("rustc {}", main_file), "./main", main_file, "rustc",
-                "Install Rust: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"));
+            if let Some(main_file) = rs_files.iter().find(|f| **f == "main.rs").or_else(|| rs_files.first()) {
+                systems.push(build_sys("rustc", &format!("rustc {}", main_file), "./main", main_file, "rustc",
+                    "Install Rust: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"));
+            }
         }
 
         // Python (standalone scripts)
         if has_ext(".py") {
             let py_files: Vec<&String> = entries.iter().filter(|f| f.ends_with(".py")).collect();
-            let main_file = py_files.iter().find(|f| **f == "main.py" || **f == "app.py")
-                .unwrap_or_else(|| py_files.first().unwrap());
-            systems.push(build_sys("python", &format!("python3 -m py_compile {}", main_file), &format!("python3 {}", main_file), main_file, "python3",
-                "Install Python: https://www.python.org/downloads/ or `brew install python`"));
+            if let Some(main_file) = py_files.iter().find(|f| **f == "main.py" || **f == "app.py").or_else(|| py_files.first()) {
+                systems.push(build_sys("python", &format!("python3 -m py_compile {}", main_file), &format!("python3 {}", main_file), main_file, "python3",
+                    "Install Python: https://www.python.org/downloads/ or `brew install python`"));
+            }
         }
 
         // TypeScript standalone
@@ -4262,9 +4513,10 @@ pub async fn detect_build_system(workspace: String) -> Result<Vec<BuildSystem>, 
             let ts_files: Vec<&String> = entries.iter().filter(|f| f.ends_with(".ts")).collect();
             let files_str = ts_files.iter().map(|f| f.as_str()).collect::<Vec<_>>().join(" ");
             let runner = if tool_exists("bun") { "bun" } else if tool_exists("ts-node") { "ts-node" } else { "npx ts-node" };
-            let main = ts_files.iter().find(|f| **f == "index.ts" || **f == "main.ts").unwrap_or_else(|| ts_files.first().unwrap());
-            systems.push(build_sys("typescript", &format!("npx tsc {}", files_str), &format!("{} {}", runner, main), &files_str, "tsc",
-                "Install TypeScript: `npm install -g typescript` or use Bun: https://bun.sh/"));
+            if let Some(main) = ts_files.iter().find(|f| **f == "index.ts" || **f == "main.ts").or_else(|| ts_files.first()) {
+                systems.push(build_sys("typescript", &format!("npx tsc {}", files_str), &format!("{} {}", runner, main), &files_str, "tsc",
+                    "Install TypeScript: `npm install -g typescript` or use Bun: https://bun.sh/"));
+            }
         }
 
         // Kotlin
@@ -4286,35 +4538,39 @@ pub async fn detect_build_system(workspace: String) -> Result<Vec<BuildSystem>, 
         // Zig
         if has_ext(".zig") {
             let zig_files: Vec<&String> = entries.iter().filter(|f| f.ends_with(".zig")).collect();
-            let main_file = zig_files.iter().find(|f| **f == "main.zig").unwrap_or_else(|| zig_files.first().unwrap());
-            systems.push(build_sys("zig", &format!("zig build-exe {}", main_file), "./main", main_file, "zig",
-                "Install Zig: https://ziglang.org/download/ or `brew install zig`"));
+            if let Some(main_file) = zig_files.iter().find(|f| **f == "main.zig").or_else(|| zig_files.first()) {
+                systems.push(build_sys("zig", &format!("zig build-exe {}", main_file), "./main", main_file, "zig",
+                    "Install Zig: https://ziglang.org/download/ or `brew install zig`"));
+            }
         }
 
         // Nim
         if has_ext(".nim") {
             let nim_files: Vec<&String> = entries.iter().filter(|f| f.ends_with(".nim")).collect();
-            let main_file = nim_files.iter().find(|f| **f == "main.nim").unwrap_or_else(|| nim_files.first().unwrap());
-            let bin_name = main_file.trim_end_matches(".nim");
-            systems.push(build_sys("nim", &format!("nim compile {}", main_file), &format!("./{}", bin_name), main_file, "nim",
-                "Install Nim: https://nim-lang.org/install.html or `brew install nim`"));
+            if let Some(main_file) = nim_files.iter().find(|f| **f == "main.nim").or_else(|| nim_files.first()) {
+                let bin_name = main_file.trim_end_matches(".nim");
+                systems.push(build_sys("nim", &format!("nim compile {}", main_file), &format!("./{}", bin_name), main_file, "nim",
+                    "Install Nim: https://nim-lang.org/install.html or `brew install nim`"));
+            }
         }
 
         // Crystal
         if has_ext(".cr") {
             let cr_files: Vec<&String> = entries.iter().filter(|f| f.ends_with(".cr")).collect();
-            let main_file = cr_files.iter().find(|f| **f == "main.cr").unwrap_or_else(|| cr_files.first().unwrap());
-            systems.push(build_sys("crystal", &format!("crystal build {}", main_file), &format!("./{}", main_file.trim_end_matches(".cr")), main_file, "crystal",
-                "Install Crystal: https://crystal-lang.org/install/ or `brew install crystal`"));
+            if let Some(main_file) = cr_files.iter().find(|f| **f == "main.cr").or_else(|| cr_files.first()) {
+                systems.push(build_sys("crystal", &format!("crystal build {}", main_file), &format!("./{}", main_file.trim_end_matches(".cr")), main_file, "crystal",
+                    "Install Crystal: https://crystal-lang.org/install/ or `brew install crystal`"));
+            }
         }
 
         // Ada (GNAT)
         if has_ext(".adb") || has_ext(".ads") {
             let ada_files: Vec<&String> = entries.iter().filter(|f| f.ends_with(".adb")).collect();
-            let main_file = ada_files.iter().find(|f| **f == "main.adb").unwrap_or_else(|| ada_files.first().unwrap());
-            let bin_name = main_file.trim_end_matches(".adb");
-            systems.push(build_sys("gnat", &format!("gnatmake {}", main_file), &format!("./{}", bin_name), main_file, "gnatmake",
-                "Install GNAT: `apt install gnat` (Linux) or `brew install gnat` (macOS) — https://www.adacore.com/download"));
+            if let Some(main_file) = ada_files.iter().find(|f| **f == "main.adb").or_else(|| ada_files.first()) {
+                let bin_name = main_file.trim_end_matches(".adb");
+                systems.push(build_sys("gnat", &format!("gnatmake {}", main_file), &format!("./{}", bin_name), main_file, "gnatmake",
+                    "Install GNAT: `apt install gnat` (Linux) or `brew install gnat` (macOS) — https://www.adacore.com/download"));
+            }
         }
 
         // D
@@ -4326,72 +4582,62 @@ pub async fn detect_build_system(workspace: String) -> Result<Vec<BuildSystem>, 
         }
 
         // Dart
-        if has_ext(".dart") {
-            let main = entries.iter().find(|f| *f == "main.dart" || f.ends_with(".dart")).unwrap();
+        if let Some(main) = entries.iter().find(|f| *f == "main.dart" || f.ends_with(".dart")) {
             systems.push(build_sys("dart", &format!("dart compile exe {}", main), &format!("dart run {}", main), main, "dart",
                 "Install Dart: https://dart.dev/get-dart or `brew install dart`"));
         }
 
         // Haskell
-        if has_ext(".hs") {
-            let main = entries.iter().find(|f| *f == "Main.hs" || f.ends_with(".hs")).unwrap();
+        if let Some(main) = entries.iter().find(|f| *f == "Main.hs" || f.ends_with(".hs")) {
             systems.push(build_sys("ghc", &format!("ghc -o main {}", main), "./main", main, "ghc",
                 "Install GHC: https://www.haskell.org/ghcup/ or `brew install ghc`"));
         }
 
         // Scala
-        if has_ext(".scala") {
-            let main = entries.iter().find(|f| f.ends_with(".scala")).unwrap();
+        if let Some(main) = entries.iter().find(|f| f.ends_with(".scala")) {
             systems.push(build_sys("scalac", &format!("scalac {}", main), &format!("scala {}", main.trim_end_matches(".scala")), main, "scalac",
                 "Install Scala: https://www.scala-lang.org/download/ or `brew install scala`"));
         }
 
         // OCaml
-        if has_ext(".ml") {
-            let main = entries.iter().find(|f| f.ends_with(".ml")).unwrap();
+        if let Some(main) = entries.iter().find(|f| f.ends_with(".ml")) {
             systems.push(build_sys("ocaml", &format!("ocamlfind ocamlopt -o main {}", main), "./main", main, "ocamlfind",
                 "Install OCaml: https://ocaml.org/install or `brew install ocaml opam`"));
         }
 
         // Erlang
-        if has_ext(".erl") {
-            let main = entries.iter().find(|f| f.ends_with(".erl")).unwrap();
+        if let Some(main) = entries.iter().find(|f| f.ends_with(".erl")) {
             let mod_name = main.trim_end_matches(".erl");
             systems.push(build_sys("erlc", &format!("erlc {}", main), &format!("erl -noshell -s {} start -s init stop", mod_name), main, "erlc",
                 "Install Erlang: https://www.erlang.org/downloads or `brew install erlang`"));
         }
 
         // Perl
-        if has_ext(".pl") {
-            let main = entries.iter().find(|f| *f == "main.pl" || *f == "app.pl" || f.ends_with(".pl")).unwrap();
+        if let Some(main) = entries.iter().find(|f| *f == "main.pl" || *f == "app.pl" || f.ends_with(".pl")) {
             systems.push(build_sys("perl", &format!("perl -c {}", main), &format!("perl {}", main), main, "perl",
                 "Perl is usually pre-installed. Otherwise: https://www.perl.org/get.html"));
         }
 
         // PHP
-        if has_ext(".php") {
-            let main = entries.iter().find(|f| *f == "index.php" || f.ends_with(".php")).unwrap();
+        if let Some(main) = entries.iter().find(|f| *f == "index.php" || f.ends_with(".php")) {
             systems.push(build_sys("php", &format!("php -l {}", main), &format!("php {}", main), main, "php",
                 "Install PHP: https://www.php.net/downloads or `brew install php`"));
         }
 
         // Lua
-        if has_ext(".lua") {
-            let main = entries.iter().find(|f| *f == "main.lua" || *f == "init.lua" || f.ends_with(".lua")).unwrap();
+        if let Some(main) = entries.iter().find(|f| *f == "main.lua" || *f == "init.lua" || f.ends_with(".lua")) {
             systems.push(build_sys("lua", &format!("luac -p {}", main), &format!("lua {}", main), main, "lua",
                 "Install Lua: https://www.lua.org/download.html or `brew install lua`"));
         }
 
         // R
-        if has_ext(".R") || has_ext(".r") {
-            let main = entries.iter().find(|f| f.ends_with(".R") || f.ends_with(".r")).unwrap();
+        if let Some(main) = entries.iter().find(|f| f.ends_with(".R") || f.ends_with(".r")) {
             systems.push(build_sys("r", &format!("Rscript --vanilla {}", main), &format!("Rscript {}", main), main, "Rscript",
                 "Install R: https://cran.r-project.org/ or `brew install r`"));
         }
 
         // Julia
-        if has_ext(".jl") {
-            let main = entries.iter().find(|f| *f == "main.jl" || f.ends_with(".jl")).unwrap();
+        if let Some(main) = entries.iter().find(|f| *f == "main.jl" || f.ends_with(".jl")) {
             systems.push(build_sys("julia", &format!("julia --compiled-modules=yes {}", main), &format!("julia {}", main), main, "julia",
                 "Install Julia: https://julialang.org/downloads/ or `brew install julia`"));
         }
@@ -4406,21 +4652,20 @@ pub async fn detect_build_system(workspace: String) -> Result<Vec<BuildSystem>, 
 
         // V
         if has_ext(".v") && !has_ext(".vala") {
-            let main = entries.iter().find(|f| f.ends_with(".v")).unwrap();
-            systems.push(build_sys("vlang", &format!("v {}", main), &format!("v run {}", main), main, "v",
-                "Install V: https://vlang.io/ or `brew install vlang`"));
+            if let Some(main) = entries.iter().find(|f| f.ends_with(".v")) {
+                systems.push(build_sys("vlang", &format!("v {}", main), &format!("v run {}", main), main, "v",
+                    "Install V: https://vlang.io/ or `brew install vlang`"));
+            }
         }
 
         // Racket
-        if has_ext(".rkt") {
-            let main = entries.iter().find(|f| f.ends_with(".rkt")).unwrap();
+        if let Some(main) = entries.iter().find(|f| f.ends_with(".rkt")) {
             systems.push(build_sys("racket", &format!("raco make {}", main), &format!("racket {}", main), main, "racket",
                 "Install Racket: https://racket-lang.org/download/ or `brew install racket`"));
         }
 
         // Pascal
-        if has_ext(".pas") || has_ext(".pp") {
-            let main = entries.iter().find(|f| f.ends_with(".pas") || f.ends_with(".pp")).unwrap();
+        if let Some(main) = entries.iter().find(|f| f.ends_with(".pas") || f.ends_with(".pp")) {
             systems.push(build_sys("fpc", &format!("fpc {}", main), &format!("./{}", main.split('.').next().unwrap_or("main")), main, "fpc",
                 "Install Free Pascal: https://www.freepascal.org/ or `brew install fpc`"));
         }
@@ -4776,6 +5021,140 @@ pub async fn get_all_trace_entries() -> Result<Vec<TrustTraceEntry>, String> {
     // Sort newest first
     all_entries.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
     Ok(all_entries)
+}
+
+// ── Attachment Commands ──────────────────────────────────────────────────────
+
+/// Read a file from disk and return it as a ChatAttachment (base64-encoded).
+/// Handles images, text files, PDFs, and other documents.
+#[tauri::command]
+pub async fn read_attachment(path: String) -> Result<ChatAttachment, String> {
+    let file_path = std::path::Path::new(&path);
+    if !file_path.exists() {
+        return Err(format!("File not found: {}", path));
+    }
+    let metadata = std::fs::metadata(file_path).map_err(|e| e.to_string())?;
+    // Limit to 20 MB
+    if metadata.len() > 20 * 1024 * 1024 {
+        return Err("File too large (max 20 MB)".to_string());
+    }
+
+    let name = file_path.file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("file")
+        .to_string();
+
+    let ext = file_path.extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+
+    let mime_type = match ext.as_str() {
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "gif" => "image/gif",
+        "webp" => "image/webp",
+        "svg" => "image/svg+xml",
+        "pdf" => "application/pdf",
+        "csv" => "text/csv",
+        "json" => "application/json",
+        "xml" => "application/xml",
+        "html" | "htm" => "text/html",
+        "md" | "markdown" => "text/markdown",
+        "txt" | "log" => "text/plain",
+        "rs" | "py" | "js" | "ts" | "tsx" | "jsx" | "go" | "java" | "c" | "cpp" | "h"
+        | "rb" | "php" | "swift" | "kt" | "scala" | "sh" | "bash" | "zsh" | "sql"
+        | "yaml" | "yml" | "toml" | "ini" | "cfg" | "conf" | "env"
+        | "css" | "scss" | "less" | "vue" | "svelte" => "text/plain",
+        _ => "application/octet-stream",
+    }.to_string();
+
+    // For text files, read as UTF-8 and send text_content directly (no base64 round-trip)
+    let is_text = mime_type.starts_with("text/") || mime_type == "application/json"
+        || mime_type == "application/xml";
+
+    if is_text {
+        match std::fs::read_to_string(file_path) {
+            Ok(content) => {
+                let size = std::fs::metadata(file_path).map(|m| m.len() as usize).unwrap_or(content.len());
+                Ok(ChatAttachment {
+                    name,
+                    mime_type,
+                    data: String::new(), // no base64 needed for text
+                    size,
+                    text_content: Some(content),
+                })
+            }
+            Err(_) => {
+                // File is detected as text but isn't valid UTF-8 — treat as binary
+                use std::io::Read;
+                let mut bytes = Vec::new();
+                std::fs::File::open(file_path).map_err(|e| e.to_string())?
+                    .read_to_end(&mut bytes).map_err(|e| e.to_string())?;
+                let size = bytes.len();
+                let data = base64_encode_bytes(&bytes);
+                Ok(ChatAttachment { name, mime_type, data, size, text_content: None })
+            }
+        }
+    } else {
+        // Binary/image files: read raw bytes and base64-encode
+        use std::io::Read;
+        let mut bytes = Vec::new();
+        std::fs::File::open(file_path).map_err(|e| e.to_string())?
+            .read_to_end(&mut bytes).map_err(|e| e.to_string())?;
+        let size = bytes.len();
+        let data = base64_encode_bytes(&bytes);
+        Ok(ChatAttachment { name, mime_type, data, size, text_content: None })
+    }
+}
+
+/// Decode base64 data to a UTF-8 string (returns None for binary/invalid UTF-8).
+fn base64_decode_to_string(b64: &str) -> Option<String> {
+    const DECODE: [u8; 128] = {
+        let mut t = [0xFFu8; 128];
+        let chars = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        let mut i = 0;
+        while i < 64 {
+            t[chars[i] as usize] = i as u8;
+            i += 1;
+        }
+        t
+    };
+    let filtered: Vec<u8> = b64.bytes().filter(|&b| b != b'=' && b != b'\n' && b != b'\r' && b != b' ').collect();
+    let mut out = Vec::with_capacity(filtered.len() * 3 / 4);
+    for chunk in filtered.chunks(4) {
+        if chunk.iter().any(|&b| b >= 128 || DECODE[b as usize] == 0xFF) {
+            return None;
+        }
+        let vals: Vec<u8> = chunk.iter().map(|&b| DECODE[b as usize]).collect();
+        let n = match vals.len() {
+            4 => (vals[0] as u32) << 18 | (vals[1] as u32) << 12 | (vals[2] as u32) << 6 | vals[3] as u32,
+            3 => (vals[0] as u32) << 18 | (vals[1] as u32) << 12 | (vals[2] as u32) << 6,
+            2 => (vals[0] as u32) << 18 | (vals[1] as u32) << 12,
+            _ => return None,
+        };
+        out.push((n >> 16) as u8);
+        if vals.len() > 2 { out.push((n >> 8) as u8); }
+        if vals.len() > 3 { out.push(n as u8); }
+    }
+    String::from_utf8(out).ok()
+}
+
+/// Simple base64 encoder for attachment data.
+fn base64_encode_bytes(data: &[u8]) -> String {
+    const CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity(data.len().div_ceil(3) * 4);
+    for chunk in data.chunks(3) {
+        let b0 = chunk[0] as u32;
+        let b1 = if chunk.len() > 1 { chunk[1] as u32 } else { 0 };
+        let b2 = if chunk.len() > 2 { chunk[2] as u32 } else { 0 };
+        let n = (b0 << 16) | (b1 << 8) | b2;
+        out.push(CHARS[((n >> 18) & 0x3F) as usize] as char);
+        out.push(CHARS[((n >> 12) & 0x3F) as usize] as char);
+        if chunk.len() > 1 { out.push(CHARS[((n >> 6) & 0x3F) as usize] as char); } else { out.push('='); }
+        if chunk.len() > 2 { out.push(CHARS[(n & 0x3F) as usize] as char); } else { out.push('='); }
+    }
+    out
 }
 
 // ── Session Browser Commands ──────────────────────────────────────────────────
@@ -24849,13 +25228,26 @@ fn resilience_write_json(filename: &str, data: &serde_json::Value) -> Result<(),
 }
 
 #[tauri::command]
-pub async fn get_provider_health() -> Result<serde_json::Value, String> {
-    let data = resilience_read_json("provider_health.json");
-    if data.as_array().map(|a| a.is_empty()).unwrap_or(true) {
-        // Return empty array — panel will show "no data yet"
-        return Ok(serde_json::json!([]));
+pub async fn get_provider_health(
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let healths = state.provider_health.all_health();
+    if healths.is_empty() {
+        // Fall back to file-based data for backward compatibility
+        let data = resilience_read_json("provider_health.json");
+        if data.as_array().map(|a| a.is_empty()).unwrap_or(true) {
+            return Ok(serde_json::json!([]));
+        }
+        return Ok(data);
     }
-    Ok(data)
+    Ok(serde_json::json!(healths.iter().map(|h| serde_json::json!({
+        "name": h.name,
+        "score": h.score,
+        "success_rate": h.success_rate,
+        "avg_latency_ms": h.avg_latency_ms,
+        "total_calls": h.total_calls,
+        "recent_failures": h.recent_failures,
+    })).collect::<Vec<_>>()))
 }
 
 #[tauri::command]

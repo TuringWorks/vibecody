@@ -708,7 +708,7 @@ function App() {
       }
     });
 
-    editor.onDidChangeCursorSelection((_) => {
+    editor.onDidChangeCursorSelection(() => {
       if (!activeFilePath) return;
 
       if (cursorUpdateTimeoutRef.current) {
@@ -719,7 +719,7 @@ function App() {
         const selections = editor.getSelections();
         if (!selections) return;
 
-        const cursors = selections.map(sel => ({
+        const cursors = selections.map((sel) => ({
           position: { line: sel.positionLineNumber - 1, column: sel.positionColumn - 1 },
           selection: {
             start: { line: sel.selectionStartLineNumber - 1, column: sel.selectionStartColumn - 1 },
