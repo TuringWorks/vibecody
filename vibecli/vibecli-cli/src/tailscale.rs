@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Tailscale integration for secure remote access to VibeCLI daemon.
 //!
 //! Provides Tailscale status checking and funnel setup for exposing

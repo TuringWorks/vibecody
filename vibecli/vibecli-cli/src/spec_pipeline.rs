@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Spec-driven development pipeline for VibeCody.
 //!
 //! Implements a structured requirements → design → tasks pipeline with EARS

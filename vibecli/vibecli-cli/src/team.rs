@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Team knowledge store — shared configuration for teams.
 //!
 //! Team configuration is stored in `.vibecli/team.toml` (committed to git)

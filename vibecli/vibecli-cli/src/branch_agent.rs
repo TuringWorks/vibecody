@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Agent-per-branch workflow for VibeCody.
 //!
 //! Each task auto-creates a git branch and works in isolation. Multiple agents

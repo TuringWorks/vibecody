@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Red Team Module — autonomous security testing pipeline.
 //!
 //! Inspired by Shannon (KeygraphHQ/shannon), adapted to VibeCody's architecture.

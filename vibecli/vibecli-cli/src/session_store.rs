@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! SQLite-backed session store for VibeCLI agent sessions.
 //!
 //! Stores sessions, their messages, and tool-call steps in a SQLite database

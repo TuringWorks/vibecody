@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Cloud VM agent orchestration for VibeCody.
 //!
 //! Enables Cursor-style "8 parallel agents in isolated VMs" workflow.

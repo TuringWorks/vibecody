@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Docker Container Runtime
 //!
 //! Implements [`ContainerRuntime`] using the `docker` CLI.
