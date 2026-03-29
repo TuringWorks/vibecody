@@ -71,7 +71,7 @@ const S = {
   container: { display: "flex", height: "100%", fontFamily: "var(--font-family, system-ui, sans-serif)", color: "var(--text-primary)", background: "var(--bg-primary)" } as const,
   sidebar: { width: 220, borderRight: "1px solid var(--border-color)", padding: 12, overflowY: "auto", flexShrink: 0 } as const,
   main: { flex: 1, padding: 20, overflowY: "auto" } as const,
-  btn: { padding: "8px 16px", border: "none", borderRadius: 6, cursor: "pointer", fontSize: 13, fontWeight: 600, background: "var(--accent-blue)", color: "#fff" } as const,
+  btn: { padding: "8px 16px", border: "none", borderRadius: 6, cursor: "pointer", fontSize: 13, fontWeight: 600, background: "var(--accent-blue)", color: "var(--btn-primary-fg, #fff)" } as const,
   btnSecondary: { padding: "6px 12px", border: "1px solid var(--border-color)", borderRadius: 6, cursor: "pointer", fontSize: 12, background: "transparent", color: "var(--text-primary)" } as const,
   input: { width: "100%", padding: "8px 10px", borderRadius: 6, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: 13, boxSizing: "border-box" } as const,
   textarea: { width: "100%", padding: "10px 12px", borderRadius: 6, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: 13, resize: "vertical", minHeight: 80, boxSizing: "border-box", fontFamily: "inherit" } as const,
@@ -276,9 +276,9 @@ export function CounselPanel() {
             <h2 style={S.h2}>New Counsel Session</h2>
 
             {error && (
-              <div style={{ padding: "8px 12px", marginBottom: 12, borderRadius: 6, background: "#f4433622", border: "1px solid #f44336", color: "#f44336", fontSize: 12 }}>
+              <div style={{ padding: "8px 12px", marginBottom: 12, borderRadius: 6, background: "#f4433622", border: "1px solid #f44336", color: "var(--error-color)", fontSize: 12 }}>
                 {error}
-                <button onClick={() => setError(null)} style={{ float: "right", background: "none", border: "none", color: "#f44336", cursor: "pointer", fontWeight: 600 }}>x</button>
+                <button onClick={() => setError(null)} style={{ float: "right", background: "none", border: "none", color: "var(--error-color)", cursor: "pointer", fontWeight: 600 }}>x</button>
               </div>
             )}
 
@@ -360,9 +360,9 @@ export function CounselPanel() {
             </div>
 
             {error && (
-              <div style={{ padding: "8px 12px", marginBottom: 12, borderRadius: 6, background: "#f4433622", border: "1px solid #f44336", color: "#f44336", fontSize: 12 }}>
+              <div style={{ padding: "8px 12px", marginBottom: 12, borderRadius: 6, background: "#f4433622", border: "1px solid #f44336", color: "var(--error-color)", fontSize: 12 }}>
                 {error}
-                <button onClick={() => setError(null)} style={{ float: "right", background: "none", border: "none", color: "#f44336", cursor: "pointer", fontWeight: 600 }}>x</button>
+                <button onClick={() => setError(null)} style={{ float: "right", background: "none", border: "none", color: "var(--error-color)", cursor: "pointer", fontWeight: 600 }}>x</button>
               </div>
             )}
 

@@ -54,7 +54,7 @@ const btnStyle: React.CSSProperties = {
   borderRadius: 6,
   border: "1px solid var(--border-color)",
   background: "var(--accent-color)",
-  color: "#fff",
+  color: "var(--btn-primary-fg, #fff)",
   cursor: "pointer",
   fontSize: 13,
   marginRight: 8,
@@ -78,11 +78,11 @@ const badgeStyle = (color: string): React.CSSProperties => ({
   fontSize: 11,
   fontWeight: 600,
   background: color,
-  color: "#fff",
+  color: "var(--btn-primary-fg, #fff)",
   marginRight: 4,
 });
 
-const sevColor: Record<string, string> = { critical: "#dc2626", high: "#ef4444", medium: "#f59e0b", low: "#22c55e" };
+const sevColor: Record<string, string> = { critical: "var(--error-color)", high: "var(--error-color)", medium: "var(--warning-color)", low: "var(--success-color)" };
 
 export function TriagePanel() {
   const [tab, setTab] = useState("queue");
@@ -176,7 +176,7 @@ export function TriagePanel() {
                 <strong>{h.issueTitle}</strong>
                 <span style={{ ...badgeStyle("#6366f1"), marginLeft: 8 }}>{h.classification}</span>
               </div>
-              <span style={badgeStyle(h.correct ? "#22c55e" : "#ef4444")}>{h.correct ? "correct" : "wrong"}</span>
+              <span style={badgeStyle(h.correct ? "var(--success-color)" : "var(--error-color)")}>{h.correct ? "correct" : "wrong"}</span>
             </div>
           ))}
         </div>

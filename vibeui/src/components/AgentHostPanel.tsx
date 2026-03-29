@@ -51,7 +51,7 @@ const btnStyle: React.CSSProperties = {
   borderRadius: 6,
   border: "1px solid var(--border-color)",
   background: "var(--accent-color)",
-  color: "#fff",
+  color: "var(--btn-primary-fg, #fff)",
   cursor: "pointer",
   fontSize: 13,
   marginRight: 8,
@@ -75,11 +75,11 @@ const badgeStyle = (color: string): React.CSSProperties => ({
   fontSize: 11,
   fontWeight: 600,
   background: color,
-  color: "#fff",
+  color: "var(--btn-primary-fg, #fff)",
   marginRight: 4,
 });
 
-const agentColors = ["#3b82f6", "#8b5cf6", "#ec4899", "#f59e0b", "#22c55e"];
+const agentColors = ["var(--accent-color)", "var(--accent-purple)", "#ec4899", "var(--warning-color)", "var(--success-color)"];
 
 export function AgentHostPanel() {
   const [tab, setTab] = useState("agents");
@@ -129,7 +129,7 @@ export function AgentHostPanel() {
     setActionLoading(null);
   }, [agents]);
 
-  const statusColor: Record<string, string> = { running: "#22c55e", stopped: "#6b7280", error: "#ef4444" };
+  const statusColor: Record<string, string> = { running: "var(--success-color)", stopped: "var(--text-secondary)", error: "var(--error-color)" };
 
   return (
     <div style={panelStyle}>

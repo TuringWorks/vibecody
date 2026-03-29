@@ -3,7 +3,7 @@ import { useState } from "react";
 type SubTab = "actions" | "windows" | "macros" | "config";
 
 const card: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, border: "1px solid var(--border-color)" };
-const btn: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "none", background: "var(--accent-color)", color: "#fff", cursor: "pointer", fontSize: 12, fontWeight: 600 };
+const btn: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "none", background: "var(--accent-color)", color: "var(--btn-primary-fg, #fff)", cursor: "pointer", fontSize: 12, fontWeight: 600 };
 const mono: React.CSSProperties = { fontFamily: "var(--font-mono)", fontSize: 11 };
 
 interface WindowInfo {

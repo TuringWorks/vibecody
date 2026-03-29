@@ -37,7 +37,7 @@ const btnStyle: React.CSSProperties = {
   borderRadius: 6,
   border: "1px solid var(--border-color)",
   background: "var(--accent-color)",
-  color: "#fff",
+  color: "var(--btn-primary-fg, #fff)",
   cursor: "pointer",
   fontSize: 13,
   marginRight: 8,
@@ -59,7 +59,7 @@ const toolBtnStyle = (active: boolean): React.CSSProperties => ({
   borderRadius: 6,
   border: active ? "2px solid var(--accent-color)" : "1px solid var(--border-color)",
   background: active ? "var(--accent-color)" : "var(--bg-secondary)",
-  color: active ? "#fff" : "var(--text-primary)",
+  color: active ? "var(--btn-primary-fg, #fff)" : "var(--text-primary)",
   cursor: "pointer",
   fontSize: 12,
   fontWeight: active ? 600 : 400,
@@ -116,7 +116,7 @@ export function SketchCanvasPanel() {
     setExporting(false);
   };
 
-  const confColor = (c: number) => c >= 85 ? "#22c55e" : c >= 70 ? "#eab308" : "#ef4444";
+  const confColor = (c: number) => c >= 85 ? "var(--success-color)" : c >= 70 ? "var(--warning-color)" : "var(--error-color)";
 
   return (
     <div style={panelStyle}>
@@ -177,7 +177,7 @@ export function SketchCanvasPanel() {
           <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
             {["react", "html", "swiftui"].map((f) => (
               <button key={f} onClick={() => setFramework(f)}
-                style={{ ...btnStyle, background: framework === f ? "var(--accent-color)" : "transparent", color: framework === f ? "#fff" : "var(--text-primary)", border: "1px solid var(--border-color)" }}>
+                style={{ ...btnStyle, background: framework === f ? "var(--accent-color)" : "transparent", color: framework === f ? "var(--btn-primary-fg, #fff)" : "var(--text-primary)", border: "1px solid var(--border-color)" }}>
                 {f === "swiftui" ? "SwiftUI" : f === "html" ? "HTML" : "React"}
               </button>
             ))}

@@ -49,7 +49,7 @@ const btnStyle: React.CSSProperties = {
   borderRadius: 6,
   border: "1px solid var(--border-color)",
   background: "var(--accent-color)",
-  color: "#fff",
+  color: "var(--btn-primary-fg, #fff)",
   cursor: "pointer",
   fontSize: 13,
   marginRight: 8,
@@ -138,7 +138,7 @@ export function WebGroundingPanel() {
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
             <div><strong>{cacheEntries.length}</strong> cached entries | Hit rate: <strong>{cacheHitRate}%</strong></div>
-            <button style={{ ...btnStyle, background: "#ef4444" }}>Clear Cache</button>
+            <button style={{ ...btnStyle, background: "var(--error-color)" }}>Clear Cache</button>
           </div>
           {cacheEntries.map((c, i) => (
             <div key={i} style={cardStyle}>

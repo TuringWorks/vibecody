@@ -89,7 +89,7 @@ const inputStyle: React.CSSProperties = {
 const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", display: "block", marginBottom: 4 };
 const btnPrimary: React.CSSProperties = {
   background: "var(--accent-color)",
-  color: "#fff",
+  color: "var(--btn-primary-fg, #fff)",
   border: "none",
   borderRadius: 4,
   padding: "8px 16px",

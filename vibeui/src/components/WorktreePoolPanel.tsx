@@ -46,7 +46,7 @@ const btnStyle: React.CSSProperties = {
   borderRadius: 6,
   border: "1px solid var(--border-color)",
   background: "var(--accent-color)",
-  color: "#fff",
+  color: "var(--btn-primary-fg, #fff)",
   cursor: "pointer",
   fontSize: 13,
   marginRight: 8,
@@ -70,10 +70,10 @@ const badgeStyle = (color: string): React.CSSProperties => ({
   fontSize: 11,
   fontWeight: 600,
   background: color,
-  color: "#fff",
+  color: "var(--btn-primary-fg, #fff)",
 });
 
-const statusColor: Record<string, string> = { running: "#3b82f6", merging: "#f59e0b", done: "#22c55e", failed: "#ef4444" };
+const statusColor: Record<string, string> = { running: "var(--accent-color)", merging: "var(--warning-color)", done: "var(--success-color)", failed: "var(--error-color)" };
 
 export function WorktreePoolPanel() {
   const [tab, setTab] = useState("active");
@@ -201,8 +201,8 @@ export function WorktreePoolPanel() {
             <div key={q.id} style={cardStyle}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span><strong>#{q.position}</strong> {q.branch}</span>
-                {q.hasConflicts && <span style={badgeStyle("#ef4444")}>conflicts</span>}
-                {!q.hasConflicts && <span style={badgeStyle("#22c55e")}>clean</span>}
+                {q.hasConflicts && <span style={badgeStyle("var(--error-color)")}>conflicts</span>}
+                {!q.hasConflicts && <span style={badgeStyle("var(--success-color)")}>clean</span>}
               </div>
             </div>
           ))}

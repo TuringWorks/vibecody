@@ -28,7 +28,7 @@ const btnStyle: React.CSSProperties = {
   borderRadius: 6,
   border: "1px solid var(--border-color)",
   background: "var(--accent-color)",
-  color: "#fff",
+  color: "var(--btn-primary-fg, #fff)",
   cursor: "pointer",
   fontSize: 13,
   marginRight: 8,
@@ -85,16 +85,16 @@ export function SmartDepsPanel() {
   ];
 
   const sevColor = (s: string) => {
-    if (s === "critical") return { color: "#fff", bg: "#ef4444" };
-    if (s === "high") return { color: "#ef4444", bg: "#ef444420" };
-    if (s === "medium") return { color: "#eab308", bg: "#eab30820" };
-    return { color: "#3b82f6", bg: "#3b82f620" };
+    if (s === "critical") return { color: "var(--btn-primary-fg, #fff)", bg: "var(--error-color)" };
+    if (s === "high") return { color: "var(--error-color)", bg: "#ef444420" };
+    if (s === "medium") return { color: "var(--warning-color)", bg: "#eab30820" };
+    return { color: "var(--accent-color)", bg: "#3b82f620" };
   };
 
   const mgrColor = (m: string) => {
     if (m === "npm") return { color: "#cb3837", bg: "#cb383720" };
-    if (m === "cargo") return { color: "#f59e0b", bg: "#f59e0b20" };
-    return { color: "#3b82f6", bg: "#3b82f620" };
+    if (m === "cargo") return { color: "var(--warning-color)", bg: "#f59e0b20" };
+    return { color: "var(--accent-color)", bg: "#3b82f620" };
   };
 
   return (
@@ -135,7 +135,7 @@ export function SmartDepsPanel() {
               <div style={{ display: "flex", gap: 4 }}>
                 {["dedupe", "upgrade", "align", "ignore"].map((s) => (
                   <button key={s} onClick={() => setConflicts((prev) => prev.map((x) => x.id === c.id ? { ...x, strategy: s } : x))}
-                    style={{ ...btnStyle, fontSize: 11, padding: "3px 8px", background: c.strategy === s ? "var(--accent-color)" : "transparent", color: c.strategy === s ? "#fff" : "var(--text-primary)", border: "1px solid var(--border-color)" }}>
+                    style={{ ...btnStyle, fontSize: 11, padding: "3px 8px", background: c.strategy === s ? "var(--accent-color)" : "transparent", color: c.strategy === s ? "var(--btn-primary-fg, #fff)" : "var(--text-primary)", border: "1px solid var(--border-color)" }}>
                     {s}
                   </button>
                 ))}
@@ -156,7 +156,7 @@ export function SmartDepsPanel() {
                 </div>
                 <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{a.cve} - {a.desc}</div>
               </div>
-              <span style={{ fontSize: 11, fontWeight: 600, color: a.fixAvailable ? "#22c55e" : "#ef4444" }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: a.fixAvailable ? "var(--success-color)" : "var(--error-color)" }}>
                 {a.fixAvailable ? "Fix available" : "No fix"}
               </span>
             </div>
@@ -173,7 +173,7 @@ export function SmartDepsPanel() {
                 <span style={{ fontSize: 12, color: "var(--text-secondary)", marginLeft: 8 }}>{l.license}</span>
               </div>
               <span style={badgeStyle(
-                l.status === "compliant" ? "#22c55e" : "#ef4444",
+                l.status === "compliant" ? "var(--success-color)" : "var(--error-color)",
                 l.status === "compliant" ? "#22c55e20" : "#ef444420"
               )}>{l.status === "compliant" ? "Compliant" : "Violation"}</span>
             </div>

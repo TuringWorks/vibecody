@@ -28,7 +28,7 @@ const btnStyle: React.CSSProperties = {
   borderRadius: 6,
   border: "1px solid var(--border-color)",
   background: "var(--accent-color)",
-  color: "#fff",
+  color: "var(--btn-primary-fg, #fff)",
   cursor: "pointer",
   fontSize: 13,
   marginRight: 8,
@@ -45,7 +45,7 @@ const tabStyle = (active: boolean): React.CSSProperties => ({
   fontWeight: active ? 600 : 400,
 });
 
-const scoreColor = (score: number) => score > 80 ? "#22c55e" : score >= 50 ? "#eab308" : "#ef4444";
+const scoreColor = (score: number) => score > 80 ? "var(--success-color)" : score >= 50 ? "var(--warning-color)" : "var(--error-color)";
 
 export function DocSyncPanel() {
   const [tab, setTab] = useState("status");
@@ -78,7 +78,7 @@ export function DocSyncPanel() {
   const badgeStyle = (type: string): React.CSSProperties => ({
     padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 600,
     background: type === "Implementation" ? "#3b82f620" : type === "Reference" ? "#8b5cf620" : "#f59e0b20",
-    color: type === "Implementation" ? "#3b82f6" : type === "Reference" ? "#8b5cf6" : "#f59e0b",
+    color: type === "Implementation" ? "var(--accent-color)" : type === "Reference" ? "var(--accent-purple)" : "var(--warning-color)",
   });
 
   return (
@@ -131,7 +131,7 @@ export function DocSyncPanel() {
               <div>
                 <div style={{ fontWeight: 600, fontSize: 13 }}>{a.section}</div>
                 <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 2 }}>{a.drift}</div>
-                <span style={{ fontSize: 11, color: a.severity === "critical" ? "#ef4444" : a.severity === "high" ? "#f59e0b" : "#3b82f6" }}>
+                <span style={{ fontSize: 11, color: a.severity === "critical" ? "var(--error-color)" : a.severity === "high" ? "var(--warning-color)" : "var(--accent-color)" }}>
                   {a.severity.toUpperCase()}
                 </span>
               </div>
@@ -150,7 +150,7 @@ export function DocSyncPanel() {
           </div>
           <div style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ fontWeight: 600, fontSize: 13 }}>Auto-Reconcile</span>
-            <button style={{ ...btnStyle, background: autoReconcile ? "#22c55e" : "var(--border-color)" }}
+            <button style={{ ...btnStyle, background: autoReconcile ? "var(--success-color)" : "var(--border-color)" }}
               onClick={() => setAutoReconcile(!autoReconcile)}>{autoReconcile ? "ON" : "OFF"}</button>
           </div>
           <div style={cardStyle}>

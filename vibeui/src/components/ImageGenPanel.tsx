@@ -168,7 +168,7 @@ const ImageGenPanel: React.FC = () => {
     <button key={id} onClick={() => setTab(id as typeof tab)} style={{
       padding: "5px 14px", fontSize: 12, fontWeight: tab === id ? 600 : 400, cursor: "pointer",
       background: tab === id ? "var(--accent-color)" : "transparent",
-      color: tab === id ? "#fff" : "var(--text-secondary)",
+      color: tab === id ? "var(--btn-primary-fg, #fff)" : "var(--text-secondary)",
       border: "1px solid " + (tab === id ? "var(--accent-color)" : "var(--border-color)"),
       borderRadius: "var(--radius-sm)",
     }}>{lbl}</button>
@@ -199,7 +199,7 @@ const ImageGenPanel: React.FC = () => {
                 style={{
                   padding: "5px 12px", fontSize: 11, borderRadius: "var(--radius-sm)", cursor: p.available ? "pointer" : "not-allowed",
                   background: model === p.model ? "var(--accent-color)" : p.available ? "var(--bg-tertiary)" : "var(--bg-secondary)",
-                  color: model === p.model ? "#fff" : p.available ? "var(--text-primary)" : "var(--text-secondary)",
+                  color: model === p.model ? "var(--btn-primary-fg, #fff)" : p.available ? "var(--text-primary)" : "var(--text-secondary)",
                   border: `1px solid ${model === p.model ? "var(--accent-color)" : "var(--border-color)"}`,
                   opacity: p.available ? 1 : 0.5,
                 }}>

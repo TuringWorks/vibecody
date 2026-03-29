@@ -58,7 +58,7 @@ const btnStyle: React.CSSProperties = {
   borderRadius: 6,
   border: "1px solid var(--border-color)",
   background: "var(--accent-color)",
-  color: "#fff",
+  color: "var(--btn-primary-fg, #fff)",
   cursor: "pointer",
   fontSize: 13,
   marginRight: 8,
@@ -82,11 +82,11 @@ const badgeStyle = (color: string): React.CSSProperties => ({
   fontSize: 11,
   fontWeight: 600,
   background: color,
-  color: "#fff",
+  color: "var(--btn-primary-fg, #fff)",
   marginRight: 4,
 });
 
-const confColor = (c: number) => c >= 80 ? "#22c55e" : c >= 50 ? "#f59e0b" : "#6b7280";
+const confColor = (c: number) => c >= 80 ? "var(--success-color)" : c >= 50 ? "var(--warning-color)" : "var(--text-secondary)";
 
 export function NextTaskPanel() {
   const [tab, setTab] = useState("suggestions");
@@ -185,7 +185,7 @@ export function NextTaskPanel() {
                 <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>Source: {p.source}</span>
                 <div>
                   <button style={btnStyle} onClick={() => handleAccept(p.id)}>Accept</button>
-                  <button style={{ ...btnStyle, background: "#6b7280" }} onClick={() => handleDismiss(p.id)}>Dismiss</button>
+                  <button style={{ ...btnStyle, background: "var(--text-secondary)" }} onClick={() => handleDismiss(p.id)}>Dismiss</button>
                 </div>
               </div>
             </div>
@@ -203,8 +203,8 @@ export function NextTaskPanel() {
                 <strong style={{ fontSize: 13 }}>{h.action}</strong>
                 <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{h.timestamp}</div>
               </div>
-              {h.predicted && <span style={badgeStyle("#22c55e")}>predicted</span>}
-              {!h.predicted && <span style={badgeStyle("#6b7280")}>unpredicted</span>}
+              {h.predicted && <span style={badgeStyle("var(--success-color)")}>predicted</span>}
+              {!h.predicted && <span style={badgeStyle("var(--text-secondary)")}>unpredicted</span>}
             </div>
           ))}
         </div>

@@ -147,6 +147,12 @@ pub struct AppState {
     pub triage_issues: Arc<Mutex<Vec<serde_json::Value>>>,
     pub triage_results: Arc<Mutex<Vec<serde_json::Value>>>,
     pub triage_metrics: Arc<Mutex<serde_json::Value>>,
+    // Phase 26: Web Grounding + Semantic Index
+    pub web_search_results: Arc<Mutex<Vec<serde_json::Value>>>,
+    pub web_citations: Arc<Mutex<Vec<serde_json::Value>>>,
+    pub web_cache: Arc<Mutex<serde_json::Value>>,
+    pub semindex_symbols: Arc<Mutex<Vec<serde_json::Value>>>,
+    pub semindex_stats: Arc<Mutex<serde_json::Value>>,
 }
 
 const MAX_TERMINAL_LINES: usize = 500;
@@ -35179,23 +35185,72 @@ pub async fn triage_get_metrics(
 // ── Web Grounding ──
 
 #[tauri::command]
-pub async fn web_search(query: String) -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "query": query, "results": [], "cached": false }))
+pub async fn web_search(
+    query: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let now = chrono::Utc::now().timestamp();
+    // Check cache
+    let mut cache = state.web_cache.lock().await;
+    let hits = cache.get("hit_count").and_then(|v| v.as_i64()).unwrap_or(0);
+    let misses = cache.get("miss_count").and_then(|v| v.as_i64()).unwrap_or(0);
+    let mut results = state.web_search_results.lock().await;
+    let cached = results.iter().find(|r| r.get("query").and_then(|v| v.as_str()) == Some(&query));
+    if let Some(cached_result) = cached {
+        cache["hit_count"] = serde_json::json!(hits + 1);
+        return Ok(serde_json::json!({ "query": query, "results": cached_result.get("results"), "cached": true }));
+    }
+    cache["miss_count"] = serde_json::json!(misses + 1);
+    // Simulate search results
+    let simulated = serde_json::json!([
+        { "title": format!("Result 1 for: {}", query), "url": format!("https://example.com/search?q={}", query.replace(' ', "+")), "snippet": format!("Relevant information about {} from documentation.", query), "source": "web", "timestamp": now },
+        { "title": format!("Stack Overflow: {}", query), "url": format!("https://stackoverflow.com/q/{}", query.replace(' ', "-")), "snippet": format!("Community answer regarding {} with code examples.", query), "source": "stackoverflow", "timestamp": now },
+    ]);
+    let entry = serde_json::json!({ "query": query, "results": simulated, "searched_at": now });
+    results.push(entry);
+    let total = cache.get("total_entries").and_then(|v| v.as_i64()).unwrap_or(0);
+    cache["total_entries"] = serde_json::json!(total + 1);
+    // Add citations
+    drop(results);
+    drop(cache);
+    let mut citations = state.web_citations.lock().await;
+    citations.push(serde_json::json!({ "query": query, "count": 2, "timestamp": now }));
+    Ok(serde_json::json!({ "query": query, "results": simulated, "cached": false }))
 }
 
 #[tauri::command]
-pub async fn web_get_citations() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!([]))
+pub async fn web_get_citations(
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let citations = state.web_citations.lock().await;
+    Ok(serde_json::json!(*citations))
 }
 
 #[tauri::command]
-pub async fn web_cache_stats() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "total_entries": 0, "hit_count": 0, "miss_count": 0, "hit_rate": 0.0 }))
+pub async fn web_cache_stats(
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let cache = state.web_cache.lock().await;
+    let hits = cache.get("hit_count").and_then(|v| v.as_i64()).unwrap_or(0);
+    let misses = cache.get("miss_count").and_then(|v| v.as_i64()).unwrap_or(0);
+    let total = hits + misses;
+    let hit_rate = if total > 0 { hits as f64 / total as f64 } else { 0.0 };
+    Ok(serde_json::json!({
+        "total_entries": cache.get("total_entries").and_then(|v| v.as_i64()).unwrap_or(0),
+        "hit_count": hits, "miss_count": misses, "hit_rate": hit_rate,
+    }))
 }
 
 #[tauri::command]
-pub async fn web_clear_cache() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "cleared": true }))
+pub async fn web_clear_cache(
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let mut results = state.web_search_results.lock().await;
+    let cleared = results.len();
+    results.clear();
+    let mut cache = state.web_cache.lock().await;
+    *cache = serde_json::json!({ "total_entries": 0, "hit_count": 0, "miss_count": 0 });
+    Ok(serde_json::json!({ "cleared": true, "entries_removed": cleared }))
 }
 
 // ── Semantic Index ──

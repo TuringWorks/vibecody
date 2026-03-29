@@ -46,7 +46,7 @@ const btnStyle: React.CSSProperties = {
   borderRadius: 6,
   border: "1px solid var(--border-color)",
   background: "var(--accent-color)",
-  color: "#fff",
+  color: "var(--btn-primary-fg, #fff)",
   cursor: "pointer",
   fontSize: 13,
   marginRight: 8,
@@ -70,7 +70,7 @@ const badgeStyle = (color: string): React.CSSProperties => ({
   fontSize: 11,
   fontWeight: 600,
   background: color,
-  color: "#fff",
+  color: "var(--btn-primary-fg, #fff)",
   marginRight: 4,
 });
 
@@ -85,8 +85,8 @@ const inputStyle: React.CSSProperties = {
 };
 
 const viewports = ["1920x1080", "1440x900", "1024x768", "768x1024", "375x812"];
-const scoreColor = (s: number) => s >= 95 ? "#22c55e" : s >= 80 ? "#f59e0b" : "#ef4444";
-const statusColor: Record<string, string> = { pass: "#22c55e", fail: "#ef4444", warning: "#f59e0b" };
+const scoreColor = (s: number) => s >= 95 ? "var(--success-color)" : s >= 80 ? "var(--warning-color)" : "var(--error-color)";
+const statusColor: Record<string, string> = { pass: "var(--success-color)", fail: "var(--error-color)", warning: "var(--warning-color)" };
 
 export function VisualVerifyPanel() {
   const [tab, setTab] = useState("verify");
@@ -230,7 +230,7 @@ export function VisualVerifyPanel() {
             <div style={{ fontWeight: 600, marginBottom: 8 }}>Generate Report</div>
             <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
               {["json", "markdown", "html"].map((f) => (
-                <button key={f} style={{ ...btnStyle, background: reportFormat === f ? "var(--accent-color)" : "var(--bg-primary)", color: reportFormat === f ? "#fff" : "var(--text-primary)" }} onClick={() => setReportFormat(f)}>
+                <button key={f} style={{ ...btnStyle, background: reportFormat === f ? "var(--accent-color)" : "var(--bg-primary)", color: reportFormat === f ? "var(--btn-primary-fg, #fff)" : "var(--text-primary)" }} onClick={() => setReportFormat(f)}>
                   {f.toUpperCase()}
                 </button>
               ))}
@@ -241,9 +241,9 @@ export function VisualVerifyPanel() {
             <div style={{ fontWeight: 600, marginBottom: 8 }}>Summary</div>
             <div style={{ fontSize: 13 }}>
               <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0" }}><span>Total baselines</span><strong>{baselines.length}</strong></div>
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0" }}><span>Passing</span><strong style={{ color: "#22c55e" }}>{diffs.filter((d) => d.status === "pass").length}</strong></div>
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0" }}><span>Warnings</span><strong style={{ color: "#f59e0b" }}>{diffs.filter((d) => d.status === "warning").length}</strong></div>
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0" }}><span>Failing</span><strong style={{ color: "#ef4444" }}>{diffs.filter((d) => d.status === "fail").length}</strong></div>
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0" }}><span>Passing</span><strong style={{ color: "var(--success-color)" }}>{diffs.filter((d) => d.status === "pass").length}</strong></div>
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0" }}><span>Warnings</span><strong style={{ color: "var(--warning-color)" }}>{diffs.filter((d) => d.status === "warning").length}</strong></div>
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0" }}><span>Failing</span><strong style={{ color: "var(--error-color)" }}>{diffs.filter((d) => d.status === "fail").length}</strong></div>
             </div>
           </div>
         </div>

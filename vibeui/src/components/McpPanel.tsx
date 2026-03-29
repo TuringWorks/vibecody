@@ -503,7 +503,7 @@ export function McpPanel() {
                           <div style={{
                             fontSize: 11, fontWeight: 600, margin: "8px 0 4px", padding: "4px 8px",
                             background: isHighlighted ? "var(--accent-primary)" : "var(--bg-tertiary)",
-                            color: isHighlighted ? "#fff" : undefined,
+                            color: isHighlighted ? "var(--btn-primary-fg, #fff)" : undefined,
                             borderRadius: 4, display: "flex", justifyContent: "space-between",
                             transition: "background 0.3s ease",
                           }}>

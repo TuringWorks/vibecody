@@ -116,7 +116,7 @@ const btnStyle: React.CSSProperties = {
   borderRadius: "var(--border-radius, 4px)",
   border: "none",
   background: "var(--accent)",
-  color: "#fff",
+  color: "var(--btn-primary-fg, #fff)",
   cursor: "pointer",
   fontSize: 13,
   fontWeight: 500,
@@ -164,12 +164,12 @@ const labelStyle: React.CSSProperties = {
 
 const capBadgeColors: Record<string, string> = {
   CodeGeneration: "#6366f1",
-  CodeReview: "#8b5cf6",
-  Testing: "#22c55e",
-  Debugging: "#f59e0b",
+  CodeReview: "var(--accent-purple)",
+  Testing: "var(--success-color)",
+  Debugging: "var(--warning-color)",
   Refactoring: "#06b6d4",
-  Documentation: "#3b82f6",
-  Security: "#ef4444",
+  Documentation: "var(--accent-color)",
+  Security: "var(--error-color)",
   Deployment: "#f97316",
   DataAnalysis: "#ec4899",
 };
@@ -181,20 +181,20 @@ const badgeStyle = (color: string): React.CSSProperties => ({
   fontSize: 11,
   fontWeight: 600,
   background: color,
-  color: "#fff",
+  color: "var(--btn-primary-fg, #fff)",
   marginRight: 4,
   marginBottom: 4,
 });
 
 const statusBadgeColors: Record<string, string> = {
   online: "var(--success, #22c55e)",
-  offline: "#6b7280",
+  offline: "var(--text-secondary)",
   unknown: "var(--warning, #f59e0b)",
   submitted: "#6366f1",
   working: "var(--warning, #f59e0b)",
   completed: "var(--success, #22c55e)",
   failed: "var(--error, #ef4444)",
-  cancelled: "#6b7280",
+  cancelled: "var(--text-secondary)",
 };
 
 const metricCardStyle: React.CSSProperties = {
@@ -204,7 +204,7 @@ const metricCardStyle: React.CSSProperties = {
 
 const errorBannerStyle: React.CSSProperties = {
   background: "var(--error, #ef4444)",
-  color: "#fff",
+  color: "var(--btn-primary-fg, #fff)",
   padding: "8px 12px",
   borderRadius: "var(--border-radius, 4px)",
   marginBottom: 12,
@@ -423,7 +423,7 @@ export function A2aPanel() {
         <div style={errorBannerStyle}>
           {error}
           <button
-            style={{ marginLeft: 8, background: "transparent", border: "none", color: "#fff", cursor: "pointer", fontWeight: 600 }}
+            style={{ marginLeft: 8, background: "transparent", border: "none", color: "var(--btn-primary-fg, #fff)", cursor: "pointer", fontWeight: 600 }}
             onClick={() => setError(null)}
           >
             Dismiss
@@ -469,7 +469,7 @@ export function A2aPanel() {
             <div key={agent.id} style={cardStyle}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <strong style={{ fontSize: 14 }}>{agent.name}</strong>
-                <span style={badgeStyle(statusBadgeColors[agent.status] || "#6b7280")}>
+                <span style={badgeStyle(statusBadgeColors[agent.status] || "var(--text-secondary)")}>
                   {agent.status}
                 </span>
               </div>
@@ -521,7 +521,7 @@ export function A2aPanel() {
                     style={{
                       ...btnSecondaryStyle,
                       background: taskContentType === ct ? "var(--accent)" : "var(--bg-tertiary)",
-                      color: taskContentType === ct ? "#fff" : "var(--text-primary)",
+                      color: taskContentType === ct ? "var(--btn-primary-fg, #fff)" : "var(--text-primary)",
                     }}
                     onClick={() => setTaskContentType(ct)}
                   >
@@ -573,7 +573,7 @@ export function A2aPanel() {
                     <span style={{ fontFamily: "monospace", fontSize: 11, color: "var(--text-muted)" }}>
                       {task.id.slice(0, 8)}
                     </span>
-                    <span style={badgeStyle(statusBadgeColors[task.status] || "#6b7280")}>
+                    <span style={badgeStyle(statusBadgeColors[task.status] || "var(--text-secondary)")}>
                       {task.status}
                     </span>
                   </div>
@@ -675,7 +675,7 @@ export function A2aPanel() {
                           padding: "4px 10px",
                           borderRadius: "var(--border-radius, 4px)",
                           background: checked ? (capBadgeColors[cap] || "var(--accent)") : "var(--bg-tertiary)",
-                          color: checked ? "#fff" : "var(--text-secondary)",
+                          color: checked ? "var(--btn-primary-fg, #fff)" : "var(--text-secondary)",
                           cursor: "pointer",
                           fontSize: 12,
                           fontWeight: checked ? 600 : 400,
@@ -791,7 +791,7 @@ export function A2aPanel() {
                   {[
                     { label: "Completed", count: metrics.tasks_completed, color: "var(--success, #22c55e)" },
                     { label: "Failed", count: metrics.tasks_failed, color: "var(--error, #ef4444)" },
-                    { label: "Cancelled", count: metrics.tasks_cancelled, color: "#6b7280" },
+                    { label: "Cancelled", count: metrics.tasks_cancelled, color: "var(--text-secondary)" },
                     {
                       label: "In Progress",
                       count: metrics.tasks_created - metrics.tasks_completed - metrics.tasks_failed - metrics.tasks_cancelled,

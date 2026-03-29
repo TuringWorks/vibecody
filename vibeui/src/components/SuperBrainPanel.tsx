@@ -124,7 +124,7 @@ const S = {
     padding: "9px 20px", border: "none",
     borderRadius: "var(--radius-sm)",
     cursor: "pointer", fontSize: 13, fontWeight: 600,
-    background: "var(--accent-blue)", color: "#fff",
+    background: "var(--accent-blue)", color: "var(--btn-primary-fg, #fff)",
     display: "inline-flex", alignItems: "center", gap: 6,
     transition: "opacity var(--transition-fast)",
   } as const,

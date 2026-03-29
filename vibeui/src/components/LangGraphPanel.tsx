@@ -66,7 +66,7 @@ const statusBarStyle: React.CSSProperties = {
 };
 const btnStyle: React.CSSProperties = {
   padding: "6px 14px", borderRadius: 4, border: "1px solid var(--border-color)",
-  background: "var(--accent-blue)", color: "#fff", cursor: "pointer",
+  background: "var(--accent-blue)", color: "var(--btn-primary-fg, #fff)", cursor: "pointer",
   fontSize: 12, fontFamily: "inherit",
 };
 const btnSecondaryStyle: React.CSSProperties = {
@@ -172,7 +172,7 @@ const LangGraphPanel: React.FC = () => {
             {n.isEntry && (
               <span style={{
                 fontSize: 10, padding: "2px 6px", borderRadius: 4,
-                background: "var(--accent-blue)", color: "#fff", fontWeight: 600,
+                background: "var(--accent-blue)", color: "var(--btn-primary-fg, #fff)", fontWeight: 600,
               }}>
                 ENTRY
               </span>

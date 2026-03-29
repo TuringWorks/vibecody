@@ -28,7 +28,7 @@ const btnStyle: React.CSSProperties = {
   borderRadius: 6,
   border: "1px solid var(--border-color)",
   background: "var(--accent-color)",
-  color: "#fff",
+  color: "var(--btn-primary-fg, #fff)",
   cursor: "pointer",
   fontSize: 13,
   marginRight: 8,
@@ -53,10 +53,10 @@ export function RlcefPanel() {
   const passRate = ((outcomes.pass / outcomes.total) * 100).toFixed(1);
 
   const rewards = [
-    { range: "-1.0 to -0.5", count: 42, color: "#ef4444" },
-    { range: "-0.5 to 0.0", count: 111, color: "#f59e0b" },
-    { range: "0.0 to 0.5", count: 298, color: "#eab308" },
-    { range: "0.5 to 1.0", count: 549, color: "#22c55e" },
+    { range: "-1.0 to -0.5", count: 42, color: "var(--error-color)" },
+    { range: "-0.5 to 0.0", count: 111, color: "var(--warning-color)" },
+    { range: "0.0 to 0.5", count: 298, color: "var(--warning-color)" },
+    { range: "0.5 to 1.0", count: 549, color: "var(--success-color)" },
   ];
   const maxReward = Math.max(...rewards.map((r) => r.count));
 
@@ -70,7 +70,7 @@ export function RlcefPanel() {
   ];
 
   const catColor = (c: string) => {
-    const map: Record<string, string> = { Safety: "#ef4444", Syntax: "#3b82f6", Quality: "#8b5cf6", Logic: "#f59e0b", Security: "#dc2626", Concurrency: "#06b6d4" };
+    const map: Record<string, string> = { Safety: "var(--error-color)", Syntax: "var(--accent-color)", Quality: "var(--accent-purple)", Logic: "var(--warning-color)", Security: "var(--error-color)", Concurrency: "#06b6d4" };
     return map[c] || "var(--text-secondary)";
   };
 
@@ -98,11 +98,11 @@ export function RlcefPanel() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 16 }}>
             <div style={cardStyle}>
               <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Pass</div>
-              <div style={{ fontSize: 22, fontWeight: 700, color: "#22c55e" }}>{outcomes.pass}</div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: "var(--success-color)" }}>{outcomes.pass}</div>
             </div>
             <div style={cardStyle}>
               <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Fail</div>
-              <div style={{ fontSize: 22, fontWeight: 700, color: "#ef4444" }}>{outcomes.fail}</div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: "var(--error-color)" }}>{outcomes.fail}</div>
             </div>
             <div style={cardStyle}>
               <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Pass Rate</div>
@@ -148,9 +148,9 @@ export function RlcefPanel() {
                 <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{s.time}</span>
               </div>
               <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}>
-                <span style={{ fontSize: 12, color: "#ef4444", textDecoration: "line-through" }}>{s.before}</span>
+                <span style={{ fontSize: 12, color: "var(--error-color)", textDecoration: "line-through" }}>{s.before}</span>
                 <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>-&gt;</span>
-                <span style={{ fontSize: 12, color: "#22c55e", fontWeight: 600 }}>{s.after}</span>
+                <span style={{ fontSize: 12, color: "var(--success-color)", fontWeight: 600 }}>{s.after}</span>
               </div>
               <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{s.reason}</div>
             </div>
@@ -165,7 +165,7 @@ export function RlcefPanel() {
             <div style={{ display: "flex", gap: 8 }}>
               {["jsonl", "parquet", "csv"].map((f) => (
                 <button key={f} onClick={() => setExportFormat(f)}
-                  style={{ ...btnStyle, background: exportFormat === f ? "var(--accent-color)" : "transparent", color: exportFormat === f ? "#fff" : "var(--text-primary)", border: "1px solid var(--border-color)" }}>
+                  style={{ ...btnStyle, background: exportFormat === f ? "var(--accent-color)" : "transparent", color: exportFormat === f ? "var(--btn-primary-fg, #fff)" : "var(--text-primary)", border: "1px solid var(--border-color)" }}>
                   {f.toUpperCase()}
                 </button>
               ))}

@@ -7,9 +7,30 @@ export const ThemeToggle = () => {
 
     useEffect(() => {
         const stored = localStorage.getItem('vibeui-theme') as 'dark' | 'light' | null;
-        const initial = stored ?? 'dark';
+        // Respect system preference on first visit (no stored theme)
+        const systemPrefers = window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        const initial = stored ?? systemPrefers;
         setMode(initial);
         document.documentElement.setAttribute('data-theme', initial);
+
+        // If no stored theme, also apply the matching default theme to set CSS variables
+        if (!stored) {
+            const defaultId = initial === 'dark' ? 'dark-default' : 'light-default';
+            applyThemeById(defaultId);
+        }
+
+        // Listen for OS-level theme changes (e.g., macOS auto dark mode)
+        const mql = window.matchMedia?.('(prefers-color-scheme: dark)');
+        const handleSystemChange = (e: MediaQueryListEvent) => {
+            // Only auto-switch if user hasn't manually set a theme
+            if (!localStorage.getItem('vibeui-theme')) {
+                const newMode = e.matches ? 'dark' : 'light';
+                setMode(newMode);
+                applyThemeById(newMode === 'dark' ? 'dark-default' : 'light-default');
+            }
+        };
+        mql?.addEventListener?.('change', handleSystemChange);
+        return () => mql?.removeEventListener?.('change', handleSystemChange);
     }, []);
 
     const toggleTheme = () => {

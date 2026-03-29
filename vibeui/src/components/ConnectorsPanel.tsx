@@ -28,7 +28,7 @@ const btnStyle: React.CSSProperties = {
   borderRadius: 6,
   border: "1px solid var(--border-color)",
   background: "var(--accent-color)",
-  color: "#fff",
+  color: "var(--btn-primary-fg, #fff)",
   cursor: "pointer",
   fontSize: 13,
   marginRight: 8,
@@ -84,7 +84,7 @@ export function ConnectorsPanel() {
     }, 1500);
   }, []);
 
-  const statusColor = (s: string) => s === "green" ? "#22c55e" : s === "yellow" ? "#eab308" : "#ef4444";
+  const statusColor = (s: string) => s === "green" ? "var(--success-color)" : s === "yellow" ? "var(--warning-color)" : "var(--error-color)";
 
   return (
     <div style={panelStyle}>
@@ -118,7 +118,7 @@ export function ConnectorsPanel() {
             return (
               <div key={name} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span style={{ fontSize: 13 }}>{name}</span>
-                <button style={{ ...btnStyle, background: isConnected ? "#22c55e" : "var(--accent-color)", fontSize: 11, padding: "4px 10px" }}>
+                <button style={{ ...btnStyle, background: isConnected ? "var(--success-color)" : "var(--accent-color)", fontSize: 11, padding: "4px 10px" }}>
                   {isConnected ? "Connected" : "Setup"}
                 </button>
               </div>
@@ -142,7 +142,7 @@ export function ConnectorsPanel() {
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{e.time}</span>
-                <span style={{ fontSize: 11, fontWeight: 600, color: e.status === 200 ? "#22c55e" : "#ef4444" }}>{e.status}</span>
+                <span style={{ fontSize: 11, fontWeight: 600, color: e.status === 200 ? "var(--success-color)" : "var(--error-color)" }}>{e.status}</span>
               </div>
             </div>
           ))}
@@ -161,7 +161,7 @@ export function ConnectorsPanel() {
             {discovered.map((s, i) => (
               <div key={i} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={dotStyle("#22c55e")} />
+                  <span style={dotStyle("var(--success-color)")} />
                   <span style={{ fontSize: 13 }}>{s}</span>
                 </div>
                 <button style={{ ...btnStyle, fontSize: 11, padding: "4px 10px" }}>Connect</button>

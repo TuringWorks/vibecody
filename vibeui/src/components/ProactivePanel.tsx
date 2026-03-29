@@ -44,7 +44,7 @@ const btnStyle: React.CSSProperties = {
   borderRadius: 6,
   border: "1px solid var(--border-color)",
   background: "var(--accent-color)",
-  color: "#fff",
+  color: "var(--btn-primary-fg, #fff)",
   cursor: "pointer",
   fontSize: 13,
   marginRight: 8,
@@ -68,11 +68,11 @@ const badgeStyle = (color: string): React.CSSProperties => ({
   fontSize: 11,
   fontWeight: 600,
   background: color,
-  color: "#fff",
+  color: "var(--btn-primary-fg, #fff)",
   marginRight: 4,
 });
 
-const priorityColor: Record<string, string> = { high: "#ef4444", medium: "#f59e0b", low: "#22c55e" };
+const priorityColor: Record<string, string> = { high: "var(--error-color)", medium: "var(--warning-color)", low: "var(--success-color)" };
 
 export function ProactivePanel() {
   const [tab, setTab] = useState("suggestions");
@@ -123,8 +123,8 @@ export function ProactivePanel() {
               <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8 }}>{s.description}</div>
               <div>
                 <button style={btnStyle} onClick={() => handleAction(s.id, "accepted")}>Accept</button>
-                <button style={{ ...btnStyle, background: "#ef4444" }} onClick={() => handleAction(s.id, "rejected")}>Reject</button>
-                <button style={{ ...btnStyle, background: "#6b7280" }} onClick={() => handleAction(s.id, "snoozed")}>Snooze</button>
+                <button style={{ ...btnStyle, background: "var(--error-color)" }} onClick={() => handleAction(s.id, "rejected")}>Reject</button>
+                <button style={{ ...btnStyle, background: "var(--text-secondary)" }} onClick={() => handleAction(s.id, "snoozed")}>Snooze</button>
               </div>
             </div>
           ))}

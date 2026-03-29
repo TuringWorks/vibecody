@@ -78,7 +78,7 @@ const cardStyle: React.CSSProperties = {
 };
 const btnStyle: React.CSSProperties = {
   padding: "6px 14px", borderRadius: 6, border: "1px solid var(--border-color)",
-  background: "var(--accent-color)", color: "#fff", cursor: "pointer", fontSize: 13, marginRight: 8,
+  background: "var(--accent-color)", color: "var(--btn-primary-fg, #fff)", cursor: "pointer", fontSize: 13, marginRight: 8,
 };
 const tabStyle = (active: boolean): React.CSSProperties => ({
   padding: "8px 16px", cursor: "pointer",
@@ -160,10 +160,10 @@ export function AnalyticsPanel() {
   const roiLastMonth = costLastMonth > 0 ? timeSavedValueLastMonth / costLastMonth : 0;
 
   const metrics = [
-    { label: "Tasks Completed", value: tasksThisMonth.toLocaleString(), change: pctChange(tasksThisMonth, tasksLastMonth), color: "#3b82f6" },
-    { label: "Total Cost", value: fmtCost(costThisMonth), change: pctChange(costThisMonth, costLastMonth), color: "#22c55e" },
-    { label: "Time Saved", value: fmtHours(timeSavedMinsThisMonth), change: pctChange(timeSavedMinsThisMonth, timeSavedMinsLastMonth), color: "#8b5cf6" },
-    { label: "ROI", value: `${roiThisMonth.toFixed(1)}x`, change: roiLastMonth > 0 ? `${(roiThisMonth - roiLastMonth) >= 0 ? "+" : ""}${(roiThisMonth - roiLastMonth).toFixed(1)}x` : "—", color: "#f59e0b" },
+    { label: "Tasks Completed", value: tasksThisMonth.toLocaleString(), change: pctChange(tasksThisMonth, tasksLastMonth), color: "var(--accent-color)" },
+    { label: "Total Cost", value: fmtCost(costThisMonth), change: pctChange(costThisMonth, costLastMonth), color: "var(--success-color)" },
+    { label: "Time Saved", value: fmtHours(timeSavedMinsThisMonth), change: pctChange(timeSavedMinsThisMonth, timeSavedMinsLastMonth), color: "var(--accent-purple)" },
+    { label: "ROI", value: `${roiThisMonth.toFixed(1)}x`, change: roiLastMonth > 0 ? `${(roiThisMonth - roiLastMonth) >= 0 ? "+" : ""}${(roiThisMonth - roiLastMonth).toFixed(1)}x` : "—", color: "var(--warning-color)" },
   ];
 
   // ── Per-provider breakdown (for Users tab — repurposed as Provider breakdown) ──
@@ -203,7 +203,7 @@ export function AnalyticsPanel() {
     .sort((a, b) => b.calls - a.calls);
 
   const trendIcon = (t: string) => t === "up" ? "\u2191" : t === "down" ? "\u2193" : "\u2192";
-  const trendColor = (t: string) => t === "up" ? "#22c55e" : t === "down" ? "#ef4444" : "var(--text-secondary)";
+  const trendColor = (t: string) => t === "up" ? "var(--success-color)" : t === "down" ? "var(--error-color)" : "var(--text-secondary)";
 
   // ── Export ──────────────────────────────────────────────────────────
 
@@ -274,7 +274,7 @@ export function AnalyticsPanel() {
             <div key={m.label} style={cardStyle}>
               <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>{m.label}</div>
               <div style={{ fontSize: 22, fontWeight: 700, color: m.color }}>{m.value}</div>
-              <div style={{ fontSize: 12, color: m.change.startsWith("+") ? "#22c55e" : m.change.startsWith("-") ? "#ef4444" : "var(--text-secondary)", marginTop: 4 }}>
+              <div style={{ fontSize: 12, color: m.change.startsWith("+") ? "var(--success-color)" : m.change.startsWith("-") ? "var(--error-color)" : "var(--text-secondary)", marginTop: 4 }}>
                 {m.change} vs last month
               </div>
             </div>
@@ -340,7 +340,7 @@ export function AnalyticsPanel() {
             <div style={{ display: "flex", gap: 8 }}>
               {["csv", "json"].map((f) => (
                 <button key={f} onClick={() => setExportFormat(f)}
-                  style={{ ...btnStyle, background: exportFormat === f ? "var(--accent-color)" : "transparent", color: exportFormat === f ? "#fff" : "var(--text-primary)", border: "1px solid var(--border-color)" }}>
+                  style={{ ...btnStyle, background: exportFormat === f ? "var(--accent-color)" : "transparent", color: exportFormat === f ? "var(--btn-primary-fg, #fff)" : "var(--text-primary)", border: "1px solid var(--border-color)" }}>
                   {f.toUpperCase()}
                 </button>
               ))}

@@ -88,7 +88,7 @@ function toolDomain(tool: string): string {
 }
 
 function scoreColor(score: number): string {
-  return score >= 80 ? "#22c55e" : score >= 50 ? "#eab308" : "#ef4444";
+  return score >= 80 ? "var(--success-color)" : score >= 50 ? "var(--warning-color)" : "var(--error-color)";
 }
 
 function timeAgo(ts: number): string {
@@ -327,9 +327,9 @@ export function TrustPanel() {
                 <span style={{
                   padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 600,
                   background: e.success ? "#22c55e20" : "#ef444420",
-                  color: e.success ? "#22c55e" : "#ef4444",
+                  color: e.success ? "var(--success-color)" : "var(--error-color)",
                 }}>{e.success ? "success" : "failure"}</span>
-                <span style={{ fontWeight: 600, fontSize: 12, color: e.delta >= 0 ? "#22c55e" : "#ef4444", minWidth: 28, textAlign: "right" }}>
+                <span style={{ fontWeight: 600, fontSize: 12, color: e.delta >= 0 ? "var(--success-color)" : "var(--error-color)", minWidth: 28, textAlign: "right" }}>
                   {e.delta >= 0 ? "+" : ""}{e.delta}
                 </span>
               </div>

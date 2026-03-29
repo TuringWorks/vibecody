@@ -353,14 +353,14 @@ export function RedTeamPanel({ workspacePath, onOpenFile }: Props) {
         {scanning ? (
           <button onClick={handleSuspend} style={{
             padding: "6px 16px", fontSize: 13, borderRadius: 4, border: "none",
-            background: "var(--error-color)", color: "#fff", cursor: "pointer", fontWeight: 600,
+            background: "var(--error-color)", color: "var(--btn-primary-fg, #fff)", cursor: "pointer", fontWeight: 600,
           }}>
             Suspend
           </button>
         ) : (
           <button onClick={startScan} disabled={!targetUrl.trim()} style={{
             padding: "6px 16px", fontSize: 13, borderRadius: 4, border: "none",
-            background: "var(--accent-color)", color: "#fff",
+            background: "var(--accent-color)", color: "var(--btn-primary-fg, #fff)",
             cursor: !targetUrl.trim() ? "not-allowed" : "pointer", fontWeight: 600,
           }}>
             Start Scan
@@ -519,12 +519,12 @@ export function RedTeamPanel({ workspacePath, onOpenFile }: Props) {
                 <span style={{ fontSize: 12, fontWeight: 600, flex: 1 }}>{f.title}</span>
                 <span style={{
                   fontSize: 10, padding: "2px 6px", borderRadius: 3,
-                  background: severityColor(f.severity), color: "#fff", fontWeight: 600,
+                  background: severityColor(f.severity), color: "var(--btn-primary-fg, #fff)", fontWeight: 600,
                 }}>
                   CVSS {f.cvss_score.toFixed(1)}
                 </span>
                 {f.confirmed && (
-                  <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 3, background: "var(--error-color)", color: "#fff" }}>
+                  <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 3, background: "var(--error-color)", color: "var(--btn-primary-fg, #fff)" }}>
                     CONFIRMED
                   </span>
                 )}

@@ -314,7 +314,7 @@ const defaultCard = (column: Column): Card => ({
    ═══════════════════════════════════════════════════════════════════════ */
 
 /* Assignee avatar (colored initials circle) */
-const AVATAR_COLORS = ["var(--accent-blue)", "#ec4899", "#14b8a6", "#f59e0b", "#8b5cf6", "var(--error-color)", "#06b6d4", "#84cc16"];
+const AVATAR_COLORS = ["var(--accent-blue)", "#ec4899", "#14b8a6", "var(--warning-color)", "var(--accent-purple)", "var(--error-color)", "#06b6d4", "#84cc16"];
 function AvatarBadge({ name, size = 24 }: { name: string; size?: number }) {
   if (!name) return null;
   const initials = name.split(/\s+/).map(w => w[0]?.toUpperCase() || "").join("").slice(0, 2);

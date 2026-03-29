@@ -158,6 +158,27 @@
   --btn-error-fg: #ffffff;
 }
 
+/* ── Status color utilities ───────────────────────────────────────────── */
+/* Use these instead of inline style={{ color: '#ef4444' }} etc. */
+
+.text-success { color: var(--success-color); }
+.text-error   { color: var(--error-color); }
+.text-warning { color: var(--warning-color); }
+.text-info    { color: var(--info-color); }
+.text-muted   { color: var(--text-muted); }
+.text-accent  { color: var(--accent-color, var(--accent-blue)); }
+
+.bg-success { background: var(--success-bg); }
+.bg-error   { background: var(--error-bg); }
+.bg-warning { background: var(--warning-bg); }
+.bg-info    { background: var(--info-bg); }
+
+.badge-success { background: var(--success-color); color: var(--btn-primary-fg, #fff); }
+.badge-error   { background: var(--error-color);   color: var(--btn-error-fg, #fff); }
+.badge-warning { background: var(--warning-color);  color: var(--btn-primary-fg, #fff); }
+.badge-info    { background: var(--info-color);     color: var(--btn-primary-fg, #fff); }
+.badge-neutral { background: var(--bg-tertiary);    color: var(--text-secondary); }
+
 /* ── Base ─────────────────────────────────────────────────────────────── */
 
 * {

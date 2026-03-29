@@ -97,7 +97,7 @@ const selectStyle: React.CSSProperties = { ...inputStyle, cursor: "pointer" };
 const btnStyle = (variant: "primary" | "default" | "danger" | "success" = "default"): React.CSSProperties => ({
   padding: "6px 16px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 500,
   background: variant === "primary" ? "var(--accent)" : variant === "danger" ? "var(--accent-rose)" : variant === "success" ? "var(--accent-green)" : "var(--bg-secondary)",
-  color: variant === "default" ? "var(--text-primary)" : "#fff",
+  color: variant === "default" ? "var(--text-primary)" : "var(--btn-primary-fg, #fff)",
   transition: "opacity 0.15s",
 });
 const tagStyle = (color: string): React.CSSProperties => ({

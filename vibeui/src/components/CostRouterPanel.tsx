@@ -70,7 +70,7 @@ const badgeStyle = (color: string): React.CSSProperties => ({
   fontSize: 11,
   fontWeight: 600,
   background: color,
-  color: "#fff",
+  color: "var(--btn-primary-fg, #fff)",
   marginRight: 4,
 });
 
@@ -123,7 +123,7 @@ export function CostRouterPanel() {
                 <td style={{ padding: 8, fontWeight: 600 }}>{m.name}</td>
                 <td style={{ padding: 8 }}>{m.provider}</td>
                 <td style={{ padding: 8 }}>${m.costPer1k.toFixed(3)}</td>
-                <td style={{ padding: 8 }}><span style={badgeStyle(m.qualityScore >= 90 ? "#22c55e" : m.qualityScore >= 80 ? "#f59e0b" : "#6b7280")}>{m.qualityScore}</span></td>
+                <td style={{ padding: 8 }}><span style={badgeStyle(m.qualityScore >= 90 ? "var(--success-color)" : m.qualityScore >= 80 ? "var(--warning-color)" : "var(--text-secondary)")}>{m.qualityScore}</span></td>
                 <td style={{ padding: 8 }}>{m.latencyMs}ms</td>
               </tr>
             ))}
@@ -154,7 +154,7 @@ export function CostRouterPanel() {
               <span style={{ fontWeight: 600 }}>${spent.toFixed(2)} / ${budget.toFixed(2)}</span>
             </div>
             <div style={{ background: "var(--bg-primary)", borderRadius: 4, height: 12 }}>
-              <div style={{ background: pct > alertThreshold ? "#ef4444" : "var(--accent-color)", borderRadius: 4, height: 12, width: `${Math.min(pct, 100)}%` }} />
+              <div style={{ background: pct > alertThreshold ? "var(--error-color)" : "var(--accent-color)", borderRadius: 4, height: 12, width: `${Math.min(pct, 100)}%` }} />
             </div>
             <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>Remaining: ${remaining.toFixed(2)}</div>
           </div>
@@ -173,14 +173,14 @@ export function CostRouterPanel() {
               <div key={t.id} style={cardStyle}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                   <strong>{t.name}</strong>
-                  <span style={badgeStyle(t.status === "active" ? "#3b82f6" : "#22c55e")}>{t.status}</span>
+                  <span style={badgeStyle(t.status === "active" ? "var(--accent-color)" : "var(--success-color)")}>{t.status}</span>
                 </div>
                 <div style={{ fontSize: 13, display: "flex", gap: 16, marginBottom: 6 }}>
                   <span>{t.modelA}: <strong>{t.winnerScore.a}</strong> ({t.samplesA} samples)</span>
                   <span>vs</span>
                   <span>{t.modelB}: <strong>{t.winnerScore.b}</strong> ({t.samplesB} samples)</span>
                 </div>
-                <div style={{ fontSize: 12 }}>Winner: <span style={badgeStyle("#22c55e")}>{winner}</span></div>
+                <div style={{ fontSize: 12 }}>Winner: <span style={badgeStyle("var(--success-color)")}>{winner}</span></div>
               </div>
             );
           })}

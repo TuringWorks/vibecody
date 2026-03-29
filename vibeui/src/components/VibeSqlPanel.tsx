@@ -260,7 +260,7 @@ export function VibeSqlPanel({ provider }: { workspacePath: string | null; provi
     <button key={id} disabled={disabled} onClick={() => !disabled && setTab(id as typeof tab)} style={{
       padding: "5px 12px", fontSize: 11, fontWeight: tab === id ? 600 : 400, cursor: disabled ? "not-allowed" : "pointer",
       background: tab === id ? "var(--accent-color)" : "transparent",
-      color: tab === id ? "#fff" : disabled ? "var(--text-secondary)" : "var(--text-primary)",
+      color: tab === id ? "var(--btn-primary-fg, #fff)" : disabled ? "var(--text-secondary)" : "var(--text-primary)",
       border: `1px solid ${tab === id ? "var(--accent-color)" : "var(--border-color)"}`,
       borderRadius: "var(--radius-sm)", opacity: disabled ? 0.5 : 1,
     }}>{lbl}</button>
@@ -380,7 +380,7 @@ export function VibeSqlPanel({ provider }: { workspacePath: string | null; provi
             style={{
               padding: "6px 8px", borderRadius: "var(--radius-sm)", cursor: "pointer", marginBottom: 2, fontSize: 12,
               background: selectedTable === t.name ? "var(--accent-color)" : "transparent",
-              color: selectedTable === t.name ? "#fff" : "var(--text-primary)",
+              color: selectedTable === t.name ? "var(--btn-primary-fg, #fff)" : "var(--text-primary)",
             }}>
             <div style={{ fontWeight: 500 }}>{t.name}</div>
             <div style={{ fontSize: 10, opacity: 0.7 }}>{t.row_count.toLocaleString()} rows</div>

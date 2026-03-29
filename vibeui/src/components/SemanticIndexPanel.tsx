@@ -63,12 +63,12 @@ const badgeStyle = (color: string): React.CSSProperties => ({
   fontSize: 11,
   fontWeight: 600,
   background: color,
-  color: "#fff",
+  color: "var(--btn-primary-fg, #fff)",
   marginRight: 4,
 });
 
 const kindColors: Record<string, string> = {
-  function: "#3b82f6", struct: "#8b5cf6", trait: "#ec4899", enum: "#f59e0b", type: "#22c55e", const: "#6b7280", module: "#14b8a6",
+  function: "var(--accent-color)", struct: "var(--accent-purple)", trait: "#ec4899", enum: "var(--warning-color)", type: "var(--success-color)", const: "var(--text-secondary)", module: "#14b8a6",
 };
 
 const inputStyle: React.CSSProperties = {
@@ -168,7 +168,7 @@ export function SemanticIndexPanel() {
     nodes.map((n) => (
       <div key={n.name}>
         <div style={{ paddingLeft: depth * 20, padding: "4px 0 4px " + depth * 20 + "px", fontSize: 13 }}>
-          <span style={badgeStyle(kindColors[n.kind] || "#6b7280")}>{n.kind}</span>
+          <span style={badgeStyle(kindColors[n.kind] || "var(--text-secondary)")}>{n.kind}</span>
           <strong>{n.name}</strong>
         </div>
         {n.children.length > 0 && renderTypeTree(n.children, depth + 1)}

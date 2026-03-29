@@ -348,7 +348,7 @@ export function ModelWizardPanel() {
           <button key={s.id} onClick={() => goTo(s.id)} style={{
             padding: "4px 10px", borderRadius: 12, border: "none", fontSize: 11, cursor: "pointer",
             background: step === s.id ? "var(--accent-primary, #7c6aef)" : s.id < step ? "var(--accent-green)" : "var(--bg-tertiary)",
-            color: step === s.id || s.id < step ? "#fff" : "var(--text-secondary)",
+            color: step === s.id || s.id < step ? "var(--btn-primary-fg, #fff)" : "var(--text-secondary)",
             fontWeight: step === s.id ? 600 : 400, whiteSpace: "nowrap" as const,
           }}>
             {s.icon}. {s.label}

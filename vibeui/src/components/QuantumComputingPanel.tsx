@@ -1538,7 +1538,7 @@ export function QuantumComputingPanel() {
               <g key={`g-${gi}`} style={{ cursor: "pointer" }} onClick={() => removeGate(gi)}>
                 <title>Click to remove Measure</title>
                 <rect x={cx - half} y={cy - half} width={GATE_SIZE} height={GATE_SIZE} rx={4} fill={color} />
-                <text x={cx} y={cy + 5} textAnchor="middle" fill="#fff" fontSize={14} fontWeight="bold">
+                <text x={cx} y={cy + 5} textAnchor="middle" fill="var(--btn-primary-fg, #fff)" fontSize={14} fontWeight="bold">
                   M
                 </text>
               </g>
@@ -1553,7 +1553,7 @@ export function QuantumComputingPanel() {
             <g key={`g-${gi}`} style={{ cursor: "pointer" }} onClick={() => removeGate(gi)}>
               <title>Click to remove {g.type}{g.angle !== undefined ? ` (${g.angle.toFixed(2)})` : ""}</title>
               <rect x={cx - half} y={cy - half} width={GATE_SIZE} height={GATE_SIZE} rx={4} fill={color} />
-              <text x={cx} y={cy + 5} textAnchor="middle" fill="#fff" fontSize={11} fontWeight="bold">
+              <text x={cx} y={cy + 5} textAnchor="middle" fill="var(--btn-primary-fg, #fff)" fontSize={11} fontWeight="bold">
                 {g.type}
               </text>
               {g.angle !== undefined && (
@@ -1824,7 +1824,7 @@ export function QuantumComputingPanel() {
               border: "none",
               cursor: "pointer",
               background: tab === t.id ? "var(--accent-primary)" : "var(--bg-secondary)",
-              color: tab === t.id ? "#fff" : "var(--text-secondary)",
+              color: tab === t.id ? "var(--btn-primary-fg, #fff)" : "var(--text-secondary)",
               fontWeight: tab === t.id ? 600 : 400,
               fontSize: 13,
               borderBottom: tab === t.id ? "2px solid var(--accent-primary)" : "2px solid transparent",

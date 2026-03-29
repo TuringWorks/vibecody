@@ -61,12 +61,12 @@ const badgeStyle = (color: string): React.CSSProperties => ({
   fontSize: 11,
   fontWeight: 600,
   background: color,
-  color: "#fff",
+  color: "var(--btn-primary-fg, #fff)",
   marginRight: 4,
 });
 
-const statusColor: Record<string, string> = { running: "#3b82f6", success: "#22c55e", failed: "#ef4444" };
-const stratColor: Record<string, string> = { mcts: "#8b5cf6", agentless: "#f59e0b", linear: "#6b7280" };
+const statusColor: Record<string, string> = { running: "var(--accent-color)", success: "var(--success-color)", failed: "var(--error-color)" };
+const stratColor: Record<string, string> = { mcts: "var(--accent-purple)", agentless: "var(--warning-color)", linear: "var(--text-secondary)" };
 
 export function MctsRepairPanel() {
   const [tab, setTab] = useState("sessions");
@@ -95,7 +95,7 @@ export function MctsRepairPanel() {
     { strategy: "Linear", avgNodes: 8, successRate: "52%", avgTime: "8s", quality: "Low" },
   ];
 
-  const phaseColor: Record<string, string> = { done: "#22c55e", running: "#3b82f6", pending: "#6b7280" };
+  const phaseColor: Record<string, string> = { done: "var(--success-color)", running: "var(--accent-color)", pending: "var(--text-secondary)" };
 
   return (
     <div style={panelStyle}>
@@ -118,7 +118,7 @@ export function MctsRepairPanel() {
                   <span style={badgeStyle(statusColor[s.status])}>{s.status}</span>
                 </div>
               </div>
-              <div style={{ fontSize: 12, fontFamily: "monospace", color: "#ef4444", marginBottom: 4 }}>{s.error}</div>
+              <div style={{ fontSize: 12, fontFamily: "monospace", color: "var(--error-color)", marginBottom: 4 }}>{s.error}</div>
               <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Nodes: {s.nodesExplored} | Depth: {s.depth}</div>
             </div>
           ))}
@@ -132,7 +132,7 @@ export function MctsRepairPanel() {
             <div key={n.id} style={{ ...cardStyle, marginLeft: i * 16, borderLeft: n.isBestPath ? "3px solid #22c55e" : "3px solid var(--border-color)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <strong style={{ fontSize: 13 }}>{n.label}</strong>
-                {n.isBestPath && <span style={badgeStyle("#22c55e")}>best path</span>}
+                {n.isBestPath && <span style={badgeStyle("var(--success-color)")}>best path</span>}
               </div>
               <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>
                 Visits: {n.visits} | Reward: {n.reward.toFixed(2)} | Children: {n.children}

@@ -42,7 +42,7 @@ const btnStyle: React.CSSProperties = {
   borderRadius: 6,
   border: "1px solid var(--border-color)",
   background: "var(--accent-color)",
-  color: "#fff",
+  color: "var(--btn-primary-fg, #fff)",
   cursor: "pointer",
   fontSize: 13,
   marginRight: 8,
@@ -117,7 +117,7 @@ export function VoiceLocalPanel() {
     }
   }, [recording]);
 
-  const confColor = confidence > 80 ? "#22c55e" : confidence > 50 ? "#eab308" : "#ef4444";
+  const confColor = confidence > 80 ? "var(--success-color)" : confidence > 50 ? "var(--warning-color)" : "var(--error-color)";
 
   return (
     <div style={panelStyle}>
@@ -134,10 +134,10 @@ export function VoiceLocalPanel() {
         <div style={{ textAlign: "center" }}>
           <button onClick={toggleRecording} disabled={actionLoading && !recording} style={{
             width: 72, height: 72, borderRadius: "50%", border: "none", cursor: "pointer",
-            background: recording ? "#ef4444" : "#dc2626", boxShadow: recording ? "0 0 0 8px #ef444440" : "none",
+            background: recording ? "var(--error-color)" : "var(--error-color)", boxShadow: recording ? "0 0 0 8px #ef444440" : "none",
             marginBottom: 20, transition: "box-shadow 0.3s",
           }}>
-            <div style={{ width: 24, height: 24, borderRadius: recording ? 4 : 12, background: "#fff", margin: "auto" }} />
+            <div style={{ width: 24, height: 24, borderRadius: recording ? 4 : 12, background: "var(--btn-primary-fg, #fff)", margin: "auto" }} />
           </button>
           <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 16 }}>
             {recording ? "Recording... click to stop" : "Click to start recording"}
@@ -169,10 +169,10 @@ export function VoiceLocalPanel() {
               <div>
                 <span style={{ fontWeight: 600, fontSize: 13 }}>whisper-{m.name}</span>
                 <span style={{ fontSize: 12, color: "var(--text-secondary)", marginLeft: 8 }}>{m.size}</span>
-                {m.selected && <span style={{ marginLeft: 8, fontSize: 11, color: "#22c55e", fontWeight: 600 }}>SELECTED</span>}
+                {m.selected && <span style={{ marginLeft: 8, fontSize: 11, color: "var(--success-color)", fontWeight: 600 }}>SELECTED</span>}
               </div>
               {m.downloaded ? (
-                <button style={{ ...btnStyle, background: m.selected ? "#22c55e" : "var(--accent-color)" }}>
+                <button style={{ ...btnStyle, background: m.selected ? "var(--success-color)" : "var(--accent-color)" }}>
                   {m.selected ? "Active" : "Select"}
                 </button>
               ) : (
@@ -191,7 +191,7 @@ export function VoiceLocalPanel() {
               <div style={{ fontSize: 13, marginBottom: 4 }}>{h.text}</div>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--text-secondary)" }}>
                 <span>{h.time}</span>
-                <span style={{ color: h.confidence > 0.9 ? "#22c55e" : "#eab308" }}>{(h.confidence * 100).toFixed(0)}%</span>
+                <span style={{ color: h.confidence > 0.9 ? "var(--success-color)" : "var(--warning-color)" }}>{(h.confidence * 100).toFixed(0)}%</span>
               </div>
             </div>
           ))}
@@ -209,7 +209,7 @@ export function VoiceLocalPanel() {
           </div>
           <div style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ fontWeight: 600, fontSize: 13 }}>Voice Activity Detection</span>
-            <button style={{ ...btnStyle, background: vad ? "#22c55e" : "var(--border-color)" }}
+            <button style={{ ...btnStyle, background: vad ? "var(--success-color)" : "var(--border-color)" }}
               onClick={() => setVad(!vad)}>{vad ? "ON" : "OFF"}</button>
           </div>
           <div style={cardStyle}>
