@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Browser Automation Agent — CDP (Chrome DevTools Protocol) browser automation.
 //!
 //! Provides headless and headed browser automation for VibeCody's agent framework
