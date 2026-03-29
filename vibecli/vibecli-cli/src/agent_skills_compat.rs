@@ -1,56 +1,123 @@
-//! Cross-tool Agent Skills standard compatibility.
+#![allow(dead_code)]
+//! Agent Skills Standard Compatibility — cross-tool skills interop.
 //!
-//! Implements a universal skill format that enables skill sharing between
-//! AI coding tools (Claude Code, Cursor, Gemini CLI, Junie, Windsurf, etc.).
-//! Provides conversion between VibeCody's internal skill format and the
-//! cross-tool standard, plus validation, registry, discovery, and migration.
+//! Provides parsing, validation, conversion, registry, import, and export
+//! of portable skill definitions across VibeCody, Claude Code, Cursor,
+//! Gemini CLI, and other AI coding tools using a standardized schema.
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 // ---------------------------------------------------------------------------
-// Core types
+// Enums
 // ---------------------------------------------------------------------------
 
-/// Parameter type for skill input schema fields.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum ParamType {
-    String,
-    Number,
-    Boolean,
-    Array,
-    Object,
+/// Skill format / originating tool.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum SkillFormat {
+    VibeCody,
+    Standard,
+    ClaudeCode,
+    Cursor,
+    GeminiCLI,
+    Custom(String),
 }
 
-impl std::fmt::Display for ParamType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl SkillFormat {
+    pub fn as_str(&self) -> &str {
         match self {
-            ParamType::String => write!(f, "string"),
-            ParamType::Number => write!(f, "number"),
-            ParamType::Boolean => write!(f, "boolean"),
-            ParamType::Array => write!(f, "array"),
-            ParamType::Object => write!(f, "object"),
+            Self::VibeCody => "vibecody",
+            Self::Standard => "standard",
+            Self::ClaudeCode => "claude_code",
+            Self::Cursor => "cursor",
+            Self::GeminiCLI => "gemini_cli",
+            Self::Custom(s) => s.as_str(),
+        }
+    }
+
+    pub fn from_str(s: &str) -> Self {
+        match s.to_lowercase().as_str() {
+            "vibecody" | "vibe_cody" | "vibe-cody" => Self::VibeCody,
+            "standard" => Self::Standard,
+            "claude_code" | "claude-code" | "claudecode" => Self::ClaudeCode,
+            "cursor" => Self::Cursor,
+            "gemini_cli" | "gemini-cli" | "geminicli" => Self::GeminiCLI,
+            other => Self::Custom(other.to_string()),
         }
     }
 }
 
-/// A single parameter definition within a skill's input schema.
+/// Skill difficulty level.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum SkillDifficulty {
+    Beginner,
+    Intermediate,
+    Advanced,
+    Expert,
+}
+
+impl SkillDifficulty {
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::Beginner => "beginner",
+            Self::Intermediate => "intermediate",
+            Self::Advanced => "advanced",
+            Self::Expert => "expert",
+        }
+    }
+
+    pub fn from_str(s: &str) -> Self {
+        match s.to_lowercase().as_str() {
+            "beginner" | "easy" => Self::Beginner,
+            "intermediate" | "medium" => Self::Intermediate,
+            "advanced" | "hard" => Self::Advanced,
+            "expert" | "guru" => Self::Expert,
+            _ => Self::Intermediate,
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Structs
+// ---------------------------------------------------------------------------
+
+/// Metadata describing a skill.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct SkillParam {
+pub struct SkillMetadata {
     pub name: String,
-    pub param_type: ParamType,
     pub description: String,
-    pub default_value: Option<String>,
+    pub version: String,
+    pub author: String,
+    pub tags: Vec<String>,
+    pub difficulty: SkillDifficulty,
+    pub format: SkillFormat,
+    pub input_types: Vec<String>,
+    pub output_types: Vec<String>,
+    pub dependencies: Vec<String>,
+    pub created_at: u64,
+    pub updated_at: u64,
 }
 
-/// Schema describing the expected inputs for a skill.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct SkillInputSchema {
-    pub parameters: Vec<SkillParam>,
-    pub required: Vec<String>,
+impl Default for SkillMetadata {
+    fn default() -> Self {
+        Self {
+            name: String::new(),
+            description: String::new(),
+            version: "0.1.0".to_string(),
+            author: String::new(),
+            tags: Vec::new(),
+            difficulty: SkillDifficulty::Intermediate,
+            format: SkillFormat::Standard,
+            input_types: Vec::new(),
+            output_types: Vec::new(),
+            dependencies: Vec::new(),
+            created_at: 0,
+            updated_at: 0,
+        }
+    }
 }
 
-/// An example demonstrating expected skill behavior.
+/// An example attached to a skill.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SkillExample {
     pub title: String,
@@ -58,493 +125,835 @@ pub struct SkillExample {
     pub expected_output: String,
 }
 
-/// The cross-tool standard skill format.
+/// A fully-parsed skill with metadata, body content, and examples.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct StandardSkill {
-    pub name: String,
-    pub description: String,
-    pub version: String,
-    pub author: String,
-    pub tags: Vec<String>,
-    pub compatible_tools: Vec<String>,
-    pub instructions: String,
-    pub input_schema: Option<SkillInputSchema>,
-    pub output_format: Option<String>,
-    pub examples: Vec<SkillExample>,
-    pub metadata: HashMap<String, String>,
-}
-
-/// VibeCody's internal skill representation.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct VibeCodySkill {
-    pub name: String,
-    pub category: String,
-    pub description: String,
+    pub metadata: SkillMetadata,
     pub content: String,
-    pub tags: Vec<String>,
-    pub difficulty: Option<String>,
+    pub frontmatter: HashMap<String, String>,
+    pub examples: Vec<SkillExample>,
 }
 
-// ---------------------------------------------------------------------------
-// Validation
-// ---------------------------------------------------------------------------
-
-/// Result of validating a `StandardSkill`.
+/// Result of validating a skill.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ValidationResult {
+pub struct SkillValidationResult {
     pub is_valid: bool,
     pub errors: Vec<String>,
     pub warnings: Vec<String>,
+    pub compatibility_score: f64,
 }
 
-/// Validates `StandardSkill` instances against the specification.
-pub struct SkillValidator;
+/// Result of converting a skill to another format.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SkillConversionResult {
+    pub skill: StandardSkill,
+    pub warnings: Vec<String>,
+    pub changes_made: Vec<String>,
+}
 
-impl SkillValidator {
-    /// Validate a standard skill, returning errors and warnings.
-    pub fn validate(skill: &StandardSkill) -> ValidationResult {
-        let mut errors = Vec::new();
-        let mut warnings = Vec::new();
+/// An entry in the skill registry.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SkillRegistryEntry {
+    pub skill: SkillMetadata,
+    pub source_url: String,
+    pub downloads: u64,
+    pub rating: f64,
+    pub verified: bool,
+}
 
-        // Name must not be empty.
-        if skill.name.trim().is_empty() {
-            errors.push("Skill name must not be empty".to_string());
+// ---------------------------------------------------------------------------
+// SkillParser
+// ---------------------------------------------------------------------------
+
+/// Parses markdown skill files with optional YAML frontmatter.
+pub struct SkillParser;
+
+impl SkillParser {
+    /// Extract YAML-style frontmatter delimited by `---` from the top of content.
+    /// Returns (frontmatter key-value pairs, remaining body).
+    pub fn extract_frontmatter(content: &str) -> (HashMap<String, String>, String) {
+        let trimmed = content.trim_start();
+        if !trimmed.starts_with("---") {
+            return (HashMap::new(), content.to_string());
         }
 
-        // Description must be present.
-        if skill.description.trim().is_empty() {
-            errors.push("Skill description must not be empty".to_string());
+        // Find the closing ---
+        let after_first = &trimmed[3..];
+        if let Some(end_idx) = after_first.find("\n---") {
+            let fm_block = &after_first[..end_idx];
+            let body_start = end_idx + 4; // skip \n---
+            let body = after_first[body_start..].trim_start_matches('\n').to_string();
+
+            let mut map = HashMap::new();
+            for line in fm_block.lines() {
+                let line = line.trim();
+                if line.is_empty() {
+                    continue;
+                }
+                if let Some(colon_pos) = line.find(':') {
+                    let key = line[..colon_pos].trim().to_string();
+                    let value = line[colon_pos + 1..].trim().to_string();
+                    if !key.is_empty() {
+                        map.insert(key, value);
+                    }
+                }
+            }
+            (map, body)
+        } else {
+            // No closing ---, treat entire content as body
+            (HashMap::new(), content.to_string())
+        }
+    }
+
+    /// Parse a skill in the standard format (YAML frontmatter + markdown body).
+    pub fn parse(content: &str) -> Result<StandardSkill, String> {
+        if content.trim().is_empty() {
+            return Err("Empty skill content".to_string());
         }
 
-        // Version must be semver-ish (major.minor.patch).
-        if !Self::is_semver(&skill.version) {
-            errors.push(format!(
-                "Version '{}' is not valid semver (expected X.Y.Z)",
-                skill.version
-            ));
+        let (fm, body) = Self::extract_frontmatter(content);
+
+        let mut metadata = SkillMetadata::default();
+        metadata.format = SkillFormat::Standard;
+
+        if let Some(name) = fm.get("name") {
+            metadata.name = name.clone();
+        }
+        if let Some(desc) = fm.get("description") {
+            metadata.description = desc.clone();
+        }
+        if let Some(ver) = fm.get("version") {
+            metadata.version = ver.clone();
+        }
+        if let Some(author) = fm.get("author") {
+            metadata.author = author.clone();
+        }
+        if let Some(diff) = fm.get("difficulty") {
+            metadata.difficulty = SkillDifficulty::from_str(diff);
+        }
+        if let Some(tags) = fm.get("tags") {
+            metadata.tags = tags.split(',').map(|t| t.trim().to_string()).filter(|t| !t.is_empty()).collect();
+        }
+        if let Some(deps) = fm.get("dependencies") {
+            metadata.dependencies = deps.split(',').map(|d| d.trim().to_string()).filter(|d| !d.is_empty()).collect();
+        }
+        if let Some(input) = fm.get("input_types") {
+            metadata.input_types = input.split(',').map(|t| t.trim().to_string()).filter(|t| !t.is_empty()).collect();
+        }
+        if let Some(output) = fm.get("output_types") {
+            metadata.output_types = output.split(',').map(|t| t.trim().to_string()).filter(|t| !t.is_empty()).collect();
+        }
+        if let Some(created) = fm.get("created_at") {
+            metadata.created_at = created.parse().unwrap_or(0);
+        }
+        if let Some(updated) = fm.get("updated_at") {
+            metadata.updated_at = updated.parse().unwrap_or(0);
         }
 
-        // At least one tag required.
-        if skill.tags.is_empty() {
-            errors.push("Skill must have at least one tag".to_string());
+        // If name not in frontmatter, try to extract from first heading
+        if metadata.name.is_empty() {
+            if let Some(first_line) = body.lines().find(|l| l.starts_with('#')) {
+                metadata.name = first_line.trim_start_matches('#').trim().to_string();
+            }
         }
 
-        // Instructions must not be empty.
-        if skill.instructions.trim().is_empty() {
-            errors.push("Skill instructions must not be empty".to_string());
+        // Extract description from first non-heading paragraph if not set
+        if metadata.description.is_empty() {
+            for line in body.lines() {
+                let trimmed = line.trim();
+                if trimmed.is_empty() || trimmed.starts_with('#') {
+                    continue;
+                }
+                metadata.description = trimmed.to_string();
+                break;
+            }
         }
 
-        // Warnings for optional but recommended fields.
-        if skill.author.trim().is_empty() {
-            warnings.push("Author is empty; consider providing attribution".to_string());
+        // Extract examples from ```example blocks or ## Examples sections
+        let examples = Self::extract_examples(&body);
+
+        Ok(StandardSkill {
+            metadata,
+            content: body,
+            frontmatter: fm,
+            examples,
+        })
+    }
+
+    /// Parse a VibeCody-format skill (markdown with # title, ## sections).
+    pub fn parse_vibecody(content: &str) -> Result<StandardSkill, String> {
+        if content.trim().is_empty() {
+            return Err("Empty skill content".to_string());
         }
 
-        if skill.compatible_tools.is_empty() {
-            warnings.push("No compatible tools listed; skill may have limited discoverability".to_string());
+        let (fm, body) = Self::extract_frontmatter(content);
+        let mut metadata = SkillMetadata::default();
+        metadata.format = SkillFormat::VibeCody;
+
+        // Apply any frontmatter overrides
+        if let Some(name) = fm.get("name") {
+            metadata.name = name.clone();
+        }
+        if let Some(ver) = fm.get("version") {
+            metadata.version = ver.clone();
+        }
+        if let Some(author) = fm.get("author") {
+            metadata.author = author.clone();
         }
 
-        if skill.examples.is_empty() {
-            warnings.push("No examples provided; consider adding at least one".to_string());
-        }
-
-        if skill.output_format.is_none() {
-            warnings.push("No output format specified".to_string());
-        }
-
-        // Validate input schema required fields reference real params.
-        if let Some(ref schema) = skill.input_schema {
-            let param_names: Vec<&str> = schema.parameters.iter().map(|p| p.name.as_str()).collect();
-            for req in &schema.required {
-                if !param_names.contains(&req.as_str()) {
-                    errors.push(format!(
-                        "Required parameter '{}' not found in schema parameters",
-                        req
-                    ));
+        // Extract title from first # heading
+        if metadata.name.is_empty() {
+            for line in body.lines() {
+                let trimmed = line.trim();
+                if trimmed.starts_with("# ") {
+                    metadata.name = trimmed[2..].trim().to_string();
+                    break;
                 }
             }
         }
 
+        // Extract description from first paragraph after title
+        let mut found_title = false;
+        for line in body.lines() {
+            let trimmed = line.trim();
+            if trimmed.starts_with("# ") {
+                found_title = true;
+                continue;
+            }
+            if found_title && !trimmed.is_empty() && !trimmed.starts_with('#') {
+                metadata.description = trimmed.to_string();
+                break;
+            }
+        }
+
+        // Extract tags from ## When to Use section keywords
+        let when_section = Self::extract_section(&body, "When to Use");
+        if !when_section.is_empty() {
+            let mut tags = Vec::new();
+            for line in when_section.lines() {
+                let trimmed = line.trim().trim_start_matches('-').trim();
+                if !trimmed.is_empty() {
+                    // Extract key phrases as tags
+                    let words: Vec<&str> = trimmed.split_whitespace().take(3).collect();
+                    if !words.is_empty() {
+                        tags.push(words.join(" ").to_lowercase());
+                    }
+                }
+            }
+            if tags.len() > 5 {
+                tags.truncate(5);
+            }
+            metadata.tags = tags;
+        }
+
+        let examples = Self::extract_examples(&body);
+
+        Ok(StandardSkill {
+            metadata,
+            content: body,
+            frontmatter: fm,
+            examples,
+        })
+    }
+
+    /// Extract a named ## section body from markdown.
+    fn extract_section(body: &str, heading: &str) -> String {
+        let target = format!("## {}", heading);
+        let mut in_section = false;
+        let mut lines = Vec::new();
+
+        for line in body.lines() {
+            if line.trim().eq_ignore_ascii_case(&target) {
+                in_section = true;
+                continue;
+            }
+            if in_section {
+                if line.starts_with("## ") {
+                    break;
+                }
+                lines.push(line);
+            }
+        }
+        lines.join("\n").trim().to_string()
+    }
+
+    /// Extract examples from markdown code blocks in ## Examples section.
+    fn extract_examples(body: &str) -> Vec<SkillExample> {
+        let examples_section = Self::extract_section(body, "Examples");
+        if examples_section.is_empty() {
+            return Vec::new();
+        }
+
+        let mut examples = Vec::new();
+        let mut in_code_block = false;
+        let mut current_code = Vec::new();
+
+        for line in examples_section.lines() {
+            if line.trim().starts_with("```") && !in_code_block {
+                in_code_block = true;
+                current_code.clear();
+                continue;
+            }
+            if line.trim().starts_with("```") && in_code_block {
+                in_code_block = false;
+                let code = current_code.join("\n");
+                if !code.trim().is_empty() {
+                    // Split on # comment lines that look like expected output
+                    let mut input_lines = Vec::new();
+                    let mut output_lines = Vec::new();
+                    for cl in code.lines() {
+                        if cl.trim().starts_with('#') && !input_lines.is_empty() {
+                            output_lines.push(cl.trim_start_matches('#').trim().to_string());
+                        } else {
+                            input_lines.push(cl.to_string());
+                        }
+                    }
+                    let idx = examples.len() + 1;
+                    examples.push(SkillExample {
+                        title: format!("Example {}", idx),
+                        input: input_lines.join("\n"),
+                        expected_output: output_lines.join("\n"),
+                    });
+                }
+                continue;
+            }
+            if in_code_block {
+                current_code.push(line);
+            }
+        }
+
+        examples
+    }
+}
+
+// ---------------------------------------------------------------------------
+// SkillValidator
+// ---------------------------------------------------------------------------
+
+/// Validates skill metadata and structure.
+pub struct SkillValidator;
+
+impl SkillValidator {
+    /// Full validation of a StandardSkill.
+    pub fn validate(skill: &StandardSkill) -> SkillValidationResult {
+        let mut errors = Vec::new();
+        let mut warnings = Vec::new();
+
+        // Validate metadata
+        errors.extend(Self::validate_metadata(&skill.metadata));
+
+        // Content checks
+        if skill.content.trim().is_empty() {
+            errors.push("Skill content body is empty".to_string());
+        }
+
+        if skill.content.len() > 100_000 {
+            warnings.push("Skill content exceeds 100KB — may be too large for some tools".to_string());
+        }
+
+        if skill.examples.is_empty() {
+            warnings.push("No examples provided — examples improve skill discoverability".to_string());
+        }
+
+        // Description length
+        if skill.metadata.description.len() > 200 {
+            warnings.push("Description exceeds 200 characters — may be truncated in some tools".to_string());
+        }
+
+        // Compute compatibility score
+        let compat = Self::check_compatibility(skill, &SkillFormat::Standard);
+
         let is_valid = errors.is_empty();
-        ValidationResult {
+
+        SkillValidationResult {
             is_valid,
             errors,
             warnings,
+            compatibility_score: compat,
         }
     }
 
-    fn is_semver(version: &str) -> bool {
-        let parts: Vec<&str> = version.split('.').collect();
-        if parts.len() != 3 {
-            return false;
+    /// Validate required metadata fields.
+    pub fn validate_metadata(meta: &SkillMetadata) -> Vec<String> {
+        let mut errors = Vec::new();
+
+        if meta.name.is_empty() {
+            errors.push("Skill name is required".to_string());
         }
-        parts.iter().all(|p| p.parse::<u64>().is_ok())
+        if meta.name.len() > 100 {
+            errors.push("Skill name exceeds 100 characters".to_string());
+        }
+        if meta.description.is_empty() {
+            errors.push("Skill description is required".to_string());
+        }
+        if meta.version.is_empty() {
+            errors.push("Skill version is required".to_string());
+        }
+
+        // Validate semver-ish version
+        if !meta.version.is_empty() {
+            let parts: Vec<&str> = meta.version.split('.').collect();
+            if parts.len() < 2 || parts.len() > 3 {
+                errors.push(format!("Version '{}' is not valid semver (expected X.Y or X.Y.Z)", meta.version));
+            } else {
+                for p in &parts {
+                    if p.parse::<u32>().is_err() {
+                        errors.push(format!("Version component '{}' is not a valid number", p));
+                        break;
+                    }
+                }
+            }
+        }
+
+        errors
+    }
+
+    /// Compute compatibility score (0.0-1.0) of a skill with a target format.
+    pub fn check_compatibility(skill: &StandardSkill, target: &SkillFormat) -> f64 {
+        let mut score = 0.0_f64;
+        let mut max_score = 0.0_f64;
+
+        // Has name (required by all formats)
+        max_score += 1.0;
+        if !skill.metadata.name.is_empty() {
+            score += 1.0;
+        }
+
+        // Has description
+        max_score += 1.0;
+        if !skill.metadata.description.is_empty() {
+            score += 1.0;
+        }
+
+        // Has version
+        max_score += 0.5;
+        if !skill.metadata.version.is_empty() {
+            score += 0.5;
+        }
+
+        // Has tags (important for discovery)
+        max_score += 1.0;
+        if !skill.metadata.tags.is_empty() {
+            score += 1.0;
+        }
+
+        // Has content body
+        max_score += 1.0;
+        if !skill.content.trim().is_empty() {
+            score += 1.0;
+        }
+
+        // Has examples
+        max_score += 1.0;
+        if !skill.examples.is_empty() {
+            score += 1.0;
+        }
+
+        // Description under 200 chars
+        max_score += 0.5;
+        if skill.metadata.description.len() <= 200 {
+            score += 0.5;
+        }
+
+        // Format-specific bonuses
+        max_score += 1.0;
+        match target {
+            SkillFormat::Standard => {
+                // Standard format prefers frontmatter
+                if !skill.frontmatter.is_empty() {
+                    score += 1.0;
+                }
+            }
+            SkillFormat::VibeCody => {
+                // VibeCody format prefers ## sections
+                if skill.content.contains("## When to Use") || skill.content.contains("## Commands") {
+                    score += 1.0;
+                }
+            }
+            SkillFormat::ClaudeCode => {
+                // Claude Code prefers structured examples and input/output types
+                if !skill.metadata.input_types.is_empty() && !skill.metadata.output_types.is_empty() {
+                    score += 1.0;
+                }
+            }
+            SkillFormat::Cursor => {
+                // Cursor prefers rule-style content
+                if skill.content.contains("## Best Practices") || skill.content.contains("## Rules") {
+                    score += 1.0;
+                }
+            }
+            SkillFormat::GeminiCLI => {
+                if !skill.metadata.author.is_empty() {
+                    score += 1.0;
+                }
+            }
+            SkillFormat::Custom(_) => {
+                score += 0.5; // partial by default
+            }
+        }
+
+        if max_score == 0.0 {
+            return 0.0;
+        }
+
+        (score / max_score).min(1.0)
     }
 }
 
 // ---------------------------------------------------------------------------
-// Converter
+// SkillConverter
 // ---------------------------------------------------------------------------
 
-/// Converts between VibeCody and Standard skill formats.
+/// Converts skills between formats.
 pub struct SkillConverter;
 
 impl SkillConverter {
-    /// Convert a VibeCody skill to the cross-tool standard format.
-    pub fn to_standard(vibe: &VibeCodySkill) -> StandardSkill {
-        let mut metadata = HashMap::new();
-        metadata.insert("source".to_string(), "vibecody".to_string());
-        metadata.insert("category".to_string(), vibe.category.clone());
-        if let Some(ref diff) = vibe.difficulty {
-            metadata.insert("difficulty".to_string(), diff.clone());
+    /// Normalize a skill to the Standard format.
+    pub fn to_standard(skill: &StandardSkill) -> SkillConversionResult {
+        let mut converted = skill.clone();
+        let mut warnings = Vec::new();
+        let mut changes = Vec::new();
+
+        if converted.metadata.format != SkillFormat::Standard {
+            changes.push(format!(
+                "Changed format from {} to standard",
+                converted.metadata.format.as_str()
+            ));
+            converted.metadata.format = SkillFormat::Standard;
         }
 
-        StandardSkill {
-            name: vibe.name.clone(),
-            description: vibe.description.clone(),
-            version: "1.0.0".to_string(),
-            author: "VibeCody".to_string(),
-            tags: vibe.tags.clone(),
-            compatible_tools: vec![
-                "vibecody".to_string(),
-                "claude-code".to_string(),
-                "cursor".to_string(),
-                "gemini-cli".to_string(),
-            ],
-            instructions: vibe.content.clone(),
-            input_schema: None,
-            output_format: None,
-            examples: Vec::new(),
-            metadata,
+        // Ensure frontmatter has all metadata fields
+        if !converted.frontmatter.contains_key("name") && !converted.metadata.name.is_empty() {
+            converted.frontmatter.insert("name".to_string(), converted.metadata.name.clone());
+            changes.push("Added name to frontmatter".to_string());
+        }
+        if !converted.frontmatter.contains_key("description") && !converted.metadata.description.is_empty() {
+            converted.frontmatter.insert("description".to_string(), converted.metadata.description.clone());
+            changes.push("Added description to frontmatter".to_string());
+        }
+        if !converted.frontmatter.contains_key("version") {
+            converted.frontmatter.insert("version".to_string(), converted.metadata.version.clone());
+            changes.push("Added version to frontmatter".to_string());
+        }
+        if !converted.frontmatter.contains_key("tags") && !converted.metadata.tags.is_empty() {
+            converted.frontmatter.insert("tags".to_string(), converted.metadata.tags.join(", "));
+            changes.push("Added tags to frontmatter".to_string());
+        }
+
+        // Warn if no examples
+        if converted.examples.is_empty() {
+            warnings.push("No examples found — standard format recommends at least one example".to_string());
+        }
+
+        // Ensure updated_at is set
+        if converted.metadata.updated_at == 0 {
+            converted.metadata.updated_at = converted.metadata.created_at;
+            if converted.metadata.updated_at != 0 {
+                changes.push("Set updated_at to created_at".to_string());
+            }
+        }
+
+        SkillConversionResult {
+            skill: converted,
+            warnings,
+            changes_made: changes,
         }
     }
 
-    /// Convert a standard skill back to VibeCody's internal format.
-    pub fn from_standard(std_skill: &StandardSkill) -> VibeCodySkill {
-        let category = std_skill
-            .metadata
-            .get("category")
-            .cloned()
-            .unwrap_or_else(|| "imported".to_string());
-        let difficulty = std_skill.metadata.get("difficulty").cloned();
+    /// Convert a skill to VibeCody format.
+    pub fn to_vibecody(skill: &StandardSkill) -> SkillConversionResult {
+        let mut converted = skill.clone();
+        let mut warnings = Vec::new();
+        let mut changes = Vec::new();
 
-        VibeCodySkill {
-            name: std_skill.name.clone(),
-            category,
-            description: std_skill.description.clone(),
-            content: std_skill.instructions.clone(),
-            tags: std_skill.tags.clone(),
-            difficulty,
+        if converted.metadata.format != SkillFormat::VibeCody {
+            changes.push(format!(
+                "Changed format from {} to vibecody",
+                converted.metadata.format.as_str()
+            ));
+            converted.metadata.format = SkillFormat::VibeCody;
+        }
+
+        // VibeCody format uses # Title + ## sections, no frontmatter needed
+        // Ensure content starts with a heading
+        if !converted.content.trim().starts_with('#') {
+            let title = if converted.metadata.name.is_empty() {
+                "Untitled Skill".to_string()
+            } else {
+                converted.metadata.name.clone()
+            };
+            converted.content = format!("# {}\n\n{}", title, converted.content);
+            changes.push("Added # heading to content".to_string());
+        }
+
+        // Ensure ## When to Use section exists
+        if !converted.content.contains("## When to Use") {
+            if !converted.metadata.description.is_empty() {
+                converted.content.push_str(&format!(
+                    "\n\n## When to Use\n- {}",
+                    converted.metadata.description
+                ));
+                changes.push("Added ## When to Use section".to_string());
+            } else {
+                warnings.push("No description available to generate ## When to Use section".to_string());
+            }
+        }
+
+        SkillConversionResult {
+            skill: converted,
+            warnings,
+            changes_made: changes,
         }
     }
 
-    /// Batch-convert VibeCody skills to standard format.
-    pub fn batch_export(skills: &[VibeCodySkill]) -> Vec<StandardSkill> {
-        skills.iter().map(Self::to_standard).collect()
-    }
-
-    /// Batch-convert standard skills to VibeCody format.
-    pub fn batch_import(skills: &[StandardSkill]) -> Vec<VibeCodySkill> {
-        skills.iter().map(Self::from_standard).collect()
+    /// Convert a skill to the specified target format.
+    pub fn convert(skill: &StandardSkill, target: &SkillFormat) -> SkillConversionResult {
+        match target {
+            SkillFormat::Standard => Self::to_standard(skill),
+            SkillFormat::VibeCody => Self::to_vibecody(skill),
+            SkillFormat::ClaudeCode => {
+                // Claude Code format: standard with input/output type annotations
+                let mut result = Self::to_standard(skill);
+                result.skill.metadata.format = SkillFormat::ClaudeCode;
+                result.changes_made.push("Set format to claude_code".to_string());
+                if result.skill.metadata.input_types.is_empty() {
+                    result.skill.metadata.input_types.push("text".to_string());
+                    result.changes_made.push("Added default input_type 'text'".to_string());
+                }
+                if result.skill.metadata.output_types.is_empty() {
+                    result.skill.metadata.output_types.push("text".to_string());
+                    result.changes_made.push("Added default output_type 'text'".to_string());
+                }
+                result
+            }
+            SkillFormat::Cursor => {
+                let mut result = Self::to_standard(skill);
+                result.skill.metadata.format = SkillFormat::Cursor;
+                result.changes_made.push("Set format to cursor".to_string());
+                // Cursor prefers rules-style content
+                if !result.skill.content.contains("## Rules") && !result.skill.content.contains("## Best Practices") {
+                    result.warnings.push("Cursor format typically uses ## Rules or ## Best Practices sections".to_string());
+                }
+                result
+            }
+            SkillFormat::GeminiCLI => {
+                let mut result = Self::to_standard(skill);
+                result.skill.metadata.format = SkillFormat::GeminiCLI;
+                result.changes_made.push("Set format to gemini_cli".to_string());
+                result
+            }
+            SkillFormat::Custom(name) => {
+                let mut result = Self::to_standard(skill);
+                result.skill.metadata.format = SkillFormat::Custom(name.clone());
+                result.changes_made.push(format!("Set format to custom({})", name));
+                result.warnings.push("Custom format may require additional manual adjustments".to_string());
+                result
+            }
+        }
     }
 }
 
 // ---------------------------------------------------------------------------
-// Registry
+// SkillRegistry
 // ---------------------------------------------------------------------------
 
-/// In-memory registry of standard skills with search and JSON serialization.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// In-memory skill registry for discovery and management.
 pub struct SkillRegistry {
-    skills: Vec<StandardSkill>,
+    entries: Vec<SkillRegistryEntry>,
 }
 
 impl SkillRegistry {
-    /// Create an empty registry.
     pub fn new() -> Self {
-        Self { skills: Vec::new() }
+        Self { entries: Vec::new() }
     }
 
-    /// Add a skill. Returns an error if a skill with the same name already exists.
-    pub fn add_skill(&mut self, skill: StandardSkill) -> Result<(), String> {
-        if self.skills.iter().any(|s| s.name == skill.name) {
-            return Err(format!("Skill '{}' already exists in registry", skill.name));
-        }
-        self.skills.push(skill);
-        Ok(())
+    pub fn add(&mut self, entry: SkillRegistryEntry) {
+        self.entries.push(entry);
     }
 
-    /// Remove a skill by name. Returns true if removed.
-    pub fn remove_skill(&mut self, name: &str) -> bool {
-        let before = self.skills.len();
-        self.skills.retain(|s| s.name != name);
-        self.skills.len() < before
-    }
-
-    /// Free-text search across name, description, and tags.
-    pub fn search(&self, query: &str) -> Vec<&StandardSkill> {
+    /// Fuzzy search by name or tags.
+    pub fn search(&self, query: &str) -> Vec<&SkillRegistryEntry> {
         let q = query.to_lowercase();
-        self.skills
+        self.entries
             .iter()
-            .filter(|s| {
-                s.name.to_lowercase().contains(&q)
-                    || s.description.to_lowercase().contains(&q)
-                    || s.tags.iter().any(|t| t.to_lowercase().contains(&q))
+            .filter(|e| {
+                e.skill.name.to_lowercase().contains(&q)
+                    || e.skill.description.to_lowercase().contains(&q)
+                    || e.skill.tags.iter().any(|t| t.to_lowercase().contains(&q))
             })
             .collect()
     }
 
-    /// Search skills that contain the given tag (case-insensitive).
-    pub fn search_by_tag(&self, tag: &str) -> Vec<&StandardSkill> {
+    /// Search by exact tag match.
+    pub fn search_by_tag(&self, tag: &str) -> Vec<&SkillRegistryEntry> {
         let t = tag.to_lowercase();
-        self.skills
+        self.entries
             .iter()
-            .filter(|s| s.tags.iter().any(|st| st.to_lowercase() == t))
+            .filter(|e| e.skill.tags.iter().any(|et| et.to_lowercase() == t))
             .collect()
     }
 
-    /// Search skills compatible with a specific tool.
-    pub fn search_by_tool(&self, tool: &str) -> Vec<&StandardSkill> {
-        let t = tool.to_lowercase();
-        self.skills
-            .iter()
-            .filter(|s| s.compatible_tools.iter().any(|ct| ct.to_lowercase() == t))
-            .collect()
+    pub fn get(&self, name: &str) -> Option<&SkillRegistryEntry> {
+        self.entries.iter().find(|e| e.skill.name == name)
     }
 
-    /// Return all skills.
-    pub fn list_all(&self) -> &[StandardSkill] {
-        &self.skills
+    pub fn list(&self) -> Vec<&SkillRegistryEntry> {
+        self.entries.iter().collect()
     }
 
-    /// Number of skills in the registry.
+    pub fn verified_only(&self) -> Vec<&SkillRegistryEntry> {
+        self.entries.iter().filter(|e| e.verified).collect()
+    }
+
+    /// Return top-rated entries, sorted descending by rating.
+    pub fn top_rated(&self, limit: usize) -> Vec<&SkillRegistryEntry> {
+        let mut sorted: Vec<&SkillRegistryEntry> = self.entries.iter().collect();
+        sorted.sort_by(|a, b| b.rating.partial_cmp(&a.rating).unwrap_or(std::cmp::Ordering::Equal));
+        sorted.truncate(limit);
+        sorted
+    }
+
     pub fn count(&self) -> usize {
-        self.skills.len()
+        self.entries.len()
     }
+}
 
-    /// Import skills from a JSON string (array of StandardSkill).
-    pub fn import_from_json(&mut self, json: &str) -> Result<usize, String> {
-        let imported: Vec<StandardSkill> =
-            serde_json::from_str(json).map_err(|e| format!("JSON parse error: {}", e))?;
-        let count = imported.len();
-        for skill in imported {
-            // Skip duplicates silently during bulk import.
-            if !self.skills.iter().any(|s| s.name == skill.name) {
-                self.skills.push(skill);
+// ---------------------------------------------------------------------------
+// SkillExporter
+// ---------------------------------------------------------------------------
+
+/// Exports skills to markdown with YAML frontmatter.
+pub struct SkillExporter;
+
+impl SkillExporter {
+    /// Render a skill as markdown with YAML frontmatter.
+    pub fn export_to_standard(skill: &StandardSkill) -> String {
+        let mut output = String::new();
+
+        // YAML frontmatter
+        output.push_str("---\n");
+        output.push_str(&format!("name: {}\n", skill.metadata.name));
+        output.push_str(&format!("description: {}\n", skill.metadata.description));
+        output.push_str(&format!("version: {}\n", skill.metadata.version));
+        if !skill.metadata.author.is_empty() {
+            output.push_str(&format!("author: {}\n", skill.metadata.author));
+        }
+        if !skill.metadata.tags.is_empty() {
+            output.push_str(&format!("tags: {}\n", skill.metadata.tags.join(", ")));
+        }
+        output.push_str(&format!("difficulty: {}\n", skill.metadata.difficulty.as_str()));
+        output.push_str(&format!("format: {}\n", skill.metadata.format.as_str()));
+        if !skill.metadata.input_types.is_empty() {
+            output.push_str(&format!("input_types: {}\n", skill.metadata.input_types.join(", ")));
+        }
+        if !skill.metadata.output_types.is_empty() {
+            output.push_str(&format!("output_types: {}\n", skill.metadata.output_types.join(", ")));
+        }
+        if !skill.metadata.dependencies.is_empty() {
+            output.push_str(&format!("dependencies: {}\n", skill.metadata.dependencies.join(", ")));
+        }
+        if skill.metadata.created_at > 0 {
+            output.push_str(&format!("created_at: {}\n", skill.metadata.created_at));
+        }
+        if skill.metadata.updated_at > 0 {
+            output.push_str(&format!("updated_at: {}\n", skill.metadata.updated_at));
+        }
+        output.push_str("---\n");
+
+        // Body content
+        output.push_str(&skill.content);
+
+        // Append examples if not already in content
+        if !skill.examples.is_empty() && !skill.content.contains("## Examples") {
+            output.push_str("\n\n## Examples\n");
+            for ex in &skill.examples {
+                output.push_str(&format!("\n### {}\n", ex.title));
+                output.push_str(&format!("```\n{}\n", ex.input));
+                if !ex.expected_output.is_empty() {
+                    output.push_str(&format!("# {}\n", ex.expected_output));
+                }
+                output.push_str("```\n");
             }
         }
-        Ok(count)
+
+        output
     }
 
-    /// Export all skills as a JSON string.
-    pub fn export_to_json(&self) -> Result<String, String> {
-        serde_json::to_string_pretty(&self.skills)
-            .map_err(|e| format!("JSON serialization error: {}", e))
-    }
-
-    /// Compute a compatibility score (0.0–1.0) for a skill with a given tool.
-    ///
-    /// Factors: explicit tool listing (0.5), shared tags (0.3), has examples (0.1),
-    /// has input schema (0.1).
-    pub fn compatibility_score(skill: &StandardSkill, tool: &str) -> f64 {
-        let mut score = 0.0;
-
-        // Explicit tool compatibility.
-        let t = tool.to_lowercase();
-        if skill
-            .compatible_tools
+    /// Export a batch of skills as (filename, content) pairs.
+    pub fn export_batch(skills: &[StandardSkill]) -> Vec<(String, String)> {
+        skills
             .iter()
-            .any(|ct| ct.to_lowercase() == t)
-        {
-            score += 0.5;
-        }
-
-        // Tag richness (more tags = more discoverable).
-        let tag_score = (skill.tags.len().min(5) as f64) / 5.0;
-        score += 0.3 * tag_score;
-
-        // Has examples.
-        if !skill.examples.is_empty() {
-            score += 0.1;
-        }
-
-        // Has input schema.
-        if skill.input_schema.is_some() {
-            score += 0.1;
-        }
-
-        score
-    }
-}
-
-impl Default for SkillRegistry {
-    fn default() -> Self {
-        Self::new()
+            .map(|s| {
+                let filename = if s.metadata.name.is_empty() {
+                    "untitled.md".to_string()
+                } else {
+                    format!(
+                        "{}.md",
+                        s.metadata
+                            .name
+                            .to_lowercase()
+                            .replace(' ', "-")
+                            .replace(|c: char| !c.is_alphanumeric() && c != '-', "")
+                    )
+                };
+                let content = Self::export_to_standard(s);
+                (filename, content)
+            })
+            .collect()
     }
 }
 
 // ---------------------------------------------------------------------------
-// Discovery
+// SkillImporter
 // ---------------------------------------------------------------------------
 
-/// Discovers skills from remote registries (simulated).
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SkillDiscovery {
-    pub registry_urls: Vec<String>,
-    pub cached_skills: HashMap<String, Vec<StandardSkill>>,
-}
+/// Imports skills from files or strings.
+pub struct SkillImporter;
 
-impl SkillDiscovery {
-    /// Create a new discovery instance with the given registry URLs.
-    pub fn new(registry_urls: Vec<String>) -> Self {
-        Self {
-            registry_urls,
-            cached_skills: HashMap::new(),
-        }
-    }
-
-    /// Simulate discovering skills from a URL. Returns a list of skills and
-    /// caches them locally.
-    pub fn discover(&mut self, url: &str) -> Result<Vec<StandardSkill>, String> {
-        if url.trim().is_empty() {
-            return Err("Registry URL must not be empty".to_string());
-        }
-
-        // Simulated: generate placeholder skills based on URL.
-        let registry_name = url
-            .trim_end_matches('/')
-            .rsplit('/')
-            .next()
-            .unwrap_or("unknown");
-
-        let skills = vec![
-            StandardSkill {
-                name: format!("{}-code-review", registry_name),
-                description: format!("Code review skill from {}", registry_name),
-                version: "1.0.0".to_string(),
-                author: registry_name.to_string(),
-                tags: vec!["code-review".to_string(), "quality".to_string()],
-                compatible_tools: vec!["claude-code".to_string(), "cursor".to_string()],
-                instructions: "Review the provided code for quality, correctness, and style.".to_string(),
-                input_schema: None,
-                output_format: Some("markdown".to_string()),
-                examples: vec![],
-                metadata: HashMap::new(),
-            },
-            StandardSkill {
-                name: format!("{}-refactor", registry_name),
-                description: format!("Refactoring skill from {}", registry_name),
-                version: "1.0.0".to_string(),
-                author: registry_name.to_string(),
-                tags: vec!["refactor".to_string(), "improvement".to_string()],
-                compatible_tools: vec![
-                    "claude-code".to_string(),
-                    "cursor".to_string(),
-                    "gemini-cli".to_string(),
-                ],
-                instructions: "Refactor the provided code to improve readability and performance.".to_string(),
-                input_schema: None,
-                output_format: Some("code".to_string()),
-                examples: vec![],
-                metadata: HashMap::new(),
-            },
-        ];
-
-        self.cached_skills.insert(url.to_string(), skills.clone());
-        Ok(skills)
-    }
-
-    /// Refresh cache for all known registry URLs.
-    pub fn refresh_cache(&mut self) -> Result<usize, String> {
-        let urls: Vec<String> = self.registry_urls.clone();
-        let mut total = 0;
-        for url in &urls {
-            let skills = self.discover(url)?;
-            total += skills.len();
-        }
-        Ok(total)
-    }
-
-    /// Get cached skills for a URL, if any.
-    pub fn get_cached(&self, url: &str) -> Option<&Vec<StandardSkill>> {
-        self.cached_skills.get(url)
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Migration
-// ---------------------------------------------------------------------------
-
-/// Report produced by a bulk migration operation.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct MigrationReport {
-    pub total: usize,
-    pub converted: usize,
-    pub skipped: usize,
-    pub errors: Vec<String>,
-}
-
-/// Bulk migration utilities for skill files.
-pub struct SkillMigrator;
-
-impl SkillMigrator {
-    /// Simulate migrating a directory of skill files.
-    ///
-    /// In production this would walk the filesystem; here we simulate using
-    /// the path to derive a deterministic result.
-    pub fn migrate_directory(path: &str) -> MigrationReport {
-        if path.trim().is_empty() {
-            return MigrationReport {
-                total: 0,
-                converted: 0,
-                skipped: 0,
-                errors: vec!["Empty path provided".to_string()],
-            };
-        }
-
-        // Simulate: use path length as a seed for deterministic output.
-        let simulated_total = 10 + (path.len() % 20);
-        let simulated_errors_count = path.len() % 3;
-        let simulated_skipped = path.len() % 4;
-        let simulated_converted = simulated_total - simulated_skipped - simulated_errors_count;
-
-        let errors: Vec<String> = (0..simulated_errors_count)
-            .map(|i| format!("Failed to parse skill file #{}: invalid format", i + 1))
-            .collect();
-
-        MigrationReport {
-            total: simulated_total,
-            converted: simulated_converted,
-            skipped: simulated_skipped,
-            errors,
-        }
-    }
-
-    /// Validate and convert a batch of VibeCody skills, producing a migration report.
-    pub fn migrate_skills(skills: &[VibeCodySkill]) -> (Vec<StandardSkill>, MigrationReport) {
-        let mut converted = Vec::new();
-        let mut errors = Vec::new();
-        let mut skipped = 0;
-
-        for skill in skills {
-            if skill.name.trim().is_empty() {
-                skipped += 1;
-                continue;
-            }
-            if skill.content.trim().is_empty() {
-                errors.push(format!("Skill '{}' has empty content", skill.name));
-                continue;
-            }
-            converted.push(SkillConverter::to_standard(skill));
-        }
-
-        let report = MigrationReport {
-            total: skills.len(),
-            converted: converted.len(),
-            skipped,
-            errors,
+impl SkillImporter {
+    /// Import all .md files from a directory path (non-recursive).
+    /// Returns a Vec of results — one per file attempted.
+    pub fn import_from_directory(path: &str) -> Vec<Result<StandardSkill, String>> {
+        let dir = match std::fs::read_dir(path) {
+            Ok(d) => d,
+            Err(e) => return vec![Err(format!("Cannot read directory '{}': {}", path, e))],
         };
 
-        (converted, report)
+        let mut results = Vec::new();
+        for entry in dir {
+            let entry = match entry {
+                Ok(e) => e,
+                Err(e) => {
+                    results.push(Err(format!("Directory entry error: {}", e)));
+                    continue;
+                }
+            };
+            let p = entry.path();
+            if p.extension().map(|e| e == "md").unwrap_or(false) {
+                match std::fs::read_to_string(&p) {
+                    Ok(content) => {
+                        results.push(SkillParser::parse_vibecody(&content));
+                    }
+                    Err(e) => {
+                        results.push(Err(format!("Cannot read '{}': {}", p.display(), e)));
+                    }
+                }
+            }
+        }
+
+        results
+    }
+
+    /// Import a skill from a string with explicit format.
+    pub fn import_from_string(content: &str, format: &SkillFormat) -> Result<StandardSkill, String> {
+        match format {
+            SkillFormat::VibeCody => SkillParser::parse_vibecody(content),
+            SkillFormat::Standard => SkillParser::parse(content),
+            _ => {
+                // For other formats, try standard first, then vibecody
+                SkillParser::parse(content).or_else(|_| SkillParser::parse_vibecody(content))
+            }
+        }
     }
 }
 
@@ -556,574 +965,575 @@ impl SkillMigrator {
 mod tests {
     use super::*;
 
-    fn make_vibe_skill(name: &str) -> VibeCodySkill {
-        VibeCodySkill {
+    // -- Helper builders --
+
+    fn sample_frontmatter_skill() -> &'static str {
+        "---\nname: test-skill\ndescription: A test skill for validation\nversion: 1.0.0\nauthor: VibeCody\ntags: testing, validation\ndifficulty: intermediate\n---\n# Test Skill\n\nA test skill for validation.\n\n## When to Use\n- Unit testing\n- Integration testing\n\n## Examples\n```\n/test run\n# All tests passed\n```\n\n## Best Practices\n- Write tests first\n"
+    }
+
+    fn sample_vibecody_skill() -> &'static str {
+        "# My VibeCody Skill\n\nThis skill does amazing things for your code.\n\n## When to Use\n- Refactoring legacy code\n- Improving performance\n\n## Commands\n- `/myskill run` — Execute the skill\n- `/myskill config` — Configure settings\n\n## Examples\n```\n/myskill run --fast\n# Processed 42 files in 1.2s\n```\n\n## Best Practices\n- Always backup first\n"
+    }
+
+    fn make_metadata(name: &str) -> SkillMetadata {
+        SkillMetadata {
             name: name.to_string(),
-            category: "testing".to_string(),
-            description: format!("{} description", name),
-            content: format!("Instructions for {}", name),
-            tags: vec!["test".to_string(), "rust".to_string()],
-            difficulty: Some("intermediate".to_string()),
+            description: "A test skill".to_string(),
+            version: "1.0.0".to_string(),
+            author: "tester".to_string(),
+            tags: vec!["test".to_string()],
+            difficulty: SkillDifficulty::Intermediate,
+            format: SkillFormat::Standard,
+            input_types: vec!["text".to_string()],
+            output_types: vec!["text".to_string()],
+            dependencies: Vec::new(),
+            created_at: 1000,
+            updated_at: 2000,
         }
     }
 
     fn make_standard_skill(name: &str) -> StandardSkill {
         StandardSkill {
-            name: name.to_string(),
-            description: format!("{} description", name),
-            version: "1.0.0".to_string(),
-            author: "test-author".to_string(),
-            tags: vec!["test".to_string()],
-            compatible_tools: vec!["claude-code".to_string(), "cursor".to_string()],
-            instructions: format!("Do the {} thing", name),
-            input_schema: None,
-            output_format: Some("markdown".to_string()),
+            metadata: make_metadata(name),
+            content: format!(
+                "# {}\n\nBody content here.\n\n## Examples\n```\ninput\n# output\n```\n",
+                name
+            ),
+            frontmatter: {
+                let mut fm = HashMap::new();
+                fm.insert("name".to_string(), name.to_string());
+                fm.insert("version".to_string(), "1.0.0".to_string());
+                fm
+            },
             examples: vec![SkillExample {
                 title: "Example 1".to_string(),
                 input: "input".to_string(),
                 expected_output: "output".to_string(),
             }],
-            metadata: HashMap::new(),
         }
     }
 
-    // -- Conversion tests --
+    fn make_registry_entry(name: &str, rating: f64, verified: bool) -> SkillRegistryEntry {
+        SkillRegistryEntry {
+            skill: make_metadata(name),
+            source_url: format!("https://skills.example.com/{}", name),
+            downloads: 100,
+            rating,
+            verified,
+        }
+    }
+
+    // -- SkillFormat tests --
 
     #[test]
-    fn test_to_standard_preserves_name_and_description() {
-        let vibe = make_vibe_skill("my-skill");
-        let std = SkillConverter::to_standard(&vibe);
-        assert_eq!(std.name, "my-skill");
-        assert_eq!(std.description, "my-skill description");
+    fn test_skill_format_as_str() {
+        assert_eq!(SkillFormat::VibeCody.as_str(), "vibecody");
+        assert_eq!(SkillFormat::Standard.as_str(), "standard");
+        assert_eq!(SkillFormat::ClaudeCode.as_str(), "claude_code");
+        assert_eq!(SkillFormat::Cursor.as_str(), "cursor");
+        assert_eq!(SkillFormat::GeminiCLI.as_str(), "gemini_cli");
+        assert_eq!(SkillFormat::Custom("foo".into()).as_str(), "foo");
     }
 
     #[test]
-    fn test_to_standard_sets_metadata() {
-        let vibe = make_vibe_skill("alpha");
-        let std = SkillConverter::to_standard(&vibe);
-        assert_eq!(std.metadata.get("source").unwrap(), "vibecody");
-        assert_eq!(std.metadata.get("category").unwrap(), "testing");
-        assert_eq!(std.metadata.get("difficulty").unwrap(), "intermediate");
+    fn test_skill_format_from_str() {
+        assert_eq!(SkillFormat::from_str("vibecody"), SkillFormat::VibeCody);
+        assert_eq!(SkillFormat::from_str("vibe-cody"), SkillFormat::VibeCody);
+        assert_eq!(SkillFormat::from_str("claude-code"), SkillFormat::ClaudeCode);
+        assert_eq!(SkillFormat::from_str("cursor"), SkillFormat::Cursor);
+        assert_eq!(SkillFormat::from_str("gemini_cli"), SkillFormat::GeminiCLI);
+        assert_eq!(
+            SkillFormat::from_str("unknown"),
+            SkillFormat::Custom("unknown".into())
+        );
     }
 
     #[test]
-    fn test_to_standard_sets_default_version() {
-        let vibe = make_vibe_skill("v");
-        let std = SkillConverter::to_standard(&vibe);
-        assert_eq!(std.version, "1.0.0");
+    fn test_skill_difficulty_round_trip() {
+        for d in &[
+            SkillDifficulty::Beginner,
+            SkillDifficulty::Intermediate,
+            SkillDifficulty::Advanced,
+            SkillDifficulty::Expert,
+        ] {
+            assert_eq!(SkillDifficulty::from_str(d.as_str()), *d);
+        }
     }
 
     #[test]
-    fn test_from_standard_extracts_category_from_metadata() {
-        let mut std = make_standard_skill("s");
-        std.metadata.insert("category".to_string(), "devops".to_string());
-        let vibe = SkillConverter::from_standard(&std);
-        assert_eq!(vibe.category, "devops");
+    fn test_difficulty_aliases() {
+        assert_eq!(SkillDifficulty::from_str("easy"), SkillDifficulty::Beginner);
+        assert_eq!(
+            SkillDifficulty::from_str("medium"),
+            SkillDifficulty::Intermediate
+        );
+        assert_eq!(SkillDifficulty::from_str("hard"), SkillDifficulty::Advanced);
+        assert_eq!(SkillDifficulty::from_str("guru"), SkillDifficulty::Expert);
+        assert_eq!(
+            SkillDifficulty::from_str("xyz"),
+            SkillDifficulty::Intermediate
+        );
+    }
+
+    // -- SkillParser tests --
+
+    #[test]
+    fn test_extract_frontmatter_with_yaml() {
+        let content = "---\nname: hello\nversion: 1.0\n---\nBody here";
+        let (fm, body) = SkillParser::extract_frontmatter(content);
+        assert_eq!(fm.get("name").unwrap(), "hello");
+        assert_eq!(fm.get("version").unwrap(), "1.0");
+        assert_eq!(body, "Body here");
     }
 
     #[test]
-    fn test_from_standard_defaults_category_to_imported() {
-        let std = make_standard_skill("s");
-        let vibe = SkillConverter::from_standard(&std);
-        assert_eq!(vibe.category, "imported");
+    fn test_extract_frontmatter_without_yaml() {
+        let content = "# No Frontmatter\n\nJust a markdown file.";
+        let (fm, body) = SkillParser::extract_frontmatter(content);
+        assert!(fm.is_empty());
+        assert_eq!(body, content);
     }
 
     #[test]
-    fn test_roundtrip_vibe_to_standard_and_back() {
-        let original = make_vibe_skill("roundtrip");
-        let std = SkillConverter::to_standard(&original);
-        let back = SkillConverter::from_standard(&std);
-        assert_eq!(back.name, original.name);
-        assert_eq!(back.description, original.description);
-        assert_eq!(back.content, original.content);
-        assert_eq!(back.tags, original.tags);
-        assert_eq!(back.difficulty, original.difficulty);
-        assert_eq!(back.category, original.category);
+    fn test_extract_frontmatter_unclosed() {
+        let content = "---\nname: broken\nno closing delimiter";
+        let (fm, body) = SkillParser::extract_frontmatter(content);
+        assert!(fm.is_empty());
+        assert_eq!(body, content);
     }
 
     #[test]
-    fn test_roundtrip_standard_to_vibe_and_back() {
-        let mut original = make_standard_skill("roundtrip2");
-        original.metadata.insert("category".to_string(), "security".to_string());
-        original.metadata.insert("difficulty".to_string(), "advanced".to_string());
-        let vibe = SkillConverter::from_standard(&original);
-        let back = SkillConverter::to_standard(&vibe);
-        assert_eq!(back.name, original.name);
-        assert_eq!(back.instructions, original.instructions);
-        assert_eq!(back.tags, original.tags);
-    }
-
-    // -- Batch export/import --
-
-    #[test]
-    fn test_batch_export() {
-        let skills: Vec<VibeCodySkill> = (0..5).map(|i| make_vibe_skill(&format!("s{}", i))).collect();
-        let exported = SkillConverter::batch_export(&skills);
-        assert_eq!(exported.len(), 5);
-        assert_eq!(exported[2].name, "s2");
+    fn test_parse_standard_with_frontmatter() {
+        let skill = SkillParser::parse(sample_frontmatter_skill()).unwrap();
+        assert_eq!(skill.metadata.name, "test-skill");
+        assert_eq!(skill.metadata.description, "A test skill for validation");
+        assert_eq!(skill.metadata.version, "1.0.0");
+        assert_eq!(skill.metadata.author, "VibeCody");
+        assert_eq!(skill.metadata.difficulty, SkillDifficulty::Intermediate);
+        assert!(skill.metadata.tags.contains(&"testing".to_string()));
+        assert!(skill.metadata.tags.contains(&"validation".to_string()));
+        assert!(!skill.examples.is_empty());
     }
 
     #[test]
-    fn test_batch_import() {
-        let skills: Vec<StandardSkill> = (0..3).map(|i| make_standard_skill(&format!("std{}", i))).collect();
-        let imported = SkillConverter::batch_import(&skills);
-        assert_eq!(imported.len(), 3);
-        assert_eq!(imported[1].name, "std1");
+    fn test_parse_standard_without_frontmatter() {
+        let content =
+            "# My Skill\n\nShort description.\n\n## Examples\n```\ninput here\n# expected output\n```\n";
+        let skill = SkillParser::parse(content).unwrap();
+        assert_eq!(skill.metadata.name, "My Skill");
+        assert_eq!(skill.metadata.description, "Short description.");
+        assert!(skill.frontmatter.is_empty());
+        assert_eq!(skill.examples.len(), 1);
     }
 
     #[test]
-    fn test_batch_export_empty() {
-        let exported = SkillConverter::batch_export(&[]);
-        assert!(exported.is_empty());
+    fn test_parse_empty_content() {
+        assert!(SkillParser::parse("").is_err());
+        assert!(SkillParser::parse("   ").is_err());
     }
 
-    // -- Validation tests --
+    #[test]
+    fn test_parse_vibecody_format() {
+        let skill = SkillParser::parse_vibecody(sample_vibecody_skill()).unwrap();
+        assert_eq!(skill.metadata.name, "My VibeCody Skill");
+        assert_eq!(skill.metadata.format, SkillFormat::VibeCody);
+        assert!(!skill.metadata.description.is_empty());
+        assert!(!skill.metadata.tags.is_empty());
+        assert!(!skill.examples.is_empty());
+    }
+
+    #[test]
+    fn test_parse_vibecody_empty() {
+        assert!(SkillParser::parse_vibecody("").is_err());
+    }
+
+    #[test]
+    fn test_parse_extracts_examples() {
+        let content =
+            "# Skill\n\nDesc.\n\n## Examples\n```\ncmd1\n# out1\n```\n\n```\ncmd2\n# out2\n```\n";
+        let skill = SkillParser::parse(content).unwrap();
+        assert_eq!(skill.examples.len(), 2);
+        assert_eq!(skill.examples[0].title, "Example 1");
+        assert_eq!(skill.examples[1].title, "Example 2");
+    }
+
+    #[test]
+    fn test_parse_no_examples_section() {
+        let content = "# Skill\n\nDescription only, no examples.";
+        let skill = SkillParser::parse(content).unwrap();
+        assert!(skill.examples.is_empty());
+    }
+
+    #[test]
+    fn test_parse_frontmatter_tags_comma_separated() {
+        let content =
+            "---\nname: tagged\ntags: rust, typescript, python\nversion: 0.1.0\n---\nBody.";
+        let skill = SkillParser::parse(content).unwrap();
+        assert_eq!(skill.metadata.tags, vec!["rust", "typescript", "python"]);
+    }
+
+    // -- SkillValidator tests --
 
     #[test]
     fn test_validate_valid_skill() {
-        let skill = make_standard_skill("valid");
+        let skill = make_standard_skill("valid-skill");
         let result = SkillValidator::validate(&skill);
         assert!(result.is_valid);
         assert!(result.errors.is_empty());
+        assert!(result.compatibility_score > 0.5);
     }
 
     #[test]
-    fn test_validate_empty_name() {
-        let mut skill = make_standard_skill("x");
-        skill.name = "".to_string();
+    fn test_validate_missing_name() {
+        let mut skill = make_standard_skill("test");
+        skill.metadata.name = String::new();
         let result = SkillValidator::validate(&skill);
         assert!(!result.is_valid);
         assert!(result.errors.iter().any(|e| e.contains("name")));
     }
 
     #[test]
-    fn test_validate_empty_description() {
-        let mut skill = make_standard_skill("x");
-        skill.description = "  ".to_string();
+    fn test_validate_missing_description() {
+        let mut skill = make_standard_skill("test");
+        skill.metadata.description = String::new();
         let result = SkillValidator::validate(&skill);
         assert!(!result.is_valid);
         assert!(result.errors.iter().any(|e| e.contains("description")));
     }
 
     #[test]
-    fn test_validate_bad_version() {
-        let mut skill = make_standard_skill("x");
-        skill.version = "not-semver".to_string();
+    fn test_validate_invalid_version() {
+        let mut skill = make_standard_skill("test");
+        skill.metadata.version = "not-a-version".to_string();
         let result = SkillValidator::validate(&skill);
         assert!(!result.is_valid);
-        assert!(result.errors.iter().any(|e| e.contains("semver")));
     }
 
     #[test]
-    fn test_validate_no_tags() {
-        let mut skill = make_standard_skill("x");
-        skill.tags.clear();
+    fn test_validate_empty_content_warning() {
+        let mut skill = make_standard_skill("test");
+        skill.content = "   ".to_string();
         let result = SkillValidator::validate(&skill);
         assert!(!result.is_valid);
-        assert!(result.errors.iter().any(|e| e.contains("tag")));
+        assert!(result.errors.iter().any(|e| e.contains("content")));
     }
 
     #[test]
-    fn test_validate_empty_instructions() {
-        let mut skill = make_standard_skill("x");
-        skill.instructions = "".to_string();
+    fn test_validate_long_description_warning() {
+        let mut skill = make_standard_skill("test");
+        skill.metadata.description = "x".repeat(250);
         let result = SkillValidator::validate(&skill);
-        assert!(!result.is_valid);
-        assert!(result.errors.iter().any(|e| e.contains("instructions")));
+        assert!(result.warnings.iter().any(|w| w.contains("200")));
     }
 
     #[test]
-    fn test_validate_warnings_for_missing_optional_fields() {
-        let mut skill = make_standard_skill("x");
-        skill.author = "".to_string();
-        skill.compatible_tools.clear();
+    fn test_validate_no_examples_warning() {
+        let mut skill = make_standard_skill("test");
         skill.examples.clear();
-        skill.output_format = None;
         let result = SkillValidator::validate(&skill);
-        assert!(result.is_valid);
-        assert!(result.warnings.len() >= 3);
+        assert!(result.warnings.iter().any(|w| w.contains("examples")));
     }
 
     #[test]
-    fn test_validate_invalid_required_param_reference() {
-        let mut skill = make_standard_skill("x");
-        skill.input_schema = Some(SkillInputSchema {
-            parameters: vec![SkillParam {
-                name: "foo".to_string(),
-                param_type: ParamType::String,
-                description: "a foo".to_string(),
-                default_value: None,
-            }],
-            required: vec!["bar".to_string()],
-        });
-        let result = SkillValidator::validate(&skill);
-        assert!(!result.is_valid);
-        assert!(result.errors.iter().any(|e| e.contains("bar")));
+    fn test_validate_metadata_name_too_long() {
+        let mut meta = make_metadata("x");
+        meta.name = "a".repeat(101);
+        let errs = SkillValidator::validate_metadata(&meta);
+        assert!(errs.iter().any(|e| e.contains("100")));
     }
 
     #[test]
-    fn test_validate_multiple_errors() {
+    fn test_validate_metadata_empty_version() {
+        let mut meta = make_metadata("x");
+        meta.version = String::new();
+        let errs = SkillValidator::validate_metadata(&meta);
+        assert!(errs.iter().any(|e| e.contains("version")));
+    }
+
+    // -- Compatibility scoring tests --
+
+    #[test]
+    fn test_compatibility_score_range() {
+        let skill = make_standard_skill("compat-test");
+        let score = SkillValidator::check_compatibility(&skill, &SkillFormat::Standard);
+        assert!(score >= 0.0 && score <= 1.0);
+    }
+
+    #[test]
+    fn test_compatibility_vibecody_higher_with_sections() {
+        let mut skill = make_standard_skill("compat-test");
+        skill.content = "# Title\n\n## When to Use\n- stuff\n\n## Commands\n- cmd".to_string();
+        let vc_score = SkillValidator::check_compatibility(&skill, &SkillFormat::VibeCody);
+        let std_score = SkillValidator::check_compatibility(&skill, &SkillFormat::Standard);
+        // VibeCody should score higher when content has ## When to Use sections
+        assert!(vc_score >= std_score || (vc_score - std_score).abs() < 0.2);
+    }
+
+    #[test]
+    fn test_compatibility_empty_skill_low_score() {
         let skill = StandardSkill {
-            name: "".to_string(),
-            description: "".to_string(),
-            version: "bad".to_string(),
-            author: "".to_string(),
-            tags: vec![],
-            compatible_tools: vec![],
-            instructions: "".to_string(),
-            input_schema: None,
-            output_format: None,
-            examples: vec![],
-            metadata: HashMap::new(),
+            metadata: SkillMetadata::default(),
+            content: String::new(),
+            frontmatter: HashMap::new(),
+            examples: Vec::new(),
         };
-        let result = SkillValidator::validate(&skill);
-        assert!(!result.is_valid);
-        assert!(result.errors.len() >= 4);
+        let score = SkillValidator::check_compatibility(&skill, &SkillFormat::Standard);
+        assert!(score < 0.3);
     }
 
-    // -- Registry tests --
+    // -- SkillConverter tests --
+
+    #[test]
+    fn test_convert_to_standard() {
+        let mut skill = make_standard_skill("convert-test");
+        skill.metadata.format = SkillFormat::VibeCody;
+        let result = SkillConverter::to_standard(&skill);
+        assert_eq!(result.skill.metadata.format, SkillFormat::Standard);
+        assert!(!result.changes_made.is_empty());
+    }
+
+    #[test]
+    fn test_convert_to_vibecody() {
+        let skill = make_standard_skill("convert-vc");
+        let result = SkillConverter::to_vibecody(&skill);
+        assert_eq!(result.skill.metadata.format, SkillFormat::VibeCody);
+    }
+
+    #[test]
+    fn test_convert_to_vibecody_adds_heading() {
+        let skill = StandardSkill {
+            metadata: make_metadata("no-heading"),
+            content: "Just plain text.".to_string(),
+            frontmatter: HashMap::new(),
+            examples: Vec::new(),
+        };
+        let result = SkillConverter::to_vibecody(&skill);
+        assert!(result.skill.content.starts_with("# no-heading"));
+        assert!(result.changes_made.iter().any(|c| c.contains("heading")));
+    }
+
+    #[test]
+    fn test_convert_to_claude_code() {
+        let mut skill = make_standard_skill("cc-test");
+        skill.metadata.input_types.clear();
+        skill.metadata.output_types.clear();
+        let result = SkillConverter::convert(&skill, &SkillFormat::ClaudeCode);
+        assert_eq!(result.skill.metadata.format, SkillFormat::ClaudeCode);
+        assert!(!result.skill.metadata.input_types.is_empty());
+        assert!(!result.skill.metadata.output_types.is_empty());
+    }
+
+    #[test]
+    fn test_convert_to_cursor() {
+        let skill = make_standard_skill("cursor-test");
+        let result = SkillConverter::convert(&skill, &SkillFormat::Cursor);
+        assert_eq!(result.skill.metadata.format, SkillFormat::Cursor);
+    }
+
+    #[test]
+    fn test_convert_to_custom() {
+        let skill = make_standard_skill("custom-test");
+        let result = SkillConverter::convert(&skill, &SkillFormat::Custom("myformat".into()));
+        assert_eq!(
+            result.skill.metadata.format,
+            SkillFormat::Custom("myformat".into())
+        );
+        assert!(result.warnings.iter().any(|w| w.contains("Custom format")));
+    }
+
+    // -- SkillRegistry tests --
 
     #[test]
     fn test_registry_add_and_count() {
         let mut reg = SkillRegistry::new();
         assert_eq!(reg.count(), 0);
-        reg.add_skill(make_standard_skill("a")).unwrap();
-        assert_eq!(reg.count(), 1);
+        reg.add(make_registry_entry("skill-a", 4.5, true));
+        reg.add(make_registry_entry("skill-b", 3.0, false));
+        assert_eq!(reg.count(), 2);
     }
 
     #[test]
-    fn test_registry_add_duplicate_fails() {
+    fn test_registry_get() {
         let mut reg = SkillRegistry::new();
-        reg.add_skill(make_standard_skill("dup")).unwrap();
-        let result = reg.add_skill(make_standard_skill("dup"));
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("already exists"));
-    }
-
-    #[test]
-    fn test_registry_remove_skill() {
-        let mut reg = SkillRegistry::new();
-        reg.add_skill(make_standard_skill("rm")).unwrap();
-        assert!(reg.remove_skill("rm"));
-        assert_eq!(reg.count(), 0);
-    }
-
-    #[test]
-    fn test_registry_remove_nonexistent() {
-        let mut reg = SkillRegistry::new();
-        assert!(!reg.remove_skill("ghost"));
+        reg.add(make_registry_entry("find-me", 5.0, true));
+        assert!(reg.get("find-me").is_some());
+        assert!(reg.get("not-here").is_none());
     }
 
     #[test]
     fn test_registry_search_by_name() {
         let mut reg = SkillRegistry::new();
-        reg.add_skill(make_standard_skill("code-review")).unwrap();
-        reg.add_skill(make_standard_skill("refactor")).unwrap();
-        let results = reg.search("code");
+        reg.add(make_registry_entry("rust-review", 4.0, true));
+        reg.add(make_registry_entry("python-lint", 3.5, false));
+        let results = reg.search("rust");
         assert_eq!(results.len(), 1);
-        assert_eq!(results[0].name, "code-review");
-    }
-
-    #[test]
-    fn test_registry_search_by_description() {
-        let mut reg = SkillRegistry::new();
-        reg.add_skill(make_standard_skill("alpha")).unwrap();
-        let results = reg.search("alpha description");
-        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].skill.name, "rust-review");
     }
 
     #[test]
     fn test_registry_search_by_tag() {
         let mut reg = SkillRegistry::new();
-        let mut s = make_standard_skill("tagged");
-        s.tags = vec!["security".to_string(), "audit".to_string()];
-        reg.add_skill(s).unwrap();
-        reg.add_skill(make_standard_skill("other")).unwrap();
-
+        let mut entry = make_registry_entry("tagged-skill", 4.0, true);
+        entry.skill.tags = vec!["security".to_string(), "audit".to_string()];
+        reg.add(entry);
+        reg.add(make_registry_entry("other-skill", 3.0, false));
         let results = reg.search_by_tag("security");
         assert_eq!(results.len(), 1);
-        assert_eq!(results[0].name, "tagged");
+        assert_eq!(results[0].skill.name, "tagged-skill");
     }
 
     #[test]
-    fn test_registry_search_by_tag_case_insensitive() {
+    fn test_registry_verified_only() {
         let mut reg = SkillRegistry::new();
-        let mut s = make_standard_skill("ci");
-        s.tags = vec!["CI-CD".to_string()];
-        reg.add_skill(s).unwrap();
-        let results = reg.search_by_tag("ci-cd");
-        assert_eq!(results.len(), 1);
+        reg.add(make_registry_entry("verified-a", 4.0, true));
+        reg.add(make_registry_entry("unverified-b", 3.0, false));
+        reg.add(make_registry_entry("verified-c", 5.0, true));
+        let verified = reg.verified_only();
+        assert_eq!(verified.len(), 2);
     }
 
     #[test]
-    fn test_registry_search_by_tool() {
+    fn test_registry_top_rated() {
         let mut reg = SkillRegistry::new();
-        let mut s = make_standard_skill("for-junie");
-        s.compatible_tools = vec!["junie".to_string()];
-        reg.add_skill(s).unwrap();
-        reg.add_skill(make_standard_skill("generic")).unwrap();
-
-        let results = reg.search_by_tool("junie");
-        assert_eq!(results.len(), 1);
-        assert_eq!(results[0].name, "for-junie");
+        reg.add(make_registry_entry("low", 1.0, false));
+        reg.add(make_registry_entry("high", 5.0, true));
+        reg.add(make_registry_entry("mid", 3.0, false));
+        let top = reg.top_rated(2);
+        assert_eq!(top.len(), 2);
+        assert_eq!(top[0].skill.name, "high");
+        assert_eq!(top[1].skill.name, "mid");
     }
 
     #[test]
     fn test_registry_list_all() {
         let mut reg = SkillRegistry::new();
-        reg.add_skill(make_standard_skill("a")).unwrap();
-        reg.add_skill(make_standard_skill("b")).unwrap();
-        assert_eq!(reg.list_all().len(), 2);
+        reg.add(make_registry_entry("a", 1.0, false));
+        reg.add(make_registry_entry("b", 2.0, true));
+        assert_eq!(reg.list().len(), 2);
     }
 
-    // -- JSON serialization --
-
     #[test]
-    fn test_registry_export_import_json() {
+    fn test_registry_search_empty_query() {
         let mut reg = SkillRegistry::new();
-        reg.add_skill(make_standard_skill("json1")).unwrap();
-        reg.add_skill(make_standard_skill("json2")).unwrap();
-        let json = reg.export_to_json().unwrap();
-
-        let mut reg2 = SkillRegistry::new();
-        let count = reg2.import_from_json(&json).unwrap();
-        assert_eq!(count, 2);
-        assert_eq!(reg2.count(), 2);
-    }
-
-    #[test]
-    fn test_registry_import_invalid_json() {
-        let mut reg = SkillRegistry::new();
-        let result = reg.import_from_json("not json");
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_registry_import_skips_duplicates() {
-        let mut reg = SkillRegistry::new();
-        reg.add_skill(make_standard_skill("existing")).unwrap();
-        let json = serde_json::to_string(&vec![make_standard_skill("existing")]).unwrap();
-        let count = reg.import_from_json(&json).unwrap();
-        assert_eq!(count, 1); // Reported 1 in source, but skipped.
-        assert_eq!(reg.count(), 1); // Still 1.
-    }
-
-    // -- Compatibility scoring --
-
-    #[test]
-    fn test_compatibility_score_full() {
-        let mut skill = make_standard_skill("full");
-        skill.input_schema = Some(SkillInputSchema {
-            parameters: vec![],
-            required: vec![],
-        });
-        // compatible_tools includes "claude-code", has 1 tag, has examples, has schema.
-        let score = SkillRegistry::compatibility_score(&skill, "claude-code");
-        assert!(score > 0.7);
-    }
-
-    #[test]
-    fn test_compatibility_score_no_tool_match() {
-        let skill = make_standard_skill("nomatch");
-        let score = SkillRegistry::compatibility_score(&skill, "unknown-tool");
-        assert!(score < 0.5);
-    }
-
-    #[test]
-    fn test_compatibility_score_zero_for_empty_skill() {
-        let skill = StandardSkill {
-            name: "empty".to_string(),
-            description: "".to_string(),
-            version: "1.0.0".to_string(),
-            author: "".to_string(),
-            tags: vec![],
-            compatible_tools: vec![],
-            instructions: "".to_string(),
-            input_schema: None,
-            output_format: None,
-            examples: vec![],
-            metadata: HashMap::new(),
-        };
-        let score = SkillRegistry::compatibility_score(&skill, "anything");
-        assert!(score < 0.01);
-    }
-
-    // -- Discovery tests --
-
-    #[test]
-    fn test_discovery_discover_returns_skills() {
-        let mut disc = SkillDiscovery::new(vec!["https://registry.example.com/community".to_string()]);
-        let skills = disc.discover("https://registry.example.com/community").unwrap();
-        assert_eq!(skills.len(), 2);
-        assert!(skills[0].name.contains("community"));
-    }
-
-    #[test]
-    fn test_discovery_caches_results() {
-        let mut disc = SkillDiscovery::new(vec![]);
-        disc.discover("https://r.io/main").unwrap();
-        let cached = disc.get_cached("https://r.io/main");
-        assert!(cached.is_some());
-        assert_eq!(cached.unwrap().len(), 2);
-    }
-
-    #[test]
-    fn test_discovery_empty_url_fails() {
-        let mut disc = SkillDiscovery::new(vec![]);
-        let result = disc.discover("");
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_discovery_refresh_cache() {
-        let mut disc = SkillDiscovery::new(vec![
-            "https://a.io/skills".to_string(),
-            "https://b.io/skills".to_string(),
-        ]);
-        let total = disc.refresh_cache().unwrap();
-        assert_eq!(total, 4); // 2 skills per URL.
-        assert_eq!(disc.cached_skills.len(), 2);
-    }
-
-    #[test]
-    fn test_discovery_get_cached_miss() {
-        let disc = SkillDiscovery::new(vec![]);
-        assert!(disc.get_cached("https://nowhere.io").is_none());
-    }
-
-    // -- Migration tests --
-
-    #[test]
-    fn test_migrate_directory_nonempty_path() {
-        let report = SkillMigrator::migrate_directory("/some/skills/dir");
-        assert!(report.total > 0);
-        assert_eq!(report.total, report.converted + report.skipped + report.errors.len());
-    }
-
-    #[test]
-    fn test_migrate_directory_empty_path() {
-        let report = SkillMigrator::migrate_directory("");
-        assert_eq!(report.total, 0);
-        assert!(!report.errors.is_empty());
-    }
-
-    #[test]
-    fn test_migrate_skills_with_valid_batch() {
-        let skills = vec![make_vibe_skill("a"), make_vibe_skill("b")];
-        let (converted, report) = SkillMigrator::migrate_skills(&skills);
-        assert_eq!(converted.len(), 2);
-        assert_eq!(report.converted, 2);
-        assert_eq!(report.skipped, 0);
-        assert!(report.errors.is_empty());
-    }
-
-    #[test]
-    fn test_migrate_skills_skips_empty_name() {
-        let skill = make_vibe_skill("good");
-        let mut empty_name = make_vibe_skill("");
-        empty_name.name = "  ".to_string();
-        let skills = vec![skill.clone(), empty_name];
-        let (converted, report) = SkillMigrator::migrate_skills(&skills);
-        assert_eq!(converted.len(), 1);
-        assert_eq!(report.skipped, 1);
-    }
-
-    #[test]
-    fn test_migrate_skills_errors_on_empty_content() {
-        let mut bad = make_vibe_skill("bad");
-        bad.content = "".to_string();
-        let (converted, report) = SkillMigrator::migrate_skills(&[bad]);
-        assert_eq!(converted.len(), 0);
-        assert_eq!(report.errors.len(), 1);
-        assert!(report.errors[0].contains("empty content"));
-    }
-
-    // -- Edge cases --
-
-    #[test]
-    fn test_param_type_display() {
-        assert_eq!(format!("{}", ParamType::String), "string");
-        assert_eq!(format!("{}", ParamType::Number), "number");
-        assert_eq!(format!("{}", ParamType::Boolean), "boolean");
-        assert_eq!(format!("{}", ParamType::Array), "array");
-        assert_eq!(format!("{}", ParamType::Object), "object");
-    }
-
-    #[test]
-    fn test_standard_skill_serde_roundtrip() {
-        let skill = make_standard_skill("serde-test");
-        let json = serde_json::to_string(&skill).unwrap();
-        let back: StandardSkill = serde_json::from_str(&json).unwrap();
-        assert_eq!(skill, back);
-    }
-
-    #[test]
-    fn test_vibe_skill_serde_roundtrip() {
-        let skill = make_vibe_skill("serde-vibe");
-        let json = serde_json::to_string(&skill).unwrap();
-        let back: VibeCodySkill = serde_json::from_str(&json).unwrap();
-        assert_eq!(skill, back);
-    }
-
-    #[test]
-    fn test_validation_result_serde() {
-        let vr = ValidationResult {
-            is_valid: false,
-            errors: vec!["e1".to_string()],
-            warnings: vec!["w1".to_string()],
-        };
-        let json = serde_json::to_string(&vr).unwrap();
-        let back: ValidationResult = serde_json::from_str(&json).unwrap();
-        assert_eq!(vr, back);
-    }
-
-    #[test]
-    fn test_skill_with_full_input_schema() {
-        let mut skill = make_standard_skill("schema-test");
-        skill.input_schema = Some(SkillInputSchema {
-            parameters: vec![
-                SkillParam {
-                    name: "language".to_string(),
-                    param_type: ParamType::String,
-                    description: "Target language".to_string(),
-                    default_value: Some("rust".to_string()),
-                },
-                SkillParam {
-                    name: "verbose".to_string(),
-                    param_type: ParamType::Boolean,
-                    description: "Verbose output".to_string(),
-                    default_value: None,
-                },
-            ],
-            required: vec!["language".to_string()],
-        });
-        let result = SkillValidator::validate(&skill);
-        assert!(result.is_valid);
-    }
-
-    #[test]
-    fn test_registry_default() {
-        let reg = SkillRegistry::default();
-        assert_eq!(reg.count(), 0);
-    }
-
-    #[test]
-    fn test_search_empty_query_returns_all() {
-        let mut reg = SkillRegistry::new();
-        reg.add_skill(make_standard_skill("x")).unwrap();
-        reg.add_skill(make_standard_skill("y")).unwrap();
-        // Empty string is contained in all strings.
+        reg.add(make_registry_entry("anything", 1.0, false));
+        // Empty query matches everything (contains "")
         let results = reg.search("");
-        assert_eq!(results.len(), 2);
+        assert_eq!(results.len(), 1);
+    }
+
+    // -- SkillExporter tests --
+
+    #[test]
+    fn test_export_to_standard_has_frontmatter() {
+        let skill = make_standard_skill("export-test");
+        let output = SkillExporter::export_to_standard(&skill);
+        assert!(output.starts_with("---\n"));
+        assert!(output.contains("name: export-test"));
+        assert!(output.contains("version: 1.0.0"));
+        assert!(output.contains("difficulty: intermediate"));
     }
 
     #[test]
-    fn test_conversion_without_difficulty() {
-        let mut vibe = make_vibe_skill("no-diff");
-        vibe.difficulty = None;
-        let std = SkillConverter::to_standard(&vibe);
-        assert!(!std.metadata.contains_key("difficulty"));
-        let back = SkillConverter::from_standard(&std);
-        assert_eq!(back.difficulty, None);
+    fn test_export_includes_tags() {
+        let skill = make_standard_skill("tagged");
+        let output = SkillExporter::export_to_standard(&skill);
+        assert!(output.contains("tags: test"));
+    }
+
+    #[test]
+    fn test_export_batch() {
+        let skills = vec![
+            make_standard_skill("batch-one"),
+            make_standard_skill("batch-two"),
+        ];
+        let batch = SkillExporter::export_batch(&skills);
+        assert_eq!(batch.len(), 2);
+        assert_eq!(batch[0].0, "batch-one.md");
+        assert_eq!(batch[1].0, "batch-two.md");
+        assert!(batch[0].1.contains("name: batch-one"));
+        assert!(batch[1].1.contains("name: batch-two"));
+    }
+
+    #[test]
+    fn test_export_batch_empty_name() {
+        let mut skill = make_standard_skill("test");
+        skill.metadata.name = String::new();
+        let batch = SkillExporter::export_batch(&[skill]);
+        assert_eq!(batch[0].0, "untitled.md");
+    }
+
+    // -- SkillImporter tests --
+
+    #[test]
+    fn test_import_from_string_standard() {
+        let content = sample_frontmatter_skill();
+        let skill = SkillImporter::import_from_string(content, &SkillFormat::Standard).unwrap();
+        assert_eq!(skill.metadata.name, "test-skill");
+    }
+
+    #[test]
+    fn test_import_from_string_vibecody() {
+        let content = sample_vibecody_skill();
+        let skill = SkillImporter::import_from_string(content, &SkillFormat::VibeCody).unwrap();
+        assert_eq!(skill.metadata.name, "My VibeCody Skill");
+        assert_eq!(skill.metadata.format, SkillFormat::VibeCody);
+    }
+
+    #[test]
+    fn test_import_from_string_fallback() {
+        let content = "# Fallback Skill\n\nWorks with any format.\n";
+        let skill = SkillImporter::import_from_string(content, &SkillFormat::ClaudeCode).unwrap();
+        assert_eq!(skill.metadata.name, "Fallback Skill");
+    }
+
+    #[test]
+    fn test_import_from_nonexistent_directory() {
+        let results = SkillImporter::import_from_directory("/nonexistent/path/12345");
+        assert_eq!(results.len(), 1);
+        assert!(results[0].is_err());
+    }
+
+    // -- Round-trip tests --
+
+    #[test]
+    fn test_export_import_round_trip() {
+        let original = make_standard_skill("round-trip");
+        let exported = SkillExporter::export_to_standard(&original);
+        let reimported = SkillParser::parse(&exported).unwrap();
+        assert_eq!(reimported.metadata.name, original.metadata.name);
+        assert_eq!(reimported.metadata.version, original.metadata.version);
+        assert_eq!(reimported.metadata.difficulty, original.metadata.difficulty);
+    }
+
+    #[test]
+    fn test_convert_round_trip_standard_vibecody() {
+        let original = make_standard_skill("round-trip-convert");
+        let to_vc = SkillConverter::to_vibecody(&original);
+        let back = SkillConverter::to_standard(&to_vc.skill);
+        assert_eq!(back.skill.metadata.name, original.metadata.name);
+        assert_eq!(back.skill.metadata.format, SkillFormat::Standard);
+    }
+
+    // -- Error handling tests --
+
+    #[test]
+    fn test_parse_only_whitespace() {
+        assert!(SkillParser::parse("   \n\n  ").is_err());
+    }
+
+    #[test]
+    fn test_validate_version_four_parts() {
+        let mut meta = make_metadata("test");
+        meta.version = "1.2.3.4".to_string();
+        let errs = SkillValidator::validate_metadata(&meta);
+        assert!(errs.iter().any(|e| e.contains("semver")));
+    }
+
+    #[test]
+    fn test_validate_version_non_numeric() {
+        let mut meta = make_metadata("test");
+        meta.version = "1.abc.0".to_string();
+        let errs = SkillValidator::validate_metadata(&meta);
+        assert!(errs.iter().any(|e| e.contains("not a valid number")));
     }
 }

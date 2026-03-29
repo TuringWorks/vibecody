@@ -161,6 +161,23 @@ pub fn run() {
             mock_request_log: Arc::new(Mutex::new(Vec::new())),
             sub_agents: Arc::new(Mutex::new(Vec::new())),
             active_team: Arc::new(Mutex::new(None)),
+            a2a_agents: Arc::new(Mutex::new(Vec::new())),
+            a2a_tasks: Arc::new(Mutex::new(Vec::new())),
+            a2a_metrics: Arc::new(Mutex::new(serde_json::json!({
+                "tasks_created": 0,
+                "tasks_completed": 0,
+                "tasks_failed": 0,
+                "tasks_cancelled": 0,
+                "agents_discovered": 0
+            }))),
+            a2a_local_card: Arc::new(Mutex::new(serde_json::json!({
+                "name": "VibeCody",
+                "description": "VibeCody AI coding assistant — A2A-compatible agent",
+                "version": "1.0.0",
+                "capabilities": ["code_generation", "code_review", "debugging", "refactoring", "testing"],
+                "endpoint": "http://localhost:9876/a2a",
+                "protocol": "a2a/1.0"
+            }))),
         })
         .invoke_handler(tauri::generate_handler![
             commands::read_file,
@@ -1097,6 +1114,10 @@ pub fn run() {
             commands::a2a_discover,
             commands::a2a_submit_task,
             commands::a2a_get_metrics,
+            commands::a2a_get_agent_card,
+            commands::a2a_update_agent_card,
+            commands::a2a_list_tasks,
+            commands::a2a_cancel_task,
             commands::skills_list,
             commands::skills_import,
             commands::skills_validate,
