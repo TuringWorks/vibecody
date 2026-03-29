@@ -373,8 +373,8 @@ impl SpeculativeEngine {
             }
         }
 
+        let decision_id = self.sessions.get(session_id).expect("session verified above").decision.id.clone();
         let branch_id = self.gen_id("br");
-        let decision_id = self.sessions.get(session_id).unwrap().decision.id.clone();
         let ts = self.now();
 
         let branch = SpeculativeBranch {
@@ -550,7 +550,7 @@ impl SpeculativeEngine {
         self.metrics.auto_selected += 1;
 
         // Estimate time saved: sum of all branch durations minus best branch duration
-        let best_duration = session
+        let _best_duration = session
             .branches
             .iter()
             .find(|b| b.id == best_id)
