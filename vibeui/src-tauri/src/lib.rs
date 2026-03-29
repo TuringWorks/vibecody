@@ -235,6 +235,7 @@ pub fn run() {
             wizard_configs: Arc::new(Mutex::new(Vec::new())),
             training_jobs: Arc::new(Mutex::new(Vec::new())),
             browser_sessions: Arc::new(Mutex::new(Vec::new())),
+            turboquant_index: Arc::new(Mutex::new(None)),
         })
         .invoke_handler(tauri::generate_handler![
             commands::read_file,
@@ -1297,6 +1298,12 @@ pub fn run() {
             // Browser Agent
             commands::browser_list_sessions,
             commands::browser_create_session,
+            // TurboQuant
+            commands::turboquant_stats,
+            commands::turboquant_insert,
+            commands::turboquant_search,
+            commands::turboquant_benchmark,
+            commands::turboquant_clear,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

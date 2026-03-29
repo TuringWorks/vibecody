@@ -6280,6 +6280,83 @@ async fn main() -> Result<()> {
                             }
                         }
 
+                        "/turboquant" => {
+                            let sub_parts: Vec<&str> = args.splitn(2, ' ').collect();
+                            let subcmd = sub_parts.first().copied().unwrap_or("").trim();
+                            match subcmd {
+                                "benchmark" => {
+                                    let bench_args: Vec<&str> = if sub_parts.len() > 1 {
+                                        sub_parts[1].trim().split_whitespace().collect()
+                                    } else {
+                                        vec![]
+                                    };
+                                    let n: usize = bench_args.first().and_then(|s| s.parse().ok()).unwrap_or(500);
+                                    let dim: usize = bench_args.get(1).and_then(|s| s.parse().ok()).unwrap_or(128);
+                                    println!("Running TurboQuant benchmark: {n} vectors, {dim}-dim...");
+                                    let config = vibe_core::index::turboquant::TurboQuantConfig {
+                                        dimension: dim,
+                                        seed: 42,
+                                        qjl_proj_dim: None,
+                                    };
+                                    let mut idx = vibe_core::index::turboquant::TurboQuantIndex::new(config);
+                                    let mut rng_state = 12345u64;
+                                    let mut next_f32 = || -> f32 {
+                                        rng_state ^= rng_state << 13;
+                                        rng_state ^= rng_state >> 7;
+                                        rng_state ^= rng_state << 17;
+                                        (rng_state as f64 / u64::MAX as f64) as f32 * 2.0 - 1.0
+                                    };
+                                    let mut vectors: Vec<Vec<f32>> = Vec::with_capacity(n);
+                                    for i in 0..n {
+                                        let v: Vec<f32> = (0..dim).map(|_| next_f32()).collect();
+                                        let norm: f32 = v.iter().map(|x| x * x).sum::<f32>().sqrt();
+                                        let v: Vec<f32> = v.into_iter().map(|x| x / norm).collect();
+                                        let _ = idx.insert(format!("{i}"), &v, std::collections::HashMap::new());
+                                        vectors.push(v);
+                                    }
+                                    let stats = idx.stats();
+                                    println!("  Vectors:      {}", stats.num_vectors);
+                                    println!("  Compressed:   {} bytes", stats.compressed_bytes);
+                                    println!("  Uncompressed: {} bytes", stats.uncompressed_bytes);
+                                    println!("  Ratio:        {:.1}×", stats.compression_ratio);
+                                    println!("  Bits/dim:     {:.1}", stats.bits_per_dimension);
+                                    // Quick recall test
+                                    let k = 10;
+                                    let query = &vectors[0];
+                                    let results = idx.search(query, k);
+                                    let gt_ids: Vec<usize> = {
+                                        let mut scored: Vec<(f32, usize)> = vectors.iter().enumerate()
+                                            .map(|(i, v)| {
+                                                let dot: f32 = query.iter().zip(v.iter()).map(|(a, b)| a * b).sum();
+                                                (dot, i)
+                                            }).collect();
+                                        scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+                                        scored.iter().take(k).map(|(_, i)| *i).collect()
+                                    };
+                                    let tq_ids: Vec<usize> = results.iter().filter_map(|r| r.id.parse().ok()).collect();
+                                    let hits = tq_ids.iter().filter(|id| gt_ids.contains(id)).count();
+                                    println!("  Recall@{k}:   {:.0}%\n", hits as f64 / k as f64 * 100.0);
+                                }
+                                "memory" => {
+                                    let params_str = if sub_parts.len() > 1 { sub_parts[1].trim() } else { "7" };
+                                    let params: f64 = params_str.parse().unwrap_or(7.0);
+                                    let tq = inference_server::estimate_gpu_memory(params, &inference_server::QuantizationMethod::TurboQuant);
+                                    let fp16 = inference_server::estimate_gpu_memory(params, &inference_server::QuantizationMethod::Fp16);
+                                    let int4 = inference_server::estimate_gpu_memory(params, &inference_server::QuantizationMethod::Int4);
+                                    println!("KV-cache memory for {params}B model:");
+                                    println!("  FP16:       ~{fp16} MB");
+                                    println!("  INT4:       ~{int4} MB");
+                                    println!("  TurboQuant: ~{tq} MB (~3 bits/param)\n");
+                                }
+                                _ => {
+                                    println!("TurboQuant — PolarQuant + QJL vector compression (~3 bits/dim)");
+                                    println!("Usage:");
+                                    println!("  /turboquant benchmark [N] [DIM]  Run compression + recall benchmark");
+                                    println!("  /turboquant memory [B]           Compare KV-cache memory estimates\n");
+                                }
+                            }
+                        }
+
                         "/voice" => {
                             let sub_parts: Vec<&str> = args.splitn(2, ' ').collect();
                             let subcmd = sub_parts.first().copied().unwrap_or("").trim();
@@ -9828,6 +9905,8 @@ fn show_help() {
     println!("  /inference suggest <m>   - Recommend inference backend for model");
     println!("  /inference memory <B>    - Estimate VRAM for inference");
     println!("  /inference backends      - List supported inference backends");
+    println!("  /turboquant benchmark    - TurboQuant compression + recall benchmark");
+    println!("  /turboquant memory <B>   - Compare KV-cache memory (FP16/INT4/TurboQuant)");
     println!("  /profile list            - List named profiles (~/.vibecli/profiles/)");
     println!("  /profile show <name>     - Show a profile's settings");
     println!("  /profile create <name>   - Create a new profile interactively");
