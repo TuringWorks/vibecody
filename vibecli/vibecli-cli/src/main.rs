@@ -304,6 +304,9 @@ mod api_key_monitor;
 mod context_protocol;
 mod code_review_agent;
 mod diff_review;
+mod code_replay;
+mod speculative_exec;
+mod explainable_agent;
 
 #[derive(Parser)]
 #[command(name = "vibecli")]
@@ -6506,6 +6509,201 @@ async fn main() -> Result<()> {
                                     println!("VibeCody Diff Review\n");
                                     println!("  /diffreview staged      — Assess staged diff risk");
                                     println!("  /diffreview regressions — Detect regressions in last commit\n");
+                                }
+                            }
+                        }
+
+                        // ── Phase 32 P0: Code Replay ──
+                        "/replay" => {
+                            let sub = args.split_whitespace().next().unwrap_or("help");
+                            let rest = args.trim().strip_prefix(sub).unwrap_or("").trim();
+                            use code_replay::*;
+                            use std::sync::OnceLock;
+                            static REPLAY: OnceLock<std::sync::Mutex<ReplayEngine>> = OnceLock::new();
+                            let re_lock = REPLAY.get_or_init(|| std::sync::Mutex::new(ReplayEngine::new()));
+                            let mut engine = re_lock.lock().unwrap();
+                            match sub {
+                                "list" | "" => {
+                                    let timelines = engine.list_timelines();
+                                    if timelines.is_empty() { println!("No timelines. Agent edits will be recorded automatically.\n"); }
+                                    else {
+                                        println!("Timelines ({}):\n", timelines.len());
+                                        for (id, tl) in &timelines {
+                                            println!("  {} — {} ({} steps, {} branches)", id, tl.name, tl.total_steps,  tl.branches.len());
+                                        }
+                                        println!();
+                                    }
+                                }
+                                "play" => {
+                                    if rest.is_empty() { println!("Usage: /replay play <timeline_id> [step]\n"); }
+                                    else {
+                                        let parts: Vec<&str> = rest.splitn(2, ' ').collect();
+                                        let step: usize = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0);
+                                        match engine.scrub_to(parts[0], step) {
+                                            Ok(s) => {
+                                                let info = format!("Step {}: {:?} {} — {}", s.step_number, s.edit_type, s.file_path, s.reasoning);
+                                                let diff = engine.get_diff_at(parts[0], step).unwrap_or_default();
+                                                println!("{}\n  {}\n", info, diff);
+                                            }
+                                            Err(e) => println!("Error: {}\n", e),
+                                        }
+                                    }
+                                }
+                                "fork" => {
+                                    let parts: Vec<&str> = rest.splitn(3, ' ').collect();
+                                    if parts.len() < 3 { println!("Usage: /replay fork <timeline_id> <step> <branch_name>\n"); }
+                                    else {
+                                        let step: usize = parts[1].parse().unwrap_or(0);
+                                        match engine.fork(parts[0], step, parts[2]) {
+                                            Ok(bid) => println!("Forked branch '{}': {}\n", parts[2], bid),
+                                            Err(e) => println!("Error: {}\n", e),
+                                        }
+                                    }
+                                }
+                                "export" => {
+                                    if rest.is_empty() { println!("Usage: /replay export <timeline_id> [json|markdown]\n"); }
+                                    else {
+                                        let parts: Vec<&str> = rest.splitn(2, ' ').collect();
+                                        let fmt = parts.get(1).unwrap_or(&"markdown");
+                                        match engine.export_timeline(parts[0], fmt) {
+                                            Ok(exp) => println!("{}\n", exp.content),
+                                            Err(e) => println!("Error: {}\n", e),
+                                        }
+                                    }
+                                }
+                                "prune" => {
+                                    if rest.is_empty() { println!("Usage: /replay prune <timeline_id> [keep_last]\n"); }
+                                    else {
+                                        let parts: Vec<&str> = rest.splitn(2, ' ').collect();
+                                        let keep: usize = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(50);
+                                        match engine.prune(parts[0], keep) {
+                                            Ok(n) => println!("Pruned {} steps\n", n),
+                                            Err(e) => println!("Error: {}\n", e),
+                                        }
+                                    }
+                                }
+                                _ => {
+                                    println!("VibeCody Code Replay — Time-travel through agent edits\n");
+                                    println!("  /replay list                       — List timelines");
+                                    println!("  /replay play <id> [step]           — Scrub to step");
+                                    println!("  /replay fork <id> <step> <name>    — Fork at step");
+                                    println!("  /replay export <id> [format]       — Export (json/markdown)");
+                                    println!("  /replay prune <id> [keep]          — Prune old steps\n");
+                                }
+                            }
+                        }
+
+                        // ── Phase 32 P0: Speculative Execution ──
+                        "/speculate" => {
+                            let sub = args.split_whitespace().next().unwrap_or("help");
+                            let rest = args.trim().strip_prefix(sub).unwrap_or("").trim();
+                            use speculative_exec::*;
+                            use std::sync::OnceLock;
+                            static SPEC: OnceLock<std::sync::Mutex<SpeculativeEngine>> = OnceLock::new();
+                            let spec_lock = SPEC.get_or_init(|| std::sync::Mutex::new(SpeculativeEngine::new(SpecConfig::default())));
+                            let spec = spec_lock.lock().unwrap();
+                            match sub {
+                                "status" | "" => {
+                                    let sessions = spec.list_sessions();
+                                    let m = spec.get_metrics();
+                                    println!("Speculative Execution\n  Active sessions: {}\n  Total: {}\n  Branches spawned: {}\n  Auto-selected: {}\n  Time saved: ~{:.0}s\n",
+                                        sessions.len(), m.total_sessions, m.total_branches, m.auto_selected, m.time_saved_estimate_secs);
+                                }
+                                "compare" => {
+                                    if rest.is_empty() { println!("Usage: /speculate compare <session_id>\n"); }
+                                    else {
+                                        match spec.compare_branches(rest) {
+                                            Ok(comparisons) => {
+                                                println!("Branch comparison for {}:\n", rest);
+                                                for c in &comparisons {
+                                                    let star = if c.recommendation { " ★" } else { "" };
+                                                    println!("  {} — {} (score: {:.2}, diff: {} lines, cost: {} tokens){}", c.branch_id, c.option, c.test_score, c.diff_size, c.cost, star);
+                                                }
+                                                println!();
+                                            }
+                                            Err(e) => println!("Error: {}\n", e),
+                                        }
+                                    }
+                                }
+                                "select" => {
+                                    let parts: Vec<&str> = rest.splitn(2, ' ').collect();
+                                    if parts.len() < 2 { println!("Usage: /speculate select <session_id> <branch_id>\n"); }
+                                    else { println!("Manual selection: branch {} in session {}\n", parts[1], parts[0]); }
+                                }
+                                "config" => {
+                                    println!("Speculative Config\n  Max branches: 4\n  Confidence threshold: 0.7 (below → auto-speculate)\n  Timeout: 300s\n  Auto-select: true\n  Run tests: true\n");
+                                }
+                                _ => {
+                                    println!("VibeCody Speculative Execution\n");
+                                    println!("  /speculate status            — Active sessions and metrics");
+                                    println!("  /speculate compare <id>      — Compare branches side-by-side");
+                                    println!("  /speculate select <id> <br>  — Manually select a branch");
+                                    println!("  /speculate config            — Show configuration\n");
+                                }
+                            }
+                        }
+
+                        // ── Phase 32 P0: Explainable Agent ──
+                        "/explain" => {
+                            let sub = args.split_whitespace().next().unwrap_or("help");
+                            let rest = args.trim().strip_prefix(sub).unwrap_or("").trim();
+                            use explainable_agent::*;
+                            use std::sync::OnceLock;
+                            static EXPLAIN: OnceLock<std::sync::Mutex<ExplanationEngine>> = OnceLock::new();
+                            let exp_lock = EXPLAIN.get_or_init(|| std::sync::Mutex::new(ExplanationEngine::new(ExplainConfig::default())));
+                            let exp = exp_lock.lock().unwrap();
+                            match sub {
+                                "last" | "" => {
+                                    let trail = exp.get_trail();
+                                    if trail.entries.is_empty() { println!("No explanations recorded yet. Agent edits are explained automatically.\n"); }
+                                    else {
+                                        let last = trail.entries.last().unwrap();
+                                        let c = &last.chain;
+                                        println!("Last change explanation:\n");
+                                        println!("  File: {} (L{}-{})", c.change.file_path, c.change.line_start, c.change.line_end);
+                                        println!("  Intent: {}", c.intent);
+                                        println!("  Reason: {:?}", c.reason);
+                                        println!("  Confidence: {:?}", c.confidence);
+                                        if !c.context_used.is_empty() {
+                                            println!("  Context: {}", c.context_used.iter().map(|x| x.source.as_str()).collect::<Vec<_>>().join(", "));
+                                        }
+                                        if !c.alternatives.is_empty() {
+                                            println!("  Alternatives considered:");
+                                            for a in &c.alternatives { println!("    - {} (rejected: {})", a.description, a.rejected_reason); }
+                                        }
+                                        println!();
+                                    }
+                                }
+                                "query" => {
+                                    if rest.is_empty() { println!("Usage: /explain query \"why did you use X?\"\n"); }
+                                    else {
+                                        let results = exp.query(rest);
+                                        if results.is_empty() { println!("No matching explanations for '{}'\n", rest); }
+                                        else {
+                                            println!("Explanations matching '{}' ({}):\n", rest, results.len());
+                                            for r in &results {
+                                                println!("  {} — {} ({:?})", r.chain.change.file_path, r.chain.intent, r.chain.reason);
+                                            }
+                                            println!();
+                                        }
+                                    }
+                                }
+                                "export" => {
+                                    let fmt = if rest.is_empty() { ExplanationFormat::Markdown } else if rest == "json" { ExplanationFormat::Json } else { ExplanationFormat::Markdown };
+                                    let output = exp.export(fmt);
+                                    println!("{}\n", output);
+                                }
+                                "stats" => {
+                                    let m = exp.get_metrics();
+                                    println!("Explanation Metrics\n  Total: {}\n  Alternatives tracked: {}\n  Avg confidence: {:.2}\n  Acceptance rate: {:.1}%\n  Most common: {}\n",
+                                        m.total_explanations, m.total_alternatives, m.avg_confidence, m.acceptance_rate * 100.0, m.most_common_reason);
+                                }
+                                _ => {
+                                    println!("VibeCody Explainable Agent\n");
+                                    println!("  /explain last                — Last change explanation");
+                                    println!("  /explain query \"why...\"      — Search explanations");
+                                    println!("  /explain export [json|md]    — Export audit trail");
+                                    println!("  /explain stats               — Explanation metrics\n");
                                 }
                             }
                         }
