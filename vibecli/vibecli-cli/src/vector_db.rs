@@ -228,6 +228,31 @@ impl InMemoryVectorDb {
         self.entries.clear();
     }
 
+    /// Convert the entire in-memory store to a TurboQuant compressed index.
+    ///
+    /// Achieves ~10× memory reduction while preserving high cosine-similarity
+    /// recall. Metadata is carried over as string key-value pairs.
+    pub fn to_turboquant(
+        &self,
+        seed: u64,
+    ) -> vibe_core::index::turboquant::TurboQuantIndex {
+        let config = vibe_core::index::turboquant::TurboQuantConfig {
+            dimension: self.dimension as usize,
+            seed,
+            qjl_proj_dim: None,
+        };
+        let mut tq = vibe_core::index::turboquant::TurboQuantIndex::new(config);
+        for entry in self.entries.values() {
+            let meta: std::collections::HashMap<String, String> = entry
+                .metadata
+                .iter()
+                .map(|(k, v)| (k.clone(), v.to_string()))
+                .collect();
+            let _ = tq.insert(entry.id.clone(), &entry.vector, meta);
+        }
+        tq
+    }
+
     /// Compute a similarity / distance score between two vectors.
     ///
     /// For **Cosine** and **DotProduct** higher values mean more similar.

@@ -1,3 +1,4 @@
+pub mod diff_review;
 pub mod cost_router;
 pub mod agent_skills_compat;
 pub mod quantum_computing;
@@ -25,3 +26,4 @@ pub mod mcts_repair;
 pub mod visual_verify;
 pub mod next_task;
 pub mod langgraph_bridge;
+pub mod context_protocol;

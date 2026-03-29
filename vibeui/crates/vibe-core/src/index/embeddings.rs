@@ -222,6 +222,43 @@ impl EmbeddingIndex {
         self.docs.len()
     }
 
+    /// Convert this EmbeddingIndex into a TurboQuant compressed index.
+    ///
+    /// Achieves ~10× memory reduction while preserving most cosine-similarity
+    /// recall. The returned index uses the same vector ordering as the
+    /// original, with IDs set to `"chunk_{i}"`.
+    pub fn to_turboquant(&self, seed: u64) -> Option<super::turboquant::TurboQuantIndex> {
+        if self.vectors.is_empty() {
+            return None;
+        }
+        let dim = self.vectors[0].len();
+        let config = super::turboquant::TurboQuantConfig {
+            dimension: dim,
+            seed,
+            qjl_proj_dim: None,
+        };
+        let mut tq = super::turboquant::TurboQuantIndex::new(config);
+        for (i, vec) in self.vectors.iter().enumerate() {
+            let mut meta = std::collections::HashMap::new();
+            let doc = &self.docs[i];
+            meta.insert("file".to_string(), doc.file.to_string_lossy().to_string());
+            meta.insert("chunk_start".to_string(), doc.chunk_start.to_string());
+            meta.insert("chunk_end".to_string(), doc.chunk_end.to_string());
+            let _ = tq.insert(format!("chunk_{i}"), vec, meta);
+        }
+        Some(tq)
+    }
+
+    /// Access the raw vectors (for external processing or compression).
+    pub fn vectors(&self) -> &[Vec<f32>] {
+        &self.vectors
+    }
+
+    /// Access the raw docs (for external processing or compression).
+    pub fn docs(&self) -> &[EmbeddingDoc] {
+        &self.docs
+    }
+
     /// Number of unique files indexed.
     pub fn file_count(&self) -> usize {
         let mut paths: Vec<&PathBuf> = self.docs.iter().map(|d| &d.file).collect();

@@ -274,7 +274,7 @@ export function TurboQuantPanel() {
             value={searchVector}
             onChange={e => setSearchVector(e.target.value)}
             rows={3}
-            placeholder="0.12, -0.45, 0.78, ..."
+            placeholder="query: 0.12, -0.45, 0.78, ..."
             style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontFamily: "inherit", fontSize: 12, resize: "vertical" }}
           />
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
