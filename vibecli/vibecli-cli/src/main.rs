@@ -300,6 +300,10 @@ mod mcts_repair;
 #[allow(dead_code)]
 mod langgraph_bridge;
 mod api_key_monitor;
+// Phase 32: New capabilities
+mod context_protocol;
+mod code_review_agent;
+mod diff_review;
 
 #[derive(Parser)]
 #[command(name = "vibecli")]
@@ -6353,6 +6357,155 @@ async fn main() -> Result<()> {
                                     println!("Usage:");
                                     println!("  /turboquant benchmark [N] [DIM]  Run compression + recall benchmark");
                                     println!("  /turboquant memory [B]           Compare KV-cache memory estimates\n");
+                                }
+                            }
+                        }
+
+                        // ── Phase 32: Context Protocol ──
+                        "/context" => {
+                            let sub = args.split_whitespace().next().unwrap_or("help");
+                            let rest = args.trim().strip_prefix(sub).unwrap_or("").trim();
+                            use context_protocol::*;
+                            use std::sync::OnceLock;
+                            static CTX: OnceLock<std::sync::Mutex<ContextManager>> = OnceLock::new();
+                            let ctx_lock = CTX.get_or_init(|| std::sync::Mutex::new(ContextManager::new(80_000)));
+                            let mut ctx = ctx_lock.lock().unwrap();
+                            match sub {
+                                "add" => {
+                                    if rest.is_empty() { println!("Usage: /context add <path> [priority]\n"); }
+                                    else {
+                                        let item = ContextItem::file(rest, &format!("Content of {}", rest));
+                                        match ctx.add(item) {
+                                            Ok(()) => println!("Added context: {}\n", rest),
+                                            Err(e) => println!("Error: {}\n", e),
+                                        }
+                                    }
+                                }
+                                "list" | "" => {
+                                    let (used, max) = ctx.token_usage();
+                                    println!("Context Window ({}/{} tokens, {} items):\n", used, max, ctx.count());
+                                    for item in ctx.build_prompt(max) {
+                                        println!("  [{:?}] {} ({} tokens) — {:?}",
+                                            item.priority, item.file_path.as_deref().unwrap_or(&item.id),
+                                            item.token_count, item.context_type);
+                                    }
+                                    println!();
+                                }
+                                "budget" => {
+                                    let (used, max) = ctx.token_usage();
+                                    println!("Context Budget\n  Used: {} / {} ({:.1}%)\n  Items: {}\n  Evictions: {}\n",
+                                        used, max, if max > 0 { used as f64 / max as f64 * 100.0 } else { 0.0 },
+                                        ctx.count(), ctx.get_metrics().evictions);
+                                }
+                                "clear" => { ctx.clear(); println!("Context cleared.\n"); }
+                                "share" => { println!("Share context with another agent/tool.\n  Usage: /context share <target_agent>\n"); }
+                                _ => {
+                                    println!("VibeCody Context Protocol\n");
+                                    println!("  /context add <path>   — Add file to context window");
+                                    println!("  /context list         — Show context items");
+                                    println!("  /context budget       — Token budget status");
+                                    println!("  /context share        — Share with other agents");
+                                    println!("  /context clear        — Clear all context\n");
+                                }
+                            }
+                        }
+
+                        // ── Phase 32: Code Review ──
+                        "/review" => {
+                            let sub = args.split_whitespace().next().unwrap_or("help");
+                            let rest = args.trim().strip_prefix(sub).unwrap_or("").trim();
+                            use code_review_agent::*;
+                            use std::sync::OnceLock;
+                            static REVIEWER: OnceLock<std::sync::Mutex<CodeReviewAgent>> = OnceLock::new();
+                            let rev_lock = REVIEWER.get_or_init(|| std::sync::Mutex::new(CodeReviewAgent::new(ReviewConfig::default())));
+                            let mut reviewer = rev_lock.lock().unwrap();
+                            match sub {
+                                "file" => {
+                                    if rest.is_empty() { println!("Usage: /review file <path>\n"); }
+                                    else {
+                                        let content = std::fs::read_to_string(rest).unwrap_or_else(|e| format!("Error: {}", e));
+                                        let session = reviewer.review_file(rest, &content);
+                                        println!("Review of {} — {} findings:\n", rest, session.findings.len());
+                                        for f in &session.findings {
+                                            let icon = match f.severity { ReviewSeverity::Critical => "!!", ReviewSeverity::Warning => "!", ReviewSeverity::Suggestion => "?", ReviewSeverity::Praise => "+" };
+                                            println!("  [{}] {:?} L{}-{}: {}", icon, f.category, f.line_start, f.line_end, f.title);
+                                            if let Some(ref s) = f.suggestion { println!("      Fix: {}", s); }
+                                        }
+                                        println!();
+                                    }
+                                }
+                                "diff" => {
+                                    let diff_output = std::process::Command::new("git").args(["diff", "--staged"]).output()
+                                        .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+                                        .unwrap_or_default();
+                                    if diff_output.is_empty() { println!("No staged changes. Stage with git add first.\n"); }
+                                    else {
+                                        let session = reviewer.review_diff(&diff_output, "staged");
+                                        println!("Diff review — {} findings:\n", session.findings.len());
+                                        for f in &session.findings {
+                                            println!("  [{:?}] {}: {}", f.severity, f.file_path, f.title);
+                                        }
+                                        println!();
+                                    }
+                                }
+                                "stats" => {
+                                    let m = reviewer.get_metrics();
+                                    println!("Review Metrics\n  Sessions: {}\n  Findings: {}\n  Auto-fixed: {}\n  Avg findings/review: {:.1}\n",
+                                        m.total_reviews, m.total_findings, m.auto_fixed, m.avg_findings_per_review);
+                                }
+                                _ => {
+                                    println!("VibeCody Code Review\n");
+                                    println!("  /review file <path>  — Review a source file");
+                                    println!("  /review diff         — Review staged git diff");
+                                    println!("  /review stats        — Review metrics\n");
+                                }
+                            }
+                        }
+
+                        // ── Phase 32: Diff Review ──
+                        "/diffreview" => {
+                            let sub = args.split_whitespace().next().unwrap_or("help");
+                            use diff_review::*;
+                            let analyzer = DiffAnalyzer::new(ReviewConfig::default());
+                            match sub {
+                                "staged" | "assess" | "" => {
+                                    let diff_output = std::process::Command::new("git").args(["diff", "--staged"]).output()
+                                        .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+                                        .unwrap_or_default();
+                                    if diff_output.is_empty() { println!("No staged changes.\n"); }
+                                    else {
+                                        let files = DiffAnalyzer::parse_diff(&diff_output);
+                                        let assessment = analyzer.analyze(&files);
+                                        let stats = analyzer.stats(&files);
+                                        println!("Diff Risk Assessment\n");
+                                        println!("  Overall risk: {:?} ({:.0}%)", assessment.overall_risk, assessment.risk_score * 100.0);
+                                        println!("  Files: {} (+{} -{})", stats.files_changed, stats.total_additions, stats.total_deletions);
+                                        println!("  Impact: {:?}", assessment.impact_areas);
+                                        println!("\n  File risks:");
+                                        for fr in &assessment.file_risks {
+                                            println!("    {:?} {} — {:?}", fr.risk, fr.path, fr.reasons);
+                                        }
+                                        if !assessment.test_suggestions.is_empty() {
+                                            println!("\n  Suggested tests:");
+                                            for t in &assessment.test_suggestions { println!("    - {}", t); }
+                                        }
+                                        println!("\n  {}\n", assessment.summary);
+                                    }
+                                }
+                                "regressions" => {
+                                    let diff_output = std::process::Command::new("git").args(["diff", "HEAD~1"]).output()
+                                        .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+                                        .unwrap_or_default();
+                                    let files = DiffAnalyzer::parse_diff(&diff_output);
+                                    let signals = analyzer.detect_regressions(&files);
+                                    println!("Regression signals ({}):\n", signals.len());
+                                    for s in &signals { println!("  {} — {} ({:.0}%)", s.file_path, s.description, s.confidence * 100.0); }
+                                    println!();
+                                }
+                                _ => {
+                                    println!("VibeCody Diff Review\n");
+                                    println!("  /diffreview staged      — Assess staged diff risk");
+                                    println!("  /diffreview regressions — Detect regressions in last commit\n");
                                 }
                             }
                         }
