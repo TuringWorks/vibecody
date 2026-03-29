@@ -691,9 +691,14 @@ export function AIChat({
   const [localMessages, setLocalMessages] = useState<Message[]>([]);
   const messages = controlledMessages ?? localMessages;
 
-  // Keep a ref to the latest messages so event-listener closures never go stale.
+  // Keep refs to the latest values so event-listener closures never go stale
+  // and the listener effect doesn't re-run on every render.
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
+  const onFileActionRef = useRef(onFileAction);
+  onFileActionRef.current = onFileAction;
+  const onPendingWriteRef = useRef(onPendingWrite);
+  onPendingWriteRef.current = onPendingWrite;
 
   const setMessages = useCallback((update: Message[] | ((prev: Message[]) => Message[])) => {
     if (onMessagesChange) {
@@ -1003,10 +1008,10 @@ export function AIChat({
         setRetryInfo(null);
         setIsLoading(false);
 
-        if (response.pending_write && onPendingWrite) {
-          onPendingWrite(response.pending_write.path, response.pending_write.content);
+        if (response.pending_write && onPendingWriteRef.current) {
+          onPendingWriteRef.current(response.pending_write.path, response.pending_write.content);
         }
-        if (onFileAction) onFileAction();
+        if (onFileActionRef.current) onFileActionRef.current();
       });
       if (cancelled) { u2(); return; }
       unlisteners.push(u2);
@@ -1071,7 +1076,7 @@ export function AIChat({
       cancelled = true;
       unlisteners.forEach((fn) => fn());
     };
-  }, [onFileAction, onPendingWrite, setMessages]);
+  }, [setMessages]);
 
   // Consume pendingInput from Cascade
   useEffect(() => {
@@ -1258,10 +1263,10 @@ export function AIChat({
   };
 
   const handleApplyCode = useCallback((code: string, filename: string) => {
-    if (onPendingWrite) {
-      onPendingWrite(filename, code);
+    if (onPendingWriteRef.current) {
+      onPendingWriteRef.current(filename, code);
     }
-  }, [onPendingWrite]);
+  }, []);
 
   // ── Streaming content processing ───────────────────────────────────────────
 
