@@ -205,6 +205,20 @@ export interface Message {
  attachments?: ChatAttachment[];
 }
 
+// ── Attachment constants (module scope for stable references) ─────────────────
+const MAX_ATTACHMENT_SIZE = 20 * 1024 * 1024; // 20 MB
+const MAX_ATTACHMENTS = 10;
+const IMAGE_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml"];
+const TEXT_MIME_PREFIXES = ["text/", "application/json", "application/xml", "application/javascript"];
+const TEXT_EXTS = new Set(["rs","py","js","ts","tsx","jsx","go","java","c","cpp","h","rb","php","swift","kt","scala",
+  "sh","bash","sql","yaml","yml","toml","ini","cfg","conf","env","css","scss","less","vue","svelte",
+  "md","txt","log","csv","json","xml","html","htm","svg"]);
+function isTextFile(mime: string, name: string): boolean {
+  if (TEXT_MIME_PREFIXES.some(p => mime.startsWith(p))) return true;
+  const ext = name.split(".").pop()?.toLowerCase() || "";
+  return TEXT_EXTS.has(ext);
+}
+
 interface PendingWrite {
  path: string;
  content: string;
@@ -337,7 +351,7 @@ function parseToolCalls(content: string): [string, ToolCallInfo[]] {
 
 /** Detect file paths in text and return segments. */
 function parseFileReferences(text: string): Array<{ type: "text" | "file"; value: string }> {
-  const fileRegex = /(?:^|\s)((?:\.{0,2}\/)?(?:[a-zA-Z0-9_\-]+\/)*[a-zA-Z0-9_\-]+\.[a-zA-Z0-9]{1,10})(?=\s|$|[),;:])/g;
+  const fileRegex = /(?:^|\s)((?:\.{0,2}\/)?(?:[a-zA-Z0-9_-]+\/)*[a-zA-Z0-9_-]+\.[a-zA-Z0-9]{1,10})(?=\s|$|[),;:])/g;
   const segments: Array<{ type: "text" | "file"; value: string }> = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;
@@ -623,10 +637,11 @@ function SlashPalette({ query, onSelect, onClose }: {
     (c) => c.command.startsWith(query.toLowerCase())
   );
   const [selectedIdx, setSelectedIdx] = useState(0);
-
-  useEffect(() => {
-    setSelectedIdx(0);
-  }, [query]);
+  const [prevQuery, setPrevQuery] = useState(query);
+  if (prevQuery !== query) {
+    setPrevQuery(query);
+    if (selectedIdx !== 0) setSelectedIdx(0);
+  }
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -723,22 +738,6 @@ export function AIChat({
   const { toast } = useToast();
 
   // ── Attachment handlers ─────────────────────────────────────────────────────
-
-  const MAX_ATTACHMENT_SIZE = 20 * 1024 * 1024; // 20 MB
-  const MAX_ATTACHMENTS = 10;
-
-  const IMAGE_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml"];
-
-  const TEXT_MIME_PREFIXES = ["text/", "application/json", "application/xml", "application/javascript"];
-  const isTextFile = (mime: string, name: string): boolean => {
-    if (TEXT_MIME_PREFIXES.some(p => mime.startsWith(p))) return true;
-    // Fallback: check extension for code files that may have octet-stream MIME
-    const ext = name.split(".").pop()?.toLowerCase() || "";
-    const textExts = new Set(["rs","py","js","ts","tsx","jsx","go","java","c","cpp","h","rb","php","swift","kt","scala",
-      "sh","bash","sql","yaml","yml","toml","ini","cfg","conf","env","css","scss","less","vue","svelte",
-      "md","txt","log","csv","json","xml","html","htm","svg"]);
-    return textExts.has(ext);
-  };
 
   /** Convert a browser File to a ChatAttachment. */
   const fileToAttachment = useCallback(async (file: File): Promise<ChatAttachment | null> => {
@@ -1060,7 +1059,6 @@ export function AIChat({
       cancelled = true;
       unlisteners.forEach((fn) => fn());
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onFileAction, onPendingWrite, setMessages]);
 
   // Consume pendingInput from Cascade
