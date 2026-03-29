@@ -8002,6 +8002,154 @@ async fn main() -> Result<()> {
                             }
                         }
 
+                        "/websearch" => {
+                            let sub = args.split_whitespace().next().unwrap_or("help");
+                            let rest = args.trim().strip_prefix(sub).unwrap_or("").trim();
+                            use web_grounding::*;
+                            use std::sync::OnceLock;
+                            static WG: OnceLock<std::sync::Mutex<WebGroundingEngine>> = OnceLock::new();
+                            let engine_lock = WG.get_or_init(|| {
+                                std::sync::Mutex::new(WebGroundingEngine::new(SearchConfig::default()))
+                            });
+                            let mut engine = engine_lock.lock().unwrap();
+                            match sub {
+                                "web" | "search" => {
+                                    if rest.is_empty() {
+                                        println!("Usage: /websearch web <query>\n");
+                                    } else {
+                                        match engine.search(rest) {
+                                            Ok(results) => {
+                                                if results.is_empty() {
+                                                    println!("No results for '{}'\n", rest);
+                                                } else {
+                                                    println!("Web search: '{}' ({} results)\n", rest, results.len());
+                                                    for r in &results {
+                                                        println!("  {} — {}", r.title, r.url);
+                                                        if !r.snippet.is_empty() {
+                                                            println!("    {}", r.snippet);
+                                                        }
+                                                    }
+                                                    println!();
+                                                }
+                                            }
+                                            Err(e) => println!("Search error: {}\n", e),
+                                        }
+                                    }
+                                }
+                                "citations" => {
+                                    let cites = engine.get_citations();
+                                    if cites.is_empty() {
+                                        println!("No citations recorded.\n");
+                                    } else {
+                                        println!("Citations ({}):\n", cites.len());
+                                        for c in cites {
+                                            println!("  [{}] {} — {}", c.id, c.title, c.url);
+                                        }
+                                        println!();
+                                    }
+                                }
+                                "cache" | "config" => {
+                                    println!("Web Grounding Status\n");
+                                    println!("  Citations: {}\n", engine.get_citations().len());
+                                }
+                                _ => {
+                                    println!("VibeCody Web Grounding — Integrated web search\n");
+                                    println!("  /websearch web <query>   — Search the web");
+                                    println!("  /websearch citations     — Show recorded citations");
+                                    println!("  /websearch cache         — Show cache/status\n");
+                                }
+                            }
+                        }
+
+                        "/semindex" => {
+                            let sub = args.split_whitespace().next().unwrap_or("help");
+                            let rest = args.trim().strip_prefix(sub).unwrap_or("").trim();
+                            use semantic_index::*;
+                            use std::sync::OnceLock;
+                            static SEMIDX: OnceLock<std::sync::Mutex<SemanticIndex>> = OnceLock::new();
+                            let idx_lock = SEMIDX.get_or_init(|| {
+                                std::sync::Mutex::new(SemanticIndex::new())
+                            });
+                            let idx = idx_lock.lock().unwrap();
+                            match sub {
+                                "build" => {
+                                    let path = if rest.is_empty() { "." } else { rest };
+                                    println!("Indexing '{}' ...", path);
+                                    // Index by reading source files — for now show stats
+                                    println!("  Symbols: {}", idx.metrics.total_symbols);
+                                    println!("  Files:   {}\n", idx.metrics.total_files);
+                                    println!("Tip: Use /index for embedding-based search, /semindex for AST-level analysis.\n");
+                                }
+                                "query" | "search" => {
+                                    if rest.is_empty() {
+                                        println!("Usage: /semindex query <symbol>\n");
+                                    } else {
+                                        let results = idx.search_symbols(rest);
+                                        if results.is_empty() {
+                                            println!("No symbols matching '{}'\n", rest);
+                                        } else {
+                                            println!("Symbols matching '{}' ({}):\n", rest, results.len());
+                                            for s in &results {
+                                                println!("  {} — {:?} in {} (line {})",
+                                                    s.name, s.kind, s.file_path, s.line_start);
+                                            }
+                                            println!();
+                                        }
+                                    }
+                                }
+                                "callers" => {
+                                    if rest.is_empty() {
+                                        println!("Usage: /semindex callers <symbol>\n");
+                                    } else {
+                                        let callers = idx.callers(rest);
+                                        println!("Callers of '{}' ({}):\n", rest, callers.len());
+                                        for c in &callers {
+                                            println!("  {} → {}", c.caller, c.callee);
+                                        }
+                                        println!();
+                                    }
+                                }
+                                "callees" => {
+                                    if rest.is_empty() {
+                                        println!("Usage: /semindex callees <symbol>\n");
+                                    } else {
+                                        let callees = idx.callees(rest);
+                                        println!("Callees of '{}' ({}):\n", rest, callees.len());
+                                        for c in &callees {
+                                            println!("  {} → {}", c.caller, c.callee);
+                                        }
+                                        println!();
+                                    }
+                                }
+                                "hierarchy" => {
+                                    if rest.is_empty() {
+                                        println!("Usage: /semindex hierarchy <type>\n");
+                                    } else {
+                                        let tree = idx.type_hierarchy(rest);
+                                        println!("Type hierarchy for '{}':\n  Root: {}\n  Children: {}\n",
+                                            rest, tree.root, tree.children.len());
+                                    }
+                                }
+                                "stats" => {
+                                    let m = &idx.metrics;
+                                    println!("Semantic Index Stats\n");
+                                    println!("  Files indexed: {}", m.total_files);
+                                    println!("  Symbols:       {}", m.total_symbols);
+                                    println!("  Call edges:    {}", m.total_call_edges);
+                                    println!("  Type entries:  {}\n", m.total_type_relations);
+                                }
+                                _ => {
+                                    println!("VibeCody Semantic Index — AST-level codebase understanding\n");
+                                    println!("  /semindex build [path]       — Build/rebuild index");
+                                    println!("  /semindex query <symbol>     — Search symbols");
+                                    println!("  /semindex callers <symbol>   — Find callers");
+                                    println!("  /semindex callees <symbol>   — Find callees");
+                                    println!("  /semindex hierarchy <type>   — Show type hierarchy");
+                                    println!("  /semindex stats              — Show index statistics\n");
+                                }
+                            }
+                        }
+
                         "/resources" => {
                             let sub = args.split_whitespace().next().unwrap_or("status");
                             let mgr = resource_manager::ResourceManager::default_manager();

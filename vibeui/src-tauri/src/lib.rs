@@ -189,6 +189,12 @@ pub fn run() {
             triage_issues: Arc::new(Mutex::new(Vec::new())),
             triage_results: Arc::new(Mutex::new(Vec::new())),
             triage_metrics: Arc::new(Mutex::new(serde_json::json!({ "total_triaged": 0, "auto_labeled": 0, "avg_confidence": 0.0 }))),
+            // Phase 26
+            web_search_results: Arc::new(Mutex::new(Vec::new())),
+            web_citations: Arc::new(Mutex::new(Vec::new())),
+            web_cache: Arc::new(Mutex::new(serde_json::json!({ "total_entries": 0, "hit_count": 0, "miss_count": 0 }))),
+            semindex_symbols: Arc::new(Mutex::new(Vec::new())),
+            semindex_stats: Arc::new(Mutex::new(serde_json::json!({ "total_symbols": 0, "total_call_edges": 0, "total_files": 0 }))),
         })
         .invoke_handler(tauri::generate_handler![
             commands::read_file,
