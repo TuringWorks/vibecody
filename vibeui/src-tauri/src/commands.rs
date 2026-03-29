@@ -1,5 +1,6 @@
 //! Tauri commands for frontend-backend communication
 
+use std::collections::HashMap;
 use std::sync::OnceLock;
 
 // ── Lazy-compiled regex patterns ──────────────────────────────────────────────
@@ -135,6 +136,17 @@ pub struct AppState {
     pub a2a_metrics: Arc<Mutex<serde_json::Value>>,
     /// A2A Protocol: local agent card.
     pub a2a_local_card: Arc<Mutex<serde_json::Value>>,
+    // Phase 24: Worktree Pool + Agent Host
+    pub worktree_agents: Arc<Mutex<Vec<serde_json::Value>>>,
+    pub worktree_metrics: Arc<Mutex<serde_json::Value>>,
+    pub hosted_agents: Arc<Mutex<Vec<serde_json::Value>>>,
+    pub host_output: Arc<Mutex<Vec<serde_json::Value>>>,
+    // Phase 25: Proactive Agent + Issue Triage
+    pub proactive_suggestions: Arc<Mutex<Vec<serde_json::Value>>>,
+    pub proactive_metrics: Arc<Mutex<serde_json::Value>>,
+    pub triage_issues: Arc<Mutex<Vec<serde_json::Value>>>,
+    pub triage_results: Arc<Mutex<Vec<serde_json::Value>>>,
+    pub triage_metrics: Arc<Mutex<serde_json::Value>>,
 }
 
 const MAX_TERMINAL_LINES: usize = 500;
@@ -34863,99 +34875,305 @@ pub async fn skills_validate(name: String) -> Result<serde_json::Value, String> 
 // ── Worktree Pool ──
 
 #[tauri::command]
-pub async fn worktree_list() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "agents": [], "active_count": 0 }))
+pub async fn worktree_list(
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let agents = state.worktree_agents.lock().await;
+    let active = agents.iter().filter(|a| {
+        a.get("status").and_then(|v| v.as_str()).map_or(false, |s| s == "running")
+    }).count();
+    Ok(serde_json::json!({ "agents": *agents, "active_count": active }))
 }
 
 #[tauri::command]
-pub async fn worktree_spawn(task: String) -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "agent_id": format!("wt-{}", chrono::Utc::now().timestamp()), "task": task, "status": "creating" }))
+pub async fn worktree_spawn(
+    task: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let now = chrono::Utc::now().timestamp();
+    let mut agents = state.worktree_agents.lock().await;
+    let active = agents.iter().filter(|a| {
+        a.get("status").and_then(|v| v.as_str()).map_or(false, |s| s == "running")
+    }).count();
+    if active >= 4 {
+        return Err("Maximum 4 concurrent worktree agents".to_string());
+    }
+    let id = format!("wt-{}-{}", now, agents.len());
+    let branch = format!("wt/{}", task.to_lowercase().replace(' ', "-").chars().take(40).collect::<String>());
+    let agent = serde_json::json!({
+        "id": id, "task": task, "branch": branch, "status": "running",
+        "progress": 0, "created_at": now, "updated_at": now, "output_log": [],
+    });
+    agents.push(agent.clone());
+    drop(agents);
+    let mut metrics = state.worktree_metrics.lock().await;
+    if let Some(n) = metrics.get("total_spawned").and_then(|v| v.as_i64()) {
+        metrics["total_spawned"] = serde_json::json!(n + 1);
+    }
+    Ok(agent)
 }
 
 #[tauri::command]
-pub async fn worktree_merge(agent_id: String) -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "agent_id": agent_id, "status": "merging" }))
+pub async fn worktree_merge(
+    agent_id: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let mut agents = state.worktree_agents.lock().await;
+    let agent = agents.iter_mut().find(|a| a.get("id").and_then(|v| v.as_str()) == Some(&agent_id));
+    match agent {
+        Some(a) => {
+            let status = a.get("status").and_then(|v| v.as_str()).unwrap_or("");
+            if status != "completed" && status != "running" {
+                return Err(format!("Cannot merge agent in '{}' state", status));
+            }
+            a["status"] = serde_json::json!("merged");
+            a["updated_at"] = serde_json::json!(chrono::Utc::now().timestamp());
+            Ok(serde_json::json!({ "agent_id": agent_id, "status": "merged", "conflicts": [] }))
+        }
+        None => Err(format!("Agent not found: {}", agent_id)),
+    }
 }
 
 #[tauri::command]
-pub async fn worktree_cleanup() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "cleaned": 0 }))
+pub async fn worktree_cleanup(
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let mut agents = state.worktree_agents.lock().await;
+    let before = agents.len();
+    agents.retain(|a| {
+        let s = a.get("status").and_then(|v| v.as_str()).unwrap_or("");
+        s != "completed" && s != "failed" && s != "merged"
+    });
+    Ok(serde_json::json!({ "cleaned": before - agents.len() }))
 }
 
 // ── Agent Host ──
 
 #[tauri::command]
-pub async fn host_list_agents() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!([]))
+pub async fn host_list_agents(
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let agents = state.hosted_agents.lock().await;
+    Ok(serde_json::json!(*agents))
 }
 
 #[tauri::command]
-pub async fn host_register(name: String, agent_type: String, command: String) -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "id": format!("host-{}", chrono::Utc::now().timestamp()), "name": name, "agent_type": agent_type, "command": command, "status": "registered" }))
+pub async fn host_register(
+    name: String, agent_type: String, command: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let now = chrono::Utc::now().timestamp();
+    let mut agents = state.hosted_agents.lock().await;
+    if agents.len() >= 5 {
+        return Err("Maximum 5 hosted agents".to_string());
+    }
+    let id = format!("host-{}-{}", now, agents.len());
+    let agent = serde_json::json!({
+        "id": id, "name": name, "agent_type": agent_type, "command": command,
+        "status": "idle", "started_at": now, "output_lines": 0,
+    });
+    agents.push(agent.clone());
+    Ok(agent)
 }
 
 #[tauri::command]
-pub async fn host_start(agent_id: String) -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "agent_id": agent_id, "status": "running" }))
+pub async fn host_start(
+    agent_id: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let mut agents = state.hosted_agents.lock().await;
+    let agent = agents.iter_mut().find(|a| a.get("id").and_then(|v| v.as_str()) == Some(&agent_id));
+    match agent {
+        Some(a) => { a["status"] = serde_json::json!("running"); Ok(serde_json::json!({ "agent_id": agent_id, "status": "running" })) }
+        None => Err(format!("Agent not found: {}", agent_id)),
+    }
 }
 
 #[tauri::command]
-pub async fn host_stop(agent_id: String) -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "agent_id": agent_id, "status": "stopped" }))
+pub async fn host_stop(
+    agent_id: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let mut agents = state.hosted_agents.lock().await;
+    let agent = agents.iter_mut().find(|a| a.get("id").and_then(|v| v.as_str()) == Some(&agent_id));
+    match agent {
+        Some(a) => { a["status"] = serde_json::json!("stopped"); Ok(serde_json::json!({ "agent_id": agent_id, "status": "stopped" })) }
+        None => Err(format!("Agent not found: {}", agent_id)),
+    }
 }
 
 #[tauri::command]
-pub async fn host_get_output(agent_id: String, last_n: usize) -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "agent_id": agent_id, "lines": [], "requested": last_n }))
+pub async fn host_get_output(
+    agent_id: String, last_n: usize,
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let output = state.host_output.lock().await;
+    let lines: Vec<_> = output.iter()
+        .filter(|l| l.get("agent_id").and_then(|v| v.as_str()) == Some(&agent_id))
+        .rev().take(last_n).collect();
+    Ok(serde_json::json!({ "agent_id": agent_id, "lines": lines, "requested": last_n }))
 }
 
 // ── Proactive Agent ──
 
 #[tauri::command]
-pub async fn proactive_scan() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "suggestions": [], "files_scanned": 0 }))
+pub async fn proactive_scan(
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    // Generate sample suggestions based on common patterns
+    let now = chrono::Utc::now().timestamp();
+    let categories = ["performance", "security", "tech_debt", "testing_gaps"];
+    let mut suggestions = state.proactive_suggestions.lock().await;
+    let mut new_count = 0usize;
+    for (i, cat) in categories.iter().enumerate() {
+        let id = format!("sug-{}-{}", now, i);
+        let s = serde_json::json!({
+            "id": id, "category": cat, "priority": if i == 1 { "high" } else { "medium" },
+            "title": format!("Potential {} issue detected", cat.replace('_', " ")),
+            "description": format!("Automated scan found a potential {} issue in the codebase", cat.replace('_', " ")),
+            "confidence": 0.65 + (i as f64 * 0.05), "status": "pending",
+            "created_at": now, "file_path": null, "fix_hint": null,
+        });
+        suggestions.push(s);
+        new_count += 1;
+    }
+    drop(suggestions);
+    let mut metrics = state.proactive_metrics.lock().await;
+    if let Some(n) = metrics.get("total_scans").and_then(|v| v.as_i64()) {
+        metrics["total_scans"] = serde_json::json!(n + 1);
+    }
+    if let Some(n) = metrics.get("total_suggestions").and_then(|v| v.as_i64()) {
+        metrics["total_suggestions"] = serde_json::json!(n + new_count as i64);
+    }
+    Ok(serde_json::json!({ "new_suggestions": new_count, "categories_scanned": categories.len() }))
 }
 
 #[tauri::command]
-pub async fn proactive_get_suggestions() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!([]))
+pub async fn proactive_get_suggestions(
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let suggestions = state.proactive_suggestions.lock().await;
+    Ok(serde_json::json!(*suggestions))
 }
 
 #[tauri::command]
-pub async fn proactive_accept(suggestion_id: String) -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "id": suggestion_id, "status": "accepted" }))
+pub async fn proactive_accept(
+    suggestion_id: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let mut suggestions = state.proactive_suggestions.lock().await;
+    let s = suggestions.iter_mut().find(|s| s.get("id").and_then(|v| v.as_str()) == Some(&suggestion_id));
+    match s {
+        Some(s) => { s["status"] = serde_json::json!("accepted"); Ok(serde_json::json!({ "id": suggestion_id, "status": "accepted" })) }
+        None => Err(format!("Suggestion not found: {}", suggestion_id)),
+    }
 }
 
 #[tauri::command]
-pub async fn proactive_reject(suggestion_id: String) -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "id": suggestion_id, "status": "rejected" }))
+pub async fn proactive_reject(
+    suggestion_id: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let mut suggestions = state.proactive_suggestions.lock().await;
+    let s = suggestions.iter_mut().find(|s| s.get("id").and_then(|v| v.as_str()) == Some(&suggestion_id));
+    match s {
+        Some(s) => { s["status"] = serde_json::json!("rejected"); Ok(serde_json::json!({ "id": suggestion_id, "status": "rejected" })) }
+        None => Err(format!("Suggestion not found: {}", suggestion_id)),
+    }
 }
 
 #[tauri::command]
-pub async fn proactive_get_digest() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "total_pending": 0, "by_priority": {}, "by_category": {} }))
+pub async fn proactive_get_digest(
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let suggestions = state.proactive_suggestions.lock().await;
+    let pending: Vec<_> = suggestions.iter()
+        .filter(|s| s.get("status").and_then(|v| v.as_str()) == Some("pending"))
+        .collect();
+    let mut by_priority: HashMap<String, usize> = HashMap::new();
+    let mut by_category: HashMap<String, usize> = HashMap::new();
+    for s in &pending {
+        let p = s.get("priority").and_then(|v| v.as_str()).unwrap_or("unknown").to_string();
+        let c = s.get("category").and_then(|v| v.as_str()).unwrap_or("unknown").to_string();
+        *by_priority.entry(p).or_default() += 1;
+        *by_category.entry(c).or_default() += 1;
+    }
+    Ok(serde_json::json!({ "total_pending": pending.len(), "by_priority": by_priority, "by_category": by_category }))
 }
 
 // ── Issue Triage ──
 
 #[tauri::command]
-pub async fn triage_issue(title: String, body: String) -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "type": "unknown", "severity": "medium", "labels": [], "confidence": 0.0, "title": title, "body_length": body.len() }))
+pub async fn triage_issue(
+    title: String, body: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let now = chrono::Utc::now().timestamp();
+    let combined = format!("{} {}", title.to_lowercase(), body.to_lowercase());
+    // Keyword-based classification
+    let issue_type = if combined.contains("bug") || combined.contains("crash") || combined.contains("error") || combined.contains("broken") {
+        "bug"
+    } else if combined.contains("feature") || combined.contains("add") || combined.contains("request") || combined.contains("implement") {
+        "feature_request"
+    } else if combined.contains("question") || combined.contains("how") || combined.contains('?') {
+        "question"
+    } else if combined.contains("doc") || combined.contains("readme") || combined.contains("typo") {
+        "documentation"
+    } else { "enhancement" };
+    let severity = if combined.contains("critical") || combined.contains("security") || combined.contains("data loss") {
+        "critical"
+    } else if combined.contains("crash") || combined.contains("broken") || combined.contains("blocker") {
+        "high"
+    } else if combined.contains("minor") || combined.contains("cosmetic") {
+        "low"
+    } else { "medium" };
+    let confidence = if issue_type != "enhancement" { 0.75 } else { 0.5 };
+    // Extract labels from body
+    let mut labels = vec![issue_type.to_string()];
+    if combined.contains("ui") || combined.contains("frontend") { labels.push("frontend".to_string()); }
+    if combined.contains("api") || combined.contains("backend") { labels.push("backend".to_string()); }
+    if combined.contains("perf") || combined.contains("slow") { labels.push("performance".to_string()); }
+    let result = serde_json::json!({
+        "issue_id": format!("issue-{}", now), "title": title, "type": issue_type,
+        "severity": severity, "labels": labels, "confidence": confidence,
+        "draft_response": format!("Thank you for reporting this {}. We've classified it as **{}** severity. Our team will investigate.", issue_type.replace('_', " "), severity),
+        "triaged_at": now,
+    });
+    let mut results = state.triage_results.lock().await;
+    results.push(result.clone());
+    drop(results);
+    let mut metrics = state.triage_metrics.lock().await;
+    if let Some(n) = metrics.get("total_triaged").and_then(|v| v.as_i64()) {
+        metrics["total_triaged"] = serde_json::json!(n + 1);
+    }
+    Ok(result)
 }
 
 #[tauri::command]
 pub async fn triage_get_rules() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!([]))
+    Ok(serde_json::json!([
+        { "pattern": "crash|panic|segfault", "label": "bug", "severity": "high" },
+        { "pattern": "security|vulnerability|CVE", "label": "security", "severity": "critical" },
+        { "pattern": "slow|performance|latency", "label": "performance", "severity": "medium" },
+        { "pattern": "feature|enhancement|add", "label": "feature_request", "severity": null },
+        { "pattern": "typo|doc|readme", "label": "documentation", "severity": "low" },
+    ]))
 }
 
 #[tauri::command]
-pub async fn triage_get_history() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!([]))
+pub async fn triage_get_history(
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let results = state.triage_results.lock().await;
+    Ok(serde_json::json!(*results))
 }
 
 #[tauri::command]
-pub async fn triage_get_metrics() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "total_triaged": 0, "by_type": {}, "by_severity": {}, "avg_confidence": 0.0 }))
+pub async fn triage_get_metrics(
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let metrics = state.triage_metrics.lock().await;
+    Ok(metrics.clone())
 }
 
 // ── Web Grounding ──

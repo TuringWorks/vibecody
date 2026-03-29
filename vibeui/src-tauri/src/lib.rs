@@ -178,6 +178,17 @@ pub fn run() {
                 "endpoint": "http://localhost:9876/a2a",
                 "protocol": "a2a/1.0"
             }))),
+            // Phase 24
+            worktree_agents: Arc::new(Mutex::new(Vec::new())),
+            worktree_metrics: Arc::new(Mutex::new(serde_json::json!({ "total_spawned": 0, "completed": 0, "failed": 0, "merge_conflicts": 0 }))),
+            hosted_agents: Arc::new(Mutex::new(Vec::new())),
+            host_output: Arc::new(Mutex::new(Vec::new())),
+            // Phase 25
+            proactive_suggestions: Arc::new(Mutex::new(Vec::new())),
+            proactive_metrics: Arc::new(Mutex::new(serde_json::json!({ "total_scans": 0, "total_suggestions": 0, "accepted": 0, "rejected": 0 }))),
+            triage_issues: Arc::new(Mutex::new(Vec::new())),
+            triage_results: Arc::new(Mutex::new(Vec::new())),
+            triage_metrics: Arc::new(Mutex::new(serde_json::json!({ "total_triaged": 0, "auto_labeled": 0, "avg_confidence": 0.0 }))),
         })
         .invoke_handler(tauri::generate_handler![
             commands::read_file,

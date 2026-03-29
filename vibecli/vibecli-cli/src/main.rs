@@ -7678,6 +7678,330 @@ async fn main() -> Result<()> {
                             }
                         }
 
+                        "/worktree" => {
+                            let sub = args.split_whitespace().next().unwrap_or("help");
+                            let rest = args.trim().strip_prefix(sub).unwrap_or("").trim();
+                            use worktree_pool::*;
+                            use std::sync::OnceLock;
+                            static WT_POOL: OnceLock<std::sync::Mutex<WorktreePool>> = OnceLock::new();
+                            let pool_lock = WT_POOL.get_or_init(|| {
+                                std::sync::Mutex::new(WorktreePool::new(WorktreeConfig::default()))
+                            });
+                            let mut pool = pool_lock.lock().unwrap();
+                            match sub {
+                                "spawn" => {
+                                    if rest.is_empty() {
+                                        println!("Usage: /worktree spawn <task description>\n");
+                                    } else {
+                                        match pool.spawn_agent(rest, AgentType::VibeCody) {
+                                            Ok(id) => println!("Spawned worktree agent: {}\n  Task: {}\n", id, rest),
+                                            Err(e) => println!("Error: {}\n", e),
+                                        }
+                                    }
+                                }
+                                "list" | "" => {
+                                    let agents = pool.list_agents();
+                                    if agents.is_empty() {
+                                        println!("No worktree agents. Use /worktree spawn <task>\n");
+                                    } else {
+                                        println!("Worktree agents ({}, {} active):\n",
+                                            agents.len(), pool.active_count());
+                                        for a in &agents {
+                                            println!("  {} — {:?} [{}%] {:?}",
+                                                a.id, a.status, a.progress_pct, a.agent_type);
+                                            println!("    Branch: {}", a.branch_name);
+                                            println!("    Task: {}", a.task_description);
+                                        }
+                                        println!();
+                                    }
+                                }
+                                "merge" => {
+                                    if rest.is_empty() {
+                                        let results = pool.merge_all("main");
+                                        if results.is_empty() {
+                                            println!("No completed agents to merge.\n");
+                                        } else {
+                                            for r in &results {
+                                                let status = if r.success { "OK" } else { "CONFLICT" };
+                                                println!("  {} — {} ({} files)", r.branch_name, status, r.merged_files.len());
+                                            }
+                                            println!();
+                                        }
+                                    } else {
+                                        match pool.merge_agent(rest, "main") {
+                                            Ok(r) => println!("Merged {} — {} files\n", r.branch_name, r.merged_files.len()),
+                                            Err(e) => println!("Error: {}\n", e),
+                                        }
+                                    }
+                                }
+                                "cleanup" => {
+                                    let cleaned = pool.cleanup_all_completed();
+                                    println!("Cleaned up {} completed agents\n", cleaned);
+                                }
+                                "config" => {
+                                    let m = pool.get_metrics();
+                                    println!("Worktree Pool Config & Metrics\n");
+                                    println!("  Active:         {}", pool.active_count());
+                                    println!("  Total spawned:  {}", m.total_spawned);
+                                    println!("  Completed:      {}", m.completed);
+                                    println!("  Failed:         {}", m.failed);
+                                    println!("  Conflicts:      {}\n", m.merge_conflicts);
+                                }
+                                _ => {
+                                    println!("VibeCody Worktree Pool — Parallel agent execution\n");
+                                    println!("  /worktree spawn <task>     — Spawn a new worktree agent");
+                                    println!("  /worktree list             — List all worktree agents");
+                                    println!("  /worktree merge [id]       — Merge completed agent(s)");
+                                    println!("  /worktree cleanup          — Remove finished agents");
+                                    println!("  /worktree config           — Show config and metrics\n");
+                                }
+                            }
+                        }
+
+                        "/host" => {
+                            let sub = args.split_whitespace().next().unwrap_or("help");
+                            let rest = args.trim().strip_prefix(sub).unwrap_or("").trim();
+                            use agent_host::*;
+                            use std::sync::OnceLock;
+                            static HOST: OnceLock<std::sync::Mutex<AgentHost>> = OnceLock::new();
+                            let host_lock = HOST.get_or_init(|| {
+                                std::sync::Mutex::new(AgentHost::new(AgentHostConfig::default()))
+                            });
+                            let mut host = host_lock.lock().unwrap();
+                            match sub {
+                                "add" => {
+                                    let parts: Vec<&str> = rest.splitn(3, ' ').collect();
+                                    if parts.len() < 2 {
+                                        println!("Usage: /host add <name> <command> [args...]\n");
+                                    } else {
+                                        match host.add_agent(parts[0], parts[0], parts[1], vec![]) {
+                                            Ok(id) => println!("Added agent '{}': {}\n", parts[0], id),
+                                            Err(e) => println!("Error: {}\n", e),
+                                        }
+                                    }
+                                }
+                                "list" | "" => {
+                                    let agents = host.list_agents();
+                                    if agents.is_empty() {
+                                        println!("No hosted agents. Use /host add <name> <command>\n");
+                                    } else {
+                                        println!("Hosted agents ({}, {} active):\n",
+                                            agents.len(), host.active_count());
+                                        for a in &agents {
+                                            println!("  {} — {} ({}) [{:?}]",
+                                                a.id, a.name, a.agent_type, a.status);
+                                        }
+                                        println!();
+                                    }
+                                }
+                                "ask" => {
+                                    let parts: Vec<&str> = rest.splitn(2, ' ').collect();
+                                    if parts.len() < 2 {
+                                        println!("Usage: /host ask <agent_id> <message>\n");
+                                    } else {
+                                        match host.ask_agent(parts[0], parts[1]) {
+                                            Ok(line) => println!("[{}] {}\n", line.agent_id, line.text),
+                                            Err(e) => println!("Error: {}\n", e),
+                                        }
+                                    }
+                                }
+                                "remove" => {
+                                    if rest.is_empty() {
+                                        println!("Usage: /host remove <agent_id>\n");
+                                    } else {
+                                        match host.remove_agent(rest) {
+                                            Ok(()) => println!("Removed agent: {}\n", rest),
+                                            Err(e) => println!("Error: {}\n", e),
+                                        }
+                                    }
+                                }
+                                "route" => {
+                                    let agent_count = host.list_agents().len();
+                                    let targets = host.route_message(rest);
+                                    println!("Available agents: {}", agent_count);
+                                    println!("Targets: {:?}\n", targets);
+                                }
+                                _ => {
+                                    println!("VibeCody Agent Host — Multi-agent terminal\n");
+                                    println!("  /host add <name> <cmd>     — Register an external agent");
+                                    println!("  /host list                 — List hosted agents");
+                                    println!("  /host ask <id> <msg>       — Send message to agent");
+                                    println!("  /host route <msg>          — Show routing targets");
+                                    println!("  /host remove <id>          — Remove an agent\n");
+                                }
+                            }
+                        }
+
+                        "/proactive" => {
+                            let sub = args.split_whitespace().next().unwrap_or("help");
+                            use proactive_agent::*;
+                            use std::sync::OnceLock;
+                            static PROACTIVE: OnceLock<std::sync::Mutex<ProactiveAgent>> = OnceLock::new();
+                            let agent_lock = PROACTIVE.get_or_init(|| {
+                                std::sync::Mutex::new(ProactiveAgent::new(ProactiveScanConfig::default()))
+                            });
+                            let mut agent = agent_lock.lock().unwrap();
+                            match sub {
+                                "scan" => {
+                                    let files = &["src/main.rs", "src/lib.rs", "src/config.rs", "package.json"];
+                                    let results = agent.scan_all(files);
+                                    let total: usize = results.iter().map(|r| r.suggestions.len()).sum();
+                                    println!("Scan complete: {} suggestions from {} categories\n", total, results.len());
+                                    for r in &results {
+                                        if !r.suggestions.is_empty() {
+                                            println!("  {:?}: {} suggestions", r.category, r.suggestions.len());
+                                        }
+                                    }
+                                    println!();
+                                }
+                                "digest" => {
+                                    let digest = agent.digest();
+                                    if digest.is_empty() {
+                                        println!("No pending suggestions. Run /proactive scan first.\n");
+                                    } else {
+                                        println!("Pending suggestions ({}):\n", digest.len());
+                                        for s in &digest {
+                                            println!("  [{}] {:?}/{:?}: {}",
+                                                s.id, s.priority, s.category, s.title);
+                                            if let Some(ref hint) = s.fix_hint {
+                                                println!("    Fix: {}", hint);
+                                            }
+                                        }
+                                        println!();
+                                    }
+                                }
+                                "accept" => {
+                                    let id = args.trim().strip_prefix("accept").unwrap_or("").trim();
+                                    if id.is_empty() {
+                                        println!("Usage: /proactive accept <suggestion_id>\n");
+                                    } else {
+                                        match agent.accept(id) {
+                                            Ok(()) => println!("Accepted: {}\n", id),
+                                            Err(e) => println!("Error: {}\n", e),
+                                        }
+                                    }
+                                }
+                                "reject" => {
+                                    let id = args.trim().strip_prefix("reject").unwrap_or("").trim();
+                                    if id.is_empty() {
+                                        println!("Usage: /proactive reject <suggestion_id>\n");
+                                    } else {
+                                        match agent.reject(id) {
+                                            Ok(()) => println!("Rejected: {}\n", id),
+                                            Err(e) => println!("Error: {}\n", e),
+                                        }
+                                    }
+                                }
+                                "history" | "config" => {
+                                    let m = agent.get_metrics();
+                                    let ls = agent.get_learning_stats();
+                                    println!("Proactive Agent Metrics\n");
+                                    println!("  Total scans:      {}", m.total_scans);
+                                    println!("  Total suggestions: {}", m.total_suggestions);
+                                    println!("  Accepted:         {}", m.accepted);
+                                    println!("  Rejected:         {}", m.rejected);
+                                    println!("  Snoozed:          {}", m.snoozed);
+                                    println!("  Pending:          {}", agent.pending_count());
+                                    println!("\n  Learning:");
+                                    println!("    Total accepted: {}", ls.total_accepted());
+                                    println!("    Total rejected: {}\n", ls.total_rejected());
+                                }
+                                _ => {
+                                    println!("VibeCody Proactive Agent — Background intelligence\n");
+                                    println!("  /proactive scan              — Run a full scan");
+                                    println!("  /proactive digest            — Show pending suggestions");
+                                    println!("  /proactive accept <id>       — Accept a suggestion");
+                                    println!("  /proactive reject <id>       — Reject a suggestion");
+                                    println!("  /proactive history           — Show metrics and learning\n");
+                                }
+                            }
+                        }
+
+                        "/triage" => {
+                            let sub = args.split_whitespace().next().unwrap_or("help");
+                            let rest = args.trim().strip_prefix(sub).unwrap_or("").trim();
+                            use issue_triage::*;
+                            use std::sync::OnceLock;
+                            static TRIAGE: OnceLock<std::sync::Mutex<TriageEngine>> = OnceLock::new();
+                            let engine_lock = TRIAGE.get_or_init(|| {
+                                std::sync::Mutex::new(TriageEngine::new(TriageConfig::default()))
+                            });
+                            let mut engine = engine_lock.lock().unwrap();
+                            match sub {
+                                "run" => {
+                                    let parts: Vec<&str> = rest.splitn(2, '|').collect();
+                                    if parts.len() < 2 {
+                                        println!("Usage: /triage run <title> | <body>\n");
+                                    } else {
+                                        let issue = Issue {
+                                            id: String::new(),
+                                            title: parts[0].trim().to_string(),
+                                            body: parts[1].trim().to_string(),
+                                            source: IssueSource::Manual,
+                                            author: "user".to_string(),
+                                            created_at: 0,
+                                            labels: vec![],
+                                            status: TriageStatus::Untriaged,
+                                        };
+                                        let id = engine.add_issue(issue);
+                                        match engine.triage(&id) {
+                                            Ok(r) => {
+                                                println!("Triaged: {}\n", id);
+                                                println!("  Type:       {:?}", r.classified_type);
+                                                println!("  Severity:   {:?}", r.severity);
+                                                println!("  Confidence: {:.0}%", r.confidence * 100.0);
+                                                println!("  Labels:     {:?}", r.suggested_labels);
+                                                if !r.related_files.is_empty() {
+                                                    println!("  Files:      {:?}", r.related_files);
+                                                }
+                                                println!("\n  Draft response:\n    {}\n",
+                                                    r.draft_response.replace('\n', "\n    "));
+                                            }
+                                            Err(e) => println!("Error: {}\n", e),
+                                        }
+                                    }
+                                }
+                                "batch" => {
+                                    let results = engine.batch_triage();
+                                    println!("Batch triage: {} issues processed\n", results.len());
+                                    for r in &results {
+                                        println!("  {} — {:?} ({:?}, {:.0}%)",
+                                            r.issue_id, r.classified_type, r.severity, r.confidence * 100.0);
+                                    }
+                                    println!();
+                                }
+                                "rules" => {
+                                    println!("Triage Rules:\n");
+                                    println!("  crash|panic|segfault        → bug, severity: high");
+                                    println!("  security|vulnerability|CVE  → security, severity: critical");
+                                    println!("  slow|performance|latency    → performance, severity: medium");
+                                    println!("  feature|enhancement|add     → feature_request");
+                                    println!("  typo|doc|readme             → documentation, severity: low\n");
+                                }
+                                "labels" | "history" => {
+                                    let issues = engine.list_issues();
+                                    if issues.is_empty() {
+                                        println!("No triaged issues. Use /triage run <title> | <body>\n");
+                                    } else {
+                                        println!("Triaged issues ({}):\n", issues.len());
+                                        for i in &issues {
+                                            println!("  {} — {} [{:?}] labels:{:?}",
+                                                i.id, i.title, i.status, i.labels);
+                                        }
+                                        println!();
+                                    }
+                                }
+                                _ => {
+                                    println!("VibeCody Issue Triage — Autonomous issue processing\n");
+                                    println!("  /triage run <title> | <body> — Triage a single issue");
+                                    println!("  /triage batch                — Triage all untriaged issues");
+                                    println!("  /triage rules                — Show classification rules");
+                                    println!("  /triage labels               — Show triaged issues");
+                                    println!("  /triage history              — Show triage history\n");
+                                }
+                            }
+                        }
+
                         "/resources" => {
                             let sub = args.split_whitespace().next().unwrap_or("status");
                             let mgr = resource_manager::ResourceManager::default_manager();

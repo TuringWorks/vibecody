@@ -1,260 +1,262 @@
-//! Parallel git worktree agent execution pool for VibeCody.
+#![allow(dead_code)]
+//! Parallel agent execution via git worktrees.
 //!
-//! Enables multiple AI agents to work simultaneously on different tasks,
-//! each in its own git worktree. The pool manages lifecycle, progress tracking,
-//! merge orchestration, PR generation, and cleanup of worktree-based agents.
-//!
-//! REPL commands: `/worktree-pool spawn|list|status|complete|fail|cancel|cleanup|merge|pr|metrics`
+//! Enables spawning multiple agents in isolated git worktrees for parallel
+//! task execution. Includes pool management, task splitting, branch naming,
+//! merge orchestration, and metrics tracking.
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-// === Configuration ===
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+/// Status of a worktree agent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum WorktreeStatus {
+    Idle,
+    Running,
+    Completed,
+    Failed(String),
+    Merging,
+    Conflicted,
+}
+
+/// Strategy for merging worktree branches back.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum MergeStrategy {
+    Sequential,
+    Rebase,
+    OctopusMerge,
+    CherryPick,
+}
+
+/// Priority level for a task.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub enum TaskPriority {
+    Critical,
+    High,
+    Medium,
+    Low,
+}
+
+/// Type of agent to spawn in a worktree.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum AgentType {
+    VibeCody,
+    ClaudeCode,
+    GeminiCLI,
+    Aider,
+    Custom(String),
+}
+
+// ---------------------------------------------------------------------------
+// Structs
+// ---------------------------------------------------------------------------
 
 /// Configuration for the worktree pool.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorktreeConfig {
-    /// Maximum number of concurrent worktrees.
-    pub max_worktrees: usize,
-    /// Base branch to create worktrees from.
-    pub base_branch: String,
-    /// Prefix for worktree branch names.
-    pub worktree_prefix: String,
-    /// Whether to auto-cleanup completed worktrees.
+    pub max_worktrees: u32,
+    pub base_dir: String,
     pub auto_cleanup: bool,
-    /// Optional resource limits per agent.
-    pub resource_limits: Option<ResourceLimits>,
+    pub auto_pr: bool,
+    pub merge_strategy: MergeStrategy,
+    pub resource_limit_mb: u64,
 }
 
 impl Default for WorktreeConfig {
     fn default() -> Self {
         Self {
             max_worktrees: 4,
-            base_branch: "main".to_string(),
-            worktree_prefix: "vibe-wt-".to_string(),
-            auto_cleanup: false,
-            resource_limits: None,
+            base_dir: String::from("/tmp/vibecody-worktrees"),
+            auto_cleanup: true,
+            auto_pr: false,
+            merge_strategy: MergeStrategy::Sequential,
+            resource_limit_mb: 2048,
         }
     }
 }
 
-/// Resource limits applied per worktree agent.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ResourceLimits {
-    /// Maximum memory in megabytes.
-    pub max_memory_mb: Option<u64>,
-    /// Maximum CPU usage percentage (0-100).
-    pub max_cpu_percent: Option<u32>,
-    /// Maximum execution time in seconds.
-    pub max_time_secs: Option<u64>,
-}
-
-// === Worktree Agent State ===
-
-/// State of a worktree agent.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum WorktreeState {
-    /// Worktree is being created.
-    Creating,
-    /// Worktree is ready for work.
-    Ready,
-    /// Agent is running in the worktree.
-    Running,
-    /// Agent is merging results back.
-    Merging,
-    /// Agent completed successfully.
-    Completed,
-    /// Agent failed with the given reason.
-    Failed(String),
-    /// Worktree is being cleaned up.
-    Cleaning,
-}
-
-impl std::fmt::Display for WorktreeState {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Creating => write!(f, "creating"),
-            Self::Ready => write!(f, "ready"),
-            Self::Running => write!(f, "running"),
-            Self::Merging => write!(f, "merging"),
-            Self::Completed => write!(f, "completed"),
-            Self::Failed(reason) => write!(f, "failed: {}", reason),
-            Self::Cleaning => write!(f, "cleaning"),
-        }
-    }
-}
-
-// === Worktree Agent ===
-
-/// A single agent working in its own git worktree.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct WorktreeAgent {
-    /// Unique identifier for the agent.
-    pub id: String,
-    /// Filesystem path of the worktree.
-    pub worktree_path: String,
-    /// Git branch name for this worktree.
-    pub branch_name: String,
-    /// Current state of the agent.
-    pub state: WorktreeState,
-    /// Description of the task being performed.
-    pub task_description: String,
-    /// Unix timestamp of creation.
-    pub created_at: u64,
-    /// Unix timestamp of last update.
-    pub updated_at: u64,
-    /// Progress percentage (0-100).
-    pub progress_percent: u8,
-    /// Files changed by this agent.
-    pub files_changed: Vec<String>,
-    /// Commits made by this agent.
-    pub commits: Vec<String>,
-}
-
-impl WorktreeAgent {
-    /// Returns true if the agent is in a terminal state.
-    pub fn is_terminal(&self) -> bool {
-        matches!(
-            self.state,
-            WorktreeState::Completed | WorktreeState::Failed(_) | WorktreeState::Cleaning
-        )
-    }
-
-    /// Returns true if the agent is actively running.
-    pub fn is_active(&self) -> bool {
-        matches!(
-            self.state,
-            WorktreeState::Creating
-                | WorktreeState::Ready
-                | WorktreeState::Running
-                | WorktreeState::Merging
-        )
-    }
-}
-
-// === Worktree Pool ===
-
-/// Pool managing multiple worktree agents.
+/// An agent running in an isolated worktree.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorktreeAgent {
+    pub id: String,
+    pub worktree_path: String,
+    pub branch_name: String,
+    pub status: WorktreeStatus,
+    pub agent_type: AgentType,
+    pub task_description: String,
+    pub created_at: u64,
+    pub updated_at: u64,
+    pub progress_pct: u8,
+    pub output_log: Vec<String>,
+}
+
+/// A task that can be assigned to a worktree agent.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorktreeTask {
+    pub id: String,
+    pub description: String,
+    pub priority: TaskPriority,
+    pub assigned_agent: Option<String>,
+    pub subtasks: Vec<String>,
+    pub created_at: u64,
+}
+
+/// Result of merging a worktree branch.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MergeResult {
+    pub success: bool,
+    pub conflicts: Vec<String>,
+    pub merged_files: Vec<String>,
+    pub branch_name: String,
+}
+
+/// Aggregate metrics for the worktree pool.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct WorktreeMetrics {
+    pub total_spawned: u64,
+    pub completed: u64,
+    pub failed: u64,
+    pub active: u64,
+    pub avg_duration_secs: f64,
+    pub merge_conflicts: u64,
+}
+
+// ---------------------------------------------------------------------------
+// WorktreePool
+// ---------------------------------------------------------------------------
+
+/// Manages a pool of worktree-based agent workers.
 pub struct WorktreePool {
-    /// Pool configuration.
-    pub config: WorktreeConfig,
-    /// Active and historical agents.
-    pub agents: HashMap<String, WorktreeAgent>,
-    /// Root path of the git repository.
-    pub repo_root: String,
-    /// Queue of agent IDs awaiting merge.
-    pub merge_queue: Vec<String>,
-    /// Counter for generating unique IDs.
+    config: WorktreeConfig,
+    agents: HashMap<String, WorktreeAgent>,
+    tasks: Vec<WorktreeTask>,
+    metrics: WorktreeMetrics,
     next_id: u64,
+    timestamp_counter: u64,
 }
 
 impl WorktreePool {
-    /// Create a new worktree pool.
-    pub fn new(repo_root: &str, config: WorktreeConfig) -> Self {
+    /// Create a new pool with the given configuration.
+    pub fn new(config: WorktreeConfig) -> Self {
         Self {
             config,
             agents: HashMap::new(),
-            repo_root: repo_root.to_string(),
-            merge_queue: Vec::new(),
+            tasks: Vec::new(),
+            metrics: WorktreeMetrics::default(),
             next_id: 1,
+            timestamp_counter: 1000,
         }
     }
 
-    /// Spawn a new worktree agent for the given task. Returns the agent ID.
-    pub fn spawn_agent(&mut self, task: &str) -> Result<String, String> {
-        if task.trim().is_empty() {
+    /// Get the next timestamp (monotonically increasing counter for tests).
+    fn next_timestamp(&mut self) -> u64 {
+        self.timestamp_counter += 1;
+        self.timestamp_counter
+    }
+
+    /// Spawn a new agent in an isolated worktree. Returns the agent ID.
+    pub fn spawn_agent(
+        &mut self,
+        task_desc: &str,
+        agent_type: AgentType,
+    ) -> Result<String, String> {
+        if self.active_count() as u32 >= self.config.max_worktrees {
+            return Err(format!(
+                "Max worktree limit reached ({})",
+                self.config.max_worktrees
+            ));
+        }
+        if task_desc.trim().is_empty() {
             return Err("Task description cannot be empty".to_string());
         }
 
-        let active = self.active_count();
-        if active >= self.config.max_worktrees {
-            return Err(format!(
-                "Pool at capacity: {}/{} worktrees active",
-                active, self.config.max_worktrees
-            ));
-        }
-
-        let id = format!("wt-{:04}", self.next_id);
+        let id = format!("wt-{}", self.next_id);
         self.next_id += 1;
 
-        let branch_name = format!(
-            "{}{}",
-            self.config.worktree_prefix,
-            id.replace('-', "_")
-        );
-        let worktree_path = format!("{}/.worktrees/{}", self.repo_root, id);
-
-        let now = current_timestamp();
+        let branch_name = BranchNamer::generate("wt", task_desc);
+        let worktree_path = format!("{}/{}", self.config.base_dir, branch_name);
+        let ts = self.next_timestamp();
 
         let agent = WorktreeAgent {
             id: id.clone(),
             worktree_path,
             branch_name,
-            state: WorktreeState::Creating,
-            task_description: task.to_string(),
-            created_at: now,
-            updated_at: now,
-            progress_percent: 0,
-            files_changed: Vec::new(),
-            commits: Vec::new(),
+            status: WorktreeStatus::Running,
+            agent_type,
+            task_description: task_desc.to_string(),
+            created_at: ts,
+            updated_at: ts,
+            progress_pct: 0,
+            output_log: Vec::new(),
         };
 
         self.agents.insert(id.clone(), agent);
+        self.metrics.total_spawned += 1;
+        self.metrics.active += 1;
+
         Ok(id)
-    }
-
-    /// Get a reference to an agent by ID.
-    pub fn get_agent(&self, id: &str) -> Option<&WorktreeAgent> {
-        self.agents.get(id)
-    }
-
-    /// Get a mutable reference to an agent by ID.
-    pub fn get_agent_mut(&mut self, id: &str) -> Option<&mut WorktreeAgent> {
-        self.agents.get_mut(id)
     }
 
     /// List all agents in the pool.
     pub fn list_agents(&self) -> Vec<&WorktreeAgent> {
         let mut agents: Vec<&WorktreeAgent> = self.agents.values().collect();
-        agents.sort_by_key(|a| a.created_at);
+        agents.sort_by_key(|a| &a.id);
         agents
     }
 
-    /// Count active (non-terminal) agents.
-    pub fn active_count(&self) -> usize {
-        self.agents.values().filter(|a| a.is_active()).count()
+    /// Get a specific agent by ID.
+    pub fn get_agent(&self, id: &str) -> Option<&WorktreeAgent> {
+        self.agents.get(id)
     }
 
-    /// Update progress of an agent.
-    pub fn update_progress(&mut self, id: &str, percent: u8, files: Vec<String>) {
-        if let Some(agent) = self.agents.get_mut(id) {
-            agent.progress_percent = percent.min(100);
-            agent.files_changed = files;
-            agent.updated_at = current_timestamp();
-            if agent.state == WorktreeState::Creating || agent.state == WorktreeState::Ready {
-                agent.state = WorktreeState::Running;
-            }
-        }
-    }
-
-    /// Mark an agent as completed with the given commits.
-    pub fn complete_agent(&mut self, id: &str, commits: Vec<String>) -> Result<(), String> {
+    /// Update the progress of an agent.
+    pub fn update_progress(&mut self, id: &str, pct: u8, log_line: &str) -> Result<(), String> {
         let agent = self
             .agents
             .get_mut(id)
             .ok_or_else(|| format!("Agent '{}' not found", id))?;
-
-        if agent.is_terminal() {
-            return Err(format!("Agent '{}' is already in terminal state: {}", id, agent.state));
+        match &agent.status {
+            WorktreeStatus::Running => {}
+            other => return Err(format!("Cannot update progress: agent is {:?}", other)),
         }
+        if pct > 100 {
+            return Err("Progress cannot exceed 100%".to_string());
+        }
+        agent.progress_pct = pct;
+        if !log_line.is_empty() {
+            agent.output_log.push(log_line.to_string());
+        }
+        agent.updated_at = self.timestamp_counter + 1;
+        self.timestamp_counter += 1;
+        Ok(())
+    }
 
-        agent.state = WorktreeState::Completed;
-        agent.progress_percent = 100;
-        agent.commits = commits;
-        agent.updated_at = current_timestamp();
-
-        self.merge_queue.push(id.to_string());
+    /// Mark an agent as completed.
+    pub fn complete_agent(&mut self, id: &str) -> Result<(), String> {
+        let agent = self
+            .agents
+            .get_mut(id)
+            .ok_or_else(|| format!("Agent '{}' not found", id))?;
+        match &agent.status {
+            WorktreeStatus::Running => {}
+            other => return Err(format!("Cannot complete: agent is {:?}", other)),
+        }
+        agent.status = WorktreeStatus::Completed;
+        agent.progress_pct = 100;
+        agent.updated_at = self.timestamp_counter + 1;
+        self.timestamp_counter += 1;
+        self.metrics.completed += 1;
+        self.metrics.active = self.metrics.active.saturating_sub(1);
+        // Update average duration
+        let duration = agent.updated_at.saturating_sub(agent.created_at) as f64;
+        let total_completed = self.metrics.completed as f64;
+        self.metrics.avg_duration_secs =
+            (self.metrics.avg_duration_secs * (total_completed - 1.0) + duration)
+                / total_completed;
         Ok(())
     }
 
@@ -264,989 +266,412 @@ impl WorktreePool {
             .agents
             .get_mut(id)
             .ok_or_else(|| format!("Agent '{}' not found", id))?;
-
-        if agent.is_terminal() {
-            return Err(format!("Agent '{}' is already in terminal state: {}", id, agent.state));
+        match &agent.status {
+            WorktreeStatus::Running => {}
+            other => return Err(format!("Cannot fail: agent is {:?}", other)),
         }
-
-        agent.state = WorktreeState::Failed(reason.to_string());
-        agent.updated_at = current_timestamp();
+        agent.status = WorktreeStatus::Failed(reason.to_string());
+        agent.output_log.push(format!("FAILED: {}", reason));
+        agent.updated_at = self.timestamp_counter + 1;
+        self.timestamp_counter += 1;
+        self.metrics.failed += 1;
+        self.metrics.active = self.metrics.active.saturating_sub(1);
         Ok(())
     }
 
-    /// Cancel an active agent.
-    pub fn cancel_agent(&mut self, id: &str) -> Result<(), String> {
-        let agent = self
-            .agents
-            .get_mut(id)
-            .ok_or_else(|| format!("Agent '{}' not found", id))?;
-
-        if agent.is_terminal() {
-            return Err(format!("Agent '{}' is already in terminal state: {}", id, agent.state));
-        }
-
-        agent.state = WorktreeState::Failed("canceled by user".to_string());
-        agent.updated_at = current_timestamp();
-        Ok(())
-    }
-
-    /// Cleanup a single agent's worktree.
+    /// Remove a completed or failed agent from the pool.
     pub fn cleanup_agent(&mut self, id: &str) -> Result<(), String> {
         let agent = self
             .agents
-            .get_mut(id)
+            .get(id)
             .ok_or_else(|| format!("Agent '{}' not found", id))?;
-
-        if agent.is_active() && !matches!(agent.state, WorktreeState::Creating) {
-            // Allow cleanup of Creating state in case setup failed
-            if matches!(agent.state, WorktreeState::Running | WorktreeState::Merging) {
+        match &agent.status {
+            WorktreeStatus::Completed | WorktreeStatus::Failed(_) => {}
+            other => {
                 return Err(format!(
-                    "Cannot cleanup active agent '{}' in state: {}",
-                    id, agent.state
-                ));
+                    "Cannot cleanup: agent is {:?} (must be Completed or Failed)",
+                    other
+                ))
             }
         }
-
-        agent.state = WorktreeState::Cleaning;
-        agent.updated_at = current_timestamp();
-
-        // Remove from merge queue if present
-        self.merge_queue.retain(|qid| qid != id);
+        self.agents.remove(id);
         Ok(())
     }
 
-    /// Cleanup all completed and failed agents. Returns count of agents cleaned.
-    pub fn cleanup_completed(&mut self) -> usize {
-        let ids_to_clean: Vec<String> = self
+    /// Remove all completed or failed agents. Returns count removed.
+    pub fn cleanup_all_completed(&mut self) -> usize {
+        let to_remove: Vec<String> = self
             .agents
             .iter()
-            .filter(|(_, a)| matches!(a.state, WorktreeState::Completed | WorktreeState::Failed(_)))
+            .filter(|(_, a)| {
+                matches!(
+                    a.status,
+                    WorktreeStatus::Completed | WorktreeStatus::Failed(_)
+                )
+            })
             .map(|(id, _)| id.clone())
             .collect();
-
-        let count = ids_to_clean.len();
-        for id in &ids_to_clean {
-            if let Some(agent) = self.agents.get_mut(id) {
-                agent.state = WorktreeState::Cleaning;
-                agent.updated_at = current_timestamp();
-            }
-            self.merge_queue.retain(|qid| qid != id);
+        let count = to_remove.len();
+        for id in to_remove {
+            self.agents.remove(&id);
         }
         count
     }
 
-    /// Compute pool-level metrics.
-    pub fn metrics(&self) -> WorktreePoolMetrics {
-        let mut total_spawned = 0u64;
-        let mut total_completed = 0u64;
-        let mut total_failed = 0u64;
-        let mut total_canceled = 0u64;
-        let mut total_files_changed = 0usize;
-        let mut total_commits = 0usize;
-        let mut completion_times: Vec<u64> = Vec::new();
-
-        for agent in self.agents.values() {
-            total_spawned += 1;
-            total_files_changed += agent.files_changed.len();
-            total_commits += agent.commits.len();
-
-            match &agent.state {
-                WorktreeState::Completed | WorktreeState::Cleaning => {
-                    if agent.commits.is_empty()
-                        && matches!(agent.state, WorktreeState::Cleaning)
-                        && agent.progress_percent < 100
-                    {
-                        // Was likely failed/canceled then cleaned
-                        if agent
-                            .task_description
-                            .contains("canceled")
-                        {
-                            total_canceled += 1;
-                        } else {
-                            total_failed += 1;
-                        }
-                    } else {
-                        total_completed += 1;
-                        if agent.updated_at >= agent.created_at {
-                            completion_times.push(agent.updated_at - agent.created_at);
-                        }
-                    }
-                }
-                WorktreeState::Failed(reason) => {
-                    if reason == "canceled by user" {
-                        total_canceled += 1;
-                    } else {
-                        total_failed += 1;
-                    }
-                }
-                _ => {}
+    /// Simulate merging an agent's branch into a target branch.
+    pub fn merge_agent(
+        &mut self,
+        id: &str,
+        target_branch: &str,
+    ) -> Result<MergeResult, String> {
+        let agent = self
+            .agents
+            .get_mut(id)
+            .ok_or_else(|| format!("Agent '{}' not found", id))?;
+        match &agent.status {
+            WorktreeStatus::Completed => {}
+            other => {
+                return Err(format!(
+                    "Cannot merge: agent is {:?} (must be Completed)",
+                    other
+                ))
             }
         }
+        agent.status = WorktreeStatus::Merging;
+        agent.updated_at = self.timestamp_counter + 1;
+        self.timestamp_counter += 1;
 
-        let avg_completion_secs = if completion_times.is_empty() {
-            0.0
+        // Simulate: branches with "conflict" in the task description produce conflicts
+        let has_conflict = agent.task_description.to_lowercase().contains("conflict");
+        let branch = agent.branch_name.clone();
+
+        if has_conflict {
+            agent.status = WorktreeStatus::Conflicted;
+            self.metrics.merge_conflicts += 1;
+            Ok(MergeResult {
+                success: false,
+                conflicts: vec![format!("CONFLICT in {}", branch)],
+                merged_files: Vec::new(),
+                branch_name: branch,
+            })
         } else {
-            completion_times.iter().sum::<u64>() as f64 / completion_times.len() as f64
-        };
-
-        WorktreePoolMetrics {
-            total_spawned,
-            total_completed,
-            total_failed,
-            total_canceled,
-            avg_completion_secs,
-            total_files_changed,
-            total_commits,
+            agent.status = WorktreeStatus::Completed;
+            Ok(MergeResult {
+                success: true,
+                conflicts: Vec::new(),
+                merged_files: vec![
+                    format!("src/{}.rs", target_branch),
+                    format!("src/{}_impl.rs", target_branch),
+                ],
+                branch_name: branch,
+            })
         }
     }
-}
 
-// === Merge Orchestrator ===
-
-/// Strategy for merging completed worktree agents back to the base branch.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum MergeStrategy {
-    /// Merge agents one at a time in order.
-    Sequential,
-    /// Merge all in parallel, then resolve conflicts.
-    ParallelThenResolve,
-    /// Create a single combined PR from all agents.
-    CombinedPR,
-}
-
-impl std::fmt::Display for MergeStrategy {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Sequential => write!(f, "sequential"),
-            Self::ParallelThenResolve => write!(f, "parallel-then-resolve"),
-            Self::CombinedPR => write!(f, "combined-pr"),
-        }
-    }
-}
-
-/// Type of file conflict between two agents.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum ConflictType {
-    /// Both agents modified the same file.
-    BothModified,
-    /// One agent deleted a file the other modified.
-    DeletedVsModified,
-    /// Both agents added the same file.
-    AddedInBoth,
-}
-
-impl std::fmt::Display for ConflictType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::BothModified => write!(f, "both-modified"),
-            Self::DeletedVsModified => write!(f, "deleted-vs-modified"),
-            Self::AddedInBoth => write!(f, "added-in-both"),
-        }
-    }
-}
-
-/// A detected file conflict between two worktree agents.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct FileConflict {
-    /// Path of the conflicting file.
-    pub file_path: String,
-    /// Type of conflict.
-    pub conflict_type: ConflictType,
-}
-
-/// Orchestrates merging of completed worktree agents.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MergeOrchestrator {
-    /// Selected merge strategy.
-    pub strategy: MergeStrategy,
-}
-
-impl MergeOrchestrator {
-    /// Create a new merge orchestrator with the given strategy.
-    pub fn new(strategy: MergeStrategy) -> Self {
-        Self { strategy }
-    }
-
-    /// Plan merge order based on completion time (earliest first).
-    pub fn plan_merge_order(agents: &[&WorktreeAgent]) -> Vec<String> {
-        let mut sorted: Vec<&&WorktreeAgent> = agents
+    /// Merge all completed agents sequentially into target branch.
+    pub fn merge_all(&mut self, target_branch: &str) -> Vec<MergeResult> {
+        let completed_ids: Vec<String> = self
+            .agents
             .iter()
-            .filter(|a| matches!(a.state, WorktreeState::Completed))
+            .filter(|(_, a)| matches!(a.status, WorktreeStatus::Completed))
+            .map(|(id, _)| id.clone())
             .collect();
-        sorted.sort_by_key(|a| a.updated_at);
-        sorted.iter().map(|a| a.id.clone()).collect()
-    }
 
-    /// Detect file conflicts between two agents.
-    pub fn detect_conflicts(
-        agent_a: &WorktreeAgent,
-        agent_b: &WorktreeAgent,
-    ) -> Vec<FileConflict> {
-        let mut conflicts = Vec::new();
-        let files_a: std::collections::HashSet<&String> =
-            agent_a.files_changed.iter().collect();
-        let files_b: std::collections::HashSet<&String> =
-            agent_b.files_changed.iter().collect();
-
-        for file in files_a.intersection(&files_b) {
-            conflicts.push(FileConflict {
-                file_path: (*file).clone(),
-                conflict_type: ConflictType::BothModified,
-            });
-        }
-
-        conflicts.sort_by(|a, b| a.file_path.cmp(&b.file_path));
-        conflicts
-    }
-}
-
-// === PR Generator ===
-
-/// Mode for generating pull requests.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum PrMode {
-    /// One PR per worktree agent.
-    PerWorktree,
-    /// A single combined PR for all agents.
-    Combined,
-}
-
-/// Generates pull requests from worktree agents.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PrGenerator {
-    /// PR generation mode.
-    pub mode: PrMode,
-}
-
-impl PrGenerator {
-    /// Create a new PR generator.
-    pub fn new(mode: PrMode) -> Self {
-        Self { mode }
-    }
-
-    /// Generate a PR title for a single agent.
-    pub fn generate_pr_title(agent: &WorktreeAgent) -> String {
-        let desc = &agent.task_description;
-        let truncated = if desc.len() > 60 {
-            format!("{}...", &desc[..57])
-        } else {
-            desc.clone()
-        };
-        format!("[{}] {}", agent.id, truncated)
-    }
-
-    /// Generate a PR body from one or more agents.
-    pub fn generate_pr_body(agents: &[&WorktreeAgent]) -> String {
-        let mut body = String::new();
-        body.push_str("## Worktree Agent Summary\n\n");
-
-        if agents.len() == 1 {
-            let agent = agents[0];
-            body.push_str(&format!("**Task:** {}\n\n", agent.task_description));
-            body.push_str(&format!("**Agent:** `{}`\n", agent.id));
-            body.push_str(&format!("**Branch:** `{}`\n", agent.branch_name));
-            body.push_str(&format!(
-                "**Files changed:** {}\n",
-                agent.files_changed.len()
-            ));
-            body.push_str(&format!("**Commits:** {}\n", agent.commits.len()));
-            if !agent.files_changed.is_empty() {
-                body.push_str("\n### Changed files\n");
-                for f in &agent.files_changed {
-                    body.push_str(&format!("- `{}`\n", f));
-                }
+        let mut results = Vec::new();
+        for id in completed_ids {
+            match self.merge_agent(&id, target_branch) {
+                Ok(result) => results.push(result),
+                Err(e) => results.push(MergeResult {
+                    success: false,
+                    conflicts: vec![e],
+                    merged_files: Vec::new(),
+                    branch_name: format!("unknown-{}", id),
+                }),
             }
-        } else {
-            body.push_str(&format!(
-                "Combined PR from **{}** worktree agents.\n\n",
-                agents.len()
-            ));
-            body.push_str("| Agent | Task | Files | Commits |\n");
-            body.push_str("|-------|------|-------|---------|\n");
-            for agent in agents {
-                let task_short = if agent.task_description.len() > 40 {
-                    format!("{}...", &agent.task_description[..37])
-                } else {
-                    agent.task_description.clone()
-                };
-                body.push_str(&format!(
-                    "| `{}` | {} | {} | {} |\n",
-                    agent.id,
-                    task_short,
-                    agent.files_changed.len(),
-                    agent.commits.len()
-                ));
-            }
-
-            let total_files: usize = agents.iter().map(|a| a.files_changed.len()).sum();
-            let total_commits: usize = agents.iter().map(|a| a.commits.len()).sum();
-            body.push_str(&format!(
-                "\n**Total:** {} files changed, {} commits\n",
-                total_files, total_commits
-            ));
         }
+        results
+    }
 
-        body.push_str("\n---\n_Generated by VibeCody Worktree Pool_\n");
-        body
+    /// Count of currently active (Running/Merging/Idle) agents.
+    pub fn active_count(&self) -> usize {
+        self.agents
+            .values()
+            .filter(|a| {
+                matches!(
+                    a.status,
+                    WorktreeStatus::Running | WorktreeStatus::Merging | WorktreeStatus::Idle
+                )
+            })
+            .count()
+    }
+
+    /// Get the current metrics snapshot.
+    pub fn get_metrics(&self) -> &WorktreeMetrics {
+        &self.metrics
     }
 }
 
-// === Metrics ===
+// ---------------------------------------------------------------------------
+// TaskSplitter
+// ---------------------------------------------------------------------------
 
-/// Pool-level metrics for worktree agents.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct WorktreePoolMetrics {
-    /// Total agents ever spawned.
-    pub total_spawned: u64,
-    /// Total agents that completed successfully.
-    pub total_completed: u64,
-    /// Total agents that failed.
-    pub total_failed: u64,
-    /// Total agents that were canceled.
-    pub total_canceled: u64,
-    /// Average completion time in seconds.
-    pub avg_completion_secs: f64,
-    /// Total files changed across all agents.
-    pub total_files_changed: usize,
-    /// Total commits across all agents.
-    pub total_commits: usize,
-}
-
-// === Task Splitter ===
-
-/// Estimated complexity of a sub-task.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum TaskComplexity {
-    Low,
-    Medium,
-    High,
-}
-
-impl std::fmt::Display for TaskComplexity {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Low => write!(f, "low"),
-            Self::Medium => write!(f, "medium"),
-            Self::High => write!(f, "high"),
-        }
-    }
-}
-
-/// A sub-task generated by splitting a larger task.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct SubTask {
-    /// Unique identifier for the sub-task.
-    pub id: String,
-    /// Description of the sub-task.
-    pub description: String,
-    /// Estimated complexity.
-    pub estimated_complexity: TaskComplexity,
-    /// IDs of sub-tasks this depends on.
-    pub dependencies: Vec<String>,
-}
-
-/// Splits a task into sub-tasks for parallel execution.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Splits a high-level task into subtasks for parallel execution.
 pub struct TaskSplitter;
 
 impl TaskSplitter {
-    /// Split a task description into sub-tasks.
-    ///
-    /// Uses sentence boundaries and keyword heuristics to decompose the task.
-    /// Returns exactly `num_agents` sub-tasks when possible.
-    pub fn split_task(task: &str, num_agents: usize) -> Vec<SubTask> {
-        if num_agents == 0 {
+    /// Split a description into `num_parts` numbered subtasks.
+    pub fn split_task(description: &str, num_parts: usize) -> Vec<WorktreeTask> {
+        if num_parts == 0 || description.trim().is_empty() {
             return Vec::new();
         }
+        let mut tasks = Vec::new();
+        let ts = 1000u64;
+        for i in 1..=num_parts {
+            tasks.push(WorktreeTask {
+                id: format!("task-{}", i),
+                description: format!("Part {}/{}: {}", i, num_parts, description),
+                priority: if i == 1 {
+                    TaskPriority::High
+                } else {
+                    TaskPriority::Medium
+                },
+                assigned_agent: None,
+                subtasks: Vec::new(),
+                created_at: ts + i as u64,
+            });
+        }
+        tasks
+    }
 
-        // Split on sentence boundaries, newlines, and semicolons
-        let separators = ['.', ';', '\n'];
-        let mut parts: Vec<String> = Vec::new();
-        let mut current = String::new();
+    /// Estimate the number of parallel workers to use.
+    pub fn estimate_parallelism(task_count: usize, max_workers: u32) -> u32 {
+        std::cmp::min(task_count as u32, max_workers)
+    }
+}
 
-        for ch in task.chars() {
-            if separators.contains(&ch) {
-                let trimmed = current.trim().to_string();
-                if !trimmed.is_empty() {
-                    parts.push(trimmed);
+// ---------------------------------------------------------------------------
+// BranchNamer
+// ---------------------------------------------------------------------------
+
+/// Generates and validates git branch names.
+pub struct BranchNamer;
+
+impl BranchNamer {
+    /// Generate a sanitized branch name from a prefix and task description.
+    pub fn generate(prefix: &str, task_desc: &str) -> String {
+        let sanitized: String = task_desc
+            .to_lowercase()
+            .chars()
+            .map(|c| if c.is_alphanumeric() { c } else { '-' })
+            .collect();
+
+        // Collapse consecutive hyphens
+        let mut collapsed = String::new();
+        let mut last_was_hyphen = false;
+        for c in sanitized.chars() {
+            if c == '-' {
+                if !last_was_hyphen {
+                    collapsed.push(c);
                 }
-                current.clear();
+                last_was_hyphen = true;
             } else {
-                current.push(ch);
+                collapsed.push(c);
+                last_was_hyphen = false;
             }
         }
-        let trimmed = current.trim().to_string();
-        if !trimmed.is_empty() {
-            parts.push(trimmed);
-        }
 
-        // If we got fewer parts than agents, duplicate or keep what we have
-        if parts.is_empty() {
-            parts.push(task.trim().to_string());
-        }
+        // Trim leading/trailing hyphens
+        let trimmed = collapsed.trim_matches('-');
 
-        // Distribute parts across num_agents sub-tasks
-        let mut subtasks: Vec<SubTask> = Vec::new();
-
-        if parts.len() <= num_agents {
-            // One sub-task per part, fill remaining with subdivisions of largest
-            for (i, part) in parts.iter().enumerate() {
-                let complexity = estimate_complexity(part);
-                subtasks.push(SubTask {
-                    id: format!("sub-{}", i + 1),
-                    description: part.clone(),
-                    estimated_complexity: complexity,
-                    dependencies: Vec::new(),
-                });
-            }
-            // Fill remaining with generic sub-tasks
-            let mut idx = parts.len();
-            while subtasks.len() < num_agents {
-                idx += 1;
-                subtasks.push(SubTask {
-                    id: format!("sub-{}", idx),
-                    description: format!("Additional work for: {}", task.trim()),
-                    estimated_complexity: TaskComplexity::Low,
-                    dependencies: vec![format!("sub-{}", idx - 1)],
-                });
-            }
+        let name = if prefix.is_empty() {
+            trimmed.to_string()
         } else {
-            // More parts than agents; merge parts into num_agents buckets
-            let bucket_size = parts.len().div_ceil(num_agents);
-            for (i, chunk) in parts.chunks(bucket_size).enumerate() {
-                let desc = chunk.join(". ");
-                let complexity = estimate_complexity(&desc);
-                subtasks.push(SubTask {
-                    id: format!("sub-{}", i + 1),
-                    description: desc,
-                    estimated_complexity: complexity,
-                    dependencies: Vec::new(),
-                });
-            }
-        }
-
-        subtasks.truncate(num_agents);
-        subtasks
-    }
-}
-
-/// Heuristic complexity estimation based on keywords.
-fn estimate_complexity(desc: &str) -> TaskComplexity {
-    let lower = desc.to_lowercase();
-    let high_keywords = [
-        "refactor",
-        "redesign",
-        "migrate",
-        "rewrite",
-        "architecture",
-        "security",
-        "performance",
-        "distributed",
-        "concurrent",
-    ];
-    let medium_keywords = [
-        "add",
-        "implement",
-        "create",
-        "build",
-        "integrate",
-        "test",
-        "update",
-        "modify",
-    ];
-
-    if high_keywords.iter().any(|k| lower.contains(k)) {
-        TaskComplexity::High
-    } else if medium_keywords.iter().any(|k| lower.contains(k)) {
-        TaskComplexity::Medium
-    } else {
-        TaskComplexity::Low
-    }
-}
-
-// === Progress Aggregator ===
-
-/// Aggregated progress across all agents in the pool.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct PoolProgress {
-    /// Total number of agents.
-    pub total_agents: usize,
-    /// Number of completed agents.
-    pub completed: usize,
-    /// Number of failed agents.
-    pub failed: usize,
-    /// Number of currently running agents.
-    pub running: usize,
-    /// Overall progress percentage (0-100).
-    pub overall_percent: u8,
-    /// Estimated remaining time in seconds.
-    pub estimated_remaining_secs: Option<u64>,
-}
-
-/// Aggregates progress from multiple agents.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ProgressAggregator;
-
-impl ProgressAggregator {
-    /// Aggregate progress from a set of agents.
-    pub fn aggregate(agents: &[&WorktreeAgent]) -> PoolProgress {
-        if agents.is_empty() {
-            return PoolProgress {
-                total_agents: 0,
-                completed: 0,
-                failed: 0,
-                running: 0,
-                overall_percent: 0,
-                estimated_remaining_secs: None,
-            };
-        }
-
-        let total_agents = agents.len();
-        let completed = agents
-            .iter()
-            .filter(|a| matches!(a.state, WorktreeState::Completed))
-            .count();
-        let failed = agents
-            .iter()
-            .filter(|a| matches!(a.state, WorktreeState::Failed(_)))
-            .count();
-        let running = agents
-            .iter()
-            .filter(|a| {
-                matches!(
-                    a.state,
-                    WorktreeState::Creating | WorktreeState::Ready | WorktreeState::Running
-                )
-            })
-            .count();
-
-        let total_percent: u32 = agents.iter().map(|a| a.progress_percent as u32).sum();
-        let overall_percent = (total_percent / total_agents as u32).min(100) as u8;
-
-        // Estimate remaining time from completed agents
-        let estimated_remaining_secs = if completed > 0 && running > 0 {
-            let avg_time: f64 = agents
-                .iter()
-                .filter(|a| matches!(a.state, WorktreeState::Completed))
-                .map(|a| (a.updated_at - a.created_at) as f64)
-                .sum::<f64>()
-                / completed as f64;
-
-            let remaining_work: f64 = agents
-                .iter()
-                .filter(|a| !a.is_terminal())
-                .map(|a| (100 - a.progress_percent) as f64 / 100.0)
-                .sum();
-
-            Some((avg_time * remaining_work) as u64)
-        } else {
-            None
+            format!("{}/{}", prefix, trimmed)
         };
 
-        PoolProgress {
-            total_agents,
-            completed,
-            failed,
-            running,
-            overall_percent,
-            estimated_remaining_secs,
+        // Truncate to 50 chars
+        if name.len() > 50 {
+            let truncated = &name[..50];
+            truncated.trim_end_matches('-').to_string()
+        } else {
+            name
         }
+    }
+
+    /// Check if a branch name is valid per git rules.
+    pub fn is_valid(name: &str) -> bool {
+        if name.is_empty() || name.len() > 255 {
+            return false;
+        }
+        if name.starts_with('-') || name.starts_with('.') {
+            return false;
+        }
+        if name.ends_with('/') || name.ends_with('.') || name.ends_with(".lock") {
+            return false;
+        }
+        if name.contains("..") || name.contains("~") || name.contains("^") || name.contains(":") {
+            return false;
+        }
+        if name.contains(' ') || name.contains('\\') || name.contains('\x7f') {
+            return false;
+        }
+        if name.contains("@{") {
+            return false;
+        }
+        // No ASCII control characters
+        if name.chars().any(|c| (c as u32) < 32) {
+            return false;
+        }
+        true
     }
 }
 
-// === Helpers ===
-
-/// Returns a mock timestamp for deterministic behavior. In production,
-/// this would use `std::time::SystemTime`.
-fn current_timestamp() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs()
-}
-
-// === Tests ===
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
     fn default_pool() -> WorktreePool {
-        WorktreePool::new("/tmp/test-repo", WorktreeConfig::default())
+        WorktreePool::new(WorktreeConfig::default())
     }
 
-    fn pool_with_capacity(cap: usize) -> WorktreePool {
-        let mut config = WorktreeConfig::default();
-        config.max_worktrees = cap;
-        WorktreePool::new("/tmp/test-repo", config)
+    fn pool_with_max(max: u32) -> WorktreePool {
+        WorktreePool::new(WorktreeConfig {
+            max_worktrees: max,
+            ..WorktreeConfig::default()
+        })
     }
 
-    fn make_agent(id: &str, state: WorktreeState, files: Vec<&str>, commits: Vec<&str>) -> WorktreeAgent {
-        let progress = if matches!(&state, WorktreeState::Completed) { 100 } else { 50 };
-        WorktreeAgent {
-            id: id.to_string(),
-            worktree_path: format!("/tmp/.worktrees/{}", id),
-            branch_name: format!("vibe-wt-{}", id),
-            state,
-            task_description: format!("Task for {}", id),
-            created_at: 1000,
-            updated_at: 1100,
-            progress_percent: progress,
-            files_changed: files.into_iter().map(String::from).collect(),
-            commits: commits.into_iter().map(String::from).collect(),
-        }
-    }
-
-    // --- Config Tests ---
+    // -- WorktreeConfig defaults --
 
     #[test]
-    fn test_default_config() {
-        let config = WorktreeConfig::default();
-        assert_eq!(config.max_worktrees, 4);
-        assert_eq!(config.base_branch, "main");
-        assert_eq!(config.worktree_prefix, "vibe-wt-");
-        assert!(!config.auto_cleanup);
-        assert!(config.resource_limits.is_none());
+    fn test_config_default_values() {
+        let cfg = WorktreeConfig::default();
+        assert_eq!(cfg.max_worktrees, 4);
+        assert!(cfg.auto_cleanup);
+        assert!(!cfg.auto_pr);
+        assert_eq!(cfg.merge_strategy, MergeStrategy::Sequential);
+        assert_eq!(cfg.resource_limit_mb, 2048);
     }
 
     #[test]
-    fn test_config_with_resource_limits() {
-        let config = WorktreeConfig {
-            resource_limits: Some(ResourceLimits {
-                max_memory_mb: Some(1024),
-                max_cpu_percent: Some(80),
-                max_time_secs: Some(3600),
-            }),
-            ..Default::default()
+    fn test_config_custom_values() {
+        let cfg = WorktreeConfig {
+            max_worktrees: 8,
+            base_dir: "/custom/dir".into(),
+            auto_cleanup: false,
+            auto_pr: true,
+            merge_strategy: MergeStrategy::Rebase,
+            resource_limit_mb: 4096,
         };
-        let limits = config.resource_limits.unwrap();
-        assert_eq!(limits.max_memory_mb, Some(1024));
-        assert_eq!(limits.max_cpu_percent, Some(80));
-        assert_eq!(limits.max_time_secs, Some(3600));
+        assert_eq!(cfg.max_worktrees, 8);
+        assert_eq!(cfg.base_dir, "/custom/dir");
+        assert!(!cfg.auto_cleanup);
+        assert!(cfg.auto_pr);
     }
 
-    #[test]
-    fn test_config_serialization() {
-        let config = WorktreeConfig::default();
-        let json = serde_json::to_string(&config).expect("serialize config");
-        let deserialized: WorktreeConfig = serde_json::from_str(&json).expect("deserialize config");
-        assert_eq!(config, deserialized);
-    }
+    // -- Pool creation --
 
     #[test]
-    fn test_resource_limits_partial() {
-        let limits = ResourceLimits {
-            max_memory_mb: Some(512),
-            max_cpu_percent: None,
-            max_time_secs: None,
-        };
-        assert_eq!(limits.max_memory_mb, Some(512));
-        assert!(limits.max_cpu_percent.is_none());
-    }
-
-    // --- Pool Creation Tests ---
-
-    #[test]
-    fn test_pool_creation() {
+    fn test_pool_new_empty() {
         let pool = default_pool();
-        assert_eq!(pool.repo_root, "/tmp/test-repo");
-        assert!(pool.agents.is_empty());
-        assert!(pool.merge_queue.is_empty());
+        assert_eq!(pool.agents.len(), 0);
+        assert_eq!(pool.tasks.len(), 0);
         assert_eq!(pool.active_count(), 0);
     }
 
     #[test]
-    fn test_pool_with_custom_config() {
-        let config = WorktreeConfig {
-            max_worktrees: 8,
-            base_branch: "develop".to_string(),
-            worktree_prefix: "custom-".to_string(),
-            auto_cleanup: true,
-            resource_limits: None,
-        };
-        let pool = WorktreePool::new("/home/user/repo", config.clone());
-        assert_eq!(pool.config.max_worktrees, 8);
-        assert_eq!(pool.config.base_branch, "develop");
-        assert_eq!(pool.config.worktree_prefix, "custom-");
-        assert!(pool.config.auto_cleanup);
+    fn test_pool_new_with_custom_config() {
+        let pool = pool_with_max(16);
+        assert_eq!(pool.config.max_worktrees, 16);
     }
 
-    // --- Agent Spawning Tests ---
+    // -- Spawn agents --
 
     #[test]
     fn test_spawn_agent_success() {
         let mut pool = default_pool();
-        let id = pool.spawn_agent("Fix the login bug").unwrap();
-        assert!(id.starts_with("wt-"));
-        assert_eq!(pool.agents.len(), 1);
-        let agent = pool.get_agent(&id).unwrap();
-        assert_eq!(agent.task_description, "Fix the login bug");
-        assert_eq!(agent.state, WorktreeState::Creating);
-        assert_eq!(agent.progress_percent, 0);
+        let id = pool
+            .spawn_agent("Fix the login bug", AgentType::VibeCody)
+            .unwrap();
+        assert_eq!(id, "wt-1");
+        assert_eq!(pool.active_count(), 1);
+        assert_eq!(pool.metrics.total_spawned, 1);
     }
 
     #[test]
     fn test_spawn_multiple_agents() {
         let mut pool = default_pool();
-        let id1 = pool.spawn_agent("Task 1").unwrap();
-        let id2 = pool.spawn_agent("Task 2").unwrap();
-        let id3 = pool.spawn_agent("Task 3").unwrap();
-        assert_ne!(id1, id2);
-        assert_ne!(id2, id3);
-        assert_eq!(pool.agents.len(), 3);
+        let id1 = pool.spawn_agent("Task A", AgentType::ClaudeCode).unwrap();
+        let id2 = pool.spawn_agent("Task B", AgentType::GeminiCLI).unwrap();
+        let id3 = pool.spawn_agent("Task C", AgentType::Aider).unwrap();
+        assert_eq!(id1, "wt-1");
+        assert_eq!(id2, "wt-2");
+        assert_eq!(id3, "wt-3");
         assert_eq!(pool.active_count(), 3);
     }
 
     #[test]
-    fn test_spawn_at_capacity() {
-        let mut pool = pool_with_capacity(2);
-        pool.spawn_agent("Task 1").unwrap();
-        pool.spawn_agent("Task 2").unwrap();
-        let result = pool.spawn_agent("Task 3");
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("at capacity"));
+    fn test_spawn_agent_max_limit() {
+        let mut pool = pool_with_max(2);
+        pool.spawn_agent("Task A", AgentType::VibeCody).unwrap();
+        pool.spawn_agent("Task B", AgentType::VibeCody).unwrap();
+        let err = pool
+            .spawn_agent("Task C", AgentType::VibeCody)
+            .unwrap_err();
+        assert!(err.contains("Max worktree limit reached"));
     }
 
     #[test]
-    fn test_spawn_empty_task() {
+    fn test_spawn_agent_empty_description() {
         let mut pool = default_pool();
-        let result = pool.spawn_agent("");
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("empty"));
+        let err = pool.spawn_agent("", AgentType::VibeCody).unwrap_err();
+        assert!(err.contains("empty"));
     }
 
     #[test]
-    fn test_spawn_whitespace_task() {
+    fn test_spawn_agent_whitespace_description() {
         let mut pool = default_pool();
-        let result = pool.spawn_agent("   ");
-        assert!(result.is_err());
+        let err = pool.spawn_agent("   ", AgentType::VibeCody).unwrap_err();
+        assert!(err.contains("empty"));
     }
 
     #[test]
-    fn test_spawn_generates_unique_ids() {
-        let mut pool = pool_with_capacity(10);
-        let mut ids = Vec::new();
-        for i in 0..10 {
-            ids.push(pool.spawn_agent(&format!("Task {}", i)).unwrap());
-        }
-        let unique: std::collections::HashSet<&String> = ids.iter().collect();
-        assert_eq!(unique.len(), 10);
-    }
-
-    #[test]
-    fn test_spawn_worktree_path_format() {
-        let mut pool = WorktreePool::new("/my/repo", WorktreeConfig::default());
-        let id = pool.spawn_agent("Test task").unwrap();
+    fn test_spawn_agent_custom_type() {
+        let mut pool = default_pool();
+        let id = pool
+            .spawn_agent("Custom task", AgentType::Custom("MyAgent".into()))
+            .unwrap();
         let agent = pool.get_agent(&id).unwrap();
-        assert!(agent.worktree_path.starts_with("/my/repo/.worktrees/"));
+        assert_eq!(agent.agent_type, AgentType::Custom("MyAgent".into()));
     }
 
     #[test]
-    fn test_spawn_branch_name_format() {
+    fn test_spawn_agent_sets_running_status() {
         let mut pool = default_pool();
-        let id = pool.spawn_agent("Test").unwrap();
+        let id = pool
+            .spawn_agent("Some task", AgentType::VibeCody)
+            .unwrap();
         let agent = pool.get_agent(&id).unwrap();
-        assert!(agent.branch_name.starts_with("vibe-wt-"));
+        assert_eq!(agent.status, WorktreeStatus::Running);
+        assert_eq!(agent.progress_pct, 0);
     }
 
-    // --- Agent Lifecycle Tests ---
-
     #[test]
-    fn test_lifecycle_spawn_to_complete() {
+    fn test_spawn_agent_branch_name_generated() {
         let mut pool = default_pool();
-        let id = pool.spawn_agent("Implement feature").unwrap();
-
-        // Progress update transitions to Running
-        pool.update_progress(&id, 50, vec!["src/lib.rs".to_string()]);
-        assert_eq!(pool.get_agent(&id).unwrap().state, WorktreeState::Running);
-        assert_eq!(pool.get_agent(&id).unwrap().progress_percent, 50);
-
-        // Complete
-        pool.complete_agent(&id, vec!["abc123".to_string()]).unwrap();
+        let id = pool
+            .spawn_agent("Add user authentication", AgentType::VibeCody)
+            .unwrap();
         let agent = pool.get_agent(&id).unwrap();
-        assert_eq!(agent.state, WorktreeState::Completed);
-        assert_eq!(agent.progress_percent, 100);
-        assert_eq!(agent.commits, vec!["abc123"]);
-        assert!(pool.merge_queue.contains(&id));
+        assert!(agent.branch_name.starts_with("wt/"));
+        assert!(agent.branch_name.contains("add-user-authentication"));
     }
 
-    #[test]
-    fn test_lifecycle_spawn_to_fail() {
-        let mut pool = default_pool();
-        let id = pool.spawn_agent("Risky task").unwrap();
-        pool.update_progress(&id, 30, vec![]);
-        pool.fail_agent(&id, "compilation error").unwrap();
-        let agent = pool.get_agent(&id).unwrap();
-        assert_eq!(
-            agent.state,
-            WorktreeState::Failed("compilation error".to_string())
-        );
-    }
-
-    #[test]
-    fn test_lifecycle_spawn_to_cancel() {
-        let mut pool = default_pool();
-        let id = pool.spawn_agent("Long task").unwrap();
-        pool.update_progress(&id, 20, vec![]);
-        pool.cancel_agent(&id).unwrap();
-        let agent = pool.get_agent(&id).unwrap();
-        assert_eq!(
-            agent.state,
-            WorktreeState::Failed("canceled by user".to_string())
-        );
-    }
-
-    #[test]
-    fn test_cannot_complete_terminal_agent() {
-        let mut pool = default_pool();
-        let id = pool.spawn_agent("Task").unwrap();
-        pool.complete_agent(&id, vec![]).unwrap();
-        let result = pool.complete_agent(&id, vec!["extra".to_string()]);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("terminal state"));
-    }
-
-    #[test]
-    fn test_cannot_fail_terminal_agent() {
-        let mut pool = default_pool();
-        let id = pool.spawn_agent("Task").unwrap();
-        pool.fail_agent(&id, "oops").unwrap();
-        let result = pool.fail_agent(&id, "again");
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_cannot_cancel_terminal_agent() {
-        let mut pool = default_pool();
-        let id = pool.spawn_agent("Task").unwrap();
-        pool.complete_agent(&id, vec![]).unwrap();
-        let result = pool.cancel_agent(&id);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_complete_unknown_agent() {
-        let mut pool = default_pool();
-        let result = pool.complete_agent("nonexistent", vec![]);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("not found"));
-    }
-
-    #[test]
-    fn test_fail_unknown_agent() {
-        let mut pool = default_pool();
-        let result = pool.fail_agent("nonexistent", "reason");
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_cancel_unknown_agent() {
-        let mut pool = default_pool();
-        let result = pool.cancel_agent("nonexistent");
-        assert!(result.is_err());
-    }
-
-    // --- Progress Tests ---
-
-    #[test]
-    fn test_update_progress() {
-        let mut pool = default_pool();
-        let id = pool.spawn_agent("Task").unwrap();
-        pool.update_progress(&id, 75, vec!["a.rs".to_string(), "b.rs".to_string()]);
-        let agent = pool.get_agent(&id).unwrap();
-        assert_eq!(agent.progress_percent, 75);
-        assert_eq!(agent.files_changed, vec!["a.rs", "b.rs"]);
-    }
-
-    #[test]
-    fn test_update_progress_caps_at_100() {
-        let mut pool = default_pool();
-        let id = pool.spawn_agent("Task").unwrap();
-        pool.update_progress(&id, 150, vec![]);
-        assert_eq!(pool.get_agent(&id).unwrap().progress_percent, 100);
-    }
-
-    #[test]
-    fn test_update_progress_transitions_to_running() {
-        let mut pool = default_pool();
-        let id = pool.spawn_agent("Task").unwrap();
-        assert_eq!(pool.get_agent(&id).unwrap().state, WorktreeState::Creating);
-        pool.update_progress(&id, 10, vec![]);
-        assert_eq!(pool.get_agent(&id).unwrap().state, WorktreeState::Running);
-    }
-
-    #[test]
-    fn test_update_progress_nonexistent_agent() {
-        let mut pool = default_pool();
-        // Should not panic
-        pool.update_progress("nonexistent", 50, vec![]);
-    }
-
-    // --- Cleanup Tests ---
-
-    #[test]
-    fn test_cleanup_completed_agent() {
-        let mut pool = default_pool();
-        let id = pool.spawn_agent("Task").unwrap();
-        pool.complete_agent(&id, vec!["commit1".to_string()]).unwrap();
-        pool.cleanup_agent(&id).unwrap();
-        assert_eq!(pool.get_agent(&id).unwrap().state, WorktreeState::Cleaning);
-    }
-
-    #[test]
-    fn test_cleanup_failed_agent() {
-        let mut pool = default_pool();
-        let id = pool.spawn_agent("Task").unwrap();
-        pool.fail_agent(&id, "error").unwrap();
-        pool.cleanup_agent(&id).unwrap();
-        assert_eq!(pool.get_agent(&id).unwrap().state, WorktreeState::Cleaning);
-    }
-
-    #[test]
-    fn test_cleanup_running_agent_fails() {
-        let mut pool = default_pool();
-        let id = pool.spawn_agent("Task").unwrap();
-        pool.update_progress(&id, 50, vec![]);
-        let result = pool.cleanup_agent(&id);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("Cannot cleanup active"));
-    }
-
-    #[test]
-    fn test_cleanup_completed_batch() {
-        let mut pool = pool_with_capacity(10);
-        let id1 = pool.spawn_agent("Task 1").unwrap();
-        let id2 = pool.spawn_agent("Task 2").unwrap();
-        let id3 = pool.spawn_agent("Task 3").unwrap();
-
-        pool.complete_agent(&id1, vec![]).unwrap();
-        pool.fail_agent(&id2, "err").unwrap();
-        // id3 remains active
-
-        let cleaned = pool.cleanup_completed();
-        assert_eq!(cleaned, 2);
-        assert_eq!(pool.get_agent(&id1).unwrap().state, WorktreeState::Cleaning);
-        assert_eq!(pool.get_agent(&id2).unwrap().state, WorktreeState::Cleaning);
-        assert_eq!(pool.get_agent(&id3).unwrap().state, WorktreeState::Creating);
-    }
-
-    #[test]
-    fn test_cleanup_empty_pool() {
-        let mut pool = default_pool();
-        assert_eq!(pool.cleanup_completed(), 0);
-    }
-
-    #[test]
-    fn test_cleanup_removes_from_merge_queue() {
-        let mut pool = default_pool();
-        let id = pool.spawn_agent("Task").unwrap();
-        pool.complete_agent(&id, vec!["c1".to_string()]).unwrap();
-        assert!(pool.merge_queue.contains(&id));
-        pool.cleanup_agent(&id).unwrap();
-        assert!(!pool.merge_queue.contains(&id));
-    }
-
-    // --- List and Query Tests ---
+    // -- List / Get agents --
 
     #[test]
     fn test_list_agents_empty() {
@@ -1255,553 +680,577 @@ mod tests {
     }
 
     #[test]
-    fn test_list_agents_sorted_by_created_at() {
-        let mut pool = pool_with_capacity(5);
-        let _id1 = pool.spawn_agent("First").unwrap();
-        let _id2 = pool.spawn_agent("Second").unwrap();
-        let _id3 = pool.spawn_agent("Third").unwrap();
-
-        let agents = pool.list_agents();
-        assert_eq!(agents.len(), 3);
-        // Verify sorted by created_at (ascending)
-        assert!(agents[0].created_at <= agents[1].created_at);
-        assert!(agents[1].created_at <= agents[2].created_at);
-    }
-
-    #[test]
-    fn test_get_agent_exists() {
+    fn test_list_agents_sorted() {
         let mut pool = default_pool();
-        let id = pool.spawn_agent("Task").unwrap();
-        assert!(pool.get_agent(&id).is_some());
+        pool.spawn_agent("Task B", AgentType::VibeCody).unwrap();
+        pool.spawn_agent("Task A", AgentType::VibeCody).unwrap();
+        let agents = pool.list_agents();
+        assert_eq!(agents.len(), 2);
+        assert_eq!(agents[0].id, "wt-1");
+        assert_eq!(agents[1].id, "wt-2");
     }
 
     #[test]
-    fn test_get_agent_not_exists() {
+    fn test_get_agent_not_found() {
         let pool = default_pool();
-        assert!(pool.get_agent("nonexistent").is_none());
+        assert!(pool.get_agent("wt-999").is_none());
+    }
+
+    // -- Update progress --
+
+    #[test]
+    fn test_update_progress_success() {
+        let mut pool = default_pool();
+        let id = pool.spawn_agent("Task", AgentType::VibeCody).unwrap();
+        pool.update_progress(&id, 50, "Halfway done").unwrap();
+        let agent = pool.get_agent(&id).unwrap();
+        assert_eq!(agent.progress_pct, 50);
+        assert_eq!(agent.output_log.len(), 1);
+        assert_eq!(agent.output_log[0], "Halfway done");
     }
 
     #[test]
-    fn test_active_count_excludes_terminal() {
-        let mut pool = pool_with_capacity(10);
-        pool.spawn_agent("Active 1").unwrap();
-        pool.spawn_agent("Active 2").unwrap();
-        let id3 = pool.spawn_agent("Will complete").unwrap();
-        let id4 = pool.spawn_agent("Will fail").unwrap();
+    fn test_update_progress_multiple_times() {
+        let mut pool = default_pool();
+        let id = pool.spawn_agent("Task", AgentType::VibeCody).unwrap();
+        pool.update_progress(&id, 25, "Step 1").unwrap();
+        pool.update_progress(&id, 75, "Step 2").unwrap();
+        let agent = pool.get_agent(&id).unwrap();
+        assert_eq!(agent.progress_pct, 75);
+        assert_eq!(agent.output_log.len(), 2);
+    }
 
-        pool.complete_agent(&id3, vec![]).unwrap();
-        pool.fail_agent(&id4, "err").unwrap();
+    #[test]
+    fn test_update_progress_over_100() {
+        let mut pool = default_pool();
+        let id = pool.spawn_agent("Task", AgentType::VibeCody).unwrap();
+        let err = pool.update_progress(&id, 101, "Overflow").unwrap_err();
+        assert!(err.contains("exceed 100"));
+    }
 
+    #[test]
+    fn test_update_progress_not_found() {
+        let mut pool = default_pool();
+        let err = pool.update_progress("wt-999", 10, "").unwrap_err();
+        assert!(err.contains("not found"));
+    }
+
+    #[test]
+    fn test_update_progress_completed_agent() {
+        let mut pool = default_pool();
+        let id = pool.spawn_agent("Task", AgentType::VibeCody).unwrap();
+        pool.complete_agent(&id).unwrap();
+        let err = pool.update_progress(&id, 50, "Late update").unwrap_err();
+        assert!(err.contains("Cannot update progress"));
+    }
+
+    #[test]
+    fn test_update_progress_empty_log_line() {
+        let mut pool = default_pool();
+        let id = pool.spawn_agent("Task", AgentType::VibeCody).unwrap();
+        pool.update_progress(&id, 10, "").unwrap();
+        let agent = pool.get_agent(&id).unwrap();
+        assert_eq!(agent.output_log.len(), 0);
+    }
+
+    // -- Complete agent --
+
+    #[test]
+    fn test_complete_agent_success() {
+        let mut pool = default_pool();
+        let id = pool.spawn_agent("Task", AgentType::VibeCody).unwrap();
+        pool.complete_agent(&id).unwrap();
+        let agent = pool.get_agent(&id).unwrap();
+        assert_eq!(agent.status, WorktreeStatus::Completed);
+        assert_eq!(agent.progress_pct, 100);
+    }
+
+    #[test]
+    fn test_complete_agent_updates_metrics() {
+        let mut pool = default_pool();
+        let id = pool.spawn_agent("Task", AgentType::VibeCody).unwrap();
+        pool.complete_agent(&id).unwrap();
+        assert_eq!(pool.metrics.completed, 1);
+        assert_eq!(pool.metrics.active, 0);
+    }
+
+    #[test]
+    fn test_complete_agent_not_found() {
+        let mut pool = default_pool();
+        let err = pool.complete_agent("wt-999").unwrap_err();
+        assert!(err.contains("not found"));
+    }
+
+    #[test]
+    fn test_complete_agent_already_completed() {
+        let mut pool = default_pool();
+        let id = pool.spawn_agent("Task", AgentType::VibeCody).unwrap();
+        pool.complete_agent(&id).unwrap();
+        let err = pool.complete_agent(&id).unwrap_err();
+        assert!(err.contains("Cannot complete"));
+    }
+
+    // -- Fail agent --
+
+    #[test]
+    fn test_fail_agent_success() {
+        let mut pool = default_pool();
+        let id = pool.spawn_agent("Task", AgentType::VibeCody).unwrap();
+        pool.fail_agent(&id, "OOM killed").unwrap();
+        let agent = pool.get_agent(&id).unwrap();
+        assert_eq!(agent.status, WorktreeStatus::Failed("OOM killed".into()));
+        assert!(agent.output_log.last().unwrap().contains("FAILED"));
+    }
+
+    #[test]
+    fn test_fail_agent_updates_metrics() {
+        let mut pool = default_pool();
+        let id = pool.spawn_agent("Task", AgentType::VibeCody).unwrap();
+        pool.fail_agent(&id, "error").unwrap();
+        assert_eq!(pool.metrics.failed, 1);
+        assert_eq!(pool.metrics.active, 0);
+    }
+
+    #[test]
+    fn test_fail_agent_not_found() {
+        let mut pool = default_pool();
+        let err = pool.fail_agent("wt-999", "reason").unwrap_err();
+        assert!(err.contains("not found"));
+    }
+
+    #[test]
+    fn test_fail_already_failed_agent() {
+        let mut pool = default_pool();
+        let id = pool.spawn_agent("Task", AgentType::VibeCody).unwrap();
+        pool.fail_agent(&id, "first").unwrap();
+        let err = pool.fail_agent(&id, "second").unwrap_err();
+        assert!(err.contains("Cannot fail"));
+    }
+
+    // -- Cleanup --
+
+    #[test]
+    fn test_cleanup_agent_completed() {
+        let mut pool = default_pool();
+        let id = pool.spawn_agent("Task", AgentType::VibeCody).unwrap();
+        pool.complete_agent(&id).unwrap();
+        pool.cleanup_agent(&id).unwrap();
+        assert!(pool.get_agent(&id).is_none());
+    }
+
+    #[test]
+    fn test_cleanup_agent_failed() {
+        let mut pool = default_pool();
+        let id = pool.spawn_agent("Task", AgentType::VibeCody).unwrap();
+        pool.fail_agent(&id, "err").unwrap();
+        pool.cleanup_agent(&id).unwrap();
+        assert!(pool.get_agent(&id).is_none());
+    }
+
+    #[test]
+    fn test_cleanup_agent_running_fails() {
+        let mut pool = default_pool();
+        let id = pool.spawn_agent("Task", AgentType::VibeCody).unwrap();
+        let err = pool.cleanup_agent(&id).unwrap_err();
+        assert!(err.contains("Cannot cleanup"));
+    }
+
+    #[test]
+    fn test_cleanup_all_completed() {
+        let mut pool = default_pool();
+        let id1 = pool.spawn_agent("Task A", AgentType::VibeCody).unwrap();
+        let id2 = pool.spawn_agent("Task B", AgentType::VibeCody).unwrap();
+        pool.spawn_agent("Task C", AgentType::VibeCody).unwrap();
+        pool.complete_agent(&id1).unwrap();
+        pool.fail_agent(&id2, "err").unwrap();
+        let removed = pool.cleanup_all_completed();
+        assert_eq!(removed, 2);
+        assert_eq!(pool.agents.len(), 1);
+    }
+
+    #[test]
+    fn test_cleanup_all_none_completed() {
+        let mut pool = default_pool();
+        pool.spawn_agent("Task", AgentType::VibeCody).unwrap();
+        let removed = pool.cleanup_all_completed();
+        assert_eq!(removed, 0);
+    }
+
+    // -- Merge --
+
+    #[test]
+    fn test_merge_agent_success() {
+        let mut pool = default_pool();
+        let id = pool
+            .spawn_agent("Add feature X", AgentType::VibeCody)
+            .unwrap();
+        pool.complete_agent(&id).unwrap();
+        let result = pool.merge_agent(&id, "main").unwrap();
+        assert!(result.success);
+        assert!(result.conflicts.is_empty());
+        assert!(!result.merged_files.is_empty());
+    }
+
+    #[test]
+    fn test_merge_agent_with_conflict() {
+        let mut pool = default_pool();
+        let id = pool
+            .spawn_agent("Fix conflict in parser", AgentType::VibeCody)
+            .unwrap();
+        pool.complete_agent(&id).unwrap();
+        let result = pool.merge_agent(&id, "main").unwrap();
+        assert!(!result.success);
+        assert!(!result.conflicts.is_empty());
+        assert_eq!(pool.metrics.merge_conflicts, 1);
+    }
+
+    #[test]
+    fn test_merge_agent_not_completed() {
+        let mut pool = default_pool();
+        let id = pool.spawn_agent("Task", AgentType::VibeCody).unwrap();
+        let err = pool.merge_agent(&id, "main").unwrap_err();
+        assert!(err.contains("Cannot merge"));
+    }
+
+    #[test]
+    fn test_merge_agent_not_found() {
+        let mut pool = default_pool();
+        let err = pool.merge_agent("wt-999", "main").unwrap_err();
+        assert!(err.contains("not found"));
+    }
+
+    #[test]
+    fn test_merge_all_completed() {
+        let mut pool = default_pool();
+        let id1 = pool.spawn_agent("Task A", AgentType::VibeCody).unwrap();
+        let id2 = pool.spawn_agent("Task B", AgentType::VibeCody).unwrap();
+        pool.spawn_agent("Task C still running", AgentType::VibeCody)
+            .unwrap();
+        pool.complete_agent(&id1).unwrap();
+        pool.complete_agent(&id2).unwrap();
+        let results = pool.merge_all("main");
+        assert_eq!(results.len(), 2);
+        assert!(results.iter().all(|r| r.success));
+    }
+
+    #[test]
+    fn test_merge_all_none_completed() {
+        let mut pool = default_pool();
+        pool.spawn_agent("Task", AgentType::VibeCody).unwrap();
+        let results = pool.merge_all("main");
+        assert!(results.is_empty());
+    }
+
+    // -- Active count --
+
+    #[test]
+    fn test_active_count_tracks_correctly() {
+        let mut pool = default_pool();
+        assert_eq!(pool.active_count(), 0);
+        let id1 = pool.spawn_agent("A", AgentType::VibeCody).unwrap();
+        assert_eq!(pool.active_count(), 1);
+        pool.spawn_agent("B", AgentType::VibeCody).unwrap();
         assert_eq!(pool.active_count(), 2);
+        pool.complete_agent(&id1).unwrap();
+        assert_eq!(pool.active_count(), 1);
     }
 
-    // --- Merge Orchestrator Tests ---
+    // -- Metrics --
 
     #[test]
-    fn test_plan_merge_order_by_completion_time() {
-        let mut agent_a = make_agent("a", WorktreeState::Completed, vec![], vec!["c1"]);
-        agent_a.updated_at = 2000;
-        let mut agent_b = make_agent("b", WorktreeState::Completed, vec![], vec!["c2"]);
-        agent_b.updated_at = 1500;
-
-        let order = MergeOrchestrator::plan_merge_order(&[&agent_a, &agent_b]);
-        assert_eq!(order, vec!["b", "a"]); // b completed earlier
-    }
-
-    #[test]
-    fn test_plan_merge_order_excludes_non_completed() {
-        let agent_a = make_agent("a", WorktreeState::Completed, vec![], vec![]);
-        let agent_b = make_agent("b", WorktreeState::Running, vec![], vec![]);
-        let agent_c = make_agent("c", WorktreeState::Failed("err".to_string()), vec![], vec![]);
-
-        let order = MergeOrchestrator::plan_merge_order(&[&agent_a, &agent_b, &agent_c]);
-        assert_eq!(order, vec!["a"]);
-    }
-
-    #[test]
-    fn test_plan_merge_order_empty() {
-        let order = MergeOrchestrator::plan_merge_order(&[]);
-        assert!(order.is_empty());
-    }
-
-    #[test]
-    fn test_detect_conflicts_both_modified() {
-        let agent_a = make_agent("a", WorktreeState::Completed, vec!["src/lib.rs", "README.md"], vec![]);
-        let agent_b = make_agent("b", WorktreeState::Completed, vec!["src/lib.rs", "Cargo.toml"], vec![]);
-
-        let conflicts = MergeOrchestrator::detect_conflicts(&agent_a, &agent_b);
-        assert_eq!(conflicts.len(), 1);
-        assert_eq!(conflicts[0].file_path, "src/lib.rs");
-        assert_eq!(conflicts[0].conflict_type, ConflictType::BothModified);
-    }
-
-    #[test]
-    fn test_detect_conflicts_no_overlap() {
-        let agent_a = make_agent("a", WorktreeState::Completed, vec!["a.rs"], vec![]);
-        let agent_b = make_agent("b", WorktreeState::Completed, vec!["b.rs"], vec![]);
-
-        let conflicts = MergeOrchestrator::detect_conflicts(&agent_a, &agent_b);
-        assert!(conflicts.is_empty());
-    }
-
-    #[test]
-    fn test_detect_conflicts_multiple_overlaps() {
-        let agent_a = make_agent(
-            "a",
-            WorktreeState::Completed,
-            vec!["x.rs", "y.rs", "z.rs"],
-            vec![],
-        );
-        let agent_b = make_agent(
-            "b",
-            WorktreeState::Completed,
-            vec!["y.rs", "z.rs", "w.rs"],
-            vec![],
-        );
-
-        let conflicts = MergeOrchestrator::detect_conflicts(&agent_a, &agent_b);
-        assert_eq!(conflicts.len(), 2);
-        // Sorted by file_path
-        assert_eq!(conflicts[0].file_path, "y.rs");
-        assert_eq!(conflicts[1].file_path, "z.rs");
-    }
-
-    #[test]
-    fn test_detect_conflicts_empty_files() {
-        let agent_a = make_agent("a", WorktreeState::Completed, vec![], vec![]);
-        let agent_b = make_agent("b", WorktreeState::Completed, vec!["x.rs"], vec![]);
-        assert!(MergeOrchestrator::detect_conflicts(&agent_a, &agent_b).is_empty());
-    }
-
-    #[test]
-    fn test_merge_strategy_display() {
-        assert_eq!(MergeStrategy::Sequential.to_string(), "sequential");
-        assert_eq!(
-            MergeStrategy::ParallelThenResolve.to_string(),
-            "parallel-then-resolve"
-        );
-        assert_eq!(MergeStrategy::CombinedPR.to_string(), "combined-pr");
-    }
-
-    #[test]
-    fn test_conflict_type_display() {
-        assert_eq!(ConflictType::BothModified.to_string(), "both-modified");
-        assert_eq!(
-            ConflictType::DeletedVsModified.to_string(),
-            "deleted-vs-modified"
-        );
-        assert_eq!(ConflictType::AddedInBoth.to_string(), "added-in-both");
-    }
-
-    // --- PR Generator Tests ---
-
-    #[test]
-    fn test_pr_title_single_agent() {
-        let agent = make_agent("wt-0001", WorktreeState::Completed, vec![], vec![]);
-        let title = PrGenerator::generate_pr_title(&agent);
-        assert!(title.contains("wt-0001"));
-        assert!(title.contains("Task for wt-0001"));
-    }
-
-    #[test]
-    fn test_pr_title_truncation() {
-        let mut agent = make_agent("wt-0001", WorktreeState::Completed, vec![], vec![]);
-        agent.task_description = "A".repeat(100);
-        let title = PrGenerator::generate_pr_title(&agent);
-        assert!(title.len() < 80);
-        assert!(title.ends_with("..."));
-    }
-
-    #[test]
-    fn test_pr_body_single_agent() {
-        let agent = make_agent(
-            "wt-0001",
-            WorktreeState::Completed,
-            vec!["src/main.rs", "src/lib.rs"],
-            vec!["abc123", "def456"],
-        );
-        let body = PrGenerator::generate_pr_body(&[&agent]);
-        assert!(body.contains("wt-0001"));
-        assert!(body.contains("**Files changed:** 2"));
-        assert!(body.contains("**Commits:** 2"));
-        assert!(body.contains("`src/main.rs`"));
-        assert!(body.contains("VibeCody Worktree Pool"));
-    }
-
-    #[test]
-    fn test_pr_body_combined() {
-        let agent_a = make_agent("a", WorktreeState::Completed, vec!["x.rs"], vec!["c1"]);
-        let agent_b = make_agent("b", WorktreeState::Completed, vec!["y.rs", "z.rs"], vec!["c2", "c3"]);
-        let body = PrGenerator::generate_pr_body(&[&agent_a, &agent_b]);
-        assert!(body.contains("**2** worktree agents"));
-        assert!(body.contains("3 files changed, 3 commits"));
-        assert!(body.contains("| `a` |"));
-        assert!(body.contains("| `b` |"));
-    }
-
-    #[test]
-    fn test_pr_mode_equality() {
-        assert_eq!(PrMode::PerWorktree, PrMode::PerWorktree);
-        assert_ne!(PrMode::PerWorktree, PrMode::Combined);
-    }
-
-    // --- Task Splitter Tests ---
-
-    #[test]
-    fn test_split_single_task() {
-        let subtasks = TaskSplitter::split_task("Fix the login bug", 1);
-        assert_eq!(subtasks.len(), 1);
-        assert_eq!(subtasks[0].id, "sub-1");
-        assert!(subtasks[0].description.contains("Fix the login bug"));
-    }
-
-    #[test]
-    fn test_split_multiple_sentences() {
-        let subtasks = TaskSplitter::split_task(
-            "Add user authentication. Implement rate limiting. Create admin panel",
-            3,
-        );
-        assert_eq!(subtasks.len(), 3);
-        assert!(subtasks[0].description.contains("authentication"));
-        assert!(subtasks[1].description.contains("rate limiting"));
-        assert!(subtasks[2].description.contains("admin panel"));
-    }
-
-    #[test]
-    fn test_split_fewer_parts_than_agents() {
-        let subtasks = TaskSplitter::split_task("Fix the bug", 3);
-        assert_eq!(subtasks.len(), 3);
-        assert_eq!(subtasks[0].description, "Fix the bug");
-        // Additional sub-tasks should be generated
-        assert!(subtasks[1].description.contains("Additional work"));
-    }
-
-    #[test]
-    fn test_split_zero_agents() {
-        let subtasks = TaskSplitter::split_task("Some task", 0);
-        assert!(subtasks.is_empty());
-    }
-
-    #[test]
-    fn test_split_complexity_estimation() {
-        let subtasks = TaskSplitter::split_task(
-            "Refactor the database layer. Add a button. Fix typo",
-            3,
-        );
-        assert_eq!(subtasks[0].estimated_complexity, TaskComplexity::High); // refactor
-        assert_eq!(subtasks[1].estimated_complexity, TaskComplexity::Medium); // add
-        assert_eq!(subtasks[2].estimated_complexity, TaskComplexity::Low); // typo
-    }
-
-    #[test]
-    fn test_split_more_parts_than_agents() {
-        let subtasks = TaskSplitter::split_task(
-            "Fix bug A. Fix bug B. Fix bug C. Fix bug D. Fix bug E. Fix bug F",
-            2,
-        );
-        assert_eq!(subtasks.len(), 2);
-    }
-
-    #[test]
-    fn test_split_semicolons() {
-        let subtasks = TaskSplitter::split_task("Task A; Task B; Task C", 3);
-        assert_eq!(subtasks.len(), 3);
-        assert!(subtasks[0].description.contains("Task A"));
-    }
-
-    #[test]
-    fn test_split_dependencies() {
-        let subtasks = TaskSplitter::split_task("Simple task", 3);
-        // First sub-task has no deps, additional ones depend on previous
-        assert!(subtasks[0].dependencies.is_empty());
-        assert!(!subtasks[2].dependencies.is_empty());
-    }
-
-    #[test]
-    fn test_task_complexity_display() {
-        assert_eq!(TaskComplexity::Low.to_string(), "low");
-        assert_eq!(TaskComplexity::Medium.to_string(), "medium");
-        assert_eq!(TaskComplexity::High.to_string(), "high");
-    }
-
-    // --- Progress Aggregator Tests ---
-
-    #[test]
-    fn test_aggregate_empty() {
-        let progress = ProgressAggregator::aggregate(&[]);
-        assert_eq!(progress.total_agents, 0);
-        assert_eq!(progress.overall_percent, 0);
-        assert!(progress.estimated_remaining_secs.is_none());
-    }
-
-    #[test]
-    fn test_aggregate_all_running() {
-        let mut a = make_agent("a", WorktreeState::Running, vec![], vec![]);
-        a.progress_percent = 50;
-        let mut b = make_agent("b", WorktreeState::Running, vec![], vec![]);
-        b.progress_percent = 70;
-
-        let progress = ProgressAggregator::aggregate(&[&a, &b]);
-        assert_eq!(progress.total_agents, 2);
-        assert_eq!(progress.running, 2);
-        assert_eq!(progress.completed, 0);
-        assert_eq!(progress.overall_percent, 60); // (50+70)/2
-    }
-
-    #[test]
-    fn test_aggregate_mixed_states() {
-        let a = make_agent("a", WorktreeState::Completed, vec![], vec![]);
-        let b = make_agent("b", WorktreeState::Running, vec![], vec![]);
-        let c = make_agent("c", WorktreeState::Failed("err".to_string()), vec![], vec![]);
-
-        let progress = ProgressAggregator::aggregate(&[&a, &b, &c]);
-        assert_eq!(progress.total_agents, 3);
-        assert_eq!(progress.completed, 1);
-        assert_eq!(progress.running, 1);
-        assert_eq!(progress.failed, 1);
-    }
-
-    #[test]
-    fn test_aggregate_all_completed() {
-        let a = make_agent("a", WorktreeState::Completed, vec![], vec![]);
-        let b = make_agent("b", WorktreeState::Completed, vec![], vec![]);
-
-        let progress = ProgressAggregator::aggregate(&[&a, &b]);
-        assert_eq!(progress.completed, 2);
-        assert_eq!(progress.overall_percent, 100);
-    }
-
-    // --- Metrics Tests ---
-
-    #[test]
-    fn test_metrics_empty_pool() {
+    fn test_metrics_initial() {
         let pool = default_pool();
-        let m = pool.metrics();
+        let m = pool.get_metrics();
         assert_eq!(m.total_spawned, 0);
-        assert_eq!(m.total_completed, 0);
-        assert_eq!(m.total_failed, 0);
-        assert_eq!(m.total_canceled, 0);
-        assert_eq!(m.avg_completion_secs, 0.0);
+        assert_eq!(m.completed, 0);
+        assert_eq!(m.failed, 0);
+        assert_eq!(m.active, 0);
     }
 
     #[test]
-    fn test_metrics_with_agents() {
-        let mut pool = pool_with_capacity(10);
-        let id1 = pool.spawn_agent("Task 1").unwrap();
-        let id2 = pool.spawn_agent("Task 2").unwrap();
-        let id3 = pool.spawn_agent("Task 3").unwrap();
+    fn test_metrics_after_lifecycle() {
+        let mut pool = default_pool();
+        let id1 = pool.spawn_agent("A", AgentType::VibeCody).unwrap();
+        let id2 = pool.spawn_agent("B", AgentType::VibeCody).unwrap();
+        let id3 = pool.spawn_agent("C", AgentType::VibeCody).unwrap();
+        pool.complete_agent(&id1).unwrap();
+        pool.complete_agent(&id2).unwrap();
+        pool.fail_agent(&id3, "err").unwrap();
+        let m = pool.get_metrics();
+        assert_eq!(m.total_spawned, 3);
+        assert_eq!(m.completed, 2);
+        assert_eq!(m.failed, 1);
+        assert_eq!(m.active, 0);
+    }
 
-        pool.update_progress(&id1, 100, vec!["a.rs".to_string()]);
-        pool.complete_agent(&id1, vec!["c1".to_string(), "c2".to_string()])
+    #[test]
+    fn test_metrics_avg_duration() {
+        let mut pool = default_pool();
+        let id = pool.spawn_agent("Task", AgentType::VibeCody).unwrap();
+        pool.complete_agent(&id).unwrap();
+        // Duration is timestamp difference, should be positive
+        assert!(pool.get_metrics().avg_duration_secs > 0.0);
+    }
+
+    // -- Agent lifecycle: spawn -> progress -> complete -> cleanup --
+
+    #[test]
+    fn test_full_lifecycle() {
+        let mut pool = default_pool();
+        let id = pool
+            .spawn_agent("Implement feature Y", AgentType::ClaudeCode)
             .unwrap();
 
-        pool.update_progress(&id2, 50, vec!["b.rs".to_string(), "c.rs".to_string()]);
-        pool.fail_agent(&id2, "build failed").unwrap();
+        // Progress updates
+        pool.update_progress(&id, 25, "Starting analysis").unwrap();
+        pool.update_progress(&id, 50, "Writing code").unwrap();
+        pool.update_progress(&id, 75, "Running tests").unwrap();
 
-        pool.cancel_agent(&id3).unwrap();
+        let agent = pool.get_agent(&id).unwrap();
+        assert_eq!(agent.output_log.len(), 3);
 
-        let m = pool.metrics();
-        assert_eq!(m.total_spawned, 3);
-        assert_eq!(m.total_completed, 1);
-        assert_eq!(m.total_failed, 1);
-        assert_eq!(m.total_canceled, 1);
-        assert_eq!(m.total_commits, 2);
-        assert_eq!(m.total_files_changed, 3);
+        // Complete
+        pool.complete_agent(&id).unwrap();
+        let agent = pool.get_agent(&id).unwrap();
+        assert_eq!(agent.status, WorktreeStatus::Completed);
+        assert_eq!(agent.progress_pct, 100);
+
+        // Merge
+        let result = pool.merge_agent(&id, "main").unwrap();
+        assert!(result.success);
+
+        // Cleanup
+        pool.cleanup_agent(&id).unwrap();
+        assert!(pool.get_agent(&id).is_none());
     }
 
-    // --- Worktree State Tests ---
+    // -- TaskSplitter --
 
     #[test]
-    fn test_worktree_state_display() {
-        assert_eq!(WorktreeState::Creating.to_string(), "creating");
-        assert_eq!(WorktreeState::Ready.to_string(), "ready");
-        assert_eq!(WorktreeState::Running.to_string(), "running");
-        assert_eq!(WorktreeState::Merging.to_string(), "merging");
-        assert_eq!(WorktreeState::Completed.to_string(), "completed");
-        assert_eq!(
-            WorktreeState::Failed("err".to_string()).to_string(),
-            "failed: err"
-        );
-        assert_eq!(WorktreeState::Cleaning.to_string(), "cleaning");
-    }
-
-    #[test]
-    fn test_worktree_state_equality() {
-        assert_eq!(WorktreeState::Creating, WorktreeState::Creating);
-        assert_ne!(WorktreeState::Creating, WorktreeState::Ready);
-        assert_eq!(
-            WorktreeState::Failed("x".to_string()),
-            WorktreeState::Failed("x".to_string())
-        );
-        assert_ne!(
-            WorktreeState::Failed("x".to_string()),
-            WorktreeState::Failed("y".to_string())
-        );
+    fn test_split_task_basic() {
+        let tasks = TaskSplitter::split_task("Build the API", 3);
+        assert_eq!(tasks.len(), 3);
+        assert!(tasks[0].description.contains("Part 1/3"));
+        assert!(tasks[2].description.contains("Part 3/3"));
     }
 
     #[test]
-    fn test_agent_is_terminal() {
-        let completed = make_agent("a", WorktreeState::Completed, vec![], vec![]);
-        let failed = make_agent("b", WorktreeState::Failed("err".to_string()), vec![], vec![]);
-        let cleaning = make_agent("c", WorktreeState::Cleaning, vec![], vec![]);
-        let running = make_agent("d", WorktreeState::Running, vec![], vec![]);
-
-        assert!(completed.is_terminal());
-        assert!(failed.is_terminal());
-        assert!(cleaning.is_terminal());
-        assert!(!running.is_terminal());
+    fn test_split_task_first_is_high_priority() {
+        let tasks = TaskSplitter::split_task("Some task", 2);
+        assert_eq!(tasks[0].priority, TaskPriority::High);
+        assert_eq!(tasks[1].priority, TaskPriority::Medium);
     }
 
     #[test]
-    fn test_agent_is_active() {
-        assert!(make_agent("a", WorktreeState::Creating, vec![], vec![]).is_active());
-        assert!(make_agent("b", WorktreeState::Ready, vec![], vec![]).is_active());
-        assert!(make_agent("c", WorktreeState::Running, vec![], vec![]).is_active());
-        assert!(make_agent("d", WorktreeState::Merging, vec![], vec![]).is_active());
-        assert!(!make_agent("e", WorktreeState::Completed, vec![], vec![]).is_active());
-        assert!(!make_agent("f", WorktreeState::Failed("x".to_string()), vec![], vec![]).is_active());
-    }
-
-    // --- Serialization Tests ---
-
-    #[test]
-    fn test_worktree_agent_serialization() {
-        let agent = make_agent("wt-0001", WorktreeState::Running, vec!["a.rs"], vec!["c1"]);
-        let json = serde_json::to_string(&agent).expect("serialize agent");
-        let deserialized: WorktreeAgent = serde_json::from_str(&json).expect("deserialize agent");
-        assert_eq!(agent, deserialized);
+    fn test_split_task_zero_parts() {
+        let tasks = TaskSplitter::split_task("Task", 0);
+        assert!(tasks.is_empty());
     }
 
     #[test]
-    fn test_pool_serialization() {
-        let mut pool = default_pool();
-        pool.spawn_agent("Task 1").unwrap();
-        let json = serde_json::to_string(&pool).expect("serialize pool");
-        let deserialized: WorktreePool = serde_json::from_str(&json).expect("deserialize pool");
-        assert_eq!(deserialized.agents.len(), 1);
-        assert_eq!(deserialized.repo_root, "/tmp/test-repo");
+    fn test_split_task_empty_description() {
+        let tasks = TaskSplitter::split_task("", 3);
+        assert!(tasks.is_empty());
     }
 
     #[test]
-    fn test_file_conflict_serialization() {
-        let conflict = FileConflict {
-            file_path: "src/main.rs".to_string(),
-            conflict_type: ConflictType::BothModified,
-        };
-        let json = serde_json::to_string(&conflict).expect("serialize");
-        let deserialized: FileConflict = serde_json::from_str(&json).expect("deserialize");
-        assert_eq!(conflict, deserialized);
+    fn test_split_task_single_part() {
+        let tasks = TaskSplitter::split_task("Single task", 1);
+        assert_eq!(tasks.len(), 1);
+        assert!(tasks[0].description.contains("Part 1/1"));
     }
 
     #[test]
-    fn test_subtask_serialization() {
-        let subtask = SubTask {
-            id: "sub-1".to_string(),
-            description: "Do the thing".to_string(),
-            estimated_complexity: TaskComplexity::High,
-            dependencies: vec!["sub-0".to_string()],
-        };
-        let json = serde_json::to_string(&subtask).expect("serialize");
-        let deserialized: SubTask = serde_json::from_str(&json).expect("deserialize");
-        assert_eq!(subtask, deserialized);
-    }
-
-    #[test]
-    fn test_pool_progress_serialization() {
-        let progress = PoolProgress {
-            total_agents: 5,
-            completed: 2,
-            failed: 1,
-            running: 2,
-            overall_percent: 65,
-            estimated_remaining_secs: Some(120),
-        };
-        let json = serde_json::to_string(&progress).expect("serialize");
-        let deserialized: PoolProgress = serde_json::from_str(&json).expect("deserialize");
-        assert_eq!(progress, deserialized);
-    }
-
-    // --- Edge Case Tests ---
-
-    #[test]
-    fn test_spawn_after_cleanup_frees_capacity() {
-        let mut pool = pool_with_capacity(2);
-        let id1 = pool.spawn_agent("Task 1").unwrap();
-        let _id2 = pool.spawn_agent("Task 2").unwrap();
-
-        // At capacity
-        assert!(pool.spawn_agent("Task 3").is_err());
-
-        // Complete and note: completed agents are terminal, so capacity is freed
-        pool.complete_agent(&id1, vec![]).unwrap();
-        assert_eq!(pool.active_count(), 1);
-
-        // Now can spawn again
-        let id3 = pool.spawn_agent("Task 3");
-        assert!(id3.is_ok());
-    }
-
-    #[test]
-    fn test_pool_capacity_one() {
-        let mut pool = pool_with_capacity(1);
-        let id = pool.spawn_agent("Solo task").unwrap();
-        assert!(pool.spawn_agent("Second task").is_err());
-        pool.complete_agent(&id, vec![]).unwrap();
-        assert!(pool.spawn_agent("Now ok").is_ok());
-    }
-
-    #[test]
-    fn test_merge_orchestrator_new() {
-        let orch = MergeOrchestrator::new(MergeStrategy::Sequential);
-        assert_eq!(orch.strategy, MergeStrategy::Sequential);
-
-        let orch2 = MergeOrchestrator::new(MergeStrategy::CombinedPR);
-        assert_eq!(orch2.strategy, MergeStrategy::CombinedPR);
-    }
-
-    #[test]
-    fn test_pr_generator_new() {
-        let gen = PrGenerator::new(PrMode::PerWorktree);
-        assert_eq!(gen.mode, PrMode::PerWorktree);
-
-        let gen2 = PrGenerator::new(PrMode::Combined);
-        assert_eq!(gen2.mode, PrMode::Combined);
-    }
-
-    #[test]
-    fn test_complexity_keywords() {
-        assert_eq!(estimate_complexity("refactor the code"), TaskComplexity::High);
-        assert_eq!(estimate_complexity("migrate database"), TaskComplexity::High);
-        assert_eq!(estimate_complexity("add a button"), TaskComplexity::Medium);
-        assert_eq!(estimate_complexity("implement feature"), TaskComplexity::Medium);
-        assert_eq!(estimate_complexity("fix typo"), TaskComplexity::Low);
-        assert_eq!(estimate_complexity("rename variable"), TaskComplexity::Low);
-    }
-
-    #[test]
-    fn test_agent_get_mut() {
-        let mut pool = default_pool();
-        let id = pool.spawn_agent("Task").unwrap();
-        {
-            let agent = pool.get_agent_mut(&id).unwrap();
-            agent.state = WorktreeState::Ready;
+    fn test_split_task_ids_are_sequential() {
+        let tasks = TaskSplitter::split_task("X", 5);
+        for (i, t) in tasks.iter().enumerate() {
+            assert_eq!(t.id, format!("task-{}", i + 1));
         }
-        assert_eq!(pool.get_agent(&id).unwrap().state, WorktreeState::Ready);
     }
 
     #[test]
-    fn test_worktree_pool_metrics_serialization() {
-        let m = WorktreePoolMetrics {
-            total_spawned: 10,
-            total_completed: 7,
-            total_failed: 2,
-            total_canceled: 1,
-            avg_completion_secs: 45.5,
-            total_files_changed: 100,
-            total_commits: 30,
+    fn test_estimate_parallelism_within_limit() {
+        assert_eq!(TaskSplitter::estimate_parallelism(3, 8), 3);
+    }
+
+    #[test]
+    fn test_estimate_parallelism_at_limit() {
+        assert_eq!(TaskSplitter::estimate_parallelism(8, 8), 8);
+    }
+
+    #[test]
+    fn test_estimate_parallelism_exceeds_limit() {
+        assert_eq!(TaskSplitter::estimate_parallelism(20, 4), 4);
+    }
+
+    // -- BranchNamer --
+
+    #[test]
+    fn test_branch_generate_basic() {
+        let name = BranchNamer::generate("wt", "Fix login bug");
+        assert_eq!(name, "wt/fix-login-bug");
+    }
+
+    #[test]
+    fn test_branch_generate_special_chars() {
+        let name = BranchNamer::generate("wt", "Add user auth (v2.0)!");
+        assert!(name.starts_with("wt/"));
+        assert!(!name.contains(' '));
+        assert!(!name.contains('('));
+    }
+
+    #[test]
+    fn test_branch_generate_truncation() {
+        let long_desc = "a".repeat(100);
+        let name = BranchNamer::generate("wt", &long_desc);
+        assert!(name.len() <= 50);
+    }
+
+    #[test]
+    fn test_branch_generate_empty_prefix() {
+        let name = BranchNamer::generate("", "My task");
+        assert_eq!(name, "my-task");
+    }
+
+    #[test]
+    fn test_branch_generate_collapses_hyphens() {
+        let name = BranchNamer::generate("wt", "fix - - - bug");
+        assert!(!name.contains("--"));
+    }
+
+    #[test]
+    fn test_branch_is_valid_simple() {
+        assert!(BranchNamer::is_valid("feature/add-login"));
+    }
+
+    #[test]
+    fn test_branch_is_valid_empty() {
+        assert!(!BranchNamer::is_valid(""));
+    }
+
+    #[test]
+    fn test_branch_is_valid_dot_start() {
+        assert!(!BranchNamer::is_valid(".hidden"));
+    }
+
+    #[test]
+    fn test_branch_is_valid_double_dot() {
+        assert!(!BranchNamer::is_valid("a..b"));
+    }
+
+    #[test]
+    fn test_branch_is_valid_tilde() {
+        assert!(!BranchNamer::is_valid("feat~1"));
+    }
+
+    #[test]
+    fn test_branch_is_valid_space() {
+        assert!(!BranchNamer::is_valid("my branch"));
+    }
+
+    #[test]
+    fn test_branch_is_valid_ends_with_lock() {
+        assert!(!BranchNamer::is_valid("ref.lock"));
+    }
+
+    #[test]
+    fn test_branch_is_valid_ends_with_slash() {
+        assert!(!BranchNamer::is_valid("feature/"));
+    }
+
+    #[test]
+    fn test_branch_is_valid_at_brace() {
+        assert!(!BranchNamer::is_valid("branch@{0}"));
+    }
+
+    // -- Serialization --
+
+    #[test]
+    fn test_config_serialization() {
+        let cfg = WorktreeConfig::default();
+        let json = serde_json::to_string(&cfg).unwrap();
+        let parsed: WorktreeConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.max_worktrees, cfg.max_worktrees);
+    }
+
+    #[test]
+    fn test_agent_serialization() {
+        let agent = WorktreeAgent {
+            id: "wt-1".into(),
+            worktree_path: "/tmp/wt".into(),
+            branch_name: "wt/test".into(),
+            status: WorktreeStatus::Running,
+            agent_type: AgentType::VibeCody,
+            task_description: "Test".into(),
+            created_at: 1000,
+            updated_at: 1000,
+            progress_pct: 0,
+            output_log: Vec::new(),
         };
-        let json = serde_json::to_string(&m).expect("serialize");
-        let deserialized: WorktreePoolMetrics = serde_json::from_str(&json).expect("deserialize");
-        assert_eq!(m, deserialized);
+        let json = serde_json::to_string(&agent).unwrap();
+        let parsed: WorktreeAgent = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.id, "wt-1");
+    }
+
+    #[test]
+    fn test_metrics_serialization() {
+        let m = WorktreeMetrics::default();
+        let json = serde_json::to_string(&m).unwrap();
+        let parsed: WorktreeMetrics = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.total_spawned, 0);
+    }
+
+    // -- Edge cases --
+
+    #[test]
+    fn test_spawn_after_cleanup_frees_slot() {
+        let mut pool = pool_with_max(1);
+        let id = pool.spawn_agent("Task A", AgentType::VibeCody).unwrap();
+        pool.complete_agent(&id).unwrap();
+        pool.cleanup_agent(&id).unwrap();
+        // Should be able to spawn again since active count is 0
+        let id2 = pool.spawn_agent("Task B", AgentType::VibeCody).unwrap();
+        assert_eq!(id2, "wt-2");
+    }
+
+    #[test]
+    fn test_complete_frees_slot_for_spawn() {
+        let mut pool = pool_with_max(1);
+        let id = pool.spawn_agent("Task A", AgentType::VibeCody).unwrap();
+        pool.complete_agent(&id).unwrap();
+        // Completed agents are not active, so we can spawn
+        let id2 = pool.spawn_agent("Task B", AgentType::VibeCody).unwrap();
+        assert_eq!(id2, "wt-2");
+    }
+
+    #[test]
+    fn test_task_priority_ordering() {
+        assert!(TaskPriority::Critical < TaskPriority::High);
+        assert!(TaskPriority::High < TaskPriority::Medium);
+        assert!(TaskPriority::Medium < TaskPriority::Low);
+    }
+
+    #[test]
+    fn test_worktree_status_variants() {
+        let statuses = vec![
+            WorktreeStatus::Idle,
+            WorktreeStatus::Running,
+            WorktreeStatus::Completed,
+            WorktreeStatus::Failed("err".into()),
+            WorktreeStatus::Merging,
+            WorktreeStatus::Conflicted,
+        ];
+        assert_eq!(statuses.len(), 6);
+    }
+
+    #[test]
+    fn test_merge_strategy_variants() {
+        let strategies = vec![
+            MergeStrategy::Sequential,
+            MergeStrategy::Rebase,
+            MergeStrategy::OctopusMerge,
+            MergeStrategy::CherryPick,
+        ];
+        assert_eq!(strategies.len(), 4);
     }
 }
