@@ -5,7 +5,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { useToast } from "../hooks/useToast";
 import { ContextPicker } from "./ContextPicker";
 import { flowContext } from "../utils/FlowContext";
-import { Mic, User, Paperclip, X, FileText } from "lucide-react";
+import { Mic, User, Paperclip, X, FileText, Loader2, Download, ZoomIn } from "lucide-react";
 import "./AIChat.css";
 
 // ── Voice input hook ─────────────────────────────────────────────────────────
@@ -712,6 +712,8 @@ export function AIChat({
   const [slashQuery, setSlashQuery] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [isAttachLoading, setIsAttachLoading] = useState(false);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const [providerHealth, setProviderHealth] = useState<number>(1.0);
@@ -795,10 +797,15 @@ export function AIChat({
       return;
     }
     const toProcess = fileArray.slice(0, remaining);
-    const results = await Promise.all(toProcess.map(fileToAttachment));
-    const valid = results.filter((a): a is ChatAttachment => a !== null);
-    if (valid.length > 0) {
-      setAttachments((prev) => [...prev, ...valid]);
+    setIsAttachLoading(true);
+    try {
+      const results = await Promise.all(toProcess.map(fileToAttachment));
+      const valid = results.filter((a): a is ChatAttachment => a !== null);
+      if (valid.length > 0) {
+        setAttachments((prev) => [...prev, ...valid]);
+      }
+    } finally {
+      setIsAttachLoading(false);
     }
   }, [attachments.length, fileToAttachment, toast]);
 
@@ -822,17 +829,22 @@ export function AIChat({
         toast.warn(`Maximum ${MAX_ATTACHMENTS} attachments per message.`);
         return;
       }
-      for (const filePath of paths.slice(0, remaining)) {
-        try {
-          const att = await invoke<ChatAttachment>("read_attachment", { path: filePath });
-          // Generate preview for images
-          if (att.mime_type.startsWith("image/")) {
-            att.previewUrl = `data:${att.mime_type};base64,${att.data}`;
+      setIsAttachLoading(true);
+      try {
+        for (const filePath of paths.slice(0, remaining)) {
+          try {
+            const att = await invoke<ChatAttachment>("read_attachment", { path: filePath });
+            // Generate preview for images
+            if (att.mime_type.startsWith("image/")) {
+              att.previewUrl = `data:${att.mime_type};base64,${att.data}`;
+            }
+            setAttachments((prev) => [...prev, att]);
+          } catch (e) {
+            toast.error(`Failed to read "${filePath}": ${e}`);
           }
-          setAttachments((prev) => [...prev, att]);
-        } catch (e) {
-          toast.error(`Failed to read "${filePath}": ${e}`);
         }
+      } finally {
+        setIsAttachLoading(false);
       }
     } catch (e) {
       console.error("File picker error:", e);
@@ -1375,6 +1387,7 @@ export function AIChat({
                     </div>
                     {msg.attachments.map((att, ai) => {
                       const isImage = att.mime_type.startsWith("image/");
+                      const imgSrc = att.previewUrl || (att.data ? `data:${att.mime_type};base64,${att.data}` : undefined);
                       const sizeStr = att.size < 1024 ? `${att.size} B`
                         : att.size < 1024 * 1024 ? `${(att.size / 1024).toFixed(1)} KB`
                         : `${(att.size / (1024 * 1024)).toFixed(1)} MB`;
@@ -1383,11 +1396,18 @@ export function AIChat({
                           {isImage ? (
                             <div className="msg-attachment-image">
                               <img
-                                src={att.previewUrl || (att.data ? `data:${att.mime_type};base64,${att.data}` : undefined)}
+                                src={imgSrc}
                                 alt={att.name}
                                 className="msg-attachment-thumb"
+                                onClick={() => imgSrc && setLightboxSrc(imgSrc)}
+                                title="Click to enlarge"
                               />
-                              <span className="msg-attachment-name">{att.name}</span>
+                              <div className="msg-attachment-image-actions">
+                                <span className="msg-attachment-name">{att.name}</span>
+                                <button className="msg-attachment-zoom" onClick={() => imgSrc && setLightboxSrc(imgSrc)} title="View full size">
+                                  <ZoomIn size={12} />
+                                </button>
+                              </div>
                             </div>
                           ) : (
                             <div className="msg-attachment-file">
@@ -1519,6 +1539,13 @@ export function AIChat({
           <div className="voice-interim">
             <span className="voice-interim-dot" />
             {interimText}
+          </div>
+        )}
+        {/* Loading indicator for file reading */}
+        {isAttachLoading && (
+          <div className="attachment-loading">
+            <Loader2 size={14} className="attachment-spinner" />
+            <span>Reading files...</span>
           </div>
         )}
         {/* Attachment preview strip */}
@@ -1664,6 +1691,23 @@ export function AIChat({
           </button>
         </div>
       </div>
+
+      {/* Image lightbox overlay */}
+      {lightboxSrc && (
+        <div className="lightbox-overlay" onClick={() => setLightboxSrc(null)}>
+          <div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
+            <img src={lightboxSrc} alt="Full size preview" className="lightbox-image" />
+            <div className="lightbox-actions">
+              <a href={lightboxSrc} download="attachment" className="lightbox-download" title="Download">
+                <Download size={16} /> Download
+              </a>
+              <button className="lightbox-close" onClick={() => setLightboxSrc(null)} title="Close">
+                <X size={16} /> Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

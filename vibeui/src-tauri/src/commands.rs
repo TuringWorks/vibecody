@@ -127,6 +127,14 @@ pub struct AppState {
     pub sub_agents: Arc<Mutex<Vec<SubAgentDto>>>,
     /// Active agent team (Phase: Agent Teams).
     pub active_team: Arc<Mutex<Option<vibe_ai::agent_team::AgentTeam>>>,
+    /// A2A Protocol: discovered remote agents.
+    pub a2a_agents: Arc<Mutex<Vec<serde_json::Value>>>,
+    /// A2A Protocol: submitted tasks.
+    pub a2a_tasks: Arc<Mutex<Vec<serde_json::Value>>>,
+    /// A2A Protocol: aggregate metrics.
+    pub a2a_metrics: Arc<Mutex<serde_json::Value>>,
+    /// A2A Protocol: local agent card.
+    pub a2a_local_card: Arc<Mutex<serde_json::Value>>,
 }
 
 const MAX_TERMINAL_LINES: usize = 500;
@@ -12014,6 +12022,220 @@ mod tests {
         let meta = parse_steering_meta("", "empty.md");
         assert_eq!(meta.name, "empty");
         assert!(meta.scope_label.is_none());
+    }
+
+    // ── base64 encode/decode ─────────────────────────────────────────────────
+
+    #[test]
+    fn base64_encode_empty() {
+        assert_eq!(base64_encode_bytes(&[]), "");
+    }
+
+    #[test]
+    fn base64_encode_hello() {
+        assert_eq!(base64_encode_bytes(b"Hello"), "SGVsbG8=");
+    }
+
+    #[test]
+    fn base64_encode_single_byte() {
+        assert_eq!(base64_encode_bytes(b"A"), "QQ==");
+    }
+
+    #[test]
+    fn base64_encode_two_bytes() {
+        assert_eq!(base64_encode_bytes(b"AB"), "QUI=");
+    }
+
+    #[test]
+    fn base64_encode_three_bytes() {
+        assert_eq!(base64_encode_bytes(b"ABC"), "QUJD");
+    }
+
+    #[test]
+    fn base64_roundtrip_ascii() {
+        let original = "Hello, World! Testing base64 round-trip.";
+        let encoded = base64_encode_bytes(original.as_bytes());
+        let decoded = base64_decode_to_string(&encoded).unwrap();
+        assert_eq!(decoded, original);
+    }
+
+    #[test]
+    fn base64_roundtrip_binary_becomes_none() {
+        // Encode some invalid UTF-8 bytes; decoding to string should return None
+        let bytes: Vec<u8> = vec![0xFF, 0xFE, 0x80, 0x90];
+        let encoded = base64_encode_bytes(&bytes);
+        assert!(base64_decode_to_string(&encoded).is_none());
+    }
+
+    #[test]
+    fn base64_decode_with_padding_and_whitespace() {
+        let decoded = base64_decode_to_string("SGVs\nbG8=").unwrap();
+        assert_eq!(decoded, "Hello");
+    }
+
+    #[test]
+    fn base64_decode_invalid_chars() {
+        assert!(base64_decode_to_string("!!!").is_none());
+    }
+
+    // ── read_attachment ──────────────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn read_attachment_file_not_found() {
+        let result = read_attachment("/tmp/vibecody_test_nonexistent_file_xyz.txt".to_string()).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("File not found"));
+    }
+
+    #[tokio::test]
+    async fn read_attachment_text_file() {
+        let dir = std::env::temp_dir().join("vibecody_test_attach");
+        let _ = std::fs::create_dir_all(&dir);
+        let path = dir.join("test.rs");
+        std::fs::write(&path, "fn main() {}").unwrap();
+
+        let att = read_attachment(path.to_string_lossy().to_string()).await.unwrap();
+        assert_eq!(att.name, "test.rs");
+        assert_eq!(att.mime_type, "text/plain");
+        assert!(att.data.is_empty(), "text files should not use base64 data field");
+        assert_eq!(att.text_content.as_deref(), Some("fn main() {}"));
+        assert_eq!(att.size, 12);
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn read_attachment_json_file() {
+        let dir = std::env::temp_dir().join("vibecody_test_attach_json");
+        let _ = std::fs::create_dir_all(&dir);
+        let path = dir.join("data.json");
+        std::fs::write(&path, r#"{"key": "value"}"#).unwrap();
+
+        let att = read_attachment(path.to_string_lossy().to_string()).await.unwrap();
+        assert_eq!(att.name, "data.json");
+        assert_eq!(att.mime_type, "application/json");
+        assert!(att.text_content.is_some());
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn read_attachment_binary_file() {
+        let dir = std::env::temp_dir().join("vibecody_test_attach_bin");
+        let _ = std::fs::create_dir_all(&dir);
+        let path = dir.join("image.png");
+        // Write a minimal PNG header
+        let png_header: Vec<u8> = vec![0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+        std::fs::write(&path, &png_header).unwrap();
+
+        let att = read_attachment(path.to_string_lossy().to_string()).await.unwrap();
+        assert_eq!(att.name, "image.png");
+        assert_eq!(att.mime_type, "image/png");
+        assert!(att.text_content.is_none());
+        assert!(!att.data.is_empty(), "binary files should have base64 data");
+        assert_eq!(att.size, 8);
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn read_attachment_size_limit() {
+        let dir = std::env::temp_dir().join("vibecody_test_attach_big");
+        let _ = std::fs::create_dir_all(&dir);
+        let path = dir.join("huge.txt");
+        // Create a file just over 20 MB
+        let data = vec![b'x'; 21 * 1024 * 1024];
+        std::fs::write(&path, &data).unwrap();
+
+        let result = read_attachment(path.to_string_lossy().to_string()).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("too large"));
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn read_attachment_csv_is_text() {
+        let dir = std::env::temp_dir().join("vibecody_test_attach_csv");
+        let _ = std::fs::create_dir_all(&dir);
+        let path = dir.join("data.csv");
+        std::fs::write(&path, "a,b,c\n1,2,3").unwrap();
+
+        let att = read_attachment(path.to_string_lossy().to_string()).await.unwrap();
+        assert_eq!(att.mime_type, "text/csv");
+        assert!(att.text_content.is_some());
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn read_attachment_unknown_ext_is_binary() {
+        let dir = std::env::temp_dir().join("vibecody_test_attach_unk");
+        let _ = std::fs::create_dir_all(&dir);
+        let path = dir.join("data.xyz123");
+        std::fs::write(&path, &[0xFF, 0xFE, 0x00]).unwrap();
+
+        let att = read_attachment(path.to_string_lossy().to_string()).await.unwrap();
+        assert_eq!(att.mime_type, "application/octet-stream");
+        assert!(att.text_content.is_none());
+        assert!(!att.data.is_empty());
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // ── ChatAttachment serialization ─────────────────────────────────────────
+
+    #[test]
+    fn chat_attachment_serde_roundtrip() {
+        let att = ChatAttachment {
+            name: "test.rs".to_string(),
+            mime_type: "text/plain".to_string(),
+            data: String::new(),
+            size: 42,
+            text_content: Some("fn main() {}".to_string()),
+        };
+        let json = serde_json::to_string(&att).unwrap();
+        let back: ChatAttachment = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.name, "test.rs");
+        assert_eq!(back.size, 42);
+        assert_eq!(back.text_content.as_deref(), Some("fn main() {}"));
+    }
+
+    #[test]
+    fn chat_attachment_defaults() {
+        // Minimal JSON — data, size, text_content should all default
+        let json = r#"{"name":"f.txt","mime_type":"text/plain"}"#;
+        let att: ChatAttachment = serde_json::from_str(json).unwrap();
+        assert_eq!(att.data, "");
+        assert_eq!(att.size, 0);
+        assert!(att.text_content.is_none());
+    }
+
+    // ── ChatRequest with attachments ─────────────────────────────────────────
+
+    #[test]
+    fn chat_request_attachments_default_empty() {
+        let json = r#"{"messages":[],"provider":"ollama"}"#;
+        let req: ChatRequest = serde_json::from_str(json).unwrap();
+        assert!(req.attachments.is_empty());
+    }
+
+    #[test]
+    fn chat_request_with_attachments() {
+        let json = r#"{
+            "messages": [{"role": "user", "content": "review this"}],
+            "provider": "ollama",
+            "attachments": [{
+                "name": "main.rs",
+                "mime_type": "text/plain",
+                "data": "",
+                "size": 100,
+                "text_content": "fn main() {}"
+            }]
+        }"#;
+        let req: ChatRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.attachments.len(), 1);
+        assert_eq!(req.attachments[0].name, "main.rs");
     }
 }
 
@@ -34471,23 +34693,154 @@ pub async fn dispatch_heartbeat(machine_id: String) -> Result<serde_json::Value,
 // ── A2A Protocol ──
 
 #[tauri::command]
-pub async fn a2a_list_agents() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!([]))
+pub async fn a2a_list_agents(
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let agents = state.a2a_agents.lock().await;
+    Ok(serde_json::json!(*agents))
 }
 
 #[tauri::command]
-pub async fn a2a_discover(url: String) -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "status": "discovered", "url": url }))
+pub async fn a2a_discover(
+    url: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let now = chrono::Utc::now().timestamp();
+    let card = serde_json::json!({
+        "url": url,
+        "name": format!("Agent@{}", url),
+        "description": "Discovered A2A agent",
+        "capabilities": [],
+        "protocol": "a2a/1.0",
+        "status": "active",
+        "discovered_at": now,
+        "last_seen": now,
+    });
+    let mut agents = state.a2a_agents.lock().await;
+    // Avoid duplicates by URL
+    if agents.iter().any(|a| a.get("url").and_then(|v| v.as_str()) == Some(&url)) {
+        return Ok(serde_json::json!({ "status": "already_registered", "url": url }));
+    }
+    agents.push(card.clone());
+    drop(agents);
+    // Bump metrics
+    let mut metrics = state.a2a_metrics.lock().await;
+    if let Some(count) = metrics.get("agents_discovered").and_then(|v| v.as_i64()) {
+        metrics["agents_discovered"] = serde_json::json!(count + 1);
+    }
+    Ok(serde_json::json!({ "status": "discovered", "agent": card }))
 }
 
 #[tauri::command]
-pub async fn a2a_submit_task(agent_url: String, input: String) -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "task_id": format!("task-{}", chrono::Utc::now().timestamp()), "agent_url": agent_url, "status": "submitted", "input": input }))
+pub async fn a2a_submit_task(
+    agent_url: String,
+    input: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let now = chrono::Utc::now().timestamp();
+    let task_id = format!("task-{}-{}", now, {
+        let tasks = state.a2a_tasks.lock().await;
+        tasks.len()
+    });
+    let task = serde_json::json!({
+        "task_id": task_id,
+        "agent_url": agent_url,
+        "status": "submitted",
+        "input": input,
+        "created_at": now,
+        "updated_at": now,
+        "output": null,
+    });
+    let mut tasks = state.a2a_tasks.lock().await;
+    tasks.push(task.clone());
+    drop(tasks);
+    // Bump metrics
+    let mut metrics = state.a2a_metrics.lock().await;
+    if let Some(count) = metrics.get("tasks_created").and_then(|v| v.as_i64()) {
+        metrics["tasks_created"] = serde_json::json!(count + 1);
+    }
+    Ok(task)
 }
 
 #[tauri::command]
-pub async fn a2a_get_metrics() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "tasks_created": 0, "tasks_completed": 0, "tasks_failed": 0, "agents_discovered": 0 }))
+pub async fn a2a_get_metrics(
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let metrics = state.a2a_metrics.lock().await;
+    Ok(metrics.clone())
+}
+
+#[tauri::command]
+pub async fn a2a_get_agent_card(
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let card = state.a2a_local_card.lock().await;
+    Ok(card.clone())
+}
+
+#[tauri::command]
+pub async fn a2a_update_agent_card(
+    name: Option<String>,
+    description: Option<String>,
+    capabilities: Option<Vec<String>>,
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let mut card = state.a2a_local_card.lock().await;
+    if let Some(n) = name {
+        card["name"] = serde_json::json!(n);
+    }
+    if let Some(d) = description {
+        card["description"] = serde_json::json!(d);
+    }
+    if let Some(c) = capabilities {
+        card["capabilities"] = serde_json::json!(c);
+    }
+    card["updated_at"] = serde_json::json!(chrono::Utc::now().timestamp());
+    Ok(card.clone())
+}
+
+#[tauri::command]
+pub async fn a2a_list_tasks(
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let tasks = state.a2a_tasks.lock().await;
+    Ok(serde_json::json!(*tasks))
+}
+
+#[tauri::command]
+pub async fn a2a_cancel_task(
+    task_id: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let mut tasks = state.a2a_tasks.lock().await;
+    let task = tasks.iter_mut().find(|t| {
+        t.get("task_id").and_then(|v| v.as_str()) == Some(&task_id)
+    });
+    match task {
+        Some(t) => {
+            let current_status = t.get("status").and_then(|v| v.as_str()).unwrap_or("");
+            if current_status == "completed" || current_status == "cancelled" || current_status == "failed" {
+                return Ok(serde_json::json!({
+                    "error": format!("Cannot cancel task in '{}' state", current_status),
+                    "task_id": task_id,
+                }));
+            }
+            t["status"] = serde_json::json!("cancelled");
+            t["updated_at"] = serde_json::json!(chrono::Utc::now().timestamp());
+            let result = t.clone();
+            drop(tasks);
+            // Bump metrics
+            let mut metrics = state.a2a_metrics.lock().await;
+            if let Some(count) = metrics.get("tasks_cancelled").and_then(|v| v.as_i64()) {
+                metrics["tasks_cancelled"] = serde_json::json!(count + 1);
+            }
+            Ok(serde_json::json!({ "status": "cancelled", "task": result }))
+        }
+        None => Ok(serde_json::json!({
+            "error": "Task not found",
+            "task_id": task_id,
+        })),
+    }
 }
 
 // ── Agent Skills ──

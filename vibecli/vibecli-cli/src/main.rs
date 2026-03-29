@@ -7511,6 +7511,173 @@ async fn main() -> Result<()> {
                             }
                         }
 
+                        "/a2a" => {
+                            let sub = args.split_whitespace().next().unwrap_or("help");
+                            let rest = args.trim().strip_prefix(sub).unwrap_or("").trim();
+                            // Persistent A2A state across the REPL session
+                            use a2a_protocol::*;
+                            use std::sync::OnceLock;
+                            static A2A_STATE: OnceLock<std::sync::Mutex<(A2aClient, A2aServer, A2aMetrics)>> = OnceLock::new();
+                            let state = A2A_STATE.get_or_init(|| {
+                                let card = AgentCard::new(
+                                    "VibeCody",
+                                    "VibeCody AI coding assistant — code generation, review, testing, refactoring, and more",
+                                    "http://localhost:7900",
+                                    env!("CARGO_PKG_VERSION"),
+                                ).with_capabilities(vec![
+                                    AgentCapability::CodeGeneration,
+                                    AgentCapability::CodeReview,
+                                    AgentCapability::Testing,
+                                    AgentCapability::Debugging,
+                                    AgentCapability::Refactoring,
+                                    AgentCapability::Documentation,
+                                    AgentCapability::Security,
+                                ]);
+                                let server = A2aServer::new("localhost", 7900, card.clone());
+                                let client = A2aClient::new(30, 3);
+                                std::sync::Mutex::new((client, server, A2aMetrics::new()))
+                            });
+                            let mut guard = state.lock().unwrap();
+                            let (ref mut client, ref mut server, ref mut metrics) = *guard;
+
+                            match sub {
+                                "card" => {
+                                    let card = &server.agent_card;
+                                    println!("VibeCody Agent Card\n");
+                                    println!("  Name:         {}", card.name);
+                                    println!("  Description:  {}", card.description);
+                                    println!("  URL:          {}", card.url);
+                                    println!("  Version:      {}", card.version);
+                                    println!("  Auth:         {:?}", card.authentication.auth_type);
+                                    println!("  Capabilities: {}", card.capabilities.iter()
+                                        .map(|c| c.as_str()).collect::<Vec<_>>().join(", "));
+                                    if !card.skills.is_empty() {
+                                        println!("  Skills:       {}", card.skills.iter()
+                                            .map(|s| s.name.as_str()).collect::<Vec<_>>().join(", "));
+                                    }
+                                    match card.to_json() {
+                                        Ok(json) => println!("\nJSON:\n{}\n", json),
+                                        Err(e) => println!("\nJSON error: {}\n", e),
+                                    }
+                                }
+                                "serve" => {
+                                    let port: u16 = rest.parse().unwrap_or(server.port);
+                                    server.port = port;
+                                    server.hostname = "localhost".to_string();
+                                    println!("A2A server configured at {}", server.endpoint_url());
+                                    println!("  Handlers: {}", server.handler_count());
+                                    println!("  Max concurrent: {}", server.max_concurrent);
+                                    println!("  Active tasks: {}\n", server.active_task_count());
+                                    println!("Note: In production, use `vibecli serve --a2a` to start the HTTP listener.\n");
+                                }
+                                "discover" => {
+                                    if rest.is_empty() {
+                                        // List known agents
+                                        let agents = &client.known_agents;
+                                        if agents.is_empty() {
+                                            println!("No agents discovered. Use /a2a discover <url>\n");
+                                        } else {
+                                            println!("Discovered agents ({}):\n", agents.len());
+                                            for a in agents {
+                                                let caps = a.capabilities.iter()
+                                                    .map(|c| c.as_str()).collect::<Vec<_>>().join(", ");
+                                                println!("  {} — {} [{}]", a.name, a.url, caps);
+                                            }
+                                            println!();
+                                        }
+                                    } else {
+                                        // Simulate discovering an agent at the given URL
+                                        let url = rest;
+                                        let name = url.split("://").last().unwrap_or(url)
+                                            .split(':').next().unwrap_or("agent");
+                                        let card = AgentCard::new(
+                                            name,
+                                            &format!("Agent discovered at {url}"),
+                                            url,
+                                            "1.0.0",
+                                        ).with_capabilities(vec![AgentCapability::CodeGeneration]);
+                                        match client.discover_agent(card) {
+                                            Ok(()) => {
+                                                metrics.record_agent_discovered();
+                                                println!("Discovered agent '{}' at {}\n", name, url);
+                                            }
+                                            Err(e) => println!("Error: {}\n", e),
+                                        }
+                                    }
+                                }
+                                "call" => {
+                                    let parts: Vec<&str> = rest.splitn(2, ' ').collect();
+                                    if parts.len() < 2 {
+                                        println!("Usage: /a2a call <agent_url> <message>\n");
+                                    } else {
+                                        let agent_url = parts[0];
+                                        let message = parts[1];
+                                        let input = TaskInput::text(message);
+                                        match client.submit_task(agent_url, input) {
+                                            Ok(task_id) => {
+                                                metrics.record_created();
+                                                println!("Task submitted: {}", task_id);
+                                                println!("  Agent: {}", agent_url);
+                                                println!("  Input: {}", message);
+                                                println!("  Status: Submitted\n");
+                                            }
+                                            Err(e) => println!("Error: {}\n", e),
+                                        }
+                                    }
+                                }
+                                "tasks" => {
+                                    let tasks = &client.task_history;
+                                    if tasks.is_empty() {
+                                        println!("No tasks. Use /a2a call <url> <message> to submit one.\n");
+                                    } else {
+                                        println!("A2A Tasks ({}):\n", tasks.len());
+                                        for t in tasks {
+                                            let status = match &t.status {
+                                                TaskStatus::Submitted => "Submitted".to_string(),
+                                                TaskStatus::Working => "Working".to_string(),
+                                                TaskStatus::InputNeeded(q) => format!("Input needed: {q}"),
+                                                TaskStatus::Completed => "Completed".to_string(),
+                                                TaskStatus::Failed(r) => format!("Failed: {r}"),
+                                                TaskStatus::Canceled => "Canceled".to_string(),
+                                            };
+                                            println!("  {} — {} [{}]", t.id, t.agent_url, status);
+                                            if let Some(ref out) = t.output {
+                                                println!("    Output: {} ({} chars)", out.content_type, out.content.len());
+                                            }
+                                        }
+                                        println!();
+                                    }
+                                }
+                                "status" => {
+                                    println!("A2A Protocol Status\n");
+                                    println!("  Server:     {}", server.endpoint_url());
+                                    println!("  Handlers:   {}", server.handler_count());
+                                    println!("  Server tasks: {}", server.active_task_count());
+                                    println!("  Known agents: {}", client.agent_count());
+                                    println!("  Client tasks: {}", client.task_count());
+                                    let m = server.get_metrics();
+                                    println!("\n  Metrics:");
+                                    println!("    Created:   {}", m.tasks_created);
+                                    println!("    Completed: {}", m.tasks_completed);
+                                    println!("    Failed:    {}", m.tasks_failed);
+                                    println!("    Success:   {:.1}%", m.success_rate() * 100.0);
+                                    if m.avg_completion_secs > 0.0 {
+                                        println!("    Avg time:  {:.2}s", m.avg_completion_secs);
+                                    }
+                                    println!("    Agents discovered: {}\n", metrics.agents_discovered);
+                                }
+                                _ => {
+                                    println!("VibeCody A2A Protocol — Agent-to-Agent interoperability\n");
+                                    println!("  /a2a card                    — Show VibeCody's agent card");
+                                    println!("  /a2a serve [port]            — Configure A2A server endpoint");
+                                    println!("  /a2a discover [url]          — Discover agents (list or add)");
+                                    println!("  /a2a call <url> <message>    — Submit a task to an agent");
+                                    println!("  /a2a tasks                   — List all tasks");
+                                    println!("  /a2a status                  — Show A2A status and metrics\n");
+                                }
+                            }
+                        }
+
                         "/resources" => {
                             let sub = args.split_whitespace().next().unwrap_or("status");
                             let mgr = resource_manager::ResourceManager::default_manager();
@@ -10391,5 +10558,69 @@ mod tests {
         // logo.png would be an image (if file existed), main.rs would be a doc
         // Images from non-existent files just fail silently
         assert!(images.is_empty()); // file doesn't exist
+    }
+
+    #[test]
+    fn extract_attachments_no_brackets_returns_input() {
+        let (clean, images, docs) = extract_attachments_from_input("just a normal message");
+        assert_eq!(clean, "just a normal message");
+        assert!(images.is_empty());
+        assert!(docs.is_empty());
+    }
+
+    #[test]
+    fn extract_attachments_multiple_documents() {
+        let (clean, _images, _docs) = extract_attachments_from_input("[a.rs] [b.py] [c.json] check all");
+        assert!(!clean.contains("[a.rs]"));
+        assert!(!clean.contains("[b.py]"));
+        assert!(!clean.contains("[c.json]"));
+        assert!(clean.contains("check all"));
+    }
+
+    #[test]
+    fn extract_attachments_ignores_unknown_extensions() {
+        // Unknown extensions like .xyz should NOT be matched by the file regex
+        let (clean, images, docs) = extract_attachments_from_input("[data.xyz] is unknown");
+        assert!(clean.contains("[data.xyz]"), "unknown ext should remain in text");
+        assert!(images.is_empty());
+        assert!(docs.is_empty());
+    }
+
+    #[test]
+    fn re_file_attachment_matches_all_code_extensions() {
+        let re = re_file_attachment();
+        for ext in &["rs", "py", "js", "ts", "tsx", "jsx", "go", "java", "c", "cpp",
+                      "h", "rb", "php", "swift", "kt", "scala", "sh", "bash", "sql",
+                      "yaml", "yml", "toml", "ini", "json", "csv", "md", "txt", "log",
+                      "html", "css", "scss", "less", "vue", "svelte"] {
+            let input = format!("[test.{}]", ext);
+            assert!(re.is_match(&input), "should match .{} extension", ext);
+        }
+    }
+
+    #[test]
+    fn re_file_attachment_rejects_non_code_extensions() {
+        let re = re_file_attachment();
+        for ext in &["zip", "tar", "exe", "dll", "so", "o", "wasm", "bin"] {
+            let input = format!("[test.{}]", ext);
+            assert!(!re.is_match(&input), "should NOT match .{} extension", ext);
+        }
+    }
+
+    #[test]
+    fn extract_attachments_with_real_text_file() {
+        // Create a temp file and verify doc_context is populated
+        let dir = std::env::temp_dir().join("vibecli_test_attach");
+        let _ = std::fs::create_dir_all(&dir);
+        let path = dir.join("hello.txt");
+        std::fs::write(&path, "Hello from file").unwrap();
+
+        let input = format!("[{}] review this", path.display());
+        let (clean, images, docs) = extract_attachments_from_input(&input);
+        assert!(images.is_empty());
+        assert!(docs.contains("Hello from file"));
+        assert!(clean.contains("review this"));
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

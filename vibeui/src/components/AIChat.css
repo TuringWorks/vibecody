@@ -1403,3 +1403,131 @@
     flex-shrink: 0;
     margin-left: 2px;
 }
+
+/* ── Attachment loading spinner ─────────────────────────────────────────── */
+
+.attachment-loading {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    font-size: 11px;
+    color: var(--text-secondary, rgba(255, 255, 255, 0.5));
+    background: var(--surface-secondary, rgba(255, 255, 255, 0.04));
+    border-radius: 6px;
+    margin-bottom: 4px;
+}
+
+.attachment-spinner {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* ── Image attachment actions (zoom/download in messages) ───────────────── */
+
+.msg-attachment-image-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.msg-attachment-zoom {
+    background: none;
+    border: none;
+    padding: 2px;
+    cursor: pointer;
+    color: var(--text-secondary, rgba(255, 255, 255, 0.5));
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+}
+
+.msg-attachment-zoom:hover {
+    color: var(--text-primary, #fff);
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.msg-attachment-thumb {
+    cursor: pointer;
+    transition: opacity 0.15s;
+}
+
+.msg-attachment-thumb:hover {
+    opacity: 0.8;
+}
+
+/* ── Image lightbox ─────────────────────────────────────────────────────── */
+
+.lightbox-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+    animation: lightbox-fade-in 0.15s ease-out;
+}
+
+@keyframes lightbox-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.lightbox-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    max-width: 90vw;
+    max-height: 90vh;
+}
+
+.lightbox-image {
+    max-width: 90vw;
+    max-height: 80vh;
+    object-fit: contain;
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.lightbox-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.lightbox-download,
+.lightbox-close {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    text-decoration: none;
+    transition: background 0.15s;
+}
+
+.lightbox-download:hover,
+.lightbox-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.lightbox-close {
+    background: rgba(255, 80, 80, 0.2);
+    border-color: rgba(255, 80, 80, 0.3);
+}
+
+.lightbox-close:hover {
+    background: rgba(255, 80, 80, 0.35);
+}
