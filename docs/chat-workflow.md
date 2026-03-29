@@ -14,7 +14,7 @@ This document traces a chat message from keypress to rendered response, covering
 
 ## Overview
 
-```
+```text
 User types message
        │
        ▼
@@ -201,7 +201,7 @@ while let Some(chunk) = stream.next().await {
 
 Uses `RetryConfig` (default: 3 attempts, exponential backoff 1s → 4s → 16s, max 30s):
 
-```
+```text
 Attempt 1 → fail (retryable) → emit chat:status{type:"retry", attempt:2}
   → backoff 1s
 Attempt 2 → fail (retryable) → emit chat:status{type:"retry", attempt:3}
@@ -244,7 +244,7 @@ After streaming completes, the accumulated response is scanned for XML tool tags
 
 Commands extracted from AI responses are checked against a blocklist:
 
-```
+```bash
 rm -rf /, mkfs, dd if=, :(){ :|:& };:, poweroff, reboot,
 chmod -R 777 /, curl -d, wget --post-data, base64 -d|sh, ...
 ```
@@ -258,6 +258,7 @@ Checks workspace for: `Cargo.toml` → `cargo build`, `package.json` → `npm ru
 ### Output
 
 Tool execution produces:
+
 - `tool_output: String` — concatenated results of all tool calls
 - `pending_write: Option<PendingWrite>` — last written file (for diff preview)
 
@@ -346,6 +347,7 @@ listen<string>("chat:error", (e) => {
 ### Code blocks
 
 Code blocks in assistant messages get:
+
 - Syntax highlighting (via Monaco tokenizer)
 - **Copy** button
 - **Apply** button (writes to file via `onPendingWrite`) — opens diff preview
@@ -354,6 +356,7 @@ Code blocks in assistant messages get:
 ### Streaming bubble
 
 While `isLoading && streamingText`:
+
 - Shows partial response with blinking cursor
 - Thinking blocks detected in real-time
 - Tokens/sec counter in status bar
@@ -387,48 +390,48 @@ The retry button on error messages calls `sendMessage(lastUserMessage.content)`,
 
 ## Sequence Diagram
 
-```
-User          AIChat.tsx       Tauri IPC        commands.rs          Provider API
- │                │                │                │                    │
- │─ type msg ────►│                │                │                    │
- │                │─ setMessages ─►│                │                    │
- │                │─ setLoading ──►│                │                    │
- │                │                │                │                    │
- │                │── invoke ─────►│── stream_ ────►│                    │
- │                │  stream_chat_  │  chat_message  │                    │
- │                │  message       │                │                    │
- │                │                │                │─ set_provider ────►│
- │                │                │                │─ build_system_prompt│
- │                │                │                │─ resolve_@_refs    │
- │                │                │                │─ process_attachments│
- │                │                │                │                    │
- │                │◄─ Ok(()) ─────│◄───────────────│  (returns immediately)
- │                │                │                │                    │
- │                │                │                │── tokio::spawn ───►│
- │                │                │                │                    │
- │                │                │                │   ┌─ stream_chat() │
- │                │                │                │   │                │
- │                │                │  chat:chunk ◄──│◄──┤ "Here is"     │
- │  streaming ◄───│◄───────────────│                │   │                │
- │  text shows    │                │  chat:chunk ◄──│◄──┤ " the code"   │
- │                │                │                │   │                │
- │                │                │  chat:chunk ◄──│◄──┤ "\n```rust"   │
- │                │                │                │   │                │
- │                │                │                │   └─ stream ends   │
- │                │                │                │                    │
- │                │                │                │── process_tool_calls()
- │                │                │                │   ├─ <write_file> → fs::write
- │                │                │                │   ├─ <read_file>  → fs::read
- │                │                │                │   └─ <build />    → sh -c "cargo build"
- │                │                │                │                    │
- │                │                │  chat:complete◄│                    │
- │  final msg ◄───│◄───────────────│  { message,    │                    │
- │  rendered      │                │    tool_output, │                    │
- │                │                │    pending_write}│                    │
- │                │                │                │                    │
- │                │                │  chat:metrics ◄│                    │
- │  token stats ◄─│◄───────────────│  { tokens,     │                    │
- │                │                │    latency_ms } │                    │
+```text
+User          AIChat.tsx       Tauri IPC          commands.rs            Provider API
+ │                │                │                  │                      │
+ │─ type msg ────►│                │                  │                      │
+ │                │─ setMessages ─►│                  │                      │
+ │                │─ setLoading ──►│                  │                      │
+ │                │                │                  │                      │
+ │                │── invoke ─────►│── stream_ ────-- │                      │
+ │                │  stream_chat_  │  chat_message    │                      │
+ │                │  message       │                  │                      │
+ │                │                │                  │─ set_provider ───--─►│
+ │                │                │                  │─ build_system_prompt │
+ │                │                │                  │─ resolve_@_refs      │
+ │                │                │                  │─ process_attachments │
+ │                │                │                  │                      │
+ │                │◄─ Ok(()) ────-─│◄───────────────--   (returns immediately)
+ │                │                │                  │                      │
+ │                │                │                  │── tokio::spawn ──--─►│
+ │                │                │                  │                      │
+ │                │                │                  │   ┌─ stream_chat()   │
+ │                │                │                  │   │                  │
+ │                │                │  chat:chunk ◄─-- │◄──┤ "Here is"        │
+ │  streaming ◄───│◄───────────────│                  │   │                  │
+ │  text shows    │                │  chat:chunk ◄─-- │◄──┤ " the code"      │
+ │                │                │                  │   │                  │
+ │                │                │  chat:chunk ◄─-- │◄──┤ "\n```rust"      │
+ │                │                │                  │   │                  │
+ │                │                │                  │   └─ stream ends     │
+ │                │                │                  │                      │
+ │                │                │                  │── process_tool_calls()
+ │                │                │                  │   ├─ <write_file> → fs::write
+ │                │                │                  │   ├─ <read_file>  → fs::read
+ │                │                │                  │   └─ <build />    → sh -c "cargo build"
+ │                │                │                  │                      │
+ │                │                │  chat:complete◄--│                      │
+ │  final msg ◄───│◄───────────────│  { message,      │                      │
+ │  rendered      │                │    tool_output,  │                      │
+ │                │                │    pending_write}│                      │
+ │                │                │                  │                      │
+ │                │                │  chat:metrics ◄--│                      │
+ │  token stats ◄─│◄───────────────│  { tokens,       │                      │
+ │                │                │    latency_ms }. │                      │
 ```
 
 ---
