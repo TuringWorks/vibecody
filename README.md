@@ -91,7 +91,7 @@ vibecody/
 ├── vibeui/
 │   ├── src/                    # React + TypeScript frontend
 │   │   ├── App.tsx             # Root component
-│   │   └── components/         # 155+ panel components
+│   │   └── components/         # 186 panel components (163 backend-wired + 23 utilities)
 │   ├── src-tauri/              # Tauri Rust backend
 │   └── crates/                 # Shared Rust library crates
 │       ├── vibe-core/          # Text buffer, FS, workspace, Git, index

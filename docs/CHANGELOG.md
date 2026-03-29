@@ -12,6 +12,32 @@ All notable changes to VibeCody are documented here. This project follows [Seman
 
 ### Added
 
+- **File Attachments** — `[file.ext]` bracket syntax in VibeCLI REPL and VibeUI chat for attaching documents, code, and images. Backend reads files via `read_attachment` Tauri command. Drag-and-drop, paste, and native file picker supported. Images sent via vision API; documents injected as context.
+
+- **Image Lightbox** — Click image attachments in chat to view full size with download button.
+
+- **System Theme Detection** — `ThemeToggle` now respects `prefers-color-scheme` on first visit and listens for OS-level theme changes.
+
+- **Data Analysis Panel Backend** — 9 new `da_*` Tauri commands: datasets, charts, widgets, NLP query execution with persisted state.
+
+### Changed
+
+- **Theme Variable Migration** — Converted 85+ hardcoded colors in AIChat.css and 25+ panel inline styles to CSS variables. Added `.text-success`, `.badge-error` utility classes. Only 1 intentional hardcoded color remains (lightbox backdrop).
+
+- **Zero Demo Panels** — All 23 previously demo-only panels wired to real Tauri backends (34 new commands, 17 new AppState fields). Panel status: 163 backend-wired + 23 pure utilities = 186 total.
+
+### Fixed
+
+- **Production Hardening** — Zero compiler warnings across full workspace. All `unwrap()` in production commands.rs replaced with `expect()`. All `std::process::exit()` calls use `safe_exit()` with stdout/stderr flush. Mutex locks use `unwrap_or_else(|e| e.into_inner())` for poison recovery. A2A server host/port configurable via `VIBECLI_A2A_HOST`/`VIBECLI_A2A_PORT` env vars.
+
+- **Clippy Clean** — Fixed `from_str` shadowing, field init shorthand, collapsible if, derive Default, strip_prefix, removed 54 duplicate `#![allow(dead_code)]` attributes.
+
+- **Tokio Mutex Fix** — All `tokio::sync::Mutex.lock().map_err()` calls corrected to `.lock().await` (45 instances across A2A, MCP HTTP, MCTS Repair, Cost Router, Visual Verify, NextTask, DocSync commands).
+
+- **Crate Metadata** — Added `description` field to 6 Cargo.toml files for publishability.
+
+- **Dead `triage_issues` Field** — Removed unused AppState field.
+
 - **Counsel — Multi-LLM Deliberation** (`counsel.rs`, 534 lines, 20+ tests):
   - Structured multi-round debates between AI providers with 6 role-based personas (Expert, Devil's Advocate, Skeptic, Creative, Pragmatist, Researcher).
   - User interjection between rounds, voting system, moderator-driven synthesis.
@@ -33,7 +59,7 @@ All notable changes to VibeCody are documented here. This project follows [Seman
 
 - Documentation updated: panel listing expanded from 90 to 162 entries across 16 categories.
 - Provider count corrected to 23 across all documentation (added MiniMax, Perplexity, Together AI, Fireworks AI, SambaNova).
-- Test count updated to ~6,628+ across all documentation references.
+- Test count updated to 10,676+ across all documentation references (0 failures).
 
 ---
 
