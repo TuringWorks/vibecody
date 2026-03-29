@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! mDNS/DNS-SD discovery for VibeCLI daemon instances on the LAN.
 //!
 //! Advertises the VibeCLI daemon as `_vibecli._tcp` service when `--serve` is running.

@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Mobile Gateway — Machine registration & dispatch for iOS/Android remote management.
 //!
 //! Inspired by Claude's dispatch feature and OpenClaw gateway. Allows mobile apps

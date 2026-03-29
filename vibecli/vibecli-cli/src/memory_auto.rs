@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Automated memory extraction from agent sessions.
 //!
 //! After each session completes, MemoryAutoExtractor uses an LLM to extract

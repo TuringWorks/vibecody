@@ -1,6 +1,7 @@
 [package]
 name = "vibecli"
 version.workspace = true
+description = "Terminal AI coding assistant with REPL, agent, and multi-provider support"
 edition.workspace = true
 authors.workspace = true
 license.workspace = true

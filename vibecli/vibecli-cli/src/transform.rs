@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Code Transformation Agent — automated language/framework upgrades.
 //!
 //! Supported transforms:

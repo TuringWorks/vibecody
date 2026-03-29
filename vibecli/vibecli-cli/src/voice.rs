@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Voice & media features — online (Groq Whisper / ElevenLabs) and offline
 //! (local Whisper CLI / system TTS) speech-to-text and text-to-speech.
 //!

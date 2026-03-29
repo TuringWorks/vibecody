@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Proactive intelligence — background scanner that identifies issues and suggests improvements.
 
 use serde::{Deserialize, Serialize};

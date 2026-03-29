@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! VS Code extension compatibility layer for VibeCody.
 //!
 //! Loads a subset of VS Code extensions (TextMate grammars, themes, snippets,

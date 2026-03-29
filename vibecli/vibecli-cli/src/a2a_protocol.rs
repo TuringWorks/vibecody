@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Google Agent-to-Agent (A2A) protocol support for VibeCody.
 //!
 //! Implements the A2A open protocol for agent interoperability, enabling

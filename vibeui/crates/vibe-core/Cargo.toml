@@ -1,6 +1,7 @@
 [package]
 name = "vibe-core"
 version.workspace = true
+description = "Core text buffer, filesystem, git, search, and workspace primitives for VibeCody"
 edition.workspace = true
 authors.workspace = true
 license.workspace = true

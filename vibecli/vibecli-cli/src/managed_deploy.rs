@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! One-click managed deployment for VibeCody.
 //!
 //! Deploys projects to Vercel, Netlify, Fly.io, Railway, Render, or

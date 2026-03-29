@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! AI agents as CI/CD participants for VibeCody.
 //!
 //! Auto-fix failing builds, generate missing tests, update dependencies,

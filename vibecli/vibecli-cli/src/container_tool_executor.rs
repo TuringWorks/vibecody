@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Container Tool Executor
 //!
 //! Routes agent tool calls through a running container instead of the local filesystem.

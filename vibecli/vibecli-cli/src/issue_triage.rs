@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Autonomous issue triage — classify, label, and draft responses for issues.
 
 use serde::{Deserialize, Serialize};
@@ -310,13 +309,12 @@ impl AutoLabeler {
         // Match patterns like src/, .rs, .tsx, .ts, .js etc.
         for word in text.split_whitespace() {
             let w = word.trim_matches(|c: char| !c.is_alphanumeric() && c != '/' && c != '.');
-            if w.contains('/') || w.ends_with(".rs") || w.ends_with(".tsx") || w.ends_with(".ts")
+            if (w.contains('/') || w.ends_with(".rs") || w.ends_with(".tsx") || w.ends_with(".ts")
                 || w.ends_with(".js") || w.ends_with(".py") || w.ends_with(".go")
-                || w.ends_with(".toml") || w.ends_with(".json")
+                || w.ends_with(".toml") || w.ends_with(".json"))
+                && !components.contains(&w.to_string())
             {
-                if !components.contains(&w.to_string()) {
-                    components.push(w.to_string());
-                }
+                components.push(w.to_string());
             }
         }
         components

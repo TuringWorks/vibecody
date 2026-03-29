@@ -6,43 +6,43 @@ use std::sync::OnceLock;
 // ── Lazy-compiled regex patterns ──────────────────────────────────────────────
 fn re_html_tag() -> &'static regex::Regex {
     static R: OnceLock<regex::Regex> = OnceLock::new();
-    R.get_or_init(|| regex::Regex::new(r"<[^>]+>").unwrap())
+    R.get_or_init(|| regex::Regex::new(r"<[^>]+>").expect("valid regex"))
 }
 fn re_whitespace() -> &'static regex::Regex {
     static R: OnceLock<regex::Regex> = OnceLock::new();
-    R.get_or_init(|| regex::Regex::new(r"\s{2,}").unwrap())
+    R.get_or_init(|| regex::Regex::new(r"\s{2,}").expect("valid regex"))
 }
 fn re_at_file() -> &'static regex::Regex {
     static R: OnceLock<regex::Regex> = OnceLock::new();
-    R.get_or_init(|| regex::Regex::new(r"@file:([^\s:]+)(?::(\d+)-(\d+))?").unwrap())
+    R.get_or_init(|| regex::Regex::new(r"@file:([^\s:]+)(?::(\d+)-(\d+))?").expect("valid regex"))
 }
 fn re_at_folder() -> &'static regex::Regex {
     static R: OnceLock<regex::Regex> = OnceLock::new();
-    R.get_or_init(|| regex::Regex::new(r"@folder:(\S+)").unwrap())
+    R.get_or_init(|| regex::Regex::new(r"@folder:(\S+)").expect("valid regex"))
 }
 fn re_at_web() -> &'static regex::Regex {
     static R: OnceLock<regex::Regex> = OnceLock::new();
-    R.get_or_init(|| regex::Regex::new(r"@web:(https?://\S+)").unwrap())
+    R.get_or_init(|| regex::Regex::new(r"@web:(https?://\S+)").expect("valid regex"))
 }
 fn re_at_symbol() -> &'static regex::Regex {
     static R: OnceLock<regex::Regex> = OnceLock::new();
-    R.get_or_init(|| regex::Regex::new(r"@symbol:(\S+)").unwrap())
+    R.get_or_init(|| regex::Regex::new(r"@symbol:(\S+)").expect("valid regex"))
 }
 fn re_at_docs() -> &'static regex::Regex {
     static R: OnceLock<regex::Regex> = OnceLock::new();
-    R.get_or_init(|| regex::Regex::new(r"@docs:(\S+)").unwrap())
+    R.get_or_init(|| regex::Regex::new(r"@docs:(\S+)").expect("valid regex"))
 }
 fn re_at_codebase() -> &'static regex::Regex {
     static R: OnceLock<regex::Regex> = OnceLock::new();
-    R.get_or_init(|| regex::Regex::new(r"@codebase:(\S+)").unwrap())
+    R.get_or_init(|| regex::Regex::new(r"@codebase:(\S+)").expect("valid regex"))
 }
 fn re_at_github() -> &'static regex::Regex {
     static R: OnceLock<regex::Regex> = OnceLock::new();
-    R.get_or_init(|| regex::Regex::new(r"@github:([a-zA-Z0-9_\-]+)/([a-zA-Z0-9_\-]+)#(\d+)").unwrap())
+    R.get_or_init(|| regex::Regex::new(r"@github:([a-zA-Z0-9_\-]+)/([a-zA-Z0-9_\-]+)#(\d+)").expect("valid regex"))
 }
 fn re_at_jira() -> &'static regex::Regex {
     static R: OnceLock<regex::Regex> = OnceLock::new();
-    R.get_or_init(|| regex::Regex::new(r"@jira:([A-Z][A-Z0-9_]+-\d+)").unwrap())
+    R.get_or_init(|| regex::Regex::new(r"@jira:([A-Z][A-Z0-9_]+-\d+)").expect("valid regex"))
 }
 
 use serde::{Deserialize, Serialize};
@@ -144,7 +144,6 @@ pub struct AppState {
     // Phase 25: Proactive Agent + Issue Triage
     pub proactive_suggestions: Arc<Mutex<Vec<serde_json::Value>>>,
     pub proactive_metrics: Arc<Mutex<serde_json::Value>>,
-    pub triage_issues: Arc<Mutex<Vec<serde_json::Value>>>,
     pub triage_results: Arc<Mutex<Vec<serde_json::Value>>>,
     pub triage_metrics: Arc<Mutex<serde_json::Value>>,
     // Phase 26: Web Grounding + Semantic Index
@@ -153,6 +152,24 @@ pub struct AppState {
     pub web_cache: Arc<Mutex<serde_json::Value>>,
     pub semindex_symbols: Arc<Mutex<Vec<serde_json::Value>>>,
     pub semindex_stats: Arc<Mutex<serde_json::Value>>,
+    // Phase 27-28: MCP HTTP + MCTS Repair + Cost Router
+    pub mcp_http_state: Arc<Mutex<serde_json::Value>>,
+    pub repair_sessions: Arc<Mutex<Vec<serde_json::Value>>>,
+    pub route_decisions: Arc<Mutex<Vec<serde_json::Value>>>,
+    pub route_budget: Arc<Mutex<serde_json::Value>>,
+    // Phase 29: Visual Verify + NextTask + DocSync
+    pub vverify_baselines: Arc<Mutex<Vec<serde_json::Value>>>,
+    pub nexttask_suggestions: Arc<Mutex<Vec<serde_json::Value>>>,
+    pub docsync_state: Arc<Mutex<serde_json::Value>>,
+    // Phase 30: Connectors + Analytics + Trust + SmartDeps
+    pub connector_instances: Arc<Mutex<Vec<serde_json::Value>>>,
+    pub analytics_data: Arc<Mutex<serde_json::Value>>,
+    pub trust_scores: Arc<Mutex<Vec<serde_json::Value>>>,
+    pub smartdeps_analysis: Arc<Mutex<serde_json::Value>>,
+    // Phase 31: RLCEF + LangGraph + Sketch
+    pub rlcef_outcomes: Arc<Mutex<Vec<serde_json::Value>>>,
+    pub langgraph_pipelines: Arc<Mutex<Vec<serde_json::Value>>>,
+    pub sketch_elements: Arc<Mutex<Vec<serde_json::Value>>>,
 }
 
 const MAX_TERMINAL_LINES: usize = 500;
@@ -9714,7 +9731,7 @@ pub async fn run_coverage(
             .args(["llvm-cov", "--version"])
             .output()
             .await;
-        if check.is_err() || !check.as_ref().unwrap().status.success() {
+        if !check.as_ref().map_or(false, |o| o.status.success()) {
             return Err(
                 "cargo-llvm-cov is not installed. Install it with:\n  \
                  cargo install cargo-llvm-cov\n\n\
@@ -9835,7 +9852,7 @@ fn parse_go_coverage(cov: &str) -> Vec<FileCoverage> {
 /// Extract the first percentage value from raw command output as a fallback.
 fn extract_pct_from_raw(raw: &str) -> f32 {
     static RE: OnceLock<regex::Regex> = OnceLock::new();
-    let re = RE.get_or_init(|| regex::Regex::new(r"(\d+(?:\.\d+)?)\s*%").unwrap());
+    let re = RE.get_or_init(|| regex::Regex::new(r"(\d+(?:\.\d+)?)\s*%").expect("valid regex"));
     for cap in re.captures_iter(raw) {
         if let Ok(pct) = cap[1].parse::<f32>() {
             return pct;
@@ -35335,113 +35352,230 @@ pub async fn semindex_stats(
 // ── MCP Streamable HTTP ──
 
 #[tauri::command]
-pub async fn mcp_http_status() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "server_running": false, "connections": 0, "oauth_configured": false }))
+pub async fn mcp_http_status(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let data = state.mcp_http_state.lock().await;
+    Ok(data.clone())
 }
 
 #[tauri::command]
-pub async fn mcp_http_connections() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!([]))
+pub async fn mcp_http_connections(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let data = state.mcp_http_state.lock().await;
+    let connections = data.get("active_connections").cloned().unwrap_or(serde_json::json!([]));
+    Ok(connections)
 }
 
 // ── MCTS Repair ──
 
 #[tauri::command]
-pub async fn repair_list_sessions() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!([]))
+pub async fn repair_list_sessions(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let sessions = state.repair_sessions.lock().await;
+    Ok(serde_json::json!(*sessions))
 }
 
 #[tauri::command]
-pub async fn repair_new_session(description: String, strategy: String) -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "session_id": format!("repair-{}", chrono::Utc::now().timestamp()), "description": description, "strategy": strategy, "status": "planning" }))
+pub async fn repair_new_session(state: tauri::State<'_, AppState>, description: String, strategy: String) -> Result<serde_json::Value, String> {
+    let ts = chrono::Utc::now().timestamp();
+    let session = serde_json::json!({
+        "session_id": format!("repair-{}", ts),
+        "description": description,
+        "strategy": strategy,
+        "status": "planning",
+        "created_at": ts,
+        "nodes": 0,
+        "depth": 0,
+        "best_reward": 0.0
+    });
+    let mut sessions = state.repair_sessions.lock().await;
+    sessions.push(session.clone());
+    Ok(session)
 }
 
 #[tauri::command]
-pub async fn repair_get_tree(session_id: String) -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "session_id": session_id, "nodes": 0, "depth": 0, "best_reward": 0.0 }))
+pub async fn repair_get_tree(state: tauri::State<'_, AppState>, session_id: String) -> Result<serde_json::Value, String> {
+    let sessions = state.repair_sessions.lock().await;
+    let session = sessions.iter().find(|s| s.get("session_id").and_then(|v| v.as_str()) == Some(&session_id));
+    match session {
+        Some(s) => Ok(serde_json::json!({
+            "session_id": session_id,
+            "nodes": s.get("nodes").and_then(|v| v.as_u64()).unwrap_or(0),
+            "depth": s.get("depth").and_then(|v| v.as_u64()).unwrap_or(0),
+            "best_reward": s.get("best_reward").and_then(|v| v.as_f64()).unwrap_or(0.0)
+        })),
+        None => Ok(serde_json::json!({ "session_id": session_id, "nodes": 0, "depth": 0, "best_reward": 0.0 })),
+    }
 }
 
 #[tauri::command]
-pub async fn repair_compare() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!([]))
+pub async fn repair_compare(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let sessions = state.repair_sessions.lock().await;
+    let comparisons: Vec<serde_json::Value> = sessions.iter().map(|s| {
+        serde_json::json!({
+            "session_id": s.get("session_id"),
+            "strategy": s.get("strategy"),
+            "best_reward": s.get("best_reward").and_then(|v| v.as_f64()).unwrap_or(0.0),
+            "status": s.get("status")
+        })
+    }).collect();
+    Ok(serde_json::json!(comparisons))
 }
 
 // ── Cost Router ──
 
 #[tauri::command]
-pub async fn route_list_models() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!([]))
+pub async fn route_list_models(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let _ = state.route_decisions.lock().await;
+    Ok(serde_json::json!([
+        { "id": "gpt-4o", "provider": "openai", "cost_per_1k_input": 0.005, "cost_per_1k_output": 0.015, "latency_ms": 800, "quality_score": 95 },
+        { "id": "claude-3-opus", "provider": "anthropic", "cost_per_1k_input": 0.015, "cost_per_1k_output": 0.075, "latency_ms": 1200, "quality_score": 98 },
+        { "id": "claude-3-sonnet", "provider": "anthropic", "cost_per_1k_input": 0.003, "cost_per_1k_output": 0.015, "latency_ms": 600, "quality_score": 92 },
+        { "id": "gemini-pro", "provider": "google", "cost_per_1k_input": 0.00025, "cost_per_1k_output": 0.0005, "latency_ms": 500, "quality_score": 88 },
+        { "id": "llama-3-70b", "provider": "ollama", "cost_per_1k_input": 0.0, "cost_per_1k_output": 0.0, "latency_ms": 2000, "quality_score": 82 }
+    ]))
 }
 
 #[tauri::command]
-pub async fn route_get_decisions() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!([]))
+pub async fn route_get_decisions(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let decisions = state.route_decisions.lock().await;
+    Ok(serde_json::json!(*decisions))
 }
 
 #[tauri::command]
-pub async fn route_get_budget() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "total": 0.0, "spent": 0.0, "remaining": 0.0, "period": "monthly" }))
+pub async fn route_get_budget(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let budget = state.route_budget.lock().await;
+    Ok(budget.clone())
 }
 
 #[tauri::command]
-pub async fn route_ab_experiments() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!([]))
+pub async fn route_ab_experiments(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let decisions = state.route_decisions.lock().await;
+    let experiments: Vec<&serde_json::Value> = decisions.iter().filter(|d| d.get("experiment").is_some()).collect();
+    Ok(serde_json::json!(experiments))
 }
 
 // ── Visual Verify ──
 
 #[tauri::command]
-pub async fn vverify_capture(url: String, viewport: String) -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "screenshot_id": format!("ss-{}", chrono::Utc::now().timestamp()), "url": url, "viewport": viewport }))
+pub async fn vverify_capture(state: tauri::State<'_, AppState>, url: String, viewport: String) -> Result<serde_json::Value, String> {
+    let ts = chrono::Utc::now().timestamp();
+    let baseline = serde_json::json!({
+        "screenshot_id": format!("ss-{}", ts),
+        "url": url,
+        "viewport": viewport,
+        "captured_at": ts,
+        "status": "captured"
+    });
+    let mut baselines = state.vverify_baselines.lock().await;
+    baselines.push(baseline.clone());
+    Ok(baseline)
 }
 
 #[tauri::command]
-pub async fn vverify_list_baselines() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!([]))
+pub async fn vverify_list_baselines(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let baselines = state.vverify_baselines.lock().await;
+    Ok(serde_json::json!(*baselines))
 }
 
 #[tauri::command]
-pub async fn vverify_compare(baseline_id: String) -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "baseline_id": baseline_id, "diffs": [], "overall_score": 100.0 }))
+pub async fn vverify_compare(state: tauri::State<'_, AppState>, baseline_id: String) -> Result<serde_json::Value, String> {
+    let baselines = state.vverify_baselines.lock().await;
+    let baseline = baselines.iter().find(|b| b.get("screenshot_id").and_then(|v| v.as_str()) == Some(&baseline_id));
+    match baseline {
+        Some(b) => Ok(serde_json::json!({
+            "baseline_id": baseline_id,
+            "url": b.get("url"),
+            "viewport": b.get("viewport"),
+            "diffs": [],
+            "overall_score": 100.0,
+            "compared_at": chrono::Utc::now().timestamp()
+        })),
+        None => Ok(serde_json::json!({ "baseline_id": baseline_id, "diffs": [], "overall_score": 100.0, "error": "baseline not found" })),
+    }
 }
 
 // ── Next Task ──
 
 #[tauri::command]
-pub async fn nexttask_suggest() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!([]))
+pub async fn nexttask_suggest(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let ts = chrono::Utc::now().timestamp();
+    let new_suggestions = vec![
+        serde_json::json!({ "id": format!("sug-{}-1", ts), "task": "Fix failing unit tests", "priority": "high", "confidence": 0.85, "status": "pending", "created_at": ts }),
+        serde_json::json!({ "id": format!("sug-{}-2", ts), "task": "Update outdated dependencies", "priority": "medium", "confidence": 0.72, "status": "pending", "created_at": ts }),
+        serde_json::json!({ "id": format!("sug-{}-3", ts), "task": "Add missing error handling", "priority": "medium", "confidence": 0.68, "status": "pending", "created_at": ts }),
+    ];
+    let mut suggestions = state.nexttask_suggestions.lock().await;
+    for s in &new_suggestions {
+        suggestions.push(s.clone());
+    }
+    Ok(serde_json::json!(new_suggestions))
 }
 
 #[tauri::command]
-pub async fn nexttask_accept(suggestion_id: String) -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "id": suggestion_id, "status": "accepted" }))
+pub async fn nexttask_accept(state: tauri::State<'_, AppState>, suggestion_id: String) -> Result<serde_json::Value, String> {
+    let mut suggestions = state.nexttask_suggestions.lock().await;
+    for s in suggestions.iter_mut() {
+        if s.get("id").and_then(|v| v.as_str()) == Some(&suggestion_id) {
+            s["status"] = serde_json::json!("accepted");
+            return Ok(serde_json::json!({ "id": suggestion_id, "status": "accepted" }));
+        }
+    }
+    Ok(serde_json::json!({ "id": suggestion_id, "status": "accepted", "warning": "suggestion not found in state" }))
 }
 
 #[tauri::command]
-pub async fn nexttask_reject(suggestion_id: String) -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "id": suggestion_id, "status": "rejected" }))
+pub async fn nexttask_reject(state: tauri::State<'_, AppState>, suggestion_id: String) -> Result<serde_json::Value, String> {
+    let mut suggestions = state.nexttask_suggestions.lock().await;
+    for s in suggestions.iter_mut() {
+        if s.get("id").and_then(|v| v.as_str()) == Some(&suggestion_id) {
+            s["status"] = serde_json::json!("rejected");
+            return Ok(serde_json::json!({ "id": suggestion_id, "status": "rejected" }));
+        }
+    }
+    Ok(serde_json::json!({ "id": suggestion_id, "status": "rejected", "warning": "suggestion not found in state" }))
 }
 
 #[tauri::command]
-pub async fn nexttask_accuracy() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "total_suggestions": 0, "accepted": 0, "rejected": 0, "accuracy": 0.0 }))
+pub async fn nexttask_accuracy(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let suggestions = state.nexttask_suggestions.lock().await;
+    let total = suggestions.len();
+    let accepted = suggestions.iter().filter(|s| s.get("status").and_then(|v| v.as_str()) == Some("accepted")).count();
+    let rejected = suggestions.iter().filter(|s| s.get("status").and_then(|v| v.as_str()) == Some("rejected")).count();
+    let decided = accepted + rejected;
+    let accuracy = if decided > 0 { (accepted as f64) / (decided as f64) * 100.0 } else { 0.0 };
+    Ok(serde_json::json!({ "total_suggestions": total, "accepted": accepted, "rejected": rejected, "accuracy": accuracy }))
 }
 
 // ── Doc Sync ──
 
 #[tauri::command]
-pub async fn docsync_status() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "total_sections": 0, "avg_freshness": 100.0, "stale_count": 0, "alerts": 0 }))
+pub async fn docsync_status(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let data = state.docsync_state.lock().await;
+    Ok(data.clone())
 }
 
 #[tauri::command]
-pub async fn docsync_reconcile() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "reconciled": 0 }))
+pub async fn docsync_reconcile(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let mut data = state.docsync_state.lock().await;
+    let stale = data.get("stale_count").and_then(|v| v.as_u64()).unwrap_or(0);
+    data["stale_count"] = serde_json::json!(0);
+    data["avg_freshness"] = serde_json::json!(100.0);
+    data["alerts"] = serde_json::json!(0);
+    Ok(serde_json::json!({ "reconciled": stale }))
 }
 
 #[tauri::command]
-pub async fn docsync_get_alerts() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!([]))
+pub async fn docsync_get_alerts(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let data = state.docsync_state.lock().await;
+    let alert_count = data.get("alerts").and_then(|v| v.as_u64()).unwrap_or(0);
+    let mut alerts = Vec::new();
+    for i in 0..alert_count {
+        alerts.push(serde_json::json!({
+            "id": format!("alert-{}", i),
+            "type": "stale_doc",
+            "severity": "warning",
+            "message": format!("Documentation section {} may be outdated", i)
+        }));
+    }
+    Ok(serde_json::json!(alerts))
 }
 
 // ── Voice Local ──
@@ -35470,8 +35604,9 @@ pub async fn voice_stop_recording() -> Result<serde_json::Value, String> {
 // ── Native Connectors ──
 
 #[tauri::command]
-pub async fn connectors_list() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!([]))
+pub async fn connectors_list(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let connectors = state.connector_instances.lock().await;
+    Ok(serde_json::json!(*connectors))
 }
 
 #[tauri::command]
@@ -35484,135 +35619,344 @@ pub async fn connectors_available() -> Result<serde_json::Value, String> {
 }
 
 #[tauri::command]
-pub async fn connectors_add(connector_type: String, api_key: String) -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "id": format!("conn-{}", chrono::Utc::now().timestamp()), "type": connector_type, "status": "connected", "key_len": api_key.len() }))
+pub async fn connectors_add(state: tauri::State<'_, AppState>, connector_type: String, api_key: String) -> Result<serde_json::Value, String> {
+    let ts = chrono::Utc::now().timestamp();
+    let connector = serde_json::json!({
+        "id": format!("conn-{}", ts),
+        "type": connector_type,
+        "status": "connected",
+        "key_len": api_key.len(),
+        "connected_at": ts
+    });
+    let mut connectors = state.connector_instances.lock().await;
+    connectors.push(connector.clone());
+    Ok(connector)
 }
 
 #[tauri::command]
-pub async fn connectors_test(connector_id: String) -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "id": connector_id, "healthy": true }))
+pub async fn connectors_test(state: tauri::State<'_, AppState>, connector_id: String) -> Result<serde_json::Value, String> {
+    let connectors = state.connector_instances.lock().await;
+    let exists = connectors.iter().any(|c| c.get("id").and_then(|v| v.as_str()) == Some(&connector_id));
+    Ok(serde_json::json!({ "id": connector_id, "healthy": exists, "tested_at": chrono::Utc::now().timestamp() }))
 }
 
 #[tauri::command]
-pub async fn connectors_discover() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "discovered": [] }))
+pub async fn connectors_discover(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let connectors = state.connector_instances.lock().await;
+    let connected_types: Vec<String> = connectors.iter()
+        .filter_map(|c| c.get("type").and_then(|v| v.as_str()).map(|s| s.to_string()))
+        .collect();
+    let all_available = vec!["Stripe", "Figma", "Notion", "Jira", "Slack", "PagerDuty", "Datadog",
+        "Sentry", "LaunchDarkly", "Vercel", "Netlify", "Supabase", "Firebase",
+        "AWS", "GCP", "Azure", "GitHub", "GitLab", "Linear", "Confluence"];
+    let discovered: Vec<serde_json::Value> = all_available.iter()
+        .filter(|t| !connected_types.contains(&t.to_string()))
+        .map(|t| serde_json::json!({ "type": t, "status": "available" }))
+        .collect();
+    Ok(serde_json::json!({ "discovered": discovered }))
 }
 
 // ── Agent Analytics ──
 
 #[tauri::command]
-pub async fn analytics_dashboard() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "total_tasks": 0, "total_cost": 0.0, "time_saved_mins": 0, "roi": 0.0 }))
+pub async fn analytics_dashboard(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let data = state.analytics_data.lock().await;
+    Ok(data.clone())
 }
 
 #[tauri::command]
-pub async fn analytics_users() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!([]))
+pub async fn analytics_users(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let data = state.analytics_data.lock().await;
+    let users = data.get("users").cloned().unwrap_or(serde_json::json!([]));
+    Ok(users)
 }
 
 #[tauri::command]
-pub async fn analytics_teams() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!([]))
+pub async fn analytics_teams(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let data = state.analytics_data.lock().await;
+    let teams = data.get("teams").cloned().unwrap_or(serde_json::json!([]));
+    Ok(teams)
 }
 
 #[tauri::command]
-pub async fn analytics_export(format: String) -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "format": format, "data": "" }))
+pub async fn analytics_export(state: tauri::State<'_, AppState>, format: String) -> Result<serde_json::Value, String> {
+    let data = state.analytics_data.lock().await;
+    let export_data = match format.as_str() {
+        "json" => serde_json::to_string_pretty(&*data).unwrap_or_default(),
+        "csv" => {
+            let total = data.get("total_tasks").and_then(|v| v.as_u64()).unwrap_or(0);
+            let cost = data.get("total_cost").and_then(|v| v.as_f64()).unwrap_or(0.0);
+            let saved = data.get("time_saved_mins").and_then(|v| v.as_u64()).unwrap_or(0);
+            let roi = data.get("roi").and_then(|v| v.as_f64()).unwrap_or(0.0);
+            format!("total_tasks,total_cost,time_saved_mins,roi\n{},{},{},{}", total, cost, saved, roi)
+        },
+        _ => serde_json::to_string(&*data).unwrap_or_default(),
+    };
+    Ok(serde_json::json!({ "format": format, "data": export_data, "exported_at": chrono::Utc::now().timestamp() }))
 }
 
 // ── Agent Trust ──
 
 #[tauri::command]
-pub async fn trust_get_scores() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!([]))
+pub async fn trust_get_scores(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let scores = state.trust_scores.lock().await;
+    if scores.is_empty() {
+        // Return default trust scores for known models
+        return Ok(serde_json::json!([
+            { "model_id": "gpt-4o", "score": 85.0, "events": 0, "trend": "stable" },
+            { "model_id": "claude-3-opus", "score": 92.0, "events": 0, "trend": "stable" },
+            { "model_id": "claude-3-sonnet", "score": 90.0, "events": 0, "trend": "stable" },
+            { "model_id": "gemini-pro", "score": 78.0, "events": 0, "trend": "stable" },
+            { "model_id": "llama-3-70b", "score": 70.0, "events": 0, "trend": "stable" }
+        ]));
+    }
+    Ok(serde_json::json!(*scores))
 }
 
 #[tauri::command]
-pub async fn trust_get_events() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!([]))
+pub async fn trust_get_events(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let scores = state.trust_scores.lock().await;
+    let events: Vec<serde_json::Value> = scores.iter()
+        .filter_map(|s| s.get("events_log").cloned())
+        .flat_map(|e| e.as_array().cloned().unwrap_or_default())
+        .collect();
+    Ok(serde_json::json!(events))
 }
 
 #[tauri::command]
-pub async fn trust_explain(model_id: String) -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "model_id": model_id, "score": 50.0, "explanation": "No events recorded yet" }))
+pub async fn trust_explain(state: tauri::State<'_, AppState>, model_id: String) -> Result<serde_json::Value, String> {
+    let scores = state.trust_scores.lock().await;
+    let model_score = scores.iter().find(|s| s.get("model_id").and_then(|v| v.as_str()) == Some(&model_id));
+    match model_score {
+        Some(s) => {
+            let score = s.get("score").and_then(|v| v.as_f64()).unwrap_or(50.0);
+            let events = s.get("events").and_then(|v| v.as_u64()).unwrap_or(0);
+            Ok(serde_json::json!({
+                "model_id": model_id,
+                "score": score,
+                "events_count": events,
+                "explanation": format!("Trust score of {:.1} based on {} recorded events", score, events)
+            }))
+        },
+        None => Ok(serde_json::json!({ "model_id": model_id, "score": 50.0, "explanation": "No events recorded yet — using default baseline score" })),
+    }
 }
 
 // ── Smart Deps ──
 
 #[tauri::command]
-pub async fn smartdeps_analyze() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "dependencies": [], "conflicts": [], "advisories": [] }))
+pub async fn smartdeps_analyze(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let analysis = state.smartdeps_analysis.lock().await;
+    Ok(analysis.clone())
 }
 
 #[tauri::command]
-pub async fn smartdeps_check_security() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!([]))
+pub async fn smartdeps_check_security(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let analysis = state.smartdeps_analysis.lock().await;
+    let advisories = analysis.get("advisories").cloned().unwrap_or(serde_json::json!([]));
+    Ok(advisories)
 }
 
 #[tauri::command]
-pub async fn smartdeps_check_licenses() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "compliant": true, "violations": [] }))
+pub async fn smartdeps_check_licenses(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let analysis = state.smartdeps_analysis.lock().await;
+    let deps = analysis.get("dependencies").and_then(|v| v.as_array());
+    let violations: Vec<serde_json::Value> = deps.map(|d| {
+        d.iter()
+            .filter(|dep| dep.get("license_violation").and_then(|v| v.as_bool()).unwrap_or(false))
+            .cloned()
+            .collect()
+    }).unwrap_or_default();
+    let compliant = violations.is_empty();
+    Ok(serde_json::json!({ "compliant": compliant, "violations": violations }))
 }
 
 // ── RLCEF ──
 
 #[tauri::command]
-pub async fn rlcef_get_outcomes() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "total": 0, "passed": 0, "failed": 0 }))
+pub async fn rlcef_get_outcomes(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let outcomes = state.rlcef_outcomes.lock().await;
+    let total = outcomes.len();
+    let passed = outcomes.iter().filter(|o| o.get("passed").and_then(|v| v.as_bool()).unwrap_or(false)).count();
+    let failed = total - passed;
+    Ok(serde_json::json!({ "total": total, "passed": passed, "failed": failed }))
 }
 
 #[tauri::command]
-pub async fn rlcef_get_mistakes() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!([]))
+pub async fn rlcef_get_mistakes(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let outcomes = state.rlcef_outcomes.lock().await;
+    let mistakes: Vec<&serde_json::Value> = outcomes.iter()
+        .filter(|o| o.get("passed").and_then(|v| v.as_bool()) == Some(false))
+        .collect();
+    Ok(serde_json::json!(mistakes))
 }
 
 #[tauri::command]
-pub async fn rlcef_get_strategies() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!([]))
+pub async fn rlcef_get_strategies(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let outcomes = state.rlcef_outcomes.lock().await;
+    let mut strategy_map = std::collections::HashMap::<String, (u64, u64)>::new();
+    for o in outcomes.iter() {
+        let strategy = o.get("strategy").and_then(|v| v.as_str()).unwrap_or("unknown").to_string();
+        let passed = o.get("passed").and_then(|v| v.as_bool()).unwrap_or(false);
+        let entry = strategy_map.entry(strategy).or_insert((0, 0));
+        entry.0 += 1;
+        if passed { entry.1 += 1; }
+    }
+    let strategies: Vec<serde_json::Value> = strategy_map.iter().map(|(k, (total, passed))| {
+        serde_json::json!({ "strategy": k, "total": total, "passed": passed, "success_rate": if *total > 0 { (*passed as f64) / (*total as f64) * 100.0 } else { 0.0 } })
+    }).collect();
+    Ok(serde_json::json!(strategies))
 }
 
 #[tauri::command]
-pub async fn rlcef_export(format: String) -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "format": format, "data": "" }))
+pub async fn rlcef_export(state: tauri::State<'_, AppState>, format: String) -> Result<serde_json::Value, String> {
+    let outcomes = state.rlcef_outcomes.lock().await;
+    let export_data = match format.as_str() {
+        "json" => serde_json::to_string_pretty(&*outcomes).unwrap_or_default(),
+        "csv" => {
+            let mut csv = String::from("strategy,passed,timestamp\n");
+            for o in outcomes.iter() {
+                let strategy = o.get("strategy").and_then(|v| v.as_str()).unwrap_or("unknown");
+                let passed = o.get("passed").and_then(|v| v.as_bool()).unwrap_or(false);
+                let ts = o.get("timestamp").and_then(|v| v.as_i64()).unwrap_or(0);
+                csv.push_str(&format!("{},{},{}\n", strategy, passed, ts));
+            }
+            csv
+        },
+        _ => serde_json::to_string(&*outcomes).unwrap_or_default(),
+    };
+    Ok(serde_json::json!({ "format": format, "data": export_data, "exported_at": chrono::Utc::now().timestamp() }))
 }
 
 // ── LangGraph Bridge ──
 
 #[tauri::command]
-pub async fn langgraph_list_pipelines() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!([]))
+pub async fn langgraph_list_pipelines(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let pipelines = state.langgraph_pipelines.lock().await;
+    Ok(serde_json::json!(*pipelines))
 }
 
 #[tauri::command]
-pub async fn langgraph_create_pipeline(name: String) -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "id": format!("pipe-{}", chrono::Utc::now().timestamp()), "name": name, "status": "idle" }))
+pub async fn langgraph_create_pipeline(state: tauri::State<'_, AppState>, name: String) -> Result<serde_json::Value, String> {
+    let ts = chrono::Utc::now().timestamp();
+    let pipeline = serde_json::json!({
+        "id": format!("pipe-{}", ts),
+        "name": name,
+        "status": "idle",
+        "created_at": ts,
+        "checkpoints": [],
+        "events": []
+    });
+    let mut pipelines = state.langgraph_pipelines.lock().await;
+    pipelines.push(pipeline.clone());
+    Ok(pipeline)
 }
 
 #[tauri::command]
-pub async fn langgraph_get_checkpoints(pipeline_id: String) -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "pipeline_id": pipeline_id, "checkpoints": [] }))
+pub async fn langgraph_get_checkpoints(state: tauri::State<'_, AppState>, pipeline_id: String) -> Result<serde_json::Value, String> {
+    let pipelines = state.langgraph_pipelines.lock().await;
+    let pipeline = pipelines.iter().find(|p| p.get("id").and_then(|v| v.as_str()) == Some(&pipeline_id));
+    match pipeline {
+        Some(p) => {
+            let checkpoints = p.get("checkpoints").cloned().unwrap_or(serde_json::json!([]));
+            Ok(serde_json::json!({ "pipeline_id": pipeline_id, "checkpoints": checkpoints }))
+        },
+        None => Ok(serde_json::json!({ "pipeline_id": pipeline_id, "checkpoints": [], "error": "pipeline not found" })),
+    }
 }
 
 #[tauri::command]
-pub async fn langgraph_get_events(pipeline_id: String) -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "pipeline_id": pipeline_id, "events": [] }))
+pub async fn langgraph_get_events(state: tauri::State<'_, AppState>, pipeline_id: String) -> Result<serde_json::Value, String> {
+    let pipelines = state.langgraph_pipelines.lock().await;
+    let pipeline = pipelines.iter().find(|p| p.get("id").and_then(|v| v.as_str()) == Some(&pipeline_id));
+    match pipeline {
+        Some(p) => {
+            let events = p.get("events").cloned().unwrap_or(serde_json::json!([]));
+            Ok(serde_json::json!({ "pipeline_id": pipeline_id, "events": events }))
+        },
+        None => Ok(serde_json::json!({ "pipeline_id": pipeline_id, "events": [], "error": "pipeline not found" })),
+    }
 }
 
 // ── Sketch Canvas ──
 
 #[tauri::command]
-pub async fn sketch_recognize(elements: String) -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "recognized": [], "input_length": elements.len() }))
+pub async fn sketch_recognize(state: tauri::State<'_, AppState>, elements: String) -> Result<serde_json::Value, String> {
+    let parsed: Vec<serde_json::Value> = serde_json::from_str(&elements).unwrap_or_default();
+    let recognized: Vec<serde_json::Value> = parsed.iter().enumerate().map(|(i, el)| {
+        let el_type = el.get("type").and_then(|v| v.as_str()).unwrap_or("unknown");
+        serde_json::json!({
+            "id": format!("shape-{}", i),
+            "type": match el_type {
+                "rect" | "rectangle" => "Rectangle",
+                "circle" | "ellipse" => "Circle",
+                "line" => "Line",
+                "text" => "Text",
+                "arrow" => "Arrow",
+                _ => "FreeformShape"
+            },
+            "confidence": 0.85,
+            "bounds": el.get("bounds").cloned().unwrap_or(serde_json::json!({})),
+            "original": el
+        })
+    }).collect();
+    let mut sketch_els = state.sketch_elements.lock().await;
+    for r in &recognized {
+        sketch_els.push(r.clone());
+    }
+    Ok(serde_json::json!({ "recognized": recognized, "input_length": elements.len() }))
 }
 
 #[tauri::command]
-pub async fn sketch_generate(framework: String, components: String) -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "framework": framework, "code": "", "components_input": components.len() }))
+pub async fn sketch_generate(state: tauri::State<'_, AppState>, framework: String, components: String) -> Result<serde_json::Value, String> {
+    let sketch_els = state.sketch_elements.lock().await;
+    let component_list: Vec<String> = serde_json::from_str(&components).unwrap_or_default();
+    let code = match framework.as_str() {
+        "react" => {
+            let imports = "import React from 'react';\n";
+            let comp_code: String = component_list.iter().map(|c| {
+                format!("export function {}() {{\n  return <div className=\"{}\">{{ /* TODO */ }}</div>;\n}}\n\n", c, c.to_lowercase())
+            }).collect();
+            format!("{}{}", imports, comp_code)
+        },
+        "vue" => {
+            component_list.iter().map(|c| {
+                format!("<template>\n  <div class=\"{}\"><!-- TODO --></div>\n</template>\n\n<script setup>\n// {} component\n</script>\n\n", c.to_lowercase(), c)
+            }).collect()
+        },
+        "html" => {
+            let body: String = component_list.iter().map(|c| {
+                format!("  <section class=\"{}\">\n    <!-- {} -->\n  </section>\n", c.to_lowercase(), c)
+            }).collect();
+            format!("<!DOCTYPE html>\n<html>\n<body>\n{}</body>\n</html>", body)
+        },
+        _ => format!("// {} framework - {} components from {} sketch elements", framework, component_list.len(), sketch_els.len()),
+    };
+    Ok(serde_json::json!({ "framework": framework, "code": code, "components_input": components.len(), "sketch_elements_used": sketch_els.len() }))
 }
 
 #[tauri::command]
-pub async fn sketch_export(format: String) -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "format": format, "data": "" }))
+pub async fn sketch_export(state: tauri::State<'_, AppState>, format: String) -> Result<serde_json::Value, String> {
+    let sketch_els = state.sketch_elements.lock().await;
+    let data = match format.as_str() {
+        "json" => serde_json::to_string_pretty(&*sketch_els).unwrap_or_default(),
+        "svg" => {
+            let mut svg = String::from("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"800\" height=\"600\">\n");
+            for el in sketch_els.iter() {
+                let el_type = el.get("type").and_then(|v| v.as_str()).unwrap_or("FreeformShape");
+                match el_type {
+                    "Rectangle" => svg.push_str("  <rect x=\"10\" y=\"10\" width=\"100\" height=\"60\" fill=\"none\" stroke=\"black\"/>\n"),
+                    "Circle" => svg.push_str("  <circle cx=\"50\" cy=\"50\" r=\"30\" fill=\"none\" stroke=\"black\"/>\n"),
+                    "Line" => svg.push_str("  <line x1=\"0\" y1=\"0\" x2=\"100\" y2=\"100\" stroke=\"black\"/>\n"),
+                    _ => svg.push_str(&format!("  <!-- {} -->\n", el_type)),
+                }
+            }
+            svg.push_str("</svg>");
+            svg
+        },
+        _ => serde_json::to_string(&*sketch_els).unwrap_or_default(),
+    };
+    Ok(serde_json::json!({ "format": format, "data": data, "element_count": sketch_els.len(), "exported_at": chrono::Utc::now().timestamp() }))
 }
 
 // ── Agent Recordings ────────────────────────────────────────────────────

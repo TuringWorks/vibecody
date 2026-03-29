@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Secure externalized resource management for VibeCody.
 //!
 //! Stores configuration data (CVE databases, SAST rules, MCP catalog, secret patterns)

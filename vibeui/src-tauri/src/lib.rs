@@ -186,7 +186,6 @@ pub fn run() {
             // Phase 25
             proactive_suggestions: Arc::new(Mutex::new(Vec::new())),
             proactive_metrics: Arc::new(Mutex::new(serde_json::json!({ "total_scans": 0, "total_suggestions": 0, "accepted": 0, "rejected": 0 }))),
-            triage_issues: Arc::new(Mutex::new(Vec::new())),
             triage_results: Arc::new(Mutex::new(Vec::new())),
             triage_metrics: Arc::new(Mutex::new(serde_json::json!({ "total_triaged": 0, "auto_labeled": 0, "avg_confidence": 0.0 }))),
             // Phase 26
@@ -195,6 +194,24 @@ pub fn run() {
             web_cache: Arc::new(Mutex::new(serde_json::json!({ "total_entries": 0, "hit_count": 0, "miss_count": 0 }))),
             semindex_symbols: Arc::new(Mutex::new(Vec::new())),
             semindex_stats: Arc::new(Mutex::new(serde_json::json!({ "total_symbols": 0, "total_call_edges": 0, "total_files": 0 }))),
+            // Phase 27-28: MCP HTTP + MCTS Repair + Cost Router
+            mcp_http_state: Arc::new(Mutex::new(serde_json::json!({ "server_running": false, "connections": 0, "oauth_configured": false }))),
+            repair_sessions: Arc::new(Mutex::new(Vec::new())),
+            route_decisions: Arc::new(Mutex::new(Vec::new())),
+            route_budget: Arc::new(Mutex::new(serde_json::json!({ "total": 100.0, "spent": 0.0, "remaining": 100.0, "period": "monthly" }))),
+            // Phase 29: Visual Verify + NextTask + DocSync
+            vverify_baselines: Arc::new(Mutex::new(Vec::new())),
+            nexttask_suggestions: Arc::new(Mutex::new(Vec::new())),
+            docsync_state: Arc::new(Mutex::new(serde_json::json!({ "total_sections": 0, "avg_freshness": 100.0, "stale_count": 0, "alerts": 0 }))),
+            // Phase 30: Connectors + Analytics + Trust + SmartDeps
+            connector_instances: Arc::new(Mutex::new(Vec::new())),
+            analytics_data: Arc::new(Mutex::new(serde_json::json!({ "total_tasks": 0, "total_cost": 0.0, "time_saved_mins": 0, "roi": 0.0 }))),
+            trust_scores: Arc::new(Mutex::new(Vec::new())),
+            smartdeps_analysis: Arc::new(Mutex::new(serde_json::json!({ "dependencies": [], "conflicts": [], "advisories": [] }))),
+            // Phase 31: RLCEF + LangGraph + Sketch
+            rlcef_outcomes: Arc::new(Mutex::new(Vec::new())),
+            langgraph_pipelines: Arc::new(Mutex::new(Vec::new())),
+            sketch_elements: Arc::new(Mutex::new(Vec::new())),
         })
         .invoke_handler(tauri::generate_handler![
             commands::read_file,

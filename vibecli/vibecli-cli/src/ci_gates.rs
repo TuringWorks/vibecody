@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! CI-enforceable AI checks for VibeCody.
 //!
 //! Implements CI pipeline gates that enforce code quality, security, and style

@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Parallel agent execution via git worktrees.
 //!
 //! Enables spawning multiple agents in isolated git worktrees for parallel

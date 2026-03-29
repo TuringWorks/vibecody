@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Text-to-speech and audio summary generation for VibeCody.
 //!
 //! Generates spoken summaries of code changes, PR descriptions, project status,

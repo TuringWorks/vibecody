@@ -1,6 +1,7 @@
 [package]
 name = "vibeapp"
 version.workspace = true
+description = "Standalone VibeCody desktop application shell"
 edition.workspace = true
 authors.workspace = true
 license.workspace = true

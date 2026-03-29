@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Spec-driven development system.
 //!
 //! Specs are markdown files with TOML front-matter stored in `.vibecli/specs/`.

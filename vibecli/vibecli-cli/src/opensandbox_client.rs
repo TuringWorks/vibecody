@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! OpenSandbox Client SDK
 //!
 //! Client for the OpenSandbox managed sandbox infrastructure.

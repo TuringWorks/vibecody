@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Design-to-code pipeline for VibeCody.
 //!
 //! Import Figma designs, sketches/wireframes, and SVG mockups to generate

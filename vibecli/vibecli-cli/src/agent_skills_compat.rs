@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Agent Skills Standard Compatibility — cross-tool skills interop.
 //!
 //! Provides parsing, validation, conversion, registry, import, and export
@@ -35,7 +34,7 @@ impl SkillFormat {
         }
     }
 
-    pub fn from_str(s: &str) -> Self {
+    pub fn parse(s: &str) -> Self {
         match s.to_lowercase().as_str() {
             "vibecody" | "vibe_cody" | "vibe-cody" => Self::VibeCody,
             "standard" => Self::Standard,
@@ -66,7 +65,7 @@ impl SkillDifficulty {
         }
     }
 
-    pub fn from_str(s: &str) -> Self {
+    pub fn parse(s: &str) -> Self {
         match s.to_lowercase().as_str() {
             "beginner" | "easy" => Self::Beginner,
             "intermediate" | "medium" => Self::Intermediate,
@@ -213,8 +212,7 @@ impl SkillParser {
 
         let (fm, body) = Self::extract_frontmatter(content);
 
-        let mut metadata = SkillMetadata::default();
-        metadata.format = SkillFormat::Standard;
+        let mut metadata = SkillMetadata { format: SkillFormat::Standard, ..Default::default() };
 
         if let Some(name) = fm.get("name") {
             metadata.name = name.clone();
@@ -229,7 +227,7 @@ impl SkillParser {
             metadata.author = author.clone();
         }
         if let Some(diff) = fm.get("difficulty") {
-            metadata.difficulty = SkillDifficulty::from_str(diff);
+            metadata.difficulty = SkillDifficulty::parse(diff);
         }
         if let Some(tags) = fm.get("tags") {
             metadata.tags = tags.split(',').map(|t| t.trim().to_string()).filter(|t| !t.is_empty()).collect();
@@ -287,8 +285,7 @@ impl SkillParser {
         }
 
         let (fm, body) = Self::extract_frontmatter(content);
-        let mut metadata = SkillMetadata::default();
-        metadata.format = SkillFormat::VibeCody;
+        let mut metadata = SkillMetadata { format: SkillFormat::VibeCody, ..Default::default() };
 
         // Apply any frontmatter overrides
         if let Some(name) = fm.get("name") {
@@ -305,8 +302,8 @@ impl SkillParser {
         if metadata.name.is_empty() {
             for line in body.lines() {
                 let trimmed = line.trim();
-                if trimmed.starts_with("# ") {
-                    metadata.name = trimmed[2..].trim().to_string();
+                if let Some(name) = trimmed.strip_prefix("# ") {
+                    metadata.name = name.trim().to_string();
                     break;
                 }
             }
@@ -758,13 +755,14 @@ impl SkillConverter {
 // ---------------------------------------------------------------------------
 
 /// In-memory skill registry for discovery and management.
+#[derive(Default)]
 pub struct SkillRegistry {
     entries: Vec<SkillRegistryEntry>,
 }
 
 impl SkillRegistry {
     pub fn new() -> Self {
-        Self { entries: Vec::new() }
+        Self::default()
     }
 
     pub fn add(&mut self, entry: SkillRegistryEntry) {
@@ -1037,13 +1035,13 @@ mod tests {
 
     #[test]
     fn test_skill_format_from_str() {
-        assert_eq!(SkillFormat::from_str("vibecody"), SkillFormat::VibeCody);
-        assert_eq!(SkillFormat::from_str("vibe-cody"), SkillFormat::VibeCody);
-        assert_eq!(SkillFormat::from_str("claude-code"), SkillFormat::ClaudeCode);
-        assert_eq!(SkillFormat::from_str("cursor"), SkillFormat::Cursor);
-        assert_eq!(SkillFormat::from_str("gemini_cli"), SkillFormat::GeminiCLI);
+        assert_eq!(SkillFormat::parse("vibecody"), SkillFormat::VibeCody);
+        assert_eq!(SkillFormat::parse("vibe-cody"), SkillFormat::VibeCody);
+        assert_eq!(SkillFormat::parse("claude-code"), SkillFormat::ClaudeCode);
+        assert_eq!(SkillFormat::parse("cursor"), SkillFormat::Cursor);
+        assert_eq!(SkillFormat::parse("gemini_cli"), SkillFormat::GeminiCLI);
         assert_eq!(
-            SkillFormat::from_str("unknown"),
+            SkillFormat::parse("unknown"),
             SkillFormat::Custom("unknown".into())
         );
     }
@@ -1056,21 +1054,21 @@ mod tests {
             SkillDifficulty::Advanced,
             SkillDifficulty::Expert,
         ] {
-            assert_eq!(SkillDifficulty::from_str(d.as_str()), *d);
+            assert_eq!(SkillDifficulty::parse(d.as_str()), *d);
         }
     }
 
     #[test]
     fn test_difficulty_aliases() {
-        assert_eq!(SkillDifficulty::from_str("easy"), SkillDifficulty::Beginner);
+        assert_eq!(SkillDifficulty::parse("easy"), SkillDifficulty::Beginner);
         assert_eq!(
-            SkillDifficulty::from_str("medium"),
+            SkillDifficulty::parse("medium"),
             SkillDifficulty::Intermediate
         );
-        assert_eq!(SkillDifficulty::from_str("hard"), SkillDifficulty::Advanced);
-        assert_eq!(SkillDifficulty::from_str("guru"), SkillDifficulty::Expert);
+        assert_eq!(SkillDifficulty::parse("hard"), SkillDifficulty::Advanced);
+        assert_eq!(SkillDifficulty::parse("guru"), SkillDifficulty::Expert);
         assert_eq!(
-            SkillDifficulty::from_str("xyz"),
+            SkillDifficulty::parse("xyz"),
             SkillDifficulty::Intermediate
         );
     }

@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Feature Demo System — agents can autonomously demo features by controlling
 //! a browser via Chrome DevTools Protocol, capturing screenshots at each step,
 //! and producing exportable demo recordings.

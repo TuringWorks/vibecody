@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Device pairing — QR code generation for connecting mobile devices to VibeCLI daemon.
 //!
 //! Generates a one-time pairing URL with a secure token, rendered as a QR code

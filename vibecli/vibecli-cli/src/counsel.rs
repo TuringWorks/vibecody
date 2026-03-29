@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Multi-LLM deliberation engine.
 //!
 //! Orchestrates structured debates between multiple AI providers, each assigned

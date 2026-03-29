@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Web search grounding for the agent loop.
 //!
 //! Provides web search integration with multiple providers (Google, Bing, Brave,

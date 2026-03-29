@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Agent session sharing for VibeCody.
 //!
 //! Enables sharing agent sessions with team members, closing the gap

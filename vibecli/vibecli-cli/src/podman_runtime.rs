@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Podman Container Runtime
 //!
 //! Implements [`ContainerRuntime`] using the `podman` CLI.

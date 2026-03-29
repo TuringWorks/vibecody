@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Multi-agent terminal host — run external CLI agents alongside VibeCody.
 
 use serde::{Deserialize, Serialize};

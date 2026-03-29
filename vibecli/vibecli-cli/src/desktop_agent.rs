@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Desktop GUI Automation — cross-platform mouse, keyboard, and window
 //! management for VibeCody's agent framework.
 //!

@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Workflow Orchestration system for AI-assisted development.
 //!
 //! Implements structured engineering practices inspired by Claude Code best-practices:

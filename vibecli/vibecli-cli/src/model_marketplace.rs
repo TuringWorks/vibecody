@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Model provider marketplace for VibeCody.
 //!
 //! Browse, compare, and configure AI models with guided selection,

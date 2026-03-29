@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Built-in cron/scheduling system for VibeCLI.
 //!
 //! Allows users to schedule one-time and recurring agent tasks:

@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! VibeCLI Notebook Runner
 //!
 //! Runs `.vibe` notebook files — executable Markdown with YAML frontmatter.

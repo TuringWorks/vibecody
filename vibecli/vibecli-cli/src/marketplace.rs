@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Plugin Marketplace — registry client for discovering and installing plugins.
 //!
 //! The marketplace uses a JSON index fetched from a configurable URL.

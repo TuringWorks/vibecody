@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Container Runtime Abstraction Layer
 //!
 //! Provides a unified async trait for Docker, Podman, and OpenSandbox container runtimes.

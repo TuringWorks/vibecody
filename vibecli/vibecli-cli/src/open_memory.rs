@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! VibeCody OpenMemory — Cognitive memory engine for AI agents.
 //!
 //! Inspired by TuringWorks/OpenMemory but significantly exceeds it:

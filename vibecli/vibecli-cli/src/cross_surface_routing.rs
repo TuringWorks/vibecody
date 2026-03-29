@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Cross-surface task routing for VibeCody.
 //!
 //! Routes agent tasks between CLI, IDE, cloud, and mobile surfaces based on
