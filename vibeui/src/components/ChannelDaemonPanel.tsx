@@ -3,7 +3,8 @@
  *
  * Tabs: Channels, Events, Sessions, Settings
  */
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 type Tab = "Channels" | "Events" | "Sessions" | "Settings";
 const TABS: Tab[] = ["Channels", "Events", "Sessions", "Settings"];
@@ -46,31 +47,24 @@ const statusBarStyle: React.CSSProperties = {
   display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, flexShrink: 0,
 };
 
-const CHANNELS = [
-  { name: "Slack #engineering", type: "Slack", status: "Connected", events: 142 },
-  { name: "Discord #general", type: "Discord", status: "Connected", events: 87 },
-  { name: "Teams #dev", type: "Teams", status: "Disconnected", events: 0 },
-  { name: "IRC #vibecody", type: "IRC", status: "Idle", events: 23 },
-];
-const EVENTS = [
-  { time: "12:04:32", channel: "Slack", type: "message", summary: "User requested code review" },
-  { time: "12:03:18", channel: "Discord", type: "command", summary: "/build triggered by @alice" },
-  { time: "12:01:55", channel: "Slack", type: "reaction", summary: "Agent response approved" },
-  { time: "11:58:40", channel: "IRC", type: "mention", summary: "@vibecody asked about deploy status" },
-];
-const SESSIONS = [
-  { id: "sess-01", channel: "Slack", user: "alice", started: "11:42", status: "Active" },
-  { id: "sess-02", channel: "Discord", user: "bob", started: "11:55", status: "Active" },
-  { id: "sess-03", channel: "Slack", user: "carol", started: "10:30", status: "Idle" },
-];
+interface Channel { name: string; type: string; status: string; events: number }
+interface Message { time: string; channel: string; type: string; summary: string }
 
 const ChannelDaemonPanel: React.FC = () => {
   const [tab, setTab] = useState<Tab>("Channels");
+  const [channels, setChannels] = useState<Channel[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
+
+  useEffect(() => {
+    invoke<Channel[]>("list_daemon_channels").then(setChannels).catch(() => {});
+    invoke<Message[]>("get_channel_messages").then(setMessages).catch(() => {});
+  }, []);
+
   return (
     <div style={containerStyle} role="region" aria-label="Channel Daemon Panel">
       <div style={statusBarStyle}>
         <span>Daemon: <span style={{ color: "var(--success-color)", fontWeight: 600 }}>Running</span></span>
-        <span>{CHANNELS.filter(c => c.status === "Connected").length}/{CHANNELS.length} channels connected</span>
+        <span>{channels.filter(c => c.status === "Connected").length}/{channels.length} channels connected</span>
       </div>
       <div style={tabBarStyle} role="tablist" aria-label="Channel Daemon tabs">
         {TABS.map(t => (
@@ -78,7 +72,7 @@ const ChannelDaemonPanel: React.FC = () => {
         ))}
       </div>
       <div style={contentStyle} role="tabpanel" aria-label={tab}>
-        {tab === "Channels" && CHANNELS.map((ch, i) => (
+        {tab === "Channels" && channels.map((ch, i) => (
           <div key={i} style={cardStyle}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
               <strong>{ch.name}</strong>
@@ -87,7 +81,7 @@ const ChannelDaemonPanel: React.FC = () => {
             <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Type: {ch.type} &middot; Events processed: {ch.events}</div>
           </div>
         ))}
-        {tab === "Events" && EVENTS.map((ev, i) => (
+        {tab === "Events" && messages.map((ev, i) => (
           <div key={i} style={cardStyle}>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <span style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>{ev.time}</span>
@@ -96,15 +90,12 @@ const ChannelDaemonPanel: React.FC = () => {
             <div style={{ fontSize: 12, marginTop: 4 }}>[{ev.channel}] {ev.summary}</div>
           </div>
         ))}
-        {tab === "Sessions" && SESSIONS.map((s, i) => (
-          <div key={i} style={cardStyle}>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <strong>{s.id}</strong>
-              <span style={badgeStyle(s.status === "Active" ? "var(--success-color)" : "var(--text-secondary)")}>{s.status}</span>
-            </div>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Channel: {s.channel} &middot; User: {s.user} &middot; Started: {s.started}</div>
+        {tab === "Sessions" && (
+          <div style={{ textAlign: "center", padding: 40, color: "var(--text-secondary)" }}>
+            <div style={{ fontSize: 14 }}>No active sessions</div>
+            <div style={{ fontSize: 12, marginTop: 4 }}>Sessions will appear here when channels are connected</div>
           </div>
-        ))}
+        )}
         {tab === "Settings" && (
           <div>
             <div style={cardStyle}><strong>Auto-reconnect</strong><div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>Automatically reconnect dropped channels after 30s</div></div>

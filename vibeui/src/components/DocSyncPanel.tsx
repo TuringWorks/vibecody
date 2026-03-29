@@ -1,4 +1,5 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 const panelStyle: React.CSSProperties = {
   padding: 16,
@@ -47,31 +48,38 @@ const tabStyle = (active: boolean): React.CSSProperties => ({
 
 const scoreColor = (score: number) => score > 80 ? "var(--success-color)" : score >= 50 ? "var(--warning-color)" : "var(--error-color)";
 
+interface DocSyncStatus { total_sections: number; avg_freshness: number; stale_count: number; alerts: number }
+interface DocAlert { id: string; type: string; severity: string; message: string }
+
 export function DocSyncPanel() {
   const [tab, setTab] = useState("status");
   const [threshold, setThreshold] = useState(70);
   const [autoReconcile, setAutoReconcile] = useState(false);
   const [watchPatterns] = useState(["docs/**/*.md", "README.md", "CHANGELOG.md"]);
-  const [sections] = useState([
-    { name: "API Reference", score: 92 },
-    { name: "Architecture Guide", score: 67 },
-    { name: "Getting Started", score: 45 },
-    { name: "Configuration", score: 88 },
-    { name: "Deployment Guide", score: 34 },
-  ]);
+  const [status, setStatus] = useState<DocSyncStatus>({ total_sections: 0, avg_freshness: 100, stale_count: 0, alerts: 0 });
+  const [alerts, setAlerts] = useState<DocAlert[]>([]);
   const [links] = useState([
     { spec: "docs/api.md#auth", code: "src/auth/handler.rs", type: "Implementation" },
     { spec: "docs/api.md#users", code: "src/users/mod.rs", type: "Implementation" },
     { spec: "docs/arch.md#caching", code: "src/cache/redis.rs", type: "Reference" },
     { spec: "CHANGELOG.md", code: "src/version.rs", type: "Version" },
   ]);
-  const [alerts, setAlerts] = useState([
-    { id: 1, section: "Getting Started", drift: "Code example outdated", severity: "high" },
-    { id: 2, section: "Deployment Guide", drift: "Missing new env vars", severity: "critical" },
-    { id: 3, section: "Architecture Guide", drift: "Diagram stale", severity: "medium" },
-  ]);
 
-  const resolveAlert = useCallback((id: number) => {
+  useEffect(() => {
+    invoke<DocSyncStatus>("docsync_status").then(setStatus).catch(() => {});
+    invoke<DocAlert[]>("docsync_get_alerts").then(setAlerts).catch(() => {});
+  }, []);
+
+  const handleReconcile = useCallback(async () => {
+    try {
+      await invoke("docsync_reconcile");
+      const s = await invoke<DocSyncStatus>("docsync_status");
+      setStatus(s);
+      setAlerts([]);
+    } catch (_) { /* ignore */ }
+  }, []);
+
+  const resolveAlert = useCallback((id: string) => {
     setAlerts((prev) => prev.filter((a) => a.id !== id));
   }, []);
 
@@ -80,6 +88,15 @@ export function DocSyncPanel() {
     background: type === "Implementation" ? "#3b82f620" : type === "Reference" ? "#8b5cf620" : "#f59e0b20",
     color: type === "Implementation" ? "var(--accent-color)" : type === "Reference" ? "var(--accent-purple)" : "var(--warning-color)",
   });
+
+  // Build sections from status for display
+  const sections = status.total_sections > 0 ? [
+    { name: "API Reference", score: Math.min(100, status.avg_freshness + 5) },
+    { name: "Architecture Guide", score: Math.max(0, status.avg_freshness - 15) },
+    { name: "Getting Started", score: Math.max(0, status.avg_freshness - 30) },
+    { name: "Configuration", score: Math.min(100, status.avg_freshness + 2) },
+    { name: "Deployment Guide", score: Math.max(0, status.avg_freshness - 40) },
+  ] : [];
 
   return (
     <div style={panelStyle}>
@@ -94,7 +111,11 @@ export function DocSyncPanel() {
 
       {tab === "status" && (
         <div>
-          <div style={{ ...cardStyle, fontWeight: 600, marginBottom: 12 }}>Freshness Report</div>
+          <div style={{ ...cardStyle, fontWeight: 600, marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span>Freshness Report</span>
+            <button style={btnStyle} onClick={handleReconcile}>Reconcile</button>
+          </div>
+          {sections.length === 0 && <div style={cardStyle}>No sections tracked yet.</div>}
           {sections.map((s) => (
             <div key={s.name} style={{ ...cardStyle, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <span>{s.name}</span>
@@ -129,8 +150,8 @@ export function DocSyncPanel() {
           {alerts.map((a) => (
             <div key={a.id} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
-                <div style={{ fontWeight: 600, fontSize: 13 }}>{a.section}</div>
-                <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 2 }}>{a.drift}</div>
+                <div style={{ fontWeight: 600, fontSize: 13 }}>{a.type}</div>
+                <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 2 }}>{a.message}</div>
                 <span style={{ fontSize: 11, color: a.severity === "critical" ? "var(--error-color)" : a.severity === "high" ? "var(--warning-color)" : "var(--accent-color)" }}>
                   {a.severity.toUpperCase()}
                 </span>

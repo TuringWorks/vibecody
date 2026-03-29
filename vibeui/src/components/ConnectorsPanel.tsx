@@ -1,4 +1,5 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 const panelStyle: React.CSSProperties = {
   padding: 16,
@@ -49,39 +50,59 @@ const dotStyle = (color: string): React.CSSProperties => ({
   width: 8, height: 8, borderRadius: "50%", background: color, display: "inline-block",
 });
 
+interface ConnectorEntry {
+  id: string;
+  type: string;
+  status: string;
+  key_len: number;
+  connected_at: string;
+}
+
+interface DiscoveredEntry {
+  type: string;
+  status: string;
+}
+
+interface WebhookEvent {
+  source: string;
+  event: string;
+  time: string;
+  status: number;
+}
+
 export function ConnectorsPanel() {
   const [tab, setTab] = useState("connected");
-  const [connected] = useState([
-    { name: "GitHub", status: "green", type: "SCM" },
-    { name: "Jira", status: "green", type: "Project" },
-    { name: "Slack", status: "yellow", type: "Chat" },
-    { name: "PostgreSQL", status: "green", type: "Database" },
-    { name: "Datadog", status: "red", type: "Monitoring" },
-    { name: "AWS S3", status: "green", type: "Storage" },
-  ]);
-  const [available] = useState([
-    "GitHub", "GitLab", "Bitbucket", "Jira", "Linear", "Asana", "Slack", "Discord", "Teams",
-    "PostgreSQL", "MySQL", "MongoDB", "Redis", "Datadog", "Grafana", "PagerDuty",
-    "AWS S3", "GCS", "Confluence", "Notion",
-  ]);
-  const [webhookUrl] = useState("https://api.vibecody.dev/hooks/proj_abc123");
-  const [events] = useState([
-    { source: "GitHub", event: "push", time: "2 min ago", status: 200 },
-    { source: "Jira", event: "issue.updated", time: "8 min ago", status: 200 },
-    { source: "Slack", event: "message", time: "15 min ago", status: 200 },
-    { source: "GitHub", event: "pull_request.opened", time: "1 hr ago", status: 200 },
-    { source: "Datadog", event: "alert.triggered", time: "2 hr ago", status: 500 },
-  ]);
-  const [discovered, setDiscovered] = useState<string[]>([]);
+  const [connected, setConnected] = useState<ConnectorEntry[]>([]);
+  const [available, setAvailable] = useState<string[]>([]);
+  const [webhookUrl] = useState("");
+  const [events] = useState<WebhookEvent[]>([]);
+  const [discovered, setDiscovered] = useState<DiscoveredEntry[]>([]);
   const [scanning, setScanning] = useState(false);
+
+  const fetchData = useCallback(() => {
+    invoke<ConnectorEntry[]>("connectors_list").then(setConnected).catch(console.error);
+    invoke<string[]>("connectors_available").then(setAvailable).catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const handleSetup = useCallback((name: string) => {
+    invoke("connectors_add", { connectorType: name, apiKey: "" })
+      .then(() => fetchData())
+      .catch(console.error);
+  }, [fetchData]);
 
   const runDiscovery = useCallback(() => {
     setScanning(true);
     setDiscovered([]);
-    setTimeout(() => {
-      setDiscovered(["Redis on localhost:6379", "PostgreSQL on localhost:5432", "Elasticsearch on localhost:9200"]);
-      setScanning(false);
-    }, 1500);
+    invoke<{ discovered: DiscoveredEntry[] }>("connectors_discover")
+      .then((result) => {
+        setDiscovered(result.discovered);
+      })
+      .catch(console.error)
+      .finally(() => setScanning(false));
   }, []);
 
   const statusColor = (s: string) => s === "green" ? "var(--success-color)" : s === "yellow" ? "var(--warning-color)" : "var(--error-color)";
@@ -98,27 +119,41 @@ export function ConnectorsPanel() {
       </div>
 
       {tab === "connected" && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-          {connected.map((c) => (
-            <div key={c.name} style={{ ...cardStyle, display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={dotStyle(statusColor(c.status))} />
-              <div>
-                <div style={{ fontWeight: 600, fontSize: 13 }}>{c.name}</div>
-                <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{c.type}</div>
+        <div>
+          <div style={{ marginBottom: 8 }}>
+            <button style={btnStyle} onClick={fetchData}>Refresh</button>
+          </div>
+          {connected.length === 0 && (
+            <div style={{ ...cardStyle, color: "var(--text-secondary)", fontSize: 13 }}>No connectors configured yet. Go to Available to set one up.</div>
+          )}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            {connected.map((c) => (
+              <div key={c.id} style={{ ...cardStyle, display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={dotStyle(statusColor(c.status))} />
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 13 }}>{c.type}</div>
+                  <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+                    Key: {c.key_len} chars &middot; {c.connected_at}
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
 
       {tab === "available" && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
           {available.map((name) => {
-            const isConnected = connected.some((c) => c.name === name);
+            const isConnected = connected.some((c) => c.type === name);
             return (
               <div key={name} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span style={{ fontSize: 13 }}>{name}</span>
-                <button style={{ ...btnStyle, background: isConnected ? "var(--success-color)" : "var(--accent-color)", fontSize: 11, padding: "4px 10px" }}>
+                <button
+                  style={{ ...btnStyle, background: isConnected ? "var(--success-color)" : "var(--accent-color)", fontSize: 11, padding: "4px 10px" }}
+                  onClick={() => !isConnected && handleSetup(name)}
+                  disabled={isConnected}
+                >
                   {isConnected ? "Connected" : "Setup"}
                 </button>
               </div>
@@ -131,9 +166,14 @@ export function ConnectorsPanel() {
         <div>
           <div style={cardStyle}>
             <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>Webhook Endpoint</div>
-            <div style={{ fontSize: 13, fontFamily: "monospace", wordBreak: "break-all" }}>{webhookUrl}</div>
+            <div style={{ fontSize: 13, fontFamily: "monospace", wordBreak: "break-all" }}>
+              {webhookUrl || "No webhook URL configured"}
+            </div>
           </div>
           <div style={{ fontWeight: 600, fontSize: 13, margin: "12px 0 8px" }}>Recent Events</div>
+          {events.length === 0 && (
+            <div style={{ ...cardStyle, color: "var(--text-secondary)", fontSize: 13 }}>No webhook events yet.</div>
+          )}
           {events.map((e, i) => (
             <div key={i} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
@@ -158,13 +198,18 @@ export function ConnectorsPanel() {
             {discovered.length === 0 && !scanning && (
               <div style={{ ...cardStyle, color: "var(--text-secondary)", fontSize: 13 }}>Click auto-detect to scan for local services.</div>
             )}
-            {discovered.map((s, i) => (
+            {discovered.map((d, i) => (
               <div key={i} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={dotStyle("var(--success-color)")} />
-                  <span style={{ fontSize: 13 }}>{s}</span>
+                  <span style={dotStyle(statusColor(d.status))} />
+                  <span style={{ fontSize: 13 }}>{d.type}</span>
                 </div>
-                <button style={{ ...btnStyle, fontSize: 11, padding: "4px 10px" }}>Connect</button>
+                <button
+                  style={{ ...btnStyle, fontSize: 11, padding: "4px 10px" }}
+                  onClick={() => handleSetup(d.type)}
+                >
+                  Connect
+                </button>
               </div>
             ))}
           </div>

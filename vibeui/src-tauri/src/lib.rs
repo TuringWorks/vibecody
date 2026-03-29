@@ -212,6 +212,24 @@ pub fn run() {
             rlcef_outcomes: Arc::new(Mutex::new(Vec::new())),
             langgraph_pipelines: Arc::new(Mutex::new(Vec::new())),
             sketch_elements: Arc::new(Mutex::new(Vec::new())),
+            // Data Analysis
+            da_datasets: Arc::new(Mutex::new(Vec::new())),
+            da_charts: Arc::new(Mutex::new(Vec::new())),
+            da_widgets: Arc::new(Mutex::new(Vec::new())),
+            da_queries: Arc::new(Mutex::new(Vec::new())),
+            // Branch Agent
+            branch_agents: Arc::new(Mutex::new(Vec::new())),
+            branch_prs: Arc::new(Mutex::new(Vec::new())),
+            branch_conflicts: Arc::new(Mutex::new(Vec::new())),
+            // Audio Output
+            narrations: Arc::new(Mutex::new(Vec::new())),
+            // Channel Daemon
+            daemon_channels: Arc::new(Mutex::new(Vec::new())),
+            channel_messages: Arc::new(Mutex::new(Vec::new())),
+            // CI Gates
+            ci_gates: Arc::new(Mutex::new(Vec::new())),
+            // Design Import
+            design_imports: Arc::new(Mutex::new(Vec::new())),
         })
         .invoke_handler(tauri::generate_handler![
             commands::read_file,
@@ -1231,6 +1249,32 @@ pub fn run() {
             commands::sketch_recognize,
             commands::sketch_generate,
             commands::sketch_export,
+            // Data Analysis
+            commands::da_list_datasets,
+            commands::da_add_dataset,
+            commands::da_remove_dataset,
+            commands::da_list_charts,
+            commands::da_add_chart,
+            commands::da_list_widgets,
+            commands::da_add_widget,
+            commands::da_execute_query,
+            commands::da_list_queries,
+            // Branch Agent
+            commands::list_branch_agents,
+            commands::get_branch_prs,
+            commands::get_branch_conflicts,
+            // Audio Output
+            commands::list_narrations,
+            commands::create_narration,
+            // Channel Daemon
+            commands::list_daemon_channels,
+            commands::get_channel_messages,
+            // CI Gates
+            commands::list_ci_gates,
+            commands::toggle_ci_gate,
+            // Design Import
+            commands::list_design_imports,
+            commands::create_design_import,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -3,7 +3,8 @@
  *
  * Tabs: Active Agents, Pull Requests, Conflicts
  */
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 type Tab = "Active Agents" | "Pull Requests" | "Conflicts";
 const TABS: Tab[] = ["Active Agents", "Pull Requests", "Conflicts"];
@@ -47,32 +48,30 @@ const statsBarStyle: React.CSSProperties = {
 };
 const statStyle: React.CSSProperties = { display: "flex", flexDirection: "column", alignItems: "center" };
 
-const AGENTS = [
-  { id: "agent-auth", branch: "feature/auth-v2", status: "Running", task: "Implementing OAuth2 middleware", duration: "1h 12m" },
-  { id: "agent-perf", branch: "fix/perf-regression", status: "Running", task: "Profiling hot path in query builder", duration: "32m" },
-  { id: "agent-docs", branch: "docs/api-reference", status: "Idle", task: "Waiting for review approval", duration: "5m" },
-  { id: "agent-test", branch: "test/integration", status: "Errored", task: "Test runner crashed on assertion", duration: "0m" },
-];
-const PRS = [
-  { title: "OAuth2 middleware", branch: "feature/auth-v2", status: "Open", agent: "agent-auth", files: 8, additions: 342, deletions: 12 },
-  { title: "Fix N+1 query", branch: "fix/perf-regression", status: "Open", agent: "agent-perf", files: 3, additions: 45, deletions: 67 },
-  { title: "API docs generation", branch: "docs/api-reference", status: "Merged", agent: "agent-docs", files: 14, additions: 890, deletions: 0 },
-];
-const CONFLICTS = [
-  { branch: "feature/auth-v2", target: "main", files: ["src/routes.ts", "src/middleware.ts"], severity: "Critical", suggestion: "Rebase onto latest main; routes.ts has diverged significantly" },
-  { branch: "fix/perf-regression", target: "main", files: ["src/db/query.rs"], severity: "Warning", suggestion: "Minor conflict in imports; auto-resolvable" },
-];
+interface Agent { id: string; branch: string; status: string; task: string; duration: string }
+interface PR { title: string; branch: string; status: string; agent: string; files: number; additions: number; deletions: number }
+interface Conflict { branch: string; target: string; files: string[]; severity: string; suggestion: string }
 
 const VmOrchestratorPanel: React.FC = () => {
   const [tab, setTab] = useState<Tab>("Active Agents");
-  const running = AGENTS.filter(a => a.status === "Running").length;
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [prs, setPrs] = useState<PR[]>([]);
+  const [conflicts, setConflicts] = useState<Conflict[]>([]);
+
+  useEffect(() => {
+    invoke<Agent[]>("list_branch_agents").then(setAgents).catch(() => {});
+    invoke<PR[]>("get_branch_prs").then(setPrs).catch(() => {});
+    invoke<Conflict[]>("get_branch_conflicts").then(setConflicts).catch(() => {});
+  }, []);
+
+  const running = agents.filter(a => a.status === "Running").length;
   return (
     <div style={containerStyle} role="region" aria-label="Branch Agent Panel">
       <div style={statsBarStyle}>
-        <div style={statStyle}><strong style={{ fontSize: 18 }}>{AGENTS.length}</strong><span style={{ color: "var(--text-secondary)" }}>Agents</span></div>
+        <div style={statStyle}><strong style={{ fontSize: 18 }}>{agents.length}</strong><span style={{ color: "var(--text-secondary)" }}>Agents</span></div>
         <div style={statStyle}><strong style={{ fontSize: 18, color: "var(--success-color)" }}>{running}</strong><span style={{ color: "var(--text-secondary)" }}>Running</span></div>
-        <div style={statStyle}><strong style={{ fontSize: 18 }}>{PRS.filter(p => p.status === "Open").length}</strong><span style={{ color: "var(--text-secondary)" }}>Open PRs</span></div>
-        <div style={statStyle}><strong style={{ fontSize: 18, color: "var(--error-color)" }}>{CONFLICTS.length}</strong><span style={{ color: "var(--text-secondary)" }}>Conflicts</span></div>
+        <div style={statStyle}><strong style={{ fontSize: 18 }}>{prs.filter(p => p.status === "Open").length}</strong><span style={{ color: "var(--text-secondary)" }}>Open PRs</span></div>
+        <div style={statStyle}><strong style={{ fontSize: 18, color: "var(--error-color)" }}>{conflicts.length}</strong><span style={{ color: "var(--text-secondary)" }}>Conflicts</span></div>
       </div>
       <div style={tabBarStyle} role="tablist" aria-label="Branch Agent tabs">
         {TABS.map(t => (
@@ -80,7 +79,7 @@ const VmOrchestratorPanel: React.FC = () => {
         ))}
       </div>
       <div style={contentStyle} role="tabpanel" aria-label={tab}>
-        {tab === "Active Agents" && AGENTS.map((a, i) => (
+        {tab === "Active Agents" && agents.map((a, i) => (
           <div key={i} style={cardStyle}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
               <strong>{a.id}</strong>
@@ -90,7 +89,7 @@ const VmOrchestratorPanel: React.FC = () => {
             <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 2 }}>{a.task}</div>
           </div>
         ))}
-        {tab === "Pull Requests" && PRS.map((pr, i) => (
+        {tab === "Pull Requests" && prs.map((pr, i) => (
           <div key={i} style={cardStyle}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
               <strong>{pr.title}</strong>
@@ -101,7 +100,7 @@ const VmOrchestratorPanel: React.FC = () => {
             </div>
           </div>
         ))}
-        {tab === "Conflicts" && CONFLICTS.map((c, i) => (
+        {tab === "Conflicts" && conflicts.map((c, i) => (
           <div key={i} style={cardStyle}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
               <strong>{c.branch} &rarr; {c.target}</strong>

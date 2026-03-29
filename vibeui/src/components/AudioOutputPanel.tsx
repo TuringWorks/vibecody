@@ -3,7 +3,8 @@
  *
  * Tabs: Generate, History, Settings
  */
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 type Tab = "Generate" | "History" | "Settings";
 const TABS: Tab[] = ["Generate", "History", "Settings"];
@@ -51,11 +52,7 @@ const NARRATION_TYPES = [
   { label: "Custom", desc: "Enter custom text to narrate" },
 ];
 
-const HISTORY = [
-  { title: "Changelog v0.3.3", type: "Changelog", duration: "1:24", date: "2026-03-19", format: "MP3" },
-  { title: "Sprint 12 Status", type: "Status Report", duration: "2:10", date: "2026-03-18", format: "MP3" },
-  { title: "PR #142 Summary", type: "PR Summary", duration: "0:45", date: "2026-03-17", format: "WAV" },
-];
+interface Narration { id: number; title: string; type: string; duration: string; date: string; format: string }
 
 const AudioOutputPanel: React.FC = () => {
   const [tab, setTab] = useState<Tab>("Generate");
@@ -63,6 +60,20 @@ const AudioOutputPanel: React.FC = () => {
   const [voice, setVoice] = useState("alloy");
   const [speed, setSpeed] = useState("1.0");
   const [format, setFormat] = useState("mp3");
+  const [customText, setCustomText] = useState("");
+  const [history, setHistory] = useState<Narration[]>([]);
+
+  useEffect(() => {
+    invoke<Narration[]>("list_narrations").then(setHistory).catch(() => {});
+  }, []);
+
+  const handleGenerate = async (type_: string) => {
+    try {
+      const result = await invoke<Narration>("create_narration", { narrationType: type_, text: customText || type_ });
+      setHistory(prev => [result, ...prev]);
+      setTab("History");
+    } catch (_) { /* ignore */ }
+  };
 
   return (
     <div style={containerStyle} role="region" aria-label="Audio Output Panel">
@@ -76,16 +87,16 @@ const AudioOutputPanel: React.FC = () => {
           <div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
               {NARRATION_TYPES.map(n => (
-                <button key={n.label} style={btnStyle} aria-label={`Generate ${n.label}`}>{n.label}</button>
+                <button key={n.label} style={btnStyle} aria-label={`Generate ${n.label}`} onClick={() => handleGenerate(n.label)}>{n.label}</button>
               ))}
             </div>
-            <textarea style={{ ...inputStyle, height: 80, resize: "vertical" }} placeholder="Or enter custom text to narrate..." aria-label="Custom narration text" />
+            <textarea style={{ ...inputStyle, height: 80, resize: "vertical" }} placeholder="Or enter custom text to narrate..." aria-label="Custom narration text" value={customText} onChange={e => setCustomText(e.target.value)} />
             <div style={{ marginTop: 8, fontSize: 12, color: "var(--text-secondary)" }}>
               Select a narration type above or type custom text, then click Generate.
             </div>
           </div>
         )}
-        {tab === "History" && HISTORY.map((h, i) => (
+        {tab === "History" && history.map((h, i) => (
           <div key={i} style={cardStyle}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>

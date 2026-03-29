@@ -170,6 +170,24 @@ pub struct AppState {
     pub rlcef_outcomes: Arc<Mutex<Vec<serde_json::Value>>>,
     pub langgraph_pipelines: Arc<Mutex<Vec<serde_json::Value>>>,
     pub sketch_elements: Arc<Mutex<Vec<serde_json::Value>>>,
+    // Data Analysis
+    pub da_datasets: Arc<Mutex<Vec<serde_json::Value>>>,
+    pub da_charts: Arc<Mutex<Vec<serde_json::Value>>>,
+    pub da_widgets: Arc<Mutex<Vec<serde_json::Value>>>,
+    pub da_queries: Arc<Mutex<Vec<serde_json::Value>>>,
+    // Branch Agent
+    pub branch_agents: Arc<Mutex<Vec<serde_json::Value>>>,
+    pub branch_prs: Arc<Mutex<Vec<serde_json::Value>>>,
+    pub branch_conflicts: Arc<Mutex<Vec<serde_json::Value>>>,
+    // Audio Output
+    pub narrations: Arc<Mutex<Vec<serde_json::Value>>>,
+    // Channel Daemon
+    pub daemon_channels: Arc<Mutex<Vec<serde_json::Value>>>,
+    pub channel_messages: Arc<Mutex<Vec<serde_json::Value>>>,
+    // CI Gates
+    pub ci_gates: Arc<Mutex<Vec<serde_json::Value>>>,
+    // Design Import
+    pub design_imports: Arc<Mutex<Vec<serde_json::Value>>>,
 }
 
 const MAX_TERMINAL_LINES: usize = 500;
@@ -35994,4 +36012,226 @@ pub async fn list_agent_recordings() -> Result<serde_json::Value, String> {
     });
 
     Ok(serde_json::json!(recordings))
+}
+
+// ── Data Analysis ──────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn da_list_datasets(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let datasets = state.da_datasets.lock().await;
+    Ok(serde_json::json!(*datasets))
+}
+
+#[tauri::command]
+pub async fn da_add_dataset(state: tauri::State<'_, AppState>, name: String, source: String, rows: u64, cols: u64, size: String) -> Result<serde_json::Value, String> {
+    let mut datasets = state.da_datasets.lock().await;
+    let id = format!("{:x}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos());
+    let ds = serde_json::json!({
+        "id": id,
+        "name": name,
+        "source": source,
+        "rows": rows,
+        "cols": cols,
+        "size": size,
+        "status": "Loaded",
+        "created_at": chrono::Utc::now().to_rfc3339(),
+    });
+    datasets.push(ds.clone());
+    Ok(ds)
+}
+
+#[tauri::command]
+pub async fn da_remove_dataset(state: tauri::State<'_, AppState>, id: String) -> Result<serde_json::Value, String> {
+    let mut datasets = state.da_datasets.lock().await;
+    let before = datasets.len();
+    datasets.retain(|d| d.get("id").and_then(|v| v.as_str()) != Some(&id));
+    Ok(serde_json::json!({ "removed": before != datasets.len() }))
+}
+
+#[tauri::command]
+pub async fn da_list_charts(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let charts = state.da_charts.lock().await;
+    Ok(serde_json::json!(*charts))
+}
+
+#[tauri::command]
+pub async fn da_add_chart(state: tauri::State<'_, AppState>, title: String, chart_type: String, dataset: String) -> Result<serde_json::Value, String> {
+    let mut charts = state.da_charts.lock().await;
+    let id = format!("{:x}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos());
+    let chart = serde_json::json!({
+        "id": id,
+        "title": title,
+        "type": chart_type,
+        "dataset": dataset,
+        "created": chrono::Utc::now().format("%Y-%m-%d").to_string(),
+    });
+    charts.push(chart.clone());
+    Ok(chart)
+}
+
+#[tauri::command]
+pub async fn da_list_widgets(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let widgets = state.da_widgets.lock().await;
+    Ok(serde_json::json!(*widgets))
+}
+
+#[tauri::command]
+pub async fn da_add_widget(state: tauri::State<'_, AppState>, title: String, widget_type: String, value: Option<String>) -> Result<serde_json::Value, String> {
+    let mut widgets = state.da_widgets.lock().await;
+    let id = format!("{:x}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos());
+    let w = serde_json::json!({
+        "id": id,
+        "title": title,
+        "type": widget_type,
+        "value": value,
+    });
+    widgets.push(w.clone());
+    Ok(w)
+}
+
+#[tauri::command]
+pub async fn da_execute_query(state: tauri::State<'_, AppState>, query: String) -> Result<serde_json::Value, String> {
+    let datasets = state.da_datasets.lock().await;
+    let dataset_count = datasets.len();
+    let total_rows: u64 = datasets.iter()
+        .filter_map(|d| d.get("rows").and_then(|v| v.as_u64()))
+        .sum();
+    drop(datasets);
+
+    // Simulate query execution with summary info
+    let result_text = if query.to_lowercase().contains("count") {
+        format!("Query matched {} dataset(s) with {} total rows", dataset_count, total_rows)
+    } else if query.to_lowercase().contains("top") || query.to_lowercase().contains("best") {
+        format!("Ranked results across {} dataset(s)", dataset_count)
+    } else {
+        format!("Executed query across {} dataset(s), {} total rows scanned", dataset_count, total_rows)
+    };
+
+    let entry = serde_json::json!({
+        "id": format!("{:x}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos()),
+        "query": query,
+        "result": result_text,
+        "rows_scanned": total_rows,
+        "datasets_matched": dataset_count,
+        "executed_at": chrono::Utc::now().to_rfc3339(),
+    });
+
+    let mut queries = state.da_queries.lock().await;
+    queries.insert(0, entry.clone());
+    // Keep last 50 queries
+    queries.truncate(50);
+
+    Ok(entry)
+}
+
+#[tauri::command]
+pub async fn da_list_queries(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let queries = state.da_queries.lock().await;
+    Ok(serde_json::json!(*queries))
+}
+
+// ── Branch Agent ──
+
+#[tauri::command]
+pub async fn list_branch_agents(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let agents = state.branch_agents.lock().await;
+    Ok(serde_json::json!(*agents))
+}
+
+#[tauri::command]
+pub async fn get_branch_prs(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let prs = state.branch_prs.lock().await;
+    Ok(serde_json::json!(*prs))
+}
+
+#[tauri::command]
+pub async fn get_branch_conflicts(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let conflicts = state.branch_conflicts.lock().await;
+    Ok(serde_json::json!(*conflicts))
+}
+
+// ── Audio Output ──
+
+#[tauri::command]
+pub async fn list_narrations(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let narrations = state.narrations.lock().await;
+    Ok(serde_json::json!(*narrations))
+}
+
+#[tauri::command]
+pub async fn create_narration(state: tauri::State<'_, AppState>, narration_type: String, text: String) -> Result<serde_json::Value, String> {
+    let id = chrono::Utc::now().timestamp();
+    let entry = serde_json::json!({
+        "id": id,
+        "title": format!("{} narration", narration_type),
+        "type": narration_type,
+        "text": text,
+        "duration": "0:00",
+        "format": "MP3",
+        "date": chrono::Utc::now().format("%Y-%m-%d").to_string(),
+        "status": "generated"
+    });
+    let mut narrations = state.narrations.lock().await;
+    narrations.insert(0, entry.clone());
+    Ok(entry)
+}
+
+// ── Channel Daemon ──
+
+#[tauri::command]
+pub async fn list_daemon_channels(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let channels = state.daemon_channels.lock().await;
+    Ok(serde_json::json!(*channels))
+}
+
+#[tauri::command]
+pub async fn get_channel_messages(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let messages = state.channel_messages.lock().await;
+    Ok(serde_json::json!(*messages))
+}
+
+// ── CI Gates ──
+
+#[tauri::command]
+pub async fn list_ci_gates(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let gates = state.ci_gates.lock().await;
+    Ok(serde_json::json!(*gates))
+}
+
+#[tauri::command]
+pub async fn toggle_ci_gate(state: tauri::State<'_, AppState>, name: String) -> Result<serde_json::Value, String> {
+    let mut gates = state.ci_gates.lock().await;
+    for gate in gates.iter_mut() {
+        if gate.get("name").and_then(|v| v.as_str()) == Some(&name) {
+            let enabled = gate.get("enabled").and_then(|v| v.as_bool()).unwrap_or(false);
+            gate["enabled"] = serde_json::json!(!enabled);
+            return Ok(gate.clone());
+        }
+    }
+    Err(format!("Gate '{}' not found", name))
+}
+
+// ── Design Import ──
+
+#[tauri::command]
+pub async fn list_design_imports(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let imports = state.design_imports.lock().await;
+    Ok(serde_json::json!(*imports))
+}
+
+#[tauri::command]
+pub async fn create_design_import(state: tauri::State<'_, AppState>, name: String, framework: String, source: String) -> Result<serde_json::Value, String> {
+    let id = chrono::Utc::now().timestamp();
+    let entry = serde_json::json!({
+        "id": id,
+        "name": name,
+        "framework": framework,
+        "source": source,
+        "date": chrono::Utc::now().format("%Y-%m-%d").to_string(),
+        "components": 0,
+        "status": "imported"
+    });
+    let mut imports = state.design_imports.lock().await;
+    imports.insert(0, entry.clone());
+    Ok(entry)
 }

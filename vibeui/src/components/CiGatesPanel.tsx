@@ -3,7 +3,8 @@
  *
  * Tabs: Rules, Reports, GitHub Action
  */
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 type Tab = "Rules" | "Reports" | "GitHub Action";
 const TABS: Tab[] = ["Rules", "Reports", "GitHub Action"];
@@ -40,31 +41,6 @@ const badgeStyle = (color: string): React.CSSProperties => ({
   fontSize: 11, background: color, color: "var(--bg-primary)", fontWeight: 600,
 });
 
-const RULES = [
-  { name: "Test coverage >= 80%", category: "Quality", enabled: true, severity: "Fail" },
-  { name: "No security vulnerabilities (High/Critical)", category: "Security", enabled: true, severity: "Fail" },
-  { name: "Lint passes with 0 errors", category: "Style", enabled: true, severity: "Fail" },
-  { name: "Build completes in < 10 min", category: "Performance", enabled: true, severity: "Warn" },
-  { name: "No TODO comments in new code", category: "Style", enabled: false, severity: "Warn" },
-  { name: "Docs updated for public API changes", category: "Docs", enabled: true, severity: "Warn" },
-  { name: "License headers present", category: "Compliance", enabled: false, severity: "Skip" },
-];
-
-const REPORTS = [
-  { run: "#142", date: "2026-03-19", branch: "feat/auth-v2", checks: [
-    { name: "Test coverage", result: "Pass", detail: "84.2%" },
-    { name: "Security scan", result: "Pass", detail: "0 vulnerabilities" },
-    { name: "Lint", result: "Fail", detail: "3 errors in routes.ts" },
-    { name: "Build time", result: "Pass", detail: "4m 12s" },
-  ]},
-  { run: "#141", date: "2026-03-18", branch: "fix/perf-regression", checks: [
-    { name: "Test coverage", result: "Pass", detail: "81.0%" },
-    { name: "Security scan", result: "Pass", detail: "0 vulnerabilities" },
-    { name: "Lint", result: "Pass", detail: "0 errors" },
-    { name: "Build time", result: "Warn", detail: "9m 48s" },
-  ]},
-];
-
 const GH_ACTION_YAML = `name: VibeCody CI Gates
 on:
   pull_request:
@@ -86,8 +62,23 @@ jobs:
       - name: Build timing
         run: time cargo build --release`;
 
+interface Gate { name: string; category: string; enabled: boolean; severity: string }
+
 const CiGatesPanel: React.FC = () => {
   const [tab, setTab] = useState<Tab>("Rules");
+  const [gates, setGates] = useState<Gate[]>([]);
+
+  useEffect(() => {
+    invoke<Gate[]>("list_ci_gates").then(setGates).catch(() => {});
+  }, []);
+
+  const handleToggle = async (name: string) => {
+    try {
+      const updated = await invoke<Gate>("toggle_ci_gate", { name });
+      setGates(prev => prev.map(g => g.name === name ? updated : g));
+    } catch (_) { /* ignore */ }
+  };
+
   return (
     <div style={containerStyle} role="region" aria-label="CI Gates Panel">
       <div style={tabBarStyle} role="tablist" aria-label="CI Gates tabs">
@@ -96,7 +87,7 @@ const CiGatesPanel: React.FC = () => {
         ))}
       </div>
       <div style={contentStyle} role="tabpanel" aria-label={tab}>
-        {tab === "Rules" && RULES.map((r, i) => (
+        {tab === "Rules" && gates.map((r, i) => (
           <div key={i} style={{ ...cardStyle, opacity: r.enabled ? 1 : 0.5 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
@@ -105,25 +96,20 @@ const CiGatesPanel: React.FC = () => {
               </div>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <span style={badgeStyle(STATUS_COLORS[r.severity] || "var(--text-secondary)")}>{r.severity}</span>
-                <span style={{ fontSize: 11, color: r.enabled ? "var(--success-color)" : "var(--text-secondary)" }}>{r.enabled ? "ON" : "OFF"}</span>
+                <button
+                  style={{ fontSize: 11, color: r.enabled ? "var(--success-color)" : "var(--text-secondary)", background: "none", border: "none", cursor: "pointer" }}
+                  onClick={() => handleToggle(r.name)}
+                >{r.enabled ? "ON" : "OFF"}</button>
               </div>
             </div>
           </div>
         ))}
-        {tab === "Reports" && REPORTS.map((r, i) => (
-          <div key={i} style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Run {r.run} &middot; {r.branch} &middot; {r.date}</div>
-            {r.checks.map((c, j) => (
-              <div key={j} style={cardStyle}>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span>{c.name}</span>
-                  <span style={badgeStyle(STATUS_COLORS[c.result] || "var(--text-secondary)")}>{c.result}</span>
-                </div>
-                <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 2 }}>{c.detail}</div>
-              </div>
-            ))}
+        {tab === "Reports" && (
+          <div style={{ textAlign: "center", padding: 40, color: "var(--text-secondary)" }}>
+            <div style={{ fontSize: 14 }}>No CI reports yet</div>
+            <div style={{ fontSize: 12, marginTop: 4 }}>Reports will appear after CI runs complete</div>
           </div>
-        ))}
+        )}
         {tab === "GitHub Action" && (
           <div>
             <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8 }}>

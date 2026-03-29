@@ -3,7 +3,8 @@
  *
  * Tabs: Import, Preview, History
  */
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 type Tab = "Import" | "Preview" | "History";
 const TABS: Tab[] = ["Import", "Preview", "History"];
@@ -53,17 +54,29 @@ const badgeStyle = (color: string): React.CSSProperties => ({
   fontSize: 11, background: color, color: "var(--bg-primary)", fontWeight: 600,
 });
 
-const HISTORY = [
-  { name: "LoginCard", framework: "React", source: "Figma", date: "2026-03-19", components: 3 },
-  { name: "DashboardHeader", framework: "React", source: "Image", date: "2026-03-18", components: 2 },
-  { name: "PricingTable", framework: "Vue", source: "Figma", date: "2026-03-17", components: 5 },
-  { name: "NavigationBar", framework: "Svelte", source: "Image", date: "2026-03-15", components: 1 },
-];
+interface DesignImport { id: number; name: string; framework: string; source: string; date: string; components: number }
 
 const DesignImportPanel: React.FC = () => {
   const [tab, setTab] = useState<Tab>("Import");
   const [framework, setFramework] = useState("React");
   const [figmaUrl, setFigmaUrl] = useState("");
+  const [history, setHistory] = useState<DesignImport[]>([]);
+
+  useEffect(() => {
+    invoke<DesignImport[]>("list_design_imports").then(setHistory).catch(() => {});
+  }, []);
+
+  const handleImport = async () => {
+    if (!figmaUrl) return;
+    try {
+      const name = figmaUrl.includes("figma.com") ? "Figma Import" : "URL Import";
+      const source = figmaUrl.includes("figma.com") ? "Figma" : "Image";
+      const result = await invoke<DesignImport>("create_design_import", { name, framework, source });
+      setHistory(prev => [result, ...prev]);
+      setFigmaUrl("");
+      setTab("History");
+    } catch (_) { /* ignore */ }
+  };
 
   return (
     <div style={containerStyle} role="region" aria-label="Design Import Panel">
@@ -87,7 +100,7 @@ const DesignImportPanel: React.FC = () => {
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <input style={{ ...inputStyle, flex: 1 }} placeholder="Or paste Figma URL..." value={figmaUrl} onChange={e => setFigmaUrl(e.target.value)} aria-label="Figma URL input" />
-              <button style={btnStyle} aria-label="Import design">Import</button>
+              <button style={btnStyle} aria-label="Import design" onClick={handleImport}>Import</button>
             </div>
           </div>
         )}
@@ -97,7 +110,7 @@ const DesignImportPanel: React.FC = () => {
             <div style={{ fontSize: 12 }}>Import a design to see the generated component preview here</div>
           </div>
         )}
-        {tab === "History" && HISTORY.map((h, i) => (
+        {tab === "History" && history.map((h, i) => (
           <div key={i} style={cardStyle}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
               <strong>{h.name}</strong>
