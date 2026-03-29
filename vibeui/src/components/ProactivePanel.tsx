@@ -1,4 +1,5 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 interface Suggestion {
   id: string;
@@ -76,31 +77,75 @@ const priorityColor: Record<string, string> = { high: "var(--error-color)", medi
 
 export function ProactivePanel() {
   const [tab, setTab] = useState("suggestions");
-  const [suggestions, setSuggestions] = useState<Suggestion[]>([
-    { id: "s1", title: "Extract duplicated validation logic", description: "Found 3 files with similar validation code", priority: "high", category: "refactor", status: "pending" },
-    { id: "s2", title: "Add error boundary to Dashboard", description: "Unhandled promise rejection detected", priority: "medium", category: "reliability", status: "pending" },
-    { id: "s3", title: "Update deprecated API call", description: "fetch v2 endpoint deprecated, migrate to v3", priority: "low", category: "maintenance", status: "pending" },
-  ]);
-  const [scans, setScans] = useState<ScanRecord[]>([
-    { id: "sc1", triggeredAt: "2026-03-26 10:00", suggestionsFound: 3, duration: "2.1s" },
-    { id: "sc2", triggeredAt: "2026-03-26 09:00", suggestionsFound: 1, duration: "1.8s" },
-  ]);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [scans, setScans] = useState<ScanRecord[]>([]);
+  const [digest, setDigest] = useState<Record<string, unknown> | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [cadence, setCadence] = useState("hourly");
   const [minConfidence, setMinConfidence] = useState(70);
   const [quietMode, setQuietMode] = useState(false);
 
-  const handleAction = useCallback((id: string, action: "accepted" | "rejected" | "snoozed") => {
-    setSuggestions((prev) => prev.map((s) => s.id === id ? { ...s, status: action } : s));
+  const fetchSuggestions = useCallback(async () => {
+    try {
+      const data = await invoke<{ suggestions: Suggestion[] }>("proactive_get_suggestions");
+      const list = (data as any)?.suggestions ?? (Array.isArray(data) ? data : []);
+      setSuggestions(list);
+    } catch (e) {
+      console.error("proactive_get_suggestions failed:", e);
+    }
   }, []);
 
-  const handleScan = useCallback(() => {
-    setScans((prev) => [{ id: `sc${Date.now()}`, triggeredAt: new Date().toISOString().slice(0, 16).replace("T", " "), suggestionsFound: 0, duration: "0.5s" }, ...prev]);
+  const fetchDigest = useCallback(async () => {
+    try {
+      const data = await invoke<Record<string, unknown>>("proactive_get_digest");
+      setDigest(data);
+    } catch (e) {
+      console.error("proactive_get_digest failed:", e);
+    }
   }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    Promise.all([fetchSuggestions(), fetchDigest()])
+      .catch((e) => setError(String(e)))
+      .finally(() => setLoading(false));
+  }, [fetchSuggestions, fetchDigest]);
+
+  const handleAction = useCallback(async (id: string, action: "accepted" | "rejected") => {
+    try {
+      const cmd = action === "accepted" ? "proactive_accept" : "proactive_reject";
+      await invoke(cmd, { suggestionId: id });
+      setSuggestions((prev) => prev.map((s) => s.id === id ? { ...s, status: action } : s));
+    } catch (e) {
+      console.error(`proactive_${action} failed:`, e);
+    }
+  }, []);
+
+  const handleScan = useCallback(async () => {
+    try {
+      const result = await invoke<Record<string, unknown>>("proactive_scan");
+      const newScan: ScanRecord = {
+        id: `sc${Date.now()}`,
+        triggeredAt: new Date().toISOString().slice(0, 16).replace("T", " "),
+        suggestionsFound: (result as any)?.new_suggestions ?? 0,
+        duration: (result as any)?.duration ?? "0.5s",
+      };
+      setScans((prev) => [newScan, ...prev]);
+      await fetchSuggestions();
+    } catch (e) {
+      console.error("proactive_scan failed:", e);
+    }
+  }, [fetchSuggestions]);
 
   const accepted = suggestions.filter((s) => s.status === "accepted").length;
   const rejected = suggestions.filter((s) => s.status === "rejected").length;
   const total = suggestions.length;
   const categories = [...new Set(suggestions.map((s) => s.category))];
+
+  if (loading) return <div style={panelStyle}><div style={{ color: "var(--text-secondary)", fontSize: 13 }}>Loading proactive intelligence...</div></div>;
+  if (error) return <div style={panelStyle}><div style={{ color: "var(--error-color)", fontSize: 13 }}>Error: {error}</div></div>;
 
   return (
     <div style={panelStyle}>
@@ -124,7 +169,6 @@ export function ProactivePanel() {
               <div>
                 <button style={btnStyle} onClick={() => handleAction(s.id, "accepted")}>Accept</button>
                 <button style={{ ...btnStyle, background: "var(--error-color)" }} onClick={() => handleAction(s.id, "rejected")}>Reject</button>
-                <button style={{ ...btnStyle, background: "var(--text-secondary)" }} onClick={() => handleAction(s.id, "snoozed")}>Snooze</button>
               </div>
             </div>
           ))}
@@ -161,6 +205,12 @@ export function ProactivePanel() {
             <div style={{ fontSize: 24, fontWeight: 700 }}>{total > 0 ? ((accepted / total) * 100).toFixed(0) : 0}%</div>
             <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{accepted} accepted / {rejected} rejected / {total} total</div>
           </div>
+          {digest && (
+            <div style={cardStyle}>
+              <div style={{ fontWeight: 600, marginBottom: 8 }}>Digest</div>
+              <pre style={{ fontSize: 12, color: "var(--text-secondary)", whiteSpace: "pre-wrap" }}>{JSON.stringify(digest, null, 2)}</pre>
+            </div>
+          )}
           <div style={cardStyle}>
             <div style={{ fontWeight: 600, marginBottom: 8 }}>Top Patterns by Category</div>
             {categories.map((c) => {

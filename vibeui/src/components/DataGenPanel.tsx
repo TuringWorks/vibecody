@@ -8,9 +8,10 @@
  * UUID : bulk crypto.randomUUID() with copy-all and per-item copy.
  * Password : configurable password generator with strength meter.
  *
- * Pure TypeScript + crypto.randomUUID — no Tauri commands required.
+ * Schema save/load wired to Tauri backend. Generation logic stays client-side.
  */
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { CopyButton as CopyBtn } from "./shared/CopyButton";
 
 // ── Lorem Ipsum word bank ──────────────────────────────────────────────────────
@@ -203,6 +204,35 @@ export function DataGenPanel() {
  else setFakeOutput(toSql(rows, sqlTable));
  }, [schema, rowCount, outFormat, sqlTable]);
 
+ // ── Schema save/load via Tauri backend ─────────────────────────────────────
+ interface SavedSchema { id: string; name: string; fields: SchemaField[]; created: string }
+ const [savedSchemas, setSavedSchemas] = useState<SavedSchema[]>([]);
+ const [schemaName, setSchemaName] = useState("");
+
+ const loadSavedSchemas = useCallback(async () => {
+ try {
+ const list = await invoke<SavedSchema[]>("datagen_list_schemas");
+ setSavedSchemas(Array.isArray(list) ? list : []);
+ } catch { /* ignore */ }
+ }, []);
+
+ useEffect(() => { loadSavedSchemas(); }, [loadSavedSchemas]);
+
+ const saveCurrentSchema = useCallback(async () => {
+ const name = schemaName.trim() || `Schema ${new Date().toLocaleTimeString()}`;
+ try {
+ await invoke("datagen_save_schema", { name, fields: schema });
+ setSchemaName("");
+ loadSavedSchemas();
+ } catch { /* ignore */ }
+ }, [schema, schemaName, loadSavedSchemas]);
+
+ const loadSchema = useCallback((saved: SavedSchema) => {
+ if (Array.isArray(saved.fields)) {
+ setSchema(saved.fields as SchemaField[]);
+ }
+ }, []);
+
  // ── UUID state ───────────────────────────────────────────────────────────────
  const [uuidCount, setUuidCount] = useState(10);
  const [uuidVersion, setUuidVersion] = useState<"v4" | "v7">("v4");
@@ -270,7 +300,10 @@ export function DataGenPanel() {
  <div style={{ width: 260, flexShrink: 0, borderRight: "1px solid var(--border-color)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
  <div style={{ padding: "6px 10px", fontSize: 10, fontWeight: 700, color: "var(--text-secondary)", background: "var(--bg-secondary)", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
  <span>SCHEMA FIELDS</span>
+ <div style={{ display: "flex", gap: 3 }}>
  <button onClick={addField} style={{ fontSize: 9, padding: "1px 6px", background: "color-mix(in srgb, var(--accent-blue) 15%, transparent)", border: "1px solid var(--accent-primary)", borderRadius: 4, color: "var(--text-info)", cursor: "pointer" }}>+ Add</button>
+ <button onClick={saveCurrentSchema} style={{ fontSize: 9, padding: "1px 6px", background: "color-mix(in srgb, var(--accent-green) 15%, transparent)", border: "1px solid var(--success-color)", borderRadius: 4, color: "var(--text-success)", cursor: "pointer" }}>Save</button>
+ </div>
  </div>
  <div style={{ flex: 1, overflow: "auto" }}>
  {schema.map((f, i) => (
@@ -301,6 +334,15 @@ export function DataGenPanel() {
  style={{ padding: "3px 6px", fontSize: 11, fontFamily: "var(--font-mono)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none" }} />
  )}
  <button onClick={genFakeData} style={{ padding: "5px", fontSize: 11, fontWeight: 700, background: "color-mix(in srgb, var(--accent-green) 15%, transparent)", border: "1px solid var(--success-color)", borderRadius: 4, color: "var(--text-success)", cursor: "pointer" }}>Generate</button>
+ {/* Schema name input for saving */}
+ <input value={schemaName} onChange={e => setSchemaName(e.target.value)} placeholder="Schema name..." style={{ padding: "3px 6px", fontSize: 10, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none" }} />
+ {/* Saved schemas list */}
+ {savedSchemas.length > 0 && (
+ <div style={{ fontSize: 10, color: "var(--text-secondary)", fontWeight: 700, marginTop: 2 }}>SAVED SCHEMAS</div>
+ )}
+ {savedSchemas.map(s => (
+ <button key={s.id} onClick={() => loadSchema(s)} style={{ padding: "3px 6px", fontSize: 10, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", cursor: "pointer", textAlign: "left" as const }}>{s.name}</button>
+ ))}
  </div>
  </div>
  {/* Output */}

@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 interface ModelEntry {
   id: string;
@@ -51,7 +52,6 @@ const cardStyle: React.CSSProperties = {
   border: "1px solid var(--border-color)",
 };
 
-
 const tabStyle = (active: boolean): React.CSSProperties => ({
   padding: "8px 16px",
   cursor: "pointer",
@@ -82,21 +82,46 @@ export function CostRouterPanel() {
     { id: "m3", name: "claude-sonnet-4", provider: "Anthropic", costPer1k: 0.003, qualityScore: 88, latencyMs: 600 },
     { id: "m4", name: "llama-3-70b", provider: "Ollama", costPer1k: 0.000, qualityScore: 82, latencyMs: 2000 },
   ]);
-  const [decisions] = useState<RoutingDecision[]>([
-    { id: "d1", query: "Refactor auth module", chosenModel: "claude-opus-4", reason: "High complexity task, quality priority", timestamp: "10:15" },
-    { id: "d2", query: "Fix typo in README", chosenModel: "claude-sonnet-4", reason: "Simple edit, cost optimized", timestamp: "10:12" },
-    { id: "d3", query: "Generate test suite", chosenModel: "gpt-4o", reason: "Balanced cost/quality, moderate complexity", timestamp: "10:08" },
-  ]);
-  const [budget] = useState(50.0);
-  const [spent] = useState(18.42);
+  const [decisions, setDecisions] = useState<RoutingDecision[]>([]);
+  const [budget, setBudget] = useState<{ total: number; spent: number; remaining: number }>({ total: 100, spent: 0, remaining: 100 });
   const [alertThreshold, setAlertThreshold] = useState(80);
-  const [abTests] = useState<AbTest[]>([
-    { id: "ab1", name: "Code review quality", modelA: "claude-opus-4", modelB: "gpt-4o", samplesA: 45, samplesB: 43, winnerScore: { a: 87, b: 82 }, status: "active" },
-    { id: "ab2", name: "Refactoring speed", modelA: "claude-sonnet-4", modelB: "llama-3-70b", samplesA: 30, samplesB: 30, winnerScore: { a: 91, b: 74 }, status: "concluded" },
-  ]);
+  const [abTests] = useState<AbTest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const remaining = budget - spent;
-  const pct = (spent / budget) * 100;
+  const fetchData = useCallback(async () => {
+    try {
+      const [routerData, budgetData] = await Promise.all([
+        invoke<unknown>("cost_router_list_models"),
+        invoke<unknown>("cost_router_get_budget"),
+      ]);
+      const rd = routerData as any;
+      if (rd?.decisions && Array.isArray(rd.decisions)) {
+        setDecisions(rd.decisions);
+      }
+      const bd = (budgetData ?? rd?.budget) as any;
+      if (bd) {
+        setBudget({
+          total: bd.total ?? 100,
+          spent: bd.spent ?? 0,
+          remaining: bd.remaining ?? (bd.total ?? 100) - (bd.spent ?? 0),
+        });
+      }
+    } catch (e) {
+      setError(String(e));
+    }
+  }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    fetchData().finally(() => setLoading(false));
+  }, [fetchData]);
+
+  const pct = budget.total > 0 ? (budget.spent / budget.total) * 100 : 0;
+
+  if (loading) return <div style={panelStyle}><div style={{ color: "var(--text-secondary)", fontSize: 13 }}>Loading cost router data...</div></div>;
+  if (error) return <div style={panelStyle}><div style={{ color: "var(--error-color)", fontSize: 13 }}>Error: {error}</div></div>;
 
   return (
     <div style={panelStyle}>
@@ -133,13 +158,14 @@ export function CostRouterPanel() {
 
       {tab === "routing" && (
         <div>
-          {decisions.map((d) => (
-            <div key={d.id} style={cardStyle}>
+          {decisions.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>No routing decisions recorded yet.</div>}
+          {decisions.map((d: any, idx: number) => (
+            <div key={d.id || idx} style={cardStyle}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                 <strong style={{ fontSize: 13 }}>{d.query}</strong>
                 <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>{d.timestamp}</span>
               </div>
-              <div style={{ fontSize: 13 }}>Routed to: <span style={badgeStyle("#6366f1")}>{d.chosenModel}</span></div>
+              <div style={{ fontSize: 13 }}>Routed to: <span style={badgeStyle("#6366f1")}>{d.chosenModel || d.chosen_model}</span></div>
               <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4, fontStyle: "italic" }}>{d.reason}</div>
             </div>
           ))}
@@ -151,12 +177,12 @@ export function CostRouterPanel() {
           <div style={cardStyle}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
               <span style={{ fontWeight: 600 }}>Budget Usage</span>
-              <span style={{ fontWeight: 600 }}>${spent.toFixed(2)} / ${budget.toFixed(2)}</span>
+              <span style={{ fontWeight: 600 }}>${budget.spent.toFixed(2)} / ${budget.total.toFixed(2)}</span>
             </div>
             <div style={{ background: "var(--bg-primary)", borderRadius: 4, height: 12 }}>
               <div style={{ background: pct > alertThreshold ? "var(--error-color)" : "var(--accent-color)", borderRadius: 4, height: 12, width: `${Math.min(pct, 100)}%` }} />
             </div>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>Remaining: ${remaining.toFixed(2)}</div>
+            <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>Remaining: ${budget.remaining.toFixed(2)}</div>
           </div>
           <div style={cardStyle}>
             <div style={{ fontWeight: 600, marginBottom: 8 }}>Alert Threshold: {alertThreshold}%</div>
@@ -167,6 +193,7 @@ export function CostRouterPanel() {
 
       {tab === "abtests" && (
         <div>
+          {abTests.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>No A/B tests configured yet.</div>}
           {abTests.map((t) => {
             const winner = t.winnerScore.a > t.winnerScore.b ? t.modelA : t.modelB;
             return (

@@ -13,7 +13,8 @@
  * Each step collects config, validates inputs, and generates runnable
  * commands/scripts. The final step produces a complete deployment package.
  */
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 // ── Wizard State ─────────────────────────────────────────────────────────
 
@@ -109,6 +110,30 @@ export function ModelWizardPanel() {
   const [step, setStep] = useState(1);
   const [config, setConfig] = useState<WizardConfig>({ ...DEFAULT_CONFIG });
   const [copied, setCopied] = useState(false);
+  const [savedConfigs, setSavedConfigs] = useState<{ id: string; name: string; config: WizardConfig; created: string }[]>([]);
+  const [configName, setConfigName] = useState("");
+
+  const loadSavedConfigs = useCallback(async () => {
+    try {
+      const list = await invoke<{ id: string; name: string; config: WizardConfig; created: string }[]>("wizard_list_configs");
+      setSavedConfigs(Array.isArray(list) ? list : []);
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => { loadSavedConfigs(); }, [loadSavedConfigs]);
+
+  const saveConfig = useCallback(async () => {
+    const name = configName.trim() || `Config ${new Date().toLocaleTimeString()}`;
+    try {
+      await invoke("wizard_save_config", { name, config });
+      setConfigName("");
+      loadSavedConfigs();
+    } catch { /* ignore */ }
+  }, [config, configName, loadSavedConfigs]);
+
+  const loadConfig = useCallback((saved: { config: WizardConfig }) => {
+    if (saved.config) setConfig(saved.config as WizardConfig);
+  }, []);
 
   const set = useCallback(<K extends keyof WizardConfig>(key: K, value: WizardConfig[K]) => {
     setConfig(prev => ({ ...prev, [key]: value }));
@@ -338,8 +363,22 @@ export function ModelWizardPanel() {
     <div style={panelStyle}>
       {/* Header */}
       <div style={{ padding: "10px 16px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", flexShrink: 0 }}>
-        <div style={{ fontSize: 15, fontWeight: 600 }}>Model Wizard</div>
-        <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Fine-tune, quantize, and deploy in 7 steps</div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 600 }}>Model Wizard</div>
+            <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Fine-tune, quantize, and deploy in 7 steps</div>
+          </div>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <input value={configName} onChange={e => setConfigName(e.target.value)} placeholder="Config name..." style={{ padding: "4px 8px", fontSize: 11, border: "1px solid var(--border-color)", borderRadius: 4, background: "var(--bg-tertiary)", color: "var(--text-primary)", width: 120 }} />
+            <button onClick={saveConfig} style={{ padding: "4px 10px", fontSize: 11, fontWeight: 600, borderRadius: 4, border: "none", background: "var(--accent-color)", color: "var(--btn-primary-fg, #fff)", cursor: "pointer" }}>Save</button>
+            {savedConfigs.length > 0 && (
+              <select onChange={e => { const idx = parseInt(e.target.value); if (!isNaN(idx)) loadConfig(savedConfigs[idx]); }} defaultValue="" style={{ padding: "4px 8px", fontSize: 11, border: "1px solid var(--border-color)", borderRadius: 4, background: "var(--bg-tertiary)", color: "var(--text-primary)" }}>
+                <option value="" disabled>Load saved...</option>
+                {savedConfigs.map((s, i) => <option key={s.id} value={i}>{s.name}</option>)}
+              </select>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Step indicator */}

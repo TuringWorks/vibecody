@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 interface SearchResult {
   id: string;
@@ -79,28 +80,57 @@ const inputStyle: React.CSSProperties = {
 export function WebGroundingPanel() {
   const [tab, setTab] = useState("search");
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<SearchResult[]>([
-    { id: "r1", title: "Rust async/await patterns", url: "https://doc.rust-lang.org/book/ch17-00-async-await.html", snippet: "Learn how to use async functions and the await keyword in Rust...", relevance: 0.95 },
-    { id: "r2", title: "Tokio runtime guide", url: "https://tokio.rs/tokio/tutorial", snippet: "Tokio is an asynchronous runtime for the Rust programming language...", relevance: 0.88 },
-  ]);
-  const [cacheEntries] = useState<CacheEntry[]>([
-    { query: "rust async patterns", hitCount: 5, cachedAt: "2026-03-26 09:00" },
-    { query: "tauri v2 commands", hitCount: 3, cachedAt: "2026-03-26 08:30" },
-  ]);
-  const [citations] = useState<Citation[]>([
-    { id: "c1", label: "[1]", url: "https://doc.rust-lang.org/book/ch17-00-async-await.html", usedIn: "Agent response #42" },
-    { id: "c2", label: "[2]", url: "https://tokio.rs/tokio/tutorial", usedIn: "Agent response #42" },
-  ]);
+  const [results, setResults] = useState<SearchResult[]>([]);
+  const [cacheEntries] = useState<CacheEntry[]>([]);
+  const [citations] = useState<Citation[]>([]);
   const [provider, setProvider] = useState("tavily");
   const [apiKey, setApiKey] = useState("");
   const [rateLimit] = useState(60);
+  const [searching, setSearching] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSearch = useCallback(() => {
+  const handleSearch = useCallback(async () => {
     if (!query.trim()) return;
-    setResults((prev) => [
-      { id: `r${Date.now()}`, title: `Result for: ${query}`, url: "https://example.com", snippet: `Search result for "${query}"...`, relevance: 0.75 },
-      ...prev,
-    ]);
+    setSearching(true);
+    setError(null);
+    try {
+      const data = await invoke<unknown>("web_search", { query });
+      const resultList = Array.isArray(data) ? data : (data as any)?.results ?? [];
+      const mapped: SearchResult[] = resultList.map((r: any, i: number) => ({
+        id: r.id || `r${Date.now()}_${i}`,
+        title: r.title || r.name || query,
+        url: r.url || r.link || "",
+        snippet: r.snippet || r.description || r.content || "",
+        relevance: r.relevance ?? r.score ?? 0.5,
+      }));
+      setResults(mapped);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setSearching(false);
+    }
+  }, [query]);
+
+  const handleSemanticSearch = useCallback(async () => {
+    if (!query.trim()) return;
+    setSearching(true);
+    setError(null);
+    try {
+      const data = await invoke<unknown>("semindex_search", { query });
+      const resultList = Array.isArray(data) ? data : (data as any)?.results ?? [];
+      const mapped: SearchResult[] = resultList.map((r: any, i: number) => ({
+        id: r.id || `s${Date.now()}_${i}`,
+        title: r.title || r.symbol || r.name || query,
+        url: r.url || r.file || "",
+        snippet: r.snippet || r.description || "",
+        relevance: r.relevance ?? r.score ?? 0.5,
+      }));
+      setResults(mapped);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setSearching(false);
+    }
   }, [query]);
 
   const cacheHitRate = cacheEntries.length > 0 ? ((cacheEntries.reduce((s, c) => s + c.hitCount, 0) / (cacheEntries.length * 10)) * 100).toFixed(0) : "0";
@@ -119,8 +149,15 @@ export function WebGroundingPanel() {
         <div>
           <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
             <input style={{ ...inputStyle, flex: 1 }} placeholder="Search the web..." value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSearch()} />
-            <button style={btnStyle} onClick={handleSearch}>Search</button>
+            <button style={btnStyle} onClick={handleSearch} disabled={searching}>
+              {searching ? "Searching..." : "Web Search"}
+            </button>
+            <button style={{ ...btnStyle, background: "var(--bg-secondary)" }} onClick={handleSemanticSearch} disabled={searching}>
+              Semantic
+            </button>
           </div>
+          {error && <div style={{ color: "var(--error-color)", fontSize: 12, marginBottom: 8 }}>{error}</div>}
+          {results.length === 0 && !searching && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>Enter a query and press Search.</div>}
           {results.map((r) => (
             <div key={r.id} style={cardStyle}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -154,6 +191,7 @@ export function WebGroundingPanel() {
 
       {tab === "citations" && (
         <div>
+          {citations.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>No citations recorded yet.</div>}
           {citations.map((c) => (
             <div key={c.id} style={cardStyle}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>

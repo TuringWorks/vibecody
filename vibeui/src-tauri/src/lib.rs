@@ -230,6 +230,11 @@ pub fn run() {
             ci_gates: Arc::new(Mutex::new(Vec::new())),
             // Design Import
             design_imports: Arc::new(Mutex::new(Vec::new())),
+            desktop_windows: Arc::new(Mutex::new(Vec::new())),
+            datagen_schemas: Arc::new(Mutex::new(Vec::new())),
+            wizard_configs: Arc::new(Mutex::new(Vec::new())),
+            training_jobs: Arc::new(Mutex::new(Vec::new())),
+            browser_sessions: Arc::new(Mutex::new(Vec::new())),
         })
         .invoke_handler(tauri::generate_handler![
             commands::read_file,
@@ -1275,6 +1280,23 @@ pub fn run() {
             // Design Import
             commands::list_design_imports,
             commands::create_design_import,
+            commands::desktop_list_windows,
+            commands::desktop_run_action,
+            commands::datagen_list_schemas,
+            commands::datagen_save_schema,
+            commands::wizard_list_configs,
+            commands::wizard_save_config,
+            commands::training_list_jobs,
+            commands::training_create_job,
+            // Cost Router
+            commands::cost_router_list_models,
+            commands::cost_router_get_budget,
+            // MCTS Repair
+            commands::mcts_list_sessions,
+            commands::mcts_create_session,
+            // Browser Agent
+            commands::browser_list_sessions,
+            commands::browser_create_session,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

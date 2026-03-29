@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 type SubTab = "browse" | "sessions" | "config";
 
@@ -21,9 +22,47 @@ export function BrowserAgentPanel() {
   const [url, setUrl] = useState("https://");
   const [task, setTask] = useState("");
   const [headless, setHeadless] = useState(true);
-  const [sessions] = useState<BrowseSession[]>([
-    { id: "demo-1", url: "https://example.com", task: "Extract pricing", status: "completed", actions: 12, screenshots: 5 },
-  ]);
+  const [sessions, setSessions] = useState<BrowseSession[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchSessions = useCallback(async () => {
+    try {
+      const data = await invoke<unknown>("browser_list_sessions");
+      const list = Array.isArray(data) ? data : [];
+      setSessions(list.map((s: any) => ({
+        id: String(s.id),
+        url: s.url || "",
+        task: s.task || "",
+        status: s.status || "unknown",
+        actions: s.actions ?? 0,
+        screenshots: s.screenshots ?? 0,
+      })));
+    } catch (e) {
+      setError(String(e));
+    }
+  }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    fetchSessions().finally(() => setLoading(false));
+  }, [fetchSessions]);
+
+  const handleLaunch = useCallback(async () => {
+    if (!url || !task) return;
+    try {
+      await invoke("browser_create_session", { url, task, headless });
+      setUrl("https://");
+      setTask("");
+      await fetchSessions();
+    } catch (e) {
+      console.error("browser_create_session failed:", e);
+    }
+  }, [url, task, headless, fetchSessions]);
+
+  if (loading) return <div style={{ padding: 16, color: "var(--text-secondary)", fontSize: 13 }}>Loading browser sessions...</div>;
+  if (error) return <div style={{ padding: 16, color: "var(--error-color)", fontSize: 13 }}>Error: {error}</div>;
 
   return (
     <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 16, fontSize: 13, color: "var(--text-primary)" }}>
@@ -53,7 +92,7 @@ export function BrowserAgentPanel() {
               </label>
             </div>
             <div style={{ marginTop: 12 }}>
-              <button style={{ ...btn, opacity: !url || !task ? 0.5 : 1 }} disabled={!url || !task}>Launch Browser Agent</button>
+              <button style={{ ...btn, opacity: !url || !task ? 0.5 : 1 }} disabled={!url || !task} onClick={handleLaunch}>Launch Browser Agent</button>
             </div>
           </div>
           <div style={{ ...card, marginTop: 12 }}>
@@ -72,6 +111,7 @@ export function BrowserAgentPanel() {
       {tab === "sessions" && (
         <div>
           <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Browse Sessions</div>
+          {sessions.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>No sessions yet. Launch a browser agent task to get started.</div>}
           {sessions.map(s => (
             <div key={s.id} style={{ ...card, marginBottom: 8 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -79,7 +119,7 @@ export function BrowserAgentPanel() {
                   <div style={{ fontWeight: 600, fontSize: 13 }}>{s.task}</div>
                   <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{s.url}</div>
                 </div>
-                <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 4, background: s.status === "completed" ? "#4caf5022" : "#ff980022", color: s.status === "completed" ? "var(--accent-green)" : "var(--accent-gold)" }}>{s.status}</span>
+                <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 4, background: s.status === "completed" ? "#4caf5022" : s.status === "running" ? "#2196f322" : "#ff980022", color: s.status === "completed" ? "var(--accent-green)" : s.status === "running" ? "var(--accent-blue)" : "var(--accent-gold)" }}>{s.status}</span>
               </div>
               <div style={{ marginTop: 6, fontSize: 11, color: "var(--text-secondary)" }}>
                 {s.actions} actions | {s.screenshots} screenshots

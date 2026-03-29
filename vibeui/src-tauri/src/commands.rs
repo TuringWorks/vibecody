@@ -188,6 +188,16 @@ pub struct AppState {
     pub ci_gates: Arc<Mutex<Vec<serde_json::Value>>>,
     // Design Import
     pub design_imports: Arc<Mutex<Vec<serde_json::Value>>>,
+    // Desktop Agent
+    pub desktop_windows: Arc<Mutex<Vec<serde_json::Value>>>,
+    // DataGen schemas
+    pub datagen_schemas: Arc<Mutex<Vec<serde_json::Value>>>,
+    // Model Wizard configs
+    pub wizard_configs: Arc<Mutex<Vec<serde_json::Value>>>,
+    // Training jobs
+    pub training_jobs: Arc<Mutex<Vec<serde_json::Value>>>,
+    // Browser Agent
+    pub browser_sessions: Arc<Mutex<Vec<serde_json::Value>>>,
 }
 
 const MAX_TERMINAL_LINES: usize = 500;
@@ -36233,5 +36243,217 @@ pub async fn create_design_import(state: tauri::State<'_, AppState>, name: Strin
     });
     let mut imports = state.design_imports.lock().await;
     imports.insert(0, entry.clone());
+    Ok(entry)
+}
+
+// ── Desktop Agent commands ──────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn desktop_list_windows(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let windows = state.desktop_windows.lock().await;
+    Ok(serde_json::json!(*windows))
+}
+
+#[tauri::command]
+pub async fn desktop_run_action(state: tauri::State<'_, AppState>, action: String, params: serde_json::Value) -> Result<serde_json::Value, String> {
+    // For "refresh_windows" action, detect real windows on macOS via osascript
+    if action == "refresh_windows" {
+        let mut windows = state.desktop_windows.lock().await;
+        windows.clear();
+        #[cfg(target_os = "macos")]
+        {
+            if let Ok(output) = tokio::process::Command::new("osascript")
+                .args(["-e", r#"tell application "System Events" to get name of every process whose background only is false"#])
+                .output().await
+            {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                for (i, app) in stdout.trim().split(", ").enumerate() {
+                    if !app.is_empty() {
+                        windows.push(serde_json::json!({
+                            "id": format!("{}", i + 1),
+                            "title": app,
+                            "app": app,
+                            "focused": i == 0,
+                        }));
+                    }
+                }
+            }
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            // Placeholder for Linux/Windows
+            windows.push(serde_json::json!({
+                "id": "1",
+                "title": "Desktop",
+                "app": "System",
+                "focused": true,
+            }));
+        }
+        return Ok(serde_json::json!({ "ok": true, "windows": *windows }));
+    }
+    // Generic action passthrough
+    Ok(serde_json::json!({
+        "ok": true,
+        "action": action,
+        "params": params,
+        "timestamp": chrono::Utc::now().to_rfc3339(),
+    }))
+}
+
+// ── DataGen schema commands ─────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn datagen_list_schemas(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let schemas = state.datagen_schemas.lock().await;
+    Ok(serde_json::json!(*schemas))
+}
+
+#[tauri::command]
+pub async fn datagen_save_schema(state: tauri::State<'_, AppState>, name: String, fields: serde_json::Value) -> Result<serde_json::Value, String> {
+    let id = format!("{:x}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos());
+    let entry = serde_json::json!({
+        "id": id,
+        "name": name,
+        "fields": fields,
+        "created": chrono::Utc::now().to_rfc3339(),
+    });
+    let mut schemas = state.datagen_schemas.lock().await;
+    schemas.insert(0, entry.clone());
+    Ok(entry)
+}
+
+// ── Model Wizard config commands ────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn wizard_list_configs(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let configs = state.wizard_configs.lock().await;
+    Ok(serde_json::json!(*configs))
+}
+
+#[tauri::command]
+pub async fn wizard_save_config(state: tauri::State<'_, AppState>, name: String, config: serde_json::Value) -> Result<serde_json::Value, String> {
+    let id = format!("{:x}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos());
+    let entry = serde_json::json!({
+        "id": id,
+        "name": name,
+        "config": config,
+        "created": chrono::Utc::now().to_rfc3339(),
+    });
+    let mut configs = state.wizard_configs.lock().await;
+    configs.insert(0, entry.clone());
+    Ok(entry)
+}
+
+// ── Training job commands ───────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn training_list_jobs(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let jobs = state.training_jobs.lock().await;
+    Ok(serde_json::json!(*jobs))
+}
+
+#[tauri::command]
+pub async fn training_create_job(state: tauri::State<'_, AppState>, name: String, framework: String, model: String, config: serde_json::Value) -> Result<serde_json::Value, String> {
+    let id = format!("{:x}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos());
+    let entry = serde_json::json!({
+        "id": id,
+        "name": name,
+        "framework": framework,
+        "model": model,
+        "config": config,
+        "status": "queued",
+        "progress": 0,
+        "created": chrono::Utc::now().to_rfc3339(),
+    });
+    let mut jobs = state.training_jobs.lock().await;
+    jobs.insert(0, entry.clone());
+    Ok(entry)
+}
+
+// ── Cost Router commands ────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn cost_router_list_models(
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let decisions = state.route_decisions.lock().await;
+    let budget = state.route_budget.lock().await;
+    Ok(serde_json::json!({
+        "decisions": *decisions,
+        "budget": *budget,
+    }))
+}
+
+#[tauri::command]
+pub async fn cost_router_get_budget(
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let budget = state.route_budget.lock().await;
+    Ok(budget.clone())
+}
+
+// ── MCTS Repair commands ────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn mcts_list_sessions(
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let sessions = state.repair_sessions.lock().await;
+    Ok(serde_json::json!(*sessions))
+}
+
+#[tauri::command]
+pub async fn mcts_create_session(
+    file: String,
+    error_msg: String,
+    strategy: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let id = chrono::Utc::now().timestamp();
+    let entry = serde_json::json!({
+        "id": id,
+        "file": file,
+        "error": error_msg,
+        "status": "running",
+        "strategy": strategy,
+        "nodesExplored": 0,
+        "depth": 0,
+        "created": chrono::Utc::now().to_rfc3339(),
+    });
+    let mut sessions = state.repair_sessions.lock().await;
+    sessions.insert(0, entry.clone());
+    Ok(entry)
+}
+
+// ── Browser Agent commands ──────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn browser_list_sessions(
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let sessions = state.browser_sessions.lock().await;
+    Ok(serde_json::json!(*sessions))
+}
+
+#[tauri::command]
+pub async fn browser_create_session(
+    url: String,
+    task: String,
+    headless: bool,
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let id = chrono::Utc::now().timestamp();
+    let entry = serde_json::json!({
+        "id": id,
+        "url": url,
+        "task": task,
+        "headless": headless,
+        "status": "running",
+        "actions": 0,
+        "screenshots": 0,
+        "created": chrono::Utc::now().to_rfc3339(),
+    });
+    let mut sessions = state.browser_sessions.lock().await;
+    sessions.insert(0, entry.clone());
     Ok(entry)
 }

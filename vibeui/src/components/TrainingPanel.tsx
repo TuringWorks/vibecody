@@ -1,12 +1,13 @@
 /**
  * TrainingPanel — distributed ML training management panel.
  *
- * Tabs: Config (distributed training), LoRA (fine-tuning), Cluster (SLURM/hostfile/estimator)
- * Pure TypeScript — no Tauri commands.
+ * Tabs: Config (distributed training), LoRA (fine-tuning), Cluster (SLURM/hostfile/estimator), Jobs
+ * Training jobs persisted via Tauri backend. Config generation stays client-side.
  */
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
-type TabId = "config" | "lora" | "cluster";
+type TabId = "config" | "lora" | "cluster" | "jobs";
 type Framework = "DeepSpeed" | "FSDP" | "Megatron" | "Horovod" | "Ray Train" | "Colossal-AI";
 type MixedPrecision = "FP32" | "FP16" | "BF16" | "FP8";
 type DeepSpeedStage = "0" | "1" | "2" | "3" | "Infinity";
@@ -207,6 +208,17 @@ function suggestParallelism(paramsB: number, gpuCount: number, vramPerGpu: numbe
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
+interface TrainingJob {
+  id: string;
+  name: string;
+  framework: string;
+  model: string;
+  config: Record<string, unknown>;
+  status: string;
+  progress: number;
+  created: string;
+}
+
 export function TrainingPanel() {
   const [tab, setTab] = useState<TabId>("config");
 
@@ -247,6 +259,36 @@ export function TrainingPanel() {
   const [estimatorPrecision, setEstimatorPrecision] = useState<MixedPrecision>("BF16");
   const [estimatorGpuCount, setEstimatorGpuCount] = useState(8);
   const [estimatorVram, setEstimatorVram] = useState(80);
+
+  // ── Training jobs (Tauri backend) ─────────────────────────────────────────
+  const [jobs, setJobs] = useState<TrainingJob[]>([]);
+  const [jobName, setJobName] = useState("");
+
+  const loadJobs = useCallback(async () => {
+    try {
+      const list = await invoke<TrainingJob[]>("training_list_jobs");
+      setJobs(Array.isArray(list) ? list : []);
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => { loadJobs(); }, [loadJobs]);
+
+  const createJob = useCallback(async () => {
+    const name = jobName.trim() || `Job ${new Date().toLocaleTimeString()}`;
+    try {
+      await invoke("training_create_job", {
+        name,
+        framework,
+        model: modelPath,
+        config: {
+          numNodes, gpusPerNode, batchSize, gradAccum, lr, precision,
+          gradCkpt, flashAttn, dsStage,
+        },
+      });
+      setJobName("");
+      loadJobs();
+    } catch { /* ignore */ }
+  }, [jobName, framework, modelPath, numNodes, gpusPerNode, batchSize, gradAccum, lr, precision, gradCkpt, flashAttn, dsStage, loadJobs]);
 
   // ---------------------------------------------------------------------------
   // Tab renderers
@@ -340,6 +382,7 @@ export function TrainingPanel() {
           setLaunchOutput(generateLaunchCmd(framework, modelPath, datasetPath, outputDir, numNodes, gpusPerNode, precision, gradCkpt, flashAttn));
           setConfigOutput("");
         }}>Generate Launch Command</button>
+        <button style={{ ...btnSecondary, borderColor: "var(--accent-green)", color: "var(--accent-green)" }} onClick={createJob}>Save as Job</button>
       </div>
       {configOutput && (
         <div>
@@ -593,7 +636,7 @@ export function TrainingPanel() {
     <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "var(--bg-primary)", color: "var(--text-primary)" }}>
       {/* Tab bar */}
       <div style={{ display: "flex", gap: 2, borderBottom: "1px solid var(--border-color)", padding: "0 16px", flexShrink: 0 }}>
-        {([["config", "Config"], ["lora", "LoRA"], ["cluster", "Cluster"]] as [TabId, string][]).map(([id, label]) => (
+        {([["config", "Config"], ["lora", "LoRA"], ["cluster", "Cluster"], ["jobs", "Jobs"]] as [TabId, string][]).map(([id, label]) => (
           <button
             key={id}
             onClick={() => setTab(id)}
@@ -611,6 +654,42 @@ export function TrainingPanel() {
       {tab === "config" && renderConfig()}
       {tab === "lora" && renderLora()}
       {tab === "cluster" && renderCluster()}
+      {tab === "jobs" && (
+        <div style={{ padding: 16, overflowY: "auto", flex: 1 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, color: "var(--text-primary)" }}>Training Jobs</div>
+          <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+            <input style={inputStyle} value={jobName} onChange={e => setJobName(e.target.value)} placeholder="Job name..." />
+            <button style={btnPrimary} onClick={createJob}>Create Job</button>
+            <button style={btnSecondary} onClick={loadJobs}>Refresh</button>
+          </div>
+          {jobs.length === 0 ? (
+            <div style={{ color: "var(--text-secondary)", fontSize: 12, fontStyle: "italic" }}>
+              No training jobs yet. Configure training parameters in the Config tab and create a job.
+            </div>
+          ) : (
+            jobs.map(j => (
+              <div key={j.id} style={{ padding: 12, border: "1px solid var(--border-color)", borderRadius: 6, marginBottom: 8, background: "var(--bg-secondary)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                  <div style={{ fontWeight: 600, fontSize: 13 }}>{j.name}</div>
+                  <span style={{
+                    fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 10,
+                    background: j.status === "running" ? "var(--accent-green)" : j.status === "queued" ? "var(--warning-color)" : "var(--bg-tertiary)",
+                    color: j.status === "running" || j.status === "queued" ? "#fff" : "var(--text-secondary)",
+                  }}>{j.status}</span>
+                </div>
+                <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+                  {j.framework} | {j.model || "No model specified"} | Created: {j.created ? new Date(j.created).toLocaleString() : "N/A"}
+                </div>
+                {j.progress > 0 && (
+                  <div style={{ marginTop: 6, height: 4, background: "var(--bg-tertiary)", borderRadius: 2, overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${j.progress}%`, background: "var(--accent-green)", borderRadius: 2 }} />
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 }

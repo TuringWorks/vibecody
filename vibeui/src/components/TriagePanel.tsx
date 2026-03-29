@@ -1,4 +1,5 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 interface TriageIssue {
   id: string;
@@ -86,44 +87,67 @@ const sevColor: Record<string, string> = { critical: "var(--error-color)", high:
 
 export function TriagePanel() {
   const [tab, setTab] = useState("queue");
-  const [issues] = useState<TriageIssue[]>([
-    { id: "i1", title: "Login page crashes on Safari", classification: "bug", severity: "critical", suggestedLabels: ["bug", "browser-compat", "P0"], draftResponse: "Thanks for reporting. We can reproduce this on Safari 17+. Working on a fix.", confidence: 92 },
-    { id: "i2", title: "Add dark mode toggle", classification: "feature", severity: "medium", suggestedLabels: ["enhancement", "ui"], draftResponse: "Thanks for the suggestion! Adding to our backlog.", confidence: 87 },
-    { id: "i3", title: "Docs typo in API reference", classification: "docs", severity: "low", suggestedLabels: ["documentation", "good-first-issue"], draftResponse: "Good catch! This is a great first contribution if you'd like to open a PR.", confidence: 95 },
-  ]);
-  const [rules, setRules] = useState<TriageRule[]>([
-    { id: "r1", name: "Crash reports", pattern: "crash|segfault|panic", action: "Label: P0, bug", enabled: true },
-    { id: "r2", name: "Feature requests", pattern: "feature|request|add support", action: "Label: enhancement", enabled: true },
-    { id: "r3", name: "Docs issues", pattern: "typo|docs|documentation", action: "Label: documentation", enabled: false },
-  ]);
-  const [history] = useState<TriageResult[]>([
-    { id: "h1", issueTitle: "Memory leak in worker", classification: "bug", correct: true, triageAt: "2026-03-25" },
-    { id: "h2", issueTitle: "Support ARM builds", classification: "feature", correct: true, triageAt: "2026-03-25" },
-    { id: "h3", issueTitle: "Improve startup time", classification: "bug", correct: false, triageAt: "2026-03-24" },
-  ]);
-  const [newRuleName, setNewRuleName] = useState("");
-  const [newRulePattern, setNewRulePattern] = useState("");
+  const [issues, setIssues] = useState<TriageIssue[]>([]);
+  const [rules, setRules] = useState<TriageRule[]>([]);
+  const [history, setHistory] = useState<TriageResult[]>([]);
+  const [metrics, setMetrics] = useState<Record<string, unknown> | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [newTitle, setNewTitle] = useState("");
+  const [newBody, setNewBody] = useState("");
 
-  const toggleRule = useCallback((id: string) => {
-    setRules((prev) => prev.map((r) => r.id === id ? { ...r, enabled: !r.enabled } : r));
+  const fetchData = useCallback(async () => {
+    try {
+      const [rulesData, historyData, metricsData] = await Promise.all([
+        invoke<unknown>("triage_get_rules"),
+        invoke<unknown>("triage_get_history"),
+        invoke<unknown>("triage_get_metrics"),
+      ]);
+      setRules(Array.isArray(rulesData) ? rulesData as TriageRule[] : []);
+      const histList = Array.isArray(historyData) ? historyData : (historyData as any)?.history ?? [];
+      setHistory(histList);
+      setMetrics(metricsData as Record<string, unknown>);
+    } catch (e) {
+      setError(String(e));
+    }
   }, []);
 
-  const addRule = useCallback(() => {
-    if (!newRuleName || !newRulePattern) return;
-    setRules((prev) => [...prev, { id: `r${Date.now()}`, name: newRuleName, pattern: newRulePattern, action: "Label: triage", enabled: true }]);
-    setNewRuleName("");
-    setNewRulePattern("");
-  }, [newRuleName, newRulePattern]);
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    fetchData().finally(() => setLoading(false));
+  }, [fetchData]);
 
-  const accuracy = history.length > 0 ? ((history.filter((h) => h.correct).length / history.length) * 100).toFixed(0) : "0";
-  const avgConf = issues.length > 0 ? (issues.reduce((s, i) => s + i.confidence, 0) / issues.length).toFixed(0) : "0";
+  const handleTriage = useCallback(async () => {
+    if (!newTitle.trim()) return;
+    try {
+      const result = await invoke<TriageIssue>("triage_issue", { title: newTitle, body: newBody });
+      if (result) {
+        setIssues((prev) => [result, ...prev]);
+      }
+      setNewTitle("");
+      setNewBody("");
+      await fetchData();
+    } catch (e) {
+      console.error("triage_issue failed:", e);
+    }
+  }, [newTitle, newBody, fetchData]);
+
   const inputStyle: React.CSSProperties = { width: "100%", padding: 8, borderRadius: 6, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)", fontSize: 13, marginBottom: 8 };
+
+  const allIssues = issues;
+  const accuracy = history.length > 0 ? ((history.filter((h) => h.correct).length / history.length) * 100).toFixed(0) : "0";
+  const avgConf = allIssues.length > 0 ? (allIssues.reduce((s, i) => s + i.confidence, 0) / allIssues.length).toFixed(0) : "0";
+
+  if (loading) return <div style={panelStyle}><div style={{ color: "var(--text-secondary)", fontSize: 13 }}>Loading triage data...</div></div>;
+  if (error) return <div style={panelStyle}><div style={{ color: "var(--error-color)", fontSize: 13 }}>Error: {error}</div></div>;
 
   return (
     <div style={panelStyle}>
       <h2 style={headingStyle}>Issue Triage</h2>
       <div style={{ display: "flex", gap: 0, borderBottom: "1px solid var(--border-color)", marginBottom: 16 }}>
         <button style={tabStyle(tab === "queue")} onClick={() => setTab("queue")}>Queue</button>
+        <button style={tabStyle(tab === "submit")} onClick={() => setTab("submit")}>Submit</button>
         <button style={tabStyle(tab === "rules")} onClick={() => setTab("rules")}>Rules</button>
         <button style={tabStyle(tab === "history")} onClick={() => setTab("history")}>History</button>
         <button style={tabStyle(tab === "metrics")} onClick={() => setTab("metrics")}>Metrics</button>
@@ -131,7 +155,8 @@ export function TriagePanel() {
 
       {tab === "queue" && (
         <div>
-          {issues.map((i) => (
+          {allIssues.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>No issues triaged yet. Submit an issue to get started.</div>}
+          {allIssues.map((i) => (
             <div key={i.id} style={cardStyle}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                 <strong>{i.title}</strong>
@@ -140,7 +165,7 @@ export function TriagePanel() {
                   <span style={badgeStyle(sevColor[i.severity])}>{i.severity}</span>
                 </div>
               </div>
-              <div style={{ marginBottom: 6 }}>{i.suggestedLabels.map((l) => <span key={l} style={badgeStyle("#374151")}>{l}</span>)}</div>
+              <div style={{ marginBottom: 6 }}>{(i.suggestedLabels || []).map((l) => <span key={l} style={badgeStyle("#374151")}>{l}</span>)}</div>
               <div style={{ fontSize: 12, color: "var(--text-secondary)", fontStyle: "italic", padding: 8, background: "var(--bg-primary)", borderRadius: 4 }}>{i.draftResponse}</div>
               <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4 }}>Confidence: {i.confidence}%</div>
             </div>
@@ -148,30 +173,39 @@ export function TriagePanel() {
         </div>
       )}
 
+      {tab === "submit" && (
+        <div>
+          <div style={cardStyle}>
+            <div style={{ fontWeight: 600, marginBottom: 8 }}>Submit Issue for Triage</div>
+            <input placeholder="Issue title" style={inputStyle} value={newTitle} onChange={(e) => setNewTitle(e.target.value)} />
+            <textarea placeholder="Issue body / description" style={{ ...inputStyle, height: 80, resize: "vertical" as const }} value={newBody} onChange={(e) => setNewBody(e.target.value)} />
+            <button style={btnStyle} onClick={handleTriage} disabled={!newTitle.trim()}>Triage</button>
+          </div>
+        </div>
+      )}
+
       {tab === "rules" && (
         <div>
-          {rules.map((r) => (
-            <div key={r.id} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          {rules.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>No triage rules configured.</div>}
+          {rules.map((r, idx) => (
+            <div key={r.id || idx} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
-                <strong>{r.name}</strong>
-                <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>/{r.pattern}/ &rarr; {r.action}</div>
+                <strong>{r.name || r.pattern}</strong>
+                <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>/{r.pattern}/ &rarr; {r.action || `Label: ${r.name}`}</div>
               </div>
-              <label style={{ cursor: "pointer" }}><input type="checkbox" checked={r.enabled} onChange={() => toggleRule(r.id)} /></label>
+              {r.enabled !== undefined && (
+                <label style={{ cursor: "pointer" }}><input type="checkbox" checked={r.enabled} readOnly /></label>
+              )}
             </div>
           ))}
-          <div style={{ ...cardStyle, marginTop: 12 }}>
-            <div style={{ fontWeight: 600, marginBottom: 8 }}>Add Rule</div>
-            <input placeholder="Rule name" style={inputStyle} value={newRuleName} onChange={(e) => setNewRuleName(e.target.value)} />
-            <input placeholder="Pattern (regex)" style={inputStyle} value={newRulePattern} onChange={(e) => setNewRulePattern(e.target.value)} />
-            <button style={btnStyle} onClick={addRule}>Add Rule</button>
-          </div>
         </div>
       )}
 
       {tab === "history" && (
         <div>
-          {history.map((h) => (
-            <div key={h.id} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          {history.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>No triage history yet.</div>}
+          {history.map((h, idx) => (
+            <div key={h.id || idx} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <strong>{h.issueTitle}</strong>
                 <span style={{ ...badgeStyle("#6366f1"), marginLeft: 8 }}>{h.classification}</span>
@@ -184,10 +218,16 @@ export function TriagePanel() {
 
       {tab === "metrics" && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-          <div style={cardStyle}><div style={{ fontSize: 12, color: "var(--text-secondary)" }}>By Type</div>{["bug", "feature", "docs"].map((t) => <div key={t} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "2px 0" }}><span>{t}</span><strong>{issues.filter((i) => i.classification === t).length}</strong></div>)}</div>
-          <div style={cardStyle}><div style={{ fontSize: 12, color: "var(--text-secondary)" }}>By Severity</div>{["critical", "high", "medium", "low"].map((s) => <div key={s} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "2px 0" }}><span>{s}</span><strong>{issues.filter((i) => i.severity === s).length}</strong></div>)}</div>
+          <div style={cardStyle}><div style={{ fontSize: 12, color: "var(--text-secondary)" }}>By Type</div>{["bug", "feature", "docs"].map((t) => <div key={t} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "2px 0" }}><span>{t}</span><strong>{allIssues.filter((i) => i.classification === t).length}</strong></div>)}</div>
+          <div style={cardStyle}><div style={{ fontSize: 12, color: "var(--text-secondary)" }}>By Severity</div>{["critical", "high", "medium", "low"].map((s) => <div key={s} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "2px 0" }}><span>{s}</span><strong>{allIssues.filter((i) => i.severity === s).length}</strong></div>)}</div>
           <div style={cardStyle}><div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Accuracy</div><div style={{ fontSize: 24, fontWeight: 700 }}>{accuracy}%</div></div>
           <div style={cardStyle}><div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Avg Confidence</div><div style={{ fontSize: 24, fontWeight: 700 }}>{avgConf}%</div></div>
+          {metrics && (
+            <div style={{ ...cardStyle, gridColumn: "1 / -1" }}>
+              <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>Backend Metrics</div>
+              <pre style={{ fontSize: 12, color: "var(--text-secondary)", whiteSpace: "pre-wrap" }}>{JSON.stringify(metrics, null, 2)}</pre>
+            </div>
+          )}
         </div>
       )}
     </div>

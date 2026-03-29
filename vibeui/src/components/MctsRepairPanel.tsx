@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 interface RepairSession {
   id: string;
@@ -42,6 +43,16 @@ const cardStyle: React.CSSProperties = {
   border: "1px solid var(--border-color)",
 };
 
+const btnStyle: React.CSSProperties = {
+  padding: "6px 14px",
+  borderRadius: 6,
+  border: "1px solid var(--border-color)",
+  background: "var(--accent-color)",
+  color: "var(--btn-primary-fg, #fff)",
+  cursor: "pointer",
+  fontSize: 13,
+  marginRight: 8,
+};
 
 const tabStyle = (active: boolean): React.CSSProperties => ({
   padding: "8px 16px",
@@ -68,25 +79,67 @@ const badgeStyle = (color: string): React.CSSProperties => ({
 const statusColor: Record<string, string> = { running: "var(--accent-color)", success: "var(--success-color)", failed: "var(--error-color)" };
 const stratColor: Record<string, string> = { mcts: "var(--accent-purple)", agentless: "var(--warning-color)", linear: "var(--text-secondary)" };
 
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  padding: 8,
+  borderRadius: 6,
+  border: "1px solid var(--border-color)",
+  background: "var(--bg-primary)",
+  color: "var(--text-primary)",
+  fontSize: 13,
+  marginBottom: 8,
+};
+
 export function MctsRepairPanel() {
   const [tab, setTab] = useState("sessions");
-  const [sessions] = useState<RepairSession[]>([
-    { id: "s1", file: "src/auth.rs", error: "type mismatch: expected &str, found String", status: "running", strategy: "mcts", nodesExplored: 24, depth: 5 },
-    { id: "s2", file: "src/api.rs", error: "unresolved import `serde_json`", status: "success", strategy: "agentless", nodesExplored: 3, depth: 3 },
-    { id: "s3", file: "src/db.rs", error: "cannot borrow as mutable", status: "failed", strategy: "linear", nodesExplored: 8, depth: 4 },
-  ]);
-  const [treeNodes] = useState<TreeNode[]>([
-    { id: "n1", label: "Root: type mismatch", visits: 24, reward: 0.65, children: 3, isBestPath: true },
-    { id: "n2", label: "Add .as_str()", visits: 12, reward: 0.82, children: 2, isBestPath: true },
-    { id: "n3", label: "Change param type", visits: 8, reward: 0.45, children: 1, isBestPath: false },
-    { id: "n4", label: "Clone + convert", visits: 4, reward: 0.30, children: 0, isBestPath: false },
-    { id: "n5", label: "Add .to_string()", visits: 10, reward: 0.91, children: 0, isBestPath: true },
-  ]);
+  const [sessions, setSessions] = useState<RepairSession[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [newFile, setNewFile] = useState("");
+  const [newError, setNewError] = useState("");
+  const [newStrategy, setNewStrategy] = useState("mcts");
+  const [treeNodes] = useState<TreeNode[]>([]);
+
+  const fetchSessions = useCallback(async () => {
+    try {
+      const data = await invoke<unknown>("mcts_list_sessions");
+      const list = Array.isArray(data) ? data : [];
+      setSessions(list.map((s: any) => ({
+        id: String(s.id),
+        file: s.file || "",
+        error: s.error || "",
+        status: s.status || "running",
+        strategy: s.strategy || "mcts",
+        nodesExplored: s.nodesExplored ?? s.nodes_explored ?? 0,
+        depth: s.depth ?? 0,
+      })));
+    } catch (e) {
+      setError(String(e));
+    }
+  }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    fetchSessions().finally(() => setLoading(false));
+  }, [fetchSessions]);
+
+  const handleCreate = useCallback(async () => {
+    if (!newFile.trim() || !newError.trim()) return;
+    try {
+      await invoke("mcts_create_session", { file: newFile, errorMsg: newError, strategy: newStrategy });
+      setNewFile("");
+      setNewError("");
+      await fetchSessions();
+    } catch (e) {
+      console.error("mcts_create_session failed:", e);
+    }
+  }, [newFile, newError, newStrategy, fetchSessions]);
 
   const phases = [
-    { name: "Localize", status: "done", detail: "Found 2 candidate locations" },
-    { name: "Repair", status: "done", detail: "Generated 3 patches" },
-    { name: "Validate", status: "running", detail: "Testing patch #2..." },
+    { name: "Localize", status: "done", detail: "Found candidate locations" },
+    { name: "Repair", status: "done", detail: "Generated patches" },
+    { name: "Validate", status: "running", detail: "Testing patches..." },
   ];
 
   const comparison = [
@@ -97,11 +150,15 @@ export function MctsRepairPanel() {
 
   const phaseColor: Record<string, string> = { done: "var(--success-color)", running: "var(--accent-color)", pending: "var(--text-secondary)" };
 
+  if (loading) return <div style={panelStyle}><div style={{ color: "var(--text-secondary)", fontSize: 13 }}>Loading repair sessions...</div></div>;
+  if (error) return <div style={panelStyle}><div style={{ color: "var(--error-color)", fontSize: 13 }}>Error: {error}</div></div>;
+
   return (
     <div style={panelStyle}>
       <h2 style={headingStyle}>MCTS Code Repair</h2>
       <div style={{ display: "flex", gap: 0, borderBottom: "1px solid var(--border-color)", marginBottom: 16 }}>
         <button style={tabStyle(tab === "sessions")} onClick={() => setTab("sessions")}>Sessions</button>
+        <button style={tabStyle(tab === "new")} onClick={() => setTab("new")}>New</button>
         <button style={tabStyle(tab === "tree")} onClick={() => setTab("tree")}>Tree</button>
         <button style={tabStyle(tab === "agentless")} onClick={() => setTab("agentless")}>Agentless</button>
         <button style={tabStyle(tab === "compare")} onClick={() => setTab("compare")}>Compare</button>
@@ -109,13 +166,14 @@ export function MctsRepairPanel() {
 
       {tab === "sessions" && (
         <div>
+          {sessions.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>No repair sessions yet. Create one from the New tab.</div>}
           {sessions.map((s) => (
             <div key={s.id} style={cardStyle}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                 <strong>{s.file}</strong>
                 <div>
-                  <span style={badgeStyle(stratColor[s.strategy])}>{s.strategy}</span>
-                  <span style={badgeStyle(statusColor[s.status])}>{s.status}</span>
+                  <span style={badgeStyle(stratColor[s.strategy] || "var(--text-secondary)")}>{s.strategy}</span>
+                  <span style={badgeStyle(statusColor[s.status] || "var(--text-secondary)")}>{s.status}</span>
                 </div>
               </div>
               <div style={{ fontSize: 12, fontFamily: "monospace", color: "var(--error-color)", marginBottom: 4 }}>{s.error}</div>
@@ -125,9 +183,26 @@ export function MctsRepairPanel() {
         </div>
       )}
 
+      {tab === "new" && (
+        <div style={cardStyle}>
+          <div style={{ fontWeight: 600, marginBottom: 8 }}>Create Repair Session</div>
+          <input placeholder="File path (e.g. src/auth.rs)" style={inputStyle} value={newFile} onChange={(e) => setNewFile(e.target.value)} />
+          <input placeholder="Error message" style={inputStyle} value={newError} onChange={(e) => setNewError(e.target.value)} />
+          <select value={newStrategy} onChange={(e) => setNewStrategy(e.target.value)} style={{ ...inputStyle, width: "auto" }}>
+            <option value="mcts">MCTS</option>
+            <option value="agentless">Agentless</option>
+            <option value="linear">Linear</option>
+          </select>
+          <div style={{ marginTop: 8 }}>
+            <button style={btnStyle} onClick={handleCreate} disabled={!newFile.trim() || !newError.trim()}>Create Session</button>
+          </div>
+        </div>
+      )}
+
       {tab === "tree" && (
         <div>
           <div style={{ fontWeight: 600, marginBottom: 8 }}>MCTS Tree Visualization</div>
+          {treeNodes.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>No tree data available. Start a repair session to populate.</div>}
           {treeNodes.map((n, i) => (
             <div key={n.id} style={{ ...cardStyle, marginLeft: i * 16, borderLeft: n.isBestPath ? "3px solid #22c55e" : "3px solid var(--border-color)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -171,7 +246,7 @@ export function MctsRepairPanel() {
             <tbody>
               {comparison.map((c) => (
                 <tr key={c.strategy} style={{ borderBottom: "1px solid var(--border-color)" }}>
-                  <td style={{ padding: 8 }}><span style={badgeStyle(stratColor[c.strategy.toLowerCase()])}>{c.strategy}</span></td>
+                  <td style={{ padding: 8 }}><span style={badgeStyle(stratColor[c.strategy.toLowerCase()] || "var(--text-secondary)")}>{c.strategy}</span></td>
                   <td style={{ padding: 8 }}>{c.avgNodes}</td>
                   <td style={{ padding: 8 }}>{c.successRate}</td>
                   <td style={{ padding: 8 }}>{c.avgTime}</td>
