@@ -1,6 +1,14 @@
 use clap::Parser;
 use anyhow::Result;
 use crate::config::Config;
+
+/// Exit the process after flushing stdout/stderr to prevent lost output.
+fn safe_exit(code: i32) -> ! {
+    use std::io::Write;
+    let _ = std::io::stdout().flush();
+    let _ = std::io::stderr().flush();
+    std::process::exit(code);
+}
 use crate::syntax::highlight_code_blocks;
 use vibe_ai::provider::{AIProvider as LLMProvider, ImageAttachment, Message, MessageRole, ProviderConfig, TokenUsage};
 use vibe_ai::providers::ollama::OllamaProvider;
@@ -678,7 +686,7 @@ async fn main() -> Result<()> {
     if let Some(notebook_path) = cli.notebook.as_deref() {
         let path = std::path::Path::new(notebook_path);
         let ok = notebook::run_notebook(path, cli.continue_on_error)?;
-        std::process::exit(if ok { 0 } else { 1 });
+        safe_exit(if ok { 0 } else { 1 });
     }
 
     // ── Profile resolution ────────────────────────────────────────────────────
@@ -1252,7 +1260,7 @@ async fn main() -> Result<()> {
                 for e in &errs {
                     eprintln!("   • {}", e);
                 }
-                std::process::exit(2);
+                safe_exit(2);
             } else {
                 eprintln!("✅ Output conforms to schema '{}'", schema_path);
             }
@@ -1265,7 +1273,7 @@ async fn main() -> Result<()> {
             println!("{}", output_text);
         }
 
-        std::process::exit(report.exit_code());
+        safe_exit(report.exit_code());
     }
 
     // Code review mode: --review
@@ -1326,7 +1334,7 @@ async fn main() -> Result<()> {
                     _ => matches!(i.severity, review::Severity::Critical),
                 }
             });
-            std::process::exit(if has_failures { 1 } else { 0 });
+            safe_exit(if has_failures { 1 } else { 0 });
         }
 
         let markdown = report.to_markdown();
@@ -1345,7 +1353,7 @@ async fn main() -> Result<()> {
             }
         }
 
-        std::process::exit(report.exit_code());
+        safe_exit(report.exit_code());
     }
 
     // Red Team mode: --redteam <url>
@@ -1371,7 +1379,7 @@ async fn main() -> Result<()> {
         } else {
             0
         };
-        std::process::exit(exit_code);
+        safe_exit(exit_code);
     }
 
     // Red Team report: --redteam-report <session-id>
@@ -1380,7 +1388,7 @@ async fn main() -> Result<()> {
         let session = manager.load_session(&session_id)?;
         let report = redteam::generate_report(&session);
         println!("{}", report);
-        std::process::exit(0);
+        safe_exit(0);
     }
 
     // Cloud Agent mode: --cloud --agent "task"
@@ -1406,12 +1414,12 @@ async fn main() -> Result<()> {
                     println!("{}", line);
                 }
                 if status.status == "failed" {
-                    std::process::exit(1);
+                    safe_exit(1);
                 }
             }
             Err(e) => {
                 eprintln!("❌ Cloud agent failed: {}", e);
-                std::process::exit(1);
+                safe_exit(1);
             }
         }
         return Ok(());
@@ -3709,13 +3717,16 @@ async fn main() -> Result<()> {
                                     let cfg = SpawnConfig::new(task.trim());
                                     match pool.spawn(cfg) {
                                         Ok(id) => {
-                                            let agent = pool.get(&id).unwrap();
+                                            if let Some(agent) = pool.get(&id) {
                                             println!("🚀 Agent spawned: {} ({})", agent.name, id);
                                             println!("   Status: {} | Branch: {} | Priority: {}",
                                                 agent.status,
                                                 agent.branch.as_deref().unwrap_or("—"),
                                                 agent.config.priority);
                                             println!("   Use '/spawn status {}' to check progress\n", id);
+                                            } else {
+                                                println!("⚠️  Agent spawned (id: {}) but details unavailable\n", id);
+                                            }
                                         }
                                         Err(e) => eprintln!("❌ {}\n", e),
                                     }
@@ -7518,11 +7529,15 @@ async fn main() -> Result<()> {
                             use a2a_protocol::*;
                             use std::sync::OnceLock;
                             static A2A_STATE: OnceLock<std::sync::Mutex<(A2aClient, A2aServer, A2aMetrics)>> = OnceLock::new();
+                            let a2a_port = std::env::var("VIBECLI_A2A_PORT").ok()
+                                .and_then(|p| p.parse::<u16>().ok()).unwrap_or(7900);
+                            let a2a_host = std::env::var("VIBECLI_A2A_HOST")
+                                .unwrap_or_else(|_| "127.0.0.1".to_string());
                             let state = A2A_STATE.get_or_init(|| {
                                 let card = AgentCard::new(
                                     "VibeCody",
                                     "VibeCody AI coding assistant — code generation, review, testing, refactoring, and more",
-                                    "http://localhost:7900",
+                                    &format!("http://{}:{}", a2a_host, a2a_port),
                                     env!("CARGO_PKG_VERSION"),
                                 ).with_capabilities(vec![
                                     AgentCapability::CodeGeneration,
@@ -7537,7 +7552,7 @@ async fn main() -> Result<()> {
                                 let client = A2aClient::new(30, 3);
                                 std::sync::Mutex::new((client, server, A2aMetrics::new()))
                             });
-                            let mut guard = state.lock().unwrap();
+                            let mut guard = state.lock().unwrap_or_else(|e| e.into_inner());
                             let (ref mut client, ref mut server, ref mut metrics) = *guard;
 
                             match sub {
@@ -7687,7 +7702,7 @@ async fn main() -> Result<()> {
                             let pool_lock = WT_POOL.get_or_init(|| {
                                 std::sync::Mutex::new(WorktreePool::new(WorktreeConfig::default()))
                             });
-                            let mut pool = pool_lock.lock().unwrap();
+                            let mut pool = pool_lock.lock().unwrap_or_else(|e| e.into_inner());
                             match sub {
                                 "spawn" => {
                                     if rest.is_empty() {
@@ -7767,7 +7782,7 @@ async fn main() -> Result<()> {
                             let host_lock = HOST.get_or_init(|| {
                                 std::sync::Mutex::new(AgentHost::new(AgentHostConfig::default()))
                             });
-                            let mut host = host_lock.lock().unwrap();
+                            let mut host = host_lock.lock().unwrap_or_else(|e| e.into_inner());
                             match sub {
                                 "add" => {
                                     let parts: Vec<&str> = rest.splitn(3, ' ').collect();
@@ -7840,7 +7855,7 @@ async fn main() -> Result<()> {
                             let agent_lock = PROACTIVE.get_or_init(|| {
                                 std::sync::Mutex::new(ProactiveAgent::new(ProactiveScanConfig::default()))
                             });
-                            let mut agent = agent_lock.lock().unwrap();
+                            let mut agent = agent_lock.lock().unwrap_or_else(|e| e.into_inner());
                             match sub {
                                 "scan" => {
                                     let files = &["src/main.rs", "src/lib.rs", "src/config.rs", "package.json"];
@@ -7926,7 +7941,7 @@ async fn main() -> Result<()> {
                             let engine_lock = TRIAGE.get_or_init(|| {
                                 std::sync::Mutex::new(TriageEngine::new(TriageConfig::default()))
                             });
-                            let mut engine = engine_lock.lock().unwrap();
+                            let mut engine = engine_lock.lock().unwrap_or_else(|e| e.into_inner());
                             match sub {
                                 "run" => {
                                     let parts: Vec<&str> = rest.splitn(2, '|').collect();
@@ -8011,7 +8026,7 @@ async fn main() -> Result<()> {
                             let engine_lock = WG.get_or_init(|| {
                                 std::sync::Mutex::new(WebGroundingEngine::new(SearchConfig::default()))
                             });
-                            let mut engine = engine_lock.lock().unwrap();
+                            let mut engine = engine_lock.lock().unwrap_or_else(|e| e.into_inner());
                             match sub {
                                 "web" | "search" => {
                                     if rest.is_empty() {
@@ -8070,7 +8085,7 @@ async fn main() -> Result<()> {
                             let idx_lock = SEMIDX.get_or_init(|| {
                                 std::sync::Mutex::new(SemanticIndex::new())
                             });
-                            let idx = idx_lock.lock().unwrap();
+                            let idx = idx_lock.lock().unwrap_or_else(|e| e.into_inner());
                             match sub {
                                 "build" => {
                                     let path = if rest.is_empty() { "." } else { rest };
