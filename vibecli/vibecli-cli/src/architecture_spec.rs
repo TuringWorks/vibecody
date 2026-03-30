@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Enterprise Architecture Specification Module
 //!
 //! Implements four industry-standard architecture frameworks plus governance:
@@ -2060,7 +2061,7 @@ impl ArchitectureSpec {
         };
 
         // Weighted average
-        (togaf_progress * 0.25 + zachman_coverage * 0.20 + c4_health * 0.30 + gov_health * 0.25)
+        togaf_progress * 0.25 + zachman_coverage * 0.20 + c4_health * 0.30 + gov_health * 0.25
     }
 }
 

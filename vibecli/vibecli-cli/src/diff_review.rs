@@ -1517,7 +1517,7 @@ diff --git a/src/lib.rs b/src/lib.rs
 
     #[test]
     fn test_parse_hunk_header_single_line() {
-        let (start, end) = parse_hunk_header("@@ -1 +1 @@");
+        let (start, _end) = parse_hunk_header("@@ -1 +1 @@");
         assert_eq!(start, 1);
     }
 

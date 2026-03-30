@@ -1059,7 +1059,7 @@ pub fn detect_test_gaps(code: &str, test_code: &str) -> Vec<ReviewFinding> {
                 auto_fixable: false,
                 confidence: 0.60,
             });
-            next_id += 1;
+            let _ = next_id;
             break; // Only one per file
         }
     }
