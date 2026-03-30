@@ -311,7 +311,10 @@ mod explainable_agent;
 mod skill_distillation;
 mod review_protocol;
 mod health_score;
+mod ai_code_review;
 mod intent_refactor;
+mod architecture_spec;
+mod policy_engine;
 
 #[derive(Parser)]
 #[command(name = "vibecli")]
@@ -7000,6 +7003,186 @@ async fn main() -> Result<()> {
                                     println!("  /refactor verify         — Check equivalence");
                                     println!("  /refactor rollback       — Rollback all steps");
                                     println!("  /refactor metrics        — Refactoring statistics\n");
+                                }
+                            }
+                        }
+
+                        // ── AI Code Review ──
+                        "/aireview" => {
+                            use crate::ai_code_review::{AiCodeReviewEngine, ReviewConfig};
+                            let sub = args.split_whitespace().next().unwrap_or("help");
+                            let rest = args.trim().strip_prefix(sub).unwrap_or("").trim();
+                            let config = ReviewConfig::default();
+                            let mut engine = AiCodeReviewEngine::new(config.clone());
+                            match sub {
+                                "file" => {
+                                    if rest.is_empty() {
+                                        println!("Usage: /aireview file <path>\n");
+                                    } else {
+                                        let content = std::fs::read_to_string(rest).unwrap_or_default();
+                                        let findings = engine.analyze_file(rest, &content, &config);
+                                        if findings.is_empty() {
+                                            println!("No issues found in {}.\n", rest);
+                                        } else {
+                                            println!("Review: {} ({} finding(s)):\n", rest, findings.len());
+                                            for f in &findings {
+                                                println!("  [{:?}] {}:{} — {} ({:?})", f.severity, f.file, f.line_start, f.message, f.category);
+                                                if let Some(ref sug) = f.suggestion { println!("    Suggestion: {}", sug); }
+                                            }
+                                            println!();
+                                        }
+                                    }
+                                }
+                                "diff" => {
+                                    if rest.is_empty() {
+                                        println!("Usage: /aireview diff <unified_diff>\n  Or pipe: git diff | vibecli /aireview diff\n");
+                                    } else {
+                                        let analysis = engine.analyze_diff(rest, &config);
+                                        println!("{}", engine.generate_pr_summary(&analysis));
+                                    }
+                                }
+                                "learn" => {
+                                    let stats = engine.get_learning_stats();
+                                    println!("Learning Stats");
+                                    println!("  Total findings: {}", stats.total_findings);
+                                    println!("  Accepted: {}", stats.accepted);
+                                    println!("  Rejected: {}", stats.rejected);
+                                    println!("  Precision: {:.1}%", stats.precision * 100.0);
+                                    println!("  Recall: {:.1}%", stats.recall * 100.0);
+                                    println!("  F1 Score: {:.3}\n", stats.f1_score);
+                                }
+                                _ => {
+                                    println!("VibeCody AI Code Review\n");
+                                    println!("  /aireview file <path>  — Review a file");
+                                    println!("  /aireview diff <diff>  — Review a unified diff");
+                                    println!("  /aireview learn        — Learning statistics\n");
+                                }
+                            }
+                        }
+
+                        // ── Architecture Specification ──
+                        "/archspec" => {
+                            use crate::architecture_spec::ArchitectureSpec;
+                            let sub = args.split_whitespace().next().unwrap_or("help");
+                            let rest = args.trim().strip_prefix(sub).unwrap_or("").trim();
+                            let mut spec = ArchitectureSpec::new("VibeCody");
+                            match sub {
+                                "togaf" => {
+                                    let _phase = if rest.is_empty() { "all" } else { rest };
+                                    let progress = spec.togaf().get_overall_progress();
+                                    println!("TOGAF ADM — Overall Progress: {:.0}%\n", progress * 100.0);
+                                    println!("  Use /archspec togaf <phase> to view phase details.\n");
+                                }
+                                "zachman" => {
+                                    let report = spec.zachman().generate_matrix_report();
+                                    println!("{}\n", report);
+                                }
+                                "c4" => {
+                                    let level = if rest.is_empty() { "context" } else { rest };
+                                    match level {
+                                        "context" => println!("{}\n", spec.c4().generate_context_diagram()),
+                                        "container" => println!("{}\n", spec.c4().generate_container_diagram()),
+                                        _ => println!("Usage: /archspec c4 context|container|component <id>\n"),
+                                    }
+                                }
+                                "adr" => {
+                                    let adr_sub = rest.split_whitespace().next().unwrap_or("list");
+                                    match adr_sub {
+                                        "list" => {
+                                            let index = spec.adrs().generate_index();
+                                            println!("{}\n", index);
+                                        }
+                                        _ => println!("Usage: /archspec adr [list|add|accept|deprecate]\n"),
+                                    }
+                                }
+                                "report" => {
+                                    let report = spec.generate_report();
+                                    println!("{}\n", report);
+                                }
+                                _ => {
+                                    println!("VibeCody Architecture Specification\n");
+                                    println!("  /archspec togaf [phase] — TOGAF ADM phases");
+                                    println!("  /archspec zachman       — Zachman framework matrix");
+                                    println!("  /archspec c4 <level>    — C4 model diagrams");
+                                    println!("  /archspec adr [cmd]     — Architecture decision records");
+                                    println!("  /archspec report        — Full architecture report\n");
+                                }
+                            }
+                        }
+
+                        // ── Policy Engine ──
+                        "/policy" => {
+                            use crate::policy_engine::{PolicyEngine, Principal, Resource, CheckRequest};
+                            let sub = args.split_whitespace().next().unwrap_or("help");
+                            let rest = args.trim().strip_prefix(sub).unwrap_or("").trim();
+                            let mut engine = PolicyEngine::new();
+                            match sub {
+                                "check" => {
+                                    let parts: Vec<&str> = rest.split_whitespace().collect();
+                                    if parts.len() < 3 {
+                                        println!("Usage: /policy check <principal> <resource> <action>\n  Example: /policy check user:alice document:123 read\n");
+                                    } else {
+                                        let principal = Principal {
+                                            id: parts[0].to_string(),
+                                            roles: vec!["user".to_string()],
+                                            attributes: std::collections::HashMap::new(),
+                                        };
+                                        let res_parts: Vec<&str> = parts[1].splitn(2, ':').collect();
+                                        let resource = Resource {
+                                            kind: res_parts[0].to_string(),
+                                            id: res_parts.get(1).unwrap_or(&"").to_string(),
+                                            attributes: std::collections::HashMap::new(),
+                                            policy_version: "1.0".to_string(),
+                                        };
+                                        let req = CheckRequest {
+                                            principal,
+                                            resource,
+                                            action: parts[2].to_string(),
+                                            aux_data: std::collections::HashMap::new(),
+                                        };
+                                        let result = engine.check(&req);
+                                        println!("Result: {:?}", result.effect);
+                                        if let Some(rule) = &result.matched_rule {
+                                            println!("  Matched rule: {}", rule);
+                                        }
+                                        println!("  Policy: {}\n", result.policy_id);
+                                    }
+                                }
+                                "list" => {
+                                    let policies = engine.list_policies();
+                                    if policies.is_empty() {
+                                        println!("No policies loaded. Add one with /policy add <yaml>\n");
+                                    } else {
+                                        println!("Policies ({}):", policies.len());
+                                        for p in &policies {
+                                            println!("  [{}] {} — {} ({})", p.id, p.name, p.resource, if p.disabled { "disabled" } else { "active" });
+                                        }
+                                        println!();
+                                    }
+                                }
+                                "audit" => {
+                                    let log = engine.get_audit_log();
+                                    if log.is_empty() {
+                                        println!("No audit entries. Run /policy check to generate entries.\n");
+                                    } else {
+                                        println!("Audit Log ({} entries):", log.len());
+                                        for entry in log {
+                                            println!("  {} {} {} -> {:?}", entry.request.principal.id, entry.request.action, entry.request.resource.kind, entry.result.effect);
+                                        }
+                                        println!();
+                                    }
+                                }
+                                "template" => {
+                                    let resource = if rest.is_empty() { "document" } else { rest };
+                                    let template = crate::policy_engine::PolicySerializer::generate_template(resource);
+                                    println!("{}\n", template);
+                                }
+                                _ => {
+                                    println!("VibeCody Policy Engine (Cerbos-style)\n");
+                                    println!("  /policy check <principal> <resource> <action> — Evaluate authorization");
+                                    println!("  /policy list                                  — List policies");
+                                    println!("  /policy audit                                 — View audit trail");
+                                    println!("  /policy template <resource>                   — Generate starter policy\n");
                                 }
                             }
                         }
