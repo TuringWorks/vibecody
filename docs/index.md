@@ -30,7 +30,8 @@ Both tools are backed by a shared set of Rust library crates for AI provider int
 | [VibeMobile](vibemobile/) | Mobile companion app — Flutter, pairing, remote chat |
 | [Competitive Analysis](./shannon-comparison/) | Feature comparison with other AI coding tools |
 | [FIT-GAP v7](fit-gap-analysis-v7/) | Competitive analysis — 35+ agentic tools |
-| [Roadmap v5](roadmap-v5/) | Implementation phases 23-31 |
+| [Whitepapers](./whitepapers/) | In-depth comparisons: VibeCody vs OpenClaw, PicoClaw, NemoClaw, and 12+ alternatives |
+| [Roadmap v5](roadmap-v5/) | Implementation phases 23-32 |
 | [Development Guide](./development/) | Build, test, debug, and code organization for contributors |
 | [Security](./security/) | Security model, SSRF/path-traversal prevention, command blocklists |
 | [Release Notes](./release/) | What's new in v0.4.0 — downloads, upgrade guide |

@@ -86,6 +86,13 @@ sidebar:
     children:
       - title: Overview
         url: /demos/
+  - title: Whitepapers
+    icon: file-text
+    children:
+      - title: Overview
+        url: /whitepapers/
+      - title: VibeCody vs OpenClaw
+        url: /whitepapers/openclaw-comparison/
   - title: FAQ
     icon: help
     url: /faq/
@@ -132,6 +139,8 @@ header_pages:
   - FIT-GAP-ANALYSIS-v7.md
   - contributing.md
   - demos/index.md
+  - whitepapers/index.md
+  - whitepapers/openclaw-comparison.md
 
 include:
   - llms.txt

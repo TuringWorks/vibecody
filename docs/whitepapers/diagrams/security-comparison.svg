@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 450">
+  <defs>
+    <style>
+      text { font-family: 'Inter', sans-serif; }
+    </style>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1000" height="450" fill="#0d1117" rx="6"/>
+
+  <!-- Title -->
+  <text x="500" y="36" fill="#e6edf3" font-size="20" font-weight="700" text-anchor="middle">Security Architecture Comparison</text>
+
+  <!-- LEFT BOX: VibeCody Security -->
+  <rect x="40" y="60" width="440" height="370" rx="6" fill="none" stroke="#27ae60" stroke-width="2.5"/>
+  <rect x="40" y="60" width="440" height="36" rx="6" fill="#27ae60" opacity="0.15"/>
+  <text x="260" y="84" fill="#27ae60" font-size="16" font-weight="700" text-anchor="middle">VibeCody Security</text>
+
+  <!-- VibeCody layers -->
+  <rect x="60" y="108" width="400" height="32" rx="6" fill="#1a3a2a"/>
+  <text x="260" y="129" fill="#7ee8a0" font-size="13" font-weight="600" text-anchor="middle">OS Sandbox (seatbelt / bwrap)</text>
+
+  <rect x="60" y="148" width="400" height="32" rx="6" fill="#1a3a2a"/>
+  <text x="260" y="169" fill="#7ee8a0" font-size="13" font-weight="600" text-anchor="middle">Docker / Podman / OpenSandbox (3 runtimes)</text>
+
+  <rect x="60" y="188" width="400" height="32" rx="6" fill="#1a3a2a"/>
+  <text x="260" y="209" fill="#7ee8a0" font-size="13" font-weight="600" text-anchor="middle">Network Isolation (--no-network)</text>
+
+  <rect x="60" y="228" width="400" height="32" rx="6" fill="#1a3a2a"/>
+  <text x="260" y="249" fill="#7ee8a0" font-size="13" font-weight="600" text-anchor="middle">Command Blocklist + SSRF Prevention</text>
+
+  <rect x="60" y="268" width="400" height="32" rx="6" fill="#1a3a2a"/>
+  <text x="260" y="289" fill="#7ee8a0" font-size="13" font-weight="600" text-anchor="middle">Policy Files (.vibecli/policy.toml)</text>
+
+  <rect x="60" y="308" width="400" height="32" rx="6" fill="#1a3a2a"/>
+  <text x="260" y="329" fill="#7ee8a0" font-size="13" font-weight="600" text-anchor="middle">RBAC + Audit Trail</text>
+
+  <rect x="60" y="348" width="400" height="32" rx="6" fill="#1a3a2a"/>
+  <text x="260" y="369" fill="#7ee8a0" font-size="13" font-weight="600" text-anchor="middle">PII Redaction + Secrets Scrubbing</text>
+
+  <!-- VibeCody badge -->
+  <rect x="170" y="394" width="180" height="28" rx="14" fill="#27ae60"/>
+  <text x="260" y="413" fill="#fff" font-size="13" font-weight="700" text-anchor="middle">0 known CVEs</text>
+
+  <!-- RIGHT BOX: OpenClaw Security -->
+  <rect x="520" y="60" width="440" height="370" rx="6" fill="none" stroke="#e74c3c" stroke-width="2.5"/>
+  <rect x="520" y="60" width="440" height="36" rx="6" fill="#e74c3c" opacity="0.15"/>
+  <text x="740" y="84" fill="#e74c3c" font-size="16" font-weight="700" text-anchor="middle">OpenClaw Security</text>
+
+  <!-- OpenClaw layers -->
+  <rect x="540" y="108" width="400" height="32" rx="6" fill="#3a1a1a"/>
+  <text x="740" y="129" fill="#f5a0a0" font-size="13" font-weight="600" text-anchor="middle">Docker Container (only option)</text>
+
+  <rect x="540" y="148" width="400" height="32" rx="6" fill="#5a1a1a"/>
+  <text x="740" y="169" fill="#f77" font-size="13" font-weight="600" text-anchor="middle">Plaintext Config (unencrypted secrets)</text>
+
+  <rect x="540" y="188" width="400" height="32" rx="6" fill="#3a1a1a"/>
+  <text x="740" y="209" fill="#f5a0a0" font-size="13" font-weight="600" text-anchor="middle">No RBAC</text>
+
+  <rect x="540" y="228" width="400" height="32" rx="6" fill="#3a1a1a"/>
+  <text x="740" y="249" fill="#f5a0a0" font-size="13" font-weight="600" text-anchor="middle">No Audit Trail</text>
+
+  <rect x="540" y="268" width="400" height="32" rx="6" fill="#3a1a1a"/>
+  <text x="740" y="289" fill="#f5a0a0" font-size="13" font-weight="600" text-anchor="middle">No Network Isolation</text>
+
+  <!-- Spacer - empty area for visual balance -->
+  <rect x="540" y="308" width="400" height="32" rx="6" fill="none" stroke="#3a1a1a" stroke-width="1" stroke-dasharray="6,4"/>
+  <text x="740" y="329" fill="#666" font-size="12" font-style="italic" text-anchor="middle">No additional layers</text>
+
+  <rect x="540" y="348" width="400" height="32" rx="6" fill="none" stroke="#3a1a1a" stroke-width="1" stroke-dasharray="6,4"/>
+  <text x="740" y="369" fill="#666" font-size="12" font-style="italic" text-anchor="middle">No secrets scrubbing</text>
+
+  <!-- OpenClaw CVE badges -->
+  <rect x="560" y="394" width="170" height="28" rx="14" fill="#e74c3c"/>
+  <text x="645" y="413" fill="#fff" font-size="12" font-weight="700" text-anchor="middle">CVE-2026-25253</text>
+
+  <rect x="745" y="394" width="170" height="28" rx="14" fill="#c0392b"/>
+  <text x="830" y="413" fill="#fff" font-size="12" font-weight="700" text-anchor="middle">ClawHavoc</text>
+
+  <!-- VS divider -->
+  <circle cx="500" cy="245" r="22" fill="#21262d" stroke="#30363d" stroke-width="2"/>
+  <text x="500" y="251" fill="#8b949e" font-size="14" font-weight="700" text-anchor="middle">VS</text>
+</svg>

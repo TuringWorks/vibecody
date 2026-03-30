@@ -1,0 +1,147 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500">
+  <defs>
+    <style>
+      text { font-family: 'Inter', sans-serif; }
+    </style>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="500" fill="#0d1117" rx="6"/>
+
+  <!-- Title -->
+  <text x="600" y="36" fill="#e6edf3" font-size="20" font-weight="700" text-anchor="middle">Feature Comparison Heatmap</text>
+
+  <!-- Column headers (products) -->
+  <text x="335" y="68" fill="#e6edf3" font-size="11" font-weight="600" text-anchor="middle">VibeCody</text>
+  <text x="435" y="68" fill="#e6edf3" font-size="11" font-weight="600" text-anchor="middle">OpenClaw</text>
+  <text x="535" y="68" fill="#e6edf3" font-size="11" font-weight="600" text-anchor="middle">Claude Code</text>
+  <text x="635" y="68" fill="#e6edf3" font-size="11" font-weight="600" text-anchor="middle">Cursor</text>
+  <text x="735" y="68" fill="#e6edf3" font-size="11" font-weight="600" text-anchor="middle">Taskade</text>
+  <text x="835" y="68" fill="#e6edf3" font-size="11" font-weight="600" text-anchor="middle">Devin</text>
+  <text x="935" y="68" fill="#e6edf3" font-size="11" font-weight="600" text-anchor="middle">Jan.ai</text>
+  <text x="1035" y="68" fill="#e6edf3" font-size="11" font-weight="600" text-anchor="middle">CrewAI</text>
+
+  <!-- Row labels (dimensions) -->
+  <text x="280" y="104" fill="#c9d1d9" font-size="12" text-anchor="end">Provider Flexibility</text>
+  <text x="280" y="144" fill="#c9d1d9" font-size="12" text-anchor="end">Security</text>
+  <text x="280" y="184" fill="#c9d1d9" font-size="12" text-anchor="end">Setup Simplicity</text>
+  <text x="280" y="224" fill="#c9d1d9" font-size="12" text-anchor="end">Team Collab</text>
+  <text x="280" y="264" fill="#c9d1d9" font-size="12" text-anchor="end">Code Repair</text>
+  <text x="280" y="304" fill="#c9d1d9" font-size="12" text-anchor="end">DevOps</text>
+  <text x="280" y="344" fill="#c9d1d9" font-size="12" text-anchor="end">Protocol Support</text>
+  <text x="280" y="384" fill="#c9d1d9" font-size="12" text-anchor="end">Offline</text>
+  <text x="280" y="424" fill="#c9d1d9" font-size="12" text-anchor="end">Enterprise</text>
+  <text x="280" y="464" fill="#c9d1d9" font-size="12" text-anchor="end">Cost Efficiency</text>
+
+  <!-- Grid lines -->
+  <line x1="290" y1="76" x2="1080" y2="76" stroke="#21262d" stroke-width="1"/>
+
+  <!-- Score data: [VibeCody, OpenClaw, ClaudeCode, Cursor, Taskade, Devin, Jan.ai, CrewAI] -->
+  <!-- Row 1: Provider Flexibility [10, 4, 2, 5, 3, 2, 8, 6] -->
+  <rect x="295" y="86" width="80" height="32" rx="6" fill="#27ae60"/><text x="335" y="107" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">10</text>
+  <rect x="395" y="86" width="80" height="32" rx="6" fill="#e74c3c"/><text x="435" y="107" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">4</text>
+  <rect x="495" y="86" width="80" height="32" rx="6" fill="#e74c3c"/><text x="535" y="107" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">2</text>
+  <rect x="595" y="86" width="80" height="32" rx="6" fill="#f39c12"/><text x="635" y="107" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">5</text>
+  <rect x="695" y="86" width="80" height="32" rx="6" fill="#e74c3c"/><text x="735" y="107" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">3</text>
+  <rect x="795" y="86" width="80" height="32" rx="6" fill="#e74c3c"/><text x="835" y="107" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">2</text>
+  <rect x="895" y="86" width="80" height="32" rx="6" fill="#27ae60"/><text x="935" y="107" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">8</text>
+  <rect x="995" y="86" width="80" height="32" rx="6" fill="#f39c12"/><text x="1035" y="107" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">6</text>
+
+  <!-- Row 2: Security [10, 3, 8, 7, 5, 6, 4, 5] -->
+  <rect x="295" y="126" width="80" height="32" rx="6" fill="#27ae60"/><text x="335" y="147" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">10</text>
+  <rect x="395" y="126" width="80" height="32" rx="6" fill="#e74c3c"/><text x="435" y="147" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">3</text>
+  <rect x="495" y="126" width="80" height="32" rx="6" fill="#27ae60"/><text x="535" y="147" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">8</text>
+  <rect x="595" y="126" width="80" height="32" rx="6" fill="#f39c12"/><text x="635" y="147" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">7</text>
+  <rect x="695" y="126" width="80" height="32" rx="6" fill="#f39c12"/><text x="735" y="147" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">5</text>
+  <rect x="795" y="126" width="80" height="32" rx="6" fill="#f39c12"/><text x="835" y="147" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">6</text>
+  <rect x="895" y="126" width="80" height="32" rx="6" fill="#e74c3c"/><text x="935" y="147" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">4</text>
+  <rect x="995" y="126" width="80" height="32" rx="6" fill="#f39c12"/><text x="1035" y="147" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">5</text>
+
+  <!-- Row 3: Setup Simplicity [9, 2, 9, 8, 7, 4, 7, 5] -->
+  <rect x="295" y="166" width="80" height="32" rx="6" fill="#27ae60"/><text x="335" y="187" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">9</text>
+  <rect x="395" y="166" width="80" height="32" rx="6" fill="#e74c3c"/><text x="435" y="187" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">2</text>
+  <rect x="495" y="166" width="80" height="32" rx="6" fill="#27ae60"/><text x="535" y="187" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">9</text>
+  <rect x="595" y="166" width="80" height="32" rx="6" fill="#27ae60"/><text x="635" y="187" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">8</text>
+  <rect x="695" y="166" width="80" height="32" rx="6" fill="#f39c12"/><text x="735" y="187" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">7</text>
+  <rect x="795" y="166" width="80" height="32" rx="6" fill="#e74c3c"/><text x="835" y="187" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">4</text>
+  <rect x="895" y="166" width="80" height="32" rx="6" fill="#f39c12"/><text x="935" y="187" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">7</text>
+  <rect x="995" y="166" width="80" height="32" rx="6" fill="#f39c12"/><text x="1035" y="187" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">5</text>
+
+  <!-- Row 4: Team Collab [9, 3, 6, 7, 8, 7, 3, 8] -->
+  <rect x="295" y="206" width="80" height="32" rx="6" fill="#27ae60"/><text x="335" y="227" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">9</text>
+  <rect x="395" y="206" width="80" height="32" rx="6" fill="#e74c3c"/><text x="435" y="227" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">3</text>
+  <rect x="495" y="206" width="80" height="32" rx="6" fill="#f39c12"/><text x="535" y="227" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">6</text>
+  <rect x="595" y="206" width="80" height="32" rx="6" fill="#f39c12"/><text x="635" y="227" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">7</text>
+  <rect x="695" y="206" width="80" height="32" rx="6" fill="#27ae60"/><text x="735" y="227" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">8</text>
+  <rect x="795" y="206" width="80" height="32" rx="6" fill="#f39c12"/><text x="835" y="227" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">7</text>
+  <rect x="895" y="206" width="80" height="32" rx="6" fill="#e74c3c"/><text x="935" y="227" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">3</text>
+  <rect x="995" y="206" width="80" height="32" rx="6" fill="#27ae60"/><text x="1035" y="227" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">8</text>
+
+  <!-- Row 5: Code Repair [9, 5, 9, 8, 4, 8, 3, 5] -->
+  <rect x="295" y="246" width="80" height="32" rx="6" fill="#27ae60"/><text x="335" y="267" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">9</text>
+  <rect x="395" y="246" width="80" height="32" rx="6" fill="#f39c12"/><text x="435" y="267" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">5</text>
+  <rect x="495" y="246" width="80" height="32" rx="6" fill="#27ae60"/><text x="535" y="267" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">9</text>
+  <rect x="595" y="246" width="80" height="32" rx="6" fill="#27ae60"/><text x="635" y="267" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">8</text>
+  <rect x="695" y="246" width="80" height="32" rx="6" fill="#e74c3c"/><text x="735" y="267" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">4</text>
+  <rect x="795" y="246" width="80" height="32" rx="6" fill="#27ae60"/><text x="835" y="267" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">8</text>
+  <rect x="895" y="246" width="80" height="32" rx="6" fill="#e74c3c"/><text x="935" y="267" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">3</text>
+  <rect x="995" y="246" width="80" height="32" rx="6" fill="#f39c12"/><text x="1035" y="267" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">5</text>
+
+  <!-- Row 6: DevOps [10, 4, 7, 5, 3, 7, 2, 6] -->
+  <rect x="295" y="286" width="80" height="32" rx="6" fill="#27ae60"/><text x="335" y="307" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">10</text>
+  <rect x="395" y="286" width="80" height="32" rx="6" fill="#e74c3c"/><text x="435" y="307" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">4</text>
+  <rect x="495" y="286" width="80" height="32" rx="6" fill="#f39c12"/><text x="535" y="307" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">7</text>
+  <rect x="595" y="286" width="80" height="32" rx="6" fill="#f39c12"/><text x="635" y="307" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">5</text>
+  <rect x="695" y="286" width="80" height="32" rx="6" fill="#e74c3c"/><text x="735" y="307" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">3</text>
+  <rect x="795" y="286" width="80" height="32" rx="6" fill="#f39c12"/><text x="835" y="307" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">7</text>
+  <rect x="895" y="286" width="80" height="32" rx="6" fill="#e74c3c"/><text x="935" y="307" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">2</text>
+  <rect x="995" y="286" width="80" height="32" rx="6" fill="#f39c12"/><text x="1035" y="307" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">6</text>
+
+  <!-- Row 7: Protocol Support [10, 3, 7, 4, 2, 5, 2, 4] -->
+  <rect x="295" y="326" width="80" height="32" rx="6" fill="#27ae60"/><text x="335" y="347" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">10</text>
+  <rect x="395" y="326" width="80" height="32" rx="6" fill="#e74c3c"/><text x="435" y="347" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">3</text>
+  <rect x="495" y="326" width="80" height="32" rx="6" fill="#f39c12"/><text x="535" y="347" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">7</text>
+  <rect x="595" y="326" width="80" height="32" rx="6" fill="#e74c3c"/><text x="635" y="347" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">4</text>
+  <rect x="695" y="326" width="80" height="32" rx="6" fill="#e74c3c"/><text x="735" y="347" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">2</text>
+  <rect x="795" y="326" width="80" height="32" rx="6" fill="#f39c12"/><text x="835" y="347" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">5</text>
+  <rect x="895" y="326" width="80" height="32" rx="6" fill="#e74c3c"/><text x="935" y="347" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">2</text>
+  <rect x="995" y="326" width="80" height="32" rx="6" fill="#e74c3c"/><text x="1035" y="347" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">4</text>
+
+  <!-- Row 8: Offline [10, 5, 1, 2, 1, 1, 10, 3] -->
+  <rect x="295" y="366" width="80" height="32" rx="6" fill="#27ae60"/><text x="335" y="387" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">10</text>
+  <rect x="395" y="366" width="80" height="32" rx="6" fill="#f39c12"/><text x="435" y="387" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">5</text>
+  <rect x="495" y="366" width="80" height="32" rx="6" fill="#e74c3c"/><text x="535" y="387" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">1</text>
+  <rect x="595" y="366" width="80" height="32" rx="6" fill="#e74c3c"/><text x="635" y="387" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">2</text>
+  <rect x="695" y="366" width="80" height="32" rx="6" fill="#e74c3c"/><text x="735" y="387" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">1</text>
+  <rect x="795" y="366" width="80" height="32" rx="6" fill="#e74c3c"/><text x="835" y="387" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">1</text>
+  <rect x="895" y="366" width="80" height="32" rx="6" fill="#27ae60"/><text x="935" y="387" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">10</text>
+  <rect x="995" y="366" width="80" height="32" rx="6" fill="#e74c3c"/><text x="1035" y="387" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">3</text>
+
+  <!-- Row 9: Enterprise [9, 3, 8, 7, 6, 7, 3, 6] -->
+  <rect x="295" y="406" width="80" height="32" rx="6" fill="#27ae60"/><text x="335" y="427" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">9</text>
+  <rect x="395" y="406" width="80" height="32" rx="6" fill="#e74c3c"/><text x="435" y="427" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">3</text>
+  <rect x="495" y="406" width="80" height="32" rx="6" fill="#27ae60"/><text x="535" y="427" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">8</text>
+  <rect x="595" y="406" width="80" height="32" rx="6" fill="#f39c12"/><text x="635" y="427" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">7</text>
+  <rect x="695" y="406" width="80" height="32" rx="6" fill="#f39c12"/><text x="735" y="427" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">6</text>
+  <rect x="795" y="406" width="80" height="32" rx="6" fill="#f39c12"/><text x="835" y="427" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">7</text>
+  <rect x="895" y="406" width="80" height="32" rx="6" fill="#e74c3c"/><text x="935" y="427" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">3</text>
+  <rect x="995" y="406" width="80" height="32" rx="6" fill="#f39c12"/><text x="1035" y="427" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">6</text>
+
+  <!-- Row 10: Cost Efficiency [10, 6, 4, 3, 5, 2, 9, 7] -->
+  <rect x="295" y="446" width="80" height="32" rx="6" fill="#27ae60"/><text x="335" y="467" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">10</text>
+  <rect x="395" y="446" width="80" height="32" rx="6" fill="#f39c12"/><text x="435" y="467" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">6</text>
+  <rect x="495" y="446" width="80" height="32" rx="6" fill="#e74c3c"/><text x="535" y="467" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">4</text>
+  <rect x="595" y="446" width="80" height="32" rx="6" fill="#e74c3c"/><text x="635" y="467" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">3</text>
+  <rect x="695" y="446" width="80" height="32" rx="6" fill="#f39c12"/><text x="735" y="467" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">5</text>
+  <rect x="795" y="446" width="80" height="32" rx="6" fill="#e74c3c"/><text x="835" y="467" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">2</text>
+  <rect x="895" y="446" width="80" height="32" rx="6" fill="#27ae60"/><text x="935" y="467" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">9</text>
+  <rect x="995" y="446" width="80" height="32" rx="6" fill="#f39c12"/><text x="1035" y="467" fill="#fff" font-size="13" font-weight="600" text-anchor="middle">7</text>
+
+  <!-- Legend -->
+  <rect x="1100" y="86" width="16" height="16" rx="3" fill="#27ae60"/>
+  <text x="1122" y="99" fill="#c9d1d9" font-size="10">8-10</text>
+  <rect x="1100" y="108" width="16" height="16" rx="3" fill="#f39c12"/>
+  <text x="1122" y="121" fill="#c9d1d9" font-size="10">5-7</text>
+  <rect x="1100" y="130" width="16" height="16" rx="3" fill="#e74c3c"/>
+  <text x="1122" y="143" fill="#c9d1d9" font-size="10">1-4</text>
+</svg>

@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 400">
+  <defs>
+    <style>
+      text { font-family: 'Inter', sans-serif; }
+    </style>
+  </defs>
+
+  <!-- Background -->
+  <rect width="900" height="400" fill="#0d1117" rx="6"/>
+
+  <!-- Title -->
+  <text x="450" y="36" fill="#e6edf3" font-size="20" font-weight="700" text-anchor="middle">Protocol Support Comparison</text>
+
+  <!-- Column headers -->
+  <text x="150" y="68" fill="#27ae60" font-size="16" font-weight="700" text-anchor="middle">VibeCody</text>
+  <text x="450" y="68" fill="#f39c12" font-size="16" font-weight="700" text-anchor="middle">Claude Code</text>
+  <text x="750" y="68" fill="#e74c3c" font-size="16" font-weight="700" text-anchor="middle">OpenClaw</text>
+
+  <!-- === VibeCody Column === -->
+  <!-- A2A -->
+  <rect x="20" y="86" width="260" height="56" rx="6" fill="#1a3a2a" stroke="#27ae60" stroke-width="1.5"/>
+  <text x="150" y="108" fill="#27ae60" font-size="14" font-weight="700" text-anchor="middle">A2A (Agent-to-Agent)</text>
+  <text x="150" y="126" fill="#7ee8a0" font-size="11" text-anchor="middle">Agent discovery &amp; collaboration</text>
+
+  <!-- ACP -->
+  <rect x="20" y="150" width="260" height="56" rx="6" fill="#1a3a2a" stroke="#27ae60" stroke-width="1.5"/>
+  <text x="150" y="172" fill="#27ae60" font-size="14" font-weight="700" text-anchor="middle">ACP (Agent Client Protocol)</text>
+  <text x="150" y="190" fill="#7ee8a0" font-size="11" text-anchor="middle">Agent hosting &amp; management</text>
+
+  <!-- MCP -->
+  <rect x="20" y="214" width="260" height="56" rx="6" fill="#1a3a2a" stroke="#27ae60" stroke-width="1.5"/>
+  <text x="150" y="236" fill="#27ae60" font-size="14" font-weight="700" text-anchor="middle">MCP (Model Context Protocol)</text>
+  <text x="150" y="254" fill="#7ee8a0" font-size="11" text-anchor="middle">Tool access &amp; integration</text>
+
+  <!-- Additional protocols -->
+  <rect x="20" y="286" width="78" height="32" rx="6" fill="#21262d" stroke="#27ae60" stroke-width="1"/>
+  <text x="59" y="307" fill="#7ee8a0" font-size="12" font-weight="600" text-anchor="middle">LSP</text>
+
+  <rect x="108" y="286" width="78" height="32" rx="6" fill="#21262d" stroke="#27ae60" stroke-width="1"/>
+  <text x="147" y="307" fill="#7ee8a0" font-size="12" font-weight="600" text-anchor="middle">CRDT</text>
+
+  <rect x="196" y="286" width="84" height="32" rx="6" fill="#21262d" stroke="#27ae60" stroke-width="1"/>
+  <text x="238" y="307" fill="#7ee8a0" font-size="11" font-weight="600" text-anchor="middle">OpenTelemetry</text>
+
+  <!-- Full support label -->
+  <rect x="85" y="334" width="130" height="26" rx="13" fill="#27ae60" opacity="0.2" stroke="#27ae60" stroke-width="1"/>
+  <text x="150" y="352" fill="#27ae60" font-size="12" font-weight="600" text-anchor="middle">6 protocols</text>
+
+  <!-- === Claude Code Column === -->
+  <!-- A2A -->
+  <rect x="320" y="86" width="260" height="56" rx="6" fill="#2a2017" stroke="#8b6914" stroke-width="1" stroke-dasharray="6,4"/>
+  <text x="450" y="108" fill="#8b949e" font-size="14" font-weight="600" text-anchor="middle">A2A</text>
+  <text x="435" y="126" fill="#e74c3c" font-size="11" text-anchor="middle">Not supported</text>
+  <text x="537" y="112" fill="#e74c3c" font-size="18" font-weight="700">&#x2717;</text>
+
+  <!-- ACP -->
+  <rect x="320" y="150" width="260" height="56" rx="6" fill="#2a2017" stroke="#8b6914" stroke-width="1" stroke-dasharray="6,4"/>
+  <text x="450" y="172" fill="#8b949e" font-size="14" font-weight="600" text-anchor="middle">ACP</text>
+  <text x="435" y="190" fill="#e74c3c" font-size="11" text-anchor="middle">Not supported</text>
+  <text x="537" y="176" fill="#e74c3c" font-size="18" font-weight="700">&#x2717;</text>
+
+  <!-- MCP -->
+  <rect x="320" y="214" width="260" height="56" rx="6" fill="#1a3a2a" stroke="#27ae60" stroke-width="1.5"/>
+  <text x="450" y="236" fill="#27ae60" font-size="14" font-weight="700" text-anchor="middle">MCP</text>
+  <text x="435" y="254" fill="#7ee8a0" font-size="11" text-anchor="middle">Full support</text>
+  <text x="530" y="240" fill="#27ae60" font-size="18" font-weight="700">&#x2713;</text>
+
+  <!-- Claude Code label -->
+  <rect x="385" y="334" width="130" height="26" rx="13" fill="#f39c12" opacity="0.2" stroke="#f39c12" stroke-width="1"/>
+  <text x="450" y="352" fill="#f39c12" font-size="12" font-weight="600" text-anchor="middle">1 protocol</text>
+
+  <!-- === OpenClaw Column === -->
+  <!-- A2A -->
+  <rect x="620" y="86" width="260" height="56" rx="6" fill="#2a1517" stroke="#5a2020" stroke-width="1" stroke-dasharray="6,4"/>
+  <text x="750" y="108" fill="#8b949e" font-size="14" font-weight="600" text-anchor="middle">A2A</text>
+  <text x="735" y="126" fill="#e74c3c" font-size="11" text-anchor="middle">Not supported</text>
+  <text x="837" y="112" fill="#e74c3c" font-size="18" font-weight="700">&#x2717;</text>
+
+  <!-- ACP -->
+  <rect x="620" y="150" width="260" height="56" rx="6" fill="#2a1517" stroke="#5a2020" stroke-width="1" stroke-dasharray="6,4"/>
+  <text x="750" y="172" fill="#8b949e" font-size="14" font-weight="600" text-anchor="middle">ACP</text>
+  <text x="735" y="190" fill="#e74c3c" font-size="11" text-anchor="middle">Not supported</text>
+  <text x="837" y="176" fill="#e74c3c" font-size="18" font-weight="700">&#x2717;</text>
+
+  <!-- MCP -->
+  <rect x="620" y="214" width="260" height="56" rx="6" fill="#2a2017" stroke="#f39c12" stroke-width="1.5"/>
+  <text x="750" y="236" fill="#f39c12" font-size="14" font-weight="700" text-anchor="middle">MCP</text>
+  <text x="735" y="254" fill="#f39c12" font-size="11" text-anchor="middle">Partial</text>
+  <text x="830" y="240" fill="#f39c12" font-size="16" font-weight="700">~</text>
+
+  <!-- OpenClaw label -->
+  <rect x="685" y="334" width="130" height="26" rx="13" fill="#e74c3c" opacity="0.2" stroke="#e74c3c" stroke-width="1"/>
+  <text x="750" y="352" fill="#e74c3c" font-size="12" font-weight="600" text-anchor="middle">0.5 protocols</text>
+
+  <!-- Connecting arrows between columns -->
+  <line x1="285" y1="200" x2="315" y2="200" stroke="#30363d" stroke-width="1.5" marker-end="url(#arrowGray)"/>
+  <line x1="585" y1="200" x2="615" y2="200" stroke="#30363d" stroke-width="1.5" marker-end="url(#arrowGray)"/>
+
+  <defs>
+    <marker id="arrowGray" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#30363d"/>
+    </marker>
+  </defs>
+</svg>
