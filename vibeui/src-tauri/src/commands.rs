@@ -36609,3 +36609,167 @@ pub async fn turboquant_clear(
     *guard = None;
     Ok(())
 }
+
+// ── Phase 32 P1: Health Score ──
+
+#[tauri::command]
+pub async fn healthscore_scan(path: String) -> Result<serde_json::Value, String> {
+    let config = vibecli_cli::health_score::HealthConfig::default();
+    let mut engine = vibecli_cli::health_score::HealthEngine::new(config);
+    let snapshot = engine.scan(&path, 100);
+    let overall = vibecli_cli::health_score::HealthEngine::overall_score(&snapshot);
+    let dims: Vec<serde_json::Value> = snapshot.dimensions.iter().map(|d| {
+        serde_json::json!({
+            "dimension": d.dimension.label(),
+            "score": d.score,
+            "weight": d.weight,
+            "details": &d.details,
+            "remediation": &d.remediation,
+        })
+    }).collect();
+    Ok(serde_json::json!({
+        "overall": overall,
+        "dimensions": dims,
+        "timestamp": snapshot.timestamp,
+    }))
+}
+
+#[tauri::command]
+pub async fn healthscore_remediate(path: String) -> Result<serde_json::Value, String> {
+    let config = vibecli_cli::health_score::HealthConfig::default();
+    let mut engine = vibecli_cli::health_score::HealthEngine::new(config);
+    let snapshot = engine.scan(&path, 100);
+    let rems = engine.suggest_remediations(&snapshot);
+    let items: Vec<serde_json::Value> = rems.iter().map(|r| {
+        serde_json::json!({
+            "dimension": format!("{:?}", r.dimension),
+            "priority": format!("{:?}", r.priority),
+            "title": &r.title,
+            "description": &r.description,
+            "impact": r.estimated_impact,
+            "autoFixable": r.auto_fixable,
+        })
+    }).collect();
+    Ok(serde_json::json!({ "remediations": items }))
+}
+
+// ── Phase 32 P1: Intent Refactoring ──
+
+#[tauri::command]
+pub async fn refactor_parse_intent(input: String) -> Result<serde_json::Value, String> {
+    let intent = vibecli_cli::intent_refactor::IntentParser::parse(&input);
+    match intent {
+        Some(i) => {
+            let desc = vibecli_cli::intent_refactor::IntentParser::describe(&i);
+            Ok(serde_json::json!({
+                "intent": format!("{:?}", i),
+                "description": desc,
+            }))
+        }
+        None => Err("Could not parse intent".to_string()),
+    }
+}
+
+#[tauri::command]
+pub async fn refactor_plan(intent_str: String, files: Vec<String>) -> Result<serde_json::Value, String> {
+    let intent = vibecli_cli::intent_refactor::IntentParser::parse(&intent_str)
+        .ok_or_else(|| "Invalid intent".to_string())?;
+    let mut engine = vibecli_cli::intent_refactor::RefactorEngine::new(
+        vibecli_cli::intent_refactor::RefactorConfig::default()
+    );
+    let sid = engine.plan(intent, files);
+    let session = engine.get_session(&sid).ok_or("Session not found")?;
+    let steps: Vec<serde_json::Value> = session.plan.steps.iter().map(|s| {
+        serde_json::json!({
+            "description": &s.description,
+            "status": format!("{:?}", s.status),
+            "file": &s.file_path,
+        })
+    }).collect();
+    Ok(serde_json::json!({
+        "sessionId": sid,
+        "intent": format!("{:?}", session.plan.intent),
+        "steps": steps,
+    }))
+}
+
+#[tauri::command]
+pub async fn refactor_suggest(code: String) -> Result<serde_json::Value, String> {
+    let suggestions = vibecli_cli::intent_refactor::IntentParser::suggest_intents(&code);
+    let items: Vec<serde_json::Value> = suggestions.iter().map(|(intent, score)| {
+        serde_json::json!({
+            "intent": format!("{:?}", intent),
+            "confidence": score,
+        })
+    }).collect();
+    Ok(serde_json::json!({ "suggestions": items }))
+}
+
+// ── Phase 32 P1: Collaborative Review ──
+
+#[tauri::command]
+pub async fn creview_start(title: String, files: Vec<String>) -> Result<serde_json::Value, String> {
+    let mut engine = vibecli_cli::review_protocol::ReviewEngine::new(
+        vibecli_cli::review_protocol::ReviewConfig::default()
+    );
+    let sid = engine.start_session(&title, files);
+    Ok(serde_json::json!({ "sessionId": sid, "title": title }))
+}
+
+#[tauri::command]
+pub async fn creview_stats() -> Result<serde_json::Value, String> {
+    let engine = vibecli_cli::review_protocol::ReviewEngine::new(
+        vibecli_cli::review_protocol::ReviewConfig::default()
+    );
+    let q = engine.get_quality();
+    Ok(serde_json::json!({
+        "totalComments": q.total_comments,
+        "resolved": q.resolved,
+        "realIssues": q.agent_caught_real_issues,
+        "falsePositives": q.false_positives,
+        "precision": q.precision,
+    }))
+}
+
+// ── Phase 32 P1: Skill Distillation ──
+
+#[tauri::command]
+pub async fn distill_status() -> Result<serde_json::Value, String> {
+    let engine = vibecli_cli::skill_distillation::DistillationEngine::new(
+        vibecli_cli::skill_distillation::DistillConfig::default()
+    );
+    let m = engine.get_metrics();
+    Ok(serde_json::json!({
+        "sessionsAnalyzed": m.sessions_analyzed,
+        "patternsExtracted": m.patterns_extracted,
+        "skillsGenerated": m.skills_generated,
+        "improvementEstimate": engine.improvement_estimate(),
+    }))
+}
+
+#[tauri::command]
+pub async fn distill_patterns() -> Result<serde_json::Value, String> {
+    let engine = vibecli_cli::skill_distillation::DistillationEngine::new(
+        vibecli_cli::skill_distillation::DistillConfig::default()
+    );
+    let patterns = engine.get_patterns();
+    let items: Vec<serde_json::Value> = patterns.iter().map(|p| {
+        serde_json::json!({
+            "id": &p.id,
+            "rule": &p.rule,
+            "type": format!("{:?}", p.pattern_type),
+            "confidence": format!("{:?}", p.confidence),
+            "occurrences": p.occurrences,
+            "description": &p.description,
+        })
+    }).collect();
+    Ok(serde_json::json!({ "patterns": items }))
+}
+
+#[tauri::command]
+pub async fn distill_export() -> Result<String, String> {
+    let engine = vibecli_cli::skill_distillation::DistillationEngine::new(
+        vibecli_cli::skill_distillation::DistillConfig::default()
+    );
+    Ok(engine.export_skills())
+}

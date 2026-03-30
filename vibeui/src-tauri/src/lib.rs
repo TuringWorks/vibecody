@@ -1304,6 +1304,20 @@ pub fn run() {
             commands::turboquant_search,
             commands::turboquant_benchmark,
             commands::turboquant_clear,
+            // Health Score
+            commands::healthscore_scan,
+            commands::healthscore_remediate,
+            // Intent Refactoring
+            commands::refactor_parse_intent,
+            commands::refactor_plan,
+            commands::refactor_suggest,
+            // Collaborative Review
+            commands::creview_start,
+            commands::creview_stats,
+            // Skill Distillation
+            commands::distill_status,
+            commands::distill_patterns,
+            commands::distill_export,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

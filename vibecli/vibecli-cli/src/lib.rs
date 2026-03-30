@@ -27,3 +27,7 @@ pub mod visual_verify;
 pub mod next_task;
 pub mod langgraph_bridge;
 pub mod context_protocol;
+pub mod health_score;
+pub mod intent_refactor;
+pub mod review_protocol;
+pub mod skill_distillation;

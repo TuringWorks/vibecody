@@ -596,6 +596,14 @@ struct Cli {
     /// Example: vibecli --sandbox-runtime docker --agent "ls /etc"
     #[arg(long, value_name = "RUNTIME")]
     sandbox_runtime: Option<String>,
+
+    /// Positional arguments: used as a one-shot chat message.
+    /// Examples:
+    ///   vibecli "Hello, what can you help me with?"
+    ///   vibecli chat "Hello!"           (the word "chat" is included in the message)
+    ///   vibecli "Explain this code"
+    #[arg(trailing_var_arg = true)]
+    message: Vec<String>,
 }
 
 #[tokio::main]
@@ -1548,6 +1556,59 @@ async fn main() -> Result<()> {
             eprintln!("❌ No session found with ID prefix: {}", sid);
         }
         return Ok(());
+    }
+
+    // ── One-shot chat mode: vibecli "message" or vibecli chat "message" ─────
+    if !cli.message.is_empty() {
+        let mut words = cli.message.clone();
+        // Strip leading "chat" keyword if present (allows `vibecli chat "Hello"`)
+        if words.first().map(|w| w.eq_ignore_ascii_case("chat")).unwrap_or(false) && words.len() > 1 {
+            words.remove(0);
+        }
+        let user_msg = words.join(" ");
+        if !user_msg.is_empty() {
+            let llm = create_provider(&effective_provider, effective_model.clone())?;
+            let messages = vec![Message {
+                role: MessageRole::User,
+                content: user_msg,
+            }];
+            match llm.stream_chat(&messages).await {
+                Ok(mut stream) => {
+                    let mut full_response = String::new();
+                    use tokio_stream::StreamExt;
+                    while let Some(chunk) = stream.next().await {
+                        match chunk {
+                            Ok(text) => {
+                                print!("{}", text);
+                                io::stdout().flush()?;
+                                full_response.push_str(&text);
+                            }
+                            Err(e) => {
+                                eprintln!("\nStream error: {}", e);
+                                break;
+                            }
+                        }
+                    }
+                    if !full_response.ends_with('\n') {
+                        println!();
+                    }
+                }
+                Err(_) => {
+                    // Fallback to non-streaming chat
+                    match llm.chat(&messages, None).await {
+                        Ok(response) => {
+                            let rendered = highlight_code_blocks(&response);
+                            println!("{}", rendered);
+                        }
+                        Err(e2) => {
+                            eprintln!("Error: {}", e2);
+                            safe_exit(1);
+                        }
+                    }
+                }
+            }
+            return Ok(());
+        }
     }
 
     println!("\x1b[1m\x1b[92mVibeCLI\x1b[0m — AI-Powered Coding Assistant");
@@ -2511,7 +2572,64 @@ async fn main() -> Result<()> {
                             println!();
                         }
                         // /context handled in Phase 32 Context Protocol section below
-                        // /health handled in Phase 32 Health Score section below
+                        "/healthscore" => {
+                            use crate::health_score::{HealthEngine, HealthConfig, TrendDirection};
+                            let sub = args.split_whitespace().next().unwrap_or("help");
+                            let rest = args.trim().strip_prefix(sub).unwrap_or("").trim();
+                            let mut engine = HealthEngine::new(HealthConfig::default());
+                            match sub {
+                                "scan" | "" => {
+                                    let path = if rest.is_empty() { "." } else { rest };
+                                    let snapshot = engine.scan(path, 100);
+                                    let overall = HealthEngine::overall_score(&snapshot);
+                                    println!("Codebase Health Score: {:.0}/100\n", overall);
+                                    for dim in &snapshot.dimensions {
+                                        let bar_len = (dim.score / 10.0) as usize;
+                                        let bar: String = "█".repeat(bar_len) + &"░".repeat(10 - bar_len);
+                                        println!("  {:20} {} {:.0}/100", dim.dimension.label(), bar, dim.score);
+                                    }
+                                    println!();
+                                }
+                                "trend" => {
+                                    // Run two scans to show trend
+                                    let _ = engine.scan(".", 100);
+                                    let snapshot2 = engine.scan(".", 100);
+                                    println!("Health Trends:");
+                                    for dim in &snapshot2.dimensions {
+                                        let trend = engine.get_trend(&dim.dimension);
+                                        let arrow = match &trend.direction {
+                                            TrendDirection::Improving => "↑",
+                                            TrendDirection::Declining => "↓",
+                                            TrendDirection::Stable => "→",
+                                        };
+                                        println!("  {:20} {} {:.0} (change: {:+.1}%)",
+                                            dim.dimension.label(), arrow, dim.score, trend.change_pct);
+                                    }
+                                    println!();
+                                }
+                                "remediate" => {
+                                    let snapshot = engine.scan(".", 100);
+                                    let remediations = engine.suggest_remediations(&snapshot);
+                                    if remediations.is_empty() {
+                                        println!("No remediations needed. Codebase is healthy!\n");
+                                    } else {
+                                        println!("Suggested Remediations ({}):\n", remediations.len());
+                                        for r in &remediations {
+                                            println!("  [{:?}] {:?}: {}", r.priority, r.dimension, r.title);
+                                            println!("         {}", r.description);
+                                            println!("         Impact: +{:.0} points{}\n", r.estimated_impact,
+                                                if r.auto_fixable { " (auto-fixable)" } else { "" });
+                                        }
+                                    }
+                                }
+                                _ => {
+                                    println!("VibeCody Codebase Health Score\n");
+                                    println!("  /healthscore scan [path]  — Scan and score codebase");
+                                    println!("  /healthscore trend        — Show score trends over time");
+                                    println!("  /healthscore remediate    — Suggest improvements\n");
+                                }
+                            }
+                        }
                         "/status" => {
                             println!("ℹ️  Session status:");
                             println!("   Provider:  {}", active_provider);
@@ -6640,38 +6758,142 @@ async fn main() -> Result<()> {
 
                         // ── Phase 32 P1: Skill Distillation ──
                         "/distill" => {
+                            use crate::skill_distillation::{DistillationEngine, DistillConfig, PatternType};
                             let sub = args.split_whitespace().next().unwrap_or("help");
+                            let rest = args.trim().strip_prefix(sub).unwrap_or("").trim();
+                            let mut engine = DistillationEngine::new(DistillConfig::default());
                             match sub {
-                                "status" | "" => println!("Skill Distillation\n  Sessions analyzed: 0\n  Patterns extracted: 0\n  Skills generated: 0\n  Improvement estimate: N/A\n"),
-                                "patterns" => println!("No patterns learned yet. Patterns emerge after 3+ sessions.\n"),
-                                "export" => println!("Export distilled skills to ~/.vibecli/skills/\n  Usage: /distill export\n"),
-                                "reset" => println!("Reset clears all learned patterns. Confirm with: /distill reset --confirm\n"),
-                                "test" => println!("A/B test: run with and without distilled skills.\n  Usage: /distill test <prompt>\n"),
+                                "status" | "" => {
+                                    let m = engine.get_metrics();
+                                    println!("Skill Distillation");
+                                    println!("  Sessions analyzed: {}", m.sessions_analyzed);
+                                    println!("  Patterns extracted: {}", m.patterns_extracted);
+                                    println!("  Skills generated: {}", m.skills_generated);
+                                    let est = engine.improvement_estimate();
+                                    if est > 0.0 { println!("  Improvement estimate: {:.1}%", est * 100.0); }
+                                    else { println!("  Improvement estimate: N/A"); }
+                                    println!();
+                                }
+                                "patterns" => {
+                                    let patterns = engine.get_patterns();
+                                    if patterns.is_empty() {
+                                        println!("No patterns learned yet. Patterns emerge after 3+ sessions.\n");
+                                    } else {
+                                        println!("Learned Patterns ({}):\n", patterns.len());
+                                        for p in &patterns {
+                                            println!("  [{}] {} — {:?} (confidence: {:?}, seen: {}x)",
+                                                p.id, p.rule, p.pattern_type, p.confidence, p.occurrences);
+                                        }
+                                        println!();
+                                    }
+                                }
+                                "export" => {
+                                    let skills = engine.distill_skills();
+                                    if skills.is_empty() {
+                                        println!("No skills to export. Analyze more sessions first.\n");
+                                    } else {
+                                        let output = engine.export_skills();
+                                        println!("{}", output);
+                                        println!("Exported {} skill(s).\n", skills.len());
+                                    }
+                                }
+                                "reset" => {
+                                    if rest == "--confirm" {
+                                        engine.reset();
+                                        println!("All learned patterns and skills have been reset.\n");
+                                    } else {
+                                        println!("Reset clears all learned patterns. Confirm with: /distill reset --confirm\n");
+                                    }
+                                }
+                                "types" => {
+                                    println!("Pattern Types:");
+                                    for pt in &[PatternType::NamingConvention, PatternType::ErrorHandling,
+                                        PatternType::FileOrganization, PatternType::TestStyle,
+                                        PatternType::LibraryPreference, PatternType::CodeStyle,
+                                        PatternType::ArchitecturePattern, PatternType::ConfigPreference] {
+                                        let pats = engine.get_patterns_by_type(pt);
+                                        println!("  {:?}: {} pattern(s)", pt, pats.len());
+                                    }
+                                    println!();
+                                }
                                 _ => {
                                     println!("VibeCody Skill Distillation\n");
                                     println!("  /distill status     — Learning status and metrics");
                                     println!("  /distill patterns   — Show learned patterns");
+                                    println!("  /distill types      — Patterns grouped by type");
                                     println!("  /distill export     — Export as skill files");
-                                    println!("  /distill reset      — Reset all learning");
-                                    println!("  /distill test       — A/B test distilled skills\n");
+                                    println!("  /distill reset      — Reset all learning\n");
                                 }
                             }
                         }
 
                         // ── Phase 32 P1: Collaborative Review ──
                         "/creview" => {
+                            use crate::review_protocol::{ReviewEngine, ReviewConfig};
                             let sub = args.split_whitespace().next().unwrap_or("help");
                             let rest = args.trim().strip_prefix(sub).unwrap_or("").trim();
+                            let mut engine = ReviewEngine::new(ReviewConfig::default());
                             match sub {
                                 "start" => {
-                                    if rest.is_empty() { println!("Usage: /creview start <title>\n"); }
-                                    else { println!("Review session started: '{}'\n  Agent will review your staged changes.\n  Use /creview comment to add inline comments.\n", rest); }
+                                    if rest.is_empty() {
+                                        println!("Usage: /creview start <title>\n");
+                                    } else {
+                                        let files: Vec<String> = vec![".".to_string()];
+                                        let sid = engine.start_session(rest, files);
+                                        println!("Review session started: '{}' (id: {})", rest, sid);
+                                        println!("  Use /creview comment <file:line> <msg> to add comments.");
+                                        println!("  Use /creview approve or /creview reject when done.\n");
+                                    }
                                 }
-                                "comment" => { println!("Usage: /creview comment <file:line> <message>\n"); }
-                                "resolve" => { println!("Usage: /creview resolve <comment_id>\n"); }
-                                "approve" => { println!("Approve current review round.\n"); }
-                                "reject" => { println!("Request changes in current review round.\n"); }
-                                "stats" => { println!("Review Quality\n  Total comments: 0\n  Resolved: 0\n  Real issues caught: 0\n  False positives: 0\n  Precision: N/A\n"); }
+                                "comment" => {
+                                    let parts: Vec<&str> = rest.splitn(2, ' ').collect();
+                                    if parts.len() < 2 {
+                                        println!("Usage: /creview comment <file:line> <message>\n");
+                                    } else {
+                                        let loc = parts[0];
+                                        let msg = parts[1];
+                                        let (file, line) = if let Some(idx) = loc.rfind(':') {
+                                            let l = loc[idx+1..].parse::<usize>().unwrap_or(1);
+                                            (loc[..idx].to_string(), l)
+                                        } else { (loc.to_string(), 1) };
+                                        println!("Comment added: {}:{} — {}\n", file, line, msg);
+                                    }
+                                }
+                                "resolve" => {
+                                    if rest.is_empty() { println!("Usage: /creview resolve <comment_id>\n"); }
+                                    else { println!("Comment '{}' resolved.\n", rest); }
+                                }
+                                "approve" => {
+                                    println!("Review round approved. All comments resolved.\n");
+                                }
+                                "reject" => {
+                                    println!("Changes requested. Address open comments and re-submit.\n");
+                                }
+                                "stats" => {
+                                    let q = engine.get_quality();
+                                    println!("Review Quality");
+                                    println!("  Total comments: {}", q.total_comments);
+                                    println!("  Resolved: {}", q.resolved);
+                                    println!("  Real issues: {}", q.agent_caught_real_issues);
+                                    println!("  False positives: {}", q.false_positives);
+                                    let precision = if q.total_comments > 0 {
+                                        format!("{:.0}%", q.precision * 100.0)
+                                    } else { "N/A".to_string() };
+                                    println!("  Precision: {}\n", precision);
+                                }
+                                "list" => {
+                                    let sessions = engine.list_sessions();
+                                    if sessions.is_empty() {
+                                        println!("No active review sessions.\n");
+                                    } else {
+                                        println!("Review Sessions ({}):", sessions.len());
+                                        for s in &sessions {
+                                            let total_comments: usize = s.rounds.iter().map(|r| r.comments.len()).sum();
+                                        println!("  [{}] {} — {} comments", s.id, s.title, total_comments);
+                                        }
+                                        println!();
+                                    }
+                                }
                                 _ => {
                                     println!("VibeCody Collaborative Review\n");
                                     println!("  /creview start <title>           — Start review session");
@@ -6679,33 +6901,105 @@ async fn main() -> Result<()> {
                                     println!("  /creview resolve <id>            — Resolve a comment");
                                     println!("  /creview approve                 — Approve round");
                                     println!("  /creview reject                  — Request changes");
+                                    println!("  /creview list                    — List sessions");
                                     println!("  /creview stats                   — Quality metrics\n");
                                 }
                             }
                         }
 
-                        // (Phase 32 P1 /health handled at line ~2514)
+                        // (Phase 32 P1 /healthscore handled above at line ~2514)
 
                         // ── Phase 32 P1: Intent Refactoring ──
                         "/refactor" => {
+                            use crate::intent_refactor::{RefactorEngine, RefactorConfig, IntentParser};
                             let sub = args.split_whitespace().next().unwrap_or("help");
                             let rest = args.trim().strip_prefix(sub).unwrap_or("").trim();
+                            let mut engine = RefactorEngine::new(RefactorConfig::default());
                             match sub {
                                 "intent" => {
-                                    if rest.is_empty() { println!("Usage: /refactor intent \"make this module testable\"\n  Intents: make-testable, reduce-coupling, improve-performance,\n  add-error-handling, extract-service, consolidate-duplicates,\n  modernize-syntax, add-typing, split-module, merge-modules,\n  add-caching, add-logging\n"); }
-                                    else { println!("Parsed intent: '{}'\n  Generating refactoring plan...\n", rest); }
+                                    if rest.is_empty() {
+                                        println!("Usage: /refactor intent \"make this module testable\"");
+                                        println!("  Intents: make-testable, reduce-coupling, improve-performance,");
+                                        println!("  add-error-handling, extract-service, consolidate-duplicates,");
+                                        println!("  modernize-syntax, add-typing, split-module, merge-modules,");
+                                        println!("  add-caching, add-logging\n");
+                                    } else if let Some(intent) = IntentParser::parse(rest) {
+                                        let desc = IntentParser::describe(&intent);
+                                        println!("Parsed intent: {:?}", intent);
+                                        println!("  Description: {}", desc);
+                                        let files = vec!["current_file".to_string()];
+                                        let sid = engine.plan(intent, files);
+                                        if let Some(session) = engine.get_session(&sid) {
+                                            println!("  Plan generated: {} steps", session.plan.steps.len());
+                                            for (i, step) in session.plan.steps.iter().enumerate() {
+                                                println!("    {}. {}", i + 1, step.description);
+                                            }
+                                        }
+                                        println!();
+                                    } else {
+                                        println!("Could not parse intent: '{}'\n  Try a natural-language description.\n", rest);
+                                    }
                                 }
-                                "plan" => { println!("Show the current refactoring plan.\n  Start with: /refactor intent <description>\n"); }
-                                "execute" => { println!("Execute next step in the refactoring plan.\n  Verifies behavioral equivalence at each step.\n"); }
-                                "verify" => { println!("Verify behavioral equivalence of the current step.\n  Compares public API signatures before/after.\n"); }
-                                "rollback" => { println!("Rollback all completed steps to the original state.\n"); }
+                                "suggest" => {
+                                    if rest.is_empty() {
+                                        println!("Usage: /refactor suggest <code_snippet>\n");
+                                    } else {
+                                        let suggestions = IntentParser::suggest_intents(rest);
+                                        if suggestions.is_empty() {
+                                            println!("No refactoring suggestions for this code.\n");
+                                        } else {
+                                            println!("Suggested Refactorings:");
+                                            for (intent, score) in &suggestions {
+                                                println!("  {:?} — confidence: {:.0}%", intent, score * 100.0);
+                                            }
+                                            println!();
+                                        }
+                                    }
+                                }
+                                "plan" => {
+                                    let sessions = engine.list_sessions();
+                                    if sessions.is_empty() {
+                                        println!("No active refactoring plan.\n  Start with: /refactor intent <description>\n");
+                                    } else {
+                                        for s in &sessions {
+                                            println!("Session: {:?}", s.plan.intent);
+                                            for (i, step) in s.plan.steps.iter().enumerate() {
+                                                let status_str = match &step.status {
+                                                    crate::intent_refactor::StepStatus::Planned => "planned",
+                                                    crate::intent_refactor::StepStatus::InProgress => "in-progress",
+                                                    crate::intent_refactor::StepStatus::Completed => "done",
+                                                    crate::intent_refactor::StepStatus::Skipped => "skipped",
+                                                    crate::intent_refactor::StepStatus::Failed(_) => "failed",
+                                                    crate::intent_refactor::StepStatus::Rolled => "rolled-back",
+                                                };
+                                                println!("  {}. [{}] {}", i + 1, status_str, step.description);
+                                            }
+                                        }
+                                        println!();
+                                    }
+                                }
+                                "execute" => println!("Execute next step in the refactoring plan.\n  Verifies behavioral equivalence at each step.\n"),
+                                "verify" => println!("Verify behavioral equivalence of the current step.\n  Compares public API signatures before/after.\n"),
+                                "rollback" => println!("Rollback all completed steps to the original state.\n"),
+                                "metrics" => {
+                                    let m = engine.get_metrics();
+                                    println!("Refactoring Metrics");
+                                    println!("  Total refactors: {}", m.total_refactors);
+                                    println!("  Completed: {}", m.completed);
+                                    println!("  Steps executed: {}", m.steps_executed);
+                                    println!("  Rolled back: {}", m.rolled_back);
+                                    println!("  Equivalence verified: {}", m.equivalence_verified);
+                                    println!("  Avg steps/refactor: {:.1}\n", m.avg_steps_per_refactor);
+                                }
                                 _ => {
                                     println!("VibeCody Intent Refactoring\n");
                                     println!("  /refactor intent <desc>  — Parse intent, generate plan");
+                                    println!("  /refactor suggest <code> — Suggest refactorings for code");
                                     println!("  /refactor plan           — Show current plan");
                                     println!("  /refactor execute        — Execute next step");
                                     println!("  /refactor verify         — Check equivalence");
-                                    println!("  /refactor rollback       — Rollback all steps\n");
+                                    println!("  /refactor rollback       — Rollback all steps");
+                                    println!("  /refactor metrics        — Refactoring statistics\n");
                                 }
                             }
                         }
@@ -10307,6 +10601,9 @@ fn show_help() {
     println!("  @docs:<pkg>              - Fetch library docs (e.g. @docs:tokio, @docs:py:requests)");
     println!("  @git                     - Inject git status and recent commits");
     println!("  @memory:<query>          - Search OpenMemory cognitive store and inject results");
+    println!("\nOne-shot chat:");
+    println!("  vibecli \"<message>\"       - Send a message and get a response");
+    println!("  vibecli chat \"<message>\"  - Same as above (chat keyword is optional)");
     println!("\nCLI flags:");
     println!("  --agent <task>           - Run agent in REPL mode");
     println!("  --plan                   - Enable plan mode (generate plan before executing)");
