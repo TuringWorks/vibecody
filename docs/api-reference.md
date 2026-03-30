@@ -13,7 +13,7 @@ Complete HTTP API reference for the VibeCLI daemon (`vibecli serve`).
 Start the daemon:
 
 ```bash
-vibecli serve --port 7878 --provider ollama
+vibecli --serve --port 7878 --provider ollama
 ```
 
 On startup, a **Bearer token** is printed to stderr. All authenticated endpoints require this token.
@@ -51,7 +51,7 @@ Unauthenticated requests receive:
 Restart the daemon to generate a new token. For persistent tokens, use the `--api-token` flag:
 
 ```bash
-vibecli serve --port 7878 --api-token "my-secret-token"
+vibecli --serve --port 7878 --api-token "my-secret-token"
 ```
 
 

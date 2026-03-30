@@ -83,14 +83,14 @@ flutter run
 
 ### Pairing with VibeCLI
 
-1. Start VibeCLI server: `vibecli serve --port 7879`
+1. Start VibeCLI server: `vibecli --serve --port 7879`
 2. In the REPL, run `/pair` to generate a QR code
 3. Open VibeMobile and tap **Pair**
 4. Scan the QR code — done!
 
 ### Manual Connection
 
-1. Start VibeCLI server: `vibecli serve --port 7879`
+1. Start VibeCLI server: `vibecli --serve --port 7879`
 2. Open VibeMobile → **Connect Manually**
 3. Enter `host:port` and API token
 

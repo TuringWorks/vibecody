@@ -693,7 +693,7 @@ curl -X POST http://localhost:7878/acp/v1/tasks \
 Start the daemon:
 
 ```bash
-vibecli serve --port 7878 --provider claude
+vibecli --serve --port 7878 --provider claude
 ```
 
 All endpoints require `Authorization: Bearer <token>` (token from config or `VIBECLI_API_TOKEN`).

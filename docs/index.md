@@ -67,7 +67,7 @@ All providers support streaming. Local providers require no API key.
 - Container sandbox (Docker, Podman, OpenSandbox) with unified runtime trait
 - Git-aware context injection, multi-file diff view with syntax highlighting
 - AI-assisted code apply with interactive confirmation and approval gate
-- HTTP daemon mode (`vibecli serve --port 7878`)
+- HTTP daemon mode (`vibecli --serve --port 7878`)
 
 ### VibeUI Highlights
 

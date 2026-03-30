@@ -474,10 +474,10 @@ Run structured code reviews from the CLI:
 
 ```bash
 vibecli review                       # review uncommitted changes
-vibecli review --staged               # review staged changes only
-vibecli review --branch main..HEAD    # review branch diff
-vibecli review --pr 42                # review a GitHub PR
-vibecli review --focus security,perf  # limit review focus
+vibecli --review --staged               # review staged changes only
+vibecli --review --branch main..HEAD    # review branch diff
+vibecli --review --pr 42                # review a GitHub PR
+vibecli --review --focus security,perf  # limit review focus
 ```
 
 Output is a structured `ReviewReport` with issues (severity: info/warning/critical), suggestions, and a numeric score.
@@ -489,7 +489,7 @@ Use `--pr` to post the review directly to a GitHub PR as a comment (via `gh` CLI
 Run VibeCLI as a long-lived HTTP daemon for the VS Code extension and Agent SDK:
 
 ```bash
-vibecli serve --port 7878
+vibecli --serve --port 7878
 ```
 
 **Security**: All authenticated routes require a `Bearer <token>` header and are rate-limited to 60 requests per 60 seconds. Request bodies are limited to 1 MB. Responses include CSP, X-Frame-Options, and other security headers.
@@ -594,7 +594,7 @@ SuperBrain intelligently routes queries to the best provider or combines respons
 VibeCLI can serve a self-contained browser-based UI when running in server mode. No CDN dependencies — fully air-gap safe.
 
 ```bash
-vibecli serve --port 7878
+vibecli --serve --port 7878
 # Open http://localhost:7878 in your browser
 ```
 
