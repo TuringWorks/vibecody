@@ -17,9 +17,9 @@ VibeCody is a Rust workspace (monorepo) with 9 crate members: three binary appli
 vibecody/                          ← Cargo workspace root
 ├── vibecli/
 │   └── vibecli-cli/               ← Binary: terminal assistant
-│       └── skills/                ← 543 skill files (25+ categories)
+│       └── skills/                ← 568 skill files (25+ categories)
 ├── vibeui/
-│   ├── src/                       ← React + TypeScript frontend (162+ panel components)
+│   ├── src/                       ← React + TypeScript frontend (187 panel components)
 │   ├── src-tauri/                 ← Binary: Tauri desktop app
 │   └── crates/
 │       ├── vibe-core/             ← Library: editor primitives
@@ -519,7 +519,7 @@ async fn ai_chat(
 
 ## Testing Strategy
 
-**~6,628+ unit tests** across the workspace (0 failures).
+**9,570 unit tests** across the workspace (0 failures).
 
 | Crate | Tests | Key coverage areas |
 |-------|-------|--------------------|

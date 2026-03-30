@@ -41,7 +41,7 @@ VibeCody's QA pipeline deploys these specialized agents:
 Start the REPL and validate the current project:
 
 ```bash
-vibecli repl
+vibecli
 > /qavalidate run
 ```
 
@@ -153,7 +153,7 @@ Confidence adjustments:
 For larger projects, use batch mode with parallel agent execution:
 
 ```bash
-vibecli qavalidate --batch --path ./monorepo --parallel 4
+vibecli --qavalidate --batch --path ./monorepo --parallel 4
 ```
 
 ```
@@ -246,7 +246,7 @@ Open VibeUI and navigate to the **QA Validation** panel. The workflow is:
     {
       "id": 5,
       "action": "shell",
-      "command": "vibecli qavalidate --batch --path . --parallel 4",
+      "command": "vibecli --qavalidate --batch --path . --parallel 4",
       "description": "Run batch QA across the entire project",
       "expected_output_contains": "Overall Score",
       "delay_ms": 30000

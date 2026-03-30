@@ -49,7 +49,7 @@
   <rect x="430" y="98" width="175" height="60" rx="6" fill="#102a15" stroke="#27ae60" stroke-width="0.8"/>
   <text x="518" y="115" text-anchor="middle" fill="#6dce6d" font-size="10" font-weight="600">Location</text>
   <text x="518" y="130" text-anchor="middle" fill="#448844" font-size="8">~/.vibecli/skills/</text>
-  <text x="518" y="142" text-anchor="middle" fill="#448844" font-size="8">511+ built-in skill files</text>
+  <text x="518" y="142" text-anchor="middle" fill="#448844" font-size="8">568 built-in skill files</text>
 
   <rect x="620" y="98" width="215" height="60" rx="6" fill="#102a15" stroke="#27ae60" stroke-width="0.8"/>
   <text x="728" y="115" text-anchor="middle" fill="#6dce6d" font-size="10" font-weight="600">Capabilities</text>

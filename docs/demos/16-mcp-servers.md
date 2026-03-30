@@ -71,7 +71,7 @@ description = "Custom REST API tools"
 ### Step 2: List configured servers
 
 ```bash
-vibecli repl
+vibecli
 > /mcp list
 ```
 
@@ -170,7 +170,7 @@ Example call:
 When you start an agent loop, VibeCody automatically discovers MCP tools and makes them available alongside built-in tools. The AI decides which tools to use.
 
 ```bash
-vibecli agent "Find all TODO comments in my project and create a GitHub issue for each one"
+vibecli --agent "Find all TODO comments in my project and create a GitHub issue for each one"
 ```
 
 The agent uses MCP tools transparently:
@@ -327,10 +327,10 @@ description = "Custom weather data"
 Test it:
 
 ```bash
-vibecli repl
+vibecli
 > /mcp connect weather
 > /mcp tools weather:get_weather
-> vibecli agent "What's the weather in Tokyo?"
+> vibecli --agent "What's the weather in Tokyo?"
 ```
 
 ```
@@ -401,7 +401,7 @@ The current weather in Tokyo is 22C and sunny with 45% humidity.
     {
       "id": 7,
       "action": "shell",
-      "command": "vibecli agent \"List all files in /tmp/demo and summarize their contents\"",
+      "command": "vibecli --agent \"List all files in /tmp/demo and summarize their contents\"",
       "description": "Run an agent loop that uses MCP filesystem tools",
       "delay_ms": 10000
     },
@@ -439,7 +439,7 @@ The current weather in Tokyo is 22C and sunny with 45% humidity.
     {
       "id": 12,
       "action": "shell",
-      "command": "vibecli agent \"What's the weather in Paris?\"",
+      "command": "vibecli --agent \"What's the weather in Paris?\"",
       "description": "Use the custom MCP tool in an agent loop",
       "delay_ms": 5000
     },

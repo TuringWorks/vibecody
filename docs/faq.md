@@ -21,7 +21,7 @@ Yes. VibeCody is released under the MIT License. You bring your own API keys for
 
 **VibeCLI** is a terminal-based interface with a TUI (built on Ratatui) and a REPL. It is ideal for SSH sessions, CI pipelines, and developers who prefer the command line.
 
-**VibeUI** is a desktop application built with Tauri 2, React, and Monaco Editor. It provides a graphical code editor with 162+ integrated panels for AI interaction, debugging, deployment, security, and more.
+**VibeUI** is a desktop application built with Tauri 2, React, and Monaco Editor. It provides a graphical code editor with 187 integrated panels for AI interaction, debugging, deployment, security, and more.
 
 Both share the same Rust backend crates (vibe-core, vibe-ai, vibe-lsp).
 

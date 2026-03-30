@@ -1,6 +1,6 @@
 # VibeUI Panel Functionality Audit
 
-> **Updated:** 2026-03-29 | **Panels:** 186 | **Registered Tauri Commands:** 950+
+> **Updated:** 2026-03-29 | **Panels:** 187 | **Registered Tauri Commands:** 950+
 > **Legend:** Backend = Tauri invoke wired | Utility = pure client-side JS
 
 ---
@@ -9,14 +9,14 @@
 
 | Category | Count | % |
 |----------|------:|--:|
-| Full backend integration | 163 | 88% |
-| Pure client-side utility | 23 | 12% |
+| Full backend integration | 163 | 87% |
+| Pure client-side utility | 24 | 13% |
 | Demo / mock data only | 0 | 0% |
-| **Total panels** | **186** | |
+| **Total panels** | **187** | |
 
 | Completion Tier | Count | % |
 |-----------------|------:|--:|
-| 100% (fully functional) | 186 | 100% |
+| 100% (fully functional) | 187 | 100% |
 | Demo shell | 0 | 0% |
 
 ### Recent Wiring (2026-03-29)

@@ -48,7 +48,7 @@ First, create a bot via Telegram's BotFather and obtain a token.
 Add the token to your VibeCLI config:
 
 ```bash
-vibecli config set gateway.telegram.token "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
+vibecli --config set gateway.telegram.token "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
 ```
 
 Or edit `~/.vibecli/config.toml` directly:
@@ -65,8 +65,8 @@ project_dir = "/path/to/your/project"   # Working directory for AI
 Create an application at the Discord Developer Portal, add a bot, and copy the token.
 
 ```bash
-vibecli config set gateway.discord.token "MTIzNDU2Nzg5MDEyMzQ1Njc4OQ.XXXXXX.XXXXX"
-vibecli config set gateway.discord.guild_id "987654321012345678"
+vibecli --config set gateway.discord.token "MTIzNDU2Nzg5MDEyMzQ1Njc4OQ.XXXXXX.XXXXX"
+vibecli --config set gateway.discord.guild_id "987654321012345678"
 ```
 
 Or in `config.toml`:
@@ -95,7 +95,7 @@ allowed_channels = ["C0123456789"]
 Launch the gateway with one or more platforms:
 
 ```bash
-vibecli repl
+vibecli
 ```
 
 ```
@@ -232,7 +232,7 @@ Open the **Gateway** panel from the sidebar.
 | `/gateway stop --platform <name>` | Stop a specific platform |
 | `/gateway stop --all` | Stop all platforms |
 | `/gateway status` | Show status of all platforms |
-| `vibecli config set gateway.<platform>.<key> <value>` | Configure platform credentials |
+| `vibecli --config set gateway.<platform>.<key> <value>` | Configure platform credentials |
 
 ## Demo Recording
 

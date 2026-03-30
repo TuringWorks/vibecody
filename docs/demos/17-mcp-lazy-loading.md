@@ -106,7 +106,7 @@ env = { BRAVE_API_KEY = "BSA..." }
 With lazy loading enabled, `/mcp tools` shows the lightweight registry instead of full schemas.
 
 ```bash
-vibecli repl
+vibecli
 > /mcp tools
 ```
 
@@ -184,7 +184,7 @@ Load full schema? [y/n/auto]:
 When the agent needs a tool, it searches the registry, and VibeCody loads the full schema on demand:
 
 ```bash
-vibecli agent "Send a Slack message to #engineering saying the deploy is complete"
+vibecli --agent "Send a Slack message to #engineering saying the deploy is complete"
 ```
 
 ```
@@ -370,7 +370,7 @@ pinned = ["filesystem:read_file", "filesystem:write_file"]
     {
       "id": 7,
       "action": "shell",
-      "command": "vibecli agent \"Read the file /tmp/demo/readme.txt and summarize it\"",
+      "command": "vibecli --agent \"Read the file /tmp/demo/readme.txt and summarize it\"",
       "description": "Run an agent that triggers on-demand schema loading for filesystem tools",
       "delay_ms": 8000
     },

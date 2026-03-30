@@ -26,7 +26,7 @@ Context Bundles let you package a curated set of files, instructions, model pref
 Use the `/bundle create` REPL command to define a new bundle. Provide a name and the files or directories you want pinned.
 
 ```bash
-vibecli repl
+vibecli
 ```
 
 Inside the REPL:

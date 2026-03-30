@@ -12,7 +12,7 @@ VibeCody's **Autofix** system detects and repairs code issues automatically. It 
 
 ## Prerequisites
 
-- VibeCody installed (`vibecli --version` returns 0.1+)
+- VibeCody installed (`vibecli --version` returns 0.5.1+)
 - An AI provider configured in `~/.vibecli/config.toml`
 - A project with at least one language server available (e.g., `rust-analyzer` for Rust, `typescript-language-server` for TypeScript)
 - For VibeUI: `cd vibeui && npm install && npm run tauri dev`

@@ -4,7 +4,7 @@ title: VibeCody Feature Demos
 permalink: /demos/
 ---
 
-Interactive walkthroughs covering VibeCody's major capabilities across CLI, Desktop IDE, and API surfaces.
+Interactive walkthroughs covering VibeCody's 60 major capabilities across CLI, Desktop IDE, and API surfaces.
 
 
 ## Getting Started
@@ -13,6 +13,7 @@ Interactive walkthroughs covering VibeCody's major capabilities across CLI, Desk
 |------|---------|-------------|
 | [01 — First Run & Setup](first-run/) | CLI | Install, configure providers, first AI chat |
 | [02 — TUI Interface](tui-interface/) | CLI | Navigate the terminal UI, panels, keybindings |
+| [36 — One-Shot Chat](36-one-shot-chat/) | CLI | Send a message and get a response without entering the REPL |
 
 ## AI & Providers
 
@@ -22,6 +23,7 @@ Interactive walkthroughs covering VibeCody's major capabilities across CLI, Desk
 | [04 — Agent Loop & Tool Execution](agent-loop/) | CLI + UI | Autonomous coding with file edit, shell, search tools |
 | [05 — Model Arena](model-arena/) | UI | Side-by-side model comparison and ranking |
 | [06 — Cost Observatory](cost-observatory/) | CLI + UI | Track token usage and costs across providers |
+| [47 — Counsel & SuperBrain](47-counsel-superbrain/) | CLI + UI | Multi-LLM deliberation and multi-provider routing |
 
 ## Code Intelligence
 
@@ -31,6 +33,19 @@ Interactive walkthroughs covering VibeCody's major capabilities across CLI, Desk
 | [08 — Code Search & Embeddings](08-code-search/) | CLI + UI | Semantic search across codebases |
 | [09 — Autofix & Diagnostics](09-autofix/) | CLI + UI | Automated bug detection and repair |
 | [10 — Code Transforms](10-code-transforms/) | CLI + UI | AST-based refactoring and code generation |
+| [41 — Semantic Codebase Index](41-semantic-index/) | CLI + UI | AST-level call graphs, type hierarchies, import chains |
+| [42 — MCTS Code Repair](42-mcts-repair/) | CLI + UI | Monte Carlo Tree Search for cost-efficient bug fixing |
+| [46 — Code Replay & Explainability](46-code-replay/) | CLI + UI | Replay past sessions and inspect reasoning chains |
+
+## Agentic Systems
+
+| Demo | Surface | Description |
+|------|---------|-------------|
+| [37 — A2A Protocol](37-a2a-protocol/) | CLI + UI | Agent-to-Agent communication (Google/Linux Foundation) |
+| [38 — Parallel Worktree Agents](38-parallel-worktrees/) | CLI + UI | Run N agents in isolated git worktrees |
+| [39 — Proactive Agent](39-proactive-agent/) | CLI + UI | Background scanning with learning from feedback |
+| [43 — Cost-Optimized Routing](43-cost-routing/) | CLI + UI | Smart model selection based on task complexity |
+| [60 — Next-Task Prediction](60-next-task/) | CLI + UI | Workflow-level task suggestions with learning |
 
 ## DevOps & Infrastructure
 
@@ -41,6 +56,7 @@ Interactive walkthroughs covering VibeCody's major capabilities across CLI, Desk
 | [13 — CI/CD Pipeline](13-cicd/) | CLI + UI | GitHub Actions, pipeline monitoring |
 | [14 — Cloud Provider Integration](14-cloud-providers/) | CLI + UI | AWS/GCP/Azure scanning, IAM, IaC generation |
 | [15 — Deploy & Database](15-deploy-database/) | CLI + UI | Deployment workflows and database management |
+| [59 — Smart Dependencies](59-smart-deps/) | CLI + UI | Conflict resolution, CVE patching, license compliance |
 
 ## MCP & Extensions
 
@@ -67,6 +83,7 @@ Interactive walkthroughs covering VibeCody's major capabilities across CLI, Desk
 | [24 — Red Team Security](red-team/) | CLI + UI | Security scanning and vulnerability detection |
 | [25 — SWE-bench Benchmarking](swe-bench/) | CLI + UI | Benchmark AI coding performance |
 | [26 — QA Validation Pipeline](qa-validation/) | CLI + UI | Multi-round quality validation |
+| [44 — Visual Verification](44-visual-verify/) | CLI + UI | Screenshot comparison and design compliance |
 
 ## Developer Tools
 
@@ -76,6 +93,34 @@ Interactive walkthroughs covering VibeCody's major capabilities across CLI, Desk
 | [28 — GraphQL Explorer](graphql/) | UI | Schema introspection and query building |
 | [29 — Regex & Encoding Tools](regex-encoding/) | UI | Regex tester, JWT decoder, base converter |
 | [30 — Notebook & Scripts](notebook-scripts/) | CLI + UI | Interactive notebooks and script runner |
+| [50 — Warp-Style Terminal](50-warp-features/) | CLI | Natural language commands, corrections, secret redaction |
+| [51 — Profiles & Sessions](51-profiles-sessions/) | CLI | Named config profiles and session resume |
+| [52 — Watch Mode & Sandbox](52-watch-sandbox/) | CLI | File-watching agent and OS-level isolation |
+| [53 — Workflow Orchestration](53-workflow-orchestration/) | CLI + UI | Lessons, todo tracking, complexity estimation |
+
+## Memory & Research
+
+| Demo | Surface | Description |
+|------|---------|-------------|
+| [40 — Web Search Grounding](40-web-grounding/) | CLI + UI | Agent searches the web mid-task with citations |
+| [48 — OpenMemory Engine](48-open-memory/) | CLI + UI | 5-sector cognitive memory with encryption and decay |
+| [49 — Autonomous Research](49-auto-research/) | CLI + UI | Multi-strategy research with cross-run learning |
+| [58 — Living Doc Sync](58-doc-sync/) | CLI + UI | Bidirectional spec-code synchronization |
+
+## Voice & Access
+
+| Demo | Surface | Description |
+|------|---------|-------------|
+| [45 — Offline Voice Coding](45-offline-voice/) | CLI | Local whisper.cpp speech recognition |
+| [55 — Voice, Pairing & Tailscale](55-voice-pairing-tailscale/) | CLI | Voice input, QR pairing, Tailscale Funnel |
+| [56 — Browser Web Client](56-web-client/) | Web | Zero-install SPA with SSE streaming |
+
+## Security & Compliance
+
+| Demo | Surface | Description |
+|------|---------|-------------|
+| [35 — Compliance & Audit](35-compliance/) | CLI + UI | SOC 2 controls and audit trails |
+| [54 — Blue & Purple Team](54-blue-purple-team/) | CLI + UI | Incident response and ATT&CK exercises |
 
 ## Enterprise & Advanced
 
@@ -85,7 +130,7 @@ Interactive walkthroughs covering VibeCody's major capabilities across CLI, Desk
 | [32 — Legacy Migration](32-legacy-migration/) | CLI + UI | COBOL/Fortran to modern languages |
 | [33 — App Builder](33-app-builder/) | CLI + UI | Full-stack app scaffolding from prompts |
 | [34 — Usage Metering](34-usage-metering/) | CLI + UI | Credit budgets and team cost allocation |
-| [35 — Compliance & Audit](35-compliance/) | CLI + UI | SOC 2 controls and audit trails |
+| [57 — Internal Developer Platform](57-idp/) | CLI + UI | 12-platform IDP with service catalogs and golden paths |
 
 
 ## Running Demos
@@ -93,17 +138,21 @@ Interactive walkthroughs covering VibeCody's major capabilities across CLI, Desk
 ### CLI Demos
 
 ```bash
+# One-shot chat (simplest demo)
+vibecli "Hello! What can you help me with?"
+
 # Run a specific demo recording
-vibecli demo run <demo-id>
+vibecli
+> /demo run <demo-id>
 
 # List available demos
-vibecli demo list
+> /demo list
 
 # Generate a demo with AI
-vibecli demo generate --feature "agent loop"
+> /demo generate --feature "agent loop"
 
 # Export demo as HTML slideshow
-vibecli demo export <demo-id> --format html
+> /demo export <id> --format html
 ```
 
 ### VibeUI Demos
@@ -118,5 +167,5 @@ vibecli demo export <demo-id> --format html
 ```bash
 # Run with Ollama (no internet required)
 docker-compose up -d
-vibecli --provider ollama chat "Hello"
+vibecli --provider ollama "Hello"
 ```

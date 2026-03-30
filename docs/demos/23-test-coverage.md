@@ -28,7 +28,7 @@ VibeCody integrates a unified test runner that works across multiple frameworks 
 Open the VibeCLI REPL and run tests.
 
 ```bash
-vibecli repl
+vibecli
 ```
 
 ```

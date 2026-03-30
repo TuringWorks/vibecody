@@ -12,7 +12,7 @@ VibeCody provides comprehensive Kubernetes management through the CLI and the Vi
 
 ## Prerequisites
 
-- VibeCody installed (`vibecli --version` returns 0.1+)
+- VibeCody installed (`vibecli --version` returns 0.5.1+)
 - `kubectl` installed and configured with access to a cluster:
 
 ```bash

@@ -36,7 +36,7 @@ Run a compliance scan to evaluate all 15 controls and produce a score.
 **CLI:**
 
 ```bash
-vibecli compliance status
+vibecli --compliance status
 ```
 
 Example output:
@@ -74,7 +74,7 @@ VibeCody records 10 action types in the audit log. Each entry includes a timesta
 **CLI:**
 
 ```bash
-vibecli compliance audit-log --last 20
+vibecli --compliance audit-log --last 20
 ```
 
 Example output:
@@ -138,13 +138,13 @@ PII redaction detects and sanitizes sensitive data in AI inputs and outputs. Fou
 **CLI:**
 
 ```bash
-vibecli compliance pii-config --strategy mask --types email,api-key,ip,name
+vibecli --compliance pii-config --strategy mask --types email,api-key,ip,name
 ```
 
 **CLI (test redaction):**
 
 ```bash
-vibecli compliance pii-test "Contact alice@example.com or call 192.168.1.1"
+vibecli --compliance pii-test "Contact alice@example.com or call 192.168.1.1"
 ```
 
 Example output:
@@ -166,7 +166,7 @@ Produce a Markdown report suitable for sharing with auditors. The report include
 **CLI:**
 
 ```bash
-vibecli compliance report --format markdown --output compliance-report-2026-03.md
+vibecli --compliance report --format markdown --output compliance-report-2026-03.md
 ```
 
 Example output file excerpt:
@@ -198,7 +198,7 @@ Configure how long audit logs, session data, and generated artifacts are retaine
 **CLI:**
 
 ```bash
-vibecli compliance retention --audit-logs 365d --sessions 90d --artifacts 180d
+vibecli --compliance retention --audit-logs 365d --sessions 90d --artifacts 180d
 ```
 
 Example output:
@@ -218,7 +218,7 @@ Review role-based access control settings and trigger key rotation.
 **CLI (view RBAC):**
 
 ```bash
-vibecli compliance rbac list
+vibecli --compliance rbac list
 ```
 
 Example output:
@@ -234,7 +234,7 @@ Roles:
 **CLI (rotate keys):**
 
 ```bash
-vibecli compliance rotate-keys --provider anthropic
+vibecli --compliance rotate-keys --provider anthropic
 ```
 
 Example output:
@@ -254,7 +254,7 @@ Run compliance checks on a schedule to catch regressions early.
 **CLI:**
 
 ```bash
-vibecli compliance watch --interval 1h
+vibecli --compliance watch --interval 1h
 ```
 
 This runs a compliance scan every hour and alerts on any score changes.
@@ -269,42 +269,42 @@ This runs a compliance scan every hour and alerts on any score changes.
   "steps": [
     {
       "action": "cli_command",
-      "command": "vibecli compliance status",
+      "command": "vibecli --compliance status",
       "description": "Run compliance scan and view score across 15 controls"
     },
     {
       "action": "cli_command",
-      "command": "vibecli compliance audit-log --last 20",
+      "command": "vibecli --compliance audit-log --last 20",
       "description": "Review recent audit log entries"
     },
     {
       "action": "cli_command",
-      "command": "vibecli compliance pii-config --strategy mask --types email,api-key,ip,name",
+      "command": "vibecli --compliance pii-config --strategy mask --types email,api-key,ip,name",
       "description": "Configure PII redaction strategy and types"
     },
     {
       "action": "cli_command",
-      "command": "vibecli compliance pii-test \"Contact alice@example.com or call 192.168.1.1\"",
+      "command": "vibecli --compliance pii-test \"Contact alice@example.com or call 192.168.1.1\"",
       "description": "Test PII redaction on sample text"
     },
     {
       "action": "cli_command",
-      "command": "vibecli compliance report --format markdown --output compliance-report-2026-03.md",
+      "command": "vibecli --compliance report --format markdown --output compliance-report-2026-03.md",
       "description": "Generate a Markdown compliance report for auditors"
     },
     {
       "action": "cli_command",
-      "command": "vibecli compliance retention --audit-logs 365d --sessions 90d --artifacts 180d",
+      "command": "vibecli --compliance retention --audit-logs 365d --sessions 90d --artifacts 180d",
       "description": "Configure data retention policies"
     },
     {
       "action": "cli_command",
-      "command": "vibecli compliance rbac list",
+      "command": "vibecli --compliance rbac list",
       "description": "View RBAC roles and assignments"
     },
     {
       "action": "cli_command",
-      "command": "vibecli compliance rotate-keys --provider anthropic",
+      "command": "vibecli --compliance rotate-keys --provider anthropic",
       "description": "Rotate API keys with audit logging"
     },
     {

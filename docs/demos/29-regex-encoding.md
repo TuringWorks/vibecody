@@ -25,7 +25,7 @@ This demo covers seven developer utility panels in VibeCody: Regex pattern teste
 #### Step 1: Test a regex pattern
 
 ```bash
-vibecli repl
+vibecli
 > /regex test --pattern "\b[A-Z][a-z]+\b" --input "Hello World from VibeCody"
 ```
 

@@ -43,7 +43,7 @@ vibecody/
 ├── vibeui/
 │   ├── src/                      # React + TypeScript frontend
 │   │   ├── App.tsx               # Root component, keyboard shortcuts
-│   │   └── components/           # 162+ panel components
+│   │   └── components/           # 187 panel components
 │   ├── src-tauri/src/
 │   │   ├── lib.rs                # Tauri command registration (200+ commands)
 │   │   ├── commands.rs           # All Tauri command implementations
@@ -132,7 +132,7 @@ npm run typecheck    # TypeScript type checking
 ### Running Tests
 
 ```bash
-# Full workspace (7,400+ tests)
+# Full workspace (9,570 tests)
 cargo test --workspace --exclude vibe-collab
 
 # Single crate with output

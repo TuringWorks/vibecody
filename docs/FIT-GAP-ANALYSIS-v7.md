@@ -5,7 +5,7 @@ permalink: /fit-gap-analysis-v7/
 ---
 
 
-**Date:** 2026-03-26
+**Date:** 2026-03-26 | **Updated:** 2026-03-29
 **Previous analysis:** FIT-GAP-ANALYSIS-v6.md (2026-03-20)
 **Focus:** Agentic systems, open-source agents, new AI paradigms, protocol standards — 22 new gaps across 35+ competitors
 
@@ -19,7 +19,9 @@ Six days since v6, the agentic coding landscape has crystallized around five meg
 4. **Open-source agent explosion** — OpenHands (188+ contributors), Open-SWE (7,700 stars in days), Goose (Block/Square), Junie CLI (now OSS). Building a coding agent from scratch is now commoditized.
 5. **Cost-efficiency as differentiator** — Moatless solves issues at $0.01, Agentless at $0.34. Smart model routing and MCTS-based repair challenge the "throw frontier models at everything" approach.
 
-VibeCody v6 gaps are **all closed** (19/19, Phases 15-22 complete). This v7 identifies **22 new gaps** across 4 priority tiers based on 35+ tool analysis.
+VibeCody v6 gaps are **all closed** (19/19, Phases 15-22 complete). This v7 identified **22 new gaps** across 4 priority tiers based on 35+ tool analysis.
+
+> **STATUS (2026-03-29): ALL 22 v7 GAPS CLOSED.** Phases 23-31 complete. Phase 32 added 6 additional modules (context protocol, code review agent, diff review, code replay, speculative execution, explainable agent). TurboQuant KV-cache compression also shipped. Current totals: **9,570 tests**, **185 Rust modules**, **187 VibeUI panels**, **568 skill files**, **23 AI providers**.
 
 **New competitors/updates since v6:** Warp 2.0 ADE, JetBrains Junie CLI (OSS), Open-SWE (LangChain), Gemini CLI 1.0, Augment Intent GA, Moatless Tools, Agentless, Jules Tools CLI
 
@@ -104,45 +106,45 @@ VibeCody v6 gaps are **all closed** (19/19, Phases 15-22 complete). This v7 iden
 |-----------|--------|
 | **What** | Google's Agent-to-Agent protocol enables agents from different vendors to discover, negotiate capabilities, and collaborate as peers (not just tools) |
 | **Who ships it** | Google A2A SDK, 100+ corporate backers, Linux Foundation governance |
-| **VibeCody status** | `acp_protocol.rs` implements ACP (Agent Client Protocol) but NOT A2A. A2A is complementary: MCP = tool access, ACP = agent hosting, A2A = agent-to-agent communication |
-| **Gap** | No A2A agent card, no A2A server/client, no capability negotiation with external agents |
-| **Deliverable** | `a2a_protocol.rs` — A2A agent card generation, server mode (expose VibeCody as an A2A agent), client mode (discover and collaborate with external A2A agents), task lifecycle management |
+| **VibeCody status** | **CLOSED** — `a2a_protocol.rs` implements full A2A: agent card generation, server/client modes, task lifecycle, SSE streaming, capability negotiation. Integrated with `acp_protocol.rs`. Shipped in Phase 23 (ce6ac1e). |
+| **Gap** | ~~No A2A agent card, no A2A server/client, no capability negotiation with external agents~~ |
+| **Deliverable** | `a2a_protocol.rs` + `A2aPanel.tsx` + `/a2a` REPL command — **SHIPPED** |
 
 #### Gap 2: Parallel Worktree Agent Execution
 | Dimension | Detail |
 |-----------|--------|
 | **What** | Run N agents in parallel, each in an isolated git worktree with its own branch, full file system isolation |
 | **Who ships it** | Cursor (8 parallel agents in worktrees), Windsurf Wave 13 (parallel Cascade sessions), Claude Code (sub-agent spawning) |
-| **VibeCody status** | `branch_agent.rs` does single-branch agents; `vm_orchestrator.rs` does Docker containers. No native git worktree parallelism without Docker overhead |
-| **Gap** | Cannot spin up 4-8 lightweight agent workers using `git worktree` without container overhead |
-| **Deliverable** | `worktree_pool.rs` — Worktree lifecycle management, parallel agent dispatcher, merge conflict detection across worktrees, progress aggregation, auto-PR per worktree |
+| **VibeCody status** | **CLOSED** — `worktree_pool.rs` implements full worktree pool with parallel agent dispatch, merge orchestration, and auto-PR. Shipped in Phase 24 (3c7de4a). |
+| **Gap** | ~~Cannot spin up 4-8 lightweight agent workers using `git worktree` without container overhead~~ |
+| **Deliverable** | `worktree_pool.rs` + `WorktreePoolPanel.tsx` + `/worktree` REPL command — **SHIPPED** |
 
 #### Gap 3: Proactive Agent Intelligence
 | Dimension | Detail |
 |-----------|--------|
 | **What** | Agent scans codebase and proactively suggests improvements, identifies bugs, tech debt, performance issues — without being asked |
 | **Who ships it** | Jules (proactive optimization), Codex Automations (autonomous triage), Cursor Automations (learn across runs) |
-| **VibeCody status** | All current agent modes are reactive (user initiates). `automations.rs` triggers on events but doesn't learn or proactively scan |
-| **Gap** | No proactive scanning mode; no learning from previous automation runs |
-| **Deliverable** | `proactive_agent.rs` — Background scanner with configurable cadence, issue categorization (perf/security/debt/correctness), confidence scoring, learning store (what was accepted/rejected), priority ranking |
+| **VibeCody status** | **CLOSED** — `proactive_agent.rs` implements background scanner with configurable cadence, issue categorization, confidence scoring, and learning store. Shipped in Phase 25 (3c7de4a). |
+| **Gap** | ~~No proactive scanning mode; no learning from previous automation runs~~ |
+| **Deliverable** | `proactive_agent.rs` + `ProactivePanel.tsx` + `/proactive` REPL command — **SHIPPED** |
 
 #### Gap 4: Web Search Grounding in Agent Loop
 | Dimension | Detail |
 |-----------|--------|
 | **What** | Agent can natively search the web during code generation to find API docs, library usage, error solutions |
 | **Who ships it** | Gemini CLI (Google Search grounding built-in), Devin (full internet access), Cursor Background Agents (internet access in VMs) |
-| **VibeCody status** | `web_crawler.rs` fetches known URLs. No integration of web search results into the agent reasoning loop |
-| **Gap** | Agent cannot search the web mid-task to resolve unknowns; must rely on training data or user-provided URLs |
-| **Deliverable** | `web_grounding.rs` — Search provider abstraction (Google, Bing, Brave, SearXNG), result ranking/filtering, citation tracking, agent tool integration (`search_web` tool in system prompt), rate limiting, cache |
+| **VibeCody status** | **CLOSED** — `web_grounding.rs` implements search provider abstraction (Google, Bing, Brave, SearXNG, Tavily), result ranking, citation tracking, agent tool integration, rate limiting, and caching. Shipped in Phase 26 (574bf0a). |
+| **Gap** | ~~Agent cannot search the web mid-task to resolve unknowns~~ |
+| **Deliverable** | `web_grounding.rs` + `WebGroundingPanel.tsx` + `/search` REPL command — **SHIPPED** |
 
 #### Gap 5: Deep Semantic Codebase Index
 | Dimension | Detail |
 |-----------|--------|
 | **What** | Full semantic understanding of codebase: function signatures, class hierarchies, import chains, API contracts, call graphs — not just embeddings |
 | **Who ships it** | Augment Context Engine (100K+ files), Sourcegraph Cody (cross-repo graph), Supermaven Long Context (1M tokens) |
-| **VibeCody status** | `embeddings.rs` in vibe-core does vector search; `fast_context.rs` does grep-based context. No AST-level semantic graph |
-| **Gap** | Cannot answer "what calls this function across the codebase?" or "what's the full type hierarchy for this interface?" without LSP |
-| **Deliverable** | `semantic_index.rs` — Tree-sitter AST parsing for 20+ languages, call graph extraction, type hierarchy mapping, import chain resolution, incremental updates on file change, query API (callers, callees, implementations, dependents) |
+| **VibeCody status** | **CLOSED** — `semantic_index.rs` implements AST-level codebase understanding with call graph extraction, type hierarchy mapping, import chain resolution, incremental updates, and query API. Shipped in Phase 26 (574bf0a). |
+| **Gap** | ~~Cannot answer "what calls this function across the codebase?" without LSP~~ |
+| **Deliverable** | `semantic_index.rs` + `SemanticIndexPanel.tsx` + `/index` REPL command — **SHIPPED** |
 
 ---
 
@@ -153,54 +155,54 @@ VibeCody v6 gaps are **all closed** (19/19, Phases 15-22 complete). This v7 iden
 |-----------|--------|
 | **What** | Open standard for agent skills interoperable across Claude Code, Cursor, Gemini CLI, Junie — 1,234+ community skills |
 | **Who ships it** | Anthropic (introduced), adopted by Cursor, Gemini CLI, JetBrains Junie |
-| **VibeCody status** | 511+ skill files in proprietary markdown format. Not compatible with the cross-tool standard |
-| **Gap** | VibeCody skills cannot be shared to/from the community standard; users must maintain separate skill sets |
-| **Deliverable** | `agent_skills_compat.rs` — Import/export standard Agent Skills format, skill discovery from community registries, bidirectional conversion (VibeCody ↔ standard), skill validation |
+| **VibeCody status** | **CLOSED** — `agent_skills_compat.rs` implements import/export of standard Agent Skills format, community registry discovery, bidirectional conversion, and skill validation. 568 skill files. Shipped in Phase 23 (ce6ac1e). |
+| **Gap** | ~~VibeCody skills cannot be shared to/from the community standard~~ |
+| **Deliverable** | `agent_skills_compat.rs` + `/skills import|export|search|validate` — **SHIPPED** |
 
 #### Gap 7: MCP Streamable HTTP + OAuth 2.1
 | Dimension | Detail |
 |-----------|--------|
 | **What** | Next-gen MCP transport: Streamable HTTP for remote servers (replacing SSE), OAuth 2.1 for enterprise authentication |
 | **Who ships it** | MCP 2026 roadmap (official), GitHub Copilot (auto-approve MCP), Cursor (MCP Apps) |
-| **VibeCody status** | `mcp_server.rs` supports stdio and basic HTTP. No Streamable HTTP transport, no OAuth 2.1 |
-| **Gap** | Cannot serve as a remote MCP server with enterprise auth; cannot connect to OAuth-protected remote MCP servers |
-| **Deliverable** | `mcp_streamable.rs` — Streamable HTTP transport implementation, OAuth 2.1 client/server, token refresh, PKCE flow, enterprise SSO integration |
+| **VibeCody status** | **CLOSED** — `mcp_streamable.rs` implements Streamable HTTP transport, OAuth 2.1 client/server, PKCE flow, token refresh, enterprise SSO integration, connection pooling, and backward compatibility. Shipped in Phase 27. |
+| **Gap** | ~~Cannot serve as a remote MCP server with enterprise auth~~ |
+| **Deliverable** | `mcp_streamable.rs` + extended McpPanel — **SHIPPED** |
 
 #### Gap 8: MCTS Code Repair Strategy
 | Dimension | Detail |
 |-----------|--------|
 | **What** | Monte Carlo Tree Search applied to code repair: explore multiple fix paths, evaluate with test execution, backtrack on failures |
 | **Who ships it** | Moatless Tools (39% SWE-bench, $0.01-$0.14/issue), SWE-Agent (65% with mini-SWE-agent) |
-| **VibeCody status** | Agent uses linear ReAct loop. `auto_research.rs` has Bayesian/Genetic search but not applied to code repair |
-| **Gap** | No tree-search code repair; agent commits to first fix attempt without exploring alternatives |
-| **Deliverable** | `mcts_repair.rs` — MCTS with UCB1 selection, rollout via test execution, reward function (tests pass + minimal diff + no regressions), configurable depth/breadth, cost-tracking per exploration |
+| **VibeCody status** | **CLOSED** — `mcts_repair.rs` implements MCTS with UCB1 selection, rollout via test execution, configurable reward function, depth/breadth control, agentless mode, and cost tracking. Shipped in Phase 28. |
+| **Gap** | ~~No tree-search code repair; agent commits to first fix attempt~~ |
+| **Deliverable** | `mcts_repair.rs` + `MctsRepairPanel.tsx` + `/repair` REPL command — **SHIPPED** |
 
 #### Gap 9: Multi-Agent Terminal Hosting
 | Dimension | Detail |
 |-----------|--------|
 | **What** | Single terminal/REPL hosting multiple AI agents simultaneously, each with independent context |
 | **Who ships it** | Warp 2.0 (hosts Claude Code + Codex + Gemini CLI + Oz), JetBrains Junie (works alongside other agents) |
-| **VibeCody status** | REPL runs one agent at a time. `multi_agent.rs` coordinates but in same process |
-| **Gap** | Cannot host external agents (Claude Code, Gemini CLI) alongside VibeCody agent in same session |
-| **Deliverable** | `agent_host.rs` — External agent process manager, shared terminal multiplexing, context isolation, output interleaving, agent selection/routing |
+| **VibeCody status** | **CLOSED** — `agent_host.rs` implements external agent process manager, terminal multiplexing, context isolation, output interleaving, and agent selection/routing. Shipped in Phase 24 (3c7de4a). |
+| **Gap** | ~~Cannot host external agents alongside VibeCody agent in same session~~ |
+| **Deliverable** | `agent_host.rs` + `AgentHostPanel.tsx` + `/host` REPL command — **SHIPPED** |
 
 #### Gap 10: Autonomous Issue Triage
 | Dimension | Detail |
 |-----------|--------|
 | **What** | Agent autonomously triages incoming GitHub/Linear issues: classifies, labels, assigns, drafts initial response, links to related code |
 | **Who ships it** | OpenAI Codex Automations, Cursor Automations (with memory across runs), GitHub Copilot Coding Agent |
-| **VibeCody status** | `linear.rs` and `github_app.rs` read issues but don't auto-triage. `automations.rs` can trigger but lacks triage logic |
-| **Gap** | No autonomous issue classification, labeling, or initial response generation |
-| **Deliverable** | `issue_triage.rs` — Issue classifier (bug/feature/question/docs), severity estimator, auto-labeler, code-linking (which files relate), draft response generator, triage memory (learn from user corrections) |
+| **VibeCody status** | **CLOSED** — `issue_triage.rs` implements autonomous issue classification, severity estimation, auto-labeling, code-linking, draft response generation, and triage memory. Shipped in Phase 25 (3c7de4a). |
+| **Gap** | ~~No autonomous issue classification, labeling, or initial response generation~~ |
+| **Deliverable** | `issue_triage.rs` + `TriagePanel.tsx` + `/triage` REPL command — **SHIPPED** |
 
 #### Gap 11: Visual Verification via Computer Use
 | Dimension | Detail |
 |-----------|--------|
 | **What** | Agent takes screenshots of running application and compares against expected design to verify UI correctness |
 | **Who ships it** | Warp Oz (Computer Use for visual verification), Claude Computer Use, Playwright MCP |
-| **VibeCody status** | `computer_use.rs` exists but focused on desktop interaction, not visual verification/comparison |
-| **Gap** | Cannot automatically verify that a UI change matches the intended design by visual comparison |
-| **Deliverable** | `visual_verify.rs` — Screenshot capture of running app (headless Chrome/Playwright), visual diff against reference images, perceptual hashing, design compliance scoring, integration with CI pipeline |
+| **VibeCody status** | **CLOSED** — `visual_verify.rs` implements screenshot capture via CDP/Playwright, visual diff with perceptual hashing, reference baselines, design compliance scoring, responsive verification, and CI integration. Shipped in Phase 29. |
+| **Gap** | ~~Cannot automatically verify that a UI change matches the intended design~~ |
+| **Deliverable** | `visual_verify.rs` + `VisualVerifyPanel.tsx` + `/verify` REPL command — **SHIPPED** |
 
 ---
 
@@ -211,54 +213,54 @@ VibeCody v6 gaps are **all closed** (19/19, Phases 15-22 complete). This v7 iden
 |-----------|--------|
 | **What** | Smart routing of tasks to the cheapest model/strategy that meets quality threshold |
 | **Who ships it** | Moatless ($0.01/issue with DeepSeek), Agentless ($0.34/issue), Cursor credits system |
-| **VibeCody status** | `failover.rs` routes on failure. No cost-aware routing that considers task complexity |
-| **Gap** | All tasks use the same model regardless of difficulty; no cost optimization |
-| **Deliverable** | `cost_router.rs` — Task complexity estimator, model cost database, quality-vs-cost optimizer, A/B routing with feedback loop, per-task cost tracking, budget enforcement |
+| **VibeCody status** | **CLOSED** — `cost_router.rs` implements task complexity estimation, model cost database, quality-vs-cost optimizer, A/B routing with feedback loop, per-task cost tracking, and budget enforcement. Shipped in Phase 28. |
+| **Gap** | ~~All tasks use the same model regardless of difficulty; no cost optimization~~ |
+| **Deliverable** | `cost_router.rs` + `CostRouterPanel.tsx` + `/route` REPL command — **SHIPPED** |
 
 #### Gap 13: Next-Task Prediction
 | Dimension | Detail |
 |-----------|--------|
 | **What** | Predict developer's next action at workflow level (not just next edit) and pre-compute suggestions |
 | **Who ships it** | JetBrains Junie (next-task prediction), GitHub Copilot (Next Edit Suggestions) |
-| **VibeCody status** | `edit_prediction.rs` predicts next edit location. No workflow-level prediction (e.g., "you'll probably want to write tests for this next") |
-| **Gap** | Cannot predict and suggest workflow-level next steps |
-| **Deliverable** | `next_task.rs` — Workflow state machine, developer intent inference from recent actions, task suggestion engine (write tests, update docs, run lint, commit, deploy), confidence scoring, accept/reject learning |
+| **VibeCody status** | **CLOSED** — `next_task.rs` implements workflow state machine, developer intent inference, task suggestion engine, confidence scoring, and accept/reject feedback loop. Shipped in Phase 29. |
+| **Gap** | ~~Cannot predict and suggest workflow-level next steps~~ |
+| **Deliverable** | `next_task.rs` + `NextTaskPanel.tsx` + `/nexttask` REPL command — **SHIPPED** |
 
 #### Gap 14: Native Integration Connectors
 | Dimension | Detail |
 |-----------|--------|
 | **What** | Pre-built connectors for 30+ services (Stripe, Figma, Notion, Salesforce, Jira, etc.) that go beyond MCP |
 | **Who ships it** | Replit Agent (30+ integrations), Bolt.new (Bolt Cloud), Lovable (expanding integrations) |
-| **VibeCody status** | MCP provides generic tool access. No native, zero-config connectors for popular services |
-| **Gap** | Users must configure MCP servers manually for each service |
-| **Deliverable** | `native_connectors.rs` — Pre-built connector trait + implementations for top 20 services (Stripe, Figma, Notion, Jira, Slack, PagerDuty, Datadog, Sentry, LaunchDarkly, Vercel, Netlify, Supabase, Firebase, AWS, GCP, Azure, GitHub, GitLab, Linear, Confluence), auto-discovery, OAuth flow management |
+| **VibeCody status** | **CLOSED** — `native_connectors.rs` implements connector trait + 20 service implementations, auto-discovery, OAuth flow management, webhook receiver, and agent tool generation. Shipped in Phase 30. |
+| **Gap** | ~~Users must configure MCP servers manually for each service~~ |
+| **Deliverable** | `native_connectors.rs` + `ConnectorsPanel.tsx` + `/connect` REPL command — **SHIPPED** |
 
 #### Gap 15: Offline Voice Coding
 | Dimension | Detail |
 |-----------|--------|
 | **What** | Voice-to-code without internet dependency; runs speech recognition locally on device |
 | **Who ships it** | Aider (offline Mac voice, 3.75x faster than typing), Whisper.cpp local |
-| **VibeCody status** | `voice.rs` requires Groq Whisper API (cloud-dependent) |
-| **Gap** | Voice coding unusable offline or in air-gapped environments |
-| **Deliverable** | `voice_local.rs` — whisper.cpp integration for local speech recognition, voice activity detection, streaming transcription, fallback to Groq when online, configurable model size (tiny/base/small/medium) |
+| **VibeCody status** | **CLOSED** — `voice_local.rs` implements whisper.cpp integration for local speech recognition, voice activity detection, streaming transcription, Groq fallback, and configurable model sizes. Shipped in Phase 29. |
+| **Gap** | ~~Voice coding unusable offline or in air-gapped environments~~ |
+| **Deliverable** | `voice_local.rs` + `/voice local` REPL command — **SHIPPED** |
 
 #### Gap 16: Living Documentation Sync
 | Dimension | Detail |
 |-----------|--------|
 | **What** | Bidirectional sync between specs/docs and code — code changes update docs, doc changes generate tasks |
 | **Who ships it** | Kiro (bidirectional spec-code sync), Augment Intent (living documents) |
-| **VibeCody status** | `spec_pipeline.rs` generates specs → code. No reverse sync (code → spec update) |
-| **Gap** | Specs drift from implementation over time; no automatic reconciliation |
-| **Deliverable** | `doc_sync.rs` — Code change detection, spec impact analysis, auto-update proposals, doc freshness scoring, drift alerts, bidirectional reconciliation engine |
+| **VibeCody status** | **CLOSED** — `doc_sync.rs` implements bidirectional spec-code sync with code change detection, spec impact analysis, auto-update proposals, doc freshness scoring, drift alerts, and reconciliation engine. Shipped in Phase 29. |
+| **Gap** | ~~Specs drift from implementation over time; no automatic reconciliation~~ |
+| **Deliverable** | `doc_sync.rs` + `DocSyncPanel.tsx` + `/docsync` REPL command — **SHIPPED** |
 
 #### Gap 17: Enterprise Agent Analytics
 | Dimension | Detail |
 |-----------|--------|
 | **What** | Admin dashboards showing per-user/team agent usage, acceptance rates, cost, productivity impact |
 | **Who ships it** | GitHub Copilot (per-user CCA metrics), Cursor Enterprise, Tabnine governance |
-| **VibeCody status** | `usage_metering.rs` tracks credits. No admin-facing analytics dashboard with acceptance rates |
-| **Gap** | No enterprise visibility into agent effectiveness or ROI |
-| **Deliverable** | `agent_analytics.rs` — Per-user/team metrics (suggestions accepted/rejected, time saved, cost, lines generated), exportable reports, trend analysis, ROI calculator, integration with existing admin panel |
+| **VibeCody status** | **CLOSED** — `agent_analytics.rs` implements per-user/team metrics, acceptance rates, cost analytics, ROI calculator, exportable reports, and trend analysis. Shipped in Phase 30. |
+| **Gap** | ~~No enterprise visibility into agent effectiveness or ROI~~ |
+| **Deliverable** | `agent_analytics.rs` + `AnalyticsPanel.tsx` + `/analytics` REPL command — **SHIPPED** |
 
 ---
 
@@ -269,45 +271,45 @@ VibeCody v6 gaps are **all closed** (19/19, Phases 15-22 complete). This v7 iden
 |-----------|--------|
 | **What** | Reinforcement Learning from Code Execution Feedback — use test results and runtime signals to improve agent behavior |
 | **Who ships it** | Poolside ($12B valuation, RLCEF-trained models), Magic.dev (100M token context) |
-| **VibeCody status** | No execution-based feedback loop. Agent doesn't learn from whether its code ran correctly |
-| **Gap** | Agent makes the same class of mistakes repeatedly; no runtime learning |
-| **Deliverable** | `rlcef_loop.rs` — Execution outcome tracking (pass/fail/error), reward signal computation, strategy adjustment based on accumulated outcomes, mistake pattern database, per-language/framework error clustering |
+| **VibeCody status** | **CLOSED** — `rlcef_loop.rs` implements execution outcome tracking, reward signal computation, strategy adjustment, mistake pattern database, per-language error clustering, and training data export. Shipped in Phase 31. |
+| **Gap** | ~~Agent makes the same class of mistakes repeatedly; no runtime learning~~ |
+| **Deliverable** | `rlcef_loop.rs` + `RlcefPanel.tsx` + `/rlcef` REPL command — **SHIPPED** |
 
 #### Gap 19: LangGraph/Deep Agent Pipeline Compatibility
 | Dimension | Detail |
 |-----------|--------|
 | **What** | Compatibility with LangChain/LangGraph agent pipelines for building custom async coding agents |
 | **Who ships it** | Open-SWE (LangGraph Deep Agents), LangChain ecosystem |
-| **VibeCody status** | Proprietary agent loop in Rust. Not composable with Python/LangGraph agent ecosystem |
-| **Gap** | Cannot serve as a node in a LangGraph pipeline or consume LangGraph agent outputs |
-| **Deliverable** | `langgraph_bridge.rs` — LangGraph-compatible REST API, agent state serialization, checkpoint format compatibility, event stream adapter, Python SDK wrapper |
+| **VibeCody status** | **CLOSED** — `langgraph_bridge.rs` implements LangGraph-compatible REST API, agent state serialization, checkpoint format compatibility, event stream adapter, and composable pipeline nodes. Shipped in Phase 31. |
+| **Gap** | ~~Cannot serve as a node in a LangGraph pipeline~~ |
+| **Deliverable** | `langgraph_bridge.rs` + `LangGraphPanel.tsx` + `/langgraph` REPL command — **SHIPPED** |
 
 #### Gap 20: Sketch-to-3D / Design Canvas
 | Dimension | Detail |
 |-----------|--------|
 | **What** | Sketch or wireframe on a canvas and generate 3D/interactive UI from the sketch |
 | **Who ships it** | Replit Agent 4 (Design Canvas, sketch-to-3D), Trae (multimodal design-to-code) |
-| **VibeCody status** | `design_import.rs` imports Figma/images to code. No freeform sketch canvas |
-| **Gap** | No in-app sketch/drawing surface for rapid design iteration |
-| **Deliverable** | `sketch_canvas.rs` — Canvas drawing primitives, shape recognition (button, input, card, list, nav), wireframe-to-component mapping, 3D scene generation for Three.js/React Three Fiber, export to SVG/PNG |
+| **VibeCody status** | **CLOSED** — `sketch_canvas.rs` implements canvas drawing primitives, shape recognition, wireframe-to-component mapping, 3D scene generation, and SVG/PNG export. Shipped in Phase 31. |
+| **Gap** | ~~No in-app sketch/drawing surface for rapid design iteration~~ |
+| **Deliverable** | `sketch_canvas.rs` + `SketchCanvasPanel.tsx` + `/sketch` REPL command — **SHIPPED** |
 
 #### Gap 21: Agent Reputation & Trust Scoring
 | Dimension | Detail |
 |-----------|--------|
 | **What** | Trust scoring for agent outputs based on historical accuracy, test pass rates, review acceptance |
 | **Who ships it** | Emerging in Devin (67% merge rate as trust signal), GitHub Copilot (self-review confidence) |
-| **VibeCody status** | No tracking of agent output quality over time |
-| **Gap** | All agent outputs treated with equal confidence; no historical quality signal |
-| **Deliverable** | `agent_trust.rs` — Per-agent/model trust score, rolling accuracy window, confidence calibration, auto-review threshold (high-trust = auto-merge, low-trust = manual review), trust decay on failures |
+| **VibeCody status** | **CLOSED** — `agent_trust.rs` implements per-agent/model trust scoring, rolling accuracy windows, confidence calibration, auto-review thresholds, trust decay, and per-domain trust. Shipped in Phase 30. |
+| **Gap** | ~~All agent outputs treated with equal confidence; no historical quality signal~~ |
+| **Deliverable** | `agent_trust.rs` + `TrustPanel.tsx` + `/trust` REPL command — **SHIPPED** |
 
 #### Gap 22: Agentic Package Manager
 | Dimension | Detail |
 |-----------|--------|
 | **What** | Agent-native package/dependency management: auto-detect needed packages, resolve conflicts, generate lockfiles, handle security advisories |
 | **Who ships it** | Amazon Q Developer (code transformation), Tabnine (Jira-to-code with auto-deps), Replit (auto-installs) |
-| **VibeCody status** | `deps.rs` (assumed from DepsPanel.tsx) manages dependencies. No agent-native smart resolution |
-| **Gap** | Agent cannot autonomously resolve dependency conflicts, choose between alternative packages based on criteria, or auto-patch vulnerabilities |
-| **Deliverable** | `smart_deps.rs` — Dependency graph analysis, conflict resolution strategies, alternative package comparison (downloads, maintenance, security), auto-patch for CVEs, lockfile management, monorepo-aware |
+| **VibeCody status** | **CLOSED** — `smart_deps.rs` implements dependency graph analysis, conflict resolution, package comparison, CVE auto-patching, lockfile management, monorepo support, and license compliance. Shipped in Phase 30. |
+| **Gap** | ~~Agent cannot autonomously resolve dependency conflicts~~ |
+| **Deliverable** | `smart_deps.rs` + `SmartDepsPanel.tsx` + `/deps` REPL command — **SHIPPED** |
 
 ---
 
@@ -315,23 +317,23 @@ VibeCody v6 gaps are **all closed** (19/19, Phases 15-22 complete). This v7 iden
 
 | Capability | VibeCody | Cursor | Claude Code | Copilot | Kiro | Warp 2.0 | Gemini CLI | Junie | Augment | Devin |
 |-----------|----------|--------|-------------|---------|------|----------|------------|-------|---------|-------|
-| A2A Protocol | GAP | Partial | Partial | No | No | No | Partial | No | No | No |
-| Parallel Worktrees | GAP | **8 agents** | Sub-agents | CCA | No | Multi-agent | No | No | Multi-agent | Full VM |
-| Proactive Agent | GAP | Automations | Channels | Partial | No | No | No | Next-task | Intent | Partial |
-| Web Search Grounding | GAP | VM internet | No | No | No | No | **Built-in** | No | No | Full internet |
-| Deep Semantic Index | GAP | Partial | No | No | No | No | No | No | **100K files** | No |
-| MCP OAuth 2.1 | GAP | Partial | Partial | Auto-approve | No | No | Partial | One-click | No | No |
-| MCTS Repair | GAP | No | No | No | No | No | No | No | No | No |
-| Agent Skills Std | GAP | **1,234+** | **1,234+** | No | No | No | **1,234+** | **1,234+** | No | No |
-| Cost Routing | GAP | Credits | No | Premium req | No | No | Free tier | BYOK | Enterprise | ACU |
-| Visual Verify | GAP | No | Comp Use | No | No | **Oz CU** | No | No | No | Comp Use |
-| Issue Triage | GAP | Automations | Channels | CCA | No | No | No | No | No | Auto |
-| Living Doc Sync | GAP | No | No | No | **Bidir** | No | No | No | **Intent** | No |
-| Offline Voice | GAP | No | No | No | No | No | No | No | No | No |
-| Next-Task | GAP | No | No | NES | No | No | No | **Predicts** | No | No |
-| Agent Analytics | GAP | Enterprise | Teams | **Per-user** | No | No | No | No | Enterprise | Dashboard |
+| A2A Protocol | **Full** | Partial | Partial | No | No | No | Partial | No | No | No |
+| Parallel Worktrees | **Pool+Host** | **8 agents** | Sub-agents | CCA | No | Multi-agent | No | No | Multi-agent | Full VM |
+| Proactive Agent | **Full** | Automations | Channels | Partial | No | No | No | Next-task | Intent | Partial |
+| Web Search Grounding | **5 providers** | VM internet | No | No | No | No | **Built-in** | No | No | Full internet |
+| Deep Semantic Index | **AST+Graph** | Partial | No | No | No | No | No | No | **100K files** | No |
+| MCP OAuth 2.1 | **Full** | Partial | Partial | Auto-approve | No | No | Partial | One-click | No | No |
+| MCTS Repair | **Full** | No | No | No | No | No | No | No | No | No |
+| Agent Skills Std | **568+compat** | **1,234+** | **1,234+** | No | No | No | **1,234+** | **1,234+** | No | No |
+| Cost Routing | **Full** | Credits | No | Premium req | No | No | Free tier | BYOK | Enterprise | ACU |
+| Visual Verify | **Full** | No | Comp Use | No | No | **Oz CU** | No | No | No | Comp Use |
+| Issue Triage | **Full** | Automations | Channels | CCA | No | No | No | No | No | Auto |
+| Living Doc Sync | **Bidir** | No | No | No | **Bidir** | No | No | No | **Intent** | No |
+| Offline Voice | **whisper.cpp** | No | No | No | No | No | No | No | No | No |
+| Next-Task | **Full** | No | No | NES | No | No | No | **Predicts** | No | No |
+| Agent Analytics | **Full** | Enterprise | Teams | **Per-user** | No | No | No | No | Enterprise | Dashboard |
 
-Legend: **Bold** = industry-leading, Partial = some implementation, GAP = not present, No = competitor lacks it too
+Legend: **Bold** = industry-leading, Partial = some implementation, No = competitor lacks it too
 
 ---
 
@@ -426,31 +428,34 @@ Legend: **Bold** = industry-leading, Partial = some implementation, GAP = not pr
 
 ## Part E — Estimated Impact
 
-| Phase | Gaps | New Modules | Est. Tests | New Panels | Priority |
-|-------|------|-------------|------------|------------|----------|
-| 23 | 1, 6 | 2 | 90+ | 1 | P0 |
-| 24 | 2, 9 | 2 | 90+ | 2 | P0 |
-| 25 | 3, 10 | 2 | 85+ | 2 | P0 |
-| 26 | 4, 5 | 2 | 95+ | 2 | P0/P1 |
-| 27 | 7 | 1 | 45+ | 0 (extends) | P1 |
-| 28 | 8, 12 | 2 | 90+ | 2 | P1/P2 |
-| 29 | 11, 13, 15, 16 | 4 | 140+ | 3 | P1/P2 |
-| 30 | 14, 17, 21, 22 | 4 | 165+ | 4 | P2/P3 |
-| 31 | 18, 19, 20 | 3 | 110+ | 3 | P3 |
-| **Total** | **22** | **22** | **910+** | **19** | |
+| Phase | Gaps | New Modules | Est. Tests | New Panels | Priority | Status |
+|-------|------|-------------|------------|------------|----------|--------|
+| 23 | 1, 6 | 2 | 90+ | 1 | P0 | **COMPLETE** |
+| 24 | 2, 9 | 2 | 90+ | 2 | P0 | **COMPLETE** |
+| 25 | 3, 10 | 2 | 85+ | 2 | P0 | **COMPLETE** |
+| 26 | 4, 5 | 2 | 95+ | 2 | P0/P1 | **COMPLETE** |
+| 27 | 7 | 1 | 45+ | 0 (extends) | P1 | **COMPLETE** |
+| 28 | 8, 12 | 2 | 90+ | 2 | P1/P2 | **COMPLETE** |
+| 29 | 11, 13, 15, 16 | 4 | 140+ | 3 | P1/P2 | **COMPLETE** |
+| 30 | 14, 17, 21, 22 | 4 | 165+ | 4 | P2/P3 | **COMPLETE** |
+| 31 | 18, 19, 20 | 3 | 110+ | 3 | P3 | **COMPLETE** |
+| 32 | (bonus) | 6 | 200+ | 6 | — | **COMPLETE** |
+| **Total** | **22 + 6 bonus** | **28** | **1,110+** | **22** | | **ALL DONE** |
 
-**Post-implementation totals (projected):**
-- ~7,538+ unit tests
-- 261+ Rust modules
-- 183+ VibeUI panels
-- 100+ REPL commands
-- 35+ competitors analyzed
+**Actual totals (2026-03-29):**
+- **9,570 unit tests** (0 failures)
+- **185 Rust modules** (vibecli-cli/src/)
+- **187 VibeUI panels**
+- **100+ REPL commands**
+- **568 skill files**
+- **23 AI providers** + OpenRouter (300+)
+- **35+ competitors analyzed**
 
 ---
 
 ## Part F — Competitive Positioning After v7
 
-After closing all 22 gaps, VibeCody would be the **only** tool that:
+With all 22 gaps closed plus Phase 32 bonus modules, VibeCody is now the **only** tool that:
 
 1. **Speaks all three protocols** — MCP (tools) + ACP (agent hosting) + A2A (agent-to-agent). No competitor implements all three.
 2. **Has MCTS code repair** — Tree-search bug fixing is only in research tools (Moatless); bringing it to a production IDE is a first.

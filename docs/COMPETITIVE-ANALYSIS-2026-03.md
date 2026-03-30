@@ -4,7 +4,7 @@ title: "COMPETITIVE ANALYSIS 2026 03"
 ---
 
 
-**Date:** 2026-03-07
+**Date:** 2026-03-07 | **Updated:** 2026-03-29
 **Scope:** Full technical and business capability evaluation across 15 products in the AI-assisted development space
 
 
@@ -32,10 +32,10 @@ The AI-assisted development landscape in March 2026 spans 15+ significant produc
 
 **Key findings:**
 
-- VibeCody has the **broadest raw feature count** (~110 capabilities, 90+ UI panel tabs) of any single product
-- VibeCody is the **only fully open-source (MIT) product** offering both a CLI agent AND a desktop IDE with multi-provider support
-- VibeCody's primary weaknesses are in **cloud execution infrastructure**, **user base/ecosystem maturity**, **production polish**, and **funding/marketing**
-- The market is consolidating around **cloud-isolated agents**, **ACP/MCP protocols**, and **multi-agent parallelism** — areas where VibeCody has implementations but competitors have production-hardened infrastructure
+- VibeCody has the **broadest raw feature count** (~250+ capabilities, 187 UI panel tabs, 185 Rust modules, 9,570 tests) of any single product
+- VibeCody is the **only fully open-source (MIT) product** offering both a CLI agent AND a desktop IDE with 23 AI providers and triple-protocol support (MCP + ACP + A2A)
+- VibeCody now implements **MCTS code repair**, **parallel worktree agents**, **proactive intelligence**, **offline voice**, and **cost-optimized routing** — closing all competitive gaps identified through v7
+- VibeCody's primary weaknesses remain in **cloud execution infrastructure**, **user base/ecosystem maturity**, and **funding/marketing** — these are non-code items
 
 
 ## 2. Product Classification

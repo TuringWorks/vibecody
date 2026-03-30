@@ -14,15 +14,14 @@ This demo covers the VibeUI Monaco editor experience and the underlying CLI comm
 
 ## Prerequisites
 
-- VibeCody installed (`vibecli --version` returns 0.1+)
+- VibeCody installed (`vibecli --version` returns 0.5.1+)
 - At least one AI provider configured in `~/.vibecli/config.toml`:
 
 ```toml
-[provider]
-default = "claude"
-
-[provider.claude]
+[claude]
+enabled = true
 api_key = "sk-ant-..."
+model = "claude-sonnet-4-20250514"
 ```
 
 - VibeUI built and running:
@@ -46,7 +45,7 @@ Click a file in the Explorer sidebar, e.g., `src/main.rs`.
 **CLI (HTTP daemon for API access):**
 
 ```bash
-vibecli serve --port 7878 --provider claude
+vibecli --serve --port 7878 --provider claude
 ```
 
 ### 2. Trigger Inline Chat
@@ -183,7 +182,7 @@ If you prefer working entirely in the terminal, the TUI provides inline-chat-lik
 
 ```bash
 # Start TUI
-vibecli tui
+vibecli --tui
 
 # In the TUI editor view, press `i` to enter inline chat mode
 # Type your instruction and press Enter

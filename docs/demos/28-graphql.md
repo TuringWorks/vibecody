@@ -26,7 +26,7 @@ This demo covers VibeCody's GraphQL Explorer, which lets you introspect schemas,
 Set up a connection in the REPL:
 
 ```bash
-vibecli repl
+vibecli
 > /graphql connect https://swapi-graphql.netlify.app/.netlify/functions/index
 ```
 

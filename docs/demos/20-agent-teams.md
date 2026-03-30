@@ -26,7 +26,7 @@ Agent Teams enable you to spin up multiple AI agents with specialized roles -- A
 Open the VibeCLI REPL and create a new agent team.
 
 ```bash
-vibecli repl
+vibecli
 ```
 
 ```

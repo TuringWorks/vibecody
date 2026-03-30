@@ -87,11 +87,11 @@ vibecody/
 │       │   ├── serve.rs        # HTTP daemon for VS Code ext/SDK
 │       │   ├── repl.rs         # Rustyline REPL helper
 │       │   └── tui/            # Ratatui TUI (app, ui, components)
-│       └── skills/             # 543 skill files (25+ categories)
+│       └── skills/             # 568 skill files (25+ categories)
 ├── vibeui/
 │   ├── src/                    # React + TypeScript frontend
 │   │   ├── App.tsx             # Root component
-│   │   └── components/         # 186 panel components (163 backend-wired + 23 utilities)
+│   │   └── components/         # 187 panel components (163 backend-wired + 24 utilities)
 │   ├── src-tauri/              # Tauri Rust backend
 │   └── crates/                 # Shared Rust library crates
 │       ├── vibe-core/          # Text buffer, FS, workspace, Git, index

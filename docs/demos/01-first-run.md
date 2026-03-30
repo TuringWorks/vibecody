@@ -51,10 +51,10 @@ cargo build --release -p vibecli
 **Option C: Docker**
 
 ```bash
-docker pull ghcr.io/aichefdev/vibecody:latest
+docker pull ghcr.io/turingworks/vibecody:latest
 docker run -it --rm \
   -e ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \
-  ghcr.io/aichefdev/vibecody:latest chat "Hello"
+  ghcr.io/turingworks/vibecody:latest "Hello"
 ```
 
 For air-gapped environments with a local Ollama sidecar:
@@ -72,7 +72,7 @@ vibecli --version
 Expected output:
 
 ```
-vibecli 0.1.0
+vibecli 0.5.1
 ```
 
 ### Step 3: Set up API keys
@@ -96,14 +96,15 @@ VibeCLI stores its configuration at `~/.vibecli/config.toml`. Create or edit it:
 ```bash
 mkdir -p ~/.vibecli
 cat > ~/.vibecli/config.toml << 'EOF'
-[provider]
-default = "claude"
-
-[provider.claude]
+[claude]
+enabled = true
 api_key = "sk-ant-..."
+model = "claude-sonnet-4-20250514"
 
-[provider.openai]
+[openai]
+enabled = true
 api_key = "sk-..."
+model = "gpt-4o"
 EOF
 ```
 
@@ -118,10 +119,8 @@ Then set Ollama as the default:
 
 ```bash
 cat > ~/.vibecli/config.toml << 'EOF'
-[provider]
-default = "ollama"
-
-[provider.ollama]
+[ollama]
+enabled = true
 model = "llama3"
 EOF
 ```
@@ -142,12 +141,11 @@ Switch your default provider at any time:
 
 ```bash
 # Via CLI flag
-vibecli chat --provider openai "Explain quicksort"
+vibecli --provider openai "Explain quicksort"
 
-# Via REPL command
-vibecli repl
-> /provider claude
-> /provider ollama --model codellama
+# Via REPL (just run vibecli with no arguments to enter the REPL)
+vibecli
+> /model codellama
 ```
 
 ### Step 6: Explore help
@@ -159,37 +157,36 @@ vibecli --help
 ```
 
 ```
-VibeCody CLI - AI-powered terminal assistant
+AI-powered coding assistant for the terminal
 
-USAGE:
-    vibecli <COMMAND>
+Usage: vibecli [OPTIONS] [MESSAGE]...
 
-COMMANDS:
-    chat        Send a one-shot message to the AI
-    agent       Start an agent loop with tool access
-    repl        Interactive REPL session
-    tui         Launch the terminal UI
-    serve       Start the HTTP daemon
-    help        Print help information
+Arguments:
+  [MESSAGE]...  One-shot chat message
 
-OPTIONS:
-    -p, --provider <NAME>    AI provider to use
-    -m, --model <NAME>       Model to use
-    -v, --verbose            Enable verbose output
-    --version                Print version
+Options:
+  -p, --provider <PROVIDER>  AI provider [default: ollama]
+  -m, --model <MODEL>        Model name
+      --tui                  Launch terminal UI
+      --agent <TASK>         Run agent on a task
+      --exec <TASK>          CI/non-interactive mode
+      --serve                Start HTTP daemon
+      --review               Run code review
+      --doctor               Health check
+      --help                 Print help
+      --version              Print version
 ```
 
 Inside the REPL, type `/help` for interactive commands:
 
 ```bash
-vibecli repl
+vibecli
 > /help
 ```
 
 ```
 Available REPL Commands:
   /help           Show this help message
-  /provider       Switch AI provider
   /model          Switch model
   /clear          Clear conversation
   /history        Show conversation history
@@ -207,7 +204,7 @@ Available REPL Commands:
 Run VibeCLI as a persistent background service:
 
 ```bash
-vibecli serve --port 7878 --provider ollama
+vibecli --serve --port 7878 --provider ollama
 ```
 
 Test the health endpoint:
@@ -219,7 +216,7 @@ curl http://localhost:7878/health
 ```json
 {
   "status": "ok",
-  "version": "0.1.0",
+  "version": "0.5.1",
   "provider": "ollama"
 }
 ```
@@ -270,7 +267,7 @@ The following JSON recording can be used for automated demo playback with VibeCo
       "id": 3,
       "action": "write_file",
       "path": "~/.vibecli/config.toml",
-      "content": "[provider]\ndefault = \"ollama\"\n\n[provider.ollama]\nmodel = \"llama3\"\n",
+      "content": "[ollama]\nenabled = true\nmodel = \"llama3\"\n",
       "description": "Write default provider config",
       "delay_ms": 500
     },
@@ -288,7 +285,7 @@ The following JSON recording can be used for automated demo playback with VibeCo
       "action": "shell",
       "command": "vibecli --help",
       "description": "Explore available commands",
-      "expected_output_contains": "COMMANDS",
+      "expected_output_contains": "Options",
       "delay_ms": 2000
     },
     {
@@ -296,7 +293,6 @@ The following JSON recording can be used for automated demo playback with VibeCo
       "action": "repl",
       "commands": [
         { "input": "/help", "delay_ms": 2000 },
-        { "input": "/provider ollama", "delay_ms": 1500 },
         { "input": "What is the capital of France?", "delay_ms": 4000 },
         { "input": "/quit", "delay_ms": 500 }
       ],
@@ -305,7 +301,7 @@ The following JSON recording can be used for automated demo playback with VibeCo
     {
       "id": 7,
       "action": "shell",
-      "command": "vibecli serve --port 7878 --provider ollama &",
+      "command": "vibecli --serve --port 7878 --provider ollama &",
       "description": "Start HTTP daemon in background",
       "delay_ms": 2000
     },
@@ -333,5 +329,5 @@ The following JSON recording can be used for automated demo playback with VibeCo
 ## What's Next
 
 - [Demo 2: TUI Interface](../tui-interface/) -- Learn to navigate the terminal UI
-- [Demo 3: Multi-Provider Chat](../multi-provider-chat/) -- Switch between 17 AI providers
+- [Demo 3: Multi-Provider Chat](../multi-provider-chat/) -- Switch between 23 AI providers
 - [Demo 4: Agent Loop](../agent-loop/) -- Let the AI edit files and run commands

@@ -68,7 +68,7 @@ Quantum computing tools, panel consolidation (137→36 tabs), full-stack resilie
 
 **Released:** March 21, 2026 &middot; [Release notes](https://github.com/TuringWorks/vibecody/releases/tag/v0.4.0) &middot; [Changelog](https://github.com/TuringWorks/vibecody/compare/v0.3.3...v0.4.0)
 
-23 AI providers, 162+ panels, 543 skills, 6,628+ tests.
+23 AI providers, 187 panels, 568 skills, 9,570 tests.
 
 ### VibeCLI — Terminal AI Assistant
 

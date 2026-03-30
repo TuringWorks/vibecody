@@ -25,7 +25,7 @@ Describe your application in plain English and let the AI generate the full proj
 **CLI:**
 
 ```bash
-vibecli appbuilder quickstart "A task management API with user auth, team workspaces, and real-time notifications"
+vibecli --appbuilder quickstart "A task management API with user auth, team workspaces, and real-time notifications"
 ```
 
 Example output:
@@ -73,7 +73,7 @@ Choose from pre-built templates for common application types.
 **CLI:**
 
 ```bash
-vibecli appbuilder templates list
+vibecli --appbuilder templates list
 ```
 
 Example output:
@@ -95,7 +95,7 @@ Available Templates:
 **CLI (use a template):**
 
 ```bash
-vibecli appbuilder create --template rest-api --name my-api --language rust
+vibecli --appbuilder create --template rest-api --name my-api --language rust
 ```
 
 **VibeUI:**
@@ -109,7 +109,7 @@ After the initial scaffold, the AI enhancer reviews the generated code and adds 
 **CLI:**
 
 ```bash
-vibecli appbuilder enhance ./task-manager-api
+vibecli --appbuilder enhance ./task-manager-api
 ```
 
 Example output:
@@ -137,7 +137,7 @@ Set up the infrastructure for your application: database, object storage, authen
 **CLI:**
 
 ```bash
-vibecli appbuilder provision --project ./task-manager-api \
+vibecli --appbuilder provision --project ./task-manager-api \
   --database postgres \
   --storage s3 \
   --auth supabase \
@@ -167,7 +167,7 @@ Combine all steps into a single command for end-to-end generation.
 **CLI:**
 
 ```bash
-vibecli appbuilder fullstack "An e-commerce store with product catalog, shopping cart, Stripe payments, and admin dashboard" \
+vibecli --appbuilder fullstack "An e-commerce store with product catalog, shopping cart, Stripe payments, and admin dashboard" \
   --language typescript \
   --database postgres \
   --enhance
@@ -204,32 +204,32 @@ Status: Ready for development
   "steps": [
     {
       "action": "cli_command",
-      "command": "vibecli appbuilder quickstart \"A task management API with user auth, team workspaces, and real-time notifications\"",
+      "command": "vibecli --appbuilder quickstart \"A task management API with user auth, team workspaces, and real-time notifications\"",
       "description": "Generate a full project scaffold from a natural language description"
     },
     {
       "action": "cli_command",
-      "command": "vibecli appbuilder templates list",
+      "command": "vibecli --appbuilder templates list",
       "description": "Browse available project templates"
     },
     {
       "action": "cli_command",
-      "command": "vibecli appbuilder create --template rest-api --name my-api --language rust",
+      "command": "vibecli --appbuilder create --template rest-api --name my-api --language rust",
       "description": "Scaffold a project from a template"
     },
     {
       "action": "cli_command",
-      "command": "vibecli appbuilder enhance ./task-manager-api",
+      "command": "vibecli --appbuilder enhance ./task-manager-api",
       "description": "Run AI enhancement pass on the scaffold"
     },
     {
       "action": "cli_command",
-      "command": "vibecli appbuilder provision --project ./task-manager-api --database postgres --storage s3 --auth supabase --hosting fly-io",
+      "command": "vibecli --appbuilder provision --project ./task-manager-api --database postgres --storage s3 --auth supabase --hosting fly-io",
       "description": "Provision managed backend infrastructure"
     },
     {
       "action": "cli_command",
-      "command": "vibecli appbuilder fullstack \"An e-commerce store with product catalog, shopping cart, Stripe payments, and admin dashboard\" --language typescript --database postgres --enhance",
+      "command": "vibecli --appbuilder fullstack \"An e-commerce store with product catalog, shopping cart, Stripe payments, and admin dashboard\" --language typescript --database postgres --enhance",
       "description": "End-to-end full-stack generation from a single prompt"
     },
     {

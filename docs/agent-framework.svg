@@ -154,7 +154,7 @@
   <!-- Skills -->
   <rect x="694" y="308" width="110" height="38" rx="6" fill="#1a1200" stroke="#f0a500" stroke-width="0.8"/>
   <text x="749" y="325" text-anchor="middle" fill="#f0a500" font-size="10" font-weight="600">Skills Library</text>
-  <text x="749" y="339" text-anchor="middle" fill="#8b949e" font-size="8">511+ skill files</text>
+  <text x="749" y="339" text-anchor="middle" fill="#8b949e" font-size="8">568 skill files</text>
 
   <!-- Tool execution pipeline -->
   <rect x="435" y="420" width="385" height="90" rx="8" fill="#161b22" stroke="#e67e22" stroke-width="1"/>

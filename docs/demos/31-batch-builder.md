@@ -24,7 +24,7 @@ Define the scope of your batch run. A BatchSpec includes target modules, estimat
 **CLI:**
 
 ```bash
-vibecli batch create --name "ecommerce-platform" \
+vibecli --batch create --name "ecommerce-platform" \
   --target-lines 500000 \
   --roles architect,frontend,backend,database,api,auth,testing,devops,docs,qa \
   --checkpoint-interval 30m
@@ -41,7 +41,7 @@ Once the BatchSpec is created, the Architect agent produces an architecture plan
 **CLI:**
 
 ```bash
-vibecli batch status ecommerce-platform --show-plan
+vibecli --batch status ecommerce-platform --show-plan
 ```
 
 **VibeUI:**
@@ -55,7 +55,7 @@ Launch the autonomous run. All 10 agent roles work in parallel according to the 
 **CLI:**
 
 ```bash
-vibecli batch start ecommerce-platform
+vibecli --batch start ecommerce-platform
 ```
 
 **VibeUI:**
@@ -69,7 +69,7 @@ Track each agent's output, token usage, and completion percentage during the 8-1
 **CLI:**
 
 ```bash
-vibecli batch status ecommerce-platform
+vibecli --batch status ecommerce-platform
 ```
 
 Example output:
@@ -104,9 +104,9 @@ Interrupt a run without losing progress. The system saves a checkpoint before pa
 **CLI:**
 
 ```bash
-vibecli batch pause ecommerce-platform
+vibecli --batch pause ecommerce-platform
 # Later...
-vibecli batch resume ecommerce-platform
+vibecli --batch resume ecommerce-platform
 ```
 
 **VibeUI:**
@@ -120,7 +120,7 @@ After the run completes (or at any checkpoint), review the generated code throug
 **CLI:**
 
 ```bash
-vibecli batch status ecommerce-platform --qa-summary
+vibecli --batch status ecommerce-platform --qa-summary
 ```
 
 **VibeUI:**
@@ -134,7 +134,7 @@ If a run is no longer needed, cancel it cleanly.
 **CLI:**
 
 ```bash
-vibecli batch cancel ecommerce-platform
+vibecli --batch cancel ecommerce-platform
 ```
 
 ### 8. View History
@@ -144,7 +144,7 @@ Browse past batch runs, their specs, and outcomes.
 **CLI:**
 
 ```bash
-vibecli batch status --history
+vibecli --batch status --history
 ```
 
 **VibeUI:**
@@ -186,32 +186,32 @@ BatchSpec → Architect → ArchitecturePlan → ModulePlan → [10 Agents in pa
   "steps": [
     {
       "action": "cli_command",
-      "command": "vibecli batch create --name demo-app --target-lines 100000 --roles architect,frontend,backend,testing --checkpoint-interval 15m",
+      "command": "vibecli --batch create --name demo-app --target-lines 100000 --roles architect,frontend,backend,testing --checkpoint-interval 15m",
       "description": "Create a BatchSpec with 4 agent roles"
     },
     {
       "action": "cli_command",
-      "command": "vibecli batch start demo-app",
+      "command": "vibecli --batch start demo-app",
       "description": "Start the autonomous batch run"
     },
     {
       "action": "cli_command",
-      "command": "vibecli batch status demo-app",
+      "command": "vibecli --batch status demo-app",
       "description": "Monitor progress and per-agent status"
     },
     {
       "action": "cli_command",
-      "command": "vibecli batch pause demo-app",
+      "command": "vibecli --batch pause demo-app",
       "description": "Pause the run with a checkpoint"
     },
     {
       "action": "cli_command",
-      "command": "vibecli batch resume demo-app",
+      "command": "vibecli --batch resume demo-app",
       "description": "Resume from the last checkpoint"
     },
     {
       "action": "cli_command",
-      "command": "vibecli batch status demo-app --qa-summary",
+      "command": "vibecli --batch status demo-app --qa-summary",
       "description": "Review QA scores after completion"
     },
     {

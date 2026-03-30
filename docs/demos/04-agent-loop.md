@@ -49,13 +49,13 @@ The AI uses XML-based tool calling that works across all providers, regardless o
 ### Step 1: Start an agent session
 
 ```bash
-vibecli agent "Fix the login bug in src/auth.rs -- users are getting a 401 even with valid tokens"
+vibecli --agent "Fix the login bug in src/auth.rs -- users are getting a 401 even with valid tokens"
 ```
 
-Or for an interactive agent session where you can guide the process:
+Or for a non-interactive (CI) agent session:
 
 ```bash
-vibecli agent --interactive "Refactor the database module"
+vibecli --exec "Refactor the database module"
 ```
 
 <!-- Screenshot placeholder: Agent session starting -->
@@ -226,7 +226,7 @@ sys.exit(0)
 The agent automatically creates checkpoints before making changes. You can roll back at any time.
 
 ```bash
-vibecli repl
+vibecli
 > /agent "Refactor the database module to use connection pooling"
 
 # Agent makes several file changes...
@@ -311,7 +311,7 @@ In VibeUI, the Agent panel (`Cmd+J` then "Agent" tab) provides a visual represen
     {
       "id": 2,
       "action": "shell",
-      "command": "cd /tmp/vibecody-demo && vibecli agent \"The validate_token function in src/auth.rs has a hardcoded secret and wrong algorithm. Fix it to read JWT_SECRET from the environment and use RS256.\"",
+      "command": "cd /tmp/vibecody-demo && vibecli --agent \"The validate_token function in src/auth.rs has a hardcoded secret and wrong algorithm. Fix it to read JWT_SECRET from the environment and use RS256.\"",
       "description": "Start agent to fix the auth bug",
       "delay_ms": 15000
     },
@@ -335,7 +335,7 @@ In VibeUI, the Agent panel (`Cmd+J` then "Agent" tab) provides a visual represen
     {
       "id": 5,
       "action": "shell",
-      "command": "cd /tmp/vibecody-demo && vibecli agent --interactive \"Add unit tests for the validate_token function\"",
+      "command": "cd /tmp/vibecody-demo && vibecli --agent \"Add unit tests for the validate_token function\"",
       "description": "Start interactive agent session to add tests",
       "delay_ms": 20000
     },
@@ -366,7 +366,7 @@ In VibeUI, the Agent panel (`Cmd+J` then "Agent" tab) provides a visual represen
 ## Tips for Effective Agent Use
 
 1. **Be specific** -- "Fix the login bug in src/auth.rs" works better than "Fix my code"
-2. **Use interactive mode** for sensitive changes -- `vibecli agent --interactive`
+2. **Use the REPL** for sensitive changes where you want to guide the agent interactively
 3. **Set up hooks** to enforce code style and block dangerous operations
 4. **Review checkpoints** before accepting large changes
 5. **Monitor token usage** with `/context` to avoid hitting limits

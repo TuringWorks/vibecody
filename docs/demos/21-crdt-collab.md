@@ -30,7 +30,7 @@ Traditional collaborative editors rely on a central server to resolve conflicts.
 On the host machine, open a REPL session and start sharing.
 
 ```bash
-vibecli repl
+vibecli
 ```
 
 ```

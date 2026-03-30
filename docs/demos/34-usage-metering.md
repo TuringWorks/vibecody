@@ -25,7 +25,7 @@ View a summary of token consumption and budget utilization.
 **CLI:**
 
 ```bash
-vibecli metering status
+vibecli --metering status
 ```
 
 Example output:
@@ -62,7 +62,7 @@ Set credit budgets scoped to a user, team, project, or globally. Specify the bud
 **CLI:**
 
 ```bash
-vibecli metering budget set \
+vibecli --metering budget set \
   --owner user:alice \
   --limit 2000000 \
   --period monthly \
@@ -87,7 +87,7 @@ Budget configured:
 **CLI (list all budgets):**
 
 ```bash
-vibecli metering budget list
+vibecli --metering budget list
 ```
 
 Example output:
@@ -129,7 +129,7 @@ Three alert levels trigger notifications when budget usage crosses a threshold:
 **CLI (view active alerts):**
 
 ```bash
-vibecli metering alerts
+vibecli --metering alerts
 ```
 
 Example output:
@@ -151,7 +151,7 @@ Produce detailed reports broken down by provider, model, task type, or time peri
 **CLI:**
 
 ```bash
-vibecli metering report --period 2026-03 --group-by provider
+vibecli --metering report --period 2026-03 --group-by provider
 ```
 
 Example output:
@@ -168,13 +168,13 @@ Usage Report: March 2026 (by Provider)
 **CLI (report by model):**
 
 ```bash
-vibecli metering report --period 2026-03 --group-by model
+vibecli --metering report --period 2026-03 --group-by model
 ```
 
 **CLI (report by task type):**
 
 ```bash
-vibecli metering report --period 2026-03 --group-by task-type
+vibecli --metering report --period 2026-03 --group-by task-type
 ```
 
 **VibeUI:**
@@ -188,7 +188,7 @@ Generate chargeback reports for departmental billing.
 **CLI:**
 
 ```bash
-vibecli metering report --period 2026-03 --chargeback --group-by team
+vibecli --metering report --period 2026-03 --chargeback --group-by team
 ```
 
 Example output:
@@ -210,7 +210,7 @@ Drill down into individual agent runs or tasks to see their exact token consumpt
 **CLI:**
 
 ```bash
-vibecli metering status --agent batch-ecommerce --detail
+vibecli --metering status --agent batch-ecommerce --detail
 ```
 
 Example output:
@@ -236,37 +236,37 @@ Agent: batch-ecommerce
   "steps": [
     {
       "action": "cli_command",
-      "command": "vibecli metering status",
+      "command": "vibecli --metering status",
       "description": "View current token usage and budget utilization"
     },
     {
       "action": "cli_command",
-      "command": "vibecli metering budget set --owner user:alice --limit 2000000 --period monthly --alert-warning 80 --alert-critical 95 --alert-limit 100",
+      "command": "vibecli --metering budget set --owner user:alice --limit 2000000 --period monthly --alert-warning 80 --alert-critical 95 --alert-limit 100",
       "description": "Configure a monthly budget with alert thresholds"
     },
     {
       "action": "cli_command",
-      "command": "vibecli metering budget list",
+      "command": "vibecli --metering budget list",
       "description": "List all active budgets"
     },
     {
       "action": "cli_command",
-      "command": "vibecli metering alerts",
+      "command": "vibecli --metering alerts",
       "description": "View active budget alerts"
     },
     {
       "action": "cli_command",
-      "command": "vibecli metering report --period 2026-03 --group-by provider",
+      "command": "vibecli --metering report --period 2026-03 --group-by provider",
       "description": "Generate a usage report grouped by provider"
     },
     {
       "action": "cli_command",
-      "command": "vibecli metering report --period 2026-03 --chargeback --group-by team",
+      "command": "vibecli --metering report --period 2026-03 --chargeback --group-by team",
       "description": "Generate a chargeback report for departmental billing"
     },
     {
       "action": "cli_command",
-      "command": "vibecli metering status --agent batch-ecommerce --detail",
+      "command": "vibecli --metering status --agent batch-ecommerce --detail",
       "description": "Drill into per-agent token consumption"
     },
     {

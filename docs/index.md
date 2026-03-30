@@ -56,7 +56,7 @@ All providers support streaming. Local providers require no API key.
 ### VibeCLI Highlights
 
 - Rich TUI powered by [Ratatui](https://ratatui.rs/) with REPL mode (readline history, tab completion)
-- 543 skill files across 25+ categories (93 REPL commands)
+- 568 skill files across 25+ categories (100+ REPL commands)
 - Voice input via Groq Whisper (`--voice` flag)
 - Tailscale pairing with QR code sharing and mDNS discovery
 - 18 gateway platforms (Telegram, Discord, Slack, Signal, Matrix, Teams, IRC, Twitch, and more)
@@ -72,7 +72,7 @@ All providers support streaming. Local providers require no API key.
 ### VibeUI Highlights
 
 - Monaco Editor integration (same engine as VS Code)
-- 184+ AI panel tabs (Chat, Agent, Counsel, Tests, Docker, K8s, Profiler, Design Canvas, and many more)
+- 187 AI panel tabs (Chat, Agent, Counsel, Tests, Docker, K8s, Profiler, Design Canvas, and many more)
 - CSS variable theming across all panels with dark/light toggle
 - Multiplayer CRDT collaboration (real-time co-editing)
 - Agent teams with inter-agent messaging bus

@@ -27,7 +27,7 @@ VibeCody's Red Team module provides automated security scanning that checks your
 Open the VibeCLI REPL and initiate a scan.
 
 ```bash
-vibecli repl
+vibecli
 ```
 
 ```

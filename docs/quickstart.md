@@ -10,7 +10,7 @@ permalink: /quickstart/
 
 ## What is VibeCody?
 
-VibeCody is an AI-powered developer toolchain built in Rust. It gives you two ways to work: **VibeCLI**, a terminal-first AI coding assistant with a rich TUI and REPL, and **VibeUI**, a full desktop code editor with Monaco and 162+ AI panels. Both share the same backend crates, supporting 23 AI providers (local and cloud), an autonomous agent loop, code review, multi-agent orchestration, MCP integration, and 543+ built-in skills. You can start with a local model and zero API keys.
+VibeCody is an AI-powered developer toolchain built in Rust. It gives you two ways to work: **VibeCLI**, a terminal-first AI coding assistant with a rich TUI and REPL, and **VibeUI**, a full desktop code editor with Monaco and 187 AI panels. Both share the same backend crates, supporting 23 AI providers (local and cloud), an autonomous agent loop, code review, multi-agent orchestration, MCP integration, and 568 built-in skills. You can start with a local model and zero API keys.
 
 
 ## Choose Your Surface

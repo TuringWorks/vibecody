@@ -12,7 +12,7 @@ VibeCody provides first-class Docker and container management through both the C
 
 ## Prerequisites
 
-- VibeCody installed (`vibecli --version` returns 0.1+)
+- VibeCody installed (`vibecli --version` returns 0.5.1+)
 - Docker (or Podman) installed and the daemon running:
 
 ```bash
@@ -208,13 +208,13 @@ VibeCody can run AI agents inside sandboxed containers, providing an isolated en
 
 ```bash
 # Run an agent task in a sandboxed container
-vibecli agent --sandbox docker --task "Set up a Python project with FastAPI and write tests"
+vibecli --agent "Set up a Python project with FastAPI and write tests" --sandbox docker
 
 # Specify the sandbox image
-vibecli agent --sandbox docker --image python:3.12-slim --task "Fix the failing tests"
+vibecli --agent "Fix the failing tests" --sandbox docker --image python:3.12-slim
 
 # Use Podman instead of Docker
-vibecli agent --sandbox podman --task "Refactor the database layer"
+vibecli --agent "Refactor the database layer" --sandbox podman
 ```
 
 **Config (`~/.vibecli/config.toml`):**

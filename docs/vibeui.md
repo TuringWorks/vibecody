@@ -1123,7 +1123,7 @@ VibeUI implements WCAG 2.1 Level AA accessibility:
 
 ## Testing
 
-**~6,628+ tests** pass across the workspace (as of 2026-03-25, 0 failures).
+**9,570 tests** pass across the workspace (as of 2026-03-29, 0 failures).
 
 | Crate | Tests | Key coverage areas |
 |-------|-------|--------------------|

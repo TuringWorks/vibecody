@@ -21,8 +21,8 @@
   <rect x="35" y="80" width="280" height="85" rx="8" fill="#12243d" stroke="#4a9eff" stroke-width="1"/>
   <text x="175" y="100" text-anchor="middle" fill="#e0e0e0" font-size="13" font-weight="700">vibecli-cli</text>
   <text x="175" y="116" text-anchor="middle" fill="#6699cc" font-size="9">Terminal AI Assistant (TUI + REPL)</text>
-  <text x="175" y="130" text-anchor="middle" fill="#556688" font-size="8">main.rs · 178 Rust modules · 543 skills</text>
-  <text x="175" y="144" text-anchor="middle" fill="#556688" font-size="8">Ratatui + Rustyline · 85+ REPL commands</text>
+  <text x="175" y="130" text-anchor="middle" fill="#556688" font-size="8">main.rs · 185 Rust modules · 568 skills</text>
+  <text x="175" y="144" text-anchor="middle" fill="#556688" font-size="8">Ratatui + Rustyline · 100+ REPL commands</text>
   <text x="175" y="157" text-anchor="middle" fill="#445566" font-size="7">serve.rs HTTP daemon · gateway.rs 18 platforms</text>
 
   <!-- VibeUI -->
@@ -83,7 +83,7 @@
   <!-- Skills/Hooks/MCP -->
   <rect x="35" y="318" width="285" height="65" rx="6" fill="#201020" stroke="#8e44ad" stroke-width="0.8"/>
   <text x="178" y="336" text-anchor="middle" fill="#a070c0" font-size="10" font-weight="600">Extensions: Skills · Hooks · MCP · ACP</text>
-  <text x="178" y="352" text-anchor="middle" fill="#806098" font-size="8">543 skill files · JSON-RPC 2.0 · Lazy schema loading</text>
+  <text x="178" y="352" text-anchor="middle" fill="#806098" font-size="8">568 skill files · JSON-RPC 2.0 · Lazy schema loading</text>
   <text x="178" y="366" text-anchor="middle" fill="#806098" font-size="8">Hook events: PreToolUse, PostToolUse, FileSaved, SessionStart</text>
   <text x="178" y="378" text-anchor="middle" fill="#605078" font-size="8">A2A protocol · Agent teams · Capability negotiation</text>
 
@@ -251,7 +251,7 @@
   <text x="780" y="766" fill="#555" font-size="8">18 providers · streaming · vision · embeddings</text>
 
   <text x="1030" y="752" fill="#f39c12" font-size="9" font-weight="600">Integrations</text>
-  <text x="1030" y="766" fill="#555" font-size="8">85+ REPL commands · 874 Tauri commands · 543 skills</text>
+  <text x="1030" y="766" fill="#555" font-size="8">100+ REPL commands · 950+ Tauri commands · 568 skills</text>
 
   <text x="30" y="798" fill="#444" font-size="8">Architecture: Rust workspace monorepo · Tauri 2 desktop · React 19 frontend · tokio async runtime · defense-in-depth security</text>
 </svg>

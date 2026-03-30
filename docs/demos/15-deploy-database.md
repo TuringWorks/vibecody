@@ -27,7 +27,7 @@ This demo covers VibeCody's deployment workflows and database management capabil
 Use the `/db connect` command to establish a connection. VibeCody supports PostgreSQL, MySQL, SQLite, MongoDB, Redis, and DuckDB.
 
 ```bash
-vibecli repl
+vibecli
 > /db connect postgres://user:pass@localhost:5432/myapp
 ```
 

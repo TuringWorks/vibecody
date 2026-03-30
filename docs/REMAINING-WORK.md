@@ -1,9 +1,9 @@
 # VibeCody — Remaining Work Items
 
-> Aggregated from all docs (FIT-GAP v1-v6, ROADMAP v1-v4, COMPETITIVE-ANALYSIS, AGENT-FRAMEWORK-BLUEPRINT, CHANGELOG).
+> Aggregated from all docs (FIT-GAP v1-v7, ROADMAP v1-v5, COMPETITIVE-ANALYSIS, AGENT-FRAMEWORK-BLUEPRINT, CHANGELOG).
 > Items are ordered by priority (P0 first) then by effort.
 >
-> Last verified: 2026-03-24
+> Last verified: 2026-03-29
 
 ---
 
@@ -37,23 +37,15 @@ All P0 gaps across all FIT-GAP analyses (v1-v6) and roadmaps (v1-v4) are **close
 
 ---
 
-## P2 — Medium Priority (4 items)
+## P2 — Medium Priority (1 item)
 
-### 4. Visual Design Canvas
+### ~~4. Visual Design Canvas~~ — **CLOSED**
 
-- **Source**: ROADMAP v4 "Gaps Not Addressed" (line 350)
-- **Current State**: `CanvasPanel.tsx` exists for whiteboarding but is not a full design tool (no vector editing, component library, constraints)
-- **What's Needed**: Figma-lite in-editor design tool with component drag-drop, constraints, export to code
-- **Effort**: Very high (4-6 weeks)
-- **Decision**: Explicitly deferred — "low differentiation vs Figma/native design tools"
+- **Closed by**: `sketch_canvas.rs` + `SketchCanvasPanel.tsx` (Phase 31) — canvas drawing, shape recognition, wireframe-to-component mapping, 3D scene generation, SVG/PNG export
 
-### 5. Sketch-to-3D Generation
+### ~~5. Sketch-to-3D Generation~~ — **CLOSED**
 
-- **Source**: ROADMAP v4 "Gaps Not Addressed" (line 352), Replit Agent 4 feature
-- **Current State**: Not implemented
-- **What's Needed**: Convert 2D sketches/wireframes to 3D models using AI
-- **Effort**: Very high (novel capability, depends on emerging models)
-- **Decision**: Explicitly deferred — "wait for ecosystem maturity"
+- **Closed by**: `sketch_canvas.rs` (Phase 31) — includes 3D scene generation for Three.js/React Three Fiber
 
 ### 6. Built-In Managed Hosting Domain
 
@@ -104,35 +96,37 @@ These docs are complete and superseded by newer versions. They can be archived b
 
 | Document | Superseded By | Action |
 |----------|--------------|--------|
-| `ROADMAP.md` (v1, Feb 2026) | `ROADMAP-v4.md` | Archive — Phases 1-5 complete |
-| `ROADMAP-v2.md` (Feb 2026) | `ROADMAP-v4.md` | Archive — Phases 6-9 complete |
-| `ROADMAP-v3.md` (Mar 2026) | `ROADMAP-v4.md` | Archive — Phases 10-14 complete |
-| `FIT-GAP-ANALYSIS.md` (v1) | `FIT-GAP-ANALYSIS-v6.md` | Archive — all gaps closed |
-| `FIT-GAP-ANALYSIS-v2.md` | `FIT-GAP-ANALYSIS-v6.md` | Archive — all gaps closed |
-| `FIT-GAP-ANALYSIS-v3.md` | `FIT-GAP-ANALYSIS-v6.md` | Archive — 18/18 gaps closed |
-| `FIT-GAP-ANALYSIS-v4.md` | `FIT-GAP-ANALYSIS-v6.md` | Archive — 23/23 gaps closed |
-| `FIT-GAP-ANALYSIS-v5.md` | `FIT-GAP-ANALYSIS-v6.md` | Archive — 12/12 gaps closed |
+| `ROADMAP.md` (v1, Feb 2026) | `ROADMAP-v5.md` | Archive — Phases 1-5 complete |
+| `ROADMAP-v2.md` (Feb 2026) | `ROADMAP-v5.md` | Archive — Phases 6-9 complete |
+| `ROADMAP-v3.md` (Mar 2026) | `ROADMAP-v5.md` | Archive — Phases 10-14 complete |
+| `ROADMAP-v4.md` (Mar 2026) | `ROADMAP-v5.md` | Archive — Phases 15-22 complete |
+| `FIT-GAP-ANALYSIS.md` (v1) | `FIT-GAP-ANALYSIS-v7.md` | Archive — all gaps closed |
+| `FIT-GAP-ANALYSIS-v2.md` | `FIT-GAP-ANALYSIS-v7.md` | Archive — all gaps closed |
+| `FIT-GAP-ANALYSIS-v3.md` | `FIT-GAP-ANALYSIS-v7.md` | Archive — 18/18 gaps closed |
+| `FIT-GAP-ANALYSIS-v4.md` | `FIT-GAP-ANALYSIS-v7.md` | Archive — 23/23 gaps closed |
+| `FIT-GAP-ANALYSIS-v5.md` | `FIT-GAP-ANALYSIS-v7.md` | Archive — 12/12 gaps closed |
+| `FIT-GAP-ANALYSIS-v6.md` | `FIT-GAP-ANALYSIS-v7.md` | Archive — 19/19 gaps closed |
 
 ---
 
-## Summary (Updated 2026-03-25)
+## Summary (Updated 2026-03-29)
 
-All 4 code-addressable gaps have been **CLOSED**:
+All code-addressable gaps across **all 7 FIT-GAP analyses** have been **CLOSED**:
 
-| Item | Module | Status |
-|------|--------|--------|
-| ~~Browser-based zero-install mode~~ | `web_client.rs` (1,052 lines, 36 tests) | **CLOSED** |
-| ~~100M+ line benchmarking~~ | `large_codebase_bench.rs` (1,369 lines) | **CLOSED** |
-| ~~VS Code extension deeper compat~~ | `vscode_compat_ext.rs` (996 lines) | **CLOSED** |
-| ~~JetBrains agent hooks~~ | `jetbrains_hooks.rs` (1,017 lines, 57 tests) | **CLOSED** |
+- FIT-GAP v1-v6: All gaps closed (Phases 1-22)
+- FIT-GAP v7: All 22 gaps closed (Phases 23-31)
+- Phase 32 bonus: 6 additional modules (context protocol, code review, diff review, code replay, speculative exec, explainable agent)
+- TurboQuant KV-cache compression shipped
 
-**5 remaining items are non-code** (infrastructure, business process, or deferred by design):
+**Current totals:** 9,570 tests (0 failures), 185 Rust modules, 187 VibeUI panels, 568 skill files, 23 AI providers.
+
+**4 remaining items are non-code** (infrastructure, business process, or deferred by design):
 
 | Priority | Items | Type |
 |----------|-------|------|
 | **P1** | 2 | Hosted plugin hub (infra), SOC 2 certification (process) |
-| **P2** | 3 | Visual design canvas (deferred), Sketch-to-3D (deferred), Managed hosting domain (infra) |
+| **P2** | 1 | Managed hosting domain (infra) |
 | **P3** | 1 | Proprietary frontier model (ML training) |
-| **Total** | **6** | All non-code |
+| **Total** | **4** | All non-code |
 
-**Bottom line**: Every code-addressable feature is implemented. The 6 remaining items require infrastructure investment, business processes, or are explicitly deferred design decisions.
+**Bottom line**: Every code-addressable feature is implemented. The 4 remaining items require infrastructure investment, business processes, or are explicitly deferred design decisions.

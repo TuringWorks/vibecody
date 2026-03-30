@@ -27,7 +27,7 @@ This demo shows how to run SWE-bench benchmarks against your AI provider configu
 VibeCody ships with four suite types. Start by listing them:
 
 ```bash
-vibecli repl
+vibecli
 > /benchmark list
 ```
 
@@ -64,7 +64,7 @@ Each task is sent to the agent loop. The agent reads the issue description, expl
 You can also run directly from the shell:
 
 ```bash
-vibecli benchmark run --suite lite --provider openai --model gpt-4o
+vibecli --benchmark run --suite lite --provider openai --model gpt-4o
 ```
 
 ### Step 3: View results
@@ -127,7 +127,7 @@ Tasks solved by both:     34
 For a comprehensive evaluation, use the Verified suite:
 
 ```bash
-vibecli benchmark run --suite verified --provider claude
+vibecli --benchmark run --suite verified --provider claude
 ```
 
 This takes longer (300 tasks) but provides the most reliable scoring since every task has been human-verified.
@@ -204,7 +204,7 @@ Open VibeUI and navigate to the **SWE-bench** panel from the AI sidebar. The pan
     {
       "id": 2,
       "action": "shell",
-      "command": "vibecli benchmark run --suite lite --provider claude",
+      "command": "vibecli --benchmark run --suite lite --provider claude",
       "description": "Run SWE-bench Lite against Claude",
       "expected_output_contains": "Pass@1",
       "delay_ms": 60000,
@@ -221,7 +221,7 @@ Open VibeUI and navigate to the **SWE-bench** panel from the AI sidebar. The pan
     {
       "id": 4,
       "action": "shell",
-      "command": "vibecli benchmark run --suite lite --provider openai --model gpt-4o",
+      "command": "vibecli --benchmark run --suite lite --provider openai --model gpt-4o",
       "description": "Run the same suite against OpenAI for comparison",
       "expected_output_contains": "Pass@1",
       "delay_ms": 60000

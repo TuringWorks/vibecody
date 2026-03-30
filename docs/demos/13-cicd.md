@@ -41,7 +41,7 @@ EOF
 Use the `/cicd status` REPL command to view the current state of all pipelines in your repository.
 
 ```bash
-vibecli repl
+vibecli
 > /cicd status
 ```
 

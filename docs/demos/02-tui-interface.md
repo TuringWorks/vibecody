@@ -24,7 +24,7 @@ VibeCLI includes a full terminal user interface (TUI) built with Ratatui, offeri
 ### Step 1: Launch the TUI
 
 ```bash
-vibecli tui
+vibecli --tui
 ```
 
 The TUI opens with a default layout: the chat panel in the main area, a sidebar for navigation, and a status bar at the bottom.
@@ -34,7 +34,7 @@ The TUI opens with a default layout: the chat panel in the main area, a sidebar 
 To launch with a specific provider:
 
 ```bash
-vibecli tui --provider claude --model claude-sonnet-4-20250514
+vibecli --tui --provider claude -m claude-sonnet-4-20250514
 ```
 
 ### Step 2: Navigate panels with tabs
@@ -237,7 +237,7 @@ In VibeUI (the desktop IDE), the same panels are available in the AI sidebar. Op
     {
       "id": 1,
       "action": "shell",
-      "command": "vibecli tui",
+      "command": "vibecli --tui",
       "description": "Launch the TUI",
       "delay_ms": 3000
     },
@@ -383,6 +383,6 @@ In VibeUI (the desktop IDE), the same panels are available in the AI sidebar. Op
 
 ## What's Next
 
-- [Demo 3: Multi-Provider Chat](../multi-provider-chat/) -- Use 17 different AI providers
+- [Demo 3: Multi-Provider Chat](../multi-provider-chat/) -- Use 23 different AI providers
 - [Demo 4: Agent Loop](../agent-loop/) -- Let the AI edit your code
 - [Demo 5: Model Arena](../model-arena/) -- Compare models side by side

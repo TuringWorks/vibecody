@@ -12,7 +12,7 @@ VibeCody's **Code Transforms** engine performs AST-based (Abstract Syntax Tree) 
 
 ## Prerequisites
 
-- VibeCody installed (`vibecli --version` returns 0.1+)
+- VibeCody installed (`vibecli --version` returns 0.5.1+)
 - An AI provider configured in `~/.vibecli/config.toml`
 - A language server running for your project's language (for symbol resolution)
 - For VibeUI: `cd vibeui && npm install && npm run tauri dev`

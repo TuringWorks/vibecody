@@ -357,7 +357,7 @@ In VibeUI, the Cost panel provides an interactive dashboard with:
     {
       "id": 10,
       "action": "shell",
-      "command": "vibecli chat --provider ollama \"This message is free because Ollama runs locally\"",
+      "command": "vibecli --provider ollama \"This message is free because Ollama runs locally\"",
       "description": "Demonstrate zero-cost local inference",
       "delay_ms": 4000
     },

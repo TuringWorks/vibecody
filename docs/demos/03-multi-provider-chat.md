@@ -9,7 +9,7 @@ parent: Demos
 
 ## Overview
 
-VibeCody supports 17 AI providers out of the box, from cloud APIs like Claude and OpenAI to fully local models via Ollama. This demo shows you how to switch between providers, configure BYOK (Bring Your Own Key), set up failover chains, compare costs, and leverage provider-specific features like vision and tool use.
+VibeCody supports 23 AI providers out of the box, from cloud APIs like Claude and OpenAI to fully local models via Ollama. This demo shows you how to switch between providers, configure BYOK (Bring Your Own Key), set up failover chains, compare costs, and leverage provider-specific features like vision and tool use.
 
 **Time to complete:** ~10 minutes
 
@@ -46,15 +46,14 @@ VibeCody supports 17 AI providers out of the box, from cloud APIs like Claude an
 ### Step 1: Check your current provider
 
 ```bash
-vibecli chat --provider claude "What provider are you?"
+vibecli --provider claude "What provider are you?"
 ```
 
-Or in the REPL:
+Or in the REPL (just run `vibecli` with no arguments):
 
 ```bash
-vibecli repl
-> /provider
-Current provider: claude (claude-sonnet-4-20250514)
+vibecli
+> What provider are you?
 ```
 
 ### Step 2: Switch providers on the fly
@@ -63,30 +62,30 @@ Current provider: claude (claude-sonnet-4-20250514)
 
 ```bash
 # Use OpenAI
-vibecli chat --provider openai --model gpt-4o "Explain monads"
+vibecli --provider openai --model gpt-4o "Explain monads"
 
 # Use Ollama locally
-vibecli chat --provider ollama --model llama3 "Explain monads"
+vibecli --provider ollama --model llama3 "Explain monads"
 
 # Use Gemini
-vibecli chat --provider gemini --model gemini-2.0-flash "Explain monads"
+vibecli --provider gemini --model gemini-2.0-flash "Explain monads"
 
 # Use Groq for ultra-fast responses
-vibecli chat --provider groq --model llama-3.3-70b-versatile "Explain monads"
+vibecli --provider groq --model llama-3.3-70b-versatile "Explain monads"
 ```
 
 **From the REPL:**
 
 ```bash
-vibecli repl
-> /provider openai
-Switched to provider: openai (gpt-4o)
+vibecli
+> /model gpt-4o
+Switched to model: gpt-4o
 
-> /provider ollama --model codellama
-Switched to provider: ollama (codellama)
+> /model codellama
+Switched to model: codellama
 
-> /provider claude --model claude-sonnet-4-20250514
-Switched to provider: claude (claude-sonnet-4-20250514)
+> /model claude-sonnet-4-20250514
+Switched to model: claude-sonnet-4-20250514
 ```
 
 <!-- Screenshot placeholder: REPL showing provider switching -->
@@ -96,13 +95,13 @@ Switched to provider: claude (claude-sonnet-4-20250514)
 All providers support streaming by default. Tokens appear as they are generated.
 
 ```bash
-vibecli chat --provider claude "Write a haiku about Rust programming"
+vibecli --provider claude "Write a haiku about Rust programming"
 ```
 
 To disable streaming (wait for full response):
 
 ```bash
-vibecli chat --no-stream --provider openai "Write a haiku about Rust programming"
+vibecli --no-stream --provider openai "Write a haiku about Rust programming"
 ```
 
 ### Step 4: Provider-specific features
@@ -111,7 +110,7 @@ vibecli chat --no-stream --provider openai "Write a haiku about Rust programming
 
 ```bash
 # Analyze an image
-vibecli chat --provider claude "What's in this image?" --image ./screenshot.png
+vibecli --provider claude "What's in this image?" --image ./screenshot.png
 
 # In the REPL
 > /image ./diagram.png
@@ -123,14 +122,14 @@ vibecli chat --provider claude "What's in this image?" --image ./screenshot.png
 Tool use is automatic in agent mode. The provider's native function-calling protocol is used when available:
 
 ```bash
-vibecli agent --provider claude "Read the file src/main.rs and add error handling"
+vibecli --agent "Read the file src/main.rs and add error handling" --provider claude
 ```
 
 **Large context (Gemini):**
 
 ```bash
 # Gemini supports up to 2M tokens of context
-vibecli chat --provider gemini --model gemini-2.0-pro \
+vibecli --provider gemini --model gemini-2.0-pro \
   "Summarize this codebase" --context-dir ./src/
 ```
 
@@ -144,10 +143,10 @@ export OPENROUTER_API_KEY="sk-or-..."
 
 ```bash
 # Use any model available on OpenRouter
-vibecli chat --provider openrouter --model "anthropic/claude-sonnet-4-20250514" "Hello"
-vibecli chat --provider openrouter --model "google/gemini-2.0-flash" "Hello"
-vibecli chat --provider openrouter --model "meta-llama/llama-3.3-70b" "Hello"
-vibecli chat --provider openrouter --model "deepseek/deepseek-chat" "Hello"
+vibecli --provider openrouter --model "anthropic/claude-sonnet-4-20250514" "Hello"
+vibecli --provider openrouter --model "google/gemini-2.0-flash" "Hello"
+vibecli --provider openrouter --model "meta-llama/llama-3.3-70b" "Hello"
+vibecli --provider openrouter --model "deepseek/deepseek-chat" "Hello"
 ```
 
 ### Step 6: BYOK (Bring Your Own Key) setup
@@ -157,29 +156,31 @@ Configure multiple API keys in your config file for team or multi-account setups
 ```toml
 # ~/.vibecli/config.toml
 
-[provider]
-default = "claude"
-
-[provider.claude]
+[claude]
+enabled = true
 api_key = "sk-ant-YOUR-KEY"
 model = "claude-sonnet-4-20250514"
 
-[provider.openai]
+[openai]
+enabled = true
 api_key = "sk-YOUR-KEY"
 model = "gpt-4o"
 api_url = "https://api.openai.com/v1"  # Customizable endpoint
 
-[provider.azure_openai]
+[azure_openai]
+enabled = true
 api_key = "YOUR-AZURE-KEY"
 api_url = "https://YOUR-RESOURCE.openai.azure.com"
 deployment = "gpt-4o"
 api_version = "2024-02-01"
 
-[provider.ollama]
+[ollama]
+enabled = true
 api_url = "http://localhost:11434"  # Default Ollama endpoint
 model = "llama3"
 
-[provider.openrouter]
+[openrouter]
+enabled = true
 api_key = "sk-or-YOUR-KEY"
 model = "anthropic/claude-sonnet-4-20250514"
 ```
@@ -193,14 +194,14 @@ The Failover provider automatically tries the next provider in the chain when on
 ```toml
 # ~/.vibecli/config.toml
 
-[provider.failover]
+[failover]
 chain = ["claude", "openai", "gemini", "ollama"]
 max_retries = 2
 retry_delay_ms = 1000
 ```
 
 ```bash
-vibecli chat --provider failover "This message will be sent to the first available provider"
+vibecli --provider failover "This message will be sent to the first available provider"
 ```
 
 If Claude returns a rate limit error, VibeCody automatically retries with OpenAI, then Gemini, then falls back to local Ollama.
@@ -212,7 +213,7 @@ If Claude returns a rate limit error, VibeCody automatically retries with OpenAI
 VibeCody tracks token usage and estimated costs for every interaction.
 
 ```bash
-vibecli repl
+vibecli
 > /cost
 Session cost summary:
   claude:   $0.0342 (12,400 tokens)
@@ -229,9 +230,9 @@ Send the same prompt to multiple providers and compare:
 
 ```bash
 # Quick comparison from CLI
-vibecli chat --provider claude "Write FizzBuzz in Rust" > claude_response.txt
-vibecli chat --provider openai "Write FizzBuzz in Rust" > openai_response.txt
-vibecli chat --provider gemini "Write FizzBuzz in Rust" > gemini_response.txt
+vibecli --provider claude "Write FizzBuzz in Rust" > claude_response.txt
+vibecli --provider openai "Write FizzBuzz in Rust" > openai_response.txt
+vibecli --provider gemini "Write FizzBuzz in Rust" > gemini_response.txt
 
 # Or use the Arena for side-by-side comparison (see Demo 5)
 ```
@@ -248,7 +249,7 @@ In VibeUI, open the AI panel (`Cmd+J`) and use the provider dropdown in the top 
 {
   "meta": {
     "title": "Multi-Provider AI Chat",
-    "description": "Switch between 17 AI providers, set up BYOK, configure failover chains, and compare provider costs.",
+    "description": "Switch between 23 AI providers, set up BYOK, configure failover chains, and compare provider costs.",
     "duration_seconds": 240,
     "version": "1.0.0"
   },
@@ -256,7 +257,7 @@ In VibeUI, open the AI panel (`Cmd+J`) and use the provider dropdown in the top 
     {
       "id": 1,
       "action": "shell",
-      "command": "vibecli chat --provider claude \"What is 2 + 2?\"",
+      "command": "vibecli --provider claude \"What is 2 + 2?\"",
       "description": "Chat with Claude",
       "delay_ms": 4000,
       "typing_speed_ms": 40
@@ -264,7 +265,7 @@ In VibeUI, open the AI panel (`Cmd+J`) and use the provider dropdown in the top 
     {
       "id": 2,
       "action": "shell",
-      "command": "vibecli chat --provider openai --model gpt-4o \"What is 2 + 2?\"",
+      "command": "vibecli --provider openai --model gpt-4o \"What is 2 + 2?\"",
       "description": "Chat with OpenAI GPT-4o",
       "delay_ms": 4000,
       "typing_speed_ms": 40
@@ -272,7 +273,7 @@ In VibeUI, open the AI panel (`Cmd+J`) and use the provider dropdown in the top 
     {
       "id": 3,
       "action": "shell",
-      "command": "vibecli chat --provider ollama --model llama3 \"What is 2 + 2?\"",
+      "command": "vibecli --provider ollama --model llama3 \"What is 2 + 2?\"",
       "description": "Chat with local Ollama",
       "delay_ms": 4000,
       "typing_speed_ms": 40
@@ -280,7 +281,7 @@ In VibeUI, open the AI panel (`Cmd+J`) and use the provider dropdown in the top 
     {
       "id": 4,
       "action": "shell",
-      "command": "vibecli chat --provider groq --model llama-3.3-70b-versatile \"What is 2 + 2?\"",
+      "command": "vibecli --provider groq --model llama-3.3-70b-versatile \"What is 2 + 2?\"",
       "description": "Chat with Groq (ultra-fast)",
       "delay_ms": 3000,
       "typing_speed_ms": 40
@@ -289,11 +290,11 @@ In VibeUI, open the AI panel (`Cmd+J`) and use the provider dropdown in the top 
       "id": 5,
       "action": "repl",
       "commands": [
-        { "input": "/provider claude", "delay_ms": 1500 },
+        { "input": "/model claude-sonnet-4-20250514", "delay_ms": 1500 },
         { "input": "Write a one-liner Python function to reverse a string", "delay_ms": 5000 },
-        { "input": "/provider openai", "delay_ms": 1500 },
+        { "input": "/model gpt-4o", "delay_ms": 1500 },
         { "input": "Write a one-liner Python function to reverse a string", "delay_ms": 5000 },
-        { "input": "/provider gemini", "delay_ms": 1500 },
+        { "input": "/model gemini-2.0-flash", "delay_ms": 1500 },
         { "input": "Write a one-liner Python function to reverse a string", "delay_ms": 5000 },
         { "input": "/cost", "delay_ms": 2000 },
         { "input": "/quit", "delay_ms": 500 }
@@ -303,14 +304,14 @@ In VibeUI, open the AI panel (`Cmd+J`) and use the provider dropdown in the top 
     {
       "id": 6,
       "action": "shell",
-      "command": "vibecli chat --provider failover \"What's the weather in Tokyo?\"",
+      "command": "vibecli --provider failover \"What's the weather in Tokyo?\"",
       "description": "Demonstrate failover provider chain",
       "delay_ms": 5000
     },
     {
       "id": 7,
       "action": "shell",
-      "command": "vibecli chat --provider openrouter --model \"meta-llama/llama-3.3-70b\" \"Hello from OpenRouter\"",
+      "command": "vibecli --provider openrouter --model \"meta-llama/llama-3.3-70b\" \"Hello from OpenRouter\"",
       "description": "Access 300+ models via OpenRouter",
       "delay_ms": 5000,
       "typing_speed_ms": 40
@@ -319,7 +320,7 @@ In VibeUI, open the AI panel (`Cmd+J`) and use the provider dropdown in the top 
       "id": 8,
       "action": "write_file",
       "path": "~/.vibecli/config.toml",
-      "content": "[provider]\ndefault = \"failover\"\n\n[provider.failover]\nchain = [\"claude\", \"openai\", \"ollama\"]\nmax_retries = 2\n\n[provider.claude]\napi_key = \"sk-ant-demo\"\n\n[provider.openai]\napi_key = \"sk-demo\"\n\n[provider.ollama]\nmodel = \"llama3\"\n",
+      "content": "[failover]\nchain = [\"claude\", \"openai\", \"ollama\"]\nmax_retries = 2\n\n[claude]\nenabled = true\napi_key = \"sk-ant-demo\"\n\n[openai]\nenabled = true\napi_key = \"sk-demo\"\n\n[ollama]\nenabled = true\nmodel = \"llama3\"\n",
       "description": "Write failover provider configuration",
       "delay_ms": 1000
     }

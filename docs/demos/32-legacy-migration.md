@@ -56,7 +56,7 @@ Scan the legacy codebase to detect languages, module boundaries, and dependencie
 **CLI:**
 
 ```bash
-vibecli legacymigrate analyze --source ./legacy-cobol-app
+vibecli --legacymigrate analyze --source ./legacy-cobol-app
 ```
 
 Example output:
@@ -84,7 +84,7 @@ Choose the target language and strategy. Override the recommendations if needed.
 **CLI:**
 
 ```bash
-vibecli legacymigrate configure \
+vibecli --legacymigrate configure \
   --source ./legacy-cobol-app \
   --target java \
   --strategy strangler-fig \
@@ -102,7 +102,7 @@ Before running the migration, inspect the translation rules that will be applied
 **CLI:**
 
 ```bash
-vibecli legacymigrate rules --pair cobol-java
+vibecli --legacymigrate rules --pair cobol-java
 ```
 
 Example output:
@@ -132,7 +132,7 @@ The engine identifies logical service boundaries in the legacy code to guide mod
 **CLI:**
 
 ```bash
-vibecli legacymigrate boundaries --source ./legacy-cobol-app
+vibecli --legacymigrate boundaries --source ./legacy-cobol-app
 ```
 
 Example output:
@@ -153,7 +153,7 @@ Launch the migration. For Strangler Fig, this creates the first batch of migrate
 **CLI:**
 
 ```bash
-vibecli legacymigrate start \
+vibecli --legacymigrate start \
   --source ./legacy-cobol-app \
   --target java \
   --strategy strangler-fig \
@@ -171,7 +171,7 @@ Run the built-in validation to compare behavior between the legacy and migrated 
 **CLI:**
 
 ```bash
-vibecli legacymigrate validate --output ./migrated-java-app
+vibecli --legacymigrate validate --output ./migrated-java-app
 ```
 
 Example output:
@@ -192,8 +192,8 @@ For incremental strategies, repeat steps 5-6 for each service boundary until the
 **CLI:**
 
 ```bash
-vibecli legacymigrate start --boundary OrderProcessing
-vibecli legacymigrate start --boundary InventoryControl
+vibecli --legacymigrate start --boundary OrderProcessing
+vibecli --legacymigrate start --boundary InventoryControl
 # ... continue for each boundary
 ```
 
@@ -207,32 +207,32 @@ vibecli legacymigrate start --boundary InventoryControl
   "steps": [
     {
       "action": "cli_command",
-      "command": "vibecli legacymigrate analyze --source ./legacy-cobol-app",
+      "command": "vibecli --legacymigrate analyze --source ./legacy-cobol-app",
       "description": "Analyze the legacy COBOL codebase"
     },
     {
       "action": "cli_command",
-      "command": "vibecli legacymigrate configure --source ./legacy-cobol-app --target java --strategy strangler-fig --output ./migrated-java-app",
+      "command": "vibecli --legacymigrate configure --source ./legacy-cobol-app --target java --strategy strangler-fig --output ./migrated-java-app",
       "description": "Configure migration target and strategy"
     },
     {
       "action": "cli_command",
-      "command": "vibecli legacymigrate rules --pair cobol-java",
+      "command": "vibecli --legacymigrate rules --pair cobol-java",
       "description": "Review the 47 COBOL-to-Java translation rules"
     },
     {
       "action": "cli_command",
-      "command": "vibecli legacymigrate boundaries --source ./legacy-cobol-app",
+      "command": "vibecli --legacymigrate boundaries --source ./legacy-cobol-app",
       "description": "Detect service boundaries in the legacy code"
     },
     {
       "action": "cli_command",
-      "command": "vibecli legacymigrate start --source ./legacy-cobol-app --target java --strategy strangler-fig --boundary CustomerManagement",
+      "command": "vibecli --legacymigrate start --source ./legacy-cobol-app --target java --strategy strangler-fig --boundary CustomerManagement",
       "description": "Migrate the first service boundary"
     },
     {
       "action": "cli_command",
-      "command": "vibecli legacymigrate validate --output ./migrated-java-app",
+      "command": "vibecli --legacymigrate validate --output ./migrated-java-app",
       "description": "Validate migrated code against legacy behavior"
     },
     {

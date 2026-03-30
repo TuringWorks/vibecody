@@ -27,7 +27,7 @@ The MCP Plugin Directory is VibeCody's curated marketplace for MCP servers. Inst
 Use the `/mcp search` command with a category filter to browse available plugins.
 
 ```bash
-vibecli repl
+vibecli
 > /mcp search --browse
 ```
 

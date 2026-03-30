@@ -27,7 +27,7 @@ VibeCody detects your cloud infrastructure usage directly from your codebase, ge
 The `/cloud scan` command analyzes your source files, dependency manifests, and configuration files to detect cloud service usage. VibeCody uses 84 detection patterns across AWS, GCP, and Azure.
 
 ```bash
-vibecli repl
+vibecli
 > /cloud scan
 ```
 

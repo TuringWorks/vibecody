@@ -18,10 +18,11 @@ License: MIT
 Repository: https://github.com/TuringWorks/vibecody
 Languages: Rust (backend, CLI, shared crates) + TypeScript/React (frontend)
 AI Providers: 23 native providers + OpenRouter gateway (300+ models)
-Unit Tests: ~5,900 (0 failures)
-UI Panels: 149+
-Skill Files: 539+ across 25+ industries
-REPL Commands: 75+
+Unit Tests: 9,570 (0 failures)
+UI Panels: 187
+Skill Files: 568 across 25+ industries
+REPL Commands: 100+
+Rust Modules: 185 (vibecli-cli/src/)
 Gateway Platforms: 18 (Telegram, Discord, Slack, Signal, Matrix, etc.)
 
 Monorepo structure (6 Cargo workspace members):
@@ -41,11 +42,11 @@ Monorepo structure (6 Cargo workspace members):
   |     |  |- repl.rs              Rustyline REPL with tab completion
   |     |  |- tool_executor.rs     Tool execution engine
   |     |  \- tui/                 Ratatui TUI (app, ui, components)
-  |     \- skills/                 539+ skill files (25+ categories)
+  |     \- skills/                 568 skill files (25+ categories)
   |- vibeui/
   |  |- src/                       React + TypeScript frontend
   |  |  |- App.tsx                 Root component
-  |  |  \- components/             149+ panel components
+  |  |  \- components/             187 panel components
   |  |- src-tauri/                 Tauri Rust backend
   |  \- crates/                    Shared library crates
   |     |- vibe-core/              Text buffer, FS, workspace, Git, terminal,
@@ -819,7 +820,7 @@ Plugin CLI:
 
 
 ================================================================================
-14. VIBEUI PANELS (149+)
+14. VIBEUI PANELS (187)
 ================================================================================
 
 Organized by category:
@@ -869,7 +870,7 @@ Communication:
 15. TESTING
 ================================================================================
 
-Total: ~5,900 unit tests (0 failures)
+Total: 9,570 unit tests (0 failures)
 
 Test counts by crate (approximate):
   vibecli:          1,050
@@ -1046,7 +1047,7 @@ Shared crates:
 
 VibeUI frontend:
   vibeui/src/App.tsx                         Root React component
-  vibeui/src/components/                     149+ panel components
+  vibeui/src/components/                     187 panel components
   vibeui/src-tauri/                          Tauri backend
 
 User config (runtime):

@@ -26,7 +26,7 @@ This demo covers VibeCody's HTTP Playground, an API request builder built into b
 Open the REPL and use the HTTP command:
 
 ```bash
-vibecli repl
+vibecli
 > /http GET https://jsonplaceholder.typicode.com/posts/1
 ```
 

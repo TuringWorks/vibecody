@@ -14,14 +14,12 @@ The system supports file-level and function-level indexing, cross-repository sea
 
 ## Prerequisites
 
-- VibeCody installed (`vibecli --version` returns 0.1+)
+- VibeCody installed (`vibecli --version` returns 0.5.1+)
 - An AI provider with embedding support configured in `~/.vibecli/config.toml`:
 
 ```toml
-[provider]
-default = "openai"
-
-[provider.openai]
+[openai]
+enabled = true
 api_key = "sk-..."
 
 [embeddings]
@@ -146,7 +144,7 @@ Search results across 3 repositories:
 For programmatic access, use the HTTP API:
 
 ```bash
-vibecli serve --port 7878 --provider openai
+vibecli --serve --port 7878 --provider openai
 
 # Query the vector index
 curl -X POST http://localhost:7878/api/v1/search \

@@ -26,7 +26,7 @@ This demo covers VibeCody's Notebook panel for interactive code notebooks and th
 #### Step 1: Create a new notebook
 
 ```bash
-vibecli repl
+vibecli
 > /notebook create data-analysis.vnb
 ```
 
@@ -250,7 +250,7 @@ Running: scripts/check-services.sh
 Run directly from the shell:
 
 ```bash
-vibecli script run todo-summary
+vibecli --script run todo-summary
 ```
 
 #### Step 12: View script history
