@@ -37278,11 +37278,17 @@ pub async fn rl_get_model_lineage(policy_id: String) -> Result<serde_json::Value
 pub async fn rl_get_multi_agent_metrics() -> Result<serde_json::Value, String> {
     Ok(serde_json::json!({
         "agents": [
-            { "id": "market_maker_0", "reward": 125.3, "messagesSent": 42, "messagesReceived": 38, "elo": 1520 },
-            { "id": "market_maker_1", "reward": 118.7, "messagesSent": 39, "messagesReceived": 41, "elo": 1480 },
-            { "id": "trend_follower_0", "reward": 85.2, "messagesSent": 15, "messagesReceived": 22, "elo": 1350 },
+            { "id": "market_maker_0", "name": "MarketMaker-0", "reward": 125.3, "episodes": 500, "winRate": 0.62, "messagesSent": 42, "messagesReceived": 38, "elo": 1520 },
+            { "id": "market_maker_1", "name": "MarketMaker-1", "reward": 118.7, "episodes": 500, "winRate": 0.58, "messagesSent": 39, "messagesReceived": 41, "elo": 1480 },
+            { "id": "trend_follower_0", "name": "TrendFollower-0", "reward": 85.2, "episodes": 500, "winRate": 0.45, "messagesSent": 15, "messagesReceived": 22, "elo": 1350 },
         ],
-        "coalitions": [["market_maker_0", "market_maker_1"]],
+        "communicationMatrix": [[0, 12, 5], [10, 0, 3], [4, 2, 0]],
+        "coalitions": [{ "id": "coalition-1", "members": ["market_maker_0", "market_maker_1"], "groupReward": 244.0 }],
+        "eloRankings": [
+            { "agentId": "market_maker_0", "agentName": "MarketMaker-0", "elo": 1520, "wins": 310, "losses": 190 },
+            { "agentId": "market_maker_1", "agentName": "MarketMaker-1", "elo": 1480, "wins": 290, "losses": 210 },
+            { "agentId": "trend_follower_0", "agentName": "TrendFollower-0", "elo": 1350, "wins": 225, "losses": 275 },
+        ],
         "socialWelfare": 329.2,
     }))
 }

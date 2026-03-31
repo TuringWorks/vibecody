@@ -91,13 +91,13 @@ export function RLMultiAgentView() {
                 <thead>
                   <tr>
                     <th style={thStyle}></th>
-                    {metrics.agents.map(a => <th key={a.id} style={thStyle}>{a.name.slice(0, 6)}</th>)}
+                    {metrics.agents.map(a => <th key={a.id} style={thStyle}>{(a.name || a.id).slice(0, 8)}</th>)}
                   </tr>
                 </thead>
                 <tbody>
                   {metrics.communicationMatrix.map((row, i) => (
                     <tr key={i}>
-                      <td style={{ ...tdStyle, fontWeight: 600 }}>{metrics.agents[i]?.name.slice(0, 6)}</td>
+                      <td style={{ ...tdStyle, fontWeight: 600 }}>{(metrics.agents[i]?.name || metrics.agents[i]?.id || "?").slice(0, 8)}</td>
                       {row.map((v, j) => {
                         const intensity = Math.min(v / Math.max(...row, 1), 1);
                         return <td key={j} style={{ ...tdStyle, background: `rgba(33,150,243,${intensity * 0.5})`, textAlign: "center" }}>{v.toFixed(0)}</td>;
