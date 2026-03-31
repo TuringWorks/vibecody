@@ -24,7 +24,7 @@ export const TAB_GROUPS: TabGroup[] = [
   },
   {
     label: "Infrastructure",
-    tabs: ["build-deploy", "containers", "ci-cd", "cloud-platform", "ai-ml"],
+    tabs: ["build-deploy", "containers", "ci-cd", "cloud-platform", "ai-ml", "rl-os"],
   },
   {
     label: "Data & APIs",
@@ -36,11 +36,11 @@ export const TAB_GROUPS: TabGroup[] = [
   },
   {
     label: "Toolkit",
-    tabs: ["converters", "formatters", "editors"],
+    tabs: ["converters", "formatters", "editors", "tools-settings", "integrations"],
   },
   {
     label: "Settings",
-    tabs: ["config", "integrations", "administration", "billing", "tools-settings"],
+    tabs: ["config", "administration", "billing"],
   },
 ];
 

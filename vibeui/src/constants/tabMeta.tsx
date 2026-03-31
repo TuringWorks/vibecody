@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  MessageSquare, Bot, UsersRound, Swords, Infinity, Factory, Store,
+  MessageSquare, Bot, Brain, UsersRound, Swords, Infinity, Factory, Store,
   ClipboardList, Ruler, Activity, Palette,
   Shield, TestTube, TrendingUp,
   GitBranch, GitPullRequest, Users,
@@ -49,7 +49,8 @@ export const TAB_META: Record<string, TabMeta> = {
   containers:        { icon: Container,    label: "Containers",        aliases: ["docker", "k8s", "sandbox", "cloudsandbox", "kubernetes"] },
   "ci-cd":           { icon: RefreshCw,    label: "CI/CD",             aliases: ["cicd", "cistatus", "pipeline"] },
   "cloud-platform":  { icon: CloudCog,     label: "Cloud & Platform",  aliases: ["cloudproviders", "env", "health", "idp", "environment"] },
-  "ai-ml":           { icon: Workflow,     label: "AI/ML",             aliases: ["aiml", "modelwizard", "training", "inference", "quantum"] },
+  "ai-ml":           { icon: Workflow,     label: "AI/ML",             aliases: ["aiml", "modelwizard", "inference", "quantum"] },
+  "rl-os":           { icon: Brain,        label: "RL-OS",             aliases: ["reinforcement learning", "rl", "rlos", "training", "ppo", "sac", "dqn", "rlhf", "dpo", "distillation", "quantization", "environment", "evaluation", "deployment", "multi-agent", "marl", "reward", "policy", "gymnasium"] },
 
   // --- Data & APIs ---
   database:          { icon: Database,     label: "Database",          aliases: ["vibesql", "supabase", "migrations", "vectordb", "vector db"] },

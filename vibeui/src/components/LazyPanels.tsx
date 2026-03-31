@@ -61,6 +61,7 @@ const ContainersComposite = lazy(() => import("./composite/ContainersComposite")
 const CiCdComposite = lazy(() => import("./composite/CiCdComposite").then(m => ({ default: m.CiCdComposite })));
 const CloudPlatformComposite = lazy(() => import("./composite/CloudPlatformComposite").then(m => ({ default: m.CloudPlatformComposite })));
 const AiMlComposite = lazy(() => import("./composite/AiMlComposite").then(m => ({ default: m.AiMlComposite })));
+const RLOSComposite = lazy(() => import("./composite/RLOSComposite").then(m => ({ default: m.RLOSComposite })));
 const DatabaseComposite = lazy(() => import("./composite/DatabaseComposite").then(m => ({ default: m.DatabaseComposite })));
 const ApiToolsComposite = lazy(() => import("./composite/ApiToolsComposite").then(m => ({ default: m.ApiToolsComposite })));
 const DataPipelineComposite = lazy(() => import("./composite/DataPipelineComposite").then(m => ({ default: m.DataPipelineComposite })));
@@ -134,7 +135,7 @@ export function PanelHost(props: PanelHostProps) {
     "project-hub", "planning", "observability", "design",
     "security", "testing", "code-analysis",
     "version-control", "github", "collaboration",
-    "build-deploy", "containers", "ci-cd", "cloud-platform", "ai-ml",
+    "build-deploy", "containers", "ci-cd", "cloud-platform", "ai-ml", "rl-os",
     "database", "api-tools", "data-pipeline",
     "system-monitor", "terminal", "diagnostics",
     "converters", "formatters", "editors",
@@ -174,6 +175,7 @@ export function PanelHost(props: PanelHostProps) {
       {panel("ci-cd", <LazyPanel Component={CiCdComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}
       {panel("cloud-platform", <LazyPanel Component={CloudPlatformComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}
       {panel("ai-ml", <LazyPanel Component={AiMlComposite} props={{ provider: selectedProvider }} />)}
+      {panel("rl-os", <LazyPanel Component={RLOSComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}
 
       {/* --- Data & APIs --- */}
       {panel("database", <LazyPanel Component={DatabaseComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}
