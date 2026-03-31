@@ -315,6 +315,23 @@ mod ai_code_review;
 mod intent_refactor;
 mod architecture_spec;
 mod policy_engine;
+// RL-OS: Unified Reinforcement Learning Lifecycle Platform
+#[allow(dead_code)]
+mod rl_env_os;
+#[allow(dead_code)]
+mod rl_train_os;
+#[allow(dead_code)]
+mod rl_eval_os;
+#[allow(dead_code)]
+mod rl_opti_os;
+#[allow(dead_code)]
+mod rl_model_hub;
+#[allow(dead_code)]
+mod rl_serve_os;
+#[allow(dead_code)]
+mod rl_rlhf;
+#[allow(dead_code)]
+mod rl_observe;
 
 #[derive(Parser)]
 #[command(name = "vibecli")]

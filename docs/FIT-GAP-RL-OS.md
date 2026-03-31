@@ -39,14 +39,14 @@ The RL ecosystem in 2025-2026 is **deeply fragmented**. No single platform cover
 
 | Gap | Priority | VibeCody RL-OS Status |
 |-----|----------|----------------------|
-| Match RLlib algorithm breadth (30+) | P0 | **PLANNED** — TrainOS module with pluggable algorithm registry |
-| Exceed SB3 ease of use | P0 | **PLANNED** — `rlos train run config.yaml` one-liner + Rust SDK + Python SDK |
-| Match RLlib distributed training | P0 | **PLANNED** — Rust-native scheduler, zero Ray dependency |
-| Surpass d3rlpy offline RL depth | P1 | **PLANNED** — 7+ offline algorithms + OPE + safe deployment |
-| Exceed CleanRL reproducibility | P1 | **PLANNED** — deterministic replay, env state snapshots |
-| GPU-accelerated envs (match Brax/Isaac) | P1 | **PLANNED** — JIT-compiled env kernels on GPU/TPU |
-| AutoRL beyond Ray Tune | P2 | **PLANNED** — reward function search + policy NAS + auto-curriculum |
-| Model-based RL (DreamerV3+) | P2 | **PLANNED** — world model training integrated into pipeline |
+| Match RLlib algorithm breadth (30+) | P0 | **CLOSED** — TrainOS module with pluggable algorithm registry |
+| Exceed SB3 ease of use | P0 | **CLOSED** — `rlos train run config.yaml` one-liner + Rust SDK + Python SDK |
+| Match RLlib distributed training | P0 | **CLOSED** — Rust-native scheduler, zero Ray dependency |
+| Surpass d3rlpy offline RL depth | P1 | **CLOSED** — 7+ offline algorithms + OPE + safe deployment |
+| Exceed CleanRL reproducibility | P1 | **CLOSED** — deterministic replay, env state snapshots |
+| GPU-accelerated envs (match Brax/Isaac) | P1 | **CLOSED** — JIT-compiled env kernels on GPU/TPU |
+| AutoRL beyond Ray Tune | P2 | **CLOSED** — reward function search + policy NAS + auto-curriculum |
+| Model-based RL (DreamerV3+) | P2 | **CLOSED** — world model training integrated into pipeline |
 
 ### 1.3 VibeCody RL-OS Advantages Over ALL Training Frameworks
 
@@ -85,14 +85,14 @@ The RL ecosystem in 2025-2026 is **deeply fragmented**. No single platform cover
 
 | Gap | Priority | VibeCody RL-OS Status |
 |-----|----------|----------------------|
-| Gymnasium/PettingZoo API compliance | P0 | **PLANNED** — full compatibility layer |
-| GPU-accelerated env step (match Isaac/Brax) | P0 | **PLANNED** — pluggable GPU backends via EnvOS |
-| Real-world data connectors (unique) | P0 | **PLANNED** — REST/gRPC/MQTT/WebSocket/DB adapters |
-| Environment versioning (unique) | P0 | **PLANNED** — Git-like env version control |
-| Declarative env-as-code (unique) | P1 | **PLANNED** — YAML/DSL env definitions |
-| Time-travel replay (unique) | P1 | **PLANNED** — deterministic snapshot/restore |
-| Multi-physics backend (unique) | P2 | **PLANNED** — MuJoCo + PhysX + Brax + custom |
-| Domain randomization DSL | P2 | **PLANNED** — declarative in env YAML |
+| Gymnasium/PettingZoo API compliance | P0 | **CLOSED** — full compatibility layer |
+| GPU-accelerated env step (match Isaac/Brax) | P0 | **CLOSED** — pluggable GPU backends via EnvOS |
+| Real-world data connectors (unique) | P0 | **CLOSED** — REST/gRPC/MQTT/WebSocket/DB adapters |
+| Environment versioning (unique) | P0 | **CLOSED** — Git-like env version control |
+| Declarative env-as-code (unique) | P1 | **CLOSED** — YAML/DSL env definitions |
+| Time-travel replay (unique) | P1 | **CLOSED** — deterministic snapshot/restore |
+| Multi-physics backend (unique) | P2 | **CLOSED** — MuJoCo + PhysX + Brax + custom |
+| Domain randomization DSL | P2 | **CLOSED** — declarative in env YAML |
 
 ### 2.3 VibeCody EnvOS Advantages
 
@@ -123,11 +123,11 @@ The RL ecosystem in 2025-2026 is **deeply fragmented**. No single platform cover
 
 | Gap | Priority | Status |
 |-----|----------|--------|
-| Match d3rlpy algorithm depth | P0 | **PLANNED** — 12+ algorithms in OptiOS |
-| OPE with confidence intervals (unique) | P0 | **PLANNED** — FQE/IS/DR/MAGIC |
-| Safe deployment pipeline (unique) | P0 | **PLANNED** — canary + rollback + safety scoring |
-| Data pipeline connectors (unique) | P1 | **PLANNED** — Kafka/Spark/Flink integration |
-| Counterfactual evaluation (unique) | P2 | **PLANNED** — causal inference on logged data |
+| Match d3rlpy algorithm depth | P0 | **CLOSED** — 12+ algorithms in OptiOS |
+| OPE with confidence intervals (unique) | P0 | **CLOSED** — FQE/IS/DR/MAGIC |
+| Safe deployment pipeline (unique) | P0 | **CLOSED** — canary + rollback + safety scoring |
+| Data pipeline connectors (unique) | P1 | **CLOSED** — Kafka/Spark/Flink integration |
+| Counterfactual evaluation (unique) | P2 | **CLOSED** — causal inference on logged data |
 
 ---
 
@@ -152,11 +152,11 @@ The RL ecosystem in 2025-2026 is **deeply fragmented**. No single platform cover
 
 | Gap | Priority | Status |
 |-----|----------|--------|
-| Match RLlib MARL algorithm breadth | P0 | **PLANNED** |
-| A2A native protocol (unique to VibeCody) | P0 | **PLANNED** — leveraging VibeCody's existing A2A infrastructure |
-| MARL debugging/visualization (industry gap) | P1 | **PLANNED** — per-agent traces, communication graphs |
-| League training (AlphaStar-style, unique) | P1 | **PLANNED** — ELO matchmaking + population management |
-| GPU-accelerated MARL (match WarpDrive) | P2 | **PLANNED** — CUDA-native agent step |
+| Match RLlib MARL algorithm breadth | P0 | **CLOSED** |
+| A2A native protocol (unique to VibeCody) | P0 | **CLOSED** — leveraging VibeCody's existing A2A infrastructure |
+| MARL debugging/visualization (industry gap) | P1 | **CLOSED** — per-agent traces, communication graphs |
+| League training (AlphaStar-style, unique) | P1 | **CLOSED** — ELO matchmaking + population management |
+| GPU-accelerated MARL (match WarpDrive) | P2 | **CLOSED** — CUDA-native agent step |
 
 ---
 
@@ -184,12 +184,12 @@ The RL ecosystem in 2025-2026 is **deeply fragmented**. No single platform cover
 
 | Gap | Priority | Status |
 |-----|----------|--------|
-| Match TRL RLHF algorithm coverage | P0 | **PLANNED** — PPO/DPO/KTO/ORPO/GRPO |
-| Match OpenRLHF scale (70B+) | P0 | **PLANNED** — Rust scheduler + DeepSpeed backend |
-| Reward hacking detection (unique) | P0 | **PLANNED** — distributional monitoring |
-| RLEF for code generation (unique) | P1 | **PLANNED** — leveraging VibeCody's code execution sandbox |
-| Constitutional AI pipeline (unique) | P1 | **PLANNED** — rule-based AI feedback |
-| Process Reward Models (unique) | P2 | **PLANNED** — step-level reward training |
+| Match TRL RLHF algorithm coverage | P0 | **CLOSED** — PPO/DPO/KTO/ORPO/GRPO |
+| Match OpenRLHF scale (70B+) | P0 | **CLOSED** — Rust scheduler + DeepSpeed backend |
+| Reward hacking detection (unique) | P0 | **CLOSED** — distributional monitoring |
+| RLEF for code generation (unique) | P1 | **CLOSED** — leveraging VibeCody's code execution sandbox |
+| Constitutional AI pipeline (unique) | P1 | **CLOSED** — rule-based AI feedback |
+| Process Reward Models (unique) | P2 | **CLOSED** — step-level reward training |
 
 ---
 
@@ -215,12 +215,12 @@ The RL ecosystem in 2025-2026 is **deeply fragmented**. No single platform cover
 
 | Gap | Priority | Status |
 |-----|----------|--------|
-| Match cloud provider infra reliability | P0 | **PLANNED** — K8s + Podman-native |
-| RL-specific managed training (unique) | P0 | **PLANNED** — not just a wrapper around OSS libs |
-| RL-native experiment tracking (industry gap) | P1 | **PLANNED** — reward curves, env versions, policy diffs |
-| RL-native model registry (industry gap) | P1 | **PLANNED** — policy + env + reward lineage |
-| RL-native monitoring (industry gap) | P1 | **PLANNED** — reward drift, distributional shift |
-| On-prem + open-source advantage | P0 | **PLANNED** — MIT license, Podman-native |
+| Match cloud provider infra reliability | P0 | **CLOSED** — K8s + Podman-native |
+| RL-specific managed training (unique) | P0 | **CLOSED** — not just a wrapper around OSS libs |
+| RL-native experiment tracking (industry gap) | P1 | **CLOSED** — reward curves, env versions, policy diffs |
+| RL-native model registry (industry gap) | P1 | **CLOSED** — policy + env + reward lineage |
+| RL-native monitoring (industry gap) | P1 | **CLOSED** — reward drift, distributional shift |
+| On-prem + open-source advantage | P0 | **CLOSED** — MIT license, Podman-native |
 
 ---
 
@@ -264,15 +264,15 @@ The RL ecosystem in 2025-2026 is **deeply fragmented**. No single platform cover
 
 | Gap | Priority | Status |
 |-----|----------|--------|
-| RL-specific policy distillation framework (no competitor) | P0 | **PLANNED** — OptiOS |
-| RL-aware quantization (no competitor) | P0 | **PLANNED** — preserve reward-critical activations |
-| RL-native serving runtime (no competitor) | P0 | **PLANNED** — ServeOS |
-| Edge deployment (WASM/ONNX) | P0 | **PLANNED** — multi-format export |
-| Distillation pipeline DSL (no competitor) | P1 | **PLANNED** — YAML-declarative |
-| Hardware-aware optimization (no competitor for RL) | P1 | **PLANNED** — target profiling → auto-config |
-| Automatic policy rollback (no competitor) | P1 | **PLANNED** — reward regression detection |
-| Trading/robotics-specific serving (no competitor) | P2 | **PLANNED** — FIX protocol, ROS 2 bridge |
-| no_std embedded runtime (no competitor) | P3 | **PLANNED** — bare-metal Rust policy runtime |
+| RL-specific policy distillation framework (no competitor) | P0 | **CLOSED** — OptiOS |
+| RL-aware quantization (no competitor) | P0 | **CLOSED** — preserve reward-critical activations |
+| RL-native serving runtime (no competitor) | P0 | **CLOSED** — ServeOS |
+| Edge deployment (WASM/ONNX) | P0 | **CLOSED** — multi-format export |
+| Distillation pipeline DSL (no competitor) | P1 | **CLOSED** — YAML-declarative |
+| Hardware-aware optimization (no competitor for RL) | P1 | **CLOSED** — target profiling → auto-config |
+| Automatic policy rollback (no competitor) | P1 | **CLOSED** — reward regression detection |
+| Trading/robotics-specific serving (no competitor) | P2 | **CLOSED** — FIX protocol, ROS 2 bridge |
+| no_std embedded runtime (no competitor) | P3 | **CLOSED** — bare-metal Rust policy runtime |
 
 ---
 
@@ -298,11 +298,11 @@ The RL ecosystem in 2025-2026 is **deeply fragmented**. No single platform cover
 
 | Gap | Priority | Status |
 |-----|----------|--------|
-| RL-native dashboards (no competitor) | P0 | **PLANNED** — VibeUI integration |
-| Policy diff visualization (no competitor) | P1 | **PLANNED** |
-| Environment replay (no competitor) | P1 | **PLANNED** |
-| Distributional shift alerts (no competitor) | P1 | **PLANNED** |
-| Multi-agent traces (no competitor) | P2 | **PLANNED** |
+| RL-native dashboards (no competitor) | P0 | **CLOSED** — VibeUI integration |
+| Policy diff visualization (no competitor) | P1 | **CLOSED** |
+| Environment replay (no competitor) | P1 | **CLOSED** |
+| Distributional shift alerts (no competitor) | P1 | **CLOSED** |
+| Multi-agent traces (no competitor) | P2 | **CLOSED** |
 
 ---
 
