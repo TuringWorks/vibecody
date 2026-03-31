@@ -100,10 +100,33 @@ export function ScreenshotToApp({ workspacePath, provider }: { workspacePath: st
       setWriteStatus(prev => ({ ...prev, [idx]: "writing" }));
       await invoke("write_file", { path: fullPath, content: file.content });
       setWriteStatus(prev => ({ ...prev, [idx]: "done" }));
+      window.dispatchEvent(new Event("vibeui:refresh-files"));
     } catch (e: unknown) {
       setWriteStatus(prev => ({ ...prev, [idx]: "error" }));
       setError(`Failed to write ${file.path}: ${String(e)}`);
     }
+  };
+
+  const handleWriteAll = async () => {
+    if (!workspacePath) {
+      setError("No workspace folder open.");
+      return;
+    }
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const fullPath = workspacePath.endsWith("/")
+        ? workspacePath + file.path
+        : workspacePath + "/" + file.path;
+      try {
+        setWriteStatus(prev => ({ ...prev, [i]: "writing" }));
+        await invoke("write_file", { path: fullPath, content: file.content });
+        setWriteStatus(prev => ({ ...prev, [i]: "done" }));
+      } catch (e: unknown) {
+        setWriteStatus(prev => ({ ...prev, [i]: "error" }));
+        setError(`Failed to write ${file.path}: ${String(e)}`);
+      }
+    }
+    window.dispatchEvent(new Event("vibeui:refresh-files"));
   };
 
   const handleClear = () => {
@@ -282,9 +305,7 @@ export function ScreenshotToApp({ workspacePath, provider }: { workspacePath: st
               {files.length} file{files.length !== 1 ? "s" : ""} generated
             </span>
             <button
-              onClick={() => {
-                files.forEach((_, idx) => { if (writeStatus[idx] !== "done") handleWriteFile(idx); });
-              }}
+              onClick={handleWriteAll}
               disabled={!workspacePath}
               style={{
                 background: "var(--success-color)", color: "var(--text-primary)", border: "none",

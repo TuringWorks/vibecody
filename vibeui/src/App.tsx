@@ -138,6 +138,13 @@ function App() {
     selectedProviderRef.current = selectedProvider;
   }, [selectedProvider]);
 
+  // Listen for file-tree refresh requests from child panels (e.g. Screenshot to App)
+  useEffect(() => {
+    const handler = () => { if (currentDirectory) loadDirectory(currentDirectory); };
+    window.addEventListener("vibeui:refresh-files", handler);
+    return () => window.removeEventListener("vibeui:refresh-files", handler);
+  });
+
   // Derived state for active file
   const activeFile = openFiles.find(f => f.path === activeFilePath);
   const editorContent = activeFile?.content || "";
