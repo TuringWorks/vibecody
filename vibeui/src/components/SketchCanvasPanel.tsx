@@ -235,12 +235,20 @@ export function SketchCanvasPanel() {
   const handleRecognize = async () => {
     setRecognizing(true);
     try {
-      const elements = shapes.map((s) => ({
-        tool: s.tool, x: Math.round(s.x), y: Math.round(s.y),
+      const elements = JSON.stringify(shapes.map((s) => ({
+        type: s.tool, x: Math.round(s.x), y: Math.round(s.y),
         w: Math.round(Math.abs(s.w)), h: Math.round(Math.abs(s.h)),
+        bounds: { x: Math.round(s.x), y: Math.round(s.y), w: Math.round(Math.abs(s.w)), h: Math.round(Math.abs(s.h)) },
+      })));
+      const res = await invoke<{ recognized: Array<{ id: string; type: string; confidence: number; bounds: { x?: number; y?: number } }> }>("sketch_recognize", { elements });
+      const recognized = (res.recognized ?? []).map((r) => ({
+        shape: r.type,
+        component: r.type.replace(/\s+/g, ""),
+        confidence: Math.round((r.confidence ?? 0.85) * 100),
+        x: r.bounds?.x ?? 0,
+        y: r.bounds?.y ?? 0,
       }));
-      const result = await invoke<RecognizedComponent[]>("sketch_recognize", { elements });
-      setRecognized(result);
+      setRecognized(recognized);
     } catch (e) {
       console.error("Failed to recognize shapes:", e);
     }
@@ -250,9 +258,9 @@ export function SketchCanvasPanel() {
   const handleGenerate = async () => {
     setGenerating(true);
     try {
-      const components = recognized.map((r) => r.component);
-      const result = await invoke<string>("sketch_generate", { framework, components });
-      setGeneratedCode(result);
+      const components = JSON.stringify(recognized.map((r) => r.component));
+      const res = await invoke<{ code: string }>("sketch_generate", { framework, components });
+      setGeneratedCode(res.code ?? "");
     } catch (e) {
       console.error("Failed to generate code:", e);
     }
