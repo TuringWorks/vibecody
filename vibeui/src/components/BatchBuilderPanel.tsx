@@ -1166,7 +1166,7 @@ const BatchBuilderPanel: React.FC = () => {
     const completedCount = migComponents.filter((c) => c.status === "Completed").length;
     const totalSourceLines = migComponents.reduce((s, c) => s + c.lines, 0);
     const completedLines = migComponents.filter((c) => c.status === "Completed").reduce((s, c) => s + c.lines, 0);
-    const overallConfidence = Math.round(translationRules.reduce((s, r) => s + r.confidence, 0) / translationRules.length);
+    const overallConfidence = translationRules.length > 0 ? Math.round(translationRules.reduce((s, r) => s + r.confidence, 0) / translationRules.length) : 0;
     const manualReviews = migComponents.filter((c) => c.risk === "Critical" || c.risk === "High").length;
 
     return (

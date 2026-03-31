@@ -148,8 +148,8 @@ export function PanelHost(props: PanelHostProps) {
       {panel("agent", <LazyPanel Component={AgentPanel} props={{ provider: selectedProvider, workspacePath: wp }} />)}
       {panel("ai-teams", <LazyPanel Component={AiTeamsComposite} props={{ provider: selectedProvider }} />)}
       {panel("ai-playground", <LazyPanel Component={AiPlaygroundComposite} props={{ provider: selectedProvider }} />)}
-      {panel("ai-context", <LazyPanel Component={AiContextComposite} props={{ workspacePath: wp || "", provider: selectedProvider }} />)}
-      {panel("ai-generation", <LazyPanel Component={AiGenerationComposite} props={{ workspacePath: wp || "", provider: selectedProvider }} />)}
+      {panel("ai-context", <LazyPanel Component={AiContextComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}
+      {panel("ai-generation", <LazyPanel Component={AiGenerationComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}
       {panel("marketplace", <LazyPanel Component={MarketplacePanel} props={{}} />)}
 
       {/* --- Project --- */}

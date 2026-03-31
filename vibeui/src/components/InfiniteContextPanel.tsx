@@ -110,9 +110,12 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
   const [autoCompress, setAutoCompress] = useState(true);
   const [cacheSize, setCacheSize] = useState(256);
 
+  const hasWorkspace = !!workspacePath;
+
   /* ── Load data from backend ─────────────────────────────────────── */
 
   const loadChunks = useCallback(async () => {
+    if (!hasWorkspace) return;
     try {
       setLoading(true);
       setError(null);
@@ -123,9 +126,10 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
     } finally {
       setLoading(false);
     }
-  }, [workspacePath]);
+  }, [workspacePath, hasWorkspace]);
 
   const loadProjectTree = useCallback(async () => {
+    if (!hasWorkspace) return;
     try {
       setLoading(true);
       setError(null);
@@ -136,16 +140,17 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
     } finally {
       setLoading(false);
     }
-  }, [workspacePath]);
+  }, [workspacePath, hasWorkspace]);
 
   const loadStats = useCallback(async () => {
+    if (!hasWorkspace) return;
     try {
       const stats = await invoke<ContextWindowStats>("get_context_window_stats", { workspace: workspacePath });
       setMaxTokens(stats.maxTokens);
     } catch (_e) {
       // stats are supplementary, don't block on error
     }
-  }, [workspacePath]);
+  }, [workspacePath, hasWorkspace]);
 
   // Load chunks and project tree on mount
   useEffect(() => {
@@ -441,6 +446,15 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
   );
 
   /* ── Main render ─────────────────────────────────────────────────── */
+
+  if (!hasWorkspace) {
+    return (
+      <div style={{ padding: 24, textAlign: "center", color: "var(--text-secondary)", fontSize: 13 }}>
+        <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 8, color: "var(--text-primary)" }}>Infinite Context Manager</div>
+        <p>Open a folder to use context indexing.</p>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden", fontFamily: "var(--font-family)", color: "var(--text-primary)", fontSize: "13px" }}>

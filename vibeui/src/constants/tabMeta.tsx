@@ -25,7 +25,7 @@ export const TAB_META: Record<string, TabMeta> = {
   "ai-teams":      { icon: UsersRound,     label: "AI Teams",          aliases: ["teams", "agentteams", "subagents", "cloud", "cibot", "agent modes"] },
   "ai-playground": { icon: Swords,         label: "AI Council",        aliases: ["counsel", "superbrain", "compare", "arena", "playground", "debate", "ensemble", "multi-model"] },
   "ai-context":    { icon: Infinity,       label: "Context & Memory",  aliases: ["icontext", "bundles", "openmemory", "fastcontext", "infinite context"] },
-  "ai-generation": { icon: Factory,        label: "Generation",        aliases: ["batchbuilder", "imagegen", "autoresearch", "batch", "image", "research"] },
+  "ai-generation": { icon: Factory,        label: "Generation",        aliases: ["batchbuilder", "imagegen", "autoresearch", "batch", "image", "research", "transform"] },
   marketplace:     { icon: Store,          label: "Marketplace" },
 
   // --- Project ---
@@ -37,7 +37,7 @@ export const TAB_META: Record<string, TabMeta> = {
   // --- Code Quality ---
   security:        { icon: Shield,         label: "Security",          aliases: ["redteam", "blueteam", "purpleteam", "securityscan", "red team", "blue team", "purple team"] },
   testing:         { icon: TestTube,       label: "Testing",           aliases: ["tests", "coverage", "bugbot", "autofix", "cloudautofix", "qa-validation", "qa"] },
-  "code-analysis": { icon: TrendingUp,     label: "Code Analysis",     aliases: ["transform", "metrics", "astedit", "editpredict", "snippets", "ast edit"] },
+  "code-analysis": { icon: TrendingUp,     label: "Code Analysis",     aliases: ["metrics", "astedit", "editpredict", "snippets", "ast edit"] },
 
   // --- Source Control ---
   "version-control": { icon: GitBranch,    label: "Version Control",   aliases: ["history", "checkpoints", "bisect"] },

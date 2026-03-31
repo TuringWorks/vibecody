@@ -90,7 +90,8 @@ export function WorktreePoolPanel() {
     async function loadWorktrees() {
       setLoading(true);
       try {
-        const list = await invoke<WorktreeAgent[]>("worktree_list");
+        const res = await invoke<{ agents: WorktreeAgent[]; active_count: number }>("worktree_list");
+        const list = Array.isArray(res) ? res : (res.agents ?? []);
         setAgents(list);
         // Derive queue from agents that are in merging state
         const mergeQueue: QueueItem[] = list
@@ -112,8 +113,8 @@ export function WorktreePoolPanel() {
       await invoke("worktree_spawn", { task: spawnTask });
       setSpawnTask("");
       // Refresh list
-      const list = await invoke<WorktreeAgent[]>("worktree_list");
-      setAgents(list);
+      const r = await invoke<{ agents: WorktreeAgent[]; active_count: number }>("worktree_list");
+      setAgents(Array.isArray(r) ? r : (r.agents ?? []));
     } catch (e) {
       console.error("Failed to spawn worktree:", e);
     }
@@ -124,8 +125,8 @@ export function WorktreePoolPanel() {
     setActionLoading(agentId);
     try {
       await invoke("worktree_merge", { agentId });
-      const list = await invoke<WorktreeAgent[]>("worktree_list");
-      setAgents(list);
+      const r2 = await invoke<{ agents: WorktreeAgent[]; active_count: number }>("worktree_list");
+      setAgents(Array.isArray(r2) ? r2 : (r2.agents ?? []));
     } catch (e) {
       console.error("Failed to merge worktree:", e);
     }
@@ -136,8 +137,8 @@ export function WorktreePoolPanel() {
     setActionLoading("cleanup");
     try {
       await invoke("worktree_cleanup");
-      const list = await invoke<WorktreeAgent[]>("worktree_list");
-      setAgents(list);
+      const r3 = await invoke<{ agents: WorktreeAgent[]; active_count: number }>("worktree_list");
+      setAgents(Array.isArray(r3) ? r3 : (r3.agents ?? []));
     } catch (e) {
       console.error("Failed to cleanup worktrees:", e);
     }

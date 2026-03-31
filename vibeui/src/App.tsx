@@ -19,7 +19,7 @@ import { CommandPalette, Command } from "./components/CommandPalette";
 import Modal from "./components/Modal";
 import { GitPanel } from "./components/GitPanel";
 import { MarkdownPreview } from "./components/MarkdownPreview";
-import { FilePlus, FolderPlus, FolderOpen, Files, Search, GitGraph, Settings, Menu, MessageSquare, Save, Terminal as TerminalIcon, PanelLeft, Puzzle, Hand, Sparkles, Bot, Rocket, Plug, Eye, FileText, GraduationCap, LayoutGrid, Bug, Box, Play, Shield, Globe } from "lucide-react";
+import { FilePlus, FolderPlus, FolderOpen, Files, Search, GitGraph, Settings, Menu, MessageSquare, Save, Terminal as TerminalIcon, PanelLeft, Puzzle, Hand, Sparkles, Bot, Rocket, Plug, Eye, FileText, GraduationCap, LayoutGrid, Play, Shield, TestTube, ClipboardList, Hammer } from "lucide-react";
 import "./ActivityBar.css";
 import { ExtensionManager } from "./extensions/ExtensionManager";
 // Import worker using Vite's syntax
@@ -75,7 +75,7 @@ function App() {
   const [aiProviders, setAiProviders] = useState<string[]>([]);
   const [selectedProvider, setSelectedProvider] = useState<string>("");
   const [showSidebar, setShowSidebar] = useState(true);
-  const [activeSidebarTab, setActiveSidebarTab] = useState<"explorer" | "search" | "git" | "debug" | "extensions" | "docker" | "ai" | "security">("explorer");
+  const [activeSidebarTab, setActiveSidebarTab] = useState<"explorer" | "search" | "git" | "testing" | "project" | "infra" | "ai" | "security">("explorer");
   const [showAIChat, setShowAIChat] = useState(false);
   const [aiPanelTab, setAiPanelTab] = useState("chat");
   const [panelsMaximized, setPanelsMaximized] = useState(false);
@@ -1288,9 +1288,9 @@ function App() {
             { id: "explorer" as const, icon: <Files size={20} strokeWidth={1.5} />, title: "Explorer", shortcut: `${modKey}${shiftMod}E` },
             { id: "search" as const, icon: <Search size={20} strokeWidth={1.5} />, title: "Search", shortcut: undefined },
             { id: "git" as const, icon: <GitGraph size={20} strokeWidth={1.5} />, title: "Source Control", shortcut: `${modKey}${shiftMod}G` },
-            { id: "debug" as const, icon: <Bug size={20} strokeWidth={1.5} />, title: "Debug", shortcut: undefined },
-            { id: "extensions" as const, icon: <Puzzle size={20} strokeWidth={1.5} />, title: "Extensions", shortcut: undefined },
-            { id: "docker" as const, icon: <Box size={20} strokeWidth={1.5} />, title: "Containers", shortcut: undefined },
+            { id: "testing" as const, icon: <TestTube size={20} strokeWidth={1.5} />, title: "Testing & Debug", shortcut: undefined },
+            { id: "project" as const, icon: <ClipboardList size={20} strokeWidth={1.5} />, title: "Project", shortcut: undefined },
+            { id: "infra" as const, icon: <Hammer size={20} strokeWidth={1.5} />, title: "Build & Infra", shortcut: undefined },
             { id: "ai" as const, icon: <Bot size={20} strokeWidth={1.5} />, title: "AI Toolkit", shortcut: `${modKey}J` },
             { id: "security" as const, icon: <Shield size={20} strokeWidth={1.5} />, title: "Security", shortcut: undefined },
           ]).map(({ id, icon, title, shortcut }) => (
@@ -1442,70 +1442,103 @@ function App() {
               <GitPanel workspacePath={workspaceFolders[0] || null} onCompareFile={handleCompareFile} />
             )}
 
-            {activeSidebarTab === 'debug' && (
+            {activeSidebarTab === 'testing' && (
               <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 10, height: "100%", overflow: "auto" }}>
-                <div className="sidebar-section-title">Run & Debug</div>
+                <div className="sidebar-section-title">Testing</div>
                 <button className="btn-secondary" style={{ width: "100%", justifyContent: "center", gap: 6, display: "flex", alignItems: "center" }}
-                  onClick={() => { setShowAIChat(true); setAiPanelTab("system-monitor"); }}>
-                  <Play size={14} strokeWidth={1.5} /> Start Debug Session
+                  onClick={() => { setShowAIChat(true); setAiPanelTab("testing"); }}>
+                  <Play size={14} strokeWidth={1.5} /> Run Tests
                 </button>
                 <div style={{ fontSize: 11, color: "var(--text-muted)", lineHeight: 1.5 }}>
-                  Launch AI-assisted debugging. The debug agent can set breakpoints, inspect variables, and step through code.
+                  Run tests, view coverage, and use AI to auto-fix failures.
                 </div>
-                <div className="sidebar-section-title" style={{ marginTop: 8 }}>Quick Actions</div>
+                {([
+                  { label: "Test Runner", panel: "testing" },
+                  { label: "Coverage Report", panel: "testing" },
+                  { label: "BugBot", panel: "testing" },
+                  { label: "Autofix", panel: "testing" },
+                ] as const).map(({ label, panel }) => (
+                  <button key={label} className="sidebar-action-item"
+                    onClick={() => { setShowAIChat(true); setAiPanelTab(panel); }}>
+                    {label}
+                  </button>
+                ))}
+                <div className="sidebar-section-title" style={{ marginTop: 8 }}>Debug</div>
                 {([
                   { label: "Debug Mode", panel: "system-monitor" },
                   { label: "Profiler", panel: "system-monitor" },
-                  { label: "Coverage", panel: "testing" },
-                  { label: "Test Runner", panel: "testing" },
-                  { label: "Bisect", panel: "version-control" },
+                  { label: "Diagnostics", panel: "diagnostics" },
+                  { label: "Git Bisect", panel: "version-control" },
                 ] as const).map(({ label, panel }) => (
-                  <button key={panel} className="sidebar-action-item"
-                    onClick={() => { setShowAIChat(true); setAiPanelTab(panel); }}
->
+                  <button key={label} className="sidebar-action-item"
+                    onClick={() => { setShowAIChat(true); setAiPanelTab(panel); }}>
                     {label}
                   </button>
                 ))}
               </div>
             )}
 
-            {activeSidebarTab === 'extensions' && (
+            {activeSidebarTab === 'project' && (
               <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 10, height: "100%", overflow: "auto" }}>
-                <div className="sidebar-section-title">Extensions</div>
-                <button className="btn-secondary" style={{ width: "100%", justifyContent: "center", gap: 6, display: "flex", alignItems: "center" }}
-                  onClick={() => { setShowAIChat(true); setAiPanelTab("marketplace"); }}>
-                  <Globe size={14} strokeWidth={1.5} /> Browse Marketplace
-                </button>
-                <div className="sidebar-section-title" style={{ marginTop: 8 }}>Manage</div>
+                <div className="sidebar-section-title">Project</div>
                 {([
-                  { label: "Installed Plugins", panel: "marketplace" },
-                  { label: "MCP Servers", panel: "integrations" },
-                  { label: "Skills Library", panel: "administration" },
-                  { label: "Hooks", panel: "config" },
+                  { label: "Project Hub", panel: "project-hub" },
+                  { label: "Planning & Specs", panel: "planning" },
+                  { label: "Code Analysis", panel: "code-analysis" },
+                  { label: "Observability", panel: "observability" },
+                  { label: "Design", panel: "design" },
                 ] as const).map(({ label, panel }) => (
                   <button key={panel} className="sidebar-action-item"
-                    onClick={() => { setShowAIChat(true); setAiPanelTab(panel); }}
->
+                    onClick={() => { setShowAIChat(true); setAiPanelTab(panel); }}>
+                    {label}
+                  </button>
+                ))}
+                <div className="sidebar-section-title" style={{ marginTop: 8 }}>Extensions</div>
+                {([
+                  { label: "Marketplace", panel: "marketplace" },
+                  { label: "MCP Servers", panel: "integrations" },
+                  { label: "Configuration", panel: "config" },
+                ] as const).map(({ label, panel }) => (
+                  <button key={panel} className="sidebar-action-item"
+                    onClick={() => { setShowAIChat(true); setAiPanelTab(panel); }}>
                     {label}
                   </button>
                 ))}
               </div>
             )}
 
-            {activeSidebarTab === 'docker' && (
+            {activeSidebarTab === 'infra' && (
               <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 10, height: "100%", overflow: "auto" }}>
-                <div className="sidebar-section-title">Containers & Infra</div>
+                <div className="sidebar-section-title">Build & Deploy</div>
+                {([
+                  { label: "Build & Deploy", panel: "build-deploy" },
+                  { label: "CI/CD Pipelines", panel: "ci-cd" },
+                  { label: "GitHub Actions", panel: "github" },
+                ] as const).map(({ label, panel }) => (
+                  <button key={panel} className="sidebar-action-item"
+                    onClick={() => { setShowAIChat(true); setAiPanelTab(panel); }}>
+                    {label}
+                  </button>
+                ))}
+                <div className="sidebar-section-title" style={{ marginTop: 8 }}>Infrastructure</div>
                 {([
                   { label: "Containers", panel: "containers" },
-                  { label: "CI/CD Pipelines", panel: "ci-cd" },
-                  { label: "GitHub", panel: "github" },
                   { label: "Cloud & Platform", panel: "cloud-platform" },
-                  { label: "Terminal", panel: "terminal" },
-                  { label: "System Monitor", panel: "system-monitor" },
+                  { label: "Database", panel: "database" },
+                  { label: "API Tools", panel: "api-tools" },
                 ] as const).map(({ label, panel }) => (
                   <button key={panel} className="sidebar-action-item"
-                    onClick={() => { setShowAIChat(true); setAiPanelTab(panel); }}
->
+                    onClick={() => { setShowAIChat(true); setAiPanelTab(panel); }}>
+                    {label}
+                  </button>
+                ))}
+                <div className="sidebar-section-title" style={{ marginTop: 8 }}>Monitor</div>
+                {([
+                  { label: "System Monitor", panel: "system-monitor" },
+                  { label: "Terminal", panel: "terminal" },
+                ] as const).map(({ label, panel }) => (
+                  <button key={panel} className="sidebar-action-item"
+                    onClick={() => { setShowAIChat(true); setAiPanelTab(panel); }}>
                     {label}
                   </button>
                 ))}
@@ -1514,15 +1547,24 @@ function App() {
 
             {activeSidebarTab === 'security' && (
               <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 10, height: "100%", overflow: "auto" }}>
-                <div className="sidebar-section-title">Security & Compliance</div>
+                <div className="sidebar-section-title">Security</div>
                 {([
-                  { label: "Security", panel: "security" },
-                  { label: "Collaboration", panel: "collaboration" },
+                  { label: "Security Scan", panel: "security" },
+                  { label: "Code Analysis", panel: "code-analysis" },
+                ] as const).map(({ label, panel }) => (
+                  <button key={label} className="sidebar-action-item"
+                    onClick={() => { setShowAIChat(true); setAiPanelTab(panel); }}>
+                    {label}
+                  </button>
+                ))}
+                <div className="sidebar-section-title" style={{ marginTop: 8 }}>Governance</div>
+                {([
                   { label: "Administration", panel: "administration" },
+                  { label: "Collaboration", panel: "collaboration" },
+                  { label: "Billing & Usage", panel: "billing" },
                 ] as const).map(({ label, panel }) => (
                   <button key={panel} className="sidebar-action-item"
-                    onClick={() => { setShowAIChat(true); setAiPanelTab(panel); }}
->
+                    onClick={() => { setShowAIChat(true); setAiPanelTab(panel); }}>
                     {label}
                   </button>
                 ))}

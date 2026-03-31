@@ -24,7 +24,7 @@ interface CacheStats {
   maxSize: string;
 }
 
-const FastContextPanel: React.FC = () => {
+const FastContextPanel: React.FC<{ workspacePath?: string | null }> = ({ workspacePath }) => {
   const [activeTab, setActiveTab] = useState<string>("search");
   const [query, setQuery] = useState("");
   const [matchType, setMatchType] = useState("Exact");
@@ -35,9 +35,10 @@ const FastContextPanel: React.FC = () => {
   const [reindexing, setReindexing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const workspace = ".";
+  const workspace = workspacePath || "";
 
   const loadIndexStats = useCallback(async () => {
+    if (!workspace) return;
     try {
       const stats = await invoke<IndexStats>("fast_context_index_stats", { workspace });
       setIndexStats(stats);
@@ -47,6 +48,7 @@ const FastContextPanel: React.FC = () => {
   }, [workspace]);
 
   const loadCacheStats = useCallback(async () => {
+    if (!workspace) return;
     try {
       const stats = await invoke<CacheStats>("fast_context_cache_stats", { workspace });
       setCacheStats(stats);
@@ -112,7 +114,7 @@ const FastContextPanel: React.FC = () => {
     ? ((cacheStats.hits / (cacheStats.hits + cacheStats.misses)) * 100).toFixed(1) : "0";
 
   const handleSearch = async () => {
-    if (!query.trim()) return;
+    if (!query.trim() || !workspace) return;
     setSearching(true);
     setError(null);
     try {
@@ -131,6 +133,7 @@ const FastContextPanel: React.FC = () => {
   };
 
   const handleReindex = async () => {
+    if (!workspace) return;
     setReindexing(true);
     setError(null);
     try {
@@ -227,6 +230,15 @@ const FastContextPanel: React.FC = () => {
       </div>
     </div>
   );
+
+  if (!workspace) {
+    return (
+      <div style={{ padding: 24, textAlign: "center", color: "var(--text-secondary)", fontSize: 13 }}>
+        <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 8, color: "var(--text-primary)" }}>Fast Context</div>
+        <p>Open a folder to use fast context indexing.</p>
+      </div>
+    );
+  }
 
   return (
     <div style={containerStyle}>
