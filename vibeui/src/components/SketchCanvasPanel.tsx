@@ -282,51 +282,50 @@ export function SketchCanvasPanel() {
         ))}
       </div>
 
-      {tab === "canvas" && (
-        <div>
-          <div style={{ display: "flex", gap: 8, marginBottom: 12, alignItems: "center", flexWrap: "wrap" }}>
-            {tools.map((t) => (
-              <button key={t.id} style={toolBtnStyle(activeTool === t.id)} onClick={() => setActiveTool(t.id)}>
-                {t.label}
-              </button>
-            ))}
-            <span style={{ width: 1, height: 24, background: "var(--border-color)", margin: "0 4px" }} />
-            {COLORS.map((c) => (
-              <button
-                key={c}
-                onClick={() => setActiveColor(c)}
-                style={{
-                  width: 24, height: 24, borderRadius: "50%", border: activeColor === c ? "2px solid var(--text-primary)" : "2px solid transparent",
-                  background: c, cursor: "pointer", padding: 0,
-                }}
-              />
-            ))}
-            <span style={{ width: 1, height: 24, background: "var(--border-color)", margin: "0 4px" }} />
-            <button style={{ ...btnStyle, background: "transparent", color: "var(--text-primary)" }} onClick={handleUndo} disabled={shapes.length === 0}>
-              Undo
+      {/* Canvas is always mounted to preserve drawing; hidden when other tabs active */}
+      <div style={{ display: tab === "canvas" ? "block" : "none" }}>
+        <div style={{ display: "flex", gap: 8, marginBottom: 12, alignItems: "center", flexWrap: "wrap" }}>
+          {tools.map((t) => (
+            <button key={t.id} style={toolBtnStyle(activeTool === t.id)} onClick={() => setActiveTool(t.id)}>
+              {t.label}
             </button>
-            <button style={{ ...btnStyle, background: "transparent", color: "var(--text-primary)" }} onClick={handleClear} disabled={shapes.length === 0}>
-              Clear
-            </button>
-            <span style={{ fontSize: 11, color: "var(--text-secondary)", marginLeft: "auto" }}>
-              {shapes.length} shape{shapes.length !== 1 ? "s" : ""}
-            </span>
-          </div>
-          <canvas
-            ref={canvasRef}
-            width={800}
-            height={400}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
-            style={{
-              width: "100%", height: 400, borderRadius: 8, border: "2px solid var(--border-color)",
-              background: "var(--bg-secondary)", cursor: activeTool === "text" ? "text" : "crosshair",
-            }}
-          />
+          ))}
+          <span style={{ width: 1, height: 24, background: "var(--border-color)", margin: "0 4px" }} />
+          {COLORS.map((c) => (
+            <button
+              key={c}
+              onClick={() => setActiveColor(c)}
+              style={{
+                width: 24, height: 24, borderRadius: "50%", border: activeColor === c ? "2px solid var(--text-primary)" : "2px solid transparent",
+                background: c, cursor: "pointer", padding: 0,
+              }}
+            />
+          ))}
+          <span style={{ width: 1, height: 24, background: "var(--border-color)", margin: "0 4px" }} />
+          <button style={{ ...btnStyle, background: "transparent", color: "var(--text-primary)" }} onClick={handleUndo} disabled={shapes.length === 0}>
+            Undo
+          </button>
+          <button style={{ ...btnStyle, background: "transparent", color: "var(--text-primary)" }} onClick={handleClear} disabled={shapes.length === 0}>
+            Clear
+          </button>
+          <span style={{ fontSize: 11, color: "var(--text-secondary)", marginLeft: "auto" }}>
+            {shapes.length} shape{shapes.length !== 1 ? "s" : ""}
+          </span>
         </div>
-      )}
+        <canvas
+          ref={canvasRef}
+          width={800}
+          height={400}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          style={{
+            width: "100%", height: 400, borderRadius: 8, border: "2px solid var(--border-color)",
+            background: "var(--bg-secondary)", cursor: activeTool === "text" ? "text" : "crosshair",
+          }}
+        />
+      </div>
 
       {tab === "recognize" && (
         <div>
