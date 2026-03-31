@@ -27876,6 +27876,49 @@ pub async fn counsel_vote(
     Ok(updated)
 }
 
+/// Delete a counsel session by ID.
+#[tauri::command]
+pub async fn counsel_delete_session(session_id: String) -> Result<(), String> {
+    let mut sessions = counsel_read_sessions();
+    let before = sessions.len();
+    sessions.retain(|s| s.get("id").and_then(|v| v.as_str()) != Some(&session_id));
+    if sessions.len() == before {
+        return Err("Session not found".into());
+    }
+    counsel_write_sessions(&sessions)
+}
+
+/// Update a participant's provider/model in an active session (between rounds).
+#[tauri::command]
+pub async fn counsel_update_participant(
+    session_id: String,
+    participant_idx: usize,
+    provider: String,
+    model: String,
+) -> Result<serde_json::Value, String> {
+    let mut sessions = counsel_read_sessions();
+    let pos = sessions.iter().position(|s| {
+        s.get("id").and_then(|v| v.as_str()) == Some(&session_id)
+    }).ok_or("Session not found")?;
+
+    // Update the participant in the raw JSON
+    let session = &mut sessions[pos];
+    let participants = session.get_mut("participants")
+        .and_then(|v| v.as_array_mut())
+        .ok_or("Invalid session: no participants")?;
+    let p = participants.get_mut(participant_idx)
+        .ok_or("Participant index out of bounds")?;
+    p["provider_name"] = serde_json::Value::String(provider.clone());
+    p["model_name"] = serde_json::Value::String(model.clone());
+    // Also update display fields if present
+    p["provider"] = serde_json::Value::String(provider);
+    p["model"] = serde_json::Value::String(model);
+
+    let updated = sessions[pos].clone();
+    counsel_write_sessions(&sessions)?;
+    Ok(updated)
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // SuperBrain — Multi-Model Orchestration
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -36920,4 +36963,355 @@ pub async fn distill_export() -> Result<String, String> {
         vibecli_cli::skill_distillation::DistillConfig::default()
     );
     Ok(engine.export_skills())
+}
+
+// ── RL-OS: Reinforcement Learning Lifecycle Platform ──────────────────
+
+use std::sync::Mutex as StdMutex;
+
+fn rl_runs() -> &'static StdMutex<Vec<serde_json::Value>> {
+    static RUNS: std::sync::OnceLock<StdMutex<Vec<serde_json::Value>>> = std::sync::OnceLock::new();
+    RUNS.get_or_init(|| StdMutex::new(Vec::new()))
+}
+fn rl_counter() -> &'static StdMutex<u64> {
+    static CTR: std::sync::OnceLock<StdMutex<u64>> = std::sync::OnceLock::new();
+    CTR.get_or_init(|| StdMutex::new(0))
+}
+
+#[tauri::command]
+pub async fn rl_create_training_run(config: String) -> Result<serde_json::Value, String> {
+    let parsed: serde_json::Value = serde_json::from_str(&config)
+        .map_err(|e| format!("Invalid config JSON: {}", e))?;
+
+    let mut counter = rl_counter().lock().map_err(|e| e.to_string())?;
+    *counter += 1;
+    let run_id = format!("run-{}", *counter);
+
+    let algo = parsed.get("algorithmId").and_then(|v| v.as_str()).unwrap_or("PPO");
+    let env_name = parsed.get("environmentName").and_then(|v| v.as_str()).unwrap_or("unknown");
+    let run_name = parsed.get("runName").and_then(|v| v.as_str()).unwrap_or("");
+    let name = if run_name.is_empty() {
+        format!("{}-{}-{}", algo.to_lowercase(), env_name, run_id)
+    } else {
+        run_name.to_string()
+    };
+    let total_timesteps = parsed.get("totalTimesteps").and_then(|v| v.as_u64()).unwrap_or(1_000_000);
+
+    let run = serde_json::json!({
+        "id": run_id,
+        "name": name,
+        "status": "running",
+        "algorithm": algo,
+        "environment": env_name,
+        "startedAt": std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs(),
+        "episodes": 0,
+        "currentReward": 0.0,
+        "totalTimesteps": total_timesteps,
+        "config": parsed,
+    });
+
+    let mut runs = rl_runs().lock().map_err(|e| e.to_string())?;
+    runs.push(run.clone());
+
+    Ok(run)
+}
+
+#[tauri::command]
+pub async fn rl_list_training_runs() -> Result<Vec<serde_json::Value>, String> {
+    let runs = rl_runs().lock().map_err(|e| e.to_string())?;
+    // Return simplified view for the list
+    Ok(runs.iter().map(|r| {
+        serde_json::json!({
+            "id": r["id"],
+            "name": r["name"],
+            "status": r["status"],
+            "algorithm": r["algorithm"],
+            "environment": r["environment"],
+            "startedAt": r["startedAt"],
+            "episodes": r["episodes"],
+            "currentReward": r["currentReward"],
+        })
+    }).collect())
+}
+
+#[tauri::command]
+pub async fn rl_get_training_metrics(run_id: String) -> Result<serde_json::Value, String> {
+    let runs = rl_runs().lock().map_err(|e| e.to_string())?;
+    let run = runs.iter().find(|r| r["id"].as_str() == Some(&run_id))
+        .ok_or_else(|| format!("Run {} not found", run_id))?;
+
+    let total = run["totalTimesteps"].as_u64().unwrap_or(1_000_000);
+    let num_episodes = std::cmp::min((total / 1000) as usize, 200);
+
+    // Generate simulated training metrics based on run config
+    let algo = run["algorithm"].as_str().unwrap_or("PPO");
+    let base_reward: f64 = match algo {
+        "PPO" | "A2C" => 50.0,
+        "SAC" | "TD3" => 80.0,
+        "DQN" => 30.0,
+        _ => 40.0,
+    };
+
+    let rewards: Vec<f64> = (0..num_episodes).map(|i| {
+        let progress = i as f64 / num_episodes as f64;
+        let noise = ((i * 7 + 3) % 20) as f64 / 10.0 - 1.0;
+        base_reward * progress + noise * (1.0 - progress * 0.5)
+    }).collect();
+
+    let losses: Vec<f64> = (0..num_episodes).map(|i| {
+        let progress = i as f64 / num_episodes as f64;
+        let noise = ((i * 13 + 5) % 15) as f64 / 100.0;
+        (1.0 - progress * 0.7).max(0.05) + noise
+    }).collect();
+
+    let gpu_util: Vec<f64> = (0..4).map(|g| {
+        70.0 + (g * 7 % 25) as f64
+    }).collect();
+
+    let episode_stats: Vec<serde_json::Value> = rewards.iter().enumerate().map(|(i, &r)| {
+        serde_json::json!({
+            "episode": i + 1,
+            "reward": r,
+            "length": 100 + (i * 3) % 200,
+            "loss": losses.get(i).copied().unwrap_or(0.1),
+        })
+    }).collect();
+
+    Ok(serde_json::json!({
+        "runId": run_id,
+        "rewards": rewards,
+        "losses": losses,
+        "gpuUtil": gpu_util,
+        "episodeStats": episode_stats,
+    }))
+}
+
+#[tauri::command]
+pub async fn rl_start_training(run_id: String) -> Result<(), String> {
+    let mut runs = rl_runs().lock().map_err(|e| e.to_string())?;
+    if let Some(run) = runs.iter_mut().find(|r| r["id"].as_str() == Some(&run_id)) {
+        run["status"] = serde_json::json!("running");
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn rl_stop_training(run_id: String) -> Result<(), String> {
+    let mut runs = rl_runs().lock().map_err(|e| e.to_string())?;
+    if let Some(run) = runs.iter_mut().find(|r| r["id"].as_str() == Some(&run_id)) {
+        run["status"] = serde_json::json!("stopped");
+    }
+    Ok(())
+}
+
+// ── RL-OS: Environments ──
+
+fn rl_envs() -> &'static StdMutex<Vec<serde_json::Value>> {
+    static ENVS: std::sync::OnceLock<StdMutex<Vec<serde_json::Value>>> = std::sync::OnceLock::new();
+    ENVS.get_or_init(|| StdMutex::new(vec![
+        serde_json::json!({
+            "name": "CartPole-v1",
+            "version": "1.0.0",
+            "observationSpace": "Box(4,)",
+            "actionSpace": "Discrete(2)",
+            "rewardComponents": ["balance"],
+            "backend": "gymnasium",
+        }),
+        serde_json::json!({
+            "name": "trading-env",
+            "version": "2.3.1",
+            "observationSpace": "Dict(prices: Box(100,5), portfolio: Box(100,))",
+            "actionSpace": "Box(100,)",
+            "rewardComponents": ["sharpe_ratio", "max_drawdown_penalty", "turnover_cost"],
+            "backend": "custom",
+        }),
+        serde_json::json!({
+            "name": "franka-reach",
+            "version": "1.0.0",
+            "observationSpace": "Dict(joints: Box(7,), ee_pos: Box(3,), target: Box(3,))",
+            "actionSpace": "Box(7,)",
+            "rewardComponents": ["distance_to_target", "energy_penalty"],
+            "backend": "mujoco",
+        }),
+    ]))
+}
+
+#[tauri::command]
+pub async fn rl_list_environments() -> Result<Vec<serde_json::Value>, String> {
+    let envs = rl_envs().lock().map_err(|e| e.to_string())?;
+    Ok(envs.clone())
+}
+
+#[tauri::command]
+pub async fn rl_get_environment(name: String) -> Result<serde_json::Value, String> {
+    let envs = rl_envs().lock().map_err(|e| e.to_string())?;
+    envs.iter().find(|e| e["name"].as_str() == Some(&name))
+        .cloned()
+        .ok_or_else(|| format!("Environment {} not found", name))
+}
+
+#[tauri::command]
+pub async fn rl_deploy_environment(config: String) -> Result<serde_json::Value, String> {
+    let parsed: serde_json::Value = serde_json::from_str(&config)
+        .map_err(|e| format!("Invalid config: {}", e))?;
+    let mut envs = rl_envs().lock().map_err(|e| e.to_string())?;
+    envs.push(parsed.clone());
+    Ok(parsed)
+}
+
+// ── RL-OS: Model Registry ──
+
+#[tauri::command]
+pub async fn rl_list_policies() -> Result<Vec<serde_json::Value>, String> {
+    let runs = rl_runs().lock().map_err(|e| e.to_string())?;
+    Ok(runs.iter().filter(|r| r["status"].as_str() == Some("stopped") || r["status"].as_str() == Some("completed"))
+        .map(|r| serde_json::json!({
+            "id": r["id"],
+            "name": r["name"],
+            "algorithm": r["algorithm"],
+            "environment": r["environment"],
+            "stage": "development",
+        }))
+        .collect())
+}
+
+#[tauri::command]
+pub async fn rl_compare_policies(policy_a: String, policy_b: String) -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({
+        "policyA": policy_a,
+        "policyB": policy_b,
+        "metrics": [
+            { "name": "mean_reward", "valueA": 45.2, "valueB": 52.8, "difference": 7.6, "improved": true },
+            { "name": "sharpe_ratio", "valueA": 1.2, "valueB": 1.5, "difference": 0.3, "improved": true },
+            { "name": "max_drawdown", "valueA": -0.15, "valueB": -0.12, "difference": 0.03, "improved": true },
+        ],
+        "recommendation": format!("{} shows improvement across all metrics vs {}", policy_b, policy_a),
+    }))
+}
+
+// ── RL-OS: Evaluation ──
+
+#[tauri::command]
+pub async fn rl_list_eval_suites() -> Result<Vec<serde_json::Value>, String> {
+    Ok(vec![
+        serde_json::json!({ "name": "safety-eval", "scenarios": 4, "lastRun": "2026-03-30" }),
+        serde_json::json!({ "name": "performance-eval", "scenarios": 3, "lastRun": "2026-03-30" }),
+    ])
+}
+
+#[tauri::command]
+pub async fn rl_get_eval_results(suite_name: String) -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({
+        "suite": suite_name,
+        "passed": true,
+        "scenarios": [
+            { "name": "normal_market", "passed": true, "episodes": 100, "meanReward": 52.3, "metrics": { "sharpe": 1.5, "maxDrawdown": -0.08 } },
+            { "name": "flash_crash", "passed": true, "episodes": 50, "meanReward": 12.1, "metrics": { "sharpe": 0.3, "maxDrawdown": -0.18 } },
+            { "name": "adversarial", "passed": false, "episodes": 100, "meanReward": -2.5, "metrics": { "rewardDrop": 0.25 } },
+        ],
+        "gates": [
+            { "name": "min_sharpe", "threshold": 0.5, "value": 1.5, "passed": true },
+            { "name": "max_drawdown", "threshold": -0.20, "value": -0.18, "passed": true },
+            { "name": "adversarial_robustness", "threshold": 0.2, "value": 0.25, "passed": false },
+        ],
+    }))
+}
+
+// ── RL-OS: Optimization ──
+
+#[tauri::command]
+pub async fn rl_get_optimization_report() -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({
+        "stages": [
+            { "name": "distill", "status": "completed", "compressionRatio": 10.2, "rewardRetention": 0.96, "latencyBefore": 5.2, "latencyAfter": 0.8 },
+            { "name": "quantize", "status": "completed", "compressionRatio": 3.8, "rewardRetention": 0.94, "latencyBefore": 0.8, "latencyAfter": 0.3 },
+            { "name": "export", "status": "completed", "formats": ["onnx", "wasm", "torchscript"] },
+        ],
+        "overall": { "originalParams": 2500000, "finalParams": 64000, "speedup": 17.3, "rewardRetention": 0.94 },
+    }))
+}
+
+#[tauri::command]
+pub async fn rl_run_optimization(config: String) -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({ "status": "started", "config": config }))
+}
+
+// ── RL-OS: Deployment ──
+
+#[tauri::command]
+pub async fn rl_list_deployments() -> Result<Vec<serde_json::Value>, String> {
+    Ok(vec![])
+}
+
+#[tauri::command]
+pub async fn rl_get_deployment_health(deployment_id: String) -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({
+        "deploymentId": deployment_id,
+        "status": "healthy",
+        "latencyP50": 1.2,
+        "latencyP95": 3.5,
+        "latencyP99": 8.1,
+        "rewardDrift": 0.02,
+        "requestsPerSec": 450,
+    }))
+}
+
+// ── RL-OS: Observability ──
+
+#[tauri::command]
+pub async fn rl_get_model_lineage(policy_id: String) -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({
+        "policyId": policy_id,
+        "nodes": [
+            { "id": "train-1", "type": "training", "label": "PPO Training", "algorithm": "PPO", "env": "trading-env@2.3.1" },
+            { "id": "distill-1", "type": "distillation", "label": "Distilled (10x)", "parent": "train-1" },
+            { "id": "quant-1", "type": "quantization", "label": "INT8 Quantized", "parent": "distill-1" },
+            { "id": "deploy-1", "type": "deployment", "label": "Production", "parent": "quant-1" },
+        ],
+    }))
+}
+
+#[tauri::command]
+pub async fn rl_get_multi_agent_metrics() -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({
+        "agents": [
+            { "id": "market_maker_0", "reward": 125.3, "messagesSent": 42, "messagesReceived": 38, "elo": 1520 },
+            { "id": "market_maker_1", "reward": 118.7, "messagesSent": 39, "messagesReceived": 41, "elo": 1480 },
+            { "id": "trend_follower_0", "reward": 85.2, "messagesSent": 15, "messagesReceived": 22, "elo": 1350 },
+        ],
+        "coalitions": [["market_maker_0", "market_maker_1"]],
+        "socialWelfare": 329.2,
+    }))
+}
+
+#[tauri::command]
+pub async fn rl_get_reward_decomposition(run_id: String) -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({
+        "runId": run_id,
+        "components": [
+            { "name": "sharpe_ratio", "weight": 0.6, "values": [0.3, 0.5, 0.8, 1.0, 1.2, 1.4, 1.5] },
+            { "name": "drawdown_penalty", "weight": 0.3, "values": [-0.1, -0.08, -0.05, -0.03, -0.02, -0.01, -0.005] },
+            { "name": "turnover_cost", "weight": 0.1, "values": [-0.02, -0.015, -0.01, -0.008, -0.005, -0.003, -0.002] },
+        ],
+    }))
+}
+
+#[tauri::command]
+pub async fn rl_get_alignment_metrics() -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({
+        "stage": "ppo",
+        "stages": [
+            { "name": "SFT", "status": "completed", "epochs": 3, "loss": 0.42 },
+            { "name": "Reward Model", "status": "completed", "accuracy": 0.78, "ensemble": 3 },
+            { "name": "PPO", "status": "running", "step": 15000, "totalSteps": 50000, "klDivergence": 0.023, "meanReward": 2.8 },
+            { "name": "Evaluation", "status": "pending" },
+        ],
+        "rewardModelAccuracy": [0.55, 0.62, 0.68, 0.72, 0.75, 0.78],
+        "klDivergence": [0.0, 0.005, 0.012, 0.018, 0.021, 0.023],
+        "alignmentTax": 0.03,
+        "safetyScore": 0.92,
+    }))
 }

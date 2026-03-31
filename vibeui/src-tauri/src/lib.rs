@@ -938,6 +938,8 @@ pub fn run() {
             commands::counsel_synthesize,
             commands::counsel_inject_message,
             commands::counsel_vote,
+            commands::counsel_delete_session,
+            commands::counsel_update_participant,
             // SuperBrain
             commands::superbrain_route,
             commands::superbrain_query,
@@ -1318,6 +1320,27 @@ pub fn run() {
             commands::distill_status,
             commands::distill_patterns,
             commands::distill_export,
+            // RL-OS
+            commands::rl_create_training_run,
+            commands::rl_list_training_runs,
+            commands::rl_get_training_metrics,
+            commands::rl_start_training,
+            commands::rl_stop_training,
+            commands::rl_list_environments,
+            commands::rl_get_environment,
+            commands::rl_deploy_environment,
+            commands::rl_list_policies,
+            commands::rl_compare_policies,
+            commands::rl_list_eval_suites,
+            commands::rl_get_eval_results,
+            commands::rl_get_optimization_report,
+            commands::rl_run_optimization,
+            commands::rl_list_deployments,
+            commands::rl_get_deployment_health,
+            commands::rl_get_model_lineage,
+            commands::rl_get_multi_agent_metrics,
+            commands::rl_get_reward_decomposition,
+            commands::rl_get_alignment_metrics,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
