@@ -92,10 +92,17 @@ export function SketchCanvasPanel() {
   const [drawing, setDrawing] = useState(false);
   const [startPos, setStartPos] = useState<{ x: number; y: number } | null>(null);
   const [currentShape, setCurrentShape] = useState<DrawnShape | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [moveOffset, setMoveOffset] = useState<{ dx: number; dy: number } | null>(null);
+  const [textInput, setTextInput] = useState<{ x: number; y: number; canvasX: number; canvasY: number } | null>(null);
+  const [textValue, setTextValue] = useState("");
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasWrapRef = useRef<HTMLDivElement>(null);
+  const textInputRef = useRef<HTMLInputElement>(null);
 
   const tools = [
+    { id: "move", label: "Move" },
     { id: "rect", label: "Rect" },
     { id: "circle", label: "Circle" },
     { id: "line", label: "Line" },
@@ -105,7 +112,7 @@ export function SketchCanvasPanel() {
 
   /* ── Canvas drawing ──────────────────────────────────────────────── */
 
-  const drawShape = useCallback((ctx: CanvasRenderingContext2D, s: DrawnShape) => {
+  const drawShape = useCallback((ctx: CanvasRenderingContext2D, s: DrawnShape, selected?: boolean) => {
     ctx.strokeStyle = s.color;
     ctx.fillStyle = s.color + "22";
     ctx.lineWidth = 2;
@@ -139,7 +146,6 @@ export function SketchCanvasPanel() {
         ctx.moveTo(s.x, s.y);
         ctx.lineTo(ex, ey);
         ctx.stroke();
-        // arrowhead
         const angle = Math.atan2(s.h, s.w);
         const headLen = 12;
         ctx.beginPath();
@@ -156,7 +162,41 @@ export function SketchCanvasPanel() {
         ctx.fillText(s.text || "Text", s.x, s.y + 16);
         break;
     }
+
+    // Selection outline
+    if (selected) {
+      ctx.save();
+      ctx.strokeStyle = "#fff";
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 3]);
+      const bounds = getShapeBounds(s);
+      ctx.strokeRect(bounds.x - 4, bounds.y - 4, bounds.w + 8, bounds.h + 8);
+      ctx.restore();
+    }
   }, []);
+
+  /** Get the bounding box for any shape */
+  const getShapeBounds = (s: DrawnShape) => {
+    if (s.tool === "text") {
+      return { x: s.x, y: s.y, w: (s.text?.length ?? 4) * 8, h: 20 };
+    }
+    const x = Math.min(s.x, s.x + s.w);
+    const y = Math.min(s.y, s.y + s.h);
+    const w = Math.abs(s.w);
+    const h = Math.abs(s.h);
+    return { x, y, w, h };
+  };
+
+  /** Find the topmost shape at a given point (last drawn = on top) */
+  const hitTest = useCallback((px: number, py: number): number | null => {
+    for (let i = shapes.length - 1; i >= 0; i--) {
+      const b = getShapeBounds(shapes[i]);
+      if (px >= b.x - 4 && px <= b.x + b.w + 4 && py >= b.y - 4 && py <= b.y + b.h + 4) {
+        return i;
+      }
+    }
+    return null;
+  }, [shapes]);
 
   const redraw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -171,35 +211,78 @@ export function SketchCanvasPanel() {
     for (let x = 0; x < canvas.width; x += 20) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke(); }
     for (let y = 0; y < canvas.height; y += 20) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke(); }
 
-    shapes.forEach((s) => drawShape(ctx, s));
+    shapes.forEach((s, i) => drawShape(ctx, s, i === selectedIndex));
     if (currentShape) drawShape(ctx, currentShape);
-  }, [shapes, currentShape, drawShape]);
+  }, [shapes, currentShape, drawShape, selectedIndex]);
 
   useEffect(() => { redraw(); }, [redraw]);
 
   const getCanvasPos = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const rect = canvasRef.current!.getBoundingClientRect();
-    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    const canvas = canvasRef.current!;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
+  };
+
+  /** Convert canvas coords to CSS pixel position for the text overlay */
+  const canvasToCssPos = (cx: number, cy: number) => {
+    const canvas = canvasRef.current!;
+    const rect = canvas.getBoundingClientRect();
+    return { x: (cx / canvas.width) * rect.width, y: (cy / canvas.height) * rect.height };
+  };
+
+  const commitTextInput = () => {
+    if (textInput && textValue.trim()) {
+      setShapes((prev) => [...prev, { tool: "text", x: textInput.canvasX, y: textInput.canvasY, w: 0, h: 0, color: activeColor, text: textValue }]);
+    }
+    setTextInput(null);
+    setTextValue("");
   };
 
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (activeTool === "text") {
-      const pos = getCanvasPos(e);
-      const text = prompt("Enter text:");
-      if (text) {
-        setShapes((prev) => [...prev, { tool: "text", x: pos.x, y: pos.y, w: 0, h: 0, color: activeColor, text }]);
+    // Commit any pending text input
+    if (textInput) { commitTextInput(); return; }
+
+    const pos = getCanvasPos(e);
+
+    if (activeTool === "move") {
+      const idx = hitTest(pos.x, pos.y);
+      setSelectedIndex(idx);
+      if (idx !== null) {
+        const s = shapes[idx];
+        setMoveOffset({ dx: pos.x - s.x, dy: pos.y - s.y });
+        setDrawing(true);
       }
       return;
     }
-    const pos = getCanvasPos(e);
+
+    if (activeTool === "text") {
+      const cssPos = canvasToCssPos(pos.x, pos.y);
+      setTextInput({ x: cssPos.x, y: cssPos.y, canvasX: pos.x, canvasY: pos.y });
+      setTextValue("");
+      setTimeout(() => textInputRef.current?.focus(), 0);
+      return;
+    }
+
+    setSelectedIndex(null);
     setDrawing(true);
     setStartPos(pos);
     setCurrentShape({ tool: activeTool, x: pos.x, y: pos.y, w: 0, h: 0, color: activeColor });
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!drawing || !startPos) return;
+    if (!drawing) return;
     const pos = getCanvasPos(e);
+
+    if (activeTool === "move" && selectedIndex !== null && moveOffset) {
+      setShapes((prev) => prev.map((s, i) =>
+        i === selectedIndex ? { ...s, x: pos.x - moveOffset.dx, y: pos.y - moveOffset.dy } : s
+      ));
+      return;
+    }
+
+    if (!startPos) return;
     setCurrentShape({
       tool: activeTool,
       x: startPos.x,
@@ -211,6 +294,11 @@ export function SketchCanvasPanel() {
   };
 
   const handleMouseUp = () => {
+    if (activeTool === "move") {
+      setDrawing(false);
+      setMoveOffset(null);
+      return;
+    }
     if (!drawing || !currentShape) { setDrawing(false); return; }
     if (Math.abs(currentShape.w) > 2 || Math.abs(currentShape.h) > 2) {
       setShapes((prev) => [...prev, currentShape]);
@@ -328,19 +416,48 @@ export function SketchCanvasPanel() {
             {shapes.length} shape{shapes.length !== 1 ? "s" : ""}
           </span>
         </div>
-        <canvas
-          ref={canvasRef}
-          width={800}
-          height={400}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-          style={{
-            width: "100%", height: 400, borderRadius: 8, border: "2px solid var(--border-color)",
-            background: "var(--bg-secondary)", cursor: activeTool === "text" ? "text" : "crosshair",
-          }}
-        />
+        <div ref={canvasWrapRef} style={{ position: "relative" }}>
+          <canvas
+            ref={canvasRef}
+            width={800}
+            height={400}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+            style={{
+              width: "100%", height: 400, borderRadius: 8, border: "2px solid var(--border-color)",
+              background: "var(--bg-secondary)",
+              cursor: activeTool === "move" ? (drawing ? "grabbing" : "grab") : activeTool === "text" ? "text" : "crosshair",
+            }}
+          />
+          {textInput && (
+            <input
+              ref={textInputRef}
+              type="text"
+              value={textValue}
+              onChange={(e) => setTextValue(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") commitTextInput(); if (e.key === "Escape") { setTextInput(null); setTextValue(""); } }}
+              onBlur={commitTextInput}
+              style={{
+                position: "absolute",
+                left: textInput.x,
+                top: textInput.y,
+                background: "var(--bg-primary)",
+                color: activeColor,
+                border: `1px solid ${activeColor}`,
+                borderRadius: 3,
+                padding: "2px 6px",
+                fontSize: 14,
+                fontFamily: "var(--font-family, sans-serif)",
+                outline: "none",
+                minWidth: 80,
+                zIndex: 10,
+              }}
+              placeholder="Type text..."
+            />
+          )}
+        </div>
       </div>
 
       {tab === "recognize" && (
