@@ -110,8 +110,8 @@ export function SemanticIndexPanel() {
     async function loadSymbols() {
       setLoadingSymbols(true);
       try {
-        const result = await invoke<SymbolEntry[]>("semindex_search", { query: "*", kind: "all" });
-        setSymbols(result);
+        const res = await invoke<{ results?: SymbolEntry[] } | SymbolEntry[]>("semindex_search", { query: "*", kind: "all" });
+        setSymbols(Array.isArray(res) ? res : (res.results ?? []));
       } catch (e) {
         console.error("Failed to load symbols:", e);
       }
@@ -131,8 +131,9 @@ export function SemanticIndexPanel() {
       setLoadingTypes(true);
       try {
         // Try to load types from backend; use search with type/trait/struct filter
-        const result = await invoke<SymbolEntry[]>("semindex_search", { query: "*", kind: "trait" });
-        if (result && result.length > 0) {
+        const res2 = await invoke<{ results?: SymbolEntry[] } | SymbolEntry[]>("semindex_search", { query: "*", kind: "trait" });
+        const result = Array.isArray(res2) ? res2 : (res2.results ?? []);
+        if (result.length > 0) {
           // Build type tree from trait symbols: group struct implementors under their traits
           const traitNodes: TypeNode[] = result.map((s) => ({
             name: s.name,
