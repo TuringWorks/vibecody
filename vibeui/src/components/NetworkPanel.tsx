@@ -120,7 +120,7 @@ export function NetworkPanel() {
  setTlsCert(null);
  try {
  const result = await invoke<TlsCertInfo>("check_tls_cert", {
- host: tlsHost.trim().replace(/^https?:\/\//, "").split("/")[0],
+ host: tlsHost.trim().replace(/^https?:\/\//i, "").split("/")[0],
  port: tlsPort,
  });
  setTlsCert(result);

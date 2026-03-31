@@ -17343,8 +17343,19 @@ pub async fn dns_lookup(domain: String, record_type: Option<String>) -> Result<V
 /// Inspect TLS/SSL certificate of a remote host using `openssl s_client`.
 #[tauri::command]
 pub async fn check_tls_cert(host: String, port: Option<u16>) -> Result<TlsCertInfo, String> {
+    // Strip protocol prefix and trailing path/slash (case-insensitive)
+    let lower = host.trim().to_lowercase();
+    let stripped = if lower.starts_with("https://") {
+        &host.trim()[8..]
+    } else if lower.starts_with("http://") {
+        &host.trim()[7..]
+    } else {
+        host.trim()
+    };
+    let host = stripped.split('/').next().unwrap_or("").to_string();
+
     // Validate host
-    if host.contains([';', '&', '|', '`', '$', ' ']) {
+    if host.is_empty() || host.contains([';', '&', '|', '`', '$', ' ']) {
         return Err("Invalid host".to_string());
     }
 
