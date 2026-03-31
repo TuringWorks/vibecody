@@ -35944,31 +35944,162 @@ pub async fn sketch_recognize(state: tauri::State<'_, AppState>, elements: Strin
 }
 
 #[tauri::command]
-pub async fn sketch_generate(state: tauri::State<'_, AppState>, framework: String, components: String) -> Result<serde_json::Value, String> {
-    let sketch_els = state.sketch_elements.lock().await;
-    let component_list: Vec<String> = serde_json::from_str(&components).unwrap_or_default();
+pub async fn sketch_generate(_state: tauri::State<'_, AppState>, framework: String, components: String) -> Result<serde_json::Value, String> {
+    // components is a JSON array of shape objects with type, x, y, w, h, color, text
+    let shapes: Vec<serde_json::Value> = serde_json::from_str(&components).unwrap_or_default();
+    let canvas_w = 800;
+    let canvas_h = 400;
+
+    // Generate SVG elements from shapes
+    let svg_elements: String = shapes.iter().map(|s| {
+        let stype = s.get("type").and_then(|v| v.as_str()).unwrap_or("rect");
+        let x = s.get("x").and_then(|v| v.as_f64()).unwrap_or(0.0);
+        let y = s.get("y").and_then(|v| v.as_f64()).unwrap_or(0.0);
+        let w = s.get("w").and_then(|v| v.as_f64()).unwrap_or(0.0);
+        let h = s.get("h").and_then(|v| v.as_f64()).unwrap_or(0.0);
+        let color = s.get("color").and_then(|v| v.as_str()).unwrap_or("#4f8ff7");
+        let text = s.get("text").and_then(|v| v.as_str()).unwrap_or("Text");
+        let fill_opacity = format!("{}22", color);
+        match stype {
+            "rect" | "rectangle" => format!(
+                "    <rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"{}\" stroke=\"{}\" stroke-width=\"2\" rx=\"2\" />",
+                x, y, w.abs(), h.abs(), fill_opacity, color
+            ),
+            "circle" | "ellipse" => {
+                let rx = w.abs() / 2.0;
+                let ry = h.abs() / 2.0;
+                let cx = x + w / 2.0;
+                let cy = y + h / 2.0;
+                format!(
+                    "    <ellipse cx=\"{}\" cy=\"{}\" rx=\"{}\" ry=\"{}\" fill=\"{}\" stroke=\"{}\" stroke-width=\"2\" />",
+                    cx, cy, rx, ry, fill_opacity, color
+                )
+            },
+            "line" => format!(
+                "    <line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" stroke=\"{}\" stroke-width=\"2\" />",
+                x, y, x + w, y + h, color
+            ),
+            "arrow" => {
+                let x2 = x + w;
+                let y2 = y + h;
+                let angle = h.atan2(w);
+                let head = 12.0_f64;
+                let ax1 = x2 - head * (angle - 0.4).cos();
+                let ay1 = y2 - head * (angle - 0.4).sin();
+                let ax2 = x2 - head * (angle + 0.4).cos();
+                let ay2 = y2 - head * (angle + 0.4).sin();
+                format!(
+                    "    <line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" stroke=\"{}\" stroke-width=\"2\" />\n    <polygon points=\"{},{} {},{} {},{}\" fill=\"{}\" />",
+                    x, y, x2, y2, color, x2, y2, ax1, ay1, ax2, ay2, color
+                )
+            },
+            "text" => format!(
+                "    <text x=\"{}\" y=\"{}\" fill=\"{}\" font-size=\"14\" font-family=\"sans-serif\">{}</text>",
+                x, y + 16.0, color, text
+            ),
+            _ => format!("    <!-- unknown shape: {} -->", stype),
+        }
+    }).collect::<Vec<_>>().join("\n");
+
+    let svg_body = format!("<svg viewBox=\"0 0 {} {}\" xmlns=\"http://www.w3.org/2000/svg\">\n{}\n</svg>", canvas_w, canvas_h, svg_elements);
+
     let code = match framework.as_str() {
         "react" => {
-            let imports = "import React from 'react';\n";
-            let comp_code: String = component_list.iter().map(|c| {
-                format!("export function {}() {{\n  return <div className=\"{}\">{{ /* TODO */ }}</div>;\n}}\n\n", c, c.to_lowercase())
-            }).collect();
-            format!("{}{}", imports, comp_code)
-        },
-        "vue" => {
-            component_list.iter().map(|c| {
-                format!("<template>\n  <div class=\"{}\"><!-- TODO --></div>\n</template>\n\n<script setup>\n// {} component\n</script>\n\n", c.to_lowercase(), c)
-            }).collect()
+            let jsx_elements: String = shapes.iter().map(|s| {
+                let stype = s.get("type").and_then(|v| v.as_str()).unwrap_or("rect");
+                let x = s.get("x").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                let y = s.get("y").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                let w = s.get("w").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                let h = s.get("h").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                let color = s.get("color").and_then(|v| v.as_str()).unwrap_or("#4f8ff7");
+                let text = s.get("text").and_then(|v| v.as_str()).unwrap_or("Text");
+                let fill_opacity = format!("{}22", color);
+                match stype {
+                    "rect" | "rectangle" => format!(
+                        "      <rect x={{{}}} y={{{}}} width={{{}}} height={{{}}} fill=\"{}\" stroke=\"{}\" strokeWidth={{2}} rx={{2}} />",
+                        x, y, w.abs(), h.abs(), fill_opacity, color
+                    ),
+                    "circle" | "ellipse" => {
+                        let rx = w.abs() / 2.0;
+                        let ry = h.abs() / 2.0;
+                        let cx = x + w / 2.0;
+                        let cy = y + h / 2.0;
+                        format!(
+                            "      <ellipse cx={{{}}} cy={{{}}} rx={{{}}} ry={{{}}} fill=\"{}\" stroke=\"{}\" strokeWidth={{2}} />",
+                            cx, cy, rx, ry, fill_opacity, color
+                        )
+                    },
+                    "line" => format!(
+                        "      <line x1={{{}}} y1={{{}}} x2={{{}}} y2={{{}}} stroke=\"{}\" strokeWidth={{2}} />",
+                        x, y, x + w, y + h, color
+                    ),
+                    "arrow" => {
+                        let x2 = x + w;
+                        let y2 = y + h;
+                        let angle = h.atan2(w);
+                        let head = 12.0_f64;
+                        let ax1 = x2 - head * (angle - 0.4).cos();
+                        let ay1 = y2 - head * (angle - 0.4).sin();
+                        let ax2 = x2 - head * (angle + 0.4).cos();
+                        let ay2 = y2 - head * (angle + 0.4).sin();
+                        format!(
+                            "      <line x1={{{}}} y1={{{}}} x2={{{}}} y2={{{}}} stroke=\"{}\" strokeWidth={{2}} />\n      <polygon points=\"{},{} {},{} {},{}\" fill=\"{}\" />",
+                            x, y, x2, y2, color, x2, y2, ax1, ay1, ax2, ay2, color
+                        )
+                    },
+                    "text" => format!(
+                        "      <text x={{{}}} y={{{}}} fill=\"{}\" fontSize={{14}} fontFamily=\"sans-serif\">{}</text>",
+                        x, y + 16.0, color, text
+                    ),
+                    _ => format!("      {{/* unknown shape: {} */}}", stype),
+                }
+            }).collect::<Vec<_>>().join("\n");
+            format!(
+                "export function SketchLayout() {{\n  return (\n    <svg viewBox=\"0 0 {} {}\" width=\"100%\" height=\"{}\">\n{}\n    </svg>\n  );\n}}\n",
+                canvas_w, canvas_h, canvas_h, jsx_elements
+            )
         },
         "html" => {
-            let body: String = component_list.iter().map(|c| {
-                format!("  <section class=\"{}\">\n    <!-- {} -->\n  </section>\n", c.to_lowercase(), c)
-            }).collect();
-            format!("<!DOCTYPE html>\n<html>\n<body>\n{}</body>\n</html>", body)
+            format!(
+                "<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"utf-8\" />\n  <title>Sketch</title>\n  <style>\n    svg {{ max-width: 100%; height: auto; }}\n  </style>\n</head>\n<body>\n{}\n</body>\n</html>",
+                svg_body
+            )
         },
-        _ => format!("// {} framework - {} components from {} sketch elements", framework, component_list.len(), sketch_els.len()),
+        "swiftui" => {
+            let swift_shapes: String = shapes.iter().map(|s| {
+                let stype = s.get("type").and_then(|v| v.as_str()).unwrap_or("rect");
+                let x = s.get("x").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                let y = s.get("y").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                let w = s.get("w").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                let h = s.get("h").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                let color = s.get("color").and_then(|v| v.as_str()).unwrap_or("#4f8ff7");
+                match stype {
+                    "rect" | "rectangle" => format!(
+                        "      Rectangle()\n        .fill(Color(hex: \"{}\").opacity(0.13))\n        .stroke(Color(hex: \"{}\"), lineWidth: 2)\n        .frame(width: {}, height: {})\n        .position(x: {}, y: {})",
+                        color, color, w.abs(), h.abs(), x + w.abs() / 2.0, y + h.abs() / 2.0
+                    ),
+                    "circle" | "ellipse" => format!(
+                        "      Ellipse()\n        .fill(Color(hex: \"{}\").opacity(0.13))\n        .stroke(Color(hex: \"{}\"), lineWidth: 2)\n        .frame(width: {}, height: {})\n        .position(x: {}, y: {})",
+                        color, color, w.abs(), h.abs(), x + w / 2.0, y + h / 2.0
+                    ),
+                    "text" => {
+                        let text = s.get("text").and_then(|v| v.as_str()).unwrap_or("Text");
+                        format!(
+                            "      Text(\"{}\")\n        .foregroundColor(Color(hex: \"{}\"))\n        .font(.system(size: 14))\n        .position(x: {}, y: {})",
+                            text, color, x, y
+                        )
+                    },
+                    _ => format!("      // {} at ({}, {})", stype, x, y),
+                }
+            }).collect::<Vec<_>>().join("\n\n");
+            format!(
+                "import SwiftUI\n\nstruct SketchLayout: View {{\n  var body: some View {{\n    ZStack {{\n{}\n    }}\n    .frame(width: {}, height: {})\n  }}\n}}\n",
+                swift_shapes, canvas_w, canvas_h
+            )
+        },
+        _ => format!("{}", svg_body),
     };
-    Ok(serde_json::json!({ "framework": framework, "code": code, "components_input": components.len(), "sketch_elements_used": sketch_els.len() }))
+    Ok(serde_json::json!({ "framework": framework, "code": code, "shape_count": shapes.len() }))
 }
 
 #[tauri::command]

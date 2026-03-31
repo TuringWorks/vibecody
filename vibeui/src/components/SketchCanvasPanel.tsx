@@ -258,7 +258,15 @@ export function SketchCanvasPanel() {
   const handleGenerate = async () => {
     setGenerating(true);
     try {
-      const components = JSON.stringify(recognized.map((r) => r.component));
+      const components = JSON.stringify(shapes.map((s) => ({
+        type: s.tool,
+        x: Math.round(s.x),
+        y: Math.round(s.y),
+        w: Math.round(s.w),
+        h: Math.round(s.h),
+        color: s.color,
+        text: s.text,
+      })));
       const res = await invoke<{ code: string }>("sketch_generate", { framework, components });
       setGeneratedCode(res.code ?? "");
     } catch (e) {
@@ -369,12 +377,13 @@ export function SketchCanvasPanel() {
                 {f === "swiftui" ? "SwiftUI" : f === "html" ? "HTML" : "React"}
               </button>
             ))}
-            <button style={btnStyle} onClick={handleGenerate} disabled={generating}>
-              {generating ? "Generating..." : "Generate Code"}
+            <button style={btnStyle} onClick={handleGenerate} disabled={generating || shapes.length === 0}>
+              {generating ? "Generating..." : `Generate Code (${shapes.length} shapes)`}
             </button>
           </div>
           {generating && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>Generating code...</div>}
-          {!generating && !generatedCode && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>Recognize shapes first, then click Generate Code.</div>}
+          {!generating && !generatedCode && shapes.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>Draw shapes on the canvas first.</div>}
+          {!generating && !generatedCode && shapes.length > 0 && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>Click Generate Code to create SVG-based code from your sketch.</div>}
           {generatedCode && (
             <pre style={{
               ...cardStyle, fontFamily: "monospace", fontSize: 12, whiteSpace: "pre-wrap",
