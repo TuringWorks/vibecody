@@ -74,10 +74,11 @@ const FastContextPanel: React.FC<{ workspacePath?: string | null }> = ({ workspa
     paddingBottom: "8px",
   };
   const tabStyle = (active: boolean): React.CSSProperties => ({
-    padding: "6px 14px", cursor: "pointer", border: "none",
-    backgroundColor: active ? "var(--accent-color)" : "transparent",
-    color: active ? "var(--text-primary)" : "var(--text-primary)",
-    borderRadius: "4px", fontSize: "13px",
+    padding: "6px 14px", cursor: "pointer",
+    border: active ? "none" : "1px solid var(--border-color)",
+    backgroundColor: active ? "var(--accent-color)" : "var(--bg-secondary)",
+    color: active ? "var(--btn-primary-fg, #fff)" : "var(--text-secondary)",
+    borderRadius: "4px", fontSize: "13px", fontWeight: active ? 600 : 400,
   });
   const inputStyle: React.CSSProperties = {
     width: "100%", padding: "6px 10px", boxSizing: "border-box",
@@ -88,7 +89,8 @@ const FastContextPanel: React.FC<{ workspacePath?: string | null }> = ({ workspa
   const btnStyle: React.CSSProperties = {
     padding: "6px 14px", cursor: "pointer", border: "none", borderRadius: "4px",
     backgroundColor: "var(--accent-color)",
-    color: "var(--text-primary)",
+    color: "var(--btn-primary-fg, #fff)",
+    fontWeight: 500,
   };
   const btnDisabledStyle: React.CSSProperties = {
     ...btnStyle,
@@ -107,6 +109,7 @@ const FastContextPanel: React.FC<{ workspacePath?: string | null }> = ({ workspa
   const statRow: React.CSSProperties = {
     display: "flex", justifyContent: "space-between", padding: "8px 0",
     borderBottom: "1px solid var(--border-color)",
+    color: "var(--text-secondary)",
   };
 
   const matchTypes = ["Exact", "Fuzzy", "Semantic", "Structural", "Symbol"];
@@ -168,7 +171,7 @@ const FastContextPanel: React.FC<{ workspacePath?: string | null }> = ({ workspa
       {error && (
         <div style={{ color: "var(--error-color)", fontSize: "12px", marginBottom: "8px" }}>{error}</div>
       )}
-      <div style={{ fontSize: "12px", marginBottom: "8px", opacity: 0.7 }}>
+      <div style={{ fontSize: "12px", marginBottom: "8px", color: "var(--text-secondary)" }}>
         {results.length} result{results.length !== 1 ? "s" : ""}
       </div>
       {results.map((r, i) => (
@@ -179,7 +182,7 @@ const FastContextPanel: React.FC<{ workspacePath?: string | null }> = ({ workspa
               {(r.relevance * 100).toFixed(0)}%
             </span>
           </div>
-          <code style={{ fontSize: "12px", opacity: 0.8 }}>{r.snippet}</code>
+          <code style={{ fontSize: "12px", color: "var(--text-secondary)" }}>{r.snippet}</code>
           <div style={{ marginTop: "4px" }}>
             <span style={badgeStyle("var(--accent-color)")}>{r.matchType}</span>
           </div>
@@ -190,15 +193,15 @@ const FastContextPanel: React.FC<{ workspacePath?: string | null }> = ({ workspa
 
   const renderIndex = () => (
     <div>
-      <h3 style={{ margin: "0 0 12px" }}>Index Statistics</h3>
-      <div style={statRow}><span>Indexed Files</span><strong>{indexStats.files.toLocaleString()}</strong></div>
-      <div style={statRow}><span>Symbols</span><strong>{indexStats.symbols.toLocaleString()}</strong></div>
-      <div style={statRow}><span>Trigrams</span><strong>{indexStats.trigrams.toLocaleString()}</strong></div>
-      <div style={statRow}><span>Last Built</span><strong>{indexStats.lastBuilt}</strong></div>
+      <h3 style={{ margin: "0 0 12px", color: "var(--text-primary)" }}>Index Statistics</h3>
+      <div style={statRow}><span>Indexed Files</span><strong style={{ color: "var(--text-primary)" }}>{indexStats.files.toLocaleString()}</strong></div>
+      <div style={statRow}><span>Symbols</span><strong style={{ color: "var(--text-primary)" }}>{indexStats.symbols.toLocaleString()}</strong></div>
+      <div style={statRow}><span>Trigrams</span><strong style={{ color: "var(--text-primary)" }}>{indexStats.trigrams.toLocaleString()}</strong></div>
+      <div style={statRow}><span>Last Built</span><strong style={{ color: "var(--text-primary)" }}>{indexStats.lastBuilt}</strong></div>
       {indexStats.languages.length > 0 && (
         <div style={statRow}>
           <span>Languages</span>
-          <strong>{indexStats.languages.join(", ")}</strong>
+          <strong style={{ color: "var(--text-primary)" }}>{indexStats.languages.join(", ")}</strong>
         </div>
       )}
       <div style={{ marginTop: "16px" }}>
@@ -214,15 +217,15 @@ const FastContextPanel: React.FC<{ workspacePath?: string | null }> = ({ workspa
 
   const renderCache = () => (
     <div>
-      <h3 style={{ margin: "0 0 12px" }}>Cache Statistics</h3>
+      <h3 style={{ margin: "0 0 12px", color: "var(--text-primary)" }}>Cache Statistics</h3>
       <div style={{ ...cardStyle, textAlign: "center", marginBottom: "16px" }}>
-        <div style={{ fontSize: "28px", fontWeight: 700 }}>{hitRate}%</div>
-        <div style={{ opacity: 0.7, fontSize: "12px" }}>Hit Rate</div>
+        <div style={{ fontSize: "28px", fontWeight: 700, color: "var(--text-primary)" }}>{hitRate}%</div>
+        <div style={{ color: "var(--text-secondary)", fontSize: "12px" }}>Hit Rate</div>
       </div>
-      <div style={statRow}><span>Cache Hits</span><strong>{cacheStats.hits.toLocaleString()}</strong></div>
-      <div style={statRow}><span>Cache Misses</span><strong>{cacheStats.misses.toLocaleString()}</strong></div>
-      <div style={statRow}><span>Cache Size</span><strong>{cacheStats.size}</strong></div>
-      <div style={statRow}><span>Max Size</span><strong>{cacheStats.maxSize}</strong></div>
+      <div style={statRow}><span>Cache Hits</span><strong style={{ color: "var(--text-primary)" }}>{cacheStats.hits.toLocaleString()}</strong></div>
+      <div style={statRow}><span>Cache Misses</span><strong style={{ color: "var(--text-primary)" }}>{cacheStats.misses.toLocaleString()}</strong></div>
+      <div style={statRow}><span>Cache Size</span><strong style={{ color: "var(--text-primary)" }}>{cacheStats.size}</strong></div>
+      <div style={statRow}><span>Max Size</span><strong style={{ color: "var(--text-primary)" }}>{cacheStats.maxSize}</strong></div>
       <div style={{ marginTop: "16px" }}>
         <button style={btnStyle} onClick={handleClearCache}>
           Clear Cache
