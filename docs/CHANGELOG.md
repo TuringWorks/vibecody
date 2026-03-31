@@ -8,10 +8,29 @@ permalink: /changelog/
 All notable changes to VibeCody are documented here. This project follows [Semantic Versioning](https://semver.org/).
 
 
-## [Unreleased]
+## [0.5.2] — 2026-03-30
 
 ### Added
 
+- **RL-OS: Unified Reinforcement Learning Lifecycle Platform** — exhaustive fit-gap analysis against 40+ RL competitors (Ray RLlib, Stable Baselines3, Isaac Lab, TRL, d3rlpy, PettingZoo, SageMaker RL, etc.) identifying 52 gaps across 8 categories and 12 unique capabilities no existing tool provides.
+- **RL-OS Architecture Specification** — production-grade architecture for 7 core modules (EnvOS, TrainOS, EvalOS, OptiOS, ModelHub, ServeOS, RLHF) with Rust crate structure (`vibe-rl/`), declarative YAML DSL, RL-aware quantization, and 8-phase roadmap.
+- **12-Stage RL Lifecycle Scorecard** — comprehensive lifecycle coverage model; closest competitor scores 5/12 vs. RL-OS target of 12/12.
+
+---
+
+## [0.5.1] — 2026-03-29
+
+### Added
+
+- **AI Code Review** (`ai_code_review.rs`, 97 tests) — Qodo/CodeRabbit/Bito parity: 7 detectors, 8-linter aggregation, quality gates, learning loop, PR summary + Mermaid diagrams; `/aireview` REPL.
+- **Architecture Spec Engine** (`architecture_spec.rs`, 108 tests) — TOGAF ADM, Zachman, C4 Model, ADRs, governance engine; `/archspec` REPL.
+- **Policy Engine** (`policy_engine.rs`, 91 tests) — Cerbos-style RBAC/ABAC, 14 condition operators, derived roles, policy testing, YAML, audit trail; `/policy` REPL.
+- **Health Score** (`health_score.rs`, 92 tests) — multi-dimensional codebase health scoring.
+- **Intent Refactor** (`intent_refactor.rs`, 89 tests) — natural-language-driven refactoring.
+- **Review Protocol** (`review_protocol.rs`, 50 tests) — structured code review workflow.
+- **Skill Distillation** (`skill_distillation.rs`, 82 tests) — extract reusable skills from agent traces.
+- **Phase 32 P0** — context_protocol, code_review_agent, diff_review, code_replay, speculative_exec, explainable_agent.
+- **TurboQuant KV-Cache** — PolarQuant + QJL (~3 bits/dim) for vector DB integration.
 - **Phase 32 — Advanced Agent Intelligence** (6 new modules):
   - `context_protocol.rs` — Streaming context protocol for long-running agent sessions.
   - `code_review_agent.rs` — Automated code review with configurable rulesets.
@@ -31,43 +50,35 @@ All notable changes to VibeCody are documented here. This project follows [Seman
   - Phase 30: `native_connectors.rs` (20 service connectors), `agent_analytics.rs` (enterprise metrics), `agent_trust.rs` (trust scoring), `smart_deps.rs` (agentic package manager).
   - Phase 31: `rlcef_loop.rs` (execution-based learning), `langgraph_bridge.rs` (LangGraph compatibility), `sketch_canvas.rs` (sketch-to-code).
 
-- **TurboQuant KV-Cache Compression** — PolarQuant + QJL (~3 bits/dim) for vector DB integration. TurboQuant panel + REPL benchmark command.
-
-- **File Attachments** — `[file.ext]` bracket syntax in VibeCLI REPL and VibeUI chat for attaching documents, code, and images. Backend reads files via `read_attachment` Tauri command. Drag-and-drop, paste, and native file picker supported. Images sent via vision API; documents injected as context.
-
+- **File Attachments** — `[file.ext]` bracket syntax in VibeCLI REPL and VibeUI chat for attaching documents, code, and images.
 - **Image Lightbox** — Click image attachments in chat to view full size with download button.
-
-- **System Theme Detection** — `ThemeToggle` now respects `prefers-color-scheme` on first visit and listens for OS-level theme changes.
-
-- **Data Analysis Panel Backend** — 9 new `da_*` Tauri commands: datasets, charts, widgets, NLP query execution with persisted state.
-
-- **Counsel — Multi-LLM Deliberation** (`counsel.rs`, 534 lines, 20+ tests):
-  - Structured multi-round debates between AI providers with 6 role-based personas.
-  - User interjection between rounds, voting system, moderator-driven synthesis.
-  - 7 Tauri commands, CounselPanel.tsx, REPL commands: `/counsel`.
-
-- **SuperBrain — Multi-Provider Query Routing** (`superbrain.rs`, 424 lines, 14+ tests):
-  - 5 routing modes: SmartRouter, Consensus, ChainRelay, BestOfN, Specialist.
-  - 3 Tauri commands, REPL commands: `/superbrain`.
-
-- **Web Client** (`web_client.rs`, 1,048 lines):
-  - Self-contained browser-based SPA served from `vibecli serve` — zero CDN dependencies (air-gap safe).
-  - Chat and Agent modes with SSE streaming, markdown rendering, syntax highlighting.
+- **System Theme Detection** — `ThemeToggle` now respects `prefers-color-scheme` on first visit.
+- **Data Analysis Panel Backend** — 9 new `da_*` Tauri commands.
+- **Counsel — Multi-LLM Deliberation** (`counsel.rs`, 534 lines, 20+ tests).
+- **SuperBrain — Multi-Provider Query Routing** (`superbrain.rs`, 424 lines, 14+ tests).
+- **Web Client** (`web_client.rs`, 1,048 lines) — zero CDN dependencies (air-gap safe).
+- FIT-GAP Code Review Architecture comparison across 12+ competitors.
+- VibeCody vs OpenClaw whitepaper.
+- Demo guides 36-60.
+- 3 VibeUI composite panels, 7 skill files, 10 new Tauri commands.
 
 ### Changed
 
-- **Zero Demo Panels** — All 23 previously demo-only panels wired to real Tauri backends (34 new commands, 17 new AppState fields). Panel status: 163 backend-wired + 24 pure utilities = **187 total**.
+- **Zero Demo Panels** — All 23 previously demo-only panels wired to real Tauri backends (34 new commands, 17 new AppState fields). Panel status: 196+ total.
 - **Theme Variable Migration** — Converted 85+ hardcoded colors to CSS variables.
-- Documentation updated: 187 panels, 185 Rust modules, 9,570 tests, 568 skill files.
+- Tests: ~10,535 (0 failures). REPL commands: 106+. Rust modules: 196+. Skill files: ~550. Tauri commands: 360+.
+- Documentation: FIT-GAP through v7, ROADMAP through v5.
 - Provider count: 23 direct + OpenRouter (300+).
 
 ### Fixed
 
 - **Production Hardening** — Zero compiler warnings. Safe unwraps, flush-on-exit, configurable A2A server, poison recovery for Mutex locks.
 - **Clippy Clean** — All lints resolved across workspace.
-- **Tokio Mutex Fix** — 45 instances corrected across A2A, MCP HTTP, MCTS Repair, Cost Router, Visual Verify, NextTask, DocSync.
+- **Tokio Mutex Fix** — 45 instances corrected.
 - **Crate Metadata** — Added `description` field to 6 Cargo.toml files.
 - **Ollama Streaming** — Status check fix + streaming hot path optimization.
+- Suppressed warnings in ai_code_review, architecture_spec, diff_review modules.
+- Duplicate REPL handlers removed; missing module stubs created.
 
 ---
 

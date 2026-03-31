@@ -5,6 +5,52 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.5.2] — 2026-03-30
+
+### Added
+
+- **RL-OS: Unified Reinforcement Learning Lifecycle Platform** — exhaustive fit-gap analysis against 40+ RL competitors (Ray RLlib, Stable Baselines3, Isaac Lab, TRL, d3rlpy, PettingZoo, SageMaker RL, etc.) identifying 52 gaps across 8 categories and 12 unique capabilities no existing tool provides.
+- **RL-OS Architecture Specification** — production-grade architecture for 7 core modules (EnvOS, TrainOS, EvalOS, OptiOS, ModelHub, ServeOS, RLHF) with Rust crate structure (`vibe-rl/`), declarative YAML DSL for environments/training/evaluation/optimization/deployment, RL-aware quantization algorithm, and 8-phase roadmap.
+- **12-Stage RL Lifecycle Scorecard** — comprehensive lifecycle coverage model; closest competitor (SageMaker) scores 5/12 vs. RL-OS target of 12/12.
+
+---
+
+## [0.5.1] — 2026-03-29
+
+### Added
+
+- **AI Code Review** (`ai_code_review.rs`, 97 tests) — Qodo/CodeRabbit/Bito parity: 7 detectors (security/OWASP, complexity, style, docs, tests, duplication, architecture), 8-linter aggregation, quality gates, learning loop (precision/recall/F1), PR summary + Mermaid diagrams; `/aireview` REPL command.
+- **Architecture Spec Engine** (`architecture_spec.rs`, 108 tests) — TOGAF ADM (9 phases), Zachman (6x6 matrix), C4 Model (4 levels + Mermaid), ADRs (lifecycle + markdown), governance engine; `/archspec` REPL command.
+- **Policy Engine** (`policy_engine.rs`, 91 tests) — Cerbos-style: RBAC/ABAC, 14 condition operators, derived roles, policy testing, YAML, audit trail, conflict detection, coverage analysis; `/policy` REPL command.
+- **Health Score** (`health_score.rs`, 92 tests) — multi-dimensional codebase health scoring across complexity, coverage, churn, duplication, and dependency metrics.
+- **Intent Refactor** (`intent_refactor.rs`, 89 tests) — natural-language-driven refactoring: "extract method", "rename variable", "inline function" parsed into AST-level transformations.
+- **Review Protocol** (`review_protocol.rs`, 50 tests) — structured code review workflow with roles, checklists, approval gates, and threaded discussion.
+- **Skill Distillation** (`skill_distillation.rs`, 82 tests) — extract reusable skills from successful agent traces into composable skill library.
+- **Phase 32 P0** — context_protocol, code_review_agent, diff_review, code_replay, speculative_exec, explainable_agent.
+- **TurboQuant KV-Cache** — PolarQuant + QJL (~3 bits/dim) for vector DB integration with panel + REPL benchmark.
+- **FIT-GAP Code Review Architecture** comparison across 12+ competitors.
+- 3 VibeUI composite panels (ArchitectureComposite, CodeAnalysisComposite), 7 skill files.
+- 10 new Tauri commands for Phase 32 P1 modules.
+- VibeCody vs OpenClaw whitepaper.
+- Demo guides 36-60.
+
+### Fixed
+
+- Suppressed warnings in ai_code_review, architecture_spec, diff_review modules.
+- Duplicate REPL handlers removed; missing module stubs created.
+
+### Changed
+
+- Tests: ~10,535 (0 failures).
+- VibeUI panels: 196+.
+- REPL commands: 106+ with subcommands.
+- Rust modules: 196+ in vibecli-cli/src/.
+- Skill files: ~550.
+- Tauri commands: 360+ registered.
+- Documentation: FIT-GAP through v7, ROADMAP through v5.
+
+---
+
 ## [0.5.0] — 2026-03-24
 
 ### Added
