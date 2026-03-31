@@ -71,7 +71,7 @@ export const TAB_META: Record<string, TabMeta> = {
   integrations:      { icon: Plug,         label: "Integrations",      aliases: ["mcp", "acpprotocol", "webhooks", "acp"] },
   administration:    { icon: UserCog,      label: "Administration",    aliases: ["admin", "auth", "governance", "sessions", "manager"] },
   billing:           { icon: DollarSign,   label: "Billing",           aliases: ["cost", "usagemetering", "usage"] },
-  "tools-settings":  { icon: Package,      label: "Tools",             aliases: ["artifacts", "img2app", "visualtest", "visual test"] },
+  "tools-settings":  { icon: Package,      label: "Tools",             aliases: ["artifacts", "img2app", "screenshot to app", "visualtest", "visual test"] },
 };
 
 export const DEFAULT_TAB_META: TabMeta = { icon: Workflow, label: "Panel" };
