@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 interface RecognizedComponent {
@@ -7,6 +7,16 @@ interface RecognizedComponent {
   confidence: number;
   x: number;
   y: number;
+}
+
+interface DrawnShape {
+  tool: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  color: string;
+  text?: string;
 }
 
 const panelStyle: React.CSSProperties = {
@@ -65,15 +75,25 @@ const toolBtnStyle = (active: boolean): React.CSSProperties => ({
   fontWeight: active ? 600 : 400,
 });
 
+const COLORS = ["#4f8ff7", "#f44336", "#4caf50", "#ff9800", "#9c27b0", "#607d8b"];
+
 export function SketchCanvasPanel() {
   const [tab, setTab] = useState("canvas");
   const [activeTool, setActiveTool] = useState("rect");
+  const [activeColor, setActiveColor] = useState(COLORS[0]);
   const [framework, setFramework] = useState("react");
   const [recognized, setRecognized] = useState<RecognizedComponent[]>([]);
   const [generatedCode, setGeneratedCode] = useState<string>("");
   const [recognizing, setRecognizing] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [exporting, setExporting] = useState(false);
+
+  const [shapes, setShapes] = useState<DrawnShape[]>([]);
+  const [drawing, setDrawing] = useState(false);
+  const [startPos, setStartPos] = useState<{ x: number; y: number } | null>(null);
+  const [currentShape, setCurrentShape] = useState<DrawnShape | null>(null);
+
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const tools = [
     { id: "rect", label: "Rect" },
@@ -83,10 +103,143 @@ export function SketchCanvasPanel() {
     { id: "arrow", label: "Arrow" },
   ];
 
+  /* ── Canvas drawing ──────────────────────────────────────────────── */
+
+  const drawShape = useCallback((ctx: CanvasRenderingContext2D, s: DrawnShape) => {
+    ctx.strokeStyle = s.color;
+    ctx.fillStyle = s.color + "22";
+    ctx.lineWidth = 2;
+
+    switch (s.tool) {
+      case "rect":
+        ctx.strokeRect(s.x, s.y, s.w, s.h);
+        ctx.fillRect(s.x, s.y, s.w, s.h);
+        break;
+      case "circle": {
+        const rx = Math.abs(s.w) / 2;
+        const ry = Math.abs(s.h) / 2;
+        const cx = s.x + s.w / 2;
+        const cy = s.y + s.h / 2;
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        break;
+      }
+      case "line":
+        ctx.beginPath();
+        ctx.moveTo(s.x, s.y);
+        ctx.lineTo(s.x + s.w, s.y + s.h);
+        ctx.stroke();
+        break;
+      case "arrow": {
+        const ex = s.x + s.w;
+        const ey = s.y + s.h;
+        ctx.beginPath();
+        ctx.moveTo(s.x, s.y);
+        ctx.lineTo(ex, ey);
+        ctx.stroke();
+        // arrowhead
+        const angle = Math.atan2(s.h, s.w);
+        const headLen = 12;
+        ctx.beginPath();
+        ctx.moveTo(ex, ey);
+        ctx.lineTo(ex - headLen * Math.cos(angle - 0.4), ey - headLen * Math.sin(angle - 0.4));
+        ctx.moveTo(ex, ey);
+        ctx.lineTo(ex - headLen * Math.cos(angle + 0.4), ey - headLen * Math.sin(angle + 0.4));
+        ctx.stroke();
+        break;
+      }
+      case "text":
+        ctx.fillStyle = s.color;
+        ctx.font = "14px var(--font-family, sans-serif)";
+        ctx.fillText(s.text || "Text", s.x, s.y + 16);
+        break;
+    }
+  }, []);
+
+  const redraw = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // grid
+    ctx.strokeStyle = "rgba(128,128,128,0.08)";
+    ctx.lineWidth = 1;
+    for (let x = 0; x < canvas.width; x += 20) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke(); }
+    for (let y = 0; y < canvas.height; y += 20) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke(); }
+
+    shapes.forEach((s) => drawShape(ctx, s));
+    if (currentShape) drawShape(ctx, currentShape);
+  }, [shapes, currentShape, drawShape]);
+
+  useEffect(() => { redraw(); }, [redraw]);
+
+  const getCanvasPos = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const rect = canvasRef.current!.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  };
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (activeTool === "text") {
+      const pos = getCanvasPos(e);
+      const text = prompt("Enter text:");
+      if (text) {
+        setShapes((prev) => [...prev, { tool: "text", x: pos.x, y: pos.y, w: 0, h: 0, color: activeColor, text }]);
+      }
+      return;
+    }
+    const pos = getCanvasPos(e);
+    setDrawing(true);
+    setStartPos(pos);
+    setCurrentShape({ tool: activeTool, x: pos.x, y: pos.y, w: 0, h: 0, color: activeColor });
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!drawing || !startPos) return;
+    const pos = getCanvasPos(e);
+    setCurrentShape({
+      tool: activeTool,
+      x: startPos.x,
+      y: startPos.y,
+      w: pos.x - startPos.x,
+      h: pos.y - startPos.y,
+      color: activeColor,
+    });
+  };
+
+  const handleMouseUp = () => {
+    if (!drawing || !currentShape) { setDrawing(false); return; }
+    if (Math.abs(currentShape.w) > 2 || Math.abs(currentShape.h) > 2) {
+      setShapes((prev) => [...prev, currentShape]);
+    }
+    setDrawing(false);
+    setStartPos(null);
+    setCurrentShape(null);
+  };
+
+  const handleClear = () => {
+    setShapes([]);
+    setRecognized([]);
+    setGeneratedCode("");
+  };
+
+  const handleUndo = () => {
+    setShapes((prev) => prev.slice(0, -1));
+  };
+
+  /* ── Backend actions ─────────────────────────────────────────────── */
+
   const handleRecognize = async () => {
     setRecognizing(true);
     try {
-      const result = await invoke<RecognizedComponent[]>("sketch_recognize", { elements: [] });
+      const elements = shapes.map((s) => ({
+        tool: s.tool, x: Math.round(s.x), y: Math.round(s.y),
+        w: Math.round(Math.abs(s.w)), h: Math.round(Math.abs(s.h)),
+      }));
+      const result = await invoke<RecognizedComponent[]>("sketch_recognize", { elements });
       setRecognized(result);
     } catch (e) {
       console.error("Failed to recognize shapes:", e);
@@ -131,32 +284,60 @@ export function SketchCanvasPanel() {
 
       {tab === "canvas" && (
         <div>
-          <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+          <div style={{ display: "flex", gap: 8, marginBottom: 12, alignItems: "center", flexWrap: "wrap" }}>
             {tools.map((t) => (
               <button key={t.id} style={toolBtnStyle(activeTool === t.id)} onClick={() => setActiveTool(t.id)}>
                 {t.label}
               </button>
             ))}
+            <span style={{ width: 1, height: 24, background: "var(--border-color)", margin: "0 4px" }} />
+            {COLORS.map((c) => (
+              <button
+                key={c}
+                onClick={() => setActiveColor(c)}
+                style={{
+                  width: 24, height: 24, borderRadius: "50%", border: activeColor === c ? "2px solid var(--text-primary)" : "2px solid transparent",
+                  background: c, cursor: "pointer", padding: 0,
+                }}
+              />
+            ))}
+            <span style={{ width: 1, height: 24, background: "var(--border-color)", margin: "0 4px" }} />
+            <button style={{ ...btnStyle, background: "transparent", color: "var(--text-primary)" }} onClick={handleUndo} disabled={shapes.length === 0}>
+              Undo
+            </button>
+            <button style={{ ...btnStyle, background: "transparent", color: "var(--text-primary)" }} onClick={handleClear} disabled={shapes.length === 0}>
+              Clear
+            </button>
+            <span style={{ fontSize: 11, color: "var(--text-secondary)", marginLeft: "auto" }}>
+              {shapes.length} shape{shapes.length !== 1 ? "s" : ""}
+            </span>
           </div>
-          <div style={{
-            width: "100%", height: 360, borderRadius: 8, border: "2px dashed var(--border-color)",
-            background: "var(--bg-secondary)", display: "flex", alignItems: "center", justifyContent: "center",
-            color: "var(--text-secondary)", fontSize: 14, cursor: "crosshair",
-          }}>
-            Draw with {activeTool} tool - click and drag to create shapes
-          </div>
+          <canvas
+            ref={canvasRef}
+            width={800}
+            height={400}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+            style={{
+              width: "100%", height: 400, borderRadius: 8, border: "2px solid var(--border-color)",
+              background: "var(--bg-secondary)", cursor: activeTool === "text" ? "text" : "crosshair",
+            }}
+          />
         </div>
       )}
 
       {tab === "recognize" && (
         <div>
           <div style={{ marginBottom: 12 }}>
-            <button style={btnStyle} onClick={handleRecognize} disabled={recognizing}>
-              {recognizing ? "Recognizing..." : "Recognize"}
+            <button style={btnStyle} onClick={handleRecognize} disabled={recognizing || shapes.length === 0}>
+              {recognizing ? "Recognizing..." : `Recognize (${shapes.length} shapes)`}
             </button>
           </div>
           {recognizing && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>Analyzing shapes...</div>}
-          {!recognizing && recognized.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>No shapes recognized yet. Draw on the canvas and click Recognize.</div>}
+          {!recognizing && shapes.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>Draw shapes on the canvas first.</div>}
+          {!recognizing && shapes.length > 0 && recognized.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>Click Recognize to analyze your sketch.</div>}
           {recognized.map((r, i) => (
             <div key={i} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
@@ -212,7 +393,7 @@ export function SketchCanvasPanel() {
             </div>
           </div>
           <div style={{ ...cardStyle, fontSize: 13, color: "var(--text-secondary)" }}>
-            {recognized.length} shapes recognized | Framework: {framework}
+            {shapes.length} shapes drawn | {recognized.length} recognized | Framework: {framework}
           </div>
         </div>
       )}
