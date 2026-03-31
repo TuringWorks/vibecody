@@ -18529,9 +18529,15 @@ pub struct GeneratedFile {
 pub async fn generate_app_from_image(
     image_base64: String,
     framework: String,
+    provider: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<GeneratedFile>, String> {
     use vibe_ai::provider::{Message, MessageRole};
+
+    if let Some(ref p) = provider {
+        let mut engine = state.chat_engine.lock().await;
+        engine.set_provider_by_name(p).map_err(|e| e.to_string())?;
+    }
 
     let fw_instructions = match framework.as_str() {
         "react" => "Generate a React app using TypeScript (TSX). Create functional components with hooks. Use CSS-in-JS (inline style objects). Include an App.tsx entry component and any sub-components in separate files.",

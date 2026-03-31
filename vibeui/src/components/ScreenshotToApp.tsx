@@ -15,7 +15,7 @@ const FRAMEWORKS = [
   { value: "html", label: "HTML / CSS / JS" },
 ];
 
-export function ScreenshotToApp({ workspacePath }: { workspacePath: string | null }) {
+export function ScreenshotToApp({ workspacePath, provider }: { workspacePath: string | null; provider?: string }) {
   const [framework, setFramework] = useState("react");
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -76,6 +76,7 @@ export function ScreenshotToApp({ workspacePath }: { workspacePath: string | nul
       const result = await invoke<GeneratedFile[]>("generate_app_from_image", {
         imageBase64,
         framework,
+        provider: provider || null,
       });
       setFiles(result);
       if (result.length > 0) setExpandedIdx(0);
