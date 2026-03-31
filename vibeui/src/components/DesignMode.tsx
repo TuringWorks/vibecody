@@ -63,35 +63,62 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
 
   // Build an inline HTML document that renders the generated component
   const buildPreviewSrcdoc = useCallback((code: string) => {
-    let clean = code.replace(/^```[a-z]*\n?/i, "").replace(/\n?```$/, "").trim();
-    clean = clean.replace(/^import\s+.*?['"]\s*;?\s*$/gm, "");
+    let clean = code;
+    // Strip markdown code fences
+    clean = clean.replace(/^```[a-z]*\n?/gim, "").replace(/\n?```$/gm, "").trim();
+    // Strip import statements
+    clean = clean.replace(/^import\s+.*?['"].*?['"]\s*;?\s*$/gm, "");
+    // Strip TypeScript interface/type blocks (multiline)
+    clean = clean.replace(/^(export\s+)?(interface|type)\s+\w+[^{]*\{[^}]*\}\s*;?\s*$/gm, "");
+    // Strip single-line type aliases
+    clean = clean.replace(/^(export\s+)?type\s+\w+\s*=\s*[^;]+;\s*$/gm, "");
+    // Strip TS type annotations from function params and return types
+    clean = clean.replace(/:\s*React\.\w+(<[^>]*>)?/g, "");
+    clean = clean.replace(/:\s*\w+(\[\])?\s*(?=[,)=\n{])/g, "");
+    // Strip generic type params from hooks: useState<Foo> -> useState
+    clean = clean.replace(/(useState|useRef|useCallback|useMemo|useReducer)<[^>]+>/g, "$1");
+    // Strip 'as Type' casts
+    clean = clean.replace(/\s+as\s+\w+(\[\])?/g, "");
+    // Replace 'export default' with just the declaration
+    clean = clean.replace(/export\s+default\s+/g, "");
+    // Remove 'export' keyword from named exports
+    clean = clean.replace(/^export\s+(?=(?:const|function|class)\s)/gm, "");
+
     const nameMatch = clean.match(/(?:const|function)\s+([A-Z]\w*)/);
     const componentName = nameMatch?.[1] ?? "App";
-    clean = clean.replace(/^(export\s+)?(interface|type)\s+\w+[\s\S]*?^\}/gm, "");
-    clean = clean.replace(/:\s*React\.FC<\w+>/g, "");
-    clean = clean.replace(/<(\w+)Props>/g, "");
-    clean = clean.replace(/useState<[^>]+>/g, "useState");
+
     return `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8"/>
-<script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin><\/script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin><\/script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"><\/script>
 <style>
   *, *::before, *::after { box-sizing: border-box; }
-  body { margin: 0; padding: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+  body { margin: 0; padding: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #fff; color: #111; }
+  #error-display { color: #e53e3e; padding: 16px; font-family: monospace; white-space: pre-wrap; font-size: 13px; }
 </style>
 </head>
 <body>
 <div id="root"></div>
-<script type="text/babel" data-type="module">
-const { useState, useEffect, useRef, useCallback, useMemo } = React;
+<div id="error-display"></div>
+<script>
+window.onerror = function(msg, src, line, col, err) {
+  document.getElementById('error-display').textContent = 'Error: ' + msg + '\\nLine: ' + line;
+};
+<\/script>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback, useMemo, useReducer, useContext, createContext, Fragment } = React;
 ${clean}
 
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(React.createElement(${componentName}));
-</script>
+try {
+  const root = ReactDOM.createRoot(document.getElementById('root'));
+  root.render(React.createElement(${componentName}));
+} catch (e) {
+  document.getElementById('error-display').textContent = 'Render error: ' + e.message;
+}
+<\/script>
 </body>
 </html>`;
   }, []);
@@ -155,7 +182,14 @@ root.render(React.createElement(${componentName}));
         provider,
       }).catch((e: unknown) => String(e));
       setGenerationResult(result);
-      if (result && (result.includes("React") || result.includes("useState") || result.includes("return (") || result.includes("export"))) {
+      // Try to preview any result that looks like it contains JSX or a component
+      const looksLikeCode = result && (
+        result.includes("return (") || result.includes("return(") ||
+        result.includes("export") || result.includes("function") ||
+        result.includes("const ") || result.includes("useState") ||
+        result.includes("<div") || result.includes("<>")
+      );
+      if (looksLikeCode) {
         setPreviewSrcdoc(buildPreviewSrcdoc(result));
         setActiveTab("preview");
       }
