@@ -228,6 +228,32 @@ export function CounselPanel() {
     setParticipants(prev => prev.map((p, i) => i === idx ? { ...p, [field]: value } : p));
   };
 
+  const deleteSession = useCallback(async (id: string) => {
+    try {
+      await invoke("counsel_delete_session", { sessionId: id });
+      if (activeSession?.id === id) {
+        setActiveSession(null);
+        setShowSetup(true);
+      }
+      loadSessions();
+    } catch { /* ignore */ }
+  }, [activeSession, loadSessions]);
+
+  const updateSessionParticipant = useCallback(async (idx: number, provider: string, model: string) => {
+    if (!activeSession) return;
+    try {
+      const updated = await invoke<CounselSession>("counsel_update_participant", {
+        sessionId: activeSession.id,
+        participantIdx: idx,
+        provider,
+        model,
+      });
+      setActiveSession(updated);
+    } catch (e: any) {
+      setError(`Failed to update participant: ${e?.toString()}`);
+    }
+  }, [activeSession]);
+
   const newSession = () => {
     setActiveSession(null);
     setShowSetup(true);
@@ -251,14 +277,22 @@ export function CounselPanel() {
         {sessionList.map(s => (
           <div
             key={s.id}
-            style={S.sidebarItem(activeSession?.id === s.id)}
-            onClick={() => loadSession(s.id)}
+            style={{ ...S.sidebarItem(activeSession?.id === s.id), display: "flex", alignItems: "center", gap: 4 }}
             title={s.topic}
           >
-            <div style={{ fontWeight: 600 }}>{s.topic.slice(0, 28)}{s.topic.length > 28 ? "..." : ""}</div>
-            <div style={{ fontSize: 10, opacity: 0.7 }}>
-              {s.round_count} rounds, {s.participant_count} participants
+            <div style={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => loadSession(s.id)}>
+              <div style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis" }}>{s.topic.slice(0, 28)}{s.topic.length > 28 ? "..." : ""}</div>
+              <div style={{ fontSize: 10, opacity: 0.7 }}>
+                {s.round_count} rounds, {s.participant_count} participants
+              </div>
             </div>
+            <button
+              onClick={(e) => { e.stopPropagation(); deleteSession(s.id); }}
+              title="Delete session"
+              style={{ flexShrink: 0, background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: 12, padding: "2px 4px", opacity: 0.6 }}
+            >
+              x
+            </button>
           </div>
         ))}
         {sessionList.length === 0 && (
@@ -366,14 +400,40 @@ export function CounselPanel() {
               </div>
             )}
 
-            {/* Participant badges */}
-            <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
-              {activeSession.participants.map((p, i) => (
-                <span key={i} style={S.badge(ROLE_COLORS[p.role] || "var(--text-secondary)")}>
-                  {p.provider}/{p.model} ({p.role})
-                  {i === activeSession.moderator_index ? " [Mod]" : ""}
-                </span>
-              ))}
+            {/* Participant cards with editable provider/model */}
+            <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
+              {activeSession.participants.map((p, i) => {
+                const roleColor = ROLE_COLORS[p.role] || "var(--text-secondary)";
+                const pModels = modelsForProvider(p.provider);
+                return (
+                  <div key={i} style={{ ...S.badge(roleColor), display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 8px" }}>
+                    <select
+                      style={{ background: "transparent", border: "none", color: "inherit", fontSize: 11, fontWeight: 600, cursor: "pointer", outline: "none", padding: 0 }}
+                      value={p.provider}
+                      onChange={e => {
+                        const newProv = e.target.value;
+                        const newModels = modelsForProvider(newProv);
+                        updateSessionParticipant(i, newProv, newModels[0] || "");
+                      }}
+                    >
+                      {providers.map(pr => <option key={pr} value={pr} style={{ background: "var(--bg-secondary)", color: "var(--text-primary)" }}>{pr}</option>)}
+                    </select>
+                    <span style={{ opacity: 0.5 }}>/</span>
+                    <select
+                      style={{ background: "transparent", border: "none", color: "inherit", fontSize: 11, cursor: "pointer", outline: "none", padding: 0, maxWidth: 140 }}
+                      value={p.model}
+                      onChange={e => updateSessionParticipant(i, p.provider, e.target.value)}
+                    >
+                      {pModels.map(m => <option key={m} value={m} style={{ background: "var(--bg-secondary)", color: "var(--text-primary)" }}>{m}</option>)}
+                      {pModels.length > 0 && !pModels.includes(p.model) && p.model && (
+                        <option value={p.model} style={{ background: "var(--bg-secondary)", color: "var(--text-primary)" }}>{p.model}</option>
+                      )}
+                    </select>
+                    <span style={{ opacity: 0.7, fontSize: 10 }}>({p.role})</span>
+                    {i === activeSession.moderator_index && <span style={{ fontSize: 9, opacity: 0.6 }}>[Mod]</span>}
+                  </div>
+                );
+              })}
             </div>
 
             {/* Synthesis */}

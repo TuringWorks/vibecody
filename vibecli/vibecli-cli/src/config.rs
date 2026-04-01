@@ -29,7 +29,7 @@ pub struct Config {
     /// ```toml
     /// [ollama]
     /// enabled = true
-    /// model = "llama3.1"
+    /// model = "llama3.2"
     /// api_url = "http://localhost:11434"   # optional, default localhost
     /// api_key = "my-secret-key"            # optional, env: OLLAMA_API_KEY
     /// # If no api_key is set, a device key derived from hostname+username is used.

@@ -7,6 +7,7 @@
  */
 import { useState, useEffect, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { OLLAMA_CHAT_MODELS } from "../constants/ollamaModels";
 
 const CACHE_KEY = "vibecody:model-registry";
 const CACHE_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
@@ -28,7 +29,7 @@ const STATIC_MODELS: Record<string, string[]> = {
   azure_openai: ["gpt-4o", "gpt-4-turbo"],
   bedrock: ["anthropic.claude-3-5-sonnet-20241022-v2:0", "anthropic.claude-3-haiku-20240307-v1:0"],
   copilot: ["gpt-4o"],
-  ollama: [], // populated dynamically
+  ollama: OLLAMA_CHAT_MODELS,
   zhipu: ["glm-4-plus", "glm-4-flash"],
   vercel_ai: [],
   minimax: ["abab6.5s-chat"],

@@ -51,7 +51,7 @@ ollama --version
 ollama pull qwen3-coder
 
 # Popular alternatives
-ollama pull llama3.1
+ollama pull llama3.2
 ollama pull codellama:34b
 ollama pull deepseek-coder-v2:16b
 ```
@@ -62,8 +62,8 @@ ollama pull deepseek-coder-v2:16b
 | Model | Size | Quality | Speed | Best for |
 |-------|------|---------|-------|----------|
 | `qwen3-coder` | 480B (cloud) | Excellent | Fast | General coding (VibeCody default) |
-| `llama3.1:70b` | 40 GB | Very good | Medium | Complex reasoning, refactoring |
-| `llama3.1:8b` | 4.7 GB | Good | Very fast | Quick tasks, completions |
+| `llama3.2:70b` | 40 GB | Very good | Medium | Complex reasoning, refactoring |
+| `llama3.2:8b` | 4.7 GB | Good | Very fast | Quick tasks, completions |
 | `deepseek-coder-v2:16b` | 9 GB | Very good | Fast | Code generation, debugging |
 | `codellama:34b` | 19 GB | Good | Medium | Code-specific tasks |
 | `codellama:7b` | 3.8 GB | Fair | Very fast | Low-memory machines |
@@ -94,7 +94,7 @@ model = "qwen3-coder:480b-cloud"
 **Option 3: CLI flag**
 
 ```bash
-vibecli --provider ollama --model llama3.1:8b
+vibecli --provider ollama --model llama3.2:8b
 ```
 
 
@@ -120,7 +120,7 @@ Ollama automatically uses GPU when available:
 Check GPU detection:
 
 ```bash
-ollama run llama3.1:8b "hello"
+ollama run llama3.2:8b "hello"
 # Watch the logs: ollama will print which GPU layers are loaded
 ```
 
@@ -131,7 +131,7 @@ For environments without internet access:
 
 1. On a machine with internet, pull the model:
    ```bash
-   ollama pull llama3.1:8b
+   ollama pull llama3.2:8b
    ```
 
 2. Copy the model directory (`~/.ollama/models/`) to the air-gapped machine.
@@ -180,7 +180,7 @@ ollama list
 
 If Ollama crashes or becomes unresponsive:
 
-- Use a smaller model (e.g., `llama3.1:8b` instead of `llama3.1:70b`)
+- Use a smaller model (e.g., `llama3.2:8b` instead of `llama3.2:70b`)
 - Close other memory-intensive applications
 - Set `OLLAMA_MAX_LOADED_MODELS=1` to limit concurrent models
 - On Linux, increase swap space
@@ -188,5 +188,5 @@ If Ollama crashes or becomes unresponsive:
 ### Slow generation
 
 - Ensure GPU acceleration is active (check `ollama ps`)
-- Use a smaller quantization: `ollama pull llama3.1:8b-q4_0`
+- Use a smaller quantization: `ollama pull llama3.2:8b-q4_0`
 - Reduce context window: set `num_ctx` in a Modelfile

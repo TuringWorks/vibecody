@@ -96,13 +96,13 @@ export function AgentHostPanel() {
       setLoading(true);
       try {
         const agentList = await invoke<HostedAgent[]>("host_list_agents");
-        setAgents(agentList);
+        setAgents(Array.isArray(agentList) ? agentList : []);
       } catch (e) {
         console.error("Failed to load agents:", e);
       }
       try {
-        const outputLines = await invoke<OutputLine[]>("host_get_output", { agentId: "all", lastN: 50 });
-        setOutput(outputLines);
+        const outputRes = await invoke<{ lines?: OutputLine[] }>("host_get_output", { agentId: "all", lastN: 50 });
+        setOutput(Array.isArray(outputRes) ? outputRes : Array.isArray(outputRes?.lines) ? outputRes.lines : []);
       } catch (e) {
         console.error("Failed to load output:", e);
       }

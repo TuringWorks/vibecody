@@ -6566,7 +6566,7 @@ pub fn register_cloud_providers(engine: &mut ChatEngine, settings: &ApiKeySettin
         let config = vibe_ai::provider::ProviderConfig {
             provider_type: "ollama".to_string(),
             api_key,
-            model: "llama3.1".to_string(),
+            model: "llama3.2".to_string(),
             api_url,
             max_tokens: None,
             temperature: None,

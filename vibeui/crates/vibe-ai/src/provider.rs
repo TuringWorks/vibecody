@@ -384,7 +384,7 @@ mod tests {
     #[test]
     fn estimated_cost_ollama_free() {
         let u = TokenUsage { prompt_tokens: 1_000_000, completion_tokens: 1_000_000 };
-        let cost = u.estimated_cost_usd("ollama", "llama3.1");
+        let cost = u.estimated_cost_usd("ollama", "llama3.2");
         assert!((cost - 0.0).abs() < 0.001, "local model should be free, got {}", cost);
     }
 

@@ -591,9 +591,9 @@ mod tests {
 
     #[test]
     fn display_name_includes_model() {
-        let config = ProviderConfig::new("ollama".to_string(), "llama3.1:8b".to_string());
+        let config = ProviderConfig::new("ollama".to_string(), "llama3.2:8b".to_string());
         let provider = OllamaProvider::new(config);
-        assert_eq!(provider.name(), "Ollama (llama3.1:8b)");
+        assert_eq!(provider.name(), "Ollama (llama3.2:8b)");
     }
 
     // ── request serde with skip_serializing_if ──────────────────────────

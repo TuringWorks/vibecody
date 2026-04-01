@@ -88,9 +88,12 @@ export function ChatTabManager({
         return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
     }, [tabMessages]);
 
+    const tabMessagesRef = useRef(tabMessages);
+    tabMessagesRef.current = tabMessages;
+
     const getMessages = useCallback((tabId: string): Message[] => {
-        return tabMessages[tabId] ?? [];
-    }, [tabMessages]);
+        return tabMessagesRef.current[tabId] ?? [];
+    }, []);
 
     const setMessagesForTab = useCallback((tabId: string, msgs: Message[] | ((prev: Message[]) => Message[])) => {
         setTabMessages(prev => {

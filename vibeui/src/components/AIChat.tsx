@@ -699,16 +699,18 @@ export function AIChat({
   onFileActionRef.current = onFileAction;
   const onPendingWriteRef = useRef(onPendingWrite);
   onPendingWriteRef.current = onPendingWrite;
+  const onMessagesChangeRef = useRef(onMessagesChange);
+  onMessagesChangeRef.current = onMessagesChange;
 
   const setMessages = useCallback((update: Message[] | ((prev: Message[]) => Message[])) => {
-    if (onMessagesChange) {
+    if (onMessagesChangeRef.current) {
       const current = messagesRef.current;
       const next = typeof update === "function" ? update(current) : update;
-      onMessagesChange(next);
+      onMessagesChangeRef.current(next);
     } else {
       setLocalMessages(update as Parameters<typeof setLocalMessages>[0]);
     }
-  }, [onMessagesChange]);
+  }, []);
 
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);

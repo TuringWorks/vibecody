@@ -373,7 +373,7 @@ export default function CanvasPanel() {
       {["ollama","claude","openai","gemini","grok","groq","deepseek","perplexity","together","fireworks","sambanova","mistral"].map(p => <option key={p} value={p}>{p}</option>)}
      </select>
      <label style={pLabel}>Model</label>
-     <input style={pInput} placeholder="e.g. llama3.1:8b" value={node.config.model || ""} onChange={e => updateConfig("model", e.target.value)} />
+     <input style={pInput} placeholder="e.g. llama3.2:8b" value={node.config.model || ""} onChange={e => updateConfig("model", e.target.value)} />
      <label style={pLabel}>Temperature</label>
      <input style={pInput} type="number" step="0.1" min="0" max="2" placeholder="0.7" value={node.config.temperature || ""} onChange={e => updateConfig("temperature", e.target.value)} />
     </>)}

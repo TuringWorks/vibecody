@@ -4,7 +4,7 @@ import {
   ClipboardList, Ruler, Activity, Palette,
   Shield, TestTube, TrendingUp,
   GitBranch, GitPullRequest, Users,
-  Hammer, Container, RefreshCw, CloudCog, Workflow,
+  Hammer, Container, RefreshCw, CloudCog, Workflow, Cpu,
   Database, Globe, Radio,
   Cog, TerminalSquare, Wrench,
   Binary, Regex, PenTool,
@@ -22,6 +22,7 @@ export const TAB_META: Record<string, TabMeta> = {
   // --- AI ---
   chat:            { icon: MessageSquare,  label: "Chat" },
   agent:           { icon: Bot,            label: "Agent" },
+  "agent-os":      { icon: Cpu,             label: "Agent-OS",          aliases: ["agent os", "agentos", "agent dashboard", "spawn", "subagents", "agent host", "branch agent", "browser agent", "cloud agent", "orchestration", "agent modes", "agent pool"] },
   "ai-teams":      { icon: UsersRound,     label: "AI Teams",          aliases: ["teams", "agentteams", "subagents", "cloud", "cibot", "agent modes"] },
   "ai-playground": { icon: Swords,         label: "AI Council",        aliases: ["counsel", "superbrain", "compare", "arena", "playground", "debate", "ensemble", "multi-model"] },
   "ai-context":    { icon: Infinity,       label: "Context & Memory",  aliases: ["icontext", "bundles", "openmemory", "fastcontext", "infinite context"] },

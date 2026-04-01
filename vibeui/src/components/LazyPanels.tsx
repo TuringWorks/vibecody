@@ -42,6 +42,7 @@ const AgentPanel = lazy(() => import("./AgentPanel").then(m => ({ default: m.Age
 const MarketplacePanel = lazy(() => import("./MarketplacePanel").then(m => ({ default: m.MarketplacePanel })));
 
 // Composite panels
+const AgentOSComposite = lazy(() => import("./composite/AgentOSComposite").then(m => ({ default: m.AgentOSComposite })));
 const AiTeamsComposite = lazy(() => import("./composite/AiTeamsComposite").then(m => ({ default: m.AiTeamsComposite })));
 const AiPlaygroundComposite = lazy(() => import("./composite/AiPlaygroundComposite").then(m => ({ default: m.AiPlaygroundComposite })));
 const AiContextComposite = lazy(() => import("./composite/AiContextComposite").then(m => ({ default: m.AiContextComposite })));
@@ -130,7 +131,7 @@ export function PanelHost(props: PanelHostProps) {
     ) : null;
 
   const KNOWN_TABS = [
-    "chat", "agent", "marketplace",
+    "chat", "agent", "agent-os", "marketplace",
     "ai-teams", "ai-playground", "ai-context", "ai-generation",
     "project-hub", "planning", "observability", "design",
     "security", "testing", "code-analysis",
@@ -147,6 +148,7 @@ export function PanelHost(props: PanelHostProps) {
       {/* --- AI --- */}
       {panel("chat", <LazyPanel Component={ChatTabManager} props={{ defaultProvider: selectedProvider, availableProviders, context: editorContent, fileTree, currentFile, onPendingWrite }} />)}
       {panel("agent", <LazyPanel Component={AgentPanel} props={{ provider: selectedProvider, workspacePath: wp }} />)}
+      {panel("agent-os", <LazyPanel Component={AgentOSComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}
       {panel("ai-teams", <LazyPanel Component={AiTeamsComposite} props={{ provider: selectedProvider }} />)}
       {panel("ai-playground", <LazyPanel Component={AiPlaygroundComposite} props={{ provider: selectedProvider }} />)}
       {panel("ai-context", <LazyPanel Component={AiContextComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}

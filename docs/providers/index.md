@@ -46,7 +46,7 @@ VibeCody supports 23 AI providers, covering cloud APIs, local models, inference 
 
 ## Choosing a Provider
 
-**For beginners:** Start with [Ollama](ollama/) -- it is free, runs locally, and requires no API key. Pull `qwen3-coder` or `llama3.1` and you are ready.
+**For beginners:** Start with [Ollama](ollama/) -- it is free, runs locally, and requires no API key. Pull `qwen3-coder` or `llama3.2` and you are ready.
 
 **For best quality:** [Claude](claude/) (Opus 4.6 or Sonnet 4.6) and [OpenAI](openai/) (GPT-4o) provide the highest-quality code generation and reasoning.
 
