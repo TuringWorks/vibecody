@@ -18,14 +18,37 @@ export function Terminal({ onClose }: TerminalProps) {
     useEffect(() => {
         if (!terminalRef.current) return;
 
-        // Initialize xterm
+        // Resolve CSS variable to a hex color for xterm.js canvas
+        const computedBg = getComputedStyle(document.documentElement)
+            .getPropertyValue('--bg-primary').trim() || '#1a1a2e';
+
         const term = new XTerm({
             cursorBlink: true,
             theme: {
-                background: 'var(--bg-primary)',
+                background: computedBg,
                 foreground: '#d4d4d4',
+                cursor: '#4cc9f0',
+                cursorAccent: computedBg,
+                selectionBackground: 'rgba(76, 201, 240, 0.3)',
+                // ANSI colors — vibrant palette for ls, git, etc.
+                black:         '#1a1a2e',
+                red:           '#f72585',
+                green:         '#7ae582',
+                yellow:        '#ffd166',
+                blue:          '#4cc9f0',
+                magenta:       '#b388ff',
+                cyan:          '#64dfdf',
+                white:         '#d4d4d4',
+                brightBlack:   '#555577',
+                brightRed:     '#ff5ca1',
+                brightGreen:   '#a8f0b0',
+                brightYellow:  '#ffe599',
+                brightBlue:    '#7dd8f7',
+                brightMagenta: '#d4b4ff',
+                brightCyan:    '#96efef',
+                brightWhite:   '#ffffff',
             },
-            fontFamily: 'var(--font-mono)',
+            fontFamily: '"SF Mono", "Fira Code", "Cascadia Code", monospace',
             fontSize: 14,
         });
 
@@ -43,7 +66,9 @@ export function Terminal({ onClose }: TerminalProps) {
 
         const handleResize = () => {
             if (disposed) return;
-            fitAddon.fit();
+            try {
+                fitAddon.fit();
+            } catch { /* container might be hidden */ }
             if (terminalIdRef.current !== null) {
                 invoke('resize_terminal', {
                     id: terminalIdRef.current,
@@ -52,6 +77,11 @@ export function Terminal({ onClose }: TerminalProps) {
                 });
             }
         };
+
+        // Use ResizeObserver to detect container size changes (panel drag,
+        // window resize, maximize/restore) — not just window.resize.
+        const resizeObserver = new ResizeObserver(() => handleResize());
+        resizeObserver.observe(terminalRef.current);
 
         // Spawn terminal backend
         const initTerminal = async () => {
@@ -73,8 +103,9 @@ export function Terminal({ onClose }: TerminalProps) {
                     invoke('write_terminal', { id, data });
                 });
 
-                window.addEventListener('resize', handleResize);
+                // Initial fit after backend is ready + auto-focus
                 handleResize();
+                term.focus();
             } catch (error) {
                 console.error('Failed to spawn terminal:', error);
                 if (!disposed) {
@@ -87,14 +118,14 @@ export function Terminal({ onClose }: TerminalProps) {
 
         return () => {
             disposed = true;
+            resizeObserver.disconnect();
             if (unlisten) unlisten();
-            window.removeEventListener('resize', handleResize);
             term.dispose();
         };
     }, []);
 
     return (
-        <div className="terminal-container" style={{ height: '100%', width: '100%', padding: '4px', background: 'var(--bg-primary)', overflow: 'hidden', position: 'relative' }}>
+        <div className="terminal-container" onClick={() => xtermRef.current?.focus()} style={{ height: '100%', width: '100%', padding: '4px', background: 'var(--bg-primary)', overflow: 'hidden', position: 'relative' }}>
             <button
                 onClick={onClose}
                 style={{

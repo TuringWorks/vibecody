@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "VibeCLI",
+  "productName": "Vibe App",
   "identifier": "com.vibecody.vibeapp",
   "version": "0.5.1",
   "build": {
@@ -16,7 +16,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "VibeCLI",
+        "title": "Vibe App",
         "width": 440,
         "height": 680,
         "minWidth": 320,
@@ -34,7 +34,7 @@
       "iconPath": "icons/icon.png",
       "iconAsTemplate": true,
       "menuOnLeftClick": false,
-      "tooltip": "VibeCLI — AI Coding Assistant"
+      "tooltip": "Vibe App — AI Coding Assistant"
     }
   },
   "bundle": {

@@ -54,6 +54,7 @@ interface Message {
 const DAEMON_URL_KEY   = "vibeapp_daemon_url";
 const PROVIDER_KEY     = "vibeapp_provider";
 const DAEMON_TOKEN_KEY = "vibeapp_daemon_token";
+const MODEL_KEY        = "vibeapp_model";
 const DEFAULT_URL      = "http://localhost:7878";
 
 function loadSetting(key: string, fallback: string): string {
@@ -72,24 +73,36 @@ export default function App() {
   const [daemonOk, setDaemonOk]     = useState<boolean | null>(null);
   const [pinned, setPinned]         = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [availableModels, setAvailableModels] = useState<Array<{ id: string; name?: string; provider?: string }>>([]);
+  const [selectedModel, setSelectedModel] = useState(() => loadSetting(MODEL_KEY, ""));
 
   const bottomRef   = useRef<HTMLDivElement>(null);
   const inputRef    = useRef<HTMLTextAreaElement>(null);
 
-  // ── Daemon health-check ──────────────────────────────────────────────────
+  // ── Daemon health-check + model discovery ───────────────────────────────
   useEffect(() => {
     const check = async () => {
       try {
         await invoke("check_daemon", { url: daemonUrl });
         setDaemonOk(true);
+        // Fetch available models
+        try {
+          const models = await invoke<Array<{ id: string; name?: string; provider?: string }>>(
+            "list_daemon_models", { url: daemonUrl }
+          );
+          setAvailableModels(models);
+          if (models.length > 0 && !selectedModel) {
+            setSelectedModel(models[0].id);
+          }
+        } catch { /* daemon may not support /models yet */ }
       } catch {
         setDaemonOk(false);
       }
     };
     check();
-    const id = setInterval(check, 10_000);
+    const id = setInterval(check, 30_000);
     return () => clearInterval(id);
-  }, [daemonUrl]);
+  }, [daemonUrl]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Auto-scroll ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -165,6 +178,7 @@ export default function App() {
         url: daemonUrl,
         task: text,
         provider,
+        model: selectedModel || null,
         token: daemonToken || null,
       });
 
@@ -211,6 +225,7 @@ export default function App() {
     localStorage.setItem(DAEMON_URL_KEY, daemonUrl);
     localStorage.setItem(PROVIDER_KEY, provider);
     localStorage.setItem(DAEMON_TOKEN_KEY, daemonToken);
+    localStorage.setItem(MODEL_KEY, selectedModel);
     setShowSettings(false);
   };
 
@@ -249,6 +264,27 @@ export default function App() {
         </div>
       </div>
 
+      {/* Model selector bar — shown when settings are closed and models are available */}
+      {!showSettings && (selectedModel || availableModels.length > 0) && (
+        <div className="model-bar">
+          {availableModels.length > 0 ? (
+            <select
+              value={selectedModel}
+              onChange={e => { setSelectedModel(e.target.value); localStorage.setItem(MODEL_KEY, e.target.value); }}
+              title="Select model"
+            >
+              {availableModels.map(m => (
+                <option key={m.id} value={m.id}>
+                  {m.name || m.id}{m.provider ? ` (${m.provider})` : ""}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span style={{ fontSize: 12, color: "var(--text-dim)" }}>{selectedModel || "No model selected"}</span>
+          )}
+        </div>
+      )}
+
       {/* Settings panel */}
       {showSettings && (
         <div className="settings-panel">
@@ -278,6 +314,24 @@ export default function App() {
               <option value="gemini">Gemini</option>
               <option value="grok">Grok</option>
             </select>
+          </label>
+          <label>
+            Model
+            {availableModels.length > 0 ? (
+              <select value={selectedModel} onChange={e => setSelectedModel(e.target.value)}>
+                {availableModels.map(m => (
+                  <option key={m.id} value={m.id}>
+                    {m.name || m.id}{m.provider ? ` (${m.provider})` : ""}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                value={selectedModel}
+                onChange={e => setSelectedModel(e.target.value)}
+                placeholder="e.g. llama3.2, gpt-4o, claude-sonnet-4-6"
+              />
+            )}
           </label>
           <div className="settings-actions">
             <button onClick={saveSettings}>Save</button>

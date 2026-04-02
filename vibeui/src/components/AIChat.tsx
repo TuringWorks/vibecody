@@ -1451,16 +1451,32 @@ export function AIChat({
     return blocks;
   }, []);
 
-  /** Apply all code blocks from a message sequentially. */
-  const handleApplyAll = useCallback(async (content: string) => {
+  /** Queue of code blocks waiting to be applied one at a time. */
+  const applyQueueRef = useRef<Array<{ filename: string; code: string }>>([]);
+
+  /** Apply all code blocks from a message — queues them and opens the
+   *  DiffReviewPanel for the first one. When the user accepts/rejects it,
+   *  the next one in the queue is automatically opened. */
+  const handleApplyAll = useCallback((content: string) => {
     if (!onPendingWriteRef.current) return;
     const blocks = extractCodeBlocks(content);
-    for (const block of blocks) {
-      onPendingWriteRef.current(block.filename, block.code);
-      // Small delay between applies so the DiffReviewPanel can process each
-      await new Promise((r) => setTimeout(r, 100));
-    }
+    if (blocks.length === 0) return;
+    // Queue all blocks; the first one opens immediately.
+    applyQueueRef.current = blocks.slice(1);
+    onPendingWriteRef.current(blocks[0].filename, blocks[0].code);
   }, [extractCodeBlocks]);
+
+  /** Listen for diff-resolved events to process the next queued file. */
+  useEffect(() => {
+    const onDiffResolved = () => {
+      if (applyQueueRef.current.length > 0 && onPendingWriteRef.current) {
+        const next = applyQueueRef.current.shift()!;
+        onPendingWriteRef.current(next.filename, next.code);
+      }
+    };
+    window.addEventListener("vibeui:diff-resolved", onDiffResolved);
+    return () => window.removeEventListener("vibeui:diff-resolved", onDiffResolved);
+  }, []);
 
   // ── Streaming content processing ───────────────────────────────────────────
 

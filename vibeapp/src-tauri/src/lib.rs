@@ -35,6 +35,9 @@ pub fn run() {
             commands::hide_window,
             commands::show_window,
             commands::check_daemon,
+            commands::list_daemon_models,
+            commands::start_agent_session,
+            commands::stream_agent,
         ])
         .run(tauri::generate_context!())
         .expect("error while running vibeapp");

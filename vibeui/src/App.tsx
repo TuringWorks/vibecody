@@ -760,11 +760,7 @@ function App() {
     }
   };
 
-  // acceptDiff was removed — DiffReviewPanel handles accept/reject inline
-
-  const rejectDiff = () => {
-    setPendingDiff(null);
-  };
+  // Diff accept/reject is handled inline in the DiffReviewPanel onApply callback.
 
   // Keyboard shortcut for save (Cmd+S / Ctrl+S)
   useEffect(() => {
@@ -1659,24 +1655,46 @@ function App() {
                 modified={pendingDiff.modified}
                 filePath={pendingDiff.path}
                 onApply={(result) => {
-                  if (result === null) {
-                    rejectDiff();
-                  } else {
-                    // Write the assembled (partial-accept) result
-                    invoke("write_file", { path: pendingDiff!.path, content: result })
-                      .then(() => {
-                        const language = detectLanguage(pendingDiff!.path);
-                        setOpenFiles((prev) => {
-                          const exists = prev.some((f) => f.path === pendingDiff!.path);
-                          if (exists) return prev.map((f) => f.path === pendingDiff!.path ? { ...f, content: result, isDirty: false } : f);
-                          return [...prev, { path: pendingDiff!.path, content: result, language, isDirty: false }];
+                  try {
+                    const diffPath = pendingDiff?.path;
+
+                    if (result !== null && diffPath) {
+                      const language = detectLanguage(diffPath);
+                      setOpenFiles((prev) => {
+                        const exists = prev.some((f) => f.path === diffPath);
+                        if (exists) return prev.map((f) => f.path === diffPath ? { ...f, content: result, isDirty: false } : f);
+                        return [...prev, { path: diffPath, content: result, language, isDirty: false }];
+                      });
+                      setActiveFilePath(diffPath);
+                      invoke("write_file", { path: diffPath, content: result })
+                        .then(() => { if (currentDirectory) loadDirectory(currentDirectory); })
+                        .catch((err) => {
+                          console.error("Failed to write file:", err);
+                          toast.error(`Failed to save ${diffPath}: ${err}`);
                         });
-                        setActiveFilePath(pendingDiff!.path);
-                        setPendingDiff(null);
-                        // Refresh file explorer to show new/modified files
-                        if (currentDirectory) loadDirectory(currentDirectory);
-                      })
-                      .catch(console.error);
+                    }
+
+                    // Show a "loading" placeholder instead of null so the Editor
+                    // never mounts between queued diffs (which crashes Monaco).
+                    setPendingDiff({ path: "Loading next file...", original: "", modified: "" });
+
+                    // Let AIChat's queue handler set the real next diff.
+                    // If the queue is empty, a microtask clears it.
+                    const resolved = new Event("vibeui:diff-resolved");
+                    window.dispatchEvent(resolved);
+
+                    // If no handler set a new pendingDiff (queue was empty),
+                    // clear it after a tick.
+                    setTimeout(() => {
+                      setPendingDiff((cur) =>
+                        cur?.path === "Loading next file..." ? null : cur
+                      );
+                    }, 300);
+                  } catch (err) {
+                    console.error("Apply failed:", err);
+                    setPendingDiff(null);
+                    toast.error(`Apply failed: ${err}`);
+                    window.dispatchEvent(new Event("vibeui:diff-resolved"));
                   }
                 }}
               />
@@ -1686,7 +1704,8 @@ function App() {
               <MarkdownPreview content={editorContent} />
             ) : (
               <Editor
-                height="calc(100% - 35px)" // Subtract tab bar height
+                key={activeFilePath ?? "editor"}
+                height="calc(100% - 35px)"
                 language={editorLanguage}
                 theme={editorTheme}
                 value={editorContent}

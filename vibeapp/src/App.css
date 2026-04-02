@@ -99,6 +99,31 @@ body {
 .btn-icon:hover { opacity: 1; background: rgba(255,255,255,0.08); }
 .btn-icon.pinned { opacity: 1; color: var(--primary); }
 
+/* ── Model selector bar ────────────────────────────────────────────────────── */
+
+.model-bar {
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg2);
+  flex-shrink: 0;
+}
+
+.model-bar select {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  color: var(--text);
+  font-size: 12px;
+  font-family: var(--font);
+  outline: none;
+}
+
+.model-bar select:focus {
+  border-color: var(--primary);
+}
+
 /* ── Settings panel ────────────────────────────────────────────────────────── */
 
 .settings-panel {
@@ -308,3 +333,17 @@ body {
 .send-btn:hover:not(:disabled) { opacity: 0.85; transform: scale(1.05); }
 .send-btn:active:not(:disabled) { transform: scale(0.97); }
 .send-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* ── Icon styles ──────────────────────────────────────────────────────────── */
+
+.btn-icon svg {
+  display: block;
+}
+
+.spin-icon {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  100% { transform: rotate(360deg); }
+}

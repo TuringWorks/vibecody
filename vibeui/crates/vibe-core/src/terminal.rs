@@ -6,8 +6,14 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use tokio::sync::mpsc::Sender;
 
+/// Holds a PTY master and its writer (taken once at spawn time).
+struct PtyHandle {
+    master: Box<dyn portable_pty::MasterPty + Send>,
+    writer: Box<dyn Write + Send>,
+}
+
 pub struct TerminalManager {
-    ptys: Arc<Mutex<HashMap<u32, Box<dyn portable_pty::MasterPty + Send>>>>,
+    ptys: Arc<Mutex<HashMap<u32, PtyHandle>>>,
     next_id: Arc<Mutex<u32>>,
 }
 
@@ -20,6 +26,11 @@ impl TerminalManager {
     }
 
     pub fn spawn(&self, shell: &str, tx: Sender<(u32, String)>) -> Result<u32> {
+        self.spawn_in(shell, None, tx)
+    }
+
+    /// Spawn a new terminal, optionally starting in `cwd`.
+    pub fn spawn_in(&self, shell: &str, cwd: Option<&std::path::Path>, tx: Sender<(u32, String)>) -> Result<u32> {
         let pty_system = native_pty_system();
         let pair = pty_system.openpty(PtySize {
             rows: 24,
@@ -28,10 +39,16 @@ impl TerminalManager {
             pixel_height: 0,
         })?;
 
-        let cmd = CommandBuilder::new(shell);
+        let mut cmd = CommandBuilder::new(shell);
+        if let Some(dir) = cwd {
+            cmd.cwd(dir);
+        }
         let _child = pair.slave.spawn_command(cmd)?;
 
         let mut reader = pair.master.try_clone_reader()?;
+        // Take the writer ONCE — reusing it for all subsequent writes prevents
+        // each keystroke from being treated as separate input.
+        let writer = pair.master.take_writer()?;
         let master = pair.master;
 
         let id = {
@@ -43,7 +60,7 @@ impl TerminalManager {
 
         {
             let mut ptys = self.ptys.lock().unwrap_or_else(|e| e.into_inner());
-            ptys.insert(id, master);
+            ptys.insert(id, PtyHandle { master, writer });
         }
 
         // Spawn thread to read output
@@ -68,16 +85,17 @@ impl TerminalManager {
 
     pub fn write(&self, id: u32, data: &str) -> Result<()> {
         let mut ptys = self.ptys.lock().unwrap_or_else(|e| e.into_inner());
-        if let Some(master) = ptys.get_mut(&id) {
-            write!(master.take_writer()?, "{}", data)?;
+        if let Some(handle) = ptys.get_mut(&id) {
+            handle.writer.write_all(data.as_bytes())?;
+            handle.writer.flush()?;
         }
         Ok(())
     }
 
     pub fn resize(&self, id: u32, rows: u16, cols: u16) -> Result<()> {
         let mut ptys = self.ptys.lock().unwrap_or_else(|e| e.into_inner());
-        if let Some(master) = ptys.get_mut(&id) {
-            master.resize(PtySize {
+        if let Some(handle) = ptys.get_mut(&id) {
+            handle.master.resize(PtySize {
                 rows,
                 cols,
                 pixel_width: 0,

@@ -165,6 +165,14 @@ pub struct AgentRequest {
     pub task: String,
     #[serde(default)]
     pub approval: Option<String>,
+    /// Override the model for this request (e.g. "llama3.2", "gpt-4o").
+    #[serde(default)]
+    #[allow(dead_code)]
+    pub model: Option<String>,
+    /// Override the provider for this request (e.g. "ollama", "claude").
+    #[serde(default)]
+    #[allow(dead_code)]
+    pub provider: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -216,6 +224,34 @@ fn sanitize_user_input(s: &str) -> String {
 
 async fn health() -> impl IntoResponse {
     Json(serde_json::json!({ "status": "ok", "version": env!("CARGO_PKG_VERSION") }))
+}
+
+/// List available models from Ollama (if reachable) plus the daemon's active provider.
+async fn list_models(State(state): State<ServeState>) -> impl IntoResponse {
+    let mut models: Vec<serde_json::Value> = Vec::new();
+
+    // Active provider
+    models.push(serde_json::json!({
+        "id": state.provider.name(),
+        "provider": state.provider_name,
+        "active": true,
+    }));
+
+    // Try to list Ollama models
+    if let Ok(ollama_models) = vibe_ai::providers::ollama::OllamaProvider::list_models(None).await {
+        for m in ollama_models {
+            let id = format!("ollama/{}", m);
+            if !models.iter().any(|x| x["id"].as_str() == Some(&id)) {
+                models.push(serde_json::json!({
+                    "id": id,
+                    "name": m,
+                    "provider": "ollama",
+                }));
+            }
+        }
+    }
+
+    Json(serde_json::json!({ "models": models }))
 }
 
 /// Serve the VibeCody Web client — browser-based zero-install mode.
@@ -1252,8 +1288,9 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         // Tauri 2 dev server origins
         "tauri://localhost".to_string(),
         "https://tauri.localhost".to_string(),
-        // Vite dev server (default port)
+        // Vite dev server origins (VibeUI :1420, VibeCLI app :1421)
         "http://localhost:1420".to_string(),
+        "http://localhost:1421".to_string(),
     ]
     .into_iter()
     .filter_map(|s| s.parse::<HeaderValue>().ok())
@@ -1339,6 +1376,7 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
 
     let public_routes = Router::new()
         .route("/health", get(health))
+        .route("/models", get(list_models))
         .route("/web", get(web_client_page))
         .route("/favicon.svg", get(web_favicon))
         .route("/webhook/github", post(github_webhook))

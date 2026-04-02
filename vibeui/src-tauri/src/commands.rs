@@ -667,11 +667,18 @@ pub async fn spawn_terminal(
     state: tauri::State<'_, AppState>,
 ) -> Result<u32, String> {
     let (tx, mut rx) = tokio::sync::mpsc::channel(100);
-    
-    // Default to bash or sh, maybe configurable later
+
     let shell = if cfg!(windows) { "powershell" } else { "zsh" };
-    
-    let id = state.terminal_manager.spawn(shell, tx).map_err(|e| e.to_string())?;
+
+    // Start the terminal in the workspace root (if one is open)
+    let cwd = {
+        let ws = state.workspace.lock().await;
+        ws.folders().first().cloned()
+    };
+
+    let id = state.terminal_manager
+        .spawn_in(shell, cwd.as_deref(), tx)
+        .map_err(|e| e.to_string())?;
     let term_buf = state.terminal_buffer.clone();
 
     // Spawn a task to forward output to frontend and capture to rolling buffer

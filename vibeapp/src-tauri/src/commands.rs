@@ -49,6 +49,17 @@ pub async fn check_daemon(url: String) -> Result<String, String> {
     Ok("online".to_string())
 }
 
+/// Fetch available models from the daemon's /models endpoint.
+#[tauri::command]
+pub async fn list_daemon_models(url: String) -> Result<Vec<serde_json::Value>, String> {
+    let models_url = format!("{}/models", url.trim_end_matches('/'));
+    let resp = reqwest::get(&models_url)
+        .await
+        .map_err(|e| format!("Cannot reach daemon: {}", e))?;
+    let body: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
+    Ok(body["models"].as_array().cloned().unwrap_or_default())
+}
+
 /// POST to daemon /agent endpoint — returns session_id.
 /// Proxied through Tauri to bypass CORS.
 #[tauri::command]
@@ -56,17 +67,22 @@ pub async fn start_agent_session(
     url: String,
     task: String,
     provider: String,
+    model: Option<String>,
     token: Option<String>,
 ) -> Result<String, String> {
     let agent_url = format!("{}/agent", url.trim_end_matches('/'));
     let client = reqwest::Client::new();
-    let mut req = client
-        .post(&agent_url)
-        .json(&serde_json::json!({
-            "task": task,
-            "provider": provider,
-            "approval": "full-auto",
-        }));
+    let mut body = serde_json::json!({
+        "task": task,
+        "provider": provider,
+        "approval": "full-auto",
+    });
+    if let Some(m) = &model {
+        if !m.is_empty() {
+            body["model"] = serde_json::Value::String(m.clone());
+        }
+    }
+    let mut req = client.post(&agent_url).json(&body);
     if let Some(t) = &token {
         if !t.is_empty() {
             req = req.header("Authorization", format!("Bearer {}", t));

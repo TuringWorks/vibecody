@@ -43,6 +43,17 @@ function diffLines(original: string[], modified: string[]): DiffLine[] {
  const n = oa.length;
  const m = mb.length;
 
+ // Guard against O(n*m) blowup — if both sides are very large, fall back
+ // to a simple "delete all original, insert all modified" diff.
+ if (n * m > 2_000_000) {
+   const result: DiffLine[] = [];
+   let origLine = 1;
+   for (const line of oa) result.push({ kind: "delete", origLine: origLine++, text: line });
+   let modLine = 1;
+   for (const line of mb) result.push({ kind: "insert", modLine: modLine++, text: line });
+   return result;
+ }
+
  // LCS table
  const dp: number[][] = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
  for (let i = n - 1; i >= 0; i--) {
@@ -195,10 +206,16 @@ interface DiffReviewPanelProps {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function DiffReviewPanel({ original, modified, filePath, onApply }: DiffReviewPanelProps) {
- const originalLines = useMemo(() => original.split("\n"), [original]);
- const modifiedLines = useMemo(() => modified.split("\n"), [modified]);
- const allDiffed = useMemo(() => diffLines(originalLines, modifiedLines), [originalLines, modifiedLines]);
- const rawHunks = useMemo(() => buildHunks(allDiffed), [allDiffed]);
+ const originalLines = useMemo(() => (original ?? "").split("\n"), [original]);
+ const modifiedLines = useMemo(() => (modified ?? "").split("\n"), [modified]);
+ const allDiffed = useMemo(() => {
+   try { return diffLines(originalLines, modifiedLines); }
+   catch (e) { console.error("diffLines failed:", e); return []; }
+ }, [originalLines, modifiedLines]);
+ const rawHunks = useMemo(() => {
+   try { return buildHunks(allDiffed); }
+   catch (e) { console.error("buildHunks failed:", e); return []; }
+ }, [allDiffed]);
 
  const [hunks, setHunks] = useState<DiffHunk[]>(() =>
  rawHunks.map((h) => ({ ...h, accepted: true }))
@@ -226,8 +243,14 @@ export function DiffReviewPanel({ original, modified, filePath, onApply }: DiffR
  onApply(null);
  return;
  }
+ try {
  const result = assembleFinal(originalLines, modifiedLines, hunks, allDiffed);
  onApply(result);
+ } catch (err) {
+ console.error("assembleFinal crashed:", err);
+ // Fallback: apply modified content as-is
+ onApply(modified);
+ }
  };
 
  return (
