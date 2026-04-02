@@ -24,7 +24,7 @@
 //! ```
 
 use std::collections::HashMap;
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 // ── Enums ──────────────────────────────────────────────────────────────
 

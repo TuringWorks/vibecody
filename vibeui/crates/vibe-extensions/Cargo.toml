@@ -20,3 +20,6 @@ wasmtime-wasi = "27.0"
 
 # Home directory resolution
 dirs-next = "2.0"
+
+[dev-dependencies]
+wat = "1"

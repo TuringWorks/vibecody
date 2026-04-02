@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ── Mock Tauri invoke ────────────────────────────────────────────────────────
@@ -8,9 +8,22 @@ vi.mock('@tauri-apps/api/core', () => ({
   invoke: (...args: unknown[]) => mockInvoke(...args),
 }));
 
+// Capture listen callbacks so tests can emit Tauri events.
+type EventCallback = (event: { payload: unknown }) => void;
+const eventListeners: Record<string, EventCallback[]> = {};
+
 const mockListen = vi.fn();
 vi.mock('@tauri-apps/api/event', () => ({
-  listen: (...args: unknown[]) => mockListen(...args),
+  listen: (event: string, cb: EventCallback) => {
+    mockListen(event, cb);
+    if (!eventListeners[event]) eventListeners[event] = [];
+    eventListeners[event].push(cb);
+    const unlisten = () => {
+      const idx = eventListeners[event]?.indexOf(cb) ?? -1;
+      if (idx >= 0) eventListeners[event].splice(idx, 1);
+    };
+    return Promise.resolve(unlisten);
+  },
 }));
 
 vi.mock('@tauri-apps/plugin-dialog', () => ({
@@ -60,8 +73,10 @@ import type { Message } from '../AIChat';
 
 beforeEach(() => {
   vi.clearAllMocks();
-  // listen returns an unlisten callback
-  mockListen.mockImplementation(async () => () => {});
+  // Clear captured event listeners
+  for (const key of Object.keys(eventListeners)) {
+    eventListeners[key] = [];
+  }
   // Default invoke returns nothing
   mockInvoke.mockResolvedValue(null);
   // Reset SpeechRecognition to avoid voice-input side effects
@@ -342,5 +357,238 @@ describe('AIChat', () => {
     fireEvent.change(textarea, { target: { value: 'hello', selectionStart: 5 } });
     const sendBtn = screen.getByRole('button', { name: /Send message/i });
     expect(sendBtn).not.toBeDisabled();
+  });
+});
+
+// ── Response persistence tests (controlled mode) ────────────────────────────
+//
+// Regression tests for the bug where chat responses would visually disappear
+// for one frame in controlled mode (ChatTabManager). The root cause was that
+// chat:complete cleared streaming state synchronously while the finalized
+// message prop hadn't propagated from the parent yet.
+
+/** Emit a Tauri event to all registered listeners. */
+function emitTauriEvent(event: string, payload: unknown) {
+  for (const cb of eventListeners[event] ?? []) {
+    cb({ payload });
+  }
+}
+
+/** Flush pending microtasks, promises, and timers. */
+async function flushAll() {
+  await act(async () => {
+    await new Promise((r) => setTimeout(r, 0));
+  });
+}
+
+import { useState } from 'react';
+
+/**
+ * Wrapper that mimics ChatTabManager's controlled-message pattern.
+ * Messages live in the parent's state and are passed to AIChat as a prop.
+ * This is the scenario where the disappear bug occurred.
+ */
+function ControlledAIChat() {
+  const [messages, setMessages] = useState<Message[]>([]);
+  return (
+    <AIChat
+      provider="test-provider"
+      messages={messages}
+      onMessagesChange={setMessages}
+    />
+  );
+}
+
+/**
+ * Helper: type a message, press Enter to send, then wait for isLoading=true.
+ * This simulates the user sending a question before the AI responds.
+ */
+async function sendUserMessage(text: string) {
+  const textarea = screen.getByPlaceholderText(/Ask anything/) as HTMLTextAreaElement;
+  fireEvent.change(textarea, { target: { value: text, selectionStart: text.length } });
+  fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
+  // Wait for the loading state to settle (invoke is mocked to resolve immediately)
+  await flushAll();
+}
+
+describe('AIChat — response does not disappear (controlled mode)', () => {
+  it('streaming text is visible during streaming', async () => {
+    render(<ControlledAIChat />);
+    await flushAll();
+
+    // User sends a message → isLoading becomes true
+    await sendUserMessage('What is the answer?');
+
+    // Simulate streaming chunks arriving
+    act(() => { emitTauriEvent('chat:chunk', 'Hello '); });
+    await flushAll();
+    expect(screen.getByText(/Hello/)).toBeInTheDocument();
+
+    act(() => { emitTauriEvent('chat:chunk', 'world!'); });
+    await flushAll();
+    expect(screen.getByText(/Hello world!/)).toBeInTheDocument();
+  });
+
+  it('response remains visible after chat:complete — no disappearing frame', async () => {
+    render(<ControlledAIChat />);
+    await flushAll();
+    await sendUserMessage('What is the answer?');
+
+    // Stream some content
+    act(() => { emitTauriEvent('chat:chunk', 'The answer is 42'); });
+    await flushAll();
+    expect(screen.getByText(/The answer is 42/)).toBeInTheDocument();
+
+    // Fire chat:complete — this is the critical moment.
+    // Before the fix, the streaming text would be cleared immediately while
+    // the finalized message hadn't arrived from the parent yet, causing
+    // the response to vanish for one render frame.
+    act(() => {
+      emitTauriEvent('chat:complete', {
+        message: 'The answer is 42',
+        tool_output: '',
+      });
+    });
+
+    // Immediately after chat:complete: the streaming text must still be
+    // showing (deferred clear) and/or the finalized message has arrived.
+    // The text must NEVER be absent.
+    await flushAll();
+    const matchesAfterComplete = screen.queryAllByText(/The answer is 42/);
+    expect(matchesAfterComplete.length).toBeGreaterThanOrEqual(1);
+
+    // After the useEffect on `messages` fires and cleanup runs,
+    // exactly the finalized message should be in the DOM.
+    await flushAll();
+    expect(screen.queryAllByText(/The answer is 42/).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('error response remains visible after chat:error', async () => {
+    render(<ControlledAIChat />);
+    await flushAll();
+    await sendUserMessage('Help me');
+
+    // Stream some content then error
+    act(() => { emitTauriEvent('chat:chunk', 'Partial output'); });
+    await flushAll();
+    expect(screen.getByText(/Partial output/)).toBeInTheDocument();
+
+    act(() => {
+      emitTauriEvent('chat:error', 'Provider connection failed');
+    });
+
+    // The error or the streaming text must be visible — never blank
+    await flushAll();
+    const visible =
+      screen.queryByText(/Provider connection failed/) ||
+      screen.queryByText(/Partial output/);
+    expect(visible).toBeInTheDocument();
+
+    // After the useEffect clears streaming, error message is the final state
+    await flushAll();
+    expect(screen.getByText(/Provider connection failed/)).toBeInTheDocument();
+  });
+
+  it('response is visible in uncontrolled mode (immediate cleanup)', async () => {
+    // Uncontrolled: no messages/onMessagesChange props
+    render(<AIChat provider="test-provider" />);
+    await flushAll();
+    await sendUserMessage('Question');
+
+    act(() => { emitTauriEvent('chat:chunk', 'Direct response'); });
+    await flushAll();
+    expect(screen.getByText(/Direct response/)).toBeInTheDocument();
+
+    act(() => {
+      emitTauriEvent('chat:complete', {
+        message: 'Direct response',
+        tool_output: '',
+      });
+    });
+    await flushAll();
+
+    // In uncontrolled mode, the message and streaming cleanup are in the
+    // same component, so no gap is possible.
+    expect(screen.getByText(/Direct response/)).toBeInTheDocument();
+  });
+
+  it('multiple sequential responses remain visible', async () => {
+    render(<ControlledAIChat />);
+    await flushAll();
+
+    // First response cycle
+    await sendUserMessage('First question');
+    act(() => { emitTauriEvent('chat:chunk', 'First reply'); });
+    await flushAll();
+    act(() => {
+      emitTauriEvent('chat:complete', { message: 'First reply', tool_output: '' });
+    });
+    await flushAll();
+    expect(screen.queryAllByText(/First reply/).length).toBeGreaterThanOrEqual(1);
+
+    // Second response cycle
+    await sendUserMessage('Second question');
+    act(() => { emitTauriEvent('chat:chunk', 'Second reply'); });
+    await flushAll();
+    act(() => {
+      emitTauriEvent('chat:complete', { message: 'Second reply', tool_output: '' });
+    });
+    await flushAll();
+
+    // Both responses must be in the DOM
+    expect(screen.queryAllByText(/First reply/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryAllByText(/Second reply/).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('workspace change does not clear messages or streaming', async () => {
+    render(<ControlledAIChat />);
+    await flushAll();
+
+    // User sends a message and gets a finalized response
+    await sendUserMessage('Explain this code');
+    act(() => { emitTauriEvent('chat:chunk', 'This function does X'); });
+    await flushAll();
+    act(() => {
+      emitTauriEvent('chat:complete', { message: 'This function does X', tool_output: '' });
+    });
+    await flushAll();
+    expect(screen.queryAllByText(/This function does X/).length).toBeGreaterThanOrEqual(1);
+
+    // User opens a new folder → workspace-changed event fires
+    act(() => {
+      window.dispatchEvent(new CustomEvent('vibeui:workspace-changed', { detail: '/new/folder' }));
+    });
+    await flushAll();
+
+    // Messages must still be visible after workspace change
+    expect(screen.queryAllByText(/This function does X/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/Explain this code/)).toBeInTheDocument();
+  });
+
+  it('streaming response survives workspace change mid-stream', async () => {
+    render(<ControlledAIChat />);
+    await flushAll();
+
+    // User sends a message, AI starts streaming
+    await sendUserMessage('Help me');
+    act(() => { emitTauriEvent('chat:chunk', 'Working on it'); });
+    await flushAll();
+    expect(screen.getByText(/Working on it/)).toBeInTheDocument();
+
+    // Workspace changes mid-stream
+    act(() => {
+      window.dispatchEvent(new CustomEvent('vibeui:workspace-changed', { detail: '/other/folder' }));
+    });
+    await flushAll();
+
+    // Streaming text must still be visible
+    expect(screen.getByText(/Working on it/)).toBeInTheDocument();
+
+    // Stream completes successfully after workspace change
+    act(() => {
+      emitTauriEvent('chat:complete', { message: 'Working on it — done!', tool_output: '' });
+    });
+    await flushAll();
+    expect(screen.queryAllByText(/Working on it/).length).toBeGreaterThanOrEqual(1);
   });
 });

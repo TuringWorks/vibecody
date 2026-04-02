@@ -559,4 +559,245 @@ mod tests {
         assert_eq!(result.error_count(), 0);
         assert_eq!(result.warning_count(), 0);
     }
+
+    // ── ShadowWorkspace creation and cleanup ────────────────────────────────
+
+    #[test]
+    fn shadow_workspace_creates_temp_dir() {
+        let tmp = std::env::temp_dir().join(format!("vibe_sw_create_{}", std::process::id()));
+        std::fs::create_dir_all(&tmp).unwrap();
+        let shadow = ShadowWorkspace::new(&tmp).unwrap();
+        assert!(shadow.path.exists());
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn shadow_workspace_cleanup_removes_dir() {
+        let tmp = std::env::temp_dir().join(format!("vibe_sw_cleanup_{}", std::process::id()));
+        std::fs::create_dir_all(&tmp).unwrap();
+        let shadow = ShadowWorkspace::new(&tmp).unwrap();
+        let shadow_path = shadow.path.clone();
+        shadow.cleanup();
+        assert!(!shadow_path.exists());
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn shadow_workspace_drop_cleans_up() {
+        let tmp = std::env::temp_dir().join(format!("vibe_sw_drop_{}", std::process::id()));
+        std::fs::create_dir_all(&tmp).unwrap();
+        let shadow_path;
+        {
+            let shadow = ShadowWorkspace::new(&tmp).unwrap();
+            shadow_path = shadow.path.clone();
+            shadow.sync_file("test.rs", "fn test() {}").unwrap();
+            assert!(shadow_path.exists());
+        } // drop here
+        assert!(!shadow_path.exists());
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    // ── sync_file ───────────────────────────────────────────────────────────
+
+    #[test]
+    fn sync_file_creates_nested_dirs() {
+        let tmp = std::env::temp_dir().join(format!("vibe_sw_nested_{}", std::process::id()));
+        std::fs::create_dir_all(&tmp).unwrap();
+        let shadow = ShadowWorkspace::new(&tmp).unwrap();
+        shadow.sync_file("deep/nested/dir/file.rs", "fn deep() {}").unwrap();
+        let shadow_file = shadow.path.join("deep/nested/dir/file.rs");
+        assert!(shadow_file.exists());
+        assert_eq!(std::fs::read_to_string(shadow_file).unwrap(), "fn deep() {}");
+    }
+
+    #[test]
+    fn sync_file_overwrites_existing() {
+        let tmp = std::env::temp_dir().join(format!("vibe_sw_overwrite_{}", std::process::id()));
+        std::fs::create_dir_all(&tmp).unwrap();
+        let shadow = ShadowWorkspace::new(&tmp).unwrap();
+        shadow.sync_file("test.rs", "v1").unwrap();
+        shadow.sync_file("test.rs", "v2").unwrap();
+        let content = std::fs::read_to_string(shadow.path.join("test.rs")).unwrap();
+        assert_eq!(content, "v2");
+    }
+
+    // ── accept_file ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn accept_file_creates_parent_dirs_in_real() {
+        let tmp = std::env::temp_dir().join(format!("vibe_sw_accept_dir_{}", std::process::id()));
+        std::fs::create_dir_all(&tmp).unwrap();
+        let shadow = ShadowWorkspace::new(&tmp).unwrap();
+        shadow.sync_file("a/b/c.rs", "fn c() {}").unwrap();
+        shadow.accept_file("a/b/c.rs").unwrap();
+        let real_path = tmp.join("a/b/c.rs");
+        assert!(real_path.exists());
+        assert_eq!(std::fs::read_to_string(real_path).unwrap(), "fn c() {}");
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    // ── discard_file ────────────────────────────────────────────────────────
+
+    #[test]
+    fn discard_nonexistent_file_is_ok() {
+        let tmp = std::env::temp_dir().join(format!("vibe_sw_discard_ne_{}", std::process::id()));
+        std::fs::create_dir_all(&tmp).unwrap();
+        let shadow = ShadowWorkspace::new(&tmp).unwrap();
+        let result = shadow.discard_file("nonexistent.rs");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn discard_clears_lint_result() {
+        let tmp = std::env::temp_dir().join(format!("vibe_sw_discard_lint_{}", std::process::id()));
+        std::fs::create_dir_all(&tmp).unwrap();
+        let shadow = ShadowWorkspace::new(&tmp).unwrap();
+        shadow.sync_file("test.rs", "fn test() {}").unwrap();
+        // Manually insert a lint result
+        shadow.lint_results.lock().unwrap().insert(
+            "test.rs".to_string(),
+            LintResult {
+                file: "test.rs".to_string(),
+                diagnostics: vec![],
+                success: true,
+                stdout: String::new(),
+                stderr: String::new(),
+            },
+        );
+        assert!(shadow.get_lint_result("test.rs").is_some());
+        shadow.discard_file("test.rs").unwrap();
+        assert!(shadow.get_lint_result("test.rs").is_none());
+    }
+
+    // ── get_lint_result ─────────────────────────────────────────────────────
+
+    #[test]
+    fn get_lint_result_returns_none_for_unknown_file() {
+        let tmp = std::env::temp_dir().join(format!("vibe_sw_lint_ne_{}", std::process::id()));
+        std::fs::create_dir_all(&tmp).unwrap();
+        let shadow = ShadowWorkspace::new(&tmp).unwrap();
+        assert!(shadow.get_lint_result("unknown.rs").is_none());
+    }
+
+    // ── run_lint ────────────────────────────────────────────────────────────
+
+    #[test]
+    fn run_lint_rust_file() {
+        let tmp = std::env::temp_dir().join(format!("vibe_sw_lint_rs_{}", std::process::id()));
+        std::fs::create_dir_all(&tmp).unwrap();
+        let shadow = ShadowWorkspace::new(&tmp).unwrap();
+        shadow.sync_file("main.rs", "fn main() {\n    println!(\"hello\");\n}\n").unwrap();
+        let result = shadow.run_lint("main.rs");
+        assert!(result.is_ok());
+        let lint = result.unwrap();
+        assert_eq!(lint.file, "main.rs");
+        // Result is cached
+        assert!(shadow.get_lint_result("main.rs").is_some());
+    }
+
+    #[test]
+    fn run_lint_unknown_extension() {
+        let tmp = std::env::temp_dir().join(format!("vibe_sw_lint_unk_{}", std::process::id()));
+        std::fs::create_dir_all(&tmp).unwrap();
+        let shadow = ShadowWorkspace::new(&tmp).unwrap();
+        shadow.sync_file("data.xyz", "some data").unwrap();
+        let result = shadow.run_lint("data.xyz").unwrap();
+        assert!(result.success);
+        assert!(result.diagnostics.is_empty());
+    }
+
+    // ── parse_eslint_json ───────────────────────────────────────────────────
+
+    #[test]
+    fn parse_eslint_json_severity_1_is_warning() {
+        let json = r#"[{
+            "messages": [
+                {
+                    "line": 5,
+                    "column": 3,
+                    "severity": 1,
+                    "message": "Unused var",
+                    "ruleId": "no-unused-vars"
+                }
+            ]
+        }]"#;
+        let diags = parse_eslint_json(json);
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].severity, "warning");
+    }
+
+    #[test]
+    fn parse_eslint_json_missing_optional_fields() {
+        let json = r#"[{
+            "messages": [
+                {
+                    "message": "Some issue"
+                }
+            ]
+        }]"#;
+        let diags = parse_eslint_json(json);
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].line, 1);
+        assert_eq!(diags[0].column, 1);
+        assert_eq!(diags[0].severity, "warning");
+        assert!(diags[0].rule.is_none());
+    }
+
+    #[test]
+    fn parse_eslint_json_multiple_messages() {
+        let json = r#"[{
+            "messages": [
+                {"message": "err1", "severity": 2},
+                {"message": "warn1", "severity": 1},
+                {"message": "err2", "severity": 2}
+            ]
+        }]"#;
+        let diags = parse_eslint_json(json);
+        assert_eq!(diags.len(), 3);
+        assert_eq!(diags[0].severity, "error");
+        assert_eq!(diags[1].severity, "warning");
+        assert_eq!(diags[2].severity, "error");
+    }
+
+    #[test]
+    fn parse_eslint_json_multiple_files() {
+        let json = r#"[
+            {"messages": [{"message": "a", "severity": 2}]},
+            {"messages": [{"message": "b", "severity": 1}]}
+        ]"#;
+        let diags = parse_eslint_json(json);
+        assert_eq!(diags.len(), 2);
+    }
+
+    // ── LintDiagnostic ──────────────────────────────────────────────────────
+
+    #[test]
+    fn lint_diagnostic_serialize_roundtrip() {
+        let d = LintDiagnostic {
+            line: 10,
+            column: 5,
+            severity: "error".to_string(),
+            message: "test error".to_string(),
+            rule: Some("test-rule".to_string()),
+        };
+        let json = serde_json::to_string(&d).unwrap();
+        let d2: LintDiagnostic = serde_json::from_str(&json).unwrap();
+        assert_eq!(d2.line, 10);
+        assert_eq!(d2.rule, Some("test-rule".to_string()));
+    }
+
+    #[test]
+    fn lint_result_serialize_roundtrip() {
+        let r = LintResult {
+            file: "test.py".to_string(),
+            diagnostics: vec![],
+            success: true,
+            stdout: "ok".to_string(),
+            stderr: String::new(),
+        };
+        let json = serde_json::to_string(&r).unwrap();
+        let r2: LintResult = serde_json::from_str(&json).unwrap();
+        assert_eq!(r2.file, "test.py");
+        assert!(r2.success);
+    }
 }

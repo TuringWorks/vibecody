@@ -1,6 +1,45 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import "./App.css";
+
+// ── Thin SVG Icons ───────────────────────────────────────────────────────────
+
+const IconPin = ({ active }: { active?: boolean }) => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={active ? "var(--primary)" : "currentColor"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 17v5M9 3h6l-1 7h3l-5 7-5-7h3z" />
+  </svg>
+);
+
+const IconSettings = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+  </svg>
+);
+
+const IconMinus = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+    <path d="M5 12h14" />
+  </svg>
+);
+
+const IconSend = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 19V5M5 12l7-7 7 7" />
+  </svg>
+);
+
+const IconSparkle = () => (
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z" />
+  </svg>
+);
+
+const IconLoader = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="spin-icon">
+    <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+  </svg>
+);
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -12,9 +51,10 @@ interface Message {
 
 // ── Settings ──────────────────────────────────────────────────────────────────
 
-const DAEMON_URL_KEY = "vibeapp_daemon_url";
-const PROVIDER_KEY   = "vibeapp_provider";
-const DEFAULT_URL    = "http://localhost:7878";
+const DAEMON_URL_KEY   = "vibeapp_daemon_url";
+const PROVIDER_KEY     = "vibeapp_provider";
+const DAEMON_TOKEN_KEY = "vibeapp_daemon_token";
+const DEFAULT_URL      = "http://localhost:7878";
 
 function loadSetting(key: string, fallback: string): string {
   return localStorage.getItem(key) ?? fallback;
@@ -28,13 +68,13 @@ export default function App() {
   const [loading, setLoading]       = useState(false);
   const [daemonUrl, setDaemonUrl]   = useState(() => loadSetting(DAEMON_URL_KEY, DEFAULT_URL));
   const [provider, setProvider]     = useState(() => loadSetting(PROVIDER_KEY, "claude"));
+  const [daemonToken, setDaemonToken] = useState(() => loadSetting(DAEMON_TOKEN_KEY, ""));
   const [daemonOk, setDaemonOk]     = useState<boolean | null>(null);
   const [pinned, setPinned]         = useState(false);
   const [showSettings, setShowSettings] = useState(false);
 
   const bottomRef   = useRef<HTMLDivElement>(null);
   const inputRef    = useRef<HTMLTextAreaElement>(null);
-  const esRef       = useRef<EventSource | null>(null);
 
   // ── Daemon health-check ──────────────────────────────────────────────────
   useEffect(() => {
@@ -56,6 +96,52 @@ export default function App() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // ── Agent stream event listeners ─────────────────────────────────────────
+  useEffect(() => {
+    const unlisteners: Array<() => void> = [];
+
+    (async () => {
+      unlisteners.push(await listen<string>("agent:chunk", (e) => {
+        setMessages(prev => {
+          const copy = [...prev];
+          const last = copy[copy.length - 1];
+          if (last?.streaming) {
+            copy[copy.length - 1] = { ...last, content: last.content + e.payload };
+          }
+          return copy;
+        });
+      }));
+
+      unlisteners.push(await listen("agent:complete", () => {
+        setMessages(prev => {
+          const copy = [...prev];
+          const last = copy[copy.length - 1];
+          if (last?.streaming) copy[copy.length - 1] = { ...last, streaming: false };
+          return copy;
+        });
+        setLoading(false);
+      }));
+
+      unlisteners.push(await listen<string>("agent:error", (e) => {
+        setMessages(prev => {
+          const copy = [...prev];
+          const last = copy[copy.length - 1];
+          if (last?.streaming) {
+            copy[copy.length - 1] = {
+              ...last,
+              streaming: false,
+              content: last.content + `\n\nError: ${e.payload}`,
+            };
+          }
+          return copy;
+        });
+        setLoading(false);
+      }));
+    })();
+
+    return () => unlisteners.forEach(u => u());
+  }, []);
+
   // ── Always-on-top toggle ─────────────────────────────────────────────────
   const togglePin = async () => {
     const next = !pinned;
@@ -63,90 +149,41 @@ export default function App() {
     await invoke("set_always_on_top", { alwaysOnTop: next });
   };
 
-  // ── Send message via daemon SSE ──────────────────────────────────────────
+  // ── Send message via daemon (proxied through Tauri commands) ─────────────
   const send = useCallback(async () => {
     const text = input.trim();
     if (!text || loading) return;
     setInput("");
     setLoading(true);
 
-    // Cancel any in-flight SSE stream
-    esRef.current?.close();
-
     const userMsg: Message = { role: "user", content: text };
     setMessages(prev => [...prev, userMsg]);
 
     try {
-      // POST /agent to start session
-      const res = await fetch(`${daemonUrl}/agent`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          task: text,
-          provider,
-          approval: "full-auto",
-        }),
+      // Start agent session via Tauri command (bypasses CORS)
+      const sessionId = await invoke<string>("start_agent_session", {
+        url: daemonUrl,
+        task: text,
+        provider,
+        token: daemonToken || null,
       });
 
-      if (!res.ok) {
-        throw new Error(`Daemon returned ${res.status}: ${res.statusText}`);
-      }
-
-      const { session_id } = await res.json() as { session_id: string };
-
       // Append placeholder streaming message
-      const streamId = Date.now();
       setMessages(prev => [
         ...prev,
         { role: "assistant", content: "", streaming: true },
       ]);
 
-      // Stream events
-      const es = new EventSource(`${daemonUrl}/stream/${session_id}`);
-      esRef.current = es;
-
-      const update = (patch: (prev: string) => string) =>
-        setMessages(prev => {
-          const copy = [...prev];
-          const last = copy[copy.length - 1];
-          if (last && last.streaming) {
-            copy[copy.length - 1] = { ...last, content: patch(last.content) };
-          }
-          return copy;
-        });
-
-      es.onmessage = (e) => {
-        try {
-          const ev = JSON.parse(e.data) as Record<string, unknown>;
-          if (ev.type === "chunk" && typeof ev.text === "string") {
-            update(p => p + ev.text);
-          } else if (ev.type === "complete") {
-            es.close();
-            setMessages(prev => {
-              const copy = [...prev];
-              const last = copy[copy.length - 1];
-              if (last?.streaming) copy[copy.length - 1] = { ...last, streaming: false };
-              return copy;
-            });
-            setLoading(false);
-          } else if (ev.type === "error") {
-            update(p => p + `\n\n⚠️ ${ev.message ?? "unknown error"}`);
-            es.close();
-            setLoading(false);
-          }
-        } catch { /* ignore parse errors */ }
-      };
-
-      es.onerror = () => {
-        es.close();
-        setLoading(false);
-      };
-
-      void streamId; // suppress lint
+      // Start streaming — Tauri backend reads SSE and emits events
+      await invoke("stream_agent", {
+        url: daemonUrl,
+        sessionId,
+        token: daemonToken || null,
+      });
     } catch (err) {
       setMessages(prev => [
         ...prev,
-        { role: "system", content: `❌ ${String(err)}` },
+        { role: "system", content: `Error: ${String(err)}` },
       ]);
       setLoading(false);
     }
@@ -173,6 +210,7 @@ export default function App() {
   const saveSettings = () => {
     localStorage.setItem(DAEMON_URL_KEY, daemonUrl);
     localStorage.setItem(PROVIDER_KEY, provider);
+    localStorage.setItem(DAEMON_TOKEN_KEY, daemonToken);
     setShowSettings(false);
   };
 
@@ -181,7 +219,7 @@ export default function App() {
     <div className="app">
       {/* Title bar (drag handle for frameless window) */}
       <div className="titlebar" onMouseDown={onDragStart}>
-        <span className="titlebar-title">VibeCLI</span>
+        <span className="titlebar-title">Vibe App</span>
         <div className="titlebar-actions">
           <span
             className={`daemon-dot ${daemonOk === true ? "ok" : daemonOk === false ? "err" : "unknown"}`}
@@ -192,21 +230,21 @@ export default function App() {
             onClick={togglePin}
             title={pinned ? "Unpin window" : "Pin on top"}
           >
-            📌
+            <IconPin active={pinned} />
           </button>
           <button
             className="btn-icon"
             onClick={() => setShowSettings(s => !s)}
             title="Settings"
           >
-            ⚙️
+            <IconSettings />
           </button>
           <button
             className="btn-icon"
             onClick={() => invoke("hide_window")}
             title="Send to tray"
           >
-            —
+            <IconMinus />
           </button>
         </div>
       </div>
@@ -220,6 +258,15 @@ export default function App() {
               value={daemonUrl}
               onChange={e => setDaemonUrl(e.target.value)}
               placeholder="http://localhost:7878"
+            />
+          </label>
+          <label>
+            API Token
+            <input
+              type="password"
+              value={daemonToken}
+              onChange={e => setDaemonToken(e.target.value)}
+              placeholder="Bearer token from vibecli --serve output"
             />
           </label>
           <label>
@@ -243,8 +290,8 @@ export default function App() {
       <div className="messages">
         {messages.length === 0 && (
           <div className="empty-state">
-            <div className="empty-icon">🤖</div>
-            <div className="empty-title">VibeCLI</div>
+            <div className="empty-icon"><IconSparkle /></div>
+            <div className="empty-title">Vibe App</div>
             <div className="empty-subtitle">
               {daemonOk === false
                 ? "Start the daemon: vibecli --serve"
@@ -280,7 +327,7 @@ export default function App() {
           onClick={send}
           disabled={loading || !input.trim()}
         >
-          {loading ? "●" : "↑"}
+          {loading ? <IconLoader /> : <IconSend />}
         </button>
       </div>
     </div>

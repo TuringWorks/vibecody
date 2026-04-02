@@ -414,13 +414,18 @@ interface CodeBlockProps {
   onApply?: (code: string, filename: string) => void;
 }
 
+/** Number of lines shown when a code block is collapsed. */
+const CODE_COLLAPSE_LINES = 8;
+
 function CodeBlock({ language, code, filename, onApply }: CodeBlockProps) {
   const [copied, setCopied] = useState(false);
   const [showLines, setShowLines] = useState(false);
+  const lines = code.split("\n");
+  const collapsible = lines.length > CODE_COLLAPSE_LINES;
+  const [expanded, setExpanded] = useState(!collapsible);
 
   const detectedFilename = useMemo(() => {
     if (filename) return filename;
-    // Try to detect from first line comment or language
     const extMap: Record<string, string> = {
       typescript: "file.ts", javascript: "file.js", tsx: "file.tsx", jsx: "file.jsx",
       rust: "file.rs", python: "file.py", go: "file.go", java: "File.java",
@@ -439,11 +444,20 @@ function CodeBlock({ language, code, filename, onApply }: CodeBlockProps) {
     }).catch(() => {});
   };
 
-  const lines = code.split("\n");
+  const visibleCode = expanded ? code : lines.slice(0, CODE_COLLAPSE_LINES).join("\n");
 
   return (
     <div className="cb-container">
       <div className="cb-header">
+        {collapsible && (
+          <button
+            className="cb-btn cb-btn-collapse"
+            onClick={() => setExpanded((v) => !v)}
+            title={expanded ? "Collapse code" : "Expand code"}
+          >
+            {expanded ? "\u25BE" : "\u25B8"} {lines.length} lines
+          </button>
+        )}
         <span className="cb-lang">{language || "text"}</span>
         {detectedFilename && <span className="cb-filename">{detectedFilename}</span>}
         <div className="cb-actions">
@@ -463,17 +477,70 @@ function CodeBlock({ language, code, filename, onApply }: CodeBlockProps) {
       <pre className={`cb-code syntax-${language || "text"}`}>
         <code>
           {showLines
-            ? lines.map((line, i) => (
+            ? (expanded ? lines : lines.slice(0, CODE_COLLAPSE_LINES)).map((line, i) => (
                 <span key={i} className="cb-line">
                   <span className="cb-line-num">{i + 1}</span>
                   {line}
                   {i < lines.length - 1 ? "\n" : ""}
                 </span>
               ))
-            : code
+            : visibleCode
           }
         </code>
       </pre>
+      {collapsible && !expanded && (
+        <button className="cb-expand-bar" onClick={() => setExpanded(true)}>
+          Show {lines.length - CODE_COLLAPSE_LINES} more lines
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** Code block shown while the AI is still streaming — interactable (copy works). */
+function StreamingCodeBlock({ language, code }: { language: string; code: string }) {
+  const [copied, setCopied] = useState(false);
+  const lines = code.split("\n");
+  const collapsible = lines.length > CODE_COLLAPSE_LINES;
+  const [expanded, setExpanded] = useState(true); // expanded by default while streaming
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(code).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    }).catch(() => {});
+  };
+
+  const visibleCode = expanded ? code : lines.slice(0, CODE_COLLAPSE_LINES).join("\n");
+
+  return (
+    <div className="cb-container cb-streaming">
+      <div className="cb-header">
+        {collapsible && (
+          <button
+            className="cb-btn cb-btn-collapse"
+            onClick={() => setExpanded((v) => !v)}
+            title={expanded ? "Collapse code" : "Expand code"}
+          >
+            {expanded ? "\u25BE" : "\u25B8"} {lines.length} lines
+          </button>
+        )}
+        <span className="cb-lang">{language}</span>
+        <span className="cb-streaming-badge">streaming...</span>
+        <div className="cb-actions">
+          <button className="cb-btn" onClick={handleCopy} title="Copy code so far">
+            {copied ? "\u2713" : "Copy"}
+          </button>
+        </div>
+      </div>
+      <pre className={`cb-code syntax-${language}`}>
+        <code>{visibleCode}</code>
+      </pre>
+      {collapsible && !expanded && (
+        <button className="cb-expand-bar" onClick={() => setExpanded(true)}>
+          Show {lines.length - CODE_COLLAPSE_LINES} more lines
+        </button>
+      )}
     </div>
   );
 }
@@ -518,15 +585,11 @@ function renderContent(
         parts.push(<TextSegment key={key++} text={beforeFence} />);
       }
       parts.push(
-        <div key={key++} className="cb-container cb-streaming">
-          <div className="cb-header">
-            <span className="cb-lang">{unfinishedFence[1] || "text"}</span>
-            <span className="cb-streaming-badge">streaming...</span>
-          </div>
-          <pre className={`cb-code syntax-${unfinishedFence[1] || "text"}`}>
-            <code>{unfinishedFence[2]}</code>
-          </pre>
-        </div>
+        <StreamingCodeBlock
+          key={key++}
+          language={unfinishedFence[1] || "text"}
+          code={unfinishedFence[2]}
+        />
       );
     } else {
       parts.push(<TextSegment key={key++} text={remaining} />);
@@ -702,10 +765,28 @@ export function AIChat({
   const onMessagesChangeRef = useRef(onMessagesChange);
   onMessagesChangeRef.current = onMessagesChange;
 
+  // In controlled mode, multiple Tauri events can fire before React
+  // re-renders (e.g. chat:complete then chat:metrics). Each call to
+  // setMessages reads messagesRef.current for the "prev" value, but
+  // that ref is only updated on render. Without tracking, the second
+  // caller sees stale data and silently drops the first caller's update.
+  //
+  // pendingMessagesRef tracks the latest value we've sent to the parent,
+  // so rapid-fire updaters always chain off the most recent state.
+  const pendingMessagesRef = useRef<Message[] | null>(null);
+
+  // Sync: once React renders with the new prop, clear the pending value.
+  useEffect(() => {
+    pendingMessagesRef.current = null;
+  }, [messages]);
+
   const setMessages = useCallback((update: Message[] | ((prev: Message[]) => Message[])) => {
     if (onMessagesChangeRef.current) {
-      const current = messagesRef.current;
+      // Use pending (most recent uncommitted) value if available,
+      // otherwise fall back to the last rendered prop.
+      const current = pendingMessagesRef.current ?? messagesRef.current;
       const next = typeof update === "function" ? update(current) : update;
+      pendingMessagesRef.current = next;
       onMessagesChangeRef.current(next);
     } else {
       setLocalMessages(update as Parameters<typeof setLocalMessages>[0]);
@@ -739,6 +820,26 @@ export function AIChat({
   const streamCharsRef = useRef<number>(0);
   const [tokensPerSec, setTokensPerSec] = useState<number | null>(null);
   const [streamTokenCount, setStreamTokenCount] = useState<number>(0);
+
+  // When chat:complete fires in controlled mode, we defer clearing streaming
+  // state until the finalized message actually arrives in `messages`.
+  // This counter increments on each completion; the useEffect below watches
+  // `messages` and clears streaming state when it catches up.
+  const pendingClearRef = useRef(0);
+
+  useEffect(() => {
+    // When messages changes and we have a pending clear, the parent has
+    // propagated the new message — safe to clear streaming state now.
+    if (pendingClearRef.current > 0) {
+      pendingClearRef.current = 0;
+      setStreamingText("");
+      setTokensPerSec(null);
+      setStreamTokenCount(0);
+      setStreamStatus(null);
+      setRetryInfo(null);
+      setIsLoading(false);
+    }
+  }, [messages]);
 
   const { isListening, isTranscribing, interimText, toggle: toggleVoice } = useVoiceInput((transcript) =>
     setInput((prev) => (prev ? prev + " " : "") + transcript)
@@ -1003,15 +1104,33 @@ export function AIChat({
           return updated;
         });
 
-        setStreamingText("");
-        setTokensPerSec(null);
-        setStreamTokenCount(0);
-        setStreamStatus(null);
-        setRetryInfo(null);
-        setIsLoading(false);
+        // In controlled mode (ChatTabManager), setMessages updates the parent's
+        // state which won't propagate back as a new `messages` prop until the
+        // parent re-renders.  If we clear streaming state here, there is a
+        // frame where both the streaming text AND the finalized message are
+        // absent — causing the response to visually "disappear".
+        //
+        // Solution: signal that a clear is pending and let the useEffect on
+        // `messages` handle the actual cleanup once the prop update arrives.
+        if (onMessagesChangeRef.current) {
+          pendingClearRef.current += 1;
+        } else {
+          // Uncontrolled mode — state is local, so clearing is safe immediately
+          setStreamingText("");
+          setTokensPerSec(null);
+          setStreamTokenCount(0);
+          setStreamStatus(null);
+          setRetryInfo(null);
+          setIsLoading(false);
+        }
 
         if (response.pending_write && onPendingWriteRef.current) {
           onPendingWriteRef.current(response.pending_write.path, response.pending_write.content);
+        }
+        // If the backend wrote files (tool_output mentions "Wrote file"), refresh
+        // the explorer so new/modified files appear immediately.
+        if (response.tool_output && /Wrote file/i.test(response.tool_output)) {
+          window.dispatchEvent(new Event("vibeui:refresh-files"));
         }
         if (onFileActionRef.current) onFileActionRef.current();
       });
@@ -1020,18 +1139,31 @@ export function AIChat({
 
       // chat:error
       const u3 = await listen<string>("chat:error", (e) => {
+        let errorContent = e.payload;
+        // Improve common error messages with actionable guidance
+        if (errorContent.includes("Load failed") || errorContent.includes("connection") || errorContent.includes("ECONNREFUSED")) {
+          errorContent += "\n\nThe AI provider may not be running. Check that Ollama (`ollama serve`) or your configured provider is reachable.";
+        } else if (errorContent.includes("401") || errorContent.includes("Unauthorized") || errorContent.includes("invalid_api_key")) {
+          errorContent += "\n\nYour API key may be invalid or expired. Check Settings to update it.";
+        } else if (errorContent.includes("429") || errorContent.includes("rate limit")) {
+          errorContent += "\n\nRate limited — wait a moment and try again, or switch providers.";
+        }
         setMessages((prev) => [...prev, {
           role: "assistant",
-          content: e.payload,
+          content: errorContent,
           timestamp: Date.now(),
           isError: true,
         }]);
-        setStreamingText("");
-        setTokensPerSec(null);
-        setStreamTokenCount(0);
-        setStreamStatus(null);
-        setRetryInfo(null);
-        setIsLoading(false);
+        if (onMessagesChangeRef.current) {
+          pendingClearRef.current += 1;
+        } else {
+          setStreamingText("");
+          setTokensPerSec(null);
+          setStreamTokenCount(0);
+          setStreamStatus(null);
+          setRetryInfo(null);
+          setIsLoading(false);
+        }
       });
       if (cancelled) { u3(); return; }
       unlisteners.push(u3);
@@ -1090,17 +1222,12 @@ export function AIChat({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingInput]);
 
-  // Clear chat when workspace changes
-  useEffect(() => {
-    const handler = () => {
-      setMessages([]);
-      setStreamingText("");
-      setInput("");
-      setIsLoading(false);
-    };
-    window.addEventListener("vibeui:workspace-changed", handler);
-    return () => window.removeEventListener("vibeui:workspace-changed", handler);
-  }, [setMessages]);
+  // Workspace changes only affect the file-tree context sent with future
+  // messages — they should NOT interrupt an in-progress streaming response
+  // or clear any chat state.  The previous implementation cleared messages
+  // and streaming state here, which caused the "chat disappears on folder
+  // open" bug.  All chat lifecycle is now managed by the event handlers
+  // (chat:chunk, chat:complete, chat:error) and the parent (ChatTabManager).
 
   // ── Send message ─────────────────────────────────────────────────────────
 
@@ -1147,24 +1274,55 @@ export function AIChat({
     });
 
     try {
-      await invoke("stream_chat_message", {
-        request: {
-          messages: [...messages, userMessage],
-          provider,
-          context,
-          file_tree: fileTree,
-          current_file: currentFile,
-          mode: backendMode,
-          attachments: currentAttachments.map(({ name, mime_type, data, size, text_content }) => ({
-            name, mime_type, data, size, text_content: text_content ?? null,
-          })),
-        },
+      // Build request with only the fields the backend expects
+      const backendMessages = [...messages, userMessage].map(({ role, content }) => ({
+        role,
+        content,
+      }));
+      const chatRequest = {
+        messages: backendMessages,
+        provider,
+        context: context ?? null,
+        file_tree: fileTree ?? null,
+        current_file: currentFile ?? null,
+        mode: backendMode ?? null,
+        attachments: currentAttachments.map(({ name, mime_type, data, size, text_content }) => ({
+          name, mime_type, data, size, text_content: text_content ?? null,
+        })),
+      };
+      console.log("[AIChat] invoke stream_chat_message:", {
+        provider,
+        messageCount: backendMessages.length,
+        contextLen: (context ?? "").length,
+        fileTreeLen: (fileTree ?? []).length,
+        attachmentCount: currentAttachments.length,
+        payloadSize: JSON.stringify(chatRequest).length,
       });
+      // Verify IPC works at all before the main call
+      try {
+        await invoke("get_workspace_folders");
+        console.log("[AIChat] IPC health check OK");
+      } catch (ipcErr) {
+        console.error("[AIChat] IPC health check FAILED:", ipcErr);
+      }
+      await invoke("stream_chat_message", { request: chatRequest });
     } catch (error) {
       console.error("Failed to start chat stream:", error);
+      const errStr = String(error);
+      let helpText: string;
+      if (errStr.includes("Load failed") || errStr.includes("fetch") || errStr.includes("ECONNREFUSED")) {
+        helpText = `Connection failed to **${provider}**. Make sure the provider is running and reachable.\n\n`
+          + `- **Ollama**: run \`ollama serve\` (default: http://localhost:11434)\n`
+          + `- **Cloud providers**: check your API key in Settings\n\n`
+          + `Raw error: ${errStr}`;
+      } else if (errStr.includes("Provider") && errStr.includes("not found")) {
+        helpText = `Provider "${provider}" is not configured. Open Settings to add it.`;
+      } else {
+        helpText = `Error: ${errStr}\n\nMake sure an AI provider is configured and running.`;
+      }
       setMessages((prev) => [...prev, {
         role: "assistant",
-        content: "Sorry, I encountered an error. Please make sure an AI provider is configured.",
+        content: helpText,
         isError: true,
       }]);
       setStreamingText("");
@@ -1269,6 +1427,40 @@ export function AIChat({
       onPendingWriteRef.current(filename, code);
     }
   }, []);
+
+  /** Extract all fenced code blocks from a message as {language, code, filename}. */
+  const extractCodeBlocks = useCallback((content: string) => {
+    const blocks: { language: string; code: string; filename: string }[] = [];
+    const fenceRegex = /```(\w*)\n([\s\S]*?)```/g;
+    const extMap: Record<string, string> = {
+      typescript: "file.ts", javascript: "file.js", tsx: "file.tsx", jsx: "file.jsx",
+      rust: "file.rs", python: "file.py", go: "file.go", java: "File.java",
+      css: "file.css", html: "file.html", json: "file.json", yaml: "file.yaml",
+      toml: "file.toml", sql: "file.sql", bash: "script.sh", sh: "script.sh",
+      cpp: "file.cpp", c: "file.c", ruby: "file.rb", swift: "file.swift",
+      kotlin: "file.kt", scala: "file.scala", php: "file.php",
+    };
+    let match: RegExpExecArray | null;
+    while ((match = fenceRegex.exec(content)) !== null) {
+      blocks.push({
+        language: match[1],
+        code: match[2],
+        filename: extMap[match[1]] || "file.txt",
+      });
+    }
+    return blocks;
+  }, []);
+
+  /** Apply all code blocks from a message sequentially. */
+  const handleApplyAll = useCallback(async (content: string) => {
+    if (!onPendingWriteRef.current) return;
+    const blocks = extractCodeBlocks(content);
+    for (const block of blocks) {
+      onPendingWriteRef.current(block.filename, block.code);
+      // Small delay between applies so the DiffReviewPanel can process each
+      await new Promise((r) => setTimeout(r, 100));
+    }
+  }, [extractCodeBlocks]);
 
   // ── Streaming content processing ───────────────────────────────────────────
 
@@ -1439,20 +1631,31 @@ export function AIChat({
                   <pre className="msg-text">{msg.content}</pre>
                 )}
 
-                {/* Copy button for assistant messages */}
+                {/* Action buttons for assistant messages */}
                 {msg.role === "assistant" && !msg.isError && (
-                  <button
-                    className="msg-copy-btn"
-                    onClick={() => {
-                      navigator.clipboard.writeText(msg.content).then(() => {
-                        setCopiedIdx(idx);
-                        setTimeout(() => setCopiedIdx(null), 1500);
-                      }).catch(() => {});
-                    }}
-                    title="Copy response"
-                  >
-                    {copiedIdx === idx ? "\u2713 Copied" : "Copy"}
-                  </button>
+                  <div className="msg-actions">
+                    <button
+                      className="msg-copy-btn"
+                      onClick={() => {
+                        navigator.clipboard.writeText(msg.content).then(() => {
+                          setCopiedIdx(idx);
+                          setTimeout(() => setCopiedIdx(null), 1500);
+                        }).catch(() => {});
+                      }}
+                      title="Copy response"
+                    >
+                      {copiedIdx === idx ? "\u2713 Copied" : "Copy"}
+                    </button>
+                    {onPendingWrite && extractCodeBlocks(msg.content).length > 1 && (
+                      <button
+                        className="msg-apply-all-btn"
+                        onClick={() => handleApplyAll(msg.content)}
+                        title="Apply all code blocks to files"
+                      >
+                        Apply All ({extractCodeBlocks(msg.content).length})
+                      </button>
+                    )}
+                  </div>
                 )}
 
                 {/* Error retry button */}

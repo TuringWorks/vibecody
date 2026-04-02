@@ -314,3 +314,278 @@ impl PanelStore {
         Ok(count)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── derive_key ──────────────────────────────────────────────────────────
+
+    #[test]
+    fn derive_key_deterministic() {
+        let k1 = derive_key("passphrase");
+        let k2 = derive_key("passphrase");
+        assert_eq!(k1, k2, "same passphrase must produce same key");
+    }
+
+    #[test]
+    fn derive_key_different_passphrases_differ() {
+        let k1 = derive_key("alpha");
+        let k2 = derive_key("beta");
+        assert_ne!(k1, k2);
+    }
+
+    #[test]
+    fn derive_key_length_is_32() {
+        let k = derive_key("test");
+        assert_eq!(k.len(), 32);
+    }
+
+    // ── encrypt / decrypt roundtrip ─────────────────────────────────────────
+
+    #[test]
+    fn encrypt_decrypt_roundtrip() {
+        let key = derive_key("secret");
+        let plaintext = "hello world";
+        let ciphertext = encrypt_value(&key, plaintext).unwrap();
+        let decrypted = decrypt_value(&key, &ciphertext).unwrap();
+        assert_eq!(decrypted, plaintext);
+    }
+
+    #[test]
+    fn encrypt_produces_different_bytes_than_plaintext() {
+        let key = derive_key("secret");
+        let plaintext = "hello world";
+        let ciphertext = encrypt_value(&key, plaintext).unwrap();
+        assert_ne!(ciphertext, plaintext.as_bytes());
+    }
+
+    #[test]
+    fn decrypt_with_wrong_key_fails() {
+        let key1 = derive_key("correct");
+        let key2 = derive_key("wrong");
+        let ciphertext = encrypt_value(&key1, "secret data").unwrap();
+        let result = decrypt_value(&key2, &ciphertext);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn encrypt_empty_string() {
+        let key = derive_key("key");
+        let ciphertext = encrypt_value(&key, "").unwrap();
+        let decrypted = decrypt_value(&key, &ciphertext).unwrap();
+        assert_eq!(decrypted, "");
+    }
+
+    #[test]
+    fn encrypt_large_payload() {
+        let key = derive_key("key");
+        let plaintext = "x".repeat(10_000);
+        let ciphertext = encrypt_value(&key, &plaintext).unwrap();
+        let decrypted = decrypt_value(&key, &ciphertext).unwrap();
+        assert_eq!(decrypted, plaintext);
+    }
+
+    // ── default_passphrase ──────────────────────────────────────────────────
+
+    #[test]
+    fn default_passphrase_is_non_empty() {
+        let pp = default_passphrase();
+        assert!(!pp.is_empty());
+        assert!(pp.starts_with("vibeui-panel-store-"));
+    }
+
+    // ── PanelStore (in-memory via temp DB) ──────────────────────────────────
+
+    fn temp_store() -> PanelStore {
+        let dir = std::env::temp_dir()
+            .join(format!("vibe_ps_test_{}_{}", std::process::id(), rand::random::<u32>()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let db_path = dir.join("test_panel_settings.db");
+        let conn = Connection::open(&db_path).unwrap();
+        conn.execute_batch(
+            "PRAGMA journal_mode=WAL;
+             PRAGMA foreign_keys=ON;
+             CREATE TABLE IF NOT EXISTS profiles (
+                 id TEXT PRIMARY KEY,
+                 name TEXT NOT NULL,
+                 created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                 is_default INTEGER NOT NULL DEFAULT 0
+             );
+             CREATE TABLE IF NOT EXISTS panel_settings (
+                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                 profile_id TEXT NOT NULL,
+                 panel_name TEXT NOT NULL,
+                 setting_key TEXT NOT NULL,
+                 setting_value BLOB NOT NULL,
+                 updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+                 UNIQUE(profile_id, panel_name, setting_key),
+                 FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
+             );
+             CREATE INDEX IF NOT EXISTS idx_panel_settings_lookup
+                 ON panel_settings(profile_id, panel_name);
+             INSERT OR IGNORE INTO profiles (id, name, is_default) VALUES ('default', 'Default', 1);",
+        ).unwrap();
+        let key = derive_key("test-key");
+        PanelStore { conn, key }
+    }
+
+    #[test]
+    fn set_and_get_setting() {
+        let store = temp_store();
+        store.set("default", "editor", "theme", "dark").unwrap();
+        let val = store.get("default", "editor", "theme").unwrap();
+        assert_eq!(val, Some("dark".to_string()));
+    }
+
+    #[test]
+    fn get_missing_setting_returns_none() {
+        let store = temp_store();
+        let val = store.get("default", "editor", "nonexistent").unwrap();
+        assert_eq!(val, None);
+    }
+
+    #[test]
+    fn set_overwrites_existing() {
+        let store = temp_store();
+        store.set("default", "editor", "theme", "dark").unwrap();
+        store.set("default", "editor", "theme", "light").unwrap();
+        let val = store.get("default", "editor", "theme").unwrap();
+        assert_eq!(val, Some("light".to_string()));
+    }
+
+    #[test]
+    fn get_all_returns_all_settings() {
+        let store = temp_store();
+        store.set("default", "editor", "theme", "dark").unwrap();
+        store.set("default", "editor", "font_size", "14").unwrap();
+        let all = store.get_all("default", "editor").unwrap();
+        let obj = all.as_object().unwrap();
+        assert_eq!(obj.len(), 2);
+        assert_eq!(obj.get("theme").unwrap(), "dark");
+    }
+
+    #[test]
+    fn get_all_empty_panel_returns_empty_object() {
+        let store = temp_store();
+        let all = store.get_all("default", "nonexistent").unwrap();
+        let obj = all.as_object().unwrap();
+        assert!(obj.is_empty());
+    }
+
+    #[test]
+    fn delete_setting() {
+        let store = temp_store();
+        store.set("default", "editor", "theme", "dark").unwrap();
+        store.delete("default", "editor", "theme").unwrap();
+        let val = store.get("default", "editor", "theme").unwrap();
+        assert_eq!(val, None);
+    }
+
+    #[test]
+    fn delete_panel_removes_all_settings() {
+        let store = temp_store();
+        store.set("default", "editor", "theme", "dark").unwrap();
+        store.set("default", "editor", "font_size", "14").unwrap();
+        store.delete_panel("default", "editor").unwrap();
+        let all = store.get_all("default", "editor").unwrap();
+        assert!(all.as_object().unwrap().is_empty());
+    }
+
+    // ── Profile management ──────────────────────────────────────────────────
+
+    #[test]
+    fn list_profiles_includes_default() {
+        let store = temp_store();
+        let profiles = store.list_profiles().unwrap();
+        assert!(!profiles.is_empty());
+        assert!(profiles.iter().any(|p| p["id"] == "default"));
+    }
+
+    #[test]
+    fn create_and_list_profile() {
+        let store = temp_store();
+        store.create_profile("work", "Work Profile").unwrap();
+        let profiles = store.list_profiles().unwrap();
+        assert!(profiles.iter().any(|p| p["id"] == "work"));
+    }
+
+    #[test]
+    fn delete_profile() {
+        let store = temp_store();
+        store.create_profile("temp", "Temporary").unwrap();
+        store.delete_profile("temp").unwrap();
+        let profiles = store.list_profiles().unwrap();
+        assert!(!profiles.iter().any(|p| p["id"] == "temp"));
+    }
+
+    #[test]
+    fn delete_default_profile_fails() {
+        let store = temp_store();
+        let result = store.delete_profile("default");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Cannot delete"));
+    }
+
+    #[test]
+    fn set_default_profile() {
+        let store = temp_store();
+        store.create_profile("work", "Work").unwrap();
+        store.set_default_profile("work").unwrap();
+        let default_id = store.get_default_profile_id().unwrap();
+        assert_eq!(default_id, "work");
+    }
+
+    #[test]
+    fn get_default_profile_id() {
+        let store = temp_store();
+        let id = store.get_default_profile_id().unwrap();
+        assert_eq!(id, "default");
+    }
+
+    // ── Export / Import ─────────────────────────────────────────────────────
+
+    #[test]
+    fn export_empty_profile() {
+        let store = temp_store();
+        let exported = store.export_profile("default").unwrap();
+        assert!(exported.as_object().unwrap().is_empty());
+    }
+
+    #[test]
+    fn export_and_import_roundtrip() {
+        let store = temp_store();
+        store.set("default", "editor", "theme", "dark").unwrap();
+        store.set("default", "editor", "font_size", "14").unwrap();
+        store.set("default", "terminal", "shell", "/bin/zsh").unwrap();
+
+        let exported = store.export_profile("default").unwrap();
+
+        store.create_profile("imported", "Imported").unwrap();
+        let count = store.import_profile("imported", &exported).unwrap();
+        assert_eq!(count, 3);
+
+        let theme = store.get("imported", "editor", "theme").unwrap();
+        assert_eq!(theme, Some("dark".to_string()));
+    }
+
+    #[test]
+    fn import_with_non_object_data_returns_zero() {
+        let store = temp_store();
+        let count = store.import_profile("default", &serde_json::json!("not an object")).unwrap();
+        assert_eq!(count, 0);
+    }
+
+    #[test]
+    fn import_with_json_values() {
+        let store = temp_store();
+        let data = serde_json::json!({
+            "editor": {
+                "line_numbers": true,
+                "tab_size": 4
+            }
+        });
+        let count = store.import_profile("default", &data).unwrap();
+        assert_eq!(count, 2);
+    }
+}

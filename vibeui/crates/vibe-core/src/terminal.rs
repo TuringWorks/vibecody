@@ -179,4 +179,54 @@ mod tests {
         let result = tm.spawn("/nonexistent/shell/path", tx);
         assert!(result.is_err());
     }
+
+    #[tokio::test]
+    async fn spawn_valid_shell_returns_id() {
+        let tm = TerminalManager::new();
+        let (tx, _rx) = tokio::sync::mpsc::channel(100);
+        // Use /bin/sh which should exist on all Unix systems
+        let result = tm.spawn("/bin/sh", tx);
+        assert!(result.is_ok());
+        let id = result.unwrap();
+        assert_eq!(id, 0); // First spawn should get ID 0
+    }
+
+    #[tokio::test]
+    async fn spawn_increments_ids() {
+        let tm = TerminalManager::new();
+        let (tx1, _rx1) = tokio::sync::mpsc::channel(100);
+        let (tx2, _rx2) = tokio::sync::mpsc::channel(100);
+        let id1 = tm.spawn("/bin/sh", tx1).unwrap();
+        let id2 = tm.spawn("/bin/sh", tx2).unwrap();
+        assert_eq!(id1, 0);
+        assert_eq!(id2, 1);
+    }
+
+    #[tokio::test]
+    async fn spawn_adds_to_ptys_map() {
+        let tm = TerminalManager::new();
+        let (tx, _rx) = tokio::sync::mpsc::channel(100);
+        let id = tm.spawn("/bin/sh", tx).unwrap();
+        let ptys = tm.ptys.lock().unwrap();
+        assert!(ptys.contains_key(&id));
+    }
+
+    #[tokio::test]
+    async fn write_to_spawned_pty() {
+        let tm = TerminalManager::new();
+        let (tx, _rx) = tokio::sync::mpsc::channel(100);
+        let id = tm.spawn("/bin/sh", tx).unwrap();
+        // Writing to a valid PTY should succeed
+        let result = tm.write(id, "echo hello\n");
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn resize_spawned_pty() {
+        let tm = TerminalManager::new();
+        let (tx, _rx) = tokio::sync::mpsc::channel(100);
+        let id = tm.spawn("/bin/sh", tx).unwrap();
+        let result = tm.resize(id, 50, 120);
+        assert!(result.is_ok());
+    }
 }

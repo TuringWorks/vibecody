@@ -1191,6 +1191,9 @@ pub async fn stream_chat_message(
     app_handle: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
+    eprintln!("[stream_chat] Received request: provider={}, messages={}, mode={:?}",
+        request.provider, request.messages.len(), request.mode);
+
     // Cancel any previously running chat stream.
     {
         let mut handle = state.chat_abort_handle.lock().await;
@@ -1478,10 +1481,12 @@ pub async fn stream_chat_message(
                 accumulated.clear();
             }
 
+            eprintln!("[stream_chat] Starting stream_chat attempt {} for provider {}", attempt + 1, provider_name);
             let mut stream = match provider.stream_chat(&messages).await {
-                Ok(s) => s,
+                Ok(s) => { eprintln!("[stream_chat] Stream opened successfully"); s },
                 Err(e) => {
                     let err_str = e.to_string();
+                    eprintln!("[stream_chat] Stream error: {}", err_str);
                     if vibe_ai::is_retryable(&err_str) && attempt + 1 < retry_config.max_attempts {
                         let _ = app_handle.emit("chat:status", serde_json::json!({
                             "type": "retry",

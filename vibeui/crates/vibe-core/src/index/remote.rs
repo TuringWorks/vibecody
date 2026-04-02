@@ -247,4 +247,138 @@ mod tests {
             assert_eq!(api_key.as_deref(), Some("secret"));
         }
     }
+
+    #[test]
+    fn remote_client_strips_trailing_slash() {
+        let client = RemoteEmbeddingIndex::new(
+            "http://localhost:9999///".to_string(),
+            "/ws".to_string(),
+            None,
+        );
+        assert_eq!(client.url, "http://localhost:9999");
+    }
+
+    #[test]
+    fn remote_client_preserves_url_without_slash() {
+        let client = RemoteEmbeddingIndex::new(
+            "http://host:1234".to_string(),
+            "/ws".to_string(),
+            None,
+        );
+        assert_eq!(client.url, "http://host:1234");
+    }
+
+    #[test]
+    fn remote_client_stores_workspace() {
+        let client = RemoteEmbeddingIndex::new(
+            "http://localhost".to_string(),
+            "/my/project".to_string(),
+            None,
+        );
+        assert_eq!(client.workspace, "/my/project");
+    }
+
+    #[test]
+    fn remote_client_stores_api_key() {
+        let client = RemoteEmbeddingIndex::new(
+            "http://localhost".to_string(),
+            "/ws".to_string(),
+            Some("my-secret-key".to_string()),
+        );
+        assert_eq!(client.api_key.as_deref(), Some("my-secret-key"));
+    }
+
+    #[test]
+    fn remote_client_builds_http_client_no_key() {
+        let client = RemoteEmbeddingIndex::new(
+            "http://localhost".to_string(),
+            "/ws".to_string(),
+            None,
+        );
+        assert!(client.client().is_ok());
+    }
+
+    #[test]
+    fn remote_client_builds_http_client_with_key() {
+        let client = RemoteEmbeddingIndex::new(
+            "http://localhost".to_string(),
+            "/ws".to_string(),
+            Some("valid-key".to_string()),
+        );
+        assert!(client.client().is_ok());
+    }
+
+    #[test]
+    fn remote_client_clone() {
+        let client = RemoteEmbeddingIndex::new(
+            "http://localhost:9999".to_string(),
+            "/ws".to_string(),
+            Some("key".to_string()),
+        );
+        let cloned = client.clone();
+        assert_eq!(cloned.url, client.url);
+        assert_eq!(cloned.workspace, client.workspace);
+        assert_eq!(cloned.api_key, client.api_key);
+    }
+
+    #[test]
+    fn remote_backend_without_api_key() {
+        let backend = IndexBackend::Remote {
+            url: "http://host".to_string(),
+            api_key: None,
+        };
+        if let IndexBackend::Remote { api_key, .. } = backend {
+            assert!(api_key.is_none());
+        }
+    }
+
+    #[test]
+    fn index_backend_debug_format() {
+        let local = IndexBackend::Local;
+        let debug = format!("{:?}", local);
+        assert!(debug.contains("Local"));
+    }
+
+    #[test]
+    fn remote_client_debug_format() {
+        let client = RemoteEmbeddingIndex::new(
+            "http://localhost".to_string(),
+            "/ws".to_string(),
+            None,
+        );
+        let debug = format!("{:?}", client);
+        assert!(debug.contains("RemoteEmbeddingIndex"));
+    }
+
+    #[tokio::test]
+    async fn is_healthy_returns_false_for_unreachable() {
+        let client = RemoteEmbeddingIndex::new(
+            "http://127.0.0.1:1".to_string(), // unreachable port
+            "/ws".to_string(),
+            None,
+        );
+        assert!(!client.is_healthy().await);
+    }
+
+    #[tokio::test]
+    async fn search_fails_for_unreachable() {
+        let client = RemoteEmbeddingIndex::new(
+            "http://127.0.0.1:1".to_string(),
+            "/ws".to_string(),
+            None,
+        );
+        let result = client.search("test query", 5).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn start_indexing_fails_for_unreachable() {
+        let client = RemoteEmbeddingIndex::new(
+            "http://127.0.0.1:1".to_string(),
+            "/ws".to_string(),
+            None,
+        );
+        let result = client.start_indexing().await;
+        assert!(result.is_err());
+    }
 }

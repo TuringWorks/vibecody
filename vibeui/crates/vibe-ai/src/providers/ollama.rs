@@ -390,17 +390,50 @@ impl AIProvider for OllamaProvider {
 
         let stream = response.bytes_stream();
 
+        // Buffer for bytes that don't yet form complete UTF-8 or complete
+        // JSON lines.  Cloud/remote Ollama models can split chunks at
+        // arbitrary byte boundaries (mid-character or mid-JSON-object).
+        let buf = std::sync::Arc::new(std::sync::Mutex::new(Vec::<u8>::new()));
+
         let completion_stream = stream
-            .map(|chunk| -> Result<String, anyhow::Error> {
+            .map(move |chunk| -> Result<String, anyhow::Error> {
                 let chunk = chunk?;
-                let text = std::str::from_utf8(&chunk)?;
+                let mut guard = buf.lock().unwrap_or_else(|e| e.into_inner());
+                guard.extend_from_slice(&chunk);
+
+                // Try to decode as much valid UTF-8 as possible from the
+                // front of the buffer.  If the buffer ends with a partial
+                // multi-byte sequence, leave those bytes for the next chunk.
+                let valid_up_to = match std::str::from_utf8(&guard) {
+                    Ok(_) => guard.len(),
+                    Err(e) => e.valid_up_to(),
+                };
+                if valid_up_to == 0 {
+                    return Ok(String::new());
+                }
+
+                let text = String::from_utf8_lossy(&guard[..valid_up_to]).into_owned();
+                let remainder = guard[valid_up_to..].to_vec();
+                *guard = remainder;
+
                 let mut result = String::new();
                 for line in text.lines() {
                     let line = line.trim();
                     if line.is_empty() { continue; }
-                    if let Ok(response) = serde_json::from_str::<OllamaChatResponse>(line) {
-                        if let Some(msg) = response.message {
-                            result.push_str(&msg.content);
+                    match serde_json::from_str::<OllamaChatResponse>(line) {
+                        Ok(response) => {
+                            if let Some(msg) = response.message {
+                                result.push_str(&msg.content);
+                            }
+                        }
+                        Err(_) => {
+                            // Partial JSON line — push it back into the buffer
+                            // so the next chunk can complete it.
+                            let mut guard2 = buf.lock().unwrap_or_else(|e| e.into_inner());
+                            let mut leftover = line.as_bytes().to_vec();
+                            leftover.push(b'\n');
+                            leftover.extend_from_slice(&guard2);
+                            *guard2 = leftover;
                         }
                     }
                 }

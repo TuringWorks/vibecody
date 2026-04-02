@@ -291,12 +291,23 @@
     background: color-mix(in srgb, var(--error-color, #e53935) 8%, var(--bg-tertiary));
 }
 
-/* ── Copy button on messages ──────────────────────────────────────────────── */
+/* ── Message action buttons ───────────────────────────────────────────────── */
 
-.msg-copy-btn {
+.msg-actions {
     position: absolute;
     top: 4px;
     right: 4px;
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.message-content:hover .msg-actions {
+    opacity: 0.9;
+}
+
+.msg-copy-btn {
     background: var(--bg-tertiary);
     border: 1px solid var(--border-color);
     border-radius: 4px;
@@ -304,17 +315,28 @@
     font-size: 11px;
     padding: 2px 6px;
     color: var(--text-secondary);
-    opacity: 0;
-    transition: opacity 0.15s, color 0.15s;
-}
-
-.message-content:hover .msg-copy-btn {
-    opacity: 0.8;
+    transition: color 0.15s;
 }
 
 .msg-copy-btn:hover {
-    opacity: 1 !important;
     color: var(--text-primary);
+}
+
+.msg-apply-all-btn {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--accent-color, var(--accent-blue));
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+    padding: 2px 8px;
+    color: var(--accent-color, var(--accent-blue));
+    font-weight: 500;
+    transition: background 0.15s, color 0.15s;
+}
+
+.msg-apply-all-btn:hover {
+    background: var(--accent-color, var(--accent-blue));
+    color: var(--btn-primary-fg, #fff);
 }
 
 /* ── Retry button ─────────────────────────────────────────────────────────── */
@@ -564,6 +586,31 @@
 .cb-btn-apply:hover {
     background: var(--accent-color, var(--accent-blue));
     color: var(--btn-primary-fg, #fff);
+}
+
+.cb-btn-collapse {
+    font-size: 11px;
+    gap: 2px;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.cb-expand-bar {
+    display: block;
+    width: 100%;
+    padding: 4px 0;
+    background: var(--bg-tertiary, #1a1a2e);
+    border: none;
+    border-top: 1px solid var(--border-color, #333);
+    color: var(--accent-color, var(--accent-blue));
+    font-size: 11px;
+    cursor: pointer;
+    text-align: center;
+    border-radius: 0 0 6px 6px;
+}
+
+.cb-expand-bar:hover {
+    background: var(--bg-hover, #252540);
 }
 
 .cb-code {

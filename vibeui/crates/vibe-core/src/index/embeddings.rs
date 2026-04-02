@@ -586,4 +586,228 @@ mod tests {
         assert!(files.iter().any(|f| f.ends_with("main.rs")));
         assert!(!files.iter().any(|f| f.starts_with(&target)));
     }
+
+    // ── EmbeddingProvider constructors ───────────────────────────────────────
+
+    #[test]
+    fn ollama_provider_defaults() {
+        let p = EmbeddingProvider::ollama("nomic-embed-text");
+        match p {
+            EmbeddingProvider::Ollama { model, api_url } => {
+                assert_eq!(model, "nomic-embed-text");
+                assert_eq!(api_url, "http://localhost:11434");
+            }
+            _ => panic!("expected Ollama variant"),
+        }
+    }
+
+    #[test]
+    fn openai_provider_defaults() {
+        let p = EmbeddingProvider::openai("sk-test");
+        match p {
+            EmbeddingProvider::OpenAI { api_key, model } => {
+                assert_eq!(api_key, "sk-test");
+                assert_eq!(model, "text-embedding-3-small");
+            }
+            _ => panic!("expected OpenAI variant"),
+        }
+    }
+
+    // ── EmbeddingIndex accessors ─────────────────────────────────────────────
+
+    #[test]
+    fn empty_index_len_and_is_empty() {
+        let idx = EmbeddingIndex {
+            provider: EmbeddingProvider::ollama("test"),
+            vectors: vec![],
+            docs: vec![],
+        };
+        assert_eq!(idx.len(), 0);
+        assert!(idx.is_empty());
+        assert_eq!(idx.chunk_count(), 0);
+        assert_eq!(idx.file_count(), 0);
+        assert!(idx.vectors().is_empty());
+        assert!(idx.docs().is_empty());
+    }
+
+    #[test]
+    fn index_len_matches_docs() {
+        let idx = EmbeddingIndex {
+            provider: EmbeddingProvider::ollama("test"),
+            vectors: vec![vec![1.0], vec![2.0]],
+            docs: vec![
+                EmbeddingDoc { file: PathBuf::from("a.rs"), chunk_start: 0, chunk_end: 1, text: "a".into() },
+                EmbeddingDoc { file: PathBuf::from("b.rs"), chunk_start: 0, chunk_end: 1, text: "b".into() },
+            ],
+        };
+        assert_eq!(idx.len(), 2);
+        assert!(!idx.is_empty());
+    }
+
+    #[test]
+    fn file_count_deduplicates() {
+        let idx = EmbeddingIndex {
+            provider: EmbeddingProvider::ollama("test"),
+            vectors: vec![vec![1.0], vec![2.0], vec![3.0]],
+            docs: vec![
+                EmbeddingDoc { file: PathBuf::from("a.rs"), chunk_start: 0, chunk_end: 10, text: "a1".into() },
+                EmbeddingDoc { file: PathBuf::from("a.rs"), chunk_start: 10, chunk_end: 20, text: "a2".into() },
+                EmbeddingDoc { file: PathBuf::from("b.rs"), chunk_start: 0, chunk_end: 10, text: "b1".into() },
+            ],
+        };
+        assert_eq!(idx.file_count(), 2);
+    }
+
+    // ── save / load roundtrip ────────────────────────────────────────────────
+
+    #[test]
+    fn save_and_load_roundtrip() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("index.json");
+
+        let idx = EmbeddingIndex {
+            provider: EmbeddingProvider::ollama("test"),
+            vectors: vec![vec![1.0, 2.0, 3.0]],
+            docs: vec![
+                EmbeddingDoc {
+                    file: PathBuf::from("src/main.rs"),
+                    chunk_start: 0,
+                    chunk_end: 10,
+                    text: "fn main() {}".into(),
+                },
+            ],
+        };
+        idx.save(&path).unwrap();
+        let loaded = EmbeddingIndex::load(&path).unwrap();
+        assert_eq!(loaded.len(), 1);
+        assert_eq!(loaded.vectors()[0], vec![1.0, 2.0, 3.0]);
+        assert_eq!(loaded.docs()[0].text, "fn main() {}");
+    }
+
+    #[test]
+    fn load_nonexistent_file_fails() {
+        let result = EmbeddingIndex::load(Path::new("/tmp/nonexistent_vibe_idx_test.json"));
+        assert!(result.is_err());
+    }
+
+    // ── to_turboquant ────────────────────────────────────────────────────────
+
+    #[test]
+    fn to_turboquant_empty_returns_none() {
+        let idx = EmbeddingIndex {
+            provider: EmbeddingProvider::ollama("test"),
+            vectors: vec![],
+            docs: vec![],
+        };
+        assert!(idx.to_turboquant(42).is_none());
+    }
+
+    #[test]
+    fn to_turboquant_non_empty_returns_some() {
+        let idx = EmbeddingIndex {
+            provider: EmbeddingProvider::ollama("test"),
+            vectors: vec![vec![1.0, 2.0, 3.0, 4.0]],
+            docs: vec![
+                EmbeddingDoc {
+                    file: PathBuf::from("f.rs"),
+                    chunk_start: 0,
+                    chunk_end: 5,
+                    text: "code".into(),
+                },
+            ],
+        };
+        let tq = idx.to_turboquant(42);
+        assert!(tq.is_some());
+    }
+
+    // ── chunk_text edge cases ────────────────────────────────────────────────
+
+    #[test]
+    fn chunk_text_empty_content() {
+        let chunks = chunk_text("");
+        assert!(chunks.is_empty());
+    }
+
+    #[test]
+    fn chunk_text_single_line() {
+        let chunks = chunk_text("single line");
+        assert_eq!(chunks.len(), 1);
+        assert_eq!(chunks[0].start, 0);
+        assert_eq!(chunks[0].end, 1);
+    }
+
+    #[test]
+    fn chunk_text_exact_chunk_size() {
+        let content: String = (0..60).map(|i| format!("line {}", i)).collect::<Vec<_>>().join("\n");
+        let chunks = chunk_text(&content);
+        assert_eq!(chunks.len(), 1);
+        assert_eq!(chunks[0].start, 0);
+        assert_eq!(chunks[0].end, 60);
+    }
+
+    // ── cosine_similarity edge cases ─────────────────────────────────────────
+
+    #[test]
+    fn cosine_mismatched_lengths_returns_zero() {
+        assert_eq!(cosine_similarity(&[1.0], &[1.0, 2.0]), 0.0);
+    }
+
+    #[test]
+    fn cosine_zero_vectors_returns_zero() {
+        assert_eq!(cosine_similarity(&[0.0, 0.0], &[0.0, 0.0]), 0.0);
+    }
+
+    #[test]
+    fn cosine_known_angle() {
+        // 45-degree angle: cos(45°) ≈ 0.707
+        let a = vec![1.0f32, 0.0];
+        let b = vec![1.0f32, 1.0];
+        let sim = cosine_similarity(&a, &b);
+        assert!((sim - std::f32::consts::FRAC_1_SQRT_2).abs() < 1e-5);
+    }
+
+    // ── collect_source_files edge cases ──────────────────────────────────────
+
+    #[test]
+    fn collect_source_files_empty_dir() {
+        let dir = tempfile::tempdir().unwrap();
+        let files = collect_source_files(dir.path());
+        assert!(files.is_empty());
+    }
+
+    #[test]
+    fn collect_source_files_skips_node_modules() {
+        let dir = tempfile::tempdir().unwrap();
+        let nm = dir.path().join("node_modules");
+        std::fs::create_dir(&nm).unwrap();
+        std::fs::write(nm.join("index.js"), "module.exports = {}").unwrap();
+        let files = collect_source_files(dir.path());
+        assert!(!files.iter().any(|f| f.to_string_lossy().contains("node_modules")));
+    }
+
+    #[test]
+    fn collect_source_files_includes_multiple_extensions() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("main.rs"), "fn main() {}").unwrap();
+        std::fs::write(dir.path().join("app.py"), "print('hi')").unwrap();
+        std::fs::write(dir.path().join("index.ts"), "export {}").unwrap();
+        std::fs::write(dir.path().join("photo.png"), "binary").unwrap(); // should be skipped
+        let files = collect_source_files(dir.path());
+        assert_eq!(files.len(), 3);
+    }
+
+    // ── search on empty index ────────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn search_empty_index_returns_empty() {
+        let idx = EmbeddingIndex {
+            provider: EmbeddingProvider::ollama("test"),
+            vectors: vec![],
+            docs: vec![],
+        };
+        let hits = idx.search("anything", 5).await;
+        // Will fail because Ollama isn't running, but empty vectors shortcircuit
+        assert!(hits.is_ok());
+        assert!(hits.unwrap().is_empty());
+    }
 }

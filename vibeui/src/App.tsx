@@ -1673,6 +1673,8 @@ function App() {
                         });
                         setActiveFilePath(pendingDiff!.path);
                         setPendingDiff(null);
+                        // Refresh file explorer to show new/modified files
+                        if (currentDirectory) loadDirectory(currentDirectory);
                       })
                       .catch(console.error);
                   }

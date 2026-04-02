@@ -136,13 +136,18 @@ export function ChatTabManager({
         setActiveTabId(newTab.id);
     };
 
+    // Track which tabs have already been saved to history to prevent duplicates.
+    const savedTabsRef = useRef<Set<string>>(new Set());
+
     const closeTab = (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
         if (tabs.length === 1) return;
 
-        // Save to history before closing if there are messages
+        // Save to history before closing if there are messages and
+        // the tab hasn't already been saved (prevents duplicates when
+        // the user clicks "Save" then immediately closes the tab).
         const msgs = tabMessages[id] ?? [];
-        if (msgs.length > 0) {
+        if (msgs.length > 0 && !savedTabsRef.current.has(id)) {
             const tab = tabs.find(t => t.id === id);
             const session: ChatSession = {
                 id: `session-${Date.now()}`,
@@ -155,6 +160,7 @@ export function ChatTabManager({
             setHistory(updated);
             saveHistory(updated);
         }
+        savedTabsRef.current.delete(id);
 
         // Clean up persisted messages
         setTabMessages(prev => {
@@ -222,7 +228,6 @@ export function ChatTabManager({
         const msgs = tabMessages[activeTabId] ?? [];
         if (msgs.length === 0) return;
         const tab = tabs.find(t => t.id === activeTabId);
-        // Auto-title from first user message
         const firstUserMsg = msgs.find(m => m.role === "user");
         const title = firstUserMsg
             ? firstUserMsg.content.slice(0, 50) + (firstUserMsg.content.length > 50 ? "..." : "")
@@ -237,6 +242,8 @@ export function ChatTabManager({
         const updated = [session, ...history].slice(0, MAX_HISTORY);
         setHistory(updated);
         saveHistory(updated);
+        // Mark tab as saved so closeTab won't create a duplicate entry
+        savedTabsRef.current.add(activeTabId);
     };
 
     const activeTab = tabs.find((t) => t.id === activeTabId);
