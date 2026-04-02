@@ -1648,125 +1648,118 @@ function App() {
                 }}
               />
             </div>
-          ) : pendingDiff ? (
-            <div style={{ height: 'calc(100% - 35px)' }}>
-              <DiffReviewPanel
-                original={pendingDiff.original}
-                modified={pendingDiff.modified}
-                filePath={pendingDiff.path}
-                onApply={(result) => {
-                  try {
-                    const diffPath = pendingDiff?.path;
-
-                    if (result !== null && diffPath) {
-                      const language = detectLanguage(diffPath);
-                      setOpenFiles((prev) => {
-                        const exists = prev.some((f) => f.path === diffPath);
-                        if (exists) return prev.map((f) => f.path === diffPath ? { ...f, content: result, isDirty: false } : f);
-                        return [...prev, { path: diffPath, content: result, language, isDirty: false }];
-                      });
-                      setActiveFilePath(diffPath);
-                      invoke("write_file", { path: diffPath, content: result })
-                        .then(() => { if (currentDirectory) loadDirectory(currentDirectory); })
-                        .catch((err) => {
-                          console.error("Failed to write file:", err);
-                          toast.error(`Failed to save ${diffPath}: ${err}`);
-                        });
-                    }
-
-                    // Show a "loading" placeholder instead of null so the Editor
-                    // never mounts between queued diffs (which crashes Monaco).
-                    setPendingDiff({ path: "Loading next file...", original: "", modified: "" });
-
-                    // Let AIChat's queue handler set the real next diff.
-                    // If the queue is empty, a microtask clears it.
-                    const resolved = new Event("vibeui:diff-resolved");
-                    window.dispatchEvent(resolved);
-
-                    // If no handler set a new pendingDiff (queue was empty),
-                    // clear it after a tick.
-                    setTimeout(() => {
-                      setPendingDiff((cur) =>
-                        cur?.path === "Loading next file..." ? null : cur
-                      );
-                    }, 300);
-                  } catch (err) {
-                    console.error("Apply failed:", err);
-                    setPendingDiff(null);
-                    toast.error(`Apply failed: ${err}`);
-                    window.dispatchEvent(new Event("vibeui:diff-resolved"));
-                  }
-                }}
-              />
-            </div>
-          ) : activeFile ? (
-            showMarkdownPreview && currentFile?.endsWith('.md') ? (
-              <MarkdownPreview content={editorContent} />
-            ) : (
-              <Editor
-                key={activeFilePath ?? "editor"}
-                height="calc(100% - 35px)"
-                language={editorLanguage}
-                theme={editorTheme}
-                value={editorContent}
-                onChange={handleEditorChange}
-                onMount={handleEditorDidMount}
-                options={{
-                  minimap: { enabled: true },
-                  fontSize: 14,
-                  lineNumbers: "on",
-                  roundedSelection: false,
-                  scrollBeyondLastLine: false,
-                  automaticLayout: true,
-                }}
-              />
-            )
           ) : (
-            <div className="welcome-screen">
-              <h2>Welcome to VibeUI</h2>
-              <p>AI-Powered Code Editor built with Rust + Tauri</p>
-              <div className="welcome-actions">
-                <button className="btn-primary" onClick={openFolder}>
-                  <FolderOpen size={14} strokeWidth={1.5} /> Open Folder
-                </button>
-                <button className="btn-secondary" onClick={() => setShowTour(true)}>
-                  <GraduationCap size={14} strokeWidth={1.5} /> Take a Tour
-                </button>
-              </div>
-              <div className="features">
-                <h3>Keyboard Shortcuts</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 24px', textAlign: 'left', marginBottom: '24px' }}>
-                  {(() => {
-                    const isMac = /Mac/.test(navigator.userAgent);
-                    const mod = isMac ? '⌘' : 'Ctrl+';
-                    const shift = isMac ? '⇧' : 'Shift+';
-                    return [
-                      [`${mod}K`, 'Command Palette / Inline Chat'],
-                      [`${mod}${shift}P`, 'Command Palette'],
-                      [`${mod}J`, 'Toggle AI Panel'],
-                      [`${mod}B`, 'Toggle Sidebar'],
-                      [`${mod}\``, 'Toggle Terminal'],
-                      [`${mod}${shift}E`, 'Explorer'],
-                      [`${mod}${shift}G`, 'Source Control'],
-                      [`${mod}S`, 'Save File'],
-                      [`${mod}O`, 'Open Folder'],
-                      [`${mod}1-9`, 'Switch AI Tab'],
-                    ];
-                  })().map(([key, desc]) => (
-                    <div key={key} style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                      <kbd>{key}</kbd> {desc}
-                    </div>
-                  ))}
+            <>
+              {/* DiffReviewPanel — shown on top of the editor when a diff is pending */}
+              {pendingDiff && (
+                <div style={{ height: 'calc(100% - 35px)', position: 'relative', zIndex: 2 }}>
+                  <DiffReviewPanel
+                    key={pendingDiff.path}
+                    original={pendingDiff.original}
+                    modified={pendingDiff.modified}
+                    filePath={pendingDiff.path}
+                    onApply={(result) => {
+                      try {
+                        const diffPath = pendingDiff?.path;
+
+                        if (result !== null && diffPath) {
+                          const language = detectLanguage(diffPath);
+                          setOpenFiles((prev) => {
+                            const exists = prev.some((f) => f.path === diffPath);
+                            if (exists) return prev.map((f) => f.path === diffPath ? { ...f, content: result, isDirty: false } : f);
+                            return [...prev, { path: diffPath, content: result, language, isDirty: false }];
+                          });
+                          setActiveFilePath(diffPath);
+                          invoke("write_file", { path: diffPath, content: result })
+                            .then(() => { if (currentDirectory) loadDirectory(currentDirectory); })
+                            .catch((err) => console.error("Failed to write file:", err));
+                        }
+
+                        setPendingDiff(null);
+                        window.dispatchEvent(new Event("vibeui:diff-resolved"));
+                      } catch (err) {
+                        console.error("Apply failed:", err);
+                        setPendingDiff(null);
+                        window.dispatchEvent(new Event("vibeui:diff-resolved"));
+                      }
+                    }}
+                  />
                 </div>
-                <h3>Features</h3>
-                <ul>
-                  <li><Sparkles size={14} strokeWidth={1.5} style={{ verticalAlign: -2 }} /> AI-powered code completion (Ollama ready)</li>
-                  <li><Bot size={14} strokeWidth={1.5} style={{ verticalAlign: -2 }} /> Multiple AI providers: Ollama, Claude, ChatGPT, Gemini, Grok</li>
-                  <li><Rocket size={14} strokeWidth={1.5} style={{ verticalAlign: -2 }} /> Fast text editing with Rust backend</li>
-                  <li><Plug size={14} strokeWidth={1.5} style={{ verticalAlign: -2 }} /> VSCode + JetBrains + Neovim plugin support</li>
-                </ul>
+              )}
+
+              {/* Editor — always mounted, hidden behind DiffReviewPanel when a diff is active.
+                  This prevents Monaco from being destroyed/recreated on every Apply cycle. */}
+              <div style={{ height: 'calc(100% - 35px)', display: pendingDiff ? 'none' : 'block' }}>
+                {activeFile ? (
+                  showMarkdownPreview && currentFile?.endsWith('.md') ? (
+                    <MarkdownPreview content={editorContent} />
+                  ) : (
+                    <Editor
+                      height="100%"
+                      language={editorLanguage}
+                      theme={editorTheme}
+                      value={editorContent}
+                      onChange={handleEditorChange}
+                      onMount={handleEditorDidMount}
+                      options={{
+                        minimap: { enabled: true },
+                        fontSize: 14,
+                        lineNumbers: "on",
+                        roundedSelection: false,
+                        scrollBeyondLastLine: false,
+                        automaticLayout: true,
+                      }}
+                    />
+                  )
+                ) : (
+                  <div className="welcome-screen">
+                    <h2>Welcome to VibeUI</h2>
+                    <p>AI-Powered Code Editor built with Rust + Tauri</p>
+                    <div className="welcome-actions">
+                      <button className="btn-primary" onClick={openFolder}>
+                        <FolderOpen size={14} strokeWidth={1.5} /> Open Folder
+                      </button>
+                      <button className="btn-secondary" onClick={() => setShowTour(true)}>
+                        <GraduationCap size={14} strokeWidth={1.5} /> Take a Tour
+                      </button>
+                    </div>
+                    <div className="features">
+                      <h3>Keyboard Shortcuts</h3>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 24px', textAlign: 'left', marginBottom: '24px' }}>
+                        {(() => {
+                          const isMac = /Mac/.test(navigator.userAgent);
+                          const mod = isMac ? '⌘' : 'Ctrl+';
+                          const shift = isMac ? '⇧' : 'Shift+';
+                          return [
+                            [`${mod}K`, 'Command Palette / Inline Chat'],
+                            [`${mod}${shift}P`, 'Command Palette'],
+                            [`${mod}J`, 'Toggle AI Panel'],
+                            [`${mod}B`, 'Toggle Sidebar'],
+                            [`${mod}\``, 'Toggle Terminal'],
+                            [`${mod}${shift}E`, 'Explorer'],
+                            [`${mod}${shift}G`, 'Source Control'],
+                            [`${mod}S`, 'Save File'],
+                            [`${mod}O`, 'Open Folder'],
+                            [`${mod}1-9`, 'Switch AI Tab'],
+                          ];
+                        })().map(([key, desc]) => (
+                          <div key={key} style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                            <kbd>{key}</kbd> {desc}
+                          </div>
+                        ))}
+                      </div>
+                      <h3>Features</h3>
+                      <ul>
+                        <li><Sparkles size={14} strokeWidth={1.5} style={{ verticalAlign: -2 }} /> AI-powered code completion (Ollama ready)</li>
+                        <li><Bot size={14} strokeWidth={1.5} style={{ verticalAlign: -2 }} /> Multiple AI providers: Ollama, Claude, ChatGPT, Gemini, Grok</li>
+                        <li><Rocket size={14} strokeWidth={1.5} style={{ verticalAlign: -2 }} /> Fast text editing with Rust backend</li>
+                        <li><Plug size={14} strokeWidth={1.5} style={{ verticalAlign: -2 }} /> VSCode + JetBrains + Neovim plugin support</li>
+                      </ul>
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
+            </>
           )}
         </main>
 

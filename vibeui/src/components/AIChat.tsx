@@ -1453,15 +1453,18 @@ export function AIChat({
 
   /** Queue of code blocks waiting to be applied one at a time. */
   const applyQueueRef = useRef<Array<{ filename: string; code: string }>>([]);
+  /** Guard: prevent concurrent Apply All operations. */
+  const applyBusyRef = useRef(false);
 
   /** Apply all code blocks from a message — queues them and opens the
    *  DiffReviewPanel for the first one. When the user accepts/rejects it,
    *  the next one in the queue is automatically opened. */
   const handleApplyAll = useCallback((content: string) => {
     if (!onPendingWriteRef.current) return;
+    if (applyBusyRef.current) return; // already processing
     const blocks = extractCodeBlocks(content);
     if (blocks.length === 0) return;
-    // Queue all blocks; the first one opens immediately.
+    applyBusyRef.current = true;
     applyQueueRef.current = blocks.slice(1);
     onPendingWriteRef.current(blocks[0].filename, blocks[0].code);
   }, [extractCodeBlocks]);
@@ -1471,7 +1474,12 @@ export function AIChat({
     const onDiffResolved = () => {
       if (applyQueueRef.current.length > 0 && onPendingWriteRef.current) {
         const next = applyQueueRef.current.shift()!;
-        onPendingWriteRef.current(next.filename, next.code);
+        // Small delay to let React commit the previous state change
+        setTimeout(() => {
+          onPendingWriteRef.current?.(next.filename, next.code);
+        }, 100);
+      } else {
+        applyBusyRef.current = false;
       }
     };
     window.addEventListener("vibeui:diff-resolved", onDiffResolved);
