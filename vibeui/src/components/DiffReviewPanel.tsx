@@ -271,21 +271,10 @@ export function DiffReviewPanel({ original, modified, filePath, onApply }: DiffR
  {acceptedCount}/{hunks.length} hunks
  </span>
  <div style={{ display: "flex", gap: 4, marginLeft: "auto", flexShrink: 0 }}>
- <button onClick={acceptAll} style={btnStyle("var(--success-color)")}>Accept</button>
- <button onClick={rejectAll} style={btnStyle("var(--error-color)")}>Reject</button>
- <button
- onClick={handleApply}
- style={{
- ...btnStyle("var(--accent-blue)"),
- color: "var(--text-primary)",
- fontWeight: 600,
- }}
- >
- Apply ({acceptedCount})
- </button>
- <button onClick={() => onApply(null)} style={btnStyle("var(--bg-tertiary)")}>
- Cancel
- </button>
+ <button onClick={acceptAll} style={btnStyle("var(--success-color, #4ade80)")}>Accept</button>
+ <button onClick={rejectAll} style={btnStyle("var(--error-color, #f87171)")}>Reject</button>
+ <button onClick={handleApply} style={btnStyle("var(--accent-primary, #6366f1)")}>Apply ({acceptedCount})</button>
+ <button onClick={() => onApply(null)} style={btnStyle("var(--text-secondary, #888)")}>Cancel</button>
  </div>
  </div>
 
@@ -393,11 +382,11 @@ function HunkBlock({ hunk, onToggle }: { hunk: DiffHunk; onToggle: () => void })
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function btnStyle(bg: string): React.CSSProperties {
+function btnStyle(accent: string): React.CSSProperties {
  return {
- padding: "2px 8px", fontSize: 11, borderRadius: 3, lineHeight: 1.4,
- border: "1px solid var(--border-color)",
- background: bg, color: "var(--text-primary)",
+ padding: "3px 10px", fontSize: 11, borderRadius: 4, lineHeight: 1.4,
+ border: `1px solid ${accent}`,
+ background: "transparent", color: accent,
  cursor: "pointer", whiteSpace: "nowrap",
  };
 }
