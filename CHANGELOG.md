@@ -5,6 +5,39 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.5.3] — 2026-04-02
+
+### Added
+
+- **Document & Media Viewers** — new DocumentViewer, ImageViewer, HtmlPreview, and DrawioPreview components for VibeUI with full CSS styling and test coverage.
+- **Per-Provider Model Lists** — Vibe App settings now show provider-appropriate models (Claude, OpenAI, Gemini, Grok) with auto-selection on provider change; Ollama uses live-discovered models from the daemon.
+- **RL-OS Core Modules** — 8 core modules (EnvOS, TrainOS, EvalOS, OptiOS, ModelHub, ServeOS, RLHF, MultiAgent) with 660 tests, 10 VibeUI panels, and 20 wired Tauri commands.
+- **Sketch Canvas** — working drawing support with Move tool, inline text editing, SVG/PNG export, shape recognition, and code generation.
+- **Training Run Wizard** — step-by-step setup wizard for RL training runs in the Training Dashboard.
+
+### Fixed
+
+- **Vibe App: Empty AI Responses** — SSE event parser read `ev["text"]` but daemon sends `ev["content"]`; responses now display correctly.
+- **Vibe App: Duplicate Streaming Text** — async Tauri event listeners now guarded against React StrictMode double-mount race condition.
+- **Vibe App: Response Never Completing** — added fallback completion event when agent exits without explicit Complete/Error signal.
+- **Vibe App: Stale Model/Token** — `useCallback` dependencies now include `selectedModel` and `daemonToken`.
+- **Vibe App: Window Icon** — replaced default Tauri icon with VibeUI icon; set programmatically via `window.set_icon()` for dev + production.
+- **Ollama Model List Slow/Missing** — removed per-model chat probe (up to 65s for 13 models); replaced with instant name-based filter.
+- **Monaco Crash on Apply All** — editor kept always mounted to prevent disposal crash.
+- **Terminal Input & Editor Apply Crash** — fixed terminal input handling and model selector UX.
+- **Chat Message Loss** — resolved message persistence and improved Ollama streaming reliability.
+- **RLMultiAgentView Crash** — added name fallback and complete backend data.
+- **VibeUI Panel Bugs** — TLS Inspector URL handling, Design Mode preview, Screenshot to App provider selection, file explorer refresh, Fast Context theming, SemanticIndexPanel crash.
+
+### Changed
+
+- **Agent Identity** — renamed from "VibeCLI" to "Vibe Agent" across all system prompts (TOOL_SYSTEM_PROMPT, VibeUI chat, gateway bots).
+- Version bumped to 0.5.3 across all manifests.
+- RL-OS composite panels registered in panel host, tab groups, and search.
+- Distillation tab moved from Code Analysis to AI/ML composite.
+
+---
+
 ## [0.5.2] — 2026-03-30
 
 ### Added
