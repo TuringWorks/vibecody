@@ -260,19 +260,19 @@ export function DiffReviewPanel({ original, modified, filePath, onApply }: DiffR
  }}>
  {/* Header */}
  <div style={{
- display: "flex", alignItems: "center", justifyContent: "space-between",
- padding: "8px 12px", borderBottom: "1px solid var(--border-color)",
- background: "var(--bg-secondary)", flexShrink: 0,
+ display: "flex", alignItems: "center", gap: 8,
+ padding: "4px 10px", borderBottom: "1px solid var(--border-color)",
+ background: "var(--bg-secondary)", flexShrink: 0, minHeight: 28,
  }}>
- <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>
- Review Changes — <code style={{ fontSize: 12 }}>{filePath.split("/").pop()}</code>
+ <span style={{ fontSize: 12, fontWeight: 500, color: "var(--text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>
+ Review — <code style={{ fontSize: 11, color: "var(--text-secondary)" }}>{filePath.split("/").pop()}</code>
  </span>
- <div style={{ display: "flex", gap: 6 }}>
- <span style={{ fontSize: 11, color: "var(--text-secondary)", alignSelf: "center" }}>
- {acceptedCount}/{hunks.length} hunks accepted
+ <span style={{ fontSize: 10, color: "var(--text-secondary)", whiteSpace: "nowrap" }}>
+ {acceptedCount}/{hunks.length} hunks
  </span>
- <button onClick={acceptAll} style={btnStyle("var(--success-color)")}>✓ Accept All</button>
- <button onClick={rejectAll} style={btnStyle("var(--error-color)")}>✗ Reject All</button>
+ <div style={{ display: "flex", gap: 4, marginLeft: "auto", flexShrink: 0 }}>
+ <button onClick={acceptAll} style={btnStyle("var(--success-color)")}>Accept</button>
+ <button onClick={rejectAll} style={btnStyle("var(--error-color)")}>Reject</button>
  <button
  onClick={handleApply}
  style={{
@@ -395,9 +395,9 @@ function HunkBlock({ hunk, onToggle }: { hunk: DiffHunk; onToggle: () => void })
 
 function btnStyle(bg: string): React.CSSProperties {
  return {
- padding: "3px 10px", fontSize: 11, borderRadius: 3,
+ padding: "2px 8px", fontSize: 11, borderRadius: 3, lineHeight: 1.4,
  border: "1px solid var(--border-color)",
  background: bg, color: "var(--text-primary)",
- cursor: "pointer",
+ cursor: "pointer", whiteSpace: "nowrap",
  };
 }
