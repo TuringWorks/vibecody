@@ -1627,6 +1627,16 @@ pub async fn stream_chat_message(
                         let _ = app_handle.emit("chat:chunk", &text);
                         accumulated.push_str(&text);
 
+                        // Normalize GLM/Qwen-style <|tag|> delimiters in-place
+                        // so the incremental write scanner can find them.
+                        if accumulated.contains("<|write_file") || accumulated.contains("</|write_file") {
+                            accumulated = accumulated
+                                .replace("<|write_file", "<write_file")
+                                .replace("</|write_file|>", "</write_file>")
+                                .replace("|>", ">")
+                                .replace("|/>", "/>");
+                        }
+
                         // Incrementally write completed <write_file> blocks so
                         // files are saved as soon as the closing tag streams in.
                         // This prevents total data loss on mid-stream failures.
@@ -2213,6 +2223,18 @@ async fn fetch_github_issue(url: &str, token: Option<String>) -> Result<GithubIs
 }
 
 async fn process_tool_calls(response: &str, workspace_lock: &Arc<Mutex<Workspace>>) -> (String, Option<PendingWrite>) {
+    // Normalize GLM/Qwen-style delimiters: <|tag|> → <tag>, </|tag|> → </tag>
+    // These models wrap tool calls in <|...|> instead of <...>
+    let response = &response
+        .replace("<|read_file", "<read_file")
+        .replace("<|write_file", "<write_file")
+        .replace("<|list_dir", "<list_dir")
+        .replace("<|build", "<build")
+        .replace("<|run", "<run")
+        .replace("</|write_file|>", "</write_file>")
+        .replace("|>", ">")
+        .replace("|/>", "/>");
+
     let mut output = String::new();
     let pending_write: Option<PendingWrite> = None;
     let workspace = workspace_lock.lock().await;
