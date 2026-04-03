@@ -13,13 +13,16 @@ const TOGETHER_BASE_URL: &str = "https://api.together.xyz/v1";
 pub struct TogetherProvider {
     config: ProviderConfig,
     client: reqwest::Client,
+    display_name: String,
 }
 
 impl TogetherProvider {
     pub fn new(config: ProviderConfig) -> Self {
+        let display_name = format!("Together AI ({})", config.model);
         Self {
             config,
             client: openai_compat::default_http_client(),
+            display_name,
         }
     }
 
@@ -48,7 +51,7 @@ impl TogetherProvider {
 
 #[async_trait]
 impl AIProvider for TogetherProvider {
-    fn name(&self) -> &str { "Together AI" }
+    fn name(&self) -> &str { &self.display_name }
 
     async fn is_available(&self) -> bool { self.config.api_key.is_some() }
 

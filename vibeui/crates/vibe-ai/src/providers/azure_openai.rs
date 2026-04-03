@@ -75,10 +75,12 @@ pub struct AzureOpenAIProvider {
     config: ProviderConfig,
     client: reqwest::Client,
     api_version: String,
+    display_name: String,
 }
 
 impl AzureOpenAIProvider {
     pub fn new(config: ProviderConfig) -> Self {
+        let display_name = format!("AzureOpenAI ({})", config.model);
         Self {
             api_version: DEFAULT_API_VERSION.to_string(),
             config,
@@ -87,6 +89,7 @@ impl AzureOpenAIProvider {
                 .connect_timeout(std::time::Duration::from_secs(10))
                 .build()
                 .unwrap_or_else(|_| reqwest::Client::new()),
+            display_name,
         }
     }
 
@@ -126,7 +129,7 @@ impl AzureOpenAIProvider {
 
 #[async_trait]
 impl AIProvider for AzureOpenAIProvider {
-    fn name(&self) -> &str { "AzureOpenAI" }
+    fn name(&self) -> &str { &self.display_name }
 
     async fn is_available(&self) -> bool {
         self.config.api_key.is_some() && self.config.api_url.is_some()

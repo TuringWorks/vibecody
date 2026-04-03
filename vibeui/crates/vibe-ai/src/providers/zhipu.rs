@@ -17,13 +17,16 @@ const ZHIPU_BASE_URL: &str = "https://open.bigmodel.cn/api/paas/v4";
 pub struct ZhipuProvider {
     config: ProviderConfig,
     client: reqwest::Client,
+    display_name: String,
 }
 
 impl ZhipuProvider {
     pub fn new(config: ProviderConfig) -> Self {
+        let display_name = format!("Zhipu ({})", config.model);
         Self {
             config,
             client: openai_compat::default_http_client(),
+            display_name,
         }
     }
 
@@ -149,7 +152,7 @@ fn base64_url_encode(data: &[u8]) -> String {
 
 #[async_trait]
 impl AIProvider for ZhipuProvider {
-    fn name(&self) -> &str { "Zhipu" }
+    fn name(&self) -> &str { &self.display_name }
 
     async fn is_available(&self) -> bool { self.config.api_key.is_some() }
 

@@ -13,13 +13,16 @@ const SAMBANOVA_BASE_URL: &str = "https://api.sambanova.ai/v1";
 pub struct SambaNovaProvider {
     config: ProviderConfig,
     client: reqwest::Client,
+    display_name: String,
 }
 
 impl SambaNovaProvider {
     pub fn new(config: ProviderConfig) -> Self {
+        let display_name = format!("SambaNova ({})", config.model);
         Self {
             config,
             client: openai_compat::default_http_client(),
+            display_name,
         }
     }
 
@@ -48,7 +51,7 @@ impl SambaNovaProvider {
 
 #[async_trait]
 impl AIProvider for SambaNovaProvider {
-    fn name(&self) -> &str { "SambaNova" }
+    fn name(&self) -> &str { &self.display_name }
 
     async fn is_available(&self) -> bool { self.config.api_key.is_some() }
 

@@ -14,13 +14,16 @@ const MISTRAL_BASE_URL: &str = "https://api.mistral.ai/v1";
 pub struct MistralProvider {
     config: ProviderConfig,
     client: reqwest::Client,
+    display_name: String,
 }
 
 impl MistralProvider {
     pub fn new(config: ProviderConfig) -> Self {
+        let display_name = format!("Mistral ({})", config.model);
         Self {
             config,
             client: openai_compat::default_http_client(),
+            display_name,
         }
     }
 
@@ -49,7 +52,7 @@ impl MistralProvider {
 
 #[async_trait]
 impl AIProvider for MistralProvider {
-    fn name(&self) -> &str { "Mistral" }
+    fn name(&self) -> &str { &self.display_name }
 
     async fn is_available(&self) -> bool { self.config.api_key.is_some() }
 

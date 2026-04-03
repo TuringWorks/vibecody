@@ -150,10 +150,12 @@ struct ConverseUsage {
 pub struct BedrockProvider {
     config: ProviderConfig,
     client: reqwest::Client,
+    display_name: String,
 }
 
 impl BedrockProvider {
     pub fn new(config: ProviderConfig) -> Self {
+        let display_name = format!("Bedrock ({})", config.model);
         Self {
             config,
             client: reqwest::Client::builder()
@@ -161,6 +163,7 @@ impl BedrockProvider {
                 .connect_timeout(std::time::Duration::from_secs(10))
                 .build()
                 .unwrap_or_else(|_| reqwest::Client::new()),
+            display_name,
         }
     }
 
@@ -314,7 +317,7 @@ fn epoch_days_to_ymd(z: u64) -> (u32, u32, u32) {
 
 #[async_trait]
 impl AIProvider for BedrockProvider {
-    fn name(&self) -> &str { "Bedrock" }
+    fn name(&self) -> &str { &self.display_name }
 
     async fn is_available(&self) -> bool {
         !self.access_key().is_empty() && !self.secret_key().is_empty()

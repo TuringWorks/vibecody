@@ -13,13 +13,16 @@ const MINIMAX_BASE_URL: &str = "https://api.minimax.chat/v1";
 pub struct MiniMaxProvider {
     config: ProviderConfig,
     client: reqwest::Client,
+    display_name: String,
 }
 
 impl MiniMaxProvider {
     pub fn new(config: ProviderConfig) -> Self {
+        let display_name = format!("MiniMax ({})", config.model);
         Self {
             config,
             client: openai_compat::default_http_client(),
+            display_name,
         }
     }
 
@@ -48,7 +51,7 @@ impl MiniMaxProvider {
 
 #[async_trait]
 impl AIProvider for MiniMaxProvider {
-    fn name(&self) -> &str { "MiniMax" }
+    fn name(&self) -> &str { &self.display_name }
 
     async fn is_available(&self) -> bool { self.config.api_key.is_some() }
 

@@ -106,10 +106,12 @@ pub struct CopilotProvider {
     config: ProviderConfig,
     client: reqwest::Client,
     token_cache: Arc<Mutex<Option<CopilotToken>>>,
+    display_name: String,
 }
 
 impl CopilotProvider {
     pub fn new(config: ProviderConfig) -> Self {
+        let display_name = format!("Copilot ({})", config.model);
         Self {
             config,
             client: reqwest::Client::builder()
@@ -118,6 +120,7 @@ impl CopilotProvider {
                 .build()
                 .unwrap_or_else(|_| reqwest::Client::new()),
             token_cache: Arc::new(Mutex::new(None)),
+            display_name,
         }
     }
 
@@ -197,7 +200,7 @@ impl CopilotProvider {
 
 #[async_trait]
 impl AIProvider for CopilotProvider {
-    fn name(&self) -> &str { "Copilot" }
+    fn name(&self) -> &str { &self.display_name }
 
     async fn is_available(&self) -> bool {
         !self.github_token().is_empty()

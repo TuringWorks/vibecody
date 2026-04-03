@@ -13,13 +13,16 @@ const FIREWORKS_BASE_URL: &str = "https://api.fireworks.ai/inference/v1";
 pub struct FireworksProvider {
     config: ProviderConfig,
     client: reqwest::Client,
+    display_name: String,
 }
 
 impl FireworksProvider {
     pub fn new(config: ProviderConfig) -> Self {
+        let display_name = format!("Fireworks AI ({})", config.model);
         Self {
             config,
             client: openai_compat::default_http_client(),
+            display_name,
         }
     }
 
@@ -48,7 +51,7 @@ impl FireworksProvider {
 
 #[async_trait]
 impl AIProvider for FireworksProvider {
-    fn name(&self) -> &str { "Fireworks AI" }
+    fn name(&self) -> &str { &self.display_name }
 
     async fn is_available(&self) -> bool { self.config.api_key.is_some() }
 

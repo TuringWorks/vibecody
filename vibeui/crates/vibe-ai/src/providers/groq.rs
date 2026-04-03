@@ -14,13 +14,16 @@ const GROQ_BASE_URL: &str = "https://api.groq.com/openai/v1";
 pub struct GroqProvider {
     config: ProviderConfig,
     client: reqwest::Client,
+    display_name: String,
 }
 
 impl GroqProvider {
     pub fn new(config: ProviderConfig) -> Self {
+        let display_name = format!("Groq ({})", config.model);
         Self {
             config,
             client: openai_compat::default_http_client(),
+            display_name,
         }
     }
 
@@ -49,7 +52,7 @@ impl GroqProvider {
 
 #[async_trait]
 impl AIProvider for GroqProvider {
-    fn name(&self) -> &str { "Groq" }
+    fn name(&self) -> &str { &self.display_name }
 
     async fn is_available(&self) -> bool { self.config.api_key.is_some() }
 

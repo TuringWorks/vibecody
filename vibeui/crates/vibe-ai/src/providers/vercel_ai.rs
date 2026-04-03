@@ -12,13 +12,16 @@ use async_trait::async_trait;
 pub struct VercelAIProvider {
     config: ProviderConfig,
     client: reqwest::Client,
+    display_name: String,
 }
 
 impl VercelAIProvider {
     pub fn new(config: ProviderConfig) -> Self {
+        let display_name = format!("VercelAI ({})", config.model);
         Self {
             config,
             client: openai_compat::default_http_client(),
+            display_name,
         }
     }
 
@@ -47,7 +50,7 @@ impl VercelAIProvider {
 
 #[async_trait]
 impl AIProvider for VercelAIProvider {
-    fn name(&self) -> &str { "VercelAI" }
+    fn name(&self) -> &str { &self.display_name }
 
     async fn is_available(&self) -> bool {
         self.config.api_key.is_some() && self.config.api_url.is_some()
