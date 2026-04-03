@@ -13,13 +13,17 @@ import type { InlineChatSelection } from "./components/InlineChat";
 import { Terminal } from "./components/Terminal";
 import { BrowserPanel } from "./components/BrowserPanel";
 import { detectLanguage, getFileIcon } from "./utils/fileUtils";
+import { ImageViewer, isImageFile } from "./components/ImageViewer";
+import { DocumentViewer, isDocumentFile } from "./components/DocumentViewer";
 import "./App.css";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { CommandPalette, Command } from "./components/CommandPalette";
 import Modal from "./components/Modal";
 import { GitPanel } from "./components/GitPanel";
 import { MarkdownPreview } from "./components/MarkdownPreview";
-import { FilePlus, FolderPlus, FolderOpen, Files, Search, GitGraph, Settings, Menu, MessageSquare, Save, Terminal as TerminalIcon, PanelLeft, Puzzle, Hand, Sparkles, Bot, Rocket, Plug, Eye, FileText, GraduationCap, LayoutGrid, Play, Shield, TestTube, ClipboardList, Hammer } from "lucide-react";
+import { HtmlPreview } from "./components/HtmlPreview";
+import { DrawioPreview } from "./components/DrawioPreview";
+import { FileCode, Globe, FilePlus, FolderPlus, FolderOpen, Files, Search, GitGraph, Settings, Menu, MessageSquare, Save, Terminal as TerminalIcon, PanelLeft, Puzzle, Hand, Sparkles, Bot, Rocket, Plug, Eye, FileText, GraduationCap, LayoutGrid, Play, Shield, TestTube, ClipboardList, Hammer, Image, MonitorPlay } from "lucide-react";
 import "./ActivityBar.css";
 import { ExtensionManager } from "./extensions/ExtensionManager";
 // Import worker using Vite's syntax
@@ -61,6 +65,12 @@ interface OpenFile {
   content: string;
   language: string;
   isDirty: boolean;
+  /** When true, the file is an image and content is base64-encoded binary data */
+  isImage?: boolean;
+  /** When true, the file is a document (PDF/EPUB) and content is base64-encoded binary data */
+  isDocument?: boolean;
+  /** Base64-encoded binary data for images and documents */
+  base64Data?: string;
 }
 
 function App() {
@@ -101,6 +111,10 @@ function App() {
   }>({ title: '', placeholder: '', onConfirm: () => { } });
   const [currentDirectory, setCurrentDirectory] = useState<string | null>(null);
   const [pendingDiff, setPendingDiff] = useState<{ path: string; original: string; modified: string } | null>(null);
+  // Ref mirror of pendingDiff so the DiffReviewPanel onApply callback always
+  // sees the current value rather than a stale closure capture.
+  const pendingDiffRef = useRef(pendingDiff);
+  pendingDiffRef.current = pendingDiff;
 
   // Collab (CRDT multiplayer)
   const collab = useCollab();
@@ -123,8 +137,11 @@ function App() {
   const [aiPanelWidth, setAiPanelWidth] = useState(480);
   const [isResizing, setIsResizing] = useState<'sidebar' | 'terminal' | 'aipanel' | null>(null);
 
-  // Markdown Preview State
+  // Preview State
   const [showMarkdownPreview, setShowMarkdownPreview] = useState(false);
+  const [showHtmlPreview, setShowHtmlPreview] = useState(false);
+  const [showSvgPreview, setShowSvgPreview] = useState(false);
+  const [showDrawioPreview, setShowDrawioPreview] = useState(false);
 
   // Git Diff View State
   const [gitDiffView, setGitDiffView] = useState<{ file: string; original: string; modified: string } | null>(null);
@@ -353,8 +370,45 @@ function App() {
     }
 
     try {
-      const content = await invoke<string>("read_file", { path });
       const filename = path.split('/').pop() || path.split('\\').pop() || '';
+
+      // ── Image files → read as base64 binary ────────────────────
+      if (isImageFile(filename)) {
+        // Always get base64 for raster images
+        const base64Data = await invoke<string>("read_file_base64", { path });
+
+        setOpenFiles(prev => [...prev, {
+          path,
+          content: `[Image: ${filename}]`,
+          language: 'plaintext',
+          isDirty: false,
+          isImage: true,
+          base64Data,
+        }]);
+        setActiveFilePath(path);
+        invoke("track_flow_event", { kind: "file_open", data: path }).catch(() => {});
+        return;
+      }
+
+      // ── Document files (PDF, EPUB) → read as base64 binary ─────
+      if (isDocumentFile(filename)) {
+        const base64Data = await invoke<string>("read_file_base64", { path });
+
+        setOpenFiles(prev => [...prev, {
+          path,
+          content: `[Document: ${filename}]`,
+          language: 'plaintext',
+          isDirty: false,
+          isDocument: true,
+          base64Data,
+        }]);
+        setActiveFilePath(path);
+        invoke("track_flow_event", { kind: "file_open", data: path }).catch(() => {});
+        return;
+      }
+
+      // ── Text files → normal Monaco flow ─────────────────────────
+      const content = await invoke<string>("read_file", { path });
       const language = detectLanguage(filename);
 
       setOpenFiles(prev => [...prev, {
@@ -428,6 +482,9 @@ function App() {
     position: { top: number; left: number };
   } | null>(null);
   const editorRef = useRef<any>(null);
+  // Ref mirror of currentDirectory for use inside async callbacks that outlive a render
+  const currentDirectoryRef = useRef(currentDirectory);
+  currentDirectoryRef.current = currentDirectory;
 
   // Recent edits buffer for next-edit prediction
   const recentEditsRef = useRef<Array<{
@@ -459,6 +516,7 @@ function App() {
       { id: "erlang", extensions: [".erl", ".hrl"], aliases: ["Erlang"] },
       { id: "racket", extensions: [".rkt"], aliases: ["Racket"] },
       { id: "vala", extensions: [".vala"], aliases: ["Vala"] },
+      { id: "postscript", extensions: [".ps", ".eps"], aliases: ["PostScript", "PS", "EPS"] },
     ];
     const registered = new Set(monaco.languages.getLanguages().map((l: { id: string }) => l.id));
     for (const lang of extraLangs) {
@@ -700,12 +758,21 @@ function App() {
       if (!model) return;
       const now = Date.now();
       for (const change of event.changes) {
+        // old_text extraction is best-effort: after the model is updated,
+        // the old range may no longer be valid (e.g. bulk content replacement
+        // during diff apply). Wrap in try-catch to prevent crash.
+        let oldText = "";
+        if (change.rangeLength > 0) {
+          try {
+            oldText = model.getValueInRange(change.range).slice(0, 50);
+          } catch (_e) {
+            // Range out of bounds on the new model — expected during diff apply
+          }
+        }
         recentEditsRef.current.push({
           line: change.range.startLineNumber - 1,
           col: change.range.startColumn - 1,
-          old_text: change.rangeLength > 0
-            ? model.getValueInRange(change.range).slice(0, 50)
-            : "",
+          old_text: oldText,
           new_text: change.text.slice(0, 50),
           elapsed_ms: now, // store creation timestamp; converted to relative age at read time
         });
@@ -1274,6 +1341,30 @@ function App() {
               {showMarkdownPreview ? <><FileText size={14} strokeWidth={1.5} /> Edit</> : <><Eye size={14} strokeWidth={1.5} /> Preview</>}
             </button>
           )}
+          {currentFile && (currentFile.endsWith('.html') || currentFile.endsWith('.htm')) && (
+            <button
+              className="btn-secondary"
+              onClick={() => setShowHtmlPreview(!showHtmlPreview)}
+            >
+              {showHtmlPreview ? <><FileCode size={14} strokeWidth={1.5} /> Edit</> : <><Globe size={14} strokeWidth={1.5} /> Preview</>}
+            </button>
+          )}
+          {currentFile && currentFile.endsWith('.svg') && (
+            <button
+              className="btn-secondary"
+              onClick={() => setShowSvgPreview(!showSvgPreview)}
+            >
+              {showSvgPreview ? <><FileCode size={14} strokeWidth={1.5} /> Edit</> : <><Image size={14} strokeWidth={1.5} /> Preview</>}
+            </button>
+          )}
+          {currentFile && (currentFile.endsWith('.drawio') || currentFile.endsWith('.dio')) && (
+            <button
+              className="btn-secondary"
+              onClick={() => setShowDrawioPreview(!showDrawioPreview)}
+            >
+              {showDrawioPreview ? <><FileCode size={14} strokeWidth={1.5} /> Edit</> : <><MonitorPlay size={14} strokeWidth={1.5} /> Preview</>}
+            </button>
+          )}
           <NotificationCenter
             notifications={notifications}
             unreadCount={unreadCount}
@@ -1660,7 +1751,8 @@ function App() {
                     filePath={pendingDiff.path}
                     onApply={(result) => {
                       try {
-                        const diffPath = pendingDiff?.path;
+                        // Read from ref instead of closure to avoid stale state
+                        const diffPath = pendingDiffRef.current?.path;
 
                         if (result !== null && diffPath) {
                           const language = detectLanguage(diffPath);
@@ -1671,7 +1763,12 @@ function App() {
                           });
                           setActiveFilePath(diffPath);
                           invoke("write_file", { path: diffPath, content: result })
-                            .then(() => { if (currentDirectory) loadDirectory(currentDirectory); })
+                            .then(() => {
+                              // Use ref to get the current directory at the time the
+                              // promise resolves, not the stale closure value.
+                              const dir = currentDirectoryRef.current;
+                              if (dir) loadDirectory(dir);
+                            })
                             .catch((err) => console.error("Failed to write file:", err));
                         }
 
@@ -1691,8 +1788,25 @@ function App() {
                   This prevents Monaco from being destroyed/recreated on every Apply cycle. */}
               <div style={{ height: 'calc(100% - 35px)', display: pendingDiff ? 'none' : 'block' }}>
                 {activeFile ? (
-                  showMarkdownPreview && currentFile?.endsWith('.md') ? (
+                  activeFile.isImage ? (
+                    <ImageViewer
+                      filePath={activeFile.path}
+                      base64Data={activeFile.base64Data || ''}
+                      rawContent={activeFile.content}
+                    />
+                  ) : activeFile.isDocument ? (
+                    <DocumentViewer
+                      filePath={activeFile.path}
+                      base64Data={activeFile.base64Data || ''}
+                    />
+                  ) : showMarkdownPreview && currentFile?.endsWith('.md') ? (
                     <MarkdownPreview content={editorContent} />
+                  ) : showHtmlPreview && (currentFile?.endsWith('.html') || currentFile?.endsWith('.htm')) ? (
+                    <HtmlPreview content={editorContent} filePath={currentFile} />
+                  ) : showSvgPreview && currentFile?.endsWith('.svg') ? (
+                    <HtmlPreview content={editorContent} filePath={currentFile} />
+                  ) : showDrawioPreview && (currentFile?.endsWith('.drawio') || currentFile?.endsWith('.dio')) ? (
+                    <DrawioPreview content={editorContent} filePath={currentFile} />
                   ) : (
                     <Editor
                       height="100%"
@@ -1907,7 +2021,7 @@ function App() {
               {currentFile.split('/').pop()} <span className="status-file-dir">— {currentFile}</span>
             </span>
           )}
-          {currentFile && <span>• {editorLanguage}</span>}
+          {currentFile && <span>• {activeFile?.isImage ? 'Image' : editorLanguage}</span>}
           {gitStatus && (
             <span style={{ marginLeft: '10px', display: 'flex', alignItems: 'center', gap: '4px' }}>
               <span style={{ fontSize: '10px' }}>Branch:</span>
@@ -1926,7 +2040,7 @@ function App() {
             {modKey}K Command Palette
           </button>
           <ThemeToggle />
-          {currentFile && (
+          {currentFile && !activeFile?.isImage && (
             <>
               <span>Lines: {editorContent.split("\n").length}</span>
               <span>•</span>

@@ -1,0 +1,435 @@
+/* ── DocumentViewer — PDF / EPUB viewer for the editor area ────────── */
+
+.document-viewer {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary);
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* ── Toolbar ──────────────────────────────────────────────────────── */
+
+.document-viewer-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.document-viewer-toolbar .toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.document-viewer-toolbar .toolbar-separator {
+  width: 1px;
+  height: 18px;
+  background: var(--border-color);
+  margin: 0 6px;
+}
+
+.document-viewer-toolbar button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.15s ease;
+}
+
+.document-viewer-toolbar button:hover {
+  background: var(--bg-tertiary, var(--bg-secondary));
+  color: var(--text-primary);
+  border-color: var(--accent-blue);
+}
+
+.document-viewer-toolbar button:active {
+  transform: scale(0.95);
+}
+
+.document-viewer-toolbar button.active {
+  background: var(--accent-blue);
+  color: var(--btn-primary-fg, #fff);
+  border-color: var(--accent-blue);
+}
+
+.document-viewer-toolbar button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.document-viewer-toolbar button.toolbar-btn-wide,
+.document-viewer-toolbar .toolbar-btn-wide {
+  width: auto;
+  padding: 0 8px;
+  font-size: 11px;
+}
+
+.document-viewer-toolbar .zoom-label {
+  min-width: 48px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.document-viewer-toolbar .chapter-label {
+  min-width: 80px;
+}
+
+.document-viewer-toolbar .font-label {
+  min-width: 40px;
+}
+
+.document-viewer-toolbar .file-info {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-muted, var(--text-secondary));
+  font-size: 11px;
+}
+
+.document-viewer-toolbar .file-info .info-badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  font-family: var(--font-mono);
+}
+
+/* ── Canvas area ─────────────────────────────────────────────────── */
+
+.document-viewer-canvas {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+  background: var(--bg-primary);
+}
+
+/* ── PDF embed ───────────────────────────────────────────────────── */
+
+.pdf-embed-wrapper {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  transition: transform 0.15s ease;
+}
+
+.pdf-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: white;
+}
+
+/* ── EPUB layout ─────────────────────────────────────────────────── */
+
+.epub-viewer {
+  display: flex;
+  flex-direction: column;
+}
+
+.epub-content-area {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* ── EPUB Table of Contents sidebar ──────────────────────────────── */
+
+.epub-toc {
+  width: 240px;
+  min-width: 200px;
+  max-width: 320px;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border-color);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.epub-toc-header {
+  padding: 10px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.epub-toc-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  width: 100%;
+  border-left: 3px solid transparent;
+}
+
+.epub-toc-item:hover {
+  background: var(--bg-tertiary, var(--bg-primary));
+  color: var(--text-primary);
+}
+
+.epub-toc-item.active {
+  background: color-mix(in srgb, var(--accent-blue) 12%, transparent);
+  color: var(--accent-blue);
+  border-left-color: var(--accent-blue);
+  font-weight: 500;
+}
+
+.epub-toc-item .toc-number {
+  min-width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  background: var(--bg-primary);
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+
+.epub-toc-item.active .toc-number {
+  background: var(--accent-blue);
+  color: var(--btn-primary-fg, #fff);
+}
+
+.epub-toc-item .toc-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── EPUB chapter content ────────────────────────────────────────── */
+
+.epub-chapter-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 32px 48px;
+  max-width: 900px;
+  margin: 0 auto;
+  line-height: 1.7;
+  color: var(--text-primary);
+  -webkit-user-select: text;
+  user-select: text;
+  scroll-behavior: smooth;
+}
+
+.epub-chapter-title {
+  font-size: 1.5em;
+  font-weight: 700;
+  margin-bottom: 24px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--border-color);
+  color: var(--text-primary);
+}
+
+.epub-chapter-body {
+  font-family: Georgia, 'Times New Roman', serif;
+}
+
+.epub-chapter-body h1,
+.epub-chapter-body h2,
+.epub-chapter-body h3,
+.epub-chapter-body h4 {
+  color: var(--text-primary);
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+  line-height: 1.3;
+}
+
+.epub-chapter-body h1 { font-size: 1.8em; }
+.epub-chapter-body h2 { font-size: 1.4em; }
+.epub-chapter-body h3 { font-size: 1.2em; }
+
+.epub-chapter-body p {
+  margin: 0 0 1em 0;
+  text-align: justify;
+}
+
+.epub-chapter-body blockquote {
+  border-left: 3px solid var(--accent-blue);
+  margin: 1em 0;
+  padding: 8px 16px;
+  background: color-mix(in srgb, var(--accent-blue) 5%, var(--bg-primary));
+  border-radius: 0 4px 4px 0;
+  font-style: italic;
+  color: var(--text-secondary);
+}
+
+.epub-chapter-body a {
+  color: var(--accent-blue);
+  text-decoration: none;
+}
+
+.epub-chapter-body a:hover {
+  text-decoration: underline;
+}
+
+.epub-chapter-body img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  margin: 1em 0;
+}
+
+.epub-chapter-body pre,
+.epub-chapter-body code {
+  font-family: var(--font-mono);
+  background: var(--bg-secondary);
+  border-radius: 4px;
+}
+
+.epub-chapter-body code {
+  padding: 2px 4px;
+  font-size: 0.9em;
+}
+
+.epub-chapter-body pre {
+  padding: 12px 16px;
+  overflow-x: auto;
+  margin: 1em 0;
+}
+
+.epub-chapter-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1em 0;
+}
+
+/* ── Dynamic font sizes for EPUB reader ──────────────────────────── */
+
+.font-size-10 { font-size: 10px; }
+.font-size-12 { font-size: 12px; }
+.font-size-14 { font-size: 14px; }
+.font-size-16 { font-size: 16px; }
+.font-size-18 { font-size: 18px; }
+.font-size-20 { font-size: 20px; }
+.font-size-22 { font-size: 22px; }
+.font-size-24 { font-size: 24px; }
+.font-size-26 { font-size: 26px; }
+.font-size-28 { font-size: 28px; }
+.font-size-30 { font-size: 30px; }
+.font-size-32 { font-size: 32px; }
+
+.epub-chapter-body th,
+.epub-chapter-body td {
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  text-align: left;
+}
+
+.epub-chapter-body th {
+  background: var(--bg-secondary);
+  font-weight: 600;
+}
+
+/* ── EPUB info fallback ──────────────────────────────────────────── */
+
+.epub-info {
+  text-align: center;
+  padding: 48px 24px;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.epub-info h2 {
+  font-size: 24px;
+  margin-bottom: 12px;
+}
+
+.epub-info p {
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  line-height: 1.6;
+}
+
+.epub-info hr {
+  border: none;
+  border-top: 1px solid var(--border-color);
+  margin: 24px 0;
+}
+
+/* ── Loading state ───────────────────────────────────────────────── */
+
+.document-viewer-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 12px;
+  color: var(--text-secondary);
+}
+
+.doc-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border-color);
+  border-top-color: var(--accent-blue);
+  border-radius: 50%;
+  animation: doc-spin 0.8s linear infinite;
+}
+
+@keyframes doc-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Error state ─────────────────────────────────────────────────── */
+
+.document-viewer-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 12px;
+  color: var(--error-color, #e53e3e);
+  padding: 24px;
+  text-align: center;
+}
+
+.document-viewer-error .error-icon {
+  font-size: 32px;
+  opacity: 0.7;
+}
+
+.document-viewer-error .error-message {
+  font-size: 13px;
+  max-width: 400px;
+  line-height: 1.5;
+}

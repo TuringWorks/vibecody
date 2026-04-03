@@ -101,6 +101,7 @@ export function detectLanguage(filename: string): string {
         'md': 'markdown', 'markdown': 'markdown', 'mdx': 'markdown',
         'rst': 'plaintext', 'tex': 'plaintext', 'latex': 'plaintext',
         'txt': 'plaintext',
+        'ps': 'postscript', 'eps': 'postscript',  // PostScript files (text-based)
 
         // SQL
         'sql': 'sql', 'mysql': 'mysql', 'pgsql': 'pgsql',
@@ -151,7 +152,7 @@ const FILE_ICONS: Record<string, LucideIcon> = {
     rb: Gem, php: FileCode,
     html: Globe, css: Palette, scss: Palette,
     json: Braces, yaml: Settings, yml: Settings, toml: Settings, xml: FileCode,
-    md: FileText, txt: File, pdf: BookOpen,
+    md: FileText, txt: File, pdf: BookOpen, epub: BookOpen, ps: FileText, eps: FileText,
     png: Image, jpg: Image, jpeg: Image, gif: Image, svg: Paintbrush,
     zip: Archive, tar: Archive, gz: Archive,
 };

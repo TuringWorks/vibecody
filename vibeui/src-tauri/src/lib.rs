@@ -239,6 +239,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::read_file,
+            commands::read_file_base64,
             commands::write_file,
             commands::list_directory,
             commands::create_directory,
