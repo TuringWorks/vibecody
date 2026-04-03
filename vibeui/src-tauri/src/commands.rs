@@ -2360,7 +2360,7 @@ async fn process_tool_calls(response: &str, workspace_lock: &Arc<Mutex<Workspace
                 }
             }
         }
-    } else if response.contains("<build />") || response.contains("<build/>") {
+    } else if response.contains("<build />") || response.contains("<build/>") || response.contains("<build>") {
         let systems = detect_build_system(ws_root_str.clone()).await.unwrap_or_default();
         if let Some(sys) = systems.first() {
             match std::process::Command::new("sh").arg("-c").arg(&sys.build_command).current_dir(&ws_root_str).output() {
@@ -2405,7 +2405,7 @@ async fn process_tool_calls(response: &str, workspace_lock: &Arc<Mutex<Workspace
                 break;
             }
         }
-        if !found_run_cmd && (response.contains("<run />") || response.contains("<run/>")) {
+        if !found_run_cmd && (response.contains("<run />") || response.contains("<run/>") || response.contains("<run>")) {
         let systems = detect_build_system(ws_root_str.clone()).await.unwrap_or_default();
         if let Some(sys) = systems.first() {
             match std::process::Command::new("sh").arg("-c").arg(&sys.run_command).current_dir(&ws_root_str).output() {
