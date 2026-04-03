@@ -1754,32 +1754,44 @@ function App() {
                       modified={pendingDiff.modified}
                       filePath={pendingDiff.path}
                       onApply={(result) => {
-                        try {
-                          const diffPath = pendingDiffRef.current?.path;
+                        const diffPath = pendingDiffRef.current?.path;
 
-                          if (result !== null && diffPath) {
-                            const language = detectLanguage(diffPath);
-                            setOpenFiles((prev) => {
-                              const exists = prev.some((f) => f.path === diffPath);
-                              if (exists) return prev.map((f) => f.path === diffPath ? { ...f, content: result, isDirty: false } : f);
-                              return [...prev, { path: diffPath, content: result, language, isDirty: false }];
-                            });
-                            setActiveFilePath(diffPath);
-                            invoke("write_file", { path: diffPath, content: result })
-                              .then(() => {
-                                const dir = currentDirectoryRef.current;
-                                if (dir) loadDirectory(dir);
-                              })
-                              .catch((err) => console.error("Failed to write file:", err));
+                        // 1. Close the diff panel FIRST — before touching editor state.
+                        //    This removes the overlay; the editor underneath still shows
+                        //    the OLD content (which is fine for one frame).
+                        setPendingDiff(null);
+                        window.dispatchEvent(new Event("vibeui:diff-resolved"));
+
+                        if (result === null || !diffPath) return;
+
+                        // 2. Write to disk immediately (doesn't touch React state).
+                        invoke("write_file", { path: diffPath, content: result })
+                          .then(() => {
+                            const dir = currentDirectoryRef.current;
+                            if (dir) loadDirectory(dir);
+                          })
+                          .catch((err) => console.error("Failed to write file:", err));
+
+                        // 3. Update editor content via ref to avoid React re-render race.
+                        //    Monaco handles setValue() safely when it's visible and idle.
+                        const editor = editorRef.current;
+                        if (editor) {
+                          const model = editor.getModel();
+                          if (model) {
+                            model.setValue(result);
                           }
-
-                          setPendingDiff(null);
-                          window.dispatchEvent(new Event("vibeui:diff-resolved"));
-                        } catch (err) {
-                          console.error("Apply failed:", err);
-                          setPendingDiff(null);
-                          window.dispatchEvent(new Event("vibeui:diff-resolved"));
                         }
+
+                        // 4. Sync React file state in the NEXT frame, after Monaco is settled.
+                        requestAnimationFrame(() => {
+                          const language = detectLanguage(diffPath);
+                          setOpenFiles((prev) => {
+                            const exists = prev.some((f: any) => f.path === diffPath);
+                            if (exists) return prev.map((f: any) => f.path === diffPath ? { ...f, content: result, isDirty: false } : f);
+                            return [...prev, { path: diffPath, content: result, language, isDirty: false }];
+                          });
+                          setActiveFilePath(diffPath);
+                        });
                       }}
                     />
                   </div>
