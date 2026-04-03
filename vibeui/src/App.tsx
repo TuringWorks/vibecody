@@ -1741,57 +1741,52 @@ function App() {
             </div>
           ) : (
             <>
-              {/* DiffReviewPanel — shown on top of the editor when a diff is pending */}
-              {pendingDiff && (
-                <div style={{ height: 'calc(100% - 35px)', position: 'relative', zIndex: 2 }}>
-                  <DiffReviewPanel
-                    key={pendingDiff.path}
-                    original={pendingDiff.original}
-                    modified={pendingDiff.modified}
-                    filePath={pendingDiff.path}
-                    onApply={(result) => {
-                      try {
-                        // Read from ref instead of closure to avoid stale state
-                        const diffPath = pendingDiffRef.current?.path;
+              {/* Editor area — both editor and DiffReviewPanel live in this container.
+                  DiffReviewPanel overlays the editor with absolute positioning so Monaco
+                  is NEVER unmounted or hidden. This prevents all Apply-related crashes. */}
+              <div style={{ height: 'calc(100% - 35px)', position: 'relative' }}>
+                {/* DiffReviewPanel — absolutely positioned overlay */}
+                {pendingDiff && (
+                  <div style={{ position: 'absolute', inset: 0, zIndex: 2, background: 'var(--bg-primary)' }}>
+                    <DiffReviewPanel
+                      key={pendingDiff.path}
+                      original={pendingDiff.original}
+                      modified={pendingDiff.modified}
+                      filePath={pendingDiff.path}
+                      onApply={(result) => {
+                        try {
+                          const diffPath = pendingDiffRef.current?.path;
 
-                        if (result !== null && diffPath) {
-                          const language = detectLanguage(diffPath);
-                          setOpenFiles((prev) => {
-                            const exists = prev.some((f) => f.path === diffPath);
-                            if (exists) return prev.map((f) => f.path === diffPath ? { ...f, content: result, isDirty: false } : f);
-                            return [...prev, { path: diffPath, content: result, language, isDirty: false }];
-                          });
-                          setActiveFilePath(diffPath);
-                          invoke("write_file", { path: diffPath, content: result })
-                            .then(() => {
-                              const dir = currentDirectoryRef.current;
-                              if (dir) loadDirectory(dir);
-                            })
-                            .catch((err) => console.error("Failed to write file:", err));
+                          if (result !== null && diffPath) {
+                            const language = detectLanguage(diffPath);
+                            setOpenFiles((prev) => {
+                              const exists = prev.some((f) => f.path === diffPath);
+                              if (exists) return prev.map((f) => f.path === diffPath ? { ...f, content: result, isDirty: false } : f);
+                              return [...prev, { path: diffPath, content: result, language, isDirty: false }];
+                            });
+                            setActiveFilePath(diffPath);
+                            invoke("write_file", { path: diffPath, content: result })
+                              .then(() => {
+                                const dir = currentDirectoryRef.current;
+                                if (dir) loadDirectory(dir);
+                              })
+                              .catch((err) => console.error("Failed to write file:", err));
+                          }
+
+                          setPendingDiff(null);
+                          window.dispatchEvent(new Event("vibeui:diff-resolved"));
+                        } catch (err) {
+                          console.error("Apply failed:", err);
+                          setPendingDiff(null);
+                          window.dispatchEvent(new Event("vibeui:diff-resolved"));
                         }
+                      }}
+                    />
+                  </div>
+                )}
 
-                        // Defer clearing pendingDiff by one frame so React processes
-                        // setOpenFiles + setActiveFilePath BEFORE Monaco becomes visible.
-                        // Without this, Monaco can render with stale/empty content and crash.
-                        requestAnimationFrame(() => {
-                          setPendingDiff(null);
-                          window.dispatchEvent(new Event("vibeui:diff-resolved"));
-                        });
-                      } catch (err) {
-                        console.error("Apply failed:", err);
-                        requestAnimationFrame(() => {
-                          setPendingDiff(null);
-                          window.dispatchEvent(new Event("vibeui:diff-resolved"));
-                        });
-                      }
-                    }}
-                  />
-                </div>
-              )}
-
-              {/* Editor — always mounted, hidden behind DiffReviewPanel when a diff is active.
-                  This prevents Monaco from being destroyed/recreated on every Apply cycle. */}
-              <div style={{ height: 'calc(100% - 35px)', display: pendingDiff ? 'none' : 'block' }}>
+                {/* Editor — always mounted, never hidden */}
+                <div style={{ height: '100%' }}>
                 {activeFile ? (
                   activeFile.isImage ? (
                     <ImageViewer
@@ -1877,7 +1872,8 @@ function App() {
                     </div>
                   </div>
                 )}
-              </div>
+              </div>{/* end editor */}
+              </div>{/* end editor area container */}
             </>
           )}
         </main>
