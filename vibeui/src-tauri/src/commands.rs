@@ -1430,7 +1430,7 @@ pub async fn stream_chat_message(
                     break;
                 };
                 let content_start = start + path_end_rel + 2;
-                let content = &text[content_start..start + close_rel];
+                let content = text[content_start..start + close_rel].strip_prefix('\n').unwrap_or(&text[content_start..start + close_rel]);
                 let target = if std::path::Path::new(path).is_absolute() {
                     std::path::PathBuf::from(path)
                 } else {
@@ -2236,7 +2236,9 @@ async fn process_tool_calls(response: &str, workspace_lock: &Arc<Mutex<Workspace
             let path = &response[start + write_tag_start.len()..start + path_end];
             if let Some(content_end) = response[start..].find("</write_file>") {
                 let content_start = start + path_end + 2;
-                let content = &response[content_start..start + content_end];
+                let raw_content = &response[content_start..start + content_end];
+                // Strip leading newline that the LLM places after the opening tag
+                let content = raw_content.strip_prefix('\n').unwrap_or(raw_content);
 
                 let target = resolve(path);
                 if let Some(parent) = target.parent() {
