@@ -5,6 +5,40 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.5.4] — 2026-04-03
+
+### Added
+
+- **Claude Code System Prompts** — integrated 254 prompts from TuringWorks/claude-code-system-prompts: core behavioral guidelines (Doing Tasks, Output Efficiency, Executing Actions with Care, Safety) baked into TOOL_SYSTEM_PROMPT; all prompts stored as reference skills in `skills/claude-code-prompts/`.
+- **Auto-mode guidance** — when FullAuto approval policy is active, agent receives autonomous execution rules (minimize interruptions, prefer action, but never destroy data).
+- **Error Boundary** — React ErrorBoundary in main.tsx catches render crashes and shows error + stack trace instead of blank WebView; global error/unhandledrejection handlers log to console.
+- **5 dynamic skill files** — git-commit, pr-creation, security-review, debugging, simplify (auto-activate via SkillLoader trigger keywords).
+- **WebView DevTools** — auto-open in debug builds for crash diagnosis.
+
+### Fixed
+
+- **Incremental file saves during streaming** — `<write_file>` blocks are flushed to disk as soon as the closing tag streams in; if the stream fails, saved files are preserved and listed in the error message.
+- **Leading newline in generated files** — strip `\n` after `<write_file path="...">` that caused XML/compiler failures.
+- **`<build>` and `<run>` tag variants** — recognize `<build></build>` and `<run></run>` in addition to self-closing forms.
+- **Apply crash** — DiffReviewPanel overlays the editor (absolute positioning) and uses 150ms setTimeout to separate panel close from Monaco content update; removed React.StrictMode (double-mount crash source).
+- **Terminal buffer cleared on tab switch** — Terminal and BrowserPanel now stay mounted with display:none/block toggle.
+- **Duplicate provider keys** — 14 providers (Cerebras, Groq, Mistral, DeepSeek, etc.) now return unique `"Provider (model)"` names instead of static strings.
+- **LSP invoke params** — fixed snake_case to camelCase field names (textDocument, triggerKind) for hover, completion, and goto-definition.
+- **Diff review toolbar** — thinner (28px), outlined ghost buttons matching app theme, visible text with ellipsis.
+- **Tool call card icons** — replaced emoji (📝✅❌) with thin-line SVG icons using CSS variables for theme consistency.
+- **VibeUI chat prompt parity** — added behavioral guidelines (read before modify, minimize files, security-first, one file per response) to match TOOL_SYSTEM_PROMPT.
+
+### Changed
+
+- Agent context window: 80K → 200K tokens; max_steps: 30 → 50.
+- Retry attempts: 4 → 2 (500ms initial, 5s max backoff).
+- Claude max_tokens: 4,096 → 16,384 per response.
+- Ollama num_predict default: 2,048 → 16,384; HTTP timeout: 90s → 300s.
+- Enhanced context compaction with structured summaries (files touched, actions completed).
+- Version bumped to 0.5.4 across all manifests.
+
+---
+
 ## [0.5.3] — 2026-04-02
 
 ### Added
