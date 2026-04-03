@@ -374,15 +374,18 @@ function parseFileReferences(text: string): Array<{ type: "text" | "file"; value
 }
 
 // ── Tool call icon/label helpers ─────────────────────────────────────────────
+// Thin-line SVG icons consistent with the app's dark theme.
 
-function toolIcon(tool: string): string {
+const svgProps = { width: 14, height: 14, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.5, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+
+function ToolIcon({ tool }: { tool: string }) {
   switch (tool) {
-    case "write_file": return "\u{1F4DD}";
-    case "read_file":  return "\u{1F4D6}";
-    case "list_dir":   return "\u{1F4C1}";
-    case "build":      return "\u{1F528}";
-    case "run":        return "\u25B6\uFE0F";
-    default:           return "\u{1F527}";
+    case "write_file": return <svg {...svgProps}><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>;
+    case "read_file":  return <svg {...svgProps}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>;
+    case "list_dir":   return <svg {...svgProps}><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>;
+    case "build":      return <svg {...svgProps}><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>;
+    case "run":        return <svg {...svgProps}><polygon points="5 3 19 12 5 21 5 3"/></svg>;
+    default:           return <svg {...svgProps}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>;
   }
 }
 
@@ -397,11 +400,11 @@ function toolLabel(tool: string, path?: string): string {
   }
 }
 
-function toolStatusIcon(status: "running" | "success" | "error"): string {
+function ToolStatusIcon({ status }: { status: "running" | "success" | "error" }) {
   switch (status) {
-    case "running": return "\u23F3";
-    case "success": return "\u2705";
-    case "error":   return "\u274C";
+    case "running": return <svg {...svgProps} className="spin-icon" style={{ opacity: 0.7 }}><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>;
+    case "success": return <svg {...svgProps} stroke="var(--success-color, #4ade80)"><polyline points="20 6 9 17 4 12"/></svg>;
+    case "error":   return <svg {...svgProps} stroke="var(--error-color, #f87171)"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>;
   }
 }
 
@@ -646,10 +649,10 @@ function ToolCallCard({ call }: { call: ToolCallInfo }) {
   return (
     <div className={`tool-card tool-card-${call.status}`}>
       <div className="tool-card-header" onClick={() => call.output && setExpanded(!expanded)}>
-        <span className="tool-card-icon">{toolIcon(call.tool)}</span>
+        <span className="tool-card-icon"><ToolIcon tool={call.tool} /></span>
         <span className="tool-card-label">{toolLabel(call.tool, call.path)}</span>
         {call.path && <span className="tool-card-path" title={call.path}>{call.path}</span>}
-        <span className="tool-card-status">{toolStatusIcon(call.status)}</span>
+        <span className="tool-card-status"><ToolStatusIcon status={call.status} /></span>
         {call.duration_ms != null && (
           <span className="tool-card-duration">{call.duration_ms}ms</span>
         )}

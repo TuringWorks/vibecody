@@ -456,8 +456,10 @@
 }
 
 .tool-card-icon {
-    font-size: 13px;
+    display: flex;
+    align-items: center;
     flex-shrink: 0;
+    color: var(--text-secondary);
 }
 
 .tool-card-label {
@@ -475,7 +477,8 @@
 }
 
 .tool-card-status {
-    font-size: 12px;
+    display: flex;
+    align-items: center;
     margin-left: auto;
     flex-shrink: 0;
 }
@@ -1467,6 +1470,10 @@
 
 .attachment-spinner {
     animation: spin 1s linear infinite;
+}
+
+.spin-icon {
+    animation: spin 1.2s linear infinite;
 }
 
 @keyframes spin {
