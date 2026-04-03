@@ -472,6 +472,7 @@ async fn start_agent(
             let _ = agent.run(&task, context, event_tx).await;
         });
 
+        let mut completed = false;
         while let Some(event) = event_rx.recv().await {
             let payload = match event {
                 AgentEvent::StreamChunk(text) => AgentEventPayload::chunk(text),
@@ -489,6 +490,7 @@ async fn start_agent(
                     let _ = tx.send(p.clone());
                     let mut s = streams.lock().await;
                     s.remove(&sid);
+                    completed = true;
                     break;
                 }
                 AgentEvent::Error(msg) => {
@@ -502,11 +504,26 @@ async fn start_agent(
                     let _ = tx.send(p.clone());
                     let mut s = streams.lock().await;
                     s.remove(&sid);
+                    completed = true;
                     break;
                 }
                 _ => continue,
             };
             let _ = tx.send(payload);
+        }
+
+        // Fallback: if the agent task exited without sending Complete or Error
+        // (e.g., panic, unexpected return, dropped channel), ensure the SSE
+        // stream gets a completion event so clients don't hang forever.
+        if !completed {
+            if record.status == "running" {
+                record.status = "complete".to_string();
+                record.finished_at = Some(now_ms());
+                persist_job(&jobs_dir, &record);
+            }
+            let _ = tx.send(AgentEventPayload::complete("Agent finished.".into()));
+            let mut s = streams.lock().await;
+            s.remove(&sid);
         }
     });
 

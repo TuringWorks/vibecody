@@ -1093,7 +1093,7 @@ pub async fn run_gateway(
 
                     // Simple direct LLM response (non-agent for speed)
                     let messages = vec![
-                        Message { role: MessageRole::System, content: "You are VibeCLI, an AI coding assistant running as a bot. Be concise and helpful.".to_string() },
+                        Message { role: MessageRole::System, content: "You are Vibe Agent, an AI coding assistant running as a bot. Be concise and helpful.".to_string() },
                         Message { role: MessageRole::User, content: msg.text.clone() },
                     ];
 
@@ -1223,7 +1223,7 @@ pub async fn run_channel_daemon(
                             let agent_messages = vec![
                                 Message {
                                     role: MessageRole::System,
-                                    content: "You are VibeCLI, an autonomous coding assistant. \
+                                    content: "You are Vibe Agent, an autonomous coding assistant. \
                                         Execute the task and report results concisely.".to_string(),
                                 },
                                 Message { role: MessageRole::User, content: prompt },
@@ -1257,7 +1257,7 @@ pub async fn run_channel_daemon(
                             let history = sessions_guard.entry(session_key.clone()).or_insert_with(|| {
                                 vec![Message {
                                     role: MessageRole::System,
-                                    content: "You are VibeCLI, an AI coding assistant running as an always-on bot. \
+                                    content: "You are Vibe Agent, an AI coding assistant running as an always-on bot. \
                                         Be concise and helpful. You have context from the conversation history.".to_string(),
                                 }]
                             });

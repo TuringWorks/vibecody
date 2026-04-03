@@ -61,6 +61,36 @@ function loadSetting(key: string, fallback: string): string {
   return localStorage.getItem(key) ?? fallback;
 }
 
+// ── Well-known models per provider ───────────────────────────────────────────
+
+const PROVIDER_MODELS: Record<string, Array<{ id: string; name: string }>> = {
+  claude: [
+    { id: "claude-opus-4-6", name: "Claude Opus 4.6" },
+    { id: "claude-sonnet-4-6", name: "Claude Sonnet 4.6" },
+    { id: "claude-haiku-4-5-20251001", name: "Claude Haiku 4.5" },
+    { id: "claude-3-5-sonnet-latest", name: "Claude 3.5 Sonnet" },
+    { id: "claude-3-5-haiku-latest", name: "Claude 3.5 Haiku" },
+  ],
+  openai: [
+    { id: "gpt-4o", name: "GPT-4o" },
+    { id: "gpt-4o-mini", name: "GPT-4o Mini" },
+    { id: "gpt-4-turbo", name: "GPT-4 Turbo" },
+    { id: "o1", name: "o1" },
+    { id: "o1-mini", name: "o1 Mini" },
+    { id: "o3-mini", name: "o3 Mini" },
+  ],
+  gemini: [
+    { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro" },
+    { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash" },
+    { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash" },
+  ],
+  grok: [
+    { id: "grok-3", name: "Grok 3" },
+    { id: "grok-3-mini", name: "Grok 3 Mini" },
+    { id: "grok-2-latest", name: "Grok 2" },
+  ],
+};
+
 // ── Main App ──────────────────────────────────────────────────────────────────
 
 export default function App() {
@@ -85,15 +115,12 @@ export default function App() {
       try {
         await invoke("check_daemon", { url: daemonUrl });
         setDaemonOk(true);
-        // Fetch available models
+        // Fetch available models from daemon (primarily Ollama)
         try {
           const models = await invoke<Array<{ id: string; name?: string; provider?: string }>>(
             "list_daemon_models", { url: daemonUrl }
           );
           setAvailableModels(models);
-          if (models.length > 0 && !selectedModel) {
-            setSelectedModel(models[0].id);
-          }
         } catch { /* daemon may not support /models yet */ }
       } catch {
         setDaemonOk(false);
@@ -102,7 +129,26 @@ export default function App() {
     check();
     const id = setInterval(check, 30_000);
     return () => clearInterval(id);
-  }, [daemonUrl]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [daemonUrl]);
+
+  // ── Models filtered by selected provider ────────────────────────────────
+  const filteredModels: Array<{ id: string; name: string; provider?: string }> = (() => {
+    if (provider === "ollama") {
+      // Use daemon-discovered Ollama models
+      return availableModels
+        .filter(m => !m.provider || m.provider === "ollama")
+        .map(m => ({ id: m.id, name: m.name || m.id, provider: m.provider }));
+    }
+    // Cloud providers: use static well-known list
+    return PROVIDER_MODELS[provider] ?? [];
+  })();
+
+  // Auto-select first model when provider changes and current selection doesn't match
+  useEffect(() => {
+    if (filteredModels.length > 0 && !filteredModels.some(m => m.id === selectedModel)) {
+      setSelectedModel(filteredModels[0].id);
+    }
+  }, [provider, filteredModels.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Auto-scroll ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -111,10 +157,12 @@ export default function App() {
 
   // ── Agent stream event listeners ─────────────────────────────────────────
   useEffect(() => {
+    let cancelled = false;
     const unlisteners: Array<() => void> = [];
 
     (async () => {
-      unlisteners.push(await listen<string>("agent:chunk", (e) => {
+      const u1 = await listen<string>("agent:chunk", (e) => {
+        if (cancelled) return;
         setMessages(prev => {
           const copy = [...prev];
           const last = copy[copy.length - 1];
@@ -123,9 +171,12 @@ export default function App() {
           }
           return copy;
         });
-      }));
+      });
+      if (cancelled) { u1(); return; }
+      unlisteners.push(u1);
 
-      unlisteners.push(await listen("agent:complete", () => {
+      const u2 = await listen("agent:complete", () => {
+        if (cancelled) return;
         setMessages(prev => {
           const copy = [...prev];
           const last = copy[copy.length - 1];
@@ -133,9 +184,12 @@ export default function App() {
           return copy;
         });
         setLoading(false);
-      }));
+      });
+      if (cancelled) { u2(); return; }
+      unlisteners.push(u2);
 
-      unlisteners.push(await listen<string>("agent:error", (e) => {
+      const u3 = await listen<string>("agent:error", (e) => {
+        if (cancelled) return;
         setMessages(prev => {
           const copy = [...prev];
           const last = copy[copy.length - 1];
@@ -149,10 +203,15 @@ export default function App() {
           return copy;
         });
         setLoading(false);
-      }));
+      });
+      if (cancelled) { u3(); return; }
+      unlisteners.push(u3);
     })();
 
-    return () => unlisteners.forEach(u => u());
+    return () => {
+      cancelled = true;
+      unlisteners.forEach(u => u());
+    };
   }, []);
 
   // ── Always-on-top toggle ─────────────────────────────────────────────────
@@ -201,7 +260,7 @@ export default function App() {
       ]);
       setLoading(false);
     }
-  }, [input, loading, daemonUrl, provider]);
+  }, [input, loading, daemonUrl, provider, selectedModel, daemonToken]);
 
   // ── Keyboard handler ─────────────────────────────────────────────────────
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -265,15 +324,15 @@ export default function App() {
       </div>
 
       {/* Model selector bar — shown when settings are closed and models are available */}
-      {!showSettings && (selectedModel || availableModels.length > 0) && (
+      {!showSettings && (selectedModel || filteredModels.length > 0) && (
         <div className="model-bar">
-          {availableModels.length > 0 ? (
+          {filteredModels.length > 0 ? (
             <select
               value={selectedModel}
               onChange={e => { setSelectedModel(e.target.value); localStorage.setItem(MODEL_KEY, e.target.value); }}
               title="Select model"
             >
-              {availableModels.map(m => (
+              {filteredModels.map(m => (
                 <option key={m.id} value={m.id}>
                   {m.name || m.id}{m.provider ? ` (${m.provider})` : ""}
                 </option>
@@ -317,9 +376,9 @@ export default function App() {
           </label>
           <label>
             Model
-            {availableModels.length > 0 ? (
+            {filteredModels.length > 0 ? (
               <select value={selectedModel} onChange={e => setSelectedModel(e.target.value)}>
-                {availableModels.map(m => (
+                {filteredModels.map(m => (
                   <option key={m.id} value={m.id}>
                     {m.name || m.id}{m.provider ? ` (${m.provider})` : ""}
                   </option>

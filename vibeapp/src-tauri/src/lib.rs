@@ -29,6 +29,17 @@ pub fn run() {
     }
 
     tauri::Builder::default()
+        .setup(|app| {
+            // Set the window icon so it shows in dock/taskbar (dev + production)
+            use tauri::Manager;
+            if let Some(window) = app.get_webview_window("main") {
+                let icon_bytes: &[u8] = include_bytes!("../icons/128x128.png");
+                let icon = tauri::image::Image::from_bytes(icon_bytes)
+                    .expect("Failed to load app icon");
+                let _ = window.set_icon(icon);
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             commands::set_always_on_top,
             commands::start_drag,

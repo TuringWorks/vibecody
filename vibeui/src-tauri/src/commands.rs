@@ -289,6 +289,17 @@ pub async fn read_file(path: String, state: tauri::State<'_, AppState>) -> Resul
         .map_err(|e| e.to_string())
 }
 
+/// Read a file as base64-encoded binary data.
+/// Used for image files (PNG, JPG, TIFF, WebP, etc.) that cannot be read as UTF-8 text.
+#[tauri::command]
+pub async fn read_file_base64(path: String, state: tauri::State<'_, AppState>) -> Result<String, String> {
+    use base64::Engine;
+    let workspace = state.workspace.lock().await;
+    safe_resolve_path(&workspace, &path)?;
+    let bytes = tokio::fs::read(&path).await.map_err(|e| e.to_string())?;
+    Ok(base64::engine::general_purpose::STANDARD.encode(&bytes))
+}
+
 #[tauri::command]
 pub async fn write_file(
     path: String,
@@ -1080,7 +1091,8 @@ pub async fn send_chat_message(
 
     // Inject system prompt with tools and file tree
     let mut system_prompt = String::from(
-        "You are an advanced coding assistant with access to the file system.\n\
+        "You are Vibe Agent, an advanced coding assistant with access to the file system.\n\
+        Always refer to yourself as Vibe Agent — never use VibeCLI or any other name.\n\
         When the user asks you to create or modify files, you MUST use these XML tags to write files:\n\
         - <write_file path=\"path/to/file\">file content here</write_file>\n\
         - <read_file path=\"path/to/file\" />\n\
@@ -1221,7 +1233,8 @@ pub async fn stream_chat_message(
 
     // Inject system prompt (same as send_chat_message)
     let mut system_prompt = String::from(
-        "You are an advanced coding assistant with access to the file system.\n\
+        "You are Vibe Agent, an advanced coding assistant with access to the file system.\n\
+        Always refer to yourself as Vibe Agent — never use VibeCLI or any other name.\n\
         When the user asks you to create or modify files, you MUST use these XML tags to write files:\n\
         - <write_file path=\"path/to/file\">file content here</write_file>\n\
         - <read_file path=\"path/to/file\" />\n\

@@ -169,7 +169,7 @@ pub async fn stream_agent(
                     if let Ok(ev) = serde_json::from_str::<serde_json::Value>(data) {
                         match ev["type"].as_str() {
                             Some("chunk") => {
-                                if let Some(t) = ev["text"].as_str() {
+                                if let Some(t) = ev["content"].as_str() {
                                     let _ = app.emit("agent:chunk", t.to_string());
                                 }
                             }
@@ -178,7 +178,7 @@ pub async fn stream_agent(
                                 return;
                             }
                             Some("error") => {
-                                let msg = ev["message"]
+                                let msg = ev["content"]
                                     .as_str()
                                     .unwrap_or("unknown error")
                                     .to_string();

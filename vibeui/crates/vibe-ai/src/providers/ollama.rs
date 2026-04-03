@@ -187,53 +187,17 @@ impl OllamaProvider {
             .await
             .context("Failed to parse model list")?;
 
-        // Quick filter: skip known embedding-only model families
+        // Filter out known embedding-only model families and names
         let embedding_families = ["nomic-bert", "bert", "all-minilm"];
-        let candidates: Vec<String> = list.models
+        let embedding_names = ["nomic-embed-text", "all-minilm", "mxbai-embed", "snowflake-arctic-embed"];
+        let chat_models: Vec<String> = list.models
             .into_iter()
-            .filter(|m| !embedding_families.contains(&m.details.family.as_str()))
+            .filter(|m| {
+                !embedding_families.contains(&m.details.family.as_str())
+                    && !embedding_names.iter().any(|prefix| m.name.starts_with(prefix))
+            })
             .map(|m| m.name)
             .collect();
-
-        // Probe each candidate with /api/chat to confirm chat support.
-        // Use a short timeout per probe — cloud models respond quickly,
-        // local models may take a moment but the error is instant.
-        let probe_client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(5))
-            .build()
-            .unwrap_or_else(|_| reqwest::Client::new());
-
-        let mut chat_models = Vec::new();
-        for model in candidates {
-            let body = serde_json::json!({
-                "model": model,
-                "messages": [{"role": "user", "content": "hi"}],
-                "stream": false,
-                "options": {"num_predict": 1}
-            });
-            let mut probe_req = probe_client
-                .post(format!("{}/api/chat", base_url));
-            if let Some(ref key) = api_key {
-                probe_req = probe_req.header("Authorization", format!("Bearer {}", key));
-            }
-            match probe_req
-                .json(&body)
-                .send()
-                .await
-            {
-                Ok(resp) => {
-                    let text = resp.text().await.unwrap_or_default();
-                    // Models that don't support chat return {"error":"...does not support chat"}
-                    if !text.contains("does not support chat") {
-                        chat_models.push(model);
-                    }
-                }
-                Err(_) => {
-                    // Network error — include model anyway; error will surface at chat time
-                    chat_models.push(model);
-                }
-            }
-        }
 
         Ok(chat_models)
     }
