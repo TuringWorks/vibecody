@@ -573,11 +573,9 @@ function App() {
             language,
             rootPath,
             params: {
-              text_document_position: {
-                text_document: { uri: model.uri.toString() },
-                position: { line: position.lineNumber - 1, character: position.column - 1 }
-              },
-              context: { trigger_kind: 1 } // Invoked
+              textDocument: { uri: model.uri.toString() },
+              position: { line: position.lineNumber - 1, character: position.column - 1 },
+              context: { triggerKind: 1 } // Invoked
             }
           });
 
@@ -617,10 +615,8 @@ function App() {
             language,
             rootPath,
             params: {
-              text_document_position_params: {
-                text_document: { uri: model.uri.toString() },
-                position: { line: position.lineNumber - 1, character: position.column - 1 }
-              }
+              textDocument: { uri: model.uri.toString() },
+              position: { line: position.lineNumber - 1, character: position.column - 1 }
             }
           });
 
@@ -657,10 +653,8 @@ function App() {
             language,
             rootPath,
             params: {
-              text_document_position_params: {
-                text_document: { uri: model.uri.toString() },
-                position: { line: position.lineNumber - 1, character: position.column - 1 }
-              }
+              textDocument: { uri: model.uri.toString() },
+              position: { line: position.lineNumber - 1, character: position.column - 1 }
             }
           });
 
