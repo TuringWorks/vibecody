@@ -1764,20 +1764,25 @@ function App() {
                           setActiveFilePath(diffPath);
                           invoke("write_file", { path: diffPath, content: result })
                             .then(() => {
-                              // Use ref to get the current directory at the time the
-                              // promise resolves, not the stale closure value.
                               const dir = currentDirectoryRef.current;
                               if (dir) loadDirectory(dir);
                             })
                             .catch((err) => console.error("Failed to write file:", err));
                         }
 
-                        setPendingDiff(null);
-                        window.dispatchEvent(new Event("vibeui:diff-resolved"));
+                        // Defer clearing pendingDiff by one frame so React processes
+                        // setOpenFiles + setActiveFilePath BEFORE Monaco becomes visible.
+                        // Without this, Monaco can render with stale/empty content and crash.
+                        requestAnimationFrame(() => {
+                          setPendingDiff(null);
+                          window.dispatchEvent(new Event("vibeui:diff-resolved"));
+                        });
                       } catch (err) {
                         console.error("Apply failed:", err);
-                        setPendingDiff(null);
-                        window.dispatchEvent(new Event("vibeui:diff-resolved"));
+                        requestAnimationFrame(() => {
+                          setPendingDiff(null);
+                          window.dispatchEvent(new Event("vibeui:diff-resolved"));
+                        });
                       }
                     }}
                   />
