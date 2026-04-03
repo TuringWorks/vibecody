@@ -528,7 +528,7 @@ impl AgentLoop {
         Self {
             provider,
             approval,
-            max_steps: 30,
+            max_steps: 50,
             executor,
             hooks: None,
             policy: AdminPolicy::default(),
@@ -673,9 +673,9 @@ impl AgentLoop {
         for step in 0..self.max_steps {
             // ── 0. Context window safety ──────────────────────────────────────
             // Prune middle messages to keep within the provider's context limit.
-            // Default budget: 80 000 tokens (~320 KB of text), overridable via
+            // Default budget: 200 000 tokens (~800 KB of text), overridable via
             // AgentLoop::with_context_limit().
-            prune_messages(&mut messages, self.max_context_tokens.unwrap_or(80_000));
+            prune_messages(&mut messages, self.max_context_tokens.unwrap_or(200_000));
 
             // ── 1. Stream LLM response (with retry) ─────────────────────────────
             let llm_span = tracing::info_span!(

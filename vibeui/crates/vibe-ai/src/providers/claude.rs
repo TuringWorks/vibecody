@@ -240,7 +240,7 @@ impl AIProvider for ClaudeProvider {
         let request = ClaudeRequest {
             model: self.config.model.clone(),
             messages: claude_messages,
-            max_tokens: self.config.max_tokens.or(Some(4096)),
+            max_tokens: self.config.max_tokens.or(Some(16_384)),
             temperature: self.config.temperature,
             stream: false,
             system,
@@ -288,7 +288,7 @@ impl AIProvider for ClaudeProvider {
         let request = ClaudeRequest {
             model: self.config.model.clone(),
             messages: claude_messages,
-            max_tokens: self.config.max_tokens.or(Some(4096)),
+            max_tokens: self.config.max_tokens.or(Some(16_384)),
             temperature: self.config.temperature,
             stream: false,
             system,
@@ -325,7 +325,7 @@ impl AIProvider for ClaudeProvider {
         let request = ClaudeRequest {
             model: self.config.model.clone(),
             messages: claude_messages,
-            max_tokens: self.config.max_tokens.or(Some(4096)),
+            max_tokens: self.config.max_tokens.or(Some(16_384)),
             temperature: self.config.temperature,
             stream: true,
             system,
@@ -394,7 +394,7 @@ impl AIProvider for ClaudeProvider {
         let request = ClaudeRequest {
             model: self.config.model.clone(),
             messages: claude_messages,
-            max_tokens: self.config.max_tokens.or(Some(4096)),
+            max_tokens: self.config.max_tokens.or(Some(16_384)),
             temperature: self.config.temperature,
             stream: false,
             system,

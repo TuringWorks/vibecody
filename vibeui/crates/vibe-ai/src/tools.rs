@@ -155,9 +155,29 @@ When starting work on a task:
 5. **Prefer apply_patch over write_file**: For modifications to existing files, use `apply_patch` to change only what's needed instead of rewriting the whole file. This is safer and preserves surrounding code.
 6. **One concern per step**: Make focused changes. Don't mix unrelated modifications.
 
+## CRITICAL: Break Large Tasks Into Small Steps
+
+**NEVER generate an entire project or multiple files in a single response.**
+Large code generation WILL fail with response size limits and wastes tokens on retries.
+
+Instead, follow this incremental approach:
+1. Use `think` to plan: list every file that needs to be created/modified
+2. Write ONE file per tool call — keep each file focused and complete
+3. For large files (>200 lines), write the skeleton first, then fill in sections
+4. After every 2-3 files, run `build` or type-check to catch errors early
+5. Use `spawn_agent` to delegate independent sub-tasks (e.g., tests, docs, config) in parallel
+
+**File creation order:**
+- Config files first (package.json, Cargo.toml, tsconfig, etc.)
+- Core types/interfaces
+- Implementation modules (one at a time)
+- Tests (can be delegated to spawn_agent)
+- Documentation last
+
 When working on a **new (greenfield) project**:
 - Start by scaffolding the project structure (package manifest, entry point, config)
 - Set up the build/test pipeline immediately
+- Create files ONE AT A TIME — never batch multiple files into one response
 - Add a README.md with setup instructions
 
 When working on an **existing (brownfield) project**:

@@ -93,8 +93,8 @@ impl OllamaProvider {
         Self {
             config,
             client: reqwest::Client::builder()
-                .timeout(std::time::Duration::from_secs(90))
-                .connect_timeout(std::time::Duration::from_secs(10))
+                .timeout(std::time::Duration::from_secs(300))
+                .connect_timeout(std::time::Duration::from_secs(15))
                 .build()
                 .unwrap_or_else(|_| reqwest::Client::new()),
             base_url,
@@ -129,14 +129,12 @@ impl OllamaProvider {
     }
 
     fn build_options(&self) -> Option<OllamaOptions> {
-        if self.config.temperature.is_some() || self.config.max_tokens.is_some() {
-            Some(OllamaOptions {
-                temperature: self.config.temperature,
-                num_predict: self.config.max_tokens,
-            })
-        } else {
-            None
-        }
+        // Always send options to ensure a reasonable num_predict default (16K tokens).
+        // Ollama's built-in default is 2048 which truncates large code generation.
+        Some(OllamaOptions {
+            temperature: self.config.temperature,
+            num_predict: self.config.max_tokens.or(Some(16_384)),
+        })
     }
 
     /// List available Ollama models that support chat.
@@ -502,10 +500,12 @@ mod tests {
     // ── build_options ────────────────────────────────────────────────────
 
     #[test]
-    fn build_options_none_when_no_config() {
+    fn build_options_defaults_when_no_config() {
         let config = ProviderConfig::new("ollama".to_string(), "codellama".to_string());
         let provider = OllamaProvider::new(config);
-        assert!(provider.build_options().is_none());
+        let opts = provider.build_options().unwrap();
+        assert!(opts.temperature.is_none());
+        assert_eq!(opts.num_predict, Some(16_384));
     }
 
     #[test]
@@ -517,7 +517,7 @@ mod tests {
         assert!(opts.is_some());
         let opts = opts.unwrap();
         assert!((opts.temperature.unwrap() - 0.5).abs() < 0.001);
-        assert!(opts.num_predict.is_none());
+        assert_eq!(opts.num_predict, Some(16_384));
     }
 
     #[test]
