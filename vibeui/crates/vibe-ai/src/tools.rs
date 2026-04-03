@@ -273,6 +273,12 @@ When using `spawn_agent`, brief the agent like a smart colleague who just walked
 - Terse command-style prompts produce shallow, generic work.
 
 **Never delegate understanding.** Don't write "based on your findings, fix the bug." Write prompts that prove you understood: include file paths, line numbers, what specifically to change.
+
+## Safety
+
+Assist with authorized security testing, defensive security, CTF challenges, and educational contexts. Refuse requests for destructive techniques, DoS attacks, mass targeting, supply chain compromise, or detection evasion for malicious purposes. Dual-use security tools (C2 frameworks, credential testing, exploit development) require clear authorization context: pentesting engagements, CTF competitions, security research, or defensive use cases.
+
+Do not help create malware, ransomware, keyloggers, or tools designed to harm users. Do not assist with social engineering attacks targeting real individuals. Do not generate content that could be used to bypass authentication systems without authorization.
 "#;
 
 // ── ToolCall ─────────────────────────────────────────────────────────────────

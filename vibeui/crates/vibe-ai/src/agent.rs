@@ -642,7 +642,7 @@ impl AgentLoop {
             None
         };
 
-        let system_content = build_system_prompt(&context);
+        let system_content = build_system_prompt(&context, &self.approval);
         let mut messages: Vec<Message> = vec![
             Message { role: MessageRole::System, content: system_content },
         ];
@@ -1119,15 +1119,52 @@ pub fn prune_messages(messages: &mut Vec<Message>, budget: usize) {
     if mid_count == 0 {
         return;
     }
-    // Remove the middle messages and insert a summary placeholder
+    // Summarize the pruned messages before removing them so the agent
+    // retains awareness of what was accomplished.  Collect file paths
+    // and tool calls mentioned in the removed middle section.
+    let mut files_mentioned = Vec::new();
+    let mut actions_taken = Vec::new();
+    for msg in &messages[2..tail_start] {
+        // Extract file paths (common patterns: wrote X, read X, path/to/file)
+        for word in msg.content.split_whitespace() {
+            if (word.contains('/') || word.contains('.'))
+                && !word.starts_with("http")
+                && word.len() < 120
+            {
+                let clean = word.trim_matches(|c: char| !c.is_alphanumeric() && c != '/' && c != '.' && c != '_' && c != '-');
+                if !clean.is_empty() && !files_mentioned.contains(&clean.to_string()) {
+                    files_mentioned.push(clean.to_string());
+                }
+            }
+        }
+        // Extract action summaries from tool results
+        if msg.content.starts_with("Wrote file") || msg.content.starts_with("Build ") || msg.content.starts_with("Read file") {
+            let summary: String = msg.content.lines().next().unwrap_or("").chars().take(80).collect();
+            actions_taken.push(summary);
+        }
+    }
+    files_mentioned.truncate(20);
+    actions_taken.truncate(10);
+
+    let mut summary = format!(
+        "[Context compacted: {} intermediate messages removed to fit context window.\n",
+        mid_count
+    );
+    if !actions_taken.is_empty() {
+        summary.push_str("Actions completed so far:\n");
+        for a in &actions_taken {
+            summary.push_str(&format!("  - {}\n", a));
+        }
+    }
+    if !files_mentioned.is_empty() {
+        summary.push_str(&format!("Files touched: {}\n", files_mentioned.join(", ")));
+    }
+    summary.push_str("Continue from where you left off — do not repeat completed work.]");
+
     messages.drain(2..tail_start);
     messages.insert(2, Message {
         role: MessageRole::User,
-        content: format!(
-            "[Context pruned: {} intermediate messages removed to fit context window. \
-             Full session stored at ~/.vibecli/sessions/]",
-            mid_count
-        ),
+        content: summary,
     });
 }
 
@@ -1181,7 +1218,7 @@ mod context_tests {
         prune_messages(&mut msgs, 0);
         // system + task + placeholder + 6 tail = 9
         assert_eq!(msgs.len(), 9);
-        assert!(msgs[2].content.contains("Context pruned"));
+        assert!(msgs[2].content.contains("Context compacted"));
         assert!(msgs[2].content.contains("20")); // 20 middle messages removed
         // Tail messages preserved
         assert!(msgs[3].content.starts_with("tail "));
@@ -1206,8 +1243,20 @@ mod context_tests {
     }
 }
 
-fn build_system_prompt(context: &AgentContext) -> String {
+fn build_system_prompt(context: &AgentContext, approval: &ApprovalPolicy) -> String {
     let mut extras = String::new();
+
+    // Auto-mode guidance: when running fully autonomous, inject behavioral rules
+    if matches!(approval, ApprovalPolicy::FullAuto) {
+        extras.push_str("\n\n## Auto Mode Active\n\
+            Auto mode is active. You should:\n\
+            1. **Execute immediately** — Start implementing right away. Make reasonable assumptions.\n\
+            2. **Minimize interruptions** — Prefer reasonable assumptions over asking questions for routine decisions.\n\
+            3. **Prefer action over planning** — When in doubt, start coding.\n\
+            4. **Do not take destructive actions** — Auto mode is not a license to destroy. Deleting data or modifying shared/production systems still needs explicit confirmation.\n\
+            5. **Avoid data exfiltration** — Do not post messages to external services or share secrets unless explicitly authorized.");
+    }
+
     if !context.workspace_root.as_os_str().is_empty() {
         extras.push_str(&format!(
             "\n\n## Environment\nWorkspace root: {}",
