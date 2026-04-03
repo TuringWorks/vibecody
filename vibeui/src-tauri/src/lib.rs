@@ -143,6 +143,16 @@ pub fn run() {
                 .item(&edit_submenu)
                 .build()?;
             app.set_menu(menu)?;
+
+            // Open WebView devtools in debug builds so we can see console errors
+            #[cfg(debug_assertions)]
+            {
+                use tauri::Manager;
+                if let Some(window) = app.get_webview_window("main") {
+                    window.open_devtools();
+                }
+            }
+
             Ok(())
         })
         .manage(AppState {
