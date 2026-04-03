@@ -11,7 +11,7 @@
 | [VibeCLI](./vibecli/) | AI coding assistant for the terminal (TUI + REPL) | Active |
 | [VibeUI](./vibeui/) | AI-powered desktop code editor (Tauri + Monaco) | Active |
 | [VibeApp](./vibeapp/) | Secondary Tauri app | Active |
-| **VibeMobile** | `vibemobile/` | Mobile companion app (Flutter — iOS, Android, macOS, Linux, Windows, Web) |
+| [VibeMobile](./vibemobile/) | Mobile companion app (Flutter — iOS, Android, macOS, Linux, Windows, Web) | Active |
 
 ---
 
@@ -55,7 +55,7 @@ make doctor    # Checks all required + optional tools
 
 ### All Make Targets
 
-```
+```bash
 make setup      Install all prerequisites
 make doctor     Verify dev environment is ready
 make ui         Run VibeUI in dev mode (Vite + Tauri)
@@ -73,7 +73,7 @@ make docker     Build Docker image
 
 ## Workspace Structure
 
-```
+```bash
 vibecody/
 ├── Cargo.toml                  # Workspace root (9 members)
 ├── Dockerfile                  # Multi-stage musl build (Alpine runtime)
@@ -234,6 +234,7 @@ require_approval_for_file_changes = true
 VibeMobile (`vibemobile/`) is a Flutter app for remote management of VibeCody sessions from any device.
 
 **Features:**
+
 - QR code pairing with VibeCLI/VibeUI instances
 - Remote chat with AI providers
 - Machine management (register, monitor, heartbeat)
@@ -277,6 +278,7 @@ flutter run -d chrome  # Run in browser
 | Docker | any | Optional — for container sandbox |
 
 **Linux only** (Tauri system dependencies):
+
 ```bash
 # Debian/Ubuntu
 sudo apt install libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf build-essential libssl-dev pkg-config
