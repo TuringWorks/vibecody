@@ -1403,6 +1403,60 @@ pub async fn stream_chat_message(
         let mut success = false;
         let stream_start = Instant::now();
 
+        // Track how far we've scanned for completed <write_file> blocks so we
+        // can save files incrementally during streaming instead of waiting for
+        // the entire response.  This prevents data loss on mid-stream failures.
+        let mut write_scan_pos: usize = 0;
+        let mut files_written: Vec<String> = Vec::new();
+
+        /// Scan `text` starting at `scan_pos` for complete `<write_file>` blocks.
+        /// Write each file immediately and return the new scan position.
+        fn flush_completed_writes(
+            text: &str,
+            scan_pos: usize,
+            ws_root: &std::path::Path,
+            written: &mut Vec<String>,
+            app: &tauri::AppHandle,
+        ) -> usize {
+            use tauri::Emitter;
+            let tag = "<write_file path=\"";
+            let mut pos = scan_pos;
+            while let Some(rel_start) = text[pos..].find(tag) {
+                let start = pos + rel_start;
+                let Some(path_end_rel) = text[start..].find("\">") else { break };
+                let path = &text[start + tag.len()..start + path_end_rel];
+                let Some(close_rel) = text[start..].find("</write_file>") else {
+                    // Block not yet complete — stop scanning, will retry on next chunk
+                    break;
+                };
+                let content_start = start + path_end_rel + 2;
+                let content = &text[content_start..start + close_rel];
+                let target = if std::path::Path::new(path).is_absolute() {
+                    std::path::PathBuf::from(path)
+                } else {
+                    ws_root.join(path)
+                };
+                if let Some(parent) = target.parent() {
+                    let _ = std::fs::create_dir_all(parent);
+                }
+                match std::fs::write(&target, content) {
+                    Ok(_) => {
+                        written.push(path.to_string());
+                        let _ = app.emit("chat:status", serde_json::json!({
+                            "type": "file_saved",
+                            "path": path,
+                            "count": written.len(),
+                        }));
+                    }
+                    Err(e) => {
+                        eprintln!("[stream_chat] Failed to write '{}': {}", path, e);
+                    }
+                }
+                pos = start + close_rel + "</write_file>".len();
+            }
+            pos
+        }
+
         // If we have images and the provider supports vision, use chat_with_images
         // (non-streaming, since most providers don't support streaming vision).
         // Then emit the response as if it were streamed.
@@ -1481,6 +1535,13 @@ pub async fn stream_chat_message(
             return;
         }
 
+        // Resolve workspace root for incremental file writes during streaming
+        let ws_root = {
+            let ws = workspace.lock().await;
+            ws.folders().first().cloned()
+                .unwrap_or_else(|| std::env::current_dir().unwrap_or_default())
+        };
+
         // Emit initial provider health status
         let health = health_tracker.health(&provider_name);
         let _ = app_handle.emit("chat:status", serde_json::json!({
@@ -1546,6 +1607,14 @@ pub async fn stream_chat_message(
                         let _ = app_handle.emit("chat:chunk", &text);
                         accumulated.push_str(&text);
 
+                        // Incrementally write completed <write_file> blocks so
+                        // files are saved as soon as the closing tag streams in.
+                        // This prevents total data loss on mid-stream failures.
+                        write_scan_pos = flush_completed_writes(
+                            &accumulated, write_scan_pos, &ws_root,
+                            &mut files_written, &app_handle,
+                        );
+
                         // Detect thinking blocks — only scan new chunk, not entire accumulated string
                         if text.contains("<thinking>") {
                             has_thinking_open = true;
@@ -1582,7 +1651,15 @@ pub async fn stream_chat_message(
                             timestamp: Instant::now(),
                             error_category: Some(vibe_ai::classify_error(&err_str)),
                         });
-                        let _ = app_handle.emit("chat:error", err_str);
+                        // Include saved-files summary so the user knows what was preserved
+                        let err_msg = if files_written.is_empty() {
+                            err_str
+                        } else {
+                            format!("{}\n\n✅ {} file(s) were saved before the error:\n{}",
+                                err_str, files_written.len(),
+                                files_written.iter().map(|f| format!("  • {}", f)).collect::<Vec<_>>().join("\n"))
+                        };
+                        let _ = app_handle.emit("chat:error", err_msg);
                         return;
                     }
                 }
@@ -1602,7 +1679,14 @@ pub async fn stream_chat_message(
                 timestamp: Instant::now(),
                 error_category: Some(vibe_ai::FailureCategory::Unknown),
             });
-            let _ = app_handle.emit("chat:error", "All retry attempts exhausted".to_string());
+            let err_msg = if files_written.is_empty() {
+                "All retry attempts exhausted".to_string()
+            } else {
+                format!("All retry attempts exhausted\n\n✅ {} file(s) were saved before the error:\n{}",
+                    files_written.len(),
+                    files_written.iter().map(|f| format!("  • {}", f)).collect::<Vec<_>>().join("\n"))
+            };
+            let _ = app_handle.emit("chat:error", err_msg);
             return;
         }
 
@@ -1615,8 +1699,23 @@ pub async fn stream_chat_message(
             error_category: None,
         });
 
-        // Process tool calls in the completed response (same as send_chat_message)
-        let (tool_output, pending_write) = process_tool_calls(&accumulated, &workspace).await;
+        // Final flush: catch any <write_file> block completed in the last chunk
+        write_scan_pos = flush_completed_writes(
+            &accumulated, write_scan_pos, &ws_root,
+            &mut files_written, &app_handle,
+        );
+        let _ = write_scan_pos; // consumed
+
+        // Process remaining tool calls (read_file, list_dir, build, run, fenced code blocks)
+        let (mut tool_output, pending_write) = process_tool_calls(&accumulated, &workspace).await;
+
+        // Prepend incremental write summary if files were saved during streaming
+        if !files_written.is_empty() {
+            let summary = format!("Saved {} file(s) during streaming:\n{}\n\n",
+                files_written.len(),
+                files_written.iter().map(|f| format!("  • {}", f)).collect::<Vec<_>>().join("\n"));
+            tool_output = format!("{}{}", summary, tool_output);
+        }
 
         let response = ChatResponse {
             message: accumulated.clone(),
