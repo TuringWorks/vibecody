@@ -1756,15 +1756,14 @@ function App() {
                       onApply={(result) => {
                         const diffPath = pendingDiffRef.current?.path;
 
-                        // 1. Close the diff panel FIRST — before touching editor state.
-                        //    This removes the overlay; the editor underneath still shows
-                        //    the OLD content (which is fine for one frame).
+                        // Close the diff panel immediately.
                         setPendingDiff(null);
                         window.dispatchEvent(new Event("vibeui:diff-resolved"));
 
                         if (result === null || !diffPath) return;
 
-                        // 2. Write to disk immediately (doesn't touch React state).
+                        // Write to disk first — this is the only thing that matters.
+                        // Do NOT touch Monaco or React file state synchronously.
                         invoke("write_file", { path: diffPath, content: result })
                           .then(() => {
                             const dir = currentDirectoryRef.current;
@@ -1772,26 +1771,24 @@ function App() {
                           })
                           .catch((err) => console.error("Failed to write file:", err));
 
-                        // 3. Update editor content via ref to avoid React re-render race.
-                        //    Monaco handles setValue() safely when it's visible and idle.
-                        const editor = editorRef.current;
-                        if (editor) {
-                          const model = editor.getModel();
-                          if (model) {
-                            model.setValue(result);
+                        // Wait 150ms for React to finish the diff panel unmount and
+                        // Monaco to stabilize, THEN update the editor content.
+                        // This is the only reliable way to avoid the Monaco crash —
+                        // any synchronous or single-frame-deferred update races with
+                        // the WebView layout triggered by the overlay removal.
+                        setTimeout(() => {
+                          try {
+                            const language = detectLanguage(diffPath);
+                            setOpenFiles((prev) => {
+                              const exists = prev.some((f: any) => f.path === diffPath);
+                              if (exists) return prev.map((f: any) => f.path === diffPath ? { ...f, content: result, isDirty: false } : f);
+                              return [...prev, { path: diffPath, content: result, language, isDirty: false }];
+                            });
+                            setActiveFilePath(diffPath);
+                          } catch (err) {
+                            console.error("Post-apply state sync failed:", err);
                           }
-                        }
-
-                        // 4. Sync React file state in the NEXT frame, after Monaco is settled.
-                        requestAnimationFrame(() => {
-                          const language = detectLanguage(diffPath);
-                          setOpenFiles((prev) => {
-                            const exists = prev.some((f: any) => f.path === diffPath);
-                            if (exists) return prev.map((f: any) => f.path === diffPath ? { ...f, content: result, isDirty: false } : f);
-                            return [...prev, { path: diffPath, content: result, language, isDirty: false }];
-                          });
-                          setActiveFilePath(diffPath);
-                        });
+                        }, 150);
                       }}
                     />
                   </div>
