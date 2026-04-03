@@ -2000,10 +2000,12 @@ function App() {
                 aria-label="Close panel"
               >×</button>
             </div>
-            {/* Panel content */}
-            <div style={{ flex: 1, overflow: 'hidden' }}>
-              {bottomTab === 'terminal' && <Terminal onClose={() => setShowTerminal(false)} />}
-              {bottomTab === 'browser' && <BrowserPanel />}
+            {/* Panel content — keep both mounted to preserve state across tab switches */}
+            <div style={{ flex: 1, overflow: 'hidden', display: bottomTab === 'terminal' ? 'block' : 'none' }}>
+              <Terminal onClose={() => setShowTerminal(false)} />
+            </div>
+            <div style={{ flex: 1, overflow: 'hidden', display: bottomTab === 'browser' ? 'block' : 'none' }}>
+              <BrowserPanel />
             </div>
           </div>
         </>
