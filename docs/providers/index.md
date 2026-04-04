@@ -25,23 +25,23 @@ VibeCody supports 23 AI providers, covering cloud APIs, local models, inference 
 | [OpenAI](openai/) | Cloud | `OPENAI_API_KEY` | `gpt-4o` | No | Yes |
 | [Gemini](gemini/) | Cloud | `GEMINI_API_KEY` | `gemini-2.0-flash` | Yes (generous) | Yes |
 | [DeepSeek](deepseek/) | Cloud | `DEEPSEEK_API_KEY` | `deepseek-chat` | No | Yes |
-| Grok | Cloud | `GROK_API_KEY` | `grok-3-mini` | No | Yes |
-| Groq | Cloud | `GROQ_API_KEY` | `llama-3.3-70b-versatile` | Yes (rate-limited) | Yes |
-| OpenRouter | Cloud | `OPENROUTER_API_KEY` | `anthropic/claude-3.5-sonnet` | No | Yes |
-| Azure OpenAI | Cloud | `AZURE_OPENAI_API_KEY` | `gpt-4o` | No | Yes |
-| AWS Bedrock | Cloud | `AWS_ACCESS_KEY_ID` | `anthropic.claude-3-5-sonnet-*` | No | Yes |
-| GitHub Copilot | Cloud | `GITHUB_COPILOT_TOKEN` | Copilot default | Yes (with subscription) | Yes |
-| Mistral | Cloud | `MISTRAL_API_KEY` | `mistral-large-latest` | No | Yes |
-| Cerebras | Cloud | `CEREBRAS_API_KEY` | `llama3.1-70b` | Yes (limited) | Yes |
-| Zhipu | Cloud | `ZHIPU_API_KEY` | `glm-4` | No | Yes |
-| Vercel AI | Cloud | Via provider key | Provider-dependent | No | Yes |
-| MiniMax | Cloud | `MINIMAX_API_KEY` | `abab6.5s-chat` | No | Yes |
-| Perplexity | Cloud | `PERPLEXITY_API_KEY` | `sonar-pro` | No | Yes |
-| Together AI | Inference | `TOGETHER_API_KEY` | `meta-llama/Llama-3.1-70B-Instruct-Turbo` | Yes (limited) | Yes |
-| Fireworks AI | Inference | `FIREWORKS_API_KEY` | `llama-v3p1-70b-instruct` | Yes (limited) | Yes |
-| SambaNova | Inference | `SAMBANOVA_API_KEY` | `Meta-Llama-3.1-70B-Instruct` | Yes (limited) | Yes |
+| [Grok](grok/) | Cloud | `GROK_API_KEY` | `grok-2` | No | Yes |
+| [Groq](groq/) | Cloud | `GROQ_API_KEY` | `llama-3.3-70b-versatile` | Yes (rate-limited) | Yes |
+| [OpenRouter](openrouter/) | Cloud | `OPENROUTER_API_KEY` | `anthropic/claude-3.5-sonnet` | No | Yes |
+| [Azure OpenAI](azure-openai/) | Cloud | `AZURE_OPENAI_API_KEY` | `gpt-4o` | No | Yes |
+| [AWS Bedrock](bedrock/) | Cloud | `AWS_ACCESS_KEY_ID` | `anthropic.claude-3-sonnet-*` | No | Yes |
+| [GitHub Copilot](copilot/) | Cloud | `GITHUB_TOKEN` | `gpt-4o` | Yes (with subscription) | Yes |
+| [Mistral](mistral/) | Cloud | `MISTRAL_API_KEY` | `mistral-large-latest` | No | Yes |
+| [Cerebras](cerebras/) | Cloud | `CEREBRAS_API_KEY` | `llama3.1-70b` | Yes (limited) | Yes |
+| [Zhipu GLM](zhipu/) | Cloud | `ZHIPU_API_KEY` | `glm-4` | No | Yes |
+| [Vercel AI](vercel-ai/) | Cloud | Via provider key | Provider-dependent | No | Yes |
+| [MiniMax](minimax/) | Cloud | `MINIMAX_API_KEY` | `abab6.5s-chat` | No | Yes |
+| [Perplexity](perplexity/) | Cloud | `PERPLEXITY_API_KEY` | `sonar-pro` | No | Yes |
+| [Together AI](together/) | Inference | `TOGETHER_API_KEY` | `meta-llama/Llama-3.1-70B-Instruct-Turbo` | Yes (limited) | Yes |
+| [Fireworks AI](fireworks/) | Inference | `FIREWORKS_API_KEY` | `llama-v3p1-70b-instruct` | Yes (limited) | Yes |
+| [SambaNova](sambanova/) | Inference | `SAMBANOVA_API_KEY` | `Meta-Llama-3.1-70B-Instruct` | Yes (limited) | Yes |
 | LocalEdit | Local | None | Local model | Yes (fully free) | Yes |
-| Failover | Wrapper | N/A | N/A | N/A | Yes |
+| [Failover](failover/) | Wrapper | N/A | N/A | N/A | Yes |
 
 
 ## Choosing a Provider
