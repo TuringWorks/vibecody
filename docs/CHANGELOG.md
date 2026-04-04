@@ -8,6 +8,66 @@ permalink: /changelog/
 All notable changes to VibeCody are documented here. This project follows [Semantic Versioning](https://semver.org/).
 
 
+## [0.5.4] — 2026-04-03
+
+### Added
+
+- **Claude Code System Prompts** — integrated 254 prompts from TuringWorks/claude-code-system-prompts: core behavioral guidelines baked into TOOL_SYSTEM_PROMPT; all prompts stored as reference skills in `skills/claude-code-prompts/`.
+- **Auto-mode guidance** — when FullAuto approval policy is active, agent receives autonomous execution rules.
+- **Error Boundary** — React ErrorBoundary catches render crashes with error + stack trace display.
+- **5 dynamic skill files** — git-commit, pr-creation, security-review, debugging, simplify.
+- **WebView DevTools** — auto-open in debug builds for crash diagnosis.
+
+### Fixed
+
+- **GLM/Qwen tool call parsing** — normalize `<|tag|>` delimiters so XML tool calls are correctly executed.
+- **Incremental file saves during streaming** — `<write_file>` blocks flushed to disk as closing tag streams in.
+- **Leading newline in generated files** — strip `\n` after `<write_file path="...">`.
+- **`<build>` and `<run>` tag variants** — recognize block form in addition to self-closing.
+- **Apply crash** — DiffReviewPanel overlays editor with deferred unmount; removed React.StrictMode.
+- **Terminal buffer cleared on tab switch** — Terminal stays mounted with display toggle.
+- **Duplicate provider keys** — 14 providers now return unique `"Provider (model)"` names.
+- **LSP invoke params** — fixed snake_case to camelCase field names for hover, completion, goto-definition.
+- **Diff review toolbar** — thinner, outlined ghost buttons, visible text with ellipsis.
+- **Tool call card icons** — replaced emoji with thin-line SVG icons using CSS variables.
+
+### Changed
+
+- Agent context window: 80K → 200K tokens; max_steps: 30 → 50.
+- Claude max_tokens: 4,096 → 16,384; Ollama num_predict: 2,048 → 16,384.
+- Retry attempts: 4 → 2 (500ms initial, 5s max backoff).
+- Ollama HTTP timeout: 90s → 300s.
+
+---
+
+## [0.5.3] — 2026-04-02
+
+### Added
+
+- **Document & Media Viewers** — DocumentViewer, ImageViewer, HtmlPreview, DrawioPreview for VibeUI.
+- **Per-Provider Model Lists** — provider-appropriate models with auto-selection; Ollama uses live-discovered models.
+- **RL-OS Core Modules** — 8 modules (EnvOS, TrainOS, EvalOS, OptiOS, ModelHub, ServeOS, RLHF, MultiAgent) with 660 tests, 10 panels, 20 Tauri commands.
+- **Sketch Canvas** — drawing with Move tool, inline text, SVG/PNG export, shape recognition, code generation.
+- **Training Run Wizard** — step-by-step RL training setup wizard.
+
+### Fixed
+
+- **Vibe App: Empty AI Responses** — SSE parser read `ev["text"]` but daemon sends `ev["content"]`.
+- **Vibe App: Duplicate Streaming Text** — guarded against React StrictMode double-mount race.
+- **Vibe App: Response Never Completing** — fallback completion event on agent exit.
+- **Vibe App: Stale Model/Token** — `useCallback` dependencies updated.
+- **Vibe App: Window Icon** — replaced default Tauri icon with VibeUI icon.
+- **Ollama Model List Slow/Missing** — removed per-model chat probe; instant name-based filter.
+- **Monaco Crash on Apply All** — editor kept always mounted.
+- **VibeUI Panel Bugs** — TLS Inspector, Design Mode, Screenshot to App, file explorer, Fast Context, SemanticIndexPanel.
+
+### Changed
+
+- **Agent Identity** — renamed from "VibeCLI" to "Vibe Agent" across all system prompts.
+- RL-OS composite panels registered in panel host, tab groups, and search.
+
+---
+
 ## [0.5.2] — 2026-03-30
 
 ### Added

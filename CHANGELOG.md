@@ -17,6 +17,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **GLM/Qwen tool call parsing** — normalize `<|tag|>` delimiters (GLM-4, Qwen models) so XML tool calls are correctly extracted and executed instead of being treated as plain text.
 - **Incremental file saves during streaming** — `<write_file>` blocks are flushed to disk as soon as the closing tag streams in; if the stream fails, saved files are preserved and listed in the error message.
 - **Leading newline in generated files** — strip `\n` after `<write_file path="...">` that caused XML/compiler failures.
 - **`<build>` and `<run>` tag variants** — recognize `<build></build>` and `<run></run>` in addition to self-closing forms.
