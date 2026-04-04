@@ -6,7 +6,7 @@ permalink: /roadmap-v5/
 
 
 **Date:** 2026-03-26 | **Updated:** 2026-03-29
-**Previous:** ROADMAP-v4.md (March 2026) — Phases 15-22 complete
+**Previous:** ROADMAP-v4 (removed, March 2026) — Phases 15-22 complete
 **Scope:** 22 new gaps from FIT-GAP-ANALYSIS-v7.md; 9 implementation phases across 4 priority tiers + Phase 32 bonus
 
 ## Current State

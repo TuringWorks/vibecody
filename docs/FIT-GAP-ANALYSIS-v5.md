@@ -6,7 +6,7 @@ permalink: /fit-gap-analysis-v5/
 
 
 **Date:** 2026-03-12
-**Previous analysis:** FIT-GAP-ANALYSIS-v4.md (2026-03-08)
+**Previous analysis:** FIT-GAP-ANALYSIS-v4 (removed, 2026-03-08)
 **Focus:** Q1 2026 emerging trends, new entrants, and futureproofing gaps
 
 ## Executive Summary
