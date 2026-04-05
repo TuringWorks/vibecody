@@ -331,9 +331,11 @@ function HunkBlock({ hunk, onToggle }: { hunk: DiffHunk; onToggle: () => void })
  <button
  onClick={onToggle}
  style={{
- padding: "2px 10px", borderRadius: 3, border: "none",
- background: hunk.accepted ? "var(--success-color)" : "var(--error-color)",
- color: "var(--text-primary)", cursor: "pointer", fontWeight: 600, fontSize: 11,
+ padding: "2px 10px", borderRadius: 3,
+ border: `1px solid ${hunk.accepted ? "var(--success-color, #4ade80)" : "var(--error-color, #f87171)"}`,
+ background: "transparent",
+ color: hunk.accepted ? "var(--success-color, #4ade80)" : "var(--error-color, #f87171)",
+ cursor: "pointer", fontWeight: 600, fontSize: 11,
  }}
  >
  {hunk.accepted ? "✓ Accept" : "✗ Reject"}
