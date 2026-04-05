@@ -265,24 +265,28 @@ export function DiffReviewPanel({ original, modified, filePath, onApply }: DiffR
  display: "flex", flexDirection: "column", height: "100%",
  background: "var(--bg-primary)", fontFamily: "var(--font-mono)",
  }}>
- {/* Header */}
+ {/* Header — buttons LEFT so they're never obscured by the Monaco minimap */}
  <div style={{
- display: "flex", alignItems: "center", gap: 8,
- padding: "4px 10px", borderBottom: "1px solid var(--border-color)",
- background: "var(--bg-secondary)", flexShrink: 0, minHeight: 28,
+   display: "flex", alignItems: "center", gap: 6,
+   padding: "4px 10px", borderBottom: "1px solid var(--border-color)",
+   background: "var(--bg-secondary)", flexShrink: 0, minHeight: 32,
  }}>
- <span style={{ fontSize: 12, fontWeight: 500, color: "var(--text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>
- Review — <code style={{ fontSize: 11, color: "var(--text-secondary)" }}>{filePath.split("/").pop()}</code>
- </span>
- <span style={{ fontSize: 10, color: "var(--text-secondary)", whiteSpace: "nowrap" }}>
- {acceptedCount}/{hunks.length} hunks
- </span>
- <div style={{ display: "flex", gap: 4, marginLeft: "auto", flexShrink: 0 }}>
- <button onClick={acceptAll} style={btnStyle("var(--success-color, #4ade80)")}>Accept</button>
- <button onClick={rejectAll} style={btnStyle("var(--error-color, #f87171)")}>Reject</button>
- <button onClick={handleApply} style={btnStyle("var(--accent-primary, #6366f1)")}>Apply ({acceptedCount})</button>
- <button onClick={() => onApply(null)} style={btnStyle("var(--text-secondary, #888)")}>Cancel</button>
- </div>
+   {/* Action buttons — anchored left, always visible */}
+   <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+     <button onClick={handleApply} style={btnStyle("var(--accent-primary, #6366f1)")}>Apply ({acceptedCount})</button>
+     <button onClick={acceptAll}   style={btnStyle("var(--success-color, #4ade80)")}>Accept All</button>
+     <button onClick={rejectAll}   style={btnStyle("var(--error-color, #f87171)")}>Reject All</button>
+     <button onClick={() => onApply(null)} style={btnStyle("var(--text-secondary, #888)")}>Cancel</button>
+   </div>
+   {/* Divider */}
+   <span style={{ width: 1, height: 14, background: "var(--border-color)", flexShrink: 0 }} />
+   {/* File info — allowed to truncate, pushed right */}
+   <span style={{ fontSize: 11, color: "var(--text-secondary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>
+     <code style={{ color: "var(--text-primary)" }}>{filePath.split("/").pop()}</code>
+   </span>
+   <span style={{ fontSize: 10, color: "var(--text-secondary)", whiteSpace: "nowrap", marginLeft: "auto", flexShrink: 0 }}>
+     {acceptedCount}/{hunks.length} hunks
+   </span>
  </div>
 
  {/* Diff body */}

@@ -102,7 +102,7 @@ describe('DiffReviewPanel — Apply', () => {
     renderPanel('old\n', 'new\n', onApply);
 
     // Reject all hunks first
-    fireEvent.click(screen.getByText('Reject'));
+    fireEvent.click(screen.getByText('Reject All'));
 
     fireEvent.click(screen.getByText(/Apply/i));
 
@@ -120,7 +120,7 @@ describe('DiffReviewPanel — Apply', () => {
     );
 
     // Reject all (should fall back to original semantically)
-    fireEvent.click(screen.getByText('Reject'));
+    fireEvent.click(screen.getByText('Reject All'));
     fireEvent.click(screen.getByText(/Apply/i));
 
     // onApply(null) when nothing accepted
@@ -163,7 +163,7 @@ describe('DiffReviewPanel — Accept All / Reject All', () => {
     const onApply = vi.fn();
     renderPanel('a\nb\n', 'x\ny\n', onApply);
 
-    fireEvent.click(screen.getByText('Accept'));
+    fireEvent.click(screen.getByText('Accept All'));
     fireEvent.click(screen.getByText(/Apply/i));
 
     const result = onApply.mock.calls[0][0] as string;
@@ -174,7 +174,7 @@ describe('DiffReviewPanel — Accept All / Reject All', () => {
     const onApply = vi.fn();
     renderPanel('a\n', 'b\n', onApply);
 
-    fireEvent.click(screen.getByText('Reject'));
+    fireEvent.click(screen.getByText('Reject All'));
     fireEvent.click(screen.getByText(/Apply/i));
 
     expect(onApply).toHaveBeenCalledWith(null);

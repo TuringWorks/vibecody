@@ -1796,7 +1796,7 @@ function App() {
               <div style={{ height: 'calc(100% - 35px)', position: 'relative' }}>
                 {/* DiffReviewPanel — absolutely positioned overlay */}
                 {pendingDiff && (
-                  <div style={{ position: 'absolute', inset: 0, zIndex: 2, background: 'var(--bg-primary)' }}>
+                  <div style={{ position: 'absolute', inset: 0, zIndex: 50, background: 'var(--bg-primary)' }}>
                     <DiffReviewErrorBoundary onDismiss={() => {
                       setPendingDiff(null);
                       window.dispatchEvent(new Event("vibeui:diff-resolved"));
