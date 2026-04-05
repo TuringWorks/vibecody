@@ -300,6 +300,6 @@ Open VibeUI and navigate to the **HTTP** panel. The interface provides:
 
 ## What's Next
 
-- [Demo 28: GraphQL Explorer](../graphql/) -- Introspect schemas and build queries with autocomplete
-- [Demo 29: Regex & Encoding Tools](../regex-encoding/) -- Pattern testing, JWT decoding, and data conversion
-- [Demo 30: Notebook & Scripts](../notebook-scripts/) -- Interactive notebooks and AI-assisted scripting
+- [Demo 28: GraphQL Explorer](../28-graphql/) -- Introspect schemas and build queries with autocomplete
+- [Demo 29: Regex & Encoding Tools](../29-regex-encoding/) -- Pattern testing, JWT decoding, and data conversion
+- [Demo 30: Notebook & Scripts](../30-notebook-scripts/) -- Interactive notebooks and AI-assisted scripting

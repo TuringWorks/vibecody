@@ -346,4 +346,4 @@ learning_store = "~/.vibecli/proactive-learning.json"
 
 - [Demo 9: Autofix & Diagnostics](../09-autofix/) -- Automated bug detection and one-click fixes
 - [Demo 40: Web Search Grounding](../40-web-grounding/) -- Enrich agent answers with live web data
-- [Demo 23: Test Runner & Coverage](../test-coverage/) -- Verify test coverage for flagged files
+- [Demo 23: Test Runner & Coverage](../23-test-coverage/) -- Verify test coverage for flagged files

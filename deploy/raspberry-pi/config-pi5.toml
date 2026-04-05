@@ -1,0 +1,13 @@
+# VibeCody config optimized for Raspberry Pi 5 (8 GB RAM)
+[ollama]
+enabled = true
+model = "mistral:7b"
+context_length = 4096
+
+[safety]
+approval_policy = "suggest"
+sandbox = false
+
+[agent]
+max_steps = 50
+max_tokens_per_step = 2048

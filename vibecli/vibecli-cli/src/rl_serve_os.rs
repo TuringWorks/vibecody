@@ -4444,7 +4444,6 @@ mod tests {
         );
         let resp = router.route_batch(&batch);
         assert_eq!(resp.responses.len(), 3);
-        assert!(resp.total_latency_us >= 0);
     }
 
     // ── Replay Entry tests ────────────────────────────────────────────

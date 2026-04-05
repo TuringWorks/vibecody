@@ -273,4 +273,4 @@ In the VibeUI desktop app, open the **CostRouterPanel** from the AI sidebar. The
 
 - [Demo 42: MCTS Code Repair](../42-mcts-repair/) -- Fix bugs with tree-search exploration
 - [Demo 44: Visual Verification](../44-visual-verify/) -- Screenshot-based design compliance checking
-- [Demo 34: Usage Metering](../usage-metering/) -- Detailed per-user and per-project credit tracking
+- [Demo 34: Usage Metering](../34-usage-metering/) -- Detailed per-user and per-project credit tracking

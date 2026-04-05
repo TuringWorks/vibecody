@@ -15,8 +15,8 @@ The Model Arena lets you compare AI models head-to-head by sending the same prom
 
 ## Prerequisites
 
-- VibeCLI installed and configured (see [Demo 1: First Run](../first-run/))
-- API keys for at least two AI providers (see [Demo 3: Multi-Provider Chat](../multi-provider-chat/))
+- VibeCLI installed and configured (see [Demo 1: First Run](../01-first-run/))
+- API keys for at least two AI providers (see [Demo 3: Multi-Provider Chat](../03-multi-provider-chat/))
 - VibeUI installed for the graphical Arena panel (optional -- CLI arena also available)
 
 ## Step-by-Step Walkthrough
@@ -46,20 +46,20 @@ In the Arena panel, choose which models to compare. You can select 2-4 models at
 **CLI:**
 
 ```bash
-vibecli arena --models claude:claude-sonnet-4-20250514,openai:gpt-4o,gemini:gemini-2.0-flash,groq:llama-3.3-70b-versatile
+vibecli arena --models claude:claude-sonnet-4-6,openai:gpt-4o,gemini:gemini-2.5-flash,groq:llama-3.3-70b-versatile
 ```
 
 Example configurations:
 
 ```bash
 # Compare flagship models
-vibecli arena --models claude:claude-sonnet-4-20250514,openai:gpt-4o,gemini:gemini-2.0-pro
+vibecli arena --models claude:claude-sonnet-4-6,openai:gpt-4o,gemini:gemini-2.5-pro
 
 # Compare fast/cheap models
 vibecli arena --models groq:llama-3.3-70b-versatile,cerebras:llama3.1-70b,ollama:llama3
 
 # Compare coding models
-vibecli arena --models claude:claude-sonnet-4-20250514,deepseek:deepseek-coder,mistral:codestral-latest
+vibecli arena --models claude:claude-sonnet-4-6,deepseek:deepseek-coder,mistral:codestral-latest
 ```
 
 <!-- Screenshot placeholder: Model selector with 3 models chosen -->
@@ -73,7 +73,7 @@ Type your prompt in the Arena input field. The same prompt is sent to all select
 **CLI:**
 
 ```bash
-vibecli arena --models claude:claude-sonnet-4-20250514,openai:gpt-4o \
+vibecli arena --models claude:claude-sonnet-4-6,openai:gpt-4o \
   --prompt "Write a Rust function that finds the longest common subsequence of two strings"
 ```
 
@@ -162,7 +162,7 @@ Model Arena Leaderboard (47 matches)
 +----+---------------------------+------+------+------+------+--------+
 | 1  | claude:claude-sonnet-4    | 1284 |   18 |    6 |    4 | 64.3%  |
 | 2  | openai:gpt-4o             | 1245 |   15 |    8 |    5 | 53.6%  |
-| 3  | gemini:gemini-2.0-pro     | 1198 |   12 |   10 |    6 | 42.9%  |
+| 3  | gemini:gemini-2.5-pro     | 1198 |   12 |   10 |    6 | 42.9%  |
 | 4  | deepseek:deepseek-coder   | 1156 |    9 |   12 |    3 | 37.5%  |
 | 5  | groq:llama-3.3-70b        | 1117 |    7 |   14 |    2 | 30.4%  |
 +----+---------------------------+------+------+------+------+--------+
@@ -201,7 +201,7 @@ Coding Leaderboard (23 matches)
 For unbiased evaluation, enable blind mode where model names are hidden until after voting:
 
 ```bash
-vibecli arena --blind --models claude:claude-sonnet-4-20250514,openai:gpt-4o
+vibecli arena --blind --models claude:claude-sonnet-4-6,openai:gpt-4o
 ```
 
 ```
@@ -242,7 +242,7 @@ Example JSON export:
       "category": "coding",
       "responses": [
         {
-          "model": "claude:claude-sonnet-4-20250514",
+          "model": "claude:claude-sonnet-4-6",
           "tokens": 342,
           "time_ms": 2300,
           "cost_usd": 0.0034,
@@ -259,7 +259,7 @@ Example JSON export:
     }
   ],
   "leaderboard": {
-    "claude:claude-sonnet-4-20250514": { "elo": 1284, "matches": 28 },
+    "claude:claude-sonnet-4-6": { "elo": 1284, "matches": 28 },
     "openai:gpt-4o": { "elo": 1245, "matches": 28 }
   }
 }
@@ -292,7 +292,7 @@ The VibeUI Arena panel provides additional graphical features:
     {
       "id": 1,
       "action": "shell",
-      "command": "vibecli arena --models claude:claude-sonnet-4-20250514,openai:gpt-4o --prompt \"Write a Rust function to check if a string is a palindrome\"",
+      "command": "vibecli arena --models claude:claude-sonnet-4-6,openai:gpt-4o --prompt \"Write a Rust function to check if a string is a palindrome\"",
       "description": "Start an arena match between Claude and GPT-4o",
       "delay_ms": 10000,
       "typing_speed_ms": 30
@@ -314,7 +314,7 @@ The VibeUI Arena panel provides additional graphical features:
     {
       "id": 4,
       "action": "shell",
-      "command": "vibecli arena --models claude:claude-sonnet-4-20250514,openai:gpt-4o,groq:llama-3.3-70b-versatile --prompt \"Explain the borrow checker in Rust to a JavaScript developer\"",
+      "command": "vibecli arena --models claude:claude-sonnet-4-6,openai:gpt-4o,groq:llama-3.3-70b-versatile --prompt \"Explain the borrow checker in Rust to a JavaScript developer\"",
       "description": "Three-way arena match with an explanation prompt",
       "delay_ms": 12000,
       "typing_speed_ms": 30
@@ -336,7 +336,7 @@ The VibeUI Arena panel provides additional graphical features:
     {
       "id": 7,
       "action": "shell",
-      "command": "vibecli arena --blind --models claude:claude-sonnet-4-20250514,openai:gpt-4o --prompt \"Write a SQL query to find duplicate emails in a users table\"",
+      "command": "vibecli arena --blind --models claude:claude-sonnet-4-6,openai:gpt-4o --prompt \"Write a SQL query to find duplicate emails in a users table\"",
       "description": "Blind mode arena match",
       "delay_ms": 8000
     },
@@ -381,6 +381,6 @@ The VibeUI Arena panel provides additional graphical features:
 
 ## What's Next
 
-- [Demo 6: Cost Observatory](../cost-observatory/) -- Understand the cost of each model you tested
-- [Demo 3: Multi-Provider Chat](../multi-provider-chat/) -- Deep dive into provider configuration
-- [Demo 4: Agent Loop](../agent-loop/) -- Compare how different models perform in agent tasks
+- [Demo 6: Cost Observatory](../06-cost-observatory/) -- Understand the cost of each model you tested
+- [Demo 3: Multi-Provider Chat](../03-multi-provider-chat/) -- Deep dive into provider configuration
+- [Demo 4: Agent Loop](../04-agent-loop/) -- Compare how different models perform in agent tasks

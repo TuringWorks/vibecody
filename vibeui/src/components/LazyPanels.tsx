@@ -77,6 +77,7 @@ const IntegrationsComposite = lazy(() => import("./composite/IntegrationsComposi
 const AdministrationComposite = lazy(() => import("./composite/AdministrationComposite").then(m => ({ default: m.AdministrationComposite })));
 const BillingComposite = lazy(() => import("./composite/BillingComposite").then(m => ({ default: m.BillingComposite })));
 const ToolsSettingsComposite = lazy(() => import("./composite/ToolsSettingsComposite").then(m => ({ default: m.ToolsSettingsComposite })));
+const ProductivityComposite = lazy(() => import("./composite/ProductivityComposite").then(m => ({ default: m.ProductivityComposite })));
 
 // --- Props interfaces ---
 
@@ -140,7 +141,7 @@ export function PanelHost(props: PanelHostProps) {
     "database", "api-tools", "data-pipeline",
     "system-monitor", "terminal", "diagnostics",
     "converters", "formatters", "editors",
-    "config", "integrations", "administration", "billing", "tools-settings",
+    "config", "integrations", "administration", "billing", "tools-settings", "productivity",
   ];
 
   return (
@@ -200,6 +201,9 @@ export function PanelHost(props: PanelHostProps) {
       {panel("administration", <LazyPanel Component={AdministrationComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}
       {panel("billing", <LazyPanel Component={BillingComposite} props={{ provider: selectedProvider }} />)}
       {panel("tools-settings", <LazyPanel Component={ToolsSettingsComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}
+
+      {/* --- Productivity --- */}
+      {panel("productivity", <LazyPanel Component={ProductivityComposite} props={{ provider: selectedProvider }} />)}
 
       {/* Fallback for unknown tabs */}
       {!visited.has(tab) || !KNOWN_TABS.includes(tab) ? (

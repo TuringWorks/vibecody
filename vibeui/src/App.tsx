@@ -23,12 +23,12 @@ import { GitPanel } from "./components/GitPanel";
 import { MarkdownPreview } from "./components/MarkdownPreview";
 import { HtmlPreview } from "./components/HtmlPreview";
 import { DrawioPreview } from "./components/DrawioPreview";
-import { FileCode, Globe, FilePlus, FolderPlus, FolderOpen, Files, Search, GitGraph, Settings, Menu, MessageSquare, Save, Terminal as TerminalIcon, PanelLeft, Puzzle, Hand, Sparkles, Bot, Rocket, Plug, Eye, FileText, GraduationCap, LayoutGrid, Play, Shield, TestTube, ClipboardList, Hammer, Image, MonitorPlay } from "lucide-react";
+import { Icon } from "./components/Icon";
 import "./ActivityBar.css";
 import { ExtensionManager } from "./extensions/ExtensionManager";
 // Import worker using Vite's syntax
 import ExtensionHostWorker from "./extensions/ExtensionHost?worker";
-import { DiffReviewPanel } from "./components/DiffReviewPanel";
+import { DiffReviewPanel, DiffReviewErrorBoundary } from "./components/DiffReviewPanel";
 import { useCollab } from "./hooks/useCollab";
 import { flowContext } from "./utils/FlowContext";
 import { supercompleteEngine } from "./utils/SupercompleteEngine";
@@ -115,6 +115,11 @@ function App() {
   // sees the current value rather than a stale closure capture.
   const pendingDiffRef = useRef(pendingDiff);
   pendingDiffRef.current = pendingDiff;
+  // Undo strip — shown after Apply for up to 30 s so the user can revert.
+  const [lastApply, setLastApply] = useState<{
+    path: string; filename: string; original: string; written: string;
+  } | null>(null);
+  const lastApplyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Collab (CRDT multiplayer)
   const collab = useCollab();
@@ -963,7 +968,7 @@ function App() {
       id: 'file.openFolder',
       label: 'Open Folder',
       category: 'File',
-      icon: <FolderOpen size={16} strokeWidth={1.5} />,
+      icon: <Icon name="folder-open" size={16} />,
       shortcut: modKey + 'O',
       action: openFolder,
     },
@@ -971,7 +976,7 @@ function App() {
       id: 'file.save',
       label: 'Save File',
       category: 'File',
-      icon: <Save size={16} strokeWidth={1.5} />,
+      icon: <Icon name="save" size={16} />,
       shortcut: modKey + 'S',
       action: saveFile,
     },
@@ -979,14 +984,14 @@ function App() {
       id: 'file.createFile',
       label: 'Create New File',
       category: 'File',
-      icon: <FilePlus size={16} strokeWidth={1.5} />,
+      icon: <Icon name="file-plus" size={16} />,
       action: handleNewFile,
     },
     {
       id: 'file.createFolder',
       label: 'Create New Folder',
       category: 'File',
-      icon: <FolderPlus size={16} strokeWidth={1.5} />,
+      icon: <Icon name="folder-plus" size={16} />,
       action: handleNewFolder,
     },
     // Editor actions
@@ -994,7 +999,7 @@ function App() {
       id: 'editor.toggleSidebar',
       label: 'Toggle Sidebar',
       category: 'Editor',
-      icon: <PanelLeft size={16} strokeWidth={1.5} />,
+      icon: <Icon name="panel-left" size={16} />,
       shortcut: modKey + 'B',
       action: () => setShowSidebar(prev => !prev),
     },
@@ -1002,7 +1007,7 @@ function App() {
       id: 'editor.toggleAIChat',
       label: 'Toggle AI Chat',
       category: 'Editor',
-      icon: <MessageSquare size={16} strokeWidth={1.5} />,
+      icon: <Icon name="message-square" size={16} />,
       shortcut: modKey + 'J',
       action: () => setShowAIChat(prev => !prev),
     },
@@ -1010,7 +1015,7 @@ function App() {
       id: 'editor.search',
       label: 'Search in Files',
       category: 'Editor',
-      icon: <Search size={16} strokeWidth={1.5} />,
+      icon: <Icon name="search" size={16} />,
       action: () => setActiveSidebarTab('search'),
     },
     // View
@@ -1018,7 +1023,7 @@ function App() {
       id: 'view.toggleTerminal',
       label: 'Toggle Terminal',
       category: 'View',
-      icon: <TerminalIcon size={16} strokeWidth={1.5} />,
+      icon: <Icon name="terminal" size={16} />,
       shortcut: modKey + '`',
       action: () => setShowTerminal(prev => !prev),
     },
@@ -1026,7 +1031,7 @@ function App() {
       id: 'view.explorer',
       label: 'Show Explorer',
       category: 'View',
-      icon: <FolderOpen size={16} strokeWidth={1.5} />,
+      icon: <Icon name="folder-open" size={16} />,
       shortcut: modKey + shiftMod + 'E',
       action: () => {
         setShowSidebar(true);
@@ -1037,7 +1042,7 @@ function App() {
       id: 'view.git',
       label: 'Show Source Control',
       category: 'View',
-      icon: <GitGraph size={16} strokeWidth={1.5} />,
+      icon: <Icon name="git-graph" size={16} />,
       shortcut: modKey + shiftMod + 'G',
       action: () => {
         setShowSidebar(true);
@@ -1049,7 +1054,7 @@ function App() {
       id: 'debug.loadTestExtension',
       label: 'Load Test Extension',
       category: 'Debug',
-      icon: <Puzzle size={16} strokeWidth={1.5} />,
+      icon: <Icon name="puzzle" size={16} />,
       action: () => {
         const code = `
           console.log('Hello from extension!');
@@ -1065,7 +1070,7 @@ function App() {
       id: 'extension.helloWorld',
       label: 'Hello World (Extension)',
       category: 'Extension',
-      icon: <Hand size={16} strokeWidth={1.5} />,
+      icon: <Icon name="hand" size={16} />,
       action: () => {
         extensionManagerRef.current?.executeCommand('extension.helloWorld');
       }
@@ -1298,7 +1303,7 @@ function App() {
       <header className="header">
         <div className="header-left">
           <button className="icon-button" onClick={() => setShowSidebar(!showSidebar)} aria-label="Toggle sidebar">
-            <Menu size={18} strokeWidth={1.5} />
+            <Icon name="menu" size={18} />
           </button>
           <h1 className="app-title">VibeUI</h1>
           <MenuBar menus={appMenus} />
@@ -1322,17 +1327,17 @@ function App() {
             onClick={() => { setShowAIChat(!showAIChat); if (!showAIChat) setShowFilterBar(false); }}
             title="Toggle Vibe Toolkit"
           >
-            <LayoutGrid size={14} strokeWidth={1.5} /> Vibe Toolkit
+            <Icon name="layout-grid" size={14} /> Vibe Toolkit
           </button>
           <button className="btn-primary" onClick={saveFile} disabled={!currentFile}>
-            <Save size={14} strokeWidth={1.5} /> Save
+            <Icon name="save" size={14} /> Save
           </button>
           {currentFile && currentFile.endsWith('.md') && (
             <button
               className="btn-secondary"
               onClick={() => setShowMarkdownPreview(!showMarkdownPreview)}
             >
-              {showMarkdownPreview ? <><FileText size={14} strokeWidth={1.5} /> Edit</> : <><Eye size={14} strokeWidth={1.5} /> Preview</>}
+              {showMarkdownPreview ? <><Icon name="file-text" size={14} /> Edit</> : <><Icon name="eye" size={14} /> Preview</>}
             </button>
           )}
           {currentFile && (currentFile.endsWith('.html') || currentFile.endsWith('.htm')) && (
@@ -1340,7 +1345,7 @@ function App() {
               className="btn-secondary"
               onClick={() => setShowHtmlPreview(!showHtmlPreview)}
             >
-              {showHtmlPreview ? <><FileCode size={14} strokeWidth={1.5} /> Edit</> : <><Globe size={14} strokeWidth={1.5} /> Preview</>}
+              {showHtmlPreview ? <><Icon name="file-code" size={14} /> Edit</> : <><Icon name="globe" size={14} /> Preview</>}
             </button>
           )}
           {currentFile && currentFile.endsWith('.svg') && (
@@ -1348,7 +1353,7 @@ function App() {
               className="btn-secondary"
               onClick={() => setShowSvgPreview(!showSvgPreview)}
             >
-              {showSvgPreview ? <><FileCode size={14} strokeWidth={1.5} /> Edit</> : <><Image size={14} strokeWidth={1.5} /> Preview</>}
+              {showSvgPreview ? <><Icon name="file-code" size={14} /> Edit</> : <><Icon name="image" size={14} /> Preview</>}
             </button>
           )}
           {currentFile && (currentFile.endsWith('.drawio') || currentFile.endsWith('.dio')) && (
@@ -1356,7 +1361,7 @@ function App() {
               className="btn-secondary"
               onClick={() => setShowDrawioPreview(!showDrawioPreview)}
             >
-              {showDrawioPreview ? <><FileCode size={14} strokeWidth={1.5} /> Edit</> : <><MonitorPlay size={14} strokeWidth={1.5} /> Preview</>}
+              {showDrawioPreview ? <><Icon name="file-code" size={14} /> Edit</> : <><Icon name="monitor-play" size={14} /> Preview</>}
             </button>
           )}
           <NotificationCenter
@@ -1373,14 +1378,14 @@ function App() {
         {/* Activity Bar */}
         <div className="activity-bar">
           {([
-            { id: "explorer" as const, icon: <Files size={20} strokeWidth={1.5} />, title: "Explorer", shortcut: `${modKey}${shiftMod}E` },
-            { id: "search" as const, icon: <Search size={20} strokeWidth={1.5} />, title: "Search", shortcut: undefined },
-            { id: "git" as const, icon: <GitGraph size={20} strokeWidth={1.5} />, title: "Source Control", shortcut: `${modKey}${shiftMod}G` },
-            { id: "testing" as const, icon: <TestTube size={20} strokeWidth={1.5} />, title: "Testing & Debug", shortcut: undefined },
-            { id: "project" as const, icon: <ClipboardList size={20} strokeWidth={1.5} />, title: "Project", shortcut: undefined },
-            { id: "infra" as const, icon: <Hammer size={20} strokeWidth={1.5} />, title: "Build & Infra", shortcut: undefined },
-            { id: "ai" as const, icon: <Bot size={20} strokeWidth={1.5} />, title: "AI Toolkit", shortcut: `${modKey}J` },
-            { id: "security" as const, icon: <Shield size={20} strokeWidth={1.5} />, title: "Security", shortcut: undefined },
+            { id: "explorer" as const, icon: <Icon name="files" size={20} />, title: "Explorer", shortcut: `${modKey}${shiftMod}E` },
+            { id: "search" as const, icon: <Icon name="search" size={20} />, title: "Search", shortcut: undefined },
+            { id: "git" as const, icon: <Icon name="git-graph" size={20} />, title: "Source Control", shortcut: `${modKey}${shiftMod}G` },
+            { id: "testing" as const, icon: <Icon name="test-tube" size={20} />, title: "Testing & Debug", shortcut: undefined },
+            { id: "project" as const, icon: <Icon name="clipboard-list" size={20} />, title: "Project", shortcut: undefined },
+            { id: "infra" as const, icon: <Icon name="hammer" size={20} />, title: "Build & Infra", shortcut: undefined },
+            { id: "ai" as const, icon: <Icon name="bot" size={20} />, title: "AI Toolkit", shortcut: `${modKey}J` },
+            { id: "security" as const, icon: <Icon name="shield" size={20} />, title: "Security", shortcut: undefined },
           ]).map(({ id, icon, title, shortcut }) => (
             <button
               key={id}
@@ -1404,10 +1409,10 @@ function App() {
           ))}
           <div className="activity-bar-spacer" />
           <button className="activity-bar-item" title="Terminal" aria-label={`Terminal (${modKey}\`)`} onClick={() => setShowTerminal(prev => !prev)}>
-            <TerminalIcon size={20} strokeWidth={1.5} />
+            <Icon name="terminal" size={20} />
           </button>
           <button className="activity-bar-item" title="Settings" aria-label="Settings" onClick={() => setShowSettingsModal(true)}>
-            <Settings size={20} strokeWidth={1.5} />
+            <Icon name="settings" size={20} />
           </button>
         </div>
 
@@ -1421,20 +1426,20 @@ function App() {
                 <div className="sidebar-header sidebar-header--compact">
                   <div className="sidebar-actions">
                     <button className="btn-icon" onClick={handleNewFile} title="New File" disabled={!currentDirectory}>
-                      <FilePlus size={16} />
+                      <Icon name="file-plus" size={16} />
                     </button>
                     <button className="btn-icon" onClick={handleNewFolder} title="New Folder" disabled={!currentDirectory}>
-                      <FolderPlus size={16} />
+                      <Icon name="folder-plus" size={16} />
                     </button>
                     <button className="btn-icon" onClick={openFolder} title="Open Folder">
-                      <FolderOpen size={16} />
+                      <Icon name="folder-open" size={16} />
                     </button>
                   </div>
                 </div>
                 <div className="file-tree">
                   {currentDirectory && (
                     <div className="file-item directory" onClick={handleGoUp} onKeyDown={e => e.key === "Enter" && handleGoUp()} role="button" tabIndex={0} title="Go to Parent">
-                      <span className="file-icon"><FolderOpen size={14} strokeWidth={1.5} /></span>
+                      <span className="file-icon"><Icon name="folder-open" size={14} /></span>
                       <span className="file-name">..</span>
                     </div>
                   )}
@@ -1535,7 +1540,7 @@ function App() {
                 <div className="sidebar-section-title">Testing</div>
                 <button className="btn-secondary" style={{ width: "100%", justifyContent: "center", gap: 6, display: "flex", alignItems: "center" }}
                   onClick={() => { setShowAIChat(true); setAiPanelTab("testing"); }}>
-                  <Play size={14} strokeWidth={1.5} /> Run Tests
+                  <Icon name="play" size={14} /> Run Tests
                 </button>
                 <div style={{ fontSize: 11, color: "var(--text-muted)", lineHeight: 1.5 }}>
                   Run tests, view coverage, and use AI to auto-fix failures.
@@ -1735,6 +1740,56 @@ function App() {
             </div>
           ) : (
             <>
+              {/* Undo strip — shown after Apply for 30 s */}
+              {lastApply && (
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 8,
+                  padding: "3px 10px", flexShrink: 0,
+                  background: "var(--bg-secondary)",
+                  borderBottom: "1px solid var(--border-color)",
+                  fontSize: 12,
+                }}>
+                  <span style={{ color: "var(--success-color, #4ade80)" }}>✓</span>
+                  <span style={{ color: "var(--text-secondary)" }}>
+                    Applied <strong style={{ color: "var(--text-primary)" }}>{lastApply.filename}</strong>
+                  </span>
+                  <button
+                    onClick={() => {
+                      const { path, original } = lastApply;
+                      if (lastApplyTimerRef.current) clearTimeout(lastApplyTimerRef.current);
+                      setLastApply(null);
+                      invoke("write_file", { path, content: original })
+                        .then(() => { const d = currentDirectoryRef.current; if (d) loadDirectory(d); })
+                        .catch((e) => console.error("Undo write failed:", e));
+                      setTimeout(() => {
+                        try {
+                          setOpenFiles((prev) => prev.map((f: any) => f.path === path ? { ...f, content: original, isDirty: false } : f));
+                          setActiveFilePath(path);
+                        } catch (e) { console.error("Undo state sync failed:", e); }
+                      }, 50);
+                    }}
+                    style={{
+                      marginLeft: "auto", padding: "2px 8px", fontSize: 11,
+                      border: "1px solid var(--warning-color, #f59e0b)",
+                      color: "var(--warning-color, #f59e0b)",
+                      background: "transparent", borderRadius: 3, cursor: "pointer",
+                    }}
+                  >
+                    Undo
+                  </button>
+                  <button
+                    onClick={() => { if (lastApplyTimerRef.current) clearTimeout(lastApplyTimerRef.current); setLastApply(null); }}
+                    style={{
+                      padding: "2px 6px", fontSize: 11,
+                      border: "none", color: "var(--text-secondary)",
+                      background: "transparent", cursor: "pointer",
+                    }}
+                    title="Dismiss"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
               {/* Editor area — both editor and DiffReviewPanel live in this container.
                   DiffReviewPanel overlays the editor with absolute positioning so Monaco
                   is NEVER unmounted or hidden. This prevents all Apply-related crashes. */}
@@ -1742,22 +1797,29 @@ function App() {
                 {/* DiffReviewPanel — absolutely positioned overlay */}
                 {pendingDiff && (
                   <div style={{ position: 'absolute', inset: 0, zIndex: 2, background: 'var(--bg-primary)' }}>
+                    <DiffReviewErrorBoundary onDismiss={() => {
+                      setPendingDiff(null);
+                      window.dispatchEvent(new Event("vibeui:diff-resolved"));
+                    }}>
                     <DiffReviewPanel
                       key={pendingDiff.path}
                       original={pendingDiff.original}
                       modified={pendingDiff.modified}
                       filePath={pendingDiff.path}
                       onApply={(result) => {
-                        const diffPath = pendingDiffRef.current?.path;
+                        const snap = pendingDiffRef.current;
+                        const diffPath = snap?.path;
+                        const applyFilename = diffPath?.split("/").pop() ?? diffPath ?? "";
+                        const originalContent = snap?.original ?? "";
 
-                        // Close the diff panel immediately.
+                        // FRAME 0 — close overlay only. ONE state change so React makes a
+                        // single, minimal commit with no layout side-effects on Monaco.
                         setPendingDiff(null);
                         window.dispatchEvent(new Event("vibeui:diff-resolved"));
 
-                        if (result === null || !diffPath) return;
+                        if (result === null || !diffPath) return; // cancel
 
-                        // Write to disk first — this is the only thing that matters.
-                        // Do NOT touch Monaco or React file state synchronously.
+                        // Start I/O immediately — no need to defer disk writes.
                         invoke("write_file", { path: diffPath, content: result })
                           .then(() => {
                             const dir = currentDirectoryRef.current;
@@ -1765,26 +1827,36 @@ function App() {
                           })
                           .catch((err) => console.error("Failed to write file:", err));
 
-                        // Wait 150ms for React to finish the diff panel unmount and
-                        // Monaco to stabilize, THEN update the editor content.
-                        // This is the only reliable way to avoid the Monaco crash —
-                        // any synchronous or single-frame-deferred update races with
-                        // the WebView layout triggered by the overlay removal.
-                        setTimeout(() => {
-                          try {
-                            const language = detectLanguage(diffPath);
-                            setOpenFiles((prev) => {
-                              const exists = prev.some((f: any) => f.path === diffPath);
-                              if (exists) return prev.map((f: any) => f.path === diffPath ? { ...f, content: result, isDirty: false } : f);
-                              return [...prev, { path: diffPath, content: result, language, isDirty: false }];
-                            });
-                            setActiveFilePath(diffPath);
-                          } catch (err) {
-                            console.error("Post-apply state sync failed:", err);
-                          }
-                        }, 150);
+                        // Clear any pending undo-dismiss timer before rescheduling.
+                        if (lastApplyTimerRef.current) clearTimeout(lastApplyTimerRef.current);
+
+                        // FRAME 1 — first paint after overlay removal. Monaco's ResizeObserver
+                        // has had one frame to settle. Now safe to add the undo strip.
+                        requestAnimationFrame(() => {
+                          setLastApply({ path: diffPath, filename: applyFilename, original: originalContent, written: result });
+                          lastApplyTimerRef.current = setTimeout(() => setLastApply(null), 30_000);
+
+                          // FRAME 2 — second paint. Undo strip layout is committed, Monaco is
+                          // fully idle. Now safe to update the editor content via React state.
+                          requestAnimationFrame(() => {
+                            try {
+                              const language = detectLanguage(diffPath);
+                              setOpenFiles((prev) => {
+                                const exists = prev.some((f: any) => f.path === diffPath);
+                                if (exists) return prev.map((f: any) =>
+                                  f.path === diffPath ? { ...f, content: result, isDirty: false } : f
+                                );
+                                return [...prev, { path: diffPath, content: result, language, isDirty: false }];
+                              });
+                              setActiveFilePath(diffPath);
+                            } catch (err) {
+                              console.error("Post-apply Monaco sync failed:", err);
+                            }
+                          });
+                        });
                       }}
                     />
+                    </DiffReviewErrorBoundary>
                   </div>
                 )}
 
@@ -1834,10 +1906,10 @@ function App() {
                     <p>AI-Powered Code Editor built with Rust + Tauri</p>
                     <div className="welcome-actions">
                       <button className="btn-primary" onClick={openFolder}>
-                        <FolderOpen size={14} strokeWidth={1.5} /> Open Folder
+                        <Icon name="folder-open" size={14} /> Open Folder
                       </button>
                       <button className="btn-secondary" onClick={() => setShowTour(true)}>
-                        <GraduationCap size={14} strokeWidth={1.5} /> Take a Tour
+                        <Icon name="graduation-cap" size={14} /> Take a Tour
                       </button>
                     </div>
                     <div className="features">
@@ -1867,10 +1939,10 @@ function App() {
                       </div>
                       <h3>Features</h3>
                       <ul>
-                        <li><Sparkles size={14} strokeWidth={1.5} style={{ verticalAlign: -2 }} /> AI-powered code completion (Ollama ready)</li>
-                        <li><Bot size={14} strokeWidth={1.5} style={{ verticalAlign: -2 }} /> Multiple AI providers: Ollama, Claude, ChatGPT, Gemini, Grok</li>
-                        <li><Rocket size={14} strokeWidth={1.5} style={{ verticalAlign: -2 }} /> Fast text editing with Rust backend</li>
-                        <li><Plug size={14} strokeWidth={1.5} style={{ verticalAlign: -2 }} /> VSCode + JetBrains + Neovim plugin support</li>
+                        <li><Icon name="sparkles" size={14} style={{ verticalAlign: -2 }} /> AI-powered code completion (Ollama ready)</li>
+                        <li><Icon name="bot" size={14} style={{ verticalAlign: -2 }} /> Multiple AI providers: Ollama, Claude, ChatGPT, Gemini, Grok</li>
+                        <li><Icon name="rocket" size={14} style={{ verticalAlign: -2 }} /> Fast text editing with Rust backend</li>
+                        <li><Icon name="plug" size={14} style={{ verticalAlign: -2 }} /> VSCode + JetBrains + Neovim plugin support</li>
                       </ul>
                     </div>
                   </div>

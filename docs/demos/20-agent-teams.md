@@ -294,6 +294,6 @@ The monitor view shows a Mermaid-style diagram of agent interactions updated in 
 
 ## What's Next
 
-- [Demo 21: CRDT Collaboration](../crdt-collab/) -- Pair with teammates on the same file in real time
-- [Demo 22: Gateway Messaging](../gateway/) -- Run your AI agents across 18 messaging platforms
+- [Demo 21: CRDT Collaboration](../21-crdt-collab/) -- Pair with teammates on the same file in real time
+- [Demo 22: Gateway Messaging](../22-gateway/) -- Run your AI agents across 18 messaging platforms
 - Combine agent teams with context bundles so each role gets domain-specific context

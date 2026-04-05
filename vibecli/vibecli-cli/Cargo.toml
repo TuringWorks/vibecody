@@ -49,6 +49,8 @@ sha2.workspace = true
 hmac.workspace = true
 hex.workspace = true
 uuid.workspace = true
+base64 = "0.22"
+chrono = "0.4"
 
 # OpenTelemetry (OTLP/HTTP export)
 opentelemetry = { version = "0.27", features = ["trace"] }

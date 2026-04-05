@@ -15,8 +15,7 @@
  * rejected hunks revert to `original` lines.
  */
 
-import React, { useState, useMemo, useEffect } from "react";
-// lucide-react icons not needed
+import React, { useState, useMemo, useEffect, useRef, Component } from "react";
 
 // ── Diff types ────────────────────────────────────────────────────────────────
 
@@ -43,9 +42,9 @@ function diffLines(original: string[], modified: string[]): DiffLine[] {
  const n = oa.length;
  const m = mb.length;
 
- // Guard against O(n*m) blowup — if both sides are very large, fall back
- // to a simple "delete all original, insert all modified" diff.
- if (n * m > 2_000_000) {
+ // Guard against O(n*m) blowup — fall back for files > ~900 lines each
+ // to keep memory well within WebView limits.
+ if (n * m > 800_000) {
    const result: DiffLine[] = [];
    let origLine = 1;
    for (const line of oa) result.push({ kind: "delete", origLine: origLine++, text: line });
@@ -199,7 +198,10 @@ interface DiffReviewPanelProps {
  modified: string;
  /** File path (shown in header). */
  filePath: string;
- /** Called with the assembled content (null = reject all / cancel). */
+ /**
+  * Called with assembled content to write (null = cancel/dismiss).
+  * The panel closes itself after this call via the parent unmounting it.
+  */
  onApply: (result: string | null) => void;
 }
 
@@ -221,10 +223,13 @@ export function DiffReviewPanel({ original, modified, filePath, onApply }: DiffR
  rawHunks.map((h) => ({ ...h, accepted: true }))
  );
 
- // Sync hunks state when props (original/modified) change after mount
+ // Sync hunks state when props change after mount
  useEffect(() => {
  setHunks(rawHunks.map((h) => ({ ...h, accepted: true })));
  }, [rawHunks]);
+
+ // Guard: prevent double-clicking Apply from submitting twice
+ const applyingRef = useRef(false);
 
  const noChanges = hunks.length === 0;
  const acceptedCount = hunks.filter((h) => h.accepted).length;
@@ -239,17 +244,19 @@ export function DiffReviewPanel({ original, modified, filePath, onApply }: DiffR
  const rejectAll = () => setHunks((prev) => prev.map((h) => ({ ...h, accepted: false })));
 
  const handleApply = () => {
+ if (applyingRef.current) return; // prevent double-submit
+ applyingRef.current = true;
+
  if (noChanges || acceptedCount === 0) {
- onApply(null);
- return;
+   onApply(null);
+   return;
  }
  try {
- const result = assembleFinal(originalLines, modifiedLines, hunks, allDiffed);
- onApply(result);
+   const result = assembleFinal(originalLines, modifiedLines, hunks, allDiffed);
+   onApply(result);
  } catch (err) {
- console.error("assembleFinal crashed:", err);
- // Fallback: apply modified content as-is
- onApply(modified);
+   console.error("assembleFinal crashed:", err);
+   onApply(modified); // fallback: apply full modified content
  }
  };
 
@@ -389,4 +396,50 @@ function btnStyle(accent: string): React.CSSProperties {
  background: "transparent", color: accent,
  cursor: "pointer", whiteSpace: "nowrap",
  };
+}
+
+// ── Error boundary ────────────────────────────────────────────────────────────
+
+interface EBProps { children: React.ReactNode; onDismiss: () => void; }
+interface EBState { hasError: boolean; message: string; }
+
+export class DiffReviewErrorBoundary extends Component<EBProps, EBState> {
+  constructor(props: EBProps) {
+    super(props);
+    this.state = { hasError: false, message: "" };
+  }
+
+  static getDerivedStateFromError(err: unknown): EBState {
+    const message = err instanceof Error ? err.message : String(err);
+    return { hasError: true, message };
+  }
+
+  componentDidCatch(err: unknown, info: React.ErrorInfo) {
+    console.error("[DiffReviewPanel] render error:", err, info.componentStack);
+  }
+
+  render() {
+    if (!this.state.hasError) return this.props.children;
+    return (
+      <div style={{
+        display: "flex", flexDirection: "column", alignItems: "center",
+        justifyContent: "center", height: "100%", gap: 12,
+        background: "var(--bg-primary)", color: "var(--text-primary)",
+        fontFamily: "var(--font-mono)", fontSize: 13, padding: 24,
+      }}>
+        <span style={{ color: "var(--error-color, #f87171)", fontWeight: 600 }}>
+          Diff view encountered an error
+        </span>
+        <span style={{ color: "var(--text-secondary)", fontSize: 11, maxWidth: 400, textAlign: "center" }}>
+          {this.state.message || "An unexpected error occurred."}
+        </span>
+        <button
+          onClick={this.props.onDismiss}
+          style={btnStyle("var(--accent-primary, #6366f1)")}
+        >
+          Dismiss
+        </button>
+      </div>
+    );
+  }
 }

@@ -12,11 +12,12 @@ License: MIT
 Repository: https://github.com/TuringWorks/vibecody
 Language: Rust (backend/CLI) + TypeScript/React (frontend)
 AI Providers: 23 native + OpenRouter (300+ models)
-Unit Tests: 9,570 (0 failures)
-UI Panels: 187
-Skill Files: 568 across 25+ industries
-REPL Commands: 100+
-Rust Modules: 185 (vibecli-cli/src/)
+Unit Tests: 10,535 (0 failures)
+UI Panels: 196+
+Skill Files: 556 across 25+ industries
+REPL Commands: 106+
+Rust Modules: 196 (vibecli-cli/src/)
+MCP Tools: 51 (file, agent, memory, security, email, calendar, tasks, Notion, Jira, Home Assistant)
 
 ## Architecture
 
@@ -58,16 +59,16 @@ provider -- no native function-calling API required.
 
 23 providers, listed with env var and default model:
 
-  1. Ollama         -- (no key needed)        -- qwen2.5-coder:7b
-  2. Claude         -- ANTHROPIC_API_KEY       -- claude-3-5-sonnet-20241022
+  1. Ollama         -- (no key needed)        -- qwen3-coder:480b-cloud
+  2. Claude         -- ANTHROPIC_API_KEY       -- claude-sonnet-4-6
   3. OpenAI         -- OPENAI_API_KEY          -- gpt-4o
-  4. Gemini         -- GEMINI_API_KEY          -- gemini-2.0-flash
+  4. Gemini         -- GEMINI_API_KEY          -- gemini-2.5-flash
   5. Grok           -- GROK_API_KEY            -- grok-3-mini
   6. Groq           -- GROQ_API_KEY            -- llama-3.3-70b-versatile
   7. OpenRouter     -- OPENROUTER_API_KEY      -- (user-specified)
   8. Azure OpenAI   -- AZURE_OPENAI_API_KEY    -- (deployment-specific)
   9. AWS Bedrock    -- AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY -- anthropic.claude-3-5-sonnet-20241022-v2:0
- 10. GitHub Copilot -- COPILOT_TOKEN or ~/.config/github-copilot/hosts.json -- gpt-4o
+ 10. GitHub Copilot -- GITHUB_TOKEN or ~/.config/github-copilot/hosts.json -- gpt-4o
  11. Mistral        -- MISTRAL_API_KEY         -- mistral-large-latest
  12. Cerebras       -- CEREBRAS_API_KEY        -- (user-specified)
  13. DeepSeek       -- DEEPSEEK_API_KEY        -- (user-specified)
@@ -105,7 +106,50 @@ provider -- no native function-calling API required.
   vibecli --cloud                 -- run agent in Docker container
   vibecli --notebook script.vibe  -- run notebook file
   vibecli --redteam http://url    -- security scan
+  vibecli --setup                 -- interactive platform setup wizard
+  vibecli --service install       -- install always-on system service
+  vibecli --cmd "/email unread"   -- run a single REPL command and exit
+  vibecli --cmd "/cal today"      -- (email, cal, ha, todo, notion, jira, linear)
   vibecli --copilot-login         -- GitHub Copilot device auth
+
+## Productivity Integrations
+
+VibeCLI connects to external services via REPL commands and MCP tools:
+
+  /email inbox|unread|read|send|search|triage|archive  -- Gmail / Outlook
+  /cal today|week|list|create|delete|free|move|next    -- Google Calendar / Outlook
+  /todo list|today|add|close|delete|project|search     -- Todoist task management
+  /notion search|get|create|query|append               -- Notion workspace
+  /jira list|create|get|comment|transition|search|mine -- Jira Cloud / Server
+  /ha status|lights|on|off|toggle|set|scene|climate    -- Home Assistant smart home
+
+Configure in ~/.vibecli/config.toml: [email], [calendar], [home_assistant], [jira]
+Top-level keys: notion_api_key, todoist_api_key
+Env vars: GMAIL_ACCESS_TOKEN, OUTLOOK_ACCESS_TOKEN, GOOGLE_CALENDAR_TOKEN,
+          OUTLOOK_CALENDAR_TOKEN, HA_URL, HA_TOKEN, NOTION_API_KEY,
+          TODOIST_API_KEY, JIRA_URL, JIRA_EMAIL, JIRA_API_TOKEN
+
+## Deployment (12 Targets)
+
+One-command deployment to any platform:
+
+  Cloud:   AWS (ECS Fargate), GCP (Cloud Run), Azure (Container Apps),
+           Oracle Cloud (ARM, always-free), DigitalOcean, Linode/Akamai
+  Desktop: macOS (launchd service), Linux (systemd), Windows (Scheduled Task)
+  Edge:    Raspberry Pi 3/4/5 (ARM, swap-optimized)
+
+  AWS:     cd deploy/aws     && bash setup.sh [--tier lite|pro|max]
+  GCP:     cd deploy/gcp     && bash setup.sh
+  Azure:   cd deploy/azure   && bash setup.sh
+  Oracle:  cd deploy/oracle-cloud && bash setup.sh   # always-free 4 ARM OCPU
+  DO:      cd deploy/digitalocean  && bash setup.sh
+  Linode:  cd deploy/linode-akamai && bash setup.sh
+  macOS:   cd deploy/macos   && bash setup.sh
+  Linux:   cd deploy/linux   && bash setup.sh
+  Windows: deploy\windows\setup.ps1 -AlwaysOn
+  Pi:      cd deploy/raspberry-pi && bash setup.sh
+
+See docs/setup.md and docs/guides/ for full platform guides.
 
 ## Agent Tools
 
@@ -134,7 +178,8 @@ Sections: [ollama], [claude], [openai], [gemini], [grok], [groq],
 [deepseek], [zhipu], [vercel_ai], [minimax], [perplexity], [together],
 [fireworks], [sambanova], [failover], [safety], [ui], [tools], [memory],
 [routing], [gateway], [voice], [redteam], [github_app], [otel],
-[sandbox_config], [[mcp_servers]], [[hooks]]
+[sandbox_config], [email], [calendar], [home_assistant], [jira],
+[[mcp_servers]], [[hooks]]
 
 Each provider section accepts: enabled, api_key, api_url, model
 
@@ -153,13 +198,17 @@ Each provider section accepts: enabled, api_key, api_url, model
 
 ## Key Environment Variables
 
-  ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, GROK_API_KEY,
-  GROQ_API_KEY, OPENROUTER_API_KEY, AZURE_OPENAI_API_KEY,
-  AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, COPILOT_TOKEN,
-  MISTRAL_API_KEY, CEREBRAS_API_KEY, DEEPSEEK_API_KEY, ZHIPU_API_KEY,
-  VERCEL_AI_API_KEY, MINIMAX_API_KEY, PERPLEXITY_API_KEY,
-  TOGETHER_API_KEY, FIREWORKS_API_KEY, SAMBANOVA_API_KEY,
-  GITHUB_TOKEN, LINEAR_API_KEY, VIBECLI_API_KEY, ELEVENLABS_API_KEY
+  AI providers: ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, GROK_API_KEY,
+    GROQ_API_KEY, OPENROUTER_API_KEY, AZURE_OPENAI_API_KEY,
+    AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, GITHUB_TOKEN,
+    MISTRAL_API_KEY, CEREBRAS_API_KEY, DEEPSEEK_API_KEY, ZHIPU_API_KEY,
+    VERCEL_AI_API_KEY, MINIMAX_API_KEY, PERPLEXITY_API_KEY,
+    TOGETHER_API_KEY, FIREWORKS_API_KEY, SAMBANOVA_API_KEY,
+    LINEAR_API_KEY, VIBECLI_API_KEY, ELEVENLABS_API_KEY
+  Productivity: GMAIL_ACCESS_TOKEN, OUTLOOK_ACCESS_TOKEN,
+    GOOGLE_CALENDAR_TOKEN, OUTLOOK_CALENDAR_TOKEN,
+    HA_URL, HA_TOKEN, NOTION_API_KEY, TODOIST_API_KEY,
+    JIRA_URL, JIRA_EMAIL, JIRA_API_TOKEN
 
 ## API Endpoints (vibecli serve)
 

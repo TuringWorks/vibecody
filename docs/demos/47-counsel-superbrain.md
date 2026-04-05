@@ -338,4 +338,4 @@ In the VibeUI desktop app:
 
 - [Demo 42: MCTS Code Repair](../42-mcts-repair/) -- Fix bugs with tree-search exploration
 - [Demo 43: Cost-Optimized Agent Routing](../43-cost-routing/) -- Route tasks to the cheapest viable model
-- [Demo 5: Model Arena](../model-arena/) -- Pit models against each other on coding tasks
+- [Demo 5: Model Arena](../05-model-arena/) -- Pit models against each other on coding tasks

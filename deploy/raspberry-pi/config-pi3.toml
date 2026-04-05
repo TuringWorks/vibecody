@@ -1,0 +1,13 @@
+# VibeCody config optimized for Raspberry Pi 3 (1 GB RAM)
+[ollama]
+enabled = true
+model = "tinyllama:1.1b"
+context_length = 1024
+
+[safety]
+approval_policy = "suggest"
+sandbox = false
+
+[agent]
+max_steps = 10
+max_tokens_per_step = 512

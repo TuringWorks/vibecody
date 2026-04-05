@@ -196,20 +196,20 @@ BugBot proactively scans your codebase for potential bugs, security issues, and 
 **CLI:**
 
 ```bash
-# Run BugBot scan
-/bugbot scan
-
-# Scan with specific checks
-/bugbot scan --checks "null-safety,sql-injection,error-handling"
-
-# View BugBot findings
-/bugbot findings
+# Run a deep scan using the agent to find bugs beyond compiler diagnostics
+vibecli --agent "Scan src/ for security issues: SQL injection, timing attacks, \
+  unwrap on network results. Report findings with severity and suggested fixes."
 ```
 
-Example output:
+Example agent output:
 
 ```
-BugBot Scan Results (3 findings):
+ ✓ Reading src/db.rs
+ ✓ Reading src/auth.rs
+ ✓ Reading src/handler.rs
+ ✓ Searching: "unwrap"
+
+Agent complete: Found 3 issues.
 
   HIGH   src/db.rs:34      SQL Injection: User input interpolated into query string
          Suggestion: Use parameterized query with `sqlx::query!` macro
@@ -219,14 +219,19 @@ BugBot Scan Results (3 findings):
 
   LOW    src/handler.rs:92 Unwrap on network result: `.unwrap()` on HTTP response
          Suggestion: Replace with `?` operator or `.expect()` with message
+```
 
-Auto-fix available for 3/3 findings. Run `/bugbot fix --all` to apply.
+To auto-fix all findings, use agent mode:
+
+```bash
+vibecli --agent "Fix the SQL injection in src/db.rs, timing attack in src/auth.rs, \
+  and unwrap in src/handler.rs" --auto-edit
 ```
 
 **VibeUI:**
-1. Open the **BugBot** panel (AI Panel > BugBot tab)
-2. Click **Scan** to start a proactive scan
-3. Findings appear with severity badges and one-click fixes
+1. Open the **Autofix** panel (AI Panel > Autofix tab)
+2. Click **Scan Project** for compiler/linter diagnostics
+3. For deeper analysis, use the AI chat to ask for a security review
 4. Click **Fix** on individual findings or **Fix All**
 
 

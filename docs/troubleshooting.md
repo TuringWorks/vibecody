@@ -212,7 +212,7 @@ vibecli config show
 
 Common correct model names:
 
-- Claude: `claude-sonnet-4-20250514`
+- Claude: `claude-sonnet-4-6`
 - OpenAI: `gpt-4o`
 - Gemini: `gemini-2.5-flash`
 - DeepSeek: `deepseek-chat`
@@ -550,6 +550,165 @@ exclude = [
 ```
 
 For repositories with more than 100,000 files, consider indexing only the directories you are actively working in.
+
+## Productivity Integrations
+
+### Email: "Email not configured"
+
+**Symptom:** `/email unread` returns "Email not configured. Set GMAIL_ACCESS_TOKEN or OUTLOOK_ACCESS_TOKEN."
+
+**Cause:** No OAuth2 token is available.
+
+**Solution:**
+
+```bash
+# Gmail — set the access token from Google OAuth2 Playground
+export GMAIL_ACCESS_TOKEN="ya29.xxxx"
+
+# Or add to ~/.vibecli/config.toml:
+# [email]
+# provider = "gmail"
+# access_token = "ya29.xxxx"
+```
+
+To obtain a Gmail token interactively, use the [Google OAuth2 Playground](https://developers.google.com/oauthplayground) with scope `https://www.googleapis.com/auth/gmail.modify`.
+
+For Outlook, obtain a Microsoft Graph token with scope `https://graph.microsoft.com/Mail.ReadWrite`.
+
+---
+
+### Email: "401 Unauthorized"
+
+**Symptom:** Email commands return a 401 error.
+
+**Cause:** OAuth2 access token has expired (tokens typically expire after 1 hour).
+
+**Solution:** Re-obtain a fresh token using the OAuth2 flow and update `GMAIL_ACCESS_TOKEN` or `[email].access_token` in config.
+
+---
+
+### Calendar: "Calendar not configured"
+
+**Symptom:** `/cal today` returns a "not configured" message.
+
+**Solution:**
+
+```bash
+export GOOGLE_CALENDAR_TOKEN="ya29.xxxx"   # Google Calendar
+export OUTLOOK_CALENDAR_TOKEN="eyJ0..."    # Outlook Calendar
+```
+
+Or add to `~/.vibecli/config.toml`:
+```toml
+[calendar]
+provider = "google"
+access_token = "ya29.xxxx"
+```
+
+---
+
+### Home Assistant: "Connection refused" or "HA not configured"
+
+**Symptom:** `/ha status` fails to connect.
+
+**Cause:** Home Assistant URL or token is missing/wrong, or HA is not accessible on the network.
+
+**Solution:**
+
+1. Verify your HA instance is reachable: `curl http://homeassistant.local:8123/api/`
+2. Check the token: Settings → Profile → Long-Lived Access Tokens → Create token
+3. Update config:
+
+```toml
+[home_assistant]
+url   = "http://homeassistant.local:8123"
+token = "eyJ0..."
+```
+
+For remote access without VPN, use [Nabu Casa](https://www.nabucasa.com/) or Tailscale and set the remote URL.
+
+For self-signed TLS certificates on local HA: set `insecure = true` in `[home_assistant]`.
+
+---
+
+### Jira: "401 Unauthorized" or "JIRA not configured"
+
+**Symptom:** `/jira mine` returns an auth error.
+
+**Cause:** Missing or incorrect Jira credentials.
+
+**Solution:**
+
+```bash
+export JIRA_URL="https://yourorg.atlassian.net"
+export JIRA_EMAIL="you@yourorg.com"
+export JIRA_API_TOKEN="ATATT3xxx"    # Not your password — API token from id.atlassian.com
+```
+
+Or in `~/.vibecli/config.toml`:
+```toml
+[jira]
+url   = "https://yourorg.atlassian.net"
+email = "you@yourorg.com"
+token = "ATATT3xxx"
+```
+
+Generate tokens at: https://id.atlassian.com/manage-profile/security/api-tokens
+
+---
+
+### Notion: "0 results" for known pages
+
+**Symptom:** `/notion search "my page"` returns empty results.
+
+**Cause:** The Notion integration has not been shared with that page/database.
+
+**Solution:**
+
+1. Open the page in Notion
+2. Click **Share** (top right)
+3. Search for and select your integration (the one with the `NOTION_API_KEY`)
+4. Click **Invite**
+
+The API only returns pages explicitly shared with the integration.
+
+---
+
+### Todoist: "401 Unauthorized"
+
+**Symptom:** `/todo list` fails with an auth error.
+
+**Cause:** Invalid or missing Todoist API token.
+
+**Solution:**
+
+1. Open Todoist → Settings → Integrations → Developer → API token
+2. Copy the token and set: `export TODOIST_API_KEY="xxxx"` or add `todoist_api_key = "xxxx"` to `~/.vibecli/config.toml`
+
+---
+
+### VibeUI Productivity Panel: "vibecli not found on PATH"
+
+**Symptom:** The Productivity panel in VibeUI shows "vibecli not found on PATH".
+
+**Cause:** The `vibecli` binary is not on the system PATH when VibeUI is launched.
+
+**Solution:**
+
+```bash
+# Verify vibecli is installed
+vibecli --version
+
+# If not found, install it
+curl -fsSL https://vibecody.github.io/install.sh | sh
+
+# Or add to PATH in your shell profile (~/.zshrc / ~/.bashrc):
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+On macOS, apps launched from Finder or the Dock may not inherit the full shell PATH. Start VibeUI from a terminal: `open -a VibeUI` or `npx tauri dev`.
+
+---
 
 ## Still Stuck?
 

@@ -1,0 +1,14 @@
+[Unit]
+Description=VibeCody AI Coding Assistant
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/vibecli serve --port 7878 --host 0.0.0.0
+Restart=always
+RestartSec=5
+Environment=RUST_LOG=info
+WorkingDirectory=%h
+
+[Install]
+WantedBy=default.target

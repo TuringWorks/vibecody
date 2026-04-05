@@ -136,33 +136,27 @@ export function formatFileSize(bytes: number): string {
 }
 
 import React from "react";
-import type { LucideIcon } from "lucide-react";
-import {
-    Folder, FileCode, Atom, Cog, Coffee, Gem, Globe,
-    Palette, Braces, Settings, FileText, File, BookOpen,
-    Image, Paintbrush, Archive,
-} from "lucide-react";
+import { Icon, type IconName } from "../components/Icon";
 
 const ICON_SIZE = 16;
-const ICON_STROKE = 1.5;
 
-const FILE_ICONS: Record<string, LucideIcon> = {
-    js: FileCode, ts: FileCode, jsx: Atom, tsx: Atom,
-    rs: Cog, py: FileCode, go: FileCode, java: Coffee,
-    rb: Gem, php: FileCode,
-    html: Globe, css: Palette, scss: Palette,
-    json: Braces, yaml: Settings, yml: Settings, toml: Settings, xml: FileCode,
-    md: FileText, txt: File, pdf: BookOpen, epub: BookOpen, ps: FileText, eps: FileText,
-    png: Image, jpg: Image, jpeg: Image, gif: Image, svg: Paintbrush,
-    zip: Archive, tar: Archive, gz: Archive,
+const FILE_ICONS: Record<string, IconName> = {
+    js: "file-code", ts: "file-code", jsx: "atom", tsx: "atom",
+    rs: "cog", py: "file-code", go: "file-code", java: "coffee",
+    rb: "gem", php: "file-code",
+    html: "globe", css: "palette", scss: "palette",
+    json: "braces", yaml: "settings", yml: "settings", toml: "settings", xml: "file-code",
+    md: "file-text", txt: "file", pdf: "book-open", epub: "book-open", ps: "file-text", eps: "file-text",
+    png: "image-file", jpg: "image-file", jpeg: "image-file", gif: "image-file", svg: "paintbrush",
+    zip: "archive", tar: "archive", gz: "archive",
 };
 
 /**
  * Get file icon based on type
  */
 export function getFileIcon(filename: string, isDirectory: boolean): React.ReactElement {
-    if (isDirectory) return <Folder size={ICON_SIZE} strokeWidth={ICON_STROKE} />;
+    if (isDirectory) return <Icon name="folder" size={ICON_SIZE} />;
     const ext = filename.split('.').pop()?.toLowerCase() || '';
-    const Icon = FILE_ICONS[ext] || File;
-    return <Icon size={ICON_SIZE} strokeWidth={ICON_STROKE} />;
+    const iconName: IconName = FILE_ICONS[ext] ?? "file";
+    return <Icon name={iconName} size={ICON_SIZE} />;
 }

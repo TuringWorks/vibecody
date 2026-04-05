@@ -339,6 +339,6 @@ The coverage overlay integrates directly with the Monaco editor. Hovering over a
 
 ## What's Next
 
-- [Demo 24: Red Team Security](../red-team/) -- Automated security scanning with OWASP checks
+- [Demo 24: Red Team Security](../24-red-team/) -- Automated security scanning with OWASP checks
 - Combine test generation with agent teams to have a dedicated Tester agent continuously improving coverage
 - Use context bundles to pin test configuration files for consistent test behavior

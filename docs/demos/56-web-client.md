@@ -34,7 +34,7 @@ Expected output:
 ```
 VibeCLI HTTP Daemon v0.5.1
   Listening:  http://localhost:7878
-  Provider:   claude (claude-sonnet-4-20250514)
+  Provider:   claude (claude-sonnet-4-6)
   Web client: http://localhost:7878/ (built-in SPA)
   API docs:   http://localhost:7878/docs
   Health:     http://localhost:7878/health
@@ -142,7 +142,7 @@ curl http://localhost:7878/health
   "status": "ok",
   "version": "0.5.1",
   "provider": "claude",
-  "model": "claude-sonnet-4-20250514",
+  "model": "claude-sonnet-4-6",
   "uptime_secs": 342
 }
 ```
@@ -159,7 +159,7 @@ curl -X POST http://localhost:7878/api/chat \
 {
   "response": "2 + 2 = 4.",
   "tokens": { "input": 12, "output": 8 },
-  "model": "claude-sonnet-4-20250514"
+  "model": "claude-sonnet-4-6"
 }
 ```
 
@@ -229,5 +229,5 @@ data: {"type":"done","tokens":{"input":14,"output":22}}
 ## What's Next
 
 - [Demo 55: Voice, Pairing & Tailscale](../55-voice-pairing-tailscale/) -- Remote access with Tailscale Funnel
-- [Demo 01: First Run & Setup](../first-run/) -- Install and configure VibeCLI
-- [Demo 27: HTTP Playground](../http-playground/) -- Test APIs with collections and history
+- [Demo 01: First Run & Setup](../01-first-run/) -- Install and configure VibeCLI
+- [Demo 27: HTTP Playground](../27-http-playground/) -- Test APIs with collections and history

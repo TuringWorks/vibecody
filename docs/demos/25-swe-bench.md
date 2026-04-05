@@ -51,7 +51,7 @@ Run the Lite suite against your current provider to get a quick evaluation:
 
 ```
 Starting SWE-bench Lite (100 tasks)...
-Provider: claude | Model: claude-sonnet-4-20250514
+Provider: claude | Model: claude-sonnet-4-6
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 12/100
   ✓ django__django-11099   passed  (4.2s)
   ✓ django__django-11283   passed  (6.1s)
@@ -77,7 +77,7 @@ Once a run completes, inspect the results:
 
 ```
 Run #3 — SWE-bench Lite — 2026-03-13T10:42:00Z
-Provider: claude (claude-sonnet-4-20250514)
+Provider: claude (claude-sonnet-4-6)
 
 Pass@1: 42/100 (42.0%)
 
@@ -256,6 +256,6 @@ Open VibeUI and navigate to the **SWE-bench** panel from the AI sidebar. The pan
 
 ## What's Next
 
-- [Demo 26: QA Validation Pipeline](../qa-validation/) -- Validate code quality with 8 specialized QA agents
-- [Demo 27: HTTP Playground](../http-playground/) -- Build and test API requests interactively
-- [Demo 28: GraphQL Explorer](../graphql/) -- Introspect schemas and build queries
+- [Demo 26: QA Validation Pipeline](../26-qa-validation/) -- Validate code quality with 8 specialized QA agents
+- [Demo 27: HTTP Playground](../27-http-playground/) -- Build and test API requests interactively
+- [Demo 28: GraphQL Explorer](../28-graphql/) -- Introspect schemas and build queries

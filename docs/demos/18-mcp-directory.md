@@ -15,7 +15,7 @@ The MCP Plugin Directory is VibeCody's curated marketplace for MCP servers. Inst
 
 ## Prerequisites
 
-- VibeCLI installed and configured ([Demo 1](../first-run/))
+- VibeCLI installed and configured ([Demo 1](../01-first-run/))
 - MCP basics understood ([Demo 16](../16-mcp-servers/))
 - Node.js 18+ (most plugins use npx)
 - (Optional) VibeUI for the desktop panel experience
@@ -571,4 +571,4 @@ The MCP Directory panel has three tabs:
 
 - [Demo 16: MCP Server Integration](../16-mcp-servers/) -- MCP fundamentals and building custom servers
 - [Demo 17: MCP Lazy Loading](../17-mcp-lazy-loading/) -- Scale to 100+ servers with on-demand loading
-- [Demo 19: Context Bundles](../context-bundles/) -- Create shareable context sets for teams
+- [Demo 19: Context Bundles](../19-context-bundles/) -- Create shareable context sets for teams

@@ -15,8 +15,8 @@ The Cost Observatory gives you full visibility into your AI spending across all 
 
 ## Prerequisites
 
-- VibeCLI installed and configured with one or more cloud AI providers (see [Demo 1: First Run](../first-run/))
-- Some chat or agent history to generate cost data (run a few commands from [Demo 3](../multi-provider-chat/) or [Demo 4](../agent-loop/) first)
+- VibeCLI installed and configured with one or more cloud AI providers (see [Demo 1: First Run](../01-first-run/))
+- Some chat or agent history to generate cost data (run a few commands from [Demo 3](../03-multi-provider-chat/) or [Demo 4](../04-agent-loop/) first)
 - Local providers like Ollama are free but still tracked for token counts
 
 ## Step-by-Step Walkthrough
@@ -79,7 +79,7 @@ Cost by Provider (This Month)
 
 | Provider | Model | Input (per 1M tokens) | Output (per 1M tokens) |
 |----------|-------|-----------------------|------------------------|
-| Claude | claude-sonnet-4-20250514 | $3.00 | $15.00 |
+| Claude | claude-sonnet-4-6 | $3.00 | $15.00 |
 | OpenAI | gpt-4o | $2.50 | $10.00 |
 | Gemini | gemini-2.0-flash | $0.075 | $0.30 |
 | Groq | llama-3.3-70b | $0.59 | $0.79 |
@@ -117,7 +117,7 @@ vibecli cost --session "Refactor DB module"
 
 ```
 Session: Refactor DB module
-Provider: claude (claude-sonnet-4-20250514)
+Provider: claude (claude-sonnet-4-6)
 Started: 2026-03-13T09:15:00Z
 Duration: 12m 30s
 
@@ -384,12 +384,12 @@ In VibeUI, the Cost panel provides an interactive dashboard with:
 
 5. **Use the Failover provider** -- Configure your chain from cheap to expensive: `["ollama", "groq", "gemini", "claude"]`. VibeCody tries the cheapest first.
 
-6. **Review agent sessions** -- Agent tasks with many iterations can be expensive. Use `/context` to monitor token usage during long sessions and `/checkpoint rollback` to avoid wasted computation.
+6. **Review agent sessions** -- Agent tasks with many iterations can be expensive. Use `/cost` to monitor token usage during long sessions and `git diff` to review changes before committing.
 
 7. **Cache results** -- VibeCody caches identical prompts by default. Repeated questions cost nothing.
 
 ## What's Next
 
-- [Demo 1: First Run](../first-run/) -- Revisit initial setup
-- [Demo 3: Multi-Provider Chat](../multi-provider-chat/) -- Configure more providers for cost comparison
-- [Demo 5: Model Arena](../model-arena/) -- Build quality ratings to complement cost data
+- [Demo 1: First Run](../01-first-run/) -- Revisit initial setup
+- [Demo 3: Multi-Provider Chat](../03-multi-provider-chat/) -- Configure more providers for cost comparison
+- [Demo 5: Model Arena](../05-model-arena/) -- Build quality ratings to complement cost data

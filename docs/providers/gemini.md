@@ -35,7 +35,7 @@ vibecli --provider gemini
 [gemini]
 enabled = true
 api_key = "AIza..."
-model = "gemini-2.0-flash"
+model = "gemini-2.5-flash"
 ```
 
 **Option 3: API key helper**
@@ -56,7 +56,7 @@ model = "gemini-2.5-pro"
 | `gemini-2.5-flash` | Fast with thinking capabilities | 1M tokens | Balanced quality and speed |
 | `gemini-2.0-flash` | Very fast, cost-effective | 1M tokens | Quick tasks, high-volume use |
 
-**Default:** `gemini-2.0-flash`
+**Default:** `gemini-2.5-flash`
 
 Override from the CLI:
 
@@ -143,7 +143,7 @@ Error: 429 - Resource has been exhausted
 - You have exceeded the free tier rate limit
 - Wait 60 seconds for the rate limit to reset
 - Consider enabling billing for higher limits
-- Use `gemini-2.0-flash` for the most generous free-tier limits
+- Use `gemini-2.5-flash` for the most generous free-tier limits
 
 ### Region restrictions
 

@@ -259,4 +259,4 @@ In the VibeUI desktop app, open the **VisualVerifyPanel** from the AI sidebar. T
 
 - [Demo 45: Offline Voice Coding](../45-offline-voice/) -- Code with voice commands without internet
 - [Demo 42: MCTS Code Repair](../42-mcts-repair/) -- Fix bugs with tree-search exploration
-- [Demo 9: Autofix](../autofix/) -- Automated lint and test failure fixes
+- [Demo 9: Autofix](../09-autofix/) -- Automated lint and test failure fixes

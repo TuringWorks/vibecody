@@ -15,7 +15,7 @@ When you connect dozens or hundreds of MCP servers, each exposing multiple tools
 
 ## Prerequisites
 
-- VibeCLI installed and configured ([Demo 1](../first-run/))
+- VibeCLI installed and configured ([Demo 1](../01-first-run/))
 - MCP basics understood ([Demo 16](../16-mcp-servers/))
 - At least 3 MCP servers configured (more servers make the benefits more visible)
 - (Optional) VibeUI for the desktop panel experience
@@ -502,4 +502,4 @@ pinned = ["filesystem:read_file", "filesystem:write_file"]
 
 - [Demo 18: MCP Plugin Directory](../18-mcp-directory/) -- Browse, install, and rate verified MCP plugins
 - [Demo 16: MCP Server Integration](../16-mcp-servers/) -- MCP fundamentals and custom servers
-- [Demo 4: Agent Loop & Tool Execution](../agent-loop/) -- How agents select and use tools
+- [Demo 4: Agent Loop & Tool Execution](../04-agent-loop/) -- How agents select and use tools

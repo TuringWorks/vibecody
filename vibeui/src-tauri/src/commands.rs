@@ -37495,3 +37495,71 @@ pub async fn rl_get_alignment_metrics() -> Result<serde_json::Value, String> {
         "safetyScore": 0.92,
     }))
 }
+
+// ── Productivity integrations ─────────────────────────────────────────────────
+//
+// These commands delegate to the `vibecli` binary which contains the full
+// async implementations of email/calendar/productivity/home-assistant clients.
+// In VibeUI, `vibecli` is bundled as a sidecar binary accessible via PATH or
+// the Tauri sidecar mechanism; for dev builds it is expected on PATH.
+
+fn run_vibecli_cmd(sub: &str, args: &str) -> Result<String, String> {
+    let full_cmd = if args.is_empty() {
+        format!("/{}", sub)
+    } else {
+        format!("/{} {}", sub, args)
+    };
+    // Use --cmd flag for single REPL command dispatch (non-interactive, exits after command)
+    let output = std::process::Command::new("vibecli")
+        .args(["--cmd", &full_cmd])
+        .output()
+        .map_err(|e| format!("vibecli not found on PATH: {}. Install vibecli to enable productivity integrations.", e))?;
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    if !output.status.success() && stdout.is_empty() {
+        Err(if stderr.is_empty() { format!("vibecli exited with status {}", output.status) } else { stderr })
+    } else if stdout.is_empty() && !stderr.is_empty() {
+        Ok(stderr)
+    } else {
+        Ok(stdout)
+    }
+}
+
+#[tauri::command]
+pub async fn handle_email_command(args: String) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || run_vibecli_cmd("email", &args))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn handle_calendar_command(args: String) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || run_vibecli_cmd("cal", &args))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn handle_productivity_command(args: String) -> Result<String, String> {
+    // args starts with "todo", "notion", or "jira" — map to correct sub-command
+    let sub = if args.starts_with("todo") || args.starts_with("todoist") {
+        "todo"
+    } else if args.starts_with("notion") {
+        "notion"
+    } else if args.starts_with("jira") {
+        "jira"
+    } else {
+        "todo"
+    };
+    let rest = args.splitn(2, ' ').nth(1).unwrap_or("").to_string();
+    tokio::task::spawn_blocking(move || run_vibecli_cmd(sub, &rest))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn handle_ha_command(args: String) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || run_vibecli_cmd("ha", &args))
+        .await
+        .map_err(|e| e.to_string())?
+}

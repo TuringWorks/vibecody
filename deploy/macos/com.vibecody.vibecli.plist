@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.vibecody.vibecli</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>VIBECLI_BIN</string>
+        <string>serve</string>
+        <string>--port</string>
+        <string>7878</string>
+        <string>--host</string>
+        <string>0.0.0.0</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/tmp/vibecody-stdout.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/vibecody-stderr.log</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>RUST_LOG</key>
+        <string>info</string>
+    </dict>
+</dict>
+</plist>

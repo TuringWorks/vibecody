@@ -365,5 +365,5 @@ default_provider = "claude"
 ## What's Next
 
 - [Demo 37: A2A Protocol](../37-a2a-protocol/) -- Delegate tasks to remote agents
-- [Demo 20: Agent Teams](../agent-teams/) -- Multi-agent collaboration with defined roles
-- [Demo 4: Agent Loop](../agent-loop/) -- Single-agent autonomous coding
+- [Demo 20: Agent Teams](../20-agent-teams/) -- Multi-agent collaboration with defined roles
+- [Demo 4: Agent Loop](../04-agent-loop/) -- Single-agent autonomous coding

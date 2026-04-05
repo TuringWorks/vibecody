@@ -300,4 +300,4 @@ In the VibeUI desktop app, open the **VoiceLocalPanel** from the AI sidebar. The
 
 - [Demo 46: Code Replay](../46-code-replay/) -- Replay past agent sessions for debugging and auditing
 - [Demo 44: Visual Verification](../44-visual-verify/) -- Screenshot-based design compliance checking
-- [Demo 1: First Run & Setup](../first-run/) -- Initial VibeCody installation and configuration
+- [Demo 1: First Run & Setup](../01-first-run/) -- Initial VibeCody installation and configuration

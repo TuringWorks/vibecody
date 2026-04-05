@@ -1,0 +1,237 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: VibeCody on ECS Fargate with ALB and Ollama sidecar
+
+Parameters:
+  Tier:
+    Type: String
+    Default: lite
+    AllowedValues: [lite, pro, max]
+    Description: Resource tier (lite=2vCPU/4GB, pro=4vCPU/8GB, max=8vCPU/16GB)
+  DomainName:
+    Type: String
+    Default: ''
+    Description: Optional custom domain (requires CertArn)
+  CertArn:
+    Type: String
+    Default: ''
+    Description: ACM certificate ARN for HTTPS
+  Image:
+    Type: String
+    Default: ghcr.io/turingworks/vibecody:latest
+
+Conditions:
+  HasCert: !Not [!Equals [!Ref CertArn, '']]
+
+Mappings:
+  TierConfig:
+    lite:
+      Cpu: '2048'
+      Memory: '4096'
+    pro:
+      Cpu: '4096'
+      Memory: '8192'
+    max:
+      Cpu: '8192'
+      Memory: '16384'
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags: [{Key: Name, Value: vibecody-vpc}]
+
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: true
+
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.2.0/24
+      AvailabilityZone: !Select [1, !GetAZs '']
+      MapPublicIpOnLaunch: true
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  GatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: GatewayAttachment
+    Properties:
+      RouteTableId: !Ref RouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  Subnet1RouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      RouteTableId: !Ref RouteTable
+
+  Subnet2RouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet2
+      RouteTableId: !Ref RouteTable
+
+  ALBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: ALB security group
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - {IpProtocol: tcp, FromPort: 80, ToPort: 80, CidrIp: 0.0.0.0/0}
+        - {IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 0.0.0.0/0}
+
+  TaskSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: ECS task security group
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 7878
+          ToPort: 7878
+          SourceSecurityGroupId: !Ref ALBSecurityGroup
+
+  ALB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: vibecody-alb
+      Subnets: [!Ref PublicSubnet1, !Ref PublicSubnet2]
+      SecurityGroups: [!Ref ALBSecurityGroup]
+
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Port: 7878
+      Protocol: HTTP
+      TargetType: ip
+      VpcId: !Ref VPC
+      HealthCheckPath: /health
+      HealthCheckIntervalSeconds: 30
+
+  HTTPListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref ALB
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - {Type: forward, TargetGroupArn: !Ref TargetGroup}
+
+  HTTPSListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Condition: HasCert
+    Properties:
+      LoadBalancerArn: !Ref ALB
+      Port: 443
+      Protocol: HTTPS
+      Certificates: [{CertificateArn: !Ref CertArn}]
+      DefaultActions:
+        - {Type: forward, TargetGroupArn: !Ref TargetGroup}
+
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: vibecody-cluster
+
+  ExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - {Effect: Allow, Principal: {Service: ecs-tasks.amazonaws.com}, Action: 'sts:AssumeRole'}
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /ecs/vibecody
+      RetentionInDays: 30
+
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: vibecody
+      NetworkMode: awsvpc
+      RequiresCompatibilities: [FARGATE]
+      Cpu: !FindInMap [TierConfig, !Ref Tier, Cpu]
+      Memory: !FindInMap [TierConfig, !Ref Tier, Memory]
+      ExecutionRoleArn: !Ref ExecutionRole
+      ContainerDefinitions:
+        - Name: vibecli
+          Image: !Ref Image
+          Essential: true
+          PortMappings: [{ContainerPort: 7878}]
+          Environment:
+            - {Name: VIBECLI_PROVIDER, Value: ollama}
+            - {Name: OLLAMA_HOST, Value: 'http://localhost:11434'}
+            - {Name: RUST_LOG, Value: info}
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: vibecli
+          HealthCheck:
+            Command: ['CMD-SHELL', 'wget -q --spider http://localhost:7878/health || exit 1']
+            Interval: 30
+            Timeout: 5
+            Retries: 3
+            StartPeriod: 60
+        - Name: ollama
+          Image: ollama/ollama:latest
+          Essential: true
+          PortMappings: [{ContainerPort: 11434}]
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: ollama
+
+  Service:
+    Type: AWS::ECS::Service
+    DependsOn: HTTPListener
+    Properties:
+      Cluster: !Ref ECSCluster
+      TaskDefinition: !Ref TaskDefinition
+      DesiredCount: 1
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          Subnets: [!Ref PublicSubnet1, !Ref PublicSubnet2]
+          SecurityGroups: [!Ref TaskSecurityGroup]
+      LoadBalancers:
+        - ContainerName: vibecli
+          ContainerPort: 7878
+          TargetGroupArn: !Ref TargetGroup
+
+Outputs:
+  ServiceURL:
+    Value: !Sub 'http://${ALB.DNSName}'
+  ALBDNSName:
+    Value: !GetAtt ALB.DNSName

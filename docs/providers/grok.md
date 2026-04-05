@@ -32,7 +32,7 @@ vibecli --provider grok
 [grok]
 enabled = true
 api_key = "xai-..."
-model = "grok-2"
+model = "grok-3-mini"
 ```
 
 
@@ -43,7 +43,7 @@ model = "grok-2"
 | `grok-2` | Strong reasoning and coding | General-purpose coding, debugging |
 | `grok-3-mini` | Faster, lighter | Quick tasks, completions |
 
-**Default:** `grok-2`
+**Default:** `grok-3-mini`
 
 Override from the CLI:
 

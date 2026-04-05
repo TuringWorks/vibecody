@@ -28,7 +28,7 @@ mkdir -p ~/.vibecli/profiles
 cat > ~/.vibecli/profiles/work.toml << 'EOF'
 [provider]
 name = "claude"
-model = "claude-sonnet-4-20250514"
+model = "claude-sonnet-4-6"
 api_key_env = "ANTHROPIC_API_KEY"
 
 [approval]
@@ -55,7 +55,7 @@ vibecli --profile work
 ```
 
 ```
-vibecli 0.5.1 | Profile: work | Provider: claude | Model: claude-sonnet-4-20250514
+vibecli 0.5.1 | Profile: work | Provider: claude | Model: claude-sonnet-4-6
 Approval: auto-approve reads, require approval for writes
 Rules: 3 project rules loaded
 Type /help for commands, /quit to exit
@@ -134,7 +134,7 @@ Resuming session sess_c3d4 (2026-03-28, "Built inventory API")...
 
 Session restored:
   Messages:  64 (conversation history loaded)
-  Profile:   work (provider: claude, model: claude-sonnet-4-20250514)
+  Profile:   work (provider: claude, model: claude-sonnet-4-6)
   Files:     src/inventory.rs, src/models.rs, tests/inventory_test.rs
   Last msg:  "The inventory API endpoints are complete. Want me to add
              pagination to the list endpoint?"
@@ -171,7 +171,7 @@ Session: sess_c3d4
   Duration:   1h 27m (across 2 resumptions)
   Messages:   67
   Profile:    work
-  Provider:   claude (claude-sonnet-4-20250514)
+  Provider:   claude (claude-sonnet-4-6)
   Tokens:     input: 142,800 | output: 38,400
   Est. cost:  $0.54
 
@@ -196,7 +196,7 @@ Profiles can also set environment-specific behavior:
 cat > ~/.vibecli/profiles/staging.toml << 'EOF'
 [provider]
 name = "claude"
-model = "claude-sonnet-4-20250514"
+model = "claude-sonnet-4-6"
 
 [approval]
 auto_approve = ["read_file", "search"]
@@ -221,7 +221,7 @@ vibecli --profile staging
 ```
 
 ```
-vibecli 0.5.1 | Profile: staging | Provider: claude | Model: claude-sonnet-4-20250514
+vibecli 0.5.1 | Profile: staging | Provider: claude | Model: claude-sonnet-4-6
 Approval: auto-approve reads, require writes, block deletes
 Sandbox: enabled (network disabled)
 Rules: 3 project rules loaded
@@ -239,7 +239,7 @@ Profiles inherit from the base `~/.vibecli/config.toml`. Only the fields you spe
 ```toml
 # minimal profile -- only changes the model
 [provider]
-model = "claude-opus-4-20250514"
+model = "claude-opus-4-6"
 ```
 
 Everything else (API keys, approval policies, rules) falls through from the base config.
@@ -258,7 +258,7 @@ Everything else (API keys, approval policies, rules) falls through from the base
     {
       "id": 1,
       "action": "shell",
-      "command": "mkdir -p ~/.vibecli/profiles && cat > ~/.vibecli/profiles/work.toml << 'EOF'\n[provider]\nname = \"claude\"\nmodel = \"claude-sonnet-4-20250514\"\n\n[approval]\nauto_approve = [\"read_file\", \"list_files\", \"search\"]\nrequire_approval = [\"write_file\", \"execute_command\"]\nEOF",
+      "command": "mkdir -p ~/.vibecli/profiles && cat > ~/.vibecli/profiles/work.toml << 'EOF'\n[provider]\nname = \"claude\"\nmodel = \"claude-sonnet-4-6\"\n\n[approval]\nauto_approve = [\"read_file\", \"list_files\", \"search\"]\nrequire_approval = [\"write_file\", \"execute_command\"]\nEOF",
       "description": "Create work profile",
       "delay_ms": 2000
     },

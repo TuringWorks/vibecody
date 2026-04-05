@@ -15,7 +15,7 @@ The Model Context Protocol (MCP) is an open standard that lets AI assistants con
 
 ## Prerequisites
 
-- VibeCLI installed and configured ([Demo 1](../first-run/))
+- VibeCLI installed and configured ([Demo 1](../01-first-run/))
 - Node.js 18+ or Python 3.10+ (for running MCP servers)
 - (Optional) VibeUI for the desktop panel experience
 
@@ -518,4 +518,4 @@ The current weather in Tokyo is 22C and sunny with 45% humidity.
 
 - [Demo 17: MCP Lazy Loading](../17-mcp-lazy-loading/) -- Scale to 100+ MCP servers with on-demand tool loading
 - [Demo 18: MCP Plugin Directory](../18-mcp-directory/) -- Browse and install verified MCP plugins
-- [Demo 4: Agent Loop & Tool Execution](../agent-loop/) -- See how agents use tools autonomously
+- [Demo 4: Agent Loop & Tool Execution](../04-agent-loop/) -- See how agents use tools autonomously

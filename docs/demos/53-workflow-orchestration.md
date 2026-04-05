@@ -29,7 +29,7 @@ vibecli
 ```
 
 ```
-vibecli 0.5.1 | Provider: claude | Model: claude-sonnet-4-20250514
+vibecli 0.5.1 | Provider: claude | Model: claude-sonnet-4-6
 Type /help for commands, /quit to exit
 
 > /orchestrate status

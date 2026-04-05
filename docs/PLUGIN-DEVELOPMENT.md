@@ -652,7 +652,7 @@ The Agent Communication Protocol (ACP) enables external IDEs and tools to submit
   "agent_name": "vibecli",
   "agent_version": "0.1.0",
   "supported_tools": ["read_file", "write_file", "bash", "search_files", "list_directory", "web_search", "fetch_url", "spawn_agent"],
-  "supported_models": ["claude-sonnet-4-20250514"],
+  "supported_models": ["claude-sonnet-4-6"],
   "features": ["streaming", "vision", "hooks", "mcp"]
 }
 ```
@@ -671,7 +671,7 @@ curl -X POST http://localhost:7878/acp/v1/tasks \
         {"path": "src/auth.rs", "content": "...", "selection": {"start_line": 10, "start_col": 0, "end_line": 25, "end_col": 0}}
       ]
     },
-    "model": "claude-sonnet-4-20250514",
+    "model": "claude-sonnet-4-6",
     "approval_policy": "auto_edit"
   }'
 ```
@@ -833,8 +833,8 @@ pub struct ImageAttachment {
 | 1 | Ollama | `ollama` | Any local model |
 | 2 | Anthropic Claude | `claude` | claude-sonnet-4, claude-opus-4 |
 | 3 | OpenAI | `openai` | gpt-4o, gpt-4o-mini, o1 |
-| 4 | Google Gemini | `gemini` | gemini-2.0-flash, gemini-pro |
-| 5 | xAI Grok | `grok` | grok-2, grok-3 |
+| 4 | Google Gemini | `gemini` | gemini-2.5-flash, gemini-2.5-pro |
+| 5 | xAI Grok | `grok` | grok-2, grok-3-mini |
 | 6 | Groq | `groq` | llama-3.3-70b, mixtral |
 | 7 | OpenRouter | `openrouter` | 300+ models |
 | 8 | Azure OpenAI | `azure_openai` | Deployed models |
@@ -951,7 +951,7 @@ api_url = "http://localhost:11434"
 
 [claude]
 api_key = "sk-..."
-model = "claude-sonnet-4-20250514"
+model = "claude-sonnet-4-6"
 api_url = "https://api.anthropic.com"       # Configurable
 thinking_budget_tokens = 10000               # Extended thinking
 

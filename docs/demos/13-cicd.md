@@ -15,7 +15,7 @@ This demo covers VibeCody's CI/CD integration, which brings pipeline visibility 
 
 ## Prerequisites
 
-- VibeCLI installed and configured ([Demo 1](../first-run/))
+- VibeCLI installed and configured ([Demo 1](../01-first-run/))
 - A GitHub repository with at least one GitHub Actions workflow
 - A GitHub personal access token with `repo` and `workflow` scopes
 - (Optional) VibeUI for the desktop panel experience

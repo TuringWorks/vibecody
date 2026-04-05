@@ -179,7 +179,7 @@ Gateway Status:
   slack       ACTIVE     31          2h 15m
 
   Total messages processed: 101
-  AI provider: claude (claude-sonnet-4-20250514)
+  AI provider: claude (claude-sonnet-4-6)
   Token usage: 45,230 / 100,000 budget
 ```
 
@@ -331,6 +331,6 @@ Open the **Gateway** panel from the sidebar.
 
 ## What's Next
 
-- [Demo 23: Test Runner & Coverage](../test-coverage/) -- AI-powered test generation with coverage tracking
-- [Demo 24: Red Team Security](../red-team/) -- Automated security scanning with OWASP checks
+- [Demo 23: Test Runner & Coverage](../23-test-coverage/) -- AI-powered test generation with coverage tracking
+- [Demo 24: Red Team Security](../24-red-team/) -- Automated security scanning with OWASP checks
 - Use the gateway with agent teams to let team agents report progress to your Slack channel

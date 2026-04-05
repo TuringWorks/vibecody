@@ -173,6 +173,70 @@ pub struct Config {
     #[serde(default)]
     pub gateway: GatewayConfig,
 
+    /// Email integration (Gmail or Outlook).
+    ///
+    /// ```toml
+    /// [email]
+    /// provider = "gmail"             # "gmail" or "outlook"
+    /// gmail_address = "you@gmail.com"
+    /// gmail_app_password = "xxxx"    # or GMAIL_APP_PASSWORD env
+    /// gmail_access_token = "ya29..." # or GMAIL_ACCESS_TOKEN env
+    /// outlook_access_token = "..."   # or OUTLOOK_ACCESS_TOKEN env
+    /// ```
+    #[serde(default)]
+    pub email: Option<EmailConfig>,
+
+    /// Calendar integration (Google Calendar or Outlook).
+    ///
+    /// ```toml
+    /// [calendar]
+    /// provider = "google"            # "google" or "outlook"
+    /// google_access_token = "ya29..."  # or GOOGLE_CALENDAR_TOKEN env
+    /// outlook_access_token = "..."     # or OUTLOOK_ACCESS_TOKEN env
+    /// work_hours_start = 9
+    /// work_hours_end = 18
+    /// ```
+    #[serde(default)]
+    pub calendar: Option<CalendarConfig>,
+
+    /// Home Assistant smart home integration.
+    ///
+    /// ```toml
+    /// [home_assistant]
+    /// url = "http://homeassistant.local:8123"  # or HOME_ASSISTANT_URL env
+    /// token = "eyJ..."                         # or HOME_ASSISTANT_TOKEN env
+    /// ```
+    #[serde(default)]
+    pub home_assistant: Option<HomeAssistantConfig>,
+
+    /// Notion integration.
+    ///
+    /// ```toml
+    /// [notion]
+    /// api_key = "ntn_..."            # or NOTION_API_KEY env
+    /// ```
+    #[serde(default)]
+    pub notion_api_key: Option<String>,
+
+    /// Todoist integration.
+    ///
+    /// ```toml
+    /// todoist_api_key = "..."        # or TODOIST_API_KEY env
+    /// ```
+    #[serde(default)]
+    pub todoist_api_key: Option<String>,
+
+    /// Jira integration.
+    ///
+    /// ```toml
+    /// [jira]
+    /// url = "https://myorg.atlassian.net"  # or JIRA_URL env
+    /// email = "you@company.com"            # or JIRA_EMAIL env
+    /// api_token = "..."                    # or JIRA_API_TOKEN env
+    /// ```
+    #[serde(default)]
+    pub jira: Option<JiraConfig>,
+
     /// Linear API key for issue tracking integration.
     /// Alternatively, set the LINEAR_API_KEY environment variable.
     ///
@@ -397,6 +461,64 @@ impl RegistryConfig {
             .clone()
             .or_else(|| std::env::var("REGISTRY_PASSWORD").ok())
     }
+}
+
+// ── Productivity integration configs ──────────────────────────────────────
+
+/// Email integration configuration.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct EmailConfig {
+    /// Provider: "gmail" or "outlook"
+    #[serde(default = "EmailConfig::default_provider")]
+    pub provider: String,
+    pub gmail_address: Option<String>,
+    pub gmail_app_password: Option<String>,
+    pub gmail_access_token: Option<String>,
+    pub outlook_access_token: Option<String>,
+}
+
+impl EmailConfig {
+    fn default_provider() -> String { "gmail".to_string() }
+}
+
+/// Calendar integration configuration.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct CalendarConfig {
+    /// Provider: "google" or "outlook"
+    #[serde(default = "CalendarConfig::default_provider")]
+    pub provider: String,
+    pub google_access_token: Option<String>,
+    pub outlook_access_token: Option<String>,
+    #[serde(default = "CalendarConfig::default_work_start")]
+    pub work_hours_start: u8,
+    #[serde(default = "CalendarConfig::default_work_end")]
+    pub work_hours_end: u8,
+}
+
+impl CalendarConfig {
+    fn default_provider() -> String { "google".to_string() }
+    fn default_work_start() -> u8 { 9 }
+    fn default_work_end() -> u8 { 18 }
+}
+
+/// Home Assistant integration configuration.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct HomeAssistantConfig {
+    /// Home Assistant base URL (e.g. "http://homeassistant.local:8123").
+    pub url: Option<String>,
+    /// Long-lived access token.
+    pub token: Option<String>,
+}
+
+/// Jira integration configuration.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct JiraConfig {
+    /// Jira instance URL (e.g. "https://myorg.atlassian.net").
+    pub url: Option<String>,
+    /// Jira user email.
+    pub email: Option<String>,
+    /// Jira API token.
+    pub api_token: Option<String>,
 }
 
 /// Configuration for the red team security scanning module.

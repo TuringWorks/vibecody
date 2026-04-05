@@ -349,6 +349,6 @@ token = "your-server-token"
 
 ## What's Next
 
-- [Demo 20: Agent Teams](../agent-teams/) -- Coordinate multiple local agents with roles
+- [Demo 20: Agent Teams](../20-agent-teams/) -- Coordinate multiple local agents with roles
 - [Demo 38: Parallel Worktrees](../38-parallel-worktrees/) -- Run agents in isolated git worktrees
 - [Demo 16: MCP Server Integration](../16-mcp-servers/) -- Connect external tool servers via MCP

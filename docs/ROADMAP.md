@@ -161,7 +161,7 @@ VibeCody has unique advantages to lean into:
 
 Organized into 5 phases. Each phase builds on the previous and targets specific gap areas.
 
-> **Status:** All 9 phases (1–5 in this document, 6–9 in [ROADMAP-v2](../roadmap-v2/)) are **complete** as of February 2026. VibeCody now has feature parity with Codex CLI, Claude Code, Cursor, Windsurf, and Antigravity across all critical capabilities.
+> **Status:** All 9 phases (1–5 in this document, 6–9 in [ROADMAP-v5](./ROADMAP-v5/)) are **complete** as of February 2026. VibeCody now has feature parity with Codex CLI, Claude Code, Cursor, Windsurf, and Antigravity across all critical capabilities.
 
 ### Phase 1 — Agent Foundation Yes Complete
 

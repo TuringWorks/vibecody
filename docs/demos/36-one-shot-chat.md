@@ -124,7 +124,7 @@ zero-cost delight.
 Combine `--provider` and `--model` for precise control.
 
 ```bash
-vibecli --provider claude --model claude-sonnet-4-20250514 "Explain the borrow checker"
+vibecli --provider claude --model claude-sonnet-4-6 "Explain the borrow checker"
 ```
 
 Example output:
@@ -254,7 +254,7 @@ If you redirect stdout to a file, streaming still occurs but is buffered by the 
     {
       "id": 5,
       "action": "shell",
-      "command": "vibecli --provider claude --model claude-sonnet-4-20250514 \"Explain the borrow checker\"",
+      "command": "vibecli --provider claude --model claude-sonnet-4-6 \"Explain the borrow checker\"",
       "description": "Select a specific model",
       "expected_output_contains": "borrow",
       "delay_ms": 6000
@@ -272,6 +272,6 @@ If you redirect stdout to a file, streaming still occurs but is buffered by the 
 
 ## What's Next
 
-- [Demo 1: First Run & Setup](../first-run/) -- Full installation and provider configuration
-- [Demo 3: Multi-Provider Chat](../multi-provider-chat/) -- Compare responses across 18 providers
-- [Demo 4: Agent Loop](../agent-loop/) -- Let the AI autonomously edit files and run commands
+- [Demo 1: First Run & Setup](../01-first-run/) -- Full installation and provider configuration
+- [Demo 3: Multi-Provider Chat](../03-multi-provider-chat/) -- Compare responses across 18 providers
+- [Demo 4: Agent Loop](../04-agent-loop/) -- Let the AI autonomously edit files and run commands

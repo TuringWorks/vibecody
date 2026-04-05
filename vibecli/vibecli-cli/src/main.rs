@@ -79,6 +79,15 @@ mod voice;
 mod discovery;
 mod tailscale;
 mod pairing;
+mod setup;
+#[allow(dead_code)]
+mod email_client;
+#[allow(dead_code)]
+mod calendar_client;
+#[allow(dead_code)]
+mod home_assistant;
+#[allow(dead_code)]
+mod productivity;
 mod container_runtime;
 mod docker_runtime;
 mod podman_runtime;
@@ -355,6 +364,13 @@ struct Cli {
     #[arg(long, value_name = "TASK")]
     exec: Option<String>,
 
+    /// Run a single REPL command non-interactively and exit.
+    /// Example: vibecli --cmd "/email unread"
+    ///          vibecli --cmd "/cal today"
+    ///          vibecli --cmd "/jira mine"
+    #[arg(long, value_name = "CMD")]
+    cmd: Option<String>,
+
     /// Output format for --exec: json (default), markdown, verbose.
     #[arg(long, default_value = "json")]
     output_format: String,
@@ -416,6 +432,18 @@ struct Cli {
     /// Minimum severity to fail in CI mode: critical, warning/high (default), info/medium/low.
     #[arg(long, default_value = "warning")]
     severity_threshold: String,
+
+    // ── Setup wizard ─────────────────────────────────────────────────────────
+
+    /// Run the interactive setup wizard. Detects your platform, configures an
+    /// AI provider, and optionally installs VibeCody as an always-on service.
+    #[arg(long)]
+    setup: bool,
+
+    /// Service management subcommand: install, start, stop, status.
+    /// Example: vibecli --service install
+    #[arg(long, value_name = "SUBCOMMAND")]
+    service: Option<String>,
 
     // ── Daemon mode ───────────────────────────────────────────────────────────
 
@@ -755,6 +783,26 @@ async fn main() -> Result<()> {
         } else {
             (cli.provider.clone(), cli.model.clone(), approval_policy.clone())
         };
+
+    // Setup wizard: vibecli --setup
+    if cli.setup {
+        return setup::run_setup().await;
+    }
+
+    // Service management: vibecli --service <install|start|stop|status>
+    if let Some(ref subcmd) = cli.service {
+        return match subcmd.as_str() {
+            "install" => setup::service_install(),
+            "start" => setup::service_start(),
+            "stop" => setup::service_stop(),
+            "status" => setup::service_status(),
+            other => {
+                eprintln!("Unknown service subcommand: {other}");
+                eprintln!("Available: install, start, stop, status");
+                std::process::exit(1);
+            }
+        };
+    }
 
     // Daemon mode: vibecli serve [--port 7878]
     if cli.serve {
@@ -1251,6 +1299,48 @@ async fn main() -> Result<()> {
 
     if cli.tui {
         return tui::run(effective_provider, effective_model).await;
+    }
+
+    // Single REPL command mode: --cmd "/email unread"
+    if let Some(cmd_str) = cli.cmd {
+        let trimmed = cmd_str.trim();
+        let (command, args) = if let Some(pos) = trimmed.find(' ') {
+            (&trimmed[..pos], trimmed[pos + 1..].trim())
+        } else {
+            (trimmed, "")
+        };
+        match command {
+            "/email" => {
+                let output = crate::email_client::handle_email_command(args).await;
+                print!("{}", output);
+            }
+            "/calendar" | "/cal" => {
+                let output = crate::calendar_client::handle_calendar_command(args).await;
+                print!("{}", output);
+            }
+            "/home" | "/ha" => {
+                let output = crate::home_assistant::handle_ha_command(args).await;
+                print!("{}", output);
+            }
+            "/notion" | "/todo" | "/todoist" | "/jira" => {
+                let full_args = if command == "/notion" || command == "/jira" {
+                    format!("{} {}", &command[1..], args)
+                } else {
+                    format!("todoist {}", args)
+                };
+                let output = crate::productivity::handle_productivity_command(&full_args).await;
+                print!("{}", output);
+            }
+            "/linear" => {
+                let output = crate::linear::handle_linear_command(args).await;
+                print!("{}", output);
+            }
+            _ => {
+                eprintln!("Unknown --cmd command '{}'. Use /email, /cal, /ha, /todo, /notion, /jira, /linear.", command);
+                std::process::exit(1);
+            }
+        }
+        return Ok(());
     }
 
     // Non-interactive CI/exec mode: --exec "task"
@@ -1902,6 +1992,23 @@ async fn main() -> Result<()> {
                             break;
                         }
                         "/help" => show_help(),
+                        "/setup" => setup::run_setup().await?,
+                        "/service" => {
+                            match args.split_whitespace().next().unwrap_or("") {
+                                "install" => setup::service_install()?,
+                                "start" => setup::service_start()?,
+                                "stop" => setup::service_stop()?,
+                                "status" => setup::service_status()?,
+                                _ => {
+                                    println!("Service Commands:");
+                                    println!("  /service install  — Install VibeCody as a background service");
+                                    println!("  /service start    — Start the background service");
+                                    println!("  /service stop     — Stop the background service");
+                                    println!("  /service status   — Check service status");
+                                    println!();
+                                }
+                            }
+                        }
                         "/config" => show_config().await?,
                         "/agent" => {
                             if args.is_empty() {
@@ -4201,6 +4308,27 @@ async fn main() -> Result<()> {
                         //        /schedule cancel <id>
                         "/linear" => {
                             let output = crate::linear::handle_linear_command(args).await;
+                            print!("{}", output);
+                        }
+                        "/email" => {
+                            let output = crate::email_client::handle_email_command(args).await;
+                            print!("{}", output);
+                        }
+                        "/calendar" | "/cal" => {
+                            let output = crate::calendar_client::handle_calendar_command(args).await;
+                            print!("{}", output);
+                        }
+                        "/home" | "/ha" => {
+                            let output = crate::home_assistant::handle_ha_command(args).await;
+                            print!("{}", output);
+                        }
+                        "/notion" | "/todo" | "/todoist" | "/jira" => {
+                            let full_args = if command == "/notion" || command == "/jira" || command == "/todoist" {
+                                format!("{} {}", &command[1..], args)
+                            } else {
+                                format!("todoist {}", args)
+                            };
+                            let output = crate::productivity::handle_productivity_command(&full_args).await;
                             print!("{}", output);
                         }
 
@@ -10781,6 +10909,28 @@ fn show_help() {
     println!("  /linear new \"title\"      - Create a new Linear issue");
     println!("  /linear open <id>        - Open a Linear issue in the browser");
     println!("  /linear attach <id>      - Link current session to a Linear issue");
+    println!("  /email inbox             - List recent emails (Gmail/Outlook)");
+    println!("  /email read <id>         - Read full email");
+    println!("  /email send <to> <subj>  - Compose and send email");
+    println!("  /email search <query>    - Search emails");
+    println!("  /email triage            - AI-powered email triage");
+    println!("  /cal today               - Show today's calendar events");
+    println!("  /cal week                - Show this week's events");
+    println!("  /cal create <title>      - Create a calendar event");
+    println!("  /cal free                - Show free time slots");
+    println!("  /cal next                - Show next upcoming event");
+    println!("  /home status             - Smart home device status");
+    println!("  /home lights             - List lights with on/off state");
+    println!("  /home on <entity>        - Turn on device");
+    println!("  /home off <entity>       - Turn off device");
+    println!("  /home scene <name>       - Activate Home Assistant scene");
+    println!("  /notion search <query>   - Search Notion pages");
+    println!("  /notion page <id>        - Read Notion page");
+    println!("  /todo list               - List Todoist tasks");
+    println!("  /todo add <task>         - Add a Todoist task");
+    println!("  /todo complete <id>      - Complete a task");
+    println!("  /jira list               - List Jira issues assigned to you");
+    println!("  /jira create <proj> <s>  - Create Jira issue");
     println!("  /snippet list            - List saved code snippets");
     println!("  /snippet save <name>     - Save last AI response as a named snippet");
     println!("  /snippet use <name>      - Inject snippet as context for next message");
@@ -10814,6 +10964,8 @@ fn show_help() {
     println!("  --full-auto              - Execute all tool calls autonomously");
     println!("  --output-format json|md  - Report format for --exec");
     println!("  --output <file>          - Write --exec report to file");
+    println!("  --setup                  - Interactive setup wizard (detect platform, configure provider, install service)");
+    println!("  --service <cmd>          - Manage always-on service (install, start, stop, status)");
     println!("  --serve                  - Start HTTP daemon (VS Code extension / Agent SDK)");
     println!("  --mcp-server             - Run as MCP server (for Claude Desktop etc.)");
     println!("  --gateway <platform>     - Start messaging bot (telegram|discord|slack)");

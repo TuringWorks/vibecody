@@ -1,0 +1,17 @@
+[Unit]
+Description=VibeCody AI Coding Assistant
+After=network.target ollama.service
+
+[Service]
+Type=simple
+ExecStart=%VIBECLI_BIN% serve --port 7878 --host 0.0.0.0
+Restart=always
+RestartSec=10
+User=%USER%
+Environment=RUST_LOG=info
+MemoryMax=75%
+CPUQuota=80%
+WorkingDirectory=/home/%USER%
+
+[Install]
+WantedBy=multi-user.target

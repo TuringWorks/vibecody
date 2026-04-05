@@ -23,9 +23,9 @@ VibeCody supports 23 AI providers, covering cloud APIs, local models, inference 
 | [Ollama](ollama/) | Local | None (no key needed) | `qwen3-coder:480b-cloud` | Yes (fully free) | Yes |
 | [Claude](claude/) | Cloud | `ANTHROPIC_API_KEY` | `claude-sonnet-4-6` | No | Yes |
 | [OpenAI](openai/) | Cloud | `OPENAI_API_KEY` | `gpt-4o` | No | Yes |
-| [Gemini](gemini/) | Cloud | `GEMINI_API_KEY` | `gemini-2.0-flash` | Yes (generous) | Yes |
+| [Gemini](gemini/) | Cloud | `GEMINI_API_KEY` | `gemini-2.5-flash` | Yes (generous) | Yes |
 | [DeepSeek](deepseek/) | Cloud | `DEEPSEEK_API_KEY` | `deepseek-chat` | No | Yes |
-| [Grok](grok/) | Cloud | `GROK_API_KEY` | `grok-2` | No | Yes |
+| [Grok](grok/) | Cloud | `GROK_API_KEY` | `grok-3-mini` | No | Yes |
 | [Groq](groq/) | Cloud | `GROQ_API_KEY` | `llama-3.3-70b-versatile` | Yes (rate-limited) | Yes |
 | [OpenRouter](openrouter/) | Cloud | `OPENROUTER_API_KEY` | `anthropic/claude-3.5-sonnet` | No | Yes |
 | [Azure OpenAI](azure-openai/) | Cloud | `AZURE_OPENAI_API_KEY` | `gpt-4o` | No | Yes |
@@ -63,9 +63,95 @@ VibeCody supports 23 AI providers, covering cloud APIs, local models, inference 
 **For reliability:** The Failover provider wraps multiple providers and automatically falls back if one fails.
 
 
+## Quick Examples by Provider
+
+Every provider works with the same CLI interface. Here are copy-paste examples:
+
+```bash
+# ── Local (free, private) ─────────────────────────────────────────
+ollama pull qwen3-coder
+vibecli --provider ollama "Explain the borrow checker"
+
+# ── Cloud APIs ────────────────────────────────────────────────────
+export ANTHROPIC_API_KEY="sk-ant-..."
+vibecli --provider claude "Fix the bug in src/auth.rs" --agent
+
+export OPENAI_API_KEY="sk-..."
+vibecli --provider openai --model gpt-4o "Write unit tests for parser.rs"
+
+export GEMINI_API_KEY="AIza..."
+vibecli --provider gemini "Summarize this codebase" --add-dir ./src/
+
+export GROK_API_KEY="..."
+vibecli --provider grok "What does this error mean? E0308: mismatched types"
+
+# ── Fast inference (great for quick iterations) ───────────────────
+export GROQ_API_KEY="gsk_..."
+vibecli --provider groq "Convert this JSON to a Rust struct"
+
+export CEREBRAS_API_KEY="..."
+vibecli --provider cerebras "Write a regex for email validation"
+
+export SAMBANOVA_API_KEY="..."
+vibecli --provider sambanova "Explain this stack trace"
+
+# ── Budget-friendly ───────────────────────────────────────────────
+export DEEPSEEK_API_KEY="..."
+vibecli --provider deepseek "Write comprehensive tests for src/db.rs"
+
+# ── Search-augmented ──────────────────────────────────────────────
+export PERPLEXITY_API_KEY="pplx-..."
+vibecli --provider perplexity "What breaking changes are in Tokio 1.40?"
+
+# ── Multi-model gateways ─────────────────────────────────────────
+export OPENROUTER_API_KEY="sk-or-..."
+vibecli --provider openrouter --model "meta-llama/llama-3.3-70b" "Hello"
+
+# ── Enterprise ────────────────────────────────────────────────────
+export AZURE_OPENAI_API_KEY="..." AZURE_OPENAI_ENDPOINT="https://myco.openai.azure.com"
+vibecli --provider azure "Audit this code for OWASP top 10"
+
+export AWS_ACCESS_KEY_ID="AKIA..." AWS_SECRET_ACCESS_KEY="..." AWS_REGION="us-east-1"
+vibecli --provider bedrock "Generate a CloudFormation template"
+
+vibecli --provider copilot "Complete this function"   # Uses existing GitHub Copilot
+
+# ── Failover chain ────────────────────────────────────────────────
+vibecli --provider failover "Fix the build errors"
+# Tries: claude → openai → gemini → ollama (configured in config.toml)
+```
+
+### Agent Mode Examples
+
+```bash
+# Interactive (approve each step)
+vibecli --agent "Add input validation to all API endpoints" --provider claude
+
+# Auto-edit (approve shell commands only)
+vibecli --agent "Refactor to async/await" --provider openai --auto-edit
+
+# Full-auto (CI/scripts — no prompts)
+vibecli --exec "Run tests and fix any failures" --provider claude --full-auto
+
+# Resume a previous session
+vibecli --resume 1711234567
+```
+
+### REPL Session
+
+```bash
+vibecli
+> [src/main.rs]                    # Add file to context
+> What does this function do?
+> /model claude-opus-4-6           # Switch mid-conversation
+> Now refactor it to use async
+> /cost                            # Check token usage
+```
+
+
 ## Configuration
 
-All providers are configured in `~/.vibecli/config.toml`. See the [Configuration Guide](/vibecody/configuration/) for the full reference.
+All providers are configured in `~/.vibecli/config.toml`. See the [Configuration Guide](/vibecody/configuration/) for the full reference with all 21 providers, usage examples, and safety settings.
 
 Environment variables take precedence over config file values.
 

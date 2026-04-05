@@ -89,6 +89,9 @@
   /* Button foreground — auto-computed per theme for WCAG contrast */
   --btn-primary-fg: #ffffff;
   --btn-error-fg: #ffffff;
+
+  /* Icon stroke width — thin icons, overrideable per theme */
+  --icon-stroke: 1.25;
 }
 
 /* ── Light theme ──────────────────────────────────────────────────────── */
@@ -156,6 +159,8 @@
 
   --btn-primary-fg: #ffffff;
   --btn-error-fg: #ffffff;
+
+  --icon-stroke: 1.25;
 }
 
 /* ── Status color utilities ───────────────────────────────────────────── */

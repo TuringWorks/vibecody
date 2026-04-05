@@ -71,6 +71,7 @@ export const TAB_META: Record<string, TabMeta> = {
   // --- Settings ---
   config:            { icon: Settings,     label: "Configuration",     aliases: ["settings", "hooks", "markers", "jobs", "bookmarks", "keys"] },
   integrations:      { icon: Plug,         label: "Integrations",      aliases: ["mcp", "acpprotocol", "webhooks", "acp"] },
+  productivity:      { icon: ClipboardList, label: "Productivity",      aliases: ["email", "gmail", "outlook", "calendar", "google calendar", "todoist", "todo", "notion", "jira", "home assistant", "smart home", "ha"] },
   administration:    { icon: UserCog,      label: "Administration",    aliases: ["admin", "auth", "governance", "sessions", "manager"] },
   billing:           { icon: DollarSign,   label: "Billing",           aliases: ["cost", "usagemetering", "usage"] },
   "tools-settings":  { icon: Package,      label: "Tools",             aliases: ["artifacts", "img2app", "screenshot to app", "visualtest", "visual test"] },

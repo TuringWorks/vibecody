@@ -112,10 +112,10 @@ Each provider implements the AIProvider trait from vibe-ai. Configure in
 
 Provider        | Env Var                | Default Model                              | --provider flag
 ----------------|------------------------|--------------------------------------------|----------------
-Ollama          | (none, local)          | qwen2.5-coder:7b                           | ollama
-Claude          | ANTHROPIC_API_KEY      | claude-3-5-sonnet-20241022                 | claude
+Ollama          | (none, local)          | qwen3-coder:480b-cloud                     | ollama
+Claude          | ANTHROPIC_API_KEY      | claude-sonnet-4-6                          | claude
 OpenAI          | OPENAI_API_KEY         | gpt-4o                                     | openai
-Gemini          | GEMINI_API_KEY         | gemini-2.0-flash                           | gemini
+Gemini          | GEMINI_API_KEY         | gemini-2.5-flash                           | gemini
 Grok            | GROK_API_KEY           | grok-3-mini                                | grok
 Groq            | GROQ_API_KEY           | llama-3.3-70b-versatile                    | groq
 OpenRouter      | OPENROUTER_API_KEY     | (user-specified)                           | openrouter
@@ -123,7 +123,7 @@ Azure OpenAI    | AZURE_OPENAI_API_KEY   | (deployment-specific)                
 AWS Bedrock     | AWS_ACCESS_KEY_ID      | anthropic.claude-3-5-sonnet-20241022-v2:0  | bedrock
                 | AWS_SECRET_ACCESS_KEY  |                                            |
                 | AWS_SESSION_TOKEN      |                                            |
-GitHub Copilot  | COPILOT_TOKEN          | gpt-4o                                     | copilot
+GitHub Copilot  | GITHUB_TOKEN           | gpt-4o                                     | copilot
 Mistral         | MISTRAL_API_KEY        | mistral-large-latest                       | mistral
 Cerebras        | CEREBRAS_API_KEY       | (user-specified)                           | cerebras
 DeepSeek        | DEEPSEEK_API_KEY       | (user-specified)                           | deepseek
@@ -164,6 +164,9 @@ Core modes:
   --tui                          Terminal UI (Ratatui full-screen)
   --agent <TASK>                 Non-interactive agent mode
   --exec <TASK>                  CI mode: run agent, output report, exit
+  --cmd "/email unread"          Run single REPL command and exit (email/cal/ha/todo/notion/jira)
+  --setup                        Interactive platform setup wizard
+  --service install|start|stop   Always-on service management
   --serve                        HTTP daemon for VS Code / Agent SDK
   --mcp-server                   MCP server over stdio
   --gateway <PLATFORM>           Messaging bot (telegram/discord/slack/...)
@@ -231,7 +234,7 @@ Other:
 
 
 ================================================================================
-5. REPL COMMANDS (75+)
+5. REPL COMMANDS (106+)
 ================================================================================
 
 All commands are prefixed with / in the REPL or TUI.
@@ -301,6 +304,14 @@ AI & agents:
   /icontext                      Infinite context management
   /soul                          Soul agent mode
 
+Productivity integrations:
+  /email inbox|unread|read|send|search|triage|archive  Gmail or Outlook email
+  /cal today|week|list|create|delete|free|move|next    Google or Outlook Calendar
+  /todo list|today|add|close|delete|project|search     Todoist task management
+  /notion search|get|create|databases|query|append     Notion workspace
+  /jira list|create|get|comment|transition|mine|search Jira Cloud / Server
+  /ha status|lights|on|off|toggle|set|scene|climate    Home Assistant smart home
+
 Integrations:
   /mcp [list|tools <server>]     MCP server management
   /plugin [list|install|remove]  Plugin management
@@ -367,7 +378,7 @@ Example provider configs:
   [claude]
   enabled = false
   api_key = "sk-ant-..."
-  model = "claude-3-5-sonnet-20241022"
+  model = "claude-sonnet-4-6"
 
   [openai]
   enabled = false
@@ -377,7 +388,7 @@ Example provider configs:
   [gemini]
   enabled = false
   api_key = "AIza..."
-  model = "gemini-2.0-flash"
+  model = "gemini-2.5-flash"
 
   [grok]
   enabled = false
@@ -1102,7 +1113,7 @@ AI Provider keys:
   AWS_ACCESS_KEY_ID          AWS credentials (Bedrock)
   AWS_SECRET_ACCESS_KEY      AWS credentials (Bedrock)
   AWS_SESSION_TOKEN          AWS session token (Bedrock, optional)
-  COPILOT_TOKEN              GitHub Copilot token
+  GITHUB_TOKEN               GitHub token (Copilot + @github context)
   MISTRAL_API_KEY            Mistral AI API key
   CEREBRAS_API_KEY           Cerebras API key
   DEEPSEEK_API_KEY           DeepSeek API key
@@ -1121,6 +1132,19 @@ Integration keys:
   OPEN_SANDBOX_API_URL       OpenSandbox API URL
   OPEN_SANDBOX_API_KEY       OpenSandbox API key
   REGISTRY_PASSWORD          Private container registry password
+
+Productivity integration keys:
+  GMAIL_ACCESS_TOKEN         Gmail OAuth2 access token (REST API)
+  OUTLOOK_ACCESS_TOKEN       Microsoft Graph access token (Outlook Mail)
+  GOOGLE_CALENDAR_TOKEN      Google Calendar OAuth2 access token
+  OUTLOOK_CALENDAR_TOKEN     Microsoft Graph token (Outlook Calendar)
+  HA_URL                     Home Assistant base URL (http://ha.local:8123)
+  HA_TOKEN                   Home Assistant long-lived access token
+  NOTION_API_KEY             Notion integration secret (secret_xxx)
+  TODOIST_API_KEY            Todoist API token (prefs → integrations)
+  JIRA_URL                   Jira instance URL (https://org.atlassian.net)
+  JIRA_EMAIL                 Atlassian account email for Jira API auth
+  JIRA_API_TOKEN             Jira API token (id.atlassian.com → security)
 
 Runtime:
   VIBECLI_API_KEY            Bearer token auth for HTTP daemon

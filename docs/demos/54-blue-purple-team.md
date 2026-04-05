@@ -297,6 +297,6 @@ Switch to the **PurpleTeam** panel with 5 tabs:
 
 ## What's Next
 
-- [Demo 24: Red Team Security](../red-team/) -- Offensive security scanning and vulnerability detection
+- [Demo 24: Red Team Security](../24-red-team/) -- Offensive security scanning and vulnerability detection
 - [Demo 35: Compliance & Audit](../35-compliance/) -- SOC 2 controls and audit trails
 - [Demo 57: Internal Developer Platform](../57-idp/) -- Platform engineering with security baselines

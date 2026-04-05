@@ -144,14 +144,6 @@ pub fn run() {
                 .build()?;
             app.set_menu(menu)?;
 
-            // Open WebView devtools in debug builds so we can see console errors
-            #[cfg(debug_assertions)]
-            {
-                use tauri::Manager;
-                if let Some(window) = app.get_webview_window("main") {
-                    window.open_devtools();
-                }
-            }
 
             Ok(())
         })
@@ -1352,6 +1344,11 @@ pub fn run() {
             commands::rl_get_multi_agent_metrics,
             commands::rl_get_reward_decomposition,
             commands::rl_get_alignment_metrics,
+            // Productivity integrations
+            commands::handle_email_command,
+            commands::handle_calendar_command,
+            commands::handle_productivity_command,
+            commands::handle_ha_command,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

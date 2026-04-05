@@ -265,6 +265,6 @@ Open VibeUI and navigate to the **QA Validation** panel. The workflow is:
 
 ## What's Next
 
-- [Demo 27: HTTP Playground](../http-playground/) -- Build and test API requests interactively
-- [Demo 28: GraphQL Explorer](../graphql/) -- Introspect schemas and build queries
-- [Demo 29: Regex & Encoding Tools](../regex-encoding/) -- Pattern testing, JWT decoding, and data conversion
+- [Demo 27: HTTP Playground](../27-http-playground/) -- Build and test API requests interactively
+- [Demo 28: GraphQL Explorer](../28-graphql/) -- Introspect schemas and build queries
+- [Demo 29: Regex & Encoding Tools](../29-regex-encoding/) -- Pattern testing, JWT decoding, and data conversion

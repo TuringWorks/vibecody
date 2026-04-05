@@ -148,7 +148,7 @@ Error: 400 - max tokens exceeded
 
 - Use a model with a larger context window (Opus 4.6 supports 1M tokens)
 - Reduce the conversation history or input size
-- Enable VibeCody's context pruning (`/prune`) to trim old messages
+- VibeCody automatically prunes old context when the window fills up
 
 ### Timeout
 

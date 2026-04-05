@@ -303,6 +303,6 @@ Open VibeUI and navigate to the **NextTask** panel. The panel provides:
 
 ## What's Next
 
-- [Demo 04: Agent Loop & Tool Execution](../agent-loop/) -- Let the AI execute suggested actions
-- [Demo 06: Cost Observatory](../cost-observatory/) -- Track costs of executed suggestions
+- [Demo 04: Agent Loop & Tool Execution](../04-agent-loop/) -- Let the AI execute suggested actions
+- [Demo 06: Cost Observatory](../06-cost-observatory/) -- Track costs of executed suggestions
 - [Demo 58: Living Documentation Sync](../58-doc-sync/) -- Keep docs updated as tasks complete

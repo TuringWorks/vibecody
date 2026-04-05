@@ -17,7 +17,7 @@ The agent loop is VibeCody's most powerful feature. Instead of just chatting, th
 
 - VibeCLI installed and configured with an AI provider that supports tool use (Claude, OpenAI, Gemini)
 - A code project to work with (any language)
-- Familiarity with [Demo 1: First Run](../first-run/)
+- Familiarity with [Demo 1: First Run](../01-first-run/)
 
 ## How the Agent Loop Works
 
@@ -159,25 +159,37 @@ test result: ok. 5 passed; 0 failed; 0 ignored
 
 ### Step 7: Sandboxing
 
-Shell commands run in a sandboxed environment by default. Configure sandbox rules in `~/.vibecli/config.toml`:
+Shell commands can run inside a container sandbox. Configure it in `~/.vibecli/config.toml`:
 
 ```toml
 [sandbox]
-enabled = true
-allow_read = ["/home/user/project/**"]
-allow_write = ["/home/user/project/src/**", "/home/user/project/tests/**"]
-blocked_commands = ["rm -rf /", "sudo", "curl | bash"]
-network = false  # Disable network access in sandbox
-max_runtime_seconds = 30
+runtime = "docker"           # "auto", "docker", "podman", or "opensandbox"
+image = "ubuntu:22.04"       # Container image
+timeout_secs = 3600          # Max container lifetime
+
+[sandbox.resources]
+memory = "512m"              # Memory limit
+cpus = "1.0"                 # CPU limit
+pids_limit = 256             # Max processes
+
+[sandbox.network]
+mode = "none"                # "none", "restricted", or "full"
+# allowed_domains = ["crates.io", "github.com"]  # When mode = "restricted"
 ```
 
-When the agent tries a blocked command:
+Use the `--suggest` approval policy to review shell commands before they run:
 
 ```
-[Tool Call] Shell { command: "sudo rm -rf /tmp/test" }
+  bash  Running: rm -rf /tmp/test
+   Approve? (y/n/a=approve-all): n
+   ❌ Rejected
+```
 
-[Result] BLOCKED: Command "sudo" is in the blocked commands list.
-The agent will be informed and asked to use an alternative approach.
+You can also block specific commands using safety tool patterns:
+
+```toml
+[safety]
+denied_tool_patterns = ["bash(rm -rf*)", "bash(sudo*)"]
 ```
 
 ### Step 8: Agent hooks
@@ -221,62 +233,41 @@ print(json.dumps({"blocked": False}))
 sys.exit(0)
 ```
 
-### Step 9: Checkpointing and rollback
+### Step 9: Rollback with git
 
-The agent automatically creates checkpoints before making changes. You can roll back at any time.
-
-```bash
-vibecli
-> /agent "Refactor the database module to use connection pooling"
-
-# Agent makes several file changes...
-
-> /checkpoint list
-Checkpoints for session abc123:
-  [1] 2026-03-13T10:00:00Z - Before editing src/db/mod.rs
-  [2] 2026-03-13T10:00:15Z - Before editing src/db/pool.rs
-  [3] 2026-03-13T10:00:30Z - Before editing src/db/config.rs
-
-> /checkpoint rollback 2
-Rolled back to checkpoint 2. Files restored:
-  - src/db/config.rs (reverted)
-```
-
-In interactive mode, the agent asks for confirmation before each action:
-
-```
-[Agent] I want to edit src/db/mod.rs to add connection pooling.
-        Proceed? [Y/n/diff]
-> diff
-[Shows the proposed diff]
-> y
-[Edit applied]
-```
-
-### Step 10: Context management and token budgets
-
-The agent manages context automatically, but you can configure token budgets:
-
-```toml
-# ~/.vibecli/config.toml
-
-[agent]
-max_tokens = 100000          # Max context window usage
-max_iterations = 50           # Max think-act cycles
-context_pruning = true        # Auto-prune old context
-summary_threshold = 50000     # Summarize context above this
-```
-
-Monitor context usage during an agent session:
+The agent creates a trace for every session. If you need to undo changes, use git:
 
 ```bash
-> /context
-Context usage: 34,521 / 100,000 tokens (34.5%)
-  System prompt:     2,100 tokens
-  Conversation:     18,421 tokens
-  Tool results:     12,800 tokens
-  Files in context:  1,200 tokens
+# View what the agent changed
+git diff
+
+# Undo all agent changes
+git checkout -- .
+
+# Or selectively revert a file
+git checkout -- src/db/config.rs
 ```
+
+In interactive mode (`--suggest` policy), the agent asks for confirmation before each action:
+
+```
+  bash  Running: cargo test
+   Approve? (y/n/a=approve-all): n
+   ❌ Rejected
+```
+
+### Step 10: Token usage
+
+Monitor token usage and cost during or after a session:
+
+```bash
+> /cost
+Session cost summary:
+  claude:   $0.0342 (12,400 tokens)
+  Total:    $0.0342
+```
+
+VibeCody's context pruning automatically summarizes older messages when the context window fills up, keeping the most recent and relevant information.
 
 ## VibeUI Agent Panel
 
@@ -326,11 +317,10 @@ In VibeUI, the Agent panel (`Cmd+J` then "Agent" tab) provides a visual represen
       "id": 4,
       "action": "repl",
       "commands": [
-        { "input": "/checkpoint list", "delay_ms": 2000, "description": "List available checkpoints" },
-        { "input": "/context", "delay_ms": 1500, "description": "Check context token usage" },
+        { "input": "/cost", "delay_ms": 2000, "description": "Check session token costs" },
         { "input": "/quit", "delay_ms": 500 }
       ],
-      "description": "Inspect checkpoints and context usage"
+      "description": "Check cost and exit"
     },
     {
       "id": 5,
@@ -368,12 +358,12 @@ In VibeUI, the Agent panel (`Cmd+J` then "Agent" tab) provides a visual represen
 1. **Be specific** -- "Fix the login bug in src/auth.rs" works better than "Fix my code"
 2. **Use the REPL** for sensitive changes where you want to guide the agent interactively
 3. **Set up hooks** to enforce code style and block dangerous operations
-4. **Review checkpoints** before accepting large changes
-5. **Monitor token usage** with `/context` to avoid hitting limits
+4. **Review git diffs** before committing agent changes (`git diff`)
+5. **Monitor token usage** with `/cost` to track spend
 6. **Use sandboxing** to prevent unintended side effects from shell commands
 
 ## What's Next
 
-- [Demo 5: Model Arena](../model-arena/) -- Compare how different models handle agent tasks
-- [Demo 6: Cost Observatory](../cost-observatory/) -- Track agent session costs
-- [Demo 1: First Run](../first-run/) -- Revisit setup if you need to configure additional providers
+- [Demo 5: Model Arena](../05-model-arena/) -- Compare how different models handle agent tasks
+- [Demo 6: Cost Observatory](../06-cost-observatory/) -- Track agent session costs
+- [Demo 1: First Run](../01-first-run/) -- Revisit setup if you need to configure additional providers

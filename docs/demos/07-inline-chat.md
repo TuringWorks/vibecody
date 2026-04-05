@@ -21,7 +21,7 @@ This demo covers the VibeUI Monaco editor experience and the underlying CLI comm
 [claude]
 enabled = true
 api_key = "sk-ant-..."
-model = "claude-sonnet-4-20250514"
+model = "claude-sonnet-4-6"
 ```
 
 - VibeUI built and running:
@@ -123,7 +123,7 @@ Response:
 {
   "prediction": "    let body = req.body().await?;\n    let parsed: RequestBody = serde_json::from_slice(&body)?;\n    let result = handle_parsed(parsed).await?;\n    Ok(Response::json(&result))\n",
   "confidence": 0.87,
-  "model": "claude-sonnet-4-20250514"
+  "model": "claude-sonnet-4-6"
 }
 ```
 

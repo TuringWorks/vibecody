@@ -83,7 +83,7 @@ Error responses use the ApiError type from src/errors.rs.
 
 [bundle.model_preferences]
 provider = "claude"
-model = "claude-sonnet-4-20250514"
+model = "claude-sonnet-4-6"
 temperature = 0.3
 max_tokens = 4096
 ```
@@ -214,7 +214,7 @@ Instructions injected into the agent system prompt.
 
 [bundle.model_preferences]
 provider = "claude"              # Preferred provider
-model = "claude-sonnet-4-20250514"       # Preferred model
+model = "claude-sonnet-4-6"       # Preferred model
 temperature = 0.3
 max_tokens = 4096
 ```
@@ -304,6 +304,6 @@ The following JSON represents a recorded demo session that can be replayed in Vi
 
 ## What's Next
 
-- [Demo 20: Agent Teams](../agent-teams/) -- Coordinate multiple AI agents with specialized roles
-- [Demo 21: CRDT Collaboration](../crdt-collab/) -- Real-time collaborative editing with conflict resolution
+- [Demo 20: Agent Teams](../20-agent-teams/) -- Coordinate multiple AI agents with specialized roles
+- [Demo 21: CRDT Collaboration](../21-crdt-collab/) -- Real-time collaborative editing with conflict resolution
 - Combine context bundles with agent teams so each agent role inherits the right project context

@@ -420,5 +420,5 @@ The editor integration highlights vulnerable code with red underlines and shows 
 - Integrate red team scans into your CI pipeline using the SARIF output format
 - Combine red team scanning with agent teams to have a SecurityAuditor agent run scans continuously
 - Use context bundles to pin security policies so the AI follows your organization's security standards
-- [Demo 19: Context Bundles](../context-bundles/) -- Package project context for consistent AI interactions
-- [Demo 20: Agent Teams](../agent-teams/) -- Coordinate multiple AI agents with specialized roles
+- [Demo 19: Context Bundles](../19-context-bundles/) -- Package project context for consistent AI interactions
+- [Demo 20: Agent Teams](../20-agent-teams/) -- Coordinate multiple AI agents with specialized roles

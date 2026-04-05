@@ -15,7 +15,7 @@ VibeCody detects your cloud infrastructure usage directly from your codebase, ge
 
 ## Prerequisites
 
-- VibeCLI installed and configured ([Demo 1](../first-run/))
+- VibeCLI installed and configured ([Demo 1](../01-first-run/))
 - A project that uses at least one cloud provider (AWS, GCP, or Azure)
 - (Optional) Terraform, AWS CLI, `gcloud`, or `az` CLI installed for template validation
 - (Optional) VibeUI for the desktop panel experience

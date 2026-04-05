@@ -292,6 +292,6 @@ In VibeUI, collaboration features are integrated directly into the editor.
 
 ## What's Next
 
-- [Demo 22: Gateway Messaging](../gateway/) -- Run AI agents across 18 messaging platforms
-- [Demo 23: Test Runner & Coverage](../test-coverage/) -- AI-powered test generation with coverage tracking
+- [Demo 22: Gateway Messaging](../22-gateway/) -- Run AI agents across 18 messaging platforms
+- [Demo 23: Test Runner & Coverage](../23-test-coverage/) -- AI-powered test generation with coverage tracking
 - Combine CRDT collaboration with agent teams to have multiple agents and humans editing together
