@@ -273,10 +273,10 @@ export function DiffReviewPanel({ original, modified, filePath, onApply }: DiffR
  }}>
    {/* Action buttons — anchored left, always visible */}
    <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
-     <button onClick={handleApply} style={btnStyle()}>Apply ({acceptedCount})</button>
-     <button onClick={acceptAll}   style={btnStyle()}>Accept All</button>
-     <button onClick={rejectAll}   style={btnStyle()}>Reject All</button>
-     <button onClick={() => onApply(null)} style={btnStyle()}>Cancel</button>
+     <button onClick={handleApply} style={btnStyle("var(--accent-primary, #6366f1)")}>Apply ({acceptedCount})</button>
+     <button onClick={acceptAll}   style={btnStyle("var(--success-color, #4ade80)")}>Accept All</button>
+     <button onClick={rejectAll}   style={btnStyle("var(--error-color, #f87171)")}>Reject All</button>
+     <button onClick={() => onApply(null)} style={btnStyle("var(--text-secondary, #888)")}>Cancel</button>
    </div>
    {/* Divider */}
    <span style={{ width: 1, height: 14, background: "var(--border-color)", flexShrink: 0 }} />
@@ -393,11 +393,11 @@ function HunkBlock({ hunk, onToggle }: { hunk: DiffHunk; onToggle: () => void })
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function btnStyle(): React.CSSProperties {
+function btnStyle(accent: string): React.CSSProperties {
  return {
  padding: "3px 10px", fontSize: 11, borderRadius: 4, lineHeight: 1.4,
- border: "1px solid var(--border-color)",
- background: "var(--bg-tertiary)", color: "var(--text-primary)",
+ border: `1px solid ${accent}`,
+ background: "transparent", color: accent,
  cursor: "pointer", whiteSpace: "nowrap",
  };
 }
@@ -439,7 +439,7 @@ export class DiffReviewErrorBoundary extends Component<EBProps, EBState> {
         </span>
         <button
           onClick={this.props.onDismiss}
-          style={btnStyle()}
+          style={btnStyle("var(--accent-primary, #6366f1)")}
         >
           Dismiss
         </button>
