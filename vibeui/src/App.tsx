@@ -1974,38 +1974,38 @@ function App() {
               )}
               <div role="tabpanel" aria-labelledby={`ai-tab-${aiPanelTab}`} style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
                 {/* Panel header with maximize/restore button */}
-                <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 8px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", fontSize: 12, flexShrink: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 2, padding: "4px 6px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", fontSize: 12, flexShrink: 0 }}>
                   {!showFilterBar && (
                     <>
                       <button
                         onClick={() => setShowFilterBar(true)}
-                        style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: 12, padding: "2px 6px" }}
+                        style={{ display: "flex", alignItems: "center", gap: 5, background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", padding: "4px 8px", borderRadius: 4 }}
                         title="Show filter panel"
                       >
-                        ☰ Panels
+                        <Icon name="menu" size={14} /> Panels
                       </button>
-                      <span style={{ color: "var(--text-secondary)", opacity: 0.5 }}>|</span>
+                      <span style={{ color: "var(--text-secondary)", opacity: 0.4 }}>|</span>
                     </>
                   )}
-                  <span style={{ color: "var(--text-primary)", fontWeight: 500, flex: 1 }}>{(TAB_META[aiPanelTab] || DEFAULT_TAB_META).label}</span>
+                  <span style={{ color: "var(--text-primary)", fontWeight: 500, flex: 1, paddingLeft: 4 }}>{(TAB_META[aiPanelTab] || DEFAULT_TAB_META).label}</span>
                   <button
                     onClick={() => setPanelsMaximized(prev => !prev)}
                     title={panelsMaximized ? "Restore panel (Ctrl+Shift+M)" : "Maximize panel (Ctrl+Shift+M)"}
                     style={{
-                      background: "none", border: "none", cursor: "pointer", padding: "2px 6px",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      background: "none", border: "none", cursor: "pointer", padding: "4px 8px", borderRadius: 4,
                       color: panelsMaximized ? "var(--accent-color)" : "var(--text-secondary)",
-                      fontSize: 14, lineHeight: 1,
                     }}
                   >
-                    {panelsMaximized ? "⊡" : "⊞"}
+                    <Icon name={panelsMaximized ? "minimize" : "maximize"} size={14} />
                   </button>
                   {panelsMaximized && (
                     <button
                       onClick={() => setPanelsMaximized(false)}
                       title="Close maximized view (Escape)"
-                      style={{ background: "none", border: "none", cursor: "pointer", padding: "2px 6px", color: "var(--text-secondary)", fontSize: 14, lineHeight: 1 }}
+                      style={{ display: "flex", alignItems: "center", justifyContent: "center", background: "none", border: "none", cursor: "pointer", padding: "4px 8px", borderRadius: 4, color: "var(--text-secondary)" }}
                     >
-                      ✕
+                      <Icon name="x" size={14} />
                     </button>
                   )}
                 </div>
