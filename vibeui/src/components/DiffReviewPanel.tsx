@@ -311,7 +311,7 @@ export function DiffReviewPanel({ original, modified, filePath, onApply }: DiffR
 
 // ── HunkBlock ─────────────────────────────────────────────────────────────────
 
-function HunkBlock({ hunk, onToggle }: { hunk: DiffHunk; onToggle: () => void }) {
+const HunkBlock = React.memo(function HunkBlock({ hunk, onToggle }: { hunk: DiffHunk; onToggle: (id: number) => void }) {
  const insertCount = hunk.lines.filter((l) => l.kind === "insert").length;
  const deleteCount = hunk.lines.filter((l) => l.kind === "delete").length;
 
@@ -329,7 +329,7 @@ function HunkBlock({ hunk, onToggle }: { hunk: DiffHunk; onToggle: () => void })
  padding: "4px 10px", background: "var(--bg-secondary)", fontSize: 11,
  }}>
  <button
- onClick={onToggle}
+ onClick={() => onToggle(hunk.id)}
  style={{
  padding: "2px 10px", borderRadius: 3,
  border: `1px solid ${hunk.accepted ? "var(--success-color, #4ade80)" : "var(--error-color, #f87171)"}`,
@@ -384,14 +384,14 @@ function HunkBlock({ hunk, onToggle }: { hunk: DiffHunk; onToggle: () => void })
  ? "var(--error-color)"
  : "var(--text-primary)",
  }}>
- {line.text}
+ {line.text && line.text.length > 5000 ? line.text.substring(0, 5000) + "\n...[line truncated for display]" : line.text}
  </pre>
  </div>
  ))}
  </div>
  </div>
  );
-}
+});
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

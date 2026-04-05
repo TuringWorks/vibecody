@@ -807,6 +807,31 @@ function App() {
   };
 
   const handlePendingWrite = async (path: string, content: string) => {
+    // If it's an image/binary, do not attempt to string-diff it. The DiffReviewPanel
+    // will crash attempting to layout a 5MB base64 string with break-all.
+    if (isImageFile(path)) {
+      try {
+        await invoke("write_file", { path, content });
+        const dir = currentDirectoryRef.current;
+        if (dir) loadDirectory(dir);
+
+        const language = detectLanguage(path);
+        setOpenFiles((prev) => {
+          const exists = prev.some((f: any) => f.path === path);
+          if (exists) return prev.map((f: any) =>
+            f.path === path ? { ...f, content, isDirty: false, isImage: true, base64Data: content } : f
+          );
+          return [...prev, { path, content, language, isDirty: false, isImage: true, base64Data: content }];
+        });
+        setActiveFilePath(path);
+      } catch (err) {
+        console.error("Failed to automatically write image file:", err);
+      } finally {
+        setTimeout(() => window.dispatchEvent(new Event("vibeui:diff-resolved")), 100);
+      }
+      return;
+    }
+
     try {
       // Read current file content for diff
       let original = "";
@@ -1841,12 +1866,25 @@ function App() {
                           requestAnimationFrame(() => {
                             try {
                               const language = detectLanguage(diffPath);
+                              const isImage = isImageFile(diffPath);
                               setOpenFiles((prev) => {
                                 const exists = prev.some((f: any) => f.path === diffPath);
                                 if (exists) return prev.map((f: any) =>
-                                  f.path === diffPath ? { ...f, content: result, isDirty: false } : f
+                                  f.path === diffPath ? { 
+                                    ...f, 
+                                    content: result, 
+                                    isDirty: false,
+                                    ...(isImage ? { base64Data: result } : {})
+                                  } : f
                                 );
-                                return [...prev, { path: diffPath, content: result, language, isDirty: false }];
+                                return [...prev, { 
+                                  path: diffPath, 
+                                  content: result, 
+                                  language, 
+                                  isDirty: false,
+                                  isImage,
+                                  ...(isImage ? { base64Data: result } : {})
+                                }];
                               });
                               setActiveFilePath(diffPath);
                             } catch (err) {
