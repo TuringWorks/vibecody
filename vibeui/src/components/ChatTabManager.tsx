@@ -246,6 +246,31 @@ export function ChatTabManager({
         savedTabsRef.current.add(activeTabId);
     };
 
+    // ── Inline tab rename ──────────────────────────────────────────────────────
+    const [editingTabId, setEditingTabId] = useState<string | null>(null);
+    const [editingTitle, setEditingTitle] = useState("");
+    const renameInputRef = useRef<HTMLInputElement>(null);
+
+    const startRename = (tab: ChatTab, e: React.MouseEvent) => {
+        e.stopPropagation();
+        setEditingTabId(tab.id);
+        setEditingTitle(tab.title);
+        // Focus input on next tick after render
+        setTimeout(() => renameInputRef.current?.select(), 0);
+    };
+
+    const commitRename = () => {
+        if (editingTabId) {
+            const trimmed = editingTitle.trim();
+            if (trimmed) {
+                setTabs(prev => prev.map(t => t.id === editingTabId ? { ...t, title: trimmed } : t));
+            }
+        }
+        setEditingTabId(null);
+    };
+
+    const cancelRename = () => setEditingTabId(null);
+
     const activeTab = tabs.find((t) => t.id === activeTabId);
 
     // Per-tab injected context (from Cascade panel "Inject into chat")
@@ -287,7 +312,7 @@ export function ChatTabManager({
                     return (
                         <div
                             key={tab.id}
-                            onClick={() => { setActiveTabId(tab.id); setShowHistory(false); }}
+                            onClick={() => { if (editingTabId !== tab.id) { setActiveTabId(tab.id); setShowHistory(false); } }}
                             style={{
                                 display: "flex", alignItems: "center", gap: "4px",
                                 padding: "4px 10px", cursor: "pointer", flexShrink: 0,
@@ -299,8 +324,36 @@ export function ChatTabManager({
                                     : "2px solid transparent",
                             }}
                         >
-                            <span>{tab.title}</span>
-                            {msgCount > 0 && (
+                            {editingTabId === tab.id ? (
+                                <input
+                                    ref={renameInputRef}
+                                    value={editingTitle}
+                                    onChange={e => setEditingTitle(e.target.value)}
+                                    onBlur={commitRename}
+                                    onKeyDown={e => {
+                                        if (e.key === "Enter") { e.preventDefault(); commitRename(); }
+                                        if (e.key === "Escape") { e.preventDefault(); cancelRename(); }
+                                    }}
+                                    onClick={e => e.stopPropagation()}
+                                    style={{
+                                        background: "var(--bg-primary)",
+                                        border: "1px solid var(--accent-blue)",
+                                        color: "var(--text-primary)",
+                                        borderRadius: 3, padding: "0 4px",
+                                        fontSize: "12px", width: `${Math.max(editingTitle.length, 6)}ch`,
+                                        outline: "none",
+                                    }}
+                                    autoFocus
+                                />
+                            ) : (
+                                <span
+                                    onDoubleClick={e => startRename(tab, e)}
+                                    title="Double-click to rename"
+                                >
+                                    {tab.title}
+                                </span>
+                            )}
+                            {msgCount > 0 && editingTabId !== tab.id && (
                                 <span style={{ fontSize: "10px", color: "var(--text-secondary)", opacity: 0.7 }}>({msgCount})</span>
                             )}
                             {tabs.length > 1 && (
