@@ -344,9 +344,7 @@ describe('DiffReviewErrorBoundary', () => {
   it('calls onDismiss when Dismiss button is clicked', () => {
     const onDismiss = vi.fn();
 
-    function Bomb() {
-      throw new Error('boom');
-    }
+    const Bomb = (): React.ReactElement => { throw new Error('boom'); };
 
     render(
       <DiffReviewErrorBoundary onDismiss={onDismiss}>
