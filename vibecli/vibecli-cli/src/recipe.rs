@@ -127,6 +127,50 @@ pub fn render_template(template: &str, params: &HashMap<String, String>) -> Stri
 
 // ── Runner ────────────────────────────────────────────────────────────────────
 
+/// B6: Interactively prompt for missing required parameters.
+fn prompt_missing_params(recipe: &Recipe, provided: &HashMap<String, String>) -> HashMap<String, String> {
+    use std::io::{self, Write};
+    let mut filled = provided.clone();
+    for (name, spec) in &recipe.parameters {
+        if !filled.contains_key(name) && spec.default.is_none() && spec.required {
+            let desc = spec.description.as_deref().unwrap_or("");
+            print!("  \x1b[33m??\x1b[0m {} ({}): ", name, desc);
+            let _ = io::stdout().flush();
+            let mut line = String::new();
+            if io::stdin().read_line(&mut line).is_ok() {
+                let v = line.trim().to_string();
+                if !v.is_empty() { filled.insert(name.clone(), v); }
+            }
+        }
+    }
+    filled
+}
+
+/// B7: Dry-run a recipe — show steps without executing them.
+pub fn dry_run_recipe(recipe_file: &str, params: &HashMap<String, String>) -> Result<()> {
+    let recipe = Recipe::load(recipe_file)?;
+    let params = prompt_missing_params(&recipe, params);
+    recipe.validate_params(&params)?;
+    let resolved = recipe.resolve_params(&params);
+
+    println!("\x1b[1;33m[DRY RUN]\x1b[0m \x1b[1;36m▶ Recipe: {}\x1b[0m ({})", recipe.name, recipe_file);
+    if let Some(desc) = &recipe.description { println!("  {}", desc); }
+    println!("  Steps: {}", recipe.steps.len());
+    for (k, v) in &resolved { println!("  \x1b[2m{}={}\x1b[0m", k, v); }
+    println!();
+    for (i, step) in recipe.steps.iter().enumerate() {
+        let prompt = render_template(&step.prompt, &resolved);
+        let provider_note = step.provider.as_deref()
+            .map(|p| format!(" [provider: {}]", p))
+            .unwrap_or_default();
+        println!("\x1b[1;34m── Step {}/{}{}\x1b[0m", i + 1, recipe.steps.len(), provider_note);
+        println!("{}", prompt.trim());
+        println!();
+    }
+    println!("\x1b[2m(dry run — no AI calls made)\x1b[0m");
+    Ok(())
+}
+
 /// Run a recipe file with the given parameters.
 pub async fn run_recipe(
     recipe_file: &str,
@@ -136,15 +180,22 @@ pub async fn run_recipe(
     _sandbox: bool,
 ) -> Result<()> {
     let recipe = Recipe::load(recipe_file)?;
-    recipe.validate_params(params)?;
-    let resolved = recipe.resolve_params(params);
+
+    // B6: interactively fill in missing required parameters
+    let params = prompt_missing_params(&recipe, params);
+    recipe.validate_params(&params)?;
+    let resolved = recipe.resolve_params(&params);
 
     println!("\x1b[1;36m▶ Recipe: {}\x1b[0m", recipe.name);
     if let Some(desc) = &recipe.description {
         println!("  {}", desc);
     }
     println!("  Steps: {}", recipe.steps.len());
-    println!("  Parameters: {:?}", resolved);
+    if !resolved.is_empty() {
+        for (k, v) in &resolved {
+            println!("  \x1b[2m{}={}\x1b[0m", k, v);
+        }
+    }
     println!();
 
     let effective_provider = recipe.provider.as_deref().unwrap_or(provider);

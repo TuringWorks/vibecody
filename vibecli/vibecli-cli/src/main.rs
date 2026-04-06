@@ -678,6 +678,14 @@ struct Cli {
     #[arg(long = "param", value_name = "KEY=VALUE", action = clap::ArgAction::Append)]
     params: Vec<String>,
 
+    /// Dry-run a recipe: print all steps with substituted params without executing.
+    #[arg(long)]
+    dry_run: bool,
+
+    /// B2: List all supported providers and their default models, then exit.
+    #[arg(long)]
+    list_providers: bool,
+
     // ── Session management extras ─────────────────────────────────────────────
 
     /// Fork a session to explore an alternative path.
@@ -831,6 +839,12 @@ async fn main() -> Result<()> {
         safe_exit(if ok { 0 } else { 1 });
     }
 
+    // ── B2: List providers (early exit) ──────────────────────────────────────
+    if cli.list_providers {
+        list_providers_and_models();
+        safe_exit(0);
+    }
+
     // ── Profile resolution ────────────────────────────────────────────────────
     // Load a named profile and use it to override provider / model / approval.
     // Priority: CLI flags > profile > base config.
@@ -868,6 +882,9 @@ async fn main() -> Result<()> {
                 Some((k, v))
             })
             .collect();
+        if cli.dry_run {
+            return recipe::dry_run_recipe(recipe_file, &params);
+        }
         return recipe::run_recipe(recipe_file, &params, &effective_provider, &effective_model, sandbox_enabled).await;
     }
 
@@ -10383,6 +10400,41 @@ fn extract_attachments_from_input(input: &str) -> (String, Vec<ImageAttachment>,
     let clean = file_re.replace_all(&clean, "").trim().to_string();
     let doc_context = doc_parts.join("\n\n");
     (clean, images, doc_context)
+}
+
+/// B2: Print all supported providers and their default models.
+fn list_providers_and_models() {
+    const PROVIDERS: &[(&str, &str, &str)] = &[
+        ("ollama",       "qwen3-coder:480b-cloud",    "Local LLM via Ollama (no API key)"),
+        ("claude",       "claude-sonnet-4-6",          "Anthropic Claude (ANTHROPIC_API_KEY)"),
+        ("openai",       "gpt-4o",                    "OpenAI GPT (OPENAI_API_KEY)"),
+        ("gemini",       "gemini-2.0-flash",           "Google Gemini (GEMINI_API_KEY)"),
+        ("grok",         "grok-3",                    "xAI Grok (GROK_API_KEY)"),
+        ("groq",         "llama-3.3-70b-versatile",   "Groq Cloud (GROQ_API_KEY)"),
+        ("openrouter",   "openai/gpt-4o",             "OpenRouter (OPENROUTER_API_KEY)"),
+        ("azure-openai", "gpt-4o",                    "Azure OpenAI (AZURE_OPENAI_API_KEY)"),
+        ("bedrock",      "anthropic.claude-3-5-sonnet-20241022-v2:0", "AWS Bedrock (AWS creds)"),
+        ("copilot",      "gpt-4o",                    "GitHub Copilot (GITHUB_TOKEN)"),
+        ("mistral",      "mistral-large-latest",       "Mistral AI (MISTRAL_API_KEY)"),
+        ("cerebras",     "llama-4-scout-17b-16e-instruct", "Cerebras (CEREBRAS_API_KEY)"),
+        ("deepseek",     "deepseek-chat",              "DeepSeek (DEEPSEEK_API_KEY)"),
+        ("zhipu",        "glm-4-plus",                "Zhipu AI GLM (ZHIPU_API_KEY)"),
+        ("vercel-ai",    "gpt-4o",                    "Vercel AI SDK (various keys)"),
+        ("minimax",      "MiniMax-Text-01",            "MiniMax (MINIMAX_API_KEY)"),
+        ("perplexity",   "llama-3.1-sonar-large-128k-online", "Perplexity (PERPLEXITY_API_KEY)"),
+        ("together",     "meta-llama/Llama-3.3-70B-Instruct-Turbo", "Together AI (TOGETHER_API_KEY)"),
+        ("fireworks",    "accounts/fireworks/models/llama-v3p3-70b-instruct", "Fireworks AI (FIREWORKS_API_KEY)"),
+        ("sambanova",    "Meta-Llama-3.3-70B-Instruct", "SambaNova (SAMBANOVA_API_KEY)"),
+    ];
+
+    println!("\x1b[1;36m▶ VibeCLI Providers ({} supported)\x1b[0m", PROVIDERS.len());
+    println!();
+    for (name, default_model, note) in PROVIDERS {
+        println!("  \x1b[1;33m{:<16}\x1b[0m  model: \x1b[2m{:<50}\x1b[0m  {}", name, default_model, note);
+    }
+    println!();
+    println!("Usage:  \x1b[2mvibecli --provider <name> [--model <model>] \"your task\"\x1b[0m");
+    println!("Config: \x1b[2m~/.vibecli/config.toml\x1b[0m");
 }
 
 fn create_provider(provider_name: &str, model: Option<String>) -> Result<Arc<dyn LLMProvider>> {
