@@ -54,11 +54,15 @@ export function CompanyBudgetPanel({ workspacePath: _wp }: CompanyBudgetPanelPro
     }
   };
 
+  const btnStyle: React.CSSProperties = {
+    fontSize: 11, padding: "3px 10px", cursor: "pointer", borderRadius: 4,
+    background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", color: "var(--text-primary)",
+  };
   return (
     <div style={{ padding: 16, fontSize: 13, height: "100%", overflowY: "auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <span style={{ fontWeight: 600, fontSize: 14 }}>Budget</span>
-        <button onClick={load} style={{ fontSize: 11, padding: "2px 8px", cursor: "pointer" }}>
+        <button onClick={load} style={btnStyle}>
           Refresh
         </button>
       </div>
@@ -71,29 +75,29 @@ export function CompanyBudgetPanel({ workspacePath: _wp }: CompanyBudgetPanelPro
             value={agentId}
             onChange={(e) => setAgentId(e.target.value)}
             placeholder="Agent ID"
-            style={{ width: 140, fontSize: 12, padding: "4px 8px", background: "var(--input-bg, rgba(0,0,0,0.3))", border: "1px solid var(--border)", borderRadius: 4, color: "var(--text-primary)" }}
+            style={{ width: 140, fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }}
           />
           <input
             value={month}
             onChange={(e) => setMonth(e.target.value)}
             placeholder="2026-04"
-            style={{ width: 90, fontSize: 12, padding: "4px 8px", background: "var(--input-bg, rgba(0,0,0,0.3))", border: "1px solid var(--border)", borderRadius: 4, color: "var(--text-primary)" }}
+            style={{ width: 90, fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }}
           />
           <input
             value={limitCents}
             onChange={(e) => setLimitCents(e.target.value)}
             placeholder="Limit $ (USD)"
             type="number"
-            style={{ width: 100, fontSize: 12, padding: "4px 8px", background: "var(--input-bg, rgba(0,0,0,0.3))", border: "1px solid var(--border)", borderRadius: 4, color: "var(--text-primary)" }}
+            style={{ width: 100, fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }}
           />
-          <button onClick={setBudget} style={{ fontSize: 11, padding: "4px 12px", cursor: "pointer" }}>
+          <button onClick={setBudget} style={{...btnStyle, padding: "4px 12px"}}>
             Set
           </button>
         </div>
       </div>
 
       {cmdResult && (
-        <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border)", borderRadius: 4, padding: 8, marginBottom: 12, fontSize: 12 }}>
+        <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 4, padding: 8, marginBottom: 12, fontSize: 12 }}>
           {cmdResult}
         </div>
       )}
@@ -104,7 +108,7 @@ export function CompanyBudgetPanel({ workspacePath: _wp }: CompanyBudgetPanelPro
         <>
           <div style={{ marginBottom: 12 }}>
             <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 6 }}>Budget Status</div>
-            <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border)", borderRadius: 6, padding: 12 }}>
+            <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 6, padding: 12 }}>
               <pre style={{ margin: 0, fontSize: 12, whiteSpace: "pre-wrap" }}>
                 {budgetOutput || "No budgets set. Use the form above."}
               </pre>
@@ -112,7 +116,7 @@ export function CompanyBudgetPanel({ workspacePath: _wp }: CompanyBudgetPanelPro
           </div>
           <div>
             <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 6 }}>Cost Events</div>
-            <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border)", borderRadius: 6, padding: 12, maxHeight: 200, overflowY: "auto" }}>
+            <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 6, padding: 12, maxHeight: 200, overflowY: "auto" }}>
               <pre style={{ margin: 0, fontSize: 12, whiteSpace: "pre-wrap" }}>
                 {eventsOutput || "No cost events recorded."}
               </pre>

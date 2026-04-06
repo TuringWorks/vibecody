@@ -61,31 +61,35 @@ export function CompanyRoutinesPanel({ workspacePath: _wp }: CompanyRoutinesPane
     }
   };
 
+  const btnStyle: React.CSSProperties = {
+    fontSize: 11, padding: "3px 10px", cursor: "pointer", borderRadius: 4,
+    background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", color: "var(--text-primary)",
+  };
   return (
     <div style={{ padding: 16, fontSize: 13, height: "100%", overflowY: "auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <span style={{ fontWeight: 600, fontSize: 14 }}>Routines & Heartbeats</span>
-        <button onClick={load} style={{ fontSize: 11, padding: "2px 8px", cursor: "pointer" }}>
+        <button onClick={load} style={btnStyle}>
           Refresh
         </button>
       </div>
 
       {/* Create routine */}
-      <div style={{ marginBottom: 16, border: "1px solid var(--border)", borderRadius: 6, padding: 12 }}>
+      <div style={{ marginBottom: 16, border: "1px solid var(--border-color)", borderRadius: 6, padding: 12 }}>
         <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8 }}>Create Routine</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <div style={{ display: "flex", gap: 6 }}>
             <input value={agentId} onChange={(e) => setAgentId(e.target.value)} placeholder="Agent ID"
-              style={{ flex: 1, fontSize: 12, padding: "4px 8px", background: "var(--input-bg, rgba(0,0,0,0.3))", border: "1px solid var(--border)", borderRadius: 4, color: "var(--text-primary)" }} />
+              style={{ flex: 1, fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }} />
             <input value={routineName} onChange={(e) => setRoutineName(e.target.value)} placeholder="Routine name"
-              style={{ flex: 1, fontSize: 12, padding: "4px 8px", background: "var(--input-bg, rgba(0,0,0,0.3))", border: "1px solid var(--border)", borderRadius: 4, color: "var(--text-primary)" }} />
+              style={{ flex: 1, fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }} />
             <input value={intervalMin} onChange={(e) => setIntervalMin(e.target.value)} placeholder="Minutes"
-              type="number" style={{ width: 80, fontSize: 12, padding: "4px 8px", background: "var(--input-bg, rgba(0,0,0,0.3))", border: "1px solid var(--border)", borderRadius: 4, color: "var(--text-primary)" }} />
+              type="number" style={{ width: 80, fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }} />
           </div>
           <div style={{ display: "flex", gap: 6 }}>
             <input value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Agent prompt/task"
-              style={{ flex: 1, fontSize: 12, padding: "4px 8px", background: "var(--input-bg, rgba(0,0,0,0.3))", border: "1px solid var(--border)", borderRadius: 4, color: "var(--text-primary)" }} />
-            <button onClick={createRoutine} style={{ fontSize: 11, padding: "4px 12px", cursor: "pointer" }}>
+              style={{ flex: 1, fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }} />
+            <button onClick={createRoutine} style={{...btnStyle, padding: "4px 12px"}}>
               Create
             </button>
           </div>
@@ -97,25 +101,25 @@ export function CompanyRoutinesPanel({ workspacePath: _wp }: CompanyRoutinesPane
         <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 6 }}>Manual Heartbeat</div>
         <div style={{ display: "flex", gap: 8 }}>
           <input value={agentId} onChange={(e) => setAgentId(e.target.value)} placeholder="Agent ID"
-            style={{ flex: 1, fontSize: 12, padding: "4px 8px", background: "var(--input-bg, rgba(0,0,0,0.3))", border: "1px solid var(--border)", borderRadius: 4, color: "var(--text-primary)" }} />
-          <button onClick={triggerHeartbeat} style={{ fontSize: 11, padding: "4px 12px", cursor: "pointer" }}>
+            style={{ flex: 1, fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }} />
+          <button onClick={triggerHeartbeat} style={{...btnStyle, padding: "4px 12px"}}>
             ♥ Trigger
           </button>
         </div>
         {heartbeatOutput && (
-          <div style={{ marginTop: 8, fontSize: 12, padding: 8, background: "var(--panel-bg, rgba(0,0,0,0.2))", borderRadius: 4, border: "1px solid var(--border)" }}>
+          <div style={{ marginTop: 8, fontSize: 12, padding: 8, background: "var(--panel-bg, rgba(0,0,0,0.2))", borderRadius: 4, border: "1px solid var(--border-color)" }}>
             {heartbeatOutput}
           </div>
         )}
       </div>
 
       {cmdResult && (
-        <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border)", borderRadius: 4, padding: 8, marginBottom: 12, fontSize: 12 }}>
+        <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 4, padding: 8, marginBottom: 12, fontSize: 12 }}>
           {cmdResult}
         </div>
       )}
 
-      <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border)", borderRadius: 6, padding: 12 }}>
+      <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 6, padding: 12 }}>
         <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 6 }}>Active Routines</div>
         {loading ? (
           <span style={{ color: "var(--text-secondary)" }}>Loading…</span>

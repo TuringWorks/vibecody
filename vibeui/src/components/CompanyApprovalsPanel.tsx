@@ -48,6 +48,10 @@ export function CompanyApprovalsPanel({ workspacePath: _wp }: CompanyApprovalsPa
     }
   };
 
+  const btnStyle: React.CSSProperties = {
+    fontSize: 11, padding: "3px 10px", cursor: "pointer", borderRadius: 4,
+    background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", color: "var(--text-primary)",
+  };
   return (
     <div style={{ padding: 16, fontSize: 13, height: "100%", overflowY: "auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
@@ -57,14 +61,14 @@ export function CompanyApprovalsPanel({ workspacePath: _wp }: CompanyApprovalsPa
             <input type="checkbox" checked={showAll} onChange={(e) => setShowAll(e.target.checked)} />
             {" "}Show all
           </label>
-          <button onClick={load} style={{ fontSize: 11, padding: "2px 8px", cursor: "pointer" }}>
+          <button onClick={load} style={btnStyle}>
             Refresh
           </button>
         </div>
       </div>
 
       <div style={{
-        background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border)",
+        background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)",
         borderRadius: 6, padding: 12, marginBottom: 16, minHeight: 160,
       }}>
         {loading ? (
@@ -85,8 +89,8 @@ export function CompanyApprovalsPanel({ workspacePath: _wp }: CompanyApprovalsPa
           placeholder="Approval ID"
           style={{
             flex: 1, fontSize: 12, padding: "4px 8px",
-            background: "var(--input-bg, rgba(0,0,0,0.3))",
-            border: "1px solid var(--border)", borderRadius: 4,
+            background: "var(--bg-primary)",
+            border: "1px solid var(--border-color)", borderRadius: 4,
             color: "var(--text-primary)",
           }}
         />
@@ -96,8 +100,8 @@ export function CompanyApprovalsPanel({ workspacePath: _wp }: CompanyApprovalsPa
           placeholder="Reason (optional)"
           style={{
             flex: 1, fontSize: 12, padding: "4px 8px",
-            background: "var(--input-bg, rgba(0,0,0,0.3))",
-            border: "1px solid var(--border)", borderRadius: 4,
+            background: "var(--bg-primary)",
+            border: "1px solid var(--border-color)", borderRadius: 4,
             color: "var(--text-primary)",
           }}
         />
@@ -119,7 +123,7 @@ export function CompanyApprovalsPanel({ workspacePath: _wp }: CompanyApprovalsPa
 
       {cmdResult && (
         <div style={{
-          background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border)",
+          background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)",
           borderRadius: 4, padding: 8, fontSize: 12,
         }}>
           {cmdResult}

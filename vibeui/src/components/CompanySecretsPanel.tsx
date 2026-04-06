@@ -76,11 +76,15 @@ export function CompanySecretsPanel({ workspacePath: _wp }: CompanySecretsPanelP
     }
   };
 
+  const btnStyle: React.CSSProperties = {
+    fontSize: 11, padding: "3px 10px", cursor: "pointer", borderRadius: 4,
+    background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", color: "var(--text-primary)",
+  };
   return (
     <div style={{ padding: 16, fontSize: 13, height: "100%", overflowY: "auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <span style={{ fontWeight: 600, fontSize: 14 }}>Secrets Vault</span>
-        <button onClick={load} style={{ fontSize: 11, padding: "2px 8px", cursor: "pointer" }}>
+        <button onClick={load} style={btnStyle}>
           Refresh
         </button>
       </div>
@@ -93,29 +97,29 @@ export function CompanySecretsPanel({ workspacePath: _wp }: CompanySecretsPanelP
             value={newKey}
             onChange={(e) => setNewKey(e.target.value)}
             placeholder="Key name"
-            style={{ flex: 1, fontSize: 12, padding: "4px 8px", background: "var(--input-bg, rgba(0,0,0,0.3))", border: "1px solid var(--border)", borderRadius: 4, color: "var(--text-primary)" }}
+            style={{ flex: 1, fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }}
           />
           <input
             value={newValue}
             onChange={(e) => setNewValue(e.target.value)}
             placeholder="Value"
             type="password"
-            style={{ flex: 2, fontSize: 12, padding: "4px 8px", background: "var(--input-bg, rgba(0,0,0,0.3))", border: "1px solid var(--border)", borderRadius: 4, color: "var(--text-primary)" }}
+            style={{ flex: 2, fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }}
           />
-          <button onClick={addSecret} style={{ fontSize: 11, padding: "4px 12px", cursor: "pointer" }}>
+          <button onClick={addSecret} style={{...btnStyle, padding: "4px 12px"}}>
             Set
           </button>
         </div>
       </div>
 
       {cmdResult && (
-        <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border)", borderRadius: 4, padding: 8, marginBottom: 12, fontSize: 12 }}>
+        <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 4, padding: 8, marginBottom: 12, fontSize: 12 }}>
           {cmdResult}
         </div>
       )}
 
       {/* Secrets list */}
-      <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border)", borderRadius: 6, padding: 12 }}>
+      <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 6, padding: 12 }}>
         {loading ? (
           <span style={{ color: "var(--text-secondary)" }}>Loading…</span>
         ) : (
@@ -130,14 +134,14 @@ export function CompanySecretsPanel({ workspacePath: _wp }: CompanySecretsPanelP
         <input
           placeholder="Key to reveal or delete"
           id="secret-key-input"
-          style={{ flex: 1, fontSize: 12, padding: "4px 8px", background: "var(--input-bg, rgba(0,0,0,0.3))", border: "1px solid var(--border)", borderRadius: 4, color: "var(--text-primary)" }}
+          style={{ flex: 1, fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }}
         />
         <button
           onClick={() => {
             const el = document.getElementById("secret-key-input") as HTMLInputElement;
             if (el?.value) revealSecret(el.value.trim());
           }}
-          style={{ fontSize: 11, padding: "4px 10px", cursor: "pointer" }}
+          style={btnStyle}
         >
           Reveal
         </button>

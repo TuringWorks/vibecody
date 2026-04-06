@@ -60,41 +60,45 @@ export function CompanyAdapterPanel({ workspacePath: _wp }: CompanyAdapterPanelP
     }
   };
 
+  const btnStyle: React.CSSProperties = {
+    fontSize: 11, padding: "3px 10px", cursor: "pointer", borderRadius: 4,
+    background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", color: "var(--text-primary)",
+  };
   return (
     <div style={{ padding: 16, fontSize: 13, height: "100%", overflowY: "auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <span style={{ fontWeight: 600, fontSize: 14 }}>Adapter Registry</span>
-        <button onClick={load} style={{ fontSize: 11, padding: "2px 8px", cursor: "pointer" }}>
+        <button onClick={load} style={btnStyle}>
           Refresh
         </button>
       </div>
 
       {/* Register adapter */}
-      <div style={{ border: "1px solid var(--border)", borderRadius: 6, padding: 12, marginBottom: 16 }}>
+      <div style={{ border: "1px solid var(--border-color)", borderRadius: 6, padding: 12, marginBottom: 16 }}>
         <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8 }}>Register Adapter</div>
         <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name"
-            style={{ flex: 1, fontSize: 12, padding: "4px 8px", background: "var(--input-bg, rgba(0,0,0,0.3))", border: "1px solid var(--border)", borderRadius: 4, color: "var(--text-primary)" }} />
+            style={{ flex: 1, fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }} />
           <select value={adapterType} onChange={(e) => setAdapterType(e.target.value as "http" | "process")}
-            style={{ fontSize: 12, padding: "4px 8px", background: "var(--input-bg, rgba(0,0,0,0.3))", border: "1px solid var(--border)", borderRadius: 4, color: "var(--text-primary)" }}>
+            style={{ fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }}>
             <option value="http">HTTP</option>
             <option value="process">Process</option>
           </select>
         </div>
         {adapterType === "http" ? (
           <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Endpoint URL"
-            style={{ width: "100%", fontSize: 12, padding: "4px 8px", marginBottom: 6, background: "var(--input-bg, rgba(0,0,0,0.3))", border: "1px solid var(--border)", borderRadius: 4, color: "var(--text-primary)", boxSizing: "border-box" }} />
+            style={{ width: "100%", fontSize: 12, padding: "4px 8px", marginBottom: 6, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", boxSizing: "border-box" }} />
         ) : (
           <input value={command} onChange={(e) => setCommand(e.target.value)} placeholder="Shell command"
-            style={{ width: "100%", fontSize: 12, padding: "4px 8px", marginBottom: 6, background: "var(--input-bg, rgba(0,0,0,0.3))", border: "1px solid var(--border)", borderRadius: 4, color: "var(--text-primary)", boxSizing: "border-box" }} />
+            style={{ width: "100%", fontSize: 12, padding: "4px 8px", marginBottom: 6, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", boxSizing: "border-box" }} />
         )}
-        <button onClick={register} style={{ fontSize: 11, padding: "4px 12px", cursor: "pointer" }}>
+        <button onClick={register} style={{...btnStyle, padding: "4px 12px"}}>
           Register
         </button>
       </div>
 
       {cmdResult && (
-        <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border)", borderRadius: 4, padding: 8, marginBottom: 12, fontSize: 12 }}>
+        <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 4, padding: 8, marginBottom: 12, fontSize: 12 }}>
           {cmdResult}
         </div>
       )}
@@ -104,7 +108,7 @@ export function CompanyAdapterPanel({ workspacePath: _wp }: CompanyAdapterPanelP
         <input
           id="remove-adapter-input"
           placeholder="Adapter name to remove"
-          style={{ flex: 1, fontSize: 12, padding: "4px 8px", background: "var(--input-bg, rgba(0,0,0,0.3))", border: "1px solid var(--border)", borderRadius: 4, color: "var(--text-primary)" }}
+          style={{ flex: 1, fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }}
         />
         <button
           onClick={() => {
@@ -118,7 +122,7 @@ export function CompanyAdapterPanel({ workspacePath: _wp }: CompanyAdapterPanelP
       </div>
 
       {/* Adapters list */}
-      <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border)", borderRadius: 6, padding: 12 }}>
+      <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 6, padding: 12 }}>
         {loading ? (
           <span style={{ color: "var(--text-secondary)" }}>Loading…</span>
         ) : (

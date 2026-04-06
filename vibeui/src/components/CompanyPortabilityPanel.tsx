@@ -42,6 +42,10 @@ export function CompanyPortabilityPanel({ workspacePath: _wp }: CompanyPortabili
     }
   };
 
+  const btnStyle: React.CSSProperties = {
+    fontSize: 11, padding: "3px 10px", cursor: "pointer", borderRadius: 4,
+    background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", color: "var(--text-primary)",
+  };
   return (
     <div style={{ padding: 16, fontSize: 13, height: "100%", overflowY: "auto" }}>
       <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 16 }}>Company Portability</div>
@@ -54,7 +58,7 @@ export function CompanyPortabilityPanel({ workspacePath: _wp }: CompanyPortabili
           Exports the active company's full structure: org chart, agents, goals, tasks, documents,
           and routines. <strong>Secrets are scrubbed</strong> from the export.
         </p>
-        <button onClick={runExport} disabled={loading} style={{ fontSize: 11, padding: "4px 16px", cursor: "pointer" }}>
+        <button onClick={runExport} disabled={loading} style={{...btnStyle, padding: "4px 16px"}}>
           {loading ? "Exporting…" : "Export Company"}
         </button>
         {exportOutput && (
@@ -68,7 +72,7 @@ export function CompanyPortabilityPanel({ workspacePath: _wp }: CompanyPortabili
               style={{
                 width: "100%", height: 200, fontSize: 11, padding: 8,
                 background: "var(--panel-bg, rgba(0,0,0,0.2))",
-                border: "1px solid var(--border)", borderRadius: 4,
+                border: "1px solid var(--border-color)", borderRadius: 4,
                 color: "var(--text-primary)", resize: "vertical", boxSizing: "border-box",
               }}
             />
@@ -88,14 +92,14 @@ export function CompanyPortabilityPanel({ workspacePath: _wp }: CompanyPortabili
             value={importPath}
             onChange={(e) => setImportPath(e.target.value)}
             placeholder="/path/to/company-export.json"
-            style={{ flex: 1, fontSize: 12, padding: "4px 8px", background: "var(--input-bg, rgba(0,0,0,0.3))", border: "1px solid var(--border)", borderRadius: 4, color: "var(--text-primary)" }}
+            style={{ flex: 1, fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }}
           />
-          <button onClick={runImport} disabled={loading} style={{ fontSize: 11, padding: "4px 12px", cursor: "pointer" }}>
+          <button onClick={runImport} disabled={loading} style={{...btnStyle, padding: "4px 12px"}}>
             Import
           </button>
         </div>
         {cmdResult && (
-          <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border)", borderRadius: 4, padding: 8, fontSize: 12 }}>
+          <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 4, padding: 8, fontSize: 12 }}>
             {cmdResult}
           </div>
         )}

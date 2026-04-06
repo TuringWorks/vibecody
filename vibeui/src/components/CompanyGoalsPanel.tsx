@@ -43,11 +43,15 @@ export function CompanyGoalsPanel({ workspacePath: _wp }: CompanyGoalsPanelProps
     }
   };
 
+  const btnStyle: React.CSSProperties = {
+    fontSize: 11, padding: "3px 10px", cursor: "pointer", borderRadius: 4,
+    background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", color: "var(--text-primary)",
+  };
   return (
     <div style={{ padding: 16, fontSize: 13, height: "100%", overflowY: "auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <span style={{ fontWeight: 600, fontSize: 14 }}>Goals</span>
-        <button onClick={load} style={{ fontSize: 11, padding: "2px 8px", cursor: "pointer" }}>
+        <button onClick={load} style={btnStyle}>
           Refresh
         </button>
       </div>
@@ -61,19 +65,19 @@ export function CompanyGoalsPanel({ workspacePath: _wp }: CompanyGoalsPanelProps
           placeholder="New goal title…"
           style={{
             flex: 1, fontSize: 12, padding: "4px 8px",
-            background: "var(--input-bg, rgba(0,0,0,0.3))",
-            border: "1px solid var(--border)", borderRadius: 4,
+            background: "var(--bg-primary)",
+            border: "1px solid var(--border-color)", borderRadius: 4,
             color: "var(--text-primary)",
           }}
         />
-        <button onClick={createGoal} style={{ fontSize: 11, padding: "4px 12px", cursor: "pointer" }}>
+        <button onClick={createGoal} style={{...btnStyle, padding: "4px 12px"}}>
           + Goal
         </button>
       </div>
 
       {cmdResult && (
         <div style={{
-          background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border)",
+          background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)",
           borderRadius: 4, padding: 8, marginBottom: 12, fontSize: 12,
         }}>
           {cmdResult}
@@ -81,7 +85,7 @@ export function CompanyGoalsPanel({ workspacePath: _wp }: CompanyGoalsPanelProps
       )}
 
       <div style={{
-        background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border)",
+        background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)",
         borderRadius: 6, padding: 12, minHeight: 200,
       }}>
         {loading ? (

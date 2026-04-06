@@ -50,6 +50,10 @@ export function CompanyAgentDetailPanel({ workspacePath: _wp }: CompanyAgentDeta
     }
   };
 
+  const btnStyle: React.CSSProperties = {
+    fontSize: 11, padding: "3px 10px", cursor: "pointer", borderRadius: 4,
+    background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", color: "var(--text-primary)",
+  };
   return (
     <div style={{ padding: 16, fontSize: 13, height: "100%", overflowY: "auto" }}>
       <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 16 }}>Agent Detail</div>
@@ -58,7 +62,7 @@ export function CompanyAgentDetailPanel({ workspacePath: _wp }: CompanyAgentDeta
       <div
         style={{
           background: "var(--panel-bg, rgba(0,0,0,0.2))",
-          border: "1px solid var(--border)",
+          border: "1px solid var(--border-color)",
           borderRadius: 6,
           padding: 10,
           marginBottom: 16,
@@ -83,13 +87,13 @@ export function CompanyAgentDetailPanel({ workspacePath: _wp }: CompanyAgentDeta
             flex: 1,
             fontSize: 12,
             padding: "4px 8px",
-            background: "var(--input-bg, rgba(0,0,0,0.3))",
-            border: "1px solid var(--border)",
+            background: "var(--bg-primary)",
+            border: "1px solid var(--border-color)",
             borderRadius: 4,
             color: "var(--text-primary)",
           }}
         />
-        <button onClick={loadAgent} disabled={loading} style={{ fontSize: 11, padding: "4px 12px", cursor: "pointer" }}>
+        <button onClick={loadAgent} disabled={loading} style={{...btnStyle, padding: "4px 12px"}}>
           {loading ? "…" : "Lookup"}
         </button>
         <button
@@ -106,7 +110,7 @@ export function CompanyAgentDetailPanel({ workspacePath: _wp }: CompanyAgentDeta
         <div
           style={{
             background: "var(--panel-bg, rgba(0,0,0,0.2))",
-            border: "1px solid var(--border)",
+            border: "1px solid var(--border-color)",
             borderRadius: 6,
             padding: 12,
           }}

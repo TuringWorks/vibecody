@@ -141,6 +141,10 @@ export function CompanyOrgChartPanel({ workspacePath: _wp }: CompanyOrgChartPane
   // Find root nodes (no parent or parent not in list)
   const agentIds = new Set(agents.map((a) => a.id));
   const roots = agents.filter((a) => !a.reports_to || !agentIds.has(a.reports_to));
+  const btnStyle: React.CSSProperties = {
+    fontSize: 11, padding: "3px 10px", cursor: "pointer", borderRadius: 4,
+    background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", color: "var(--text-primary)",
+  };
 
   return (
     <div style={{ display: "flex", height: "100%", overflow: "hidden" }}>
@@ -150,7 +154,7 @@ export function CompanyOrgChartPanel({ workspacePath: _wp }: CompanyOrgChartPane
           <span style={{ fontWeight: 600, fontSize: 14 }}>Org Chart</span>
           <button
             onClick={load}
-            style={{ fontSize: 11, padding: "2px 8px", cursor: "pointer" }}
+            style={btnStyle}
           >
             Refresh
           </button>

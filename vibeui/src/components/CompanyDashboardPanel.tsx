@@ -138,7 +138,7 @@ export function CompanyDashboardPanel({ workspacePath: _wp }: CompanyDashboardPa
               flex: 1,
               fontSize: 12,
               padding: "4px 8px",
-              background: "var(--input-bg, rgba(0,0,0,0.3))",
+              background: "var(--bg-primary)",
               border: "1px solid var(--border-color)",
               borderRadius: 4,
               color: "var(--text-primary)",
