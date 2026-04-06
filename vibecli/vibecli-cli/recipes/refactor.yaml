@@ -1,0 +1,40 @@
+name: refactor
+description: Safely refactor a module or function with test coverage verification
+version: "1.0"
+author: vibecody
+tags: [refactoring, quality]
+
+parameters:
+  target:
+    type: string
+    required: true
+    description: File or module to refactor
+  goal:
+    type: string
+    required: true
+    description: What to improve (e.g. "reduce complexity", "extract helper functions", "improve naming")
+
+steps:
+  - prompt: |
+      Read {{ target }} and analyze its current state.
+      Identify: current complexity, code smells, and specific opportunities to {{ goal }}.
+      Do NOT make any changes yet.
+
+  - prompt: |
+      Before refactoring {{ target }}, check what tests currently cover this code.
+      If coverage is insufficient, write the missing tests first to create a safety net.
+
+  - prompt: |
+      Now refactor {{ target }} to {{ goal }}.
+      Rules:
+      - Keep the public API identical (no breaking changes)
+      - Make small, incremental changes
+      - Each change should keep the code in a working state
+      - Explain each change you make
+
+  - prompt: |
+      Run all tests that cover {{ target }} to verify the refactor didn't break anything.
+      If any tests fail, fix them. Provide a summary of:
+      - What changed and why
+      - Before/after complexity metrics
+      - Any follow-up refactoring opportunities

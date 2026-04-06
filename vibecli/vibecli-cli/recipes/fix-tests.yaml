@@ -1,0 +1,40 @@
+name: fix-tests
+description: Find and fix failing tests in a project
+version: "1.0"
+author: vibecody
+tags: [testing, debug]
+
+parameters:
+  test_output:
+    type: string
+    default: ""
+    description: Paste the test failure output here (optional — agent will run tests if empty)
+  scope:
+    type: string
+    default: all
+    description: "Test scope to fix: all, unit, integration, or a specific module name"
+
+steps:
+  - prompt: |
+      {{ test_output }}
+
+      Run the test suite{{ scope != "all" and " focusing on " + scope or "" }} and identify
+      all failing tests. For each failure, show the test name, error message, and the relevant
+      code location.
+
+  - prompt: |
+      For each failing test identified, diagnose the root cause:
+      - Is it a code bug, a test bug, or a missing dependency?
+      - What changed recently that might have caused this?
+      Show your reasoning for each failure.
+
+  - prompt: |
+      Fix all the failing tests. Make the minimal changes needed — prefer fixing
+      the implementation over changing the tests unless the tests themselves are wrong.
+      After each fix, verify the logic is correct.
+
+  - prompt: |
+      Run the tests again to confirm all failures are resolved. Report:
+      - Tests fixed: list
+      - Any tests that could not be fixed (explain why)
+      - Any related tests that might need attention

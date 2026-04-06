@@ -1,0 +1,42 @@
+name: debug-issue
+description: Systematically debug and fix a reported issue
+version: "1.0"
+author: vibecody
+tags: [debug, bugfix]
+
+parameters:
+  issue:
+    type: string
+    required: true
+    description: Description of the bug or unexpected behavior
+  reproduction:
+    type: string
+    default: unknown
+    description: How to reproduce the issue (steps or "unknown")
+
+steps:
+  - prompt: |
+      Issue reported: {{ issue }}
+      Reproduction: {{ reproduction }}
+
+      Search the codebase for code related to this issue. Identify:
+      1. The most likely files/functions involved
+      2. Recent git changes that might be related
+      3. Any error messages or logs to look for
+
+  - prompt: |
+      Based on the analysis, hypothesize the root cause of: {{ issue }}
+      List 2-3 possible causes ranked by likelihood.
+      For the most likely cause, trace the code path step by step.
+
+  - prompt: |
+      Fix the root cause of: {{ issue }}
+      - Make the minimal change needed
+      - Add a test that would have caught this bug
+      - Check for similar issues elsewhere in the codebase
+
+  - prompt: |
+      Verify the fix for "{{ issue }}" works:
+      - Run relevant tests
+      - Describe how to manually verify the fix
+      - Write a brief summary suitable for a commit message

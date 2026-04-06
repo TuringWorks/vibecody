@@ -1,0 +1,36 @@
+name: create-feature
+description: Scaffold a new feature with implementation and tests
+version: "1.0"
+author: vibecody
+tags: [development, scaffold]
+
+parameters:
+  feature_name:
+    type: string
+    required: true
+    description: Name of the feature to create (e.g. "user-auth", "payment-flow")
+  language:
+    type: string
+    default: rust
+    description: Programming language (rust, python, typescript, go)
+
+steps:
+  - prompt: |
+      Analyze the current codebase structure and identify where the {{ feature_name }}
+      feature should be implemented. List the files that will need to be created or modified.
+
+  - prompt: |
+      Implement the core {{ feature_name }} feature in {{ language }}.
+      Follow the existing code patterns and conventions in the project.
+      Create all necessary files and add proper error handling.
+
+  - prompt: |
+      Write comprehensive unit tests for the {{ feature_name }} feature.
+      Ensure edge cases are covered and tests follow the project's testing conventions.
+
+  - prompt: |
+      Review the {{ feature_name }} implementation for:
+      - Security vulnerabilities (OWASP top 10)
+      - Performance issues
+      - Missing documentation
+      Summarize what was built and any follow-up items.

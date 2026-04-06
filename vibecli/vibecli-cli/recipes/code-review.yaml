@@ -1,0 +1,36 @@
+name: code-review
+description: AI-powered code review for a file or directory
+version: "1.0"
+author: vibecody
+tags: [review, quality]
+
+parameters:
+  target:
+    type: string
+    required: true
+    description: File or directory path to review
+  focus:
+    type: string
+    default: security,performance,correctness
+    description: Comma-separated review focus areas
+
+steps:
+  - prompt: |
+      Read the code in {{ target }} and provide a high-level summary:
+      - What does it do?
+      - What are the main components?
+      - What dependencies does it have?
+
+  - prompt: |
+      Review {{ target }} for issues in these areas: {{ focus }}.
+      For each issue found, provide:
+      1. Severity (critical/high/medium/low)
+      2. File and line number
+      3. Description of the problem
+      4. Suggested fix
+
+  - prompt: |
+      Based on the review of {{ target }}, provide:
+      - An overall quality score (1-10)
+      - Top 3 improvements to make
+      - Specific code snippets for the most important fixes

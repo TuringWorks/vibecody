@@ -247,6 +247,7 @@ mod audio_output;
 mod session_sharing;
 pub mod recipe;
 pub mod diagnostics;
+pub mod workspace_detect;
 pub mod managed_deploy;
 pub mod channel_daemon;
 pub mod data_analysis;
@@ -2898,6 +2899,14 @@ async fn main() -> Result<()> {
                                     fork_name, writer.session_id()),
                                 Err(e) => eprintln!("❌ Failed to save fork: {}\n", e),
                             }
+                        }
+
+                        "/recipe" => {
+                            print!("{}", crate::recipe::handle_recipe_command(args));
+                        }
+
+                        "/workspace-detect" => {
+                            print!("{}", crate::workspace_detect::handle_workspace_detect_command());
                         }
 
                         "/rewind" => {
@@ -9990,6 +9999,11 @@ async fn run_agent_repl_with_context(
     println!("{}", crate::syntax::format_agent_start(task, policy_label));
     if !resumed_messages.is_empty() {
         println!("   Resuming {} prior messages", resumed_messages.len());
+    }
+
+    // A8: Smart Extension Auto-Detection — print workspace hints at session start
+    if let Ok(cwd) = std::env::current_dir() {
+        crate::workspace_detect::print_extension_hints(&cwd);
     }
 
     // Save messages on completion for future resume

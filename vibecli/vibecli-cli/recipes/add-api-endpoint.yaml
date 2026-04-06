@@ -1,0 +1,56 @@
+name: add-api-endpoint
+description: Add a new REST API endpoint with validation, handler, and tests
+version: "1.0"
+author: vibecody
+tags: [api, backend, scaffold]
+
+parameters:
+  endpoint:
+    type: string
+    required: true
+    description: "Endpoint path and method, e.g. 'POST /api/users/invite'"
+  description:
+    type: string
+    required: true
+    description: What this endpoint does
+  auth:
+    type: string
+    default: required
+    description: Authentication requirement (required, optional, none)
+
+steps:
+  - prompt: |
+      Analyze the existing API structure in this codebase to understand:
+      - Router/framework being used
+      - Request/response patterns
+      - Auth middleware patterns
+      - Validation approach
+      - Error response format
+
+      I want to add: {{ endpoint }} — {{ description }}
+
+  - prompt: |
+      Design the request/response schema for {{ endpoint }}:
+      - Request body/params with types and validation rules
+      - Success response (with example)
+      - Error responses (validation, auth, not found, etc.)
+
+      Authentication: {{ auth }}
+
+  - prompt: |
+      Implement {{ endpoint }} ({{ description }}) following the existing patterns.
+      Include:
+      - Route registration
+      - Request validation
+      - Business logic handler
+      - Auth middleware ({{ auth }})
+      - Proper error handling with appropriate HTTP status codes
+
+  - prompt: |
+      Write integration tests for {{ endpoint }}:
+      - Happy path test
+      - Validation error cases
+      - Auth failure case (if auth = {{ auth }})
+      - Edge cases
+
+      Also update API documentation if any exists.
