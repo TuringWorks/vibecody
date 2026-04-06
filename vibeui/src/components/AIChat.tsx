@@ -440,7 +440,8 @@ function CodeBlock({ language, code, filename, onApply }: CodeBlockProps) {
       typescript: "file.ts", javascript: "file.js", tsx: "file.tsx", jsx: "file.jsx",
       rust: "file.rs", python: "file.py", go: "file.go", java: "File.java",
       css: "file.css", html: "file.html", json: "file.json", yaml: "file.yaml",
-      toml: "file.toml", sql: "file.sql", bash: "script.sh", sh: "script.sh",
+      yml: "file.yml", toml: "file.toml", sql: "file.sql", bash: "script.sh", sh: "script.sh",
+      markdown: "file.md", md: "file.md", text: "file.txt",
       cpp: "file.cpp", c: "file.c", ruby: "file.rb", swift: "file.swift",
       kotlin: "file.kt", scala: "file.scala", php: "file.php",
       image: "image.png", png: "image.png", jpg: "image.jpg", jpeg: "image.jpg",
@@ -563,8 +564,9 @@ function renderContent(
   onApply?: (code: string, filename: string) => void,
 ): React.ReactNode[] {
   const parts: React.ReactNode[] = [];
-  // Split by code fences: ```lang\n...\n```
-  const fenceRegex = /```(\w*)\n([\s\S]*?)```/g;
+  // Split by code fences: ```lang [filename]\n...\n```
+  // Group 1: language, Group 2: optional filename on same line, Group 3: code
+  const fenceRegex = /```(\w*)(?:[^\S\n]+(\S+))?\n([\s\S]*?)```/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
   let key = 0;
@@ -579,7 +581,8 @@ function renderContent(
       <CodeBlock
         key={key++}
         language={match[1]}
-        code={match[2]}
+        code={match[3]}
+        filename={match[2] || undefined}
         onApply={onApply}
       />
     );
@@ -590,7 +593,7 @@ function renderContent(
   if (lastIndex < content.length) {
     const remaining = content.slice(lastIndex);
     // Check for unclosed code fence (streaming in progress)
-    const unfinishedFence = remaining.match(/```(\w*)\n([\s\S]*)$/);
+    const unfinishedFence = remaining.match(/```(\w*)(?:[^\S\n]+(\S+))?\n([\s\S]*)$/);
     if (unfinishedFence) {
       const beforeFence = remaining.slice(0, remaining.indexOf("```"));
       if (beforeFence) {
@@ -600,7 +603,7 @@ function renderContent(
         <StreamingCodeBlock
           key={key++}
           language={unfinishedFence[1] || "text"}
-          code={unfinishedFence[2]}
+          code={unfinishedFence[3]}
         />
       );
     } else {
@@ -1499,12 +1502,14 @@ export function AIChat({
   /** Extract all fenced code blocks from a message as {language, code, filename}. */
   const extractCodeBlocks = useCallback((content: string) => {
     const blocks: { language: string; code: string; filename: string }[] = [];
-    const fenceRegex = /```(\w*)\n([\s\S]*?)```/g;
+    // Group 1: language, Group 2: optional filename on same fence line, Group 3: code
+    const fenceRegex = /```(\w*)(?:[^\S\n]+(\S+))?\n([\s\S]*?)```/g;
     const extMap: Record<string, string> = {
       typescript: "file.ts", javascript: "file.js", tsx: "file.tsx", jsx: "file.jsx",
       rust: "file.rs", python: "file.py", go: "file.go", java: "File.java",
       css: "file.css", html: "file.html", json: "file.json", yaml: "file.yaml",
-      toml: "file.toml", sql: "file.sql", bash: "script.sh", sh: "script.sh",
+      yml: "file.yml", toml: "file.toml", sql: "file.sql", bash: "script.sh", sh: "script.sh",
+      markdown: "file.md", md: "file.md", text: "file.txt",
       cpp: "file.cpp", c: "file.c", ruby: "file.rb", swift: "file.swift",
       kotlin: "file.kt", scala: "file.scala", php: "file.php",
       image: "image.png", png: "image.png", jpg: "image.jpg", jpeg: "image.jpg",
@@ -1515,8 +1520,9 @@ export function AIChat({
       const languageMatch = match[1].toLowerCase();
       blocks.push({
         language: match[1],
-        code: match[2],
-        filename: extMap[languageMatch] || "file.txt",
+        code: match[3],
+        // Prefer explicit filename from fence line, fall back to language-based default
+        filename: match[2] || extMap[languageMatch] || "file.txt",
       });
     }
     return blocks;
