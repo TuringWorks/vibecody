@@ -3,7 +3,11 @@
 //!
 //! Each secret is encrypted with a keystream derived from HMAC-SHA256
 //! using a per-company master key and a random nonce. The master key is
-//! stored in a per-company key file at `~/.vibecli/keys/<company_id>.key`.
+//! stored in the OS keychain (macOS Keychain / Linux Secret Service /
+//! Windows Credential Manager) under service "vibecli-secrets". In
+//! headless or CI environments where no keychain is available, it falls
+//! back to a per-company key file at `~/.vibecli/keys/<company_id>.key`.
+//! Existing key files are migrated to the keychain on first access.
 //!
 //! Encryption scheme:
 //!   keystream = HMAC-SHA256(master_key, nonce || key_name || counter)
@@ -28,33 +32,97 @@ fn new_id() -> String { uuid::Uuid::new_v4().to_string() }
 
 // ── Master key management ─────────────────────────────────────────────────────
 
-fn key_path(company_id: &str) -> std::path::PathBuf {
+const KEYCHAIN_SERVICE: &str = "vibecli-secrets";
+
+/// Truncated company ID used as the keychain account name (and legacy file stem).
+fn key_account(company_id: &str) -> &str {
+    &company_id[..16.min(company_id.len())]
+}
+
+fn legacy_key_path(company_id: &str) -> std::path::PathBuf {
     let mut p = dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
     p.push(".vibecli");
     p.push("keys");
-    p.push(format!("{}.key", &company_id[..16.min(company_id.len())]));
+    p.push(format!("{}.key", key_account(company_id)));
     p
 }
 
+fn generate_key() -> [u8; 32] {
+    let mut key = [0u8; 32];
+    rand::thread_rng().fill(&mut key[..]);
+    key
+}
+
+fn decode_hex_key(hex_str: &str) -> Option<[u8; 32]> {
+    if hex_str.len() != 64 { return None; }
+    let mut key = [0u8; 32];
+    hex::decode_to_slice(hex_str, &mut key).ok()?;
+    Some(key)
+}
+
 /// Load or create a 32-byte master key for the company.
+///
+/// Storage priority:
+///   1. OS keychain (macOS Keychain / Linux Secret Service / Windows Credential Manager)
+///   2. Legacy key file at `~/.vibecli/keys/<id>.key` — migrated to keychain on first read
+///   3. File fallback when keychain is unavailable (CI / headless environments)
 pub fn get_or_create_master_key(company_id: &str) -> Result<[u8; 32]> {
-    let path = key_path(company_id);
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).ok();
+    let account = key_account(company_id);
+
+    // ── 1. Try OS keychain ────────────────────────────────────────────────────
+    if let Ok(entry) = keyring::Entry::new(KEYCHAIN_SERVICE, account) {
+        match entry.get_password() {
+            Ok(hex_key) => {
+                if let Some(key) = decode_hex_key(&hex_key) {
+                    return Ok(key);
+                }
+                // Corrupt entry — fall through to regenerate
+            }
+            Err(keyring::Error::NoEntry) => {
+                // Not in keychain yet. Check for a legacy key file to migrate.
+                let legacy = legacy_key_path(company_id);
+                let key = if legacy.exists() {
+                    let bytes = std::fs::read(&legacy).context("reading legacy master key")?;
+                    decode_hex_key(&String::from_utf8_lossy(&bytes))
+                        .unwrap_or_else(generate_key)
+                } else {
+                    generate_key()
+                };
+
+                if entry.set_password(&hex::encode(key)).is_ok() {
+                    // Successfully stored in keychain — remove legacy file.
+                    let _ = std::fs::remove_file(&legacy);
+                } else {
+                    // Keychain write failed — persist to file so the key isn't lost.
+                    let _ = write_key_file(company_id, &key);
+                }
+                return Ok(key);
+            }
+            Err(_) => {
+                // Keychain unavailable — fall through to file backend.
+            }
+        }
     }
+
+    // ── 2. File fallback (headless / CI) ─────────────────────────────────────
+    let path = legacy_key_path(company_id);
     if path.exists() {
-        let bytes = std::fs::read(&path).context("reading master key")?;
-        if bytes.len() == 64 {
-            let mut key = [0u8; 32];
-            hex::decode_to_slice(&bytes, &mut key).context("decoding master key")?;
+        let bytes = std::fs::read(&path).context("reading master key file")?;
+        if let Some(key) = decode_hex_key(&String::from_utf8_lossy(&bytes)) {
             return Ok(key);
         }
     }
-    // Generate new key
-    let mut key = [0u8; 32];
-    rand::thread_rng().fill(&mut key[..]);
-    std::fs::write(&path, hex::encode(key)).context("writing master key")?;
+    let key = generate_key();
+    write_key_file(company_id, &key)?;
     Ok(key)
+}
+
+fn write_key_file(company_id: &str, key: &[u8; 32]) -> Result<()> {
+    let path = legacy_key_path(company_id);
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).ok();
+    }
+    std::fs::write(&path, hex::encode(key)).context("writing master key file")
 }
 
 // ── Encryption / Decryption ───────────────────────────────────────────────────
