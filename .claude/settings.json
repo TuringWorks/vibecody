@@ -1,0 +1,20 @@
+{
+  "env": {
+    "RUST_BACKTRACE": "1"
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=$(jq -r '.tool_input.file_path // empty' 2>/dev/null); case \"$f\" in *.rs) cargo check --workspace --exclude vibe-collab 2>&1 | tail -8 ;; *.tsx|*.ts) npx --prefix vibeui tsc --noEmit --project vibeui/tsconfig.json 2>&1 | tail -5 ;; esac",
+            "timeout": 120,
+            "statusMessage": "Checking types..."
+          }
+        ]
+      }
+    ]
+  }
+}

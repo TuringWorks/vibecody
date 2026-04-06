@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useMemo } from "react";
+import { Table } from "lucide-react";
 
 type Row = string[];
 type SortDir = "asc" | "desc" | null;
@@ -219,7 +220,7 @@ export function CsvPanel() {
  {/* Paste area when empty */}
  {rows.length === 0 && (
  <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, padding: 24 }}>
- <div style={{ fontSize: 32 }}></div>
+ <Table size={32} strokeWidth={1.5} style={{ color: "var(--accent, #4a9eff)" }} />
  <div style={{ color: "var(--text-secondary)", textAlign: "center" }}>Open a CSV / TSV file or paste data below</div>
  <textarea
  placeholder="Paste CSV data here..."

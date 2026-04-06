@@ -9,6 +9,7 @@
  * Pure TypeScript — no Tauri commands required.
  */
 import { useState, useMemo, useCallback } from "react";
+import { Minimize2, ArrowUpDown, Wand2 } from "lucide-react";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -294,9 +295,9 @@ export function JsonToolsPanel() {
  {subTab === "format" && (
  <div style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" }}>
  <div style={{ padding: "6px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 6 }}>
- <button onClick={prettify} disabled={!parsed} style={{ padding: "3px 12px", fontSize: 11, background: "color-mix(in srgb, var(--accent-green) 10%, transparent)", border: "1px solid var(--success-color)", borderRadius: 4, color: "var(--text-success)", cursor: "pointer" }}>✦ Prettify</button>
- <button onClick={minify} disabled={!parsed} style={{ padding: "3px 12px", fontSize: 11, background: "rgba(250,179,135,0.1)", border: "1px solid var(--warning-color)", borderRadius: 4, color: "var(--text-warning-alt)", cursor: "pointer" }}>⇲ Minify</button>
- <button onClick={sortAndFmt} disabled={!parsed} style={{ padding: "3px 12px", fontSize: 11, background: "color-mix(in srgb, var(--accent-blue) 10%, transparent)", border: "1px solid var(--accent-color)", borderRadius: 4, color: "var(--text-info)", cursor: "pointer" }}>⇅ Sort Keys</button>
+ <button onClick={prettify} disabled={!parsed} style={{ padding: "3px 12px", fontSize: 11, background: "color-mix(in srgb, var(--accent-green) 10%, transparent)", border: "1px solid var(--success-color)", borderRadius: 4, color: "var(--text-success)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}><Wand2 size={11} strokeWidth={1.5} /> Prettify</button>
+ <button onClick={minify} disabled={!parsed} style={{ padding: "3px 12px", fontSize: 11, background: "rgba(250,179,135,0.1)", border: "1px solid var(--warning-color)", borderRadius: 4, color: "var(--text-warning-alt)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}><Minimize2 size={11} strokeWidth={1.5} /> Minify</button>
+ <button onClick={sortAndFmt} disabled={!parsed} style={{ padding: "3px 12px", fontSize: 11, background: "color-mix(in srgb, var(--accent-blue) 10%, transparent)", border: "1px solid var(--accent-color)", borderRadius: 4, color: "var(--text-info)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}><ArrowUpDown size={11} strokeWidth={1.5} /> Sort Keys</button>
  <div style={{ marginLeft: "auto" }}>
  <button onClick={() => copy(input, "fmt")} style={{ padding: "3px 10px", fontSize: 10, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-secondary)", cursor: "pointer" }}>
  {copied === "fmt" ? "✓ Copied" : "Copy"}

@@ -6,6 +6,7 @@
  */
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { Maximize2, Monitor, Tablet, Smartphone } from "lucide-react";
 import "./HtmlPreview.css"; // Reuse the same toolbar and container styling
 
 interface DrawioPreviewProps {
@@ -65,7 +66,7 @@ export function DrawioPreview({ content, filePath }: DrawioPreviewProps) {
               onClick={() => setDevice(d)}
               title={d.charAt(0).toUpperCase() + d.slice(1)}
             >
-              {d === "responsive" ? "↔" : d === "desktop" ? "🖥" : d === "tablet" ? "📱" : "📲"}
+              {d === "responsive" ? <Maximize2 size={13} strokeWidth={1.5} /> : d === "desktop" ? <Monitor size={13} strokeWidth={1.5} /> : d === "tablet" ? <Tablet size={13} strokeWidth={1.5} /> : <Smartphone size={13} strokeWidth={1.5} />}
             </button>
           ))}
         </div>

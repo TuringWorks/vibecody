@@ -6,6 +6,7 @@
  */
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { ClipboardList } from "lucide-react";
 
 const STATUSES = ["backlog", "todo", "in_progress", "in_review", "done", "blocked"] as const;
 
@@ -120,7 +121,7 @@ export function CompanyTaskBoardPanel({ workspacePath: _wp }: CompanyTaskBoardPa
 
       {!loading && (!output || output.includes("No tasks")) ? (
         <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 6, padding: 24, textAlign: "center" }}>
-          <div style={{ fontSize: 28, marginBottom: 8 }}>📋</div>
+          <div style={{ marginBottom: 8, display: "flex", justifyContent: "center", color: "var(--accent, #4a9eff)" }}><ClipboardList size={32} strokeWidth={1.5} /></div>
           <div style={{ fontWeight: 600, marginBottom: 4 }}>No tasks yet</div>
           <div style={{ color: "var(--text-secondary)", fontSize: 12, marginBottom: 4 }}>
             Use the form above to create your first task

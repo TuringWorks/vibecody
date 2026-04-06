@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { FolderOpen, AlertTriangle } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { ReviewPanel } from './ReviewPanel';
 import { useToast } from '../hooks/useToast';
@@ -358,7 +359,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  const isNotRepo = gitError.toLowerCase().includes('not a git repository') || gitError.toLowerCase().includes('not found');
  return (
   <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-  <div style={{ fontSize: 28, marginBottom: 8 }}>{isNotRepo ? '📂' : '⚠️'}</div>
+  <div style={{ marginBottom: 8, display: "flex", justifyContent: "center", color: "var(--text-secondary)" }}>{isNotRepo ? <FolderOpen size={28} strokeWidth={1.5} /> : <AlertTriangle size={28} strokeWidth={1.5} />}</div>
   <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 6 }}>
    {isNotRepo ? 'No Git Repository' : 'Git Error'}
   </div>

@@ -16,6 +16,7 @@
  */
 
 import React, { useState, useMemo, useEffect, useRef, Component } from "react";
+import { Check, X } from "lucide-react";
 
 // ── Diff types ────────────────────────────────────────────────────────────────
 
@@ -335,10 +336,10 @@ const HunkBlock = React.memo(function HunkBlock({ hunk, onToggle }: { hunk: Diff
  border: `1px solid ${hunk.accepted ? "var(--success-color, #4ade80)" : "var(--error-color, #f87171)"}`,
  background: "transparent",
  color: hunk.accepted ? "var(--success-color, #4ade80)" : "var(--error-color, #f87171)",
- cursor: "pointer", fontWeight: 600, fontSize: 11,
+ cursor: "pointer", fontWeight: 600, fontSize: 11, display: "inline-flex", alignItems: "center",
  }}
  >
- {hunk.accepted ? "✓ Accept" : "✗ Reject"}
+ {hunk.accepted ? <><Check size={11} strokeWidth={2} style={{ marginRight: 3 }} /> Accept</> : <><X size={11} strokeWidth={2} style={{ marginRight: 3 }} /> Reject</>}
  </button>
  <span style={{ color: "var(--success-color)" }}>+{insertCount}</span>
  <span style={{ color: "var(--error-color)" }}>-{deleteCount}</span>

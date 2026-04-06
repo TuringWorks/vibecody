@@ -6,6 +6,7 @@
  */
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { Check, X } from "lucide-react";
 
 interface CompanyApprovalsPanelProps {
   workspacePath?: string | null;
@@ -150,23 +151,23 @@ export function CompanyApprovalsPanel({ workspacePath: _wp }: CompanyApprovalsPa
         <button
           onClick={() => decide("approve")}
           disabled={!approvalId.trim()}
-          style={{ ...btnStyle, padding: "5px 14px", border: "1px solid var(--success, #27ae60)", color: "var(--success, #27ae60)", opacity: approvalId.trim() ? 1 : 0.5 }}
+          style={{ ...btnStyle, padding: "5px 14px", border: "1px solid var(--success, #27ae60)", color: "var(--success, #27ae60)", opacity: approvalId.trim() ? 1 : 0.5, display: "inline-flex", alignItems: "center" }}
         >
-          ✓ Approve
+          <Check size={13} strokeWidth={2} style={{ marginRight: 4 }} /> Approve
         </button>
         <button
           onClick={() => decide("reject")}
           disabled={!approvalId.trim()}
-          style={{ ...btnStyle, padding: "5px 14px", border: "1px solid var(--danger, #e74c3c)", color: "var(--danger, #e74c3c)", opacity: approvalId.trim() ? 1 : 0.5 }}
+          style={{ ...btnStyle, padding: "5px 14px", border: "1px solid var(--danger, #e74c3c)", color: "var(--danger, #e74c3c)", opacity: approvalId.trim() ? 1 : 0.5, display: "inline-flex", alignItems: "center" }}
         >
-          ✗ Reject
+          <X size={13} strokeWidth={2} style={{ marginRight: 4 }} /> Reject
         </button>
       </div>
 
       {cmdResult && (
         <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 4, padding: 8, fontSize: 12 }}>
           {cmdResult}
-          <button onClick={() => setCmdResult(null)} style={{ marginLeft: 8, fontSize: 10, cursor: "pointer", background: "none", border: "none", color: "var(--text-secondary)" }}>✕</button>
+          <button onClick={() => setCmdResult(null)} style={{ marginLeft: 8, cursor: "pointer", background: "none", border: "none", color: "var(--text-secondary)", display: "inline-flex" }}><X size={12} /></button>
         </div>
       )}
     </div>

@@ -6,6 +6,7 @@
  */
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { Heart } from "lucide-react";
 
 interface CompanyRoutinesPanelProps {
   workspacePath?: string | null;
@@ -102,8 +103,8 @@ export function CompanyRoutinesPanel({ workspacePath: _wp }: CompanyRoutinesPane
         <div style={{ display: "flex", gap: 8 }}>
           <input value={agentId} onChange={(e) => setAgentId(e.target.value)} placeholder="Agent ID"
             style={{ flex: 1, fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }} />
-          <button onClick={triggerHeartbeat} style={{...btnStyle, padding: "4px 12px"}}>
-            ♥ Trigger
+          <button onClick={triggerHeartbeat} style={{...btnStyle, padding: "4px 12px", display: "inline-flex", alignItems: "center"}}>
+            <Heart size={13} strokeWidth={1.5} style={{ marginRight: 4 }} /> Trigger
           </button>
         </div>
         {heartbeatOutput && (

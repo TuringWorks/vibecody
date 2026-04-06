@@ -5,6 +5,7 @@
  */
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { Target, X } from "lucide-react";
 
 interface CompanyGoalsPanelProps {
   workspacePath?: string | null;
@@ -89,7 +90,7 @@ export function CompanyGoalsPanel({ workspacePath: _wp }: CompanyGoalsPanelProps
       {cmdResult && (
         <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 4, padding: 8, marginBottom: 12, fontSize: 12 }}>
           {cmdResult}
-          <button onClick={() => setCmdResult(null)} style={{ marginLeft: 8, fontSize: 10, cursor: "pointer", background: "none", border: "none", color: "var(--text-secondary)" }}>✕</button>
+          <button onClick={() => setCmdResult(null)} style={{ marginLeft: 8, cursor: "pointer", background: "none", border: "none", color: "var(--text-secondary)", display: "inline-flex" }}><X size={12} /></button>
         </div>
       )}
 
@@ -111,7 +112,7 @@ export function CompanyGoalsPanel({ workspacePath: _wp }: CompanyGoalsPanelProps
       {view === "list" && (
         isEmpty && !loading ? (
           <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 6, padding: 24, textAlign: "center" }}>
-            <div style={{ fontSize: 28, marginBottom: 8 }}>🎯</div>
+            <div style={{ marginBottom: 8, display: "flex", justifyContent: "center", color: "var(--accent, #4a9eff)" }}><Target size={32} strokeWidth={1.5} /></div>
             <div style={{ fontWeight: 600, marginBottom: 4 }}>No goals yet</div>
             <div style={{ color: "var(--text-secondary)", fontSize: 12, marginBottom: 16 }}>
               Set company goals to track progress

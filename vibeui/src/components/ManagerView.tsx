@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { Check, X } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -174,7 +175,7 @@ function AgentCard({
  {s.step_num + 1}.
  </span>
  <span style={{ fontSize: "10px", color: s.success ? "var(--success-color)" : "var(--error-color)" }}>
- {s.success ? "✔" : "✘"}
+ {s.success ? <Check size={11} strokeWidth={2} /> : <X size={11} strokeWidth={2} />}
  </span>
  <span style={{ fontSize: "11px", fontFamily: "var(--font-mono)", color: "var(--accent-color)" }}>
  {s.tool}
@@ -381,7 +382,7 @@ export function ManagerView({ provider }: ManagerViewProps) {
  cursor: "pointer",
  }}
  >
- ✕
+ <X size={12} />
  </button>
  )}
  </div>
@@ -443,7 +444,7 @@ export function ManagerView({ provider }: ManagerViewProps) {
  onClick={() => setMergeResult(null)}
  style={{ marginLeft: "8px", background: "none", border: "none", cursor: "pointer", color: "inherit", fontSize: "11px" }}
  >
- ✕
+ <X size={12} />
  </button>
  </div>
  )}

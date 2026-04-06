@@ -6,6 +6,7 @@
  */
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { Heart, X, Check } from "lucide-react";
 
 interface CompanyHeartbeatPanelProps {
   workspacePath?: string | null;
@@ -90,15 +91,15 @@ export function CompanyHeartbeatPanel({ workspacePath: _wp }: CompanyHeartbeatPa
           <button
             onClick={trigger}
             disabled={!triggerAgent.trim()}
-            style={{ ...btnStyle, padding: "4px 14px", border: "1px solid var(--warning, #f39c12)", color: "var(--warning, #f39c12)", opacity: triggerAgent.trim() ? 1 : 0.5 }}
+            style={{ ...btnStyle, padding: "4px 14px", border: "1px solid var(--warning, #f39c12)", color: "var(--warning, #f39c12)", opacity: triggerAgent.trim() ? 1 : 0.5, display: "inline-flex", alignItems: "center" }}
           >
-            ♥ Trigger
+            <Heart size={13} strokeWidth={1.5} style={{ marginRight: 4 }} /> Trigger
           </button>
         </div>
         {triggerResult && (
           <div style={{ marginTop: 8, fontSize: 12, padding: "6px 8px", background: "rgba(0,0,0,0.15)", borderRadius: 4, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span>{triggerResult}</span>
-            <button onClick={() => setTriggerResult(null)} style={{ fontSize: 10, cursor: "pointer", background: "none", border: "none", color: "var(--text-secondary)" }}>✕</button>
+            <button onClick={() => setTriggerResult(null)} style={{ cursor: "pointer", background: "none", border: "none", color: "var(--text-secondary)", display: "inline-flex" }}><X size={12} /></button>
           </div>
         )}
       </div>
@@ -125,8 +126,8 @@ export function CompanyHeartbeatPanel({ workspacePath: _wp }: CompanyHeartbeatPa
       {/* Legend */}
       <div style={{ display: "flex", gap: 14, fontSize: 11, color: "var(--text-secondary)", marginBottom: 10 }}>
         <span style={{ color: "var(--warning, #f39c12)" }}>▶ running</span>
-        <span style={{ color: "var(--success, #27ae60)" }}>✓ completed</span>
-        <span style={{ color: "var(--danger, #e74c3c)" }}>✗ failed</span>
+        <span style={{ color: "var(--success, #27ae60)", display: "inline-flex", alignItems: "center", gap: 3 }}><Check size={11} strokeWidth={2} /> completed</span>
+        <span style={{ color: "var(--danger, #e74c3c)", display: "inline-flex", alignItems: "center", gap: 3 }}><X size={11} strokeWidth={2} /> failed</span>
         <span style={{ marginLeft: "auto" }}>
           {lines.length > 0 && !loading ? `${lines.length} run${lines.length !== 1 ? "s" : ""}` : ""}
         </span>

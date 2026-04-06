@@ -16,6 +16,7 @@
  */
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { FileText } from "lucide-react";
 import "./DocumentViewer.css";
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -183,7 +184,7 @@ function EpubViewer({ filePath, base64Data }: DocumentViewerProps) {
           setChapters([{
             title: fileName,
             content: `<div class="epub-info">
-              <h2>📚 ${fileName}</h2>
+              <h2>${fileName}</h2>
               <p>EPUB file loaded (${formatSize(bytes.length)})</p>
               <p>To view this EPUB with full formatting, open it in a dedicated
               e-book reader application.</p>
@@ -617,7 +618,7 @@ export function DocumentViewer({ filePath, base64Data }: DocumentViewerProps) {
   return (
     <div className="document-viewer">
       <div className="document-viewer-error">
-        <span className="error-icon">📄</span>
+        <FileText size={20} strokeWidth={1.5} style={{ color: "var(--text-secondary)" }} />
         <span className="error-message">Unsupported document format: .{ext}</span>
       </div>
     </div>

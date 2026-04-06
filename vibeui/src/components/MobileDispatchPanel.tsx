@@ -5,6 +5,7 @@
  * Tabs: Machines, Devices, Dispatches, Pairing, Stats
  */
 import React, { useState } from "react";
+import { Monitor, Server, Container, Laptop, Smartphone, Cpu, HardDrive, Activity } from "lucide-react";
 
 type Tab = "Machines" | "Devices" | "Dispatches" | "Pairing" | "Stats";
 const TABS: Tab[] = ["Machines", "Devices", "Dispatches", "Pairing", "Stats"];
@@ -89,7 +90,13 @@ const PAIRINGS = [
   { id: "pair-1", machine: "Mac Studio", method: "qr_code", pin: "482917", status: "pending", expires_in: "8:42" },
 ];
 
-const OS_ICONS: Record<string, string> = { macOS: "🍎", Linux: "🐧", Windows: "🪟", Docker: "🐳", WSL: "🐧" };
+function OsIcon({ os }: { os: string }) {
+  const props = { size: 20, strokeWidth: 1.5, style: { color: "var(--text-secondary)" } };
+  if (os === "macOS") return <Laptop {...props} />;
+  if (os === "Docker") return <Container {...props} />;
+  if (os === "Linux" || os === "WSL") return <Server {...props} />;
+  return <Monitor {...props} />;
+}
 
 export default function MobileDispatchPanel() {
   const [tab, setTab] = useState<Tab>("Machines");
@@ -97,7 +104,7 @@ export default function MobileDispatchPanel() {
   return (
     <div style={containerStyle}>
       <div style={statusBarStyle}>
-        <span>📱 Mobile Gateway</span>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Smartphone size={13} strokeWidth={1.5} /> Mobile Gateway</span>
         <span>3 machines online · 3 devices paired · 2 active dispatches</span>
       </div>
       <div style={tabBarStyle}>
@@ -123,7 +130,7 @@ function MachinesTab() {
         <div key={m.machine_id} style={cardStyle}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 24 }}>{OS_ICONS[m.os] || "💻"}</span>
+              <OsIcon os={m.os} />
               <div>
                 <div style={{ fontWeight: 600 }}>{m.name}</div>
                 <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{m.workspace} · port {m.daemon_port}</div>
@@ -132,9 +139,9 @@ function MachinesTab() {
             <span style={badgeStyle(STATUS_COLORS[m.status] || "var(--text-secondary)")}>{m.status}</span>
           </div>
           <div style={{ display: "flex", gap: 16, marginTop: 10, fontSize: 12, color: "var(--text-secondary)" }}>
-            <span>🔧 {m.cpu_cores} cores</span>
-            <span>💾 {m.memory_gb} GB</span>
-            <span>📊 {m.active_sessions} sessions</span>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><Cpu size={11} strokeWidth={1.5} /> {m.cpu_cores} cores</span>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><HardDrive size={11} strokeWidth={1.5} /> {m.memory_gb} GB</span>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><Activity size={11} strokeWidth={1.5} /> {m.active_sessions} sessions</span>
             <span>{m.arch}</span>
           </div>
           {m.tags.length > 0 && (

@@ -6,6 +6,7 @@
  */
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { Building2, X } from "lucide-react";
 
 interface CompanyDashboardPanelProps {
   workspacePath?: string | null;
@@ -183,7 +184,7 @@ export function CompanyDashboardPanel({ workspacePath: _wp }: CompanyDashboardPa
           borderRadius: 4, padding: 8, marginBottom: 12, fontSize: 12,
         }}>
           {actionMsg}
-          <button onClick={() => setActionMsg(null)} style={{ marginLeft: 8, fontSize: 10, cursor: "pointer", background: "none", border: "none", color: "var(--text-secondary)" }}>✕</button>
+          <button onClick={() => setActionMsg(null)} style={{ marginLeft: 8, cursor: "pointer", background: "none", border: "none", color: "var(--text-secondary)", display: "inline-flex" }}><X size={12} /></button>
         </div>
       )}
 
@@ -196,7 +197,7 @@ export function CompanyDashboardPanel({ workspacePath: _wp }: CompanyDashboardPa
           background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)",
           borderRadius: 6, padding: 24, textAlign: "center",
         }}>
-          <div style={{ fontSize: 32, marginBottom: 8 }}>🏢</div>
+          <div style={{ marginBottom: 8, display: "flex", justifyContent: "center", color: "var(--accent, #4a9eff)" }}><Building2 size={32} strokeWidth={1.5} /></div>
           <div style={{ fontWeight: 600, marginBottom: 4 }}>No companies yet</div>
           <div style={{ color: "var(--text-secondary)", fontSize: 12, marginBottom: 16 }}>
             Create your first company to get started

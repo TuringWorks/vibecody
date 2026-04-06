@@ -6,6 +6,7 @@
  */
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { Users, X } from "lucide-react";
 
 interface CompanyOrgChartPanelProps {
   workspacePath?: string | null;
@@ -21,7 +22,7 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 const STATUS_BADGE: Record<string, string> = {
-  idle: "○", active: "●", paused: "⏸", terminated: "✗",
+  idle: "○", active: "●", paused: "‖", terminated: "×",
 };
 
 const btnStyle: React.CSSProperties = {
@@ -134,7 +135,7 @@ export function CompanyOrgChartPanel({ workspacePath: _wp }: CompanyOrgChartPane
       {actionMsg && (
         <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 4, padding: 8, marginBottom: 12, fontSize: 12 }}>
           {actionMsg}
-          <button onClick={() => setActionMsg(null)} style={{ marginLeft: 8, fontSize: 10, cursor: "pointer", background: "none", border: "none", color: "var(--text-secondary)" }}>✕</button>
+          <button onClick={() => setActionMsg(null)} style={{ marginLeft: 8, cursor: "pointer", background: "none", border: "none", color: "var(--text-secondary)", display: "inline-flex" }}><X size={12} /></button>
         </div>
       )}
 
@@ -162,7 +163,7 @@ export function CompanyOrgChartPanel({ workspacePath: _wp }: CompanyOrgChartPane
         <>
           {isEmpty && !loading && !error && (
             <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 6, padding: 24, textAlign: "center" }}>
-              <div style={{ fontSize: 28, marginBottom: 8 }}>👤</div>
+              <div style={{ marginBottom: 8, display: "flex", justifyContent: "center", color: "var(--accent, #4a9eff)" }}><Users size={32} strokeWidth={1.5} /></div>
               <div style={{ fontWeight: 600, marginBottom: 4 }}>No agents yet</div>
               <div style={{ color: "var(--text-secondary)", fontSize: 12, marginBottom: 16 }}>Hire your first agent to build your team</div>
               <button onClick={() => setView("hire")} style={{ ...btnStyle, padding: "6px 20px", fontSize: 12 }}>+ Hire Agent</button>
