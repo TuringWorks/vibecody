@@ -327,6 +327,18 @@ mod ai_code_review;
 mod intent_refactor;
 mod architecture_spec;
 mod policy_engine;
+mod company_store;
+mod adapter_registry;
+mod company_goals;
+mod company_tasks;
+mod company_documents;
+mod company_budget;
+mod company_approvals;
+mod company_secrets;
+mod company_routines;
+mod company_heartbeat;
+mod company_portability;
+mod company_orchestrator;
 // RL-OS: Unified Reinforcement Learning Lifecycle Platform
 #[allow(dead_code)]
 mod rl_env_os;
@@ -9491,6 +9503,1104 @@ async fn main() -> Result<()> {
                                 "generate" => { let fw = if rest.is_empty() { "react" } else { rest }; println!("Generate {} components from canvas shapes.\n  Add shapes first with /sketch add\n", fw); }
                                 "export" => { let fmt = if rest.is_empty() { "svg" } else { rest }; println!("Export canvas as {}\n  Supported: svg, png, code, figma-json\n", fmt); }
                                 _ => { println!("VibeCody Sketch Canvas\n\n  /sketch new              — New canvas\n  /sketch recognize        — Recognize shapes\n  /sketch generate [fw]    — Generate code\n  /sketch export [format]  — Export\n"); }
+                            }
+                        }
+
+                        // ── Company Orchestration (Paperclip parity) ──────────────────
+                        "/company" => {
+                            use crate::company_store::{
+                                CompanyStore, CompanyRole, AdapterType,
+                                get_active_company_id, set_active_company_id,
+                            };
+                            let sub = args.split_whitespace().next().unwrap_or("help");
+                            let rest = args.trim().strip_prefix(sub).unwrap_or("").trim();
+
+                            // Helper to open the store (shared across all sub-commands)
+                            let store_result = CompanyStore::open_default();
+
+                            match sub {
+                                // ── Company CRUD ──────────────────────────────────────────
+                                "create" => {
+                                    if rest.is_empty() {
+                                        println!("Usage: /company create <name> [description]");
+                                        println!("  Example: /company create AcmeCorp \"AI-first consulting firm\"");
+                                    } else {
+                                        let mut parts = rest.splitn(2, ' ');
+                                        let name = parts.next().unwrap_or("").trim();
+                                        let desc = parts.next().unwrap_or("").trim().trim_matches('"');
+                                        match store_result {
+                                            Ok(store) => match store.create_company(name, desc, "") {
+                                                Ok(company) => {
+                                                    set_active_company_id(&company.id).ok();
+                                                    println!("✓ Company created and set as active");
+                                                    println!("  Name:   {}", company.name);
+                                                    println!("  ID:     {}", company.id);
+                                                    println!("  Status: active");
+                                                    println!();
+                                                    println!("  Next: /company agent hire <name> --title <title>");
+                                                }
+                                                Err(e) => println!("Error: {e}"),
+                                            },
+                                            Err(e) => println!("Error opening company store: {e}"),
+                                        }
+                                    }
+                                }
+
+                                "list" => match store_result {
+                                    Ok(store) => match store.list_companies() {
+                                        Ok(companies) => {
+                                            let active = get_active_company_id();
+                                            if companies.is_empty() {
+                                                println!("No companies yet. Use: /company create <name>");
+                                            } else {
+                                                println!("Companies ({}):\n", companies.len());
+                                                for c in &companies {
+                                                    let marker = if active.as_deref() == Some(&c.id) { " ◄ active" } else { "" };
+                                                    println!("  {}{}", c.summary_line(), marker);
+                                                }
+                                                println!();
+                                            }
+                                        }
+                                        Err(e) => println!("Error: {e}"),
+                                    },
+                                    Err(e) => println!("Error: {e}"),
+                                },
+
+                                "switch" => {
+                                    if rest.is_empty() {
+                                        println!("Usage: /company switch <name|id>");
+                                    } else {
+                                        match store_result {
+                                            Ok(store) => match store.get_company(rest) {
+                                                Ok(Some(c)) => {
+                                                    set_active_company_id(&c.id).ok();
+                                                    println!("✓ Switched to company: {} [{}]", c.name, &c.id[..8]);
+                                                }
+                                                Ok(None) => println!("Company not found: {rest}"),
+                                                Err(e) => println!("Error: {e}"),
+                                            },
+                                            Err(e) => println!("Error: {e}"),
+                                        }
+                                    }
+                                }
+
+                                "delete" => {
+                                    if rest.is_empty() {
+                                        println!("Usage: /company delete <id|name>");
+                                    } else {
+                                        match store_result {
+                                            Ok(store) => match store.get_company(rest) {
+                                                Ok(Some(c)) => match store.delete_company(&c.id) {
+                                                    Ok(()) => println!("✓ Company '{}' archived", c.name),
+                                                    Err(e) => println!("Error: {e}"),
+                                                },
+                                                Ok(None) => println!("Company not found: {rest}"),
+                                                Err(e) => println!("Error: {e}"),
+                                            },
+                                            Err(e) => println!("Error: {e}"),
+                                        }
+                                    }
+                                }
+
+                                "status" => {
+                                    match get_active_company_id() {
+                                        None => println!("No active company. Use: /company create <name> or /company switch <name>"),
+                                        Some(id) => match store_result {
+                                            Ok(store) => match store.get_company(&id) {
+                                                Ok(Some(c)) => {
+                                                    let agent_count = store.agent_count(&c.id).unwrap_or(0);
+                                                    let activity = store.list_activity(&c.id, 5).unwrap_or_default();
+                                                    println!("Company: {}", c.name);
+                                                    println!("  ID:          {}", c.id);
+                                                    println!("  Status:      {}", c.status.as_str());
+                                                    if !c.mission.is_empty() {
+                                                        println!("  Mission:     {}", c.mission);
+                                                    }
+                                                    if !c.description.is_empty() {
+                                                        println!("  Description: {}", c.description);
+                                                    }
+                                                    println!("  Agents:      {agent_count}");
+                                                    if !activity.is_empty() {
+                                                        println!("\nRecent Activity:");
+                                                        for a in &activity {
+                                                            println!("  {} — {} ({})", a.action, a.entity_id, a.entity_type);
+                                                        }
+                                                    }
+                                                    println!();
+                                                    println!("  Tip: /company agent hire <name>  to add agents");
+                                                    println!("       /company goal create <title> to add goals");
+                                                }
+                                                Ok(None) => println!("Active company not found. Use /company switch to pick one."),
+                                                Err(e) => println!("Error: {e}"),
+                                            },
+                                            Err(e) => println!("Error: {e}"),
+                                        },
+                                    }
+                                }
+
+                                // ── Agent management ──────────────────────────────────────
+                                "agent" => {
+                                    let sub2 = rest.split_whitespace().next().unwrap_or("help");
+                                    let rest2 = rest.strip_prefix(sub2).unwrap_or("").trim();
+                                    match sub2 {
+                                        "hire" => {
+                                            // /company agent hire <name> [--title <t>] [--role <r>]
+                                            let mut name = String::new();
+                                            let mut title = String::from("Agent");
+                                            let mut role_str = String::from("agent");
+                                            let mut reports_to: Option<String> = None;
+                                            let tokens: Vec<&str> = rest2.split_whitespace().collect();
+                                            let mut i = 0;
+                                            while i < tokens.len() {
+                                                match tokens[i] {
+                                                    "--title" | "-t" => { i += 1; if i < tokens.len() { title = tokens[i].to_string(); } }
+                                                    "--role" | "-r" => { i += 1; if i < tokens.len() { role_str = tokens[i].to_string(); } }
+                                                    "--reports-to" => { i += 1; if i < tokens.len() { reports_to = Some(tokens[i].to_string()); } }
+                                                    tok if !tok.starts_with('-') && name.is_empty() => { name = tok.to_string(); }
+                                                    _ => {}
+                                                }
+                                                i += 1;
+                                            }
+                                            if name.is_empty() {
+                                                println!("Usage: /company agent hire <name> [--title <t>] [--role ceo|manager|agent|specialist] [--reports-to <id>]");
+                                            } else {
+                                                let active_id = get_active_company_id();
+                                                match active_id {
+                                                    None => println!("No active company. Use /company switch first."),
+                                                    Some(company_id) => match store_result {
+                                                        Ok(store) => match store.hire_agent(
+                                                            &company_id, &name, &title,
+                                                            CompanyRole::from_str(&role_str),
+                                                            reports_to.as_deref(),
+                                                            &[], AdapterType::Internal, 0,
+                                                        ) {
+                                                            Ok(agent) => {
+                                                                println!("✓ Agent hired");
+                                                                println!("  {}", agent.summary_line());
+                                                            }
+                                                            Err(e) => println!("Error: {e}"),
+                                                        },
+                                                        Err(e) => println!("Error: {e}"),
+                                                    },
+                                                }
+                                            }
+                                        }
+                                        "list" => {
+                                            match get_active_company_id() {
+                                                None => println!("No active company."),
+                                                Some(company_id) => match store_result {
+                                                    Ok(store) => match store.list_agents(&company_id) {
+                                                        Ok(agents) => {
+                                                            if agents.is_empty() {
+                                                                println!("No agents yet. Use: /company agent hire <name>");
+                                                            } else {
+                                                                println!("Agents ({}):\n", agents.len());
+                                                                for a in &agents {
+                                                                    println!("  {}", a.summary_line());
+                                                                }
+                                                                println!();
+                                                            }
+                                                        }
+                                                        Err(e) => println!("Error: {e}"),
+                                                    },
+                                                    Err(e) => println!("Error: {e}"),
+                                                },
+                                            }
+                                        }
+                                        "fire" => {
+                                            if rest2.is_empty() {
+                                                println!("Usage: /company agent fire <id>");
+                                            } else {
+                                                match store_result {
+                                                    Ok(store) => match store.fire_agent(rest2) {
+                                                        Ok(()) => println!("✓ Agent {rest2} terminated"),
+                                                        Err(e) => println!("Error: {e}"),
+                                                    },
+                                                    Err(e) => println!("Error: {e}"),
+                                                }
+                                            }
+                                        }
+                                        "info" => {
+                                            if rest2.is_empty() {
+                                                println!("Usage: /company agent info <id>");
+                                            } else {
+                                                match store_result {
+                                                    Ok(store) => match store.get_agent(rest2) {
+                                                        Ok(Some(a)) => {
+                                                            println!("Agent: {}", a.name);
+                                                            println!("  ID:       {}", a.id);
+                                                            println!("  Title:    {}", a.title);
+                                                            println!("  Role:     {}", a.role.as_str());
+                                                            println!("  Status:   {}", a.status.as_str());
+                                                            println!("  Budget:   ${:.2}/mo", a.monthly_budget_cents as f64 / 100.0);
+                                                            println!("  Adapter:  {}", a.adapter_type.as_str());
+                                                            if !a.skills.is_empty() {
+                                                                println!("  Skills:   {}", a.skills.join(", "));
+                                                            }
+                                                            if let Some(rt) = &a.reports_to {
+                                                                println!("  Reports:  {}", &rt[..8.min(rt.len())]);
+                                                            }
+                                                            println!();
+                                                        }
+                                                        Ok(None) => println!("Agent not found: {rest2}"),
+                                                        Err(e) => println!("Error: {e}"),
+                                                    },
+                                                    Err(e) => println!("Error: {e}"),
+                                                }
+                                            }
+                                        }
+                                        "tree" => {
+                                            match get_active_company_id() {
+                                                None => println!("No active company."),
+                                                Some(company_id) => match store_result {
+                                                    Ok(store) => match store.build_org_chart(&company_id) {
+                                                        Ok(nodes) => {
+                                                            if nodes.is_empty() {
+                                                                println!("No agents yet. Use: /company agent hire <name>");
+                                                            } else {
+                                                                println!("Org Chart:\n");
+                                                                for (agent, depth) in &nodes {
+                                                                    let indent = "  ".repeat(*depth);
+                                                                    let connector = if *depth == 0 { "●" } else { "└─" };
+                                                                    let badge = match agent.status {
+                                                                        crate::company_store::AgentStatus::Idle => "○",
+                                                                        crate::company_store::AgentStatus::Active => "●",
+                                                                        crate::company_store::AgentStatus::Paused => "⏸",
+                                                                        crate::company_store::AgentStatus::Terminated => "✗",
+                                                                    };
+                                                                    println!("{}{} {} {} — {} ({})",
+                                                                        indent, connector, badge,
+                                                                        agent.name, agent.title,
+                                                                        agent.role.as_str()
+                                                                    );
+                                                                }
+                                                                println!();
+                                                            }
+                                                        }
+                                                        Err(e) => println!("Error: {e}"),
+                                                    },
+                                                    Err(e) => println!("Error: {e}"),
+                                                },
+                                            }
+                                        }
+                                        _ => {
+                                            println!("Company Agent Commands:");
+                                            println!("  /company agent hire <name> [--title <t>] [--role <r>] [--reports-to <id>]");
+                                            println!("  /company agent list");
+                                            println!("  /company agent fire <id>");
+                                            println!("  /company agent info <id>");
+                                            println!("  /company agent tree      — ASCII org chart");
+                                            println!();
+                                        }
+                                    }
+                                }
+
+                                // ── Goals ─────────────────────────────────────────────────
+                                "goal" => {
+                                    use crate::company_goals::{GoalStore, print_goal_tree};
+                                    let sub2 = rest.split_whitespace().next().unwrap_or("help");
+                                    let rest2 = rest.strip_prefix(sub2).unwrap_or("").trim();
+                                    match sub2 {
+                                        "create" => {
+                                            if rest2.is_empty() {
+                                                println!("Usage: /company goal create <title>");
+                                            } else {
+                                                match (get_active_company_id(), store_result) {
+                                                    (Some(cid), Ok(store)) => {
+                                                        let gs = GoalStore::new(store.conn());
+                                                        if let Err(e) = gs.ensure_schema() {
+                                                            println!("Schema error: {e}"); return Ok(());
+                                                        }
+                                                        match gs.create(&cid, rest2, "", None, None, 1) {
+                                                            Ok(g) => println!("✓ Goal created: {} [{}]", g.title, &g.id[..8]),
+                                                            Err(e) => println!("Error: {e}"),
+                                                        }
+                                                    }
+                                                    (None, _) => println!("No active company."),
+                                                    (_, Err(e)) => println!("Error: {e}"),
+                                                }
+                                            }
+                                        }
+                                        "list" | "tree" => {
+                                            match (get_active_company_id(), store_result) {
+                                                (Some(cid), Ok(store)) => {
+                                                    let gs = GoalStore::new(store.conn());
+                                                    if let Err(e) = gs.ensure_schema() {
+                                                        println!("Schema error: {e}"); return Ok(());
+                                                    }
+                                                    match gs.build_tree(&cid) {
+                                                        Ok(tree) => {
+                                                            if tree.is_empty() {
+                                                                println!("No goals. Use: /company goal create <title>");
+                                                            } else {
+                                                                println!("Goals:\n");
+                                                                print!("{}", print_goal_tree(&tree, 0));
+                                                                println!();
+                                                            }
+                                                        }
+                                                        Err(e) => println!("Error: {e}"),
+                                                    }
+                                                }
+                                                (None, _) => println!("No active company."),
+                                                (_, Err(e)) => println!("Error: {e}"),
+                                            }
+                                        }
+                                        _ => {
+                                            println!("Goal Commands:");
+                                            println!("  /company goal create <title>    — Create a new goal");
+                                            println!("  /company goal list               — List goals as tree");
+                                            println!("  /company goal tree               — Same as list");
+                                            println!();
+                                        }
+                                    }
+                                }
+
+                                // ── Tasks ──────────────────────────────────────────────────
+                                "task" => {
+                                    use crate::company_tasks::{TaskStore, TaskStatus, TaskPriority};
+                                    let sub2 = rest.split_whitespace().next().unwrap_or("help");
+                                    let rest2 = rest.strip_prefix(sub2).unwrap_or("").trim();
+                                    match sub2 {
+                                        "create" => {
+                                            if rest2.is_empty() {
+                                                println!("Usage: /company task create <title>");
+                                            } else {
+                                                match (get_active_company_id(), store_result) {
+                                                    (Some(cid), Ok(store)) => {
+                                                        let ts = TaskStore::new(store.conn());
+                                                        if let Err(e) = ts.ensure_schema() {
+                                                            println!("Schema error: {e}"); return Ok(());
+                                                        }
+                                                        match ts.create(&cid, rest2, "", None, None, None, TaskPriority::Medium) {
+                                                            Ok(t) => println!("✓ Task created: {}", t.summary_line()),
+                                                            Err(e) => println!("Error: {e}"),
+                                                        }
+                                                    }
+                                                    (None, _) => println!("No active company."),
+                                                    (_, Err(e)) => println!("Error: {e}"),
+                                                }
+                                            }
+                                        }
+                                        "list" => {
+                                            let status_filter: Option<&str> = if rest2.is_empty() { None } else { Some(rest2) };
+                                            match (get_active_company_id(), store_result) {
+                                                (Some(cid), Ok(store)) => {
+                                                    let ts = TaskStore::new(store.conn());
+                                                    if let Err(e) = ts.ensure_schema() {
+                                                        println!("Schema error: {e}"); return Ok(());
+                                                    }
+                                                    match ts.list(&cid, status_filter) {
+                                                        Ok(tasks) => {
+                                                            if tasks.is_empty() {
+                                                                println!("No tasks. Use: /company task create <title>");
+                                                            } else {
+                                                                println!("Tasks ({}):\n", tasks.len());
+                                                                for t in &tasks {
+                                                                    println!("  {}", t.summary_line());
+                                                                }
+                                                                println!();
+                                                            }
+                                                        }
+                                                        Err(e) => println!("Error: {e}"),
+                                                    }
+                                                }
+                                                (None, _) => println!("No active company."),
+                                                (_, Err(e)) => println!("Error: {e}"),
+                                            }
+                                        }
+                                        "transition" => {
+                                            let parts: Vec<&str> = rest2.splitn(2, ' ').collect();
+                                            if parts.len() < 2 {
+                                                println!("Usage: /company task transition <id> <status>");
+                                                println!("  Statuses: todo, in_progress, in_review, done, blocked, cancelled");
+                                            } else {
+                                                match store_result {
+                                                    Ok(store) => {
+                                                        let ts = TaskStore::new(store.conn());
+                                                        if let Err(e) = ts.ensure_schema() {
+                                                            println!("Schema error: {e}"); return Ok(());
+                                                        }
+                                                        match ts.transition(parts[0], TaskStatus::from_str(parts[1])) {
+                                                            Ok(t) => println!("✓ {}", t.summary_line()),
+                                                            Err(e) => println!("Error: {e}"),
+                                                        }
+                                                    }
+                                                    Err(e) => println!("Error: {e}"),
+                                                }
+                                            }
+                                        }
+                                        "checkout" => {
+                                            let parts: Vec<&str> = rest2.splitn(2, ' ').collect();
+                                            if parts.is_empty() || parts[0].is_empty() {
+                                                println!("Usage: /company task checkout <task-id> [agent-id]");
+                                            } else {
+                                                let task_id = parts[0];
+                                                let agent_id = if parts.len() > 1 { parts[1] } else { "manual" };
+                                                match store_result {
+                                                    Ok(store) => {
+                                                        let ts = TaskStore::new(store.conn());
+                                                        if let Err(e) = ts.ensure_schema() {
+                                                            println!("Schema error: {e}"); return Ok(());
+                                                        }
+                                                        match ts.checkout(task_id, agent_id) {
+                                                            Ok(t) => {
+                                                                println!("✓ Task checked out: {}", t.summary_line());
+                                                                if let Some(b) = &t.branch_name {
+                                                                    println!("  Branch: {b}");
+                                                                }
+                                                            }
+                                                            Err(e) => println!("Error: {e}"),
+                                                        }
+                                                    }
+                                                    Err(e) => println!("Error: {e}"),
+                                                }
+                                            }
+                                        }
+                                        "comment" => {
+                                            let parts: Vec<&str> = rest2.splitn(2, ' ').collect();
+                                            if parts.len() < 2 {
+                                                println!("Usage: /company task comment <task-id> <text>");
+                                            } else {
+                                                match store_result {
+                                                    Ok(store) => {
+                                                        let ts = TaskStore::new(store.conn());
+                                                        if let Err(e) = ts.ensure_schema() {
+                                                            println!("Schema error: {e}"); return Ok(());
+                                                        }
+                                                        match ts.add_comment(parts[0], None, parts[1]) {
+                                                            Ok(_) => println!("✓ Comment added"),
+                                                            Err(e) => println!("Error: {e}"),
+                                                        }
+                                                    }
+                                                    Err(e) => println!("Error: {e}"),
+                                                }
+                                            }
+                                        }
+                                        _ => {
+                                            println!("Task Commands:");
+                                            println!("  /company task create <title>              — Create task");
+                                            println!("  /company task list [<status>]             — List tasks");
+                                            println!("  /company task transition <id> <status>    — Change status");
+                                            println!("  /company task checkout <id> [agent-id]   — Atomic checkout");
+                                            println!("  /company task comment <id> <text>         — Add comment");
+                                            println!();
+                                            println!("  Statuses: backlog, todo, in_progress, in_review, done, blocked, cancelled");
+                                            println!();
+                                        }
+                                    }
+                                }
+
+                                // ── Documents ──────────────────────────────────────────────
+                                "doc" => {
+                                    use crate::company_documents::DocumentStore;
+                                    let sub2 = rest.split_whitespace().next().unwrap_or("help");
+                                    let rest2 = rest.strip_prefix(sub2).unwrap_or("").trim();
+                                    match sub2 {
+                                        "create" => {
+                                            if rest2.is_empty() {
+                                                println!("Usage: /company doc create <title>");
+                                            } else {
+                                                match (get_active_company_id(), store_result) {
+                                                    (Some(cid), Ok(store)) => {
+                                                        let ds = DocumentStore::new(store.conn());
+                                                        if let Err(e) = ds.ensure_schema() {
+                                                            println!("Schema error: {e}"); return Ok(());
+                                                        }
+                                                        match ds.create(&cid, rest2, "", None, None, None) {
+                                                            Ok(d) => println!("✓ Document created: {}", d.summary_line()),
+                                                            Err(e) => println!("Error: {e}"),
+                                                        }
+                                                    }
+                                                    (None, _) => println!("No active company."),
+                                                    (_, Err(e)) => println!("Error: {e}"),
+                                                }
+                                            }
+                                        }
+                                        "list" => {
+                                            match (get_active_company_id(), store_result) {
+                                                (Some(cid), Ok(store)) => {
+                                                    let ds = DocumentStore::new(store.conn());
+                                                    if let Err(e) = ds.ensure_schema() {
+                                                        println!("Schema error: {e}"); return Ok(());
+                                                    }
+                                                    match ds.list(&cid) {
+                                                        Ok(docs) => {
+                                                            if docs.is_empty() {
+                                                                println!("No documents. Use: /company doc create <title>");
+                                                            } else {
+                                                                println!("Documents ({}):\n", docs.len());
+                                                                for d in &docs {
+                                                                    println!("  {}", d.summary_line());
+                                                                }
+                                                                println!();
+                                                            }
+                                                        }
+                                                        Err(e) => println!("Error: {e}"),
+                                                    }
+                                                }
+                                                (None, _) => println!("No active company."),
+                                                (_, Err(e)) => println!("Error: {e}"),
+                                            }
+                                        }
+                                        "show" => {
+                                            if rest2.is_empty() {
+                                                println!("Usage: /company doc show <id>");
+                                            } else {
+                                                match store_result {
+                                                    Ok(store) => {
+                                                        let ds = DocumentStore::new(store.conn());
+                                                        if let Err(e) = ds.ensure_schema() {
+                                                            println!("Schema error: {e}"); return Ok(());
+                                                        }
+                                                        match ds.get(rest2) {
+                                                            Ok(Some(d)) => {
+                                                                println!("# {}", d.title);
+                                                                println!("  ID: {}  Rev: {}", d.id, d.revision);
+                                                                println!();
+                                                                println!("{}", d.content);
+                                                            }
+                                                            Ok(None) => println!("Document not found: {rest2}"),
+                                                            Err(e) => println!("Error: {e}"),
+                                                        }
+                                                    }
+                                                    Err(e) => println!("Error: {e}"),
+                                                }
+                                            }
+                                        }
+                                        "history" => {
+                                            if rest2.is_empty() {
+                                                println!("Usage: /company doc history <id>");
+                                            } else {
+                                                match store_result {
+                                                    Ok(store) => {
+                                                        let ds = DocumentStore::new(store.conn());
+                                                        if let Err(e) = ds.ensure_schema() {
+                                                            println!("Schema error: {e}"); return Ok(());
+                                                        }
+                                                        match ds.list_revisions(rest2) {
+                                                            Ok(revs) => {
+                                                                println!("Revision history ({}):\n", revs.len());
+                                                                for r in &revs {
+                                                                    println!("  v{}  {} chars", r.revision, r.content.len());
+                                                                }
+                                                                println!();
+                                                            }
+                                                            Err(e) => println!("Error: {e}"),
+                                                        }
+                                                    }
+                                                    Err(e) => println!("Error: {e}"),
+                                                }
+                                            }
+                                        }
+                                        _ => {
+                                            println!("Document Commands:");
+                                            println!("  /company doc create <title>    — Create document");
+                                            println!("  /company doc list               — List documents");
+                                            println!("  /company doc show <id>          — Show document content");
+                                            println!("  /company doc history <id>       — Show revision history");
+                                            println!();
+                                        }
+                                    }
+                                }
+
+                                "approval" => {
+                                    use company_approvals::{ApprovalStore, ApprovalRequestType};
+                                    use company_store::{CompanyStore, get_active_company_id};
+                                    let sub3 = parts.get(3).copied().unwrap_or("");
+                                    match sub3 {
+                                        "request" => {
+                                            // /company approval request <type> <subject-id> <requester-id> [reason...]
+                                            let req_type_str = parts.get(4).copied().unwrap_or("");
+                                            let subject_id = parts.get(5).copied().unwrap_or("");
+                                            let requester_id = parts.get(6).copied().unwrap_or("system");
+                                            let reason = parts[7.min(parts.len())..].join(" ");
+                                            if req_type_str.is_empty() || subject_id.is_empty() {
+                                                println!("Usage: /company approval request <hire|strategy|budget|task|deploy> <subject-id> [requester-id] [reason]");
+                                            } else {
+                                                let req_type = ApprovalRequestType::from_str(req_type_str);
+                                                match (get_active_company_id(), CompanyStore::open_default()) {
+                                                    (Some(cid), Ok(store)) => {
+                                                        let ap = ApprovalStore::new(store.conn());
+                                                        if let Err(e) = ap.ensure_schema() { println!("Schema error: {e}"); return Ok(()); }
+                                                        match ap.request(&cid, req_type, subject_id, requester_id, &reason) {
+                                                            Ok(a) => println!("✓ Approval requested: {}", a.summary_line()),
+                                                            Err(e) => println!("Error: {e}"),
+                                                        }
+                                                    }
+                                                    (None, _) => println!("No active company."),
+                                                    (_, Err(e)) => println!("Error: {e}"),
+                                                }
+                                            }
+                                        }
+                                        "list" => {
+                                            let status_filter = parts.get(4).copied();
+                                            match (get_active_company_id(), CompanyStore::open_default()) {
+                                                (Some(cid), Ok(store)) => {
+                                                    let ap = ApprovalStore::new(store.conn());
+                                                    if let Err(e) = ap.ensure_schema() { println!("Schema error: {e}"); return Ok(()); }
+                                                    match ap.list(&cid, status_filter) {
+                                                        Ok(approvals) => {
+                                                            if approvals.is_empty() {
+                                                                println!("No approvals found.");
+                                                            } else {
+                                                                for a in &approvals { println!("{}", a.summary_line()); }
+                                                            }
+                                                        }
+                                                        Err(e) => println!("Error: {e}"),
+                                                    }
+                                                }
+                                                (None, _) => println!("No active company."),
+                                                (_, Err(e)) => println!("Error: {e}"),
+                                            }
+                                        }
+                                        "approve" | "reject" => {
+                                            let id = parts.get(4).copied().unwrap_or("");
+                                            let approver = parts.get(5).copied().unwrap_or("system");
+                                            let approved = sub3 == "approve";
+                                            if id.is_empty() {
+                                                println!("Usage: /company approval approve|reject <id> [approver-id]");
+                                            } else {
+                                                match (get_active_company_id(), CompanyStore::open_default()) {
+                                                    (Some(_cid), Ok(store)) => {
+                                                        let ap = ApprovalStore::new(store.conn());
+                                                        if let Err(e) = ap.ensure_schema() { println!("Schema error: {e}"); return Ok(()); }
+                                                        match ap.decide(id, approved, approver) {
+                                                            Ok(a) => println!("✓ {}", a.summary_line()),
+                                                            Err(e) => println!("Error: {e}"),
+                                                        }
+                                                    }
+                                                    (None, _) => println!("No active company."),
+                                                    (_, Err(e)) => println!("Error: {e}"),
+                                                }
+                                            }
+                                        }
+                                        _ => println!("Approval subcommands: request <type> <subject-id> | list [status] | approve <id> | reject <id>"),
+                                    }
+                                }
+                                "budget" => {
+                                    use company_budget::BudgetStore;
+                                    use company_store::{CompanyStore, get_active_company_id};
+                                    let sub3 = parts.get(3).copied().unwrap_or("");
+                                    match sub3 {
+                                        "set" => {
+                                            // /company budget set <agent-id> <limit-cents> [--hard-stop] [--month YYYY-MM]
+                                            let agent_id = parts.get(4).copied().unwrap_or("");
+                                            let limit_cents: i64 = parts.get(5).copied().unwrap_or("0").parse().unwrap_or(0);
+                                            let hard_stop = parts.contains(&"--hard-stop");
+                                            let month = parts.iter().position(|p| *p == "--month")
+                                                .and_then(|i| parts.get(i + 1).copied())
+                                                .unwrap_or("");
+                                            let month = if month.is_empty() { BudgetStore::current_month_static() } else { month.to_string() };
+                                            if agent_id.is_empty() {
+                                                println!("Usage: /company budget set <agent-id> <limit-cents> [--hard-stop] [--month YYYY-MM]");
+                                            } else {
+                                                match (get_active_company_id(), CompanyStore::open_default()) {
+                                                    (Some(cid), Ok(store)) => {
+                                                        let bs = BudgetStore::new(store.conn());
+                                                        if let Err(e) = bs.ensure_schema() { println!("Schema error: {e}"); return Ok(()); }
+                                                        match bs.set_budget(&cid, agent_id, &month, limit_cents, hard_stop, 80) {
+                                                            Ok(b) => println!("✓ Budget set: {}", b.summary_line()),
+                                                            Err(e) => println!("Error: {e}"),
+                                                        }
+                                                    }
+                                                    (None, _) => println!("No active company."),
+                                                    (_, Err(e)) => println!("Error: {e}"),
+                                                }
+                                            }
+                                        }
+                                        "status" | "list" => {
+                                            let agent_filter = parts.get(4).copied();
+                                            match (get_active_company_id(), CompanyStore::open_default()) {
+                                                (Some(cid), Ok(store)) => {
+                                                    let bs = BudgetStore::new(store.conn());
+                                                    if let Err(e) = bs.ensure_schema() { println!("Schema error: {e}"); return Ok(()); }
+                                                    match bs.list(&cid) {
+                                                        Ok(budgets) => {
+                                                            let filtered: Vec<_> = budgets.iter().filter(|b| {
+                                                                agent_filter.map(|f| b.agent_id.starts_with(f)).unwrap_or(true)
+                                                            }).collect();
+                                                            if filtered.is_empty() {
+                                                                println!("No budgets found.");
+                                                            } else {
+                                                                for b in &filtered { println!("{}", b.summary_line()); }
+                                                            }
+                                                        }
+                                                        Err(e) => println!("Error: {e}"),
+                                                    }
+                                                }
+                                                (None, _) => println!("No active company."),
+                                                (_, Err(e)) => println!("Error: {e}"),
+                                            }
+                                        }
+                                        "events" => {
+                                            let agent_filter = parts.get(4).copied();
+                                            match (get_active_company_id(), CompanyStore::open_default()) {
+                                                (Some(cid), Ok(store)) => {
+                                                    let bs = BudgetStore::new(store.conn());
+                                                    if let Err(e) = bs.ensure_schema() { println!("Schema error: {e}"); return Ok(()); }
+                                                    match bs.list_events(&cid, agent_filter) {
+                                                        Ok(events) => {
+                                                            if events.is_empty() {
+                                                                println!("No cost events.");
+                                                            } else {
+                                                                for ev in &events {
+                                                                    let dt = ev.created_at / 1000;
+                                                                    println!(
+                                                                        "[{}] ${:.4}  {}  agent:{}  {}",
+                                                                        dt, ev.amount_cents as f64 / 100.0,
+                                                                        ev.model,
+                                                                        &ev.agent_id[..8.min(ev.agent_id.len())],
+                                                                        ev.description
+                                                                    );
+                                                                }
+                                                            }
+                                                        }
+                                                        Err(e) => println!("Error: {e}"),
+                                                    }
+                                                }
+                                                (None, _) => println!("No active company."),
+                                                (_, Err(e)) => println!("Error: {e}"),
+                                            }
+                                        }
+                                        _ => println!("Budget subcommands: set <agent-id> <cents> [--hard-stop] | status [agent-id] | events [agent-id]"),
+                                    }
+                                }
+                                "secret" => {
+                                    use company_secrets::SecretStore;
+                                    use company_store::{CompanyStore, get_active_company_id};
+                                    let sub3 = parts.get(3).copied().unwrap_or("");
+                                    match sub3 {
+                                        "set" => {
+                                            let key = parts.get(4).copied().unwrap_or("");
+                                            let value = parts[5.min(parts.len())..].join(" ");
+                                            if key.is_empty() || value.is_empty() {
+                                                println!("Usage: /company secret set <key> <value>");
+                                            } else {
+                                                match (get_active_company_id(), CompanyStore::open_default()) {
+                                                    (Some(cid), Ok(store)) => {
+                                                        let ss = SecretStore::new(store.conn());
+                                                        if let Err(e) = ss.ensure_schema() { println!("Schema error: {e}"); return Ok(()); }
+                                                        match ss.set(&cid, key, &value, None) {
+                                                            Ok(s) => println!("✓ Secret stored: {}", s.summary_line()),
+                                                            Err(e) => println!("Error: {e}"),
+                                                        }
+                                                    }
+                                                    (None, _) => println!("No active company."),
+                                                    (_, Err(e)) => println!("Error: {e}"),
+                                                }
+                                            }
+                                        }
+                                        "get" => {
+                                            let key = parts.get(4).copied().unwrap_or("");
+                                            if key.is_empty() { println!("Usage: /company secret get <key>"); }
+                                            else {
+                                                match (get_active_company_id(), CompanyStore::open_default()) {
+                                                    (Some(cid), Ok(store)) => {
+                                                        let ss = SecretStore::new(store.conn());
+                                                        if let Err(e) = ss.ensure_schema() { println!("Schema error: {e}"); return Ok(()); }
+                                                        match ss.get_value(&cid, key) {
+                                                            Ok(v) => println!("{}: {}", key, v),
+                                                            Err(e) => println!("Error: {e}"),
+                                                        }
+                                                    }
+                                                    (None, _) => println!("No active company."),
+                                                    (_, Err(e)) => println!("Error: {e}"),
+                                                }
+                                            }
+                                        }
+                                        "list" => {
+                                            match (get_active_company_id(), CompanyStore::open_default()) {
+                                                (Some(cid), Ok(store)) => {
+                                                    let ss = SecretStore::new(store.conn());
+                                                    if let Err(e) = ss.ensure_schema() { println!("Schema error: {e}"); return Ok(()); }
+                                                    match ss.list(&cid) {
+                                                        Ok(secrets) => {
+                                                            if secrets.is_empty() { println!("No secrets."); }
+                                                            else { for s in &secrets { println!("{}", s.summary_line()); } }
+                                                        }
+                                                        Err(e) => println!("Error: {e}"),
+                                                    }
+                                                }
+                                                (None, _) => println!("No active company."),
+                                                (_, Err(e)) => println!("Error: {e}"),
+                                            }
+                                        }
+                                        "delete" => {
+                                            let key = parts.get(4).copied().unwrap_or("");
+                                            if key.is_empty() { println!("Usage: /company secret delete <key>"); }
+                                            else {
+                                                match (get_active_company_id(), CompanyStore::open_default()) {
+                                                    (Some(cid), Ok(store)) => {
+                                                        let ss = SecretStore::new(store.conn());
+                                                        if let Err(e) = ss.ensure_schema() { println!("Schema error: {e}"); return Ok(()); }
+                                                        match ss.delete(&cid, key) {
+                                                            Ok(true) => println!("✓ Deleted."),
+                                                            Ok(false) => println!("Secret not found."),
+                                                            Err(e) => println!("Error: {e}"),
+                                                        }
+                                                    }
+                                                    (None, _) => println!("No active company."),
+                                                    (_, Err(e)) => println!("Error: {e}"),
+                                                }
+                                            }
+                                        }
+                                        _ => println!("Secret subcommands: set <key> <value> | get <key> | list | delete <key>"),
+                                    }
+                                }
+                                "routine" => {
+                                    use company_routines::RoutineStore;
+                                    use company_store::{CompanyStore, get_active_company_id};
+                                    let sub3 = parts.get(3).copied().unwrap_or("");
+                                    match sub3 {
+                                        "create" => {
+                                            // /company routine create <agent-id> <name> [--interval <secs>] [--prompt <text>]
+                                            let agent_id = parts.get(4).copied().unwrap_or("");
+                                            let name = parts.get(5).copied().unwrap_or("");
+                                            let interval: i64 = parts.iter().position(|p| *p == "--interval")
+                                                .and_then(|i| parts.get(i + 1).copied())
+                                                .and_then(|v| v.parse().ok())
+                                                .unwrap_or(3600);
+                                            let prompt_idx = parts.iter().position(|p| *p == "--prompt").map(|i| i + 1).unwrap_or(parts.len());
+                                            let prompt = parts[prompt_idx..].join(" ");
+                                            if agent_id.is_empty() || name.is_empty() {
+                                                println!("Usage: /company routine create <agent-id> <name> [--interval <secs>] [--prompt <text>]");
+                                            } else {
+                                                match (get_active_company_id(), CompanyStore::open_default()) {
+                                                    (Some(cid), Ok(store)) => {
+                                                        let rs = RoutineStore::new(store.conn());
+                                                        if let Err(e) = rs.ensure_schema() { println!("Schema error: {e}"); return Ok(()); }
+                                                        match rs.create(&cid, agent_id, name, &prompt, interval) {
+                                                            Ok(r) => println!("✓ Routine created: {}", r.summary_line()),
+                                                            Err(e) => println!("Error: {e}"),
+                                                        }
+                                                    }
+                                                    (None, _) => println!("No active company."),
+                                                    (_, Err(e)) => println!("Error: {e}"),
+                                                }
+                                            }
+                                        }
+                                        "list" => {
+                                            match (get_active_company_id(), CompanyStore::open_default()) {
+                                                (Some(cid), Ok(store)) => {
+                                                    let rs = RoutineStore::new(store.conn());
+                                                    if let Err(e) = rs.ensure_schema() { println!("Schema error: {e}"); return Ok(()); }
+                                                    match rs.list(&cid) {
+                                                        Ok(routines) => {
+                                                            if routines.is_empty() { println!("No routines."); }
+                                                            else { for r in &routines { println!("{}", r.summary_line()); } }
+                                                        }
+                                                        Err(e) => println!("Error: {e}"),
+                                                    }
+                                                }
+                                                (None, _) => println!("No active company."),
+                                                (_, Err(e)) => println!("Error: {e}"),
+                                            }
+                                        }
+                                        "toggle" => {
+                                            let id = parts.get(4).copied().unwrap_or("");
+                                            if id.is_empty() { println!("Usage: /company routine toggle <id>"); }
+                                            else {
+                                                match (get_active_company_id(), CompanyStore::open_default()) {
+                                                    (Some(_), Ok(store)) => {
+                                                        let rs = RoutineStore::new(store.conn());
+                                                        if let Err(e) = rs.ensure_schema() { println!("Schema error: {e}"); return Ok(()); }
+                                                        match rs.toggle(id) {
+                                                            Ok(r) => println!("✓ {}", r.summary_line()),
+                                                            Err(e) => println!("Error: {e}"),
+                                                        }
+                                                    }
+                                                    (None, _) => println!("No active company."),
+                                                    (_, Err(e)) => println!("Error: {e}"),
+                                                }
+                                            }
+                                        }
+                                        _ => println!("Routine subcommands: create <agent-id> <name> [--interval secs] | list | toggle <id>"),
+                                    }
+                                }
+                                "heartbeat" => {
+                                    use company_heartbeat::{HeartbeatStore, HeartbeatTrigger};
+                                    use company_store::{CompanyStore, get_active_company_id};
+                                    let sub3 = parts.get(3).copied().unwrap_or("");
+                                    match sub3 {
+                                        "trigger" => {
+                                            let agent_id = parts.get(4).copied().unwrap_or("");
+                                            if agent_id.is_empty() { println!("Usage: /company heartbeat trigger <agent-id>"); }
+                                            else {
+                                                match (get_active_company_id(), CompanyStore::open_default()) {
+                                                    (Some(cid), Ok(store)) => {
+                                                        let hs = HeartbeatStore::new(store.conn());
+                                                        if let Err(e) = hs.ensure_schema() { println!("Schema error: {e}"); return Ok(()); }
+                                                        match hs.start(&cid, agent_id, HeartbeatTrigger::Manual, None) {
+                                                            Ok(r) => println!("✓ Heartbeat started: {}", r.summary_line()),
+                                                            Err(e) => println!("Error: {e}"),
+                                                        }
+                                                    }
+                                                    (None, _) => println!("No active company."),
+                                                    (_, Err(e)) => println!("Error: {e}"),
+                                                }
+                                            }
+                                        }
+                                        "history" => {
+                                            let agent_id = parts.get(4).copied().unwrap_or("");
+                                            let limit: i64 = parts.get(5).copied().and_then(|v| v.parse().ok()).unwrap_or(20);
+                                            if agent_id.is_empty() { println!("Usage: /company heartbeat history <agent-id> [limit]"); }
+                                            else {
+                                                match CompanyStore::open_default() {
+                                                    Ok(store) => {
+                                                        let hs = HeartbeatStore::new(store.conn());
+                                                        if let Err(e) = hs.ensure_schema() { println!("Schema error: {e}"); return Ok(()); }
+                                                        match hs.history(agent_id, limit) {
+                                                            Ok(runs) => {
+                                                                if runs.is_empty() { println!("No heartbeat history."); }
+                                                                else { for r in &runs { println!("{}", r.summary_line()); } }
+                                                            }
+                                                            Err(e) => println!("Error: {e}"),
+                                                        }
+                                                    }
+                                                    Err(e) => println!("Error: {e}"),
+                                                }
+                                            }
+                                        }
+                                        _ => println!("Heartbeat subcommands: trigger <agent-id> | history <agent-id> [limit]"),
+                                    }
+                                }
+                                "adapter" => {
+                                    use adapter_registry::default_registry;
+                                    let sub3 = parts.get(3).copied().unwrap_or("");
+                                    match sub3 {
+                                        "register" => {
+                                            // /company adapter register <name> --type http --url <url>
+                                            let name = parts.get(4).copied().unwrap_or("");
+                                            let adapter_type = parts.iter().position(|p| *p == "--type")
+                                                .and_then(|i| parts.get(i + 1).copied()).unwrap_or("http");
+                                            let url = parts.iter().position(|p| *p == "--url")
+                                                .and_then(|i| parts.get(i + 1).copied()).unwrap_or("");
+                                            if name.is_empty() {
+                                                println!("Usage: /company adapter register <name> --type http --url <url>");
+                                            } else if adapter_type == "http" && !url.is_empty() {
+                                                let reg = default_registry();
+                                                let cfg = adapter_registry::HttpAdapterConfig {
+                                                    url: url.to_string(),
+                                                    method: "POST".to_string(),
+                                                    headers: std::collections::HashMap::new(),
+                                                    timeout_secs: 30,
+                                                };
+                                                reg.register_http(name, cfg);
+                                                println!("✓ Adapter registered: {} (http → {})", name, url);
+                                            } else {
+                                                println!("Supported: --type http --url <url>");
+                                            }
+                                        }
+                                        "list" => {
+                                            let reg = default_registry();
+                                            let adapters = reg.list();
+                                            if adapters.is_empty() { println!("No adapters registered."); }
+                                            else { for a in &adapters { println!("{} [{}]", a.name, a.adapter_type); } }
+                                        }
+                                        "remove" => {
+                                            let name = parts.get(4).copied().unwrap_or("");
+                                            if name.is_empty() { println!("Usage: /company adapter remove <name>"); }
+                                            else {
+                                                let reg = default_registry();
+                                                if reg.unregister(name) { println!("✓ Adapter removed."); }
+                                                else { println!("Adapter not found."); }
+                                            }
+                                        }
+                                        _ => println!("Adapter subcommands: register <name> --type http --url <url> | list | remove <name>"),
+                                    }
+                                }
+                                "export" => {
+                                    use company_store::get_active_company_id;
+                                    let company_id_override = parts.get(3).copied();
+                                    let output_path = parts.get(4).copied().unwrap_or("company_export.json");
+                                    match get_active_company_id().or_else(|| company_id_override.map(|s| s.to_string())) {
+                                        Some(cid) => {
+                                            match company_portability::export_company(&cid, std::path::Path::new(output_path)) {
+                                                Ok(bp) => println!("✓ Exported to {}\n{}", output_path, bp.summary()),
+                                                Err(e) => println!("Error: {e}"),
+                                            }
+                                        }
+                                        None => println!("No active company. Use: /company export [company-id] [output.json]"),
+                                    }
+                                }
+                                "import" => {
+                                    let input_path = parts.get(3).copied().unwrap_or("");
+                                    let new_name = parts.get(4).copied();
+                                    if input_path.is_empty() {
+                                        println!("Usage: /company import <path.json> [new-name]");
+                                    } else {
+                                        match company_portability::import_company(std::path::Path::new(input_path), new_name) {
+                                            Ok(new_id) => println!("✓ Company imported with ID: {}", &new_id[..8.min(new_id.len())]),
+                                            Err(e) => println!("Error: {e}"),
+                                        }
+                                    }
+                                }
+
+                                _ => {
+                                    println!("VibeCody Company Orchestration  (Paperclip parity)\n");
+                                    println!("Company:");
+                                    println!("  /company create <name> [desc]          — Create a new company");
+                                    println!("  /company list                           — List all companies");
+                                    println!("  /company switch <name|id>              — Set active company");
+                                    println!("  /company status                         — Active company dashboard");
+                                    println!("  /company delete <id|name>              — Archive a company");
+                                    println!();
+                                    println!("Agents:");
+                                    println!("  /company agent hire <name> [options]   — Hire a new agent");
+                                    println!("  /company agent list                    — List agents");
+                                    println!("  /company agent fire <id>               — Terminate agent");
+                                    println!("  /company agent info <id>               — Agent details");
+                                    println!("  /company agent tree                    — ASCII org chart");
+                                    println!();
+                                    println!("Goals:");
+                                    println!("  /company goal create <title>           — Create a goal");
+                                    println!("  /company goal list                     — List goals as tree");
+                                    println!();
+                                    println!("Tasks:");
+                                    println!("  /company task create <title>           — Create a task");
+                                    println!("  /company task list [status]            — List tasks");
+                                    println!("  /company task transition <id> <status> — Change task status");
+                                    println!("  /company task checkout <id>            — Checkout task (in_progress)");
+                                    println!("  /company task comment <id> <text>      — Add comment");
+                                    println!();
+                                    println!("Approvals:");
+                                    println!("  /company approval request <type> <subject> — New approval");
+                                    println!("  /company approval list [status]            — List approvals");
+                                    println!("  /company approval approve|reject <id>      — Decide");
+                                    println!();
+                                    println!("Budget:");
+                                    println!("  /company budget set <agent> <cents> [--hard-stop] — Set budget");
+                                    println!("  /company budget status                             — Budget overview");
+                                    println!("  /company budget events                             — Cost events");
+                                    println!();
+                                    println!("Secrets:");
+                                    println!("  /company secret set <key> <value>      — Store encrypted secret");
+                                    println!("  /company secret get <key>              — Retrieve secret");
+                                    println!("  /company secret list                   — List secret keys");
+                                    println!("  /company secret delete <key>           — Delete secret");
+                                    println!();
+                                    println!("Routines:");
+                                    println!("  /company routine create <agent> <name> [--interval secs]");
+                                    println!("  /company routine list                  — List routines");
+                                    println!("  /company routine toggle <id>           — Enable/disable");
+                                    println!();
+                                    println!("Heartbeats:");
+                                    println!("  /company heartbeat trigger <agent-id>  — Manual trigger");
+                                    println!("  /company heartbeat history <agent-id>  — Run history");
+                                    println!();
+                                    println!("Documents:");
+                                    println!("  /company doc create <title>            — Create a document");
+                                    println!("  /company doc list                      — List documents");
+                                    println!("  /company doc show <id>                 — Show document");
+                                    println!("  /company doc history <id>              — Revision history");
+                                    println!();
+                                    println!("Adapters & Portability:");
+                                    println!("  /company adapter register <name> --type http --url <url>");
+                                    println!("  /company adapter list | remove <name>");
+                                    println!("  /company export [path]                 — Export blueprint");
+                                    println!("  /company import <path> [new-name]      — Import blueprint");
+                                    println!();
+                                }
                             }
                         }
 

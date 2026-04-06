@@ -142,7 +142,11 @@ describe('CoveragePanel', () => {
 
   it('shows filter tabs after running coverage', async () => {
     render(<CoveragePanel workspacePath="/workspace" />);
-    await waitFor(() => screen.getByText('Run Coverage'));
+    // Wait for tool detection so the button becomes enabled before clicking
+    await waitFor(() => {
+      const btn = screen.getByText('Run Coverage').closest('button');
+      expect(btn).not.toBeDisabled();
+    });
     fireEvent.click(screen.getByText('Run Coverage'));
     await waitFor(() => {
       expect(screen.getByText(/All \(4\)/)).toBeInTheDocument();

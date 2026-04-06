@@ -134,6 +134,7 @@ pub static COMMANDS: &[&str] = &[
     "/rlcef",
     "/langgraph",
     "/sketch",
+    "/company",
 ];
 
 // ── Sub-command tables ────────────────────────────────────────────────────────
@@ -306,6 +307,14 @@ static LANGGRAPH_SUBS: &[&str] = &["serve", "connect", "status", "checkpoint"];
 
 /// Sub-commands for `/sketch <sub>`
 static SKETCH_SUBS: &[&str] = &["new", "recognize", "generate", "export"];
+
+/// Sub-commands for `/company <sub>`
+static COMPANY_SUBS: &[&str] = &[
+    "create", "list", "switch", "delete", "status",
+    "agent", "goal", "task", "approval", "budget",
+    "secret", "routine", "doc", "heartbeat", "adapter",
+    "export", "import",
+];
 
 /// Sub-commands for `/arena <sub>`
 static ARENA_SUBS: &[&str] = &["compare", "stats", "history"];
@@ -581,6 +590,7 @@ fn complete_slash(line: &str) -> Option<(usize, Vec<Pair>)> {
                 "/rlcef" => Some(RLCEF_SUBS),
                 "/langgraph" => Some(LANGGRAPH_SUBS),
                 "/sketch" => Some(SKETCH_SUBS),
+                "/company" => Some(COMPANY_SUBS),
                 _ => None,
             };
 

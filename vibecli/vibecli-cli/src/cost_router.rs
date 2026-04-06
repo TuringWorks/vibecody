@@ -82,6 +82,8 @@ pub struct Budget {
     pub period: BudgetPeriod,
     pub hard_limit: bool,
     pub alert_threshold_percent: f64,
+    /// Optional link to a company-scoped budget (company_id).
+    pub company_id: Option<String>,
 }
 
 impl Default for Budget {
@@ -92,6 +94,21 @@ impl Default for Budget {
             period: BudgetPeriod::Monthly,
             hard_limit: false,
             alert_threshold_percent: 80.0,
+            company_id: None,
+        }
+    }
+}
+
+impl Budget {
+    /// Construct a cost_router Budget from a company CompanyBudget record.
+    pub fn from_company_budget(cb: &crate::company_budget::CompanyBudget) -> Self {
+        Self {
+            total: cb.limit_cents as f64 / 100.0,
+            spent: cb.spent_cents as f64 / 100.0,
+            period: BudgetPeriod::Monthly,
+            hard_limit: cb.hard_stop,
+            alert_threshold_percent: cb.alert_pct as f64,
+            company_id: Some(cb.company_id.clone()),
         }
     }
 }
@@ -1119,6 +1136,7 @@ mod tests {
             period: BudgetPeriod::Daily,
             hard_limit: true,
             alert_threshold_percent: 80.0,
+            company_id: None,
         });
 
         let result = router.route_task("t1", &make_simple_profile());
@@ -1136,6 +1154,7 @@ mod tests {
             period: BudgetPeriod::Monthly,
             hard_limit: false,
             alert_threshold_percent: 80.0,
+            company_id: None,
         });
 
         let result = router.route_task("t1", &make_simple_profile());
@@ -1151,6 +1170,7 @@ mod tests {
             period: BudgetPeriod::Monthly,
             hard_limit: true,
             alert_threshold_percent: 80.0,
+            company_id: None,
         });
         assert!((router.remaining_budget() - 6.5).abs() < 1e-10);
     }
@@ -1171,6 +1191,7 @@ mod tests {
             period: BudgetPeriod::Monthly,
             hard_limit: false,
             alert_threshold_percent: 80.0,
+            company_id: None,
         });
 
         let decision = router.route_task("t1", &make_simple_profile()).unwrap();
@@ -1541,6 +1562,7 @@ mod tests {
             period: BudgetPeriod::Daily,
             hard_limit: true,
             alert_threshold_percent: 80.0,
+            company_id: None,
         });
         assert!(router.check_budget(4.0).is_ok());
     }
@@ -1554,6 +1576,7 @@ mod tests {
             period: BudgetPeriod::Daily,
             hard_limit: true,
             alert_threshold_percent: 80.0,
+            company_id: None,
         });
         assert!(router.check_budget(2.0).is_err());
     }

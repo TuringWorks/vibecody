@@ -8,7 +8,7 @@ import {
   Database, Globe, Radio,
   Cog, TerminalSquare, Wrench,
   Binary, Regex, PenTool,
-  Settings, Plug, UserCog, DollarSign, Package,
+  Settings, Plug, UserCog, DollarSign, Package, Building2,
 } from "lucide-react";
 
 export interface TabMeta {
@@ -75,6 +75,7 @@ export const TAB_META: Record<string, TabMeta> = {
   administration:    { icon: UserCog,      label: "Administration",    aliases: ["admin", "auth", "governance", "sessions", "manager"] },
   billing:           { icon: DollarSign,   label: "Billing",           aliases: ["cost", "usagemetering", "usage"] },
   "tools-settings":  { icon: Package,      label: "Tools",             aliases: ["artifacts", "img2app", "screenshot to app", "visualtest", "visual test"] },
+  company:           { icon: Building2,    label: "Company",           aliases: ["paperclip", "org chart", "orgchart", "zero human", "autonomous company", "company dashboard", "approvals", "routines", "heartbeat", "agents org", "company orchestration"] },
 };
 
 export const DEFAULT_TAB_META: TabMeta = { icon: Workflow, label: "Panel" };

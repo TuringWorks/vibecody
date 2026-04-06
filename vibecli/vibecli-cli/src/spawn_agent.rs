@@ -334,6 +334,8 @@ pub struct SpawnedAgent {
     pub child_ids: Vec<String>,
     /// Messages received from other agents.
     pub inbox: Vec<AgentMessage>,
+    /// Optional link to a CompanyAgent ID (for company-orchestrated agents).
+    pub company_agent_id: Option<String>,
 }
 
 impl SpawnedAgent {
@@ -365,6 +367,7 @@ impl SpawnedAgent {
             parent_id: None,
             child_ids: vec![],
             inbox: vec![],
+            company_agent_id: None,
         }
     }
 
