@@ -184,6 +184,9 @@ pub trait AIProvider: Send + Sync {
 
 Configure providers in `~/.vibecli/config.toml`:
 
+> **Security note**: Do not put API keys in `config.toml`. Keys are stored encrypted in
+> `~/.vibecli/profile_settings.db`. Use `vibecli secret set` or the VibeUI Settings panel (⚙️ Keys tab) to manage them.
+
 ```toml
 [ollama]
 enabled = true
@@ -192,32 +195,26 @@ model = "qwen2.5-coder:7b"
 
 [claude]
 enabled = false
-api_key = "sk-ant-..."
 model = "claude-3-5-sonnet-20241022"
 
 [openai]
 enabled = false
-api_key = "sk-..."
 model = "gpt-4o"
 
 [gemini]
 enabled = false
-api_key = "AIza..."
 model = "gemini-2.0-flash"
 
 [grok]
 enabled = false
-api_key = "..."
 model = "grok-3-mini"
 
 [groq]
 enabled = false
-api_key = "gsk_..."
 model = "llama-3.3-70b-versatile"
 
 [mistral]
 enabled = false
-api_key = "..."
 model = "mistral-large-latest"
 
 # See docs/configuration.md for all 23 providers

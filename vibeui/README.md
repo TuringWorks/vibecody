@@ -25,7 +25,7 @@ A modern, high-performance desktop code editor built with Rust + Tauri 2, featur
 - ✅ **Cloud**: Claude, OpenAI, Gemini, Grok, Groq, Mistral, DeepSeek, Cerebras, Zhipu
 - ✅ **Platform**: OpenRouter, Azure OpenAI, AWS Bedrock, GitHub Copilot, Vercel AI
 - ✅ **Meta**: Failover (auto-failover wrapper, chains multiple providers)
-- ✅ **BYOK Settings**: In-editor API key management (⚙️ Keys tab), keys persisted at `~/.vibeui/api_keys.json`
+- ✅ **BYOK Settings**: In-editor API key management (⚙️ Keys tab), keys stored encrypted in `~/.vibecli/profile_settings.db`
 - ✅ **`apiKeyHelper`**: Run a custom script to supply rotating credentials per provider
 - ✅ **Multiple Chat Tabs**: Independent chat sessions with per-tab provider selection
 - ✅ **Voice Input**: Web Speech API mic button (🎤) with interim transcript and pulse animation

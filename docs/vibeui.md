@@ -651,7 +651,7 @@ The React frontend communicates with the Rust backend using Tauri's `invoke()` I
 | `fetch_url_for_context(url)` | Fetch & strip a URL for AI context |
 | `inline_edit(file_path, language, selected_text, start_line, end_line, instruction, provider)` | AI-powered inline edit for Cmd+K overlay |
 | `get_provider_api_keys()` | Load BYOK API key settings |
-| `save_provider_api_keys(settings)` | Persist BYOK API keys to `~/.vibeui/api_keys.json` |
+| `save_provider_api_keys(settings)` | Persist BYOK API keys to `~/.vibecli/profile_settings.db` (encrypted) |
 | `search_workspace_symbols(query, workspace_path)` | Regex-based symbol search across workspace |
 | `semantic_search_codebase(query, workspace_path)` | Semantic codebase search via `CodebaseIndex` |
 
