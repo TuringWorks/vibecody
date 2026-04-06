@@ -1,9 +1,8 @@
 /**
  * CompanySecretsPanel — Encrypted company secrets vault.
  *
- * Lists secret keys (values hidden by default, reveal on click).
- * Supports add, delete. Values never stored in component state
- * longer than needed for display.
+ * Lists secret keys (values never shown in plain text).
+ * Add new secrets via form. Delete with confirmation.
  */
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
@@ -12,19 +11,30 @@ interface CompanySecretsPanelProps {
   workspacePath?: string | null;
 }
 
+const btnStyle: React.CSSProperties = {
+  fontSize: 11, padding: "3px 10px", cursor: "pointer", borderRadius: 4,
+  background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", color: "var(--text-primary)",
+};
+
+const inputStyle: React.CSSProperties = {
+  fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)",
+  border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)",
+};
+
 export function CompanySecretsPanel({ workspacePath: _wp }: CompanySecretsPanelProps) {
   const [listOutput, setListOutput] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [newKey, setNewKey] = useState("");
   const [newValue, setNewValue] = useState("");
+  const [showAdd, setShowAdd] = useState(false);
   const [cmdResult, setCmdResult] = useState<string | null>(null);
-  const [revealKey, setRevealKey] = useState<string | null>(null);
-  const [revealValue, setRevealValue] = useState<string | null>(null);
+  const [deleteKey, setDeleteKey] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const load = async () => {
     setLoading(true);
     try {
-      const out = await invoke<string>("company_cmd", { args: "secret list" });
+      const out = await invoke<string>("company_secret_list");
       setListOutput(out);
     } catch (e) {
       setListOutput(`Error: ${e}`);
@@ -37,129 +47,118 @@ export function CompanySecretsPanel({ workspacePath: _wp }: CompanySecretsPanelP
 
   const addSecret = async () => {
     if (!newKey.trim() || !newValue.trim()) return;
+    setSaving(true);
     try {
-      const out = await invoke<string>("company_cmd", { args: `secret set ${newKey.trim()} "${newValue.trim()}"` });
+      const out = await invoke<string>("company_secret_set", { key: newKey.trim(), value: newValue.trim() });
       setCmdResult(out);
       setNewKey("");
       setNewValue("");
+      setShowAdd(false);
       load();
     } catch (e) {
       setCmdResult(`Error: ${e}`);
-    }
-  };
-
-  const revealSecret = async (key: string) => {
-    if (revealKey === key) {
-      setRevealKey(null);
-      setRevealValue(null);
-      return;
-    }
-    try {
-      const val = await invoke<string>("company_cmd", { args: `secret get ${key}` });
-      setRevealKey(key);
-      setRevealValue(val);
-      // Auto-hide after 10 seconds
-      setTimeout(() => { setRevealKey(null); setRevealValue(null); }, 10000);
-    } catch (e) {
-      setCmdResult(`Error: ${e}`);
+    } finally {
+      setSaving(false);
     }
   };
 
   const deleteSecret = async (key: string) => {
+    if (!key.trim()) return;
     if (!confirm(`Delete secret "${key}"?`)) return;
     try {
-      const out = await invoke<string>("company_cmd", { args: `secret delete ${key}` });
+      const out = await invoke<string>("company_secret_delete", { key: key.trim() });
       setCmdResult(out);
+      setDeleteKey("");
       load();
     } catch (e) {
       setCmdResult(`Error: ${e}`);
     }
   };
 
-  const btnStyle: React.CSSProperties = {
-    fontSize: 11, padding: "3px 10px", cursor: "pointer", borderRadius: 4,
-    background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", color: "var(--text-primary)",
-  };
+  const isEmpty = !listOutput || listOutput.includes("No secrets");
+
   return (
     <div style={{ padding: 16, fontSize: 13, height: "100%", overflowY: "auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <span style={{ fontWeight: 600, fontSize: 14 }}>Secrets Vault</span>
-        <button onClick={load} style={btnStyle}>
-          Refresh
-        </button>
-      </div>
-
-      {/* Add secret */}
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 6 }}>Add Secret</div>
-        <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
-          <input
-            value={newKey}
-            onChange={(e) => setNewKey(e.target.value)}
-            placeholder="Key name"
-            style={{ flex: 1, fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }}
-          />
-          <input
-            value={newValue}
-            onChange={(e) => setNewValue(e.target.value)}
-            placeholder="Value"
-            type="password"
-            style={{ flex: 2, fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }}
-          />
-          <button onClick={addSecret} style={{...btnStyle, padding: "4px 12px"}}>
-            Set
+        <div style={{ display: "flex", gap: 6 }}>
+          <button onClick={() => { setShowAdd(!showAdd); setCmdResult(null); }} style={btnStyle}>
+            {showAdd ? "Cancel" : "+ Add Secret"}
           </button>
+          <button onClick={load} style={btnStyle}>Refresh</button>
         </div>
       </div>
+
+      {/* Add form */}
+      {showAdd && (
+        <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 6, padding: 12, marginBottom: 12 }}>
+          <div style={{ fontWeight: 600, marginBottom: 8 }}>Add Secret</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <input value={newKey} onChange={(e) => setNewKey(e.target.value)} placeholder="Key name *" autoFocus style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} />
+            <input
+              value={newValue}
+              onChange={(e) => setNewValue(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && addSecret()}
+              placeholder="Secret value *"
+              type="password"
+              style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
+            />
+            <button onClick={addSecret} disabled={saving || !newKey.trim() || !newValue.trim()} style={{ ...btnStyle, padding: "5px 16px", opacity: saving ? 0.6 : 1, alignSelf: "flex-start" }}>
+              {saving ? "Saving…" : "Save Secret"}
+            </button>
+          </div>
+        </div>
+      )}
 
       {cmdResult && (
         <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 4, padding: 8, marginBottom: 12, fontSize: 12 }}>
           {cmdResult}
+          <button onClick={() => setCmdResult(null)} style={{ marginLeft: 8, fontSize: 10, cursor: "pointer", background: "none", border: "none", color: "var(--text-secondary)" }}>✕</button>
         </div>
       )}
 
       {/* Secrets list */}
-      <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 6, padding: 12 }}>
-        {loading ? (
-          <span style={{ color: "var(--text-secondary)" }}>Loading…</span>
-        ) : (
-          <pre style={{ margin: 0, fontSize: 12, whiteSpace: "pre-wrap" }}>
-            {listOutput || "No secrets. Use the form above to add one."}
-          </pre>
-        )}
-      </div>
+      {isEmpty && !loading ? (
+        <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 6, padding: 24, textAlign: "center" }}>
+          <div style={{ fontSize: 28, marginBottom: 8 }}>🔐</div>
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>No secrets stored</div>
+          <div style={{ color: "var(--text-secondary)", fontSize: 12, marginBottom: 16 }}>
+            Add API keys, tokens, and credentials
+          </div>
+          <button onClick={() => setShowAdd(true)} style={{ ...btnStyle, padding: "6px 20px", fontSize: 12 }}>+ Add Secret</button>
+        </div>
+      ) : (
+        <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 6, padding: 12, marginBottom: 12 }}>
+          {loading ? (
+            <span style={{ color: "var(--text-secondary)" }}>Loading…</span>
+          ) : (
+            <pre style={{ margin: 0, fontSize: 12, whiteSpace: "pre-wrap", lineHeight: 1.7 }}>
+              {listOutput}
+            </pre>
+          )}
+        </div>
+      )}
 
-      {/* Reveal / Delete by key */}
-      <div style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "center" }}>
-        <input
-          placeholder="Key to reveal or delete"
-          id="secret-key-input"
-          style={{ flex: 1, fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }}
-        />
-        <button
-          onClick={() => {
-            const el = document.getElementById("secret-key-input") as HTMLInputElement;
-            if (el?.value) revealSecret(el.value.trim());
-          }}
-          style={btnStyle}
-        >
-          Reveal
-        </button>
-        <button
-          onClick={() => {
-            const el = document.getElementById("secret-key-input") as HTMLInputElement;
-            if (el?.value) deleteSecret(el.value.trim());
-          }}
-          style={{ ...btnStyle, padding: "4px 10px", border: "1px solid var(--danger, #e74c3c)", color: "var(--danger, #e74c3c)" }}
-        >
-          Delete
-        </button>
-      </div>
-
-      {revealKey && revealValue && (
-        <div style={{ marginTop: 12, background: "var(--warning-bg, rgba(255,200,0,0.1))", border: "1px solid var(--warning)", borderRadius: 4, padding: 10, fontSize: 12 }}>
-          <strong>{revealKey}:</strong> {revealValue}
-          <div style={{ marginTop: 4, fontSize: 11, color: "var(--text-secondary)" }}>Auto-hidden in 10s</div>
+      {/* Delete */}
+      {!isEmpty && (
+        <div>
+          <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 6, fontWeight: 600 }}>DELETE SECRET</div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              value={deleteKey}
+              onChange={(e) => setDeleteKey(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && deleteSecret(deleteKey)}
+              placeholder="Key name to delete"
+              style={{ ...inputStyle, flex: 1 }}
+            />
+            <button
+              onClick={() => deleteSecret(deleteKey)}
+              disabled={!deleteKey.trim()}
+              style={{ ...btnStyle, border: "1px solid var(--danger, #e74c3c)", color: "var(--danger, #e74c3c)", opacity: deleteKey.trim() ? 1 : 0.5 }}
+            >
+              Delete
+            </button>
+          </div>
         </div>
       )}
     </div>

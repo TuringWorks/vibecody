@@ -27,8 +27,8 @@ export function CompanyBudgetPanel({ workspacePath: _wp }: CompanyBudgetPanelPro
     setLoading(true);
     try {
       const [b, e] = await Promise.all([
-        invoke<string>("company_cmd", { args: "budget status" }),
-        invoke<string>("company_cmd", { args: "budget events" }),
+        invoke<string>("company_budget_status", { agentId: null }),
+        invoke<string>("company_budget_events", { agentId: null }),
       ]);
       setBudgetOutput(b);
       setEventsOutput(e);
@@ -44,8 +44,11 @@ export function CompanyBudgetPanel({ workspacePath: _wp }: CompanyBudgetPanelPro
   const setBudget = async () => {
     if (!agentId || !limitCents) return;
     try {
-      const out = await invoke<string>("company_cmd", {
-        args: `budget set ${agentId} ${month} ${parseInt(limitCents) * 100}`,
+      const out = await invoke<string>("company_budget_set", {
+        agentId,
+        limitCents: parseInt(limitCents) * 100,
+        hardStop: false,
+        month: month || null,
       });
       setCmdResult(out);
       load();

@@ -310,14 +310,25 @@ fn cmd_approval(parts: &[&str]) -> String {
                         Ok(approvals) => approvals.iter().map(|a| a.summary_line()).collect::<Vec<_>>().join("\n"),
                     }
                 }
-                "decide" => {
-                    let id = parts.get(1).copied().unwrap_or("");
-                    let decision = parts.get(2).copied().unwrap_or("");
-                    if id.is_empty() || decision.is_empty() {
-                        return "Usage: /company approval decide <id> <approve|reject> [reason]".into();
-                    }
-                    let approved = decision == "approve";
-                    let decider = parts.get(3).copied().unwrap_or("system");
+                "decide" | "approve" | "reject" => {
+                    // Supports:
+                    //   approval decide <id> <approve|reject> [decider]
+                    //   approval approve <id> [decider]
+                    //   approval reject <id> [decider]
+                    let (id, approved, decider) = if sub == "decide" {
+                        let id = parts.get(1).copied().unwrap_or("");
+                        let decision = parts.get(2).copied().unwrap_or("");
+                        if id.is_empty() || decision.is_empty() {
+                            return "Usage: /company approval decide <id> <approve|reject> [decider]".into();
+                        }
+                        (id, decision == "approve", parts.get(3).copied().unwrap_or("system"))
+                    } else {
+                        let id = parts.get(1).copied().unwrap_or("");
+                        if id.is_empty() {
+                            return format!("Usage: /company approval {} <id> [decider]", sub);
+                        }
+                        (id, sub == "approve", parts.get(2).copied().unwrap_or("system"))
+                    };
                     match ap.decide(id, approved, decider) {
                         Ok(a) => format!("✓ {}", a.summary_line()),
                         Err(e) => format!("Error: {e}"),

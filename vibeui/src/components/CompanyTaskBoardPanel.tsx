@@ -118,18 +118,28 @@ export function CompanyTaskBoardPanel({ workspacePath: _wp }: CompanyTaskBoardPa
         </div>
       )}
 
-      <div style={{
-        background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)",
-        borderRadius: 6, padding: 12, minHeight: 200,
-      }}>
-        {loading ? (
-          <span style={{ color: "var(--text-secondary)" }}>Loading…</span>
-        ) : (
-          <pre style={{ margin: 0, fontSize: 12, whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
-            {output || "No tasks yet.\nWorkflow: backlog → todo → in_progress → in_review → done"}
-          </pre>
-        )}
-      </div>
+      {!loading && (!output || output.includes("No tasks")) ? (
+        <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 6, padding: 24, textAlign: "center" }}>
+          <div style={{ fontSize: 28, marginBottom: 8 }}>📋</div>
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>No tasks yet</div>
+          <div style={{ color: "var(--text-secondary)", fontSize: 12, marginBottom: 4 }}>
+            Use the form above to create your first task
+          </div>
+          <div style={{ color: "var(--text-secondary)", fontSize: 11 }}>
+            Workflow: backlog → todo → in_progress → in_review → done
+          </div>
+        </div>
+      ) : (
+        <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 6, padding: 12, minHeight: 120 }}>
+          {loading ? (
+            <span style={{ color: "var(--text-secondary)" }}>Loading…</span>
+          ) : (
+            <pre style={{ margin: 0, fontSize: 12, whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
+              {output}
+            </pre>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,132 +1,67 @@
 /**
- * CompanyOrgChartPanel — SVG/ASCII org chart for company agents.
+ * CompanyOrgChartPanel — Agent roster with hire/fire actions.
  *
- * Renders the company reporting hierarchy. Agents are shown with
- * their name, title, role, and status. Calls company_agent_list
- * and company_cmd (agent tree) Tauri commands.
+ * Lists all agents with role, title, status. Hire new agents via form.
+ * Fire agents with confirmation. Shows reporting hierarchy tree.
  */
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-
-interface AgentNode {
-  id: string;
-  name: string;
-  title: string;
-  role: string;
-  status: string;
-  reports_to: string | null;
-  monthly_budget_cents: number;
-}
 
 interface CompanyOrgChartPanelProps {
   workspacePath?: string | null;
 }
 
+const ROLES = ["ceo", "cto", "cfo", "engineer", "designer", "analyst", "agent", "manager", "hr"];
+
 const STATUS_COLOR: Record<string, string> = {
   idle: "var(--text-secondary)",
-  active: "var(--success)",
-  paused: "var(--warning)",
+  active: "var(--success, #27ae60)",
+  paused: "var(--warning, #f39c12)",
   terminated: "var(--danger, #e74c3c)",
 };
 
 const STATUS_BADGE: Record<string, string> = {
-  idle: "○",
-  active: "●",
-  paused: "⏸",
-  terminated: "✗",
+  idle: "○", active: "●", paused: "⏸", terminated: "✗",
 };
 
-function buildTree(agents: AgentNode[]): Map<string | null, AgentNode[]> {
-  const map = new Map<string | null, AgentNode[]>();
-  for (const a of agents) {
-    const key = a.reports_to ?? null;
-    if (!map.has(key)) map.set(key, []);
-    map.get(key)!.push(a);
-  }
-  return map;
-}
+const btnStyle: React.CSSProperties = {
+  fontSize: 11, padding: "3px 10px", cursor: "pointer", borderRadius: 4,
+  background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", color: "var(--text-primary)",
+};
 
-function OrgNode({
-  agent,
-  childMap,
-  depth,
-  selected,
-  onSelect,
-}: {
-  agent: AgentNode;
-  childMap: Map<string | null, AgentNode[]>;
-  depth: number;
-  selected: string | null;
-  onSelect: (id: string) => void;
-}) {
-  const children = childMap.get(agent.id) ?? [];
-  const color = STATUS_COLOR[agent.status] ?? "var(--text-primary)";
-  const badge = STATUS_BADGE[agent.status] ?? "?";
-  const isSelected = selected === agent.id;
-
-  return (
-    <div style={{ marginLeft: depth * 24 }}>
-      <div
-        onClick={() => onSelect(agent.id)}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          padding: "4px 8px",
-          borderRadius: 4,
-          cursor: "pointer",
-          background: isSelected ? "var(--selection-bg, rgba(99,179,237,0.15))" : "transparent",
-          marginBottom: 2,
-        }}
-      >
-        <span style={{ color, fontSize: 12 }}>{badge}</span>
-        <span style={{ fontWeight: depth === 0 ? 600 : 400, fontSize: 13 }}>
-          {agent.name}
-        </span>
-        <span style={{ color: "var(--text-secondary)", fontSize: 12 }}>
-          {agent.title} · <em>{agent.role}</em>
-        </span>
-        {agent.monthly_budget_cents > 0 && (
-          <span style={{ marginLeft: "auto", color: "var(--text-secondary)", fontSize: 11 }}>
-            ${(agent.monthly_budget_cents / 100).toFixed(0)}/mo
-          </span>
-        )}
-      </div>
-      {children.map((child) => (
-        <OrgNode
-          key={child.id}
-          agent={child}
-          childMap={childMap}
-          depth={depth + 1}
-          selected={selected}
-          onSelect={onSelect}
-        />
-      ))}
-    </div>
-  );
-}
+const inputStyle: React.CSSProperties = {
+  fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)",
+  border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)",
+};
 
 export function CompanyOrgChartPanel({ workspacePath: _wp }: CompanyOrgChartPanelProps) {
-  const [agents, setAgents] = useState<AgentNode[]>([]);
-  const [selected, setSelected] = useState<string | null>(null);
+  const [agentText, setAgentText] = useState<string>("");
+  const [treeText, setTreeText] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [view, setView] = useState<"list" | "tree" | "hire">("list");
+
+  // Hire form
+  const [hireName, setHireName] = useState("");
+  const [hireTitle, setHireTitle] = useState("");
+  const [hireRole, setHireRole] = useState("agent");
+  const [hiring, setHiring] = useState(false);
+  const [hireResult, setHireResult] = useState<string | null>(null);
+
+  // Fire
+  const [fireId, setFireId] = useState("");
+  const [actionMsg, setActionMsg] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
     setError(null);
     try {
-      const raw = await invoke<string>("company_agent_list");
-      // Parse text output into structured data
-      // Real JSON will come when the backend returns JSON responses
-      // For now, use the text output as-is and show it
-      const lines = raw.split("\n").filter(Boolean);
-      if (lines.length === 0 || raw.includes("No agents")) {
-        setAgents([]);
-      } else {
-        // Fallback: show raw text if JSON not yet available
-        setAgents([]);
-      }
+      const [listOut, treeOut] = await Promise.all([
+        invoke<string>("company_agent_list"),
+        invoke<string>("company_cmd", { args: "agent tree" }),
+      ]);
+      setAgentText(listOut);
+      setTreeText(treeOut);
     } catch (e) {
       setError(String(e));
     } finally {
@@ -136,86 +71,155 @@ export function CompanyOrgChartPanel({ workspacePath: _wp }: CompanyOrgChartPane
 
   useEffect(() => { load(); }, []);
 
-  const selectedAgent = agents.find((a) => a.id === selected);
-  const childMap = buildTree(agents);
-  // Find root nodes (no parent or parent not in list)
-  const agentIds = new Set(agents.map((a) => a.id));
-  const roots = agents.filter((a) => !a.reports_to || !agentIds.has(a.reports_to));
-  const btnStyle: React.CSSProperties = {
-    fontSize: 11, padding: "3px 10px", cursor: "pointer", borderRadius: 4,
-    background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", color: "var(--text-primary)",
+  const hireAgent = async () => {
+    if (!hireName.trim()) return;
+    setHiring(true);
+    setHireResult(null);
+    try {
+      const out = await invoke<string>("company_agent_hire", {
+        name: hireName.trim(),
+        title: hireTitle.trim() || hireName.trim(),
+        role: hireRole,
+        reportsTo: null,
+      });
+      setHireResult(out);
+      setHireName("");
+      setHireTitle("");
+      setHireRole("agent");
+      load();
+    } catch (e) {
+      setHireResult(`Error: ${e}`);
+    } finally {
+      setHiring(false);
+    }
   };
 
+  const fireAgent = async (id: string) => {
+    if (!id.trim()) return;
+    if (!confirm(`Fire agent "${id}"?`)) return;
+    try {
+      const out = await invoke<string>("company_agent_fire", { id: id.trim() });
+      setActionMsg(out);
+      setFireId("");
+      load();
+    } catch (e) {
+      setActionMsg(`Error: ${e}`);
+    }
+  };
+
+  const isEmpty = !agentText || agentText.includes("No agents");
+
   return (
-    <div style={{ display: "flex", height: "100%", overflow: "hidden" }}>
-      {/* Left pane: org tree */}
-      <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-          <span style={{ fontWeight: 600, fontSize: 14 }}>Org Chart</span>
-          <button
-            onClick={load}
-            style={btnStyle}
-          >
-            Refresh
-          </button>
+    <div style={{ padding: 16, fontSize: 13, height: "100%", overflowY: "auto" }}>
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <span style={{ fontWeight: 600, fontSize: 14 }}>Agents</span>
+        <div style={{ display: "flex", gap: 6 }}>
+          {(["list", "tree", "hire"] as const).map((v) => (
+            <button key={v} onClick={() => setView(v)} style={{
+              ...btnStyle, padding: "2px 8px",
+              background: view === v ? "var(--accent, #4a9eff)" : "var(--bg-tertiary)",
+              color: view === v ? "#fff" : "var(--text-primary)",
+              border: `1px solid ${view === v ? "var(--accent, #4a9eff)" : "var(--border-color)"}`,
+            }}>
+              {v === "hire" ? "+ Hire" : v.charAt(0).toUpperCase() + v.slice(1)}
+            </button>
+          ))}
+          <button onClick={load} style={btnStyle}>Refresh</button>
         </div>
-
-        {loading && <div style={{ color: "var(--text-secondary)" }}>Loading…</div>}
-        {error && <div style={{ color: "var(--danger, #e74c3c)", fontSize: 12 }}>{error}</div>}
-
-        {!loading && agents.length === 0 && !error && (
-          <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>
-            <p>No agents yet.</p>
-            <p style={{ marginTop: 8 }}>
-              Use <code>/company agent hire &lt;name&gt;</code> in the REPL to add agents.
-            </p>
-          </div>
-        )}
-
-        {roots.map((root) => (
-          <OrgNode
-            key={root.id}
-            agent={root}
-            childMap={childMap}
-            depth={0}
-            selected={selected}
-            onSelect={setSelected}
-          />
-        ))}
       </div>
 
-      {/* Right pane: agent detail */}
-      {selectedAgent && (
-        <div
-          style={{
-            width: 240,
-            borderLeft: "1px solid var(--border)",
-            padding: 16,
-            overflowY: "auto",
-            fontSize: 13,
-          }}
-        >
-          <div style={{ fontWeight: 600, marginBottom: 8 }}>{selectedAgent.name}</div>
-          <div style={{ color: "var(--text-secondary)", marginBottom: 4 }}>{selectedAgent.title}</div>
-          <div style={{ marginBottom: 4 }}>
-            <span style={{ color: "var(--text-secondary)" }}>Role: </span>
-            {selectedAgent.role}
+      {loading && <div style={{ color: "var(--text-secondary)" }}>Loading…</div>}
+      {error && <div style={{ color: "var(--danger, #e74c3c)", fontSize: 12, marginBottom: 8 }}>{error}</div>}
+      {actionMsg && (
+        <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 4, padding: 8, marginBottom: 12, fontSize: 12 }}>
+          {actionMsg}
+          <button onClick={() => setActionMsg(null)} style={{ marginLeft: 8, fontSize: 10, cursor: "pointer", background: "none", border: "none", color: "var(--text-secondary)" }}>✕</button>
+        </div>
+      )}
+
+      {/* Hire form */}
+      {view === "hire" && (
+        <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 6, padding: 14, marginBottom: 12 }}>
+          <div style={{ fontWeight: 600, marginBottom: 10 }}>Hire New Agent</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+            <input value={hireName} onChange={(e) => setHireName(e.target.value)} placeholder="Name *" style={inputStyle} autoFocus />
+            <input value={hireTitle} onChange={(e) => setHireTitle(e.target.value)} placeholder="Title (e.g. Senior Engineer)" style={inputStyle} />
+            <select value={hireRole} onChange={(e) => setHireRole(e.target.value)} style={{ ...inputStyle }}>
+              {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+            </select>
+            <input placeholder="Reports to (agent name, optional)" style={inputStyle} />
           </div>
-          <div style={{ marginBottom: 4 }}>
-            <span style={{ color: "var(--text-secondary)" }}>Status: </span>
-            <span style={{ color: STATUS_COLOR[selectedAgent.status] }}>
-              {selectedAgent.status}
-            </span>
-          </div>
-          {selectedAgent.monthly_budget_cents > 0 && (
-            <div style={{ marginBottom: 4 }}>
-              <span style={{ color: "var(--text-secondary)" }}>Budget: </span>
-              ${(selectedAgent.monthly_budget_cents / 100).toFixed(0)}/mo
+          {hireResult && <div style={{ fontSize: 12, marginBottom: 8, color: hireResult.startsWith("Error") ? "var(--danger, #e74c3c)" : "var(--success, #27ae60)" }}>{hireResult}</div>}
+          <button onClick={hireAgent} disabled={hiring || !hireName.trim()} style={{ ...btnStyle, padding: "5px 16px", opacity: hiring ? 0.6 : 1 }}>
+            {hiring ? "Hiring…" : "Hire Agent"}
+          </button>
+        </div>
+      )}
+
+      {/* List view */}
+      {view === "list" && (
+        <>
+          {isEmpty && !loading && !error && (
+            <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 6, padding: 24, textAlign: "center" }}>
+              <div style={{ fontSize: 28, marginBottom: 8 }}>👤</div>
+              <div style={{ fontWeight: 600, marginBottom: 4 }}>No agents yet</div>
+              <div style={{ color: "var(--text-secondary)", fontSize: 12, marginBottom: 16 }}>Hire your first agent to build your team</div>
+              <button onClick={() => setView("hire")} style={{ ...btnStyle, padding: "6px 20px", fontSize: 12 }}>+ Hire Agent</button>
             </div>
           )}
-          <div style={{ marginTop: 8, fontSize: 11, color: "var(--text-secondary)" }}>
-            ID: {selectedAgent.id.slice(0, 8)}…
-          </div>
+          {!isEmpty && (
+            <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 6, padding: 12, marginBottom: 12 }}>
+              <pre style={{ margin: 0, fontSize: 12, whiteSpace: "pre-wrap", lineHeight: 1.7, fontFamily: "inherit" }}>
+                {agentText.split("\n").filter(Boolean).map((line, i) => {
+                  // Parse line: "  [status] name — title (role)"
+                  const m = line.match(/\[(\w+)\]\s+(.+?)\s+—\s+(.+?)\s+\((\w+)\)/);
+                  if (!m) return <div key={i} style={{ color: "var(--text-secondary)" }}>{line}</div>;
+                  const [, status, name, title, role] = m;
+                  const color = STATUS_COLOR[status] ?? "var(--text-primary)";
+                  const badge = STATUS_BADGE[status] ?? "?";
+                  return (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "3px 0" }}>
+                      <span style={{ color, fontSize: 11 }}>{badge}</span>
+                      <span style={{ fontWeight: 500 }}>{name}</span>
+                      <span style={{ color: "var(--text-secondary)", fontSize: 11 }}>{title}</span>
+                      <span style={{ fontSize: 10, padding: "1px 5px", borderRadius: 3, background: "var(--bg-tertiary)", color: "var(--text-secondary)" }}>{role}</span>
+                    </div>
+                  );
+                })}
+              </pre>
+            </div>
+          )}
+
+          {/* Fire by ID */}
+          {!isEmpty && (
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <input
+                value={fireId}
+                onChange={(e) => setFireId(e.target.value)}
+                placeholder="Agent name or ID to fire"
+                style={{ ...inputStyle, flex: 1 }}
+              />
+              <button
+                onClick={() => fireAgent(fireId)}
+                disabled={!fireId.trim()}
+                style={{ ...btnStyle, border: "1px solid var(--danger, #e74c3c)", color: "var(--danger, #e74c3c)", opacity: fireId.trim() ? 1 : 0.5 }}
+              >
+                Fire
+              </button>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Tree view */}
+      {view === "tree" && (
+        <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 6, padding: 12 }}>
+          {treeText ? (
+            <pre style={{ margin: 0, fontSize: 12, whiteSpace: "pre-wrap", lineHeight: 1.7 }}>{treeText}</pre>
+          ) : (
+            <div style={{ color: "var(--text-secondary)", fontSize: 12 }}>No org chart yet.</div>
+          )}
         </div>
       )}
     </div>
