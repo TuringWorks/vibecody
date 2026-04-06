@@ -69,10 +69,10 @@ export function CompanyDocumentsPanel({ workspacePath: _wp }: CompanyDocumentsPa
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <span style={{ fontWeight: 600, fontSize: 14 }}>Documents</span>
         <div style={{ display: "flex", gap: 6 }}>
-          <button onClick={() => setMode("list")} style={{ fontSize: 11, padding: "2px 8px", cursor: "pointer", background: mode === "list" ? "var(--accent, #4a9eff)" : undefined, color: mode === "list" ? "#fff" : undefined }}>
+          <button onClick={() => setMode("list")} style={{ ...btnStyle, padding: "2px 8px", background: mode === "list" ? "var(--accent, #4a9eff)" : "var(--bg-tertiary)", color: mode === "list" ? "#fff" : "var(--text-primary)", border: `1px solid ${mode === "list" ? "var(--accent, #4a9eff)" : "var(--border-color)"}` }}>
             List
           </button>
-          <button onClick={() => setMode("create")} style={{ fontSize: 11, padding: "2px 8px", cursor: "pointer", background: mode === "create" ? "var(--accent, #4a9eff)" : undefined, color: mode === "create" ? "#fff" : undefined }}>
+          <button onClick={() => setMode("create")} style={{ ...btnStyle, padding: "2px 8px", background: mode === "create" ? "var(--accent, #4a9eff)" : "var(--bg-tertiary)", color: mode === "create" ? "#fff" : "var(--text-primary)", border: `1px solid ${mode === "create" ? "var(--accent, #4a9eff)" : "var(--border-color)"}` }}>
             + New
           </button>
           <button onClick={loadList} style={btnStyle}>

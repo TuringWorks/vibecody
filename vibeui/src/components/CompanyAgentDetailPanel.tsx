@@ -98,7 +98,7 @@ export function CompanyAgentDetailPanel({ workspacePath: _wp }: CompanyAgentDeta
         </button>
         <button
           onClick={fireAgent}
-          style={{ fontSize: 11, padding: "4px 12px", cursor: "pointer", color: "var(--danger, #e74c3c)" }}
+          style={{ ...btnStyle, padding: "4px 12px", border: "1px solid var(--danger, #e74c3c)", color: "var(--danger, #e74c3c)" }}
         >
           Fire
         </button>

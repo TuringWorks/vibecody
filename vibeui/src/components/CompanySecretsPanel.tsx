@@ -150,7 +150,7 @@ export function CompanySecretsPanel({ workspacePath: _wp }: CompanySecretsPanelP
             const el = document.getElementById("secret-key-input") as HTMLInputElement;
             if (el?.value) deleteSecret(el.value.trim());
           }}
-          style={{ fontSize: 11, padding: "4px 10px", cursor: "pointer", color: "var(--danger, #e74c3c)" }}
+          style={{ ...btnStyle, padding: "4px 10px", border: "1px solid var(--danger, #e74c3c)", color: "var(--danger, #e74c3c)" }}
         >
           Delete
         </button>

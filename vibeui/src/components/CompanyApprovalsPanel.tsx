@@ -109,13 +109,13 @@ export function CompanyApprovalsPanel({ workspacePath: _wp }: CompanyApprovalsPa
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         <button
           onClick={() => decide("approve")}
-          style={{ fontSize: 11, padding: "4px 12px", cursor: "pointer", color: "var(--success)" }}
+          style={{ ...btnStyle, padding: "4px 12px", border: "1px solid var(--success, #27ae60)", color: "var(--success, #27ae60)" }}
         >
           ✓ Approve
         </button>
         <button
           onClick={() => decide("reject")}
-          style={{ fontSize: 11, padding: "4px 12px", cursor: "pointer", color: "var(--danger, #e74c3c)" }}
+          style={{ ...btnStyle, padding: "4px 12px", border: "1px solid var(--danger, #e74c3c)", color: "var(--danger, #e74c3c)" }}
         >
           ✗ Reject
         </button>

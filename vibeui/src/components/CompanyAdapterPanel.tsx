@@ -115,7 +115,7 @@ export function CompanyAdapterPanel({ workspacePath: _wp }: CompanyAdapterPanelP
             const el = document.getElementById("remove-adapter-input") as HTMLInputElement;
             if (el?.value) remove(el.value.trim());
           }}
-          style={{ fontSize: 11, padding: "4px 10px", cursor: "pointer", color: "var(--danger, #e74c3c)" }}
+          style={{ ...btnStyle, padding: "4px 10px", border: "1px solid var(--danger, #e74c3c)", color: "var(--danger, #e74c3c)" }}
         >
           Remove
         </button>
