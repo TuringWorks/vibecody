@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useModelRegistry, PROVIDER_DEFAULT_MODEL } from "../hooks/useModelRegistry";
 import { listen } from "@tauri-apps/api/event";
 import {
   Compass, Handshake, Link, Trophy, BrainCircuit,
@@ -43,15 +44,7 @@ interface ProviderConfig {
 }
 
 // ── Constants ────────────────────────────────────────────────────────────────
-
-const AVAILABLE_PROVIDERS: ProviderConfig[] = [
-  { enabled: true, provider: "claude", model: "claude-3.5-sonnet" },
-  { enabled: true, provider: "openai", model: "gpt-4o" },
-  { enabled: false, provider: "gemini", model: "gemini-2.0-flash" },
-  { enabled: false, provider: "grok", model: "grok-2" },
-  { enabled: false, provider: "groq", model: "llama-3.3-70b-versatile" },
-  { enabled: false, provider: "ollama", model: "llama3.2" },
-];
+// AVAILABLE_PROVIDERS is built dynamically from useModelRegistry in the component.
 
 interface ModeInfo {
   id: string;
@@ -242,12 +235,17 @@ const S = {
 // ── Component ────────────────────────────────────────────────────────────────
 
 export function SuperBrainPanel() {
+  const { providers: registryProviders, modelsForProvider } = useModelRegistry();
   const [mode, setMode] = useState("router");
-  const [providers, setProviders] = useState<ProviderConfig[]>(
-    AVAILABLE_PROVIDERS.map(p => ({ ...p }))
+  const [providers, setProviders] = useState<ProviderConfig[]>(() =>
+    registryProviders.map(p => ({
+      enabled: p === "claude" || p === "openai",
+      provider: p,
+      model: PROVIDER_DEFAULT_MODEL[p] ?? "",
+    }))
   );
   const [judgeProvider, setJudgeProvider] = useState("claude");
-  const [judgeModel, setJudgeModel] = useState("claude-3.5-sonnet");
+  const [judgeModel, setJudgeModel] = useState(PROVIDER_DEFAULT_MODEL.claude ?? "claude-sonnet-4-6");
   const [prompt, setPrompt] = useState("");
   const [thinking, setThinking] = useState(false);
   const [progress, setProgress] = useState("");
@@ -377,9 +375,13 @@ export function SuperBrainPanel() {
                     }
                   </span>
                   <span style={{ fontSize: 12, fontWeight: 600, minWidth: 52 }}>{p.provider}</span>
+                  <datalist id={`sb-models-${i}`}>
+                    {modelsForProvider(p.provider).map(m => <option key={m} value={m} />)}
+                  </datalist>
                   <input
                     style={{ ...S.input, flex: 1 }}
                     value={p.model}
+                    list={`sb-models-${i}`}
                     onChange={e => updateProviderModel(i, e.target.value)}
                     disabled={!p.enabled}
                   />
@@ -396,13 +398,17 @@ export function SuperBrainPanel() {
                     value={judgeProvider}
                     onChange={e => setJudgeProvider(e.target.value)}
                   >
-                    {["claude", "openai", "gemini", "grok", "groq", "ollama"].map(p => (
+                    {registryProviders.map(p => (
                       <option key={p} value={p}>{p}</option>
                     ))}
                   </select>
+                  <datalist id="sb-judge-models">
+                    {modelsForProvider(judgeProvider).map(m => <option key={m} value={m} />)}
+                  </datalist>
                   <input
                     style={{ ...S.input, width: 200 }}
                     value={judgeModel}
+                    list="sb-judge-models"
                     onChange={e => setJudgeModel(e.target.value)}
                     placeholder="Judge model"
                   />

@@ -12,8 +12,16 @@ import { OLLAMA_CHAT_MODELS } from "../constants/ollamaModels";
 const CACHE_KEY = "vibecody:model-registry";
 const CACHE_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
 
+/**
+ * Single source of truth for providers and models.
+ *
+ * To add a provider: add an entry to STATIC_MODELS and PROVIDER_DEFAULT_MODEL.
+ * To add/update models for a provider: edit the array in STATIC_MODELS.
+ * All panels consume this via useModelRegistry() — no other file needs changing.
+ */
+
 /** Known models per provider (static fallback when API unavailable) */
-const STATIC_MODELS: Record<string, string[]> = {
+export const STATIC_MODELS: Record<string, string[]> = {
   claude: ["claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5", "claude-sonnet-4-5", "claude-3-5-sonnet-20241022"],
   openai: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "o4-mini", "o3", "o3-mini", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"],
   gemini: ["gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-lite"],
@@ -36,7 +44,31 @@ const STATIC_MODELS: Record<string, string[]> = {
   sambanova: ["Meta-Llama-3.3-70B-Instruct"],
 };
 
-const ALL_PROVIDERS = Object.keys(STATIC_MODELS);
+export const ALL_PROVIDERS = Object.keys(STATIC_MODELS);
+
+/** Default model to pre-select when a provider is chosen in a dropdown. */
+export const PROVIDER_DEFAULT_MODEL: Record<string, string> = {
+  claude:       "claude-sonnet-4-6",
+  openai:       "gpt-4o",
+  gemini:       "gemini-2.5-flash",
+  groq:         "llama-3.3-70b-versatile",
+  grok:         "grok-3-mini",
+  mistral:      "mistral-large-latest",
+  deepseek:     "deepseek-chat",
+  cerebras:     "llama-3.3-70b",
+  perplexity:   "sonar-pro",
+  together:     "meta-llama/Llama-3.3-70B-Instruct",
+  fireworks:    "accounts/fireworks/models/llama-v3p3-70b-instruct",
+  openrouter:   "anthropic/claude-3.5-sonnet",
+  azure_openai: "gpt-4o",
+  bedrock:      "anthropic.claude-3-5-sonnet-20241022-v2:0",
+  copilot:      "gpt-4o",
+  ollama:       "qwen3",
+  zhipu:        "glm-4-plus",
+  vercel_ai:    "",
+  minimax:      "abab6.5s-chat",
+  sambanova:    "Meta-Llama-3.3-70B-Instruct",
+};
 
 export interface ModelInfo {
   id: string;

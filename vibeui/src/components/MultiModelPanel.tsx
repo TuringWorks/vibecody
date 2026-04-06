@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useModelRegistry, PROVIDER_DEFAULT_MODEL } from "../hooks/useModelRegistry";
 
 interface ModelResponse {
  provider: string;
@@ -14,17 +15,6 @@ interface CompareResult {
  a: ModelResponse;
  b: ModelResponse;
 }
-
-const PROVIDERS = ["ollama", "claude", "openai", "gemini", "grok", "groq"];
-
-const DEFAULT_MODELS: Record<string, string> = {
- ollama: "codellama",
- claude: "claude-sonnet-4-6",
- openai: "gpt-4o",
- gemini: "gemini-2.0-flash",
- grok: "grok-2",
- groq: "llama-3.3-70b-versatile",
-};
 
 function ResponseCard({ resp, side }: { resp: ModelResponse; side: "A" | "B" }) {
  const isError = !!resp.error;
@@ -77,19 +67,25 @@ function ProviderSelector({
  label: string; provider: string; model: string;
  onProvider: (v: string) => void; onModel: (v: string) => void;
 }) {
+ const { providers, modelsForProvider } = useModelRegistry();
+ const listId = `multi-models-${label}`;
  return (
  <div style={{ display: "flex", alignItems: "center", gap: "8px", flex: 1 }}>
  <span style={{ color: "var(--text-secondary)", fontSize: "12px", minWidth: "14px" }}>{label}</span>
  <select
  value={provider}
- onChange={e => { onProvider(e.target.value); onModel(DEFAULT_MODELS[e.target.value] ?? ""); }}
+ onChange={e => { onProvider(e.target.value); onModel(PROVIDER_DEFAULT_MODEL[e.target.value] ?? ""); }}
  style={{ background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "4px", padding: "3px 6px", fontSize: "12px" }}
  >
- {PROVIDERS.map(p => <option key={p} value={p}>{p}</option>)}
+ {providers.map(p => <option key={p} value={p}>{p}</option>)}
  </select>
+ <datalist id={listId}>
+ {modelsForProvider(provider).map(m => <option key={m} value={m} />)}
+ </datalist>
  <input
  value={model}
  onChange={e => onModel(e.target.value)}
+ list={listId}
  placeholder="model"
  style={{ flex: 1, background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "4px", padding: "3px 6px", fontSize: "12px", minWidth: 0 }}
  />
@@ -100,9 +96,9 @@ function ProviderSelector({
 export function MultiModelPanel() {
  const [prompt, setPrompt] = useState("");
  const [providerA, setProviderA] = useState("ollama");
- const [modelA, setModelA] = useState(DEFAULT_MODELS.ollama);
+ const [modelA, setModelA] = useState(PROVIDER_DEFAULT_MODEL.ollama ?? "");
  const [providerB, setProviderB] = useState("claude");
- const [modelB, setModelB] = useState(DEFAULT_MODELS.claude);
+ const [modelB, setModelB] = useState(PROVIDER_DEFAULT_MODEL.claude ?? "");
  const [result, setResult] = useState<CompareResult | null>(null);
  const [loading, setLoading] = useState(false);
  const [error, setError] = useState<string | null>(null);

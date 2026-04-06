@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Clock, CircleCheck, CircleX, Square } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
 import { Toaster } from './Toaster';
+import { useModelRegistry } from '../hooks/useModelRegistry';
 
 interface JobRecord {
  session_id: string;
@@ -25,11 +26,11 @@ const STATUS_ICONS: Record<string, React.ReactNode> = {
  cancelled: <Square size={14} strokeWidth={1.5} />,
 };
 
-const PROVIDERS = ['ollama', 'claude', 'openai', 'gemini', 'grok'];
 const APPROVALS = ['suggest', 'auto-edit', 'full-auto'];
 
 export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: BackgroundJobsPanelProps) {
  const { toasts, toast, dismiss } = useToast();
+ const { providers: PROVIDERS } = useModelRegistry();
  const [jobs, setJobs] = useState<JobRecord[]>([]);
  const [daemonOnline, setDaemonOnline] = useState(false);
  const [expandedId, setExpandedId] = useState<string | null>(null);
