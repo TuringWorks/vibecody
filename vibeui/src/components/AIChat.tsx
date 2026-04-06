@@ -203,6 +203,8 @@ export interface Message {
  isRetry?: boolean;
  /** Attachments sent with this message (for display in chat history). */
  attachments?: ChatAttachment[];
+ /** True when this message is a synthetic compaction summary of earlier messages. */
+ isSummary?: boolean;
 }
 
 // ── Attachment constants (module scope for stable references) ─────────────────
@@ -249,6 +251,11 @@ interface AIChatProps {
  messages?: Message[];
  /** Called when messages change (controlled mode). */
  onMessagesChange?: (msgs: Message[]) => void;
+ /**
+  * Pinned memory facts formatted as a system-prompt prefix.
+  * Injected into every outgoing message's context.
+  */
+ pinnedMemory?: string;
 }
 
 // ── Slash commands ───────────────────────────────────────────────────────────
@@ -754,6 +761,7 @@ export function AIChat({
   onPendingInputConsumed,
   messages: controlledMessages,
   onMessagesChange,
+  pinnedMemory,
 }: AIChatProps) {
   const [agentMode, setAgentMode] = useState<AgentMode>("chat");
   const [localMessages, setLocalMessages] = useState<Message[]>([]);
@@ -845,6 +853,60 @@ export function AIChat({
       setIsLoading(false);
     }
   }, [messages]);
+
+  // ── Auto-compaction ──────────────────────────────────────────────────────────
+  // When the conversation grows beyond COMPACTION_THRESHOLD chars, automatically
+  // summarise the older half and splice it into a single summary message.
+  // Never fires while a response is in-flight.
+  const COMPACTION_THRESHOLD = 80_000;
+  const COMPACTION_KEEP_LAST = 20;
+  const isCompactingRef = useRef(false);
+  const lastCompactionLengthRef = useRef(0);
+
+  useEffect(() => {
+    if (isLoading) return;                          // never interrupt a stream
+    if (isCompactingRef.current) return;
+    if (messages.length < COMPACTION_KEEP_LAST + 2) return;
+    // Require at least 10k new chars since last compaction to avoid re-triggering
+    const totalChars = messages.reduce((s, m) => s + m.content.length, 0);
+    if (totalChars < COMPACTION_THRESHOLD) return;
+    if (totalChars - lastCompactionLengthRef.current < 10_000) return;
+
+    isCompactingRef.current = true;
+    lastCompactionLengthRef.current = totalChars;
+
+    const toSummarise = messages.slice(0, messages.length - COMPACTION_KEEP_LAST);
+    const kept = messages.slice(messages.length - COMPACTION_KEEP_LAST);
+
+    const summaryPrompt = "Summarise the following conversation into a concise paragraph (max 300 words) preserving key facts, decisions, and any important code snippets mentioned:\n\n"
+      + toSummarise.map((m) => `${m.role}: ${m.content}`).join("\n\n");
+
+    invoke<{ message: string }>("summarise_messages", { content: summaryPrompt })
+      .then((res) => {
+        const summaryText = res?.message ?? toSummarise.map((m) => `${m.role}: ${m.content.slice(0, 120)}`).join(" | ");
+        const summaryMsg: Message = {
+          role: "assistant",
+          content: `Conversation summary (earlier messages compacted):\n\n${summaryText}`,
+          isSummary: true,
+          timestamp: Date.now(),
+        };
+        setMessages([summaryMsg, ...kept]);
+      })
+      .catch(() => {
+        // Backend command not available — do a simple truncation with a notice
+        const summaryMsg: Message = {
+          role: "assistant",
+          content: `[Earlier ${toSummarise.length} messages were compacted to save context.]`,
+          isSummary: true,
+          timestamp: Date.now(),
+        };
+        setMessages([summaryMsg, ...kept]);
+      })
+      .finally(() => {
+        isCompactingRef.current = false;
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, isLoading]);
 
   const { isListening, isTranscribing, interimText, toggle: toggleVoice } = useVoiceInput((transcript) =>
     setInput((prev) => (prev ? prev + " " : "") + transcript)
@@ -1284,10 +1346,11 @@ export function AIChat({
         role,
         content,
       }));
+      const effectiveContext = [pinnedMemory, context].filter(Boolean).join("\n\n") || null;
       const chatRequest = {
         messages: backendMessages,
         provider,
-        context: context ?? null,
+        context: effectiveContext,
         file_tree: fileTree ?? null,
         current_file: currentFile ?? null,
         mode: backendMode ?? null,
@@ -1572,7 +1635,13 @@ export function AIChat({
           </div>
         ) : (
           messages.map((msg, idx) => (
-            <div key={idx} className={`message message-${msg.role}${msg.isError ? " message-error" : ""}`}>
+            <div key={idx}>
+            {msg.isSummary && (
+              <div className="compaction-divider">
+                <span>Conversation compacted</span>
+              </div>
+            )}
+            <div className={`message message-${msg.role}${msg.isError ? " message-error" : ""}`}>
               <div className="message-icon">
                 {msg.role === "user" ? <User size={14} strokeWidth={1.5} /> : <span className="assistant-icon">AI</span>}
               </div>
@@ -1700,6 +1769,7 @@ export function AIChat({
                 {/* Metrics badge */}
                 {msg.metrics && <MetricsBadge metrics={msg.metrics} />}
               </div>
+            </div>
             </div>
           ))
         )}

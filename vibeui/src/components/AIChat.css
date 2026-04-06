@@ -358,6 +358,33 @@
     color: var(--btn-primary-fg, #fff);
 }
 
+/* ── Compaction divider ───────────────────────────────────────────────────── */
+
+.compaction-divider {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    margin: 4px 0;
+}
+
+.compaction-divider::before,
+.compaction-divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--border-color);
+    opacity: 0.6;
+}
+
+.compaction-divider span {
+    font-size: 10px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    opacity: 0.7;
+    letter-spacing: 0.04em;
+}
+
 /* ── Thinking block ───────────────────────────────────────────────────────── */
 
 .thinking-block {

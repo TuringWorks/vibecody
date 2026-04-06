@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { AIChat, Message } from "./AIChat";
+import { ChatMemoryPanel } from "./ChatMemoryPanel";
+import { useSessionMemory } from "../hooks/useSessionMemory";
 
 interface ChatTab {
     id: string;
@@ -66,6 +68,9 @@ export function ChatTabManager({
     // Restore persisted sessions on mount
     const initialSessions = useRef(loadPersistedSessions());
 
+    // ── Session memory ─────────────────────────────────────────────────────────
+    const memory = useSessionMemory();
+
     const [tabs, setTabs] = useState<ChatTab[]>([
         { id: "tab-1", title: "Chat 1", provider: defaultProvider, manualOverride: false },
     ]);
@@ -99,8 +104,11 @@ export function ChatTabManager({
         setTabMessages(prev => {
             const current = prev[tabId] ?? [];
             const next = typeof msgs === "function" ? msgs(current) : msgs;
+            // Extract new facts from any new assistant messages
+            memory.extractFromMessages(next, tabId);
             return { ...prev, [tabId]: next };
         });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // When the top-bar provider changes, update all tabs that haven't been
@@ -564,10 +572,24 @@ export function ChatTabManager({
                             onProviderChange={(p) => setTabProvider(tab.id, p)}
                             messages={getMessages(tab.id)}
                             onMessagesChange={(msgs) => setMessagesForTab(tab.id, msgs)}
+                            pinnedMemory={memory.getPinnedSystemPromptText() || undefined}
                         />
                     </div>
                 ))}
             </div>
+
+            {/* Memory panel — shown below chat content, hidden while history panel is open */}
+            {!showHistory && (
+                <ChatMemoryPanel
+                    facts={memory.factsForTab(activeTabId)}
+                    tabId={activeTabId}
+                    onPin={memory.pinFact}
+                    onUnpin={memory.unpinFact}
+                    onDelete={memory.deleteFact}
+                    onEdit={memory.editFact}
+                    onAddManual={(text) => memory.addManual(text, activeTabId)}
+                />
+            )}
         </div>
     );
 }
