@@ -51,6 +51,9 @@ hex.workspace = true
 uuid.workspace = true
 base64 = "0.22"
 chrono = "0.4"
+clap_complete = "4"
+zip = "2"
+handlebars = "6"
 
 # OpenTelemetry (OTLP/HTTP export)
 opentelemetry = { version = "0.27", features = ["trace"] }

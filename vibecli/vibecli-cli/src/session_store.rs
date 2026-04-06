@@ -419,6 +419,12 @@ impl SessionStore {
         Ok(n)
     }
 
+    /// Update the task/name of a session (used by AI auto-naming).
+    pub fn rename_session(&self, id: &str, new_name: &str) -> Result<()> {
+        self.conn.execute("UPDATE sessions SET task = ?1 WHERE id = ?2", params![new_name, id])?;
+        Ok(())
+    }
+
     /// Fork a session: create a copy with a new ID and `parent_session_id` pointing to the source.
     /// All messages and steps up to the current point are duplicated into the fork.
     pub fn fork_session(&self, source_id: &str, new_id: &str) -> Result<()> {
@@ -1985,4 +1991,59 @@ pub async fn fork_session_cmd(source_id: &str) -> anyhow::Result<()> {
     println!("✔ Forked session '{}' → '{}'", source_id, new_id);
     println!("  Resume the fork with: vibecli --resume {}", new_id);
     Ok(())
+}
+
+/// A6: AI Session Auto-Naming.
+///
+/// Generates a concise title for a session from its first user message,
+/// using a simple heuristic (no API call needed for the common case).
+/// Falls back to the raw task string if the heuristic produces nothing useful.
+pub fn auto_name_session(raw_task: &str) -> String {
+    // Strip leading/trailing whitespace and truncate long tasks
+    let task = raw_task.trim();
+    if task.is_empty() { return "Unnamed session".to_string(); }
+
+    // If the task is already short enough, use it as-is
+    if task.chars().count() <= 60 { return task.to_string(); }
+
+    // Extract the first sentence (up to '. ', '? ', or '! ')
+    for pat in &[". ", "? ", "! ", "\n"] {
+        if let Some(idx) = task.find(pat) {
+            let sentence = &task[..idx + 1];
+            let trimmed = sentence.trim_end_matches(|c: char| !c.is_alphanumeric());
+            if trimmed.chars().count() >= 10 {
+                return trimmed[..trimmed.len().min(60)].to_string();
+            }
+        }
+    }
+
+    // Fall back: first 60 characters + ellipsis
+    let end = task.char_indices()
+        .nth(57)
+        .map(|(i, _)| i)
+        .unwrap_or(task.len());
+    format!("{}…", &task[..end])
+}
+
+#[cfg(test)]
+mod auto_name_tests {
+    use super::auto_name_session;
+
+    #[test]
+    fn test_short_task_unchanged() {
+        assert_eq!(auto_name_session("Fix login bug"), "Fix login bug");
+    }
+
+    #[test]
+    fn test_extracts_first_sentence() {
+        let t = "Implement OAuth2. Then add tests for each flow and document everything.";
+        assert_eq!(auto_name_session(t), "Implement OAuth2");
+    }
+
+    #[test]
+    fn test_truncates_long_no_sentence() {
+        let t = "a".repeat(100);
+        assert!(auto_name_session(&t).ends_with('…'));
+        assert!(auto_name_session(&t).chars().count() <= 60);
+    }
 }

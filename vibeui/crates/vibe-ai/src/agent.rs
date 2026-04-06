@@ -317,11 +317,13 @@ impl CircuitBreaker {
 /// Governs how the agent handles potentially destructive tool calls.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ApprovalPolicy {
-    /// Show each tool call to the user and wait for y/n/a approval.
+    /// Conversational mode only — all tool calls are blocked. Equivalent to Goose "Chat Only".
+    ChatOnly,
+    /// Show each tool call to the user and wait for y/n/a approval. Equivalent to Goose "Manual Approval".
     Suggest,
-    /// Auto-apply file operations; require approval only for bash commands.
+    /// Auto-apply file edits; require approval only for bash commands. Equivalent to Goose "Smart Approval".
     AutoEdit,
-    /// Execute all tool calls automatically without prompting.
+    /// Execute all tool calls automatically without prompting. Equivalent to Goose "Completely Autonomous".
     FullAuto,
 }
 
@@ -329,9 +331,20 @@ impl ApprovalPolicy {
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         match s.to_lowercase().as_str() {
-            "full-auto" | "fullauto" => Self::FullAuto,
-            "auto-edit" | "autoedit" => Self::AutoEdit,
+            "full-auto" | "fullauto" | "auto" | "autonomous" => Self::FullAuto,
+            "auto-edit" | "autoedit" | "smart" | "smart-approval" => Self::AutoEdit,
+            "chat-only" | "chatonly" | "chat" => Self::ChatOnly,
             _ => Self::Suggest,
+        }
+    }
+
+    /// Human-readable display name matching Goose's permission mode labels.
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            Self::ChatOnly => "Chat Only",
+            Self::Suggest  => "Manual Approval",
+            Self::AutoEdit => "Smart Approval",
+            Self::FullAuto => "Completely Autonomous",
         }
     }
 }
@@ -1082,8 +1095,9 @@ impl AgentLoop {
             return true;
         }
         match &self.approval {
-            ApprovalPolicy::FullAuto => false,
-            ApprovalPolicy::AutoEdit => matches!(call, ToolCall::Bash { .. }),
+            ApprovalPolicy::ChatOnly  => true, // always block — no tool execution in chat-only mode
+            ApprovalPolicy::FullAuto  => false,
+            ApprovalPolicy::AutoEdit  => matches!(call, ToolCall::Bash { .. }),
             ApprovalPolicy::Suggest => true,
         }
     }

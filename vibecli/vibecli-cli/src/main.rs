@@ -245,6 +245,8 @@ mod design_import;
 #[allow(dead_code)]
 mod audio_output;
 mod session_sharing;
+pub mod recipe;
+pub mod diagnostics;
 pub mod managed_deploy;
 pub mod channel_daemon;
 pub mod data_analysis;
@@ -645,6 +647,55 @@ struct Cli {
     #[arg(long, value_name = "RUNTIME")]
     sandbox_runtime: Option<String>,
 
+    // ── Permission mode (Goose-style) ─────────────────────────────────────────
+
+    /// Permission mode for tool execution.
+    /// chat-only   — no tool calls, conversational only
+    /// manual      — prompt before every tool call (default, same as --suggest)
+    /// smart       — auto-apply file edits, prompt for shell commands (same as --auto-edit)
+    /// auto        — execute all tool calls without prompting (same as --full-auto)
+    #[arg(long, value_name = "MODE", value_parser = ["chat-only", "manual", "smart", "auto"])]
+    mode: Option<String>,
+
+    // ── Shell completions ─────────────────────────────────────────────────────
+
+    /// Print shell completion script and exit.
+    /// Example: vibecli --completions zsh >> ~/.zshrc
+    ///          vibecli --completions bash > /etc/bash_completion.d/vibecli
+    #[arg(long, value_name = "SHELL", value_parser = ["bash", "zsh", "fish", "powershell", "elvish"])]
+    completions: Option<String>,
+
+    // ── Recipe system ─────────────────────────────────────────────────────────
+
+    /// Run a recipe YAML file (parameterized multi-step automation).
+    /// Example: vibecli --recipe create-feature.yaml --param feature_name=auth
+    #[arg(long, value_name = "FILE")]
+    recipe: Option<String>,
+
+    /// Key=value parameter for --recipe. Can be repeated.
+    /// Example: --param language=rust --param feature_name=auth
+    #[arg(long = "param", value_name = "KEY=VALUE", action = clap::ArgAction::Append)]
+    params: Vec<String>,
+
+    // ── Session management extras ─────────────────────────────────────────────
+
+    /// Fork a session to explore an alternative path.
+    /// Creates a copy of the given session ID you can diverge from.
+    /// Example: vibecli --fork sess-20260405-abc123
+    #[arg(long, value_name = "SESSION_ID")]
+    fork: Option<String>,
+
+    /// Export a session to a file.
+    /// Format is inferred from extension: .md, .json, .yaml
+    /// Example: vibecli --export-session sess-20260405 --output session.md
+    #[arg(long, value_name = "SESSION_ID")]
+    export_session: Option<String>,
+
+    /// Generate a diagnostics bundle (redacted config + logs + session) for bug reports.
+    /// Saves a zip to the current directory.
+    #[arg(long)]
+    diagnostics: bool,
+
     /// Positional arguments: used as a one-shot chat message.
     /// Examples:
     ///   vibecli "Hello, what can you help me with?"
@@ -707,21 +758,43 @@ async fn main() -> Result<()> {
     // Keep the guard alive for the entire program.
     let _otel_guard = otel_init::setup(&otel_config)?;
 
-    // Determine approval policy from flags
-    let approval_policy = Config::load()
-        .map(|c| {
-            let from_config = c.safety.approval_policy.clone();
-            let from_flags = Config::approval_from_flags(cli.suggest, cli.auto_edit, cli.full_auto);
-            // CLI flags override config
-            if cli.suggest || cli.auto_edit || cli.full_auto {
-                from_flags
-            } else {
-                from_config
-            }
-        })
-        .unwrap_or_else(|_| {
-            Config::approval_from_flags(cli.suggest, cli.auto_edit, cli.full_auto)
-        });
+    // ── Shell completions (early exit) ────────────────────────────────────────
+    if let Some(ref shell_name) = cli.completions {
+        use clap::CommandFactory;
+        use clap_complete::{generate, shells};
+        let mut cmd = Cli::command();
+        let name = "vibecli";
+        match shell_name.as_str() {
+            "bash"       => generate(shells::Bash,       &mut cmd, name, &mut std::io::stdout()),
+            "zsh"        => generate(shells::Zsh,        &mut cmd, name, &mut std::io::stdout()),
+            "fish"       => generate(shells::Fish,       &mut cmd, name, &mut std::io::stdout()),
+            "powershell" => generate(shells::PowerShell, &mut cmd, name, &mut std::io::stdout()),
+            "elvish"     => generate(shells::Elvish,     &mut cmd, name, &mut std::io::stdout()),
+            _            => eprintln!("Unknown shell: {}", shell_name),
+        }
+        return Ok(());
+    }
+
+    // Determine approval policy: --mode flag takes highest priority, then
+    // legacy --suggest/--auto-edit/--full-auto flags, then config, then default.
+    let approval_policy = {
+        if let Some(ref mode) = cli.mode {
+            // --mode chat-only|manual|smart|auto
+            mode.clone()
+        } else {
+            Config::load()
+                .map(|c| {
+                    let from_config = c.safety.approval_policy.clone();
+                    let from_flags = Config::approval_from_flags(cli.suggest, cli.auto_edit, cli.full_auto);
+                    if cli.suggest || cli.auto_edit || cli.full_auto {
+                        from_flags
+                    } else {
+                        from_config
+                    }
+                })
+                .unwrap_or_else(|_| Config::approval_from_flags(cli.suggest, cli.auto_edit, cli.full_auto))
+        }
+    };
 
     // Resolve sandbox flag: CLI --sandbox overrides config
     let sandbox_enabled = {
@@ -783,6 +856,35 @@ async fn main() -> Result<()> {
         } else {
             (cli.provider.clone(), cli.model.clone(), approval_policy.clone())
         };
+
+    // ── Recipe runner: vibecli --recipe <file> [--param key=val] ──────────────
+    if let Some(ref recipe_file) = cli.recipe {
+        let params: std::collections::HashMap<String, String> = cli.params.iter()
+            .filter_map(|p| {
+                let mut parts = p.splitn(2, '=');
+                let k = parts.next()?.trim().to_string();
+                let v = parts.next()?.trim().to_string();
+                Some((k, v))
+            })
+            .collect();
+        return recipe::run_recipe(recipe_file, &params, &effective_provider, &effective_model, sandbox_enabled).await;
+    }
+
+    // ── Session forking: vibecli --fork <session-id> ──────────────────────────
+    if let Some(ref src_id) = cli.fork {
+        return session_store::fork_session_cmd(src_id).await;
+    }
+
+    // ── Session export: vibecli --export-session <id> --output <file> ────────
+    if let Some(ref session_id) = cli.export_session {
+        let output_path = cli.output.as_deref().unwrap_or("session.md");
+        return session_sharing::export_session_cmd(session_id, output_path).await;
+    }
+
+    // ── Diagnostics bundle: vibecli --diagnostics ─────────────────────────────
+    if cli.diagnostics {
+        return diagnostics::generate_bundle(cli.resume.as_deref()).await;
+    }
 
     // Setup wizard: vibecli --setup
     if cli.setup {
@@ -9880,9 +9982,10 @@ async fn run_agent_repl_with_context(
     }
 
     let policy_label = match approval {
-        ApprovalPolicy::Suggest => "suggest (ask before every action)",
-        ApprovalPolicy::AutoEdit => "auto-edit (auto-apply files, ask for commands)",
-        ApprovalPolicy::FullAuto => "full-auto (execute everything)",
+        ApprovalPolicy::ChatOnly  => "chat-only (no tool calls, conversational only)",
+        ApprovalPolicy::Suggest   => "manual (ask before every action)",
+        ApprovalPolicy::AutoEdit  => "smart (auto-apply files, ask for shell commands)",
+        ApprovalPolicy::FullAuto  => "autonomous (execute everything without prompting)",
     };
     println!("{}", crate::syntax::format_agent_start(task, policy_label));
     if !resumed_messages.is_empty() {
