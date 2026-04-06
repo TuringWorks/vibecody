@@ -10003,7 +10003,9 @@ async fn run_agent_repl_with_context(
     let db = SessionStore::open_default().ok();
     let session_id = trace.session_id().to_string();
     if let Some(ref store) = db {
-        let _ = store.insert_session(&session_id, task, provider_name, model_name);
+        // A6: auto-name the session from the task description
+        let auto_name = session_store::auto_name_session(task);
+        let _ = store.insert_session(&session_id, &auto_name, provider_name, model_name);
         let _ = store.insert_message(&session_id, "user", task);
     }
 
