@@ -37569,9 +37569,7 @@ pub async fn handle_ha_command(args: String) -> Result<String, String> {
 /// Generic pass-through for /company <args> — returns text output.
 #[tauri::command]
 pub async fn company_cmd(args: String) -> Result<String, String> {
-    tokio::task::spawn_blocking(move || run_vibecli_cmd("company", &args))
-        .await
-        .map_err(|e| e.to_string())?
+    Ok(vibecli_cli::company_cmd::handle_company_cmd_once(&args).await)
 }
 
 /// Create a new company.
@@ -37581,43 +37579,33 @@ pub async fn company_create(name: String, description: Option<String>) -> Result
         Some(d) if !d.is_empty() => format!("create {} \"{}\"", name, d),
         _ => format!("create {}", name),
     };
-    tokio::task::spawn_blocking(move || run_vibecli_cmd("company", &args))
-        .await
-        .map_err(|e| e.to_string())?
+    Ok(vibecli_cli::company_cmd::handle_company_cmd_once(&args).await)
 }
 
 /// List all companies.
 #[tauri::command]
 pub async fn company_list() -> Result<String, String> {
-    tokio::task::spawn_blocking(|| run_vibecli_cmd("company", "list"))
-        .await
-        .map_err(|e| e.to_string())?
+    Ok(vibecli_cli::company_cmd::handle_company_cmd_once("list").await)
 }
 
 /// Get company status (active company dashboard).
 #[tauri::command]
 pub async fn company_status() -> Result<String, String> {
-    tokio::task::spawn_blocking(|| run_vibecli_cmd("company", "status"))
-        .await
-        .map_err(|e| e.to_string())?
+    Ok(vibecli_cli::company_cmd::handle_company_cmd_once("status").await)
 }
 
 /// Switch active company.
 #[tauri::command]
 pub async fn company_switch(name_or_id: String) -> Result<String, String> {
     let args = format!("switch {}", name_or_id);
-    tokio::task::spawn_blocking(move || run_vibecli_cmd("company", &args))
-        .await
-        .map_err(|e| e.to_string())?
+    Ok(vibecli_cli::company_cmd::handle_company_cmd_once(&args).await)
 }
 
 /// Archive (soft-delete) a company.
 #[tauri::command]
 pub async fn company_delete(name_or_id: String) -> Result<String, String> {
     let args = format!("delete {}", name_or_id);
-    tokio::task::spawn_blocking(move || run_vibecli_cmd("company", &args))
-        .await
-        .map_err(|e| e.to_string())?
+    Ok(vibecli_cli::company_cmd::handle_company_cmd_once(&args).await)
 }
 
 /// Hire an agent into the active company.
@@ -37632,35 +37620,27 @@ pub async fn company_agent_hire(
     if let Some(t) = title { args.push_str(&format!(" --title {}", t)); }
     if let Some(r) = role { args.push_str(&format!(" --role {}", r)); }
     if let Some(rt) = reports_to { args.push_str(&format!(" --reports-to {}", rt)); }
-    tokio::task::spawn_blocking(move || run_vibecli_cmd("company", &args))
-        .await
-        .map_err(|e| e.to_string())?
+    Ok(vibecli_cli::company_cmd::handle_company_cmd_once(&args).await)
 }
 
 /// List agents in the active company.
 #[tauri::command]
 pub async fn company_agent_list() -> Result<String, String> {
-    tokio::task::spawn_blocking(|| run_vibecli_cmd("company", "agent list"))
-        .await
-        .map_err(|e| e.to_string())?
+    Ok(vibecli_cli::company_cmd::handle_company_cmd_once("agent list").await)
 }
 
 /// Get agent info.
 #[tauri::command]
 pub async fn company_agent_info(id: String) -> Result<String, String> {
     let args = format!("agent info {}", id);
-    tokio::task::spawn_blocking(move || run_vibecli_cmd("company", &args))
-        .await
-        .map_err(|e| e.to_string())?
+    Ok(vibecli_cli::company_cmd::handle_company_cmd_once(&args).await)
 }
 
 /// Fire (terminate) an agent.
 #[tauri::command]
 pub async fn company_agent_fire(id: String) -> Result<String, String> {
     let args = format!("agent fire {}", id);
-    tokio::task::spawn_blocking(move || run_vibecli_cmd("company", &args))
-        .await
-        .map_err(|e| e.to_string())?
+    Ok(vibecli_cli::company_cmd::handle_company_cmd_once(&args).await)
 }
 
 // ── Company Budget ────────────────────────────────────────────────────────────
@@ -37672,27 +37652,21 @@ pub async fn company_budget_set(agent_id: String, limit_cents: i64, hard_stop: b
     let hs = if hard_stop { " --hard-stop" } else { "" };
     let m = if month_str.is_empty() { String::new() } else { format!(" --month {}", month_str) };
     let args = format!("budget set {} {}{}{}", agent_id, limit_cents, hs, m);
-    tokio::task::spawn_blocking(move || run_vibecli_cmd("company", &args))
-        .await
-        .map_err(|e| e.to_string())?
+    Ok(vibecli_cli::company_cmd::handle_company_cmd_once(&args).await)
 }
 
 /// Get budget status for the active company.
 #[tauri::command]
 pub async fn company_budget_status(agent_id: Option<String>) -> Result<String, String> {
     let args = format!("budget status{}", agent_id.map(|a| format!(" {}", a)).unwrap_or_default());
-    tokio::task::spawn_blocking(move || run_vibecli_cmd("company", &args))
-        .await
-        .map_err(|e| e.to_string())?
+    Ok(vibecli_cli::company_cmd::handle_company_cmd_once(&args).await)
 }
 
 /// List cost events for the active company.
 #[tauri::command]
 pub async fn company_budget_events(agent_id: Option<String>) -> Result<String, String> {
     let args = format!("budget events{}", agent_id.map(|a| format!(" {}", a)).unwrap_or_default());
-    tokio::task::spawn_blocking(move || run_vibecli_cmd("company", &args))
-        .await
-        .map_err(|e| e.to_string())?
+    Ok(vibecli_cli::company_cmd::handle_company_cmd_once(&args).await)
 }
 
 // ── Company Approvals ─────────────────────────────────────────────────────────
@@ -37701,36 +37675,28 @@ pub async fn company_budget_events(agent_id: Option<String>) -> Result<String, S
 #[tauri::command]
 pub async fn company_approval_request(request_type: String, subject_id: String, requester_id: String, reason: String) -> Result<String, String> {
     let args = format!("approval request {} {} {} {}", request_type, subject_id, requester_id, reason);
-    tokio::task::spawn_blocking(move || run_vibecli_cmd("company", &args))
-        .await
-        .map_err(|e| e.to_string())?
+    Ok(vibecli_cli::company_cmd::handle_company_cmd_once(&args).await)
 }
 
 /// List approvals (optionally filtered by status).
 #[tauri::command]
 pub async fn company_approval_list(status: Option<String>) -> Result<String, String> {
     let args = format!("approval list{}", status.map(|s| format!(" {}", s)).unwrap_or_default());
-    tokio::task::spawn_blocking(move || run_vibecli_cmd("company", &args))
-        .await
-        .map_err(|e| e.to_string())?
+    Ok(vibecli_cli::company_cmd::handle_company_cmd_once(&args).await)
 }
 
 /// Approve a pending approval request.
 #[tauri::command]
 pub async fn company_approval_approve(id: String, decided_by: String) -> Result<String, String> {
     let args = format!("approval approve {} {}", id, decided_by);
-    tokio::task::spawn_blocking(move || run_vibecli_cmd("company", &args))
-        .await
-        .map_err(|e| e.to_string())?
+    Ok(vibecli_cli::company_cmd::handle_company_cmd_once(&args).await)
 }
 
 /// Reject a pending approval request.
 #[tauri::command]
 pub async fn company_approval_reject(id: String, decided_by: String) -> Result<String, String> {
     let args = format!("approval reject {} {}", id, decided_by);
-    tokio::task::spawn_blocking(move || run_vibecli_cmd("company", &args))
-        .await
-        .map_err(|e| e.to_string())?
+    Ok(vibecli_cli::company_cmd::handle_company_cmd_once(&args).await)
 }
 
 // ── Company Secrets ───────────────────────────────────────────────────────────
@@ -37738,32 +37704,24 @@ pub async fn company_approval_reject(id: String, decided_by: String) -> Result<S
 #[tauri::command]
 pub async fn company_secret_set(key: String, value: String) -> Result<String, String> {
     let args = format!("secret set {} {}", key, value);
-    tokio::task::spawn_blocking(move || run_vibecli_cmd("company", &args))
-        .await
-        .map_err(|e| e.to_string())?
+    Ok(vibecli_cli::company_cmd::handle_company_cmd_once(&args).await)
 }
 
 #[tauri::command]
 pub async fn company_secret_get(key: String) -> Result<String, String> {
     let args = format!("secret get {}", key);
-    tokio::task::spawn_blocking(move || run_vibecli_cmd("company", &args))
-        .await
-        .map_err(|e| e.to_string())?
+    Ok(vibecli_cli::company_cmd::handle_company_cmd_once(&args).await)
 }
 
 #[tauri::command]
 pub async fn company_secret_list() -> Result<String, String> {
-    tokio::task::spawn_blocking(|| run_vibecli_cmd("company", "secret list"))
-        .await
-        .map_err(|e| e.to_string())?
+    Ok(vibecli_cli::company_cmd::handle_company_cmd_once("secret list").await)
 }
 
 #[tauri::command]
 pub async fn company_secret_delete(key: String) -> Result<String, String> {
     let args = format!("secret delete {}", key);
-    tokio::task::spawn_blocking(move || run_vibecli_cmd("company", &args))
-        .await
-        .map_err(|e| e.to_string())?
+    Ok(vibecli_cli::company_cmd::handle_company_cmd_once(&args).await)
 }
 
 // ── Company Routines ──────────────────────────────────────────────────────────
@@ -37771,24 +37729,18 @@ pub async fn company_secret_delete(key: String) -> Result<String, String> {
 #[tauri::command]
 pub async fn company_routine_create(agent_id: String, name: String, interval_secs: i64, prompt: String) -> Result<String, String> {
     let args = format!("routine create {} {} --interval {} --prompt {}", agent_id, name, interval_secs, prompt);
-    tokio::task::spawn_blocking(move || run_vibecli_cmd("company", &args))
-        .await
-        .map_err(|e| e.to_string())?
+    Ok(vibecli_cli::company_cmd::handle_company_cmd_once(&args).await)
 }
 
 #[tauri::command]
 pub async fn company_routine_list() -> Result<String, String> {
-    tokio::task::spawn_blocking(|| run_vibecli_cmd("company", "routine list"))
-        .await
-        .map_err(|e| e.to_string())?
+    Ok(vibecli_cli::company_cmd::handle_company_cmd_once("routine list").await)
 }
 
 #[tauri::command]
 pub async fn company_routine_toggle(id: String) -> Result<String, String> {
     let args = format!("routine toggle {}", id);
-    tokio::task::spawn_blocking(move || run_vibecli_cmd("company", &args))
-        .await
-        .map_err(|e| e.to_string())?
+    Ok(vibecli_cli::company_cmd::handle_company_cmd_once(&args).await)
 }
 
 // ── Company Heartbeats ────────────────────────────────────────────────────────
@@ -37796,17 +37748,13 @@ pub async fn company_routine_toggle(id: String) -> Result<String, String> {
 #[tauri::command]
 pub async fn company_heartbeat_trigger(agent_id: String) -> Result<String, String> {
     let args = format!("heartbeat trigger {}", agent_id);
-    tokio::task::spawn_blocking(move || run_vibecli_cmd("company", &args))
-        .await
-        .map_err(|e| e.to_string())?
+    Ok(vibecli_cli::company_cmd::handle_company_cmd_once(&args).await)
 }
 
 #[tauri::command]
 pub async fn company_heartbeat_history(agent_id: String) -> Result<String, String> {
     let args = format!("heartbeat history {}", agent_id);
-    tokio::task::spawn_blocking(move || run_vibecli_cmd("company", &args))
-        .await
-        .map_err(|e| e.to_string())?
+    Ok(vibecli_cli::company_cmd::handle_company_cmd_once(&args).await)
 }
 
 // ── Company Portability + Dashboard ──────────────────────────────────────────
@@ -37814,29 +37762,21 @@ pub async fn company_heartbeat_history(agent_id: String) -> Result<String, Strin
 #[tauri::command]
 pub async fn company_export(output_path: String) -> Result<String, String> {
     let args = format!("export {}", output_path);
-    tokio::task::spawn_blocking(move || run_vibecli_cmd("company", &args))
-        .await
-        .map_err(|e| e.to_string())?
+    Ok(vibecli_cli::company_cmd::handle_company_cmd_once(&args).await)
 }
 
 #[tauri::command]
 pub async fn company_import(input_path: String, new_name: Option<String>) -> Result<String, String> {
     let args = format!("import {}{}", input_path, new_name.map(|n| format!(" {}", n)).unwrap_or_default());
-    tokio::task::spawn_blocking(move || run_vibecli_cmd("company", &args))
-        .await
-        .map_err(|e| e.to_string())?
+    Ok(vibecli_cli::company_cmd::handle_company_cmd_once(&args).await)
 }
 
 #[tauri::command]
 pub async fn company_adapter_list() -> Result<String, String> {
-    tokio::task::spawn_blocking(|| run_vibecli_cmd("company", "adapter list"))
-        .await
-        .map_err(|e| e.to_string())?
+    Ok(vibecli_cli::company_cmd::handle_company_cmd_once("adapter list").await)
 }
 
 #[tauri::command]
 pub async fn company_dashboard() -> Result<String, String> {
-    tokio::task::spawn_blocking(|| run_vibecli_cmd("company", "status"))
-        .await
-        .map_err(|e| e.to_string())?
+    Ok(vibecli_cli::company_cmd::handle_company_cmd_once("status").await)
 }
