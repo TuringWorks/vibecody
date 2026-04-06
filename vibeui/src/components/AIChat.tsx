@@ -1803,7 +1803,7 @@ export function AIChat({
                     >
                       {copiedIdx === idx ? "\u2713 Copied" : "Copy"}
                     </button>
-                    {onPendingWrite && extractCodeBlocks(msg.content).length > 1 && (
+                    {!!onPendingWrite && extractCodeBlocks(msg.content).length > 1 && (
                       <button
                         className="msg-apply-all-btn"
                         onClick={() => handleApplyAll(msg.content)}
