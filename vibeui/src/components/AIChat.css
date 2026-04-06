@@ -574,6 +574,39 @@
     white-space: nowrap;
 }
 
+/* Explicit filename (from fence) shown brighter to signal it's the apply target */
+.cb-filename[title="Target file"] {
+    color: var(--accent-color, var(--accent-blue));
+    opacity: 0.85;
+    font-weight: 500;
+}
+
+/* Path confirmation row shown when "Apply to…" is clicked */
+.cb-path-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 8px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.cb-path-input {
+    flex: 1;
+    font-size: 11px;
+    padding: 3px 7px;
+    background: var(--bg-primary);
+    border: 1px solid var(--accent-color, var(--accent-blue));
+    border-radius: 3px;
+    color: var(--text-primary);
+    outline: none;
+}
+
+.cb-path-input::placeholder {
+    color: var(--text-muted, var(--text-secondary));
+    opacity: 0.6;
+}
+
 .cb-streaming-badge {
     color: var(--accent-color, var(--accent-blue));
     font-style: italic;

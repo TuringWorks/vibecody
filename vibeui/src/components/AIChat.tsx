@@ -420,12 +420,24 @@ function ToolStatusIcon({ status }: { status: "running" | "success" | "error" })
 interface CodeBlockProps {
   language: string;
   code: string;
+  /** Explicit filename from the fence info string — e.g. ```ts src/App.tsx */
   filename?: string;
   onApply?: (code: string, filename: string) => void;
 }
 
 /** Number of lines shown when a code block is collapsed. */
 const CODE_COLLAPSE_LINES = 8;
+
+/** Language → display-only default filename (never used for Apply). */
+const LANG_EXT_MAP: Record<string, string> = {
+  typescript: ".ts", javascript: ".js", tsx: ".tsx", jsx: ".jsx",
+  rust: ".rs", python: ".py", go: ".go", java: ".java",
+  css: ".css", html: ".html", json: ".json", yaml: ".yaml",
+  yml: ".yml", toml: ".toml", sql: ".sql", bash: ".sh", sh: ".sh",
+  markdown: ".md", md: ".md",
+  cpp: ".cpp", c: ".c", ruby: ".rb", swift: ".swift",
+  kotlin: ".kt", scala: ".scala", php: ".php",
+};
 
 function CodeBlock({ language, code, filename, onApply }: CodeBlockProps) {
   const [copied, setCopied] = useState(false);
@@ -434,21 +446,13 @@ function CodeBlock({ language, code, filename, onApply }: CodeBlockProps) {
   const collapsible = lines.length > CODE_COLLAPSE_LINES;
   const [expanded, setExpanded] = useState(!collapsible);
 
-  const detectedFilename = useMemo(() => {
-    if (filename) return filename;
-    const extMap: Record<string, string> = {
-      typescript: "file.ts", javascript: "file.js", tsx: "file.tsx", jsx: "file.jsx",
-      rust: "file.rs", python: "file.py", go: "file.go", java: "File.java",
-      css: "file.css", html: "file.html", json: "file.json", yaml: "file.yaml",
-      yml: "file.yml", toml: "file.toml", sql: "file.sql", bash: "script.sh", sh: "script.sh",
-      markdown: "file.md", md: "file.md", text: "file.txt",
-      cpp: "file.cpp", c: "file.c", ruby: "file.rb", swift: "file.swift",
-      kotlin: "file.kt", scala: "file.scala", php: "file.php",
-      image: "image.png", png: "image.png", jpg: "image.jpg", jpeg: "image.jpg",
-      webp: "image.webp", gif: "image.gif", tiff: "image.tiff",
-    };
-    return extMap[language.toLowerCase()] || "file.txt";
-  }, [language, filename]);
+  // "Apply to…" path input — shown when user wants to apply a language-only block
+  const [showPathInput, setShowPathInput] = useState(false);
+  const [customPath, setCustomPath] = useState(() => {
+    // Pre-fill with language extension hint if available
+    const ext = LANG_EXT_MAP[language?.toLowerCase() ?? ""];
+    return ext ? `file${ext}` : "";
+  });
 
   const handleCopy = () => {
     navigator.clipboard.writeText(code).then(() => {
@@ -457,7 +461,16 @@ function CodeBlock({ language, code, filename, onApply }: CodeBlockProps) {
     }).catch(() => {});
   };
 
+  const handleApplyWithPath = () => {
+    if (onApply && customPath.trim()) {
+      onApply(code, customPath.trim());
+      setShowPathInput(false);
+    }
+  };
+
   const visibleCode = expanded ? code : lines.slice(0, CODE_COLLAPSE_LINES).join("\n");
+  // Display label: use explicit filename if available, else show language extension hint
+  const displayLabel = filename ?? (LANG_EXT_MAP[language?.toLowerCase() ?? ""] ? `*${LANG_EXT_MAP[language.toLowerCase()]}` : null);
 
   return (
     <div className="cb-container">
@@ -472,7 +485,11 @@ function CodeBlock({ language, code, filename, onApply }: CodeBlockProps) {
           </button>
         )}
         <span className="cb-lang">{language || "text"}</span>
-        {detectedFilename && <span className="cb-filename">{detectedFilename}</span>}
+        {displayLabel && (
+          <span className="cb-filename" title={filename ? "Target file" : "Language default — use Apply to… to specify path"}>
+            {displayLabel}
+          </span>
+        )}
         <div className="cb-actions">
           <button className="cb-btn" onClick={() => setShowLines(!showLines)} title="Toggle line numbers">
             #
@@ -480,13 +497,57 @@ function CodeBlock({ language, code, filename, onApply }: CodeBlockProps) {
           <button className="cb-btn" onClick={handleCopy} title="Copy code">
             {copied ? "\u2713" : "Copy"}
           </button>
-          {onApply && (
-            <button className="cb-btn cb-btn-apply" onClick={() => onApply(code, detectedFilename)} title="Apply to file">
+          {onApply && filename && (
+            // Explicit filename from fence — safe to apply directly
+            <button
+              className="cb-btn cb-btn-apply"
+              onClick={() => onApply(code, filename)}
+              title={`Apply to ${filename}`}
+            >
               Apply
+            </button>
+          )}
+          {onApply && !filename && (
+            // No explicit filename — ask user to confirm/enter path before applying
+            <button
+              className="cb-btn cb-btn-apply"
+              onClick={() => setShowPathInput((v) => !v)}
+              title="Specify file path to apply to"
+            >
+              Apply to…
             </button>
           )}
         </div>
       </div>
+
+      {/* Path confirmation row — only shown when "Apply to…" is clicked */}
+      {showPathInput && onApply && (
+        <div className="cb-path-row">
+          <input
+            className="cb-path-input"
+            value={customPath}
+            onChange={(e) => setCustomPath(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleApplyWithPath();
+              if (e.key === "Escape") setShowPathInput(false);
+            }}
+            placeholder="Path to apply to, e.g. src/README.md"
+            autoFocus
+          />
+          <button
+            className="cb-btn cb-btn-apply"
+            onClick={handleApplyWithPath}
+            disabled={!customPath.trim()}
+            title="Apply to specified path"
+          >
+            Apply
+          </button>
+          <button className="cb-btn" onClick={() => setShowPathInput(false)} title="Cancel">
+            ✕
+          </button>
+        </div>
+      )}
+
       <pre className={`cb-code syntax-${language || "text"}`}>
         <code>
           {showLines
@@ -1500,30 +1561,19 @@ export function AIChat({
   }, []);
 
   /** Extract all fenced code blocks from a message as {language, code, filename}. */
+  /**
+   * Extract fenced code blocks that have an EXPLICIT filename in the fence info
+   * string (e.g. ```typescript src/App.tsx). Language-only blocks are excluded
+   * because they cannot be safely applied without a known target path.
+   */
   const extractCodeBlocks = useCallback((content: string) => {
     const blocks: { language: string; code: string; filename: string }[] = [];
-    // Group 1: language, Group 2: optional filename on same fence line, Group 3: code
+    // Group 1: language, Group 2: explicit filename token, Group 3: code
     const fenceRegex = /```(\w*)(?:[^\S\n]+(\S+))?\n([\s\S]*?)```/g;
-    const extMap: Record<string, string> = {
-      typescript: "file.ts", javascript: "file.js", tsx: "file.tsx", jsx: "file.jsx",
-      rust: "file.rs", python: "file.py", go: "file.go", java: "File.java",
-      css: "file.css", html: "file.html", json: "file.json", yaml: "file.yaml",
-      yml: "file.yml", toml: "file.toml", sql: "file.sql", bash: "script.sh", sh: "script.sh",
-      markdown: "file.md", md: "file.md", text: "file.txt",
-      cpp: "file.cpp", c: "file.c", ruby: "file.rb", swift: "file.swift",
-      kotlin: "file.kt", scala: "file.scala", php: "file.php",
-      image: "image.png", png: "image.png", jpg: "image.jpg", jpeg: "image.jpg",
-      webp: "image.webp", gif: "image.gif", tiff: "image.tiff",
-    };
     let match: RegExpExecArray | null;
     while ((match = fenceRegex.exec(content)) !== null) {
-      const languageMatch = match[1].toLowerCase();
-      blocks.push({
-        language: match[1],
-        code: match[3],
-        // Prefer explicit filename from fence line, fall back to language-based default
-        filename: match[2] || extMap[languageMatch] || "file.txt",
-      });
+      if (!match[2]) continue; // skip language-only blocks — no safe target path
+      blocks.push({ language: match[1], code: match[3], filename: match[2] });
     }
     return blocks;
   }, []);
@@ -1757,9 +1807,9 @@ export function AIChat({
                       <button
                         className="msg-apply-all-btn"
                         onClick={() => handleApplyAll(msg.content)}
-                        title="Apply all code blocks to files"
+                        title="Apply all explicitly-named code blocks to their target files"
                       >
-                        Apply All ({extractCodeBlocks(msg.content).length})
+                        Apply All ({extractCodeBlocks(msg.content).length} files)
                       </button>
                     )}
                   </div>
