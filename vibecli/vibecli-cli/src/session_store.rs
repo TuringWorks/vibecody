@@ -418,6 +418,31 @@ impl SessionStore {
             self.conn.query_row("SELECT COUNT(*) FROM sessions", [], |row| row.get(0))?;
         Ok(n)
     }
+
+    /// Fork a session: create a copy with a new ID and `parent_session_id` pointing to the source.
+    /// All messages and steps up to the current point are duplicated into the fork.
+    pub fn fork_session(&self, source_id: &str, new_id: &str) -> Result<()> {
+        // Check the source exists
+        let source = self.get_session(source_id)?
+            .ok_or_else(|| anyhow::anyhow!("Session '{}' not found", source_id))?;
+
+        // Insert forked session row
+        let task = format!("[fork of {}] {}", &source_id[..source_id.len().min(12)], source.task);
+        self.insert_session_with_parent(new_id, &task, &source.provider, &source.model, Some(source_id), 0)?;
+
+        // Copy messages
+        for msg in self.get_messages(source_id)? {
+            self.insert_message(new_id, &msg.role, &msg.content)?;
+        }
+
+        // Copy steps
+        for step in self.get_steps(source_id)? {
+            self.insert_step(new_id, step.step_num as usize, &step.tool_name,
+                &step.input_summary, &step.output, step.success)?;
+        }
+
+        Ok(())
+    }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -1946,4 +1971,18 @@ mod tests {
         let steps = store.get_steps("no_such_session").unwrap();
         assert!(steps.is_empty());
     }
+}
+
+
+// ── CLI command helpers ───────────────────────────────────────────────────────
+
+/// CLI handler for `vibecli --fork <session-id>`.
+pub async fn fork_session_cmd(source_id: &str) -> anyhow::Result<()> {
+    let store = SessionStore::open_default()?;
+    let new_id = format!("fork-{}-{}", &source_id[..source_id.len().min(12)],
+        SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs());
+    store.fork_session(source_id, &new_id)?;
+    println!("✔ Forked session '{}' → '{}'", source_id, new_id);
+    println!("  Resume the fork with: vibecli --resume {}", new_id);
+    Ok(())
 }

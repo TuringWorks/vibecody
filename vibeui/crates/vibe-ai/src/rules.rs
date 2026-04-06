@@ -68,8 +68,54 @@ impl RulesLoader {
     }
 
     /// Load rules from workspace and global directories, deduplicated by name.
+    ///
+    /// Also loads `.vibehints` from the workspace root (if present) as an
+    /// always-active workspace context hint — equivalent to Goose's `.goosehints`.
+    /// Subdirectory `.vibehints` files override the root for files in that subtree.
     pub fn load_for_workspace(workspace_root: &Path) -> Vec<Rule> {
         let mut rules = Self::load(&workspace_root.join(".vibecli").join("rules"));
+
+        // .vibehints — root-level workspace hints (always active, no path gating)
+        let hints_path = workspace_root.join(".vibehints");
+        if hints_path.exists() {
+            if let Ok(content) = std::fs::read_to_string(&hints_path) {
+                if !content.trim().is_empty() {
+                    rules.insert(0, Rule {
+                        name: "workspace-hints".to_string(),
+                        path_pattern: None,
+                        content: content.trim().to_string(),
+                        source: hints_path.clone(),
+                    });
+                }
+            }
+        }
+
+        // Subdirectory .vibehints files (scoped to their subtree)
+        if let Ok(walker) = std::fs::read_dir(workspace_root) {
+            for entry in walker.flatten() {
+                let sub = entry.path();
+                if sub.is_dir() {
+                    let sub_hints = sub.join(".vibehints");
+                    if sub_hints.exists() {
+                        if let Ok(content) = std::fs::read_to_string(&sub_hints) {
+                            if !content.trim().is_empty() {
+                                let sub_name = sub.file_name()
+                                    .and_then(|n| n.to_str())
+                                    .unwrap_or("subdir");
+                                let pattern = format!("{}/**", sub_name);
+                                rules.push(Rule {
+                                    name: format!("hints-{}", sub_name),
+                                    path_pattern: Some(pattern),
+                                    content: content.trim().to_string(),
+                                    source: sub_hints.clone(),
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // Global rules (lower priority, skip names already seen)
         if let Ok(home) = std::env::var("HOME") {
             let global_dir = PathBuf::from(home).join(".vibecli").join("rules");

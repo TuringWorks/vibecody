@@ -818,6 +818,84 @@ impl SessionSharingManager {
     }
 }
 
+// ── CLI helpers ───────────────────────────────────────────────────────────────
+
+/// Export a session from the local session store to a file.
+/// Called by `vibecli --export-session <id> --output <file>`.
+pub async fn export_session_cmd(session_id: &str, output_path: &str) -> anyhow::Result<()> {
+    use crate::session_store::SessionStore;
+
+    let store = SessionStore::open_default()?;
+    let detail = store.get_session_detail(session_id)?
+        .ok_or_else(|| anyhow::anyhow!("Session '{}' not found", session_id))?;
+
+    // Determine format from output extension
+    let format = if output_path.ends_with(".json") {
+        ExportFormat::Json
+    } else if output_path.ends_with(".html") {
+        ExportFormat::Html
+    } else {
+        ExportFormat::Markdown
+    };
+
+    // Build a SharedSession from the stored detail
+    let outcome = if detail.session.status == "complete" {
+        SessionOutcome::Success
+    } else if detail.session.status == "failed" {
+        SessionOutcome::Failed
+    } else {
+        SessionOutcome::InProgress
+    };
+    let session = SharedSession {
+        id: detail.session.id.clone(),
+        title: detail.session.task.clone(),
+        description: detail.session.summary.clone().unwrap_or_default(),
+        agent_id: detail.session.id.clone(),
+        created_by: "local".to_string(),
+        created_at: detail.session.started_at,
+        visibility: Visibility::Private,
+        tool_calls: detail.steps.iter().map(|s| ToolCallRecord {
+            id: s.id.to_string(),
+            tool_name: s.tool_name.clone(),
+            input_summary: s.input_summary.clone(),
+            output_summary: s.output.clone(),
+            timestamp: s.created_at,
+            duration_ms: 0,
+            success: s.success,
+        }).collect(),
+        file_changes: vec![],
+        reasoning_steps: vec![],
+        annotations: vec![],
+        metadata: SessionMetadata {
+            model_used: detail.session.model.clone(),
+            provider: detail.session.provider.clone(),
+            total_tokens: 0,
+            total_tool_calls: detail.steps.len(),
+            files_modified: 0,
+            task_description: detail.session.task.clone(),
+            outcome,
+        },
+        share_url: None,
+        duration_secs: detail.session.finished_at
+            .map(|f| (f - detail.session.started_at) / 1000)
+            .unwrap_or(0),
+    };
+
+    let config = SharingConfig::default();
+    let mgr = SessionSharingManager::new(config);
+
+    // Export using the manager's formatter (bypassing the store lookup)
+    let content = match format {
+        ExportFormat::Json => mgr.export_to_json(&session),
+        ExportFormat::Markdown => mgr.export_to_markdown(&session),
+        ExportFormat::Html => mgr.export_to_html(&session),
+    };
+
+    std::fs::write(output_path, &content)?;
+    println!("Session '{}' exported to {} ({} bytes)", session_id, output_path, content.len());
+    Ok(())
+}
+
 // === Tests ===
 
 #[cfg(test)]
