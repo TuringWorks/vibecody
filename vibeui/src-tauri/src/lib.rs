@@ -86,18 +86,10 @@ pub fn run() {
     // No else-branch: don't register a hardcoded fallback model.
     // get_available_ai_providers() discovers all locally installed Ollama models.
 
-    // Load saved API keys from ~/.vibeui/api_keys.json and register cloud providers at startup.
+    // Load saved API keys from ~/.vibecli/profile_settings.db and register cloud providers at startup.
     {
-        let keys_path = std::path::PathBuf::from(
-            std::env::var("HOME").unwrap_or_else(|_| ".".to_string())
-        ).join(".vibeui").join("api_keys.json");
-        if keys_path.exists() {
-            if let Ok(json) = std::fs::read_to_string(&keys_path) {
-                if let Ok(settings) = serde_json::from_str::<commands::ApiKeySettings>(&json) {
-                    commands::register_cloud_providers(&mut chat_engine, &settings);
-                }
-            }
-        }
+        let settings = commands::load_api_key_settings();
+        commands::register_cloud_providers(&mut chat_engine, &settings);
     }
 
     let chat_engine = Arc::new(Mutex::new(chat_engine));

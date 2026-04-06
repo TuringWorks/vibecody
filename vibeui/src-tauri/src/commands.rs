@@ -6355,12 +6355,111 @@ fn parse_generic_text(output: &str) -> (Vec<LintErrorOut>, Vec<LintErrorOut>) {
 
 // ── BYOK Settings ─────────────────────────────────────────────────────────────
 
-fn api_keys_path() -> std::path::PathBuf {
-    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    std::path::PathBuf::from(home).join(".vibeui").join("api_keys.json")
+use vibecli_cli::profile_store::ProfileStore as _ProfileStore;
+
+const _PROFILE_ID: &str = "default";
+
+/// Map a legacy `api_keys.json` field name → profile-store provider name.
+fn _field_to_provider(field: &str) -> Option<&'static str> {
+    match field {
+        "anthropic_api_key"    => Some("anthropic"),
+        "openai_api_key"       => Some("openai"),
+        "gemini_api_key"       => Some("gemini"),
+        "grok_api_key"         => Some("grok"),
+        "groq_api_key"         => Some("groq"),
+        "openrouter_api_key"   => Some("openrouter"),
+        "azure_openai_api_key" => Some("azure_openai"),
+        "mistral_api_key"      => Some("mistral"),
+        "cerebras_api_key"     => Some("cerebras"),
+        "deepseek_api_key"     => Some("deepseek"),
+        "zhipu_api_key"        => Some("zhipu"),
+        "vercel_ai_api_key"    => Some("vercel_ai"),
+        "minimax_api_key"      => Some("minimax"),
+        "perplexity_api_key"   => Some("perplexity"),
+        "together_api_key"     => Some("together"),
+        "fireworks_api_key"    => Some("fireworks"),
+        "sambanova_api_key"    => Some("sambanova"),
+        "ollama_api_key"       => Some("ollama"),
+        _ => None,
+    }
 }
 
-/// API key settings for cloud providers, stored at `~/.vibeui/api_keys.json`.
+/// Load API key settings from `~/.vibecli/profile_settings.db`.
+pub fn load_api_key_settings() -> ApiKeySettings {
+    let store = match _ProfileStore::new() { Ok(s) => s, Err(_) => return ApiKeySettings::default() };
+    let p = _PROFILE_ID;
+    let g = |provider: &str| store.get_api_key(p, provider).ok().flatten().unwrap_or_default();
+    let c = |provider: &str, key: &str| store.get_provider_config(p, provider, key).ok().flatten().unwrap_or_default();
+    ApiKeySettings {
+        anthropic_api_key:    g("anthropic"),
+        openai_api_key:       g("openai"),
+        gemini_api_key:       g("gemini"),
+        grok_api_key:         g("grok"),
+        groq_api_key:         g("groq"),
+        openrouter_api_key:   g("openrouter"),
+        azure_openai_api_key: g("azure_openai"),
+        azure_openai_api_url: c("azure_openai", "api_url"),
+        mistral_api_key:      g("mistral"),
+        cerebras_api_key:     g("cerebras"),
+        deepseek_api_key:     g("deepseek"),
+        zhipu_api_key:        g("zhipu"),
+        vercel_ai_api_key:    g("vercel_ai"),
+        vercel_ai_api_url:    c("vercel_ai", "api_url"),
+        minimax_api_key:      g("minimax"),
+        perplexity_api_key:   g("perplexity"),
+        together_api_key:     g("together"),
+        fireworks_api_key:    g("fireworks"),
+        sambanova_api_key:    g("sambanova"),
+        ollama_api_key:       g("ollama"),
+        ollama_api_url:       c("ollama", "api_url"),
+        claude_model:         c("anthropic", "model"),
+        openai_model:         c("openai", "model"),
+        openrouter_model:     c("openrouter", "model"),
+    }
+}
+
+/// Save API key settings to `~/.vibecli/profile_settings.db`.
+fn save_api_key_settings_to_store(settings: &ApiKeySettings) -> Result<(), String> {
+    let store = _ProfileStore::new()?;
+    let p = _PROFILE_ID;
+    macro_rules! sk {
+        ($val:expr, $provider:expr) => {
+            if !$val.is_empty() { store.set_api_key(p, $provider, $val)?; }
+        };
+    }
+    macro_rules! sc {
+        ($val:expr, $provider:expr, $key:expr) => {
+            if !$val.is_empty() { store.set_provider_config(p, $provider, $key, $val)?; }
+        };
+    }
+    sk!(&settings.anthropic_api_key,    "anthropic");
+    sk!(&settings.openai_api_key,       "openai");
+    sk!(&settings.gemini_api_key,       "gemini");
+    sk!(&settings.grok_api_key,         "grok");
+    sk!(&settings.groq_api_key,         "groq");
+    sk!(&settings.openrouter_api_key,   "openrouter");
+    sk!(&settings.azure_openai_api_key, "azure_openai");
+    sk!(&settings.mistral_api_key,      "mistral");
+    sk!(&settings.cerebras_api_key,     "cerebras");
+    sk!(&settings.deepseek_api_key,     "deepseek");
+    sk!(&settings.zhipu_api_key,        "zhipu");
+    sk!(&settings.vercel_ai_api_key,    "vercel_ai");
+    sk!(&settings.minimax_api_key,      "minimax");
+    sk!(&settings.perplexity_api_key,   "perplexity");
+    sk!(&settings.together_api_key,     "together");
+    sk!(&settings.fireworks_api_key,    "fireworks");
+    sk!(&settings.sambanova_api_key,    "sambanova");
+    sk!(&settings.ollama_api_key,       "ollama");
+    sc!(&settings.azure_openai_api_url, "azure_openai", "api_url");
+    sc!(&settings.vercel_ai_api_url,    "vercel_ai",    "api_url");
+    sc!(&settings.ollama_api_url,       "ollama",       "api_url");
+    sc!(&settings.claude_model,         "anthropic",    "model");
+    sc!(&settings.openai_model,         "openai",       "model");
+    sc!(&settings.openrouter_model,     "openrouter",   "model");
+    Ok(())
+}
+
+/// API key settings for cloud providers, stored in `~/.vibecli/profile_settings.db`.
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct ApiKeySettings {
     #[serde(default)]
@@ -6429,15 +6528,10 @@ pub struct ApiKeySettings {
     pub openrouter_model: String,
 }
 
-/// Load API key settings from `~/.vibeui/api_keys.json`.
+/// Load API key settings from `~/.vibecli/profile_settings.db`.
 #[tauri::command]
 pub async fn get_provider_api_keys() -> Result<ApiKeySettings, String> {
-    let path = api_keys_path();
-    if !path.exists() {
-        return Ok(ApiKeySettings::default());
-    }
-    let json = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
-    serde_json::from_str(&json).map_err(|e| e.to_string())
+    Ok(load_api_key_settings())
 }
 
 /// Register cloud providers from an `ApiKeySettings` into a `ChatEngine`.
@@ -6758,21 +6852,8 @@ pub async fn save_provider_api_keys(
     settings: ApiKeySettings,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<String>, String> {
-    // Persist to disk
-    let path = api_keys_path();
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-    }
-    let json = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
-    std::fs::write(&path, json).map_err(|e| e.to_string())?;
-
-    // Security: restrict file permissions to owner-only (0600) since it contains API keys
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let perms = std::fs::Permissions::from_mode(0o600);
-        let _ = std::fs::set_permissions(&path, perms);
-    }
+    // Persist encrypted to profile_settings.db
+    save_api_key_settings_to_store(&settings)?;
 
     // Re-register cloud providers
     let mut engine = state.chat_engine.lock().await;
@@ -10118,32 +10199,18 @@ fn build_temp_provider(provider_type: &str, model: &str)
         _                      => std::env::var(&format!("{}_API_KEY", provider_type.to_uppercase())).ok(),
     };
 
-    // Fall back to saved settings from ~/.vibeui/api_keys.json
+    // Fall back to saved settings from profile_settings.db
     let api_key = match api_key_from_env {
         Some(ref k) if !k.is_empty() || provider_type == "ollama" => api_key_from_env,
         _ => {
-            let path = api_keys_path();
-            let saved = std::fs::read_to_string(&path).ok()
-                .and_then(|json| serde_json::from_str::<ApiKeySettings>(&json).ok());
-            saved.and_then(|s| {
-                let key = match provider_type {
-                    "claude" | "anthropic" => s.anthropic_api_key,
-                    "openai"               => s.openai_api_key,
-                    "gemini" | "google"    => s.gemini_api_key,
-                    "grok"                 => s.grok_api_key,
-                    "groq"                 => s.groq_api_key,
-                    "mistral"              => s.mistral_api_key,
-                    "deepseek"             => s.deepseek_api_key,
-                    "cerebras"             => s.cerebras_api_key,
-                    "openrouter"           => s.openrouter_api_key,
-                    "perplexity"           => s.perplexity_api_key,
-                    "together"             => s.together_api_key,
-                    "fireworks"            => s.fireworks_api_key,
-                    "ollama"               => return Some(String::new()),
-                    _                      => return None,
-                };
-                if key.is_empty() { None } else { Some(key) }
-            })
+            let provider_name = match provider_type {
+                "claude" | "anthropic" => "anthropic",
+                "gemini" | "google"    => "gemini",
+                other => other,
+            };
+            _ProfileStore::new().ok()
+                .and_then(|s| s.get_api_key(_PROFILE_ID, provider_name).ok().flatten())
+                .filter(|k| !k.is_empty())
         }
     };
 
@@ -30921,20 +30988,14 @@ fn images_dir() -> Result<PathBuf, String> {
     Ok(dir)
 }
 
-/// Get the OpenAI API key — first from settings file, then from env var.
+/// Get the OpenAI API key — first from profile_settings.db, then from env var.
 fn get_openai_api_key() -> Result<String, String> {
-    // Try settings file first
-    let path = api_keys_path();
-    if path.exists() {
-        if let Ok(json) = std::fs::read_to_string(&path) {
-            if let Ok(settings) = serde_json::from_str::<ApiKeySettings>(&json) {
-                if !settings.openai_api_key.is_empty() {
-                    return Ok(settings.openai_api_key);
-                }
-            }
-        }
+    if let Some(key) = _ProfileStore::new().ok()
+        .and_then(|s| s.get_api_key(_PROFILE_ID, "openai").ok().flatten())
+        .filter(|k| !k.is_empty())
+    {
+        return Ok(key);
     }
-    // Fallback to env var
     std::env::var("OPENAI_API_KEY")
         .map_err(|_| "No OpenAI API key found. Set it in Settings > API Keys or via OPENAI_API_KEY env var.".to_string())
 }
@@ -31117,19 +31178,16 @@ async fn call_dalle3_api(
     Ok(file_path.to_string_lossy().to_string())
 }
 
-/// Get a specific provider key from settings, with env var fallback.
+/// Get a specific provider key from profile_settings.db, with env var fallback.
 fn get_provider_key(field: &str) -> Result<String, String> {
-    let path = api_keys_path();
-    if path.exists() {
-        if let Ok(json) = std::fs::read_to_string(&path) {
-            if let Ok(val) = serde_json::from_str::<serde_json::Value>(&json) {
-                if let Some(key) = val[field].as_str() {
-                    if !key.is_empty() { return Ok(key.to_string()); }
-                }
-            }
+    if let Some(provider) = _field_to_provider(field) {
+        if let Some(key) = _ProfileStore::new().ok()
+            .and_then(|s| s.get_api_key(_PROFILE_ID, provider).ok().flatten())
+            .filter(|k| !k.is_empty())
+        {
+            return Ok(key);
         }
     }
-    // Env var fallback: GEMINI_API_KEY, GROK_API_KEY, OPENROUTER_API_KEY
     let env_name = field.to_uppercase();
     std::env::var(&env_name).map_err(|_| format!("No API key found for {field}. Set it in Settings > API Keys."))
 }
@@ -31283,19 +31341,14 @@ pub async fn get_available_image_providers() -> Result<Vec<serde_json::Value>, S
         ("OpenRouter Image", "openrouter_api_key", "OpenRouter (proxies to DALL-E 3)"),
     ];
 
-    // Load saved keys
-    let path = api_keys_path();
-    let settings: serde_json::Value = if path.exists() {
-        std::fs::read_to_string(&path).ok()
-            .and_then(|json| serde_json::from_str(&json).ok())
-            .unwrap_or(serde_json::json!({}))
-    } else {
-        serde_json::json!({})
-    };
-
+    // Load saved keys from profile_settings.db
+    let saved = _ProfileStore::new().ok();
     let mut result = Vec::new();
     for (model_name, key_field, description) in &all_providers {
-        let has_key = settings[key_field].as_str().is_some_and(|k| !k.is_empty());
+        let has_key = _field_to_provider(key_field)
+            .and_then(|provider| saved.as_ref()
+                .and_then(|s| s.get_api_key(_PROFILE_ID, provider).ok().flatten()))
+            .is_some_and(|k: String| !k.is_empty());
         // Also check env var fallback
         let env_name = key_field.to_uppercase();
         let has_env = std::env::var(&env_name).is_ok();
