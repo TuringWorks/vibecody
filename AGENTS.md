@@ -130,6 +130,54 @@ invoke("workspace_secret_list",    { workspacePath })        // metadata only
 
 ---
 
+## Adding / Updating Providers and Models
+
+### Frontend only (update model list or default)
+
+Edit **one file**: `vibeui/src/hooks/useModelRegistry.ts`
+
+| Goal | What to change |
+|---|---|
+| Add a new provider | Add model array to `STATIC_MODELS`; add default to `PROVIDER_DEFAULT_MODEL` |
+| Add a model to an existing provider | Append to its array in `STATIC_MODELS` |
+| Change a provider's default model | Update `PROVIDER_DEFAULT_MODEL[provider]` |
+
+All UI panels consume `useModelRegistry()` — no other frontend file needs updating.
+
+### Full backend provider (new Rust implementation)
+
+Touch these files in order:
+
+1. **`vibeui/crates/vibe-ai/src/providers/{name}.rs`** — implement the `AIProvider` trait.  
+   For OpenAI-compatible APIs, copy `groq.rs` — it's the thinnest implementation.
+
+2. **`vibeui/crates/vibe-ai/src/providers.rs`** — export the new module:
+   ```rust
+   pub mod {name};
+   pub use {name}::MyProvider;
+   ```
+
+3. **`vibecli/vibecli-cli/src/config.rs`** — add a field to `Config`:
+   ```rust
+   pub {name}: Option<ProviderConfig>,
+   ```
+
+4. **`vibecli/vibecli-cli/src/main.rs`** — add a match arm in `create_raw_provider()`:
+   ```rust
+   "{name}" => Ok(Arc::new(MyProvider::new(config))),
+   ```
+
+5. **`vibecli/vibecli-cli/src/api_key_monitor.rs`** — three edits:
+   - `build_provider()` — add match arm
+   - `resolve_env_key()` — add `"{name}" => "PROVIDER_NAME_API_KEY"`
+   - `configured_providers()` — add `"{name}"` to the names array
+
+6. **`vibeui/src-tauri/src/commands.rs`** — add match arm in `build_temp_provider()` and map the API key field in `load_api_key_settings()` / `save_api_key_settings_to_store()`.
+
+Then update `useModelRegistry.ts` as described above.
+
+---
+
 ## Codebase Layout
 
 ```
@@ -142,6 +190,12 @@ vibecli/vibecli-cli/src/
 vibeui/src-tauri/src/
 ├── panel_store.rs       ← thin re-export of ProfileStore
 └── commands.rs          ← Tauri commands (profile_*, workspace_*, panel_settings_*)
+
+vibeui/src/hooks/
+└── useModelRegistry.ts  ← single source of truth for provider list + model lists
+
+vibeui/src/constants/
+└── ollamaModels.ts      ← Ollama static fallback model list
 ```
 
 ---
