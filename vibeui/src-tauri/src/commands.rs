@@ -28476,6 +28476,214 @@ pub async fn panel_settings_import(
     store.import_profile(&profile_id, &data)
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// Profile Store — API Keys, Provider Configs, Global Settings
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// API keys
+
+#[tauri::command]
+pub async fn profile_api_key_set(
+    profile_id: String,
+    provider: String,
+    api_key: String,
+) -> Result<(), String> {
+    PanelStore::new()?.set_api_key(&profile_id, &provider, &api_key)
+}
+
+#[tauri::command]
+pub async fn profile_api_key_get(
+    profile_id: String,
+    provider: String,
+) -> Result<serde_json::Value, String> {
+    match PanelStore::new()?.get_api_key(&profile_id, &provider)? {
+        Some(k) => Ok(serde_json::Value::String(k)),
+        None => Ok(serde_json::Value::Null),
+    }
+}
+
+#[tauri::command]
+pub async fn profile_api_key_list(profile_id: String) -> Result<Vec<String>, String> {
+    PanelStore::new()?.list_api_key_providers(&profile_id)
+}
+
+#[tauri::command]
+pub async fn profile_api_key_delete(
+    profile_id: String,
+    provider: String,
+) -> Result<(), String> {
+    PanelStore::new()?.delete_api_key(&profile_id, &provider)
+}
+
+// Provider configs
+
+#[tauri::command]
+pub async fn profile_provider_config_set(
+    profile_id: String,
+    provider: String,
+    key: String,
+    value: String,
+) -> Result<(), String> {
+    PanelStore::new()?.set_provider_config(&profile_id, &provider, &key, &value)
+}
+
+#[tauri::command]
+pub async fn profile_provider_config_get(
+    profile_id: String,
+    provider: String,
+    key: String,
+) -> Result<serde_json::Value, String> {
+    match PanelStore::new()?.get_provider_config(&profile_id, &provider, &key)? {
+        Some(v) => Ok(serde_json::Value::String(v)),
+        None => Ok(serde_json::Value::Null),
+    }
+}
+
+#[tauri::command]
+pub async fn profile_provider_config_get_all(
+    profile_id: String,
+    provider: String,
+) -> Result<serde_json::Value, String> {
+    PanelStore::new()?.get_all_provider_config(&profile_id, &provider)
+}
+
+// Global settings
+
+#[tauri::command]
+pub async fn profile_global_set(
+    profile_id: String,
+    key: String,
+    value: String,
+) -> Result<(), String> {
+    PanelStore::new()?.set_global(&profile_id, &key, &value)
+}
+
+#[tauri::command]
+pub async fn profile_global_get(
+    profile_id: String,
+    key: String,
+) -> Result<serde_json::Value, String> {
+    match PanelStore::new()?.get_global(&profile_id, &key)? {
+        Some(v) => Ok(serde_json::from_str(&v).unwrap_or(serde_json::Value::String(v))),
+        None => Ok(serde_json::Value::Null),
+    }
+}
+
+#[tauri::command]
+pub async fn profile_global_get_all(
+    profile_id: String,
+) -> Result<serde_json::Value, String> {
+    PanelStore::new()?.get_all_global(&profile_id)
+}
+
+#[tauri::command]
+pub async fn profile_global_delete(
+    profile_id: String,
+    key: String,
+) -> Result<(), String> {
+    PanelStore::new()?.delete_global(&profile_id, &key)
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Workspace Store — Per-Project Encrypted Settings & Secrets
+// ═══════════════════════════════════════════════════════════════════════════════
+
+use vibecli_cli::workspace_store::WorkspaceStore;
+
+#[tauri::command]
+pub async fn workspace_setting_get(
+    workspace_path: String,
+    key: String,
+) -> Result<serde_json::Value, String> {
+    let store = WorkspaceStore::open(std::path::Path::new(&workspace_path))?;
+    match store.setting_get(&key)? {
+        Some(v) => Ok(serde_json::from_str(&v).unwrap_or(serde_json::Value::String(v))),
+        None => Ok(serde_json::Value::Null),
+    }
+}
+
+#[tauri::command]
+pub async fn workspace_setting_set(
+    workspace_path: String,
+    key: String,
+    value: String,
+) -> Result<(), String> {
+    WorkspaceStore::open(std::path::Path::new(&workspace_path))?.setting_set(&key, &value)
+}
+
+#[tauri::command]
+pub async fn workspace_setting_delete(
+    workspace_path: String,
+    key: String,
+) -> Result<bool, String> {
+    WorkspaceStore::open(std::path::Path::new(&workspace_path))?.setting_delete(&key)
+}
+
+#[tauri::command]
+pub async fn workspace_setting_list(
+    workspace_path: String,
+) -> Result<serde_json::Value, String> {
+    let list = WorkspaceStore::open(std::path::Path::new(&workspace_path))?.setting_list()?;
+    Ok(serde_json::Value::Array(list))
+}
+
+#[tauri::command]
+pub async fn workspace_secret_set(
+    workspace_path: String,
+    key_name: String,
+    value: String,
+    created_by: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let store = WorkspaceStore::open(std::path::Path::new(&workspace_path))?;
+    let meta = store.secret_set(&key_name, &value, created_by.as_deref())?;
+    Ok(serde_json::json!({
+        "id": meta.id,
+        "key_name": meta.key_name,
+        "version": meta.version,
+        "created_by": meta.created_by,
+        "created_at": meta.created_at,
+        "updated_at": meta.updated_at,
+    }))
+}
+
+#[tauri::command]
+pub async fn workspace_secret_get(
+    workspace_path: String,
+    key_name: String,
+) -> Result<serde_json::Value, String> {
+    match WorkspaceStore::open(std::path::Path::new(&workspace_path))?.secret_get(&key_name)? {
+        Some(v) => Ok(serde_json::Value::String(v)),
+        None => Ok(serde_json::Value::Null),
+    }
+}
+
+#[tauri::command]
+pub async fn workspace_secret_delete(
+    workspace_path: String,
+    key_name: String,
+) -> Result<bool, String> {
+    WorkspaceStore::open(std::path::Path::new(&workspace_path))?.secret_delete(&key_name)
+}
+
+#[tauri::command]
+pub async fn workspace_secret_list(
+    workspace_path: String,
+) -> Result<serde_json::Value, String> {
+    let list = WorkspaceStore::open(std::path::Path::new(&workspace_path))?.secret_list()?;
+    let items: Vec<serde_json::Value> = list
+        .iter()
+        .map(|m| serde_json::json!({
+            "id": m.id,
+            "key_name": m.key_name,
+            "version": m.version,
+            "created_by": m.created_by,
+            "created_at": m.created_at,
+            "updated_at": m.updated_at,
+        }))
+        .collect();
+    Ok(serde_json::Value::Array(items))
+}
+
 // ── Sub-Agent Management ────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

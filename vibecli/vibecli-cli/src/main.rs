@@ -340,6 +340,8 @@ mod company_routines;
 mod company_heartbeat;
 mod company_portability;
 mod company_orchestrator;
+mod profile_store;
+mod workspace_store;
 // RL-OS: Unified Reinforcement Learning Lifecycle Platform
 #[allow(dead_code)]
 mod rl_env_os;

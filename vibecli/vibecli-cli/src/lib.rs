@@ -47,3 +47,5 @@ pub mod company_routines;
 pub mod company_heartbeat;
 pub mod company_portability;
 pub mod company_orchestrator;
+pub mod profile_store;
+pub mod workspace_store;

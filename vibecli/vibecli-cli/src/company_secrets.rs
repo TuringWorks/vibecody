@@ -3,11 +3,11 @@
 //!
 //! Each secret is encrypted with a keystream derived from HMAC-SHA256
 //! using a per-company master key and a random nonce. The master key is
-//! stored in the OS keychain (macOS Keychain / Linux Secret Service /
-//! Windows Credential Manager) under service "vibecli-secrets". In
-//! headless or CI environments where no keychain is available, it falls
-//! back to a per-company key file at `~/.vibecli/keys/<company_id>.key`.
-//! Existing key files are migrated to the keychain on first access.
+//! stored in `~/.vibecli/profile_settings.db` (master_keys table,
+//! encrypted with ChaCha20-Poly1305). Falls back to the OS keychain
+//! (macOS Keychain / Linux Secret Service / Windows Credential Manager),
+//! then to a per-company key file at `~/.vibecli/keys/<company_id>.key`.
+//! Existing keychain/file entries are migrated to the profile store on first access.
 //!
 //! Encryption scheme:
 //!   keystream = HMAC-SHA256(master_key, nonce || key_name || counter)
@@ -63,58 +63,75 @@ fn decode_hex_key(hex_str: &str) -> Option<[u8; 32]> {
 /// Load or create a 32-byte master key for the company.
 ///
 /// Storage priority:
-///   1. OS keychain (macOS Keychain / Linux Secret Service / Windows Credential Manager)
-///   2. Legacy key file at `~/.vibecli/keys/<id>.key` — migrated to keychain on first read
-///   3. File fallback when keychain is unavailable (CI / headless environments)
+///   1. profile_settings.db `master_keys` table (ChaCha20-Poly1305 encrypted)
+///   2. OS keychain — migrated to profile store on first access
+///   3. Legacy key file — migrated to profile store on first access
 pub fn get_or_create_master_key(company_id: &str) -> Result<[u8; 32]> {
-    let account = key_account(company_id);
+    use crate::profile_store::ProfileStore;
 
-    // ── 1. Try OS keychain ────────────────────────────────────────────────────
-    if let Ok(entry) = keyring::Entry::new(KEYCHAIN_SERVICE, account) {
-        match entry.get_password() {
-            Ok(hex_key) => {
-                if let Some(key) = decode_hex_key(&hex_key) {
-                    return Ok(key);
-                }
-                // Corrupt entry — fall through to regenerate
-            }
-            Err(keyring::Error::NoEntry) => {
-                // Not in keychain yet. Check for a legacy key file to migrate.
-                let legacy = legacy_key_path(company_id);
-                let key = if legacy.exists() {
-                    let bytes = std::fs::read(&legacy).context("reading legacy master key")?;
-                    decode_hex_key(&String::from_utf8_lossy(&bytes))
-                        .unwrap_or_else(generate_key)
-                } else {
-                    generate_key()
-                };
-
-                if entry.set_password(&hex::encode(key)).is_ok() {
-                    // Successfully stored in keychain — remove legacy file.
-                    let _ = std::fs::remove_file(&legacy);
-                } else {
-                    // Keychain write failed — persist to file so the key isn't lost.
-                    let _ = write_key_file(company_id, &key);
-                }
+    // ── 1. Try profile store (encrypted SQLite) ───────────────────────────────
+    if let Ok(store) = ProfileStore::new() {
+        match store.get_master_key(company_id) {
+            Ok(Some(key)) => return Ok(key),
+            Ok(None) => {
+                // Not stored yet — check legacy sources then generate.
+                let key = load_from_keychain_or_file(company_id).unwrap_or_else(generate_key);
+                let _ = store.set_master_key(company_id, &key);
+                cleanup_legacy(company_id);
                 return Ok(key);
             }
-            Err(_) => {
-                // Keychain unavailable — fall through to file backend.
+            Err(_) => {} // fall through
+        }
+    }
+
+    // ── 2. OS keychain fallback ───────────────────────────────────────────────
+    let account = key_account(company_id);
+    if let Ok(entry) = keyring::Entry::new(KEYCHAIN_SERVICE, account) {
+        if let Ok(hex_key) = entry.get_password() {
+            if let Some(key) = decode_hex_key(&hex_key) {
+                return Ok(key);
             }
         }
     }
 
-    // ── 2. File fallback (headless / CI) ─────────────────────────────────────
+    // ── 3. File fallback (headless / CI) ─────────────────────────────────────
     let path = legacy_key_path(company_id);
     if path.exists() {
-        let bytes = std::fs::read(&path).context("reading master key file")?;
-        if let Some(key) = decode_hex_key(&String::from_utf8_lossy(&bytes)) {
-            return Ok(key);
+        if let Ok(bytes) = std::fs::read(&path) {
+            if let Some(key) = decode_hex_key(&String::from_utf8_lossy(&bytes)) {
+                return Ok(key);
+            }
         }
     }
     let key = generate_key();
     write_key_file(company_id, &key)?;
     Ok(key)
+}
+
+fn load_from_keychain_or_file(company_id: &str) -> Option<[u8; 32]> {
+    let account = key_account(company_id);
+    if let Ok(entry) = keyring::Entry::new(KEYCHAIN_SERVICE, account) {
+        if let Ok(hex_key) = entry.get_password() {
+            if let Some(key) = decode_hex_key(&hex_key) {
+                return Some(key);
+            }
+        }
+    }
+    let path = legacy_key_path(company_id);
+    if path.exists() {
+        if let Ok(bytes) = std::fs::read(&path) {
+            return decode_hex_key(&String::from_utf8_lossy(&bytes));
+        }
+    }
+    None
+}
+
+fn cleanup_legacy(company_id: &str) {
+    let account = key_account(company_id);
+    if let Ok(entry) = keyring::Entry::new(KEYCHAIN_SERVICE, account) {
+        let _ = entry.delete_password();
+    }
+    let _ = std::fs::remove_file(legacy_key_path(company_id));
 }
 
 fn write_key_file(company_id: &str, key: &[u8; 32]) -> Result<()> {
