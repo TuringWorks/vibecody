@@ -153,7 +153,7 @@ export default function WorkManagementPanel() {
     <div style={{ display: "flex", flexDirection: "column", height: "100%", color: "var(--text-primary)" }}>
       {/* Header */}
       <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", display: "flex", alignItems: "center", gap: 8 }}>
-        <span style={{ fontSize: 14, fontWeight: 700 }}>Work Management</span>
+        <span style={{ fontSize: 14, fontWeight: 700 }}>Projects</span>
         {scope.orgId && <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>
           {orgs.find(o => o.id === scope.orgId)?.name}
           {scope.groupId && ` / ${groups.find(g => g.id === scope.groupId)?.name || ""}`}
@@ -337,7 +337,7 @@ function HierarchyTab({ orgs, groups, teams, workspaces, scope, setScope, onRefr
       {/* Getting started guide */}
       {orgs.length === 0 && !creating && (
         <div style={{ ...cardS, textAlign: "center", padding: 24, marginBottom: 16 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>Get Started with Work Management</div>
+          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>Get Started with Projects</div>
           <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.6, marginBottom: 12 }}>
             Create an organizational hierarchy to track work items across your teams.<br />
             Organization &rarr; Group/Division &rarr; Team &rarr; Workspace/Project

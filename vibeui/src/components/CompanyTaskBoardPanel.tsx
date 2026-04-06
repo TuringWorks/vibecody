@@ -54,7 +54,7 @@ export function CompanyTaskBoardPanel({ workspacePath: _wp }: CompanyTaskBoardPa
   return (
     <div style={{ padding: 16, fontSize: 13, height: "100%", overflowY: "auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-        <span style={{ fontWeight: 600, fontSize: 14 }}>Task Board</span>
+        <span style={{ fontWeight: 600, fontSize: 14 }}>Agent Tasks</span>
         <button onClick={load} style={btnStyle}>
           Refresh
         </button>

@@ -70,7 +70,7 @@ export function CompanyGoalsPanel({ workspacePath: _wp }: CompanyGoalsPanelProps
   return (
     <div style={{ padding: 16, fontSize: 13, height: "100%", overflowY: "auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-        <span style={{ fontWeight: 600, fontSize: 14 }}>Goals</span>
+        <span style={{ fontWeight: 600, fontSize: 14 }}>Agent Goals</span>
         <div style={{ display: "flex", gap: 6 }}>
           {(["list", "tree", "create"] as const).map((v) => (
             <button key={v} onClick={() => setView(v)} style={{

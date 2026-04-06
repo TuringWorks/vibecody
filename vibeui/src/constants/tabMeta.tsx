@@ -30,7 +30,7 @@ export const TAB_META: Record<string, TabMeta> = {
   marketplace:     { icon: Store,          label: "Marketplace" },
 
   // --- Project ---
-  "project-hub":   { icon: ClipboardList,  label: "Project Hub",       aliases: ["workmanagement", "dashboard", "steering", "soul", "memory", "rules", "discuss"] },
+  "project-hub":   { icon: ClipboardList,  label: "Project Hub",       aliases: ["projects", "workmanagement", "work management", "dashboard", "steering", "soul", "memory", "rules", "discuss"] },
   planning:        { icon: Ruler,          label: "Planning",          aliases: ["specs", "plandoc", "workflow", "orchestration", "clarify", "codesearch"] },
   observability:   { icon: Activity,       label: "Observability",     aliases: ["traces", "recording", "demo"] },
   design:          { icon: Palette,        label: "Design",            aliases: ["remotecontrol", "remote control"] },
@@ -75,7 +75,7 @@ export const TAB_META: Record<string, TabMeta> = {
   administration:    { icon: UserCog,      label: "Administration",    aliases: ["admin", "auth", "governance", "sessions", "manager"] },
   billing:           { icon: DollarSign,   label: "Billing",           aliases: ["cost", "usagemetering", "usage"] },
   "tools-settings":  { icon: Package,      label: "Tools",             aliases: ["artifacts", "img2app", "screenshot to app", "visualtest", "visual test"] },
-  company:           { icon: Building2,    label: "Company",           aliases: ["paperclip", "org chart", "orgchart", "zero human", "autonomous company", "company dashboard", "approvals", "routines", "heartbeat", "agents org", "company orchestration"] },
+  company:           { icon: Building2,    label: "Company",           aliases: ["paperclip", "org chart", "orgchart", "zero human", "autonomous company", "company dashboard", "approvals", "routines", "heartbeat", "agents org", "company orchestration", "agent tasks", "agent goals", "agent docs", "hire", "fire agent", "budget", "secrets vault"] },
 };
 
 export const DEFAULT_TAB_META: TabMeta = { icon: Workflow, label: "Panel" };

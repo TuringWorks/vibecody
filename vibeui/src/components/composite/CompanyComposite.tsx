@@ -7,13 +7,13 @@ import { createComposite } from "./createComposite";
  *   Dashboard   — Real-time company status, quick actions, command console
  *   Org Chart   — SVG/ASCII agent hierarchy with reporting tree
  *   Agents      — Agent detail lookup, hire/fire
- *   Goals       — Hierarchical goal tree with progress
- *   Task Board  — Kanban task lifecycle (backlog → done)
+ *   Agent Goals — Hierarchical goal tree with progress (agent-scoped)
+ *   Agent Tasks — Kanban task lifecycle for agents (backlog → done)
  *   Approvals   — Pending approval workflows with decide actions
  *   Budget      — Per-agent monthly budgets and cost events
  *   Secrets     — Encrypted secrets vault (keys listed, values hidden)
  *   Routines    — Scheduled recurring agent tasks + heartbeat triggers
- *   Documents   — Markdown docs with revision history
+ *   Agent Docs  — Markdown docs linked to agents/tasks
  *   Import/Export — Company blueprint portability
  *   Adapters    — BYOA adapter registry (HTTP, process, Claude, Codex)
  */
@@ -38,13 +38,13 @@ export const CompanyComposite = createComposite([
   },
   {
     id: "company-goals",
-    label: "Goals",
+    label: "Agent Goals",
     importFn: () => import("../CompanyGoalsPanel"),
     exportName: "CompanyGoalsPanel",
   },
   {
     id: "company-tasks",
-    label: "Task Board",
+    label: "Agent Tasks",
     importFn: () => import("../CompanyTaskBoardPanel"),
     exportName: "CompanyTaskBoardPanel",
   },
@@ -74,7 +74,7 @@ export const CompanyComposite = createComposite([
   },
   {
     id: "company-docs",
-    label: "Documents",
+    label: "Agent Docs",
     importFn: () => import("../CompanyDocumentsPanel"),
     exportName: "CompanyDocumentsPanel",
   },
