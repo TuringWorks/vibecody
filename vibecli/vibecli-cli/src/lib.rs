@@ -38,6 +38,7 @@ pub mod company_store;
 pub mod adapter_registry;
 pub mod company_goals;
 pub mod company_tasks;
+pub mod company_cmd;
 pub mod company_documents;
 pub mod company_budget;
 pub mod company_approvals;

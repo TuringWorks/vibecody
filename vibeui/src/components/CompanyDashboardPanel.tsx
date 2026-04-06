@@ -19,6 +19,16 @@ export function CompanyDashboardPanel({ workspacePath: _wp }: CompanyDashboardPa
   const [cmdOutput, setCmdOutput] = useState<string | null>(null);
   const [cmdLoading, setCmdLoading] = useState(false);
 
+  const btnStyle: React.CSSProperties = {
+    fontSize: 11,
+    padding: "3px 10px",
+    cursor: "pointer",
+    borderRadius: 4,
+    background: "var(--bg-tertiary)",
+    border: "1px solid var(--border-color)",
+    color: "var(--text-primary)",
+  };
+
   const loadStatus = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -61,7 +71,7 @@ export function CompanyDashboardPanel({ workspacePath: _wp }: CompanyDashboardPa
     <div style={{ padding: 16, height: "100%", overflowY: "auto", fontSize: 13 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <span style={{ fontWeight: 700, fontSize: 15 }}>Company Dashboard</span>
-        <button onClick={loadStatus} style={{ fontSize: 11, padding: "2px 8px", cursor: "pointer" }}>
+        <button onClick={loadStatus} style={btnStyle}>
           Refresh
         </button>
       </div>
@@ -70,7 +80,7 @@ export function CompanyDashboardPanel({ workspacePath: _wp }: CompanyDashboardPa
       <div
         style={{
           background: "var(--panel-bg, rgba(0,0,0,0.2))",
-          border: "1px solid var(--border)",
+          border: "1px solid var(--border-color)",
           borderRadius: 6,
           padding: 12,
           marginBottom: 16,
@@ -105,7 +115,7 @@ export function CompanyDashboardPanel({ workspacePath: _wp }: CompanyDashboardPa
                   setCmdLoading(false);
                 }
               }}
-              style={{ fontSize: 11, padding: "3px 10px", cursor: "pointer", borderRadius: 4 }}
+              style={btnStyle}
             >
               {a.label}
             </button>
@@ -129,7 +139,7 @@ export function CompanyDashboardPanel({ workspacePath: _wp }: CompanyDashboardPa
               fontSize: 12,
               padding: "4px 8px",
               background: "var(--input-bg, rgba(0,0,0,0.3))",
-              border: "1px solid var(--border)",
+              border: "1px solid var(--border-color)",
               borderRadius: 4,
               color: "var(--text-primary)",
             }}
@@ -137,7 +147,7 @@ export function CompanyDashboardPanel({ workspacePath: _wp }: CompanyDashboardPa
           <button
             onClick={runCmd}
             disabled={cmdLoading}
-            style={{ fontSize: 11, padding: "4px 12px", cursor: "pointer" }}
+            style={{ ...btnStyle, padding: "4px 12px", opacity: cmdLoading ? 0.5 : 1 }}
           >
             {cmdLoading ? "…" : "Run"}
           </button>
@@ -149,7 +159,7 @@ export function CompanyDashboardPanel({ workspacePath: _wp }: CompanyDashboardPa
         <div
           style={{
             background: "var(--panel-bg, rgba(0,0,0,0.2))",
-            border: "1px solid var(--border)",
+            border: "1px solid var(--border-color)",
             borderRadius: 6,
             padding: 12,
           }}

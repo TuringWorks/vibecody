@@ -331,6 +331,7 @@ mod company_store;
 mod adapter_registry;
 mod company_goals;
 mod company_tasks;
+mod company_cmd;
 mod company_documents;
 mod company_budget;
 mod company_approvals;
@@ -1467,8 +1468,12 @@ async fn main() -> Result<()> {
                 let output = crate::linear::handle_linear_command(args).await;
                 print!("{}", output);
             }
+            "/company" => {
+                let output = crate::company_cmd::handle_company_cmd_once(args).await;
+                print!("{}", output);
+            }
             _ => {
-                eprintln!("Unknown --cmd command '{}'. Use /email, /cal, /ha, /todo, /notion, /jira, /linear.", command);
+                eprintln!("Unknown --cmd command '{}'. Use /email, /cal, /ha, /todo, /notion, /jira, /linear, /company.", command);
                 std::process::exit(1);
             }
         }
