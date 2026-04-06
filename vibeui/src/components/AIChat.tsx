@@ -436,8 +436,10 @@ function CodeBlock({ language, code, filename, onApply }: CodeBlockProps) {
       toml: "file.toml", sql: "file.sql", bash: "script.sh", sh: "script.sh",
       cpp: "file.cpp", c: "file.c", ruby: "file.rb", swift: "file.swift",
       kotlin: "file.kt", scala: "file.scala", php: "file.php",
+      image: "image.png", png: "image.png", jpg: "image.jpg", jpeg: "image.jpg",
+      webp: "image.webp", gif: "image.gif", tiff: "image.tiff",
     };
-    return extMap[language] || "file.txt";
+    return extMap[language.toLowerCase()] || "file.txt";
   }, [language, filename]);
 
   const handleCopy = () => {
@@ -1442,13 +1444,16 @@ export function AIChat({
       toml: "file.toml", sql: "file.sql", bash: "script.sh", sh: "script.sh",
       cpp: "file.cpp", c: "file.c", ruby: "file.rb", swift: "file.swift",
       kotlin: "file.kt", scala: "file.scala", php: "file.php",
+      image: "image.png", png: "image.png", jpg: "image.jpg", jpeg: "image.jpg",
+      webp: "image.webp", gif: "image.gif", tiff: "image.tiff",
     };
     let match: RegExpExecArray | null;
     while ((match = fenceRegex.exec(content)) !== null) {
+      const languageMatch = match[1].toLowerCase();
       blocks.push({
         language: match[1],
         code: match[2],
-        filename: extMap[match[1]] || "file.txt",
+        filename: extMap[languageMatch] || "file.txt",
       });
     }
     return blocks;
