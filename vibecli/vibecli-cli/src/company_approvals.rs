@@ -279,6 +279,190 @@ impl Approval {
 
 // ── Policy integration helpers ────────────────────────────────────────────────
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rusqlite::Connection;
+
+    fn make_conn() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch("PRAGMA foreign_keys=ON;").unwrap();
+        conn
+    }
+
+    // ── request ──────────────────────────────────────────────────────────────
+
+    #[test]
+    fn given_new_request_when_created_then_status_is_pending() {
+        let conn = make_conn();
+        let store = ApprovalStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let a = store.request("co1", ApprovalRequestType::Hire, "agent-x", "req-1", "Need to hire").unwrap();
+        assert_eq!(a.status, ApprovalStatus::Pending);
+        assert_eq!(a.request_type, ApprovalRequestType::Hire);
+        assert_eq!(a.requester_id, "req-1");
+    }
+
+    #[test]
+    fn given_request_created_when_get_by_id_then_returns_it() {
+        let conn = make_conn();
+        let store = ApprovalStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let a = store.request("co1", ApprovalRequestType::Budget, "subj-1", "req-1", "Reason").unwrap();
+        let fetched = store.get(&a.id).unwrap();
+        assert!(fetched.is_some());
+        assert_eq!(fetched.unwrap().id, a.id);
+    }
+
+    #[test]
+    fn given_nonexistent_id_when_get_then_returns_none() {
+        let conn = make_conn();
+        let store = ApprovalStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let result = store.get("ghost-id").unwrap();
+        assert!(result.is_none());
+    }
+
+    // ── decide ───────────────────────────────────────────────────────────────
+
+    #[test]
+    fn given_pending_approval_when_approved_then_status_is_approved() {
+        let conn = make_conn();
+        let store = ApprovalStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let a = store.request("co1", ApprovalRequestType::Task, "task-1", "req-1", "Do task").unwrap();
+        let decided = store.decide(&a.id, true, "approver-1").unwrap();
+        assert_eq!(decided.status, ApprovalStatus::Approved);
+        assert_eq!(decided.decided_by.as_deref(), Some("approver-1"));
+        assert!(decided.decided_at.is_some());
+    }
+
+    #[test]
+    fn given_pending_approval_when_rejected_then_status_is_rejected() {
+        let conn = make_conn();
+        let store = ApprovalStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let a = store.request("co1", ApprovalRequestType::Deploy, "svc-1", "req-1", "Deploy now").unwrap();
+        let decided = store.decide(&a.id, false, "boss-1").unwrap();
+        assert_eq!(decided.status, ApprovalStatus::Rejected);
+    }
+
+    #[test]
+    fn given_already_approved_when_decide_called_again_then_error() {
+        let conn = make_conn();
+        let store = ApprovalStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let a = store.request("co1", ApprovalRequestType::Hire, "ag-1", "req", "ok").unwrap();
+        store.decide(&a.id, true, "boss").unwrap();
+        let result = store.decide(&a.id, false, "boss");
+        assert!(result.is_err());
+        let msg = result.unwrap_err().to_string();
+        assert!(msg.contains("already"));
+    }
+
+    #[test]
+    fn given_already_rejected_when_decide_called_again_then_error() {
+        let conn = make_conn();
+        let store = ApprovalStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let a = store.request("co1", ApprovalRequestType::Budget, "sub", "req", "ok").unwrap();
+        store.decide(&a.id, false, "boss").unwrap();
+        let result = store.decide(&a.id, true, "boss");
+        assert!(result.is_err());
+    }
+
+    // ── cancel ───────────────────────────────────────────────────────────────
+
+    #[test]
+    fn given_pending_approval_when_cancelled_then_status_is_cancelled() {
+        let conn = make_conn();
+        let store = ApprovalStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let a = store.request("co1", ApprovalRequestType::Strategy, "goal-1", "req-1", "pivot").unwrap();
+        let cancelled = store.cancel(&a.id).unwrap();
+        assert_eq!(cancelled.status, ApprovalStatus::Cancelled);
+    }
+
+    #[test]
+    fn given_approved_approval_when_cancel_called_then_error() {
+        let conn = make_conn();
+        let store = ApprovalStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let a = store.request("co1", ApprovalRequestType::Task, "t1", "r1", "ok").unwrap();
+        store.decide(&a.id, true, "boss").unwrap();
+        let result = store.cancel(&a.id);
+        assert!(result.is_err());
+    }
+
+    // ── list ─────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn given_multiple_approvals_when_list_all_then_returns_all_for_company() {
+        let conn = make_conn();
+        let store = ApprovalStore::new(&conn);
+        store.ensure_schema().unwrap();
+        store.request("co1", ApprovalRequestType::Hire, "a1", "r1", "ok").unwrap();
+        store.request("co1", ApprovalRequestType::Budget, "a2", "r2", "ok").unwrap();
+        store.request("co2", ApprovalRequestType::Task, "a3", "r3", "ok").unwrap();
+        let list = store.list("co1", None).unwrap();
+        assert_eq!(list.len(), 2);
+    }
+
+    #[test]
+    fn given_mixed_statuses_when_list_with_pending_filter_then_only_pending_returned() {
+        let conn = make_conn();
+        let store = ApprovalStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let a1 = store.request("co1", ApprovalRequestType::Hire, "s1", "r1", "ok").unwrap();
+        let _a2 = store.request("co1", ApprovalRequestType::Task, "s2", "r2", "ok").unwrap();
+        store.decide(&a1.id, true, "boss").unwrap();
+        let pending = store.list("co1", Some("pending")).unwrap();
+        assert_eq!(pending.len(), 1);
+        assert_eq!(pending[0].status, ApprovalStatus::Pending);
+    }
+
+    // ── pending_count ────────────────────────────────────────────────────────
+
+    #[test]
+    fn given_two_pending_approvals_when_pending_count_then_returns_two() {
+        let conn = make_conn();
+        let store = ApprovalStore::new(&conn);
+        store.ensure_schema().unwrap();
+        store.request("co1", ApprovalRequestType::Hire, "s1", "r1", "ok").unwrap();
+        store.request("co1", ApprovalRequestType::Budget, "s2", "r2", "ok").unwrap();
+        assert_eq!(store.pending_count("co1").unwrap(), 2);
+    }
+
+    #[test]
+    fn given_all_decided_when_pending_count_then_returns_zero() {
+        let conn = make_conn();
+        let store = ApprovalStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let a = store.request("co1", ApprovalRequestType::Deploy, "s1", "r1", "ok").unwrap();
+        store.decide(&a.id, true, "boss").unwrap();
+        assert_eq!(store.pending_count("co1").unwrap(), 0);
+    }
+
+    #[test]
+    fn given_empty_company_when_pending_count_then_returns_zero() {
+        let conn = make_conn();
+        let store = ApprovalStore::new(&conn);
+        store.ensure_schema().unwrap();
+        assert_eq!(store.pending_count("co-empty").unwrap(), 0);
+    }
+
+    // ── decide on nonexistent ────────────────────────────────────────────────
+
+    #[test]
+    fn given_nonexistent_approval_when_decide_then_error() {
+        let conn = make_conn();
+        let store = ApprovalStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let result = store.decide("ghost-id", true, "boss");
+        assert!(result.is_err());
+    }
+}
+
 /// Company resource kinds for policy_engine checks.
 pub mod company_policy {
     /// Resource kinds for company entities.

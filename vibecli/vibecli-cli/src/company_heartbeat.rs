@@ -232,6 +232,187 @@ fn row_to_run(row: &rusqlite::Row) -> rusqlite::Result<HeartbeatRun> {
     })
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rusqlite::Connection;
+
+    fn make_conn() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch("PRAGMA foreign_keys=ON;").unwrap();
+        conn
+    }
+
+    // ── start ────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn given_start_called_when_returned_then_status_is_running() {
+        let conn = make_conn();
+        let store = HeartbeatStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let run = store.start("co1", "ag1", HeartbeatTrigger::Manual, None).unwrap();
+        assert_eq!(run.status, HeartbeatStatus::Running);
+        assert_eq!(run.trigger, HeartbeatTrigger::Manual);
+        assert!(run.finished_at.is_none());
+        assert!(run.summary.is_none());
+    }
+
+    #[test]
+    fn given_scheduled_trigger_when_start_then_trigger_type_stored() {
+        let conn = make_conn();
+        let store = HeartbeatStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let run = store.start("co1", "ag1", HeartbeatTrigger::Scheduled, Some("sess-1")).unwrap();
+        assert_eq!(run.trigger, HeartbeatTrigger::Scheduled);
+        assert_eq!(run.session_id.as_deref(), Some("sess-1"));
+    }
+
+    // ── complete ─────────────────────────────────────────────────────────────
+
+    #[test]
+    fn given_running_run_when_completed_then_status_is_completed() {
+        let conn = make_conn();
+        let store = HeartbeatStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let run = store.start("co1", "ag1", HeartbeatTrigger::Manual, None).unwrap();
+        let done = store.complete(&run.id, Some("All good")).unwrap();
+        assert_eq!(done.status, HeartbeatStatus::Completed);
+        assert!(done.finished_at.is_some());
+        assert_eq!(done.summary.as_deref(), Some("All good"));
+    }
+
+    #[test]
+    fn given_completed_run_when_get_by_id_then_finished_at_is_set() {
+        let conn = make_conn();
+        let store = HeartbeatStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let run = store.start("co1", "ag1", HeartbeatTrigger::Event, None).unwrap();
+        store.complete(&run.id, None).unwrap();
+        let fetched = store.get(&run.id).unwrap().unwrap();
+        assert!(fetched.finished_at.is_some());
+    }
+
+    // ── fail ─────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn given_running_run_when_failed_then_status_is_failed() {
+        let conn = make_conn();
+        let store = HeartbeatStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let run = store.start("co1", "ag1", HeartbeatTrigger::Scheduled, None).unwrap();
+        let failed = store.fail(&run.id, "timeout error").unwrap();
+        assert_eq!(failed.status, HeartbeatStatus::Failed);
+        assert!(failed.finished_at.is_some());
+        assert_eq!(failed.summary.as_deref(), Some("timeout error"));
+    }
+
+    // ── get ──────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn given_existing_run_when_get_then_returns_it() {
+        let conn = make_conn();
+        let store = HeartbeatStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let run = store.start("co1", "ag1", HeartbeatTrigger::Manual, None).unwrap();
+        let fetched = store.get(&run.id).unwrap();
+        assert!(fetched.is_some());
+        assert_eq!(fetched.unwrap().id, run.id);
+    }
+
+    #[test]
+    fn given_nonexistent_run_when_get_then_returns_none() {
+        let conn = make_conn();
+        let store = HeartbeatStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let result = store.get("ghost-run-id").unwrap();
+        assert!(result.is_none());
+    }
+
+    // ── history ──────────────────────────────────────────────────────────────
+
+    #[test]
+    fn given_multiple_runs_when_history_then_returns_up_to_limit() {
+        let conn = make_conn();
+        let store = HeartbeatStore::new(&conn);
+        store.ensure_schema().unwrap();
+        for _ in 0..5 {
+            store.start("co1", "ag1", HeartbeatTrigger::Scheduled, None).unwrap();
+        }
+        let history = store.history("ag1", 3).unwrap();
+        assert_eq!(history.len(), 3);
+    }
+
+    #[test]
+    fn given_runs_for_different_agents_when_history_filtered_then_only_target_agent() {
+        let conn = make_conn();
+        let store = HeartbeatStore::new(&conn);
+        store.ensure_schema().unwrap();
+        store.start("co1", "ag1", HeartbeatTrigger::Manual, None).unwrap();
+        store.start("co1", "ag2", HeartbeatTrigger::Manual, None).unwrap();
+        let history = store.history("ag1", 10).unwrap();
+        assert_eq!(history.len(), 1);
+        assert_eq!(history[0].agent_id, "ag1");
+    }
+
+    // ── company_history ──────────────────────────────────────────────────────
+
+    #[test]
+    fn given_runs_in_two_companies_when_company_history_then_only_target_company() {
+        let conn = make_conn();
+        let store = HeartbeatStore::new(&conn);
+        store.ensure_schema().unwrap();
+        store.start("co1", "ag1", HeartbeatTrigger::Scheduled, None).unwrap();
+        store.start("co1", "ag2", HeartbeatTrigger::Scheduled, None).unwrap();
+        store.start("co2", "ag3", HeartbeatTrigger::Manual, None).unwrap();
+        let history = store.company_history("co1", 10).unwrap();
+        assert_eq!(history.len(), 2);
+    }
+
+    // ── running_count ────────────────────────────────────────────────────────
+
+    #[test]
+    fn given_two_running_runs_when_running_count_then_returns_two() {
+        let conn = make_conn();
+        let store = HeartbeatStore::new(&conn);
+        store.ensure_schema().unwrap();
+        store.start("co1", "ag1", HeartbeatTrigger::Manual, None).unwrap();
+        store.start("co1", "ag1", HeartbeatTrigger::Event, None).unwrap();
+        assert_eq!(store.running_count("ag1").unwrap(), 2);
+    }
+
+    #[test]
+    fn given_run_completed_when_running_count_then_count_decreases() {
+        let conn = make_conn();
+        let store = HeartbeatStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let r1 = store.start("co1", "ag1", HeartbeatTrigger::Manual, None).unwrap();
+        let _r2 = store.start("co1", "ag1", HeartbeatTrigger::Event, None).unwrap();
+        assert_eq!(store.running_count("ag1").unwrap(), 2);
+        store.complete(&r1.id, None).unwrap();
+        assert_eq!(store.running_count("ag1").unwrap(), 1);
+    }
+
+    #[test]
+    fn given_no_runs_when_running_count_then_returns_zero() {
+        let conn = make_conn();
+        let store = HeartbeatStore::new(&conn);
+        store.ensure_schema().unwrap();
+        assert_eq!(store.running_count("no-such-agent").unwrap(), 0);
+    }
+
+    // ── trigger_manual ───────────────────────────────────────────────────────
+
+    #[test]
+    fn given_trigger_manual_when_called_then_run_started_with_manual_trigger() {
+        let conn = make_conn();
+        let store = HeartbeatStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let run = store.trigger_manual("co1", "ag1").unwrap();
+        assert_eq!(run.trigger, HeartbeatTrigger::Manual);
+        assert_eq!(run.status, HeartbeatStatus::Running);
+    }
+}
+
 impl HeartbeatRun {
     pub fn summary_line(&self) -> String {
         let status_icon = match self.status {

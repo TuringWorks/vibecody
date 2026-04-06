@@ -13,6 +13,7 @@ import { createComposite } from "./createComposite";
  *   Budget      — Per-agent monthly budgets and cost events
  *   Secrets     — Encrypted secrets vault (keys listed, values hidden)
  *   Routines    — Scheduled recurring agent tasks + heartbeat triggers
+ *   Heartbeats  — Per-agent/company run history with manual trigger
  *   Agent Docs  — Markdown docs linked to agents/tasks
  *   Import/Export — Company blueprint portability
  *   Adapters    — BYOA adapter registry (HTTP, process, Claude, Codex)
@@ -71,6 +72,12 @@ export const CompanyComposite = createComposite([
     label: "Routines",
     importFn: () => import("../CompanyRoutinesPanel"),
     exportName: "CompanyRoutinesPanel",
+  },
+  {
+    id: "company-heartbeats",
+    label: "Heartbeats",
+    importFn: () => import("../CompanyHeartbeatPanel"),
+    exportName: "CompanyHeartbeatPanel",
   },
   {
     id: "company-docs",

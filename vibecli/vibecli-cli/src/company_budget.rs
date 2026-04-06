@@ -300,6 +300,205 @@ fn row_to_event(row: &rusqlite::Row) -> rusqlite::Result<CostEvent> {
 
 // ── Display helpers ───────────────────────────────────────────────────────────
 
+// ── Tests ─────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rusqlite::Connection;
+
+    fn make_conn() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch("PRAGMA foreign_keys=ON;").unwrap();
+        conn
+    }
+
+    // ── set_budget ───────────────────────────────────────────────────────────
+
+    #[test]
+    fn given_new_budget_when_set_then_returned_with_zero_spent() {
+        let conn = make_conn();
+        let store = BudgetStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let b = store.set_budget("co1", "ag1", "2026-04", 10_000, false, 80).unwrap();
+        assert_eq!(b.limit_cents, 10_000);
+        assert_eq!(b.spent_cents, 0);
+        assert_eq!(b.month, "2026-04");
+        assert!(!b.hard_stop);
+    }
+
+    #[test]
+    fn given_existing_budget_when_set_budget_called_again_then_limit_updated() {
+        let conn = make_conn();
+        let store = BudgetStore::new(&conn);
+        store.ensure_schema().unwrap();
+        store.set_budget("co1", "ag1", "2026-04", 5_000, false, 80).unwrap();
+        let updated = store.set_budget("co1", "ag1", "2026-04", 20_000, true, 90).unwrap();
+        assert_eq!(updated.limit_cents, 20_000);
+        assert!(updated.hard_stop);
+        assert_eq!(updated.alert_pct, 90);
+        // Only one record exists
+        let list = store.list("co1").unwrap();
+        assert_eq!(list.len(), 1);
+    }
+
+    // ── get_for_month ────────────────────────────────────────────────────────
+
+    #[test]
+    fn given_budget_when_get_for_month_then_returns_correct_record() {
+        let conn = make_conn();
+        let store = BudgetStore::new(&conn);
+        store.ensure_schema().unwrap();
+        store.set_budget("co1", "ag1", "2026-04", 1_000, false, 80).unwrap();
+        let result = store.get_for_month("co1", "ag1", "2026-04").unwrap();
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn given_no_budget_when_get_for_month_then_returns_none() {
+        let conn = make_conn();
+        let store = BudgetStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let result = store.get_for_month("co1", "ag1", "2025-01").unwrap();
+        assert!(result.is_none());
+    }
+
+    // ── ingest_cost ──────────────────────────────────────────────────────────
+
+    #[test]
+    fn given_cost_ingested_when_get_for_month_then_spent_accumulates() {
+        let conn = make_conn();
+        let store = BudgetStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let month = current_month();
+        store.set_budget("co1", "ag1", &month, 50_000, false, 80).unwrap();
+        store.ingest_cost("co1", "ag1", 1_500, "gpt-4", None, "task-run").unwrap();
+        store.ingest_cost("co1", "ag1", 2_000, "claude-3", None, "task-run-2").unwrap();
+        let budget = store.get_for_month("co1", "ag1", &month).unwrap().unwrap();
+        assert_eq!(budget.spent_cents, 3_500);
+    }
+
+    #[test]
+    fn given_no_existing_budget_when_ingest_cost_then_auto_creates_budget() {
+        let conn = make_conn();
+        let store = BudgetStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let (budget, _triggered) = store.ingest_cost("co1", "ag-new", 100, "gpt-4", None, "desc").unwrap();
+        assert_eq!(budget.agent_id, "ag-new");
+        assert_eq!(budget.spent_cents, 100);
+    }
+
+    #[test]
+    fn given_hard_stop_true_and_limit_reached_when_ingest_then_triggered_flag_is_true() {
+        let conn = make_conn();
+        let store = BudgetStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let month = current_month();
+        store.set_budget("co1", "ag1", &month, 1_000, true, 80).unwrap();
+        let (_, triggered) = store.ingest_cost("co1", "ag1", 1_000, "gpt-4", None, "final").unwrap();
+        assert!(triggered);
+    }
+
+    #[test]
+    fn given_hard_stop_false_and_limit_reached_when_ingest_then_triggered_flag_is_false() {
+        let conn = make_conn();
+        let store = BudgetStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let month = current_month();
+        store.set_budget("co1", "ag1", &month, 1_000, false, 80).unwrap();
+        let (_, triggered) = store.ingest_cost("co1", "ag1", 1_000, "gpt-4", None, "final").unwrap();
+        assert!(!triggered);
+    }
+
+    #[test]
+    fn given_zero_limit_when_ingest_cost_then_hard_stop_never_triggers() {
+        let conn = make_conn();
+        let store = BudgetStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let month = current_month();
+        store.set_budget("co1", "ag1", &month, 0, true, 80).unwrap();
+        let (_, triggered) = store.ingest_cost("co1", "ag1", 99_999, "gpt-4", None, "desc").unwrap();
+        assert!(!triggered);
+    }
+
+    // ── utilization ──────────────────────────────────────────────────────────
+
+    #[test]
+    fn given_half_spent_budget_when_utilization_then_returns_0_point_5() {
+        let conn = make_conn();
+        let store = BudgetStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let month = current_month();
+        store.set_budget("co1", "ag1", &month, 2_000, false, 80).unwrap();
+        store.ingest_cost("co1", "ag1", 1_000, "m", None, "d").unwrap();
+        let budget = store.get_for_month("co1", "ag1", &month).unwrap().unwrap();
+        let util = BudgetStore::utilization(&budget);
+        assert!((util - 0.5).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn given_zero_limit_budget_when_utilization_then_returns_zero() {
+        let b = CompanyBudget {
+            id: "x".into(), company_id: "c".into(), agent_id: "a".into(),
+            month: "2026-04".into(), limit_cents: 0, spent_cents: 999,
+            hard_stop: false, alert_pct: 80, created_at: 0,
+        };
+        assert_eq!(BudgetStore::utilization(&b), 0.0);
+    }
+
+    // ── is_over_alert ────────────────────────────────────────────────────────
+
+    #[test]
+    fn given_budget_over_alert_threshold_when_is_over_alert_then_true() {
+        let conn = make_conn();
+        let store = BudgetStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let month = current_month();
+        store.set_budget("co1", "ag1", &month, 1_000, false, 80).unwrap();
+        store.ingest_cost("co1", "ag1", 850, "m", None, "d").unwrap();
+        let budget = store.get_for_month("co1", "ag1", &month).unwrap().unwrap();
+        assert!(BudgetStore::is_over_alert(&budget));
+    }
+
+    #[test]
+    fn given_budget_under_alert_threshold_when_is_over_alert_then_false() {
+        let conn = make_conn();
+        let store = BudgetStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let month = current_month();
+        store.set_budget("co1", "ag1", &month, 1_000, false, 80).unwrap();
+        store.ingest_cost("co1", "ag1", 500, "m", None, "d").unwrap();
+        let budget = store.get_for_month("co1", "ag1", &month).unwrap().unwrap();
+        assert!(!BudgetStore::is_over_alert(&budget));
+    }
+
+    // ── list_events ──────────────────────────────────────────────────────────
+
+    #[test]
+    fn given_multiple_cost_events_when_list_events_then_returns_all_for_company() {
+        let conn = make_conn();
+        let store = BudgetStore::new(&conn);
+        store.ensure_schema().unwrap();
+        store.ingest_cost("co1", "ag1", 100, "gpt-4", None, "a").unwrap();
+        store.ingest_cost("co1", "ag2", 200, "claude-3", None, "b").unwrap();
+        store.ingest_cost("co2", "ag3", 300, "llama", None, "c").unwrap();
+        let events = store.list_events("co1", None).unwrap();
+        assert_eq!(events.len(), 2);
+    }
+
+    #[test]
+    fn given_multiple_agents_when_list_events_with_agent_filter_then_only_that_agent() {
+        let conn = make_conn();
+        let store = BudgetStore::new(&conn);
+        store.ensure_schema().unwrap();
+        store.ingest_cost("co1", "ag1", 100, "m", None, "d").unwrap();
+        store.ingest_cost("co1", "ag2", 200, "m", None, "d").unwrap();
+        let events = store.list_events("co1", Some("ag1")).unwrap();
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].agent_id, "ag1");
+    }
+}
+
 impl CompanyBudget {
     pub fn summary_line(&self) -> String {
         let limit_str = if self.limit_cents == 0 {

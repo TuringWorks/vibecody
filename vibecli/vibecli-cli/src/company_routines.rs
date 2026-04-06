@@ -179,6 +179,189 @@ fn row_to_routine(row: &rusqlite::Row) -> rusqlite::Result<Routine> {
     })
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rusqlite::Connection;
+
+    fn make_conn() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch("PRAGMA foreign_keys=ON;").unwrap();
+        conn
+    }
+
+    // ── create ───────────────────────────────────────────────────────────────
+
+    #[test]
+    fn given_new_routine_when_created_then_active_and_last_run_is_zero() {
+        let conn = make_conn();
+        let store = RoutineStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let r = store.create("co1", "ag1", "daily-report", "Run daily report", 86400).unwrap();
+        assert_eq!(r.name, "daily-report");
+        assert!(r.active);
+        assert_eq!(r.last_run_at, 0);
+        assert_eq!(r.interval_secs, 86400);
+    }
+
+    #[test]
+    fn given_new_routine_when_created_then_next_run_is_in_future() {
+        let conn = make_conn();
+        let store = RoutineStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let before_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as u64;
+        let r = store.create("co1", "ag1", "check", "Check things", 3600).unwrap();
+        assert!(r.next_run_at > before_ms);
+    }
+
+    // ── get / list ───────────────────────────────────────────────────────────
+
+    #[test]
+    fn given_created_routine_when_get_by_id_then_returned() {
+        let conn = make_conn();
+        let store = RoutineStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let r = store.create("co1", "ag1", "ping", "Ping the world", 60).unwrap();
+        let fetched = store.get(&r.id).unwrap();
+        assert!(fetched.is_some());
+        assert_eq!(fetched.unwrap().id, r.id);
+    }
+
+    #[test]
+    fn given_multiple_routines_when_list_then_returns_all_for_company() {
+        let conn = make_conn();
+        let store = RoutineStore::new(&conn);
+        store.ensure_schema().unwrap();
+        store.create("co1", "ag1", "alpha", "", 3600).unwrap();
+        store.create("co1", "ag2", "beta", "", 3600).unwrap();
+        store.create("co2", "ag3", "gamma", "", 3600).unwrap();
+        let list = store.list("co1").unwrap();
+        assert_eq!(list.len(), 2);
+    }
+
+    // ── toggle ───────────────────────────────────────────────────────────────
+
+    #[test]
+    fn given_active_routine_when_toggled_then_becomes_inactive() {
+        let conn = make_conn();
+        let store = RoutineStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let r = store.create("co1", "ag1", "toggler", "", 3600).unwrap();
+        assert!(r.active);
+        let toggled = store.toggle(&r.id).unwrap();
+        assert!(!toggled.active);
+    }
+
+    #[test]
+    fn given_inactive_routine_when_toggled_then_becomes_active() {
+        let conn = make_conn();
+        let store = RoutineStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let r = store.create("co1", "ag1", "flip", "", 3600).unwrap();
+        store.toggle(&r.id).unwrap(); // deactivate
+        let re_activated = store.toggle(&r.id).unwrap(); // re-activate
+        assert!(re_activated.active);
+    }
+
+    // ── delete ───────────────────────────────────────────────────────────────
+
+    #[test]
+    fn given_existing_routine_when_deleted_then_returns_true_and_not_found() {
+        let conn = make_conn();
+        let store = RoutineStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let r = store.create("co1", "ag1", "delete-me", "", 3600).unwrap();
+        let deleted = store.delete(&r.id).unwrap();
+        assert!(deleted);
+        assert!(store.get(&r.id).unwrap().is_none());
+    }
+
+    #[test]
+    fn given_nonexistent_id_when_delete_then_returns_false() {
+        let conn = make_conn();
+        let store = RoutineStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let result = store.delete("ghost-routine-id").unwrap();
+        assert!(!result);
+    }
+
+    // ── due_routines ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn given_routine_just_created_when_due_routines_checked_then_not_yet_due() {
+        let conn = make_conn();
+        let store = RoutineStore::new(&conn);
+        store.ensure_schema().unwrap();
+        // interval of 1 hour means next_run_at = now + 3600s, not due yet
+        store.create("co1", "ag1", "future", "", 3600).unwrap();
+        let due = store.due_routines().unwrap();
+        assert!(due.is_empty());
+    }
+
+    #[test]
+    fn given_routine_with_past_next_run_when_due_routines_checked_then_returned() {
+        let conn = make_conn();
+        let store = RoutineStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let r = store.create("co1", "ag1", "overdue", "", 3600).unwrap();
+        // Manually backdate next_run_at to 1 ms ago
+        let past = 1i64; // epoch start, definitely in the past
+        conn.execute(
+            "UPDATE routines SET next_run_at = ?1 WHERE id = ?2",
+            rusqlite::params![past, r.id],
+        ).unwrap();
+        let due = store.due_routines().unwrap();
+        assert_eq!(due.len(), 1);
+        assert_eq!(due[0].id, r.id);
+    }
+
+    #[test]
+    fn given_inactive_routine_with_past_next_run_when_due_routines_checked_then_not_returned() {
+        let conn = make_conn();
+        let store = RoutineStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let r = store.create("co1", "ag1", "off-overdue", "", 3600).unwrap();
+        conn.execute(
+            "UPDATE routines SET next_run_at = 1, active = 0 WHERE id = ?1",
+            rusqlite::params![r.id],
+        ).unwrap();
+        let due = store.due_routines().unwrap();
+        assert!(due.is_empty());
+    }
+
+    // ── mark_ran ─────────────────────────────────────────────────────────────
+
+    #[test]
+    fn given_routine_when_mark_ran_called_then_last_run_at_is_updated() {
+        let conn = make_conn();
+        let store = RoutineStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let r = store.create("co1", "ag1", "ran", "", 3600).unwrap();
+        assert_eq!(r.last_run_at, 0);
+        store.mark_ran(&r.id).unwrap();
+        let updated = store.get(&r.id).unwrap().unwrap();
+        assert!(updated.last_run_at > 0);
+    }
+
+    #[test]
+    fn given_routine_when_mark_ran_called_then_next_run_advances_by_interval() {
+        let conn = make_conn();
+        let store = RoutineStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let r = store.create("co1", "ag1", "advance", "", 3600).unwrap();
+        let before_next = r.next_run_at;
+        store.mark_ran(&r.id).unwrap();
+        let updated = store.get(&r.id).unwrap().unwrap();
+        // new next_run_at should be approximately now + interval (at least > old next_run_at)
+        assert!(updated.next_run_at > before_next || updated.last_run_at > 0);
+        // The next_run_at should be last_run_at + interval_ms
+        let expected_diff = r.interval_secs as u64 * 1000;
+        let actual_diff = updated.next_run_at.saturating_sub(updated.last_run_at);
+        assert_eq!(actual_diff, expected_diff);
+    }
+}
+
 impl Routine {
     pub fn summary_line(&self) -> String {
         let status = if self.active { "●" } else { "○" };

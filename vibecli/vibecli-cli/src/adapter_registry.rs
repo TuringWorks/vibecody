@@ -338,3 +338,175 @@ impl AdapterRegistry {
 pub fn default_registry() -> Arc<AdapterRegistry> {
     AdapterRegistry::new()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── new / default ────────────────────────────────────────────────────────
+
+    #[test]
+    fn given_new_registry_when_created_then_internal_adapter_pre_registered() {
+        let reg = AdapterRegistry::new();
+        let adapter = reg.get("internal");
+        assert!(adapter.is_some());
+        assert_eq!(adapter.unwrap().adapter_type(), "internal");
+    }
+
+    #[test]
+    fn given_new_registry_when_list_called_then_contains_internal() {
+        let reg = AdapterRegistry::new();
+        let list = reg.list();
+        assert!(!list.is_empty());
+        let names: Vec<&str> = list.iter().map(|i| i.name.as_str()).collect();
+        assert!(names.contains(&"internal"));
+    }
+
+    // ── register_boxed ───────────────────────────────────────────────────────
+
+    #[test]
+    fn given_adapter_registered_when_get_then_returned() {
+        let reg = AdapterRegistry::new();
+        reg.register_boxed("my-internal", Arc::new(InternalAdapter), serde_json::json!({}));
+        let found = reg.get("my-internal");
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().adapter_type(), "internal");
+    }
+
+    #[test]
+    fn given_adapter_registered_when_list_then_appears_in_list() {
+        let reg = AdapterRegistry::new();
+        reg.register_boxed("custom-1", Arc::new(InternalAdapter), serde_json::json!({"x": 1}));
+        let list = reg.list();
+        let found = list.iter().find(|i| i.name == "custom-1");
+        assert!(found.is_some());
+        let info = found.unwrap();
+        assert_eq!(info.config_json["x"], 1);
+    }
+
+    // ── unregister ───────────────────────────────────────────────────────────
+
+    #[test]
+    fn given_registered_adapter_when_unregistered_then_returns_true_and_not_found() {
+        let reg = AdapterRegistry::new();
+        reg.register_boxed("to-remove", Arc::new(InternalAdapter), serde_json::json!({}));
+        let removed = reg.unregister("to-remove");
+        assert!(removed);
+        assert!(reg.get("to-remove").is_none());
+    }
+
+    #[test]
+    fn given_nonexistent_name_when_unregistered_then_returns_false() {
+        let reg = AdapterRegistry::new();
+        let removed = reg.unregister("does-not-exist");
+        assert!(!removed);
+    }
+
+    #[test]
+    fn given_unregistered_adapter_when_list_called_then_not_in_list() {
+        let reg = AdapterRegistry::new();
+        reg.register_boxed("temp", Arc::new(InternalAdapter), serde_json::json!({}));
+        reg.unregister("temp");
+        let list = reg.list();
+        assert!(list.iter().all(|i| i.name != "temp"));
+    }
+
+    // ── get ──────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn given_nonexistent_name_when_get_then_returns_none() {
+        let reg = AdapterRegistry::new();
+        let result = reg.get("phantom-adapter");
+        assert!(result.is_none());
+    }
+
+    // ── get_by_type ──────────────────────────────────────────────────────────
+
+    #[test]
+    fn given_internal_adapter_when_get_by_type_internal_then_returned() {
+        let reg = AdapterRegistry::new();
+        let found = reg.get_by_type("internal");
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().adapter_type(), "internal");
+    }
+
+    #[test]
+    fn given_nonexistent_type_when_get_by_type_then_returns_none() {
+        let reg = AdapterRegistry::new();
+        let result = reg.get_by_type("nonexistent-type");
+        assert!(result.is_none());
+    }
+
+    // ── register_process ────────────────────────────────────────────────────
+
+    #[test]
+    fn given_process_adapter_registered_when_get_then_adapter_type_is_process() {
+        let reg = AdapterRegistry::new();
+        reg.register_process("my-proc", ProcessAdapterConfig {
+            command: "echo".to_string(),
+            args: vec!["hello".to_string()],
+            env: Default::default(),
+            working_dir: None,
+        });
+        let found = reg.get("my-proc");
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().adapter_type(), "process");
+    }
+
+    // ── list ordering ────────────────────────────────────────────────────────
+
+    #[test]
+    fn given_multiple_adapters_when_list_then_sorted_by_name() {
+        let reg = AdapterRegistry::new();
+        reg.register_boxed("zebra", Arc::new(InternalAdapter), serde_json::json!({}));
+        reg.register_boxed("alpha", Arc::new(InternalAdapter), serde_json::json!({}));
+        let list = reg.list();
+        // Verify list is sorted alphabetically
+        let names: Vec<&str> = list.iter().map(|i| i.name.as_str()).collect();
+        let mut sorted = names.clone();
+        sorted.sort();
+        assert_eq!(names, sorted);
+    }
+
+    // ── label / adapter_type in AdapterInfo ──────────────────────────────────
+
+    #[test]
+    fn given_internal_adapter_when_info_fetched_then_label_and_type_correct() {
+        let reg = AdapterRegistry::new();
+        let list = reg.list();
+        let internal_info = list.iter().find(|i| i.name == "internal").unwrap();
+        assert_eq!(internal_info.adapter_type, "internal");
+        assert_eq!(internal_info.label, "VibeCody Internal");
+    }
+
+    // ── AdapterContext helpers ───────────────────────────────────────────────
+
+    #[test]
+    fn given_adapter_context_new_when_constructed_then_defaults_are_sensible() {
+        let ctx = AdapterContext::new("Do the thing", "co1", "ag1");
+        assert_eq!(ctx.prompt, "Do the thing");
+        assert_eq!(ctx.company_id, "co1");
+        assert_eq!(ctx.agent_id, "ag1");
+        assert_eq!(ctx.max_turns, 25);
+        assert!(ctx.model.is_none());
+        assert!(ctx.session_id.is_none());
+    }
+
+    // ── ExecutionResult helpers ──────────────────────────────────────────────
+
+    #[test]
+    fn given_execution_result_ok_when_constructed_then_success_true_and_error_none() {
+        let r = ExecutionResult::ok("done".to_string());
+        assert!(r.success);
+        assert_eq!(r.output, "done");
+        assert!(r.error.is_none());
+    }
+
+    #[test]
+    fn given_execution_result_err_when_constructed_then_success_false_and_error_set() {
+        let r = ExecutionResult::err("oops".to_string());
+        assert!(!r.success);
+        assert_eq!(r.error.as_deref(), Some("oops"));
+        assert!(r.output.is_empty());
+    }
+}

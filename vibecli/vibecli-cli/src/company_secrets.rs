@@ -238,3 +238,194 @@ impl CompanySecret {
         )
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rusqlite::Connection;
+
+    fn make_conn() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch("PRAGMA foreign_keys=ON;").unwrap();
+        conn
+    }
+
+    /// Each test gets its own unique company_id so parallel tests never share
+    /// the same key file on disk (key_path uses the first 16 chars of company_id).
+    fn co() -> String {
+        format!("tst-{}", uuid::Uuid::new_v4().simple())
+    }
+
+    // ── set / get_value round-trip ───────────────────────────────────────────
+
+    #[test]
+    fn given_secret_set_when_retrieved_then_plaintext_matches() {
+        let co = co();
+        let conn = make_conn();
+        let store = SecretStore::new(&conn);
+        store.ensure_schema().unwrap();
+        store.set(&co, "API_KEY", "super-secret-123", None).unwrap();
+        let value = store.get_value(&co, "API_KEY").unwrap();
+        assert_eq!(value, "super-secret-123");
+    }
+
+    #[test]
+    fn given_empty_plaintext_when_set_and_retrieved_then_empty_string_returned() {
+        let co = co();
+        let conn = make_conn();
+        let store = SecretStore::new(&conn);
+        store.ensure_schema().unwrap();
+        store.set(&co, "EMPTY_KEY", "", None).unwrap();
+        let value = store.get_value(&co, "EMPTY_KEY").unwrap();
+        assert_eq!(value, "");
+    }
+
+    #[test]
+    fn given_unicode_plaintext_when_set_and_retrieved_then_utf8_roundtrip_correct() {
+        let co = co();
+        let conn = make_conn();
+        let store = SecretStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let secret = "こんにちは世界 🔐";
+        store.set(&co, "UNICODE_KEY", secret, None).unwrap();
+        let value = store.get_value(&co, "UNICODE_KEY").unwrap();
+        assert_eq!(value, secret);
+    }
+
+    // ── update increments version ────────────────────────────────────────────
+
+    #[test]
+    fn given_secret_updated_when_version_checked_then_incremented() {
+        let co = co();
+        let conn = make_conn();
+        let store = SecretStore::new(&conn);
+        store.ensure_schema().unwrap();
+        store.set(&co, "DB_PASS", "pass-v1", None).unwrap();
+        let s2 = store.set(&co, "DB_PASS", "pass-v2", None).unwrap();
+        assert_eq!(s2.version, 2);
+    }
+
+    #[test]
+    fn given_secret_updated_when_get_value_then_latest_plaintext_returned() {
+        let co = co();
+        let conn = make_conn();
+        let store = SecretStore::new(&conn);
+        store.ensure_schema().unwrap();
+        store.set(&co, "ROTATE_ME", "old-value", None).unwrap();
+        store.set(&co, "ROTATE_ME", "new-value", None).unwrap();
+        let value = store.get_value(&co, "ROTATE_ME").unwrap();
+        assert_eq!(value, "new-value");
+    }
+
+    #[test]
+    fn given_new_secret_when_version_checked_then_version_is_one() {
+        let co = co();
+        let conn = make_conn();
+        let store = SecretStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let s = store.set(&co, "V1_KEY", "value", None).unwrap();
+        assert_eq!(s.version, 1);
+    }
+
+    // ── get (metadata) ───────────────────────────────────────────────────────
+
+    #[test]
+    fn given_secret_set_when_get_metadata_then_key_name_matches() {
+        let co = co();
+        let conn = make_conn();
+        let store = SecretStore::new(&conn);
+        store.ensure_schema().unwrap();
+        store.set(&co, "MY_TOKEN", "tok", Some("agent-1")).unwrap();
+        let meta = store.get(&co, "MY_TOKEN").unwrap().unwrap();
+        assert_eq!(meta.key_name, "MY_TOKEN");
+        assert_eq!(meta.created_by.as_deref(), Some("agent-1"));
+    }
+
+    #[test]
+    fn given_nonexistent_key_when_get_value_then_error() {
+        let co = co();
+        let conn = make_conn();
+        let store = SecretStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let result = store.get_value(&co, "DOES_NOT_EXIST");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn given_nonexistent_key_when_get_metadata_then_none() {
+        let co = co();
+        let conn = make_conn();
+        let store = SecretStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let result = store.get(&co, "PHANTOM").unwrap();
+        assert!(result.is_none());
+    }
+
+    // ── list ─────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn given_multiple_secrets_when_list_then_returns_all_for_company() {
+        let co = co();
+        let other_co = format!("tst-{}", uuid::Uuid::new_v4().simple());
+        let conn = make_conn();
+        let store = SecretStore::new(&conn);
+        store.ensure_schema().unwrap();
+        store.set(&co, "KEY_A", "a", None).unwrap();
+        store.set(&co, "KEY_B", "b", None).unwrap();
+        store.set(&other_co, "KEY_C", "c", None).unwrap();
+        let list = store.list(&co).unwrap();
+        assert_eq!(list.len(), 2);
+        // Ordered alphabetically by key_name
+        assert_eq!(list[0].key_name, "KEY_A");
+        assert_eq!(list[1].key_name, "KEY_B");
+    }
+
+    #[test]
+    fn given_no_secrets_when_list_then_empty() {
+        let conn = make_conn();
+        let store = SecretStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let list = store.list("company-with-no-secrets").unwrap();
+        assert!(list.is_empty());
+    }
+
+    // ── delete ───────────────────────────────────────────────────────────────
+
+    #[test]
+    fn given_existing_secret_when_deleted_then_returns_true_and_no_longer_listed() {
+        let co = co();
+        let conn = make_conn();
+        let store = SecretStore::new(&conn);
+        store.ensure_schema().unwrap();
+        store.set(&co, "TO_DELETE", "val", None).unwrap();
+        let deleted = store.delete(&co, "TO_DELETE").unwrap();
+        assert!(deleted);
+        let list = store.list(&co).unwrap();
+        assert!(list.iter().all(|s| s.key_name != "TO_DELETE"));
+    }
+
+    #[test]
+    fn given_nonexistent_key_when_delete_called_then_returns_false() {
+        let co = co();
+        let conn = make_conn();
+        let store = SecretStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let deleted = store.delete(&co, "GHOST_KEY").unwrap();
+        assert!(!deleted);
+    }
+
+    // ── ciphertext is not plaintext ──────────────────────────────────────────
+
+    #[test]
+    fn given_secret_stored_when_encrypted_value_inspected_then_not_equal_to_plaintext() {
+        let co = co();
+        let conn = make_conn();
+        let store = SecretStore::new(&conn);
+        store.ensure_schema().unwrap();
+        let plaintext = "my-very-secret-value";
+        store.set(&co, "RAW_CHECK", plaintext, None).unwrap();
+        let meta = store.get(&co, "RAW_CHECK").unwrap().unwrap();
+        // encrypted_value is base64-encoded ciphertext, not the original string
+        assert_ne!(meta.encrypted_value, plaintext);
+    }
+}
