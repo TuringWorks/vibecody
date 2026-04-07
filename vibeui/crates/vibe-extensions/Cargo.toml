@@ -15,8 +15,7 @@ tokio.workspace = true
 tracing.workspace = true
 
 # WASM runtime for extensions
-wasmtime = "27.0"
-wasmtime-wasi = "27.0"
+wasmtime = "43.0"
 
 # Home directory resolution
 dirs-next = "2.0"

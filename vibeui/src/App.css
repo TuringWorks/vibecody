@@ -940,6 +940,10 @@ textarea::placeholder {
 }
 .panel-tab:hover { color: var(--text-primary); }
 .panel-tab.active { color: var(--accent-color); border-bottom-color: var(--accent-color); }
+/* Primary nav: composite-level navigation (larger, heavier than sub-tabs) */
+.panel-tab-bar--primary .panel-tab { font-size: 13px; padding: 7px 16px; letter-spacing: 0.01em; }
+/* Section title used inside panel-body (replaces ad-hoc h3 inline styles) */
+.panel-section-title { font-size: 13px; font-weight: 600; color: var(--text-primary); margin: 0 0 8px; }
 .panel-badge {
   display: inline-flex; align-items: center; gap: 4px;
   padding: 2px 8px; border-radius: 12px;

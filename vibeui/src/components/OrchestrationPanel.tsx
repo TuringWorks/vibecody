@@ -164,7 +164,7 @@ export function OrchestrationPanel({ workspacePath: _workspacePath }: Orchestrat
           <div>
             {!state.goal ? (
               <div>
-                <h3 style={{ margin: "0 0 8px", fontSize: "14px" }}>New Task</h3>
+                <h3 className="panel-section-title">New Task</h3>
                 <div style={{ display: "flex", gap: "8px" }}>
                   <input
                     value={newGoal}
@@ -237,7 +237,7 @@ export function OrchestrationPanel({ workspacePath: _workspacePath }: Orchestrat
         {/* Lessons tab */}
         {activeTab === "lessons" && (
           <div>
-            <h3 style={{ margin: "0 0 8px", fontSize: "14px" }}>Lessons Learned ({lessons.length})</h3>
+            <h3 className="panel-section-title">Lessons Learned ({lessons.length})</h3>
 
             {lessons.length === 0 && (
               <p style={{ color: "var(--text-secondary)", fontSize: "13px" }}>No lessons yet. Record patterns to prevent repeated mistakes.</p>
@@ -288,7 +288,7 @@ export function OrchestrationPanel({ workspacePath: _workspacePath }: Orchestrat
         {/* Rules tab */}
         {activeTab === "rules" && (
           <div style={{ fontSize: "13px", lineHeight: 1.6 }}>
-            <h3 style={{ margin: "0 0 12px", fontSize: "14px" }}>Orchestration Rules</h3>
+            <h3 className="panel-section-title" style={{ marginBottom: "12px" }}>Orchestration Rules</h3>
 
             {[
               { title: "1. Plan Node Default", desc: "Enter plan mode for non-trivial tasks (3+ steps). Stop and re-plan if things go sideways." },

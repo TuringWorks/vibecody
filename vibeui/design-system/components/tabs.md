@@ -1,6 +1,14 @@
 # Tabs
 
-VibeUI has two tab systems: **panel tabs** (inside a panel, compact underline style) and **TabbedPanel** (the composite panel system). Both use the same CSS foundation.
+VibeUI has **three tab levels** with a clear visual hierarchy:
+
+| Level | Class | Font | Padding | Use case |
+|---|---|---|---|---|
+| **Primary nav** | `panel-tab-bar panel-tab-bar--primary` | 13px | 7px 16px | Composite outer nav (Dashboard/Agent/…) |
+| **Sub-tabs** | `panel-tab-bar` | 12px | 6px 14px | Within-panel section switching (Tasks/Lessons/Rules) |
+| **Header toggle** | `panel-btn` pairs | — | — | 2–3 options in a panel header |
+
+The size difference (13px vs 12px) and padding (7px vs 6px) signal hierarchy when two tab bars stack vertically.
 
 ---
 
@@ -157,29 +165,60 @@ Use this in the **header** when there are only 2–3 options and switching immed
 
 ---
 
-## TabbedPanel (Composite System)
+## Primary Nav — Composite System
 
-`TabbedPanel` is the outer composite system used by `createComposite`. It renders the outer tab bar for composite panels (Metrics | AST Edit | Predict | …) and keeps sub-panels alive when switching.
+`TabbedPanel` renders the outer nav for composite panels using `panel-tab-bar--primary`. It is larger and heavier than sub-tabs to signal top-level navigation.
 
 ```tsx
-// TabbedPanel tab bar CSS (rendered by TabbedPanel.tsx)
-// Tab bar: display:flex, gap:2, border-bottom, bg-secondary, overflow-x:auto
-// Tab button: padding 8px 14px, border-bottom 2px solid transparent/accent-color
-// Active: border-bottom-color: --accent-color, color: --accent-color
+// TabbedPanel.tsx (managed by createComposite — do not replicate manually)
+<div className="panel-tab-bar panel-tab-bar--primary" style={{ overflowX: "auto" }}>
+  <button className={`panel-tab ${active === t.id ? "active" : ""}`}>…</button>
+</div>
+```
+
+```css
+.panel-tab-bar--primary .panel-tab {
+  font-size: 13px;
+  padding: 7px 16px;
+  letter-spacing: 0.01em;
+}
 ```
 
 Do not replicate `TabbedPanel` manually — use `createComposite` instead.
 
 ---
 
+## Section Titles
+
+Use `.panel-section-title` for section headings inside `panel-body` instead of raw `<h3>` with inline styles.
+
+```tsx
+<h3 className="panel-section-title">New Task</h3>
+// With non-standard margin: add only the override
+<h3 className="panel-section-title" style={{ marginBottom: "12px" }}>Rules</h3>
+```
+
+```css
+.panel-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 8px;
+}
+```
+
+---
+
 ## Rules
 
 ### ✅ Do
-- Use `panel-tab-bar` + `panel-tab` for all panel sub-tab navigation
+- Use `panel-tab-bar panel-tab-bar--primary` for composite outer nav (`TabbedPanel`)
+- Use `panel-tab-bar` (no modifier) for within-panel sub-tabs
 - Add `.active` class dynamically based on state
 - Place the tab bar between the header and body
 - Use `border: "none"` override when embedding in header
 - Use `panel-btn` toggle pairs for 2-option choices in header
+- Use `panel-section-title` for `<h3>` headings inside `panel-body`
 
 ### ❌ Don't
 ```tsx

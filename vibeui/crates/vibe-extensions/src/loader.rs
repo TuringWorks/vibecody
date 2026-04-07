@@ -145,7 +145,7 @@ impl ExtensionLoader {
         let wasm = std::fs::read(path)
             .with_context(|| format!("read {}", path.display()))?;
         let module = Module::new(&self.engine, &wasm)
-            .with_context(|| format!("compile {}", path.display()))?;
+            .map_err(|e| anyhow::anyhow!("compile {}: {}", path.display(), e))?;
 
         let mut linker: Linker<HostState> = Linker::new(&self.engine);
 
@@ -232,14 +232,14 @@ impl ExtensionLoader {
 
         let instance = linker
             .instantiate(&mut store, &module)
-            .with_context(|| format!("instantiate {}", path.display()))?;
+            .map_err(|e| anyhow::anyhow!("instantiate {}: {}", path.display(), e))?;
 
         // Call init() if present.
         if let Some(init_fn) = instance.get_func(&mut store, EXPORT_INIT) {
             let mut results = [Val::I32(0)];
             init_fn
                 .call(&mut store, &[], &mut results)
-                .with_context(|| format!("init() in {}", name))?;
+                .map_err(|e| anyhow::anyhow!("init() in {}: {}", name, e))?;
         }
 
         // Flush startup logs.

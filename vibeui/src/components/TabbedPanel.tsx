@@ -22,7 +22,7 @@ export function TabbedPanel({ tabs, defaultTab }: TabbedPanelProps) {
 
   return (
     <div className="panel-container">
-      <div className="panel-tab-bar" style={{ overflowX: "auto" }}>
+      <div className="panel-tab-bar panel-tab-bar--primary" style={{ overflowX: "auto" }}>
         {tabs.map((t) => (
           <button
             key={t.id}
