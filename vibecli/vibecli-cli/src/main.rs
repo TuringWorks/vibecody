@@ -939,7 +939,7 @@ async fn main() -> Result<()> {
         };
     }
 
-    // Daemon mode: vibecli serve [--port 7878]
+    // Daemon mode: vibecli --serve [--port 7878]
     if cli.serve {
         // Optionally expose via Tailscale Funnel
         if cli.tailscale {
@@ -4811,13 +4811,13 @@ async fn main() -> Result<()> {
                         "/share" => {
                             if args.is_empty() {
                                 println!("Usage: /share <session_id>\n\
-                                         Prints a shareable URL for a session when 'vibecli serve' is running.\n\
+                                         Prints a shareable URL for a session when 'vibecli --serve' is running.\n\
                                          Example: /share 193abc4def\n");
                             } else {
                                 let port: u16 = 7878; // default daemon port
                                 let url = format!("http://localhost:{}/share/{}", port, args.trim());
                                 println!("📤  Shareable session URL:\n    {}\n", url);
-                                println!("    (The daemon must be running: vibecli serve --port {})\n", port);
+                                println!("    (The daemon must be running: vibecli --serve --port {})\n", port);
                             }
                         }
 
@@ -8782,7 +8782,7 @@ async fn main() -> Result<()> {
                                     println!("  Handlers: {}", server.handler_count());
                                     println!("  Max concurrent: {}", server.max_concurrent);
                                     println!("  Active tasks: {}\n", server.active_task_count());
-                                    println!("Note: In production, use `vibecli serve --a2a` to start the HTTP listener.\n");
+                                    println!("Note: In production, use `vibecli --serve --a2a` to start the HTTP listener.\n");
                                 }
                                 "discover" => {
                                     if rest.is_empty() {

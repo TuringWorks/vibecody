@@ -36,11 +36,6 @@ interface EloEntry {
   losses: number;
 }
 
-const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", flex: 1, minHeight: 0, overflow: "auto", background: "var(--bg-primary)" };
-const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" };
-const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-color)" };
-const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
-const btnStyle: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", cursor: "pointer", fontSize: 12, marginRight: 8 };
 const tableStyle: React.CSSProperties = { width: "100%", borderCollapse: "collapse", fontSize: 12 };
 const thStyle: React.CSSProperties = { textAlign: "left", padding: "6px 8px", borderBottom: "1px solid var(--border-color)", color: "var(--text-secondary)", fontWeight: 600 };
 const tdStyle: React.CSSProperties = { padding: "6px 8px", borderBottom: "1px solid var(--border-color)" };
@@ -63,14 +58,14 @@ export function RLMultiAgentView() {
   const maxReward = metrics ? Math.max(...metrics.agents.map(a => Math.abs(a.reward)), 0.01) : 1;
 
   return (
-    <div style={panelStyle}>
-      <h2 style={headingStyle}>Multi-Agent Dashboard</h2>
-      <button style={btnStyle} onClick={fetch} disabled={loading}>{loading ? "..." : "Refresh"}</button>
+    <div className="panel-container">
+      <h2 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>Multi-Agent Dashboard</h2>
+      <button className="panel-btn panel-btn-secondary" onClick={fetch} disabled={loading}>{loading ? "..." : "Refresh"}</button>
 
       {metrics && (
         <>
-          <div style={{ ...cardStyle, marginTop: 10 }}>
-            <div style={labelStyle}>Per-Agent Rewards</div>
+          <div className="panel-card" style={{ marginTop: 10 }}>
+            <div className="panel-label">Per-Agent Rewards</div>
             {metrics.agents.map(a => (
               <div key={a.id} style={{ marginBottom: 6 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
@@ -84,8 +79,8 @@ export function RLMultiAgentView() {
             ))}
           </div>
 
-          <div style={cardStyle}>
-            <div style={labelStyle}>Communication Matrix</div>
+          <div className="panel-card">
+            <div className="panel-label">Communication Matrix</div>
             <div style={{ overflowX: "auto" }}>
               <table style={tableStyle}>
                 <thead>
@@ -109,18 +104,18 @@ export function RLMultiAgentView() {
             </div>
           </div>
 
-          <div style={cardStyle}>
-            <div style={labelStyle}>Coalitions</div>
+          <div className="panel-card">
+            <div className="panel-label">Coalitions</div>
             {metrics.coalitions.map(c => (
               <div key={c.id} style={{ padding: "4px 0", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between" }}>
                 <span style={{ fontWeight: 600 }}>{c.id}</span>
-                <span style={labelStyle}>{c.members.join(", ")} | reward: {c.groupReward.toFixed(2)}</span>
+                <span className="panel-label">{c.members.join(", ")} | reward: {c.groupReward.toFixed(2)}</span>
               </div>
             ))}
           </div>
 
-          <div style={cardStyle}>
-            <div style={labelStyle}>ELO Rankings</div>
+          <div className="panel-card">
+            <div className="panel-label">ELO Rankings</div>
             <table style={tableStyle}>
               <thead><tr><th style={thStyle}>Rank</th><th style={thStyle}>Agent</th><th style={thStyle}>ELO</th><th style={thStyle}>W</th><th style={thStyle}>L</th></tr></thead>
               <tbody>
@@ -139,7 +134,7 @@ export function RLMultiAgentView() {
         </>
       )}
 
-      {!metrics && !loading && <div style={labelStyle}>Loading multi-agent metrics...</div>}
+      {!metrics && !loading && <div className="panel-empty">Loading multi-agent metrics...</div>}
     </div>
   );
 }

@@ -1811,7 +1811,7 @@ export function QuantumComputingPanel() {
   // ── Render ──────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", color: "var(--text-primary)", background: "var(--bg-primary)" }}>
+    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, color: "var(--text-primary)", background: "var(--bg-primary)" }}>
       {/* Tab bar */}
       <div style={{ display: "flex", gap: 2, padding: "8px 12px", borderBottom: "1px solid var(--border-color)", flexWrap: "wrap" }}>
         {TABS.map((t) => (

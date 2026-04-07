@@ -370,9 +370,9 @@ export function GatewaySandboxPanel({ provider: defaultProvider = "claude" }: Ga
   const def = PLATFORM_BY_ID[platform];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", flexShrink: 0 }}>
+      <div className="panel-header">
         <MessageSquare size={14} style={{ color: "var(--text-secondary)" }} />
         <span style={{ fontWeight: 600, fontSize: 13, flex: 1 }}>Messaging Gateway → Sandbox</span>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -459,7 +459,7 @@ export function GatewaySandboxPanel({ provider: defaultProvider = "claude" }: Ga
           {/* Credential fields */}
           {def.fields.map((field) => (
             <div key={field.key} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <label style={{ fontSize: 11, color: "var(--text-secondary)" }}>{field.label}</label>
+              <label className="panel-label">{field.label}</label>
               <input
                 value={credentials[field.key] ?? ""}
                 onChange={(e) => setField(field.key, e.target.value)}
@@ -473,7 +473,7 @@ export function GatewaySandboxPanel({ provider: defaultProvider = "claude" }: Ga
 
           {/* Sandbox folder */}
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <label style={{ fontSize: 11, color: "var(--text-secondary)" }}>Sandbox Folder</label>
+            <label className="panel-label">Sandbox Folder</label>
             <div style={{ display: "flex", gap: 6 }}>
               <input
                 value={sandboxPath}
@@ -496,7 +496,7 @@ export function GatewaySandboxPanel({ provider: defaultProvider = "claude" }: Ga
           {/* Provider + allowed users */}
           <div style={{ display: "flex", gap: 8 }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
-              <label style={{ fontSize: 11, color: "var(--text-secondary)" }}>AI Provider</label>
+              <label className="panel-label">AI Provider</label>
               <input
                 value={provider}
                 onChange={(e) => setProvider(e.target.value)}
@@ -506,7 +506,7 @@ export function GatewaySandboxPanel({ provider: defaultProvider = "claude" }: Ga
               />
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
-              <label style={{ fontSize: 11, color: "var(--text-secondary)" }}>Allowed Users (comma-sep, optional)</label>
+              <label className="panel-label">Allowed Users (comma-sep, optional)</label>
               <input
                 value={allowedUsers}
                 onChange={(e) => setAllowedUsers(e.target.value)}
@@ -518,7 +518,7 @@ export function GatewaySandboxPanel({ provider: defaultProvider = "claude" }: Ga
           </div>
 
           {error && (
-            <div style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 6, padding: "6px 10px", fontSize: 12, color: "var(--error-color)" }}>
+            <div className="panel-error">
               <AlertCircle size={13} /> {error}
             </div>
           )}
@@ -537,7 +537,8 @@ export function GatewaySandboxPanel({ provider: defaultProvider = "claude" }: Ga
             ) : (
               <button
                 onClick={handleStop}
-                style={{ flex: 1, background: "var(--error-color)", color: "#fff", border: "none", borderRadius: 8, padding: "8px 14px", cursor: "pointer", fontSize: 13, fontWeight: 500, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+                className="panel-btn panel-btn-danger"
+                style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
               >
                 <Square size={14} /> Stop Gateway
               </button>
@@ -549,7 +550,7 @@ export function GatewaySandboxPanel({ provider: defaultProvider = "claude" }: Ga
       {/* Message log */}
       <div style={{ flex: 1, overflowY: "auto", padding: "8px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
         {log.length === 0 && (
-          <div style={{ textAlign: "center", color: "var(--text-muted)", fontSize: 12, marginTop: 24 }}>
+          <div className="panel-empty">
             {status.active
               ? `Waiting for messages… Send a message to your ${def.label} bot.`
               : "Start the gateway to receive messages."}

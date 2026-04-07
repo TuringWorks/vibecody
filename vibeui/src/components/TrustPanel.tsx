@@ -99,23 +99,6 @@ function timeAgo(ts: number): string {
   return `${Math.floor(diffSec / 86400)} days ago`;
 }
 
-/* ── Styles ─────────────────────────────────────────────────────────── */
-
-const panelStyle: React.CSSProperties = {
-  padding: 16, height: "100%", overflow: "auto",
-  color: "var(--text-primary)", background: "var(--bg-primary)",
-};
-const headingStyle: React.CSSProperties = { fontSize: 18, fontWeight: 600, marginBottom: 12, color: "var(--text-primary)" };
-const cardStyle: React.CSSProperties = {
-  background: "var(--bg-secondary)", borderRadius: 8, padding: 12, marginBottom: 8,
-  border: "1px solid var(--border-color)",
-};
-const tabStyle = (active: boolean): React.CSSProperties => ({
-  padding: "8px 16px", cursor: "pointer",
-  borderBottom: active ? "2px solid var(--accent-color)" : "2px solid transparent",
-  color: active ? "var(--accent-color)" : "var(--text-secondary)",
-  background: "transparent", border: "none", fontSize: 13, fontWeight: active ? 600 : 400,
-});
 
 /* ── Component ──────────────────────────────────────────────────────── */
 
@@ -267,22 +250,22 @@ export function TrustPanel() {
   useEffect(() => { loadData(); }, [loadData]);
 
   if (loading) {
-    return <div style={panelStyle}><h2 style={headingStyle}>Agent Trust Scoring</h2><div style={{ color: "var(--text-secondary)", padding: 20 }}>Loading trust data...</div></div>;
+    return <div className="panel-container"><h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 12, color: "var(--text-primary)" }}>Agent Trust Scoring</h2><div className="panel-loading">Loading trust data...</div></div>;
   }
 
   const noData = modelScores.length === 0;
 
   return (
-    <div style={panelStyle}>
-      <h2 style={headingStyle}>Agent Trust Scoring</h2>
+    <div className="panel-container">
+      <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 12, color: "var(--text-primary)" }}>Agent Trust Scoring</h2>
       {noData && (
-        <div style={{ ...cardStyle, color: "var(--text-secondary)", textAlign: "center", padding: 24 }}>
+        <div className="panel-empty" style={{ padding: 24 }}>
           No trace or cost data yet. Use the Chat or Agent panels to generate activity, then scores will appear here.
         </div>
       )}
-      <div style={{ display: "flex", gap: 0, borderBottom: "1px solid var(--border-color)", marginBottom: 16 }}>
+      <div className="panel-tab-bar" style={{ marginBottom: 16 }}>
         {["scores", "events", "domains", "config"].map((t) => (
-          <button key={t} style={tabStyle(tab === t)} onClick={() => setTab(t)}>
+          <button key={t} className={`panel-tab ${tab === t ? "active" : ""}`} onClick={() => setTab(t)}>
             {t.charAt(0).toUpperCase() + t.slice(1)}
           </button>
         ))}
@@ -294,7 +277,7 @@ export function TrustPanel() {
             Score = success rate across all traced tool calls. Green {"\u2265"}80, Yellow {"\u2265"}50, Red &lt;50.
           </div>
           {modelScores.map((s) => (
-            <div key={s.model} style={{ ...cardStyle, display: "flex", alignItems: "center", gap: 12 }}>
+            <div key={s.model} className="panel-card" style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <div style={{ minWidth: 140, fontWeight: 600, fontSize: 13 }}>{s.model}</div>
               <div style={{ flex: 1, height: 8, borderRadius: 4, background: "var(--border-color)" }}>
                 <div style={{ width: `${s.score}%`, height: 8, borderRadius: 4, background: scoreColor(s.score), transition: "width 0.3s" }} />
@@ -315,9 +298,9 @@ export function TrustPanel() {
             Latest 50 tool invocations across all models. Delta shows configured recovery (+{config.recoveryRate}) or decay (-{config.decayRate}) points.
           </div>
           {events.length === 0 ? (
-            <div style={{ ...cardStyle, color: "var(--text-secondary)", textAlign: "center" }}>No events recorded yet</div>
+            <div className="panel-empty">No events recorded yet</div>
           ) : events.map((e, i) => (
-            <div key={i} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div key={i} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <span style={{ fontWeight: 600, fontSize: 13 }}>{e.model}</span>
                 <span style={{ fontSize: 12, color: "var(--text-secondary)", marginLeft: 8 }}>{e.tool}</span>
@@ -344,9 +327,9 @@ export function TrustPanel() {
             Per-domain success rates grouped by tool type (edit/write = Code Generation, test = Testing, fix/debug = Bug Fixing, etc.).
           </div>
           {domains.length === 0 ? (
-            <div style={{ ...cardStyle, color: "var(--text-secondary)", textAlign: "center" }}>No domain data yet</div>
+            <div className="panel-empty">No domain data yet</div>
           ) : domains.map((d) => (
-            <div key={d.domain} style={cardStyle}>
+            <div key={d.domain} className="panel-card">
               <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>{d.domain}</div>
               {Object.entries(d.scores)
                 .sort(([, a], [, b]) => b - a)
@@ -369,22 +352,22 @@ export function TrustPanel() {
           <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 10 }}>
             Configure trust scoring parameters. Changes are saved and applied on next refresh.
           </div>
-          <div style={cardStyle}>
+          <div className="panel-card">
             <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Decay Rate: {config.decayRate} pts/failure</div>
             <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 6 }}>Points deducted per failed tool invocation</div>
             <input type="range" min={1} max={20} value={config.decayRate} onChange={(e) => updateConfig({ decayRate: Number(e.target.value) })} style={{ width: "100%" }} />
           </div>
-          <div style={cardStyle}>
+          <div className="panel-card">
             <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Recovery Rate: {config.recoveryRate} pts/success</div>
             <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 6 }}>Points awarded per successful tool invocation</div>
             <input type="range" min={1} max={25} value={config.recoveryRate} onChange={(e) => updateConfig({ recoveryRate: Number(e.target.value) })} style={{ width: "100%" }} />
           </div>
-          <div style={cardStyle}>
+          <div className="panel-card">
             <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Auto-Merge Threshold: {config.autoMergeThreshold}</div>
             <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 6 }}>Models scoring above this can auto-merge without review</div>
             <input type="range" min={50} max={100} value={config.autoMergeThreshold} onChange={(e) => updateConfig({ autoMergeThreshold: Number(e.target.value) })} style={{ width: "100%" }} />
           </div>
-          <div style={cardStyle}>
+          <div className="panel-card">
             <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Manual Review Below: {config.manualReviewThreshold}</div>
             <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 6 }}>Models scoring below this require manual review for all actions</div>
             <input type="range" min={10} max={80} value={config.manualReviewThreshold} onChange={(e) => updateConfig({ manualReviewThreshold: Number(e.target.value) })} style={{ width: "100%" }} />

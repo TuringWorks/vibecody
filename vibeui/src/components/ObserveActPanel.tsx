@@ -3,10 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 
 type SubTab = "setup" | "monitor" | "history" | "safety";
 
-const card: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, border: "1px solid var(--border-color)" };
-const label: React.CSSProperties = { fontSize: 12, color: "var(--text-secondary)", marginBottom: 4, display: "block" };
 const input: React.CSSProperties = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", fontSize: 12, boxSizing: "border-box" as const };
-const btn: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "none", background: "var(--accent-color)", color: "var(--btn-primary-fg, #fff)", cursor: "pointer", fontSize: 12, fontWeight: 600 };
 
 interface Step {
   num: number;
@@ -73,14 +70,10 @@ export function ObserveActPanel() {
   };
 
   return (
-    <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 16, fontSize: 13, color: "var(--text-primary)" }}>
-      <div style={{ display: "flex", gap: 2, borderBottom: "1px solid var(--border-color)", padding: "0 16px", flexShrink: 0 }}>
+    <div className="panel-container" style={{ fontSize: 13 }}>
+      <div className="panel-tab-bar">
         {(["setup", "monitor", "history", "safety"] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{
-            padding: "6px 12px", border: "none", background: "transparent", cursor: "pointer",
-            borderBottom: tab === t ? "2px solid var(--accent-blue)" : "2px solid transparent",
-            color: tab === t ? "var(--text-primary)" : "var(--text-secondary)", fontSize: 12, fontFamily: "inherit", textTransform: "capitalize",
-          }}>{t}</button>
+          <button key={t} className={`panel-tab ${tab === t ? "active" : ""}`} onClick={() => setTab(t)} style={{ textTransform: "capitalize" }}>{t}</button>
         ))}
       </div>
 
@@ -91,12 +84,12 @@ export function ObserveActPanel() {
             Continuous visual grounding loop: screenshot → LLM vision → action → verify → repeat.
             Comparable to Anthropic Computer Use and OpenClaw.
           </p>
-          <div style={card}>
-            <label style={label}>Task Description</label>
+          <div className="panel-card">
+            <label className="panel-label">Task Description</label>
             <textarea style={{ ...input, height: 60, resize: "vertical" as const }} value={task} onChange={e => setTask(e.target.value)} placeholder="Log into the admin panel and export the user report as CSV..." />
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 8 }}>
               <div>
-                <label style={label}>Safety Mode</label>
+                <label className="panel-label">Safety Mode</label>
                 <select style={input} value={mode} onChange={e => setMode(e.target.value as any)}>
                   <option value="cautious">Cautious (confirm destructive)</option>
                   <option value="autonomous">Autonomous (full auto)</option>
@@ -104,18 +97,18 @@ export function ObserveActPanel() {
                 </select>
               </div>
               <div>
-                <label style={label}>Max Steps</label>
+                <label className="panel-label">Max Steps</label>
                 <input type="number" style={input} value={maxSteps} onChange={e => setMaxSteps(+e.target.value)} min={1} max={200} />
               </div>
               <div>
-                <label style={label}>Interval (ms)</label>
+                <label className="panel-label">Interval (ms)</label>
                 <input type="number" style={input} value={interval} onChange={e => setInterval_(+e.target.value)} min={500} max={10000} step={500} />
               </div>
             </div>
             <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
-              <button style={{ ...btn, opacity: !task ? 0.5 : 1 }} disabled={!task} onClick={() => setStatus("running")}>Start Observe-Act Loop</button>
-              {status === "running" && <button style={{ ...btn, background: "var(--accent-rose)" }} onClick={() => setStatus("idle")}>Stop</button>}
-              <button style={{ ...btn, background: "var(--bg-tertiary)" }} onClick={() => handleSaveConfig({
+              <button className="panel-btn panel-btn-primary" style={{ opacity: !task ? 0.5 : 1 }} disabled={!task} onClick={() => setStatus("running")}>Start Observe-Act Loop</button>
+              {status === "running" && <button className="panel-btn panel-btn-danger" onClick={() => setStatus("idle")}>Stop</button>}
+              <button className="panel-btn panel-btn-secondary" onClick={() => handleSaveConfig({
                 mode, maxSteps, interval,
                 maxActionsPerStep: config?.maxActionsPerStep ?? 3,
                 rateLimitMs: config?.rateLimitMs ?? 200,
@@ -133,7 +126,7 @@ export function ObserveActPanel() {
         <div>
           <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Live Monitor</div>
           {loading ? (
-            <div style={{ padding: 24, textAlign: "center", color: "var(--text-secondary)", fontSize: 13 }}>Loading monitor data...</div>
+            <div className="panel-loading">Loading monitor data...</div>
           ) : (
             <>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
@@ -143,13 +136,13 @@ export function ObserveActPanel() {
                   { label: "Actions", value: `${steps.reduce((a, s) => a + s.actions.length, 0)}`, color: "var(--text-primary)" },
                   { label: "Success Rate", value: `${steps.length > 0 ? Math.round(steps.filter(s => s.verified).length / steps.length * 100) : 0}%`, color: "var(--accent-green)" },
                 ].map(m => (
-                  <div key={m.label} style={card}>
+                  <div key={m.label} className="panel-card">
                     <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>{m.label}</div>
                     <div style={{ fontSize: 18, fontWeight: 700, color: m.color, marginTop: 2 }}>{m.value}</div>
                   </div>
                 ))}
               </div>
-              <div style={card}>
+              <div className="panel-card">
                 <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Latest Screenshot</div>
                 <div style={{ background: "var(--bg-tertiary)", borderRadius: 4, height: 200, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-secondary)", fontSize: 12 }}>
                   {status === "running" ? "Capturing..." : "No active session"}
@@ -164,12 +157,12 @@ export function ObserveActPanel() {
         <div>
           <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Step History</div>
           {loading ? (
-            <div style={{ padding: 24, textAlign: "center", color: "var(--text-secondary)", fontSize: 13 }}>Loading step history...</div>
+            <div className="panel-loading">Loading step history...</div>
           ) : steps.length === 0 ? (
-            <div style={{ padding: 24, textAlign: "center", color: "var(--text-secondary)", fontSize: 13 }}>No steps recorded yet. Start an observe-act session to see history.</div>
+            <div className="panel-empty">No steps recorded yet. Start an observe-act session to see history.</div>
           ) : (
             steps.map(s => (
-              <div key={s.num} style={{ ...card, marginBottom: 8 }}>
+              <div key={s.num} className="panel-card" style={{ marginBottom: 8 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                   <span style={{ fontWeight: 600 }}>Step {s.num}</span>
                   <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -182,7 +175,7 @@ export function ObserveActPanel() {
                 <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>{s.reasoning}</div>
                 <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                   {s.actions.map((a, i) => (
-                    <span key={i} style={{ fontSize: 10, padding: "2px 6px", borderRadius: 3, background: "var(--bg-tertiary)", fontFamily: "var(--font-mono)" }}>{a}</span>
+                    <span key={i} className="panel-mono" style={{ fontSize: 10, padding: "2px 6px", borderRadius: 3, background: "var(--bg-tertiary)" }}>{a}</span>
                   ))}
                 </div>
               </div>
@@ -195,9 +188,9 @@ export function ObserveActPanel() {
         <div>
           <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Safety Configuration</div>
           {loading ? (
-            <div style={{ padding: 24, textAlign: "center", color: "var(--text-secondary)", fontSize: 13 }}>Loading safety config...</div>
+            <div className="panel-loading">Loading safety config...</div>
           ) : (
-            <div style={card}>
+            <div className="panel-card">
               <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Safety Rails</div>
               <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
                 <tbody>

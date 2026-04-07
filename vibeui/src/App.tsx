@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useToast } from "./hooks/useToast";
 import { useNotifications } from "./hooks/useNotifications";
 import { useApiKeyMonitor } from "./hooks/useApiKeyMonitor";
+import { useDaemonMonitor } from "./hooks/useDaemonMonitor";
 import { Toaster } from "./components/Toaster";
 import { NotificationCenter } from "./components/NotificationCenter";
 import Editor, { DiffEditor, OnMount } from "@monaco-editor/react";
@@ -77,6 +78,7 @@ function App() {
   const { toasts, toast, dismiss } = useToast();
   const { notifications, unreadCount, add: addNotification, markRead, markAllRead, dismiss: dismissNotification } = useNotifications();
   useApiKeyMonitor({ toast, addNotification, osNotifications: true });
+  useDaemonMonitor({ toast, addNotification });
   const { themeName: editorTheme, defineTheme: defineEditorTheme } = useEditorTheme();
   const [openFiles, setOpenFiles] = useState<OpenFile[]>([]);
   const [activeFilePath, setActiveFilePath] = useState<string | null>(null);

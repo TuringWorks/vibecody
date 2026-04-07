@@ -134,7 +134,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
  };
 
  return (
- <div style={{ display: "flex", height: "100%", background: "var(--bg-primary)", color: "var(--text-primary)" }}>
+ <div style={{ display: "flex", flex: 1, minHeight: 0, background: "var(--bg-primary)", color: "var(--text-primary)" }}>
  {/* Left: Tables list */}
  <div style={{ width: 200, borderRight: "1px solid var(--border-color)", display: "flex", flexDirection: "column" }}>
  {/* Connection area */}

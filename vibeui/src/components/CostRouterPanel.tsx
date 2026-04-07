@@ -29,39 +29,6 @@ interface AbTest {
   status: "active" | "concluded";
 }
 
-const panelStyle: React.CSSProperties = {
-  padding: 16,
-  height: "100%",
-  overflow: "auto",
-  color: "var(--text-primary)",
-  background: "var(--bg-primary)",
-};
-
-const headingStyle: React.CSSProperties = {
-  fontSize: 18,
-  fontWeight: 600,
-  marginBottom: 12,
-  color: "var(--text-primary)",
-};
-
-const cardStyle: React.CSSProperties = {
-  background: "var(--bg-secondary)",
-  borderRadius: 8,
-  padding: 12,
-  marginBottom: 8,
-  border: "1px solid var(--border-color)",
-};
-
-const tabStyle = (active: boolean): React.CSSProperties => ({
-  padding: "8px 16px",
-  cursor: "pointer",
-  borderBottom: active ? "2px solid var(--accent-color)" : "2px solid transparent",
-  color: active ? "var(--accent-color)" : "var(--text-secondary)",
-  background: "transparent",
-  border: "none",
-  fontSize: 13,
-  fontWeight: active ? 600 : 400,
-});
 
 const badgeStyle = (color: string): React.CSSProperties => ({
   display: "inline-block",
@@ -120,18 +87,19 @@ export function CostRouterPanel() {
 
   const pct = budget.total > 0 ? (budget.spent / budget.total) * 100 : 0;
 
-  if (loading) return <div style={panelStyle}><div style={{ color: "var(--text-secondary)", fontSize: 13 }}>Loading cost router data...</div></div>;
-  if (error) return <div style={panelStyle}><div style={{ color: "var(--error-color)", fontSize: 13 }}>Error: {error}</div></div>;
+  if (loading) return <div className="panel-container"><div className="panel-loading">Loading cost router data...</div></div>;
+  if (error) return <div className="panel-container"><div className="panel-error">Error: {error}</div></div>;
 
   return (
-    <div style={panelStyle}>
-      <h2 style={headingStyle}>Cost-Optimized Routing</h2>
-      <div style={{ display: "flex", gap: 0, borderBottom: "1px solid var(--border-color)", marginBottom: 16 }}>
-        <button style={tabStyle(tab === "models")} onClick={() => setTab("models")}>Models</button>
-        <button style={tabStyle(tab === "routing")} onClick={() => setTab("routing")}>Routing</button>
-        <button style={tabStyle(tab === "budget")} onClick={() => setTab("budget")}>Budget</button>
-        <button style={tabStyle(tab === "abtests")} onClick={() => setTab("abtests")}>A/B Tests</button>
+    <div className="panel-container">
+      <div className="panel-tab-bar">
+        <button className={`panel-tab ${tab === "models" ? "active" : ""}`} onClick={() => setTab("models")}>Models</button>
+        <button className={`panel-tab ${tab === "routing" ? "active" : ""}`} onClick={() => setTab("routing")}>Routing</button>
+        <button className={`panel-tab ${tab === "budget" ? "active" : ""}`} onClick={() => setTab("budget")}>Budget</button>
+        <button className={`panel-tab ${tab === "abtests" ? "active" : ""}`} onClick={() => setTab("abtests")}>A/B Tests</button>
       </div>
+
+      <div className="panel-body">
 
       {tab === "models" && (
         <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
@@ -158,9 +126,9 @@ export function CostRouterPanel() {
 
       {tab === "routing" && (
         <div>
-          {decisions.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>No routing decisions recorded yet.</div>}
+          {decisions.length === 0 && <div className="panel-empty">No routing decisions recorded yet.</div>}
           {decisions.map((d: any, idx: number) => (
-            <div key={d.id || idx} style={cardStyle}>
+            <div key={d.id || idx} className="panel-card">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                 <strong style={{ fontSize: 13 }}>{d.query}</strong>
                 <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>{d.timestamp}</span>
@@ -174,7 +142,7 @@ export function CostRouterPanel() {
 
       {tab === "budget" && (
         <div>
-          <div style={cardStyle}>
+          <div className="panel-card">
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
               <span style={{ fontWeight: 600 }}>Budget Usage</span>
               <span style={{ fontWeight: 600 }}>${budget.spent.toFixed(2)} / ${budget.total.toFixed(2)}</span>
@@ -184,7 +152,7 @@ export function CostRouterPanel() {
             </div>
             <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>Remaining: ${budget.remaining.toFixed(2)}</div>
           </div>
-          <div style={cardStyle}>
+          <div className="panel-card">
             <div style={{ fontWeight: 600, marginBottom: 8 }}>Alert Threshold: {alertThreshold}%</div>
             <input type="range" min={50} max={100} value={alertThreshold} onChange={(e) => setAlertThreshold(Number(e.target.value))} style={{ width: "100%" }} />
           </div>
@@ -193,11 +161,11 @@ export function CostRouterPanel() {
 
       {tab === "abtests" && (
         <div>
-          {abTests.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>No A/B tests configured yet.</div>}
+          {abTests.length === 0 && <div className="panel-empty">No A/B tests configured yet.</div>}
           {abTests.map((t) => {
             const winner = t.winnerScore.a > t.winnerScore.b ? t.modelA : t.modelB;
             return (
-              <div key={t.id} style={cardStyle}>
+              <div key={t.id} className="panel-card">
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                   <strong>{t.name}</strong>
                   <span style={badgeStyle(t.status === "active" ? "var(--accent-color)" : "var(--success-color)")}>{t.status}</span>
@@ -213,6 +181,7 @@ export function CostRouterPanel() {
           })}
         </div>
       )}
+      </div>
     </div>
   );
 }

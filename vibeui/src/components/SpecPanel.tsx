@@ -139,7 +139,7 @@ export function SpecPanel({ workspacePath, provider = "ollama" }: SpecPanelProps
  const doneCount = selectedSpec?.tasks.filter(t => t.done).length ?? 0;
 
  return (
- <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "var(--bg-primary)", color: "var(--text-primary)", fontSize: "13px" }}>
+ <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, background: "var(--bg-primary)", color: "var(--text-primary)", fontSize: "13px" }}>
  {/* Header */}
  <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "10px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
  <span style={{ fontWeight: 600 }}>Specs</span>

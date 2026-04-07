@@ -131,7 +131,7 @@ export default function CiStatusPanel() {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
       <div style={{ display: "flex", gap: 6, padding: "8px 10px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", alignItems: "center" }}>
         {(["suites", "checks", "config"] as Tab[]).map(t => (
           <button key={t} onClick={() => setTab(t)} style={tabBtn(tab === t)}>

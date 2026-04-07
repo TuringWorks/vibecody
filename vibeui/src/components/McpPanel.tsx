@@ -46,12 +46,9 @@ interface McpPlugin {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const panelStyle: React.CSSProperties = { display: "flex", flexDirection: "column", color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", flex: 1, minHeight: 0, overflow: "hidden", background: "var(--bg-primary)" };
-const headingStyle: React.CSSProperties = { margin: "0 0 4px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" };
 const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-color)" };
 const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
 const btnStyle: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", cursor: "pointer", fontSize: 12 };
-const tabBtnStyle = (active: boolean): React.CSSProperties => ({ ...btnStyle, background: active ? "var(--accent-primary)" : "var(--bg-tertiary)", color: active ? "var(--btn-primary-fg, var(--text-primary))" : "var(--text-primary)", marginRight: 4, fontWeight: active ? 600 : 400 });
 const inputStyle: React.CSSProperties = { padding: "5px 8px", fontSize: "12px", background: "var(--bg-input, var(--bg-primary))", border: "1px solid var(--border-color)", borderRadius: "4px", color: "var(--text-primary)", outline: "none", width: "100%", boxSizing: "border-box" };
 const barBg: React.CSSProperties = { height: 8, borderRadius: 4, background: "var(--bg-tertiary)", overflow: "hidden" };
 const barFill = (pct: number, color: string): React.CSSProperties => ({ height: "100%", width: `${Math.min(pct, 100)}%`, borderRadius: 4, background: color });
@@ -306,21 +303,22 @@ export function McpPanel() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div style={panelStyle}>
+    <div className="panel-container">
       <div style={{ padding: "16px 16px 0", flexShrink: 0 }}>
-        <h2 style={headingStyle}>MCP</h2>
+        <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>MCP</h2>
         <p style={{ fontSize: 11, color: "var(--text-secondary)", margin: "0 0 10px" }}>
           Model Context Protocol — servers, tools, and plugins
         </p>
 
         {error && (
-          <div style={{ fontSize: 12, color: "var(--error-color)", padding: "6px 8px", background: "color-mix(in srgb, var(--accent-rose) 15%, transparent)", borderRadius: 4, marginBottom: 8 }}>
-            {error} <button style={{ ...btnStyle, fontSize: 10, marginLeft: 8, padding: "2px 8px" }} onClick={() => setError(null)}>Dismiss</button>
+          <div className="panel-error" style={{ marginBottom: 8 }}>
+            <span>{error}</span>
+            <button style={{ fontSize: 10, marginLeft: 8, padding: "2px 8px", background: "none", border: "none", color: "inherit", cursor: "pointer" }} onClick={() => setError(null)}>Dismiss</button>
           </div>
         )}
 
         {/* Tab bar */}
-        <div style={{ marginBottom: 0, display: "flex", flexWrap: "wrap", gap: 2 }} role="tablist">
+        <div className="panel-tab-bar" style={{ flexWrap: "wrap" }} role="tablist">
         {(["servers", "tools", "directory", "installed", "metrics"] as Tab[]).map(t => {
           const allToolsCount = BUILTIN_TOOLS.length + Object.values(serverTools).flat().length + manifests.length;
           const installedCount = plugins.filter(p => p.installed).length;
@@ -330,7 +328,7 @@ export function McpPanel() {
             : t === "installed" ? `Installed (${installedCount})`
             : "Metrics";
           return (
-            <button key={t} role="tab" aria-selected={tab === t} style={tabBtnStyle(tab === t)} onClick={() => setTab(t)}>
+            <button key={t} role="tab" aria-selected={tab === t} className={`panel-tab ${tab === t ? "active" : ""}`} onClick={() => setTab(t)}>
               {label}
             </button>
           );
@@ -338,7 +336,7 @@ export function McpPanel() {
         </div>
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px" }}>
+      <div className="panel-body" style={{ padding: "12px 16px" }}>
       {/* ── SERVERS TAB ──────────────────────────────────────────────────────── */}
       {tab === "servers" && (
         <div>
@@ -718,19 +716,19 @@ export function McpPanel() {
               <>
                 {/* Summary bar */}
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
-                  <div style={cardStyle}>
+                  <div className="panel-card">
                     <div style={labelStyle}>Installed</div>
-                    <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)" }}>{installed.length}</div>
+                    <div className="panel-mono" style={{ fontSize: 20, fontWeight: 700 }}>{installed.length}</div>
                   </div>
-                  <div style={cardStyle}>
+                  <div className="panel-card">
                     <div style={labelStyle}>Updates Available</div>
-                    <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)", color: installed.some(p => p.updatable) ? "var(--warning-color)" : "var(--success-color)" }}>
+                    <div className="panel-mono" style={{ fontSize: 20, fontWeight: 700, color: installed.some(p => p.updatable) ? "var(--warning-color)" : "var(--success-color)" }}>
                       {installed.filter(p => p.updatable).length}
                     </div>
                   </div>
-                  <div style={cardStyle}>
+                  <div className="panel-card">
                     <div style={labelStyle}>Categories</div>
-                    <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)" }}>
+                    <div className="panel-mono" style={{ fontSize: 20, fontWeight: 700 }}>
                       {new Set(installed.map(p => p.category)).size}
                     </div>
                   </div>
@@ -824,16 +822,16 @@ export function McpPanel() {
       {tab === "metrics" && metrics && (
         <div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
-            <div style={cardStyle}><div style={labelStyle}>Context Savings</div><div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--success-color)" }}>{metrics.context_savings_pct}%</div></div>
-            <div style={cardStyle}><div style={labelStyle}>Cache Hits</div><div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)" }}>{metrics.cache_hits.toLocaleString()}</div></div>
-            <div style={cardStyle}><div style={labelStyle}>Cache Misses</div><div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--error-color)" }}>{metrics.cache_misses}</div></div>
+            <div className="panel-card"><div style={labelStyle}>Context Savings</div><div className="panel-mono" style={{ fontSize: 22, fontWeight: 700, color: "var(--success-color)" }}>{metrics.context_savings_pct}%</div></div>
+            <div className="panel-card"><div style={labelStyle}>Cache Hits</div><div className="panel-mono" style={{ fontSize: 22, fontWeight: 700 }}>{metrics.cache_hits.toLocaleString()}</div></div>
+            <div className="panel-card"><div style={labelStyle}>Cache Misses</div><div className="panel-mono" style={{ fontSize: 22, fontWeight: 700, color: "var(--error-color)" }}>{metrics.cache_misses}</div></div>
           </div>
-          <div style={cardStyle}>
+          <div className="panel-card">
             <div style={labelStyle}>Cache Hit Rate</div>
             <div style={barBg}><div style={barFill(metrics.cache_hit_rate, "var(--success-color)")} /></div>
             <div style={{ fontSize: 10, color: "var(--text-secondary)", marginTop: 4 }}>{metrics.cache_hit_rate.toFixed(1)}%</div>
           </div>
-          <div style={cardStyle}>
+          <div className="panel-card">
             <div style={labelStyle}>Avg Load Time: {metrics.avg_load_time_ms}ms</div>
             {metrics.load_times.map(lt => (
               <div key={lt.label} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
@@ -843,13 +841,13 @@ export function McpPanel() {
               </div>
             ))}
           </div>
-          <div style={{ ...cardStyle, display: "flex", justifyContent: "space-between" }}>
+          <div className="panel-card" style={{ display: "flex", justifyContent: "space-between" }}>
             <span>Tools loaded: {loadedCount} / {manifests.length}</span>
             <span>Total load time: {metrics.total_load_time_ms}ms</span>
           </div>
         </div>
       )}
-      {tab === "metrics" && !metrics && <div style={cardStyle}>Loading metrics...</div>}
+      {tab === "metrics" && !metrics && <div className="panel-loading">Loading metrics...</div>}
 
       {/* ── Modals ───────────────────────────────────────────────────────────── */}
       {editing && (

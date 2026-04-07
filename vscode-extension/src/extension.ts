@@ -2,7 +2,7 @@
  * VibeCLI VS Code Extension — entry point.
  *
  * Architecture:
- * - Communicates with a local VibeCLI daemon (`vibecli serve --port 7878`)
+ * - Communicates with a local VibeCLI daemon (`vibecli --serve --port 7878`)
  * - Registers sidebar chat webview, inline completions, and agent commands
  * - Status bar shows provider + daemon status
  */
@@ -111,7 +111,7 @@ async function handleStartDaemon(): Promise<void> {
     existing.show();
   } else {
     const terminal = vscode.window.createTerminal('VibeCLI Daemon');
-    terminal.sendText(`vibecli serve --port ${port} --provider ${provider}`);
+    terminal.sendText(`vibecli --serve --port ${port} --provider ${provider}`);
     terminal.show();
   }
 

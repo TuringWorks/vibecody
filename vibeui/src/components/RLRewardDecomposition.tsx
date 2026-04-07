@@ -26,12 +26,6 @@ interface TimeSeriesPoint {
   values: Record<string, number>;
 }
 
-const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", flex: 1, minHeight: 0, overflow: "auto", background: "var(--bg-primary)" };
-const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" };
-const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-color)" };
-const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
-const btnStyle: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", cursor: "pointer", fontSize: 12, marginRight: 8 };
-
 const DEFAULT_COLORS = ["var(--info-color)", "var(--success-color)", "var(--warning-color)", "var(--error-color)", "#9c27b0", "#00bcd4", "var(--error-color)", "#795548"];
 
 export function RLRewardDecomposition() {
@@ -56,19 +50,19 @@ export function RLRewardDecomposition() {
   const totalPositive = data?.components.reduce((s, c) => s + Math.max(c.value * (weights[c.name] ?? c.weight), 0), 0) ?? 1;
 
   return (
-    <div style={panelStyle}>
-      <h2 style={headingStyle}>Reward Decomposition</h2>
+    <div className="panel-container">
+      <h2 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>Reward Decomposition</h2>
 
-      <div style={{ ...cardStyle, display: "flex", gap: 8, alignItems: "center" }}>
-        <label style={labelStyle}>Policy ID:</label>
+      <div className="panel-card" style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <label className="panel-label">Policy ID:</label>
         <input value={policyId} onChange={e => setPolicyId(e.target.value)} style={{ flex: 1, padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", fontSize: 12 }} />
-        <button style={btnStyle} onClick={fetchData} disabled={loading}>{loading ? "..." : "Load"}</button>
+        <button className="panel-btn panel-btn-primary" onClick={fetchData} disabled={loading}>{loading ? "..." : "Load"}</button>
       </div>
 
       {data && (
         <>
-          <div style={cardStyle}>
-            <div style={labelStyle}>Total Reward: <strong>{data.totalReward.toFixed(4)}</strong></div>
+          <div className="panel-card">
+            <div className="panel-label">Total Reward: <strong>{data.totalReward.toFixed(4)}</strong></div>
             <div style={{ display: "flex", height: 32, borderRadius: 4, overflow: "hidden", marginTop: 6 }}>
               {data.components.filter(c => c.value * (weights[c.name] ?? c.weight) > 0).map((c, i) => {
                 const wVal = c.value * (weights[c.name] ?? c.weight);
@@ -77,8 +71,8 @@ export function RLRewardDecomposition() {
             </div>
           </div>
 
-          <div style={cardStyle}>
-            <div style={labelStyle}>Component Weights</div>
+          <div className="panel-card">
+            <div className="panel-label">Component Weights</div>
             {data.components.map((c, i) => (
               <div key={c.name} style={{ marginBottom: 8 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
@@ -90,8 +84,8 @@ export function RLRewardDecomposition() {
             ))}
           </div>
 
-          <div style={cardStyle}>
-            <div style={labelStyle}>Time Series (last {Math.min(data.timeSeries.length, 50)} steps)</div>
+          <div className="panel-card">
+            <div className="panel-label">Time Series (last {Math.min(data.timeSeries.length, 50)} steps)</div>
             {data.components.map((c, ci) => {
               const pts = data.timeSeries.slice(-50);
               const vals = pts.map(p => p.values[c.name] ?? 0);
@@ -111,7 +105,7 @@ export function RLRewardDecomposition() {
         </>
       )}
 
-      {!data && !loading && <div style={labelStyle}>Enter a Policy ID and click Load.</div>}
+      {!data && !loading && <div className="panel-empty">Enter a Policy ID and click Load.</div>}
     </div>
   );
 }

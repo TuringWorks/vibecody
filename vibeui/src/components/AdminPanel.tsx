@@ -128,17 +128,14 @@ export function AdminPanel() {
   ] as const;
 
   return (
-    <div style={{ padding: 12, height: '100%', overflow: 'auto', color: 'var(--text-primary)', fontSize: 13 }}>
+    <div className="panel-container" style={{ fontSize: 13 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <h3 style={{ margin: 0, fontSize: 15 }}>Admin Console</h3>
         <div style={{ display: 'flex', gap: 4 }}>
           {tabs.map(t => (
-            <button key={t.key} onClick={() => setTab(t.key)} style={{
-              padding: '4px 10px', fontSize: 11, borderRadius: 4, cursor: 'pointer',
-              background: tab === t.key ? 'var(--accent-color)' : 'var(--bg-tertiary)',
-              color: tab === t.key ? 'white' : 'var(--text-secondary)',
-              border: '1px solid var(--border-color)',
-            }}>{t.label}</button>
+            <button key={t.key} onClick={() => setTab(t.key)} className={`panel-tab ${tab === t.key ? "active" : ""}`}>
+              {t.label}
+            </button>
           ))}
         </div>
       </div>
@@ -148,17 +145,11 @@ export function AdminPanel() {
       {/* ── Team Members ── */}
       {tab === 'team' && !editingMember && (
         <>
-          <button onClick={() => setEditingMember(newMember())} style={{
-            padding: '6px 14px', marginBottom: 12, fontSize: 12, borderRadius: 4,
-            background: 'var(--accent-color)', color: 'white', border: 'none', cursor: 'pointer',
-          }}>+ Add Member</button>
+          <button onClick={() => setEditingMember(newMember())} className="panel-btn panel-btn-primary" style={{ marginBottom: 12 }}>+ Add Member</button>
 
           <div style={{ display: 'grid', gap: 8 }}>
             {members.map(m => (
-              <div key={m.id} style={{
-                padding: '10px 12px', borderRadius: 6,
-                background: 'var(--bg-secondary)', border: '1px solid var(--border-color)',
-              }}>
+              <div key={m.id} className="panel-card" style={{ padding: '10px 12px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
                     <span style={{ fontWeight: 600 }}>{m.name}</span>
@@ -180,31 +171,29 @@ export function AdminPanel() {
               </div>
             ))}
             {members.length === 0 && (
-              <div style={{ color: 'var(--text-secondary)', padding: 20, textAlign: 'center' }}>
-                No team members yet. Add members to manage access.
-              </div>
+              <div className="panel-empty">No team members yet. Add members to manage access.</div>
             )}
           </div>
         </>
       )}
 
       {tab === 'team' && editingMember && (
-        <div style={{ padding: 12, background: 'var(--bg-secondary)', borderRadius: 6, border: '1px solid var(--border-color)' }}>
+        <div className="panel-card" style={{ padding: 12 }}>
           <h4 style={{ margin: '0 0 12px 0', fontSize: 13 }}>
             {editingMember.name ? `Edit: ${editingMember.name}` : 'New Member'}
           </h4>
           <div style={{ marginBottom: 8 }}>
-            <label style={labelStyle}>Name</label>
+            <label className="panel-label">Name</label>
             <input value={editingMember.name} onChange={e => setEditingMember({ ...editingMember, name: e.target.value })}
               style={inputStyle} placeholder="Jane Developer" />
           </div>
           <div style={{ marginBottom: 8 }}>
-            <label style={labelStyle}>Email</label>
+            <label className="panel-label">Email</label>
             <input value={editingMember.email} onChange={e => setEditingMember({ ...editingMember, email: e.target.value })}
               style={inputStyle} placeholder="jane@example.com" type="email" />
           </div>
           <div style={{ marginBottom: 12 }}>
-            <label style={labelStyle}>Role</label>
+            <label className="panel-label">Role</label>
             <div style={{ display: 'flex', gap: 8 }}>
               {(Object.keys(ROLE_COLORS) as Role[]).map(role => (
                 <button key={role} onClick={() => setEditingMember({ ...editingMember, role })} style={{
@@ -220,8 +209,8 @@ export function AdminPanel() {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={handleSaveMember} style={saveBtn}>Save</button>
-            <button onClick={() => setEditingMember(null)} style={cancelBtn}>Cancel</button>
+            <button onClick={handleSaveMember} className="panel-btn panel-btn-primary">Save</button>
+            <button onClick={() => setEditingMember(null)} className="panel-btn panel-btn-secondary">Cancel</button>
           </div>
         </div>
       )}
@@ -235,11 +224,7 @@ export function AdminPanel() {
           </div>
           <div style={{ display: 'grid', gap: 4 }}>
             {filteredAudit.map(entry => (
-              <div key={entry.id} style={{
-                padding: '6px 10px', borderRadius: 4,
-                background: 'var(--bg-secondary)', border: '1px solid var(--border-color)',
-                fontSize: 12, display: 'flex', gap: 8, alignItems: 'center',
-              }}>
+              <div key={entry.id} className="panel-card" style={{ padding: '6px 10px', fontSize: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
                 <span style={{ color: 'var(--text-secondary)', fontSize: 10, minWidth: 70 }}>
                   {new Date(entry.timestamp).toLocaleTimeString()}
                 </span>
@@ -258,9 +243,7 @@ export function AdminPanel() {
               </div>
             ))}
             {filteredAudit.length === 0 && (
-              <div style={{ color: 'var(--text-secondary)', padding: 20, textAlign: 'center' }}>
-                No audit entries{filterAction ? ' matching filter' : ' yet'}.
-              </div>
+              <div className="panel-empty">No audit entries{filterAction ? ' matching filter' : ' yet'}.</div>
             )}
           </div>
         </>
@@ -271,25 +254,18 @@ export function AdminPanel() {
         <>
           <button onClick={() => handleSavePolicy({
             id: crypto.randomUUID(), resource: '*', roles: ['admin'], action: 'allow',
-          })} style={{
-            padding: '6px 14px', marginBottom: 12, fontSize: 12, borderRadius: 4,
-            background: 'var(--accent-color)', color: 'white', border: 'none', cursor: 'pointer',
-          }}>+ Add Policy</button>
+          })} className="panel-btn panel-btn-primary" style={{ marginBottom: 12 }}>+ Add Policy</button>
 
           <div style={{ display: 'grid', gap: 6 }}>
             {policies.map(p => (
-              <div key={p.id} style={{
-                padding: '8px 12px', borderRadius: 6,
-                background: 'var(--bg-secondary)', border: '1px solid var(--border-color)',
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              }}>
+              <div key={p.id} className="panel-card" style={{ padding: '8px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   <span style={{
                     padding: '2px 8px', borderRadius: 3, fontSize: 10, fontWeight: 600,
                     background: p.action === 'allow' ? 'rgba(34,197,94,0.15)' : 'color-mix(in srgb, var(--accent-rose) 15%, transparent)',
                     color: p.action === 'allow' ? 'var(--success-color)' : 'var(--error-color)',
                   }}>{p.action.toUpperCase()}</span>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>{p.resource}</span>
+                  <span className="panel-mono" style={{ fontSize: 12 }}>{p.resource}</span>
                   <div style={{ display: 'flex', gap: 3 }}>
                     {p.roles.map(r => (
                       <span key={r} style={{
@@ -303,9 +279,7 @@ export function AdminPanel() {
               </div>
             ))}
             {policies.length === 0 && (
-              <div style={{ color: 'var(--text-secondary)', padding: 20, textAlign: 'center' }}>
-                No custom policies. Default policies from VIBECLI.md and approval_policy apply.
-              </div>
+              <div className="panel-empty">No custom policies. Default policies from VIBECLI.md and approval_policy apply.</div>
             )}
           </div>
         </>
@@ -319,22 +293,17 @@ export function AdminPanel() {
           </div>
           <div style={{ display: 'grid', gap: 8 }}>
             {members.filter(m => m.api_keys.length > 0).map(m => (
-              <div key={m.id} style={{
-                padding: '10px 12px', borderRadius: 6,
-                background: 'var(--bg-secondary)', border: '1px solid var(--border-color)',
-              }}>
+              <div key={m.id} className="panel-card" style={{ padding: '10px 12px' }}>
                 <div style={{ fontWeight: 600, marginBottom: 4 }}>{m.name}</div>
                 {m.api_keys.map((k, i) => (
-                  <div key={i} style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
+                  <div key={i} className="panel-mono" style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
                     {k.slice(0, 8)}...{k.slice(-4)}
                   </div>
                 ))}
               </div>
             ))}
             {members.filter(m => m.api_keys.length > 0).length === 0 && (
-              <div style={{ color: 'var(--text-secondary)', padding: 20, textAlign: 'center' }}>
-                No team API keys configured. Add keys to team members in the Team tab.
-              </div>
+              <div className="panel-empty">No team API keys configured. Add keys to team members in the Team tab.</div>
             )}
           </div>
         </div>
@@ -348,17 +317,8 @@ const smallBtn: React.CSSProperties = {
   color: 'var(--text-secondary)', border: '1px solid var(--border-color)',
   borderRadius: 3, cursor: 'pointer',
 };
-const labelStyle: React.CSSProperties = { display: 'block', fontSize: 11, color: 'var(--text-secondary)', marginBottom: 3 };
 const inputStyle: React.CSSProperties = {
   width: '100%', padding: '5px 8px', fontSize: 12, borderRadius: 4,
   background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)',
   color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box',
-};
-const saveBtn: React.CSSProperties = {
-  padding: '6px 16px', background: 'var(--accent-color)', color: 'white',
-  border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12,
-};
-const cancelBtn: React.CSSProperties = {
-  padding: '6px 16px', background: 'var(--bg-tertiary)', color: 'var(--text-secondary)',
-  border: '1px solid var(--border-color)', borderRadius: 4, cursor: 'pointer', fontSize: 12,
 };

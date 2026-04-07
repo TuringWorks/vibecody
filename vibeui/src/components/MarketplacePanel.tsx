@@ -74,7 +74,7 @@ export function MarketplacePanel() {
   const filtered = plugins;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
       {/* Header */}
       <div style={{
         padding: "8px 12px", borderBottom: "1px solid var(--border-color)",

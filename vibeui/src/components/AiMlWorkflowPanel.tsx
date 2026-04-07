@@ -167,12 +167,10 @@ const DEPLOY_TARGETS: DeployTarget[] = [
 
 // ── Styles ───────────────────────────────────────────────────────────────
 
-const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", flex: 1, minHeight: 0, overflow: "auto", background: "var(--bg-primary)" };
 const headingStyle: React.CSSProperties = { margin: "0 0 4px", fontSize: 15, fontWeight: 600 };
 const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-color)" };
 const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
 const btnStyle: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", cursor: "pointer", fontSize: 12 };
-const tabBtnStyle = (active: boolean): React.CSSProperties => ({ ...btnStyle, background: active ? "var(--accent-primary)" : "var(--bg-tertiary)", fontWeight: active ? 600 : 400, marginRight: 4 });
 const badgeStyle = (color: string): React.CSSProperties => ({ display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600, color: "var(--btn-primary-fg)", background: color });
 
 // ── Component ────────────────────────────────────────────────────────────
@@ -225,16 +223,16 @@ export function AiMlWorkflowPanel() {
   };
 
   return (
-    <div style={panelStyle}>
+    <div className="panel-container">
       <h2 style={headingStyle}>AI/ML Workflow Builder</h2>
       <p style={{ ...labelStyle, marginBottom: 12 }}>
         End-to-end pipeline: data prep, training, quantization, inference, agent assembly, deployment
       </p>
 
       {/* Tabs */}
-      <div style={{ marginBottom: 12, display: "flex", flexWrap: "wrap", gap: 2 }}>
+      <div className="panel-tab-bar" style={{ marginBottom: 12 }}>
         {(["pipeline", "examples", "deploy", "monitor"] as Tab[]).map(t => (
-          <button key={t} style={tabBtnStyle(tab === t)} onClick={() => setTab(t)}>
+          <button key={t} className={`panel-tab ${tab === t ? "active" : ""}`} onClick={() => setTab(t)}>
             {t === "pipeline" ? `Pipeline (${activeStages.length}/${stages.length})` :
              t === "examples" ? `Examples (${EXAMPLE_WORKFLOWS.length})` :
              t === "deploy" ? `Deploy (${DEPLOY_TARGETS.length} targets)` : "Monitor"}
@@ -479,7 +477,7 @@ export function AiMlWorkflowPanel() {
         <div>
           <div style={{ display: "flex", gap: 4, marginBottom: 10, flexWrap: "wrap" }}>
             {["all", "cloud", "edge", "iot"].map(f => (
-              <button key={f} style={tabBtnStyle(deployFilter === f)} onClick={() => setDeployFilter(f)}>
+              <button key={f} className={`panel-btn ${deployFilter === f ? "panel-btn-primary" : "panel-btn-secondary"}`} onClick={() => setDeployFilter(f)}>
                 {f === "all" ? `All (${DEPLOY_TARGETS.length})` : `${f.charAt(0).toUpperCase() + f.slice(1)} (${DEPLOY_TARGETS.filter(t => t.category === f).length})`}
               </button>
             ))}

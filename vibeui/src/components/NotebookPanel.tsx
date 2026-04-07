@@ -162,7 +162,7 @@ export function NotebookPanel({ workspacePath }: NotebookPanelProps) {
  };
 
  return (
- <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+ <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
  {/* Toolbar */}
  <div style={{
  display: "flex", gap: 6, padding: "8px 12px", alignItems: "center",

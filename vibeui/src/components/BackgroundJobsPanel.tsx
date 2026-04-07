@@ -53,12 +53,29 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
  }
  };
 
- // Poll every 5 seconds
+ // Sync daemon status from app-level useDaemonMonitor events so we don't
+ // double-poll. Also keep a local 10-second job-list refresh while online.
  useEffect(() => {
+ const onStatus = (e: Event) => {
+  const { online } = (e as CustomEvent<{ online: boolean; checkedAt: number }>).detail;
+  setDaemonOnline(online);
+  if (online) fetchJobs();
+ };
+ window.addEventListener("vibeui:daemon-status", onStatus);
+ // Fetch once on mount to populate immediately.
  fetchJobs();
- const id = setInterval(fetchJobs, 5000);
- return () => clearInterval(id);
+ return () => window.removeEventListener("vibeui:daemon-status", onStatus);
+ // eslint-disable-next-line react-hooks/exhaustive-deps
  }, [daemonUrl]);
+
+ // While the panel is open, refresh the job list every 10 s (daemon status
+ // itself is managed by useDaemonMonitor at app level every 30 s).
+ useEffect(() => {
+ if (!daemonOnline) return;
+ const id = setInterval(fetchJobs, 10_000);
+ return () => clearInterval(id);
+ // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, [daemonOnline, daemonUrl]);
 
  // Close all open EventSources on unmount to prevent resource leaks
  useEffect(() => {
@@ -142,7 +159,7 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
 
  {!daemonOnline && (
  <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '8px', padding: '6px', background: 'var(--bg-tertiary)', borderRadius: '4px' }}>
- Daemon not running. Start it with: <code>vibecli serve --port 7878</code>
+ Daemon not running. Start it with: <code>vibecli --serve --port 7878</code>
  </div>
  )}
 

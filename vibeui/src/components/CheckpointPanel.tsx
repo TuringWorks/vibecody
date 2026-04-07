@@ -99,7 +99,7 @@ export function CheckpointPanel({ workspacePath }: CheckpointPanelProps) {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
       {/* Header */}
       <div style={{ padding: "12px", borderBottom: "1px solid var(--border-color)" }}>
         <div style={{ fontSize: "11px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-secondary)", marginBottom: "8px" }}>

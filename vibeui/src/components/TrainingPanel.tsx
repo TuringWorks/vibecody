@@ -633,7 +633,7 @@ export function TrainingPanel() {
   );
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "var(--bg-primary)", color: "var(--text-primary)" }}>
+    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, background: "var(--bg-primary)", color: "var(--text-primary)" }}>
       {/* Tab bar */}
       <div style={{ display: "flex", gap: 2, borderBottom: "1px solid var(--border-color)", padding: "0 16px", flexShrink: 0 }}>
         {([["config", "Config"], ["lora", "LoRA"], ["cluster", "Cluster"], ["jobs", "Jobs"]] as [TabId, string][]).map(([id, label]) => (

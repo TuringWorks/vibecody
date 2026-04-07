@@ -17,7 +17,7 @@ AI coding assistant powered by [VibeCLI](../README.md), for IntelliJ IDEA and al
 - IntelliJ IDEA 2024.1+ (or any JetBrains IDE 2024.1+)
 - `vibecli` installed and the daemon running:
   ```bash
-  vibecli serve --port 7878 --provider ollama
+  vibecli --serve --port 7878 --provider ollama
   ```
 
 ## Installation

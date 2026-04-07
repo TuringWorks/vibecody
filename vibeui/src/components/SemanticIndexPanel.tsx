@@ -21,40 +21,6 @@ interface TypeNode {
   children: TypeNode[];
 }
 
-const panelStyle: React.CSSProperties = {
-  padding: 16,
-  height: "100%",
-  overflow: "auto",
-  color: "var(--text-primary)",
-  background: "var(--bg-primary)",
-};
-
-const headingStyle: React.CSSProperties = {
-  fontSize: 18,
-  fontWeight: 600,
-  marginBottom: 12,
-  color: "var(--text-primary)",
-};
-
-const cardStyle: React.CSSProperties = {
-  background: "var(--bg-secondary)",
-  borderRadius: 8,
-  padding: 12,
-  marginBottom: 8,
-  border: "1px solid var(--border-color)",
-};
-
-
-const tabStyle = (active: boolean): React.CSSProperties => ({
-  padding: "8px 16px",
-  cursor: "pointer",
-  borderBottom: active ? "2px solid var(--accent-color)" : "2px solid transparent",
-  color: active ? "var(--accent-color)" : "var(--text-secondary)",
-  background: "transparent",
-  border: "none",
-  fontSize: 13,
-  fontWeight: active ? 600 : 400,
-});
 
 const badgeStyle = (color: string): React.CSSProperties => ({
   display: "inline-block",
@@ -177,78 +143,79 @@ export function SemanticIndexPanel() {
     ));
 
   return (
-    <div style={panelStyle}>
-      <h2 style={headingStyle}>Deep Semantic Index</h2>
-      <div style={{ display: "flex", gap: 0, borderBottom: "1px solid var(--border-color)", marginBottom: 16 }}>
-        <button style={tabStyle(tab === "overview")} onClick={() => setTab("overview")}>Overview</button>
-        <button style={tabStyle(tab === "search")} onClick={() => setTab("search")}>Search</button>
-        <button style={tabStyle(tab === "callgraph")} onClick={() => setTab("callgraph")}>Call Graph</button>
-        <button style={tabStyle(tab === "types")} onClick={() => setTab("types")}>Types</button>
+    <div className="panel-container">
+      <div className="panel-tab-bar">
+        <button className={`panel-tab ${tab === "overview" ? "active" : ""}`} onClick={() => setTab("overview")}>Overview</button>
+        <button className={`panel-tab ${tab === "search" ? "active" : ""}`} onClick={() => setTab("search")}>Search</button>
+        <button className={`panel-tab ${tab === "callgraph" ? "active" : ""}`} onClick={() => setTab("callgraph")}>Call Graph</button>
+        <button className={`panel-tab ${tab === "types" ? "active" : ""}`} onClick={() => setTab("types")}>Types</button>
       </div>
 
-      {tab === "overview" && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-          <div style={cardStyle}>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Symbols</div>
-            <div style={{ fontSize: 24, fontWeight: 700 }}>{loadingSymbols ? "..." : symbols.length}</div>
-          </div>
-          <div style={cardStyle}>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Call Edges</div>
-            <div style={{ fontSize: 24, fontWeight: 700 }}>{loadingEdges ? "..." : callEdges.length}</div>
-          </div>
-          <div style={cardStyle}>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Files Indexed</div>
-            <div style={{ fontSize: 24, fontWeight: 700 }}>{loadingSymbols ? "..." : new Set(symbols.map((s) => s.file)).size}</div>
-          </div>
-        </div>
-      )}
-
-      {tab === "search" && (
-        <div>
-          <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-            <input style={{ ...inputStyle, flex: 1 }} placeholder="Search symbols..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
-            <select value={kindFilter} onChange={(e) => setKindFilter(e.target.value)} style={{ ...inputStyle, width: "auto" }}>
-              <option value="all">All kinds</option>
-              {["function", "struct", "trait", "enum", "type", "const", "module"].map((k) => <option key={k} value={k}>{k}</option>)}
-            </select>
-          </div>
-          {loadingSymbols && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>Loading symbols...</div>}
-          {!loadingSymbols && filtered.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>No symbols found.</div>}
-          {filtered.map((s, i) => (
-            <div key={i} style={cardStyle}>
-              <span style={badgeStyle(kindColors[s.kind])}>{s.kind}</span>
-              <strong>{s.name}</strong>
-              <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>{s.file}:{s.line}</div>
+      <div className="panel-body">
+        {tab === "overview" && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+            <div className="panel-card">
+              <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Symbols</div>
+              <div style={{ fontSize: 24, fontWeight: 700 }}>{loadingSymbols ? "..." : symbols.length}</div>
             </div>
-          ))}
-        </div>
-      )}
+            <div className="panel-card">
+              <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Call Edges</div>
+              <div style={{ fontSize: 24, fontWeight: 700 }}>{loadingEdges ? "..." : callEdges.length}</div>
+            </div>
+            <div className="panel-card">
+              <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Files Indexed</div>
+              <div style={{ fontSize: 24, fontWeight: 700 }}>{loadingSymbols ? "..." : new Set(symbols.map((s) => s.file)).size}</div>
+            </div>
+          </div>
+        )}
 
-      {tab === "callgraph" && (
-        <div>
-          <input style={{ ...inputStyle, marginBottom: 12 }} placeholder="Lookup function name..." value={callQuery} onChange={(e) => setCallQuery(e.target.value)} />
-          {loadingEdges && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>Loading call graph...</div>}
-          {!loadingEdges && matchedEdges.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>No call edges found.</div>}
-          {matchedEdges.map((e, i) => (
-            <div key={i} style={cardStyle}>
-              <div style={{ fontSize: 13 }}>
-                <strong style={{ color: "var(--accent-color)" }}>{e.caller}</strong>
-                <span style={{ margin: "0 8px", color: "var(--text-secondary)" }}>&rarr;</span>
-                <strong>{e.callee}</strong>
+        {tab === "search" && (
+          <div>
+            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+              <input style={{ ...inputStyle, flex: 1 }} placeholder="Search symbols..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+              <select value={kindFilter} onChange={(e) => setKindFilter(e.target.value)} style={{ ...inputStyle, width: "auto" }}>
+                <option value="all">All kinds</option>
+                {["function", "struct", "trait", "enum", "type", "const", "module"].map((k) => <option key={k} value={k}>{k}</option>)}
+              </select>
+            </div>
+            {loadingSymbols && <div className="panel-loading">Loading symbols...</div>}
+            {!loadingSymbols && filtered.length === 0 && <div className="panel-empty">No symbols found.</div>}
+            {filtered.map((s, i) => (
+              <div key={i} className="panel-card">
+                <span style={badgeStyle(kindColors[s.kind])}>{s.kind}</span>
+                <strong>{s.name}</strong>
+                <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>{s.file}:{s.line}</div>
               </div>
-              <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>{e.file}:{e.line}</div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
 
-      {tab === "types" && (
-        <div>
-          {loadingTypes && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>Loading type hierarchy...</div>}
-          {!loadingTypes && typeTree.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>No type hierarchies found.</div>}
-          {!loadingTypes && renderTypeTree(typeTree, 0)}
-        </div>
-      )}
+        {tab === "callgraph" && (
+          <div>
+            <input style={{ ...inputStyle, marginBottom: 12 }} placeholder="Lookup function name..." value={callQuery} onChange={(e) => setCallQuery(e.target.value)} />
+            {loadingEdges && <div className="panel-loading">Loading call graph...</div>}
+            {!loadingEdges && matchedEdges.length === 0 && <div className="panel-empty">No call edges found.</div>}
+            {matchedEdges.map((e, i) => (
+              <div key={i} className="panel-card">
+                <div style={{ fontSize: 13 }}>
+                  <strong style={{ color: "var(--accent-color)" }}>{e.caller}</strong>
+                  <span style={{ margin: "0 8px", color: "var(--text-secondary)" }}>&rarr;</span>
+                  <strong>{e.callee}</strong>
+                </div>
+                <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>{e.file}:{e.line}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {tab === "types" && (
+          <div>
+            {loadingTypes && <div className="panel-loading">Loading type hierarchy...</div>}
+            {!loadingTypes && typeTree.length === 0 && <div className="panel-empty">No type hierarchies found.</div>}
+            {!loadingTypes && renderTypeTree(typeTree, 0)}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

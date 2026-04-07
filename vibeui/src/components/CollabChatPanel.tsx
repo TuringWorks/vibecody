@@ -404,7 +404,7 @@ export function CollabChatPanel({ provider = "claude", daemonPort = 7878 }: Coll
         </button>
 
         {error && (
-          <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 6, padding: "8px 12px", fontSize: 12, color: "var(--error-color)" }}>
+          <div className="panel-error">
             {error}
           </div>
         )}
@@ -415,9 +415,9 @@ export function CollabChatPanel({ provider = "claude", daemonPort = 7878 }: Coll
   // ── Connected view ─────────────────────────────────────────────────────────
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderBottom: "1px solid var(--border-color)", flexShrink: 0, background: "var(--bg-secondary)" }}>
+      <div className="panel-header">
         <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--success-color)", flexShrink: 0 }} />
         <span style={{ fontSize: 12, fontWeight: 500, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           Room: {roomId}

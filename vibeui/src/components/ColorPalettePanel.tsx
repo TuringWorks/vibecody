@@ -210,7 +210,7 @@ export function ColorPalettePanel({ workspacePath }: { workspacePath: string | n
  const copyExport = () => { navigator.clipboard.writeText(exported); };
 
  return (
- <div style={{ display: "flex", height: "100%", overflow: "hidden" }}>
+ <div style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
  {/* Palette sidebar */}
  <div style={{ width: 180, borderRight: "1px solid var(--border-color)", display: "flex", flexDirection: "column", flexShrink: 0 }}>
  <div style={{ padding: "8px 10px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>

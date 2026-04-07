@@ -168,7 +168,7 @@ export function HealthMonitorPanel() {
  const checkedCount = monitors.filter(m => results[m.id] !== undefined).length;
 
  return (
- <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+ <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
  {/* Header */}
  <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", flexShrink: 0, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
  <span style={{ fontSize: 15 }}></span>

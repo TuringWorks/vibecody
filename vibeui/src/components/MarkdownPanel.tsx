@@ -146,7 +146,7 @@ export function MarkdownPanel({ workspacePath }: { workspacePath: string | null 
  const filtered = files.filter(f => !filter || f.name.toLowerCase().includes(filter.toLowerCase()));
 
  return (
- <div style={{ display: "flex", height: "100%", overflow: "hidden" }}>
+ <div style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
  {/* File sidebar */}
  <div style={{ width: 190, borderRight: "1px solid var(--border-color)", display: "flex", flexDirection: "column", flexShrink: 0 }}>
  <div style={{ padding: "8px 10px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", alignItems: "center", gap: 6 }}>

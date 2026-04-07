@@ -306,7 +306,7 @@ export function ManagerView({ provider }: ManagerViewProps) {
  const failed = agentList.filter((a) => a.status === "failed").length;
 
  return (
- <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+ <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
  {/* Header */}
  <div style={{
  padding: "10px 12px",

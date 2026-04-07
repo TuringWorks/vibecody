@@ -67,25 +67,6 @@ function fmtHours(mins: number): string {
 
 /* ── Styles ─────────────────────────────────────────────────────────── */
 
-const panelStyle: React.CSSProperties = {
-  padding: 16, height: "100%", overflow: "auto",
-  color: "var(--text-primary)", background: "var(--bg-primary)",
-};
-const headingStyle: React.CSSProperties = { fontSize: 18, fontWeight: 600, marginBottom: 12, color: "var(--text-primary)" };
-const cardStyle: React.CSSProperties = {
-  background: "var(--bg-secondary)", borderRadius: 8, padding: 12, marginBottom: 8,
-  border: "1px solid var(--border-color)",
-};
-const btnStyle: React.CSSProperties = {
-  padding: "6px 14px", borderRadius: 6, border: "1px solid var(--border-color)",
-  background: "var(--accent-color)", color: "var(--btn-primary-fg, #fff)", cursor: "pointer", fontSize: 13, marginRight: 8,
-};
-const tabStyle = (active: boolean): React.CSSProperties => ({
-  padding: "8px 16px", cursor: "pointer",
-  borderBottom: active ? "2px solid var(--accent-color)" : "2px solid transparent",
-  color: active ? "var(--accent-color)" : "var(--text-secondary)",
-  background: "transparent", border: "none", fontSize: 13, fontWeight: active ? 600 : 400,
-});
 const thStyle: React.CSSProperties = { textAlign: "left", padding: "6px 8px", fontSize: 12, color: "var(--text-secondary)", borderBottom: "1px solid var(--border-color)" };
 const tdStyle: React.CSSProperties = { padding: "8px", fontSize: 13, borderBottom: "1px solid var(--border-color)" };
 
@@ -248,21 +229,21 @@ export function AnalyticsPanel() {
   };
 
   if (loading) {
-    return <div style={panelStyle}><h2 style={headingStyle}>Enterprise Agent Analytics</h2><div style={{ color: "var(--text-secondary)", padding: 20 }}>Loading analytics...</div></div>;
+    return <div className="panel-container"><h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 12, color: "var(--text-primary)" }}>Enterprise Agent Analytics</h2><div className="panel-loading">Loading analytics...</div></div>;
   }
 
   return (
-    <div style={panelStyle}>
+    <div className="panel-container">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-        <h2 style={headingStyle}>Enterprise Agent Analytics</h2>
-        <button onClick={loadData} style={{ ...btnStyle, background: "transparent", color: "var(--text-secondary)", fontSize: 11, padding: "4px 10px" }}>Refresh</button>
+        <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 12, color: "var(--text-primary)" }}>Enterprise Agent Analytics</h2>
+        <button onClick={loadData} className="panel-btn panel-btn-secondary" style={{ fontSize: 11, padding: "4px 10px" }}>Refresh</button>
       </div>
       <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 12 }}>
         {sessions.length} total sessions | {(costMetrics?.entries.length ?? 0)} AI calls tracked | Est. {MINS_SAVED_PER_TASK} min saved/task @ ${HOURLY_RATE_USD}/hr
       </div>
-      <div style={{ display: "flex", gap: 0, borderBottom: "1px solid var(--border-color)", marginBottom: 16 }}>
+      <div className="panel-tab-bar" style={{ marginBottom: 16 }}>
         {["dashboard", "providers", "models", "export"].map((t) => (
-          <button key={t} style={tabStyle(tab === t)} onClick={() => setTab(t)}>
+          <button key={t} className={`panel-tab ${tab === t ? "active" : ""}`} onClick={() => setTab(t)}>
             {t.charAt(0).toUpperCase() + t.slice(1)}
           </button>
         ))}
@@ -271,7 +252,7 @@ export function AnalyticsPanel() {
       {tab === "dashboard" && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
           {metrics.map((m) => (
-            <div key={m.label} style={cardStyle}>
+            <div key={m.label} className="panel-card">
               <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>{m.label}</div>
               <div style={{ fontSize: 22, fontWeight: 700, color: m.color }}>{m.value}</div>
               <div style={{ fontSize: 12, color: m.change.startsWith("+") ? "var(--success-color)" : m.change.startsWith("-") ? "var(--error-color)" : "var(--text-secondary)", marginTop: 4 }}>
@@ -285,7 +266,7 @@ export function AnalyticsPanel() {
       {tab === "providers" && (
         <div style={{ overflowX: "auto" }}>
           {providerRows.length === 0 ? (
-            <div style={{ ...cardStyle, color: "var(--text-secondary)", textAlign: "center" }}>No cost data recorded yet</div>
+            <div className="panel-empty">No cost data recorded yet</div>
           ) : (
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
@@ -318,9 +299,9 @@ export function AnalyticsPanel() {
       {tab === "models" && (
         <div>
           {modelRows.length === 0 ? (
-            <div style={{ ...cardStyle, color: "var(--text-secondary)", textAlign: "center" }}>No cost data recorded yet</div>
+            <div className="panel-empty">No cost data recorded yet</div>
           ) : modelRows.map((t) => (
-            <div key={t.name} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div key={t.name} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <div style={{ fontWeight: 600, fontSize: 14 }}>{t.name}</div>
                 <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 2 }}>
@@ -335,18 +316,18 @@ export function AnalyticsPanel() {
 
       {tab === "export" && (
         <div>
-          <div style={cardStyle}>
+          <div className="panel-card">
             <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Export Format</div>
             <div style={{ display: "flex", gap: 8 }}>
               {["csv", "json"].map((f) => (
                 <button key={f} onClick={() => setExportFormat(f)}
-                  style={{ ...btnStyle, background: exportFormat === f ? "var(--accent-color)" : "transparent", color: exportFormat === f ? "var(--btn-primary-fg, #fff)" : "var(--text-primary)", border: "1px solid var(--border-color)" }}>
+                  className={exportFormat === f ? "panel-btn panel-btn-primary" : "panel-btn panel-btn-secondary"}>
                   {f.toUpperCase()}
                 </button>
               ))}
             </div>
           </div>
-          <div style={cardStyle}>
+          <div className="panel-card">
             <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Date Range</div>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
@@ -356,7 +337,7 @@ export function AnalyticsPanel() {
                 style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)", fontSize: 13 }} />
             </div>
           </div>
-          <button style={btnStyle} onClick={handleExport}>Export {exportFormat.toUpperCase()}</button>
+          <button className="panel-btn panel-btn-primary" onClick={handleExport}>Export {exportFormat.toUpperCase()}</button>
         </div>
       )}
     </div>

@@ -155,7 +155,7 @@ export default function PlanDocumentPanel() {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
       {error && (
         <div style={{ padding: "6px 10px", fontSize: 11, background: "var(--text-danger)", color: "var(--bg-primary)", cursor: "pointer" }} onClick={() => setError(null)}>
           {error} (click to dismiss)

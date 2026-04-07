@@ -60,7 +60,7 @@ export function ChatMemoryPanel({
       borderTop: "1px solid var(--border-color)",
       flexShrink: 0,
       background: "var(--bg-secondary)",
-    }}>
+    }}>{/* ChatMemoryPanel: embedded widget, no panel-container wrapper */}
       {/* Toggle header */}
       <button
         onClick={() => setOpen((p) => !p)}

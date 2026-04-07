@@ -202,7 +202,7 @@ export function NumberBasePanel() {
  const validBin = binInput === "" || parseBigInt(binInput.replace(/\s/g,""), 2) !== null;
 
  return (
- <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+ <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
 
  {/* Header */}
  <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>

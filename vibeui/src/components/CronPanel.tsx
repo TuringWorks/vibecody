@@ -192,7 +192,7 @@ export function CronPanel() {
  };
 
  return (
- <div style={{ display: "flex", height: "100%", overflow: "hidden" }}>
+ <div style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
  {/* Preset sidebar */}
  <div style={{ width: 200, borderRight: "1px solid var(--border-color)", display: "flex", flexDirection: "column", flexShrink: 0 }}>
  <div style={{ padding: "8px 10px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", fontSize: 11, fontWeight: 600 }}>

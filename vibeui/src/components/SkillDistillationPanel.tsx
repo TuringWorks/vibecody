@@ -23,12 +23,7 @@ interface Pattern {
   description: string;
 }
 
-const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", flex: 1, minHeight: 0, overflow: "auto", background: "var(--bg-primary)" };
 const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" };
-const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-color)" };
-const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
-const btnStyle: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", cursor: "pointer", fontSize: 12, marginRight: 8 };
-const tabRow: React.CSSProperties = { display: "flex", gap: 4, marginBottom: 12 };
 const metricBox: React.CSSProperties = { textAlign: "center", padding: 12, borderRadius: 6, background: "var(--bg-tertiary)", flex: 1 };
 const badgeStyle = (color: string): React.CSSProperties => ({ fontSize: 10, padding: "2px 6px", borderRadius: 3, background: color, color: "#fff", marginLeft: 6 });
 
@@ -71,11 +66,11 @@ export default function SkillDistillationPanel() {
   const confidenceColor = (c: string) => c.includes("Confident") ? "var(--success-color)" : c.includes("Tentative") ? "var(--warning-color)" : "var(--error-color)";
 
   return (
-    <div style={panelStyle}>
+    <div className="panel-container">
       <h2 style={headingStyle}>Skill Distillation</h2>
-      <div style={tabRow}>
+      <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
         {(["overview", "patterns", "export"] as Tab[]).map(t => (
-          <button key={t} style={{ ...btnStyle, background: tab === t ? "var(--accent-color)" : "var(--bg-tertiary)", color: tab === t ? "#fff" : "var(--text-primary)" }} onClick={() => { setTab(t); if (t === "patterns") loadPatterns(); if (t === "export") doExport(); }}>
+          <button key={t} className={`panel-btn ${tab === t ? "panel-btn-primary" : "panel-btn-secondary"}`} onClick={() => { setTab(t); if (t === "patterns") loadPatterns(); if (t === "export") doExport(); }}>
             {t === "overview" ? "Overview" : t === "patterns" ? "Patterns" : "Export"}
           </button>
         ))}
@@ -86,23 +81,23 @@ export default function SkillDistillationPanel() {
           <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
             <div style={metricBox}>
               <div style={{ fontSize: 24, fontWeight: 700 }}>{status.sessionsAnalyzed}</div>
-              <div style={labelStyle}>Sessions Analyzed</div>
+              <div className="panel-label">Sessions Analyzed</div>
             </div>
             <div style={metricBox}>
               <div style={{ fontSize: 24, fontWeight: 700 }}>{status.patternsExtracted}</div>
-              <div style={labelStyle}>Patterns Found</div>
+              <div className="panel-label">Patterns Found</div>
             </div>
             <div style={metricBox}>
               <div style={{ fontSize: 24, fontWeight: 700 }}>{status.skillsGenerated}</div>
-              <div style={labelStyle}>Skills Generated</div>
+              <div className="panel-label">Skills Generated</div>
             </div>
           </div>
-          <div style={cardStyle}>
-            <div style={labelStyle}>Improvement Estimate</div>
+          <div className="panel-card">
+            <div className="panel-label">Improvement Estimate</div>
             <div style={{ fontSize: 18, fontWeight: 600, color: status.improvementEstimate > 0 ? "var(--success-color)" : "var(--text-secondary)" }}>
               {status.improvementEstimate > 0 ? `+${(status.improvementEstimate * 100).toFixed(1)}%` : "Not enough data"}
             </div>
-            <div style={{ ...labelStyle, marginTop: 4 }}>
+            <div className="panel-label" style={{ marginTop: 4 }}>
               Estimated coding speed improvement from learned patterns.
             </div>
           </div>
@@ -112,29 +107,29 @@ export default function SkillDistillationPanel() {
       {tab === "patterns" && (
         <>
           {patterns.length === 0 && !loading && (
-            <div style={labelStyle}>No patterns learned yet. Patterns emerge after 3+ coding sessions.</div>
+            <div className="panel-empty">No patterns learned yet. Patterns emerge after 3+ coding sessions.</div>
           )}
           {patterns.map(p => (
-            <div key={p.id || p.rule} style={cardStyle}>
+            <div key={p.id || p.rule} className="panel-card">
               <div style={{ display: "flex", alignItems: "center", marginBottom: 4 }}>
                 <span style={{ fontWeight: 600 }}>{p.rule}</span>
                 <span style={badgeStyle(confidenceColor(p.confidence))}>{p.confidence}</span>
                 <span style={{ ...badgeStyle("var(--bg-tertiary)"), color: "var(--text-secondary)" }}>{p.type}</span>
               </div>
               <div>{p.description}</div>
-              <div style={{ ...labelStyle, marginTop: 4 }}>Seen {p.occurrences}x</div>
+              <div className="panel-label" style={{ marginTop: 4 }}>Seen {p.occurrences}x</div>
             </div>
           ))}
         </>
       )}
 
       {tab === "export" && (
-        <div style={cardStyle}>
-          <div style={labelStyle}>Exported Skills (Markdown)</div>
+        <div className="panel-card">
+          <div className="panel-label">Exported Skills (Markdown)</div>
           {exported ? (
             <pre style={{ whiteSpace: "pre-wrap", fontSize: 11, fontFamily: "monospace", margin: 0, maxHeight: 400, overflow: "auto" }}>{exported}</pre>
           ) : (
-            <div style={labelStyle}>{loading ? "Exporting..." : "No skills to export yet."}</div>
+            <div className="panel-label">{loading ? "Exporting..." : "No skills to export yet."}</div>
           )}
         </div>
       )}

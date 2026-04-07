@@ -243,10 +243,10 @@ const OpenMemoryPanel: React.FC = () => {
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', fontFamily: 'var(--font-family)' }}>
+    <div className="panel-container">
       {/* Error */}
       {error && (
-        <div style={{ padding: '8px 16px', background: 'color-mix(in srgb, var(--error-color, #ef4444) 12%, transparent)', borderBottom: '1px solid var(--error-color, #ef4444)', color: 'var(--error-color, #ef4444)', fontSize: 12 }}>
+        <div className="panel-error">
           {error}
         </div>
       )}
@@ -260,22 +260,14 @@ const OpenMemoryPanel: React.FC = () => {
       )}
 
       {/* Tab Bar */}
-      <div style={{
-        display: 'flex', borderBottom: '1px solid var(--border-color)',
-        background: 'var(--bg-secondary)',
-      }}>
+      <div className="panel-tab-bar">
         {tabs.map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)} style={{
-            padding: '8px 16px', border: 'none', cursor: 'pointer', fontSize: 13,
-            background: tab === t.key ? 'var(--bg-primary)' : 'transparent',
-            color: tab === t.key ? 'var(--accent-blue)' : 'var(--text-secondary)',
-            borderBottom: tab === t.key ? '2px solid var(--accent-blue)' : '2px solid transparent',
-          }}>{t.label}</button>
+          <button key={t.key} onClick={() => setTab(t.key)} className={`panel-tab ${tab === t.key ? 'active' : ''}`}>{t.label}</button>
         ))}
       </div>
 
       {/* Content */}
-      <div style={{ flex: 1, overflow: 'auto', padding: 16 }}>
+      <div className="panel-body">
         {/* ─── Overview ─────────────────────────────────────────────── */}
         {tab === 'overview' && (
           <div>

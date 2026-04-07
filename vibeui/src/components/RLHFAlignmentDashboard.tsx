@@ -31,11 +31,6 @@ interface SafetyBenchmark {
   passed: boolean;
 }
 
-const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", flex: 1, minHeight: 0, overflow: "auto", background: "var(--bg-primary)" };
-const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" };
-const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-color)" };
-const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
-const btnStyle: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", cursor: "pointer", fontSize: 12, marginRight: 8 };
 const tableStyle: React.CSSProperties = { width: "100%", borderCollapse: "collapse", fontSize: 12 };
 const thStyle: React.CSSProperties = { textAlign: "left", padding: "6px 8px", borderBottom: "1px solid var(--border-color)", color: "var(--text-secondary)", fontWeight: 600 };
 const tdStyle: React.CSSProperties = { padding: "6px 8px", borderBottom: "1px solid var(--border-color)" };
@@ -58,19 +53,19 @@ export function RLHFAlignmentDashboard() {
   }, [runId]);
 
   return (
-    <div style={panelStyle}>
-      <h2 style={headingStyle}>RLHF Alignment Dashboard</h2>
+    <div className="panel-container">
+      <h2 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>RLHF Alignment Dashboard</h2>
 
-      <div style={{ ...cardStyle, display: "flex", gap: 8, alignItems: "center" }}>
-        <label style={labelStyle}>Run ID:</label>
+      <div className="panel-card" style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <label className="panel-label">Run ID:</label>
         <input value={runId} onChange={e => setRunId(e.target.value)} style={{ flex: 1, padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", fontSize: 12 }} />
-        <button style={btnStyle} onClick={fetchData} disabled={loading}>{loading ? "..." : "Load"}</button>
+        <button className="panel-btn panel-btn-primary" onClick={fetchData} disabled={loading}>{loading ? "..." : "Load"}</button>
       </div>
 
       {data && (
         <>
-          <div style={cardStyle}>
-            <div style={labelStyle}>Pipeline Stages</div>
+          <div className="panel-card">
+            <div className="panel-label">Pipeline Stages</div>
             <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
               {data.stages.map((s, i) => (
                 <div key={s.name} style={{ display: "flex", alignItems: "center", gap: 4 }}>
@@ -92,19 +87,19 @@ export function RLHFAlignmentDashboard() {
             ))}
           </div>
 
-          <div style={{ ...cardStyle, display: "flex", gap: 16, justifyContent: "space-around", textAlign: "center" }}>
+          <div className="panel-card" style={{ display: "flex", gap: 16, justifyContent: "space-around", textAlign: "center" }}>
             <div>
               <div style={{ fontSize: 24, fontWeight: 700, color: data.alignmentTax > 0.1 ? "var(--error-color)" : "var(--success-color)" }}>{(data.alignmentTax * 100).toFixed(1)}%</div>
-              <div style={labelStyle}>Alignment Tax</div>
+              <div className="panel-label">Alignment Tax</div>
             </div>
             <div>
               <div style={{ fontSize: 14 }}>{data.basePerformance.toFixed(2)} &rarr; {data.alignedPerformance.toFixed(2)}</div>
-              <div style={labelStyle}>Performance (base / aligned)</div>
+              <div className="panel-label">Performance (base / aligned)</div>
             </div>
           </div>
 
-          <div style={cardStyle}>
-            <div style={labelStyle}>Reward Model Accuracy ({data.rewardModelAccuracy.length} pts)</div>
+          <div className="panel-card">
+            <div className="panel-label">Reward Model Accuracy ({data.rewardModelAccuracy.length} pts)</div>
             <div style={{ display: "flex", alignItems: "flex-end", gap: 1, height: 50 }}>
               {data.rewardModelAccuracy.slice(-60).map((v, i) => (
                 <div key={i} style={{ flex: 1, height: `${v * 100}%`, background: "var(--info-color)", borderRadius: "2px 2px 0 0" }} />
@@ -112,8 +107,8 @@ export function RLHFAlignmentDashboard() {
             </div>
           </div>
 
-          <div style={cardStyle}>
-            <div style={labelStyle}>KL Divergence ({data.klDivergence.length} pts)</div>
+          <div className="panel-card">
+            <div className="panel-label">KL Divergence ({data.klDivergence.length} pts)</div>
             <div style={{ display: "flex", alignItems: "flex-end", gap: 1, height: 50 }}>
               {data.klDivergence.slice(-60).map((v, i, a) => {
                 const max = Math.max(...a, 0.01);
@@ -122,8 +117,8 @@ export function RLHFAlignmentDashboard() {
             </div>
           </div>
 
-          <div style={cardStyle}>
-            <div style={labelStyle}>Safety Benchmarks</div>
+          <div className="panel-card">
+            <div className="panel-label">Safety Benchmarks</div>
             <table style={tableStyle}>
               <thead><tr><th style={thStyle}>Benchmark</th><th style={thStyle}>Score</th><th style={thStyle}>Threshold</th><th style={thStyle}>Status</th></tr></thead>
               <tbody>
@@ -141,7 +136,7 @@ export function RLHFAlignmentDashboard() {
         </>
       )}
 
-      {!data && !loading && <div style={labelStyle}>Enter a Run ID and click Load.</div>}
+      {!data && !loading && <div className="panel-empty">Enter a Run ID and click Load.</div>}
     </div>
   );
 }

@@ -60,10 +60,10 @@ Override by mapping before calling `setup()`, or disable by remapping after.
 
 ```bash
 # Using an AI provider
-vibecli serve --port 7878 --provider claude
+vibecli --serve --port 7878 --provider claude
 
 # Or Ollama (no API key required)
-vibecli serve --port 7878 --provider ollama
+vibecli --serve --port 7878 --provider ollama
 ```
 
 ## Result Buffer

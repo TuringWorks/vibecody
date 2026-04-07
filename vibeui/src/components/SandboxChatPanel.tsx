@@ -143,9 +143,9 @@ export function SandboxChatPanel({ provider: initialProvider, availableProviders
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
       {/* Toolbar */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderBottom: "1px solid var(--border-color)", flexShrink: 0, background: "var(--bg-secondary)" }}>
+      <div className="panel-header">
         <Shield size={14} style={{ color: sandboxPath ? "var(--success-color)" : "var(--text-muted)" }} />
         <span style={{ fontSize: 12, fontWeight: 500, color: "var(--text-primary)" }}>Sandbox</span>
         {sandboxPath ? (

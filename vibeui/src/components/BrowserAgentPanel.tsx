@@ -3,10 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 
 type SubTab = "browse" | "sessions" | "config";
 
-const card: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, border: "1px solid var(--border-color)" };
-const label: React.CSSProperties = { fontSize: 12, color: "var(--text-secondary)", marginBottom: 4, display: "block" };
-const input: React.CSSProperties = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", fontSize: 12, fontFamily: "var(--font-mono)", boxSizing: "border-box" as const };
-const btn: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "none", background: "var(--accent-color)", color: "var(--btn-primary-fg, #fff)", cursor: "pointer", fontSize: 12, fontWeight: 600 };
+const inputStyle: React.CSSProperties = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", fontSize: 12, fontFamily: "var(--font-mono)", boxSizing: "border-box" as const };
 
 interface BrowseSession {
   id: string;
@@ -61,30 +58,28 @@ export function BrowserAgentPanel() {
     }
   }, [url, task, headless, fetchSessions]);
 
-  if (loading) return <div style={{ padding: 16, color: "var(--text-secondary)", fontSize: 13 }}>Loading browser sessions...</div>;
-  if (error) return <div style={{ padding: 16, color: "var(--error-color)", fontSize: 13 }}>Error: {error}</div>;
+  if (loading) return <div className="panel-loading">Loading browser sessions...</div>;
+  if (error) return <div className="panel-error">Error: {error}</div>;
 
   return (
     <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 16, fontSize: 13, color: "var(--text-primary)" }}>
-      <div style={{ display: "flex", gap: 2, borderBottom: "1px solid var(--border-color)", padding: "0 16px", flexShrink: 0 }}>
+      <div className="panel-tab-bar" style={{ padding: "0 16px", flexShrink: 0 }}>
         {(["browse", "sessions", "config"] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{
-            padding: "6px 12px", border: "none", background: "transparent", cursor: "pointer",
-            borderBottom: tab === t ? "2px solid var(--accent-blue)" : "2px solid transparent",
-            color: tab === t ? "var(--text-primary)" : "var(--text-secondary)", fontSize: 12, fontFamily: "inherit", textTransform: "capitalize",
-          }}>{t === "browse" ? "New Task" : t === "sessions" ? "Sessions" : "Config"}</button>
+          <button key={t} onClick={() => setTab(t)} className={`panel-tab ${tab === t ? "active" : ""}`}>
+            {t === "browse" ? "New Task" : t === "sessions" ? "Sessions" : "Config"}
+          </button>
         ))}
       </div>
 
       {tab === "browse" && (
         <div>
           <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Browser Agent Task</div>
-          <div style={card}>
-            <label style={label}>Target URL</label>
-            <input style={input} value={url} onChange={e => setUrl(e.target.value)} placeholder="https://example.com" />
+          <div className="panel-card">
+            <label className="panel-label">Target URL</label>
+            <input style={inputStyle} value={url} onChange={e => setUrl(e.target.value)} placeholder="https://example.com" />
             <div style={{ marginTop: 8 }}>
-              <label style={label}>Task Description</label>
-              <textarea style={{ ...input, height: 60, resize: "vertical" as const }} value={task} onChange={e => setTask(e.target.value)} placeholder="Extract all product names and prices from the page..." />
+              <label className="panel-label">Task Description</label>
+              <textarea style={{ ...inputStyle, height: 60, resize: "vertical" as const }} value={task} onChange={e => setTask(e.target.value)} placeholder="Extract all product names and prices from the page..." />
             </div>
             <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8 }}>
               <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
@@ -92,10 +87,10 @@ export function BrowserAgentPanel() {
               </label>
             </div>
             <div style={{ marginTop: 12 }}>
-              <button style={{ ...btn, opacity: !url || !task ? 0.5 : 1 }} disabled={!url || !task} onClick={handleLaunch}>Launch Browser Agent</button>
+              <button className="panel-btn panel-btn-primary" style={{ opacity: !url || !task ? 0.5 : 1 }} disabled={!url || !task} onClick={handleLaunch}>Launch Browser Agent</button>
             </div>
           </div>
-          <div style={{ ...card, marginTop: 12 }}>
+          <div className="panel-card" style={{ marginTop: 12 }}>
             <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Capabilities</div>
             <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.6 }}>
               <div>Navigate to URLs, click elements, fill forms, scroll pages</div>
@@ -111,9 +106,9 @@ export function BrowserAgentPanel() {
       {tab === "sessions" && (
         <div>
           <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Browse Sessions</div>
-          {sessions.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>No sessions yet. Launch a browser agent task to get started.</div>}
+          {sessions.length === 0 && <div className="panel-empty">No sessions yet. Launch a browser agent task to get started.</div>}
           {sessions.map(s => (
-            <div key={s.id} style={{ ...card, marginBottom: 8 }}>
+            <div key={s.id} className="panel-card" style={{ marginBottom: 8 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
                   <div style={{ fontWeight: 600, fontSize: 13 }}>{s.task}</div>
@@ -132,7 +127,7 @@ export function BrowserAgentPanel() {
       {tab === "config" && (
         <div>
           <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Browser Agent Configuration</div>
-          <div style={card}>
+          <div className="panel-card">
             <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
               <tbody>
                 <tr><td style={{ padding: "4px 0", color: "var(--text-secondary)" }}>Chrome Debug Port</td><td style={{ padding: "4px 0" }}>9222</td></tr>

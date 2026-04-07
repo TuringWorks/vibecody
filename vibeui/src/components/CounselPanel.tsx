@@ -310,14 +310,14 @@ export function CounselPanel() {
             <h2 style={S.h2}>New Counsel Session</h2>
 
             {error && (
-              <div style={{ padding: "8px 12px", marginBottom: 12, borderRadius: 6, background: "#f4433622", border: "1px solid #f44336", color: "var(--error-color)", fontSize: 12 }}>
-                {error}
-                <button onClick={() => setError(null)} style={{ float: "right", background: "none", border: "none", color: "var(--error-color)", cursor: "pointer", fontWeight: 600 }}>x</button>
+              <div className="panel-error" style={{ marginBottom: 12 }}>
+                <span>{error}</span>
+                <button onClick={() => setError(null)} style={{ float: "right", background: "none", border: "none", color: "inherit", cursor: "pointer", fontWeight: 600 }}>x</button>
               </div>
             )}
 
             <div style={{ marginBottom: 16 }}>
-              <label style={S.label}>Topic</label>
+              <label className="panel-label">Topic</label>
               <textarea
                 style={S.textarea}
                 placeholder="What should the AI panel debate? e.g., 'Best approach to implement a microservices migration'"
@@ -394,9 +394,9 @@ export function CounselPanel() {
             </div>
 
             {error && (
-              <div style={{ padding: "8px 12px", marginBottom: 12, borderRadius: 6, background: "#f4433622", border: "1px solid #f44336", color: "var(--error-color)", fontSize: 12 }}>
-                {error}
-                <button onClick={() => setError(null)} style={{ float: "right", background: "none", border: "none", color: "var(--error-color)", cursor: "pointer", fontWeight: 600 }}>x</button>
+              <div className="panel-error" style={{ marginBottom: 12 }}>
+                <span>{error}</span>
+                <button onClick={() => setError(null)} style={{ float: "right", background: "none", border: "none", color: "inherit", cursor: "pointer", fontWeight: 600 }}>x</button>
               </div>
             )}
 

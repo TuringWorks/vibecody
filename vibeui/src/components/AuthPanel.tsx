@@ -265,7 +265,7 @@ export function AuthPanel({ workspacePath, provider }: { workspacePath: string |
   const allProviders = AUTH_CATEGORIES.flatMap(c => c.providers);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "var(--bg-primary)", color: "var(--text-primary)", fontSize: 13 }}>
+    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, background: "var(--bg-primary)", color: "var(--text-primary)", fontSize: 13 }}>
       {/* Header */}
       <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
         <span style={{ fontSize: 14, fontWeight: 600 }}>Authorization Scaffolding</span>

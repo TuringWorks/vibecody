@@ -207,7 +207,7 @@ export function TimestampPanel() {
  const offsets = [-365, -90, -30, -14, -7, -1, 0, 1, 7, 14, 30, 90, 180, 365];
 
  return (
- <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+ <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
 
  {/* Header */}
  <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>

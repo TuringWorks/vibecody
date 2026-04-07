@@ -413,7 +413,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart={}/vibecli serve --port 7878
+ExecStart={}/vibecli --serve --port 7878
 Restart=always
 RestartSec=5
 Environment=RUST_LOG=info
@@ -449,7 +449,7 @@ WantedBy=default.target
         }
         _ => {
             println!("  {YELLOW}⚠{RESET}  Automatic service setup is not available for {}.", info.os);
-            println!("  You can run VibeCody manually: vibecli serve --port 7878");
+            println!("  You can run VibeCody manually: vibecli --serve --port 7878");
         }
     }
 

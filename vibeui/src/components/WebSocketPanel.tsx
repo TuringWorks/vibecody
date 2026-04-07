@@ -168,7 +168,7 @@ export function WebSocketPanel() {
  const filtered = filterDir === "all" ? messages : messages.filter(m => m.direction === filterDir);
 
  return (
- <div style={{ display: "flex", height: "100%", overflow: "hidden" }}>
+ <div style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
  {/* Sidebar — saved configs */}
  <div style={{ width: 200, borderRight: "1px solid var(--border-color)", display: "flex", flexDirection: "column", flexShrink: 0 }}>
  <div style={{ padding: "10px 10px 6px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", fontSize: 11, fontWeight: 600 }}>

@@ -308,7 +308,7 @@ export function ChatTabManager({
     };
 
     return (
-        <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+        <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
             {/* Tab strip */}
             <div style={{
                 display: "flex", alignItems: "center", gap: "1px",

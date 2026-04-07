@@ -88,8 +88,6 @@ const STEPS = [
 
 // ── Styles ───────────────────────────────────────────────────────────────
 
-const panelStyle: React.CSSProperties = { display: "flex", flexDirection: "column", height: "100%", flex: 1, minHeight: 0, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, background: "var(--bg-primary)" };
-const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-color)" };
 const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4, display: "block" };
 const inputStyle: React.CSSProperties = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", fontSize: 12, fontFamily: "var(--font-family)", boxSizing: "border-box" as const };
 const selectStyle: React.CSSProperties = { ...inputStyle, cursor: "pointer" };
@@ -360,9 +358,9 @@ export function ModelWizardPanel() {
   // ── Render ─────────────────────────────────────────────────────────
 
   return (
-    <div style={panelStyle}>
+    <div className="panel-container">
       {/* Header */}
-      <div style={{ padding: "10px 16px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", flexShrink: 0 }}>
+      <div className="panel-header">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <div style={{ fontSize: 15, fontWeight: 600 }}>Model Wizard</div>
@@ -396,7 +394,7 @@ export function ModelWizardPanel() {
       </div>
 
       {/* Step content */}
-      <div style={{ flex: 1, overflow: "auto", padding: 16 }}>
+      <div className="panel-body">
 
         {/* ── Step 1: Base Model ──────────────────────────────────────── */}
         {step === 1 && (
@@ -688,7 +686,7 @@ export function ModelWizardPanel() {
             <h3 style={{ margin: "0 0 12px", fontSize: 16 }}>Review & Launch</h3>
 
             {/* Config summary */}
-            <div style={cardStyle}>
+            <div className="panel-card">
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, fontSize: 12 }}>
                 <div><span style={{ color: "var(--text-secondary)" }}>Model:</span> {config.baseModel.split("/").pop()}</div>
                 <div><span style={{ color: "var(--text-secondary)" }}>Size:</span> {config.modelSize}</div>

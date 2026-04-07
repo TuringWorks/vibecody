@@ -336,7 +336,7 @@ export function CollabPanel({
       >
         <strong>Prerequisites:</strong>
         <br />
-        1. Start the VibeCLI daemon: <code>vibecli serve --port {daemonPort}</code>
+        1. Start the VibeCLI daemon: <code>vibecli --serve --port {daemonPort}</code>
         <br />
         2. Both users connect to the same daemon instance.
         <br />

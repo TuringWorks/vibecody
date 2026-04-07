@@ -27,50 +27,6 @@ interface TriageResult {
   triageAt: string;
 }
 
-const panelStyle: React.CSSProperties = {
-  padding: 16,
-  height: "100%",
-  overflow: "auto",
-  color: "var(--text-primary)",
-  background: "var(--bg-primary)",
-};
-
-const headingStyle: React.CSSProperties = {
-  fontSize: 18,
-  fontWeight: 600,
-  marginBottom: 12,
-  color: "var(--text-primary)",
-};
-
-const cardStyle: React.CSSProperties = {
-  background: "var(--bg-secondary)",
-  borderRadius: 8,
-  padding: 12,
-  marginBottom: 8,
-  border: "1px solid var(--border-color)",
-};
-
-const btnStyle: React.CSSProperties = {
-  padding: "6px 14px",
-  borderRadius: 6,
-  border: "1px solid var(--border-color)",
-  background: "var(--accent-color)",
-  color: "var(--btn-primary-fg, #fff)",
-  cursor: "pointer",
-  fontSize: 13,
-  marginRight: 8,
-};
-
-const tabStyle = (active: boolean): React.CSSProperties => ({
-  padding: "8px 16px",
-  cursor: "pointer",
-  borderBottom: active ? "2px solid var(--accent-color)" : "2px solid transparent",
-  color: active ? "var(--accent-color)" : "var(--text-secondary)",
-  background: "transparent",
-  border: "none",
-  fontSize: 13,
-  fontWeight: active ? 600 : 400,
-});
 
 const badgeStyle = (color: string): React.CSSProperties => ({
   display: "inline-block",
@@ -139,25 +95,26 @@ export function TriagePanel() {
   const accuracy = history.length > 0 ? ((history.filter((h) => h.correct).length / history.length) * 100).toFixed(0) : "0";
   const avgConf = allIssues.length > 0 ? (allIssues.reduce((s, i) => s + i.confidence, 0) / allIssues.length).toFixed(0) : "0";
 
-  if (loading) return <div style={panelStyle}><div style={{ color: "var(--text-secondary)", fontSize: 13 }}>Loading triage data...</div></div>;
-  if (error) return <div style={panelStyle}><div style={{ color: "var(--error-color)", fontSize: 13 }}>Error: {error}</div></div>;
+  if (loading) return <div className="panel-container"><div className="panel-loading">Loading triage data...</div></div>;
+  if (error) return <div className="panel-container"><div className="panel-error">Error: {error}</div></div>;
 
   return (
-    <div style={panelStyle}>
-      <h2 style={headingStyle}>Issue Triage</h2>
-      <div style={{ display: "flex", gap: 0, borderBottom: "1px solid var(--border-color)", marginBottom: 16 }}>
-        <button style={tabStyle(tab === "queue")} onClick={() => setTab("queue")}>Queue</button>
-        <button style={tabStyle(tab === "submit")} onClick={() => setTab("submit")}>Submit</button>
-        <button style={tabStyle(tab === "rules")} onClick={() => setTab("rules")}>Rules</button>
-        <button style={tabStyle(tab === "history")} onClick={() => setTab("history")}>History</button>
-        <button style={tabStyle(tab === "metrics")} onClick={() => setTab("metrics")}>Metrics</button>
+    <div className="panel-container">
+      <div className="panel-tab-bar">
+        <button className={`panel-tab ${tab === "queue" ? "active" : ""}`} onClick={() => setTab("queue")}>Queue</button>
+        <button className={`panel-tab ${tab === "submit" ? "active" : ""}`} onClick={() => setTab("submit")}>Submit</button>
+        <button className={`panel-tab ${tab === "rules" ? "active" : ""}`} onClick={() => setTab("rules")}>Rules</button>
+        <button className={`panel-tab ${tab === "history" ? "active" : ""}`} onClick={() => setTab("history")}>History</button>
+        <button className={`panel-tab ${tab === "metrics" ? "active" : ""}`} onClick={() => setTab("metrics")}>Metrics</button>
       </div>
+
+      <div className="panel-body">
 
       {tab === "queue" && (
         <div>
-          {allIssues.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>No issues triaged yet. Submit an issue to get started.</div>}
+          {allIssues.length === 0 && <div className="panel-empty">No issues triaged yet. Submit an issue to get started.</div>}
           {allIssues.map((i) => (
-            <div key={i.id} style={cardStyle}>
+            <div key={i.id} className="panel-card">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                 <strong>{i.title}</strong>
                 <div>
@@ -175,20 +132,20 @@ export function TriagePanel() {
 
       {tab === "submit" && (
         <div>
-          <div style={cardStyle}>
+          <div className="panel-card">
             <div style={{ fontWeight: 600, marginBottom: 8 }}>Submit Issue for Triage</div>
             <input placeholder="Issue title" style={inputStyle} value={newTitle} onChange={(e) => setNewTitle(e.target.value)} />
             <textarea placeholder="Issue body / description" style={{ ...inputStyle, height: 80, resize: "vertical" as const }} value={newBody} onChange={(e) => setNewBody(e.target.value)} />
-            <button style={btnStyle} onClick={handleTriage} disabled={!newTitle.trim()}>Triage</button>
+            <button className="panel-btn panel-btn-primary" onClick={handleTriage} disabled={!newTitle.trim()}>Triage</button>
           </div>
         </div>
       )}
 
       {tab === "rules" && (
         <div>
-          {rules.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>No triage rules configured.</div>}
+          {rules.length === 0 && <div className="panel-empty">No triage rules configured.</div>}
           {rules.map((r, idx) => (
-            <div key={r.id || idx} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div key={r.id || idx} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <strong>{r.name || r.pattern}</strong>
                 <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>/{r.pattern}/ &rarr; {r.action || `Label: ${r.name}`}</div>
@@ -203,9 +160,9 @@ export function TriagePanel() {
 
       {tab === "history" && (
         <div>
-          {history.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>No triage history yet.</div>}
+          {history.length === 0 && <div className="panel-empty">No triage history yet.</div>}
           {history.map((h, idx) => (
-            <div key={h.id || idx} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div key={h.id || idx} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <strong>{h.issueTitle}</strong>
                 <span style={{ ...badgeStyle("#6366f1"), marginLeft: 8 }}>{h.classification}</span>
@@ -218,18 +175,19 @@ export function TriagePanel() {
 
       {tab === "metrics" && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-          <div style={cardStyle}><div style={{ fontSize: 12, color: "var(--text-secondary)" }}>By Type</div>{["bug", "feature", "docs"].map((t) => <div key={t} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "2px 0" }}><span>{t}</span><strong>{allIssues.filter((i) => i.classification === t).length}</strong></div>)}</div>
-          <div style={cardStyle}><div style={{ fontSize: 12, color: "var(--text-secondary)" }}>By Severity</div>{["critical", "high", "medium", "low"].map((s) => <div key={s} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "2px 0" }}><span>{s}</span><strong>{allIssues.filter((i) => i.severity === s).length}</strong></div>)}</div>
-          <div style={cardStyle}><div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Accuracy</div><div style={{ fontSize: 24, fontWeight: 700 }}>{accuracy}%</div></div>
-          <div style={cardStyle}><div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Avg Confidence</div><div style={{ fontSize: 24, fontWeight: 700 }}>{avgConf}%</div></div>
+          <div className="panel-card"><div style={{ fontSize: 12, color: "var(--text-secondary)" }}>By Type</div>{["bug", "feature", "docs"].map((t) => <div key={t} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "2px 0" }}><span>{t}</span><strong>{allIssues.filter((i) => i.classification === t).length}</strong></div>)}</div>
+          <div className="panel-card"><div style={{ fontSize: 12, color: "var(--text-secondary)" }}>By Severity</div>{["critical", "high", "medium", "low"].map((s) => <div key={s} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "2px 0" }}><span>{s}</span><strong>{allIssues.filter((i) => i.severity === s).length}</strong></div>)}</div>
+          <div className="panel-card"><div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Accuracy</div><div style={{ fontSize: 24, fontWeight: 700 }}>{accuracy}%</div></div>
+          <div className="panel-card"><div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Avg Confidence</div><div style={{ fontSize: 24, fontWeight: 700 }}>{avgConf}%</div></div>
           {metrics && (
-            <div style={{ ...cardStyle, gridColumn: "1 / -1" }}>
+            <div className="panel-card" style={{ gridColumn: "1 / -1" }}>
               <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>Backend Metrics</div>
               <pre style={{ fontSize: 12, color: "var(--text-secondary)", whiteSpace: "pre-wrap" }}>{JSON.stringify(metrics, null, 2)}</pre>
             </div>
           )}
         </div>
       )}
+      </div>
     </div>
   );
 }

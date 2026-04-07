@@ -28,11 +28,6 @@ interface LineageEdge {
   label: string;
 }
 
-const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", flex: 1, minHeight: 0, overflow: "auto", background: "var(--bg-primary)" };
-const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" };
-const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-color)" };
-const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
-const btnStyle: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", cursor: "pointer", fontSize: 12, marginRight: 8 };
 const badgeStyle: React.CSSProperties = { fontSize: 10, padding: "2px 6px", borderRadius: 3, color: "#fff", marginLeft: 4 };
 
 const typeColor = (t: string) => t === "training" ? "var(--info-color)" : t === "distillation" ? "#9c27b0" : t === "deployment" ? "var(--success-color)" : "var(--warning-color)";
@@ -65,25 +60,25 @@ export function RLModelLineage() {
   };
 
   return (
-    <div style={panelStyle}>
-      <h2 style={headingStyle}>Model Lineage</h2>
+    <div className="panel-container">
+      <h2 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>Model Lineage</h2>
 
-      <div style={{ ...cardStyle, display: "flex", gap: 8, alignItems: "center" }}>
-        <label style={labelStyle}>Policy ID:</label>
+      <div className="panel-card" style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <label className="panel-label">Policy ID:</label>
         <input value={policyId} onChange={e => setPolicyId(e.target.value)} style={{ flex: 1, padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", fontSize: 12 }} />
-        <button style={btnStyle} onClick={fetchLineage} disabled={loading}>{loading ? "..." : "Load"}</button>
+        <button className="panel-btn panel-btn-primary" onClick={fetchLineage} disabled={loading}>{loading ? "..." : "Load"}</button>
       </div>
 
       {graph && (
         <>
           <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-            <button style={btnStyle} onClick={() => setZoom(z => Math.min(z + 0.2, 2))}>Zoom +</button>
-            <button style={btnStyle} onClick={() => setZoom(z => Math.max(z - 0.2, 0.4))}>Zoom -</button>
-            <span style={labelStyle}>{(zoom * 100).toFixed(0)}%</span>
+            <button className="panel-btn panel-btn-secondary" onClick={() => setZoom(z => Math.min(z + 0.2, 2))}>Zoom +</button>
+            <button className="panel-btn panel-btn-secondary" onClick={() => setZoom(z => Math.max(z - 0.2, 0.4))}>Zoom -</button>
+            <span className="panel-label">{(zoom * 100).toFixed(0)}%</span>
           </div>
 
-          <div style={{ ...cardStyle, transform: `scale(${zoom})`, transformOrigin: "top left" }}>
-            <div style={labelStyle}>DAG ({graph.nodes.length} nodes, {graph.edges.length} edges)</div>
+          <div className="panel-card" style={{ transform: `scale(${zoom})`, transformOrigin: "top left" }}>
+            <div className="panel-label">DAG ({graph.nodes.length} nodes, {graph.edges.length} edges)</div>
             {graph.nodes.map(n => {
               const d = depth(n.id);
               const edge = parentMap[n.id];
@@ -99,10 +94,10 @@ export function RLModelLineage() {
           </div>
 
           {selected && (
-            <div style={cardStyle}>
+            <div className="panel-card">
               <div style={{ fontWeight: 600, marginBottom: 6 }}>{selected.label}</div>
-              <div style={labelStyle}>Type: {selected.nodeType} | Env: v{selected.envVersion} | Time: {new Date(selected.timestamp * 1000).toLocaleString()}</div>
-              <div style={{ ...labelStyle, marginTop: 6 }}>Metrics</div>
+              <div className="panel-label">Type: {selected.nodeType} | Env: v{selected.envVersion} | Time: {new Date(selected.timestamp * 1000).toLocaleString()}</div>
+              <div className="panel-label" style={{ marginTop: 6 }}>Metrics</div>
               {Object.entries(selected.metrics).map(([k, v]) => (
                 <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "2px 0" }}>
                   <span>{k}</span><span style={{ fontWeight: 600 }}>{v.toFixed(4)}</span>
@@ -113,7 +108,7 @@ export function RLModelLineage() {
         </>
       )}
 
-      {!graph && !loading && <div style={labelStyle}>Enter a Policy ID and click Load to view lineage.</div>}
+      {!graph && !loading && <div className="panel-empty">Enter a Policy ID and click Load to view lineage.</div>}
     </div>
   );
 }

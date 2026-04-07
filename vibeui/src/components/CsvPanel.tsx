@@ -178,13 +178,10 @@ export function CsvPanel() {
  { id: "convert", label: "Convert" },
  ];
 
- const panelStyle: React.CSSProperties = { display: "flex", flexDirection: "column", height: "100%", fontSize: 13, color: "var(--text-primary)", overflow: "hidden" };
- const tabBarStyle: React.CSSProperties = { display: "flex", gap: 2, borderBottom: "1px solid var(--border-color)", padding: "0 16px", flexShrink: 0 };
-
  return (
- <div style={panelStyle}>
+ <div className="panel-container">
  {/* Toolbar */}
- <div style={{ display: "flex", gap: 8, padding: "8px 12px", alignItems: "center", borderBottom: "1px solid var(--border-color)", flexWrap: "wrap" }}>
+ <div className="panel-header" style={{ flexWrap: "wrap" }}>
  <input ref={fileInputRef} type="file" accept=".csv,.tsv,.txt" style={{ display: "none" }} onChange={handleFile} />
  <button onClick={() => fileInputRef.current?.click()}
  style={{ padding: "4px 10px", background: "var(--accent-color)", color: "var(--text-on-accent)", border: "none", borderRadius: 4, cursor: "pointer", fontSize: 12 }}>
@@ -219,7 +216,7 @@ export function CsvPanel() {
 
  {/* Paste area when empty */}
  {rows.length === 0 && (
- <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, padding: 24 }}>
+ <div className="panel-body" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, padding: 24 }}>
  <Table size={32} strokeWidth={1.5} style={{ color: "var(--accent, #4a9eff)" }} />
  <div style={{ color: "var(--text-secondary)", textAlign: "center" }}>Open a CSV / TSV file or paste data below</div>
  <textarea
@@ -244,10 +241,10 @@ export function CsvPanel() {
  {rows.length > 0 && (
  <>
  {/* Sub-tabs */}
- <div style={tabBarStyle}>
+ <div className="panel-tab-bar">
  {TABS.map(t => (
  <button key={t.id} onClick={() => setTab(t.id)}
- style={{ padding: "4px 10px", fontSize: 12, border: "none", borderBottom: tab === t.id ? "2px solid var(--accent-blue)" : "2px solid transparent", background: "none", color: tab === t.id ? "var(--text-primary)" : "var(--text-secondary)", cursor: "pointer" }}>
+ className={`panel-tab ${tab === t.id ? "active" : ""}`}>
  {t.label}
  </button>
  ))}
@@ -255,7 +252,7 @@ export function CsvPanel() {
 
  {/* Table */}
  {tab === "table" && (
- <div style={{ flex: 1, overflow: "auto", padding: 8 }}>
+ <div className="panel-body" style={{ padding: 8 }}>
  <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 12 }}>
  {hasHeader && headers.length > 0 && (
  <thead>
@@ -302,7 +299,7 @@ export function CsvPanel() {
 
  {/* Filter */}
  {tab === "filter" && (
- <div style={{ flex: 1, overflow: "auto", padding: 12 }}>
+ <div className="panel-body" style={{ padding: 12 }}>
  <div style={{ display: "flex", gap: 8, marginBottom: 12, alignItems: "center" }}>
  <input value={filterText} onChange={e => setFilterText(e.target.value)} placeholder="Filter value..."
  style={{ flex: 1, background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4, padding: "5px 8px", fontSize: 12 }} />
@@ -344,7 +341,7 @@ export function CsvPanel() {
 
  {/* Stats */}
  {tab === "stats" && stats && (
- <div style={{ flex: 1, overflow: "auto", padding: 12 }}>
+ <div className="panel-body" style={{ padding: 12 }}>
  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 10, marginBottom: 16 }}>
  {[
  { label: "Total Rows", value: dataRows.length },
@@ -385,7 +382,7 @@ export function CsvPanel() {
 
  {/* Convert */}
  {tab === "convert" && (
- <div style={{ flex: 1, overflow: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 12 }}>
+ <div className="panel-body" style={{ padding: 12, display: "flex", flexDirection: "column", gap: 12 }}>
  <div style={{ display: "flex", gap: 8 }}>
  {(["JSON", "SQL", "Markdown"] as const).map(fmt => (
  <button key={fmt}

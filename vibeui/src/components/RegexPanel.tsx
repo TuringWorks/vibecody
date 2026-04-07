@@ -144,7 +144,7 @@ export function RegexPanel() {
  // ── Render ───────────────────────────────────────────────────────────────────
 
  return (
- <div style={{ display: "flex", height: "100%", overflow: "hidden" }}>
+ <div style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
 
  {/* Sidebar: common patterns */}
  <div style={{ width: 180, flexShrink: 0, borderRight: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", flexDirection: "column", overflow: "hidden" }}>

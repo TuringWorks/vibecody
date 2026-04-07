@@ -55,12 +55,8 @@ interface CostResult {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", flex: 1, minHeight: 0, overflow: "auto", background: "var(--bg-primary)" };
-const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" };
-const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-color)" };
 const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
 const btnStyle: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", cursor: "pointer", fontSize: 12 };
-const tabBtnStyle = (active: boolean): React.CSSProperties => ({ ...btnStyle, background: active ? "var(--accent-primary)" : "var(--bg-tertiary)", color: active ? "var(--text-primary)" : "var(--text-primary)", marginRight: 4 });
 
 const preStyle: React.CSSProperties = { background: "var(--bg-tertiary)", padding: 10, borderRadius: 4, fontSize: 11, overflow: "auto", whiteSpace: "pre-wrap", border: "1px solid var(--border-color)", maxHeight: 400 };
 const providerColor: Record<string, string> = { AWS: "var(--warning-color)", GCP: "var(--info-color)", Azure: "var(--accent-primary)" };
@@ -68,8 +64,7 @@ const confidenceColor = (c: number) => c >= 0.9 ? "var(--success-color)" : c >= 
 
 const thStyle: React.CSSProperties = { textAlign: "left", padding: "6px 10px", borderBottom: "1px solid var(--border-color)", fontSize: 11, color: "var(--text-secondary)" };
 const tdStyle: React.CSSProperties = { padding: "6px 10px", borderBottom: "1px solid var(--border-color)", fontSize: 12 };
-const errorStyle: React.CSSProperties = { ...cardStyle, color: "var(--error-color)", borderColor: "var(--error-color)" };
-const spinnerStyle: React.CSSProperties = { ...cardStyle, color: "var(--text-secondary)", fontStyle: "italic" };
+const tabBtnActiveStyle: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--accent-primary)", color: "var(--text-primary)", cursor: "pointer", fontSize: 12, marginRight: 4 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -220,11 +215,14 @@ export function CloudProviderPanel() {
   }, [tab, scanResult, detectedServices, iamResult, iamLoading, iacResult, iacLoading, costResult, costLoading, iamProvider, iacFormat, detectedProviders, generateIam, generateIac, estimateCosts]);
 
   return (
-    <div style={panelStyle}>
-      <h2 style={headingStyle}>Cloud Provider Integration</h2>
+    <div className="panel-container">
+      <div className="panel-header">
+        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Cloud Provider Integration</h2>
+      </div>
 
+      <div className="panel-body">
       {/* Connection status banner */}
-      <div style={{ ...cardStyle, display: "flex", alignItems: "center", gap: 10, fontSize: 12 }}>
+      <div className="panel-card" style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 12 }}>
         <span style={{ fontWeight: 600 }}>Connected:</span>
         {connectedProviders.length > 0 ? (
           connectedProviders.map(p => (
@@ -239,11 +237,11 @@ export function CloudProviderPanel() {
         )}
       </div>
 
-      <div style={{ marginBottom: 12 }}>
-        <button style={tabBtnStyle(tab === "scan")} onClick={() => setTab("scan")}>Scan</button>
-        <button style={tabBtnStyle(tab === "iam")} onClick={() => setTab("iam")}>IAM</button>
-        <button style={tabBtnStyle(tab === "iac")} onClick={() => setTab("iac")}>IaC</button>
-        <button style={tabBtnStyle(tab === "cost")} onClick={() => setTab("cost")}>Cost</button>
+      <div className="panel-tab-bar">
+        <button className={`panel-tab ${tab === "scan" ? "active" : ""}`} onClick={() => setTab("scan")}>Scan</button>
+        <button className={`panel-tab ${tab === "iam" ? "active" : ""}`} onClick={() => setTab("iam")}>IAM</button>
+        <button className={`panel-tab ${tab === "iac" ? "active" : ""}`} onClick={() => setTab("iac")}>IaC</button>
+        <button className={`panel-tab ${tab === "cost" ? "active" : ""}`} onClick={() => setTab("cost")}>Cost</button>
       </div>
 
       {tab === "scan" && (
@@ -254,12 +252,12 @@ export function CloudProviderPanel() {
             </button>
           </div>
 
-          {scanning && <div style={spinnerStyle}>Scanning workspace for cloud service patterns...</div>}
-          {scanError && <div style={errorStyle}>Scan error: {scanError}</div>}
+          {scanning && <div className="panel-loading">Scanning workspace for cloud service patterns...</div>}
+          {scanError && <div className="panel-error">Scan error: {scanError}</div>}
 
           {scanResult && !scanning && (
             <>
-              <div style={{ ...cardStyle, fontSize: 12 }}>
+              <div className="panel-card" style={{ fontSize: 12 }}>
                 Detected {detectedServices.length} cloud service{detectedServices.length !== 1 ? "s" : ""} across{" "}
                 {detectedProviders.length} provider{detectedProviders.length !== 1 ? "s" : ""}.
                 {scanResult.files_scanned > 0 && (
@@ -269,12 +267,12 @@ export function CloudProviderPanel() {
                 )}
               </div>
               {detectedServices.length === 0 && (
-                <div style={{ ...cardStyle, color: "var(--text-secondary)" }}>
+                <div className="panel-card" style={{ color: "var(--text-secondary)" }}>
                   No cloud services detected in workspace. Make sure source files use AWS/GCP/Azure SDK patterns.
                 </div>
               )}
               {detectedServices.map((s) => (
-                <div key={s.id} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div key={s.id} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div>
                     <span style={{ fontWeight: 600, color: providerColor[s.provider] }}>[{s.provider}]</span>{" "}
                     <span style={{ fontWeight: 600 }}>{s.service}</span>
@@ -295,7 +293,7 @@ export function CloudProviderPanel() {
       {tab === "iam" && (
         <div>
           {detectedServices.length === 0 ? (
-            <div style={{ ...cardStyle, color: "var(--text-secondary)" }}>
+            <div className="panel-card" style={{ color: "var(--text-secondary)" }}>
               Run a scan first to detect cloud services, then generate IAM policies.
             </div>
           ) : (
@@ -304,7 +302,7 @@ export function CloudProviderPanel() {
                 {detectedProviders.map(p => (
                   <button
                     key={p}
-                    style={tabBtnStyle(iamProvider === p)}
+                    style={iamProvider === p ? tabBtnActiveStyle : btnStyle}
                     onClick={() => {
                       setIamProvider(p);
                       setIamResult(null);
@@ -316,11 +314,11 @@ export function CloudProviderPanel() {
                 ))}
               </div>
 
-              {iamLoading && <div style={spinnerStyle}>Generating IAM policy for {iamProvider}...</div>}
-              {iamError && <div style={errorStyle}>IAM error: {iamError}</div>}
+              {iamLoading && <div className="panel-loading">Generating IAM policy for {iamProvider}...</div>}
+              {iamError && <div className="panel-error">IAM error: {iamError}</div>}
 
               {iamResult && !iamLoading && (
-                <div style={cardStyle}>
+                <div className="panel-card">
                   <div style={labelStyle}>Generated least-privilege IAM policy for {iamResult.provider} services</div>
                   <pre style={preStyle}>{iamResult.policy_text}</pre>
                   <div style={{ marginTop: 8 }}>
@@ -336,7 +334,7 @@ export function CloudProviderPanel() {
       {tab === "iac" && (
         <div>
           {detectedServices.length === 0 ? (
-            <div style={{ ...cardStyle, color: "var(--text-secondary)" }}>
+            <div className="panel-card" style={{ color: "var(--text-secondary)" }}>
               Run a scan first to detect cloud services, then generate IaC templates.
             </div>
           ) : (
@@ -345,7 +343,7 @@ export function CloudProviderPanel() {
                 {IAC_FORMATS.map((fmt) => (
                   <button
                     key={fmt}
-                    style={tabBtnStyle(iacFormat === fmt)}
+                    style={iacFormat === fmt ? tabBtnActiveStyle : btnStyle}
                     onClick={() => {
                       setIacFormat(fmt);
                       setIacResult(null);
@@ -357,11 +355,11 @@ export function CloudProviderPanel() {
                 ))}
               </div>
 
-              {iacLoading && <div style={spinnerStyle}>Generating {iacFormat} template...</div>}
-              {iacError && <div style={errorStyle}>IaC error: {iacError}</div>}
+              {iacLoading && <div className="panel-loading">Generating {iacFormat} template...</div>}
+              {iacError && <div className="panel-error">IaC error: {iacError}</div>}
 
               {iacResult && !iacLoading && (
-                <div style={cardStyle}>
+                <div className="panel-card">
                   <div style={labelStyle}>{iacResult.format} template for detected {iacResult.provider} services</div>
                   <pre style={preStyle}>{iacResult.template}</pre>
                   <div style={{ marginTop: 8 }}>
@@ -377,7 +375,7 @@ export function CloudProviderPanel() {
       {tab === "cost" && (
         <div>
           {detectedServices.length === 0 ? (
-            <div style={{ ...cardStyle, color: "var(--text-secondary)" }}>
+            <div className="panel-card" style={{ color: "var(--text-secondary)" }}>
               Run a scan first to detect cloud services, then estimate costs.
             </div>
           ) : (
@@ -388,22 +386,22 @@ export function CloudProviderPanel() {
                 </button>
               </div>
 
-              {costLoading && <div style={spinnerStyle}>Estimating costs for detected services...</div>}
-              {costError && <div style={errorStyle}>Cost error: {costError}</div>}
+              {costLoading && <div className="panel-loading">Estimating costs for detected services...</div>}
+              {costError && <div className="panel-error">Cost error: {costError}</div>}
 
               {costResult && !costLoading && (
                 <>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
-                    <div style={cardStyle}>
+                    <div className="panel-card">
                       <div style={labelStyle}>Estimated Monthly</div>
                       <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--accent-primary)" }}>${costResult.total_monthly_usd.toFixed(2)}</div>
                     </div>
-                    <div style={cardStyle}>
+                    <div className="panel-card">
                       <div style={labelStyle}>Estimated Yearly</div>
                       <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--accent-primary)" }}>${costResult.total_yearly_usd.toFixed(2)}</div>
                     </div>
                   </div>
-                  <div style={cardStyle}>
+                  <div className="panel-card">
                     <table style={{ width: "100%", borderCollapse: "collapse" }}>
                       <thead>
                         <tr>
@@ -440,6 +438,7 @@ export function CloudProviderPanel() {
           )}
         </div>
       )}
+      </div>
     </div>
   );
 }

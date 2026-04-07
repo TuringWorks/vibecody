@@ -22,61 +22,6 @@ interface Citation {
   usedIn: string;
 }
 
-const panelStyle: React.CSSProperties = {
-  padding: 16,
-  height: "100%",
-  overflow: "auto",
-  color: "var(--text-primary)",
-  background: "var(--bg-primary)",
-};
-
-const headingStyle: React.CSSProperties = {
-  fontSize: 18,
-  fontWeight: 600,
-  marginBottom: 12,
-  color: "var(--text-primary)",
-};
-
-const cardStyle: React.CSSProperties = {
-  background: "var(--bg-secondary)",
-  borderRadius: 8,
-  padding: 12,
-  marginBottom: 8,
-  border: "1px solid var(--border-color)",
-};
-
-const btnStyle: React.CSSProperties = {
-  padding: "6px 14px",
-  borderRadius: 6,
-  border: "1px solid var(--border-color)",
-  background: "var(--accent-color)",
-  color: "var(--btn-primary-fg, #fff)",
-  cursor: "pointer",
-  fontSize: 13,
-  marginRight: 8,
-};
-
-const tabStyle = (active: boolean): React.CSSProperties => ({
-  padding: "8px 16px",
-  cursor: "pointer",
-  borderBottom: active ? "2px solid var(--accent-color)" : "2px solid transparent",
-  color: active ? "var(--accent-color)" : "var(--text-secondary)",
-  background: "transparent",
-  border: "none",
-  fontSize: 13,
-  fontWeight: active ? 600 : 400,
-});
-
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: 8,
-  borderRadius: 6,
-  border: "1px solid var(--border-color)",
-  background: "var(--bg-primary)",
-  color: "var(--text-primary)",
-  fontSize: 13,
-};
-
 export function WebGroundingPanel() {
   const [tab, setTab] = useState("search");
   const [query, setQuery] = useState("");
@@ -136,30 +81,30 @@ export function WebGroundingPanel() {
   const cacheHitRate = cacheEntries.length > 0 ? ((cacheEntries.reduce((s, c) => s + c.hitCount, 0) / (cacheEntries.length * 10)) * 100).toFixed(0) : "0";
 
   return (
-    <div style={panelStyle}>
-      <h2 style={headingStyle}>Web Search Grounding</h2>
-      <div style={{ display: "flex", gap: 0, borderBottom: "1px solid var(--border-color)", marginBottom: 16 }}>
-        <button style={tabStyle(tab === "search")} onClick={() => setTab("search")}>Search</button>
-        <button style={tabStyle(tab === "cache")} onClick={() => setTab("cache")}>Cache</button>
-        <button style={tabStyle(tab === "citations")} onClick={() => setTab("citations")}>Citations</button>
-        <button style={tabStyle(tab === "config")} onClick={() => setTab("config")}>Config</button>
+    <div className="panel-container">
+      <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 12, color: "var(--text-primary)" }}>Web Search Grounding</h2>
+      <div className="panel-tab-bar">
+        <button className={`panel-tab ${tab === "search" ? "active" : ""}`} onClick={() => setTab("search")}>Search</button>
+        <button className={`panel-tab ${tab === "cache" ? "active" : ""}`} onClick={() => setTab("cache")}>Cache</button>
+        <button className={`panel-tab ${tab === "citations" ? "active" : ""}`} onClick={() => setTab("citations")}>Citations</button>
+        <button className={`panel-tab ${tab === "config" ? "active" : ""}`} onClick={() => setTab("config")}>Config</button>
       </div>
 
       {tab === "search" && (
         <div>
           <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-            <input style={{ ...inputStyle, flex: 1 }} placeholder="Search the web..." value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSearch()} />
-            <button style={btnStyle} onClick={handleSearch} disabled={searching}>
+            <input className="panel-input" style={{ flex: 1 }} placeholder="Search the web..." value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSearch()} />
+            <button className="panel-btn panel-btn-primary" onClick={handleSearch} disabled={searching}>
               {searching ? "Searching..." : "Web Search"}
             </button>
-            <button style={{ ...btnStyle, background: "var(--bg-secondary)" }} onClick={handleSemanticSearch} disabled={searching}>
+            <button className="panel-btn panel-btn-secondary" onClick={handleSemanticSearch} disabled={searching}>
               Semantic
             </button>
           </div>
-          {error && <div style={{ color: "var(--error-color)", fontSize: 12, marginBottom: 8 }}>{error}</div>}
-          {results.length === 0 && !searching && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>Enter a query and press Search.</div>}
+          {error && <div className="panel-error">{error}</div>}
+          {results.length === 0 && !searching && <div className="panel-empty">Enter a query and press Search.</div>}
           {results.map((r) => (
-            <div key={r.id} style={cardStyle}>
+            <div key={r.id} className="panel-card">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <strong style={{ fontSize: 13 }}>{r.title}</strong>
                 <span style={{ fontSize: 11, color: "var(--text-secondary)", background: "var(--bg-primary)", padding: "2px 6px", borderRadius: 4 }}>{(r.relevance * 100).toFixed(0)}%</span>
@@ -175,10 +120,10 @@ export function WebGroundingPanel() {
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
             <div><strong>{cacheEntries.length}</strong> cached entries | Hit rate: <strong>{cacheHitRate}%</strong></div>
-            <button style={{ ...btnStyle, background: "var(--error-color)" }}>Clear Cache</button>
+            <button className="panel-btn panel-btn-danger">Clear Cache</button>
           </div>
           {cacheEntries.map((c, i) => (
-            <div key={i} style={cardStyle}>
+            <div key={i} className="panel-card">
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <strong>{c.query}</strong>
                 <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>{c.hitCount} hits</span>
@@ -191,9 +136,9 @@ export function WebGroundingPanel() {
 
       {tab === "citations" && (
         <div>
-          {citations.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>No citations recorded yet.</div>}
+          {citations.length === 0 && <div className="panel-empty">No citations recorded yet.</div>}
           {citations.map((c) => (
-            <div key={c.id} style={cardStyle}>
+            <div key={c.id} className="panel-card">
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <strong style={{ fontSize: 14, color: "var(--accent-color)" }}>{c.label}</strong>
                 <a href={c.url} style={{ fontSize: 13, color: "var(--accent-color)", textDecoration: "none" }}>{c.url}</a>
@@ -206,21 +151,21 @@ export function WebGroundingPanel() {
 
       {tab === "config" && (
         <div>
-          <div style={cardStyle}>
-            <div style={{ fontWeight: 600, marginBottom: 8 }}>Search Provider</div>
-            <select value={provider} onChange={(e) => setProvider(e.target.value)} style={{ ...inputStyle, width: "auto" }}>
+          <div className="panel-card">
+            <label className="panel-label">Search Provider</label>
+            <select value={provider} onChange={(e) => setProvider(e.target.value)} className="panel-input" style={{ width: "auto" }}>
               <option value="tavily">Tavily</option>
               <option value="serp">SerpAPI</option>
               <option value="brave">Brave Search</option>
               <option value="bing">Bing</option>
             </select>
           </div>
-          <div style={cardStyle}>
-            <div style={{ fontWeight: 600, marginBottom: 8 }}>API Key</div>
-            <input type="password" style={inputStyle} value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="Enter API key" />
+          <div className="panel-card">
+            <label className="panel-label">API Key</label>
+            <input type="password" className="panel-input" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="Enter API key" />
           </div>
-          <div style={cardStyle}>
-            <div style={{ fontWeight: 600, marginBottom: 4 }}>Rate Limit</div>
+          <div className="panel-card">
+            <label className="panel-label">Rate Limit</label>
             <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>{rateLimit} requests/minute</div>
           </div>
         </div>

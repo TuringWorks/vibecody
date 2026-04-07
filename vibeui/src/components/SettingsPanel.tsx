@@ -1617,6 +1617,7 @@ const sectionBtnStyle = (active: boolean): React.CSSProperties => ({
   transition: "var(--transition-fast)",
 });
 
+// labelStyle is now handled via className="panel-label" where simple; kept here for complex overrides
 const labelStyle: React.CSSProperties = { display: "block", fontSize: 11, color: "var(--text-secondary)", marginBottom: 4, fontWeight: 500 };
 const fieldStyle: React.CSSProperties = {
   width: "100%", boxSizing: "border-box" as const, padding: "8px 10px", fontSize: 13,
@@ -1631,10 +1632,6 @@ const btnStyle: React.CSSProperties = {
 const btnPrimary: React.CSSProperties = { ...btnStyle, background: "var(--accent-blue)", color: "var(--btn-primary-fg)", borderColor: "var(--accent-blue)" };
 const modelsHintStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", margin: "4px 0 0", lineHeight: 1.4, opacity: 0.8 };
 const dividerStyle: React.CSSProperties = { height: 1, background: "var(--border-color)", margin: "16px 0" };
-const cardBox: React.CSSProperties = {
-  padding: 14, borderRadius: "var(--radius-md)", border: "1px solid var(--border-color)",
-  background: "var(--bg-secondary)", marginBottom: 10,
-};
 const inputStyle: React.CSSProperties = {
   padding: "6px 10px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)",
   background: "var(--bg-primary)", color: "var(--text-primary)", width: "100%", boxSizing: "border-box",
@@ -2268,14 +2265,14 @@ function OAuthSection() {
       </p>
 
       {error && (
-        <div style={{ ...cardBox, background: "var(--error-bg)", borderColor: "var(--error-color)", color: "var(--error-color)", fontSize: 12, marginBottom: 12 }}>
-          {error}
+        <div className="panel-error" style={{ marginBottom: 12 }}>
+          <span>{error}</span>
           <button aria-label="Dismiss error" style={{ float: "right", background: "none", border: "none", cursor: "pointer", color: "inherit" }} onClick={() => setError(null)}>×</button>
         </div>
       )}
 
       {providers.map(p => (
-        <div key={p.id} style={{ ...cardBox, marginBottom: 8 }}>
+        <div key={p.id} className="panel-card" style={{ marginBottom: 8 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div style={{
               width: 36, height: 36, borderRadius: "var(--radius-sm)", background: providerColors[p.id] || "var(--bg-tertiary)",
@@ -2466,7 +2463,7 @@ function CustomizationsSection() {
         <div style={{ padding: 20, textAlign: "center", color: "var(--text-secondary)", fontSize: 13 }}>No saved customizations yet. Save your current setup above.</div>
       ) : (
         customs.map(c => (
-          <div key={c.id} style={{ ...cardBox, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div key={c.id} className="panel-card" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div>
               <div style={{ fontWeight: 600, fontSize: 13, color: "var(--text-primary)" }}>{c.name}</div>
               <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
@@ -2813,14 +2810,11 @@ function ApiKeysSection() {
       </button>
 
       {message && (
-        <div style={{
-          marginTop: 12, padding: "8px 10px", borderRadius: "var(--radius-sm)", fontSize: 12,
-          background: message.type === "success" ? "var(--success-bg)" : "var(--error-bg)",
-          color: message.type === "success" ? "var(--success-color)" : "var(--error-color)",
-          border: `1px solid ${message.type === "success" ? "var(--success-color)" : "var(--error-color)"}`,
-        }}>
-          {message.type === "success" ? "OK " : "ERR "}{message.text}
-        </div>
+        message.type === "error"
+          ? <div className="panel-error" style={{ marginTop: 12 }}><span>{message.text}</span></div>
+          : <div style={{ marginTop: 12, padding: "8px 10px", borderRadius: "var(--radius-sm)", fontSize: 12, background: "var(--success-bg)", color: "var(--success-color)", border: "1px solid var(--success-color)" }}>
+              OK {message.text}
+            </div>
       )}
 
       <div style={{ marginTop: 24, borderTop: "1px solid var(--border-color)", paddingTop: 16 }}>
@@ -2853,7 +2847,7 @@ export function SettingsPanel({ onClose }: { onClose?: () => void }) {
 
   return (
     <div style={{
-      display: "flex", height: "100%", background: "var(--bg-primary)", color: "var(--text-primary)",
+      display: "flex", flex: 1, minHeight: 0, background: "var(--bg-primary)", color: "var(--text-primary)",
       borderRadius: "var(--radius-lg)", overflow: "hidden", border: "1px solid var(--border-color)",
       boxShadow: "var(--elevation-3)",
     }}>

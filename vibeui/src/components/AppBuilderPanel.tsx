@@ -448,7 +448,7 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
       {/* Sub-tab bar */}
       <div style={{ display: "flex", borderBottom: "1px solid var(--border)", background: "var(--bg-secondary)", flexShrink: 0 }}>
         {(["quickstart", "templates", "provision", "backend"] as SubTab[]).map((t) => (

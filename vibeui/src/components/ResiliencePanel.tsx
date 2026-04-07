@@ -59,7 +59,6 @@ const DEFAULT_CONFIG: ResilienceConfig = {
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
-const panel: React.CSSProperties = { padding: 16, display: "flex", flexDirection: "column", gap: 16, fontSize: 13, color: "var(--text-primary)" };
 const card: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, border: "1px solid var(--border-color)" };
 const heading: React.CSSProperties = { fontSize: 14, fontWeight: 600, marginBottom: 8, color: "var(--text-primary)" };
 const label: React.CSSProperties = { fontSize: 12, color: "var(--text-secondary)" };
@@ -188,19 +187,14 @@ export function ResiliencePanel() {
   }
 
   return (
-    <div style={panel}>
+    <div className="panel-container">
       {/* Tab bar */}
-      <div style={{ display: "flex", gap: 2, borderBottom: "1px solid var(--border-color)", padding: "0 16px", flexShrink: 0 }}>
+      <div className="panel-tab-bar">
         {(["health", "circuit", "journal", "config"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            style={{
-              padding: "6px 12px", border: "none", background: "transparent", cursor: "pointer",
-              borderBottom: tab === t ? "2px solid var(--accent-blue)" : "2px solid transparent",
-              color: tab === t ? "var(--text-primary)" : "var(--text-secondary)",
-              fontSize: 12, fontFamily: "inherit", textTransform: "capitalize",
-            }}
+            className={`panel-tab ${tab === t ? "active" : ""}`}
           >
             {t === "health" ? "Provider Health" : t === "circuit" ? "Circuit Breaker" : t === "journal" ? "Failure Journal" : "Config"}
           </button>
@@ -208,7 +202,7 @@ export function ResiliencePanel() {
       </div>
 
       {loading && (
-        <div style={{ textAlign: "center", padding: 24, color: "var(--text-secondary)" }}>Loading resilience data...</div>
+        <div className="panel-loading">Loading resilience data...</div>
       )}
 
       {/* Provider Health */}
@@ -353,12 +347,7 @@ export function ResiliencePanel() {
             <button
               onClick={handleSaveConfig}
               disabled={saving}
-              style={{
-                padding: "5px 14px", borderRadius: 5, border: "none",
-                background: saving ? "var(--bg-tertiary)" : "var(--accent-blue)",
-                color: "var(--text-primary)", cursor: saving ? "wait" : "pointer",
-                fontWeight: 600, fontSize: 12,
-              }}
+              className={`panel-btn ${saving ? "panel-btn-secondary" : "panel-btn-primary"}`}
             >
               {saving ? "Saving..." : "Save Config"}
             </button>

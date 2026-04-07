@@ -399,7 +399,7 @@ export function ApiDocsPanel({ workspacePath }: ApiDocsPanelProps) {
  };
 
  return (
- <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+ <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
  {/* Header: Load spec */}
  <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", flexShrink: 0 }}>
  <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>

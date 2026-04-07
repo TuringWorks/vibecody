@@ -150,7 +150,7 @@ export default function WorkManagementPanel() {
   ];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", color: "var(--text-primary)" }}>
+    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, color: "var(--text-primary)" }}>
       {/* Header */}
       <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", display: "flex", alignItems: "center", gap: 8 }}>
         <span style={{ fontSize: 14, fontWeight: 700 }}>Projects</span>

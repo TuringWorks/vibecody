@@ -118,7 +118,7 @@ export function LoadTestPanel() {
  const successRate = result ? Math.round((result.success / result.total_requests) * 100) : null;
 
  return (
- <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+ <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
  {/* Header */}
  <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", flexShrink: 0, display: "flex", alignItems: "center", gap: 8 }}>
  <span style={{ fontSize: 16 }}></span>

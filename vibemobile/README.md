@@ -71,14 +71,14 @@ flutter build web          # Web (deploy to any static host)
 
 ### Via QR Code (Recommended)
 
-1. Start VibeCLI in serve mode: `vibecli serve --port 7879`
+1. Start VibeCLI in serve mode: `vibecli --serve --port 7879`
 2. Run `/pair` in the REPL to generate a QR code
 3. Open VibeMobile → tap "Pair" → scan the QR code
 4. The app connects and authenticates automatically
 
 ### Via Manual Entry
 
-1. Start VibeCLI in serve mode: `vibecli serve --port 7879`
+1. Start VibeCLI in serve mode: `vibecli --serve --port 7879`
 2. Open VibeMobile → tap "Connect Manually"
 3. Enter `<host>:<port>` (e.g., `192.168.1.100:7879`)
 4. Enter the API token from VibeCLI

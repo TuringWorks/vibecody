@@ -133,15 +133,8 @@ const STEPS = [
   { id: "review", label: "Review & Launch" },
 ];
 
-// ── Styles ───────────────────────────────────────────────────────────────
+// ── Shared inline styles for elements not covered by design system classes ──
 
-const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", flex: 1, minHeight: 0, overflow: "auto", background: "var(--bg-primary)" };
-const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" };
-const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-color)" };
-const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
-const btnStyle: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", cursor: "pointer", fontSize: 12, marginRight: 8 };
-const btnPrimary: React.CSSProperties = { ...btnStyle, background: "var(--accent-color)", color: "#fff", border: "1px solid var(--accent-color)" };
-const btnDanger: React.CSSProperties = { ...btnStyle, background: "#dc3545", color: "#fff", border: "1px solid #dc3545" };
 const tableStyle: React.CSSProperties = { width: "100%", borderCollapse: "collapse", fontSize: 12 };
 const thStyle: React.CSSProperties = { textAlign: "left", padding: "6px 8px", borderBottom: "1px solid var(--border-color)", color: "var(--text-secondary)", fontWeight: 600 };
 const tdStyle: React.CSSProperties = { padding: "6px 8px", borderBottom: "1px solid var(--border-color)" };
@@ -226,7 +219,7 @@ export function RLTrainingDashboard(_props: { workspacePath?: string | null; pro
   );
 
   const renderAlgorithmStep = () => (
-    <div style={cardStyle}>
+    <div className="panel-card">
       <div style={fieldRow}>
         <div style={fieldCol}>
           <span style={fieldLabel}>Algorithm Family</span>
@@ -245,7 +238,7 @@ export function RLTrainingDashboard(_props: { workspacePath?: string | null; pro
           </select>
         </div>
       </div>
-      <div style={{ ...labelStyle, marginTop: 8, lineHeight: 1.5 }}>
+      <div className="panel-label" style={{ marginTop: 8, lineHeight: 1.5 }}>
         {config.algorithmFamily === "On-Policy" && "On-policy methods learn from fresh experience collected under the current policy. PPO is recommended for most tasks."}
         {config.algorithmFamily === "Off-Policy" && "Off-policy methods reuse past experience via replay buffers. SAC is recommended for continuous control."}
         {config.algorithmFamily === "Offline RL" && "Offline RL learns from a fixed dataset without environment interaction. CQL/IQL are strongest general-purpose choices."}
@@ -257,7 +250,7 @@ export function RLTrainingDashboard(_props: { workspacePath?: string | null; pro
   );
 
   const renderEnvironmentStep = () => (
-    <div style={cardStyle}>
+    <div className="panel-card">
       <div style={fieldRow}>
         <div style={fieldCol}>
           <span style={fieldLabel}>Environment</span>
@@ -296,7 +289,7 @@ export function RLTrainingDashboard(_props: { workspacePath?: string | null; pro
   );
 
   const renderNetworkStep = () => (
-    <div style={cardStyle}>
+    <div className="panel-card">
       <div style={fieldRow}>
         <div style={fieldCol}>
           <span style={fieldLabel}>Network Architecture</span>
@@ -314,7 +307,7 @@ export function RLTrainingDashboard(_props: { workspacePath?: string | null; pro
       <div style={fieldCol}>
         <span style={fieldLabel}>Hidden Layers (comma-separated dimensions)</span>
         <input style={inputStyle} placeholder="256, 256" value={config.hiddenLayers} onChange={e => upd({ hiddenLayers: e.target.value })} />
-        <span style={labelStyle}>
+        <span className="panel-label">
           {config.networkType === "MLP" && "Fully connected layers. 2-3 layers of 64-512 units typical."}
           {config.networkType === "CNN" && "Convolutional network for image observations (Atari, visual control)."}
           {config.networkType === "LSTM" && "Recurrent network for partially observable environments."}
@@ -326,7 +319,7 @@ export function RLTrainingDashboard(_props: { workspacePath?: string | null; pro
   );
 
   const renderHyperparamsStep = () => (
-    <div style={cardStyle}>
+    <div className="panel-card">
       <div style={fieldRow}>
         <div style={fieldCol}>
           <span style={fieldLabel}>Learning Rate</span>
@@ -375,7 +368,7 @@ export function RLTrainingDashboard(_props: { workspacePath?: string | null; pro
   );
 
   const renderDistributedStep = () => (
-    <div style={cardStyle}>
+    <div className="panel-card">
       <div style={checkRow}>
         <input type="checkbox" checked={config.distributed} onChange={e => upd({ distributed: e.target.checked })} />
         <span style={fieldLabel}>Enable Distributed Training</span>
@@ -416,7 +409,7 @@ export function RLTrainingDashboard(_props: { workspacePath?: string | null; pro
   );
 
   const renderCurriculumStep = () => (
-    <div style={cardStyle}>
+    <div className="panel-card">
       <div style={checkRow}>
         <input type="checkbox" checked={config.useCurriculum} onChange={e => upd({ useCurriculum: e.target.checked })} />
         <span style={fieldLabel}>Enable Curriculum Learning</span>
@@ -424,10 +417,10 @@ export function RLTrainingDashboard(_props: { workspacePath?: string | null; pro
       {config.useCurriculum && (
         <>
           {config.curriculumStages.map((stage, idx) => (
-            <div key={idx} style={{ ...cardStyle, background: "var(--bg-tertiary)" }}>
+            <div key={idx} className="panel-card" style={{ background: "var(--bg-tertiary)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
                 <span style={{ ...fieldLabel, fontWeight: 700 }}>Stage {idx + 1}</span>
-                <button style={{ ...btnStyle, padding: "2px 8px", fontSize: 11 }} onClick={() => {
+                <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 8px", fontSize: 11 }} onClick={() => {
                   const next = [...config.curriculumStages];
                   next.splice(idx, 1);
                   upd({ curriculumStages: next });
@@ -481,7 +474,7 @@ export function RLTrainingDashboard(_props: { workspacePath?: string | null; pro
               </div>
             </div>
           ))}
-          <button style={btnStyle} onClick={() => upd({
+          <button className="panel-btn panel-btn-secondary" onClick={() => upd({
             curriculumStages: [...config.curriculumStages, { name: `stage_${config.curriculumStages.length + 1}`, envOverride: "", duration: 500000, promotionMetric: "mean_reward", promotionThreshold: 10.0 }],
           })}>+ Add Stage</button>
         </>
@@ -490,7 +483,7 @@ export function RLTrainingDashboard(_props: { workspacePath?: string | null; pro
   );
 
   const renderReviewStep = () => (
-    <div style={cardStyle}>
+    <div className="panel-card">
       <div style={fieldCol}>
         <span style={fieldLabel}>Training Run Name</span>
         <input style={inputStyle} placeholder={`${config.algorithmId.toLowerCase()}-${config.environmentName || "env"}-run`} value={config.runName} onChange={e => upd({ runName: e.target.value })} />
@@ -518,8 +511,8 @@ export function RLTrainingDashboard(_props: { workspacePath?: string | null; pro
   const renderSetupWizard = () => (
     <>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-        <h2 style={headingStyle}>New Training Run</h2>
-        <button style={btnStyle} onClick={() => { setMode("list"); setStep(0); }}>Cancel</button>
+        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>New Training Run</h2>
+        <button className="panel-btn panel-btn-secondary" onClick={() => { setMode("list"); setStep(0); }}>Cancel</button>
       </div>
       {renderStepBar()}
 
@@ -532,11 +525,11 @@ export function RLTrainingDashboard(_props: { workspacePath?: string | null; pro
       {step === 6 && renderReviewStep()}
 
       <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12 }}>
-        <button style={btnStyle} disabled={step === 0} onClick={() => setStep(s => s - 1)}>Back</button>
+        <button className="panel-btn panel-btn-secondary" disabled={step === 0} onClick={() => setStep(s => s - 1)}>Back</button>
         {step < STEPS.length - 1 ? (
-          <button style={btnPrimary} onClick={() => setStep(s => s + 1)}>Next: {STEPS[step + 1].label}</button>
+          <button className="panel-btn panel-btn-primary" onClick={() => setStep(s => s + 1)}>Next: {STEPS[step + 1].label}</button>
         ) : (
-          <button style={btnPrimary} disabled={launching || !config.environmentName} onClick={handleLaunch}>
+          <button className="panel-btn panel-btn-primary" disabled={launching || !config.environmentName} onClick={handleLaunch}>
             {launching ? "Launching..." : "Launch Training Run"}
           </button>
         )}
@@ -549,14 +542,14 @@ export function RLTrainingDashboard(_props: { workspacePath?: string | null; pro
   const renderMonitor = () => (
     <>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-        <h2 style={headingStyle}>Training Monitor</h2>
-        <button style={btnStyle} onClick={() => { setMode("list"); setSelectedRun(null); setMetrics(null); }}>Back to Runs</button>
+        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>Training Monitor</h2>
+        <button className="panel-btn panel-btn-secondary" onClick={() => { setMode("list"); setSelectedRun(null); setMetrics(null); }}>Back to Runs</button>
       </div>
-      {loading && <div style={labelStyle}>Loading metrics...</div>}
+      {loading && <div className="panel-loading">Loading metrics...</div>}
       {metrics && !loading && (
         <>
-          <div style={cardStyle}>
-            <div style={labelStyle}>Reward Curve ({metrics.rewards.length} points)</div>
+          <div className="panel-card">
+            <div className="panel-label">Reward Curve ({metrics.rewards.length} points)</div>
             <div style={{ display: "flex", alignItems: "flex-end", gap: 1, height: 80 }}>
               {metrics.rewards.slice(-100).map((v, i, a) => {
                 const max = Math.max(...a, 1);
@@ -566,8 +559,8 @@ export function RLTrainingDashboard(_props: { workspacePath?: string | null; pro
               })}
             </div>
           </div>
-          <div style={cardStyle}>
-            <div style={labelStyle}>Loss Curve</div>
+          <div className="panel-card">
+            <div className="panel-label">Loss Curve</div>
             <div style={{ display: "flex", alignItems: "flex-end", gap: 1, height: 60 }}>
               {metrics.losses.slice(-80).map((v, i, a) => {
                 const max = Math.max(...a, 0.01);
@@ -575,21 +568,21 @@ export function RLTrainingDashboard(_props: { workspacePath?: string | null; pro
               })}
             </div>
           </div>
-          <div style={cardStyle}>
-            <div style={labelStyle}>GPU Utilization</div>
+          <div className="panel-card">
+            <div className="panel-label">GPU Utilization</div>
             <div style={{ display: "flex", gap: 4 }}>
               {metrics.gpuUtil.map((g, i) => (
                 <div key={i} style={{ flex: 1, textAlign: "center" }}>
                   <div style={{ height: 40, background: "var(--bg-tertiary)", borderRadius: 4, position: "relative", overflow: "hidden" }}>
                     <div style={{ position: "absolute", bottom: 0, width: "100%", height: `${g}%`, background: g > 80 ? "var(--success-color)" : "var(--warning-color)", borderRadius: 4 }} />
                   </div>
-                  <div style={{ ...labelStyle, marginTop: 2 }}>GPU{i}: {g}%</div>
+                  <div className="panel-label" style={{ marginTop: 2 }}>GPU{i}: {g}%</div>
                 </div>
               ))}
             </div>
           </div>
-          <div style={cardStyle}>
-            <div style={labelStyle}>Recent Episodes</div>
+          <div className="panel-card">
+            <div className="panel-label">Recent Episodes</div>
             <table style={tableStyle}>
               <thead><tr><th style={thStyle}>Episode</th><th style={thStyle}>Reward</th><th style={thStyle}>Length</th><th style={thStyle}>Loss</th></tr></thead>
               <tbody>
@@ -609,15 +602,15 @@ export function RLTrainingDashboard(_props: { workspacePath?: string | null; pro
   const renderRunsList = () => (
     <>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-        <h2 style={headingStyle}>RL Training Dashboard</h2>
+        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>RL Training Dashboard</h2>
         <div>
-          <button style={btnPrimary} onClick={() => { setMode("setup"); setStep(0); setConfig({ ...DEFAULT_CONFIG }); }}>+ New Training Run</button>
-          <button style={btnStyle} onClick={fetchRuns}>Refresh</button>
+          <button className="panel-btn panel-btn-primary" onClick={() => { setMode("setup"); setStep(0); setConfig({ ...DEFAULT_CONFIG }); }}>+ New Training Run</button>
+          <button className="panel-btn panel-btn-secondary" onClick={fetchRuns}>Refresh</button>
         </div>
       </div>
 
-      <div style={cardStyle}>
-        <div style={labelStyle}>Training Runs</div>
+      <div className="panel-card">
+        <div className="panel-label">Training Runs</div>
         <table style={tableStyle}>
           <thead><tr><th style={thStyle}>Name</th><th style={thStyle}>Algorithm</th><th style={thStyle}>Environment</th><th style={thStyle}>Status</th><th style={thStyle}>Episodes</th><th style={thStyle}>Reward</th><th style={thStyle}>Actions</th></tr></thead>
           <tbody>
@@ -631,8 +624,8 @@ export function RLTrainingDashboard(_props: { workspacePath?: string | null; pro
                 <td style={tdStyle}>{r.currentReward.toFixed(2)}</td>
                 <td style={tdStyle}>
                   {r.status === "running"
-                    ? <button style={btnDanger} onClick={e => { e.stopPropagation(); handleAction("stop", r.id); }}>Stop</button>
-                    : <button style={btnPrimary} onClick={e => { e.stopPropagation(); handleAction("start", r.id); }}>Start</button>}
+                    ? <button className="panel-btn panel-btn-danger" onClick={e => { e.stopPropagation(); handleAction("stop", r.id); }}>Stop</button>
+                    : <button className="panel-btn panel-btn-primary" onClick={e => { e.stopPropagation(); handleAction("start", r.id); }}>Start</button>}
                 </td>
               </tr>
             ))}
@@ -640,8 +633,8 @@ export function RLTrainingDashboard(_props: { workspacePath?: string | null; pro
         </table>
         {runs.length === 0 && (
           <div style={{ textAlign: "center", padding: "24px 0" }}>
-            <div style={{ ...labelStyle, fontSize: 13, marginBottom: 8 }}>No training runs yet</div>
-            <button style={btnPrimary} onClick={() => { setMode("setup"); setStep(0); setConfig({ ...DEFAULT_CONFIG }); }}>Create Your First Training Run</button>
+            <div className="panel-empty" style={{ marginBottom: 8 }}>No training runs yet</div>
+            <button className="panel-btn panel-btn-primary" onClick={() => { setMode("setup"); setStep(0); setConfig({ ...DEFAULT_CONFIG }); }}>Create Your First Training Run</button>
           </div>
         )}
       </div>
@@ -651,7 +644,7 @@ export function RLTrainingDashboard(_props: { workspacePath?: string | null; pro
   // ── Main Render ───────────────────────────────────────────────────
 
   return (
-    <div style={panelStyle}>
+    <div className="panel-container">
       {mode === "list" && renderRunsList()}
       {mode === "setup" && renderSetupWizard()}
       {mode === "monitor" && renderMonitor()}

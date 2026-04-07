@@ -262,7 +262,7 @@ export function TransformPanel({ provider }: TransformPanelProps) {
   const selectedDef = ALL_TRANSFORMS.find(t => t.id === selectedTransform);
 
   return (
-    <div style={{ display: "flex", height: "100%", overflow: "hidden" }}>
+    <div style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
       {/* ── Left: Transform picker ──────────────────────────────── */}
       <div style={{ width: 310, flexShrink: 0, borderRight: "1px solid var(--border-color)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
         <div style={{ padding: "12px 14px", borderBottom: "1px solid var(--border-color)", flexShrink: 0 }}>

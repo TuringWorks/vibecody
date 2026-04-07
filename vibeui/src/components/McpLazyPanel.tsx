@@ -42,19 +42,13 @@ interface LazyMetrics {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", flex: 1, minHeight: 0, overflow: "auto", background: "var(--bg-primary)" };
-const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" };
-const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-color)" };
 const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
 const btnStyle: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", cursor: "pointer", fontSize: 12 };
-const tabBtnStyle = (active: boolean): React.CSSProperties => ({ ...btnStyle, background: active ? "var(--accent-primary)" : "var(--bg-tertiary)", color: active ? "var(--btn-primary-fg)" : "var(--text-primary)", marginRight: 4 });
 
 const inputStyle: React.CSSProperties = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: 12, fontFamily: "var(--font-family)", boxSizing: "border-box" };
 const badgeStyle = (variant: string): React.CSSProperties => ({ display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600, color: "var(--btn-primary-fg)", background: variant === "loaded" ? "var(--success-color)" : variant === "loading" ? "var(--warning-color)" : "var(--text-secondary)" });
 const barBg: React.CSSProperties = { height: 8, borderRadius: 4, background: "var(--bg-tertiary)", overflow: "hidden" };
 const barFill = (pct: number, color: string): React.CSSProperties => ({ height: "100%", width: `${Math.min(pct, 100)}%`, borderRadius: 4, background: color });
-const errorStyle: React.CSSProperties = { padding: 12, background: "var(--bg-secondary)", border: "1px solid var(--error-color)", borderRadius: 6, color: "var(--error-color)", marginBottom: 10 };
-const spinnerStyle: React.CSSProperties = { textAlign: "center", padding: 24, color: "var(--text-secondary)" };
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -162,142 +156,150 @@ export function McpLazyPanel() {
 
   if (loading) {
     return (
-      <div style={panelStyle}>
-        <h2 style={headingStyle}>MCP Lazy Loading</h2>
-        <div style={spinnerStyle}>Loading registry...</div>
+      <div className="panel-container">
+        <div className="panel-header">
+          <h2 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>MCP Lazy Loading</h2>
+        </div>
+        <div className="panel-body">
+          <div className="panel-loading">Loading registry...</div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div style={panelStyle}>
-      <h2 style={headingStyle}>MCP Lazy Loading</h2>
-
-      {error && (
-        <div style={errorStyle}>
-          <span>{error}</span>
-          <button style={{ ...btnStyle, marginLeft: 8 }} onClick={() => setError(null)}>Dismiss</button>
-        </div>
-      )}
-
-      <div style={{ marginBottom: 12 }}>
-        <button style={tabBtnStyle(tab === "registry")} onClick={() => setTab("registry")}>Tool Registry</button>
-        <button style={tabBtnStyle(tab === "search")} onClick={() => setTab("search")}>Search</button>
-        <button style={tabBtnStyle(tab === "metrics")} onClick={() => { setTab("metrics"); fetchMetrics(); }}>Metrics</button>
+    <div className="panel-container">
+      <div className="panel-header">
+        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>MCP Lazy Loading</h2>
       </div>
 
-      {tab === "registry" && (
-        <div>
-          <div style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span>{loadedCount} / {totalCount} tools loaded</span>
-            <div style={{ ...barBg, minWidth: 120 }}>
-              <div style={barFill(totalCount > 0 ? (loadedCount / totalCount) * 100 : 0, "var(--info-color)")} />
-            </div>
+      <div className="panel-body">
+        {error && (
+          <div className="panel-error" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span>{error}</span>
+            <button style={{ ...btnStyle, marginLeft: 8 }} onClick={() => setError(null)}>Dismiss</button>
           </div>
-          {manifests.map((m) => (
-            <div key={m.id} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 600 }}>{m.name} <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>v{m.version}</span></div>
-                <div style={labelStyle}>{m.description}</div>
-                <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>
-                  {m.size_kb} KB
-                  {m.server_name ? ` | Server: ${m.server_name}` : ""}
-                  {m.last_used ? ` | Last used: ${new Date(m.last_used).toLocaleTimeString()}` : ""}
-                  {m.load_time_ms != null ? ` | Load: ${m.load_time_ms}ms` : ""}
-                </div>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={badgeStyle(m.status)}>{m.status}</span>
-                <button
-                  style={{ ...btnStyle, opacity: actionLoading === m.id ? 0.6 : 1 }}
-                  disabled={actionLoading === m.id}
-                  onClick={() => toggleLoad(m.id, m.status)}
-                >
-                  {actionLoading === m.id ? "..." : m.status === "loaded" ? "Unload" : m.status === "unloaded" ? "Load" : "..."}
-                </button>
-              </div>
-            </div>
-          ))}
-          {manifests.length === 0 && <div style={cardStyle}>No tools registered.</div>}
+        )}
+
+        <div className="panel-tab-bar">
+          <button className={`panel-tab ${tab === "registry" ? "active" : ""}`} onClick={() => setTab("registry")}>Tool Registry</button>
+          <button className={`panel-tab ${tab === "search" ? "active" : ""}`} onClick={() => setTab("search")}>Search</button>
+          <button className={`panel-tab ${tab === "metrics" ? "active" : ""}`} onClick={() => { setTab("metrics"); fetchMetrics(); }}>Metrics</button>
         </div>
-      )}
 
-      {tab === "search" && (
-        <div>
-          <div style={{ marginBottom: 12 }}>
-            <input style={inputStyle} placeholder="Search tools by name or description..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
-          </div>
-          {searchLoading && <div style={spinnerStyle}>Searching...</div>}
-          {searchQuery.trim() === "" && !searchLoading && <div style={cardStyle}>Type a query to search across tool manifests.</div>}
-          {searchResults.map((r) => (
-            <div key={r.tool_id} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div>
-                <div style={{ fontWeight: 600 }}>{r.name}</div>
-                <div style={labelStyle}>{r.description}</div>
-                {r.server_name && <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>Server: {r.server_name}</div>}
-              </div>
-              <div style={{ textAlign: "right" }}>
-                <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Relevance</div>
-                <div style={{ fontWeight: 600, color: "var(--accent-primary)" }}>{(r.relevance * 100).toFixed(0)}%</div>
+        {tab === "registry" && (
+          <div>
+            <div className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span>{loadedCount} / {totalCount} tools loaded</span>
+              <div style={{ ...barBg, minWidth: 120 }}>
+                <div style={barFill(totalCount > 0 ? (loadedCount / totalCount) * 100 : 0, "var(--info-color)")} />
               </div>
             </div>
-          ))}
-          {searchQuery.trim() !== "" && !searchLoading && searchResults.length === 0 && (
-            <div style={cardStyle}>No tools matching "{searchQuery}".</div>
-          )}
-        </div>
-      )}
-
-      {tab === "metrics" && metrics && (
-        <div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
-            <div style={cardStyle}>
-              <div style={labelStyle}>Context Savings</div>
-              <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--success-color)" }}>{metrics.context_savings_pct}%</div>
-            </div>
-            <div style={cardStyle}>
-              <div style={labelStyle}>Cache Hits</div>
-              <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{metrics.cache_hits.toLocaleString()}</div>
-            </div>
-            <div style={cardStyle}>
-              <div style={labelStyle}>Cache Misses</div>
-              <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--error-color)" }}>{metrics.cache_misses}</div>
-            </div>
-          </div>
-
-          <div style={cardStyle}>
-            <div style={labelStyle}>Cache Hit Rate</div>
-            <div style={barBg}>
-              <div style={barFill(metrics.cache_hit_rate, "var(--success-color)")} />
-            </div>
-            <div style={{ fontSize: 10, color: "var(--text-secondary)", marginTop: 4 }}>
-              {metrics.cache_hit_rate.toFixed(1)}%
-            </div>
-          </div>
-
-          <div style={cardStyle}>
-            <div style={labelStyle}>Avg Load Time: {metrics.avg_load_time_ms}ms</div>
-            <div style={{ marginTop: 8 }}>
-              {metrics.load_times.map((lt) => (
-                <div key={lt.label} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                  <div style={{ width: 90, fontSize: 11 }}>{lt.label}</div>
-                  <div style={{ ...barBg, flex: 1 }}>
-                    <div style={barFill((lt.ms / 60) * 100, "var(--info-color)")} />
+            {manifests.map((m) => (
+              <div key={m.id} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600 }}>{m.name} <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>v{m.version}</span></div>
+                  <div style={labelStyle}>{m.description}</div>
+                  <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>
+                    {m.size_kb} KB
+                    {m.server_name ? ` | Server: ${m.server_name}` : ""}
+                    {m.last_used ? ` | Last used: ${new Date(m.last_used).toLocaleTimeString()}` : ""}
+                    {m.load_time_ms != null ? ` | Load: ${m.load_time_ms}ms` : ""}
                   </div>
-                  <div style={{ width: 40, fontSize: 10, textAlign: "right" }}>{lt.ms}ms</div>
                 </div>
-              ))}
-              {metrics.load_times.length === 0 && (
-                <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>No load times recorded yet.</div>
-              )}
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={badgeStyle(m.status)}>{m.status}</span>
+                  <button
+                    style={{ ...btnStyle, opacity: actionLoading === m.id ? 0.6 : 1 }}
+                    disabled={actionLoading === m.id}
+                    onClick={() => toggleLoad(m.id, m.status)}
+                  >
+                    {actionLoading === m.id ? "..." : m.status === "loaded" ? "Unload" : m.status === "unloaded" ? "Load" : "..."}
+                  </button>
+                </div>
+              </div>
+            ))}
+            {manifests.length === 0 && <div className="panel-empty">No tools registered.</div>}
+          </div>
+        )}
+
+        {tab === "search" && (
+          <div>
+            <div style={{ marginBottom: 12 }}>
+              <input style={inputStyle} placeholder="Search tools by name or description..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+            </div>
+            {searchLoading && <div className="panel-loading">Searching...</div>}
+            {searchQuery.trim() === "" && !searchLoading && <div className="panel-empty">Type a query to search across tool manifests.</div>}
+            {searchResults.map((r) => (
+              <div key={r.tool_id} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <div style={{ fontWeight: 600 }}>{r.name}</div>
+                  <div style={labelStyle}>{r.description}</div>
+                  {r.server_name && <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>Server: {r.server_name}</div>}
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Relevance</div>
+                  <div style={{ fontWeight: 600, color: "var(--accent-primary)" }}>{(r.relevance * 100).toFixed(0)}%</div>
+                </div>
+              </div>
+            ))}
+            {searchQuery.trim() !== "" && !searchLoading && searchResults.length === 0 && (
+              <div className="panel-empty">No tools matching "{searchQuery}".</div>
+            )}
+          </div>
+        )}
+
+        {tab === "metrics" && metrics && (
+          <div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
+              <div className="panel-card">
+                <div style={labelStyle}>Context Savings</div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: "var(--success-color)" }}><span className="panel-mono">{metrics.context_savings_pct}%</span></div>
+              </div>
+              <div className="panel-card">
+                <div style={labelStyle}>Cache Hits</div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: "var(--text-primary)" }}><span className="panel-mono">{metrics.cache_hits.toLocaleString()}</span></div>
+              </div>
+              <div className="panel-card">
+                <div style={labelStyle}>Cache Misses</div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: "var(--error-color)" }}><span className="panel-mono">{metrics.cache_misses}</span></div>
+              </div>
+            </div>
+
+            <div className="panel-card">
+              <div style={labelStyle}>Cache Hit Rate</div>
+              <div style={barBg}>
+                <div style={barFill(metrics.cache_hit_rate, "var(--success-color)")} />
+              </div>
+              <div style={{ fontSize: 10, color: "var(--text-secondary)", marginTop: 4 }}>
+                {metrics.cache_hit_rate.toFixed(1)}%
+              </div>
+            </div>
+
+            <div className="panel-card">
+              <div style={labelStyle}>Avg Load Time: {metrics.avg_load_time_ms}ms</div>
+              <div style={{ marginTop: 8 }}>
+                {metrics.load_times.map((lt) => (
+                  <div key={lt.label} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                    <div style={{ width: 90, fontSize: 11 }}>{lt.label}</div>
+                    <div style={{ ...barBg, flex: 1 }}>
+                      <div style={barFill((lt.ms / 60) * 100, "var(--info-color)")} />
+                    </div>
+                    <div style={{ width: 40, fontSize: 10, textAlign: "right" }}>{lt.ms}ms</div>
+                  </div>
+                ))}
+                {metrics.load_times.length === 0 && (
+                  <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>No load times recorded yet.</div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {tab === "metrics" && !metrics && (
-        <div style={spinnerStyle}>Loading metrics...</div>
-      )}
+        {tab === "metrics" && !metrics && (
+          <div className="panel-loading">Loading metrics...</div>
+        )}
+      </div>
     </div>
   );
 }

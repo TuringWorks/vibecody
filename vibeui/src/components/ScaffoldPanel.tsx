@@ -116,7 +116,7 @@ export function ScaffoldPanel({ workspacePath }: { workspacePath: string | null 
  );
 
  return (
- <div style={{ display: "flex", height: "100%", overflow: "hidden" }}>
+ <div style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
  {/* Template list */}
  <div style={{ width: 220, borderRight: "1px solid var(--border-color)", display: "flex", flexDirection: "column", flexShrink: 0 }}>
  <div style={{ padding: "10px 10px 6px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>

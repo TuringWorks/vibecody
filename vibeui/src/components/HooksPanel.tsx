@@ -310,7 +310,7 @@ export function HooksPanel({ workspacePath }: HooksPanelProps) {
  const scope = workspacePath ? "workspace (.vibecli/hooks.json)" : "global (~/.vibecli/hooks.json)";
 
  return (
- <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+ <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
  {/* Header */}
  <div style={{
  padding: "10px 12px",

@@ -68,7 +68,7 @@ export function CIReviewPanel() {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
       {/* Header */}
       <div style={{
         padding: "8px 12px", borderBottom: "1px solid var(--border-color)",
@@ -183,7 +183,7 @@ export function CIReviewPanel() {
             4. Generate and download a private key (.pem)<br />
             5. Set permissions: Pull requests (Read & Write), Contents (Read)<br />
             6. Install the app on your repository<br />
-            7. Run: <code>vibecli serve --port 7878</code>
+            7. Run: <code>vibecli --serve --port 7878</code>
           </div>
         </div>
 

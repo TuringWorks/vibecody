@@ -1,51 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
-const panelStyle: React.CSSProperties = {
-  padding: 16,
-  height: "100%",
-  overflow: "auto",
-  color: "var(--text-primary)",
-  background: "var(--bg-primary)",
-};
-
-const headingStyle: React.CSSProperties = {
-  fontSize: 18,
-  fontWeight: 600,
-  marginBottom: 12,
-  color: "var(--text-primary)",
-};
-
-const cardStyle: React.CSSProperties = {
-  background: "var(--bg-secondary)",
-  borderRadius: 8,
-  padding: 12,
-  marginBottom: 8,
-  border: "1px solid var(--border-color)",
-};
-
-const btnStyle: React.CSSProperties = {
-  padding: "6px 14px",
-  borderRadius: 6,
-  border: "1px solid var(--border-color)",
-  background: "var(--accent-color)",
-  color: "var(--btn-primary-fg, #fff)",
-  cursor: "pointer",
-  fontSize: 13,
-  marginRight: 8,
-};
-
-const tabStyle = (active: boolean): React.CSSProperties => ({
-  padding: "8px 16px",
-  cursor: "pointer",
-  borderBottom: active ? "2px solid var(--accent-color)" : "2px solid transparent",
-  color: active ? "var(--accent-color)" : "var(--text-secondary)",
-  background: "transparent",
-  border: "none",
-  fontSize: 13,
-  fontWeight: active ? 600 : 400,
-});
-
 const scoreColor = (score: number) => score > 80 ? "var(--success-color)" : score >= 50 ? "var(--warning-color)" : "var(--error-color)";
 
 interface DocSyncStatus { total_sections: number; avg_freshness: number; stale_count: number; alerts: number }
@@ -99,11 +54,11 @@ export function DocSyncPanel() {
   ] : [];
 
   return (
-    <div style={panelStyle}>
-      <h2 style={headingStyle}>Living Documentation Sync</h2>
-      <div style={{ display: "flex", gap: 0, borderBottom: "1px solid var(--border-color)", marginBottom: 16 }}>
+    <div className="panel-container">
+      <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 12, color: "var(--text-primary)" }}>Living Documentation Sync</h2>
+      <div className="panel-tab-bar">
         {["status", "links", "alerts", "config"].map((t) => (
-          <button key={t} style={tabStyle(tab === t)} onClick={() => setTab(t)}>
+          <button key={t} className={`panel-tab ${tab === t ? "active" : ""}`} onClick={() => setTab(t)}>
             {t.charAt(0).toUpperCase() + t.slice(1)}
           </button>
         ))}
@@ -111,13 +66,13 @@ export function DocSyncPanel() {
 
       {tab === "status" && (
         <div>
-          <div style={{ ...cardStyle, fontWeight: 600, marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div className="panel-card" style={{ fontWeight: 600, marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span>Freshness Report</span>
-            <button style={btnStyle} onClick={handleReconcile}>Reconcile</button>
+            <button className="panel-btn panel-btn-primary" onClick={handleReconcile}>Reconcile</button>
           </div>
-          {sections.length === 0 && <div style={cardStyle}>No sections tracked yet.</div>}
+          {sections.length === 0 && <div className="panel-card">No sections tracked yet.</div>}
           {sections.map((s) => (
-            <div key={s.name} style={{ ...cardStyle, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div key={s.name} className="panel-card" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <span>{s.name}</span>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <div style={{ width: 120, height: 8, borderRadius: 4, background: "var(--border-color)" }}>
@@ -133,7 +88,7 @@ export function DocSyncPanel() {
       {tab === "links" && (
         <div>
           {links.map((l, i) => (
-            <div key={i} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div key={i} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <div style={{ fontSize: 13, marginBottom: 4 }}>{l.spec}</div>
                 <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{l.code}</div>
@@ -146,9 +101,9 @@ export function DocSyncPanel() {
 
       {tab === "alerts" && (
         <div>
-          {alerts.length === 0 && <div style={cardStyle}>No active drift alerts.</div>}
+          {alerts.length === 0 && <div className="panel-card">No active drift alerts.</div>}
           {alerts.map((a) => (
-            <div key={a.id} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div key={a.id} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <div style={{ fontWeight: 600, fontSize: 13 }}>{a.type}</div>
                 <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 2 }}>{a.message}</div>
@@ -156,7 +111,7 @@ export function DocSyncPanel() {
                   {a.severity.toUpperCase()}
                 </span>
               </div>
-              <button style={btnStyle} onClick={() => resolveAlert(a.id)}>Resolve</button>
+              <button className="panel-btn panel-btn-primary" onClick={() => resolveAlert(a.id)}>Resolve</button>
             </div>
           ))}
         </div>
@@ -164,18 +119,18 @@ export function DocSyncPanel() {
 
       {tab === "config" && (
         <div>
-          <div style={cardStyle}>
-            <div style={{ marginBottom: 8, fontWeight: 600, fontSize: 13 }}>Drift Threshold: {threshold}%</div>
+          <div className="panel-card">
+            <label className="panel-label">Drift Threshold: {threshold}%</label>
             <input type="range" min={0} max={100} value={threshold} onChange={(e) => setThreshold(Number(e.target.value))}
               style={{ width: "100%" }} />
           </div>
-          <div style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ fontWeight: 600, fontSize: 13 }}>Auto-Reconcile</span>
-            <button style={{ ...btnStyle, background: autoReconcile ? "var(--success-color)" : "var(--border-color)" }}
+            <button className={`panel-btn ${autoReconcile ? "panel-btn-primary" : "panel-btn-secondary"}`}
               onClick={() => setAutoReconcile(!autoReconcile)}>{autoReconcile ? "ON" : "OFF"}</button>
           </div>
-          <div style={cardStyle}>
-            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Watch Patterns</div>
+          <div className="panel-card">
+            <label className="panel-label">Watch Patterns</label>
             {watchPatterns.map((p, i) => (
               <div key={i} style={{ fontSize: 12, color: "var(--text-secondary)", padding: "2px 0" }}>{p}</div>
             ))}

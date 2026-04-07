@@ -198,31 +198,6 @@ const riskColor = (r: RiskLevel) =>
 
 /* ── Shared styles ──────────────────────────────────────────────────── */
 
-const tabBarStyle: React.CSSProperties = {
-  display: "flex",
-  gap: 2,
-  borderBottom: "1px solid var(--border-color)",
-  marginBottom: 16,
-  padding: "0 4px",
-  overflowX: "auto",
-};
-
-const tabStyle = (active: boolean): React.CSSProperties => ({
-  padding: "8px 14px",
-  cursor: "pointer",
-  fontSize: 13,
-  fontWeight: active ? 600 : 400,
-  color: active ? "var(--accent-blue)" : "var(--text-secondary)",
-  borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent",
-  background: "transparent",
-  border: "none",
-  borderBottomStyle: "solid",
-  borderBottomWidth: 2,
-  borderBottomColor: active ? "var(--accent-blue)" : "transparent",
-  transition: "var(--transition-fast)",
-  whiteSpace: "nowrap",
-});
-
 const cardBaseStyle: React.CSSProperties = {
   background: "var(--bg-elevated)",
   border: "1px solid var(--border-color)",
@@ -2464,15 +2439,15 @@ function AgilePanel() {
   const [activeTab, setActiveTab] = useState<TabKey>("board");
 
   return (
-    <div style={{ padding: 16, height: "100%", overflowY: "auto", background: "var(--bg-primary)", color: "var(--text-primary)" }}>
+    <div className="panel-container">
       <h2 style={{ margin: "0 0 12px", fontSize: 18, fontWeight: 700, color: "var(--accent-color)" }}>
         Agile Project Management
       </h2>
 
       {/* Tab bar */}
-      <div style={tabBarStyle}>
+      <div className="panel-tab-bar">
         {TABS.map(t => (
-          <button key={t.key} style={tabStyle(activeTab === t.key)} onClick={() => setActiveTab(t.key)}>
+          <button key={t.key} className={`panel-tab ${activeTab === t.key ? "active" : ""}`} onClick={() => setActiveTab(t.key)}>
             {t.label}
           </button>
         ))}
