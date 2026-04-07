@@ -79,124 +79,6 @@ function Ico({
   );
 }
 
-/* ── CSS vars (inherits from global theme) ───────────────────────────────── */
-const tabStyle = (active: boolean): React.CSSProperties => ({
-  display: "flex",
-  alignItems: "center",
-  gap: 5,
-  padding: "6px 14px",
-  cursor: "pointer",
-  borderRadius: "4px 4px 0 0",
-  background: active ? "var(--bg-primary)" : "transparent",
-  color: active ? "var(--accent-color, #7aa2f7)" : "var(--text-secondary)",
-  fontWeight: active ? 600 : 400,
-  border: active ? "1px solid var(--border-color)" : "1px solid transparent",
-  borderBottom: active ? "1px solid var(--bg-primary)" : "1px solid transparent",
-  userSelect: "none",
-  fontSize: 12,
-});
-
-const S: Record<string, React.CSSProperties> = {
-  root: {
-    display: "flex",
-    flexDirection: "column",
-    height: "100%",
-    background: "var(--bg-primary)",
-    color: "var(--text-primary)",
-    fontSize: 13,
-    fontFamily: "var(--font-mono, monospace)",
-  },
-  tabs: {
-    display: "flex",
-    borderBottom: "1px solid var(--border-color)",
-    background: "var(--bg-secondary)",
-    gap: 2,
-    padding: "4px 8px 0",
-    flexShrink: 0,
-  },
-  body: {
-    display: "flex",
-    flexDirection: "column",
-    flex: 1,
-    overflow: "hidden",
-    padding: 12,
-    gap: 10,
-  },
-  quickRow: {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: 6,
-  },
-  quickBtn: {
-    display: "flex",
-    alignItems: "center",
-    gap: 5,
-    padding: "4px 10px",
-    fontSize: 12,
-    cursor: "pointer",
-    borderRadius: 4,
-    background: "var(--bg-secondary)",
-    color: "var(--text-primary)",
-    border: "1px solid var(--border-color)",
-  },
-  clearBtn: {
-    display: "flex",
-    alignItems: "center",
-    gap: 5,
-    padding: "4px 10px",
-    fontSize: 12,
-    cursor: "pointer",
-    borderRadius: 4,
-    background: "var(--bg-secondary)",
-    color: "var(--text-secondary)",
-    border: "1px solid var(--border-color)",
-    marginLeft: "auto",
-  },
-  inputRow: {
-    display: "flex",
-    gap: 6,
-  },
-  input: {
-    flex: 1,
-    padding: "6px 10px",
-    fontSize: 12,
-    background: "var(--bg-secondary)",
-    color: "var(--text-primary)",
-    border: "1px solid var(--border-color)",
-    borderRadius: 4,
-    outline: "none",
-  },
-  runBtn: {
-    display: "flex",
-    alignItems: "center",
-    gap: 5,
-    padding: "6px 14px",
-    fontSize: 12,
-    cursor: "pointer",
-    borderRadius: 4,
-    background: "var(--accent-color, #7aa2f7)",
-    color: "#fff",
-    border: "none",
-    fontWeight: 600,
-  },
-  output: {
-    flex: 1,
-    overflowY: "auto" as const,
-    background: "var(--bg-secondary)",
-    border: "1px solid var(--border-color)",
-    borderRadius: 4,
-    padding: 10,
-    whiteSpace: "pre-wrap" as const,
-    lineHeight: 1.6,
-    fontSize: 12,
-  },
-  lineTs: {
-    color: "var(--text-muted, var(--text-secondary))",
-    marginRight: 8,
-    fontSize: 11,
-  },
-};
-
 /* ── Tab definitions ─────────────────────────────────────────────────────── */
 const TABS: { key: Tab; label: string; icon: LucideIcon }[] = [
   { key: "email",    label: "Email",    icon: Mail },
@@ -303,12 +185,13 @@ function TabContent({ tab }: { tab: Tab }) {
   }, [tab, pushLine]);
 
   return (
-    <div style={S.body}>
-      <div style={S.quickRow}>
+    <div style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden", padding: 12, gap: 10 }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
         {QUICK[tab].map((q) => (
           <button
             key={q.label}
-            style={S.quickBtn}
+            className="panel-btn panel-btn-secondary"
+            style={{ display: "flex", alignItems: "center", gap: 5 }}
             onClick={() => run(q.cmd)}
             disabled={loading}
           >
@@ -316,28 +199,28 @@ function TabContent({ tab }: { tab: Tab }) {
             {q.label}
           </button>
         ))}
-        <button style={S.clearBtn} onClick={() => setLines([])}>
+        <button className="panel-btn panel-btn-secondary" style={{ display: "flex", alignItems: "center", gap: 5, marginLeft: "auto", color: "var(--text-secondary)" }} onClick={() => setLines([])}>
           <Ico icon={Trash2} size={12} />
           Clear
         </button>
       </div>
 
-      <div style={S.inputRow}>
+      <div style={{ display: "flex", gap: 6 }}>
         <input
-          style={S.input}
+          style={{ flex: 1, padding: "6px 10px", fontSize: 12, background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4, outline: "none" }}
           value={cmd}
           onChange={(e) => setCmd(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") run(cmd); }}
           placeholder={PLACEHOLDER[tab]}
           disabled={loading}
         />
-        <button style={S.runBtn} onClick={() => run(cmd)} disabled={loading || !cmd.trim()}>
+        <button className="panel-btn panel-btn-primary" style={{ display: "flex", alignItems: "center", gap: 5 }} onClick={() => run(cmd)} disabled={loading || !cmd.trim()}>
           <Ico icon={loading ? Loader2 : Play} size={12} style={loading ? { animation: "spin 1s linear infinite" } : undefined} />
           {loading ? "Running" : "Run"}
         </button>
       </div>
 
-      <div style={S.output} ref={outputRef}>
+      <div style={{ flex: 1, overflowY: "auto", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, padding: 10, whiteSpace: "pre-wrap", lineHeight: 1.6, fontSize: 12 }} ref={outputRef}>
         {lines.length === 0 ? (
           <span style={{ color: "var(--text-secondary)" }}>
             Use the quick buttons or type a command above.
@@ -345,7 +228,7 @@ function TabContent({ tab }: { tab: Tab }) {
         ) : (
           lines.map((l) => (
             <div key={l.id}>
-              <span style={S.lineTs}>{l.ts}</span>
+              <span style={{ color: "var(--text-muted, var(--text-secondary))", marginRight: 8, fontSize: 11 }}>{l.ts}</span>
               {l.text}
             </div>
           ))
@@ -360,18 +243,19 @@ export function ProductivityPanel() {
   const [activeTab, setActiveTab] = useState<Tab>("email");
 
   return (
-    <div style={S.root}>
+    <div className="panel-container" style={{ fontFamily: "var(--font-mono, monospace)" }}>
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
-      <div style={S.tabs}>
+      <div className="panel-tab-bar">
         {TABS.map((t) => (
-          <div
+          <button
             key={t.key}
-            style={tabStyle(activeTab === t.key)}
+            className={`panel-tab${activeTab === t.key ? " active" : ""}`}
+            style={{ display: "flex", alignItems: "center", gap: 5 }}
             onClick={() => setActiveTab(t.key)}
           >
             <Ico icon={t.icon} size={13} />
             {t.label}
-          </div>
+          </button>
         ))}
       </div>
       <TabContent key={activeTab} tab={activeTab} />

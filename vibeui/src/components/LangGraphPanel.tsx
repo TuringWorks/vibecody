@@ -79,52 +79,14 @@ const NODE_TYPE_COLORS: Record<string, string> = {
   End: "var(--error-color)",
 };
 
-const containerStyle: React.CSSProperties = {
-  display: "flex", flexDirection: "column", height: "100%",
-  background: "var(--bg-primary)", color: "var(--text-primary)",
-  fontFamily: "inherit", overflow: "hidden",
-};
-const tabBarStyle: React.CSSProperties = {
-  display: "flex", gap: 2, padding: "8px 12px 0",
-  borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)",
-  overflowX: "auto", flexShrink: 0,
-};
-const tabStyle = (active: boolean): React.CSSProperties => ({
-  padding: "8px 14px", cursor: "pointer",
-  background: active ? "var(--bg-primary)" : "transparent",
-  color: active ? "var(--text-primary)" : "var(--text-secondary)",
-  border: "none", borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent",
-  fontSize: 13, fontFamily: "inherit", whiteSpace: "nowrap",
-});
-const contentStyle: React.CSSProperties = { flex: 1, overflow: "auto", padding: 16 };
-const cardStyle: React.CSSProperties = {
-  background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 8,
-  border: "1px solid var(--border-color)",
-};
 const badgeStyle = (color: string): React.CSSProperties => ({
   display: "inline-block", padding: "2px 8px", borderRadius: 10,
   fontSize: 11, background: color, color: "var(--bg-primary)", fontWeight: 600,
 });
-const statusBarStyle: React.CSSProperties = {
-  padding: "8px 16px", background: "var(--bg-tertiary)", borderBottom: "1px solid var(--border-color)",
-  display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, flexShrink: 0,
-};
-const btnStyle: React.CSSProperties = {
-  padding: "6px 14px", borderRadius: 4, border: "1px solid var(--border-color)",
-  background: "var(--accent-blue)", color: "var(--btn-primary-fg, #fff)", cursor: "pointer",
-  fontSize: 12, fontFamily: "inherit",
-};
-const btnSecondaryStyle: React.CSSProperties = {
-  ...btnStyle, background: "var(--bg-secondary)", color: "var(--text-primary)",
-};
+
 const loadingStyle: React.CSSProperties = {
   display: "flex", justifyContent: "center", alignItems: "center",
   padding: 32, color: "var(--text-secondary)", fontSize: 13,
-};
-const errorStyle: React.CSSProperties = {
-  padding: 12, borderRadius: 6, marginBottom: 8,
-  background: "rgba(255,0,0,0.08)", border: "1px solid var(--error-color)",
-  color: "var(--error-color)", fontSize: 12,
 };
 
 // -- Component --
@@ -255,7 +217,7 @@ const LangGraphPanel: React.FC = () => {
   };
 
   const renderError = () =>
-    error ? <div style={errorStyle}>{error}</div> : null;
+    error ? <div className="panel-error">{error}</div> : null;
 
   const renderLoading = () => (
     <div style={loadingStyle}>Loading...</div>
@@ -266,7 +228,7 @@ const LangGraphPanel: React.FC = () => {
       {renderError()}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <span style={{ fontWeight: 600, fontSize: 14 }}>Pipelines ({pipelines.length})</span>
-        <button style={btnStyle} onClick={handleCreatePipeline} disabled={creating}>
+        <button className="panel-btn panel-btn-primary" onClick={handleCreatePipeline} disabled={creating}>
           {creating ? "Creating..." : "+ Create Pipeline"}
         </button>
       </div>
@@ -276,8 +238,8 @@ const LangGraphPanel: React.FC = () => {
         pipelines.map((p) => (
           <div
             key={p.id}
+            className="panel-card"
             style={{
-              ...cardStyle,
               cursor: "pointer",
               borderLeft: selectedPipeline === p.id ? "3px solid var(--accent-blue)" : "3px solid transparent",
             }}
@@ -319,7 +281,7 @@ const LangGraphPanel: React.FC = () => {
           <div style={{ marginBottom: 16 }}>
             <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8 }}>Nodes</div>
             {graphNodes.map((n) => (
-              <div key={n.id} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div key={n.id} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={badgeStyle(NODE_TYPE_COLORS[n.type] || "var(--text-secondary)")}>{n.type}</span>
                   <span style={{ fontWeight: 500, fontSize: 13 }}>{n.name}</span>
@@ -342,7 +304,7 @@ const LangGraphPanel: React.FC = () => {
               <div style={loadingStyle}>No edges found.</div>
             ) : (
               graphEdges.map((e, i) => (
-                <div key={i} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div key={i} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span style={{ fontSize: 13 }}>
                     <strong>{e.from}</strong> &rarr; <strong>{e.to}</strong>
                   </span>
@@ -378,7 +340,7 @@ const LangGraphPanel: React.FC = () => {
         <div style={loadingStyle}>No checkpoints for this pipeline.</div>
       ) : (
         checkpoints.map((cp) => (
-          <div key={cp.id} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div key={cp.id} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
               <div style={{ fontWeight: 600, fontSize: 13 }}>{cp.id}</div>
               <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>
@@ -386,7 +348,7 @@ const LangGraphPanel: React.FC = () => {
               </div>
               <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{cp.timestamp}</div>
             </div>
-            <button style={btnSecondaryStyle}>Restore</button>
+            <button className="panel-btn panel-btn-secondary">Restore</button>
           </div>
         ))
       )}
@@ -405,7 +367,7 @@ const LangGraphPanel: React.FC = () => {
         <div style={loadingStyle}>No events for this pipeline.</div>
       ) : (
         events.map((ev, i) => (
-          <div key={i} style={{ ...cardStyle, display: "flex", gap: 10, alignItems: "flex-start" }}>
+          <div key={i} className="panel-card" style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
             <span style={{ fontSize: 11, color: "var(--text-secondary)", whiteSpace: "nowrap", minWidth: 60 }}>
               {ev.time}
             </span>
@@ -430,17 +392,17 @@ const LangGraphPanel: React.FC = () => {
   const totalSteps = pipelines.reduce((s, p) => s + (p.steps || 0), 0);
 
   return (
-    <div style={containerStyle}>
-      <div style={statusBarStyle}>
+    <div className="panel-container">
+      <div style={{ padding: "8px 16px", background: "var(--bg-tertiary)", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, flexShrink: 0 }}>
         <span>{pipelines.length} pipelines &middot; {active} running &middot; {totalSteps} total steps</span>
         <span>{checkpoints.length} checkpoints &middot; {events.length} events</span>
       </div>
-      <div style={tabBarStyle}>
+      <div className="panel-tab-bar">
         {TABS.map((t) => (
-          <button key={t} style={tabStyle(tab === t)} onClick={() => setTab(t)}>{t}</button>
+          <button key={t} className={`panel-tab${tab === t ? " active" : ""}`} onClick={() => setTab(t)}>{t}</button>
         ))}
       </div>
-      <div style={contentStyle}>
+      <div className="panel-body">
         {tab === "Pipelines" && renderPipelines()}
         {tab === "Graph" && renderGraph()}
         {tab === "Checkpoints" && renderCheckpoints()}

@@ -7,6 +7,8 @@ import { invoke } from '@tauri-apps/api/core';
 
 type TriggerSource = 'github' | 'slack' | 'linear' | 'pagerduty' | 'telegram' | 'signal' | 'whatsapp' | 'discord' | 'teams' | 'matrix' | 'twilio_sms' | 'imessage' | 'irc' | 'twitch' | 'cron' | 'filewatch' | 'webhook';
 
+type ResolutionMode = 'auto' | 'draft' | 'approve' | 'ignore';
+
 interface AutomationRule {
   id: string;
   name: string;
@@ -21,6 +23,7 @@ interface AutomationRule {
   sandbox: boolean;
   fireCount: number;
   lastFired: string | null;
+  resolution_mode: ResolutionMode;
 }
 
 interface AutomationTask {
@@ -64,6 +67,67 @@ const statusColors: Record<string, string> = {
   cancelled: 'var(--text-secondary)',
 };
 
+const RESOLUTION_MODE_COLORS: Record<ResolutionMode, string> = {
+  auto: 'var(--accent-green)',
+  draft: 'var(--accent-blue)',
+  approve: 'var(--accent-gold)',
+  ignore: 'var(--text-secondary)',
+};
+
+const RESOLUTION_MODE_BG: Record<ResolutionMode, string> = {
+  auto: 'rgba(39,174,96,0.15)',
+  draft: 'rgba(74,158,255,0.15)',
+  approve: 'rgba(255,193,7,0.15)',
+  ignore: 'rgba(128,128,128,0.15)',
+};
+
+const RESOLUTION_MODE_DESCRIPTIONS: Record<ResolutionMode, string> = {
+  auto: 'Execute automatically',
+  draft: 'Generate draft for review',
+  approve: 'Route to Approvals panel',
+  ignore: 'Log but take no action',
+};
+
+function ResolutionBadge({ ruleId, mode, onChange }: { ruleId: string; mode: ResolutionMode; onChange: (ruleId: string, mode: ResolutionMode) => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{ position: 'relative', display: 'inline-block' }}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        title={RESOLUTION_MODE_DESCRIPTIONS[mode]}
+        style={{
+          padding: '1px 8px', borderRadius: 10, fontSize: 10, fontWeight: 600, cursor: 'pointer',
+          background: RESOLUTION_MODE_BG[mode], color: RESOLUTION_MODE_COLORS[mode],
+          border: `1px solid ${RESOLUTION_MODE_COLORS[mode]}`,
+        }}
+      >
+        {mode}
+      </button>
+      {open && (
+        <div style={{
+          position: 'absolute', top: '110%', left: 0, zIndex: 50, minWidth: 180,
+          background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 6,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+        }}>
+          {(['auto', 'draft', 'approve', 'ignore'] as ResolutionMode[]).map((m) => (
+            <button
+              key={m}
+              onClick={() => { onChange(ruleId, m); setOpen(false); }}
+              style={{
+                display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px',
+                background: m === mode ? RESOLUTION_MODE_BG[m] : 'transparent',
+                color: RESOLUTION_MODE_COLORS[m], border: 'none', cursor: 'pointer', fontSize: 12,
+              }}
+            >
+              <strong>{m}</strong> — {RESOLUTION_MODE_DESCRIPTIONS[m]}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -80,6 +144,7 @@ const AutomationsPanel: React.FC = () => {
   const [newName, setNewName] = useState('');
   const [newEvents, setNewEvents] = useState('');
   const [newPrompt, setNewPrompt] = useState('');
+  const [newResolutionMode, setNewResolutionMode] = useState<ResolutionMode>('auto');
 
   useEffect(() => { loadAll(); }, []);
 
@@ -136,6 +201,7 @@ const AutomationsPanel: React.FC = () => {
           provider: 'claude',
           maxTurns: 10,
           sandbox: false,
+          resolution_mode: newResolutionMode,
         },
       });
       setRules((prev) => [...prev, rule]);
@@ -143,8 +209,16 @@ const AutomationsPanel: React.FC = () => {
       setNewName('');
       setNewEvents('');
       setNewPrompt('');
+      setNewResolutionMode('auto');
       const s = await invoke<AutomationStats>('get_automation_stats').catch(() => stats);
       setStats(s);
+    } catch { /* ignore */ }
+  }
+
+  async function handleResolutionChange(ruleId: string, resolutionMode: ResolutionMode) {
+    try {
+      await invoke('set_automation_resolution_mode', { ruleId, resolutionMode });
+      setRules((prev) => prev.map((r) => r.id === ruleId ? { ...r, resolution_mode: resolutionMode } : r));
     } catch { /* ignore */ }
   }
 
@@ -218,6 +292,15 @@ const AutomationsPanel: React.FC = () => {
                 <option value="webhook">Webhook</option>
               </select>
             </label>
+            <label style={{ fontSize: 12 }}>
+              Resolution Mode
+              <select value={newResolutionMode} onChange={(e) => setNewResolutionMode(e.target.value as ResolutionMode)} style={{ width: '100%', padding: 6, background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4 }}>
+                <option value="auto">Auto — {RESOLUTION_MODE_DESCRIPTIONS.auto}</option>
+                <option value="draft">Draft — {RESOLUTION_MODE_DESCRIPTIONS.draft}</option>
+                <option value="approve">Approve — {RESOLUTION_MODE_DESCRIPTIONS.approve}</option>
+                <option value="ignore">Ignore — {RESOLUTION_MODE_DESCRIPTIONS.ignore}</option>
+              </select>
+            </label>
             <label style={{ fontSize: 12, gridColumn: 'span 2' }}>
               Events (comma-separated)
               <input type="text" value={newEvents} onChange={(e) => setNewEvents(e.target.value)} placeholder="e.g. push, pull_request.opened" style={{ width: '100%', padding: 6, background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4 }} />
@@ -252,12 +335,17 @@ const AutomationsPanel: React.FC = () => {
               border: `1px solid ${rule.enabled ? 'var(--border-color)' : 'var(--text-secondary)'}`,
               opacity: rule.enabled ? 1 : 0.6,
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
                 <span style={{
                   display: 'inline-block', padding: '2px 6px', borderRadius: 4, fontSize: 11,
                   fontWeight: 700, background: 'var(--accent-color)', color: 'var(--text-primary)',
                 }}>{triggerIcons[rule.trigger]}</span>
                 <strong>{rule.name}</strong>
+                {/* Resolution badge with inline change */}
+                <ResolutionBadge ruleId={rule.id} mode={rule.resolution_mode ?? 'auto'} onChange={handleResolutionChange} />
+                {(rule.resolution_mode ?? 'auto') === 'approve' && (
+                  <span style={{ fontSize: 10, color: 'var(--accent-gold)' }}>→ routes to Approvals</span>
+                )}
                 <span style={{ fontSize: 11, color: 'var(--text-secondary)', marginLeft: 'auto' }}>
                   {rule.fireCount} runs {rule.lastFired ? `· last ${rule.lastFired}` : ''}
                 </span>

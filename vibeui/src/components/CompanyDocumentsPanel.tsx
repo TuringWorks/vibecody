@@ -2,7 +2,8 @@
  * CompanyDocumentsPanel — Markdown documents with revision history.
  *
  * Shows company documents linked to tasks/goals. Supports creating,
- * editing (full markdown), and viewing revision history.
+ * editing (full markdown), viewing revision history, role assignment,
+ * and meeting notes ingestion.
  */
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
@@ -11,7 +12,62 @@ interface CompanyDocumentsPanelProps {
   workspacePath?: string | null;
 }
 
+type DocRole = 'policy' | 'source-of-truth' | 'reference' | 'template';
+
+interface Document {
+  id: string;
+  title: string;
+  role: DocRole;
+  created_at: number;
+  updated_at: number;
+}
+
+interface MeetingTask {
+  title: string;
+  owner: string;
+  due_date: string | null;
+  checked: boolean;
+}
+
+interface MeetingApproval {
+  subject: string;
+  decision_text: string;
+}
+
+interface MeetingFollowup {
+  text: string;
+  due_date: string | null;
+}
+
+interface MeetingIngestResult {
+  tasks: Array<{ title: string; owner: string; due_date: string | null }>;
+  approvals: Array<{ subject: string; decision_text: string }>;
+  followups: Array<{ text: string; due_date: string | null }>;
+}
+
+function roleBadgeStyle(role: DocRole): React.CSSProperties {
+  const map: Record<DocRole, { color: string; bg: string }> = {
+    'policy': { color: 'var(--accent-gold)', bg: 'rgba(255,193,7,0.15)' },
+    'source-of-truth': { color: 'var(--accent-rose)', bg: 'rgba(231,76,60,0.15)' },
+    'reference': { color: 'var(--text-secondary)', bg: 'rgba(128,128,128,0.12)' },
+    'template': { color: 'var(--accent-blue)', bg: 'rgba(74,158,255,0.15)' },
+  };
+  const { color, bg } = map[role] ?? map['reference'];
+  return {
+    display: 'inline-block', padding: '1px 7px', borderRadius: 10, fontSize: 10,
+    fontWeight: 600, color, background: bg, border: `1px solid ${color}`,
+  };
+}
+
+const inputStyle: React.CSSProperties = {
+  fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)",
+  border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)",
+};
+
 export function CompanyDocumentsPanel({ workspacePath: _wp }: CompanyDocumentsPanelProps) {
+  // Tabs: list | create | view | meeting
+  const [tab, setTab] = useState<"list" | "create" | "view" | "meeting">("list");
+  const [docs, setDocs] = useState<Document[]>([]);
   const [listOutput, setListOutput] = useState<string>("");
   const [docOutput, setDocOutput] = useState<string>("");
   const [loading, setLoading] = useState(false);
@@ -19,13 +75,31 @@ export function CompanyDocumentsPanel({ workspacePath: _wp }: CompanyDocumentsPa
   const [content, setContent] = useState("");
   const [docId, setDocId] = useState("");
   const [cmdResult, setCmdResult] = useState<string | null>(null);
-  const [mode, setMode] = useState<"list" | "create" | "view">("list");
+  const [useStructured, setUseStructured] = useState(false);
+  const [roleDropdownId, setRoleDropdownId] = useState<string | null>(null);
+
+  // Meeting notes state
+  const [meetingTitle, setMeetingTitle] = useState("");
+  const [meetingContent, setMeetingContent] = useState("");
+  const [meetingLoading, setMeetingLoading] = useState(false);
+  const [meetingTasks, setMeetingTasks] = useState<MeetingTask[]>([]);
+  const [meetingApprovals, setMeetingApprovals] = useState<MeetingApproval[]>([]);
+  const [meetingFollowups, setMeetingFollowups] = useState<MeetingFollowup[]>([]);
+  const [meetingIngested, setMeetingIngested] = useState(false);
 
   const loadList = async () => {
     setLoading(true);
     try {
-      const out = await invoke<string>("company_cmd", { args: "doc list" });
-      setListOutput(out);
+      const result = await invoke<Document[]>("company_doc_list_json").catch(async () => {
+        setUseStructured(false);
+        const out = await invoke<string>("company_cmd", { args: "doc list" });
+        setListOutput(out);
+        return null;
+      });
+      if (result !== null) {
+        setUseStructured(true);
+        setDocs(result);
+      }
     } catch (e) {
       setListOutput(`Error: ${e}`);
     } finally {
@@ -42,7 +116,7 @@ export function CompanyDocumentsPanel({ workspacePath: _wp }: CompanyDocumentsPa
       setCmdResult(out);
       setNewTitle("");
       setContent("");
-      setMode("list");
+      setTab("list");
       loadList();
     } catch (e) {
       setCmdResult(`Error: ${e}`);
@@ -54,49 +128,151 @@ export function CompanyDocumentsPanel({ workspacePath: _wp }: CompanyDocumentsPa
     try {
       const out = await invoke<string>("company_cmd", { args: `doc show ${docId.trim()}` });
       setDocOutput(out);
-      setMode("view");
+      setTab("view");
     } catch (e) {
       setCmdResult(`Error: ${e}`);
     }
   };
 
-  const btnStyle: React.CSSProperties = {
-    fontSize: 11, padding: "3px 10px", cursor: "pointer", borderRadius: 4,
-    background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", color: "var(--text-primary)",
+  const changeRole = async (dId: string, role: DocRole) => {
+    try {
+      await invoke("company_doc_set_role", { docId: dId, role });
+      setDocs((prev) => prev.map((d) => d.id === dId ? { ...d, role } : d));
+      setRoleDropdownId(null);
+    } catch { /* ignore */ }
   };
+
+  const ingestMeeting = async () => {
+    if (!meetingContent.trim()) return;
+    setMeetingLoading(true);
+    setMeetingIngested(false);
+    try {
+      const result = await invoke<MeetingIngestResult>("company_ingest_meeting_notes", {
+        content: meetingContent,
+        sourceTitle: meetingTitle || null,
+      });
+      setMeetingTasks(result.tasks.map((t) => ({ ...t, checked: false })));
+      setMeetingApprovals(result.approvals);
+      setMeetingFollowups(result.followups);
+      setMeetingIngested(true);
+    } catch (e) {
+      setCmdResult(`Ingest error: ${e}`);
+    } finally {
+      setMeetingLoading(false);
+    }
+  };
+
+  const addTaskToBoard = async (task: MeetingTask) => {
+    try {
+      await invoke("company_task_create_v2", {
+        title: task.title,
+        status: "backlog",
+        owner: task.owner || "agent",
+        program: "Other",
+        recurrence: null,
+      });
+      setCmdResult(`Task added: "${task.title}"`);
+    } catch (e) {
+      setCmdResult(`Error: ${e}`);
+    }
+  };
+
+  const createApproval = async (approval: MeetingApproval) => {
+    try {
+      await invoke("company_approval_request", {
+        subject: approval.subject,
+        decisionText: approval.decision_text,
+      });
+      setCmdResult(`Approval created: "${approval.subject}"`);
+    } catch (e) {
+      setCmdResult(`Error: ${e}`);
+    }
+  };
+
+  const roles: DocRole[] = ['policy', 'source-of-truth', 'reference', 'template'];
+
   return (
-    <div style={{ padding: 16, fontSize: 13, height: "100%", overflowY: "auto" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+    <div className="panel-container">
+      <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <span style={{ fontWeight: 600, fontSize: 14 }}>Agent Docs</span>
         <div style={{ display: "flex", gap: 6 }}>
-          <button onClick={() => setMode("list")} style={{ ...btnStyle, padding: "2px 8px", background: mode === "list" ? "var(--accent, #4a9eff)" : "var(--bg-tertiary)", color: mode === "list" ? "#fff" : "var(--text-primary)", border: `1px solid ${mode === "list" ? "var(--accent, #4a9eff)" : "var(--border-color)"}` }}>
-            List
-          </button>
-          <button onClick={() => setMode("create")} style={{ ...btnStyle, padding: "2px 8px", background: mode === "create" ? "var(--accent, #4a9eff)" : "var(--bg-tertiary)", color: mode === "create" ? "#fff" : "var(--text-primary)", border: `1px solid ${mode === "create" ? "var(--accent, #4a9eff)" : "var(--border-color)"}` }}>
-            + New
-          </button>
-          <button onClick={loadList} style={btnStyle}>
+          {(["list", "create", "meeting"] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`panel-btn ${tab === t ? "panel-btn-primary" : "panel-btn-secondary"}`}
+              style={{ padding: "2px 8px" }}
+            >
+              {t === "list" ? "List" : t === "create" ? "+ New" : "Meeting Notes"}
+            </button>
+          ))}
+          <button onClick={loadList} className="panel-btn panel-btn-secondary">
             Refresh
           </button>
         </div>
       </div>
+      <div className="panel-body">
 
       {cmdResult && (
-        <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 4, padding: 8, marginBottom: 12, fontSize: 12 }}>
+        <div className="panel-card" style={{ marginBottom: 12, fontSize: 12 }}>
           {cmdResult}
         </div>
       )}
 
-      {mode === "list" && (
+      {/* LIST TAB */}
+      {tab === "list" && (
         <>
           <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
             <input value={docId} onChange={(e) => setDocId(e.target.value)} onKeyDown={(e) => e.key === "Enter" && viewDoc()} placeholder="Document ID to view"
-              style={{ flex: 1, fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }} />
-            <button onClick={viewDoc} style={{...btnStyle, padding: "4px 12px"}}>View</button>
+              style={{ ...inputStyle, flex: 1 }} />
+            <button onClick={viewDoc} className="panel-btn panel-btn-primary">View</button>
           </div>
-          <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 6, padding: 12, minHeight: 200 }}>
+          <div className="panel-card" style={{ minHeight: 200, padding: useStructured ? 0 : undefined, overflow: "hidden" }}>
             {loading ? (
-              <span style={{ color: "var(--text-secondary)" }}>Loading…</span>
+              <span className="panel-loading" style={{ padding: 12, display: "block" }}>Loading…</span>
+            ) : useStructured ? (
+              docs.length === 0 ? (
+                <div style={{ padding: 16, fontSize: 12, color: "var(--text-secondary)" }}>No documents. Click + New to create one.</div>
+              ) : (
+                <div>
+                  {docs.map((doc) => (
+                    <div key={doc.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderBottom: "1px solid var(--border-color)" }}>
+                      <span style={{ fontSize: 12, flex: 1 }}>{doc.title}</span>
+                      {/* Role badge with change dropdown */}
+                      <div style={{ position: "relative" }}>
+                        <span
+                          style={{ ...roleBadgeStyle(doc.role), cursor: "pointer" }}
+                          onClick={() => setRoleDropdownId(roleDropdownId === doc.id ? null : doc.id)}
+                        >
+                          {doc.role}
+                        </span>
+                        {roleDropdownId === doc.id && (
+                          <div style={{
+                            position: "absolute", right: 0, top: "110%", zIndex: 50, minWidth: 160,
+                            background: "var(--bg-secondary)", border: "1px solid var(--border-color)",
+                            borderRadius: 6, boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+                          }}>
+                            {roles.map((r) => (
+                              <button
+                                key={r}
+                                onClick={() => changeRole(doc.id, r)}
+                                style={{
+                                  display: "block", width: "100%", textAlign: "left",
+                                  padding: "6px 12px", background: r === doc.role ? "rgba(128,128,128,0.1)" : "transparent",
+                                  border: "none", cursor: "pointer", fontSize: 12,
+                                }}
+                              >
+                                <span style={roleBadgeStyle(r)}>{r}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <span style={{ fontSize: 10, color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>{doc.id}</span>
+                    </div>
+                  ))}
+                </div>
+              )
             ) : (
               <pre style={{ margin: 0, fontSize: 12, whiteSpace: "pre-wrap" }}>
                 {listOutput || "No documents. Click + New to create one."}
@@ -106,28 +282,149 @@ export function CompanyDocumentsPanel({ workspacePath: _wp }: CompanyDocumentsPa
         </>
       )}
 
-      {mode === "create" && (
+      {/* CREATE TAB */}
+      {tab === "create" && (
         <div>
           <input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="Document title"
             style={{ width: "100%", fontSize: 13, padding: "6px 10px", marginBottom: 8, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", boxSizing: "border-box" }} />
           <textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="Document content (Markdown)"
             style={{ width: "100%", height: 300, fontSize: 12, padding: "8px", marginBottom: 8, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", resize: "vertical", boxSizing: "border-box" }} />
-          <button onClick={createDoc} style={{...btnStyle, padding: "4px 16px"}}>
+          <button onClick={createDoc} className="panel-btn panel-btn-primary">
             Create Document
           </button>
         </div>
       )}
 
-      {mode === "view" && (
+      {/* VIEW TAB */}
+      {tab === "view" && (
         <div>
-          <button onClick={() => setMode("list")} style={{...btnStyle, marginBottom: 12}}>← Back</button>
-          <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 6, padding: 12 }}>
+          <button onClick={() => setTab("list")} className="panel-btn panel-btn-secondary" style={{ marginBottom: 12 }}>← Back</button>
+          <div className="panel-card">
             <pre style={{ margin: 0, fontSize: 12, whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
               {docOutput}
             </pre>
           </div>
         </div>
       )}
+
+      {/* MEETING NOTES TAB */}
+      {tab === "meeting" && (
+        <div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+            <input
+              value={meetingTitle}
+              onChange={(e) => setMeetingTitle(e.target.value)}
+              placeholder="Title (optional)"
+              style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
+            />
+            <textarea
+              value={meetingContent}
+              onChange={(e) => setMeetingContent(e.target.value)}
+              placeholder="Paste meeting notes, transcript, or summary..."
+              rows={8}
+              style={{
+                ...inputStyle, width: "100%", boxSizing: "border-box",
+                resize: "vertical", lineHeight: 1.5,
+              }}
+            />
+            <button
+              onClick={ingestMeeting}
+              disabled={!meetingContent.trim() || meetingLoading}
+              className="panel-btn panel-btn-primary"
+              style={{ alignSelf: "flex-start", opacity: (!meetingContent.trim() || meetingLoading) ? 0.5 : 1 }}
+            >
+              {meetingLoading ? "Ingesting…" : "Ingest"}
+            </button>
+          </div>
+
+          {meetingIngested && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div style={{ fontSize: 11, color: "var(--text-secondary)", borderTop: "1px solid var(--border-color)", paddingTop: 12, fontWeight: 600 }}>── Results ──</div>
+
+              {/* Tasks */}
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>
+                  Tasks extracted: <span style={{ fontWeight: 400, color: "var(--text-secondary)" }}>{meetingTasks.length}</span>
+                </div>
+                {meetingTasks.length === 0 ? (
+                  <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>None</div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    {meetingTasks.map((t, i) => (
+                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "var(--bg-secondary)", borderRadius: 6 }}>
+                        <input
+                          type="checkbox"
+                          checked={t.checked}
+                          onChange={() => setMeetingTasks((prev) => prev.map((x, j) => j === i ? { ...x, checked: !x.checked } : x))}
+                        />
+                        <span style={{ flex: 1, fontSize: 12 }}>{t.title}</span>
+                        {t.owner && <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>{t.owner}</span>}
+                        {t.due_date && <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>{t.due_date}</span>}
+                        <button
+                          onClick={() => addTaskToBoard(t)}
+                          className="panel-btn panel-btn-secondary"
+                          style={{ fontSize: 10, padding: "2px 8px" }}
+                        >
+                          Add as Task
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Decisions / Approvals */}
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>
+                  Decisions/Approvals: <span style={{ fontWeight: 400, color: "var(--text-secondary)" }}>{meetingApprovals.length}</span>
+                </div>
+                {meetingApprovals.length === 0 ? (
+                  <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>None</div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    {meetingApprovals.map((a, i) => (
+                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "var(--bg-secondary)", borderRadius: 6 }}>
+                        <span style={{ flex: 1, fontSize: 12 }}><strong>{a.subject}</strong> — {a.decision_text}</span>
+                        <button
+                          onClick={() => createApproval(a)}
+                          className="panel-btn panel-btn-secondary"
+                          style={{ fontSize: 10, padding: "2px 8px" }}
+                        >
+                          Create Approval
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Follow-ups */}
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>
+                  Follow-ups: <span style={{ fontWeight: 400, color: "var(--text-secondary)" }}>{meetingFollowups.length}</span>
+                </div>
+                {meetingFollowups.length === 0 ? (
+                  <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>None</div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    {meetingFollowups.map((f, i) => (
+                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "var(--bg-secondary)", borderRadius: 6 }}>
+                        <span style={{ flex: 1, fontSize: 12 }}>{f.text}</span>
+                        {f.due_date && (
+                          <span style={{ fontSize: 10, color: "var(--accent-gold)", padding: "1px 6px", background: "rgba(255,193,7,0.12)", borderRadius: 6 }}>
+                            due: {f.due_date}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      </div>
     </div>
   );
 }

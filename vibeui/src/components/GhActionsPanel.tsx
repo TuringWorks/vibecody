@@ -72,32 +72,6 @@ const GhActionsPanel: React.FC = () => {
     loadHistory();
   }, [loadTemplates, loadSecrets, loadHistory]);
 
-  const containerStyle: React.CSSProperties = {
-    padding: "16px", color: "var(--text-primary)",
-    backgroundColor: "var(--bg-primary)",
-    fontFamily: "inherit", fontSize: "13px",
-    height: "100%", overflow: "auto",
-  };
-  const tabBar: React.CSSProperties = { display: "flex", gap: 2, borderBottom: "1px solid var(--border-color)", padding: "0 16px", flexShrink: 0 };
-  const tab = (active: boolean): React.CSSProperties => ({
-    padding: "8px 16px", cursor: "pointer", border: "none",
-    backgroundColor: active ? "var(--bg-secondary)" : "transparent",
-    color: active ? "var(--text-primary)" : "var(--text-secondary)",
-    borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent",
-  });
-  const btn: React.CSSProperties = {
-    padding: "6px 14px", border: "none", borderRadius: "4px", cursor: "pointer",
-    backgroundColor: "var(--accent-color)", color: "var(--btn-primary-fg)",
-  };
-  const input: React.CSSProperties = {
-    padding: "6px 10px", borderRadius: "4px", border: "1px solid var(--border-color)",
-    backgroundColor: "var(--bg-secondary)", color: "var(--text-primary)", boxSizing: "border-box",
-  };
-  const card: React.CSSProperties = {
-    padding: "12px", marginBottom: "8px", borderRadius: "6px",
-    backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border-color)",
-  };
-
   const generateYaml = async () => {
     setError("");
     const activeTriggers = Object.entries(triggers).filter(([, v]) => v).map(([k]) => k);
@@ -164,131 +138,134 @@ const GhActionsPanel: React.FC = () => {
   };
 
   return (
-    <div style={containerStyle}>
-      <h3 style={{ margin: "0 0 12px" }}>GitHub Actions</h3>
+    <div className="panel-container">
+      <div className="panel-header">
+        <h3 style={{ margin: 0 }}>GitHub Actions</h3>
+      </div>
       {error && (
-        <div style={{ padding: "8px 12px", marginBottom: "12px", borderRadius: "4px", backgroundColor: "var(--error-bg, #3a1515)", color: "var(--error-color, #f87171)", border: "1px solid var(--error-color, #f87171)" }}>
-          {error}
-        </div>
+        <div className="panel-error">{error}</div>
       )}
-      <div style={tabBar}>
+      <div className="panel-tab-bar">
         {["workflows", "templates", "secrets", "history"].map(t => (
-          <button key={t} style={tab(activeTab === t)} onClick={() => setActiveTab(t)}>
+          <button key={t} className={`panel-tab${activeTab === t ? " active" : ""}`} onClick={() => setActiveTab(t)}>
             {t.charAt(0).toUpperCase() + t.slice(1)}
           </button>
         ))}
       </div>
 
-      {activeTab === "workflows" && (
-        <div>
-          <div style={card}>
-            <h4 style={{ margin: "0 0 12px" }}>Workflow Configuration</h4>
-            <div style={{ marginBottom: "12px" }}>
-              <label style={{ display: "block", marginBottom: "4px", fontWeight: 600 }}>Workflow Name</label>
-              <input style={{ ...input, width: "100%" }} value={workflowName} onChange={e => setWorkflowName(e.target.value)} />
-            </div>
-            <div style={{ marginBottom: "12px" }}>
-              <label style={{ display: "block", marginBottom: "4px", fontWeight: 600 }}>Triggers</label>
-              <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
-                {Object.entries(triggers).map(([key, val]) => (
-                  <label key={key} style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                    <input type="checkbox" checked={val} onChange={e => setTriggers(prev => ({ ...prev, [key]: e.target.checked }))} />
-                    {key}
-                  </label>
-                ))}
+      <div className="panel-body">
+        {activeTab === "workflows" && (
+          <div>
+            <div className="panel-card">
+              <h4 style={{ margin: "0 0 12px" }}>Workflow Configuration</h4>
+              <div style={{ marginBottom: "12px" }}>
+                <label className="panel-label">Workflow Name</label>
+                <input style={{ padding: "6px 10px", borderRadius: "4px", border: "1px solid var(--border-color)", backgroundColor: "var(--bg-secondary)", color: "var(--text-primary)", boxSizing: "border-box", width: "100%" }} value={workflowName} onChange={e => setWorkflowName(e.target.value)} />
               </div>
-            </div>
-            <div style={{ marginBottom: "12px" }}>
-              <label style={{ display: "block", marginBottom: "4px", fontWeight: 600 }}>Jobs (comma-separated)</label>
-              <input style={{ ...input, width: "100%" }} value={jobs} onChange={e => setJobs(e.target.value)} />
-            </div>
-            <div style={{ display: "flex", gap: "8px" }}>
-              <button style={btn} onClick={generateYaml}>Generate YAML</button>
-            </div>
-          </div>
-          {yamlPreview && (
-            <div style={card}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                <h4 style={{ margin: 0 }}>YAML Output</h4>
-                <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                  {saveResult && <span style={{ fontSize: "12px", color: "var(--success-color, #4ade80)" }}>{saveResult}</span>}
-                  <button style={btn} onClick={saveWorkflow} disabled={saving}>
-                    {saving ? "Saving..." : "Save to .github/workflows/"}
-                  </button>
+              <div style={{ marginBottom: "12px" }}>
+                <label className="panel-label">Triggers</label>
+                <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
+                  {Object.entries(triggers).map(([key, val]) => (
+                    <label key={key} style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                      <input type="checkbox" checked={val} onChange={e => setTriggers(prev => ({ ...prev, [key]: e.target.checked }))} />
+                      {key}
+                    </label>
+                  ))}
                 </div>
               </div>
-              <pre style={{ margin: 0, padding: "12px", borderRadius: "4px", backgroundColor: "var(--bg-secondary)", overflow: "auto", fontSize: "12px", lineHeight: 1.5 }}>
-                {yamlPreview}
-              </pre>
+              <div style={{ marginBottom: "12px" }}>
+                <label className="panel-label">Jobs (comma-separated)</label>
+                <input style={{ padding: "6px 10px", borderRadius: "4px", border: "1px solid var(--border-color)", backgroundColor: "var(--bg-secondary)", color: "var(--text-primary)", boxSizing: "border-box", width: "100%" }} value={jobs} onChange={e => setJobs(e.target.value)} />
+              </div>
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button className="panel-btn panel-btn-primary" onClick={generateYaml}>Generate YAML</button>
+              </div>
             </div>
-          )}
-        </div>
-      )}
+            {yamlPreview && (
+              <div className="panel-card">
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                  <h4 style={{ margin: 0 }}>YAML Output</h4>
+                  <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                    {saveResult && <span style={{ fontSize: "12px", color: "var(--success-color, #4ade80)" }}>{saveResult}</span>}
+                    <button className="panel-btn panel-btn-primary" onClick={saveWorkflow} disabled={saving}>
+                      {saving ? "Saving..." : "Save to .github/workflows/"}
+                    </button>
+                  </div>
+                </div>
+                <pre style={{ margin: 0, padding: "12px", borderRadius: "4px", backgroundColor: "var(--bg-secondary)", overflow: "auto", fontSize: "12px", lineHeight: 1.5 }}>
+                  {yamlPreview}
+                </pre>
+              </div>
+            )}
+          </div>
+        )}
 
-      {activeTab === "templates" && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "8px" }}>
-          {templates.map(t => (
-            <div key={t.id} style={card}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                <strong>{t.name}</strong>
-                <span style={{ opacity: 0.6, fontSize: "11px" }}>{t.category}</span>
+        {activeTab === "templates" && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "8px" }}>
+            {templates.map(t => (
+              <div key={t.id} className="panel-card">
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                  <strong>{t.name}</strong>
+                  <span style={{ opacity: 0.6, fontSize: "11px" }}>{t.category}</span>
+                </div>
+                <p style={{ margin: "0 0 8px", opacity: 0.8, fontSize: "13px" }}>{t.description}</p>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ opacity: 0.6, fontSize: "12px" }}>~{t.estimatedMinutes} min</span>
+                  <button className="panel-btn panel-btn-primary" onClick={() => generateFromTemplate(t)}>Generate</button>
+                </div>
               </div>
-              <p style={{ margin: "0 0 8px", opacity: 0.8, fontSize: "13px" }}>{t.description}</p>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ opacity: 0.6, fontSize: "12px" }}>~{t.estimatedMinutes} min</span>
-                <button style={btn} onClick={() => generateFromTemplate(t)}>Generate</button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
 
-      {activeTab === "secrets" && (
-        <div>
-          <h4 style={{ margin: "0 0 12px" }}>Required Secrets</h4>
-          {secrets.map((s, i) => (
-            <div key={i} style={{ ...card, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <div>
-                <strong>{s.name}</strong>
-                {s.required && <span style={{ marginLeft: "6px", fontSize: "11px", color: "var(--error-color)" }}>required</span>}
-                <div style={{ opacity: 0.7, fontSize: "12px", marginTop: "2px" }}>{s.description}</div>
+        {activeTab === "secrets" && (
+          <div>
+            <h4 style={{ margin: "0 0 12px" }}>Required Secrets</h4>
+            {secrets.map((s, i) => (
+              <div key={i} className="panel-card" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div>
+                  <strong>{s.name}</strong>
+                  {s.required && <span style={{ marginLeft: "6px", fontSize: "11px", color: "var(--error-color)" }}>required</span>}
+                  <div style={{ opacity: 0.7, fontSize: "12px", marginTop: "2px" }}>{s.description}</div>
+                </div>
               </div>
-            </div>
-          ))}
-          <div style={{ ...card, marginTop: "16px" }}>
-            <h4 style={{ margin: "0 0 8px" }}>Add Secret</h4>
-            <div style={{ display: "flex", gap: "8px" }}>
-              <input style={{ ...input, flex: 1 }} placeholder="SECRET_NAME" value={newSecretName} onChange={e => setNewSecretName(e.target.value)} />
-              <input style={{ ...input, flex: 2 }} placeholder="Description" value={newSecretDesc} onChange={e => setNewSecretDesc(e.target.value)} />
-              <button style={btn} onClick={addSecret}>Add</button>
+            ))}
+            <div className="panel-card" style={{ marginTop: "16px" }}>
+              <h4 style={{ margin: "0 0 8px" }}>Add Secret</h4>
+              <div style={{ display: "flex", gap: "8px" }}>
+                <input style={{ flex: 1, padding: "6px 10px", borderRadius: "4px", border: "1px solid var(--border-color)", backgroundColor: "var(--bg-secondary)", color: "var(--text-primary)", boxSizing: "border-box" }} placeholder="SECRET_NAME" value={newSecretName} onChange={e => setNewSecretName(e.target.value)} />
+                <input style={{ flex: 2, padding: "6px 10px", borderRadius: "4px", border: "1px solid var(--border-color)", backgroundColor: "var(--bg-secondary)", color: "var(--text-primary)", boxSizing: "border-box" }} placeholder="Description" value={newSecretDesc} onChange={e => setNewSecretDesc(e.target.value)} />
+                <button className="panel-btn panel-btn-primary" onClick={addSecret}>Add</button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {activeTab === "history" && (
-        <div>
-          <h4 style={{ margin: "0 0 12px" }}>Generated Workflows</h4>
-          {history.length === 0 && <p style={{ opacity: 0.6 }}>No workflows generated yet.</p>}
-          {history.map((h, i) => (
-            <div key={h.id || i} style={card}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                <strong>{h.name}</strong>
-                <span style={{ opacity: 0.6, fontSize: "11px" }}>{h.generatedAt ? new Date(h.generatedAt).toLocaleString() : ""}</span>
+        {activeTab === "history" && (
+          <div>
+            <h4 style={{ margin: "0 0 12px" }}>Generated Workflows</h4>
+            {history.length === 0 && <p style={{ opacity: 0.6 }}>No workflows generated yet.</p>}
+            {history.map((h, i) => (
+              <div key={h.id || i} className="panel-card">
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                  <strong>{h.name}</strong>
+                  <span style={{ opacity: 0.6, fontSize: "11px" }}>{h.generatedAt ? new Date(h.generatedAt).toLocaleString() : ""}</span>
+                </div>
+                <div style={{ fontSize: "12px", opacity: 0.7, marginBottom: "4px" }}>
+                  Triggers: {(h.triggers || []).join(", ")} | Jobs: {(h.jobs || []).join(", ")}
+                </div>
+                <button
+                  className="panel-btn panel-btn-secondary"
+                  style={{ fontSize: "11px", padding: "4px 10px" }}
+                  onClick={() => { setYamlPreview(h.yaml || ""); setWorkflowName(h.name); setActiveTab("workflows"); }}
+                >
+                  View YAML
+                </button>
               </div>
-              <div style={{ fontSize: "12px", opacity: 0.7, marginBottom: "4px" }}>
-                Triggers: {(h.triggers || []).join(", ")} | Jobs: {(h.jobs || []).join(", ")}
-              </div>
-              <button
-                style={{ ...btn, fontSize: "11px", padding: "4px 10px" }}
-                onClick={() => { setYamlPreview(h.yaml || ""); setWorkflowName(h.name); setActiveTab("workflows"); }}
-              >
-                View YAML
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

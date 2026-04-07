@@ -14,28 +14,6 @@ const STATUS_COLORS: Record<string, string> = {
   Warn: "var(--warning-color)", Skip: "var(--text-secondary)",
 };
 
-const containerStyle: React.CSSProperties = {
-  display: "flex", flexDirection: "column", height: "100%",
-  background: "var(--bg-primary)", color: "var(--text-primary)",
-  fontFamily: "inherit", overflow: "hidden",
-};
-const tabBarStyle: React.CSSProperties = {
-  display: "flex", gap: 2, padding: "8px 12px 0",
-  borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)",
-  overflowX: "auto", flexShrink: 0,
-};
-const tabStyle = (active: boolean): React.CSSProperties => ({
-  padding: "8px 14px", cursor: "pointer",
-  background: active ? "var(--bg-primary)" : "transparent",
-  color: active ? "var(--text-primary)" : "var(--text-secondary)",
-  border: "none", borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent",
-  fontSize: 13, fontFamily: "inherit", whiteSpace: "nowrap",
-});
-const contentStyle: React.CSSProperties = { flex: 1, overflow: "auto", padding: 16 };
-const cardStyle: React.CSSProperties = {
-  background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 8,
-  border: "1px solid var(--border-color)",
-};
 const badgeStyle = (color: string): React.CSSProperties => ({
   display: "inline-block", padding: "2px 8px", borderRadius: 10,
   fontSize: 11, background: color, color: "var(--bg-primary)", fontWeight: 600,
@@ -80,15 +58,15 @@ const CiGatesPanel: React.FC = () => {
   };
 
   return (
-    <div style={containerStyle} role="region" aria-label="CI Gates Panel">
-      <div style={tabBarStyle} role="tablist" aria-label="CI Gates tabs">
+    <div className="panel-container" role="region" aria-label="CI Gates Panel">
+      <div className="panel-tab-bar" role="tablist" aria-label="CI Gates tabs">
         {TABS.map(t => (
-          <button key={t} role="tab" aria-selected={tab === t} style={tabStyle(tab === t)} onClick={() => setTab(t)}>{t}</button>
+          <button key={t} role="tab" aria-selected={tab === t} className={`panel-tab ${tab === t ? "active" : ""}`} onClick={() => setTab(t)}>{t}</button>
         ))}
       </div>
-      <div style={contentStyle} role="tabpanel" aria-label={tab}>
+      <div className="panel-body" role="tabpanel" aria-label={tab}>
         {tab === "Rules" && gates.map((r, i) => (
-          <div key={i} style={{ ...cardStyle, opacity: r.enabled ? 1 : 0.5 }}>
+          <div key={i} className="panel-card" style={{ opacity: r.enabled ? 1 : 0.5 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <strong>{r.name}</strong>
@@ -105,7 +83,7 @@ const CiGatesPanel: React.FC = () => {
           </div>
         ))}
         {tab === "Reports" && (
-          <div style={{ textAlign: "center", padding: 40, color: "var(--text-secondary)" }}>
+          <div className="panel-empty">
             <div style={{ fontSize: 14 }}>No CI reports yet</div>
             <div style={{ fontSize: 12, marginTop: 4 }}>Reports will appear after CI runs complete</div>
           </div>

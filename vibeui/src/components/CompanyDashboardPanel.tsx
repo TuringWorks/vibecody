@@ -21,15 +21,6 @@ interface Company {
   active: boolean;
 }
 
-const btnStyle: React.CSSProperties = {
-  fontSize: 11, padding: "3px 10px", cursor: "pointer", borderRadius: 4,
-  background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", color: "var(--text-primary)",
-};
-
-const dangerBtn: React.CSSProperties = {
-  ...btnStyle, border: "1px solid var(--danger, #e74c3c)", color: "var(--danger, #e74c3c)",
-};
-
 const inputStyle: React.CSSProperties = {
   fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)",
   border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)",
@@ -126,25 +117,22 @@ export function CompanyDashboardPanel({ workspacePath: _wp }: CompanyDashboardPa
   };
 
   return (
-    <div style={{ padding: 16, height: "100%", overflowY: "auto", fontSize: 13 }}>
-
+    <div className="panel-container">
       {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+      <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <span style={{ fontWeight: 700, fontSize: 15 }}>Companies</span>
         <div style={{ display: "flex", gap: 6 }}>
-          <button onClick={() => { setShowCreate(!showCreate); setCreateError(null); }} style={btnStyle}>
+          <button onClick={() => { setShowCreate(!showCreate); setCreateError(null); }} className="panel-btn panel-btn-secondary">
             {showCreate ? "Cancel" : "+ New Company"}
           </button>
-          <button onClick={load} style={btnStyle}>Refresh</button>
+          <button onClick={load} className="panel-btn panel-btn-secondary">Refresh</button>
         </div>
       </div>
+      <div className="panel-body">
 
       {/* Create form */}
       {showCreate && (
-        <div style={{
-          background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)",
-          borderRadius: 6, padding: 12, marginBottom: 16,
-        }}>
+        <div className="panel-card" style={{ marginBottom: 16 }}>
           <div style={{ fontWeight: 600, marginBottom: 10, fontSize: 13 }}>Create Company</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <input
@@ -162,16 +150,17 @@ export function CompanyDashboardPanel({ workspacePath: _wp }: CompanyDashboardPa
               placeholder="Description (optional)"
               style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
             />
-            {createError && <div style={{ color: "var(--danger, #e74c3c)", fontSize: 12 }}>{createError}</div>}
+            {createError && <div className="panel-error" style={{ fontSize: 12 }}>{createError}</div>}
             <div style={{ display: "flex", gap: 8 }}>
               <button
                 onClick={createCompany}
                 disabled={creating || !newName.trim()}
-                style={{ ...btnStyle, padding: "5px 16px", opacity: creating ? 0.6 : 1 }}
+                className="panel-btn panel-btn-primary"
+                style={{ opacity: creating ? 0.6 : 1 }}
               >
                 {creating ? "Creating…" : "Create"}
               </button>
-              <button onClick={() => setShowCreate(false)} style={btnStyle}>Cancel</button>
+              <button onClick={() => setShowCreate(false)} className="panel-btn panel-btn-secondary">Cancel</button>
             </div>
           </div>
         </div>
@@ -179,30 +168,24 @@ export function CompanyDashboardPanel({ workspacePath: _wp }: CompanyDashboardPa
 
       {/* Action feedback */}
       {actionMsg && (
-        <div style={{
-          background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)",
-          borderRadius: 4, padding: 8, marginBottom: 12, fontSize: 12,
-        }}>
+        <div className="panel-card" style={{ marginBottom: 12, fontSize: 12 }}>
           {actionMsg}
           <button onClick={() => setActionMsg(null)} style={{ marginLeft: 8, cursor: "pointer", background: "none", border: "none", color: "var(--text-secondary)", display: "inline-flex" }}><X size={12} /></button>
         </div>
       )}
 
-      {loading && <div style={{ color: "var(--text-secondary)", marginBottom: 12 }}>Loading…</div>}
-      {error && <div style={{ color: "var(--danger, #e74c3c)", marginBottom: 12 }}>{error}</div>}
+      {loading && <div className="panel-loading">Loading…</div>}
+      {error && <div className="panel-error" style={{ marginBottom: 12 }}>{error}</div>}
 
       {/* Company list */}
       {!loading && companies.length === 0 && !error && (
-        <div style={{
-          background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)",
-          borderRadius: 6, padding: 24, textAlign: "center",
-        }}>
+        <div className="panel-empty" style={{ padding: 24 }}>
           <div style={{ marginBottom: 8, display: "flex", justifyContent: "center", color: "var(--accent, #4a9eff)" }}><Building2 size={32} strokeWidth={1.5} /></div>
           <div style={{ fontWeight: 600, marginBottom: 4 }}>No companies yet</div>
           <div style={{ color: "var(--text-secondary)", fontSize: 12, marginBottom: 16 }}>
             Create your first company to get started
           </div>
-          <button onClick={() => setShowCreate(true)} style={{ ...btnStyle, padding: "6px 20px", fontSize: 12 }}>
+          <button onClick={() => setShowCreate(true)} className="panel-btn panel-btn-primary" style={{ fontSize: 12 }}>
             + Create Company
           </button>
         </div>
@@ -211,10 +194,10 @@ export function CompanyDashboardPanel({ workspacePath: _wp }: CompanyDashboardPa
       {companies.map((c) => (
         <div
           key={c.name}
+          className="panel-card"
           style={{
-            background: c.active ? "var(--selection-bg, rgba(99,179,237,0.1))" : "var(--panel-bg, rgba(0,0,0,0.2))",
+            background: c.active ? "var(--selection-bg, rgba(99,179,237,0.1))" : undefined,
             border: `1px solid ${c.active ? "var(--accent, #4a9eff)" : "var(--border-color)"}`,
-            borderRadius: 6, padding: "10px 12px", marginBottom: 8,
             display: "flex", alignItems: "center", gap: 10,
           }}
         >
@@ -235,11 +218,11 @@ export function CompanyDashboardPanel({ workspacePath: _wp }: CompanyDashboardPa
           </div>
           <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
             {!c.active && (
-              <button onClick={() => switchCompany(c.name)} style={{ ...btnStyle, fontSize: 10, padding: "2px 8px" }}>
+              <button onClick={() => switchCompany(c.name)} className="panel-btn panel-btn-secondary" style={{ fontSize: 10, padding: "2px 8px" }}>
                 Switch
               </button>
             )}
-            <button onClick={() => deleteCompany(c.name)} style={{ ...dangerBtn, fontSize: 10, padding: "2px 8px" }}>
+            <button onClick={() => deleteCompany(c.name)} className="panel-btn panel-btn-danger" style={{ fontSize: 10, padding: "2px 8px" }}>
               Archive
             </button>
           </div>
@@ -250,16 +233,14 @@ export function CompanyDashboardPanel({ workspacePath: _wp }: CompanyDashboardPa
       {rawStatus && rawStatus !== "No companies yet.\nUse: /company create <name>" && (
         <div style={{ marginTop: 16 }}>
           <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 6, fontWeight: 600 }}>STATUS</div>
-          <div style={{
-            background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)",
-            borderRadius: 6, padding: 12,
-          }}>
+          <div className="panel-card">
             <pre style={{ margin: 0, fontSize: 11, whiteSpace: "pre-wrap", lineHeight: 1.5 }}>
               {rawStatus}
             </pre>
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

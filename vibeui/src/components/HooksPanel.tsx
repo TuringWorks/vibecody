@@ -48,13 +48,6 @@ function HookRow({
  onChange(index, { ...hook, ...patch });
  }
 
- const labelStyle: React.CSSProperties = {
- fontSize: "10px",
- color: "var(--text-secondary)",
- marginBottom: "3px",
- textTransform: "uppercase",
- letterSpacing: "0.06em",
- };
  const inputStyle: React.CSSProperties = {
  width: "100%",
  padding: "5px 7px",
@@ -121,7 +114,7 @@ function HookRow({
  {/* Event + Handler type row */}
  <div style={{ display: "flex", gap: "10px" }}>
  <div style={{ flex: 1 }}>
- <div style={labelStyle}>Event</div>
+ <label className="panel-label">Event</label>
  <select
  value={hook.event}
  onChange={(e) => update({ event: e.target.value })}
@@ -133,7 +126,7 @@ function HookRow({
  </select>
  </div>
  <div style={{ flex: 1 }}>
- <div style={labelStyle}>Handler</div>
+ <label className="panel-label">Handler</label>
  <select
  value={hook.handler_type}
  onChange={(e) => update({ handler_type: e.target.value as "command" | "llm" | "http" })}
@@ -148,7 +141,7 @@ function HookRow({
 
  {/* Tool filter */}
  <div>
- <div style={labelStyle}>Tool Filter (comma-separated, empty = all)</div>
+ <label className="panel-label">Tool Filter (comma-separated, empty = all)</label>
  <input
  type="text"
  value={hook.tools.join(", ")}
@@ -167,7 +160,7 @@ function HookRow({
  {/* Command, LLM prompt, or HTTP webhook */}
  {hook.handler_type === "command" ? (
  <div>
- <div style={labelStyle}>Shell Command</div>
+ <label className="panel-label">Shell Command</label>
  <input
  type="text"
  value={hook.command}
@@ -183,7 +176,7 @@ function HookRow({
  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
  <div style={{ display: "flex", gap: "10px" }}>
  <div style={{ flex: 1 }}>
- <div style={labelStyle}>Webhook URL</div>
+ <label className="panel-label">Webhook URL</label>
  <input
  type="text"
  value={hook.http_url}
@@ -193,7 +186,7 @@ function HookRow({
  />
  </div>
  <div style={{ width: "100px" }}>
- <div style={labelStyle}>Method</div>
+ <label className="panel-label">Method</label>
  <select
  value={hook.http_method}
  onChange={(e) => update({ http_method: e.target.value })}
@@ -207,7 +200,7 @@ function HookRow({
  </div>
  </div>
  <div>
- <div style={labelStyle}>Headers (JSON, optional)</div>
+ <label className="panel-label">Headers (JSON, optional)</label>
  <input
  type="text"
  value={hook.http_headers}
@@ -217,7 +210,7 @@ function HookRow({
  />
  </div>
  <div>
- <div style={labelStyle}>Timeout (ms)</div>
+ <label className="panel-label">Timeout (ms)</label>
  <input
  type="number"
  value={hook.http_timeout_ms}
@@ -231,7 +224,7 @@ function HookRow({
  </div>
  ) : (
  <div>
- <div style={labelStyle}>LLM Prompt Template</div>
+ <label className="panel-label">LLM Prompt Template</label>
  <textarea
  value={hook.prompt}
  onChange={(e) => update({ prompt: e.target.value })}
@@ -310,16 +303,9 @@ export function HooksPanel({ workspacePath }: HooksPanelProps) {
  const scope = workspacePath ? "workspace (.vibecli/hooks.json)" : "global (~/.vibecli/hooks.json)";
 
  return (
- <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+ <div className="panel-container">
  {/* Header */}
- <div style={{
- padding: "10px 12px",
- borderBottom: "1px solid var(--border-color)",
- display: "flex",
- alignItems: "center",
- gap: "8px",
- flexShrink: 0,
- }}>
+ <div className="panel-header">
  <span style={{ display: "inline-flex", alignItems: "center" }}><Webhook size={18} strokeWidth={1.5} /></span>
  <div style={{ flex: 1 }}>
  <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>
@@ -346,23 +332,15 @@ export function HooksPanel({ workspacePath }: HooksPanelProps) {
  <button
  onClick={save}
  disabled={!dirty || saving}
- style={{
- fontSize: "11px",
- padding: "4px 10px",
- background: dirty ? "var(--accent-color)" : "var(--bg-secondary)",
- color: dirty ? "var(--text-primary)" : "var(--text-secondary)",
- border: "none",
- borderRadius: "3px",
- cursor: dirty ? "pointer" : "not-allowed",
- fontWeight: 600,
- }}
+ className={`panel-btn ${dirty ? "panel-btn-primary" : "panel-btn-secondary"}`}
+ style={{ cursor: dirty ? "pointer" : "not-allowed" }}
  >
  {saving ? "Saving…" : "Save"}
  </button>
  </div>
 
  {/* Hook list */}
- <div style={{ flex: 1, overflowY: "auto", padding: "10px" }}>
+ <div className="panel-body">
  {saveMsg && (
  <div style={{
  padding: "6px 10px",
@@ -378,7 +356,7 @@ export function HooksPanel({ workspacePath }: HooksPanelProps) {
  )}
 
  {hooks.length === 0 ? (
- <div style={{ padding: "24px 0", textAlign: "center", color: "var(--text-secondary)" }}>
+ <div className="panel-empty">
  <div style={{ fontSize: "24px", marginBottom: "8px", display: "flex", justifyContent: "center" }}><Webhook size={28} strokeWidth={1.5} /></div>
  <div style={{ fontSize: "13px" }}>No hooks configured.</div>
  <div style={{ fontSize: "11px", marginTop: "4px", opacity: 0.7 }}>
@@ -386,16 +364,8 @@ export function HooksPanel({ workspacePath }: HooksPanelProps) {
  </div>
  <button
  onClick={addHook}
- style={{
- marginTop: "12px",
- fontSize: "12px",
- padding: "6px 16px",
- background: "var(--accent-color)",
- color: "var(--text-primary)",
- border: "none",
- borderRadius: "4px",
- cursor: "pointer",
- }}
+ className="panel-btn panel-btn-primary"
+ style={{ marginTop: "12px" }}
  >
  + Add First Hook
  </button>

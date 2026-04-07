@@ -353,7 +353,7 @@ export function McpPanel() {
             const res = testResult[idx];
             const isTools = Array.isArray(res); const isErr = typeof res === "string";
             return (
-              <div key={srv.name} style={cardStyle}>
+              <div key={srv.name} className="panel-card">
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ fontSize: 13, fontWeight: 600, flex: 1 }}>
                     {srv.name}
@@ -398,7 +398,7 @@ export function McpPanel() {
                 /* Also search built-in tools */
                 const q = toolSearch.toLowerCase();
                 const builtInMatches = BUILTIN_TOOLS.filter(t => t.name.toLowerCase().includes(q) || t.description.toLowerCase().includes(q));
-                if (builtInMatches.length === 0) return <div style={cardStyle}>No tools matching &quot;{toolSearch}&quot;.</div>;
+                if (builtInMatches.length === 0) return <div className="panel-card">No tools matching &quot;{toolSearch}&quot;.</div>;
                 return builtInMatches.map(t => (
                   <div key={t.name} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div style={{ flex: 1 }}>
@@ -669,9 +669,9 @@ export function McpPanel() {
             </select>
           </div>
           <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8 }}>{dirResults.length} plugins | {installedCount} installed</div>
-          {dirLoading && <div style={cardStyle}>Loading...</div>}
+          {dirLoading && <div className="panel-card">Loading...</div>}
           {dirResults.map(p => (
-            <div key={p.id} style={cardStyle}>
+            <div key={p.id} className="panel-card">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600 }}>{p.name} <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>v{p.version}</span></div>
@@ -699,7 +699,7 @@ export function McpPanel() {
             const installed = plugins.filter(p => p.installed);
             if (installed.length === 0) {
               return (
-                <div style={cardStyle}>
+                <div className="panel-card">
                   <div style={{ textAlign: "center", padding: "20px 0" }}>
                     <div style={{ fontSize: 14, marginBottom: 8 }}>No MCP plugins installed</div>
                     <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 12 }}>
@@ -858,7 +858,7 @@ export function McpPanel() {
             <label style={{ fontSize: 12, display: "flex", flexDirection: "column", gap: 4 }}>Command<input type="text" value={editing.command} onChange={e => setEditing({ ...editing, command: e.target.value })} placeholder="npx @modelcontextprotocol/server-github" style={inputStyle} /></label>
             <label style={{ fontSize: 12, display: "flex", flexDirection: "column", gap: 4 }}>Args (space-separated)<input type="text" value={editing.args.join(" ")} onChange={e => setEditing({ ...editing, args: e.target.value ? e.target.value.split(" ") : [] })} placeholder="optional" style={inputStyle} /></label>
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-              <button onClick={() => { setEditing(null); setEditIdx(null); }} style={btnStyle}>Cancel</button>
+              <button onClick={() => { setEditing(null); setEditIdx(null); }} className="panel-btn panel-btn-secondary">Cancel</button>
               <button onClick={commitEdit} disabled={!editing.name.trim() || !editing.command.trim() || saving} style={{ ...btnStyle, background: "var(--accent-color)" }}>{saving ? "Saving..." : editIdx === null ? "Add" : "Save"}</button>
             </div>
           </div>
@@ -879,7 +879,7 @@ export function McpPanel() {
             )}
             {oauthForm.msg && <div style={{ fontSize: 11, padding: "6px 8px", borderRadius: 4, background: oauthForm.msg.startsWith("Error") ? "color-mix(in srgb, var(--accent-rose) 15%, transparent)" : "color-mix(in srgb, var(--accent-green) 15%, transparent)", color: oauthForm.msg.startsWith("Error") ? "var(--error-color)" : "var(--success-color)" }}>{oauthForm.msg}</div>}
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-              <button onClick={() => setOauthForm(null)} style={btnStyle}>Cancel</button>
+              <button onClick={() => setOauthForm(null)} className="panel-btn panel-btn-secondary">Cancel</button>
               {oauthForm.step === "config" ? (
                 <button onClick={initiateOAuth} disabled={oauthForm.busy || !oauthForm.clientId || !oauthForm.authUrl} style={{ ...btnStyle, background: "var(--accent-color)" }}>{oauthForm.busy ? "Opening..." : "Open Browser"}</button>
               ) : (
@@ -896,7 +896,7 @@ export function McpPanel() {
             <div style={{ fontSize: 13, fontWeight: 600 }}>Remove Server?</div>
             <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Remove <strong>{servers[confirmDelete]?.name}</strong>?</div>
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-              <button onClick={() => setConfirmDelete(null)} style={btnStyle}>Cancel</button>
+              <button onClick={() => setConfirmDelete(null)} className="panel-btn panel-btn-secondary">Cancel</button>
               <button onClick={async () => { await saveServers(servers.filter((_, i) => i !== confirmDelete)); setConfirmDelete(null); }} style={{ ...btnStyle, background: "var(--error-color)" }}>Remove</button>
             </div>
           </div>

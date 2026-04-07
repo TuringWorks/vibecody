@@ -87,34 +87,6 @@ export function StreamingPanel() {
 
   const selectStyle: React.CSSProperties = { ...inputStyle };
 
-  const labelStyle: React.CSSProperties = {
-    fontSize: 11,
-    color: "var(--text-secondary)",
-    marginBottom: 2,
-    display: "block",
-  };
-
-  const btnPrimary: React.CSSProperties = {
-    background: "var(--accent)",
-    color: "var(--text-primary)",
-    border: "none",
-    borderRadius: 4,
-    padding: "6px 14px",
-    cursor: "pointer",
-    fontSize: 12,
-    fontWeight: 600,
-  };
-
-  const btnSecondary: React.CSSProperties = {
-    background: "var(--bg-secondary)",
-    border: "1px solid var(--border)",
-    borderRadius: 4,
-    padding: "6px 14px",
-    cursor: "pointer",
-    fontSize: 12,
-    color: "var(--text-primary)",
-  };
-
   const codeBlock: React.CSSProperties = {
     background: "var(--bg-secondary)",
     border: "1px solid var(--border)",
@@ -262,23 +234,14 @@ export function StreamingPanel() {
   ];
 
   return (
-    <div style={{ height: "100%", display: "flex", flexDirection: "column", background: "var(--bg-primary)", color: "var(--text-primary)" }}>
+    <div className="panel-container">
       {/* Tab bar */}
-      <div style={{ display: "flex", borderBottom: "1px solid var(--border)", padding: "0 12px" }}>
+      <div className="panel-tab-bar">
         {tabs.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            style={{
-              background: "none",
-              border: "none",
-              borderBottom: tab === t.key ? "2px solid var(--accent)" : "2px solid transparent",
-              padding: "8px 14px",
-              cursor: "pointer",
-              fontSize: 12,
-              fontWeight: tab === t.key ? 600 : 400,
-              color: tab === t.key ? "var(--text-primary)" : "var(--text-secondary)",
-            }}
+            className={`panel-tab ${tab === t.key ? "active" : ""}`}
           >
             {t.label}
           </button>
@@ -286,14 +249,14 @@ export function StreamingPanel() {
       </div>
 
       {/* Tab content */}
-      <div style={{ flex: 1, overflow: "auto", padding: 16 }}>
+      <div className="panel-body">
         {/* ===== Topics ===== */}
         {tab === "topics" && (
           <div>
             <h3 style={{ margin: "0 0 12px", fontSize: 14 }}>Create Topic</h3>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr auto", gap: 8, alignItems: "end", marginBottom: 16 }}>
               <div>
-                <label style={labelStyle}>Name</label>
+                <label className="panel-label">Name</label>
                 <input
                   value={topicName}
                   onChange={(e) => setTopicName(e.target.value)}
@@ -303,7 +266,7 @@ export function StreamingPanel() {
                 />
               </div>
               <div>
-                <label style={labelStyle}>Partitions</label>
+                <label className="panel-label">Partitions</label>
                 <input
                   type="number"
                   min={1}
@@ -313,7 +276,7 @@ export function StreamingPanel() {
                 />
               </div>
               <div>
-                <label style={labelStyle}>Replication Factor</label>
+                <label className="panel-label">Replication Factor</label>
                 <input
                   type="number"
                   min={1}
@@ -323,7 +286,7 @@ export function StreamingPanel() {
                 />
               </div>
               <div>
-                <label style={labelStyle}>Cleanup Policy</label>
+                <label className="panel-label">Cleanup Policy</label>
                 <select
                   value={cleanupPolicy}
                   onChange={(e) => setCleanupPolicy(e.target.value as CleanupPolicy)}
@@ -334,16 +297,16 @@ export function StreamingPanel() {
                   <option value="compact,delete">compact,delete</option>
                 </select>
               </div>
-              <button onClick={handleAddTopic} style={btnPrimary}>
+              <button onClick={handleAddTopic} className="panel-btn panel-btn-primary">
                 Add
               </button>
             </div>
 
             {/* Topics table */}
             {loading ? (
-              <div style={{ opacity: 0.5, fontSize: 12 }}>Loading topics...</div>
+              <div className="panel-loading">Loading topics...</div>
             ) : topics.length === 0 ? (
-              <div style={{ opacity: 0.5, fontSize: 12 }}>No topics created yet. Use the form above to add topics.</div>
+              <div className="panel-empty">No topics created yet. Use the form above to add topics.</div>
             ) : (
               <div style={{ overflowX: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, fontFamily: "var(--font-mono)" }}>
@@ -387,19 +350,19 @@ export function StreamingPanel() {
             <h3 style={{ margin: "0 0 12px", fontSize: 14 }}>Client Configuration</h3>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
               <div>
-                <label style={labelStyle}>Bootstrap Servers</label>
+                <label className="panel-label">Bootstrap Servers</label>
                 <input value={brokers} onChange={(e) => setBrokers(e.target.value)} placeholder="localhost:9092" style={inputStyle} />
               </div>
               <div>
-                <label style={labelStyle}>Topic</label>
+                <label className="panel-label">Topic</label>
                 <input value={pcTopic} onChange={(e) => setPcTopic(e.target.value)} placeholder="my-topic" style={inputStyle} />
               </div>
               <div>
-                <label style={labelStyle}>Group ID</label>
+                <label className="panel-label">Group ID</label>
                 <input value={groupId} onChange={(e) => setGroupId(e.target.value)} placeholder="my-group" style={inputStyle} />
               </div>
               <div>
-                <label style={labelStyle}>Compression</label>
+                <label className="panel-label">Compression</label>
                 <select value={compression} onChange={(e) => setCompression(e.target.value as Compression)} style={selectStyle}>
                   <option value="none">none</option>
                   <option value="gzip">gzip</option>
@@ -409,7 +372,7 @@ export function StreamingPanel() {
                 </select>
               </div>
               <div>
-                <label style={labelStyle}>Acks</label>
+                <label className="panel-label">Acks</label>
                 <select value={acks} onChange={(e) => setAcks(e.target.value as Acks)} style={selectStyle}>
                   <option value="all">all</option>
                   <option value="1">1</option>
@@ -419,8 +382,8 @@ export function StreamingPanel() {
             </div>
 
             <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-              <button onClick={generateProducerCommand} style={btnPrimary}>Generate Producer Command</button>
-              <button onClick={generateConsumerCommand} style={btnSecondary}>Generate Consumer Command</button>
+              <button onClick={generateProducerCommand} className="panel-btn panel-btn-primary">Generate Producer Command</button>
+              <button onClick={generateConsumerCommand} className="panel-btn panel-btn-secondary">Generate Consumer Command</button>
             </div>
 
             {generatedCommand && (
@@ -447,7 +410,7 @@ export function StreamingPanel() {
             <h3 style={{ margin: "0 0 12px", fontSize: 14 }}>Docker Compose Generator</h3>
             <div style={{ display: "flex", gap: 12, alignItems: "end", marginBottom: 12 }}>
               <div>
-                <label style={labelStyle}>Number of Brokers</label>
+                <label className="panel-label">Number of Brokers</label>
                 <input
                   type="number"
                   min={1}
@@ -469,7 +432,7 @@ export function StreamingPanel() {
                   Use Zookeeper (legacy)
                 </label>
               </div>
-              <button onClick={generateDockerCompose} style={btnPrimary}>Generate Compose</button>
+              <button onClick={generateDockerCompose} className="panel-btn panel-btn-primary">Generate Compose</button>
             </div>
 
             {composeYaml && (
@@ -491,29 +454,29 @@ export function StreamingPanel() {
             <h3 style={{ margin: "0 0 12px", fontSize: 14 }}>Kafka Connect — Connector Config</h3>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
               <div>
-                <label style={labelStyle}>Connector Name</label>
+                <label className="panel-label">Connector Name</label>
                 <input value={connector.name} onChange={(e) => setConnector({ ...connector, name: e.target.value })} style={inputStyle} />
               </div>
               <div>
-                <label style={labelStyle}>Connector Class</label>
+                <label className="panel-label">Connector Class</label>
                 <input value={connector.connectorClass} onChange={(e) => setConnector({ ...connector, connectorClass: e.target.value })} style={inputStyle} />
               </div>
               <div>
-                <label style={labelStyle}>Tasks Max</label>
+                <label className="panel-label">Tasks Max</label>
                 <input type="number" min={1} value={connector.tasksMax} onChange={(e) => setConnector({ ...connector, tasksMax: Number(e.target.value) })} style={inputStyle} />
               </div>
               <div>
-                <label style={labelStyle}>Topics</label>
+                <label className="panel-label">Topics</label>
                 <input value={connector.topics} onChange={(e) => setConnector({ ...connector, topics: e.target.value })} placeholder="topic-a,topic-b" style={inputStyle} />
               </div>
               <div style={{ gridColumn: "1 / -1" }}>
-                <label style={labelStyle}>Connection URL</label>
+                <label className="panel-label">Connection URL</label>
                 <input value={connector.connectionUrl} onChange={(e) => setConnector({ ...connector, connectionUrl: e.target.value })} style={inputStyle} />
               </div>
             </div>
 
             <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-              <button onClick={generateConnectorConfig} style={btnPrimary}>Generate Connector JSON</button>
+              <button onClick={generateConnectorConfig} className="panel-btn panel-btn-primary">Generate Connector JSON</button>
             </div>
 
             {connectorJson && (

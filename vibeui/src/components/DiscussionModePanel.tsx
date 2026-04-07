@@ -49,35 +49,10 @@ const DiscussionModePanel: React.FC = () => {
 
   useEffect(() => { loadThreads(); }, [loadThreads]);
 
-  const containerStyle: React.CSSProperties = {
-    padding: "16px", color: "var(--text-primary)",
-    backgroundColor: "var(--bg-primary)",
-    fontFamily: "inherit", fontSize: "13px",
-    height: "100%", overflow: "auto",
-  };
-  const tabBarStyle: React.CSSProperties = {
-    display: "flex", gap: "4px", marginBottom: "16px",
-    borderBottom: "1px solid var(--border-color)", paddingBottom: "8px",
-  };
-  const tabStyle = (active: boolean): React.CSSProperties => ({
-    padding: "6px 14px", cursor: "pointer", border: "none",
-    backgroundColor: active ? "var(--accent-color)" : "transparent",
-    color: active ? "var(--btn-primary-fg)" : "var(--text-primary)",
-    borderRadius: "4px", fontSize: "13px",
-  });
   const inputStyle: React.CSSProperties = {
     width: "100%", padding: "6px 10px", boxSizing: "border-box",
     backgroundColor: "var(--bg-secondary)", color: "var(--text-primary)",
     border: "1px solid var(--border-color)", borderRadius: "4px",
-  };
-  const btnStyle: React.CSSProperties = {
-    padding: "6px 14px", cursor: "pointer", border: "none", borderRadius: "4px",
-    backgroundColor: "var(--accent-color)", color: "var(--btn-primary-fg)",
-  };
-  const cardStyle: React.CSSProperties = {
-    padding: "10px", marginBottom: "8px", borderRadius: "4px",
-    backgroundColor: "var(--bg-secondary)",
-    border: "1px solid var(--border-color)",
   };
 
   const typeColors: Record<MessageType, string> = {
@@ -188,7 +163,7 @@ const DiscussionModePanel: React.FC = () => {
   const messages = activeThread?.messages || [];
 
   const renderMessageCard = (m: DiscussionMessage) => (
-    <div key={m.id} style={cardStyle}>
+    <div key={m.id} className="panel-card">
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
         <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
           <strong>{m.author}</strong>
@@ -217,11 +192,11 @@ const DiscussionModePanel: React.FC = () => {
         <input style={{ ...inputStyle, flex: 1 }} placeholder="New thread topic..."
           value={newTopic} onChange={e => setNewTopic(e.target.value)}
           onKeyDown={e => e.key === "Enter" && handleCreateThread()} />
-        <button style={btnStyle} onClick={handleCreateThread}>New Thread</button>
+        <button className="panel-btn panel-btn-primary" onClick={handleCreateThread}>New Thread</button>
       </div>
       {threads.map(t => (
-        <div key={t.id} style={{
-          ...cardStyle, cursor: "pointer",
+        <div key={t.id} className="panel-card" style={{
+          cursor: "pointer",
           border: activeThread?.id === t.id ? "1px solid var(--accent-color)" : "1px solid var(--border-color)",
           display: "flex", justifyContent: "space-between", alignItems: "center",
         }} onClick={() => handleSelectThread(t.id)}>
@@ -229,7 +204,7 @@ const DiscussionModePanel: React.FC = () => {
             <div style={{ fontWeight: 600 }}>{t.topic}</div>
             <div style={{ fontSize: "11px", opacity: 0.6 }}>{t.messages.length} messages</div>
           </div>
-          <button style={{ ...btnStyle, backgroundColor: "var(--error-color)", padding: "4px 8px", fontSize: "11px" }}
+          <button className="panel-btn panel-btn-danger" style={{ padding: "4px 8px", fontSize: "11px" }}
             onClick={e => { e.stopPropagation(); handleDeleteThread(t.id); }}>Delete</button>
         </div>
       ))}
@@ -242,7 +217,7 @@ const DiscussionModePanel: React.FC = () => {
       {renderThreadList()}
       {activeThread && (
         <>
-          <div style={{ ...cardStyle, marginBottom: "12px" }}>
+          <div className="panel-card" style={{ marginBottom: "12px" }}>
             <div style={{ fontSize: "11px", opacity: 0.6 }}>Topic</div>
             <div style={{ fontWeight: 600, fontSize: "14px" }}>{activeThread.topic}</div>
           </div>
@@ -254,7 +229,7 @@ const DiscussionModePanel: React.FC = () => {
             </select>
             <input style={{ ...inputStyle, flex: 1 }} placeholder="Add a message..." value={newText}
               onChange={e => setNewText(e.target.value)} onKeyDown={e => e.key === "Enter" && handleAddMessage()} />
-            <button style={btnStyle} onClick={handleAddMessage}>Add</button>
+            <button className="panel-btn panel-btn-primary" onClick={handleAddMessage}>Add</button>
           </div>
         </>
       )}
@@ -266,7 +241,7 @@ const DiscussionModePanel: React.FC = () => {
     <div>
       <h3 style={{ margin: "0 0 12px" }}>Decisions & Actions ({decisions.length})</h3>
       {decisions.length === 0
-        ? <div style={{ opacity: 0.6 }}>No decisions or actions recorded yet.</div>
+        ? <div className="panel-empty">No decisions or actions recorded yet.</div>
         : decisions.map(renderMessageCard)}
     </div>
   );
@@ -281,20 +256,21 @@ const DiscussionModePanel: React.FC = () => {
       <h3 style={{ margin: "0 0 12px" }}>Discussion Summary</h3>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px", marginBottom: "16px" }}>
         {[["Decisions", decisionCount, "var(--accent-purple)"], ["Actions", actionCount, "#c62828"], ["Unresolved", unresolvedCount, "#e65100"]].map(([label, count, color]) => (
-          <div key={label as string} style={{ ...cardStyle, textAlign: "center" }}>
+          <div key={label as string} className="panel-card" style={{ textAlign: "center" }}>
             <div style={{ fontSize: "24px", fontWeight: 700, color: color as string }}>{count as number}</div>
             <div style={{ fontSize: "12px", opacity: 0.7 }}>{label as string}</div>
           </div>
         ))}
       </div>
-      <div style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <span style={{ fontWeight: 600 }}>Build State</span>
         <div style={{ display: "flex", gap: "4px" }}>
           {(["Building", "Discussing", "Paused"] as const).map(s => (
             <button key={s} onClick={() => setBuildState(s)}
-              style={{ ...btnStyle, backgroundColor: buildState === s ? stateColors[s] : "transparent",
-                color: buildState === s ? "var(--text-primary)" : "var(--text-primary)",
-                border: `1px solid ${stateColors[s]}`, fontSize: "12px", padding: "4px 10px" }}>
+              style={{ padding: "4px 10px", fontSize: "12px", cursor: "pointer", borderRadius: "4px",
+                backgroundColor: buildState === s ? stateColors[s] : "transparent",
+                color: "var(--text-primary)",
+                border: `1px solid ${stateColors[s]}` }}>
               {s}
             </button>
           ))}
@@ -304,21 +280,25 @@ const DiscussionModePanel: React.FC = () => {
   );
 
   if (loading) {
-    return <div style={containerStyle}><p>Loading discussion threads...</p></div>;
+    return <div className="panel-loading"><p>Loading discussion threads...</p></div>;
   }
 
   return (
-    <div style={containerStyle}>
-      <h2 style={{ margin: "0 0 12px" }}>Discussion Mode</h2>
-      {error && <div style={{ color: "var(--error-color)", marginBottom: "8px" }}>{error}</div>}
-      <div style={tabBarStyle}>
+    <div className="panel-container">
+      <div className="panel-header">
+        <h2 style={{ margin: 0 }}>Discussion Mode</h2>
+      </div>
+      {error && <div className="panel-error" style={{ margin: "0 16px 8px" }}>{error}</div>}
+      <div className="panel-tab-bar">
         {[["discussion", "Discussion"], ["decisions", "Decisions"], ["summary", "Summary"]].map(([id, label]) => (
-          <button key={id} style={tabStyle(activeTab === id)} onClick={() => setActiveTab(id)}>{label}</button>
+          <button key={id} className={`panel-tab ${activeTab === id ? "active" : ""}`} onClick={() => setActiveTab(id)}>{label}</button>
         ))}
       </div>
-      {activeTab === "discussion" && renderDiscussion()}
-      {activeTab === "decisions" && renderDecisions()}
-      {activeTab === "summary" && renderSummary()}
+      <div className="panel-body">
+        {activeTab === "discussion" && renderDiscussion()}
+        {activeTab === "decisions" && renderDecisions()}
+        {activeTab === "summary" && renderSummary()}
+      </div>
     </div>
   );
 };

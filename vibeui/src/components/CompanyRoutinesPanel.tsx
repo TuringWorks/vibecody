@@ -2,7 +2,7 @@
  * CompanyRoutinesPanel — Scheduled recurring agent tasks.
  *
  * Shows routines with next-run countdown and toggle switches.
- * Supports creating new routines and manual heartbeat triggers.
+ * Supports creating new routines with delivery mode and skill selection.
  */
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
@@ -12,40 +12,102 @@ interface CompanyRoutinesPanelProps {
   workspacePath?: string | null;
 }
 
+interface Routine {
+  id: string;
+  agent_id: string;
+  name: string;
+  prompt: string;
+  interval_secs: number;
+  delivery_mode: 'none' | 'announce' | 'interrupt';
+  skill_name: string | null;
+  enabled: boolean;
+  next_run_at: number | null;
+}
+
+interface SkillSummary {
+  name: string;
+  description: string;
+  filename: string;
+}
+
+const inputStyle: React.CSSProperties = {
+  fontSize: 12, padding: "4px 8px",
+  background: "var(--bg-primary)",
+  border: "1px solid var(--border-color)", borderRadius: 4,
+  color: "var(--text-primary)",
+};
+
+function deliveryBadgeStyle(mode: Routine['delivery_mode']): React.CSSProperties {
+  const color = mode === 'none' ? 'var(--text-secondary)' : mode === 'announce' ? 'var(--accent-blue)' : 'var(--accent-gold)';
+  const bg = mode === 'none' ? 'rgba(128,128,128,0.15)' : mode === 'announce' ? 'rgba(74,158,255,0.15)' : 'rgba(255,193,7,0.15)';
+  return {
+    display: 'inline-block', padding: '1px 7px', borderRadius: 10,
+    fontSize: 10, fontWeight: 600, color, background: bg, border: `1px solid ${color}`,
+  };
+}
+
+const DELIVERY_DESCRIPTIONS: Record<string, string> = {
+  none: 'Silent',
+  announce: 'Post update to channel',
+  interrupt: 'Notify principal immediately',
+};
+
 export function CompanyRoutinesPanel({ workspacePath: _wp }: CompanyRoutinesPanelProps) {
-  const [routineOutput, setRoutineOutput] = useState<string>("");
+  const [routines, setRoutines] = useState<Routine[]>([]);
+  const [skills, setSkills] = useState<SkillSummary[]>([]);
   const [heartbeatOutput, setHeartbeatOutput] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [agentId, setAgentId] = useState("");
   const [routineName, setRoutineName] = useState("");
   const [prompt, setPrompt] = useState("");
   const [intervalMin, setIntervalMin] = useState("60");
+  const [deliveryMode, setDeliveryMode] = useState<'none' | 'announce' | 'interrupt'>('none');
+  const [skillName, setSkillName] = useState<string>("");
   const [cmdResult, setCmdResult] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
     try {
-      const out = await invoke<string>("company_cmd", { args: "routine list" });
-      setRoutineOutput(out);
-    } catch (e) {
-      setRoutineOutput(`Error: ${e}`);
+      const out = await invoke<Routine[]>("company_routine_list_json");
+      setRoutines(out);
+    } catch (_e) {
+      setRoutines([]);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { load(); }, []);
+  const loadSkills = async () => {
+    try {
+      const out = await invoke<SkillSummary[]>("company_list_skills");
+      setSkills(out);
+    } catch (_e) {
+      setSkills([]);
+    }
+  };
+
+  useEffect(() => {
+    load();
+    loadSkills();
+  }, []);
 
   const createRoutine = async () => {
     if (!agentId || !routineName || !prompt) return;
-    const secs = parseInt(intervalMin) * 60;
+    const intervalSecs = parseInt(intervalMin) * 60;
     try {
-      const out = await invoke<string>("company_cmd", {
-        args: `routine create ${agentId} "${routineName}" --every ${secs} --prompt "${prompt}"`,
+      await invoke("company_routine_create_v2", {
+        agentId,
+        name: routineName,
+        intervalSecs,
+        prompt,
+        deliveryMode,
+        skillName: skillName || null,
       });
-      setCmdResult(out);
+      setCmdResult("Routine created.");
       setRoutineName("");
       setPrompt("");
+      setDeliveryMode('none');
+      setSkillName("");
       load();
     } catch (e) {
       setCmdResult(`Error: ${e}`);
@@ -62,73 +124,135 @@ export function CompanyRoutinesPanel({ workspacePath: _wp }: CompanyRoutinesPane
     }
   };
 
-  const btnStyle: React.CSSProperties = {
-    fontSize: 11, padding: "3px 10px", cursor: "pointer", borderRadius: 4,
-    background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", color: "var(--text-primary)",
-  };
+  const promptPlaceholder = skillName
+    ? "Skill prompt will be used. Add extra context here (optional)."
+    : "Agent prompt/task";
+
   return (
-    <div style={{ padding: 16, fontSize: 13, height: "100%", overflowY: "auto" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+    <div className="panel-container">
+      <div className="panel-header">
         <span style={{ fontWeight: 600, fontSize: 14 }}>Routines & Heartbeats</span>
-        <button onClick={load} style={btnStyle}>
+        <button onClick={load} className="panel-btn panel-btn-secondary">
           Refresh
         </button>
       </div>
 
-      {/* Create routine */}
-      <div style={{ marginBottom: 16, border: "1px solid var(--border-color)", borderRadius: 6, padding: 12 }}>
-        <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8 }}>Create Routine</div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <div style={{ display: "flex", gap: 6 }}>
-            <input value={agentId} onChange={(e) => setAgentId(e.target.value)} placeholder="Agent ID"
-              style={{ flex: 1, fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }} />
-            <input value={routineName} onChange={(e) => setRoutineName(e.target.value)} placeholder="Routine name"
-              style={{ flex: 1, fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }} />
-            <input value={intervalMin} onChange={(e) => setIntervalMin(e.target.value)} placeholder="Minutes"
-              type="number" style={{ width: 80, fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }} />
+      <div className="panel-body">
+        {/* Create routine */}
+        <div className="panel-card" style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8, fontWeight: 600 }}>Create Routine</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <div style={{ display: "flex", gap: 6 }}>
+              <input value={agentId} onChange={(e) => setAgentId(e.target.value)} placeholder="Agent ID"
+                style={{ ...inputStyle, flex: 1 }} />
+              <input value={routineName} onChange={(e) => setRoutineName(e.target.value)} placeholder="Routine name"
+                style={{ ...inputStyle, flex: 1 }} />
+              <input value={intervalMin} onChange={(e) => setIntervalMin(e.target.value)} placeholder="Min"
+                type="number" style={{ ...inputStyle, width: 70 }} />
+            </div>
+            {/* Delivery mode */}
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <label style={{ fontSize: 11, color: "var(--text-secondary)", whiteSpace: "nowrap" }}>Delivery:</label>
+              <select
+                value={deliveryMode}
+                onChange={(e) => setDeliveryMode(e.target.value as typeof deliveryMode)}
+                style={{ ...inputStyle, flex: 1 }}
+              >
+                <option value="none">None — {DELIVERY_DESCRIPTIONS.none}</option>
+                <option value="announce">Announce — {DELIVERY_DESCRIPTIONS.announce}</option>
+                <option value="interrupt">Interrupt — {DELIVERY_DESCRIPTIONS.interrupt}</option>
+              </select>
+            </div>
+            {/* Skill select */}
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <label style={{ fontSize: 11, color: "var(--text-secondary)", whiteSpace: "nowrap" }}>Skill:</label>
+              <select
+                value={skillName}
+                onChange={(e) => setSkillName(e.target.value)}
+                style={{ ...inputStyle, flex: 1 }}
+              >
+                <option value="">— None (use prompt) —</option>
+                {skills.map((s) => (
+                  <option key={s.filename} value={s.name} title={s.description}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+            {/* Prompt / context */}
+            <div style={{ display: "flex", gap: 6 }}>
+              <textarea
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                placeholder={promptPlaceholder}
+                rows={2}
+                style={{ ...inputStyle, flex: 1, resize: "vertical" }}
+              />
+              <button onClick={createRoutine} className="panel-btn panel-btn-primary" style={{ alignSelf: "flex-start" }}>
+                Create
+              </button>
+            </div>
           </div>
-          <div style={{ display: "flex", gap: 6 }}>
-            <input value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Agent prompt/task"
-              style={{ flex: 1, fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }} />
-            <button onClick={createRoutine} style={{...btnStyle, padding: "4px 12px"}}>
-              Create
+        </div>
+
+        {/* Manual heartbeat */}
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 6 }}>Manual Heartbeat</div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input value={agentId} onChange={(e) => setAgentId(e.target.value)} placeholder="Agent ID"
+              style={{ ...inputStyle, flex: 1 }} />
+            <button onClick={triggerHeartbeat} className="panel-btn panel-btn-secondary" style={{ display: "inline-flex", alignItems: "center" }}>
+              <Heart size={13} strokeWidth={1.5} style={{ marginRight: 4 }} /> Trigger
             </button>
           </div>
+          {heartbeatOutput && (
+            <div className="panel-card" style={{ marginTop: 8, fontSize: 12 }}>
+              {heartbeatOutput}
+            </div>
+          )}
         </div>
-      </div>
 
-      {/* Manual heartbeat */}
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 6 }}>Manual Heartbeat</div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <input value={agentId} onChange={(e) => setAgentId(e.target.value)} placeholder="Agent ID"
-            style={{ flex: 1, fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }} />
-          <button onClick={triggerHeartbeat} style={{...btnStyle, padding: "4px 12px", display: "inline-flex", alignItems: "center"}}>
-            <Heart size={13} strokeWidth={1.5} style={{ marginRight: 4 }} /> Trigger
-          </button>
-        </div>
-        {heartbeatOutput && (
-          <div style={{ marginTop: 8, fontSize: 12, padding: 8, background: "var(--panel-bg, rgba(0,0,0,0.2))", borderRadius: 4, border: "1px solid var(--border-color)" }}>
-            {heartbeatOutput}
+        {cmdResult && (
+          <div className="panel-card" style={{ marginBottom: 12, fontSize: 12 }}>
+            {cmdResult}
           </div>
         )}
-      </div>
 
-      {cmdResult && (
-        <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 4, padding: 8, marginBottom: 12, fontSize: 12 }}>
-          {cmdResult}
+        {/* Routine cards */}
+        <div className="panel-card" style={{ padding: 0, overflow: "hidden" }}>
+          <div style={{ fontSize: 12, color: "var(--text-secondary)", padding: "8px 12px", borderBottom: "1px solid var(--border-color)", fontWeight: 600 }}>Active Routines</div>
+          {loading ? (
+            <div className="panel-loading" style={{ padding: 16 }}>Loading…</div>
+          ) : routines.length === 0 ? (
+            <div style={{ padding: 16, fontSize: 12, color: "var(--text-secondary)" }}>No routines. Create one above.</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              {routines.map((r) => (
+                <div key={r.id} style={{ padding: "10px 12px", borderBottom: "1px solid var(--border-color)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                    <strong style={{ fontSize: 13 }}>{r.name}</strong>
+                    <span style={deliveryBadgeStyle(r.delivery_mode)}>{r.delivery_mode}</span>
+                    {r.skill_name && (
+                      <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 10, background: 'rgba(128,128,128,0.15)', color: 'var(--text-secondary)', border: '1px solid var(--border-color)' }}>
+                        skill: {r.skill_name}
+                      </span>
+                    )}
+                    <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--text-secondary)" }}>
+                      {r.enabled ? 'enabled' : 'disabled'}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+                    Agent: {r.agent_id} · Every {Math.round(r.interval_secs / 60)}min
+                    {r.next_run_at ? ` · Next: ${new Date(r.next_run_at).toLocaleTimeString()}` : ''}
+                  </div>
+                  {r.prompt && (
+                    <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4, fontStyle: "italic" }}>
+                      "{r.prompt}"
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-      )}
-
-      <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 6, padding: 12 }}>
-        <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 6 }}>Active Routines</div>
-        {loading ? (
-          <span style={{ color: "var(--text-secondary)" }}>Loading…</span>
-        ) : (
-          <pre style={{ margin: 0, fontSize: 12, whiteSpace: "pre-wrap" }}>
-            {routineOutput || "No routines. Create one above."}
-          </pre>
-        )}
       </div>
     </div>
   );

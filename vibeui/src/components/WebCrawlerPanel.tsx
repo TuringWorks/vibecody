@@ -115,60 +115,27 @@ export function WebCrawlerPanel() {
     boxSizing: "border-box",
   };
 
-  const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", display: "block", marginBottom: 4 };
-
-  const btnPrimary: React.CSSProperties = {
-    background: "var(--accent)",
-    color: "var(--btn-primary-fg)",
-    border: "none",
-    borderRadius: 4,
-    padding: "8px 16px",
-    cursor: "pointer",
-    fontSize: 12,
-    fontWeight: 600,
-  };
-
-  const btnSecondary: React.CSSProperties = {
-    background: "var(--bg-secondary)",
-    color: "var(--text-primary)",
-    border: "1px solid var(--border)",
-    borderRadius: 4,
-    padding: "8px 16px",
-    cursor: "pointer",
-    fontSize: 12,
-    fontWeight: 600,
-  };
-
   return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, background: "var(--bg-primary)", color: "var(--text-primary)" }}>
+    <div className="panel-container">
       {/* Tab bar */}
-      <div style={{ display: "flex", borderBottom: "1px solid var(--border)", background: "var(--bg-secondary)" }}>
+      <div className="panel-tab-bar">
         {tabs.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            style={{
-              padding: "8px 16px",
-              background: tab === t.key ? "var(--bg-primary)" : "transparent",
-              border: "none",
-              borderBottom: tab === t.key ? "2px solid var(--accent)" : "2px solid transparent",
-              color: tab === t.key ? "var(--text-primary)" : "var(--text-secondary)",
-              cursor: "pointer",
-              fontSize: 12,
-              fontWeight: tab === t.key ? 600 : 400,
-            }}
+            className={`panel-tab ${tab === t.key ? "active" : ""}`}
           >
             {t.label}
           </button>
         ))}
       </div>
 
-      <div style={{ flex: 1, overflow: "auto", padding: 16 }}>
+      <div className="panel-body">
         {tab === "crawl" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {/* URL input */}
             <div>
-              <label style={labelStyle}>Start URL</label>
+              <label className="panel-label">Start URL</label>
               <input
                 value={crawlConfig.url}
                 onChange={(e) => setCrawlConfig((c) => ({ ...c, url: e.target.value }))}
@@ -180,7 +147,7 @@ export function WebCrawlerPanel() {
             {/* Numeric configs */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
               <div>
-                <label style={labelStyle}>Max Pages</label>
+                <label className="panel-label">Max Pages</label>
                 <input
                   type="number"
                   min={1}
@@ -191,7 +158,7 @@ export function WebCrawlerPanel() {
                 />
               </div>
               <div>
-                <label style={labelStyle}>Max Depth</label>
+                <label className="panel-label">Max Depth</label>
                 <input
                   type="number"
                   min={1}
@@ -202,7 +169,7 @@ export function WebCrawlerPanel() {
                 />
               </div>
               <div>
-                <label style={labelStyle}>Delay (ms)</label>
+                <label className="panel-label">Delay (ms)</label>
                 <input
                   type="number"
                   min={0}
@@ -267,14 +234,15 @@ export function WebCrawlerPanel() {
             <button
               onClick={handleStartCrawl}
               disabled={isCrawling || !crawlConfig.url.trim()}
-              style={{ ...btnPrimary, opacity: isCrawling || !crawlConfig.url.trim() ? 0.5 : 1 }}
+              className="panel-btn panel-btn-primary"
+              style={{ opacity: isCrawling || !crawlConfig.url.trim() ? 0.5 : 1 }}
             >
               {isCrawling ? "Crawling..." : "Start Crawl"}
             </button>
 
             {/* Results table */}
             {loadingResults ? (
-              <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 8 }}>Loading previous results...</div>
+              <div className="panel-loading">Loading previous results...</div>
             ) : crawlResults.length > 0 ? (
               <div style={{ marginTop: 8 }}>
                 <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 8 }}>{crawlResults.length} page(s) crawled</div>
@@ -300,7 +268,7 @@ export function WebCrawlerPanel() {
                 </div>
               </div>
             ) : !isCrawling ? (
-              <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 8 }}>No crawl results yet. Enter a URL and start a crawl.</div>
+              <div className="panel-empty">No crawl results yet. Enter a URL and start a crawl.</div>
             ) : null}
           </div>
         )}
@@ -311,7 +279,7 @@ export function WebCrawlerPanel() {
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <div style={{ fontSize: 13, fontWeight: 600 }}>Parse Sitemap</div>
               <div>
-                <label style={labelStyle}>Sitemap URL</label>
+                <label className="panel-label">Sitemap URL</label>
                 <input
                   value={sitemapUrl}
                   onChange={(e) => setSitemapUrl(e.target.value)}
@@ -322,12 +290,13 @@ export function WebCrawlerPanel() {
               <button
                 onClick={handleParseSitemap}
                 disabled={isLoadingSitemap || !sitemapUrl.trim()}
-                style={{ ...btnPrimary, alignSelf: "flex-start", opacity: isLoadingSitemap || !sitemapUrl.trim() ? 0.5 : 1 }}
+                className="panel-btn panel-btn-primary"
+                style={{ alignSelf: "flex-start", opacity: isLoadingSitemap || !sitemapUrl.trim() ? 0.5 : 1 }}
               >
                 {isLoadingSitemap ? "Parsing..." : "Parse Sitemap"}
               </button>
               {sitemapUrls.length > 0 && (
-                <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: 4, padding: 12, maxHeight: 200, overflow: "auto" }}>
+                <div className="panel-card" style={{ maxHeight: 200, overflow: "auto" }}>
                   <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 6 }}>{sitemapUrls.length} URLs found</div>
                   {sitemapUrls.map((u, i) => (
                     <div key={i} style={{ fontSize: 12, fontFamily: "var(--font-mono)", padding: "2px 0", borderBottom: i < sitemapUrls.length - 1 ? "1px solid var(--border)" : "none" }}>
@@ -344,7 +313,7 @@ export function WebCrawlerPanel() {
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <div style={{ fontSize: 13, fontWeight: 600 }}>Check robots.txt</div>
               <div>
-                <label style={labelStyle}>robots.txt URL</label>
+                <label className="panel-label">robots.txt URL</label>
                 <input
                   value={robotsUrl}
                   onChange={(e) => setRobotsUrl(e.target.value)}
@@ -355,7 +324,8 @@ export function WebCrawlerPanel() {
               <button
                 onClick={handleCheckRobots}
                 disabled={!robotsUrl.trim()}
-                style={{ ...btnSecondary, alignSelf: "flex-start", opacity: !robotsUrl.trim() ? 0.5 : 1 }}
+                className="panel-btn panel-btn-secondary"
+                style={{ alignSelf: "flex-start", opacity: !robotsUrl.trim() ? 0.5 : 1 }}
               >
                 Check robots.txt
               </button>

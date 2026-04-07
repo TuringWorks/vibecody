@@ -231,17 +231,6 @@ export function DesignCanvasPanel() {
 
   // ── Styles ──────────────────────────────────────────────────────────
 
-  const tabStyle = (t: Tab): React.CSSProperties => ({
-    padding: "6px 14px",
-    cursor: "pointer",
-    borderBottom: tab === t ? "2px solid var(--accent-blue)" : "2px solid transparent",
-    background: "none",
-    border: "none",
-    color: tab === t ? "var(--text-primary)" : "var(--text-secondary)",
-    fontWeight: tab === t ? 600 : 400,
-    fontSize: "13px",
-  });
-
   const paletteItemStyle: React.CSSProperties = {
     padding: "6px 10px",
     cursor: "grab",
@@ -253,20 +242,20 @@ export function DesignCanvasPanel() {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+    <div className="panel-container">
       {/* Tab bar */}
-      <div style={{ display: "flex", borderBottom: "1px solid var(--border-color)", flexShrink: 0 }}>
-        <button style={tabStyle("canvas")} onClick={() => setTab("canvas")}>Canvas</button>
-        <button style={tabStyle("code")} onClick={() => setTab("code")}>Code</button>
-        <button style={tabStyle("ai")} onClick={() => setTab("ai")}>AI Generate</button>
-        <button style={tabStyle("export")} onClick={() => setTab("export")}>Export</button>
+      <div className="panel-tab-bar">
+        <button className={`panel-tab ${tab === "canvas" ? "active" : ""}`} onClick={() => setTab("canvas")}>Canvas</button>
+        <button className={`panel-tab ${tab === "code" ? "active" : ""}`} onClick={() => setTab("code")}>Code</button>
+        <button className={`panel-tab ${tab === "ai" ? "active" : ""}`} onClick={() => setTab("ai")}>AI Generate</button>
+        <button className={`panel-tab ${tab === "export" ? "active" : ""}`} onClick={() => setTab("export")}>Export</button>
         <span style={{ marginLeft: "auto", padding: "6px 12px", fontSize: "11px", color: "var(--text-secondary)" }}>
           {components.length} components
         </span>
       </div>
 
       {/* Tab content */}
-      <div style={{ flex: 1, overflow: "hidden", display: "flex" }}>
+      <div className="panel-body" style={{ padding: 0, display: "flex" }}>
         {tab === "canvas" && (
           <div style={{ display: "flex", flex: 1 }}>
             {/* Palette sidebar */}
@@ -421,17 +410,8 @@ export function DesignCanvasPanel() {
 
                 <button
                   onClick={() => removeComponent(selected.id)}
-                  style={{
-                    marginTop: "16px",
-                    padding: "4px 12px",
-                    background: "var(--error-color, #d32f2f)",
-                    color: "var(--btn-primary-fg)",
-                    border: "none",
-                    borderRadius: "3px",
-                    cursor: "pointer",
-                    fontSize: "12px",
-                    width: "100%",
-                  }}
+                  className="panel-btn panel-btn-danger"
+                  style={{ marginTop: "16px", width: "100%" }}
                 >
                   Delete
                 </button>
@@ -446,15 +426,7 @@ export function DesignCanvasPanel() {
               <span style={{ fontSize: "13px", fontWeight: 600 }}>Generated React + Tailwind CSS</span>
               <button
                 onClick={() => navigator.clipboard.writeText(generatedCode)}
-                style={{
-                  padding: "2px 10px",
-                  background: "var(--accent-blue)",
-                  color: "var(--btn-primary-fg)",
-                  border: "none",
-                  borderRadius: "3px",
-                  cursor: "pointer",
-                  fontSize: "11px",
-                }}
+                className="panel-btn panel-btn-primary"
               >
                 Copy
               </button>
@@ -501,6 +473,8 @@ export function DesignCanvasPanel() {
               }}
             />
             <button
+              className="panel-btn panel-btn-primary"
+              style={{ marginTop: "12px", opacity: aiPrompt.trim() ? 1 : 0.5 }}
               onClick={() => {
                 // Generate components from AI prompt (heuristic for now)
                 const prompt = aiPrompt.toLowerCase();
@@ -556,17 +530,6 @@ export function DesignCanvasPanel() {
                 setTab("canvas");
               }}
               disabled={!aiPrompt.trim()}
-              style={{
-                marginTop: "12px",
-                padding: "8px 16px",
-                background: aiPrompt.trim() ? "var(--accent-blue)" : "var(--disabled-bg, #555)",
-                color: "var(--btn-primary-fg)",
-                border: "none",
-                borderRadius: "4px",
-                cursor: aiPrompt.trim() ? "pointer" : "not-allowed",
-                fontSize: "13px",
-                fontWeight: 600,
-              }}
             >
               Generate Components
             </button>
@@ -581,30 +544,14 @@ export function DesignCanvasPanel() {
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
               <button
                 onClick={() => navigator.clipboard.writeText(generatedCode)}
-                style={{
-                  padding: "8px 16px",
-                  background: "var(--accent-blue)",
-                  color: "var(--btn-primary-fg)",
-                  border: "none",
-                  borderRadius: "4px",
-                  cursor: "pointer",
-                  fontSize: "13px",
-                  textAlign: "left" as const,
-                }}
+                className="panel-btn panel-btn-primary"
+                style={{ textAlign: "left" as const }}
               >
                 Copy to Clipboard
               </button>
               <button
-                style={{
-                  padding: "8px 16px",
-                  background: "var(--button-secondary-bg, #3c3c3c)",
-                  color: "var(--text-primary)",
-                  border: "1px solid var(--border-color)",
-                  borderRadius: "4px",
-                  cursor: "pointer",
-                  fontSize: "13px",
-                  textAlign: "left" as const,
-                }}
+                className="panel-btn panel-btn-secondary"
+                style={{ textAlign: "left" as const }}
               >
                 Save as src/components/GeneratedPage.tsx
               </button>
@@ -613,16 +560,8 @@ export function DesignCanvasPanel() {
                   setComponents([]);
                   setSelectedId(null);
                 }}
-                style={{
-                  padding: "8px 16px",
-                  background: "transparent",
-                  color: "var(--text-secondary)",
-                  border: "1px solid var(--border-color)",
-                  borderRadius: "4px",
-                  cursor: "pointer",
-                  fontSize: "13px",
-                  textAlign: "left" as const,
-                }}
+                className="panel-btn panel-btn-secondary"
+                style={{ textAlign: "left" as const }}
               >
                 Clear Canvas
               </button>

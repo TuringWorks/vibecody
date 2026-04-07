@@ -14,36 +14,11 @@ const VIS_COLORS: Record<string, string> = {
   Private: "var(--text-secondary)", "Link Only": "var(--warning-color)",
 };
 
-const containerStyle: React.CSSProperties = {
-  display: "flex", flexDirection: "column", height: "100%",
-  background: "var(--bg-primary)", color: "var(--text-primary)",
-  fontFamily: "inherit", overflow: "hidden",
-};
-const tabBarStyle: React.CSSProperties = {
-  display: "flex", gap: 2, padding: "8px 12px 0",
-  borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)",
-  overflowX: "auto", flexShrink: 0,
-};
-const tabStyle = (active: boolean): React.CSSProperties => ({
-  padding: "8px 14px", cursor: "pointer",
-  background: active ? "var(--bg-primary)" : "transparent",
-  color: active ? "var(--text-primary)" : "var(--text-secondary)",
-  border: "none", borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent",
-  fontSize: 13, fontFamily: "inherit", whiteSpace: "nowrap",
-});
-const contentStyle: React.CSSProperties = { flex: 1, overflow: "auto", padding: 16 };
-const cardStyle: React.CSSProperties = {
-  background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 8,
-  border: "1px solid var(--border-color)",
-};
 const badgeStyle = (color: string): React.CSSProperties => ({
   display: "inline-block", padding: "2px 8px", borderRadius: 10,
   fontSize: 11, background: color, color: "var(--bg-primary)", fontWeight: 600,
 });
-const btnStyle: React.CSSProperties = {
-  padding: "6px 14px", background: "var(--accent-color)", color: "var(--bg-primary)",
-  border: "none", borderRadius: 4, cursor: "pointer", fontSize: 12, fontFamily: "inherit",
-};
+
 const selectStyle: React.CSSProperties = {
   padding: "8px 12px", background: "var(--bg-tertiary)", color: "var(--text-primary)",
   border: "1px solid var(--border-color)", borderRadius: 4, fontSize: 13, fontFamily: "inherit",
@@ -97,21 +72,21 @@ const SessionSharingPanel: React.FC = () => {
   }, []);
 
   return (
-    <div style={containerStyle} role="region" aria-label="Session Sharing Panel">
-      <div style={tabBarStyle} role="tablist" aria-label="Session Sharing tabs">
+    <div className="panel-container" role="region" aria-label="Session Sharing Panel">
+      <div className="panel-tab-bar" role="tablist" aria-label="Session Sharing tabs">
         {TABS.map(t => (
-          <button key={t} role="tab" aria-selected={tab === t} style={tabStyle(tab === t)} onClick={() => setTab(t)}>{t}</button>
+          <button key={t} role="tab" aria-selected={tab === t} className={`panel-tab${tab === t ? " active" : ""}`} onClick={() => setTab(t)}>{t}</button>
         ))}
       </div>
-      <div style={contentStyle} role="tabpanel" aria-label={tab}>
+      <div className="panel-body" role="tabpanel" aria-label={tab}>
         {tab === "Shared Sessions" && (
           loading ? (
-            <div style={{ padding: 24, textAlign: "center", color: "var(--text-secondary)", fontSize: 13 }}>Loading sessions...</div>
+            <div className="panel-loading">Loading sessions...</div>
           ) : sessions.length === 0 ? (
-            <div style={{ padding: 24, textAlign: "center", color: "var(--text-secondary)", fontSize: 13 }}>No shared sessions found.</div>
+            <div className="panel-empty">No shared sessions found.</div>
           ) : (
             sessions.map((s, i) => (
-              <div key={i} style={cardStyle}>
+              <div key={i} className="panel-card">
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                   <strong>{s.title}</strong>
                   <span style={badgeStyle(VIS_COLORS[s.visibility] || "var(--text-secondary)")}>{s.visibility}</span>
@@ -125,12 +100,12 @@ const SessionSharingPanel: React.FC = () => {
         )}
         {tab === "Annotations" && (
           loading ? (
-            <div style={{ padding: 24, textAlign: "center", color: "var(--text-secondary)", fontSize: 13 }}>Loading annotations...</div>
+            <div className="panel-loading">Loading annotations...</div>
           ) : annotations.length === 0 ? (
-            <div style={{ padding: 24, textAlign: "center", color: "var(--text-secondary)", fontSize: 13 }}>No annotations found.</div>
+            <div className="panel-empty">No annotations found.</div>
           ) : (
             annotations.map((a, i) => (
-              <div key={i} style={cardStyle}>
+              <div key={i} className="panel-card">
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                   <strong>{a.author}</strong>
                   <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{a.session} line {a.line}</span>
@@ -143,19 +118,19 @@ const SessionSharingPanel: React.FC = () => {
         )}
         {tab === "Export" && (
           <div>
-            <div style={cardStyle}>
-              <label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: 4 }}>Export format</label>
+            <div className="panel-card">
+              <label className="panel-label">Export format</label>
               <select style={selectStyle} value={exportFormat} onChange={e => setExportFormat(e.target.value)} aria-label="Export format">
                 {FORMATS.map(f => <option key={f} value={f}>{f}</option>)}
               </select>
             </div>
-            <div style={{ ...cardStyle, background: "var(--bg-tertiary)", fontFamily: "var(--font-mono)", fontSize: 12, whiteSpace: "pre-wrap" }}>
+            <div className="panel-card" style={{ background: "var(--bg-tertiary)", fontFamily: "var(--font-mono)", fontSize: 12, whiteSpace: "pre-wrap" }}>
               {exportFormat === "Markdown" && "# Session Export\n\n## Auth refactor session\n**Owner:** alice | **Messages:** 24\n\n---\n> Message 1: ...\n> Message 2: ..."}
               {exportFormat === "JSON" && '{\n  "session_id": "sess-a1b2",\n  "title": "Auth refactor session",\n  "messages": [...]\n}'}
               {exportFormat === "HTML" && "<html>\n<body>\n  <h1>Session Export</h1>\n  <div class=\"message\">...</div>\n</body>\n</html>"}
               {exportFormat === "PDF" && "[PDF preview not available - click Export to download]"}
             </div>
-            <button style={{ ...btnStyle, marginTop: 8 }} aria-label="Export session">Export</button>
+            <button className="panel-btn panel-btn-primary" style={{ marginTop: 8 }} aria-label="Export session">Export</button>
           </div>
         )}
       </div>

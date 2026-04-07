@@ -119,12 +119,12 @@ interface AggregatedResult {
 
 /* ── Helpers ───────────────────────────────── */
 const statusColor = (s: SpawnStatus) =>
-  s === "running" ? "var(--vscode-testing-runAction)" :
-  s === "completed" ? "var(--vscode-testing-iconPassed)" :
-  s === "failed" ? "var(--vscode-testing-iconFailed)" :
-  s === "paused" ? "var(--vscode-charts-yellow)" :
-  s === "queued" ? "var(--vscode-descriptionForeground)" :
-  "var(--vscode-descriptionForeground)";
+  s === "running" ? "var(--info-color)" :
+  s === "completed" ? "var(--success-color)" :
+  s === "failed" ? "var(--error-color)" :
+  s === "paused" ? "var(--warning-color)" :
+  s === "queued" ? "var(--text-secondary)" :
+  "var(--text-secondary)";
 
 const statusIcon = (s: SpawnStatus) =>
   s === "running" ? "\u25B6" :
@@ -141,6 +141,17 @@ const formatDuration = (ms: number) => {
 };
 
 const formatTime = (ts: number) => new Date(ts).toLocaleTimeString();
+
+const inputStyle = {
+  width: "100%",
+  padding: "6px 8px",
+  background: "var(--bg-primary)",
+  color: "var(--text-primary)",
+  border: "1px solid var(--border-color)",
+  borderRadius: 3,
+  fontSize: 13,
+  boxSizing: "border-box" as const,
+};
 
 /* ── Component ─────────────────────────────── */
 export default function SpawnAgentPanel() {
@@ -240,59 +251,9 @@ export default function SpawnAgentPanel() {
   const historyAgents = agents.filter(a => ["completed", "failed", "cancelled"].includes(a.status));
   const selected = agents.find(a => a.id === selectedAgent);
 
-  const tabStyle = (t: SubTab) => ({
-    padding: "6px 14px",
-    cursor: "pointer" as const,
-    borderBottom: tab === t ? "2px solid var(--vscode-focusBorder)" : "2px solid transparent",
-    color: tab === t ? "var(--vscode-foreground)" : "var(--vscode-descriptionForeground)",
-    background: "none",
-    border: "none",
-    borderBottomStyle: "solid" as const,
-    borderBottomWidth: 2,
-    borderBottomColor: tab === t ? "var(--vscode-focusBorder)" : "transparent",
-    fontSize: 13,
-  });
-
-  const cardStyle = {
-    border: "1px solid var(--vscode-panel-border)",
-    borderRadius: 4,
-    padding: 10,
-    marginBottom: 8,
-    background: "var(--vscode-editor-background)",
-  };
-
-  const inputStyle = {
-    width: "100%",
-    padding: "6px 8px",
-    background: "var(--vscode-input-background)",
-    color: "var(--vscode-input-foreground)",
-    border: "1px solid var(--vscode-input-border)",
-    borderRadius: 3,
-    fontSize: 13,
-    boxSizing: "border-box" as const,
-  };
-
-  const btnStyle = {
-    padding: "6px 14px",
-    cursor: "pointer" as const,
-    background: "var(--vscode-button-background)",
-    color: "var(--vscode-button-foreground)",
-    border: "none",
-    borderRadius: 3,
-    fontSize: 13,
-  };
-
-  const smallBtnStyle = {
-    ...btnStyle,
-    padding: "3px 8px",
-    fontSize: 12,
-    background: "var(--vscode-button-secondaryBackground)",
-    color: "var(--vscode-button-secondaryForeground)",
-  };
-
   /* ── Progress bar ─────────────────────────── */
   const ProgressBar = ({ percent, status }: { percent: number; status: SpawnStatus }) => (
-    <div style={{ height: 4, background: "var(--vscode-input-border)", borderRadius: 2, marginTop: 4 }}>
+    <div style={{ height: 4, background: "var(--border-color)", borderRadius: 2, marginTop: 4 }}>
       <div style={{
         height: "100%",
         width: `${Math.min(percent, 100)}%`,
@@ -307,7 +268,7 @@ export default function SpawnAgentPanel() {
   const renderActive = () => (
     <div>
       {stats && (
-        <div style={{ display: "flex", gap: 12, marginBottom: 12, flexWrap: "wrap", fontSize: 12, color: "var(--vscode-descriptionForeground)" }}>
+        <div style={{ display: "flex", gap: 12, marginBottom: 12, flexWrap: "wrap", fontSize: 12, color: "var(--text-secondary)" }}>
           <span>{stats.running} running</span>
           <span>{stats.queued} queued</span>
           <span>{stats.paused} paused</span>
@@ -320,13 +281,12 @@ export default function SpawnAgentPanel() {
       )}
 
       {activeAgents.length === 0 ? (
-        <div style={{ color: "var(--vscode-descriptionForeground)", padding: 20, textAlign: "center" }}>
+        <div className="panel-empty">
           No active agents. Use the Spawn tab to create one.
         </div>
       ) : (
         activeAgents.map(a => (
-          <div key={a.id} style={{
-            ...cardStyle,
+          <div key={a.id} className="panel-card" style={{
             borderLeft: `3px solid ${statusColor(a.status)}`,
             cursor: "pointer",
           }} onClick={() => setSelectedAgent(a.id)}>
@@ -334,34 +294,34 @@ export default function SpawnAgentPanel() {
               <div>
                 <span style={{ color: statusColor(a.status), marginRight: 6 }}>{statusIcon(a.status)}</span>
                 <strong>{a.name}</strong>
-                <span style={{ color: "var(--vscode-descriptionForeground)", marginLeft: 8, fontSize: 11 }}>{a.id}</span>
+                <span style={{ color: "var(--text-secondary)", marginLeft: 8, fontSize: 11 }}>{a.id}</span>
               </div>
               <div style={{ display: "flex", gap: 4 }}>
                 {a.status === "running" && (
-                  <button style={smallBtnStyle} onClick={e => { e.stopPropagation(); handleAction("pause", a.id); }}>Pause</button>
+                  <button className="panel-btn panel-btn-secondary" style={{ padding: "3px 8px", fontSize: 12 }} onClick={e => { e.stopPropagation(); handleAction("pause", a.id); }}>Pause</button>
                 )}
                 {a.status === "paused" && (
-                  <button style={smallBtnStyle} onClick={e => { e.stopPropagation(); handleAction("resume", a.id); }}>Resume</button>
+                  <button className="panel-btn panel-btn-secondary" style={{ padding: "3px 8px", fontSize: 12 }} onClick={e => { e.stopPropagation(); handleAction("resume", a.id); }}>Resume</button>
                 )}
                 {!["completed", "failed", "cancelled"].includes(a.status) && (
-                  <button style={{ ...smallBtnStyle, color: "var(--vscode-testing-iconFailed)" }}
+                  <button className="panel-btn panel-btn-danger" style={{ padding: "3px 8px", fontSize: 12 }}
                     onClick={e => { e.stopPropagation(); handleAction("cancel", a.id); }}>
                     Stop
                   </button>
                 )}
                 {a.child_ids.length > 0 && (
-                  <button style={smallBtnStyle} onClick={e => { e.stopPropagation(); handleAggregate(a.id); }}>
+                  <button className="panel-btn panel-btn-secondary" style={{ padding: "3px 8px", fontSize: 12 }} onClick={e => { e.stopPropagation(); handleAggregate(a.id); }}>
                     Results
                   </button>
                 )}
               </div>
             </div>
 
-            <div style={{ fontSize: 12, color: "var(--vscode-descriptionForeground)", marginTop: 4 }}>{a.task}</div>
+            <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>{a.task}</div>
 
             <ProgressBar percent={a.progress.percent_complete} status={a.status} />
 
-            <div style={{ display: "flex", gap: 12, marginTop: 6, fontSize: 11, color: "var(--vscode-descriptionForeground)" }}>
+            <div style={{ display: "flex", gap: 12, marginTop: 6, fontSize: 11, color: "var(--text-secondary)" }}>
               <span>{a.progress.turns_completed}/{a.progress.turns_limit} turns</span>
               <span>{a.progress.files_modified.length} files</span>
               <span>{a.progress.tokens_used.toLocaleString()} tokens</span>
@@ -370,7 +330,7 @@ export default function SpawnAgentPanel() {
             </div>
 
             {a.progress.last_message && (
-              <div style={{ fontSize: 11, marginTop: 4, fontStyle: "italic", color: "var(--vscode-descriptionForeground)" }}>
+              <div style={{ fontSize: 11, marginTop: 4, fontStyle: "italic", color: "var(--text-secondary)" }}>
                 {a.progress.last_message}
               </div>
             )}
@@ -380,7 +340,7 @@ export default function SpawnAgentPanel() {
 
       {/* Selected agent detail */}
       {selected && (
-        <div style={{ ...cardStyle, marginTop: 12, borderTop: "2px solid var(--vscode-focusBorder)" }}>
+        <div className="panel-card" style={{ marginTop: 12, borderTop: "2px solid var(--accent-color)" }}>
           <h4 style={{ margin: "0 0 8px" }}>{selected.name} — Detail</h4>
           <div style={{ fontSize: 12, lineHeight: 1.6 }}>
             <div><strong>ID:</strong> {selected.id}</div>
@@ -402,7 +362,7 @@ export default function SpawnAgentPanel() {
               <div>
                 <strong>Messages ({selected.inbox.length}):</strong>
                 {selected.inbox.slice(-5).map((m, i) => (
-                  <div key={i} style={{ fontSize: 11, marginLeft: 8, color: "var(--vscode-descriptionForeground)" }}>
+                  <div key={i} style={{ fontSize: 11, marginLeft: 8, color: "var(--text-secondary)" }}>
                     [{m.msg_type}] {m.from_id}: {m.content}
                   </div>
                 ))}
@@ -421,7 +381,7 @@ export default function SpawnAgentPanel() {
   const renderSpawn = () => (
     <div>
       <div style={{ marginBottom: 12 }}>
-        <label style={{ fontSize: 12, display: "block", marginBottom: 4 }}>Task Description</label>
+        <label className="panel-label">Task Description</label>
         <textarea
           value={task}
           onChange={e => setTask(e.target.value)}
@@ -433,11 +393,11 @@ export default function SpawnAgentPanel() {
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
         <div>
-          <label style={{ fontSize: 12, display: "block", marginBottom: 4 }}>Agent Name (optional)</label>
+          <label className="panel-label">Agent Name (optional)</label>
           <input value={agentName} onChange={e => setAgentName(e.target.value)} style={inputStyle} placeholder="auto-generated" />
         </div>
         <div>
-          <label style={{ fontSize: 12, display: "block", marginBottom: 4 }}>Priority</label>
+          <label className="panel-label">Priority</label>
           <select value={priority} onChange={e => setPriority(e.target.value as AgentPriority)} style={inputStyle}>
             <option value="low">Low</option>
             <option value="normal">Normal</option>
@@ -446,7 +406,7 @@ export default function SpawnAgentPanel() {
           </select>
         </div>
         <div>
-          <label style={{ fontSize: 12, display: "block", marginBottom: 4 }}>Isolation</label>
+          <label className="panel-label">Isolation</label>
           <select value={isolation} onChange={e => setIsolation(e.target.value as IsolationMode)} style={inputStyle}>
             <option value="worktree">Git Worktree</option>
             <option value="container">Docker Container</option>
@@ -454,13 +414,13 @@ export default function SpawnAgentPanel() {
           </select>
         </div>
         <div>
-          <label style={{ fontSize: 12, display: "block", marginBottom: 4 }}>Max Turns</label>
+          <label className="panel-label">Max Turns</label>
           <input type="number" value={maxTurns} onChange={e => setMaxTurns(Number(e.target.value))} style={inputStyle} min={1} max={200} />
         </div>
       </div>
 
       <div style={{ marginBottom: 12 }}>
-        <label style={{ fontSize: 12, display: "block", marginBottom: 4 }}>Context Files (one per line)</label>
+        <label className="panel-label">Context Files (one per line)</label>
         <textarea
           value={contextFiles}
           onChange={e => setContextFiles(e.target.value)}
@@ -484,7 +444,7 @@ export default function SpawnAgentPanel() {
         )}
       </div>
 
-      <button style={btnStyle} onClick={handleSpawn} disabled={!task.trim()}>
+      <button className="panel-btn panel-btn-primary" onClick={handleSpawn} disabled={!task.trim()}>
         {decompose ? "Decompose & Spawn" : "Spawn Agent"}
       </button>
     </div>
@@ -494,7 +454,7 @@ export default function SpawnAgentPanel() {
   const renderResults = () => (
     <div>
       {!aggregatedResult ? (
-        <div style={{ color: "var(--vscode-descriptionForeground)", padding: 20, textAlign: "center" }}>
+        <div className="panel-empty">
           Select a coordinator agent and click "Results" to aggregate subtask outputs.
         </div>
       ) : (
@@ -508,18 +468,18 @@ export default function SpawnAgentPanel() {
           </div>
 
           {aggregatedResult.best_agent_id && (
-            <div style={{ ...cardStyle, borderLeft: "3px solid var(--vscode-testing-iconPassed)" }}>
+            <div className="panel-card" style={{ borderLeft: "3px solid var(--success-color)" }}>
               Best agent: <strong>{aggregatedResult.best_agent_id}</strong>
             </div>
           )}
 
           {aggregatedResult.conflicts.length > 0 && (
             <div style={{ marginBottom: 12 }}>
-              <h4 style={{ color: "var(--vscode-charts-yellow)", margin: "0 0 6px" }}>
+              <h4 style={{ color: "var(--warning-color)", margin: "0 0 6px" }}>
                 Conflicts ({aggregatedResult.conflicts.length})
               </h4>
               {aggregatedResult.conflicts.map((c, i) => (
-                <div key={i} style={{ ...cardStyle, borderLeft: "3px solid var(--vscode-charts-yellow)", fontSize: 12 }}>
+                <div key={i} className="panel-card" style={{ borderLeft: "3px solid var(--warning-color)", fontSize: 12 }}>
                   <strong>{c.file}</strong> - {c.description}
                 </div>
               ))}
@@ -528,19 +488,18 @@ export default function SpawnAgentPanel() {
 
           <h4 style={{ margin: "0 0 6px" }}>Agent Summaries</h4>
           {aggregatedResult.summaries.map(s => (
-            <div key={s.agent_id} style={{
-              ...cardStyle,
+            <div key={s.agent_id} className="panel-card" style={{
               borderLeft: `3px solid ${statusColor(s.status)}`,
             }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <div>
                   <span style={{ color: statusColor(s.status), marginRight: 4 }}>{statusIcon(s.status)}</span>
                   <strong>{s.agent_name}</strong>
-                  <span style={{ marginLeft: 8, fontSize: 11, color: "var(--vscode-descriptionForeground)" }}>{s.agent_id}</span>
+                  <span style={{ marginLeft: 8, fontSize: 11, color: "var(--text-secondary)" }}>{s.agent_id}</span>
                 </div>
                 {s.branch && <span style={{ fontSize: 11 }}>{s.branch}</span>}
               </div>
-              <div style={{ fontSize: 12, marginTop: 4, display: "flex", gap: 12, color: "var(--vscode-descriptionForeground)" }}>
+              <div style={{ fontSize: 12, marginTop: 4, display: "flex", gap: 12, color: "var(--text-secondary)" }}>
                 <span>{s.files_modified} files</span>
                 <span>{s.turns_taken} turns</span>
                 <span>{s.tokens_used.toLocaleString()} tokens</span>
@@ -558,13 +517,12 @@ export default function SpawnAgentPanel() {
   const renderHistory = () => (
     <div>
       {historyAgents.length === 0 ? (
-        <div style={{ color: "var(--vscode-descriptionForeground)", padding: 20, textAlign: "center" }}>
+        <div className="panel-empty">
           No completed agents yet.
         </div>
       ) : (
         historyAgents.map(a => (
-          <div key={a.id} style={{
-            ...cardStyle,
+          <div key={a.id} className="panel-card" style={{
             borderLeft: `3px solid ${statusColor(a.status)}`,
             opacity: a.status === "cancelled" ? 0.6 : 1,
           }}>
@@ -572,26 +530,26 @@ export default function SpawnAgentPanel() {
               <div>
                 <span style={{ color: statusColor(a.status), marginRight: 6 }}>{statusIcon(a.status)}</span>
                 <strong>{a.name}</strong>
-                <span style={{ fontSize: 11, color: "var(--vscode-descriptionForeground)", marginLeft: 8 }}>{a.id}</span>
+                <span style={{ fontSize: 11, color: "var(--text-secondary)", marginLeft: 8 }}>{a.id}</span>
               </div>
-              <span style={{ fontSize: 11, color: "var(--vscode-descriptionForeground)" }}>
+              <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>
                 {a.finished_at ? formatTime(a.finished_at) : ""}
               </span>
             </div>
-            <div style={{ fontSize: 12, color: "var(--vscode-descriptionForeground)", marginTop: 4 }}>{a.task}</div>
-            <div style={{ display: "flex", gap: 12, marginTop: 4, fontSize: 11, color: "var(--vscode-descriptionForeground)" }}>
+            <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>{a.task}</div>
+            <div style={{ display: "flex", gap: 12, marginTop: 4, fontSize: 11, color: "var(--text-secondary)" }}>
               <span>{a.progress.turns_completed} turns</span>
               <span>{a.progress.files_modified.length} files</span>
               <span>{a.progress.tokens_used.toLocaleString()} tokens</span>
               {a.branch && <span>branch: {a.branch}</span>}
             </div>
             {a.result_summary && (
-              <div style={{ fontSize: 12, marginTop: 4, color: "var(--vscode-testing-iconPassed)" }}>
+              <div style={{ fontSize: 12, marginTop: 4, color: "var(--success-color)" }}>
                 {a.result_summary}
               </div>
             )}
             {a.error && (
-              <div style={{ fontSize: 12, marginTop: 4, color: "var(--vscode-testing-iconFailed)" }}>
+              <div style={{ fontSize: 12, marginTop: 4, color: "var(--error-color)" }}>
                 {a.error}
               </div>
             )}
@@ -603,10 +561,10 @@ export default function SpawnAgentPanel() {
 
   /* ── Main render ──────────────────────────── */
   return (
-    <div style={{ padding: 12 }}>
-      <div style={{ display: "flex", gap: 0, borderBottom: "1px solid var(--vscode-panel-border)", marginBottom: 12 }}>
+    <div className="panel-container">
+      <div className="panel-tab-bar">
         {(["active", "spawn", "results", "history"] as SubTab[]).map(t => (
-          <button key={t} style={tabStyle(t)} onClick={() => setTab(t)}>
+          <button key={t} className={`panel-tab${tab === t ? " active" : ""}`} onClick={() => setTab(t)}>
             {t === "active" ? `Active (${activeAgents.length})` :
              t === "history" ? `History (${historyAgents.length})` :
              t.charAt(0).toUpperCase() + t.slice(1)}
@@ -614,10 +572,12 @@ export default function SpawnAgentPanel() {
         ))}
       </div>
 
-      {tab === "active" && renderActive()}
-      {tab === "spawn" && renderSpawn()}
-      {tab === "results" && renderResults()}
-      {tab === "history" && renderHistory()}
+      <div className="panel-body">
+        {tab === "active" && renderActive()}
+        {tab === "spawn" && renderSpawn()}
+        {tab === "results" && renderResults()}
+        {tab === "history" && renderHistory()}
+      </div>
     </div>
   );
 }

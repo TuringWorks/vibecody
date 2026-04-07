@@ -247,7 +247,7 @@ export function CloudProviderPanel() {
       {tab === "scan" && (
         <div>
           <div style={{ marginBottom: 10 }}>
-            <button style={btnStyle} onClick={runScan} disabled={scanning}>
+            <button className="panel-btn panel-btn-primary" onClick={runScan} disabled={scanning}>
               {scanning ? "Scanning..." : "Re-scan Workspace"}
             </button>
           </div>
@@ -322,7 +322,7 @@ export function CloudProviderPanel() {
                   <div style={labelStyle}>Generated least-privilege IAM policy for {iamResult.provider} services</div>
                   <pre style={preStyle}>{iamResult.policy_text}</pre>
                   <div style={{ marginTop: 8 }}>
-                    <button style={btnStyle} onClick={() => navigator.clipboard?.writeText(iamResult.policy_text)}>Copy Policy</button>
+                    <button className="panel-btn panel-btn-secondary" onClick={() => navigator.clipboard?.writeText(iamResult.policy_text)}>Copy Policy</button>
                   </div>
                 </div>
               )}
@@ -363,7 +363,7 @@ export function CloudProviderPanel() {
                   <div style={labelStyle}>{iacResult.format} template for detected {iacResult.provider} services</div>
                   <pre style={preStyle}>{iacResult.template}</pre>
                   <div style={{ marginTop: 8 }}>
-                    <button style={btnStyle} onClick={() => navigator.clipboard?.writeText(iacResult.template)}>Copy Template</button>
+                    <button className="panel-btn panel-btn-secondary" onClick={() => navigator.clipboard?.writeText(iacResult.template)}>Copy Template</button>
                   </div>
                 </div>
               )}
@@ -381,7 +381,7 @@ export function CloudProviderPanel() {
           ) : (
             <>
               <div style={{ marginBottom: 10 }}>
-                <button style={btnStyle} onClick={estimateCosts} disabled={costLoading}>
+                <button className="panel-btn panel-btn-secondary" onClick={estimateCosts} disabled={costLoading}>
                   {costLoading ? "Estimating..." : "Refresh Estimates"}
                 </button>
               </div>

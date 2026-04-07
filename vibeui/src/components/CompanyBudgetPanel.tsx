@@ -57,18 +57,15 @@ export function CompanyBudgetPanel({ workspacePath: _wp }: CompanyBudgetPanelPro
     }
   };
 
-  const btnStyle: React.CSSProperties = {
-    fontSize: 11, padding: "3px 10px", cursor: "pointer", borderRadius: 4,
-    background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", color: "var(--text-primary)",
-  };
   return (
-    <div style={{ padding: 16, fontSize: 13, height: "100%", overflowY: "auto" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+    <div className="panel-container">
+      <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <span style={{ fontWeight: 600, fontSize: 14 }}>Budget</span>
-        <button onClick={load} style={btnStyle}>
+        <button onClick={load} className="panel-btn panel-btn-secondary">
           Refresh
         </button>
       </div>
+      <div className="panel-body">
 
       {/* Set budget form */}
       <div style={{ marginBottom: 16 }}>
@@ -93,25 +90,25 @@ export function CompanyBudgetPanel({ workspacePath: _wp }: CompanyBudgetPanelPro
             type="number"
             style={{ width: 100, fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }}
           />
-          <button onClick={setBudget} style={{...btnStyle, padding: "4px 12px"}}>
+          <button onClick={setBudget} className="panel-btn panel-btn-primary">
             Set
           </button>
         </div>
       </div>
 
       {cmdResult && (
-        <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 4, padding: 8, marginBottom: 12, fontSize: 12 }}>
+        <div className="panel-card" style={{ marginBottom: 12, fontSize: 12 }}>
           {cmdResult}
         </div>
       )}
 
       {loading ? (
-        <span style={{ color: "var(--text-secondary)" }}>Loading…</span>
+        <span className="panel-loading">Loading…</span>
       ) : (
         <>
           <div style={{ marginBottom: 12 }}>
             <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 6 }}>Budget Status</div>
-            <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 6, padding: 12 }}>
+            <div className="panel-card">
               <pre style={{ margin: 0, fontSize: 12, whiteSpace: "pre-wrap" }}>
                 {budgetOutput || "No budgets set. Use the form above."}
               </pre>
@@ -119,7 +116,7 @@ export function CompanyBudgetPanel({ workspacePath: _wp }: CompanyBudgetPanelPro
           </div>
           <div>
             <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 6 }}>Cost Events</div>
-            <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 6, padding: 12, maxHeight: 200, overflowY: "auto" }}>
+            <div className="panel-card" style={{ maxHeight: 200, overflowY: "auto" }}>
               <pre style={{ margin: 0, fontSize: 12, whiteSpace: "pre-wrap" }}>
                 {eventsOutput || "No cost events recorded."}
               </pre>
@@ -127,6 +124,7 @@ export function CompanyBudgetPanel({ workspacePath: _wp }: CompanyBudgetPanelPro
           </div>
         </>
       )}
+      </div>
     </div>
   );
 }

@@ -168,9 +168,6 @@ const DEPLOY_TARGETS: DeployTarget[] = [
 // ── Styles ───────────────────────────────────────────────────────────────
 
 const headingStyle: React.CSSProperties = { margin: "0 0 4px", fontSize: 15, fontWeight: 600 };
-const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-color)" };
-const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
-const btnStyle: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", cursor: "pointer", fontSize: 12 };
 const badgeStyle = (color: string): React.CSSProperties => ({ display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600, color: "var(--btn-primary-fg)", background: color });
 
 // ── Component ────────────────────────────────────────────────────────────
@@ -225,7 +222,7 @@ export function AiMlWorkflowPanel() {
   return (
     <div className="panel-container">
       <h2 style={headingStyle}>AI/ML Workflow Builder</h2>
-      <p style={{ ...labelStyle, marginBottom: 12 }}>
+      <p className="panel-label" style={{ marginBottom: 12 }}>
         End-to-end pipeline: data prep, training, quantization, inference, agent assembly, deployment
       </p>
 
@@ -243,7 +240,7 @@ export function AiMlWorkflowPanel() {
       {/* ── PIPELINE TAB ──────────────────────────────────────────────── */}
       {tab === "pipeline" && (
         <div>
-          <div style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span>{completedCount}/{stages.length} stages complete</span>
             <div style={{ display: "flex", gap: 4 }}>
               {stages.map(s => (
@@ -259,8 +256,7 @@ export function AiMlWorkflowPanel() {
           </div>
 
           {stages.map(stage => (
-            <div key={stage.id} style={{
-              ...cardStyle,
+            <div key={stage.id} className="panel-card" style={{
               borderLeft: `3px solid ${
                 stage.status === "complete" ? "var(--success-color)" :
                 stage.status === "configuring" ? "var(--warning-color)" :
@@ -271,10 +267,10 @@ export function AiMlWorkflowPanel() {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <div style={{ flex: 1, cursor: "pointer" }} onClick={() => setSelectedStage(selectedStage === stage.id ? null : stage.id)}>
                   <div style={{ fontWeight: 600 }}>{stage.label}</div>
-                  <div style={labelStyle}>{stage.description}</div>
+                  <div className="panel-label">{stage.description}</div>
                 </div>
                 <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                  <button style={btnStyle} onClick={() => toggleStage(stage.id)}>
+                  <button className="panel-btn panel-btn-secondary" onClick={() => toggleStage(stage.id)}>
                     {stage.status === "pending" ? "Enable" : "Disable"}
                   </button>
                 </div>
@@ -285,16 +281,16 @@ export function AiMlWorkflowPanel() {
                 <div style={{ marginTop: 10, padding: 10, background: "var(--bg-tertiary)", borderRadius: 4, fontSize: 12 }}>
                   {stage.id === "data" && (
                     <div>
-                      <div style={labelStyle}>Data Sources</div>
+                      <div className="panel-label">Data Sources</div>
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
                         {["Codebase files", "Git history", "Agent traces", "Documents", "CSV/JSON", "PDF (scientific)"].map(s => (
-                          <span key={s} style={{ ...btnStyle, fontSize: 11 }}>{s}</span>
+                          <span key={s} className="panel-btn panel-btn-secondary" style={{ fontSize: 11 }}>{s}</span>
                         ))}
                       </div>
-                      <div style={labelStyle}>Document Processors</div>
+                      <div className="panel-label">Document Processors</div>
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
                         {["MinerU (PDF to MD)", "Docling (IBM)", "Unstructured", "LlamaParse", "VibeCody Built-in"].map(p => (
-                          <span key={p} style={{ ...btnStyle, fontSize: 11 }}>{p}</span>
+                          <span key={p} className="panel-btn panel-btn-secondary" style={{ fontSize: 11 }}>{p}</span>
                         ))}
                       </div>
                       <div style={{ marginTop: 8, color: "var(--text-secondary)", fontSize: 11 }}>
@@ -305,10 +301,10 @@ export function AiMlWorkflowPanel() {
                   )}
                   {stage.id === "rag" && (
                     <div>
-                      <div style={labelStyle}>Vector DB Provider</div>
+                      <div className="panel-label">Vector DB Provider</div>
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                         {["In-Memory", "Qdrant", "Pinecone", "pgvector", "Milvus", "Weaviate", "Chroma"].map(p => (
-                          <span key={p} style={{ ...btnStyle, fontSize: 11 }}>{p}</span>
+                          <span key={p} className="panel-btn panel-btn-secondary" style={{ fontSize: 11 }}>{p}</span>
                         ))}
                       </div>
                       <div style={{ marginTop: 8, color: "var(--text-secondary)" }}>
@@ -318,26 +314,26 @@ export function AiMlWorkflowPanel() {
                   )}
                   {stage.id === "finetune" && (
                     <div>
-                      <div style={labelStyle}>Fine-Tuning Libraries</div>
+                      <div className="panel-label">Fine-Tuning Libraries</div>
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
                         {["Unsloth", "Axolotl", "LLaMA Factory", "DeepSpeed", "HuggingFace TRL", "PEFT"].map(p => (
-                          <span key={p} style={{ ...btnStyle, fontSize: 11 }}>{p}</span>
+                          <span key={p} className="panel-btn panel-btn-secondary" style={{ fontSize: 11 }}>{p}</span>
                         ))}
                       </div>
-                      <div style={labelStyle}>Cloud Providers</div>
+                      <div className="panel-label">Cloud Providers</div>
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
                         {["OpenAI", "Together AI", "Fireworks", "Local (LoRA/QLoRA)"].map(p => (
-                          <span key={p} style={{ ...btnStyle, fontSize: 11 }}>{p}</span>
+                          <span key={p} className="panel-btn panel-btn-secondary" style={{ fontSize: 11 }}>{p}</span>
                         ))}
                       </div>
-                      <div style={labelStyle}>Notebook Environments</div>
+                      <div className="panel-label">Notebook Environments</div>
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
                         {["Google Colab (free T4)", "Kaggle (free P100)", "SageMaker Studio", "Lightning AI", "Local Jupyter"].map(e => (
-                          <span key={e} style={{ ...btnStyle, fontSize: 11 }}>{e}</span>
+                          <span key={e} className="panel-btn panel-btn-secondary" style={{ fontSize: 11 }}>{e}</span>
                         ))}
                       </div>
-                      <div style={labelStyle}>Alignment Methods: SFT, DPO, PPO, RLHF, KTO</div>
-                      <div style={labelStyle}>Formats: ChatML, Alpaca, ShareGPT, Completion</div>
+                      <div className="panel-label">Alignment Methods: SFT, DPO, PPO, RLHF, KTO</div>
+                      <div className="panel-label">Formats: ChatML, Alpaca, ShareGPT, Completion</div>
                       <div style={{ marginTop: 8, color: "var(--text-secondary)" }}>
                         CLI: <code>/train finetune --library unsloth --model llama-3.1-8b</code>
                       </div>
@@ -345,15 +341,15 @@ export function AiMlWorkflowPanel() {
                   )}
                   {stage.id === "training" && (
                     <div>
-                      <div style={labelStyle}>Framework</div>
+                      <div className="panel-label">Framework</div>
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                         {["DeepSpeed", "FSDP", "Megatron", "Horovod", "Ray Train", "Colossal AI"].map(f => (
-                          <span key={f} style={{ ...btnStyle, fontSize: 11 }}>{f}</span>
+                          <span key={f} className="panel-btn panel-btn-secondary" style={{ fontSize: 11 }}>{f}</span>
                         ))}
                       </div>
                       <div style={{ marginTop: 6 }}>
-                        <div style={labelStyle}>Parallelism: Data | Tensor | Pipeline | Expert | Sequence</div>
-                        <div style={labelStyle}>Precision: FP32, FP16, BF16, FP8</div>
+                        <div className="panel-label">Parallelism: Data | Tensor | Pipeline | Expert | Sequence</div>
+                        <div className="panel-label">Precision: FP32, FP16, BF16, FP8</div>
                       </div>
                       <div style={{ marginTop: 8, color: "var(--text-secondary)" }}>
                         CLI: <code>/train run --framework deepspeed --gpus 4</code>
@@ -362,10 +358,10 @@ export function AiMlWorkflowPanel() {
                   )}
                   {stage.id === "quantize" && (
                     <div>
-                      <div style={labelStyle}>Quantization Method</div>
+                      <div className="panel-label">Quantization Method</div>
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                         {["FP16", "BF16", "Int8", "Int4", "GPTQ", "AWQ", "SqueezeLLM", "GGUF-Q4", "GGUF-Q5"].map(q => (
-                          <span key={q} style={{ ...btnStyle, fontSize: 11 }}>{q}</span>
+                          <span key={q} className="panel-btn panel-btn-secondary" style={{ fontSize: 11 }}>{q}</span>
                         ))}
                       </div>
                       <div style={{ marginTop: 8, color: "var(--text-secondary)" }}>
@@ -375,10 +371,10 @@ export function AiMlWorkflowPanel() {
                   )}
                   {stage.id === "inference" && (
                     <div>
-                      <div style={labelStyle}>Inference Backend</div>
+                      <div className="panel-label">Inference Backend</div>
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                         {["vLLM", "TGI", "Triton", "llama.cpp", "Ollama", "TorchServe", "ONNX Runtime", "TRT-LLM"].map(b => (
-                          <span key={b} style={{ ...btnStyle, fontSize: 11 }}>{b}</span>
+                          <span key={b} className="panel-btn panel-btn-secondary" style={{ fontSize: 11 }}>{b}</span>
                         ))}
                       </div>
                       <div style={{ marginTop: 8, color: "var(--text-secondary)" }}>
@@ -388,16 +384,16 @@ export function AiMlWorkflowPanel() {
                   )}
                   {stage.id === "agent" && (
                     <div>
-                      <div style={labelStyle}>Agent Capabilities</div>
+                      <div className="panel-label">Agent Capabilities</div>
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
                         {["Tool Calling (MCP)", "Agent Protocol (ACP)", "RAG Context", "Memory", "Multi-Agent Teams", "Reasoning (think tool)"].map(c => (
-                          <span key={c} style={{ ...btnStyle, fontSize: 11 }}>{c}</span>
+                          <span key={c} className="panel-btn panel-btn-secondary" style={{ fontSize: 11 }}>{c}</span>
                         ))}
                       </div>
-                      <div style={labelStyle}>RL Training Environments</div>
+                      <div className="panel-label">RL Training Environments</div>
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
                         {["NeMo Gym (60+ tasks)", "OpenAI Gymnasium", "Reasoning Gym", "SWE-Bench", "TRL PPO (RLHF)", "Aviary (tool-use)", "LMSYS Arena"].map(e => (
-                          <span key={e} style={{ ...btnStyle, fontSize: 11 }}>{e}</span>
+                          <span key={e} className="panel-btn panel-btn-secondary" style={{ fontSize: 11 }}>{e}</span>
                         ))}
                       </div>
                       <div style={{ marginTop: 8, color: "var(--text-secondary)", fontSize: 11 }}>
@@ -408,8 +404,8 @@ export function AiMlWorkflowPanel() {
                   )}
                   {stage.id === "deploy" && (
                     <div>
-                      <div style={labelStyle}>See Deploy tab for {DEPLOY_TARGETS.length} deployment targets</div>
-                      <button style={{ ...btnStyle, marginTop: 4 }} onClick={() => setTab("deploy")}>View Deploy Targets</button>
+                      <div className="panel-label">See Deploy tab for {DEPLOY_TARGETS.length} deployment targets</div>
+                      <button className="panel-btn panel-btn-secondary" style={{ marginTop: 4 }} onClick={() => setTab("deploy")}>View Deploy Targets</button>
                     </div>
                   )}
                   {(stage.id === "evaluate" || stage.id === "monitor") && (
@@ -429,16 +425,16 @@ export function AiMlWorkflowPanel() {
       {/* ── EXAMPLES TAB ──────────────────────────────────────────────── */}
       {tab === "examples" && (
         <div>
-          <div style={{ ...cardStyle, fontSize: 12 }}>
+          <div className="panel-card" style={{ fontSize: 12 }}>
             {EXAMPLE_WORKFLOWS.length} end-to-end examples you can try today. Each uses existing VibeCody commands.
           </div>
 
           {EXAMPLE_WORKFLOWS.map((ex, idx) => (
-            <div key={idx} style={{ ...cardStyle, cursor: "pointer" }} onClick={() => setExpandedExample(expandedExample === idx ? null : idx)}>
+            <div key={idx} className="panel-card" style={{ cursor: "pointer" }} onClick={() => setExpandedExample(expandedExample === idx ? null : idx)}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600, fontSize: 14 }}>{ex.title}</div>
-                  <div style={labelStyle}>{ex.description}</div>
+                  <div className="panel-label">{ex.description}</div>
                   <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
                     <span style={badgeStyle(difficultyColor(ex.difficulty))}>{ex.difficulty}</span>
                     <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{ex.timeEstimate}</span>
@@ -484,14 +480,14 @@ export function AiMlWorkflowPanel() {
           </div>
 
           {filteredTargets.map((target, idx) => (
-            <div key={idx} style={{ ...cardStyle, borderLeft: `3px solid ${categoryColor(target.category)}` }}>
+            <div key={idx} className="panel-card" style={{ borderLeft: `3px solid ${categoryColor(target.category)}` }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600 }}>
                     {target.name}
                     <span style={{ ...badgeStyle(categoryColor(target.category)), marginLeft: 8 }}>{target.category}</span>
                   </div>
-                  <div style={labelStyle}>{target.description}</div>
+                  <div className="panel-label">{target.description}</div>
                   <code style={{ fontSize: 11, color: "var(--accent-primary, #7c6aef)" }}>{target.command}</code>
                 </div>
               </div>
@@ -503,8 +499,8 @@ export function AiMlWorkflowPanel() {
       {/* ── MONITOR TAB ───────────────────────────────────────────────── */}
       {tab === "monitor" && (
         <div>
-          <div style={cardStyle}>
-            <div style={labelStyle}>Monitoring Commands</div>
+          <div className="panel-card">
+            <div className="panel-label">Monitoring Commands</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 12 }}>
               <div><code>/metering status</code> — Token usage, costs, budgets per provider</div>
               <div><code>/cost</code> — Current session cost breakdown</div>
@@ -516,8 +512,8 @@ export function AiMlWorkflowPanel() {
             </div>
           </div>
 
-          <div style={cardStyle}>
-            <div style={labelStyle}>VibeUI Panels for Monitoring</div>
+          <div className="panel-card">
+            <div className="panel-label">VibeUI Panels for Monitoring</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12 }}>
               <div><strong>Cost Observatory</strong> — Per-provider spend, budget alerts, historical trends</div>
               <div><strong>Model Arena</strong> — Blind A/B testing with ELO rankings</div>

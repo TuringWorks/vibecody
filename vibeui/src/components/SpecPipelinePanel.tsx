@@ -39,28 +39,6 @@ const STATUS_COLORS: Record<string, string> = {
   Blocked: "var(--error-color)", Accepted: "var(--success-color)",
 };
 
-const containerStyle: React.CSSProperties = {
-  display: "flex", flexDirection: "column", height: "100%",
-  background: "var(--bg-primary)", color: "var(--text-primary)",
-  fontFamily: "inherit", overflow: "hidden",
-};
-const tabBarStyle: React.CSSProperties = {
-  display: "flex", gap: 2, padding: "8px 12px 0",
-  borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)",
-  overflowX: "auto", flexShrink: 0,
-};
-const tabStyle = (active: boolean): React.CSSProperties => ({
-  padding: "8px 14px", cursor: "pointer",
-  background: active ? "var(--bg-primary)" : "transparent",
-  color: active ? "var(--text-primary)" : "var(--text-secondary)",
-  border: "none", borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent",
-  fontSize: 13, fontFamily: "inherit", whiteSpace: "nowrap",
-});
-const contentStyle: React.CSSProperties = { flex: 1, overflow: "auto", padding: 16 };
-const cardStyle: React.CSSProperties = {
-  background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 8,
-  border: "1px solid var(--border-color)",
-};
 const badgeStyle = (color: string): React.CSSProperties => ({
   display: "inline-block", padding: "2px 8px", borderRadius: 10,
   fontSize: 11, background: color, color: "var(--bg-primary)", fontWeight: 600,
@@ -111,30 +89,30 @@ const SpecPipelinePanel: React.FC = () => {
 
   if (loading) {
     return (
-      <div style={containerStyle} role="region" aria-label="Spec Pipeline Panel">
-        <div style={{ ...contentStyle, textAlign: "center", color: "var(--text-secondary)", fontSize: 12, marginTop: 32 }}>Loading...</div>
+      <div className="panel-container" role="region" aria-label="Spec Pipeline Panel">
+        <div className="panel-loading">Loading...</div>
       </div>
     );
   }
 
   return (
-    <div style={containerStyle} role="region" aria-label="Spec Pipeline Panel">
+    <div className="panel-container" role="region" aria-label="Spec Pipeline Panel">
       <div style={statusBarStyle}>
         <span>Coverage: <strong>{coverage}%</strong></span>
         <div style={barBg}><div style={{ height: "100%", borderRadius: 4, background: "var(--success-color)", width: `${coverage}%` }} /></div>
         <span>{reqs.filter(r => r.status === "Verified").length} verified / {reqs.length} total</span>
       </div>
-      <div style={tabBarStyle} role="tablist" aria-label="Spec Pipeline tabs">
+      <div className="panel-tab-bar" role="tablist" aria-label="Spec Pipeline tabs">
         {TABS.map(t => (
-          <button key={t} role="tab" aria-selected={tab === t} style={tabStyle(tab === t)} onClick={() => setTab(t)}>{t}</button>
+          <button key={t} role="tab" aria-selected={tab === t} className={`panel-tab ${tab === t ? "active" : ""}`} onClick={() => setTab(t)}>{t}</button>
         ))}
       </div>
-      <div style={contentStyle} role="tabpanel" aria-label={tab}>
+      <div className="panel-body" role="tabpanel" aria-label={tab}>
         {tab === "Requirements" && reqs.length === 0 && (
-          <div style={{ textAlign: "center", opacity: 0.4, fontSize: 12, marginTop: 32 }}>No requirements defined yet.</div>
+          <div className="panel-empty">No requirements defined yet.</div>
         )}
         {tab === "Requirements" && reqs.map((r, i) => (
-          <div key={i} style={cardStyle}>
+          <div key={i} className="panel-card">
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
               <span><strong>{r.id}</strong> <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>[{r.priority}]</span></span>
               <span style={badgeStyle(STATUS_COLORS[r.status] || "var(--text-secondary)")}>{r.status}</span>
@@ -143,10 +121,10 @@ const SpecPipelinePanel: React.FC = () => {
           </div>
         ))}
         {tab === "Design" && designs.length === 0 && (
-          <div style={{ textAlign: "center", opacity: 0.4, fontSize: 12, marginTop: 32 }}>No design documents yet.</div>
+          <div className="panel-empty">No design documents yet.</div>
         )}
         {tab === "Design" && designs.map((d, i) => (
-          <div key={i} style={cardStyle}>
+          <div key={i} className="panel-card">
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
               <strong>{d.id}: {d.title}</strong>
               <span style={badgeStyle(STATUS_COLORS[d.status] || "var(--text-secondary)")}>{d.status}</span>
@@ -156,10 +134,10 @@ const SpecPipelinePanel: React.FC = () => {
           </div>
         ))}
         {tab === "Tasks" && tasks.length === 0 && (
-          <div style={{ textAlign: "center", opacity: 0.4, fontSize: 12, marginTop: 32 }}>No tasks created yet.</div>
+          <div className="panel-empty">No tasks created yet.</div>
         )}
         {tab === "Tasks" && tasks.map((t, i) => (
-          <div key={i} style={cardStyle}>
+          <div key={i} className="panel-card">
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
               <strong>{t.id}: {t.title}</strong>
               <span style={badgeStyle(STATUS_COLORS[t.status] || "var(--text-secondary)")}>{t.status}</span>

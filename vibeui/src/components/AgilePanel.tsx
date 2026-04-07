@@ -632,7 +632,7 @@ function BoardTab() {
                         <input style={inputStyle} placeholder="Card title..." value={newTitle} onChange={e => setNewTitle(e.target.value)} onKeyDown={e => e.key === "Enter" && addCard(col)} autoFocus />
                         <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
                           <button style={btnPrimaryStyle} onClick={() => addCard(col)}>Add</button>
-                          <button style={btnStyle} onClick={() => { setAddingTo(null); setNewTitle(""); }}>Cancel</button>
+                          <button className="panel-btn panel-btn-secondary" onClick={() => { setAddingTo(null); setNewTitle(""); }}>Cancel</button>
                         </div>
                       </div>
                     ) : (
@@ -750,7 +750,7 @@ function BoardTab() {
               {editingCard.sprintId && <span> · Sprint: {sprints.find(s => s.id === editingCard.sprintId)?.name || editingCard.sprintId}</span>}
             </div>
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-              <button style={btnStyle} onClick={() => setEditingCard(null)}>Cancel</button>
+              <button className="panel-btn panel-btn-secondary" onClick={() => setEditingCard(null)}>Cancel</button>
               <button style={btnPrimaryStyle} onClick={() => saveCard(editingCard)}>Save</button>
             </div>
           </div>

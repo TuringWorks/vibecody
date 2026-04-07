@@ -25,11 +25,6 @@ const STATUS_BADGE: Record<string, string> = {
   idle: "○", active: "●", paused: "‖", terminated: "×",
 };
 
-const btnStyle: React.CSSProperties = {
-  fontSize: 11, padding: "3px 10px", cursor: "pointer", borderRadius: 4,
-  background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", color: "var(--text-primary)",
-};
-
 const inputStyle: React.CSSProperties = {
   fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)",
   border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)",
@@ -111,29 +106,25 @@ export function CompanyOrgChartPanel({ workspacePath: _wp }: CompanyOrgChartPane
   const isEmpty = !agentText || agentText.includes("No agents");
 
   return (
-    <div style={{ padding: 16, fontSize: 13, height: "100%", overflowY: "auto" }}>
+    <div className="panel-container">
       {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+      <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <span style={{ fontWeight: 600, fontSize: 14 }}>Agents</span>
         <div style={{ display: "flex", gap: 6 }}>
           {(["list", "tree", "hire"] as const).map((v) => (
-            <button key={v} onClick={() => setView(v)} style={{
-              ...btnStyle, padding: "2px 8px",
-              background: view === v ? "var(--accent, #4a9eff)" : "var(--bg-tertiary)",
-              color: view === v ? "#fff" : "var(--text-primary)",
-              border: `1px solid ${view === v ? "var(--accent, #4a9eff)" : "var(--border-color)"}`,
-            }}>
+            <button key={v} onClick={() => setView(v)} className={`panel-btn ${view === v ? "panel-btn-primary" : "panel-btn-secondary"}`} style={{ padding: "2px 8px" }}>
               {v === "hire" ? "+ Hire" : v.charAt(0).toUpperCase() + v.slice(1)}
             </button>
           ))}
-          <button onClick={load} style={btnStyle}>Refresh</button>
+          <button onClick={load} className="panel-btn panel-btn-secondary">Refresh</button>
         </div>
       </div>
+      <div className="panel-body">
 
-      {loading && <div style={{ color: "var(--text-secondary)" }}>Loading…</div>}
-      {error && <div style={{ color: "var(--danger, #e74c3c)", fontSize: 12, marginBottom: 8 }}>{error}</div>}
+      {loading && <div className="panel-loading">Loading…</div>}
+      {error && <div className="panel-error" style={{ fontSize: 12, marginBottom: 8 }}>{error}</div>}
       {actionMsg && (
-        <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 4, padding: 8, marginBottom: 12, fontSize: 12 }}>
+        <div className="panel-card" style={{ marginBottom: 12, fontSize: 12 }}>
           {actionMsg}
           <button onClick={() => setActionMsg(null)} style={{ marginLeft: 8, cursor: "pointer", background: "none", border: "none", color: "var(--text-secondary)", display: "inline-flex" }}><X size={12} /></button>
         </div>
@@ -141,7 +132,7 @@ export function CompanyOrgChartPanel({ workspacePath: _wp }: CompanyOrgChartPane
 
       {/* Hire form */}
       {view === "hire" && (
-        <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 6, padding: 14, marginBottom: 12 }}>
+        <div className="panel-card" style={{ marginBottom: 12 }}>
           <div style={{ fontWeight: 600, marginBottom: 10 }}>Hire New Agent</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
             <input value={hireName} onChange={(e) => setHireName(e.target.value)} placeholder="Name *" style={inputStyle} autoFocus />
@@ -152,7 +143,7 @@ export function CompanyOrgChartPanel({ workspacePath: _wp }: CompanyOrgChartPane
             <input placeholder="Reports to (agent name, optional)" style={inputStyle} />
           </div>
           {hireResult && <div style={{ fontSize: 12, marginBottom: 8, color: hireResult.startsWith("Error") ? "var(--danger, #e74c3c)" : "var(--success, #27ae60)" }}>{hireResult}</div>}
-          <button onClick={hireAgent} disabled={hiring || !hireName.trim()} style={{ ...btnStyle, padding: "5px 16px", opacity: hiring ? 0.6 : 1 }}>
+          <button onClick={hireAgent} disabled={hiring || !hireName.trim()} className="panel-btn panel-btn-primary" style={{ opacity: hiring ? 0.6 : 1 }}>
             {hiring ? "Hiring…" : "Hire Agent"}
           </button>
         </div>
@@ -162,15 +153,15 @@ export function CompanyOrgChartPanel({ workspacePath: _wp }: CompanyOrgChartPane
       {view === "list" && (
         <>
           {isEmpty && !loading && !error && (
-            <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 6, padding: 24, textAlign: "center" }}>
+            <div className="panel-empty" style={{ padding: 24 }}>
               <div style={{ marginBottom: 8, display: "flex", justifyContent: "center", color: "var(--accent, #4a9eff)" }}><Users size={32} strokeWidth={1.5} /></div>
               <div style={{ fontWeight: 600, marginBottom: 4 }}>No agents yet</div>
               <div style={{ color: "var(--text-secondary)", fontSize: 12, marginBottom: 16 }}>Hire your first agent to build your team</div>
-              <button onClick={() => setView("hire")} style={{ ...btnStyle, padding: "6px 20px", fontSize: 12 }}>+ Hire Agent</button>
+              <button onClick={() => setView("hire")} className="panel-btn panel-btn-primary" style={{ fontSize: 12 }}>+ Hire Agent</button>
             </div>
           )}
           {!isEmpty && (
-            <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 6, padding: 12, marginBottom: 12 }}>
+            <div className="panel-card" style={{ marginBottom: 12 }}>
               <pre style={{ margin: 0, fontSize: 12, whiteSpace: "pre-wrap", lineHeight: 1.7, fontFamily: "inherit" }}>
                 {agentText.split("\n").filter(Boolean).map((line, i) => {
                   // Parse line: "  [status] name — title (role)"
@@ -204,7 +195,8 @@ export function CompanyOrgChartPanel({ workspacePath: _wp }: CompanyOrgChartPane
               <button
                 onClick={() => fireAgent(fireId)}
                 disabled={!fireId.trim()}
-                style={{ ...btnStyle, border: "1px solid var(--danger, #e74c3c)", color: "var(--danger, #e74c3c)", opacity: fireId.trim() ? 1 : 0.5 }}
+                className="panel-btn panel-btn-danger"
+                style={{ opacity: fireId.trim() ? 1 : 0.5 }}
               >
                 Fire
               </button>
@@ -215,14 +207,15 @@ export function CompanyOrgChartPanel({ workspacePath: _wp }: CompanyOrgChartPane
 
       {/* Tree view */}
       {view === "tree" && (
-        <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 6, padding: 12 }}>
+        <div className="panel-card">
           {treeText ? (
             <pre style={{ margin: 0, fontSize: 12, whiteSpace: "pre-wrap", lineHeight: 1.7 }}>{treeText}</pre>
           ) : (
-            <div style={{ color: "var(--text-secondary)", fontSize: 12 }}>No org chart yet.</div>
+            <div className="panel-empty">No org chart yet.</div>
           )}
         </div>
       )}
+      </div>
     </div>
   );
 }

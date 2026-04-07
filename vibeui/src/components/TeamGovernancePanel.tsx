@@ -132,34 +132,13 @@ const TeamGovernancePanel: React.FC = () => {
     }
   };
 
-  const containerStyle: React.CSSProperties = {
-    padding: "16px", color: "var(--text-primary)",
-    backgroundColor: "var(--bg-primary)",
-    fontFamily: "inherit", fontSize: "13px",
-    height: "100%", overflow: "auto",
-  };
-  const tabBar: React.CSSProperties = { display: "flex", gap: 2, borderBottom: "1px solid var(--border-color)", padding: "0 16px", flexShrink: 0 };
-  const tab = (active: boolean): React.CSSProperties => ({
-    padding: "8px 16px", cursor: "pointer", border: "none",
-    backgroundColor: active ? "var(--bg-secondary)" : "transparent",
-    color: active ? "var(--text-primary)" : "var(--text-secondary)",
-    borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent",
-  });
   const badge = (color: string): React.CSSProperties => ({
     padding: "2px 8px", borderRadius: "10px", fontSize: "11px", fontWeight: 600,
     backgroundColor: color, color: "var(--text-primary)", marginLeft: "6px",
   });
-  const btn: React.CSSProperties = {
-    padding: "6px 14px", border: "none", borderRadius: "4px", cursor: "pointer",
-    backgroundColor: "var(--accent-color)", color: "var(--btn-primary-fg)",
-  };
   const input: React.CSSProperties = {
     padding: "6px 10px", borderRadius: "4px", border: "1px solid var(--border-color)",
     backgroundColor: "var(--bg-secondary)", color: "var(--text-primary)", width: "100%", boxSizing: "border-box",
-  };
-  const card: React.CSSProperties = {
-    padding: "12px", marginBottom: "8px", borderRadius: "6px",
-    backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border-color)",
   };
 
   const visibilityColor = (v: string) => v === "Public" ? "var(--success-color)" : v === "Org" ? "var(--info-color)" : v === "TeamOnly" ? "var(--accent-color)" : "var(--text-secondary)";
@@ -168,11 +147,11 @@ const TeamGovernancePanel: React.FC = () => {
   const pendingPlugins = plugins.filter(p => p.status === "Pending");
 
   return (
-    <div style={containerStyle}>
+    <div className="panel-container" style={{ padding: "16px", fontSize: "13px", overflow: "auto" }}>
       <h3 style={{ margin: "0 0 12px" }}>Team Governance</h3>
-      <div style={tabBar}>
+      <div className="panel-tab-bar">
         {["plugins", "approvals", "policy"].map(t => (
-          <button key={t} style={tab(activeTab === t)} onClick={() => setActiveTab(t)}>
+          <button key={t} className={`panel-tab ${activeTab === t ? "active" : ""}`} onClick={() => setActiveTab(t)}>
             {t.charAt(0).toUpperCase() + t.slice(1)}
           </button>
         ))}
@@ -182,22 +161,22 @@ const TeamGovernancePanel: React.FC = () => {
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px" }}>
             <span style={{ fontWeight: 600 }}>{plugins.length} registered plugins</span>
-            <button style={btn} onClick={() => setShowRegisterForm(!showRegisterForm)}>
+            <button className="panel-btn panel-btn-primary" onClick={() => setShowRegisterForm(!showRegisterForm)}>
               {showRegisterForm ? "Cancel" : "Register Plugin"}
             </button>
           </div>
           {showRegisterForm && (
-            <div style={{ ...card, marginBottom: "16px" }}>
+            <div className="panel-card" style={{ marginBottom: "16px" }}>
               <div style={{ marginBottom: "8px" }}>
-                <label style={{ display: "block", marginBottom: "4px", fontWeight: 600 }}>Plugin Name</label>
+                <label className="panel-label">Plugin Name</label>
                 <input style={input} value={newName} onChange={e => setNewName(e.target.value)} placeholder="e.g. my-plugin" />
               </div>
               <div style={{ marginBottom: "8px" }}>
-                <label style={{ display: "block", marginBottom: "4px", fontWeight: 600 }}>Version</label>
+                <label className="panel-label">Version</label>
                 <input style={input} value={newVersion} onChange={e => setNewVersion(e.target.value)} placeholder="e.g. 1.0.0" />
               </div>
               <div style={{ marginBottom: "8px" }}>
-                <label style={{ display: "block", marginBottom: "4px", fontWeight: 600 }}>Visibility</label>
+                <label className="panel-label">Visibility</label>
                 <select style={{ ...input, width: "auto" }} value={newVisibility} onChange={e => setNewVisibility(e.target.value)}>
                   <option value="Private">Private</option>
                   <option value="TeamOnly">TeamOnly</option>
@@ -206,16 +185,16 @@ const TeamGovernancePanel: React.FC = () => {
                 </select>
               </div>
               <div style={{ marginBottom: "8px" }}>
-                <label style={{ display: "block", marginBottom: "4px", fontWeight: 600 }}>Author</label>
+                <label className="panel-label">Author</label>
                 <input style={input} value={newAuthor} onChange={e => setNewAuthor(e.target.value)} placeholder="e.g. alice" />
               </div>
-              <button style={btn} disabled={loading || !newName || !newVersion || !newAuthor} onClick={handleSubmitPlugin}>
+              <button className="panel-btn panel-btn-primary" disabled={loading || !newName || !newVersion || !newAuthor} onClick={handleSubmitPlugin}>
                 {loading ? "Submitting..." : "Submit for Approval"}
               </button>
             </div>
           )}
           {plugins.map(p => (
-            <div key={p.id} style={card}>
+            <div key={p.id} className="panel-card">
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div>
                   <strong>{p.name}</strong> <span style={{ opacity: 0.7 }}>v{p.version}</span>
@@ -234,15 +213,15 @@ const TeamGovernancePanel: React.FC = () => {
           <h4 style={{ margin: "0 0 12px" }}>Pending Approvals ({pendingPlugins.length})</h4>
           {pendingPlugins.length === 0 && <p style={{ opacity: 0.6 }}>No pending approvals.</p>}
           {pendingPlugins.map(p => (
-            <div key={p.id} style={card}>
+            <div key={p.id} className="panel-card">
               <div style={{ marginBottom: "8px" }}>
                 <strong>{p.name}</strong> <span style={{ opacity: 0.6 }}>v{p.version} by {p.author}</span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <span style={{ opacity: 0.7 }}>Visibility: {p.visibility}</span>
                 <div style={{ marginLeft: "auto", display: "flex", gap: "6px" }}>
-                  <button style={{ ...btn, backgroundColor: "var(--success-color)" }} disabled={loading} onClick={() => handleApprove(p.id)}>Approve</button>
-                  <button style={{ ...btn, backgroundColor: "var(--error-color)" }} disabled={loading} onClick={() => handleReject(p.id)}>Reject</button>
+                  <button className="panel-btn panel-btn-primary" style={{ backgroundColor: "var(--success-color)" }} disabled={loading} onClick={() => handleApprove(p.id)}>Approve</button>
+                  <button className="panel-btn panel-btn-danger" disabled={loading} onClick={() => handleReject(p.id)}>Reject</button>
                 </div>
               </div>
             </div>
@@ -253,17 +232,17 @@ const TeamGovernancePanel: React.FC = () => {
       {activeTab === "policy" && (
         <div>
           <h4 style={{ margin: "0 0 12px" }}>Governance Policy</h4>
-          <div style={card}>
+          <div className="panel-card">
             <label style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
               <input type="checkbox" checked={policies.requireApproval} onChange={e => setPolicies({ ...policies, requireApproval: e.target.checked })} />
               Require approval for new plugins
             </label>
             <div style={{ marginBottom: "12px" }}>
-              <label style={{ display: "block", marginBottom: "4px", fontWeight: 600 }}>Allowed Categories</label>
+              <label className="panel-label">Allowed Categories</label>
               <input style={input} value={policies.allowedCategories} onChange={e => setPolicies({ ...policies, allowedCategories: e.target.value })} />
             </div>
             <div style={{ marginBottom: "12px" }}>
-              <label style={{ display: "block", marginBottom: "4px", fontWeight: 600 }}>Max Plugin Size (MB)</label>
+              <label className="panel-label">Max Plugin Size (MB)</label>
               <input style={{ ...input, width: "120px" }} type="number" value={policies.maxSizeMb} onChange={e => setPolicies({ ...policies, maxSizeMb: Number(e.target.value) })} />
             </div>
             <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>

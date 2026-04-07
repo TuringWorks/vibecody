@@ -197,39 +197,22 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
  boxSizing: "border-box",
  };
 
- const labelStyle: React.CSSProperties = {
- fontSize: 11,
- color: "var(--text-secondary)",
- marginBottom: 3,
- display: "block",
- };
-
  return (
- <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+ <div className="panel-container">
  {/* Sub-tab bar */}
- <div style={{ display: "flex", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", flexShrink: 0 }}>
+ <div className="panel-tab-bar">
  {subTabs.map((t) => (
  <button
  key={t.id}
  onClick={() => setSubTab(t.id)}
- style={{
- padding: "6px 14px",
- fontSize: 12,
- background: subTab === t.id ? "var(--bg-primary)" : "transparent",
- color: subTab === t.id ? "var(--text-primary)" : "var(--text-secondary)",
- border: "none",
- borderBottom: subTab === t.id ? "2px solid var(--accent-blue)" : "2px solid transparent",
- cursor: "pointer",
- fontWeight: subTab === t.id ? 600 : 400,
- whiteSpace: "nowrap",
- }}
+ className={`panel-tab${subTab === t.id ? " active" : ""}`}
  >
  {t.label}
  </button>
  ))}
  </div>
 
- <div style={{ flex: 1, overflow: "auto", padding: "12px" }}>
+ <div className="panel-body">
  {error && (
  <StatusMessage variant="error" message={error} inline />
  )}
@@ -239,27 +222,27 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
  <div>
- <label style={labelStyle}>APP NAME</label>
+ <label className="panel-label">APP NAME</label>
  <input style={inputStyle} value={appName} onChange={(e) => setAppName(e.target.value)} />
  </div>
  <div>
- <label style={labelStyle}>IMAGE</label>
+ <label className="panel-label">IMAGE</label>
  <input style={inputStyle} value={image} onChange={(e) => setImage(e.target.value)} placeholder="nginx:latest" />
  </div>
  <div>
- <label style={labelStyle}>PORT</label>
+ <label className="panel-label">PORT</label>
  <input style={inputStyle} type="number" value={port} onChange={(e) => setPort(Number(e.target.value))} />
  </div>
  <div>
- <label style={labelStyle}>REPLICAS</label>
+ <label className="panel-label">REPLICAS</label>
  <input style={inputStyle} type="number" min={1} value={replicas} onChange={(e) => setReplicas(Number(e.target.value))} />
  </div>
  <div>
- <label style={labelStyle}>NAMESPACE</label>
+ <label className="panel-label">NAMESPACE</label>
  <input style={inputStyle} value={namespace} onChange={(e) => setNamespace(e.target.value)} />
  </div>
  <div>
- <label style={labelStyle}>INGRESS HOST (optional)</label>
+ <label className="panel-label">INGRESS HOST (optional)</label>
  <input style={inputStyle} value={ingressHost} onChange={(e) => setIngressHost(e.target.value)} placeholder="myapp.example.com" />
  </div>
  </div>
@@ -268,13 +251,8 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
  <button
  onClick={handleGenerateManifests}
  disabled={manifestLoading}
- style={{
- padding: "7px 14px", fontSize: 12,
- background: "var(--accent-color)", color: "var(--btn-primary-fg)",
- border: "none", borderRadius: 6,
- cursor: manifestLoading ? "wait" : "pointer",
- opacity: manifestLoading ? 0.7 : 1,
- }}
+ className="panel-btn panel-btn-primary"
+ style={{ cursor: manifestLoading ? "wait" : "pointer", opacity: manifestLoading ? 0.7 : 1 }}
  >
  {manifestLoading ? "Generating..." : "Generate YAML"}
  </button>
@@ -282,14 +260,14 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
  <>
  <button
  onClick={handleCopyManifest}
- style={{ padding: "7px 14px", fontSize: 12, background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 6, cursor: "pointer" }}
+ className="panel-btn panel-btn-secondary"
  >
  {manifestCopied ? "✓ Copied" : "Copy YAML"}
  </button>
  {workspacePath && (
  <button
  onClick={handleSaveManifests}
- style={{ padding: "7px 14px", fontSize: 12, background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 6, cursor: "pointer" }}
+ className="panel-btn panel-btn-secondary"
  >
  Save to ./k8s/
  </button>
@@ -317,7 +295,7 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
  <div>
- <label style={labelStyle}>CONTEXT</label>
+ <label className="panel-label">CONTEXT</label>
  {contexts.length > 0 ? (
  <select
  style={inputStyle}
@@ -339,7 +317,7 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
  )}
  </div>
  <div>
- <label style={labelStyle}>NAMESPACE</label>
+ <label className="panel-label">NAMESPACE</label>
  <input style={inputStyle} value={deployNamespace} onChange={(e) => setDeployNamespace(e.target.value)} />
  </div>
  </div>
@@ -368,7 +346,7 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
  {/* Command input */}
  <div style={{ display: "flex", gap: 6 }}>
  <div style={{ flex: 1 }}>
- <label style={labelStyle}>KUBECTL COMMAND</label>
+ <label className="panel-label">KUBECTL COMMAND</label>
  <input
  style={inputStyle}
  value={kubectlCmd}
@@ -381,13 +359,8 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
  <button
  onClick={() => handleRunKubectl()}
  disabled={cmdLoading}
- style={{
- padding: "6px 14px", fontSize: 12,
- background: "var(--accent-color)", color: "var(--btn-primary-fg)",
- border: "none", borderRadius: 6,
- cursor: cmdLoading ? "wait" : "pointer",
- opacity: cmdLoading ? 0.7 : 1,
- }}
+ className="panel-btn panel-btn-primary"
+ style={{ cursor: cmdLoading ? "wait" : "pointer", opacity: cmdLoading ? 0.7 : 1 }}
  >
  {cmdLoading ? "" : "Run"}
  </button>
@@ -426,23 +399,23 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
 
  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
  <div>
- <label style={labelStyle}>APP NAME</label>
+ <label className="panel-label">APP NAME</label>
  <input style={inputStyle} value={argoAppName} onChange={(e) => setArgoAppName(e.target.value)} />
  </div>
  <div>
- <label style={labelStyle}>TARGET NAMESPACE</label>
+ <label className="panel-label">TARGET NAMESPACE</label>
  <input style={inputStyle} value={argoNamespace} onChange={(e) => setArgoNamespace(e.target.value)} />
  </div>
  <div style={{ gridColumn: "1 / -1" }}>
- <label style={labelStyle}>REPO URL</label>
+ <label className="panel-label">REPO URL</label>
  <input style={inputStyle} value={argoRepoUrl} onChange={(e) => setArgoRepoUrl(e.target.value)} placeholder="https://github.com/org/repo" />
  </div>
  <div>
- <label style={labelStyle}>MANIFESTS PATH</label>
+ <label className="panel-label">MANIFESTS PATH</label>
  <input style={inputStyle} value={argoPath} onChange={(e) => setArgoPath(e.target.value)} placeholder="./k8s" />
  </div>
  <div>
- <label style={labelStyle}>ARGOCD SERVER</label>
+ <label className="panel-label">ARGOCD SERVER</label>
  <input style={inputStyle} value={argoServer} onChange={(e) => setArgoServer(e.target.value)} placeholder="https://kubernetes.default.svc" />
  </div>
  </div>
@@ -451,13 +424,8 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
  <button
  onClick={handleGenerateArgo}
  disabled={argoLoading}
- style={{
- padding: "7px 14px", fontSize: 12,
- background: "var(--accent-color)", color: "var(--btn-primary-fg)",
- border: "none", borderRadius: 6,
- cursor: argoLoading ? "wait" : "pointer",
- opacity: argoLoading ? 0.7 : 1,
- }}
+ className="panel-btn panel-btn-primary"
+ style={{ cursor: argoLoading ? "wait" : "pointer", opacity: argoLoading ? 0.7 : 1 }}
  >
  {argoLoading ? "" : "Generate CR"}
  </button>
@@ -465,14 +433,15 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
  <>
  <button
  onClick={() => { navigator.clipboard.writeText(argoYaml).then(() => { setArgoCopied(true); setTimeout(() => setArgoCopied(false), 1500); }).catch(() => {}); }}
- style={{ padding: "7px 14px", fontSize: 12, background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 6, cursor: "pointer" }}
+ className="panel-btn panel-btn-secondary"
  >
  {argoCopied ? "✓ Copied" : "Copy YAML"}
  </button>
  <button
  onClick={handleApplyArgo}
  disabled={argoLoading}
- style={{ padding: "7px 14px", fontSize: 12, background: "var(--bg-tertiary)", color: "var(--success-color)", border: "1px solid var(--success-color)", borderRadius: 6, cursor: "pointer" }}
+ className="panel-btn panel-btn-secondary"
+ style={{ color: "var(--success-color)", border: "1px solid var(--success-color)" }}
  >
  Apply to Cluster
  </button>

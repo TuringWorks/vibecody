@@ -34,42 +34,6 @@ const ConversationalSearchPanel: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const containerStyle: React.CSSProperties = {
-    padding: "16px",
-    color: "var(--text-primary)",
-    backgroundColor: "var(--bg-primary)",
-    fontFamily: "inherit",
-    fontSize: "13px",
-    height: "100%",
-    overflow: "auto",
-  };
-
-  const tabBarStyle: React.CSSProperties = {
-    display: "flex",
-    gap: "4px",
-    borderBottom: "1px solid var(--border-color)",
-    marginBottom: "12px",
-  };
-
-  const tabStyle = (active: boolean): React.CSSProperties => ({
-    padding: "8px 16px",
-    cursor: "pointer",
-    border: "none",
-    background: active ? "var(--bg-secondary)" : "transparent",
-    color: active ? "var(--text-primary)" : "var(--text-secondary)",
-    borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent",
-    fontFamily: "inherit",
-    fontSize: "inherit",
-  });
-
-  const cardStyle: React.CSSProperties = {
-    padding: "10px",
-    marginBottom: "8px",
-    borderRadius: "4px",
-    backgroundColor: "var(--bg-secondary)",
-    border: "1px solid var(--border-color)",
-  };
-
   const inputStyle: React.CSSProperties = {
     padding: "6px 10px",
     background: "var(--bg-secondary)",
@@ -80,17 +44,6 @@ const ConversationalSearchPanel: React.FC = () => {
     fontSize: "inherit",
     width: "100%",
     boxSizing: "border-box",
-  };
-
-  const btnStyle: React.CSSProperties = {
-    padding: "6px 14px",
-    border: "1px solid var(--accent-color)",
-    background: "var(--accent-color)",
-    color: "var(--btn-primary-fg)",
-    borderRadius: "3px",
-    cursor: "pointer",
-    fontFamily: "inherit",
-    fontSize: "12px",
   };
 
   const loadHistory = useCallback(async () => {
@@ -161,31 +114,33 @@ const ConversationalSearchPanel: React.FC = () => {
   const tabs = ["search", "history", "settings"];
 
   return (
-    <div style={containerStyle}>
-      <h3 style={{ margin: "0 0 12px" }}>Conversational Search</h3>
-      <div style={tabBarStyle}>
+    <div className="panel-container">
+      <div className="panel-header">
+        <h3 style={{ margin: 0 }}>Conversational Search</h3>
+      </div>
+      <div className="panel-tab-bar">
         {tabs.map((t) => (
-          <button key={t} style={tabStyle(activeTab === t)} onClick={() => setActiveTab(t)}>
+          <button key={t} className={`panel-tab ${activeTab === t ? "active" : ""}`} onClick={() => setActiveTab(t)}>
             {t.charAt(0).toUpperCase() + t.slice(1)}
           </button>
         ))}
       </div>
-
+      <div className="panel-body">
       {activeTab === "search" && (
         <div>
           <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
             <input style={inputStyle} placeholder="Ask about your codebase..." value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSearch()} />
-            <button style={btnStyle} onClick={handleSearch} disabled={loading}>
+            <button className="panel-btn panel-btn-primary" onClick={handleSearch} disabled={loading}>
               {loading ? "Searching..." : "Search"}
             </button>
           </div>
           {error && (
-            <div style={{ ...cardStyle, borderColor: "var(--error-color)", color: "var(--error-color)", marginBottom: "12px" }}>
+            <div className="panel-error" style={{ marginBottom: "12px" }}>
               {error}
             </div>
           )}
           {results.map((r) => (
-            <div key={r.id} style={cardStyle}>
+            <div key={r.id} className="panel-card">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
                 <strong style={{ fontSize: "13px" }}>{r.file}:{r.line}</strong>
                 <span style={{ fontSize: "11px", opacity: 0.7 }}>{(r.relevance * 100).toFixed(0)}%</span>
@@ -197,13 +152,13 @@ const ConversationalSearchPanel: React.FC = () => {
             </div>
           ))}
           {!loading && results.length === 0 && query.trim() && !error && (
-            <div style={{ opacity: 0.5, textAlign: "center", padding: "20px" }}>No results found</div>
+            <div className="panel-empty">No results found</div>
           )}
           {followUps.length > 0 && (
             <div style={{ marginTop: "12px" }}>
               <div style={{ fontSize: "12px", opacity: 0.6, marginBottom: "6px" }}>Follow-up suggestions:</div>
               {followUps.map((f, i) => (
-                <button key={i} style={{ ...btnStyle, display: "block", marginBottom: "4px", textAlign: "left", background: "transparent", color: "var(--accent-color)", border: "1px solid var(--border-color)" }} onClick={() => setQuery(f)}>
+                <button key={i} className="panel-btn panel-btn-secondary" style={{ display: "block", marginBottom: "4px", textAlign: "left" }} onClick={() => setQuery(f)}>
                   {f}
                 </button>
               ))}
@@ -216,16 +171,16 @@ const ConversationalSearchPanel: React.FC = () => {
         <div>
           {history.length > 0 && (
             <div style={{ marginBottom: "8px", textAlign: "right" }}>
-              <button style={{ ...btnStyle, background: "transparent", color: "var(--text-secondary)", border: "1px solid var(--border-color)", fontSize: "11px" }} onClick={handleClearHistory}>
+              <button className="panel-btn panel-btn-secondary" style={{ fontSize: "11px" }} onClick={handleClearHistory}>
                 Clear History
               </button>
             </div>
           )}
           {history.length === 0 && (
-            <div style={{ opacity: 0.5, textAlign: "center", padding: "20px" }}>No search history yet</div>
+            <div className="panel-empty">No search history yet</div>
           )}
           {history.map((h) => (
-            <div key={h.id} style={cardStyle}>
+            <div key={h.id} className="panel-card">
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
                 <strong style={{ fontSize: "13px" }}>{h.query}</strong>
                 <span style={{ fontSize: "11px", opacity: 0.6 }}>{h.timestamp}</span>
@@ -239,28 +194,29 @@ const ConversationalSearchPanel: React.FC = () => {
 
       {activeTab === "settings" && (
         <div>
-          <div style={cardStyle}>
+          <div className="panel-card">
             <div style={{ marginBottom: "10px" }}>
-              <label style={{ fontSize: "12px", fontWeight: 600, display: "block", marginBottom: "4px" }}>File Types</label>
+              <label className="panel-label">File Types</label>
               <input style={inputStyle} value={filters.fileTypes} onChange={(e) => setFilters({ ...filters, fileTypes: e.target.value })} placeholder="*.rs, *.ts, *.tsx" />
             </div>
             <div style={{ marginBottom: "10px" }}>
-              <label style={{ fontSize: "12px", fontWeight: 600, display: "block", marginBottom: "4px" }}>Paths</label>
+              <label className="panel-label">Paths</label>
               <input style={inputStyle} value={filters.paths} onChange={(e) => setFilters({ ...filters, paths: e.target.value })} placeholder="src/" />
             </div>
             <div style={{ display: "flex", gap: "8px" }}>
               <div style={{ flex: 1 }}>
-                <label style={{ fontSize: "12px", fontWeight: 600, display: "block", marginBottom: "4px" }}>Date From</label>
+                <label className="panel-label">Date From</label>
                 <input style={inputStyle} type="date" value={filters.dateFrom} onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })} />
               </div>
               <div style={{ flex: 1 }}>
-                <label style={{ fontSize: "12px", fontWeight: 600, display: "block", marginBottom: "4px" }}>Date To</label>
+                <label className="panel-label">Date To</label>
                 <input style={inputStyle} type="date" value={filters.dateTo} onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })} />
               </div>
             </div>
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };

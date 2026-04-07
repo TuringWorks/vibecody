@@ -290,21 +290,9 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
 
   /* ── Styles ──────────────────────────────────────────────────────── */
 
-  const tabStyle = (active: boolean): React.CSSProperties => ({
-    padding: "6px 16px",
-    cursor: "pointer",
-    background: "none",
-    border: "none",
-    borderBottom: "2px solid",
-    borderBottomColor: active ? "var(--accent-blue)" : "transparent",
-    color: active ? "var(--text-primary)" : "var(--text-secondary)",
-    fontSize: "13px",
-    fontWeight: active ? 600 : 400,
-  });
-
-  const btnStyle: React.CSSProperties = {
-    padding: "4px 10px",
-    fontSize: "11px",
+  const btnSmall: React.CSSProperties = {
+    padding: "2px 8px",
+    fontSize: "10px",
     border: "1px solid var(--border-color)",
     borderRadius: "4px",
     background: "var(--bg-secondary)",
@@ -312,14 +300,8 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
     cursor: "pointer",
   };
 
-  const btnSmall: React.CSSProperties = {
-    ...btnStyle,
-    padding: "2px 8px",
-    fontSize: "10px",
-  };
-
   const btnDanger: React.CSSProperties = {
-    ...btnStyle,
+    ...btnSmall,
     borderColor: "var(--error-color)",
     color: "var(--error-color)",
   };
@@ -334,14 +316,6 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
     color: "var(--bg-primary)",
     marginRight: "6px",
   });
-
-  const cardStyle: React.CSSProperties = {
-    background: "var(--bg-secondary)",
-    border: "1px solid var(--border-color)",
-    borderRadius: "6px",
-    padding: "10px",
-    marginBottom: "8px",
-  };
 
   const sliderLabelStyle: React.CSSProperties = {
     display: "flex",
@@ -449,7 +423,7 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
 
   if (!hasWorkspace) {
     return (
-      <div style={{ padding: 24, textAlign: "center", color: "var(--text-secondary)", fontSize: 13 }}>
+      <div className="panel-empty">
         <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 8, color: "var(--text-primary)" }}>Infinite Context Manager</div>
         <p>Open a folder to use context indexing.</p>
       </div>
@@ -457,30 +431,28 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden", fontFamily: "var(--font-family)", color: "var(--text-primary)", fontSize: "13px" }}>
+    <div className="panel-container">
       {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", borderBottom: "1px solid var(--border-color)", flexShrink: 0 }}>
+      <div className="panel-header">
         <div style={{ fontWeight: 600, fontSize: "15px" }}>Infinite Context Manager</div>
-        <button style={btnStyle} onClick={() => { loadChunks(); loadProjectTree(); }} disabled={loading}>
+        <button className="panel-btn panel-btn-secondary" onClick={() => { loadChunks(); loadProjectTree(); }} disabled={loading}>
           {loading ? "Loading..." : "Refresh"}
         </button>
       </div>
 
       {error && (
-        <div style={{ color: "var(--error-color)", fontSize: "12px", padding: "6px 14px", background: "var(--bg-secondary)", flexShrink: 0 }}>
-          {error}
-        </div>
+        <div className="panel-error">{error}</div>
       )}
 
       {/* Tab bar */}
-      <div style={{ display: "flex", gap: "4px", borderBottom: "1px solid var(--border-color)", padding: "0 14px", flexShrink: 0 }}>
-        <button style={tabStyle(activeTab === "context")} onClick={() => setActiveTab("context")}>
+      <div className="panel-tab-bar">
+        <button className={`panel-tab${activeTab === "context" ? " active" : ""}`} onClick={() => setActiveTab("context")}>
           Context Window
         </button>
-        <button style={tabStyle(activeTab === "projectMap")} onClick={() => setActiveTab("projectMap")}>
+        <button className={`panel-tab${activeTab === "projectMap" ? " active" : ""}`} onClick={() => setActiveTab("projectMap")}>
           Project Map
         </button>
-        <button style={tabStyle(activeTab === "settings")} onClick={() => setActiveTab("settings")}>
+        <button className={`panel-tab${activeTab === "settings" ? " active" : ""}`} onClick={() => setActiveTab("settings")}>
           Settings
         </button>
       </div>
@@ -489,7 +461,7 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
       {tabPane("context", (
         <div>
           {/* Token usage bar */}
-          <div style={cardStyle}>
+          <div className="panel-card">
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
               <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>Token Usage</span>
               <span style={{ fontSize: "12px", fontWeight: 600 }}>
@@ -537,13 +509,13 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
 
           {/* Chunk list */}
           {loading && chunks.length === 0 && (
-            <div style={{ color: "var(--text-secondary)", textAlign: "center", padding: "20px" }}>Loading context chunks...</div>
+            <div className="panel-loading">Loading context chunks...</div>
           )}
           {!loading && sortedChunks.length === 0 && (
-            <div style={{ color: "var(--text-secondary)", textAlign: "center", padding: "20px" }}>No context chunks loaded. Use the Project Map to load files.</div>
+            <div className="panel-empty">No context chunks loaded. Use the Project Map to load files.</div>
           )}
           {sortedChunks.map(chunk => (
-            <div key={chunk.id} style={{ ...cardStyle, display: "flex", alignItems: "center", gap: "8px" }}>
+            <div key={chunk.id} className="panel-card" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px", flexWrap: "wrap" }}>
                   <span style={{ fontWeight: 600, color: "var(--text-primary)", wordBreak: "break-all" }}>{chunk.filePath}</span>
@@ -602,13 +574,13 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
           </div>
 
           {/* File tree */}
-          <div style={{ ...cardStyle, padding: "6px 10px", overflow: "auto" }}>
+          <div className="panel-card" style={{ padding: "6px 10px", overflow: "auto" }}>
             {loading && projectFiles.length === 0 && (
-              <div style={{ color: "var(--text-secondary)", textAlign: "center", padding: "12px" }}>Loading project tree...</div>
+              <div className="panel-loading">Loading project tree...</div>
             )}
             {renderFileTree(filterFiles(projectFiles))}
             {!loading && filterFiles(projectFiles).length === 0 && (
-              <div style={{ color: "var(--text-secondary)", textAlign: "center", padding: "12px" }}>No files match filter.</div>
+              <div className="panel-empty">No files match filter.</div>
             )}
           </div>
         </div>
@@ -618,7 +590,7 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
       {tabPane("settings", (
         <div>
           {/* Max tokens slider */}
-          <div style={cardStyle}>
+          <div className="panel-card">
             <div style={sliderLabelStyle}>
               <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>Max Tokens</span>
               <span style={{ color: "var(--accent-color)", fontWeight: 600 }}>{fmtTokens(settingsMaxTokens)}</span>
@@ -632,11 +604,11 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", color: "var(--text-secondary)", marginTop: "2px" }}>
               <span>10K</span><span>500K</span>
             </div>
-            <button style={{ ...btnStyle, marginTop: "8px" }} onClick={applyMaxTokens}>Apply</button>
+            <button className="panel-btn panel-btn-secondary" style={{ marginTop: "8px" }} onClick={applyMaxTokens}>Apply</button>
           </div>
 
           {/* Scoring weights */}
-          <div style={cardStyle}>
+          <div className="panel-card">
             <div style={{ fontWeight: 600, marginBottom: "10px", fontSize: "13px" }}>Scoring Weights</div>
             {renderSlider("Recency", recencyWeight, setRecencyWeight)}
             {renderSlider("Proximity", proximityWeight, setProximityWeight)}
@@ -646,14 +618,14 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
           </div>
 
           {/* Auto-compress toggle */}
-          <div style={cardStyle}>
+          <div className="panel-card">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <div style={{ fontWeight: 600, fontSize: "13px", color: "var(--text-primary)" }}>Auto-Compress</div>
                 <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "2px" }}>Automatically compress when 90% full</div>
               </div>
               <button
-                style={{ ...btnStyle, background: autoCompress ? "var(--success-color)" : "var(--bg-secondary)", color: autoCompress ? "#000" : "var(--text-primary)", fontWeight: 600, minWidth: "50px" }}
+                style={{ ...btnSmall, background: autoCompress ? "var(--success-color)" : "var(--bg-secondary)", color: autoCompress ? "#000" : "var(--text-primary)", fontWeight: 600, minWidth: "50px" }}
                 onClick={() => setAutoCompress(prev => !prev)}
               >
                 {autoCompress ? "ON" : "OFF"}
@@ -662,7 +634,7 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
           </div>
 
           {/* Cache settings */}
-          <div style={cardStyle}>
+          <div className="panel-card">
             <div style={{ fontWeight: 600, marginBottom: "8px", fontSize: "13px" }}>Cache</div>
             <div style={{ display: "flex", gap: "8px", alignItems: "center", marginBottom: "8px" }}>
               <label style={{ fontSize: "12px", color: "var(--text-secondary)", minWidth: "100px" }}>Cache Size</label>
@@ -675,7 +647,7 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
             </div>
             <div style={{ display: "flex", gap: "8px" }}>
               <button style={btnDanger} onClick={() => setCacheSize(256)}>Clear Cache</button>
-              <button style={btnStyle} onClick={() => { loadChunks(); loadProjectTree(); }}>Rebuild Index</button>
+              <button style={btnSmall} onClick={() => { loadChunks(); loadProjectTree(); }}>Rebuild Index</button>
             </div>
           </div>
         </div>

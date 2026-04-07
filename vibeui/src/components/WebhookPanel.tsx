@@ -108,17 +108,14 @@ export function WebhookPanel() {
   };
 
   return (
-    <div style={{ padding: '12px', height: '100%', overflow: 'auto', color: 'var(--text-primary)', fontSize: 13 }}>
+    <div className="panel-container" style={{ padding: '12px', overflow: 'auto', fontSize: 13 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <h3 style={{ margin: 0, fontSize: 15 }}>Webhook Automations</h3>
         <div style={{ display: 'flex', gap: 6 }}>
           {(['config', 'logs'] as const).map(t => (
-            <button key={t} onClick={() => setTab(t)} style={{
-              padding: '4px 12px', fontSize: 12, borderRadius: 4, cursor: 'pointer',
-              background: tab === t ? 'var(--accent-color)' : 'var(--bg-tertiary)',
-              color: tab === t ? 'var(--text-on-accent)' : 'var(--text-secondary)',
-              border: '1px solid var(--border-color)',
-            }}>{t === 'config' ? 'Webhooks' : 'Activity Log'}</button>
+            <button key={t} onClick={() => setTab(t)} className={`panel-btn ${tab === t ? 'panel-btn-primary' : 'panel-btn-secondary'}`}>
+              {t === 'config' ? 'Webhooks' : 'Activity Log'}
+            </button>
           ))}
         </div>
       </div>
@@ -127,22 +124,16 @@ export function WebhookPanel() {
 
       {tab === 'config' && !editing && (
         <>
-          <button onClick={() => setEditing(newWebhook())} style={{
-            padding: '6px 14px', marginBottom: 12, fontSize: 12, borderRadius: 4,
-            background: 'var(--accent-color)', color: 'var(--text-on-accent)', border: 'none', cursor: 'pointer',
-          }}>+ Add Webhook</button>
+          <button onClick={() => setEditing(newWebhook())} className="panel-btn panel-btn-primary" style={{ marginBottom: 12 }}>+ Add Webhook</button>
 
           {webhooks.length === 0 && (
-            <div style={{ color: 'var(--text-secondary)', padding: 20, textAlign: 'center' }}>
+            <div className="panel-empty">
               No webhooks configured. Add one to receive notifications on events.
             </div>
           )}
 
           {webhooks.map(wh => (
-            <div key={wh.id} style={{
-              padding: '10px 12px', marginBottom: 8, borderRadius: 6,
-              background: 'var(--bg-secondary)', border: '1px solid var(--border-color)',
-            }}>
+            <div key={wh.id} className="panel-card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <span style={{ fontWeight: 600 }}>{wh.name || 'Unnamed'}</span>
@@ -153,9 +144,9 @@ export function WebhookPanel() {
                   }}>{wh.enabled ? 'Active' : 'Disabled'}</span>
                 </div>
                 <div style={{ display: 'flex', gap: 4 }}>
-                  <button onClick={() => handleTest(wh.id)} style={smallBtn}>Test</button>
-                  <button onClick={() => setEditing(wh)} style={smallBtn}>Edit</button>
-                  <button onClick={() => handleDelete(wh.id)} style={{ ...smallBtn, color: 'var(--error-color)' }}>Delete</button>
+                  <button onClick={() => handleTest(wh.id)} className="panel-btn panel-btn-secondary" style={{ fontSize: 11, padding: '2px 8px' }}>Test</button>
+                  <button onClick={() => setEditing(wh)} className="panel-btn panel-btn-secondary" style={{ fontSize: 11, padding: '2px 8px' }}>Edit</button>
+                  <button onClick={() => handleDelete(wh.id)} className="panel-btn panel-btn-danger" style={{ fontSize: 11, padding: '2px 8px' }}>Delete</button>
                 </div>
               </div>
               <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4, fontFamily: 'var(--font-mono)' }}>
@@ -175,25 +166,25 @@ export function WebhookPanel() {
       )}
 
       {tab === 'config' && editing && (
-        <div style={{ padding: 12, background: 'var(--bg-secondary)', borderRadius: 6, border: '1px solid var(--border-color)' }}>
+        <div className="panel-card">
           <h4 style={{ margin: '0 0 12px 0', fontSize: 13 }}>{editing.name ? `Edit: ${editing.name}` : 'New Webhook'}</h4>
           <div style={{ marginBottom: 8 }}>
-            <label style={labelStyle}>Name</label>
+            <label className="panel-label">Name</label>
             <input value={editing.name} onChange={e => setEditing({ ...editing, name: e.target.value })}
               placeholder="My Slack Webhook" style={inputStyle} />
           </div>
           <div style={{ marginBottom: 8 }}>
-            <label style={labelStyle}>URL</label>
+            <label className="panel-label">URL</label>
             <input value={editing.url} onChange={e => setEditing({ ...editing, url: e.target.value })}
               placeholder="https://hooks.slack.com/services/..." style={inputStyle} />
           </div>
           <div style={{ marginBottom: 8 }}>
-            <label style={labelStyle}>Secret (HMAC-SHA256)</label>
+            <label className="panel-label">Secret (HMAC-SHA256)</label>
             <input value={editing.secret} onChange={e => setEditing({ ...editing, secret: e.target.value })}
               placeholder="Optional signing secret" style={inputStyle} type="password" />
           </div>
           <div style={{ marginBottom: 8 }}>
-            <label style={labelStyle}>Events</label>
+            <label className="panel-label">Events</label>
             <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
               {AVAILABLE_EVENTS.map(ev => (
                 <button key={ev} onClick={() => toggleEvent(ev)} style={{
@@ -206,22 +197,15 @@ export function WebhookPanel() {
             </div>
           </div>
           <div style={{ marginBottom: 12 }}>
-            <label style={{ ...labelStyle, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <label className="panel-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <input type="checkbox" checked={editing.enabled}
                 onChange={e => setEditing({ ...editing, enabled: e.target.checked })} />
               Enabled
             </label>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={handleSave} style={{
-              padding: '6px 16px', background: 'var(--accent-color)', color: 'var(--text-on-accent)',
-              border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12,
-            }}>Save</button>
-            <button onClick={() => setEditing(null)} style={{
-              padding: '6px 16px', background: 'var(--bg-tertiary)',
-              color: 'var(--text-secondary)', border: '1px solid var(--border-color)',
-              borderRadius: 4, cursor: 'pointer', fontSize: 12,
-            }}>Cancel</button>
+            <button onClick={handleSave} className="panel-btn panel-btn-primary">Save</button>
+            <button onClick={() => setEditing(null)} className="panel-btn panel-btn-secondary">Cancel</button>
           </div>
         </div>
       )}
@@ -229,16 +213,13 @@ export function WebhookPanel() {
       {tab === 'logs' && (
         <>
           {logs.length === 0 && (
-            <div style={{ color: 'var(--text-secondary)', padding: 20, textAlign: 'center' }}>
+            <div className="panel-empty">
               No webhook activity yet. Events will appear here after webhooks fire.
             </div>
           )}
           {logs.map(log => (
-            <div key={log.id} style={{
-              padding: '8px 12px', marginBottom: 6, borderRadius: 6,
-              background: 'var(--bg-secondary)', border: '1px solid var(--border-color)',
-              cursor: 'pointer',
-            }} onClick={() => setExpandedLog(expandedLog === log.id ? null : log.id)}>
+            <div key={log.id} className="panel-card" style={{ cursor: 'pointer' }}
+              onClick={() => setExpandedLog(expandedLog === log.id ? null : log.id)}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   <span style={{
@@ -255,7 +236,7 @@ export function WebhookPanel() {
                     {new Date(log.timestamp).toLocaleTimeString()}
                   </span>
                   <button onClick={(e) => { e.stopPropagation(); handleReplay(log.id); }}
-                    style={{ ...smallBtn, fontSize: 10 }}>Replay</button>
+                    className="panel-btn panel-btn-secondary" style={{ fontSize: 10, padding: '2px 8px' }}>Replay</button>
                 </div>
               </div>
               {expandedLog === log.id && (
@@ -279,16 +260,6 @@ export function WebhookPanel() {
     </div>
   );
 }
-
-const smallBtn: React.CSSProperties = {
-  padding: '2px 8px', fontSize: 11, background: 'var(--bg-tertiary)',
-  color: 'var(--text-secondary)', border: '1px solid var(--border-color)',
-  borderRadius: 3, cursor: 'pointer',
-};
-
-const labelStyle: React.CSSProperties = {
-  display: 'block', fontSize: 11, color: 'var(--text-secondary)', marginBottom: 3,
-};
 
 const inputStyle: React.CSSProperties = {
   width: '100%', padding: '5px 8px', fontSize: 12, borderRadius: 4,

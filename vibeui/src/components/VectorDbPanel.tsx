@@ -222,46 +222,24 @@ collection = client.create_collection(
     boxSizing: "border-box",
   };
 
-  const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", display: "block", marginBottom: 4 };
-
-  const btnPrimary: React.CSSProperties = {
-    background: "var(--accent)",
-    color: "var(--btn-primary-fg)",
-    border: "none",
-    borderRadius: 4,
-    padding: "8px 16px",
-    cursor: "pointer",
-    fontSize: 12,
-    fontWeight: 600,
-  };
-
   return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, background: "var(--bg-primary)", color: "var(--text-primary)" }}>
+    <div className="panel-container">
       {/* Tab bar */}
-      <div style={{ display: "flex", borderBottom: "1px solid var(--border)", background: "var(--bg-secondary)" }}>
+      <div className="panel-tab-bar">
         {tabs.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            style={{
-              padding: "8px 16px",
-              background: tab === t.key ? "var(--bg-primary)" : "transparent",
-              border: "none",
-              borderBottom: tab === t.key ? "2px solid var(--accent)" : "2px solid transparent",
-              color: tab === t.key ? "var(--text-primary)" : "var(--text-secondary)",
-              cursor: "pointer",
-              fontSize: 12,
-              fontWeight: tab === t.key ? 600 : 400,
-            }}
+            className={`panel-tab ${tab === t.key ? "active" : ""}`}
           >
             {t.label}
           </button>
         ))}
       </div>
 
-      <div style={{ flex: 1, overflow: "auto", padding: 16 }}>
+      <div className="panel-body">
         {loading && (
-          <div style={{ color: "var(--text-secondary)", fontSize: 12, textAlign: "center", marginTop: 32 }}>Loading...</div>
+          <div className="panel-loading">Loading...</div>
         )}
 
         {!loading && tab === "collections" && (
@@ -270,17 +248,17 @@ collection = client.create_collection(
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div>
-                <label style={labelStyle}>Collection Name</label>
+                <label className="panel-label">Collection Name</label>
                 <input value={collName} onChange={(e) => setCollName(e.target.value)} placeholder="my_collection" style={inputStyle} />
               </div>
               <div>
-                <label style={labelStyle}>Dimension</label>
+                <label className="panel-label">Dimension</label>
                 <input type="number" min={1} max={65536} value={collDimension} onChange={(e) => setCollDimension(Number(e.target.value))} style={inputStyle} />
               </div>
             </div>
 
             <div>
-              <label style={labelStyle}>Distance Metric</label>
+              <label className="panel-label">Distance Metric</label>
               <select value={collMetric} onChange={(e) => setCollMetric(e.target.value as Metric)} style={inputStyle}>
                 <option value="cosine">Cosine</option>
                 <option value="euclidean">Euclidean</option>
@@ -290,25 +268,25 @@ collection = client.create_collection(
             </div>
 
             {/* HNSW config */}
-            <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: 4, padding: 12 }}>
+            <div className="panel-card">
               <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 8, color: "var(--text-secondary)" }}>HNSW Index Config</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
                 <div>
-                  <label style={labelStyle}>M (max connections)</label>
+                  <label className="panel-label">M (max connections)</label>
                   <input type="number" min={4} max={128} value={hnsw.m} onChange={(e) => setHnsw((h) => ({ ...h, m: Number(e.target.value) }))} style={inputStyle} />
                 </div>
                 <div>
-                  <label style={labelStyle}>ef_construction</label>
+                  <label className="panel-label">ef_construction</label>
                   <input type="number" min={16} max={512} value={hnsw.efConstruction} onChange={(e) => setHnsw((h) => ({ ...h, efConstruction: Number(e.target.value) }))} style={inputStyle} />
                 </div>
                 <div>
-                  <label style={labelStyle}>ef_search</label>
+                  <label className="panel-label">ef_search</label>
                   <input type="number" min={16} max={512} value={hnsw.efSearch} onChange={(e) => setHnsw((h) => ({ ...h, efSearch: Number(e.target.value) }))} style={inputStyle} />
                 </div>
               </div>
             </div>
 
-            <button onClick={handleCreateCollection} disabled={!collName.trim()} style={{ ...btnPrimary, alignSelf: "flex-start", opacity: !collName.trim() ? 0.5 : 1 }}>
+            <button onClick={handleCreateCollection} disabled={!collName.trim()} className="panel-btn panel-btn-primary" style={{ alignSelf: "flex-start", opacity: !collName.trim() ? 0.5 : 1 }}>
               Create Collection
             </button>
 
@@ -336,7 +314,7 @@ collection = client.create_collection(
                         <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>{c.vectorCount.toLocaleString()}</td>
                         <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "center", fontSize: 10 }}>M={c.hnsw.m} ef={c.hnsw.efConstruction}</td>
                         <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>
-                          <button onClick={() => handleDeleteCollection(c.name)} style={{ background: "none", border: "none", color: "var(--error-color)", cursor: "pointer", fontSize: 11 }}>Delete</button>
+                          <button onClick={() => handleDeleteCollection(c.name)} className="panel-btn panel-btn-danger" style={{ fontSize: 11, padding: "2px 8px" }}>Delete</button>
                         </td>
                       </tr>
                     ))}
@@ -345,7 +323,7 @@ collection = client.create_collection(
               </div>
             )}
             {collections.length === 0 && (
-              <div style={{ textAlign: "center", opacity: 0.4, fontSize: 12, marginTop: 16 }}>No collections yet. Create one above.</div>
+              <div className="panel-empty">No collections yet. Create one above.</div>
             )}
           </div>
         )}
@@ -353,7 +331,7 @@ collection = client.create_collection(
         {!loading && tab === "search" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div>
-              <label style={labelStyle}>Collection</label>
+              <label className="panel-label">Collection</label>
               <select value={searchCollection} onChange={(e) => setSearchCollection(e.target.value)} style={inputStyle}>
                 <option value="">Select a collection...</option>
                 {collections.map((c) => (
@@ -362,7 +340,7 @@ collection = client.create_collection(
               </select>
             </div>
             <div>
-              <label style={labelStyle}>Query Vector (comma-separated floats)</label>
+              <label className="panel-label">Query Vector (comma-separated floats)</label>
               <textarea
                 value={vectorInput}
                 onChange={(e) => setVectorInput(e.target.value)}
@@ -374,16 +352,16 @@ collection = client.create_collection(
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div>
-                <label style={labelStyle}>Top K</label>
+                <label className="panel-label">Top K</label>
                 <input type="number" min={1} max={100} value={topK} onChange={(e) => setTopK(Number(e.target.value))} style={inputStyle} />
               </div>
               <div>
-                <label style={labelStyle}>Min Score</label>
+                <label className="panel-label">Min Score</label>
                 <input type="number" min={0} max={1} step={0.05} value={minScore} onChange={(e) => setMinScore(Number(e.target.value))} style={inputStyle} />
               </div>
             </div>
 
-            <button onClick={handleSearch} disabled={isSearching || !vectorInput.trim()} style={{ ...btnPrimary, alignSelf: "flex-start", opacity: isSearching || !vectorInput.trim() ? 0.5 : 1 }}>
+            <button onClick={handleSearch} disabled={isSearching || !vectorInput.trim()} className="panel-btn panel-btn-primary" style={{ alignSelf: "flex-start", opacity: isSearching || !vectorInput.trim() ? 0.5 : 1 }}>
               {isSearching ? "Searching..." : "Search"}
             </button>
 
@@ -416,7 +394,7 @@ collection = client.create_collection(
               </div>
             )}
             {searchResults.length === 0 && !isSearching && (
-              <div style={{ textAlign: "center", opacity: 0.4, fontSize: 12, marginTop: 16 }}>Enter a vector and click Search to find similar items.</div>
+              <div className="panel-empty">Enter a vector and click Search to find similar items.</div>
             )}
           </div>
         )}
@@ -424,7 +402,7 @@ collection = client.create_collection(
         {!loading && tab === "schema" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div>
-              <label style={labelStyle}>Vector Database Provider</label>
+              <label className="panel-label">Vector Database Provider</label>
               <select value={schemaProvider} onChange={(e) => setSchemaProvider(e.target.value as Provider)} style={inputStyle}>
                 <option value="qdrant">Qdrant</option>
                 <option value="pinecone">Pinecone</option>
@@ -435,7 +413,7 @@ collection = client.create_collection(
               </select>
             </div>
 
-            <button onClick={handleGenerateSchema} style={{ ...btnPrimary, alignSelf: "flex-start" }}>
+            <button onClick={handleGenerateSchema} className="panel-btn panel-btn-primary" style={{ alignSelf: "flex-start" }}>
               Generate Schema
             </button>
 

@@ -10,7 +10,7 @@
  *
  * Schema save/load wired to Tauri backend. Generation logic stays client-side.
  */
-import { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { CopyButton as CopyBtn } from "./shared/CopyButton";
 
@@ -271,27 +271,26 @@ export function DataGenPanel() {
  { id: "password", label: "Password" },
  ];
 
- const btnStyle = (active: boolean) => ({
- padding: "3px 14px", fontSize: 11, fontWeight: 700 as const,
- background: active ? "color-mix(in srgb, var(--accent-blue) 20%, transparent)" : "var(--bg-primary)",
+ const btnStyle = (active: boolean): React.CSSProperties => ({
+ background: active ? "color-mix(in srgb, var(--accent-blue) 20%, transparent)" : undefined,
  border: `1px solid ${active ? "var(--accent-color)" : "var(--border-color)"}`,
- borderRadius: 4, color: active ? "var(--info-color)" : "var(--text-secondary)", cursor: "pointer" as const,
+ color: active ? "var(--info-color)" : undefined,
  });
 
  return (
- <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+ <div className="panel-container">
 
  {/* Header */}
- <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+ <div className="panel-header" style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
  <span style={{ fontSize: 13, fontWeight: 600 }}>Data Generator</span>
- <div style={{ display: "flex", gap: 4 }}>
+ <div className="panel-tab-bar" style={{ border: "none", padding: 0, margin: 0 }}>
  {TABS.map(t => (
- <button key={t.id} onClick={() => setSubTab(t.id)} style={{ padding: "2px 10px", fontSize: 10, borderRadius: 10, background: subTab === t.id ? "color-mix(in srgb, var(--accent-blue) 20%, transparent)" : "var(--bg-primary)", border: `1px solid ${subTab === t.id ? "var(--accent-color)" : "var(--border-color)"}`, color: subTab === t.id ? "var(--info-color)" : "var(--text-secondary)", cursor: "pointer", fontWeight: subTab === t.id ? 700 : 400 }}>{t.label}</button>
+ <button key={t.id} onClick={() => setSubTab(t.id)} className={`panel-tab ${subTab === t.id ? "active" : ""}`}>{t.label}</button>
  ))}
  </div>
  </div>
 
- <div style={{ flex: 1, overflow: "auto" }}>
+ <div className="panel-body" style={{ padding: 0 }}>
 
  {/* ── FAKE DATA ── */}
  {subTab === "fakedata" && (

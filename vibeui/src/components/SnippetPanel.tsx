@@ -149,7 +149,7 @@ export function SnippetPanel({ workspacePath: _workspacePath }: SnippetPanelProp
           </select>
         </div>
         <div style={{ padding: "4px 8px" }}>
-          <button onClick={() => { setCreating(true); setSelected(null); }} style={{ ...btnStyle, width: "100%", background: "var(--accent-color)", color: "var(--text-primary)" }}>
+          <button onClick={() => { setCreating(true); setSelected(null); }} className="panel-btn panel-btn-primary" style={{ width: "100%" }}>
             + New Snippet
           </button>
         </div>
@@ -193,7 +193,7 @@ export function SnippetPanel({ workspacePath: _workspacePath }: SnippetPanelProp
             </div>
           ))}
           {filtered.length === 0 && (
-            <div style={{ padding: 16, textAlign: "center", opacity: 0.5, fontSize: 11 }}>
+            <div className="panel-empty" style={{ fontSize: 11 }}>
               No snippets found.
             </div>
           )}
@@ -203,9 +203,7 @@ export function SnippetPanel({ workspacePath: _workspacePath }: SnippetPanelProp
       {/* Right: detail or create */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         {error && (
-          <div style={{ padding: "6px 8px", fontSize: 11, color: "var(--text-danger)", background: "color-mix(in srgb, var(--accent-rose) 5%, transparent)" }}>
-            {error}
-          </div>
+          <div className="panel-error">{error}</div>
         )}
 
         {/* Detail view */}
@@ -214,9 +212,9 @@ export function SnippetPanel({ workspacePath: _workspacePath }: SnippetPanelProp
             <div style={{ display: "flex", gap: 6, padding: "8px 8px", alignItems: "center", borderBottom: "1px solid var(--border-color)" }}>
               <span style={{ fontWeight: 600, fontSize: 12 }}>{selected}</span>
               <div style={{ flex: 1 }} />
-              <button onClick={handleCopy} style={btnStyle}>Copy</button>
-              <button onClick={handleInsert} style={{ ...btnStyle, color: "var(--text-info)" }}>Insert</button>
-              <button onClick={() => handleDelete(selected)} style={{ ...btnStyle, color: "var(--text-danger)" }}>Delete</button>
+              <button onClick={handleCopy} className="panel-btn panel-btn-secondary">Copy</button>
+              <button onClick={handleInsert} className="panel-btn panel-btn-secondary" style={{ color: "var(--text-info)" }}>Insert</button>
+              <button onClick={() => handleDelete(selected)} className="panel-btn panel-btn-danger">Delete</button>
             </div>
             <pre style={{
               flex: 1, margin: 0, padding: "8px 10px", overflowY: "auto",
@@ -244,7 +242,7 @@ export function SnippetPanel({ workspacePath: _workspacePath }: SnippetPanelProp
             {/* AI Generate */}
             <div style={{ display: "flex", gap: 6 }}>
               <input placeholder="Describe what to generate..." value={genDesc} onChange={(e) => setGenDesc(e.target.value)} style={{ ...inputStyle, flex: 1 }} />
-              <button onClick={handleGenerate} disabled={generating} style={{ ...btnStyle, color: "var(--text-info)" }}>
+              <button onClick={handleGenerate} disabled={generating} className="panel-btn panel-btn-secondary" style={{ color: "var(--text-info)" }}>
                 {generating ? "..." : "AI Generate"}
               </button>
             </div>
@@ -263,17 +261,17 @@ export function SnippetPanel({ workspacePath: _workspacePath }: SnippetPanelProp
             />
 
             <div style={{ display: "flex", gap: 6 }}>
-              <button onClick={handleSave} disabled={loading} style={{ ...btnStyle, background: "var(--accent-color)", color: "var(--text-primary)", flex: 1 }}>
+              <button onClick={handleSave} disabled={loading} className="panel-btn panel-btn-primary" style={{ flex: 1 }}>
                 {loading ? "Saving..." : "Save Snippet"}
               </button>
-              <button onClick={() => setCreating(false)} style={btnStyle}>Cancel</button>
+              <button onClick={() => setCreating(false)} className="panel-btn panel-btn-secondary">Cancel</button>
             </div>
           </div>
         )}
 
         {/* Empty state */}
         {!selected && !creating && (
-          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.5, fontSize: 12 }}>
+          <div className="panel-empty">
             Select a snippet or create a new one.
           </div>
         )}
@@ -281,13 +279,6 @@ export function SnippetPanel({ workspacePath: _workspacePath }: SnippetPanelProp
     </div>
   );
 }
-
-const btnStyle: React.CSSProperties = {
-  padding: "4px 10px", fontSize: 11, fontWeight: 600,
-  border: "1px solid var(--border-color)", borderRadius: 4,
-  background: "var(--bg-secondary)", color: "var(--text-primary)",
-  cursor: "pointer",
-};
 
 const inputStyle: React.CSSProperties = {
   padding: "4px 8px", fontSize: 11, borderRadius: 4,

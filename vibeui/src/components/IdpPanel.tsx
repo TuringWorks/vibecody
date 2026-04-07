@@ -119,71 +119,7 @@ const INFRA_TEMPLATES = [
   "Load Balancer",
 ];
 
-// ── Styles ──────────────────────────────────────────────────────────────────
-
-const containerStyle: React.CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  height: "100%",
-  background: "var(--bg-primary)",
-  color: "var(--text-primary)",
-  fontFamily: "inherit",
-  overflow: "hidden",
-};
-
-const tabBarStyle: React.CSSProperties = {
-  display: "flex",
-  gap: 2,
-  padding: "8px 12px 0",
-  borderBottom: "1px solid var(--border-color)",
-  background: "var(--bg-secondary)",
-  overflowX: "auto",
-  flexShrink: 0,
-};
-
-const tabStyle = (active: boolean): React.CSSProperties => ({
-  padding: "8px 14px",
-  cursor: "pointer",
-  background: active ? "var(--bg-primary)" : "transparent",
-  color: active ? "var(--text-primary)" : "var(--text-secondary)",
-  border: "none",
-  borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent",
-  fontSize: 13,
-  fontFamily: "inherit",
-  whiteSpace: "nowrap",
-});
-
-const contentStyle: React.CSSProperties = {
-  flex: 1,
-  overflow: "auto",
-  padding: 16,
-};
-
-const btnStyle: React.CSSProperties = {
-  padding: "6px 14px",
-  background: "var(--accent-color)",
-  color: "var(--bg-primary)",
-  border: "none",
-  borderRadius: 4,
-  cursor: "pointer",
-  fontSize: 12,
-  fontFamily: "inherit",
-};
-
-const btnSecondary: React.CSSProperties = {
-  ...btnStyle,
-  background: "var(--bg-tertiary)",
-  color: "var(--text-primary)",
-};
-
-const btnDanger: React.CSSProperties = {
-  ...btnStyle,
-  background: "transparent",
-  color: "var(--error-color)",
-  border: "1px solid var(--error-color)",
-  padding: "2px 8px",
-  fontSize: 11,
-};
+// ── Styles (no panel-class equivalent) ─────────────────────────────────────
 
 const inputStyle: React.CSSProperties = {
   padding: "6px 10px",
@@ -228,23 +164,8 @@ const badgeStyle = (color: string): React.CSSProperties => ({
   border: `1px solid ${color}`,
 });
 
-const cardStyle: React.CSSProperties = {
-  background: "var(--bg-secondary)",
-  border: "1px solid var(--border-color)",
-  borderRadius: 6,
-  padding: 14,
-  marginBottom: 10,
-};
-
 const formGroup: React.CSSProperties = {
   marginBottom: 10,
-};
-
-const labelStyle: React.CSSProperties = {
-  display: "block",
-  fontSize: 12,
-  color: "var(--text-secondary)",
-  marginBottom: 4,
 };
 
 // ── Component ───────────────────────────────────────────────────────────────
@@ -529,8 +450,8 @@ spec:
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <h3 style={{ margin: 0, fontSize: 15 }}>Service Catalog ({services.length} services)</h3>
           <div style={{ display: "flex", gap: 6 }}>
-            <button style={btnSecondary} onClick={loadCatalog}>Refresh</button>
-            <button style={btnStyle} onClick={() => setShowServiceForm(!showServiceForm)}>
+            <button className="panel-btn panel-btn-secondary" onClick={loadCatalog}>Refresh</button>
+            <button className="panel-btn panel-btn-primary" onClick={() => setShowServiceForm(!showServiceForm)}>
               {showServiceForm ? "Cancel" : "+ Register Service"}
             </button>
           </div>
@@ -541,20 +462,20 @@ spec:
         </div>
 
         {showServiceForm && (
-          <div style={{ ...cardStyle, marginBottom: 16 }}>
+          <div className="panel-card" style={{ marginBottom: 16 }}>
             <div style={{ display: "flex", gap: 10 }}>
               <div style={{ ...formGroup, flex: 2 }}>
-                <label style={labelStyle}>Service Name *</label>
+                <label className="panel-label">Service Name *</label>
                 <input style={inputStyle} value={svcName} onChange={(e) => setSvcName(e.target.value)} placeholder="e.g. user-service" />
               </div>
               <div style={{ ...formGroup, flex: 1 }}>
-                <label style={labelStyle}>Owner *</label>
+                <label className="panel-label">Owner *</label>
                 <input style={inputStyle} value={svcOwner} onChange={(e) => setSvcOwner(e.target.value)} placeholder="Team or person" />
               </div>
             </div>
             <div style={{ display: "flex", gap: 10 }}>
               <div style={{ ...formGroup, flex: 1 }}>
-                <label style={labelStyle}>Tier</label>
+                <label className="panel-label">Tier</label>
                 <select style={inputStyle} value={svcTier} onChange={(e) => setSvcTier(e.target.value as Service["tier"])}>
                   <option value="Tier0">Tier 0 - Critical</option>
                   <option value="Tier1">Tier 1 - High</option>
@@ -563,7 +484,7 @@ spec:
                 </select>
               </div>
               <div style={{ ...formGroup, flex: 1 }}>
-                <label style={labelStyle}>Language</label>
+                <label className="panel-label">Language</label>
                 <select style={inputStyle} value={svcLanguage} onChange={(e) => setSvcLanguage(e.target.value)}>
                   {["TypeScript", "Rust", "Go", "Python", "Java", "C#", "Ruby", "Kotlin", "Swift", "Elixir"].map((l) => (
                     <option key={l} value={l}>{l}</option>
@@ -571,19 +492,19 @@ spec:
                 </select>
               </div>
               <div style={{ ...formGroup, flex: 1 }}>
-                <label style={labelStyle}>Framework</label>
+                <label className="panel-label">Framework</label>
                 <input style={inputStyle} value={svcFramework} onChange={(e) => setSvcFramework(e.target.value)} placeholder="e.g. Next.js, Actix" />
               </div>
             </div>
             <div style={formGroup}>
-              <label style={labelStyle}>Repository URL</label>
+              <label className="panel-label">Repository URL</label>
               <input style={inputStyle} value={svcRepo} onChange={(e) => setSvcRepo(e.target.value)} placeholder="https://github.com/org/repo" />
             </div>
             <div style={formGroup}>
-              <label style={labelStyle}>Description</label>
+              <label className="panel-label">Description</label>
               <textarea style={{ ...inputStyle, height: 50, resize: "vertical" }} value={svcDescription} onChange={(e) => setSvcDescription(e.target.value)} placeholder="Brief description of the service..." />
             </div>
-            <button style={{ ...btnStyle, opacity: (!svcName || !svcOwner) ? 0.5 : 1 }} onClick={registerService} disabled={!svcName || !svcOwner}>Register Service</button>
+            <button className="panel-btn panel-btn-primary" style={{ opacity: (!svcName || !svcOwner) ? 0.5 : 1 }} onClick={registerService} disabled={!svcName || !svcOwner}>Register Service</button>
           </div>
         )}
 
@@ -616,9 +537,9 @@ spec:
                 <td style={tdStyle}>
                   <div style={{ display: "flex", gap: 4 }}>
                     {svc.repo_url && (
-                      <a href={svc.repo_url} target="_blank" rel="noopener noreferrer" style={{ ...btnSecondary, padding: "2px 8px", fontSize: 11, textDecoration: "none" }}>Repo</a>
+                      <a href={svc.repo_url} target="_blank" rel="noopener noreferrer" className="panel-btn panel-btn-secondary" style={{ padding: "2px 8px", fontSize: 11, textDecoration: "none" }}>Repo</a>
                     )}
-                    <button style={btnDanger} onClick={() => deleteService(svc.id)}>Remove</button>
+                    <button className="panel-btn panel-btn-danger" style={{ padding: "2px 8px", fontSize: 11 }} onClick={() => deleteService(svc.id)}>Remove</button>
                   </div>
                 </td>
               </tr>
@@ -634,7 +555,7 @@ spec:
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <h3 style={{ margin: 0, fontSize: 15 }}>Golden Paths ({goldenPaths.length} templates)</h3>
-          <button style={btnSecondary} onClick={loadGoldenPaths}>Refresh</button>
+          <button className="panel-btn panel-btn-secondary" onClick={loadGoldenPaths}>Refresh</button>
         </div>
 
         <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 12px" }}>
@@ -650,7 +571,7 @@ spec:
             <p style={{ color: "var(--text-secondary)", gridColumn: "1/-1", textAlign: "center" }}>No matching golden paths.</p>
           )}
           {filteredPaths.map((gp) => (
-            <div key={gp.id} style={cardStyle}>
+            <div key={gp.id} className="panel-card">
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                 <span style={{ fontSize: 20 }}>
                   {gp.language === "TypeScript" ? "TS" : gp.language === "Rust" ? "Rs" : gp.language === "Go" ? "Go" : gp.language === "Python" ? "Py" : gp.language === "Java" ? "Jv" : gp.language === "Kotlin" ? "Kt" : gp.language.slice(0, 2)}
@@ -684,10 +605,10 @@ spec:
           Evaluate services against quality, governance, standards, and DORA metrics. Scores are computed from service metadata and can be improved by completing recommendations.
         </p>
 
-        <div style={{ ...cardStyle, marginBottom: 16 }}>
+        <div className="panel-card" style={{ marginBottom: 16 }}>
           <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
             <div style={{ ...formGroup, flex: 1, marginBottom: 0 }}>
-              <label style={labelStyle}>Select Service</label>
+              <label className="panel-label">Select Service</label>
               <select style={inputStyle} value={scorecardServiceId} onChange={(e) => setScorecardServiceId(e.target.value)}>
                 <option value="">Choose a service...</option>
                 {services.map((svc) => (
@@ -695,8 +616,8 @@ spec:
                 ))}
               </select>
             </div>
-            <button style={btnSecondary} onClick={() => scorecardServiceId && loadScorecard(scorecardServiceId)} disabled={!scorecardServiceId}>Load</button>
-            <button style={btnStyle} onClick={() => scorecardServiceId && evaluateScorecard(scorecardServiceId)} disabled={!scorecardServiceId}>Evaluate</button>
+            <button className="panel-btn panel-btn-secondary" onClick={() => scorecardServiceId && loadScorecard(scorecardServiceId)} disabled={!scorecardServiceId}>Load</button>
+            <button className="panel-btn panel-btn-primary" onClick={() => scorecardServiceId && evaluateScorecard(scorecardServiceId)} disabled={!scorecardServiceId}>Evaluate</button>
           </div>
           {services.length === 0 && (
             <p style={{ margin: "10px 0 0", fontSize: 11, color: "var(--text-secondary)" }}>Register services in the Service Catalog tab first.</p>
@@ -706,7 +627,7 @@ spec:
         {scorecard && (
           <div>
             <div style={{ display: "flex", gap: 16, marginBottom: 16 }}>
-              <div style={{ ...cardStyle, textAlign: "center", minWidth: 120, marginBottom: 0 }}>
+              <div className="panel-card" style={{ textAlign: "center", minWidth: 120, marginBottom: 0 }}>
                 <div style={{ fontSize: 36, fontWeight: 700, fontFamily: "var(--font-mono)", color: GRADE_COLORS[scorecard.overall_grade] || "var(--text-primary)" }}>
                   {scorecard.overall_grade}
                 </div>
@@ -738,7 +659,7 @@ spec:
             </div>
 
             {scorecard.recommendations.length > 0 && (
-              <div style={cardStyle}>
+              <div className="panel-card">
                 <h4 style={{ margin: "0 0 8px", fontSize: 14 }}>Recommendations</h4>
                 <ul style={{ margin: 0, paddingLeft: 20, fontSize: 12 }}>
                   {scorecard.recommendations.map((rec, i) => (
@@ -759,8 +680,8 @@ spec:
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <h3 style={{ margin: 0, fontSize: 15 }}>Self-Service Infrastructure ({infraRequests.length} requests)</h3>
           <div style={{ display: "flex", gap: 6 }}>
-            <button style={btnSecondary} onClick={loadInfraRequests}>Refresh</button>
-            <button style={btnStyle} onClick={() => setShowInfraForm(!showInfraForm)}>
+            <button className="panel-btn panel-btn-secondary" onClick={loadInfraRequests}>Refresh</button>
+            <button className="panel-btn panel-btn-primary" onClick={() => setShowInfraForm(!showInfraForm)}>
               {showInfraForm ? "Cancel" : "+ New Request"}
             </button>
           </div>
@@ -771,9 +692,9 @@ spec:
         </p>
 
         {showInfraForm && (
-          <div style={{ ...cardStyle, marginBottom: 16 }}>
+          <div className="panel-card" style={{ marginBottom: 16 }}>
             <div style={formGroup}>
-              <label style={labelStyle}>Template</label>
+              <label className="panel-label">Template</label>
               <select style={inputStyle} value={infraTemplate} onChange={(e) => setInfraTemplate(e.target.value)}>
                 {INFRA_TEMPLATES.map((t) => (
                   <option key={t} value={t}>{t}</option>
@@ -782,7 +703,7 @@ spec:
             </div>
             <div style={{ display: "flex", gap: 10 }}>
               <div style={{ ...formGroup, flex: 1 }}>
-                <label style={labelStyle}>Environment</label>
+                <label className="panel-label">Environment</label>
                 <select style={inputStyle} value={infraEnv} onChange={(e) => setInfraEnv(e.target.value)}>
                   <option value="development">Development</option>
                   <option value="staging">Staging</option>
@@ -790,7 +711,7 @@ spec:
                 </select>
               </div>
               <div style={{ ...formGroup, flex: 1 }}>
-                <label style={labelStyle}>Region</label>
+                <label className="panel-label">Region</label>
                 <select style={inputStyle} value={infraRegion} onChange={(e) => setInfraRegion(e.target.value)}>
                   {["us-east-1", "us-west-2", "eu-west-1", "eu-central-1", "ap-southeast-1"].map((r) => (
                     <option key={r} value={r}>{r}</option>
@@ -798,7 +719,7 @@ spec:
                 </select>
               </div>
               <div style={{ ...formGroup, flex: 1 }}>
-                <label style={labelStyle}>Size</label>
+                <label className="panel-label">Size</label>
                 <select style={inputStyle} value={infraSize} onChange={(e) => setInfraSize(e.target.value)}>
                   <option value="small">Small</option>
                   <option value="medium">Medium</option>
@@ -807,7 +728,7 @@ spec:
                 </select>
               </div>
             </div>
-            <button style={btnStyle} onClick={submitInfraRequest}>Submit Request</button>
+            <button className="panel-btn panel-btn-primary" onClick={submitInfraRequest}>Submit Request</button>
           </div>
         )}
 
@@ -850,8 +771,8 @@ spec:
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <h3 style={{ margin: 0, fontSize: 15 }}>Teams ({teams.length})</h3>
           <div style={{ display: "flex", gap: 6 }}>
-            <button style={btnSecondary} onClick={loadTeams}>Refresh</button>
-            <button style={btnStyle} onClick={() => setShowTeamForm(!showTeamForm)}>
+            <button className="panel-btn panel-btn-secondary" onClick={loadTeams}>Refresh</button>
+            <button className="panel-btn panel-btn-primary" onClick={() => setShowTeamForm(!showTeamForm)}>
               {showTeamForm ? "Cancel" : "+ Create Team"}
             </button>
           </div>
@@ -862,12 +783,12 @@ spec:
         </p>
 
         {showTeamForm && (
-          <div style={{ ...cardStyle, marginBottom: 16 }}>
+          <div className="panel-card" style={{ marginBottom: 16 }}>
             <div style={formGroup}>
-              <label style={labelStyle}>Team Name</label>
+              <label className="panel-label">Team Name</label>
               <input style={inputStyle} value={teamName} onChange={(e) => setTeamName(e.target.value)} placeholder="e.g. Platform Engineering" onKeyDown={(e) => e.key === "Enter" && createTeam()} />
             </div>
-            <button style={{ ...btnStyle, opacity: !teamName ? 0.5 : 1 }} onClick={createTeam} disabled={!teamName.trim()}>Create Team</button>
+            <button className="panel-btn panel-btn-primary" style={{ opacity: !teamName ? 0.5 : 1 }} onClick={createTeam} disabled={!teamName.trim()}>Create Team</button>
           </div>
         )}
 
@@ -876,10 +797,10 @@ spec:
             <p style={{ color: "var(--text-secondary)", gridColumn: "1/-1", textAlign: "center" }}>No teams configured. Click "+ Create Team" to get started.</p>
           )}
           {teams.map((team) => (
-            <div key={team.id} style={cardStyle}>
+            <div key={team.id} className="panel-card">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                 <strong style={{ fontSize: 14 }}>{team.name}</strong>
-                <button style={{ ...btnSecondary, padding: "2px 8px", fontSize: 11 }} onClick={() => setExpandedTeam(expandedTeam === team.id ? null : team.id)}>
+                <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 8px", fontSize: 11 }} onClick={() => setExpandedTeam(expandedTeam === team.id ? null : team.id)}>
                   {expandedTeam === team.id ? "Hide Checklist" : "Onboarding"}
                 </button>
               </div>
@@ -924,7 +845,7 @@ spec:
         </p>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
           {platforms.map((platform) => (
-            <div key={platform.name} style={{ ...cardStyle, opacity: platform.enabled ? 1 : 0.7, borderColor: platform.enabled ? "var(--accent-color)" : "var(--border-color)" }}>
+            <div key={platform.name} className="panel-card" style={{ opacity: platform.enabled ? 1 : 0.7, borderColor: platform.enabled ? "var(--accent-color)" : "var(--border-color)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                 <strong style={{ fontSize: 14 }}>{platform.name}</strong>
                 <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 12 }}>
@@ -953,11 +874,11 @@ spec:
           Generate Backstage-compatible <code>catalog-info.yaml</code> files for your registered services. These can be committed to your repos for automatic Backstage discovery.
         </p>
 
-        <div style={cardStyle}>
+        <div className="panel-card">
           <h4 style={{ margin: "0 0 10px", fontSize: 14 }}>Generate catalog-info.yaml</h4>
           <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
             <div style={{ ...formGroup, flex: 1, marginBottom: 0 }}>
-              <label style={labelStyle}>Select Service</label>
+              <label className="panel-label">Select Service</label>
               <select style={inputStyle} value={backstageServiceId} onChange={(e) => setBackstageServiceId(e.target.value)}>
                 <option value="">Choose a service...</option>
                 {services.map((svc) => (
@@ -965,7 +886,7 @@ spec:
                 ))}
               </select>
             </div>
-            <button style={btnStyle} onClick={() => {
+            <button className="panel-btn panel-btn-primary" onClick={() => {
               if (backstageServiceId) generateCatalogYaml(backstageServiceId);
             }} disabled={!backstageServiceId}>Generate</button>
           </div>
@@ -978,7 +899,7 @@ spec:
           <div style={{ marginTop: 16 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
               <h4 style={{ margin: 0, fontSize: 14 }}>catalog-info.yaml</h4>
-              <button style={btnSecondary} onClick={() => { navigator.clipboard.writeText(catalogYaml); showSuccess("YAML copied to clipboard."); }}>Copy</button>
+              <button className="panel-btn panel-btn-secondary" onClick={() => { navigator.clipboard.writeText(catalogYaml); showSuccess("YAML copied to clipboard."); }}>Copy</button>
             </div>
             <pre style={{
               background: "var(--bg-tertiary)",
@@ -1023,7 +944,7 @@ spec:
                       </span>
                     </td>
                     <td style={tdStyle}>
-                      <button style={{ ...btnSecondary, padding: "2px 8px", fontSize: 11 }} onClick={() => {
+                      <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 8px", fontSize: 11 }} onClick={() => {
                         setBackstageServiceId(svc.id);
                         generateCatalogInfoLocal(svc);
                       }}>Generate YAML</button>
@@ -1051,15 +972,15 @@ spec:
   };
 
   return (
-    <div style={containerStyle}>
-      <div style={tabBarStyle}>
+    <div className="panel-container">
+      <div className="panel-tab-bar">
         {TABS.map((tab) => (
-          <button key={tab} style={tabStyle(activeTab === tab)} onClick={() => setActiveTab(tab)}>
+          <button key={tab} className={`panel-tab${activeTab === tab ? " active" : ""}`} onClick={() => setActiveTab(tab)}>
             {tab}
           </button>
         ))}
       </div>
-      <div style={contentStyle}>
+      <div className="panel-body">
         {successMsg && (
           <div style={{ padding: "8px 12px", marginBottom: 12, background: "color-mix(in srgb, var(--success-color) 13%, transparent)", border: "1px solid var(--success-color)", borderRadius: 4, fontSize: 12, color: "var(--success-color)", display: "flex", justifyContent: "space-between" }}>
             <span>{successMsg}</span>
@@ -1072,9 +993,12 @@ spec:
             <button style={{ background: "none", border: "none", color: "var(--error-color)", cursor: "pointer", fontSize: 14 }} onClick={() => setError(null)}>x</button>
           </div>
         )}
-        {loading && <div style={{ textAlign: "center", padding: 20, color: "var(--text-secondary)", fontSize: 13 }}>Loading...</div>}
+        {loading && <div className="panel-loading">Loading...</div>}
         {!loading && renderTab()}
       </div>
     </div>
   );
+
 }
+
+export default IdpPanel;

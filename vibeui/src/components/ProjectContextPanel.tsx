@@ -109,23 +109,6 @@ export function ProjectContextPanel({ workspacePath }: { workspacePath?: string 
     setLoading(false);
   };
 
-  const tabStyle = (t: Tab): React.CSSProperties => ({
-    padding: "6px 14px",
-    cursor: "pointer",
-    borderBottom: tab === t ? "2px solid var(--accent-blue)" : "2px solid transparent",
-    background: "none",
-    border: "none",
-    color: tab === t ? "var(--text-primary)" : "var(--text-secondary)",
-    fontWeight: tab === t ? 600 : 400,
-    fontSize: "13px",
-  });
-
-  const sectionStyle: React.CSSProperties = {
-    padding: "12px 16px",
-    overflowY: "auto",
-    flex: 1,
-  };
-
   const badgeStyle: React.CSSProperties = {
     display: "inline-block",
     padding: "2px 8px",
@@ -137,33 +120,22 @@ export function ProjectContextPanel({ workspacePath }: { workspacePath?: string 
     marginBottom: "4px",
   };
 
-  const cmdBtnStyle: React.CSSProperties = {
-    padding: "4px 10px",
-    cursor: "pointer",
-    background: "var(--accent-blue)",
-    color: "var(--button-fg, #fff)",
-    border: "none",
-    borderRadius: "4px",
-    fontSize: "12px",
-    marginLeft: "8px",
-  };
-
   if (loading) {
-    return <div style={sectionStyle}>Scanning project...</div>;
+    return <div className="panel-loading">Scanning project...</div>;
   }
   if (error) {
     return (
-      <div style={sectionStyle}>
-        <p style={{ color: "var(--error-color, #f44)" }}>{error}</p>
-        <button onClick={rescan} style={cmdBtnStyle}>Scan Now</button>
+      <div className="panel-error" style={{ padding: "12px 16px" }}>
+        <p style={{ color: "var(--error-color, #f44)", margin: "0 0 8px" }}>{error}</p>
+        <button onClick={rescan} className="panel-btn panel-btn-primary">Scan Now</button>
       </div>
     );
   }
   if (!profile) {
     return (
-      <div style={sectionStyle}>
+      <div className="panel-empty">
         <p>No project profile loaded. Open a workspace folder first.</p>
-        <button onClick={rescan} style={cmdBtnStyle}>Scan Project</button>
+        <button onClick={rescan} className="panel-btn panel-btn-primary">Scan Project</button>
       </div>
     );
   }
@@ -171,22 +143,22 @@ export function ProjectContextPanel({ workspacePath }: { workspacePath?: string 
   const scannedDate = new Date(profile.scanned_at * 1000).toLocaleString();
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+    <div className="panel-container">
       {/* Tab bar */}
-      <div style={{ display: "flex", borderBottom: "1px solid var(--border-color)", flexShrink: 0 }}>
-        <button style={tabStyle("overview")} onClick={() => setTab("overview")}>Overview</button>
-        <button style={tabStyle("commands")} onClick={() => setTab("commands")}>Commands</button>
-        <button style={tabStyle("files")} onClick={() => setTab("files")}>Key Files</button>
-        <button style={tabStyle("context")} onClick={() => setTab("context")}>AI Context</button>
+      <div className="panel-tab-bar">
+        <button className={`panel-tab${tab === "overview" ? " active" : ""}`} onClick={() => setTab("overview")}>Overview</button>
+        <button className={`panel-tab${tab === "commands" ? " active" : ""}`} onClick={() => setTab("commands")}>Commands</button>
+        <button className={`panel-tab${tab === "files" ? " active" : ""}`} onClick={() => setTab("files")}>Key Files</button>
+        <button className={`panel-tab${tab === "context" ? " active" : ""}`} onClick={() => setTab("context")}>AI Context</button>
         <div style={{ marginLeft: "auto", padding: "6px 12px" }}>
-          <button onClick={rescan} style={{ ...cmdBtnStyle, background: "transparent", color: "var(--text-secondary)" }}>
+          <button onClick={rescan} className="panel-btn panel-btn-secondary" style={{ background: "transparent", color: "var(--text-secondary)" }}>
             Rescan
           </button>
         </div>
       </div>
 
       {/* Tab content */}
-      <div style={sectionStyle}>
+      <div className="panel-body">
         {tab === "overview" && (
           <div>
             <h3 style={{ margin: "0 0 8px 0", fontSize: "16px" }}>{profile.name}</h3>
@@ -245,7 +217,7 @@ export function ProjectContextPanel({ workspacePath }: { workspacePath?: string 
                 {profile.build_commands.map((cmd, i) => (
                   <div key={i} style={{ display: "flex", alignItems: "center", marginBottom: "6px" }}>
                     <code style={{ flex: 1, fontSize: "12px" }}>{cmd.command}</code>
-                    <button style={cmdBtnStyle} onClick={() => runCommand(cmd.command)}>Run</button>
+                    <button className="panel-btn panel-btn-primary" style={{ marginLeft: "8px" }} onClick={() => runCommand(cmd.command)}>Run</button>
                   </div>
                 ))}
               </div>
@@ -258,7 +230,7 @@ export function ProjectContextPanel({ workspacePath }: { workspacePath?: string 
                   <div key={i} style={{ display: "flex", alignItems: "center", marginBottom: "6px" }}>
                     <code style={{ flex: 1, fontSize: "12px" }}>{cmd.command}</code>
                     <span style={{ ...badgeStyle, marginLeft: "8px" }}>{cmd.framework}</span>
-                    <button style={cmdBtnStyle} onClick={() => runCommand(cmd.command)}>Run</button>
+                    <button className="panel-btn panel-btn-primary" style={{ marginLeft: "8px" }} onClick={() => runCommand(cmd.command)}>Run</button>
                   </div>
                 ))}
               </div>
@@ -270,7 +242,7 @@ export function ProjectContextPanel({ workspacePath }: { workspacePath?: string 
                 {profile.lint_commands.map((cmd, i) => (
                   <div key={i} style={{ display: "flex", alignItems: "center", marginBottom: "6px" }}>
                     <code style={{ flex: 1, fontSize: "12px" }}>{cmd.command}</code>
-                    <button style={cmdBtnStyle} onClick={() => runCommand(cmd.command)}>Run</button>
+                    <button className="panel-btn panel-btn-primary" style={{ marginLeft: "8px" }} onClick={() => runCommand(cmd.command)}>Run</button>
                   </div>
                 ))}
               </div>

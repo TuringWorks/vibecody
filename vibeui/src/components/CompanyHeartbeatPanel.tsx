@@ -6,49 +6,70 @@
  */
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Heart, X, Check } from "lucide-react";
+import { Heart, X, ChevronDown, ChevronRight } from "lucide-react";
 
 interface CompanyHeartbeatPanelProps {
   workspacePath?: string | null;
 }
 
-const btnStyle: React.CSSProperties = {
-  fontSize: 11, padding: "3px 10px", cursor: "pointer", borderRadius: 4,
-  background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", color: "var(--text-primary)",
-};
+interface HeartbeatRun {
+  id: string;
+  company_id: string;
+  agent_id: string;
+  trigger: string;
+  status: 'running' | 'completed' | 'failed';
+  session_id: string | null;
+  started_at: number;
+  finished_at: number | null;
+  summary: string | null;
+}
 
 const inputStyle: React.CSSProperties = {
   fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)",
   border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)",
 };
 
-function statusColor(line: string): string {
-  if (line.startsWith("✓")) return "var(--success, #27ae60)";
-  if (line.startsWith("✗")) return "var(--danger, #e74c3c)";
-  if (line.startsWith("▶")) return "var(--warning, #f39c12)";
-  return "var(--text-primary)";
+function statusBadgeStyle(status: HeartbeatRun['status']): React.CSSProperties {
+  const color =
+    status === 'running' ? 'var(--accent-blue)' :
+    status === 'completed' ? 'var(--accent-green)' :
+    'var(--accent-rose)';
+  return {
+    display: 'inline-block', padding: '1px 7px', borderRadius: 10, fontSize: 10,
+    fontWeight: 700, background: color, color: '#fff', textTransform: 'uppercase',
+  };
+}
+
+function formatDuration(run: HeartbeatRun): string {
+  if (run.finished_at == null) return '…';
+  const ms = run.finished_at - run.started_at;
+  if (ms < 1000) return `${ms}ms`;
+  return `${(ms / 1000).toFixed(1)}s`;
+}
+
+function formatTs(ts: number): string {
+  return new Date(ts).toLocaleString();
 }
 
 export function CompanyHeartbeatPanel({ workspacePath: _wp }: CompanyHeartbeatPanelProps) {
-  const [history, setHistory] = useState<string>("");
+  const [runs, setRuns] = useState<HeartbeatRun[]>([]);
   const [loading, setLoading] = useState(false);
   const [agentFilter, setAgentFilter] = useState("");
   const [triggerAgent, setTriggerAgent] = useState("");
   const [triggerResult, setTriggerResult] = useState<string | null>(null);
-  const [limit, setLimit] = useState("20");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
     try {
-      const agentArg = agentFilter.trim();
-      const limitArg = parseInt(limit) || 20;
-      const args = agentArg
-        ? `heartbeat history ${agentArg} ${limitArg}`
-        : `heartbeat history "" ${limitArg}`;
-      const out = await invoke<string>("company_cmd", { args });
-      setHistory(out);
+      const filter = agentFilter.trim() || null;
+      const result = await invoke<HeartbeatRun[]>("company_heartbeat_history_json", {
+        agentId: filter,
+        limit: 50,
+      });
+      setRuns(result);
     } catch (e) {
-      setHistory(`Error: ${e}`);
+      setRuns([]);
     } finally {
       setLoading(false);
     }
@@ -68,18 +89,17 @@ export function CompanyHeartbeatPanel({ workspacePath: _wp }: CompanyHeartbeatPa
     }
   };
 
-  const lines = history.split("\n").filter(Boolean);
-
   return (
-    <div style={{ padding: 16, fontSize: 13, height: "100%", overflowY: "auto" }}>
+    <div className="panel-container">
       {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+      <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <span style={{ fontWeight: 600, fontSize: 14 }}>Heartbeats</span>
-        <button onClick={load} style={btnStyle}>Refresh</button>
+        <button onClick={load} className="panel-btn panel-btn-secondary">Refresh</button>
       </div>
+      <div className="panel-body">
 
       {/* Manual trigger */}
-      <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 6, padding: 12, marginBottom: 14 }}>
+      <div className="panel-card" style={{ marginBottom: 14 }}>
         <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 8, fontWeight: 600 }}>MANUAL TRIGGER</div>
         <div style={{ display: "flex", gap: 8 }}>
           <input
@@ -91,7 +111,8 @@ export function CompanyHeartbeatPanel({ workspacePath: _wp }: CompanyHeartbeatPa
           <button
             onClick={trigger}
             disabled={!triggerAgent.trim()}
-            style={{ ...btnStyle, padding: "4px 14px", border: "1px solid var(--warning, #f39c12)", color: "var(--warning, #f39c12)", opacity: triggerAgent.trim() ? 1 : 0.5, display: "inline-flex", alignItems: "center" }}
+            className="panel-btn panel-btn-secondary"
+            style={{ border: "1px solid var(--warning, #f39c12)", color: "var(--warning, #f39c12)", opacity: triggerAgent.trim() ? 1 : 0.5, display: "inline-flex", alignItems: "center" }}
           >
             <Heart size={13} strokeWidth={1.5} style={{ marginRight: 4 }} /> Trigger
           </button>
@@ -113,48 +134,79 @@ export function CompanyHeartbeatPanel({ workspacePath: _wp }: CompanyHeartbeatPa
           style={{ ...inputStyle, flex: 1 }}
           onKeyDown={(e) => e.key === "Enter" && load()}
         />
-        <input
-          value={limit}
-          onChange={(e) => setLimit(e.target.value)}
-          type="number"
-          placeholder="Limit"
-          style={{ ...inputStyle, width: 64 }}
-        />
-        <button onClick={load} style={{ ...btnStyle, padding: "4px 12px" }}>Filter</button>
+        <button onClick={load} className="panel-btn panel-btn-secondary" style={{ padding: "4px 12px" }}>Filter</button>
       </div>
 
       {/* Legend */}
       <div style={{ display: "flex", gap: 14, fontSize: 11, color: "var(--text-secondary)", marginBottom: 10 }}>
-        <span style={{ color: "var(--warning, #f39c12)" }}>▶ running</span>
-        <span style={{ color: "var(--success, #27ae60)", display: "inline-flex", alignItems: "center", gap: 3 }}><Check size={11} strokeWidth={2} /> completed</span>
-        <span style={{ color: "var(--danger, #e74c3c)", display: "inline-flex", alignItems: "center", gap: 3 }}><X size={11} strokeWidth={2} /> failed</span>
+        <span style={{ color: "var(--accent-blue)" }}>● running</span>
+        <span style={{ color: "var(--accent-green)" }}>● completed</span>
+        <span style={{ color: "var(--accent-rose)" }}>● failed</span>
         <span style={{ marginLeft: "auto" }}>
-          {lines.length > 0 && !loading ? `${lines.length} run${lines.length !== 1 ? "s" : ""}` : ""}
+          {runs.length > 0 && !loading ? `${runs.length} run${runs.length !== 1 ? "s" : ""}` : ""}
         </span>
       </div>
 
       {/* History list */}
-      <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 6, padding: 12, minHeight: 160 }}>
+      <div className="panel-card" style={{ minHeight: 160, padding: 0, overflow: "hidden" }}>
         {loading ? (
-          <span style={{ color: "var(--text-secondary)" }}>Loading…</span>
-        ) : lines.length === 0 ? (
-          <span style={{ color: "var(--text-secondary)", fontSize: 12 }}>No heartbeat runs yet. Trigger one above.</span>
+          <span className="panel-loading" style={{ padding: 16 }}>Loading…</span>
+        ) : runs.length === 0 ? (
+          <span className="panel-empty" style={{ padding: 16, display: "block" }}>No heartbeat runs yet. Trigger one above.</span>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            {lines.map((line, i) => (
-              <div
-                key={i}
-                style={{
-                  fontSize: 12, fontFamily: "monospace", padding: "4px 6px",
-                  borderRadius: 3, background: "rgba(0,0,0,0.15)",
-                  color: statusColor(line), lineHeight: 1.5,
-                }}
-              >
-                {line}
-              </div>
-            ))}
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            {runs.map((run) => {
+              const expanded = expandedId === run.id;
+              return (
+                <div key={run.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
+                  {/* Row */}
+                  <div
+                    onClick={() => setExpandedId(expanded ? null : run.id)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 10, padding: "8px 12px",
+                      cursor: "pointer", background: expanded ? "var(--bg-secondary)" : "transparent",
+                    }}
+                  >
+                    <span style={{ color: "var(--text-secondary)", display: "inline-flex" }}>
+                      {expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                    </span>
+                    <span style={statusBadgeStyle(run.status)}>{run.status}</span>
+                    <span style={{ fontSize: 11, color: "var(--text-secondary)", minWidth: 70 }}>{run.trigger}</span>
+                    <span style={{ fontSize: 12, fontFamily: "var(--font-mono)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{run.agent_id}</span>
+                    <span style={{ fontSize: 11, color: "var(--text-secondary)", minWidth: 48, textAlign: "right" }}>{formatDuration(run)}</span>
+                    <span style={{ fontSize: 11, color: "var(--text-secondary)", minWidth: 140, textAlign: "right" }}>{formatTs(run.started_at)}</span>
+                  </div>
+                  {/* Inspector */}
+                  {expanded && (
+                    <div style={{
+                      padding: "10px 16px 14px", background: "var(--bg-tertiary)",
+                      fontSize: 12, borderTop: "1px solid var(--border-color)",
+                    }}>
+                      {run.summary && (
+                        <div style={{ marginBottom: 10, lineHeight: 1.6 }}>
+                          <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>SUMMARY</span>
+                          <div style={{ whiteSpace: "pre-wrap" }}>{run.summary}</div>
+                        </div>
+                      )}
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 16px", fontSize: 11, color: "var(--text-secondary)" }}>
+                        <div><strong>Run ID:</strong> <span style={{ fontFamily: "var(--font-mono)" }}>{run.id}</span></div>
+                        <div><strong>Company:</strong> <span style={{ fontFamily: "var(--font-mono)" }}>{run.company_id}</span></div>
+                        <div><strong>Agent:</strong> <span style={{ fontFamily: "var(--font-mono)" }}>{run.agent_id}</span></div>
+                        <div><strong>Trigger:</strong> {run.trigger}</div>
+                        <div><strong>Session ID:</strong> <span style={{ fontFamily: "var(--font-mono)" }}>{run.session_id ?? '—'}</span></div>
+                        <div><strong>Status:</strong> {run.status}</div>
+                        <div><strong>Started:</strong> {formatTs(run.started_at)}</div>
+                        <div><strong>Finished:</strong> {run.finished_at ? formatTs(run.finished_at) : '—'}</div>
+                        <div><strong>Duration:</strong> {formatDuration(run)}</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
+      </div>
       </div>
     </div>
   );

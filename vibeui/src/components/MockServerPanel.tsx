@@ -40,6 +40,24 @@ const methodColor: Record<string, string> = {
   OPTIONS: "var(--text-secondary)",
 };
 
+const inputStyle: React.CSSProperties = {
+  padding: "4px 8px", fontSize: 11, borderRadius: 4,
+  border: "1px solid var(--border-color)",
+  background: "var(--bg-primary)", color: "var(--text-primary)",
+  outline: "none",
+};
+
+const selectStyle: React.CSSProperties = {
+  padding: "4px 6px", fontSize: 11, borderRadius: 4,
+  border: "1px solid var(--border-color)",
+  background: "var(--bg-primary)", color: "var(--text-primary)",
+};
+
+const cellBtn: React.CSSProperties = {
+  background: "none", border: "none", cursor: "pointer",
+  fontSize: 12, padding: "0 3px", color: "var(--text-primary)", opacity: 0.7,
+};
+
 export function MockServerPanel() {
   const [tab, setTab] = useState<SubTab>("routes");
   const [port, setPort] = useState("3001");
@@ -152,12 +170,9 @@ export function MockServerPanel() {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+    <div className="panel-container">
       {/* Server controls */}
-      <div style={{
-        display: "flex", gap: 6, padding: "8px 12px", alignItems: "center",
-        borderBottom: "1px solid var(--border-color)",
-      }}>
+      <div className="panel-header">
         <span style={{ fontSize: 11, fontWeight: 600 }}>Port:</span>
         <input
           value={port}
@@ -166,11 +181,11 @@ export function MockServerPanel() {
           style={{ ...inputStyle, width: 60, textAlign: "center" }}
         />
         {!running ? (
-          <button onClick={handleStart} disabled={loading} style={{ ...btnStyle, background: "var(--success-color)", color: "var(--bg-tertiary)" }}>
+          <button onClick={handleStart} disabled={loading} className="panel-btn panel-btn-primary" style={{ background: "var(--success-color)", color: "var(--bg-tertiary)" }}>
             {loading ? "..." : "Start"}
           </button>
         ) : (
-          <button onClick={handleStop} style={{ ...btnStyle, background: "var(--error-color)", color: "var(--bg-tertiary)" }}>
+          <button onClick={handleStop} className="panel-btn panel-btn-danger">
             Stop
           </button>
         )}
@@ -186,17 +201,12 @@ export function MockServerPanel() {
       </div>
 
       {/* Sub-tabs */}
-      <div style={{ display: "flex", gap: 4, padding: "6px 12px", borderBottom: "1px solid var(--border-color)" }}>
+      <div className="panel-tab-bar">
         {(["routes", "log", "import"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            style={{
-              padding: "3px 10px", fontSize: 10, fontWeight: 600, borderRadius: 4, cursor: "pointer",
-              border: tab === t ? "1px solid var(--accent-color)" : "1px solid var(--border-color)",
-              background: tab === t ? "color-mix(in srgb, var(--accent-blue) 15%, transparent)" : "transparent",
-              color: "var(--text-primary)",
-            }}
+            className={`panel-tab${tab === t ? " active" : ""}`}
           >
             {t === "routes" ? "Routes" : t === "log" ? "Request Log" : "Import"}
           </button>
@@ -204,12 +214,10 @@ export function MockServerPanel() {
       </div>
 
       {error && (
-        <div style={{ padding: "6px 12px", fontSize: 11, color: "var(--text-danger)", background: "color-mix(in srgb, var(--accent-rose) 5%, transparent)" }}>
-          {error}
-        </div>
+        <div className="panel-error">{error}</div>
       )}
 
-      <div style={{ flex: 1, overflowY: "auto", padding: "8px 12px" }}>
+      <div className="panel-body">
         {/* Routes tab */}
         {tab === "routes" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -223,7 +231,7 @@ export function MockServerPanel() {
               </select>
               <input placeholder="/api/path" value={addPath} onChange={(e) => setAddPath(e.target.value)} style={{ ...inputStyle, flex: 1, minWidth: 120 }} />
               <input placeholder="200" value={addStatus} onChange={(e) => setAddStatus(e.target.value)} style={{ ...inputStyle, width: 50, textAlign: "center" }} />
-              <button onClick={handleAddRoute} style={{ ...btnStyle, background: "var(--accent-color)", color: "var(--text-primary)" }}>Add</button>
+              <button onClick={handleAddRoute} className="panel-btn panel-btn-primary">Add</button>
             </div>
             <input
               placeholder='Response body JSON...'
@@ -254,7 +262,7 @@ export function MockServerPanel() {
               </div>
             ))}
             {routes.length === 0 && (
-              <div style={{ padding: 16, textAlign: "center", opacity: 0.5, fontSize: 11 }}>
+              <div className="panel-empty">
                 No routes defined. Add one above or import from OpenAPI.
               </div>
             )}
@@ -265,12 +273,12 @@ export function MockServerPanel() {
         {tab === "log" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             {!running && (
-              <div style={{ padding: 12, textAlign: "center", opacity: 0.5, fontSize: 11 }}>
+              <div className="panel-empty">
                 Start the mock server to capture requests.
               </div>
             )}
             {requestLog.length === 0 && running && (
-              <div style={{ padding: 12, textAlign: "center", opacity: 0.5, fontSize: 11 }}>
+              <div className="panel-loading">
                 Waiting for requests... (auto-refreshes every 2s)
               </div>
             )}
@@ -315,7 +323,7 @@ export function MockServerPanel() {
                 onChange={(e) => setSpecPath(e.target.value)}
                 style={{ ...inputStyle, flex: 1, fontFamily: "var(--font-mono)" }}
               />
-              <button onClick={handleImport} disabled={importing} style={{ ...btnStyle, color: "var(--text-info)" }}>
+              <button onClick={handleImport} disabled={importing} className="panel-btn panel-btn-secondary" style={{ color: "var(--text-info)" }}>
                 {importing ? "Importing..." : "Generate Mocks"}
               </button>
             </div>
@@ -339,28 +347,3 @@ export function MockServerPanel() {
     </div>
   );
 }
-
-const btnStyle: React.CSSProperties = {
-  padding: "4px 10px", fontSize: 11, fontWeight: 600,
-  border: "1px solid var(--border-color)", borderRadius: 4,
-  background: "var(--bg-secondary)", color: "var(--text-primary)",
-  cursor: "pointer",
-};
-
-const inputStyle: React.CSSProperties = {
-  padding: "4px 8px", fontSize: 11, borderRadius: 4,
-  border: "1px solid var(--border-color)",
-  background: "var(--bg-primary)", color: "var(--text-primary)",
-  outline: "none",
-};
-
-const selectStyle: React.CSSProperties = {
-  padding: "4px 6px", fontSize: 11, borderRadius: 4,
-  border: "1px solid var(--border-color)",
-  background: "var(--bg-primary)", color: "var(--text-primary)",
-};
-
-const cellBtn: React.CSSProperties = {
-  background: "none", border: "none", cursor: "pointer",
-  fontSize: 12, padding: "0 3px", color: "var(--text-primary)", opacity: 0.7,
-};

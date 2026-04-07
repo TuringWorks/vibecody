@@ -60,21 +60,18 @@ export function CompanyAdapterPanel({ workspacePath: _wp }: CompanyAdapterPanelP
     }
   };
 
-  const btnStyle: React.CSSProperties = {
-    fontSize: 11, padding: "3px 10px", cursor: "pointer", borderRadius: 4,
-    background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", color: "var(--text-primary)",
-  };
   return (
-    <div style={{ padding: 16, fontSize: 13, height: "100%", overflowY: "auto" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+    <div className="panel-container">
+      <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <span style={{ fontWeight: 600, fontSize: 14 }}>Adapter Registry</span>
-        <button onClick={load} style={btnStyle}>
+        <button onClick={load} className="panel-btn panel-btn-secondary">
           Refresh
         </button>
       </div>
+      <div className="panel-body">
 
       {/* Register adapter */}
-      <div style={{ border: "1px solid var(--border-color)", borderRadius: 6, padding: 12, marginBottom: 16 }}>
+      <div className="panel-card" style={{ marginBottom: 16 }}>
         <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8 }}>Register Adapter</div>
         <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name"
@@ -92,13 +89,13 @@ export function CompanyAdapterPanel({ workspacePath: _wp }: CompanyAdapterPanelP
           <input value={command} onChange={(e) => setCommand(e.target.value)} placeholder="Shell command"
             style={{ width: "100%", fontSize: 12, padding: "4px 8px", marginBottom: 6, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", boxSizing: "border-box" }} />
         )}
-        <button onClick={register} style={{...btnStyle, padding: "4px 12px"}}>
+        <button onClick={register} className="panel-btn panel-btn-primary">
           Register
         </button>
       </div>
 
       {cmdResult && (
-        <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 4, padding: 8, marginBottom: 12, fontSize: 12 }}>
+        <div className="panel-card" style={{ marginBottom: 12, fontSize: 12 }}>
           {cmdResult}
         </div>
       )}
@@ -115,21 +112,22 @@ export function CompanyAdapterPanel({ workspacePath: _wp }: CompanyAdapterPanelP
             const el = document.getElementById("remove-adapter-input") as HTMLInputElement;
             if (el?.value) remove(el.value.trim());
           }}
-          style={{ ...btnStyle, padding: "4px 10px", border: "1px solid var(--danger, #e74c3c)", color: "var(--danger, #e74c3c)" }}
+          className="panel-btn panel-btn-danger"
         >
           Remove
         </button>
       </div>
 
       {/* Adapters list */}
-      <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 6, padding: 12 }}>
+      <div className="panel-card">
         {loading ? (
-          <span style={{ color: "var(--text-secondary)" }}>Loading…</span>
+          <span className="panel-loading">Loading…</span>
         ) : (
           <pre style={{ margin: 0, fontSize: 12, whiteSpace: "pre-wrap" }}>
             {listOutput || "Built-in adapter: internal (VibeCody AgentPool)"}
           </pre>
         )}
+      </div>
       </div>
     </div>
   );

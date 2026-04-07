@@ -97,4 +97,16 @@ export const CompanyComposite = createComposite([
     importFn: () => import("../CompanyAdapterPanel"),
     exportName: "CompanyAdapterPanel",
   },
+  {
+    id: "workspace-config",
+    label: "Workspace Config",
+    importFn: () => import("../CompanyWorkspaceConfigPanel"),
+    exportName: "CompanyWorkspaceConfigPanel",
+  },
+  {
+    id: "priority-map",
+    label: "Priority Map",
+    importFn: () => import("../CompanyPriorityMapPanel"),
+    exportName: "CompanyPriorityMapPanel",
+  },
 ]);

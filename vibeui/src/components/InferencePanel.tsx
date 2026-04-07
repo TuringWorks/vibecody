@@ -73,7 +73,6 @@ const LB_STRATEGIES: { value: LBStrategy; label: string }[] = [
   { value: "weighted-random", label: "Weighted Random" },
 ];
 
-/* ---- style helpers ---- */
 const inputStyle: React.CSSProperties = {
   width: "100%",
   background: "var(--bg-secondary)",
@@ -86,35 +85,6 @@ const inputStyle: React.CSSProperties = {
 };
 
 const selectStyle: React.CSSProperties = { ...inputStyle };
-
-const labelStyle: React.CSSProperties = {
-  display: "block",
-  fontSize: 11,
-  fontWeight: 600,
-  marginBottom: 4,
-  color: "var(--text-secondary)",
-};
-
-const btnPrimary: React.CSSProperties = {
-  background: "var(--accent-color)",
-  color: "var(--text-primary)",
-  border: "none",
-  borderRadius: 4,
-  padding: "6px 14px",
-  cursor: "pointer",
-  fontSize: 12,
-  fontWeight: 600,
-};
-
-const btnSecondary: React.CSSProperties = {
-  background: "var(--bg-secondary)",
-  border: "1px solid var(--border-color)",
-  borderRadius: 4,
-  padding: "6px 14px",
-  cursor: "pointer",
-  fontSize: 12,
-  color: "var(--text-primary)",
-};
 
 const codeBlock: React.CSSProperties = {
   background: "var(--bg-secondary)",
@@ -379,23 +349,14 @@ export function InferencePanel() {
   ];
 
   return (
-    <div style={{ height: "100%", display: "flex", flexDirection: "column", background: "var(--bg-primary)", color: "var(--text-primary)" }}>
+    <div className="panel-container">
       {/* Tab bar */}
-      <div style={{ display: "flex", borderBottom: "1px solid var(--border-color)", padding: "0 12px" }}>
+      <div className="panel-tab-bar">
         {tabs.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            style={{
-              background: "none",
-              border: "none",
-              borderBottom: tab === t.key ? "2px solid var(--accent-blue)" : "2px solid transparent",
-              padding: "8px 16px",
-              cursor: "pointer",
-              fontSize: 12,
-              fontWeight: tab === t.key ? 600 : 400,
-              color: tab === t.key ? "var(--text-primary)" : "var(--text-secondary)",
-            }}
+            className={`panel-tab${tab === t.key ? " active" : ""}`}
           >
             {t.label}
           </button>
@@ -403,13 +364,13 @@ export function InferencePanel() {
       </div>
 
       {/* Tab content */}
-      <div style={{ flex: 1, overflow: "auto", padding: 16 }}>
+      <div className="panel-body">
         {/* ============= DEPLOY TAB ============= */}
         {tab === "deploy" && (
           <div>
             {/* Model path */}
             <div style={{ marginBottom: 12 }}>
-              <label style={labelStyle}>Model Path / ID</label>
+              <label className="panel-label">Model Path / ID</label>
               <input
                 value={deploy.modelPath}
                 onChange={(e) => updateDeploy("modelPath", e.target.value)}
@@ -421,7 +382,7 @@ export function InferencePanel() {
             {/* Backend + Port */}
             <div style={fieldRow}>
               <div>
-                <label style={labelStyle}>Backend</label>
+                <label className="panel-label">Backend</label>
                 <select
                   value={deploy.backend}
                   onChange={(e) => updateDeploy("backend", e.target.value as Backend)}
@@ -433,7 +394,7 @@ export function InferencePanel() {
                 </select>
               </div>
               <div>
-                <label style={labelStyle}>Port</label>
+                <label className="panel-label">Port</label>
                 <input
                   type="number"
                   value={deploy.port}
@@ -446,7 +407,7 @@ export function InferencePanel() {
             {/* GPU Count + Tensor Parallel */}
             <div style={fieldRow}>
               <div>
-                <label style={labelStyle}>GPU Count</label>
+                <label className="panel-label">GPU Count</label>
                 <input
                   type="number"
                   min={0}
@@ -456,7 +417,7 @@ export function InferencePanel() {
                 />
               </div>
               <div>
-                <label style={labelStyle}>Tensor Parallel</label>
+                <label className="panel-label">Tensor Parallel</label>
                 <input
                   type="number"
                   min={1}
@@ -470,7 +431,7 @@ export function InferencePanel() {
             {/* Quantization + Max Batch Size */}
             <div style={fieldRow}>
               <div>
-                <label style={labelStyle}>Quantization</label>
+                <label className="panel-label">Quantization</label>
                 <select
                   value={deploy.quantization}
                   onChange={(e) => updateDeploy("quantization", e.target.value as Quantization)}
@@ -482,7 +443,7 @@ export function InferencePanel() {
                 </select>
               </div>
               <div>
-                <label style={labelStyle}>Max Batch Size</label>
+                <label className="panel-label">Max Batch Size</label>
                 <input
                   type="number"
                   min={1}
@@ -495,7 +456,7 @@ export function InferencePanel() {
 
             {/* GPU Memory Utilization slider */}
             <div style={{ marginBottom: 16 }}>
-              <label style={labelStyle}>GPU Memory Utilization: {deploy.gpuMemUtil}%</label>
+              <label className="panel-label">GPU Memory Utilization: {deploy.gpuMemUtil}%</label>
               <input
                 type="range"
                 min={10}
@@ -512,13 +473,13 @@ export function InferencePanel() {
             {/* Action buttons */}
             <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
               <button
-                style={btnPrimary}
+                className="panel-btn panel-btn-primary"
                 onClick={() => { setGeneratedCli(generateCliCommand(deploy)); setGeneratedCompose(null); }}
               >
                 Generate Command
               </button>
               <button
-                style={btnSecondary}
+                className="panel-btn panel-btn-secondary"
                 onClick={() => { setGeneratedCompose(generateDockerCompose(deploy)); setGeneratedCli(null); }}
               >
                 Generate Docker Compose
@@ -531,7 +492,8 @@ export function InferencePanel() {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                   <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)" }}>CLI Command</span>
                   <button
-                    style={{ ...btnSecondary, padding: "2px 8px", fontSize: 10 }}
+                    className="panel-btn panel-btn-secondary"
+                    style={{ padding: "2px 8px", fontSize: 10 }}
                     onClick={() => navigator.clipboard.writeText(generatedCli)}
                   >
                     Copy
@@ -545,7 +507,8 @@ export function InferencePanel() {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                   <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)" }}>docker-compose.yml</span>
                   <button
-                    style={{ ...btnSecondary, padding: "2px 8px", fontSize: 10 }}
+                    className="panel-btn panel-btn-secondary"
+                    style={{ padding: "2px 8px", fontSize: 10 }}
                     onClick={() => navigator.clipboard.writeText(generatedCompose)}
                   >
                     Copy
@@ -561,11 +524,11 @@ export function InferencePanel() {
         {tab === "benchmark" && (
           <div>
             {/* Entry form */}
-            <div style={{ background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 16, border: "1px solid var(--border-color)" }}>
+            <div className="panel-card" style={{ marginBottom: 16 }}>
               <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 8, color: "var(--text-secondary)" }}>Add Benchmark Entry</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr repeat(3, 1fr) auto", gap: 8, alignItems: "end" }}>
                 <div>
-                  <label style={labelStyle}>Backend</label>
+                  <label className="panel-label">Backend</label>
                   <select
                     value={benchForm.backend}
                     onChange={(e) => setBenchForm((f) => ({ ...f, backend: e.target.value as Backend }))}
@@ -577,7 +540,7 @@ export function InferencePanel() {
                   </select>
                 </div>
                 <div>
-                  <label style={labelStyle}>Model</label>
+                  <label className="panel-label">Model</label>
                   <input
                     value={benchForm.model}
                     onChange={(e) => setBenchForm((f) => ({ ...f, model: e.target.value }))}
@@ -586,7 +549,7 @@ export function InferencePanel() {
                   />
                 </div>
                 <div>
-                  <label style={labelStyle}>TTFT (ms)</label>
+                  <label className="panel-label">TTFT (ms)</label>
                   <input
                     type="number"
                     min={0}
@@ -596,7 +559,7 @@ export function InferencePanel() {
                   />
                 </div>
                 <div>
-                  <label style={labelStyle}>Tokens/sec</label>
+                  <label className="panel-label">Tokens/sec</label>
                   <input
                     type="number"
                     min={0}
@@ -606,7 +569,7 @@ export function InferencePanel() {
                   />
                 </div>
                 <div>
-                  <label style={labelStyle}>VRAM (GB)</label>
+                  <label className="panel-label">VRAM (GB)</label>
                   <input
                     type="number"
                     min={0}
@@ -616,13 +579,13 @@ export function InferencePanel() {
                     style={inputStyle}
                   />
                 </div>
-                <button onClick={addBenchmark} style={{ ...btnPrimary, padding: "5px 12px" }}>Add</button>
+                <button onClick={addBenchmark} className="panel-btn panel-btn-primary" style={{ padding: "5px 12px" }}>Add</button>
               </div>
             </div>
 
             {/* Results table */}
             {benchmarks.length === 0 ? (
-              <div style={{ opacity: 0.5, fontSize: 12, textAlign: "center", padding: 24 }}>
+              <div className="panel-empty">
                 No benchmark entries yet. Add one above.
               </div>
             ) : (
@@ -685,15 +648,7 @@ export function InferencePanel() {
                     const bestTps = Math.max(...comparedEntries.map((e) => e.tokensPerSec));
                     const bestVram = Math.min(...comparedEntries.map((e) => e.vram));
                     return (
-                      <div
-                        key={b.id}
-                        style={{
-                          background: "var(--bg-secondary)",
-                          border: "1px solid var(--border-color)",
-                          borderRadius: 6,
-                          padding: 12,
-                        }}
-                      >
+                      <div key={b.id} className="panel-card">
                         <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 8 }}>
                           {BACKENDS.find((x) => x.value === b.backend)?.label} — {b.model}
                         </div>
@@ -732,7 +687,7 @@ export function InferencePanel() {
               <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>Auto-Scale Configuration</div>
               <div style={fieldRow}>
                 <div>
-                  <label style={labelStyle}>Min Replicas</label>
+                  <label className="panel-label">Min Replicas</label>
                   <input
                     type="number"
                     min={0}
@@ -742,7 +697,7 @@ export function InferencePanel() {
                   />
                 </div>
                 <div>
-                  <label style={labelStyle}>Max Replicas</label>
+                  <label className="panel-label">Max Replicas</label>
                   <input
                     type="number"
                     min={1}
@@ -754,7 +709,7 @@ export function InferencePanel() {
               </div>
               <div style={fieldRow}>
                 <div>
-                  <label style={labelStyle}>Target GPU Utilization (%)</label>
+                  <label className="panel-label">Target GPU Utilization (%)</label>
                   <input
                     type="number"
                     min={1}
@@ -765,7 +720,7 @@ export function InferencePanel() {
                   />
                 </div>
                 <div>
-                  <label style={labelStyle}>Target Latency (ms)</label>
+                  <label className="panel-label">Target Latency (ms)</label>
                   <input
                     type="number"
                     min={1}
@@ -777,7 +732,7 @@ export function InferencePanel() {
               </div>
               <div style={fieldRow}>
                 <div>
-                  <label style={labelStyle}>Scale-Up Cooldown (s)</label>
+                  <label className="panel-label">Scale-Up Cooldown (s)</label>
                   <input
                     type="number"
                     min={0}
@@ -787,7 +742,7 @@ export function InferencePanel() {
                   />
                 </div>
                 <div>
-                  <label style={labelStyle}>Scale-Down Cooldown (s)</label>
+                  <label className="panel-label">Scale-Down Cooldown (s)</label>
                   <input
                     type="number"
                     min={0}
@@ -804,7 +759,7 @@ export function InferencePanel() {
               <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>Load Balancer</div>
               <div style={fieldRow}>
                 <div>
-                  <label style={labelStyle}>Strategy</label>
+                  <label className="panel-label">Strategy</label>
                   <select
                     value={lb.strategy}
                     onChange={(e) => setLb((l) => ({ ...l, strategy: e.target.value as LBStrategy }))}
@@ -816,7 +771,7 @@ export function InferencePanel() {
                   </select>
                 </div>
                 <div>
-                  <label style={labelStyle}>Health Check Path</label>
+                  <label className="panel-label">Health Check Path</label>
                   <input
                     value={lb.healthCheckPath}
                     onChange={(e) => setLb((l) => ({ ...l, healthCheckPath: e.target.value }))}
@@ -826,7 +781,7 @@ export function InferencePanel() {
               </div>
               <div style={{ ...fieldRow, gridTemplateColumns: "1fr 1fr" }}>
                 <div>
-                  <label style={labelStyle}>Health Check Interval (s)</label>
+                  <label className="panel-label">Health Check Interval (s)</label>
                   <input
                     type="number"
                     min={1}
@@ -842,14 +797,15 @@ export function InferencePanel() {
             {/* Generate K8s YAML */}
             <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
               <button
-                style={btnPrimary}
+                className="panel-btn panel-btn-primary"
                 onClick={() => setGeneratedK8s(generateK8sYaml(deploy, scale, lb))}
               >
                 Generate K8s YAML
               </button>
               {generatedK8s && (
                 <button
-                  style={{ ...btnSecondary, padding: "6px 10px", fontSize: 10 }}
+                  className="panel-btn panel-btn-secondary"
+                  style={{ fontSize: 10 }}
                   onClick={() => navigator.clipboard.writeText(generatedK8s)}
                 >
                   Copy

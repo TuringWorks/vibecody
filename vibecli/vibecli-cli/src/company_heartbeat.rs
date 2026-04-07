@@ -208,6 +208,30 @@ impl<'a> HeartbeatStore<'a> {
         Ok(count)
     }
 
+    /// Return heartbeat history as JSON values. If `agent_id` is None, returns all runs.
+    pub fn history_json(&self, agent_id: Option<&str>, limit: i64) -> Result<Vec<serde_json::Value>> {
+        let runs = if let Some(aid) = agent_id {
+            self.history(aid, limit)?
+        } else {
+            let mut stmt = self.conn.prepare(
+                "SELECT id, company_id, agent_id, trigger, status, session_id, started_at, finished_at, summary
+                 FROM heartbeat_runs ORDER BY started_at DESC LIMIT ?1",
+            )?;
+            let mapped = stmt.query_map(params![limit], |row| row_to_run(row))?;
+            let collected: Vec<_> = mapped.collect::<rusqlite::Result<Vec<_>>>()?;
+            collected
+        };
+        Ok(runs.into_iter()
+            .map(|r| serde_json::to_value(&r).unwrap_or(serde_json::Value::Null))
+            .collect())
+    }
+
+    /// Return a single heartbeat run as a JSON value.
+    pub fn get_json(&self, run_id: &str) -> Result<Option<serde_json::Value>> {
+        let run = self.get(run_id)?;
+        Ok(run.map(|r| serde_json::to_value(&r).unwrap_or(serde_json::Value::Null)))
+    }
+
     /// Manual trigger: start a heartbeat run for an agent immediately.
     pub fn trigger_manual(
         &self,

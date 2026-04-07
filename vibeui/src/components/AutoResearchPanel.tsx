@@ -65,22 +65,12 @@ interface SessionConfig {
 }
 
 /* ── Style Helpers ─────────────────────────── */
-const cardStyle: React.CSSProperties = {
-  background: "var(--bg-secondary)", borderRadius: 8, padding: 14, marginBottom: 12,
-  border: "1px solid var(--border)",
-};
 const inputStyle: React.CSSProperties = {
   width: "100%", padding: "6px 10px", borderRadius: 6,
   border: "1px solid var(--border)", background: "var(--bg-primary)",
   color: "var(--text-primary)", fontSize: 13, boxSizing: "border-box",
 };
 const selectStyle: React.CSSProperties = { ...inputStyle, cursor: "pointer" };
-const btnStyle = (variant: "primary" | "default" | "danger" | "success" = "default"): React.CSSProperties => ({
-  padding: "6px 16px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 500,
-  background: variant === "primary" ? "var(--accent)" : variant === "danger" ? "var(--accent-rose)" : variant === "success" ? "var(--accent-green)" : "var(--bg-secondary)",
-  color: variant === "default" ? "var(--text-primary)" : "var(--btn-primary-fg, #fff)",
-  transition: "opacity 0.15s",
-});
 const tagStyle = (color: string): React.CSSProperties => ({
   display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 11, fontWeight: 500,
   background: color + "22", color, marginRight: 4,
@@ -255,7 +245,7 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
   /* ── Tab: Setup ─────────────────────── */
   const renderSetup = () => (
     <div>
-      <div style={cardStyle}>
+      <div className="panel-card">
         <div style={{ fontWeight: 600, marginBottom: 12 }}>Research Configuration</div>
         <div style={gridStyle(2)}>
           <div>
@@ -277,7 +267,7 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
         </div>
       </div>
 
-      <div style={cardStyle}>
+      <div className="panel-card">
         <div style={{ fontWeight: 600, marginBottom: 12 }}>Search Strategy</div>
         <div style={gridStyle(2)}>
           <div>
@@ -321,7 +311,7 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
         </div>
       </div>
 
-      <div style={cardStyle}>
+      <div className="panel-card">
         <div style={{ fontWeight: 600, marginBottom: 12 }}>Execution</div>
         <div style={gridStyle(2)}>
           <div>
@@ -357,7 +347,7 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
         </div>
       </div>
 
-      <div style={cardStyle}>
+      <div className="panel-card">
         <div style={{ fontWeight: 600, marginBottom: 8 }}>Metrics for {config.domain.replace(/_/g, " ")}</div>
         <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
           <thead>
@@ -386,13 +376,13 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
       </div>
 
       {error && (
-        <div style={{ ...cardStyle, borderColor: "var(--accent-rose)", color: "var(--error-color)", fontSize: 12 }}>
+        <div className="panel-card" style={{ borderColor: "var(--accent-rose)", color: "var(--error-color)", fontSize: 12 }}>
           {error}
         </div>
       )}
 
       {savedSessions.length > 0 && (
-        <div style={cardStyle}>
+        <div className="panel-card">
           <div style={{ fontWeight: 600, marginBottom: 8 }}>Previous Sessions</div>
           {savedSessions.map(s => (
             <div key={s.id} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 12, borderBottom: "1px solid var(--border)" }}>
@@ -406,9 +396,9 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
 
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
         {!sessionActive ? (
-          <button style={btnStyle("primary")} onClick={startSession}>Start Research Loop</button>
+          <button className="panel-btn panel-btn-primary" onClick={startSession}>Start Research Loop</button>
         ) : (
-          <button style={btnStyle("danger")} onClick={stopSession}>Stop Research</button>
+          <button className="panel-btn panel-btn-danger" onClick={stopSession}>Stop Research</button>
         )}
       </div>
     </div>
@@ -418,14 +408,14 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
   const renderExperiments = () => (
     <div>
       {sessionActive && (
-        <div style={{ ...cardStyle, borderColor: "var(--accent)", display: "flex", alignItems: "center", gap: 12 }}>
+        <div className="panel-card" style={{ borderColor: "var(--accent)", display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--success-color)", animation: "pulse 1.5s infinite" }} />
           <span style={{ fontWeight: 600 }}>Research loop active</span>
           <span style={{ color: "var(--text-secondary)", fontSize: 12 }}>
             {experiments.length} / {config.maxExperiments} experiments
           </span>
           <div style={{ flex: 1 }} />
-          <button style={btnStyle("danger")} onClick={stopSession}>Stop</button>
+          <button className="panel-btn panel-btn-danger" onClick={stopSession}>Stop</button>
         </div>
       )}
 
@@ -450,7 +440,7 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
 
       <div style={{ marginTop: 12 }}>
         {experiments.map(exp => (
-          <div key={exp.id} style={{ ...cardStyle, borderLeft: `3px solid ${STATUS_COLORS[exp.status]}` }}>
+          <div key={exp.id} className="panel-card" style={{ borderLeft: `3px solid ${STATUS_COLORS[exp.status]}` }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
               <div>
                 <span style={{ fontWeight: 600, marginRight: 8 }}>{exp.id}</span>
@@ -519,7 +509,7 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
           </div>
         </div>
 
-        <div style={{ ...cardStyle, marginTop: 12 }}>
+        <div className="panel-card" style={{ marginTop: 12 }}>
           <div style={{ fontWeight: 600, marginBottom: 12 }}>Score Progression</div>
           {experiments.filter(e => e.compositeScore > 0).map(exp => (
             <div key={exp.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
@@ -545,7 +535,7 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
           )}
         </div>
 
-        <div style={cardStyle}>
+        <div className="panel-card">
           <div style={{ fontWeight: 600, marginBottom: 12 }}>Top Improvements</div>
           {experiments
             .filter(e => e.status === "kept" && e.delta > 0)
@@ -560,7 +550,7 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
         </div>
 
         <div style={gridStyle(2)}>
-          <div style={cardStyle}>
+          <div className="panel-card">
             <div style={{ fontWeight: 600, marginBottom: 8 }}>Statistical Significance</div>
             <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8 }}>
               Welch&apos;s t-test validates improvements aren&apos;t just noise
@@ -582,7 +572,7 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
             )}
           </div>
 
-          <div style={cardStyle}>
+          <div className="panel-card">
             <div style={{ fontWeight: 600, marginBottom: 8 }}>Experiment Lineage</div>
             <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8 }}>
               Dependency graph — each kept experiment builds on the previous
@@ -604,7 +594,7 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
   /* ── Tab: Memory ────────────────────── */
   const renderMemory = () => (
     <div>
-      <div style={cardStyle}>
+      <div className="panel-card">
         <div style={{ fontWeight: 600, marginBottom: 12 }}>Lessons Learned</div>
         {lessons.map(l => (
           <div key={l.id} style={{ padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
@@ -627,7 +617,7 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
       </div>
 
       <div style={gridStyle(2)}>
-        <div style={cardStyle}>
+        <div className="panel-card">
           <div style={{ fontWeight: 600, marginBottom: 8, color: "var(--success-color)" }}>Successful Patterns</div>
           {successPatterns.map((p, i) => (
             <div key={i} style={{ padding: "4px 0", fontSize: 12 }}>
@@ -636,7 +626,7 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
           ))}
           {successPatterns.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: 12 }}>None yet</div>}
         </div>
-        <div style={cardStyle}>
+        <div className="panel-card">
           <div style={{ fontWeight: 600, marginBottom: 8, color: "var(--error-color)" }}>Failed Patterns</div>
           {failPatterns.map((p, i) => (
             <div key={i} style={{ padding: "4px 0", fontSize: 12 }}>
@@ -652,11 +642,11 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
   /* ── Tab: Export ─────────────────────── */
   const renderExport = () => (
     <div>
-      <div style={cardStyle}>
+      <div className="panel-card">
         <div style={{ fontWeight: 600, marginBottom: 12 }}>Export Results</div>
         <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-          <button style={btnStyle("primary")} onClick={exportTsv}>Generate TSV</button>
-          <button style={btnStyle("default")} onClick={() => {
+          <button className="panel-btn panel-btn-primary" onClick={exportTsv}>Generate TSV</button>
+          <button className="panel-btn panel-btn-secondary" onClick={() => {
             if (tsvOutput) navigator.clipboard.writeText(tsvOutput);
           }}>Copy to Clipboard</button>
         </div>
@@ -671,7 +661,7 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
         )}
       </div>
 
-      <div style={cardStyle}>
+      <div className="panel-card">
         <div style={{ fontWeight: 600, marginBottom: 8 }}>Session Summary</div>
         <div style={gridStyle(2)}>
           <div style={{ fontSize: 12 }}>

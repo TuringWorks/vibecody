@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 // lucide-react icons not needed
 
@@ -153,13 +153,13 @@ export default function SteeringPanel({ workspaceRoot }: SteeringPanelProps) {
  <option key={o.value} value={o.value}>{o.label}</option>
  ))}
  </select>
- <button onClick={startNew} style={btnStyle}>+ New</button>
- <button onClick={() => setShowTemplates((v) => !v)} style={btnStyle}>Templates</button>
- <button onClick={load} style={btnStyle}>↻ Refresh</button>
+ <button onClick={startNew} className="panel-btn panel-btn-secondary">+ New</button>
+ <button onClick={() => setShowTemplates((v) => !v)} className="panel-btn panel-btn-secondary">Templates</button>
+ <button onClick={load} className="panel-btn panel-btn-secondary">↻ Refresh</button>
  </div>
 
  {error && (
- <div style={{ background: "var(--error-bg)", color: "var(--error-color)", borderRadius: 4, padding: "4px 8px", fontSize: 12 }}>
+ <div className="panel-error">
  {error}
  </div>
  )}
@@ -169,7 +169,7 @@ export default function SteeringPanel({ workspaceRoot }: SteeringPanelProps) {
  <div style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: 6, padding: 8, display: "flex", gap: 6, flexWrap: "wrap" }}>
  <span style={{ color: "var(--text-secondary)", fontSize: 11, width: "100%" }}>Choose a template to get started:</span>
  {TEMPLATES.map((tpl) => (
- <button key={tpl.label} onClick={() => useTemplate(tpl)} style={{ ...btnStyle, padding: "4px 10px" }}>
+ <button key={tpl.label} onClick={() => useTemplate(tpl)} className="panel-btn panel-btn-secondary" style={{ padding: "4px 10px" }}>
  {tpl.label}
  </button>
  ))}
@@ -249,7 +249,7 @@ export default function SteeringPanel({ workspaceRoot }: SteeringPanelProps) {
  disabled={!isNew}
  style={{ flex: 1, padding: "4px 8px", borderRadius: 4, background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: 12 }}
  />
- <button onClick={save} disabled={saving} style={{ ...btnStyle, background: saving ? "var(--bg-secondary)" : "rgba(137,180,250,0.13)", color: "var(--text-info)" }}>
+ <button onClick={save} disabled={saving} className="panel-btn panel-btn-primary" style={{ background: saving ? "var(--bg-secondary)" : undefined, color: saving ? "var(--text-info)" : undefined }}>
  {saving ? "Saving…" : "Save"}
  </button>
  </div>
@@ -284,13 +284,3 @@ export default function SteeringPanel({ workspaceRoot }: SteeringPanelProps) {
  </div>
  );
 }
-
-const btnStyle: React.CSSProperties = {
- padding: "3px 8px",
- borderRadius: 4,
- border: "1px solid var(--border-color)",
- background: "var(--bg-secondary)",
- color: "var(--text-primary)",
- cursor: "pointer",
- fontSize: 12,
-};

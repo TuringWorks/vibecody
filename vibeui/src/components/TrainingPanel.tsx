@@ -31,20 +31,11 @@ interface ParallelismSuggestion {
 // ---------------------------------------------------------------------------
 // Shared styles
 // ---------------------------------------------------------------------------
-const labelStyle: React.CSSProperties = { fontSize: 11, fontWeight: 600, marginBottom: 2, color: "var(--text-secondary)" };
 const inputStyle: React.CSSProperties = {
   width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border-color)",
   borderRadius: 4, color: "var(--text-primary)", padding: "5px 8px", fontSize: 12, boxSizing: "border-box",
 };
 const selectStyle: React.CSSProperties = { ...inputStyle, appearance: "auto" as never };
-const btnPrimary: React.CSSProperties = {
-  background: "var(--accent-color)", color: "var(--text-primary)", border: "none",
-  borderRadius: 4, padding: "6px 14px", cursor: "pointer", fontSize: 12, fontWeight: 600,
-};
-const btnSecondary: React.CSSProperties = {
-  background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4,
-  padding: "6px 14px", cursor: "pointer", fontSize: 12, color: "var(--text-primary)",
-};
 const codeBlockStyle: React.CSSProperties = {
   background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4,
   padding: 12, fontFamily: "var(--font-mono)", fontSize: 11, whiteSpace: "pre-wrap", overflowX: "auto",
@@ -294,24 +285,24 @@ export function TrainingPanel() {
   // Tab renderers
   // ---------------------------------------------------------------------------
   const renderConfig = () => (
-    <div style={{ padding: 16, overflowY: "auto", flex: 1 }}>
+    <div className="panel-body">
       <div style={singleField}>
-        <div style={labelStyle}>Model Path</div>
+        <div className="panel-label">Model Path</div>
         <input style={inputStyle} value={modelPath} onChange={(e) => setModelPath(e.target.value)} placeholder="meta-llama/Llama-3-70b-hf" />
       </div>
       <div style={fieldRow}>
         <div>
-          <div style={labelStyle}>Dataset Path</div>
+          <div className="panel-label">Dataset Path</div>
           <input style={inputStyle} value={datasetPath} onChange={(e) => setDatasetPath(e.target.value)} placeholder="/data/train.jsonl" />
         </div>
         <div>
-          <div style={labelStyle}>Output Directory</div>
+          <div className="panel-label">Output Directory</div>
           <input style={inputStyle} value={outputDir} onChange={(e) => setOutputDir(e.target.value)} placeholder="./output" />
         </div>
       </div>
       <div style={fieldRow}>
         <div>
-          <div style={labelStyle}>Framework</div>
+          <div className="panel-label">Framework</div>
           <select style={selectStyle} value={framework} onChange={(e) => setFramework(e.target.value as Framework)}>
             {(["DeepSpeed", "FSDP", "Megatron", "Horovod", "Ray Train", "Colossal-AI"] as Framework[]).map((f) => (
               <option key={f} value={f}>{f}</option>
@@ -319,7 +310,7 @@ export function TrainingPanel() {
           </select>
         </div>
         <div>
-          <div style={labelStyle}>Mixed Precision</div>
+          <div className="panel-label">Mixed Precision</div>
           <select style={selectStyle} value={precision} onChange={(e) => setPrecision(e.target.value as MixedPrecision)}>
             {(["FP32", "FP16", "BF16", "FP8"] as MixedPrecision[]).map((p) => (
               <option key={p} value={p}>{p}</option>
@@ -329,32 +320,32 @@ export function TrainingPanel() {
       </div>
       <div style={fieldRow}>
         <div>
-          <div style={labelStyle}>Num Nodes</div>
+          <div className="panel-label">Num Nodes</div>
           <input style={inputStyle} type="number" min={1} value={numNodes} onChange={(e) => setNumNodes(Math.max(1, Number(e.target.value)))} />
         </div>
         <div>
-          <div style={labelStyle}>GPUs per Node</div>
+          <div className="panel-label">GPUs per Node</div>
           <input style={inputStyle} type="number" min={1} value={gpusPerNode} onChange={(e) => setGpusPerNode(Math.max(1, Number(e.target.value)))} />
         </div>
       </div>
       <div style={fieldRow}>
         <div>
-          <div style={labelStyle}>Batch Size</div>
+          <div className="panel-label">Batch Size</div>
           <input style={inputStyle} type="number" min={1} value={batchSize} onChange={(e) => setBatchSize(Math.max(1, Number(e.target.value)))} />
         </div>
         <div>
-          <div style={labelStyle}>Gradient Accumulation Steps</div>
+          <div className="panel-label">Gradient Accumulation Steps</div>
           <input style={inputStyle} type="number" min={1} value={gradAccum} onChange={(e) => setGradAccum(Math.max(1, Number(e.target.value)))} />
         </div>
       </div>
       <div style={fieldRow}>
         <div>
-          <div style={labelStyle}>Learning Rate</div>
+          <div className="panel-label">Learning Rate</div>
           <input style={inputStyle} type="number" step="0.00001" min={0} value={lr} onChange={(e) => setLr(Number(e.target.value))} />
         </div>
         {framework === "DeepSpeed" && (
           <div>
-            <div style={labelStyle}>DeepSpeed Stage</div>
+            <div className="panel-label">DeepSpeed Stage</div>
             <select style={selectStyle} value={dsStage} onChange={(e) => setDsStage(e.target.value as DeepSpeedStage)}>
               {(["0", "1", "2", "3", "Infinity"] as DeepSpeedStage[]).map((s) => (
                 <option key={s} value={s}>Stage {s}</option>
@@ -374,25 +365,25 @@ export function TrainingPanel() {
         </label>
       </div>
       <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-        <button style={btnPrimary} onClick={() => {
+        <button className="panel-btn panel-btn-primary" onClick={() => {
           setConfigOutput(generateDsConfig(framework, batchSize, gradAccum, lr, precision, gradCkpt, flashAttn, dsStage));
           setLaunchOutput("");
         }}>Generate Config</button>
-        <button style={btnSecondary} onClick={() => {
+        <button className="panel-btn panel-btn-secondary" onClick={() => {
           setLaunchOutput(generateLaunchCmd(framework, modelPath, datasetPath, outputDir, numNodes, gpusPerNode, precision, gradCkpt, flashAttn));
           setConfigOutput("");
         }}>Generate Launch Command</button>
-        <button style={{ ...btnSecondary, borderColor: "var(--accent-green)", color: "var(--accent-green)" }} onClick={createJob}>Save as Job</button>
+        <button className="panel-btn panel-btn-secondary" style={{ borderColor: "var(--accent-green)", color: "var(--accent-green)" }} onClick={createJob}>Save as Job</button>
       </div>
       {configOutput && (
         <div>
-          <div style={{ ...labelStyle, marginBottom: 6 }}>{framework === "DeepSpeed" ? "ds_config.json" : `${framework.toLowerCase().replace(/\s/g, "_")}_config.json`}</div>
+          <div className="panel-label" style={{ marginBottom: 6 }}>{framework === "DeepSpeed" ? "ds_config.json" : `${framework.toLowerCase().replace(/\s/g, "_")}_config.json`}</div>
           <pre style={codeBlockStyle}>{configOutput}</pre>
         </div>
       )}
       {launchOutput && (
         <div>
-          <div style={{ ...labelStyle, marginBottom: 6 }}>Launch Command</div>
+          <div className="panel-label" style={{ marginBottom: 6 }}>Launch Command</div>
           <pre style={codeBlockStyle}>{launchOutput}</pre>
         </div>
       )}
@@ -400,24 +391,24 @@ export function TrainingPanel() {
   );
 
   const renderLora = () => (
-    <div style={{ padding: 16, overflowY: "auto", flex: 1 }}>
+    <div className="panel-body">
       <div style={fieldRow}>
         <div>
-          <div style={labelStyle}>Rank (r)</div>
+          <div className="panel-label">Rank (r)</div>
           <input style={inputStyle} type="number" min={1} value={loraRank} onChange={(e) => setLoraRank(Math.max(1, Number(e.target.value)))} />
         </div>
         <div>
-          <div style={labelStyle}>Alpha</div>
+          <div className="panel-label">Alpha</div>
           <input style={inputStyle} type="number" min={1} value={loraAlpha} onChange={(e) => setLoraAlpha(Math.max(1, Number(e.target.value)))} />
         </div>
       </div>
       <div style={fieldRow}>
         <div>
-          <div style={labelStyle}>Dropout</div>
+          <div className="panel-label">Dropout</div>
           <input style={inputStyle} type="number" step="0.01" min={0} max={1} value={loraDropout} onChange={(e) => setLoraDropout(Number(e.target.value))} />
         </div>
         <div>
-          <div style={labelStyle}>Bias</div>
+          <div className="panel-label">Bias</div>
           <select style={selectStyle} value={loraBias} onChange={(e) => setLoraBias(e.target.value as BiasOption)}>
             <option value="none">none</option>
             <option value="all">all</option>
@@ -426,7 +417,7 @@ export function TrainingPanel() {
         </div>
       </div>
       <div style={singleField}>
-        <div style={labelStyle}>Task Type</div>
+        <div className="panel-label">Task Type</div>
         <select style={selectStyle} value={loraTaskType} onChange={(e) => setLoraTaskType(e.target.value as TaskType)}>
           {(["CAUSAL_LM", "SEQ_2_SEQ_LM", "SEQ_CLS", "TOKEN_CLS", "QUESTION_ANS", "FEATURE_EXTRACTION"] as TaskType[]).map((t) => (
             <option key={t} value={t}>{t}</option>
@@ -434,7 +425,7 @@ export function TrainingPanel() {
         </select>
       </div>
       <div style={singleField}>
-        <div style={labelStyle}>Target Modules</div>
+        <div className="panel-label">Target Modules</div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 4 }}>
           {TARGET_MODULES.map((mod) => (
             <label key={mod} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, cursor: "pointer", color: "var(--text-primary)" }}>
@@ -452,7 +443,7 @@ export function TrainingPanel() {
           ))}
         </div>
       </div>
-      <button style={{ ...btnPrimary, marginTop: 8, marginBottom: 14 }} onClick={() => {
+      <button className="panel-btn panel-btn-primary" style={{ marginTop: 8, marginBottom: 14 }} onClick={() => {
         const config = {
           r: loraRank,
           lora_alpha: loraAlpha,
@@ -466,7 +457,7 @@ export function TrainingPanel() {
       }}>Generate LoRA Config</button>
       {loraOutput && (
         <div>
-          <div style={{ ...labelStyle, marginBottom: 6 }}>lora_config.json</div>
+          <div className="panel-label" style={{ marginBottom: 6 }}>lora_config.json</div>
           <pre style={codeBlockStyle}>{loraOutput}</pre>
         </div>
       )}
@@ -474,25 +465,25 @@ export function TrainingPanel() {
   );
 
   const renderCluster = () => (
-    <div style={{ padding: 16, overflowY: "auto", flex: 1 }}>
+    <div className="panel-body">
       {/* SLURM script generator */}
       <div style={{ marginBottom: 20, padding: 12, border: "1px solid var(--border-color)", borderRadius: 6, background: "var(--bg-primary)" }}>
         <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, color: "var(--text-primary)" }}>SLURM Script Generator</div>
         <div style={fieldRow}>
           <div>
-            <div style={labelStyle}>Partition Name</div>
+            <div className="panel-label">Partition Name</div>
             <input style={inputStyle} value={slurmPartition} onChange={(e) => setSlurmPartition(e.target.value)} />
           </div>
           <div>
-            <div style={labelStyle}>Nodes</div>
+            <div className="panel-label">Nodes</div>
             <input style={inputStyle} type="number" min={1} value={slurmNodes} onChange={(e) => setSlurmNodes(Math.max(1, Number(e.target.value)))} />
           </div>
         </div>
         <div style={{ ...singleField, maxWidth: "calc(50% - 6px)" }}>
-          <div style={labelStyle}>GPUs per Node</div>
+          <div className="panel-label">GPUs per Node</div>
           <input style={inputStyle} type="number" min={1} value={slurmGpus} onChange={(e) => setSlurmGpus(Math.max(1, Number(e.target.value)))} />
         </div>
-        <button style={btnPrimary} onClick={() => {
+        <button className="panel-btn panel-btn-primary" onClick={() => {
           const script = [
             "#!/bin/bash",
             `#SBATCH --job-name=train`,
@@ -541,15 +532,15 @@ export function TrainingPanel() {
               placeholder="slots"
             />
             <button
-              style={{ ...btnSecondary, padding: "4px 8px", fontSize: 14, lineHeight: 1 }}
+              className="panel-btn panel-btn-secondary" style={{ padding: "4px 8px", fontSize: 14, lineHeight: 1 }}
               onClick={() => setHosts(hosts.filter((_, j) => j !== i))}
               disabled={hosts.length <= 1}
             >x</button>
           </div>
         ))}
         <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-          <button style={btnSecondary} onClick={() => setHosts([...hosts, { hostname: `node-${hosts.length}`, slots: 8 }])}>+ Add Host</button>
-          <button style={btnPrimary} onClick={() => {
+          <button className="panel-btn panel-btn-secondary" onClick={() => setHosts([...hosts, { hostname: `node-${hosts.length}`, slots: 8 }])}>+ Add Host</button>
+          <button className="panel-btn panel-btn-primary" onClick={() => {
             setHostfileOutput(hosts.map((h) => `${h.hostname} slots=${h.slots}`).join("\n"));
           }}>Generate Hostfile</button>
         </div>
@@ -561,11 +552,11 @@ export function TrainingPanel() {
         <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, color: "var(--text-primary)" }}>Memory Estimator</div>
         <div style={fieldRow}>
           <div>
-            <div style={labelStyle}>Model Parameters (B)</div>
+            <div className="panel-label">Model Parameters (B)</div>
             <input style={inputStyle} type="number" step="0.1" min={0.1} value={estimatorParams} onChange={(e) => setEstimatorParams(Number(e.target.value))} />
           </div>
           <div>
-            <div style={labelStyle}>Precision</div>
+            <div className="panel-label">Precision</div>
             <select style={selectStyle} value={estimatorPrecision} onChange={(e) => setEstimatorPrecision(e.target.value as MixedPrecision)}>
               {(["FP32", "FP16", "BF16", "FP8"] as MixedPrecision[]).map((p) => (
                 <option key={p} value={p}>{p}</option>
@@ -603,16 +594,16 @@ export function TrainingPanel() {
         <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, color: "var(--text-primary)" }}>Parallelism Suggestion</div>
         <div style={fieldRow}>
           <div>
-            <div style={labelStyle}>Model Size (B params)</div>
+            <div className="panel-label">Model Size (B params)</div>
             <input style={inputStyle} type="number" step="0.1" min={0.1} value={estimatorParams} onChange={(e) => setEstimatorParams(Number(e.target.value))} />
           </div>
           <div>
-            <div style={labelStyle}>GPU Count</div>
+            <div className="panel-label">GPU Count</div>
             <input style={inputStyle} type="number" min={1} value={estimatorGpuCount} onChange={(e) => setEstimatorGpuCount(Math.max(1, Number(e.target.value)))} />
           </div>
         </div>
         <div style={{ ...singleField, maxWidth: "calc(50% - 6px)" }}>
-          <div style={labelStyle}>VRAM per GPU (GB)</div>
+          <div className="panel-label">VRAM per GPU (GB)</div>
           <input style={inputStyle} type="number" min={1} value={estimatorVram} onChange={(e) => setEstimatorVram(Math.max(1, Number(e.target.value)))} />
         </div>
         {(() => {
@@ -633,19 +624,14 @@ export function TrainingPanel() {
   );
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, background: "var(--bg-primary)", color: "var(--text-primary)" }}>
+    <div className="panel-container">
       {/* Tab bar */}
-      <div style={{ display: "flex", gap: 2, borderBottom: "1px solid var(--border-color)", padding: "0 16px", flexShrink: 0 }}>
+      <div className="panel-tab-bar">
         {([["config", "Config"], ["lora", "LoRA"], ["cluster", "Cluster"], ["jobs", "Jobs"]] as [TabId, string][]).map(([id, label]) => (
           <button
             key={id}
             onClick={() => setTab(id)}
-            style={{
-              flex: 1, padding: "8px 0", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600,
-              background: tab === id ? "var(--bg-primary)" : "transparent",
-              color: tab === id ? "var(--text-primary)" : "var(--text-secondary)",
-              borderBottom: tab === id ? "2px solid var(--accent-blue)" : "2px solid transparent",
-            }}
+            className={`panel-tab ${tab === id ? "active" : ""}`}
           >
             {label}
           </button>
@@ -655,12 +641,12 @@ export function TrainingPanel() {
       {tab === "lora" && renderLora()}
       {tab === "cluster" && renderCluster()}
       {tab === "jobs" && (
-        <div style={{ padding: 16, overflowY: "auto", flex: 1 }}>
+        <div className="panel-body">
           <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, color: "var(--text-primary)" }}>Training Jobs</div>
           <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
             <input style={inputStyle} value={jobName} onChange={e => setJobName(e.target.value)} placeholder="Job name..." />
-            <button style={btnPrimary} onClick={createJob}>Create Job</button>
-            <button style={btnSecondary} onClick={loadJobs}>Refresh</button>
+            <button className="panel-btn panel-btn-primary" onClick={createJob}>Create Job</button>
+            <button className="panel-btn panel-btn-secondary" onClick={loadJobs}>Refresh</button>
           </div>
           {jobs.length === 0 ? (
             <div style={{ color: "var(--text-secondary)", fontSize: 12, fontStyle: "italic" }}>

@@ -69,30 +69,6 @@ const formatTimestamp = (ts: string): string => {
 
 // -- Styles -------------------------------------------------------------------
 
-const containerStyle: React.CSSProperties = {
-  padding: 12,
-  fontFamily: "inherit",
-  fontSize: 13,
-  height: "100%",
-  overflowY: "auto",
-  color: "var(--text-secondary)",
-  background: "var(--bg-primary)",
-};
-
-const tabBarStyle: React.CSSProperties = {
-  display: "flex",
-  gap: 0,
-  marginBottom: 12,
-  borderBottom: "1px solid var(--border-color)",
-};
-
-const cardStyle: React.CSSProperties = {
-  padding: "10px 12px",
-  marginBottom: 8,
-  borderRadius: 4,
-  background: "var(--bg-secondary)",
-};
-
 const badgeStyle = (color: string): React.CSSProperties => ({
   fontSize: 10,
   padding: "2px 8px",
@@ -112,15 +88,6 @@ const inputStyle: React.CSSProperties = {
   color: "var(--text-primary)",
   fontFamily: "inherit",
   boxSizing: "border-box",
-};
-
-const buttonStyle: React.CSSProperties = {
-  padding: "6px 16px",
-  fontSize: 12,
-  borderRadius: 4,
-  border: "none",
-  cursor: "pointer",
-  fontWeight: 600,
 };
 
 // -- Component ----------------------------------------------------------------
@@ -222,25 +189,16 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
   const selectedRoleDesc = ROLES.find((r) => r.name === spawnRole)?.description ?? "";
 
   return (
-    <div style={containerStyle}>
+    <div className="panel-container" style={{ padding: 12, fontSize: 13 }}>
       <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12, color: "var(--text-primary)" }}>Sub-Agents</div>
 
       {/* Tab bar */}
-      <div style={tabBarStyle}>
+      <div className="panel-tab-bar">
         {tabs.map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            style={{
-              padding: "6px 16px",
-              fontSize: 12,
-              background: "none",
-              border: "none",
-              borderBottom: tab === t ? "2px solid var(--accent-blue)" : "2px solid transparent",
-              color: tab === t ? "var(--text-primary)" : "var(--text-secondary)",
-              cursor: "pointer",
-              fontWeight: tab === t ? 600 : 400,
-            }}
+            className={`panel-tab ${tab === t ? "active" : ""}`}
           >
             {t}
           </button>
@@ -249,7 +207,7 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
 
       {/* Global error */}
       {error && (
-        <div style={{ padding: "8px 10px", marginBottom: 8, borderRadius: 4, background: "var(--error-color)", color: "var(--btn-primary-fg)", fontSize: 12 }}>
+        <div className="panel-error">
           {error}
         </div>
       )}
@@ -266,7 +224,8 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
             {hasCompleted && (
               <button
                 onClick={handleClearCompleted}
-                style={{ ...buttonStyle, background: "var(--border-color)", color: "var(--text-primary)", fontSize: 11, padding: "4px 10px" }}
+                className="panel-btn panel-btn-secondary"
+                style={{ fontSize: 11, padding: "4px 10px" }}
               >
                 Clear completed
               </button>
@@ -274,7 +233,7 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
           </div>
 
           {agents.length === 0 && !loading && (
-            <div style={{ padding: 20, textAlign: "center", color: "var(--text-secondary)", fontSize: 12 }}>
+            <div className="panel-empty">
               No sub-agents running. Go to the Spawn tab to create one.
             </div>
           )}
@@ -283,7 +242,8 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
             <div
               key={agent.id}
               onClick={() => setExpandedAgent(expandedAgent === agent.id ? null : agent.id)}
-              style={{ ...cardStyle, borderLeft: `3px solid ${statusColor(agent.status)}`, cursor: "pointer" }}
+              className="panel-card"
+              style={{ borderLeft: `3px solid ${statusColor(agent.status)}`, cursor: "pointer" }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={{ fontWeight: 600, fontSize: 12, color: "var(--text-primary)" }}>{agent.role}</span>
@@ -324,7 +284,8 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
                   {(agent.status === "completed" || agent.status === "failed") && (
                     <button
                       onClick={(e) => { e.stopPropagation(); handleDismiss(agent.id); }}
-                      style={{ ...buttonStyle, marginTop: 8, background: "var(--border-color)", color: "var(--text-primary)", fontSize: 11, padding: "4px 10px" }}
+                      className="panel-btn panel-btn-secondary"
+                      style={{ marginTop: 8, fontSize: 11, padding: "4px 10px" }}
                     >
                       Dismiss
                     </button>
@@ -340,7 +301,7 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
       {tab === "Results" && (
         <div>
           {completedOrFailed.length === 0 && (
-            <div style={{ padding: 20, textAlign: "center", color: "var(--text-secondary)", fontSize: 12 }}>
+            <div className="panel-empty">
               No completed or failed agents yet.
             </div>
           )}
@@ -350,7 +311,7 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
             const borderColor = isSuccess ? "var(--success-color)" : "var(--error-color)";
 
             return (
-              <div key={agent.id} style={{ ...cardStyle, borderLeft: `3px solid ${borderColor}` }}>
+              <div key={agent.id} className="panel-card" style={{ borderLeft: `3px solid ${borderColor}` }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                   <span style={{ fontWeight: 600, fontSize: 12, color: "var(--text-primary)" }}>{agent.role}</span>
                   <span style={badgeStyle(borderColor)}>{isSuccess ? "Completed" : "Failed"}</span>
@@ -400,7 +361,7 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
       {tab === "Spawn" && (
         <div>
           {spawnError && (
-            <div style={{ padding: "8px 10px", marginBottom: 8, borderRadius: 4, background: "var(--error-color)", color: "var(--btn-primary-fg)", fontSize: 12 }}>
+            <div className="panel-error">
               {spawnError}
             </div>
           )}
@@ -412,7 +373,7 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
 
           {/* Role */}
           <div style={{ marginBottom: 10 }}>
-            <label style={{ fontSize: 11, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Role</label>
+            <label className="panel-label">Role</label>
             <select
               value={spawnRole}
               onChange={(e) => setSpawnRole(e.target.value)}
@@ -431,7 +392,7 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
 
           {/* Task */}
           <div style={{ marginBottom: 10 }}>
-            <label style={{ fontSize: 11, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Task Description</label>
+            <label className="panel-label">Task Description</label>
             <textarea
               value={spawnTask}
               onChange={(e) => setSpawnTask(e.target.value)}
@@ -443,7 +404,7 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
 
           {/* Context files */}
           <div style={{ marginBottom: 10 }}>
-            <label style={{ fontSize: 11, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Context Files (comma-separated or one per line)</label>
+            <label className="panel-label">Context Files (comma-separated or one per line)</label>
             <textarea
               value={spawnContextFiles}
               onChange={(e) => setSpawnContextFiles(e.target.value)}
@@ -455,7 +416,7 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
 
           {/* Provider */}
           <div style={{ marginBottom: 14 }}>
-            <label style={{ fontSize: 11, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Provider</label>
+            <label className="panel-label">Provider</label>
             <input
               type="text"
               value={spawnProvider}
@@ -468,10 +429,8 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
           <button
             onClick={handleSpawn}
             disabled={spawning || !spawnTask.trim()}
+            className="panel-btn panel-btn-primary"
             style={{
-              ...buttonStyle,
-              background: spawning || !spawnTask.trim() ? "var(--border-color)" : "var(--accent-color)",
-              color: "var(--btn-primary-fg)",
               width: "100%",
               padding: "8px 16px",
               opacity: spawning || !spawnTask.trim() ? 0.6 : 1,

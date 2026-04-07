@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 interface SoulSignals {
@@ -71,49 +71,18 @@ export function SoulPanel({ workspacePath }: { workspacePath?: string | null }) 
     }
   };
 
-  const tabStyle = (t: Tab): React.CSSProperties => ({
-    padding: "6px 16px",
-    fontSize: "12px",
-    border: "none",
-    cursor: "pointer",
-    background: tab === t ? "var(--bg-primary)" : "transparent",
-    color: tab === t ? "var(--text-primary)" : "var(--text-secondary)",
-    borderBottom: tab === t ? "2px solid var(--accent-blue)" : "2px solid transparent",
-  });
-
-  const cardStyle: React.CSSProperties = {
-    background: "var(--bg-secondary)",
-    border: "1px solid var(--border-color)",
-    borderRadius: "8px",
-    padding: "16px",
-    marginBottom: "12px",
-  };
-
-  const btnStyle = (variant: "primary" | "secondary" = "primary"): React.CSSProperties => ({
-    padding: "8px 20px",
-    fontSize: "13px",
-    border: "none",
-    borderRadius: "6px",
-    cursor: loading ? "not-allowed" : "pointer",
-    opacity: loading ? 0.6 : 1,
-    background: variant === "primary" ? "var(--accent-color)" : "var(--bg-secondary)",
-    color: variant === "primary" ? "white" : "var(--text-primary)",
-  });
-
   return (
-    <div style={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+    <div className="panel-container">
       {/* Tab bar */}
-      <div style={{ display: "flex", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", flexShrink: 0 }}>
-        <button style={tabStyle("view")} onClick={() => setTab("view")}>View</button>
-        <button style={tabStyle("generate")} onClick={() => setTab("generate")}>Generate</button>
-        <button style={tabStyle("signals")} onClick={() => { setTab("signals"); if (!signals) handleScan(); }}>Signals</button>
+      <div className="panel-tab-bar">
+        <button className={`panel-tab${tab === "view" ? " active" : ""}`} onClick={() => setTab("view")}>View</button>
+        <button className={`panel-tab${tab === "generate" ? " active" : ""}`} onClick={() => setTab("generate")}>Generate</button>
+        <button className={`panel-tab${tab === "signals" ? " active" : ""}`} onClick={() => { setTab("signals"); if (!signals) handleScan(); }}>Signals</button>
       </div>
 
       {/* Status messages */}
       {error && (
-        <div style={{ padding: "8px 16px", background: "var(--bg-secondary)", borderBottom: "1px solid var(--border-color)", color: "var(--text-danger)", fontSize: "12px" }}>
-          {error}
-        </div>
+        <div className="panel-error">{error}</div>
       )}
       {success && (
         <div style={{ padding: "8px 16px", background: "var(--bg-secondary)", borderBottom: "1px solid var(--border-color)", color: "var(--text-success)", fontSize: "12px" }}>
@@ -122,26 +91,26 @@ export function SoulPanel({ workspacePath }: { workspacePath?: string | null }) 
       )}
 
       {/* Tab content */}
-      <div style={{ flex: 1, overflow: "auto", padding: "16px" }}>
+      <div className="panel-body">
         {tab === "view" && (
           <>
             {content ? (
-              <div style={cardStyle}>
+              <div className="panel-card">
                 <pre style={{ fontFamily: "var(--font-mono)", fontSize: "13px", lineHeight: "1.6", whiteSpace: "pre-wrap", wordBreak: "break-word", color: "var(--text-primary)", margin: 0 }}>
                   {content}
                 </pre>
               </div>
             ) : (
-              <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--text-secondary)" }}>
+              <div className="panel-empty">
                 <div style={{ fontSize: "14px", marginBottom: "12px" }}>No SOUL.md found in this project.</div>
-                <button style={btnStyle("primary")} onClick={() => setTab("generate")}>
+                <button className="panel-btn panel-btn-primary" onClick={() => setTab("generate")}>
                   Generate One
                 </button>
               </div>
             )}
             {content && (
               <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
-                <button style={btnStyle("secondary")} onClick={() => handleGenerate(true)} disabled={loading}>
+                <button className="panel-btn panel-btn-secondary" onClick={() => handleGenerate(true)} disabled={loading}>
                   Regenerate
                 </button>
               </div>
@@ -151,7 +120,7 @@ export function SoulPanel({ workspacePath }: { workspacePath?: string | null }) 
 
         {tab === "generate" && (
           <>
-            <div style={cardStyle}>
+            <div className="panel-card">
               <div style={{ fontWeight: 600, fontSize: "14px", marginBottom: "8px", color: "var(--text-primary)" }}>
                 Generate SOUL.md
               </div>
@@ -160,7 +129,7 @@ export function SoulPanel({ workspacePath }: { workspacePath?: string | null }) 
                 testing patterns, then generate a SOUL.md that captures your project's philosophy and design principles.
               </div>
 
-              <label style={{ display: "block", fontSize: "12px", fontWeight: 600, marginBottom: "4px", color: "var(--text-primary)" }}>
+              <label className="panel-label">
                 Custom context (optional)
               </label>
               <textarea
@@ -184,19 +153,19 @@ export function SoulPanel({ workspacePath }: { workspacePath?: string | null }) 
 
               <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
                 <button
-                  style={btnStyle("primary")}
+                  className="panel-btn panel-btn-primary"
                   onClick={() => handleGenerate(content !== null)}
                   disabled={loading}
                 >
                   {loading ? "Generating..." : content ? "Regenerate SOUL.md" : "Generate SOUL.md"}
                 </button>
-                <button style={btnStyle("secondary")} onClick={handleScan} disabled={loading}>
+                <button className="panel-btn panel-btn-secondary" onClick={handleScan} disabled={loading}>
                   Scan Project First
                 </button>
               </div>
             </div>
 
-            <div style={cardStyle}>
+            <div className="panel-card">
               <div style={{ fontWeight: 600, fontSize: "13px", marginBottom: "8px", color: "var(--text-primary)" }}>
                 What gets generated
               </div>
@@ -214,7 +183,7 @@ export function SoulPanel({ workspacePath }: { workspacePath?: string | null }) 
         {tab === "signals" && (
           <>
             {signals ? (
-              <div style={cardStyle}>
+              <div className="panel-card">
                 <div style={{ fontWeight: 600, fontSize: "14px", marginBottom: "12px", color: "var(--text-primary)" }}>
                   Project Signals: {signals.name}
                 </div>
@@ -242,13 +211,13 @@ export function SoulPanel({ workspacePath }: { workspacePath?: string | null }) 
                   </tbody>
                 </table>
                 <div style={{ marginTop: "12px" }}>
-                  <button style={btnStyle("secondary")} onClick={handleScan} disabled={loading}>
+                  <button className="panel-btn panel-btn-secondary" onClick={handleScan} disabled={loading}>
                     {loading ? "Scanning..." : "Rescan"}
                   </button>
                 </div>
               </div>
             ) : (
-              <div style={{ textAlign: "center", padding: "40px", color: "var(--text-secondary)" }}>
+              <div className="panel-empty">
                 {loading ? "Scanning project..." : "Click to scan project signals."}
               </div>
             )}
