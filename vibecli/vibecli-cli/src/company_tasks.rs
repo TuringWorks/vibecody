@@ -186,9 +186,18 @@ impl<'a> TaskStore<'a> {
             );
             CREATE INDEX IF NOT EXISTS idx_comments_task ON task_comments(task_id);
         "#)?;
-        let _ = self.conn.execute_batch("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS owner TEXT NOT NULL DEFAULT 'agent'");
-        let _ = self.conn.execute_batch("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS program TEXT NOT NULL DEFAULT ''");
-        let _ = self.conn.execute_batch("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS recurrence TEXT");
+        // Migrate existing tables — ignore "duplicate column" errors
+        for sql in &[
+            "ALTER TABLE tasks ADD COLUMN owner TEXT NOT NULL DEFAULT 'agent'",
+            "ALTER TABLE tasks ADD COLUMN program TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE tasks ADD COLUMN recurrence TEXT",
+        ] {
+            match self.conn.execute_batch(sql) {
+                Ok(_) => {}
+                Err(e) if e.to_string().contains("duplicate column") => {}
+                Err(_) => {} // already exists or other benign error
+            }
+        }
         Ok(())
     }
 
