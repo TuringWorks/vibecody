@@ -6,18 +6,16 @@ export const ThemeToggle = () => {
     const [mode, setMode] = useState<'dark' | 'light'>('dark');
 
     useEffect(() => {
-        const stored = localStorage.getItem('vibeui-theme') as 'dark' | 'light' | null;
+        const storedMode = localStorage.getItem('vibeui-theme') as 'dark' | 'light' | null;
+        const storedId = localStorage.getItem('vibeui-theme-id');
         // Respect system preference on first visit (no stored theme)
         const systemPrefers = window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-        const initial = stored ?? systemPrefers;
+        const initial = storedMode ?? systemPrefers;
         setMode(initial);
-        document.documentElement.setAttribute('data-theme', initial);
 
-        // If no stored theme, also apply the matching default theme to set CSS variables
-        if (!stored) {
-            const defaultId = initial === 'dark' ? 'dark-default' : 'light-default';
-            applyThemeById(defaultId);
-        }
+        // Always restore full theme (CSS vars + data-theme + Monaco event)
+        const idToApply = storedId || (initial === 'dark' ? 'dark-default' : 'light-default');
+        applyThemeById(idToApply);
 
         // Listen for OS-level theme changes (e.g., macOS auto dark mode)
         const mql = window.matchMedia?.('(prefers-color-scheme: dark)');

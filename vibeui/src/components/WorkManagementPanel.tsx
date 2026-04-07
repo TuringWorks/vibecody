@@ -764,7 +764,7 @@ function RisksTab({ items }: { items: WorkItem[] }) {
     <div>
       {/* Risk Matrix */}
       <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Risk Matrix</div>
-      <table style={{ borderCollapse: "collapse", marginBottom: 16, width: "100%", maxWidth: 500 }}>
+      <table style={{ borderCollapse: "collapse", marginBottom: 16, width: "100%" }}>
         <thead>
           <tr>
             <th style={{ padding: 6, fontSize: 10, color: "var(--text-secondary)" }}></th>

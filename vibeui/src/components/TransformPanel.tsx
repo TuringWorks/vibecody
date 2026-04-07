@@ -7,6 +7,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { STATIC_MODELS, PROVIDER_DEFAULT_MODEL, ALL_PROVIDERS } from "../hooks/useModelRegistry";
 
 interface TransformPanelProps {
   provider: string;
@@ -130,7 +131,13 @@ export function TransformPanel({ provider }: TransformPanelProps) {
   const [pasteMode, setPasteMode] = useState(false);
   const [pasteTransforming, setPasteTransforming] = useState(false);
   const [progress, setProgress] = useState<{ current: number; total: number; file: string } | null>(null);
+  // Provider/model override — empty string means "use main UI selection"
+  const [localProvider, setLocalProvider] = useState("");
+  const [localModel, setLocalModel] = useState("");
   const mountedRef = useRef(true);
+
+  const effectiveProvider = localProvider || provider || "";
+  const effectiveModel = localModel || PROVIDER_DEFAULT_MODEL[effectiveProvider] || "";
 
   useEffect(() => {
     mountedRef.current = true;
@@ -169,7 +176,7 @@ export function TransformPanel({ provider }: TransformPanelProps) {
     setError("");
     setPlanning(true);
     try {
-      const result = await invoke<PlanResult>("plan_transform", { transformType: transformId });
+      const result = await invoke<PlanResult>("plan_transform", { transformType: transformId, provider: effectiveProvider || undefined, model: effectiveModel || undefined });
       if (mountedRef.current) {
         setPlan(result);
         setSelectedFiles(new Set(result.files.map(f => f.file)));
@@ -191,6 +198,8 @@ export function TransformPanel({ provider }: TransformPanelProps) {
       const result = await invoke<ExecResult>("execute_transform", {
         transformType: selectedTransform,
         files: Array.from(selectedFiles),
+        provider: effectiveProvider || undefined,
+        model: effectiveModel || undefined,
       });
       if (mountedRef.current) setExecResult(result);
     } catch (e: any) {
@@ -207,7 +216,8 @@ export function TransformPanel({ provider }: TransformPanelProps) {
     const def = ALL_TRANSFORMS.find(t => t.id === selectedTransform);
     try {
       const result = await invoke<string>("execute_chat", {
-        provider,
+        provider: effectiveProvider,
+        model: effectiveModel || undefined,
         message: `You are a code transformation expert. Transform the following code using the "${def?.label || selectedTransform}" transformation (${def?.description || ""}).\n\nReturn ONLY the transformed code, no explanations.\n\nSource code:\n\`\`\`\n${sourceCode}\n\`\`\``,
       }).catch((e: unknown) => String(e));
       if (mountedRef.current) {
@@ -335,7 +345,47 @@ export function TransformPanel({ provider }: TransformPanelProps) {
       </div>
 
       {/* ── Right: Plan / Execute / Paste ────────────────────────── */}
-      <div style={{ flex: 1, overflow: "auto", padding: 16 }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        {/* Provider/model selector bar */}
+        <div style={{
+          display: "flex", alignItems: "center", gap: 8, padding: "8px 16px",
+          borderBottom: "1px solid var(--border-color)", flexShrink: 0,
+          background: "var(--bg-secondary)",
+        }}>
+          <span style={{ fontSize: 11, color: "var(--text-secondary)", whiteSpace: "nowrap" }}>Model:</span>
+          <select
+            value={localProvider}
+            onChange={e => {
+              const p = e.target.value;
+              setLocalProvider(p);
+              setLocalModel(p ? (PROVIDER_DEFAULT_MODEL[p] || "") : "");
+            }}
+            style={{ fontSize: 11, padding: "3px 6px", background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4, cursor: "pointer" }}
+          >
+            <option value="">Use main UI ({provider || "none"})</option>
+            {ALL_PROVIDERS.map(p => (
+              <option key={p} value={p}>{p === "claude-code" ? "Claude Code (Free/Pro/Max/Team/Enterprise)" : p}</option>
+            ))}
+          </select>
+          {localProvider && (
+            <select
+              value={localModel}
+              onChange={e => setLocalModel(e.target.value)}
+              style={{ fontSize: 11, padding: "3px 6px", background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4, cursor: "pointer", minWidth: 180 }}
+            >
+              {(STATIC_MODELS[localProvider] || []).map(m => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
+          )}
+          {localProvider === "claude-code" && (
+            <span style={{ fontSize: 10, color: "var(--success-color)", background: "var(--success-bg)", padding: "2px 6px", borderRadius: 4, whiteSpace: "nowrap" }}>
+              No API credits needed
+            </span>
+          )}
+        </div>
+
+        <div style={{ flex: 1, overflow: "auto", padding: 16 }}>
         {!selectedTransform ? (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--text-secondary)" }}>
             <div style={{ fontSize: 40, marginBottom: 12, opacity: 0.3 }}>&#8644;</div>
@@ -529,6 +579,7 @@ export function TransformPanel({ provider }: TransformPanelProps) {
             )}
           </div>
         )}
+        </div>{/* inner scroll */}
       </div>
     </div>
   );

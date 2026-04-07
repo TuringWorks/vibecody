@@ -282,7 +282,7 @@ export default function GpuTerminalPanel() {
      )}
 
      {tab === "config" && (
-       <div style={{ display: "grid", gap: 10, maxWidth: 400 }}>
+       <div style={{ display: "grid", gap: 10 }}>
          <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
            <span>Font Size</span>
            <input type="number" value={config.font_size} min={8} max={32}

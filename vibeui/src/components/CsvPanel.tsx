@@ -224,7 +224,7 @@ export function CsvPanel() {
  <div style={{ color: "var(--text-secondary)", textAlign: "center" }}>Open a CSV / TSV file or paste data below</div>
  <textarea
  placeholder="Paste CSV data here..."
- style={{ width: "100%", maxWidth: 500, height: 180, background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 6, padding: 8, fontSize: 12, resize: "vertical", boxSizing: "border-box" }}
+ style={{ width: "100%", height: 180, background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 6, padding: 8, fontSize: 12, resize: "vertical", boxSizing: "border-box" }}
  onChange={e => { if (e.target.value) loadText(e.target.value); }}
  />
  <div style={{ display: "flex", gap: 8 }}>

@@ -406,7 +406,7 @@ export function InferencePanel() {
       <div style={{ flex: 1, overflow: "auto", padding: 16 }}>
         {/* ============= DEPLOY TAB ============= */}
         {tab === "deploy" && (
-          <div style={{ maxWidth: 700 }}>
+          <div>
             {/* Model path */}
             <div style={{ marginBottom: 12 }}>
               <label style={labelStyle}>Model Path / ID</label>
@@ -726,7 +726,7 @@ export function InferencePanel() {
 
         {/* ============= SCALING TAB ============= */}
         {tab === "scaling" && (
-          <div style={{ maxWidth: 700 }}>
+          <div>
             {/* Auto-scale config */}
             <div style={{ marginBottom: 20 }}>
               <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>Auto-Scale Configuration</div>

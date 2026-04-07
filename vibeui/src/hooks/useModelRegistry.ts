@@ -22,6 +22,9 @@ const CACHE_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
 
 /** Known models per provider (static fallback when API unavailable) */
 export const STATIC_MODELS: Record<string, string[]> = {
+  // claude-code uses the local Claude Code CLI — works with Free, Pro, Max, Team, and Enterprise plans
+  // without consuming Anthropic API credits.
+  "claude-code": ["claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5"],
   claude: ["claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5", "claude-sonnet-4-5", "claude-3-5-sonnet-20241022"],
   openai: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "o4-mini", "o3", "o3-mini", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"],
   gemini: ["gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-lite"],
@@ -48,6 +51,7 @@ export const ALL_PROVIDERS = Object.keys(STATIC_MODELS);
 
 /** Default model to pre-select when a provider is chosen in a dropdown. */
 export const PROVIDER_DEFAULT_MODEL: Record<string, string> = {
+  "claude-code": "claude-sonnet-4-6",
   claude:       "claude-sonnet-4-6",
   openai:       "gpt-4o",
   gemini:       "gemini-2.5-flash",

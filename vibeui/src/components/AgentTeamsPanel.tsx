@@ -233,7 +233,7 @@ const AgentTeamsPanel: React.FC = () => {
 
         {/* TEAM TAB */}
         {tab === "team" && !team && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 500 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5 }}>
               Create a team of AI agents that collaborate on a shared goal.
               The lead agent decomposes the task into sub-tasks and coordinates team members.

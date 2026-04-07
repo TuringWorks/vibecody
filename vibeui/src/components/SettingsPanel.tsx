@@ -1542,15 +1542,23 @@ export function getPairedTheme(currentId: string): ThemeDef | undefined {
   return THEMES.find(t => t.pairId === current.pairId && t.mode === targetMode);
 }
 
+/** Union of every CSS var name any theme can set — used to clear stale inline vars on switch */
+const ALL_THEME_VAR_KEYS: string[] = Array.from(
+  new Set(THEMES.flatMap(t => Object.keys(t.vars)))
+);
+
 /** Apply a theme by id — sets CSS vars, localStorage, and notifies Monaco editor */
 export function applyThemeById(themeId: string): void {
   const theme = THEMES.find(t => t.id === themeId);
   if (!theme) return;
+  const root = document.documentElement;
+  // Clear every var any theme could have set so nothing from a previous theme bleeds through
+  ALL_THEME_VAR_KEYS.forEach(key => root.style.removeProperty(key));
   localStorage.setItem("vibeui-theme-id", theme.id);
   localStorage.setItem("vibeui-theme", theme.mode);
-  document.documentElement.setAttribute("data-theme", theme.mode);
+  root.setAttribute("data-theme", theme.mode);
   for (const [key, value] of Object.entries(theme.vars)) {
-    document.documentElement.style.setProperty(key, value);
+    root.style.setProperty(key, value);
   }
   // Notify Monaco editor to update its theme
   window.dispatchEvent(new CustomEvent("vibeui-theme-change", { detail: { themeId: theme.id, mode: theme.mode } }));
@@ -2361,12 +2369,7 @@ function CustomizationsSection() {
   const loadCustom = (c: SavedCustomization) => {
     const theme = THEMES.find(t => t.id === c.theme);
     if (theme) {
-      localStorage.setItem(STORAGE_KEYS.theme, theme.id);
-      localStorage.setItem(STORAGE_KEYS.themeMode, theme.mode);
-      document.documentElement.setAttribute("data-theme", theme.mode);
-      for (const [key, value] of Object.entries(theme.vars)) {
-        document.documentElement.style.setProperty(key, value);
-      }
+      applyThemeById(theme.id);
     }
     localStorage.setItem(STORAGE_KEYS.fontSize, String(c.fontSize));
     document.documentElement.style.setProperty("--editor-font-size", `${c.fontSize}px`);

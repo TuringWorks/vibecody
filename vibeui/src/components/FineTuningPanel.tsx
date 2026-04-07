@@ -258,7 +258,7 @@ export default function FineTuningPanel() {
      )}
 
      {tab === "train" && (
-       <div style={{ maxWidth: 450 }}>
+       <div>
          <div style={{ display: "grid", gap: 10 }}>
            <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
              <span>Provider</span>
