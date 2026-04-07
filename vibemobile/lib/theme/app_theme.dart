@@ -1,246 +1,176 @@
 import 'package:flutter/material.dart';
+import 'vibe_tokens.dart';
 
 /// VibeCody adaptive theme — follows system light/dark preference.
+/// Colors sourced from vibe_tokens.dart, which mirrors vibeui/design-system/tokens.css.
 class AppTheme {
-  // ── Accent colors (shared across both themes) ───────────────────────
-  static const accentBlue = Color(0xFF6C8EEF);
-  static const accentGreen = Color(0xFF4EC9B0);
-  static const accentRed = Color(0xFFE06C75);
-  static const accentOrange = Color(0xFFE5C07B);
-
-  // ── Dark palette ────────────────────────────────────────────────────
-  static const _darkBgPrimary = Color(0xFF1E1E2E);
-  static const _darkBgSecondary = Color(0xFF252536);
-  static const _darkBgTertiary = Color(0xFF2A2A3C);
-  static const _darkTextPrimary = Color(0xFFE4E4EF);
-  static const _darkTextSecondary = Color(0xFF9999AA);
-  static const _darkBorder = Color(0xFF3A3A4C);
-
-  // ── Light palette ───────────────────────────────────────────────────
-  static const _lightBgPrimary = Color(0xFFF8F8FA);
-  static const _lightBgSecondary = Color(0xFFFFFFFF);
-  static const _lightBgTertiary = Color(0xFFF0F0F4);
-  static const _lightTextPrimary = Color(0xFF1E1E2E);
-  static const _lightTextSecondary = Color(0xFF6B6B80);
-  static const _lightBorder = Color(0xFFDDDDE4);
-
-  // Slightly adjusted accents for light mode readability.
-  static const _lightAccentBlue = Color(0xFF4A6FD9);
-  static const _lightAccentGreen = Color(0xFF2E9A82);
-  static const _lightAccentRed = Color(0xFFD04A54);
-
-  // ── Dark ThemeData ──────────────────────────────────────────────────
-
+  // ── Dark ThemeData ──────────────────────────────────────────────────────
   static final dark = ThemeData(
     brightness: Brightness.dark,
-    scaffoldBackgroundColor: _darkBgPrimary,
+    scaffoldBackgroundColor: VibeDarkColors.bgPrimary,
     colorScheme: const ColorScheme.dark(
-      primary: accentBlue,
-      secondary: accentGreen,
-      error: accentRed,
-      surface: _darkBgSecondary,
-      onSurface: _darkTextPrimary,
+      primary: VibeDarkColors.accentBlue,
+      secondary: VibeDarkColors.accentGreen,
+      tertiary: VibeDarkColors.accentPurple,
+      error: VibeDarkColors.errorColor,
+      surface: VibeDarkColors.bgSecondary,
+      onSurface: VibeDarkColors.textPrimary,
+      onPrimary: Colors.white,
     ),
     cardTheme: CardThemeData(
-      color: _darkBgSecondary,
+      color: VibeDarkColors.bgSecondary,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: _darkBorder),
+        borderRadius: BorderRadius.circular(VibeRadius.md),
+        side: const BorderSide(color: VibeDarkColors.borderColor),
       ),
       elevation: 0,
     ),
     appBarTheme: const AppBarTheme(
-      backgroundColor: _darkBgSecondary,
-      foregroundColor: _darkTextPrimary,
+      backgroundColor: VibeDarkColors.bgSecondary,
+      foregroundColor: VibeDarkColors.textPrimary,
       elevation: 0,
       centerTitle: false,
     ),
     bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-      backgroundColor: _darkBgSecondary,
-      selectedItemColor: accentBlue,
-      unselectedItemColor: _darkTextSecondary,
+      backgroundColor: VibeDarkColors.bgSecondary,
+      selectedItemColor: VibeDarkColors.accentBlue,
+      unselectedItemColor: VibeDarkColors.textSecondary,
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: _darkBgTertiary,
+      fillColor: VibeDarkColors.bgTertiary,
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: _darkBorder),
+        borderRadius: BorderRadius.circular(VibeRadius.sm),
+        borderSide: const BorderSide(color: VibeDarkColors.borderColor),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: _darkBorder),
+        borderRadius: BorderRadius.circular(VibeRadius.sm),
+        borderSide: const BorderSide(color: VibeDarkColors.borderColor),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: accentBlue, width: 2),
+        borderRadius: BorderRadius.circular(VibeRadius.sm),
+        borderSide: const BorderSide(color: VibeDarkColors.accentBlue, width: 2),
       ),
-      hintStyle: const TextStyle(color: _darkTextSecondary),
+      hintStyle: const TextStyle(color: VibeDarkColors.textSecondary, fontSize: VibeFontSize.md),
     ),
     textTheme: const TextTheme(
-      headlineLarge: TextStyle(color: _darkTextPrimary, fontWeight: FontWeight.bold),
-      headlineMedium: TextStyle(color: _darkTextPrimary, fontWeight: FontWeight.w600),
-      bodyLarge: TextStyle(color: _darkTextPrimary),
-      bodyMedium: TextStyle(color: _darkTextSecondary),
-      labelSmall: TextStyle(color: _darkTextSecondary, fontSize: 11),
+      headlineLarge:  TextStyle(color: VibeDarkColors.textPrimary, fontWeight: FontWeight.w700, fontSize: VibeFontSize.xl3),
+      headlineMedium: TextStyle(color: VibeDarkColors.textPrimary, fontWeight: FontWeight.w600, fontSize: VibeFontSize.xl2),
+      titleLarge:     TextStyle(color: VibeDarkColors.textPrimary, fontWeight: FontWeight.w600, fontSize: VibeFontSize.xl),
+      titleMedium:    TextStyle(color: VibeDarkColors.textPrimary, fontWeight: FontWeight.w600, fontSize: VibeFontSize.lg),
+      bodyLarge:      TextStyle(color: VibeDarkColors.textPrimary,   fontSize: VibeFontSize.md),
+      bodyMedium:     TextStyle(color: VibeDarkColors.textSecondary, fontSize: VibeFontSize.base),
+      bodySmall:      TextStyle(color: VibeDarkColors.textSecondary, fontSize: VibeFontSize.sm),
+      labelSmall:     TextStyle(color: VibeDarkColors.textMuted,     fontSize: VibeFontSize.xs),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        backgroundColor: accentBlue,
+        backgroundColor: VibeDarkColors.accentBlue,
         foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(VibeRadius.sm)),
+        padding: const EdgeInsets.symmetric(horizontal: VibeSpacing.s6, vertical: VibeSpacing.s3),
+        textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: VibeFontSize.md),
       ),
     ),
     floatingActionButtonTheme: const FloatingActionButtonThemeData(
-      backgroundColor: accentBlue,
+      backgroundColor: VibeDarkColors.accentBlue,
       foregroundColor: Colors.white,
     ),
     chipTheme: ChipThemeData(
-      backgroundColor: _darkBgTertiary,
-      labelStyle: const TextStyle(color: _darkTextPrimary, fontSize: 12),
-      side: const BorderSide(color: _darkBorder),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      backgroundColor: VibeDarkColors.bgTertiary,
+      labelStyle: const TextStyle(color: VibeDarkColors.textPrimary, fontSize: VibeFontSize.sm),
+      side: const BorderSide(color: VibeDarkColors.borderColor),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(VibeRadius.xs)),
     ),
-    dividerColor: _darkBorder,
+    dividerColor: VibeDarkColors.borderColor,
     useMaterial3: true,
   );
 
-  // ── Light ThemeData ─────────────────────────────────────────────────
-
+  // ── Light ThemeData ─────────────────────────────────────────────────────
   static final light = ThemeData(
     brightness: Brightness.light,
-    scaffoldBackgroundColor: _lightBgPrimary,
+    scaffoldBackgroundColor: VibeLightColors.bgPrimary,
     colorScheme: const ColorScheme.light(
-      primary: _lightAccentBlue,
-      secondary: _lightAccentGreen,
-      error: _lightAccentRed,
-      surface: _lightBgSecondary,
-      onSurface: _lightTextPrimary,
+      primary: VibeLightColors.accentBlue,
+      secondary: VibeLightColors.accentGreen,
+      tertiary: VibeLightColors.accentPurple,
+      error: VibeLightColors.errorColor,
+      surface: VibeLightColors.bgSecondary,
+      onSurface: VibeLightColors.textPrimary,
+      onPrimary: Colors.white,
     ),
     cardTheme: CardThemeData(
-      color: _lightBgSecondary,
+      color: VibeLightColors.bgSecondary,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: _lightBorder),
+        borderRadius: BorderRadius.circular(VibeRadius.md),
+        side: const BorderSide(color: VibeLightColors.borderColor),
       ),
       elevation: 0,
     ),
     appBarTheme: const AppBarTheme(
-      backgroundColor: _lightBgSecondary,
-      foregroundColor: _lightTextPrimary,
+      backgroundColor: VibeLightColors.bgSecondary,
+      foregroundColor: VibeLightColors.textPrimary,
       elevation: 0,
       centerTitle: false,
     ),
     bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-      backgroundColor: _lightBgSecondary,
-      selectedItemColor: _lightAccentBlue,
-      unselectedItemColor: _lightTextSecondary,
+      backgroundColor: VibeLightColors.bgSecondary,
+      selectedItemColor: VibeLightColors.accentBlue,
+      unselectedItemColor: VibeLightColors.textSecondary,
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: _lightBgTertiary,
+      fillColor: VibeLightColors.bgTertiary,
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: _lightBorder),
+        borderRadius: BorderRadius.circular(VibeRadius.sm),
+        borderSide: const BorderSide(color: VibeLightColors.borderColor),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: _lightBorder),
+        borderRadius: BorderRadius.circular(VibeRadius.sm),
+        borderSide: const BorderSide(color: VibeLightColors.borderColor),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: _lightAccentBlue, width: 2),
+        borderRadius: BorderRadius.circular(VibeRadius.sm),
+        borderSide: const BorderSide(color: VibeLightColors.accentBlue, width: 2),
       ),
-      hintStyle: const TextStyle(color: _lightTextSecondary),
+      hintStyle: const TextStyle(color: VibeLightColors.textSecondary, fontSize: VibeFontSize.md),
     ),
     textTheme: const TextTheme(
-      headlineLarge: TextStyle(color: _lightTextPrimary, fontWeight: FontWeight.bold),
-      headlineMedium: TextStyle(color: _lightTextPrimary, fontWeight: FontWeight.w600),
-      bodyLarge: TextStyle(color: _lightTextPrimary),
-      bodyMedium: TextStyle(color: _lightTextSecondary),
-      labelSmall: TextStyle(color: _lightTextSecondary, fontSize: 11),
+      headlineLarge:  TextStyle(color: VibeLightColors.textPrimary, fontWeight: FontWeight.w700, fontSize: VibeFontSize.xl3),
+      headlineMedium: TextStyle(color: VibeLightColors.textPrimary, fontWeight: FontWeight.w600, fontSize: VibeFontSize.xl2),
+      titleLarge:     TextStyle(color: VibeLightColors.textPrimary, fontWeight: FontWeight.w600, fontSize: VibeFontSize.xl),
+      titleMedium:    TextStyle(color: VibeLightColors.textPrimary, fontWeight: FontWeight.w600, fontSize: VibeFontSize.lg),
+      bodyLarge:      TextStyle(color: VibeLightColors.textPrimary,   fontSize: VibeFontSize.md),
+      bodyMedium:     TextStyle(color: VibeLightColors.textSecondary, fontSize: VibeFontSize.base),
+      bodySmall:      TextStyle(color: VibeLightColors.textSecondary, fontSize: VibeFontSize.sm),
+      labelSmall:     TextStyle(color: VibeLightColors.textMuted,     fontSize: VibeFontSize.xs),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        backgroundColor: _lightAccentBlue,
+        backgroundColor: VibeLightColors.accentBlue,
         foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(VibeRadius.sm)),
+        padding: const EdgeInsets.symmetric(horizontal: VibeSpacing.s6, vertical: VibeSpacing.s3),
+        textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: VibeFontSize.md),
       ),
     ),
     floatingActionButtonTheme: const FloatingActionButtonThemeData(
-      backgroundColor: _lightAccentBlue,
+      backgroundColor: VibeLightColors.accentBlue,
       foregroundColor: Colors.white,
     ),
     chipTheme: ChipThemeData(
-      backgroundColor: _lightBgTertiary,
-      labelStyle: const TextStyle(color: _lightTextPrimary, fontSize: 12),
-      side: const BorderSide(color: _lightBorder),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      backgroundColor: VibeLightColors.bgTertiary,
+      labelStyle: const TextStyle(color: VibeLightColors.textPrimary, fontSize: VibeFontSize.sm),
+      side: const BorderSide(color: VibeLightColors.borderColor),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(VibeRadius.xs)),
     ),
-    dividerColor: _lightBorder,
+    dividerColor: VibeLightColors.borderColor,
     useMaterial3: true,
   );
 }
 
-/// Extension to resolve semantic colors from the current theme brightness.
-/// Use `context.vibeColors` instead of hardcoded `AppTheme.*` statics.
+/// Extension to resolve the current theme's VibePalette from context.
+/// Usage: `context.vibeColors.accentBlue`
 extension VibeCodyColors on BuildContext {
-  VibeColors get vibeColors {
-    final brightness = Theme.of(this).brightness;
-    return brightness == Brightness.dark ? VibeColors.dark : VibeColors.light;
-  }
-}
-
-class VibeColors {
-  final Color bgPrimary;
-  final Color bgSecondary;
-  final Color bgTertiary;
-  final Color textPrimary;
-  final Color textSecondary;
-  final Color borderColor;
-  final Color accentBlue;
-  final Color accentGreen;
-  final Color accentRed;
-  final Color accentOrange;
-
-  const VibeColors({
-    required this.bgPrimary,
-    required this.bgSecondary,
-    required this.bgTertiary,
-    required this.textPrimary,
-    required this.textSecondary,
-    required this.borderColor,
-    required this.accentBlue,
-    required this.accentGreen,
-    required this.accentRed,
-    required this.accentOrange,
-  });
-
-  static const dark = VibeColors(
-    bgPrimary: Color(0xFF1E1E2E),
-    bgSecondary: Color(0xFF252536),
-    bgTertiary: Color(0xFF2A2A3C),
-    textPrimary: Color(0xFFE4E4EF),
-    textSecondary: Color(0xFF9999AA),
-    borderColor: Color(0xFF3A3A4C),
-    accentBlue: Color(0xFF6C8EEF),
-    accentGreen: Color(0xFF4EC9B0),
-    accentRed: Color(0xFFE06C75),
-    accentOrange: Color(0xFFE5C07B),
-  );
-
-  static const light = VibeColors(
-    bgPrimary: Color(0xFFF8F8FA),
-    bgSecondary: Color(0xFFFFFFFF),
-    bgTertiary: Color(0xFFF0F0F4),
-    textPrimary: Color(0xFF1E1E2E),
-    textSecondary: Color(0xFF6B6B80),
-    borderColor: Color(0xFFDDDDE4),
-    accentBlue: Color(0xFF4A6FD9),
-    accentGreen: Color(0xFF2E9A82),
-    accentRed: Color(0xFFD04A54),
-    accentOrange: Color(0xFFBD9520),
-  );
+  VibePalette get vibeColors => VibeTokens.of(this);
 }

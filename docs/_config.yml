@@ -102,6 +102,41 @@ sidebar:
   - title: Glossary
     icon: book-open
     url: /glossary/
+  - title: Design System
+    icon: layers
+    children:
+      - title: Overview
+        url: /design-system/
+      - title: Color
+        url: /design-system/foundations/color/
+      - title: Typography
+        url: /design-system/foundations/typography/
+      - title: Spacing
+        url: /design-system/foundations/spacing/
+      - title: Elevation
+        url: /design-system/foundations/elevation/
+      - title: Motion
+        url: /design-system/foundations/motion/
+      - title: Panel
+        url: /design-system/components/panel/
+      - title: Button
+        url: /design-system/components/button/
+      - title: Input
+        url: /design-system/components/input/
+      - title: Card
+        url: /design-system/components/card/
+      - title: Badge & Tag
+        url: /design-system/components/badge-tag/
+      - title: Progress
+        url: /design-system/components/progress/
+      - title: Table
+        url: /design-system/components/table/
+      - title: Tabs
+        url: /design-system/components/tabs/
+      - title: Data States
+        url: /design-system/patterns/data-states/
+      - title: Forms
+        url: /design-system/patterns/forms/
   - title: Release Notes
     icon: tag
     url: /release/
