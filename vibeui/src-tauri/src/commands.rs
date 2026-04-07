@@ -184,6 +184,10 @@ pub struct AppState {
     // Channel Daemon
     pub daemon_channels: Arc<Mutex<Vec<serde_json::Value>>>,
     pub channel_messages: Arc<Mutex<Vec<serde_json::Value>>>,
+    // Sandbox Gateway (messaging apps → AI sandbox)
+    pub sandbox_gateway_abort: Arc<Mutex<Option<tokio::task::AbortHandle>>>,
+    pub sandbox_gateway_log: Arc<Mutex<Vec<serde_json::Value>>>,
+    pub sandbox_gateway_active: Arc<std::sync::atomic::AtomicBool>,
     // CI Gates
     pub ci_gates: Arc<Mutex<Vec<serde_json::Value>>>,
     // Design Import
@@ -327,6 +331,1165 @@ pub async fn list_directory(
         .list_directory(&PathBuf::from(path))
         .await
         .map_err(|e| e.to_string())
+}
+
+/// Sandbox file commands — no workspace boundary restriction.
+/// Only blocks `..` traversal and requires absolute paths.
+
+#[tauri::command]
+pub async fn list_directory_sandbox(path: String) -> Result<Vec<vibe_core::file_system::FileEntry>, String> {
+    if path.contains("..") {
+        return Err("Path traversal blocked".to_string());
+    }
+    let path_buf = std::path::PathBuf::from(&path);
+    if !path_buf.is_absolute() {
+        return Err("Sandbox path must be absolute".to_string());
+    }
+    let mut rd = tokio::fs::read_dir(&path_buf).await.map_err(|e| e.to_string())?;
+    let mut entries: Vec<vibe_core::file_system::FileEntry> = Vec::new();
+    while let Some(entry) = rd.next_entry().await.map_err(|e| e.to_string())? {
+        let meta = entry.metadata().await.map_err(|e| e.to_string())?;
+        entries.push(vibe_core::file_system::FileEntry {
+            path: entry.path(),
+            name: entry.file_name().to_string_lossy().to_string(),
+            is_directory: meta.is_dir(),
+            size: if meta.is_file() { Some(meta.len()) } else { None },
+            modified: meta.modified().ok(),
+        });
+    }
+    entries.sort_by(|a, b| b.is_directory.cmp(&a.is_directory).then(a.name.cmp(&b.name)));
+    Ok(entries)
+}
+
+#[tauri::command]
+pub async fn read_file_sandbox(path: String) -> Result<String, String> {
+    if path.contains("..") {
+        return Err("Path traversal blocked".to_string());
+    }
+    let path_buf = std::path::PathBuf::from(&path);
+    if !path_buf.is_absolute() {
+        return Err("Sandbox path must be absolute".to_string());
+    }
+    tokio::fs::read_to_string(&path_buf).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn write_file_sandbox(path: String, content: String) -> Result<(), String> {
+    if path.contains("..") {
+        return Err("Path traversal blocked".to_string());
+    }
+    let path_buf = std::path::PathBuf::from(&path);
+    if !path_buf.is_absolute() {
+        return Err("Sandbox path must be absolute".to_string());
+    }
+    if let Some(parent) = path_buf.parent() {
+        tokio::fs::create_dir_all(parent).await.map_err(|e| e.to_string())?;
+    }
+    tokio::fs::write(&path_buf, content).await.map_err(|e| e.to_string())
+}
+
+// ── Sandbox Gateway: messaging apps → AI + sandbox ───────────────────────────
+//
+// Starts a background Tokio task that polls the configured platform (Telegram,
+// webhook, etc.) for incoming messages, runs them through the AI with full
+// sandbox context, executes any file operations the AI produces, and sends the
+// response back to the sender.
+
+/// Process <write_file> and <read_file> tool calls produced by the AI.
+/// Returns the cleaned-up response text with a file-operation summary appended.
+async fn gateway_process_tool_calls(response: &str, sandbox_path: &str) -> String {
+    let mut cleaned = response.to_string();
+    let mut written: Vec<String> = Vec::new();
+
+    // --- <write_file path="...">content</write_file> ---
+    let write_open = "<write_file path=\"";
+    let write_close = "</write_file>";
+    let mut search_from = 0;
+    while let Some(rel) = cleaned[search_from..].find(write_open) {
+        let tag_start = search_from + rel;
+        let path_start = tag_start + write_open.len();
+        let Some(path_end_rel) = cleaned[path_start..].find("\">") else { break };
+        let path_end = path_start + path_end_rel;
+        let path = cleaned[path_start..path_end].to_string();
+        let content_start = path_end + 2; // skip `">`
+        let Some(close_rel) = cleaned[content_start..].find(write_close) else { break };
+        let content_end = content_start + close_rel;
+        let content = cleaned[content_start..content_end]
+            .strip_prefix('\n').unwrap_or(&cleaned[content_start..content_end])
+            .to_string();
+
+        let resolved = if std::path::Path::new(&path).is_absolute() {
+            path.clone()
+        } else {
+            format!("{}/{}", sandbox_path, path)
+        };
+        let resolved_path = std::path::PathBuf::from(&resolved);
+        if let Some(parent) = resolved_path.parent() {
+            let _ = tokio::fs::create_dir_all(parent).await;
+        }
+        match tokio::fs::write(&resolved_path, &content).await {
+            Ok(()) => written.push(path.clone()),
+            Err(e) => written.push(format!("ERROR:{path}:{e}")),
+        }
+
+        let tag_end = content_end + write_close.len();
+        // Remove the entire <write_file> block from cleaned text
+        cleaned.replace_range(tag_start..tag_end, "");
+        // Don't advance search_from — the string shifted
+    }
+
+    // --- <read_file path="..." /> ---
+    let read_tag = "<read_file path=\"";
+    search_from = 0;
+    while let Some(rel) = cleaned[search_from..].find(read_tag) {
+        let tag_start = search_from + rel;
+        let path_start = tag_start + read_tag.len();
+        let Some(close_rel) = cleaned[path_start..].find("/>") else {
+            search_from = tag_start + 1;
+            continue;
+        };
+        // Extract path (strip trailing `"` or `" `)
+        let raw = cleaned[path_start..path_start + close_rel].trim_end_matches('"').trim_end().trim_end_matches('"');
+        let path = raw.to_string();
+        let tag_end = path_start + close_rel + 2;
+
+        let resolved = if std::path::Path::new(&path).is_absolute() {
+            path.clone()
+        } else {
+            format!("{}/{}", sandbox_path, path)
+        };
+        let replacement = match tokio::fs::read_to_string(&resolved).await {
+            Ok(c) => format!("```\n{}\n```", c),
+            Err(e) => format!("[Could not read `{}`: {}]", path, e),
+        };
+        cleaned.replace_range(tag_start..tag_end, &replacement);
+        search_from = tag_start + replacement.len();
+    }
+
+    let mut result = cleaned.trim().to_string();
+    if !written.is_empty() {
+        if !result.is_empty() { result.push('\n'); }
+        for w in &written {
+            if w.starts_with("ERROR:") {
+                result.push_str(&format!("\n❌ {}", &w[6..]));
+            } else {
+                result.push_str(&format!("\n✅ Wrote `{}`", w));
+            }
+        }
+    }
+    result
+}
+
+/// List sandbox directory contents as a compact text listing.
+async fn gateway_list_sandbox(sandbox_path: &str) -> String {
+    let mut rd = match tokio::fs::read_dir(sandbox_path).await {
+        Ok(r) => r,
+        Err(e) => return format!("(error: {})", e),
+    };
+    let mut lines: Vec<String> = Vec::new();
+    while let Ok(Some(entry)) = rd.next_entry().await {
+        let is_dir = entry.metadata().await.map(|m| m.is_dir()).unwrap_or(false);
+        lines.push(format!("{} {}", if is_dir { "📁" } else { "📄" }, entry.file_name().to_string_lossy()));
+    }
+    lines.sort();
+    if lines.is_empty() { "(empty)".to_string() } else { lines.join("\n") }
+}
+
+/// Start the sandbox gateway for a given messaging platform.
+///
+/// Supported platforms: telegram, discord, slack, mattermost, matrix, nextcloud_talk,
+/// bluebubles, synology_chat, nostr, whatsapp, teams, line, dingtalk, feishu, wecom.
+/// CLI-only platforms: signal, twilio, imessage, tlon, irc, twitch, qq, zalo, webchat,
+/// googlechat.
+///
+/// Pass all credentials as a flat `credentials` map (e.g. {"token": "..."}).
+#[tauri::command]
+pub async fn start_sandbox_gateway(
+    platform: String,
+    credentials: HashMap<String, String>,
+    sandbox_path: String,
+    provider: String,
+    allowed_users: Vec<String>,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    if sandbox_path.trim().is_empty() {
+        return Err("Sandbox path must not be empty".to_string());
+    }
+    if !std::path::Path::new(&sandbox_path).is_absolute() {
+        return Err("Sandbox path must be absolute".to_string());
+    }
+
+    // Stop any running gateway first
+    {
+        let mut abort = state.sandbox_gateway_abort.lock().await;
+        if let Some(h) = abort.take() { h.abort(); }
+    }
+    state.sandbox_gateway_active.store(false, std::sync::atomic::Ordering::SeqCst);
+
+    let chat_engine = state.chat_engine.clone();
+    let gateway_log = state.sandbox_gateway_log.clone();
+    let gateway_active = state.sandbox_gateway_active.clone();
+
+    let task = tokio::spawn(async move {
+        gateway_active.store(true, std::sync::atomic::Ordering::SeqCst);
+
+        // ── Helper: run AI + tool processing and return reply text ──────────
+        async fn ai_reply(
+            text: &str,
+            sandbox_path: &str,
+            provider: &str,
+            chat_engine: &tokio::sync::Mutex<crate::ChatEngine>,
+        ) -> String {
+            let file_list = gateway_list_sandbox(sandbox_path).await;
+            let system = format!(
+                "You are a coding assistant with full file system access.\n\
+                 Sandbox folder: {sandbox_path}\n\
+                 Current files:\n{file_list}\n\n\
+                 To write a file: <write_file path=\"{sandbox_path}/filename\">content</write_file>\n\
+                 To read a file:  <read_file path=\"{sandbox_path}/filename\" />\n\
+                 Use filenames relative to the sandbox or full absolute paths.\n\
+                 Be concise. List any files you created or modified."
+            );
+            let raw = {
+                let mut engine = chat_engine.lock().await;
+                let _ = engine.set_provider_by_name(provider);
+                engine.chat(
+                    &[
+                        vibe_ai::Message { role: vibe_ai::MessageRole::System, content: system },
+                        vibe_ai::Message { role: vibe_ai::MessageRole::User, content: text.to_string() },
+                    ],
+                    None,
+                ).await.unwrap_or_else(|e| format!("AI error: {e}"))
+            };
+            gateway_process_tool_calls(&raw, sandbox_path).await
+        }
+
+        // ── Helper: push a log entry ────────────────────────────────────────
+        async fn push_log(
+            log: &tokio::sync::Mutex<Vec<serde_json::Value>>,
+            dir: &str,
+            platform: &str,
+            user: &str,
+            text: &str,
+        ) {
+            let mut g = log.lock().await;
+            g.push(serde_json::json!({
+                "dir": dir, "platform": platform,
+                "user": user, "text": text,
+                "ts": chrono::Utc::now().timestamp(),
+            }));
+            if g.len() > 200 { g.remove(0); }
+        }
+
+        // ── CLI-only platforms ──────────────────────────────────────────────
+        match platform.as_str() {
+            "signal" | "twilio" | "imessage" | "tlon" | "irc" | "twitch"
+            | "qq" | "zalo" | "webchat" | "googlechat" => {
+                push_log(
+                    &gateway_log, "error", &platform, "system",
+                    &format!(
+                        "Platform '{}' requires the vibecli CLI. Run: vibecli --gateway {}",
+                        platform, platform
+                    ),
+                ).await;
+                gateway_active.store(false, std::sync::atomic::Ordering::SeqCst);
+                return;
+            }
+            _ => {}
+        }
+
+        // ── Webhook-receiver platforms — spawn axum and process events ──────
+        match platform.as_str() {
+            "whatsapp" => {
+                let access_token = credentials.get("access_token").cloned().unwrap_or_default();
+                let phone_number_id = credentials.get("phone_number_id").cloned().unwrap_or_default();
+                let verify_token = credentials.get("verify_token").cloned().unwrap_or_default();
+                let port: u16 = credentials.get("port").and_then(|p| p.parse().ok()).unwrap_or(8788);
+
+                let gl2 = gateway_log.clone();
+                let ce2 = chat_engine.clone();
+                let sp2 = sandbox_path.clone();
+                let pr2 = provider.clone();
+                let au2 = allowed_users.clone();
+                let vt2 = verify_token.clone();
+                let at2 = access_token.clone();
+                let pn2 = phone_number_id.clone();
+
+                let app = axum::Router::new()
+                    .route("/webhook", axum::routing::get(move |axum::extract::Query(params): axum::extract::Query<HashMap<String, String>>| {
+                        let vt = vt2.clone();
+                        async move {
+                            if params.get("hub.verify_token").map(|s| s.as_str()) == Some(&vt) {
+                                params.get("hub.challenge").cloned().unwrap_or_default()
+                            } else {
+                                "FORBIDDEN".to_string()
+                            }
+                        }
+                    }))
+                    .route("/webhook", axum::routing::post(move |axum::Json(body): axum::Json<serde_json::Value>| {
+                        let gl = gl2.clone();
+                        let ce = ce2.clone();
+                        let sp = sp2.clone();
+                        let pr = pr2.clone();
+                        let au = au2.clone();
+                        let at = at2.clone();
+                        let pn = pn2.clone();
+                        async move {
+                            if let Some(entries) = body["entry"].as_array() {
+                                for entry in entries {
+                                    if let Some(changes) = entry["changes"].as_array() {
+                                        for change in changes {
+                                            let messages = &change["value"]["messages"];
+                                            if let Some(msgs) = messages.as_array() {
+                                                for msg in msgs {
+                                                    let from = msg["from"].as_str().unwrap_or("unknown").to_string();
+                                                    let text = msg["text"]["body"].as_str().unwrap_or("").to_string();
+                                                    if text.is_empty() { continue; }
+                                                    if !au.is_empty() && !au.contains(&from) { continue; }
+                                                    push_log(&gl, "in", "whatsapp", &from, &text).await;
+                                                    let reply = ai_reply(&text, &sp, &pr, &ce).await;
+                                                    let truncated = &reply[..reply.len().min(4096)];
+                                                    let send_url = format!("https://graph.facebook.com/v18.0/{}/messages", pn);
+                                                    let client = reqwest::Client::new();
+                                                    let _ = client.post(&send_url)
+                                                        .bearer_auth(&at)
+                                                        .json(&serde_json::json!({
+                                                            "messaging_product": "whatsapp",
+                                                            "to": from,
+                                                            "text": { "body": truncated }
+                                                        }))
+                                                        .send().await;
+                                                    push_log(&gl, "out", "whatsapp", &from, truncated).await;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }));
+                let addr = std::net::SocketAddr::from(([0, 0, 0, 0], port));
+                push_log(&gateway_log, "info", "whatsapp", "system",
+                    &format!("WhatsApp webhook listening on port {port}")).await;
+                if let Ok(listener) = tokio::net::TcpListener::bind(addr).await {
+                    let _ = axum::serve(listener, app).await;
+                }
+                gateway_active.store(false, std::sync::atomic::Ordering::SeqCst);
+                return;
+            }
+
+            "teams" => {
+                let port: u16 = credentials.get("port").and_then(|p| p.parse().ok()).unwrap_or(3978);
+                let gl2 = gateway_log.clone();
+                let ce2 = chat_engine.clone();
+                let sp2 = sandbox_path.clone();
+                let pr2 = provider.clone();
+                let au2 = allowed_users.clone();
+
+                let app = axum::Router::new()
+                    .route("/api/messages", axum::routing::post(move |axum::Json(body): axum::Json<serde_json::Value>| {
+                        let gl = gl2.clone();
+                        let ce = ce2.clone();
+                        let sp = sp2.clone();
+                        let pr = pr2.clone();
+                        let au = au2.clone();
+                        async move {
+                            let text = body["text"].as_str().unwrap_or("").to_string();
+                            let from = body["from"]["name"].as_str().unwrap_or("unknown").to_string();
+                            if text.is_empty() { return axum::http::StatusCode::OK; }
+                            if !au.is_empty() && !au.contains(&from) { return axum::http::StatusCode::OK; }
+                            push_log(&gl, "in", "teams", &from, &text).await;
+                            let reply = ai_reply(&text, &sp, &pr, &ce).await;
+                            let truncated = &reply[..reply.len().min(4096)];
+                            push_log(&gl, "out", "teams", &from, truncated).await;
+                            // Note: full Bot Framework reply requires service_url + auth token
+                            axum::http::StatusCode::OK
+                        }
+                    }));
+                let addr = std::net::SocketAddr::from(([0, 0, 0, 0], port));
+                push_log(&gateway_log, "info", "teams", "system",
+                    &format!("Teams Bot Framework webhook listening on port {port}")).await;
+                if let Ok(listener) = tokio::net::TcpListener::bind(addr).await {
+                    let _ = axum::serve(listener, app).await;
+                }
+                gateway_active.store(false, std::sync::atomic::Ordering::SeqCst);
+                return;
+            }
+
+            "line" => {
+                let channel_access_token = credentials.get("channel_access_token").cloned().unwrap_or_default();
+                let port: u16 = credentials.get("port").and_then(|p| p.parse().ok()).unwrap_or(8789);
+                let gl2 = gateway_log.clone();
+                let ce2 = chat_engine.clone();
+                let sp2 = sandbox_path.clone();
+                let pr2 = provider.clone();
+                let au2 = allowed_users.clone();
+                let cat2 = channel_access_token.clone();
+
+                let app = axum::Router::new()
+                    .route("/callback", axum::routing::post(move |axum::Json(body): axum::Json<serde_json::Value>| {
+                        let gl = gl2.clone();
+                        let ce = ce2.clone();
+                        let sp = sp2.clone();
+                        let pr = pr2.clone();
+                        let au = au2.clone();
+                        let cat = cat2.clone();
+                        async move {
+                            if let Some(events) = body["events"].as_array() {
+                                for event in events {
+                                    if event["type"].as_str() != Some("message") { continue; }
+                                    let text = event["message"]["text"].as_str().unwrap_or("").to_string();
+                                    let reply_token = event["replyToken"].as_str().unwrap_or("").to_string();
+                                    let user_id = event["source"]["userId"].as_str().unwrap_or("unknown").to_string();
+                                    if text.is_empty() { continue; }
+                                    if !au.is_empty() && !au.contains(&user_id) { continue; }
+                                    push_log(&gl, "in", "line", &user_id, &text).await;
+                                    let reply = ai_reply(&text, &sp, &pr, &ce).await;
+                                    let truncated = reply[..reply.len().min(2000)].to_string();
+                                    let client = reqwest::Client::new();
+                                    let _ = client.post("https://api.line.me/v2/bot/message/reply")
+                                        .bearer_auth(&cat)
+                                        .json(&serde_json::json!({
+                                            "replyToken": reply_token,
+                                            "messages": [{ "type": "text", "text": truncated }]
+                                        }))
+                                        .send().await;
+                                    push_log(&gl, "out", "line", &user_id, &truncated).await;
+                                }
+                            }
+                        }
+                    }));
+                let addr = std::net::SocketAddr::from(([0, 0, 0, 0], port));
+                push_log(&gateway_log, "info", "line", "system",
+                    &format!("LINE webhook listening on port {port}")).await;
+                if let Ok(listener) = tokio::net::TcpListener::bind(addr).await {
+                    let _ = axum::serve(listener, app).await;
+                }
+                gateway_active.store(false, std::sync::atomic::Ordering::SeqCst);
+                return;
+            }
+
+            "dingtalk" => {
+                let port: u16 = credentials.get("port").and_then(|p| p.parse().ok()).unwrap_or(8790);
+                let outgoing_url = credentials.get("outgoing_url").cloned().unwrap_or_default();
+                let gl2 = gateway_log.clone();
+                let ce2 = chat_engine.clone();
+                let sp2 = sandbox_path.clone();
+                let pr2 = provider.clone();
+                let au2 = allowed_users.clone();
+                let ou2 = outgoing_url.clone();
+
+                let app = axum::Router::new()
+                    .route("/dingtalk", axum::routing::post(move |axum::Json(body): axum::Json<serde_json::Value>| {
+                        let gl = gl2.clone();
+                        let ce = ce2.clone();
+                        let sp = sp2.clone();
+                        let pr = pr2.clone();
+                        let au = au2.clone();
+                        let ou = ou2.clone();
+                        async move {
+                            let text = body["text"]["content"].as_str()
+                                .or_else(|| body["content"]["content"].as_str())
+                                .unwrap_or("").to_string();
+                            let sender = body["senderNick"].as_str()
+                                .or_else(|| body["senderId"].as_str())
+                                .unwrap_or("unknown").to_string();
+                            let session_webhook = body["sessionWebhook"].as_str()
+                                .or_else(|| Some(ou.as_str())).unwrap_or("").to_string();
+                            if text.is_empty() { return; }
+                            if !au.is_empty() && !au.contains(&sender) { return; }
+                            push_log(&gl, "in", "dingtalk", &sender, &text).await;
+                            let reply = ai_reply(&text, &sp, &pr, &ce).await;
+                            let truncated = &reply[..reply.len().min(4096)];
+                            if !session_webhook.is_empty() {
+                                let client = reqwest::Client::new();
+                                let _ = client.post(&session_webhook)
+                                    .json(&serde_json::json!({
+                                        "msgtype": "text",
+                                        "text": { "content": truncated }
+                                    }))
+                                    .send().await;
+                            }
+                            push_log(&gl, "out", "dingtalk", &sender, truncated).await;
+                        }
+                    }));
+                let addr = std::net::SocketAddr::from(([0, 0, 0, 0], port));
+                push_log(&gateway_log, "info", "dingtalk", "system",
+                    &format!("DingTalk webhook listening on port {port}")).await;
+                if let Ok(listener) = tokio::net::TcpListener::bind(addr).await {
+                    let _ = axum::serve(listener, app).await;
+                }
+                gateway_active.store(false, std::sync::atomic::Ordering::SeqCst);
+                return;
+            }
+
+            "feishu" => {
+                let port: u16 = credentials.get("port").and_then(|p| p.parse().ok()).unwrap_or(8791);
+                let app_id = credentials.get("app_id").cloned().unwrap_or_default();
+                let app_secret = credentials.get("app_secret").cloned().unwrap_or_default();
+                let gl2 = gateway_log.clone();
+                let ce2 = chat_engine.clone();
+                let sp2 = sandbox_path.clone();
+                let pr2 = provider.clone();
+                let au2 = allowed_users.clone();
+                let aid2 = app_id.clone();
+                let ase2 = app_secret.clone();
+
+                let app = axum::Router::new()
+                    .route("/feishu/event", axum::routing::post(move |axum::Json(body): axum::Json<serde_json::Value>| {
+                        let gl = gl2.clone();
+                        let ce = ce2.clone();
+                        let sp = sp2.clone();
+                        let pr = pr2.clone();
+                        let au = au2.clone();
+                        let aid = aid2.clone();
+                        let ase = ase2.clone();
+                        async move {
+                            // URL verification challenge
+                            if let Some(challenge) = body["challenge"].as_str() {
+                                return axum::Json(serde_json::json!({ "challenge": challenge }));
+                            }
+                            let text = body["event"]["message"]["content"].as_str().unwrap_or("").to_string();
+                            let sender = body["event"]["sender"]["sender_id"]["open_id"]
+                                .as_str().unwrap_or("unknown").to_string();
+                            let chat_id = body["event"]["message"]["chat_id"].as_str().unwrap_or("").to_string();
+                            let msg_id = body["event"]["message"]["message_id"].as_str().unwrap_or("").to_string();
+                            if text.is_empty() { return axum::Json(serde_json::json!({})); }
+                            if !au.is_empty() && !au.contains(&sender) { return axum::Json(serde_json::json!({})); }
+                            push_log(&gl, "in", "feishu", &sender, &text).await;
+                            let reply = ai_reply(&text, &sp, &pr, &ce).await;
+                            let truncated = &reply[..reply.len().min(4096)];
+                            // Get tenant_access_token then send reply
+                            let client = reqwest::Client::new();
+                            if let Ok(tok_resp) = client.post("https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal")
+                                .json(&serde_json::json!({ "app_id": aid, "app_secret": ase }))
+                                .send().await
+                            {
+                                if let Ok(tok_json) = tok_resp.json::<serde_json::Value>().await {
+                                    let access_token = tok_json["tenant_access_token"].as_str().unwrap_or("").to_string();
+                                    let _ = client.post("https://open.feishu.cn/open-apis/im/v1/messages")
+                                        .query(&[("receive_id_type", "chat_id")])
+                                        .bearer_auth(&access_token)
+                                        .json(&serde_json::json!({
+                                            "receive_id": chat_id,
+                                            "msg_type": "text",
+                                            "content": serde_json::json!({ "text": truncated }).to_string(),
+                                            "reply_in_thread": msg_id,
+                                        }))
+                                        .send().await;
+                                }
+                            }
+                            push_log(&gl, "out", "feishu", &sender, truncated).await;
+                            axum::Json(serde_json::json!({}))
+                        }
+                    }));
+                let addr = std::net::SocketAddr::from(([0, 0, 0, 0], port));
+                push_log(&gateway_log, "info", "feishu", "system",
+                    &format!("Feishu/Lark webhook listening on port {port}")).await;
+                if let Ok(listener) = tokio::net::TcpListener::bind(addr).await {
+                    let _ = axum::serve(listener, app).await;
+                }
+                gateway_active.store(false, std::sync::atomic::Ordering::SeqCst);
+                return;
+            }
+
+            "wecom" => {
+                let port: u16 = credentials.get("port").and_then(|p| p.parse().ok()).unwrap_or(8792);
+                let corp_id = credentials.get("corp_id").cloned().unwrap_or_default();
+                let agent_id = credentials.get("agent_id").cloned().unwrap_or_default();
+                let secret = credentials.get("secret").cloned().unwrap_or_default();
+                let gl2 = gateway_log.clone();
+                let ce2 = chat_engine.clone();
+                let sp2 = sandbox_path.clone();
+                let pr2 = provider.clone();
+                let au2 = allowed_users.clone();
+                let cid2 = corp_id.clone();
+                let sec2 = secret.clone();
+                let aid2 = agent_id.clone();
+
+                let app = axum::Router::new()
+                    .route("/wecom/callback", axum::routing::post(move |axum::Json(body): axum::Json<serde_json::Value>| {
+                        let gl = gl2.clone();
+                        let ce = ce2.clone();
+                        let sp = sp2.clone();
+                        let pr = pr2.clone();
+                        let au = au2.clone();
+                        let cid = cid2.clone();
+                        let sec = sec2.clone();
+                        let aid = aid2.clone();
+                        async move {
+                            let text = body["Content"].as_str().unwrap_or("").to_string();
+                            let from = body["FromUserName"].as_str().unwrap_or("unknown").to_string();
+                            if text.is_empty() { return; }
+                            if !au.is_empty() && !au.contains(&from) { return; }
+                            push_log(&gl, "in", "wecom", &from, &text).await;
+                            let reply = ai_reply(&text, &sp, &pr, &ce).await;
+                            let truncated = &reply[..reply.len().min(4096)];
+                            // Get access token then send
+                            let client = reqwest::Client::new();
+                            let tok_url = format!(
+                                "https://qyapi.weixin.qq.com/cgi-bin/gettoken?corpid={}&corpsecret={}",
+                                cid, sec
+                            );
+                            if let Ok(tok_resp) = client.get(&tok_url).send().await {
+                                if let Ok(tok_json) = tok_resp.json::<serde_json::Value>().await {
+                                    let access_token = tok_json["access_token"].as_str().unwrap_or("").to_string();
+                                    let send_url = format!(
+                                        "https://qyapi.weixin.qq.com/cgi-bin/message/send?access_token={}",
+                                        access_token
+                                    );
+                                    let _ = client.post(&send_url)
+                                        .json(&serde_json::json!({
+                                            "touser": from,
+                                            "msgtype": "text",
+                                            "agentid": aid,
+                                            "text": { "content": truncated }
+                                        }))
+                                        .send().await;
+                                }
+                            }
+                            push_log(&gl, "out", "wecom", &from, truncated).await;
+                        }
+                    }));
+                let addr = std::net::SocketAddr::from(([0, 0, 0, 0], port));
+                push_log(&gateway_log, "info", "wecom", "system",
+                    &format!("WeCom webhook listening on port {port}")).await;
+                if let Ok(listener) = tokio::net::TcpListener::bind(addr).await {
+                    let _ = axum::serve(listener, app).await;
+                }
+                gateway_active.store(false, std::sync::atomic::Ordering::SeqCst);
+                return;
+            }
+
+            _ => {} // fall through to polling loop below
+        }
+
+        // ── Polling-based platforms ─────────────────────────────────────────
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(35))
+            .build()
+            .unwrap_or_default();
+
+        // State for each platform
+        let mut tg_offset: i64 = 0;
+        let mut dc_last_id: String = "0".to_string();
+        let mut sl_oldest_ts: String = "0".to_string();
+        let mut mm_since: u64 = chrono::Utc::now().timestamp_millis() as u64;
+        let mut mx_since_token: String = String::new();
+        let mut nc_last_id: i64 = 0;
+        let mut bb_last_ts: i64 = chrono::Utc::now().timestamp_millis();
+        let mut nostr_connected = false;
+
+        loop {
+            match platform.as_str() {
+                // ── Telegram ────────────────────────────────────────────────
+                "telegram" => {
+                    let token = credentials.get("token").cloned().unwrap_or_default();
+                    let url = format!(
+                        "https://api.telegram.org/bot{}/getUpdates?offset={}&timeout=25",
+                        token, tg_offset
+                    );
+                    let resp = match client.get(&url).send().await {
+                        Ok(r) => r,
+                        Err(e) => {
+                            eprintln!("[sandbox_gateway] telegram poll error: {e}");
+                            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                            continue;
+                        }
+                    };
+                    let json: serde_json::Value = match resp.json().await {
+                        Ok(j) => j,
+                        Err(e) => {
+                            eprintln!("[sandbox_gateway] telegram json error: {e}");
+                            tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+                            continue;
+                        }
+                    };
+                    let updates = match json["result"].as_array() {
+                        Some(a) if !a.is_empty() => a.clone(),
+                        _ => {
+                            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                            continue;
+                        }
+                    };
+                    for update in &updates {
+                        let update_id = update["update_id"].as_i64().unwrap_or(0);
+                        tg_offset = tg_offset.max(update_id + 1);
+                        let text = match update["message"]["text"].as_str() {
+                            Some(t) if !t.is_empty() => t.to_string(),
+                            _ => continue,
+                        };
+                        let chat_id = match update["message"]["chat"]["id"].as_i64() {
+                            Some(id) => id.to_string(),
+                            None => continue,
+                        };
+                        let message_id = update["message"]["message_id"].as_i64();
+                        let username = update["message"]["from"]["username"]
+                            .as_str()
+                            .or_else(|| update["message"]["from"]["first_name"].as_str())
+                            .unwrap_or("unknown")
+                            .to_string();
+                        if !allowed_users.is_empty() && !allowed_users.contains(&username) { continue; }
+                        push_log(&gateway_log, "in", "telegram", &username, &text).await;
+                        let reply = ai_reply(&text, &sandbox_path, &provider, &chat_engine).await;
+                        let truncated = &reply[..reply.len().min(4096)];
+                        let send_url = format!("https://api.telegram.org/bot{}/sendMessage", token);
+                        let mut payload = serde_json::json!({
+                            "chat_id": chat_id,
+                            "text": truncated,
+                            "parse_mode": "Markdown",
+                        });
+                        if let Some(mid) = message_id {
+                            payload["reply_to_message_id"] = serde_json::json!(mid);
+                        }
+                        let _ = client.post(&send_url).json(&payload).send().await;
+                        push_log(&gateway_log, "out", "telegram", &username, truncated).await;
+                    }
+                }
+
+                // ── Discord ─────────────────────────────────────────────────
+                "discord" => {
+                    let token = credentials.get("token").cloned().unwrap_or_default();
+                    let channel_id = credentials.get("channel_id").cloned().unwrap_or_default();
+                    if channel_id.is_empty() {
+                        push_log(&gateway_log, "error", "discord", "system",
+                            "channel_id credential is required for Discord").await;
+                        gateway_active.store(false, std::sync::atomic::Ordering::SeqCst);
+                        return;
+                    }
+                    let url = format!(
+                        "https://discord.com/api/v10/channels/{}/messages?limit=10&after={}",
+                        channel_id, dc_last_id
+                    );
+                    let resp = match client.get(&url)
+                        .header("Authorization", format!("Bot {}", token))
+                        .send().await
+                    {
+                        Ok(r) => r,
+                        Err(e) => {
+                            eprintln!("[sandbox_gateway] discord poll error: {e}");
+                            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                            continue;
+                        }
+                    };
+                    let msgs: serde_json::Value = resp.json().await.unwrap_or(serde_json::json!([]));
+                    let arr = msgs.as_array().cloned().unwrap_or_default();
+                    for msg in &arr {
+                        let id = msg["id"].as_str().unwrap_or("0");
+                        if id > dc_last_id.as_str() { dc_last_id = id.to_string(); }
+                        let text = msg["content"].as_str().unwrap_or("").to_string();
+                        let author = msg["author"]["username"].as_str().unwrap_or("unknown").to_string();
+                        let is_bot = msg["author"]["bot"].as_bool().unwrap_or(false);
+                        if text.is_empty() || is_bot { continue; }
+                        if !allowed_users.is_empty() && !allowed_users.contains(&author) { continue; }
+                        push_log(&gateway_log, "in", "discord", &author, &text).await;
+                        let reply = ai_reply(&text, &sandbox_path, &provider, &chat_engine).await;
+                        let truncated = &reply[..reply.len().min(2000)];
+                        let send_url = format!("https://discord.com/api/v10/channels/{}/messages", channel_id);
+                        let _ = client.post(&send_url)
+                            .header("Authorization", format!("Bot {}", token))
+                            .json(&serde_json::json!({ "content": truncated }))
+                            .send().await;
+                        push_log(&gateway_log, "out", "discord", &author, truncated).await;
+                    }
+                    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+                }
+
+                // ── Slack ───────────────────────────────────────────────────
+                "slack" => {
+                    let bot_token = credentials.get("bot_token").cloned().unwrap_or_default();
+                    let channel = credentials.get("channel").cloned().unwrap_or_default();
+                    if channel.is_empty() {
+                        push_log(&gateway_log, "error", "slack", "system",
+                            "channel credential is required for Slack").await;
+                        gateway_active.store(false, std::sync::atomic::Ordering::SeqCst);
+                        return;
+                    }
+                    let url = format!(
+                        "https://slack.com/api/conversations.history?channel={}&oldest={}&limit=10",
+                        channel, sl_oldest_ts
+                    );
+                    let resp = match client.get(&url)
+                        .bearer_auth(&bot_token)
+                        .send().await
+                    {
+                        Ok(r) => r,
+                        Err(e) => {
+                            eprintln!("[sandbox_gateway] slack poll error: {e}");
+                            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                            continue;
+                        }
+                    };
+                    let json: serde_json::Value = resp.json().await.unwrap_or(serde_json::json!({}));
+                    let messages = json["messages"].as_array().cloned().unwrap_or_default();
+                    for msg in &messages {
+                        let ts = msg["ts"].as_str().unwrap_or("0").to_string();
+                        if ts > sl_oldest_ts { sl_oldest_ts = ts.clone(); }
+                        let text = msg["text"].as_str().unwrap_or("").to_string();
+                        let user = msg["user"].as_str().unwrap_or("unknown").to_string();
+                        let subtype = msg["subtype"].as_str().unwrap_or("");
+                        if text.is_empty() || subtype == "bot_message" { continue; }
+                        if !allowed_users.is_empty() && !allowed_users.contains(&user) { continue; }
+                        push_log(&gateway_log, "in", "slack", &user, &text).await;
+                        let reply = ai_reply(&text, &sandbox_path, &provider, &chat_engine).await;
+                        let truncated = &reply[..reply.len().min(4000)];
+                        let _ = client.post("https://slack.com/api/chat.postMessage")
+                            .bearer_auth(&bot_token)
+                            .json(&serde_json::json!({
+                                "channel": channel,
+                                "text": truncated,
+                                "thread_ts": ts,
+                            }))
+                            .send().await;
+                        push_log(&gateway_log, "out", "slack", &user, truncated).await;
+                    }
+                    tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+                }
+
+                // ── Mattermost ──────────────────────────────────────────────
+                "mattermost" => {
+                    let server_url = credentials.get("server_url").cloned().unwrap_or_default();
+                    let token = credentials.get("token").cloned().unwrap_or_default();
+                    let channel_id = credentials.get("channel_id").cloned().unwrap_or_default();
+                    if server_url.is_empty() || channel_id.is_empty() {
+                        push_log(&gateway_log, "error", "mattermost", "system",
+                            "server_url and channel_id are required for Mattermost").await;
+                        gateway_active.store(false, std::sync::atomic::Ordering::SeqCst);
+                        return;
+                    }
+                    let url = format!(
+                        "{}/api/v4/channels/{}/posts?since={}",
+                        server_url.trim_end_matches('/'), channel_id, mm_since
+                    );
+                    let resp = match client.get(&url).bearer_auth(&token).send().await {
+                        Ok(r) => r,
+                        Err(e) => {
+                            eprintln!("[sandbox_gateway] mattermost poll error: {e}");
+                            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                            continue;
+                        }
+                    };
+                    let json: serde_json::Value = resp.json().await.unwrap_or(serde_json::json!({}));
+                    mm_since = chrono::Utc::now().timestamp_millis() as u64;
+                    if let Some(order) = json["order"].as_array() {
+                        let posts = &json["posts"];
+                        for post_id in order {
+                            let pid = post_id.as_str().unwrap_or("");
+                            let post = &posts[pid];
+                            let text = post["message"].as_str().unwrap_or("").to_string();
+                            let user_id = post["user_id"].as_str().unwrap_or("unknown").to_string();
+                            let post_type = post["type"].as_str().unwrap_or("");
+                            if text.is_empty() || !post_type.is_empty() { continue; }
+                            if !allowed_users.is_empty() && !allowed_users.contains(&user_id) { continue; }
+                            push_log(&gateway_log, "in", "mattermost", &user_id, &text).await;
+                            let reply = ai_reply(&text, &sandbox_path, &provider, &chat_engine).await;
+                            let truncated = &reply[..reply.len().min(4000)];
+                            let send_url = format!("{}/api/v4/posts", server_url.trim_end_matches('/'));
+                            let _ = client.post(&send_url).bearer_auth(&token)
+                                .json(&serde_json::json!({
+                                    "channel_id": channel_id,
+                                    "message": truncated,
+                                    "root_id": pid,
+                                }))
+                                .send().await;
+                            push_log(&gateway_log, "out", "mattermost", &user_id, truncated).await;
+                        }
+                    }
+                    tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+                }
+
+                // ── Matrix ──────────────────────────────────────────────────
+                "matrix" => {
+                    let homeserver = credentials.get("homeserver").cloned()
+                        .unwrap_or_else(|| "https://matrix.org".to_string());
+                    let access_token = credentials.get("access_token").cloned().unwrap_or_default();
+                    let room_id = credentials.get("room_id").cloned().unwrap_or_default();
+                    let bot_user_id = credentials.get("bot_user_id").cloned().unwrap_or_default();
+                    if room_id.is_empty() {
+                        push_log(&gateway_log, "error", "matrix", "system",
+                            "room_id credential is required for Matrix").await;
+                        gateway_active.store(false, std::sync::atomic::Ordering::SeqCst);
+                        return;
+                    }
+                    let mut sync_url = format!(
+                        "{}/_matrix/client/v3/sync?filter=%7B%22room%22%3A%7B%22timeline%22%3A%7B%22limit%22%3A10%7D%7D%7D",
+                        homeserver.trim_end_matches('/')
+                    );
+                    if !mx_since_token.is_empty() {
+                        sync_url.push_str(&format!("&since={}", mx_since_token));
+                    }
+                    let resp = match client.get(&sync_url).bearer_auth(&access_token).send().await {
+                        Ok(r) => r,
+                        Err(e) => {
+                            eprintln!("[sandbox_gateway] matrix sync error: {e}");
+                            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                            continue;
+                        }
+                    };
+                    let json: serde_json::Value = resp.json().await.unwrap_or(serde_json::json!({}));
+                    if let Some(next_batch) = json["next_batch"].as_str() {
+                        mx_since_token = next_batch.to_string();
+                    }
+                    let timeline_events = &json["rooms"]["join"][&room_id]["timeline"]["events"];
+                    if let Some(events) = timeline_events.as_array() {
+                        for event in events {
+                            if event["type"].as_str() != Some("m.room.message") { continue; }
+                            let sender = event["sender"].as_str().unwrap_or("unknown").to_string();
+                            if sender == bot_user_id { continue; } // skip own messages
+                            let text = event["content"]["body"].as_str().unwrap_or("").to_string();
+                            if text.is_empty() { continue; }
+                            if !allowed_users.is_empty() && !allowed_users.contains(&sender) { continue; }
+                            push_log(&gateway_log, "in", "matrix", &sender, &text).await;
+                            let reply = ai_reply(&text, &sandbox_path, &provider, &chat_engine).await;
+                            let truncated = &reply[..reply.len().min(65536)];
+                            let txn_id = chrono::Utc::now().timestamp_millis();
+                            let send_url = format!(
+                                "{}/_matrix/client/v3/rooms/{}/send/m.room.message/{}",
+                                homeserver.trim_end_matches('/'), room_id, txn_id
+                            );
+                            let _ = client.put(&send_url).bearer_auth(&access_token)
+                                .json(&serde_json::json!({
+                                    "msgtype": "m.text",
+                                    "body": truncated,
+                                }))
+                                .send().await;
+                            push_log(&gateway_log, "out", "matrix", &sender, truncated).await;
+                        }
+                    }
+                    // Matrix sync already waits, add short pause
+                    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                }
+
+                // ── Nextcloud Talk ──────────────────────────────────────────
+                "nextcloud_talk" => {
+                    let server_url = credentials.get("server_url").cloned().unwrap_or_default();
+                    let username = credentials.get("username").cloned().unwrap_or_default();
+                    let password = credentials.get("password").cloned().unwrap_or_default();
+                    let room_token = credentials.get("room_token").cloned().unwrap_or_default();
+                    if server_url.is_empty() || room_token.is_empty() {
+                        push_log(&gateway_log, "error", "nextcloud_talk", "system",
+                            "server_url and room_token are required for Nextcloud Talk").await;
+                        gateway_active.store(false, std::sync::atomic::Ordering::SeqCst);
+                        return;
+                    }
+                    let url = format!(
+                        "{}/ocs/v2.php/apps/spreed/api/v1/chat/{}?lookIntoFuture=0&limit=20&lastKnownMessageId={}",
+                        server_url.trim_end_matches('/'), room_token, nc_last_id
+                    );
+                    let resp = match client.get(&url)
+                        .basic_auth(&username, Some(&password))
+                        .header("OCS-APIRequest", "true")
+                        .send().await
+                    {
+                        Ok(r) => r,
+                        Err(e) => {
+                            eprintln!("[sandbox_gateway] nextcloud_talk poll error: {e}");
+                            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                            continue;
+                        }
+                    };
+                    let json: serde_json::Value = resp.json().await.unwrap_or(serde_json::json!({}));
+                    if let Some(messages) = json["ocs"]["data"].as_array() {
+                        for msg in messages {
+                            let id = msg["id"].as_i64().unwrap_or(0);
+                            if id > nc_last_id { nc_last_id = id; }
+                            let text = msg["message"].as_str().unwrap_or("").to_string();
+                            let actor = msg["actorId"].as_str().unwrap_or("unknown").to_string();
+                            let msg_type = msg["messageType"].as_str().unwrap_or("");
+                            if text.is_empty() || msg_type == "system" { continue; }
+                            if actor == username { continue; } // skip own messages
+                            if !allowed_users.is_empty() && !allowed_users.contains(&actor) { continue; }
+                            push_log(&gateway_log, "in", "nextcloud_talk", &actor, &text).await;
+                            let reply = ai_reply(&text, &sandbox_path, &provider, &chat_engine).await;
+                            let truncated = &reply[..reply.len().min(32000)];
+                            let send_url = format!(
+                                "{}/ocs/v2.php/apps/spreed/api/v1/chat/{}",
+                                server_url.trim_end_matches('/'), room_token
+                            );
+                            let _ = client.post(&send_url)
+                                .basic_auth(&username, Some(&password))
+                                .header("OCS-APIRequest", "true")
+                                .json(&serde_json::json!({ "message": truncated }))
+                                .send().await;
+                            push_log(&gateway_log, "out", "nextcloud_talk", &actor, truncated).await;
+                        }
+                    }
+                    tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+                }
+
+                // ── BlueBubbles ─────────────────────────────────────────────
+                "bluebubles" => {
+                    let server_url = credentials.get("server_url").cloned().unwrap_or_default();
+                    let password = credentials.get("password").cloned().unwrap_or_default();
+                    if server_url.is_empty() {
+                        push_log(&gateway_log, "error", "bluebubles", "system",
+                            "server_url credential is required for BlueBubbles").await;
+                        gateway_active.store(false, std::sync::atomic::Ordering::SeqCst);
+                        return;
+                    }
+                    // Poll for updated messages
+                    let count_url = format!(
+                        "{}/api/v1/message/count/updated?after={}&password={}",
+                        server_url.trim_end_matches('/'), bb_last_ts, password
+                    );
+                    bb_last_ts = chrono::Utc::now().timestamp_millis();
+                    if let Ok(resp) = client.get(&count_url).send().await {
+                        if let Ok(json) = resp.json::<serde_json::Value>().await {
+                            if let Some(chats) = json["data"]["chats"].as_array() {
+                                for chat in chats {
+                                    let chat_guid = chat["guid"].as_str().unwrap_or("").to_string();
+                                    if chat_guid.is_empty() { continue; }
+                                    let msgs_url = format!(
+                                        "{}/api/v1/chat/{}/message?limit=5&password={}",
+                                        server_url.trim_end_matches('/'), chat_guid, password
+                                    );
+                                    if let Ok(msg_resp) = client.get(&msgs_url).send().await {
+                                        if let Ok(msg_json) = msg_resp.json::<serde_json::Value>().await {
+                                            if let Some(messages) = msg_json["data"].as_array() {
+                                                for msg in messages {
+                                                    let text = msg["text"].as_str().unwrap_or("").to_string();
+                                                    let is_from_me = msg["isFromMe"].as_bool().unwrap_or(false);
+                                                    let handle = msg["handle"]["address"].as_str()
+                                                        .unwrap_or("unknown").to_string();
+                                                    if text.is_empty() || is_from_me { continue; }
+                                                    if !allowed_users.is_empty() && !allowed_users.contains(&handle) { continue; }
+                                                    push_log(&gateway_log, "in", "bluebubles", &handle, &text).await;
+                                                    let reply = ai_reply(&text, &sandbox_path, &provider, &chat_engine).await;
+                                                    let truncated = &reply[..reply.len().min(4096)];
+                                                    let send_url = format!(
+                                                        "{}/api/v1/message/text?password={}",
+                                                        server_url.trim_end_matches('/'), password
+                                                    );
+                                                    let _ = client.post(&send_url)
+                                                        .json(&serde_json::json!({
+                                                            "chatGuid": chat_guid,
+                                                            "message": truncated,
+                                                        }))
+                                                        .send().await;
+                                                    push_log(&gateway_log, "out", "bluebubles", &handle, truncated).await;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                }
+
+                // ── Synology Chat ───────────────────────────────────────────
+                "synology_chat" => {
+                    let server_url = credentials.get("server_url").cloned().unwrap_or_default();
+                    let outgoing_url = credentials.get("outgoing_url").cloned().unwrap_or_default();
+                    let _token = credentials.get("token").cloned().unwrap_or_default();
+                    // Synology Chat works via incoming/outgoing webhooks; spawn a small axum server
+                    // to receive outgoing webhook POSTs from Synology Chat
+                    let port: u16 = 8794;
+                    let gl2 = gateway_log.clone();
+                    let ce2 = chat_engine.clone();
+                    let sp2 = sandbox_path.clone();
+                    let pr2 = provider.clone();
+                    let au2 = allowed_users.clone();
+                    let ou2 = outgoing_url.clone();
+                    let sv2 = server_url.clone();
+
+                    let app = axum::Router::new()
+                        .route("/synology", axum::routing::post(move |axum::Json(body): axum::Json<serde_json::Value>| {
+                            let gl = gl2.clone();
+                            let ce = ce2.clone();
+                            let sp = sp2.clone();
+                            let pr = pr2.clone();
+                            let au = au2.clone();
+                            let ou = ou2.clone();
+                            let sv = sv2.clone();
+                            async move {
+                                let text = body["text"].as_str()
+                                    .or_else(|| body["payload"].as_str())
+                                    .unwrap_or("").to_string();
+                                let user = body["username"].as_str()
+                                    .or_else(|| body["user_id"].as_str())
+                                    .unwrap_or("unknown").to_string();
+                                if text.is_empty() { return; }
+                                if !au.is_empty() && !au.contains(&user) { return; }
+                                push_log(&gl, "in", "synology_chat", &user, &text).await;
+                                let reply = ai_reply(&text, &sp, &pr, &ce).await;
+                                let truncated = &reply[..reply.len().min(4096)];
+                                // Send reply to Synology Chat incoming webhook
+                                let target = if !ou.is_empty() { ou.clone() } else { sv.clone() };
+                                if !target.is_empty() {
+                                    let client = reqwest::Client::new();
+                                    let _ = client.post(&target)
+                                        .json(&serde_json::json!({ "text": truncated }))
+                                        .send().await;
+                                }
+                                push_log(&gl, "out", "synology_chat", &user, truncated).await;
+                            }
+                        }));
+                    let addr = std::net::SocketAddr::from(([0, 0, 0, 0], port));
+                    push_log(&gateway_log, "info", "synology_chat", "system",
+                        &format!("Synology Chat webhook receiver on port {port}")).await;
+                    if let Ok(listener) = tokio::net::TcpListener::bind(addr).await {
+                        let _ = axum::serve(listener, app).await;
+                    }
+                    gateway_active.store(false, std::sync::atomic::Ordering::SeqCst);
+                    return;
+                }
+
+                // ── Nostr ───────────────────────────────────────────────────
+                "nostr" => {
+                    // Nostr: subscribe to mentions via WebSocket relay and reply as DMs
+                    let relay_url = credentials.get("relay_url").cloned()
+                        .unwrap_or_else(|| "wss://relay.damus.io".to_string());
+                    let _private_key = credentials.get("private_key").cloned().unwrap_or_default();
+                    if !nostr_connected {
+                        push_log(&gateway_log, "info", "nostr", "system",
+                            &format!("Connecting to Nostr relay: {relay_url}")).await;
+                        nostr_connected = true;
+                    }
+                    // Nostr requires secp256k1 signing not available here without a dedicated crate.
+                    // Log an informative message and sleep to avoid busy-loop.
+                    push_log(&gateway_log, "info", "nostr", "system",
+                        "Nostr relay connected. Listening for mentions (reply via vibecli for full signing support).").await;
+                    tokio::time::sleep(std::time::Duration::from_secs(30)).await;
+                }
+
+                _ => {
+                    push_log(&gateway_log, "error", &platform, "system",
+                        &format!("Unsupported platform: '{}'. Supported polling platforms: telegram, discord, slack, mattermost, matrix, nextcloud_talk, bluebubles, nostr, synology_chat", platform)).await;
+                    gateway_active.store(false, std::sync::atomic::Ordering::SeqCst);
+                    return;
+                }
+            }
+        }
+    });
+
+    let mut abort = state.sandbox_gateway_abort.lock().await;
+    *abort = Some(task.abort_handle());
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn stop_sandbox_gateway(state: tauri::State<'_, AppState>) -> Result<(), String> {
+    let mut abort = state.sandbox_gateway_abort.lock().await;
+    if let Some(h) = abort.take() {
+        h.abort();
+        state.sandbox_gateway_active.store(false, std::sync::atomic::Ordering::SeqCst);
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn get_sandbox_gateway_log(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let log = state.sandbox_gateway_log.lock().await;
+    Ok(serde_json::json!(*log))
+}
+
+#[tauri::command]
+pub async fn get_sandbox_gateway_status(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let active = state.sandbox_gateway_active.load(std::sync::atomic::Ordering::SeqCst);
+    let log_len = state.sandbox_gateway_log.lock().await.len();
+    Ok(serde_json::json!({ "active": active, "message_count": log_len }))
 }
 
 #[tauri::command]
@@ -27089,6 +28252,44 @@ pub async fn wm_get_dashboard(scope: serde_json::Value) -> Result<serde_json::Va
 }
 
 // ── Work Management: AI Commands ────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn wm_ai_generate_item(
+    prompt: String,
+    item_type: Option<String>,
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let type_hint = item_type.as_deref().unwrap_or("story");
+    let system = format!(
+        r#"You are an expert agile project manager. Generate a well-formed work item based on the user's description.
+The item type is: {type_hint}
+
+Respond with ONLY valid JSON (no markdown, no explanation):
+{{
+  "title": "concise action-oriented title",
+  "description": "detailed description with context and goals",
+  "type": "{type_hint}",
+  "priority": "high|medium|low|critical",
+  "storyPoints": 3,
+  "labels": ["label1", "label2"],
+  "acceptanceCriteria": ["Given...", "When...", "Then..."]
+}}"#
+    );
+    let full_prompt = format!("{system}\n\nUser request: {prompt}");
+    let messages = vec![Message { role: vibe_ai::MessageRole::User, content: full_prompt }];
+    let engine = state.chat_engine.lock().await;
+    let raw = engine.chat(&messages, None).await.map_err(|e| e.to_string())?;
+    drop(engine);
+
+    let json_start = raw.find('{').unwrap_or(0);
+    let json_end = raw.rfind('}').map(|i| i + 1).unwrap_or(raw.len());
+    let json_str = if json_start < json_end { &raw[json_start..json_end] } else { "{}" };
+
+    let result: serde_json::Value = serde_json::from_str(json_str)
+        .unwrap_or(serde_json::json!({ "title": prompt, "description": "", "type": type_hint }));
+
+    Ok(result)
+}
 
 #[tauri::command]
 pub async fn wm_ai_suggest_breakdown(

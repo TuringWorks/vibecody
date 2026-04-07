@@ -407,6 +407,9 @@ function ItemsTab({ items, scope, onRefresh, setError }: {
   const [newItem, setNewItem] = useState({ type: "story" as WorkItemType, title: "", description: "", priority: "medium" as Priority, labels: "", storyPoints: 0, parentId: "" });
   const [aiBreaking, setAiBreaking] = useState<string | null>(null);
   const [editingItem, setEditingItem] = useState<WorkItem | null>(null);
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [showAiPrompt, setShowAiPrompt] = useState(false);
 
   const filtered = items.filter(i => {
     if (filterType && i.type !== filterType) return false;
@@ -456,6 +459,29 @@ function ItemsTab({ items, scope, onRefresh, setError }: {
     setAiBreaking(null);
   };
 
+  const handleAiGenerate = async () => {
+    if (!aiPrompt.trim()) return;
+    setAiGenerating(true);
+    try {
+      const result = await invoke<any>("wm_ai_generate_item", {
+        prompt: aiPrompt,
+        itemType: newItem.type,
+      });
+      setNewItem(prev => ({
+        ...prev,
+        title: result.title || prev.title,
+        description: result.description || prev.description,
+        type: (result.type as WorkItemType) || prev.type,
+        priority: (result.priority as Priority) || prev.priority,
+        storyPoints: result.storyPoints ?? prev.storyPoints,
+        labels: Array.isArray(result.labels) ? result.labels.join(", ") : prev.labels,
+      }));
+      setShowAiPrompt(false);
+      setAiPrompt("");
+    } catch (e: any) { setError(String(e)); }
+    setAiGenerating(false);
+  };
+
   const allStatuses = [...new Set(items.map(i => i.status))];
 
   return (
@@ -463,7 +489,42 @@ function ItemsTab({ items, scope, onRefresh, setError }: {
       {/* Create form */}
       {creating ? (
         <div style={{ ...cardS, marginBottom: 12 }}>
-          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Create Work Item</div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+            <div style={{ fontWeight: 600, fontSize: 13 }}>Create Work Item</div>
+            <button
+              style={{ ...btnS, background: showAiPrompt ? "var(--accent-color)" : "var(--bg-secondary)", color: showAiPrompt ? "var(--btn-primary-fg)" : "var(--text-primary)", fontSize: 11, padding: "3px 10px", display: "flex", alignItems: "center", gap: 4 }}
+              onClick={() => setShowAiPrompt(v => !v)}
+            >
+              ✦ AI Generate
+            </button>
+          </div>
+
+          {/* AI prompt panel */}
+          {showAiPrompt && (
+            <div style={{ marginBottom: 10, padding: 10, background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--accent-color)" }}>
+              <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 6 }}>
+                Describe what you want to build — AI will suggest a title, description, type &amp; points.
+              </div>
+              <div style={{ display: "flex", gap: 6 }}>
+                <input
+                  style={{ ...inpS, flex: 1 }}
+                  placeholder="e.g. User login with OAuth, remember me option, and rate limiting..."
+                  value={aiPrompt}
+                  onChange={e => setAiPrompt(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleAiGenerate(); } }}
+                  autoFocus
+                />
+                <button
+                  style={{ ...btnP, opacity: aiGenerating || !aiPrompt.trim() ? 0.5 : 1, whiteSpace: "nowrap" }}
+                  onClick={handleAiGenerate}
+                  disabled={aiGenerating || !aiPrompt.trim()}
+                >
+                  {aiGenerating ? "Generating..." : "Generate"}
+                </button>
+              </div>
+            </div>
+          )}
+
           <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
             <select style={{ ...inpS, width: "auto" }} value={newItem.type} onChange={e => setNewItem({ ...newItem, type: e.target.value as WorkItemType })}>
               {ITEM_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
@@ -481,7 +542,7 @@ function ItemsTab({ items, scope, onRefresh, setError }: {
           </div>
           <div style={{ display: "flex", gap: 6 }}>
             <button style={btnP} onClick={handleCreate}>Create</button>
-            <button style={btnS} onClick={() => setCreating(false)}>Cancel</button>
+            <button style={btnS} onClick={() => { setCreating(false); setShowAiPrompt(false); setAiPrompt(""); }}>Cancel</button>
           </div>
         </div>
       ) : (

@@ -220,6 +220,9 @@ pub fn run() {
             // Channel Daemon
             daemon_channels: Arc::new(Mutex::new(Vec::new())),
             channel_messages: Arc::new(Mutex::new(Vec::new())),
+            sandbox_gateway_abort: Arc::new(Mutex::new(None)),
+            sandbox_gateway_log: Arc::new(Mutex::new(Vec::new())),
+            sandbox_gateway_active: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             // CI Gates
             ci_gates: Arc::new(Mutex::new(Vec::new())),
             // Design Import
@@ -236,6 +239,13 @@ pub fn run() {
             commands::read_file_base64,
             commands::write_file,
             commands::list_directory,
+            commands::list_directory_sandbox,
+            commands::read_file_sandbox,
+            commands::write_file_sandbox,
+            commands::start_sandbox_gateway,
+            commands::stop_sandbox_gateway,
+            commands::get_sandbox_gateway_log,
+            commands::get_sandbox_gateway_status,
             commands::create_directory,
             commands::delete_item,
             commands::rename_item,
@@ -899,6 +909,7 @@ pub fn run() {
             commands::wm_remove_relationship,
             commands::wm_get_item_tree,
             commands::wm_get_dashboard,
+            commands::wm_ai_generate_item,
             commands::wm_ai_suggest_breakdown,
             commands::wm_ai_assess_risk,
             // Quantum Computing

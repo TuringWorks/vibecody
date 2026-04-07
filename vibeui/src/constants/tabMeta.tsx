@@ -21,6 +21,8 @@ export interface TabMeta {
 export const TAB_META: Record<string, TabMeta> = {
   // --- AI ---
   chat:            { icon: MessageSquare,  label: "Chat" },
+  "sandbox-chat":  { icon: Shield,         label: "Sandbox Chat",      aliases: ["sandbox", "filesystem chat", "file ai", "ai sandbox"] },
+  "gateway-sandbox": { icon: MessageSquare, label: "Msg Gateway",       aliases: ["telegram", "gateway", "messaging", "bot", "slack", "discord", "webhook bot"] },
   agent:           { icon: Bot,            label: "Agent" },
   "agent-os":      { icon: Cpu,             label: "Agent-OS",          aliases: ["agent os", "agentos", "agent dashboard", "spawn", "subagents", "agent host", "branch agent", "browser agent", "cloud agent", "orchestration", "agent modes", "agent pool"] },
   "ai-teams":      { icon: UsersRound,     label: "AI Teams",          aliases: ["teams", "agentteams", "subagents", "cloud", "cibot", "agent modes"] },
