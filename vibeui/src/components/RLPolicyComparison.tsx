@@ -36,7 +36,7 @@ interface LineageNode {
   parentId: string | null;
 }
 
-const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", overflow: "auto", background: "var(--bg-primary)" };
+const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", flex: 1, minHeight: 0, overflow: "auto", background: "var(--bg-primary)" };
 const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" };
 const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-color)" };
 const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
@@ -48,7 +48,7 @@ const tdStyle: React.CSSProperties = { padding: "6px 8px", borderBottom: "1px so
 
 const diffColor = (a: number, b: number, higherBetter = true) => {
   const better = higherBetter ? b > a : b < a;
-  return better ? "#4caf50" : b === a ? "var(--text-primary)" : "#f44336";
+  return better ? "var(--success-color)" : b === a ? "var(--text-primary)" : "var(--error-color)";
 };
 
 export function RLPolicyComparison() {
@@ -123,10 +123,10 @@ export function RLPolicyComparison() {
                   <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 2 }}>{k}</div>
                   <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
                     <div style={{ flex: 1, height: 8, background: "var(--bg-tertiary)", borderRadius: 4, overflow: "hidden" }}>
-                      <div style={{ width: `${(a / max) * 100}%`, height: "100%", background: "#2196f3", borderRadius: 4 }} />
+                      <div style={{ width: `${(a / max) * 100}%`, height: "100%", background: "var(--info-color)", borderRadius: 4 }} />
                     </div>
                     <div style={{ flex: 1, height: 8, background: "var(--bg-tertiary)", borderRadius: 4, overflow: "hidden" }}>
-                      <div style={{ width: `${(b / max) * 100}%`, height: "100%", background: "#ff9800", borderRadius: 4 }} />
+                      <div style={{ width: `${(b / max) * 100}%`, height: "100%", background: "var(--warning-color)", borderRadius: 4 }} />
                     </div>
                   </div>
                 </div>

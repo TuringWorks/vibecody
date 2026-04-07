@@ -135,7 +135,7 @@ const STEPS = [
 
 // ── Styles ───────────────────────────────────────────────────────────────
 
-const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", overflow: "auto", background: "var(--bg-primary)" };
+const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", flex: 1, minHeight: 0, overflow: "auto", background: "var(--bg-primary)" };
 const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" };
 const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-color)" };
 const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
@@ -151,7 +151,7 @@ const fieldRow: React.CSSProperties = { display: "grid", gridTemplateColumns: "1
 const fieldCol: React.CSSProperties = { display: "flex", flexDirection: "column", gap: 4 };
 const fieldLabel: React.CSSProperties = { fontSize: 11, fontWeight: 600, color: "var(--text-secondary)" };
 const checkRow: React.CSSProperties = { display: "flex", alignItems: "center", gap: 8, marginBottom: 8 };
-const statusColor = (s: string) => s === "running" ? "#4caf50" : s === "paused" ? "#ff9800" : "var(--text-secondary)";
+const statusColor = (s: string) => s === "running" ? "var(--success-color)" : s === "paused" ? "var(--warning-color)" : "var(--text-secondary)";
 const stepBarItem = (active: boolean, done: boolean): React.CSSProperties => ({
   padding: "4px 10px", borderRadius: 12, fontSize: 11, fontWeight: active ? 700 : 400,
   background: active ? "var(--accent-color)" : done ? "var(--bg-tertiary)" : "transparent",
@@ -571,7 +571,7 @@ export function RLTrainingDashboard(_props: { workspacePath?: string | null; pro
             <div style={{ display: "flex", alignItems: "flex-end", gap: 1, height: 60 }}>
               {metrics.losses.slice(-80).map((v, i, a) => {
                 const max = Math.max(...a, 0.01);
-                return <div key={i} style={{ flex: 1, background: "#ff9800", height: `${(v / max) * 100}%`, borderRadius: "2px 2px 0 0", minHeight: 1 }} />;
+                return <div key={i} style={{ flex: 1, background: "var(--warning-color)", height: `${(v / max) * 100}%`, borderRadius: "2px 2px 0 0", minHeight: 1 }} />;
               })}
             </div>
           </div>
@@ -581,7 +581,7 @@ export function RLTrainingDashboard(_props: { workspacePath?: string | null; pro
               {metrics.gpuUtil.map((g, i) => (
                 <div key={i} style={{ flex: 1, textAlign: "center" }}>
                   <div style={{ height: 40, background: "var(--bg-tertiary)", borderRadius: 4, position: "relative", overflow: "hidden" }}>
-                    <div style={{ position: "absolute", bottom: 0, width: "100%", height: `${g}%`, background: g > 80 ? "#4caf50" : "#ff9800", borderRadius: 4 }} />
+                    <div style={{ position: "absolute", bottom: 0, width: "100%", height: `${g}%`, background: g > 80 ? "var(--success-color)" : "var(--warning-color)", borderRadius: 4 }} />
                   </div>
                   <div style={{ ...labelStyle, marginTop: 2 }}>GPU{i}: {g}%</div>
                 </div>

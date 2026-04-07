@@ -99,13 +99,13 @@ export default function AstEditPanel() {
     try {
       const result = await invoke<PendingEdit[]>("get_ast_edits");
       setEdits(result);
-      if (result.length > 0 && !selectedEdit) {
-        setSelectedEdit(result[0].id);
+      if (result.length > 0) {
+        setSelectedEdit(prev => prev || result[0].id);
       }
     } catch (err) {
       console.error("Failed to load AST edits:", err);
     }
-  }, [selectedEdit]);
+  }, []);
 
   useEffect(() => {
     loadFiles();
@@ -133,7 +133,7 @@ export default function AstEditPanel() {
   const selected = edits.find(e => e.id === selectedEdit);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
       <div style={{ display: "flex", gap: 6, padding: "8px 10px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
         {(["files", "edits", "preview"] as Tab[]).map(t => (
           <button key={t} onClick={() => setTab(t)} style={tabBtn(tab === t)}>

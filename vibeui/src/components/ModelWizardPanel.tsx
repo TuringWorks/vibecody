@@ -88,7 +88,7 @@ const STEPS = [
 
 // ── Styles ───────────────────────────────────────────────────────────────
 
-const panelStyle: React.CSSProperties = { display: "flex", flexDirection: "column", height: "100%", color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, background: "var(--bg-primary)" };
+const panelStyle: React.CSSProperties = { display: "flex", flexDirection: "column", height: "100%", flex: 1, minHeight: 0, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, background: "var(--bg-primary)" };
 const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-color)" };
 const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4, display: "block" };
 const inputStyle: React.CSSProperties = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", fontSize: 12, fontFamily: "var(--font-family)", boxSizing: "border-box" as const };

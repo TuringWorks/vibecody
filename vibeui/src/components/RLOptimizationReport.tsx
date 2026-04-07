@@ -35,7 +35,7 @@ interface LatencyBenchmark {
   p99: number;
 }
 
-const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", overflow: "auto", background: "var(--bg-primary)" };
+const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", flex: 1, minHeight: 0, overflow: "auto", background: "var(--bg-primary)" };
 const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" };
 const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-color)" };
 const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
@@ -44,7 +44,7 @@ const tableStyle: React.CSSProperties = { width: "100%", borderCollapse: "collap
 const thStyle: React.CSSProperties = { textAlign: "left", padding: "6px 8px", borderBottom: "1px solid var(--border-color)", color: "var(--text-secondary)", fontWeight: 600 };
 const tdStyle: React.CSSProperties = { padding: "6px 8px", borderBottom: "1px solid var(--border-color)" };
 
-const stageIcon = (s: string) => s === "done" ? "#4caf50" : s === "running" ? "#ff9800" : "var(--text-secondary)";
+const stageIcon = (s: string) => s === "done" ? "var(--success-color)" : s === "running" ? "var(--warning-color)" : "var(--text-secondary)";
 
 export function RLOptimizationReport() {
   const [policyId, setPolicyId] = useState("");
@@ -71,7 +71,7 @@ export function RLOptimizationReport() {
     setLoading(false);
   }, [policyId, fetchReport]);
 
-  const retentionColor = (r: number) => r >= 0.95 ? "#4caf50" : r >= 0.85 ? "#ff9800" : "#f44336";
+  const retentionColor = (r: number) => r >= 0.95 ? "var(--success-color)" : r >= 0.85 ? "var(--warning-color)" : "var(--error-color)";
 
   return (
     <div style={panelStyle}>

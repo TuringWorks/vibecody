@@ -30,8 +30,8 @@ interface PolicyRule {
 }
 
 const ROLE_COLORS: Record<Role, string> = {
-  admin: '#ef4444',
-  developer: '#3b82f6',
+  admin: "var(--error-color)",
+  developer: "var(--info-color)",
   viewer: '#6b7280',
 };
 

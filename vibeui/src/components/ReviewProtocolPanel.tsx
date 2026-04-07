@@ -15,15 +15,6 @@ interface ReviewStats {
   precision: number;
 }
 
-const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", overflow: "auto", background: "var(--bg-primary)" };
-const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" };
-const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-color)" };
-const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
-const btnStyle: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", cursor: "pointer", fontSize: 12, marginRight: 8 };
-const inputStyle: React.CSSProperties = { width: "100%", padding: "6px 8px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", fontSize: 12, boxSizing: "border-box" };
-const tabRow: React.CSSProperties = { display: "flex", gap: 4, marginBottom: 12 };
-const metricBox: React.CSSProperties = { textAlign: "center", padding: 12, borderRadius: 6, background: "var(--bg-tertiary)", flex: 1 };
-
 type Tab = "start" | "stats";
 
 export default function ReviewProtocolPanel() {
@@ -33,93 +24,160 @@ export default function ReviewProtocolPanel() {
   const [sessionId, setSessionId] = useState("");
   const [stats, setStats] = useState<ReviewStats | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const doStart = useCallback(async () => {
     setLoading(true);
+    setError("");
     try {
       const files = filesInput.split(",").map(f => f.trim()).filter(Boolean);
-      const res = await invoke<{ sessionId: string; title: string }>("creview_start", { title, files: files.length ? files : ["."] });
+      const res = await invoke<{ sessionId: string; title: string }>(
+        "creview_start",
+        { title, files: files.length ? files : ["."] }
+      );
       setSessionId(res.sessionId);
-    } catch (e) { console.error(e); }
-    setLoading(false);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
   }, [title, filesInput]);
 
   const loadStats = useCallback(async () => {
     setLoading(true);
+    setError("");
     try {
       const res = await invoke<ReviewStats>("creview_stats");
       setStats(res);
-    } catch (e) { console.error(e); }
-    setLoading(false);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
+  const precisionColor = (p: number) =>
+    p >= 0.8 ? "var(--success-color)" : p >= 0.6 ? "var(--warning-color)" : "var(--error-color)";
+
   return (
-    <div style={panelStyle}>
-      <h2 style={headingStyle}>Collaborative Review Protocol</h2>
-      <div style={tabRow}>
-        {(["start", "stats"] as Tab[]).map(t => (
-          <button key={t} style={{ ...btnStyle, background: tab === t ? "var(--accent-color)" : "var(--bg-tertiary)", color: tab === t ? "#fff" : "var(--text-primary)" }} onClick={() => { setTab(t); if (t === "stats") loadStats(); }}>
-            {t === "start" ? "New Review" : "Quality Stats"}
-          </button>
-        ))}
+    <div className="panel-container">
+      <div className="panel-header">
+        <h3>Collaborative Review Protocol</h3>
+        <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+          {(["start", "stats"] as Tab[]).map(t => (
+            <button
+              key={t}
+              className={`panel-btn ${tab === t ? "panel-btn-primary" : "panel-btn-secondary"}`}
+              onClick={() => {
+                setTab(t);
+                if (t === "stats" && !stats) loadStats();
+              }}
+            >
+              {t === "start" ? "New Review" : "Quality Stats"}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {tab === "start" && (
-        <>
-          <div style={cardStyle}>
-            <div style={labelStyle}>Review Title</div>
-            <input value={title} onChange={e => setTitle(e.target.value)} style={{ ...inputStyle, marginBottom: 8 }} placeholder="Review: auth refactor" />
-            <div style={labelStyle}>Files (comma-separated, leave empty for all)</div>
-            <input value={filesInput} onChange={e => setFilesInput(e.target.value)} style={{ ...inputStyle, marginBottom: 8 }} placeholder="src/auth.rs, src/session.rs" />
-            <button style={btnStyle} onClick={doStart} disabled={loading || !title}>
-              {loading ? "..." : "Start Review"}
-            </button>
+      <div className="panel-body">
+        {error && (
+          <div className="panel-error" style={{ marginBottom: 10 }}>
+            {error}
+            <button onClick={() => setError("")}>✕</button>
           </div>
+        )}
 
-          {sessionId && (
-            <div style={{ ...cardStyle, borderLeft: "3px solid #4caf50" }}>
-              <div style={{ fontWeight: 600 }}>Review Started</div>
-              <div style={labelStyle}>Session ID: {sessionId}</div>
-              <div style={{ marginTop: 4, fontSize: 12 }}>
-                Use <code>/creview comment file:line msg</code> in the terminal to add comments.
+        {tab === "start" && (
+          <>
+            <div className="panel-card" style={{ marginBottom: 10 }}>
+              <div className="panel-label">Review Title</div>
+              <input
+                className="panel-input panel-input-full"
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                placeholder="Review: auth refactor"
+                style={{ marginBottom: 8 }}
+              />
+              <div className="panel-label">Files (comma-separated, leave empty for all)</div>
+              <input
+                className="panel-input panel-input-full"
+                value={filesInput}
+                onChange={e => setFilesInput(e.target.value)}
+                placeholder="src/auth.rs, src/session.rs"
+                style={{ marginBottom: 8 }}
+              />
+              <button
+                className="panel-btn panel-btn-primary"
+                onClick={doStart}
+                disabled={loading || !title}
+              >
+                {loading ? "Starting…" : "Start Review"}
+              </button>
+            </div>
+
+            {sessionId && (
+              <div className="panel-card" style={{ borderLeft: "3px solid var(--success-color)" }}>
+                <div style={{ fontWeight: "var(--font-semibold)", marginBottom: 4 }}>Review Started</div>
+                <div className="panel-label" style={{ marginBottom: 6 }}>Session: {sessionId}</div>
+                <div style={{ fontSize: "var(--font-size-base)" }}>
+                  Use <code className="panel-mono">/creview comment file:line msg</code> in the terminal to add comments.
+                </div>
+              </div>
+            )}
+
+            {!sessionId && !loading && !error && (
+              <div className="panel-empty">Enter a review title above and click Start Review.</div>
+            )}
+          </>
+        )}
+
+        {tab === "stats" && loading && <div className="panel-loading">Loading quality metrics…</div>}
+
+        {tab === "stats" && stats && !loading && (
+          <>
+            <div className="panel-stats" style={{ marginBottom: 8 }}>
+              <div className="panel-stat">
+                <div className="panel-stat-value">{stats.totalComments}</div>
+                <div className="panel-stat-label">Total</div>
+              </div>
+              <div className="panel-stat">
+                <div className="panel-stat-value" style={{ color: "var(--success-color)" }}>{stats.resolved}</div>
+                <div className="panel-stat-label">Resolved</div>
+              </div>
+              <div className="panel-stat">
+                <div className="panel-stat-value" style={{ color: "var(--info-color)" }}>{stats.realIssues}</div>
+                <div className="panel-stat-label">Real Issues</div>
               </div>
             </div>
-          )}
-        </>
-      )}
-
-      {tab === "stats" && stats && (
-        <>
-          <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-            <div style={metricBox}>
-              <div style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)" }}>{stats.totalComments}</div>
-              <div style={labelStyle}>Total Comments</div>
-            </div>
-            <div style={metricBox}>
-              <div style={{ fontSize: 24, fontWeight: 700, color: "#4caf50" }}>{stats.resolved}</div>
-              <div style={labelStyle}>Resolved</div>
-            </div>
-            <div style={metricBox}>
-              <div style={{ fontSize: 24, fontWeight: 700, color: "#2196f3" }}>{stats.realIssues}</div>
-              <div style={labelStyle}>Real Issues</div>
-            </div>
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <div style={metricBox}>
-              <div style={{ fontSize: 24, fontWeight: 700, color: "#f44336" }}>{stats.falsePositives}</div>
-              <div style={labelStyle}>False Positives</div>
-            </div>
-            <div style={metricBox}>
-              <div style={{ fontSize: 24, fontWeight: 700, color: stats.precision >= 0.8 ? "#4caf50" : "#ff9800" }}>
-                {(stats.precision * 100).toFixed(0)}%
+            <div className="panel-stats">
+              <div className="panel-stat">
+                <div className="panel-stat-value" style={{ color: "var(--error-color)" }}>{stats.falsePositives}</div>
+                <div className="panel-stat-label">False +</div>
               </div>
-              <div style={labelStyle}>Precision</div>
+              <div className="panel-stat">
+                <div className="panel-stat-value" style={{ color: precisionColor(stats.precision) }}>
+                  {(stats.precision * 100).toFixed(0)}%
+                </div>
+                <div className="panel-stat-label">Precision</div>
+              </div>
             </div>
-          </div>
-        </>
-      )}
 
-      {tab === "stats" && !stats && !loading && <div style={labelStyle}>Loading quality metrics...</div>}
+            <div className="panel-card" style={{ marginTop: 10 }}>
+              <div className="panel-label" style={{ marginBottom: 6 }}>Precision trend</div>
+              <div className="progress-bar progress-bar-lg">
+                <div
+                  className="progress-bar-fill"
+                  style={{ width: `${stats.precision * 100}%`, background: precisionColor(stats.precision) }}
+                />
+              </div>
+            </div>
+          </>
+        )}
+
+        {tab === "stats" && !stats && !loading && !error && (
+          <div className="panel-empty">Click Quality Stats to load review metrics.</div>
+        )}
+      </div>
     </div>
   );
 }

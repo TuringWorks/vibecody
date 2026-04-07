@@ -79,7 +79,7 @@ const badgeStyle = (color: string): React.CSSProperties => ({
   marginRight: 4,
 });
 
-const agentColors = ["var(--accent-color)", "var(--accent-purple)", "#ec4899", "var(--warning-color)", "var(--success-color)"];
+const agentColors = ["var(--accent-color)", "var(--accent-purple)", "var(--error-color)", "var(--warning-color)", "var(--success-color)"];
 
 export function AgentHostPanel() {
   const [tab, setTab] = useState("agents");

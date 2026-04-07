@@ -21,7 +21,7 @@ interface PolicyConflictDisplay {
   description: string;
 }
 
-const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", overflow: "auto", background: "var(--bg-primary)" };
+const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", flex: 1, minHeight: 0, overflow: "auto", background: "var(--bg-primary)" };
 const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" };
 const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-color)" };
 const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
@@ -100,8 +100,8 @@ export default function PolicyEnginePanel() {
             </button>
           </div>
           {result && (
-            <div style={{ ...cardStyle, borderLeft: `3px solid ${result.effect.includes("ALLOW") ? "#4caf50" : "#f44336"}` }}>
-              <div style={{ fontSize: 20, fontWeight: 700, color: result.effect.includes("ALLOW") ? "#4caf50" : "#f44336" }}>{result.effect}</div>
+            <div style={{ ...cardStyle, borderLeft: `3px solid ${result.effect.includes("ALLOW") ? "var(--success-color)" : "var(--error-color)"}` }}>
+              <div style={{ fontSize: 20, fontWeight: 700, color: result.effect.includes("ALLOW") ? "var(--success-color)" : "var(--error-color)" }}>{result.effect}</div>
               <div style={labelStyle}>Action: {result.action} | Policy: {result.policyId}</div>
               {result.matchedRule && <div style={labelStyle}>Matched rule: {result.matchedRule}</div>}
             </div>

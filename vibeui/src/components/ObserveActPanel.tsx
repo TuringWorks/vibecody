@@ -138,7 +138,7 @@ export function ObserveActPanel() {
             <>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
                 {[
-                  { label: "Status", value: status.toUpperCase(), color: status === "running" ? "var(--accent-green)" : status === "completed" ? "#2196f3" : "var(--text-secondary)" },
+                  { label: "Status", value: status.toUpperCase(), color: status === "running" ? "var(--accent-green)" : status === "completed" ? "var(--info-color)" : "var(--text-secondary)" },
                   { label: "Steps", value: `${steps.length}/${maxSteps}`, color: "var(--text-primary)" },
                   { label: "Actions", value: `${steps.reduce((a, s) => a + s.actions.length, 0)}`, color: "var(--text-primary)" },
                   { label: "Success Rate", value: `${steps.length > 0 ? Math.round(steps.filter(s => s.verified).length / steps.length * 100) : 0}%`, color: "var(--accent-green)" },

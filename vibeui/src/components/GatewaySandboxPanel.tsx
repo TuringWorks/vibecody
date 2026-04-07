@@ -269,8 +269,8 @@ const PLATFORM_BY_ID: Record<PlatformId, PlatformDef> = Object.fromEntries(
 ) as Record<PlatformId, PlatformDef>;
 
 const MODE_BADGE: Record<GatewayMode, { label: string; color: string }> = {
-  polling: { label: "Live polling", color: "#4caf50" },
-  webhook: { label: "Webhook", color: "#ff9800" },
+  polling: { label: "Live polling", color: "var(--success-color)" },
+  webhook: { label: "Webhook", color: "var(--warning-color)" },
   cli:     { label: "CLI only",   color: "#888" },
 };
 
@@ -376,7 +376,7 @@ export function GatewaySandboxPanel({ provider: defaultProvider = "claude" }: Ga
         <MessageSquare size={14} style={{ color: "var(--text-secondary)" }} />
         <span style={{ fontWeight: 600, fontSize: 13, flex: 1 }}>Messaging Gateway → Sandbox</span>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ width: 8, height: 8, borderRadius: "50%", background: status.active ? "#4caf50" : "#666", display: "inline-block" }} />
+          <span style={{ width: 8, height: 8, borderRadius: "50%", background: status.active ? "var(--success-color)" : "#666", display: "inline-block" }} />
           <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>
             {status.active ? `Active · ${status.message_count} msgs` : "Stopped"}
           </span>
@@ -518,7 +518,7 @@ export function GatewaySandboxPanel({ provider: defaultProvider = "claude" }: Ga
           </div>
 
           {error && (
-            <div style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 6, padding: "6px 10px", fontSize: 12, color: "#ef4444" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 6, padding: "6px 10px", fontSize: 12, color: "var(--error-color)" }}>
               <AlertCircle size={13} /> {error}
             </div>
           )}
@@ -537,7 +537,7 @@ export function GatewaySandboxPanel({ provider: defaultProvider = "claude" }: Ga
             ) : (
               <button
                 onClick={handleStop}
-                style={{ flex: 1, background: "#ef4444", color: "#fff", border: "none", borderRadius: 8, padding: "8px 14px", cursor: "pointer", fontSize: 13, fontWeight: 500, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+                style={{ flex: 1, background: "var(--error-color)", color: "#fff", border: "none", borderRadius: 8, padding: "8px 14px", cursor: "pointer", fontSize: 13, fontWeight: 500, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
               >
                 <Square size={14} /> Stop Gateway
               </button>
@@ -564,7 +564,7 @@ export function GatewaySandboxPanel({ provider: defaultProvider = "claude" }: Ga
       {/* Status footer */}
       {status.active && sandboxPath && (
         <div style={{ padding: "6px 12px", borderTop: "1px solid var(--border-color)", fontSize: 11, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-          <CheckCircle size={12} style={{ color: "#4caf50" }} />
+          <CheckCircle size={12} style={{ color: "var(--success-color)" }} />
           Sandbox: <span style={{ color: "var(--text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{sandboxPath}</span>
           · Provider: {provider}
           · Platform: <span style={{ color: "var(--text-secondary)" }}>{def.label}</span>
@@ -583,7 +583,7 @@ function LogBubble({ entry }: { entry: LogEntry }) {
 
   if (isSystem) {
     return (
-      <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: entry.dir === "error" ? "#ef4444" : "var(--text-muted)", padding: "2px 0" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: entry.dir === "error" ? "var(--error-color)" : "var(--text-muted)", padding: "2px 0" }}>
         {entry.dir === "error" ? <AlertCircle size={11} /> : <CheckCircle size={11} />}
         <span>[{entry.platform}] {entry.text}</span>
         <span style={{ marginLeft: "auto", fontSize: 10, opacity: 0.6 }}>{time}</span>

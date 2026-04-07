@@ -36,7 +36,7 @@ interface EloEntry {
   losses: number;
 }
 
-const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", overflow: "auto", background: "var(--bg-primary)" };
+const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", flex: 1, minHeight: 0, overflow: "auto", background: "var(--bg-primary)" };
 const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" };
 const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-color)" };
 const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
@@ -78,7 +78,7 @@ export function RLMultiAgentView() {
                   <span>{a.reward.toFixed(2)} ({a.episodes} eps, {(a.winRate * 100).toFixed(0)}% win)</span>
                 </div>
                 <div style={{ height: 8, borderRadius: 4, background: "var(--bg-tertiary)", overflow: "hidden" }}>
-                  <div style={{ width: `${(Math.abs(a.reward) / maxReward) * 100}%`, height: "100%", background: a.reward >= 0 ? "#4caf50" : "#f44336", borderRadius: 4 }} />
+                  <div style={{ width: `${(Math.abs(a.reward) / maxReward) * 100}%`, height: "100%", background: a.reward >= 0 ? "var(--success-color)" : "var(--error-color)", borderRadius: 4 }} />
                 </div>
               </div>
             ))}

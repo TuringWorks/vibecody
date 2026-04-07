@@ -146,7 +146,7 @@ export function SandboxChatPanel({ provider: initialProvider, availableProviders
     <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
       {/* Toolbar */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderBottom: "1px solid var(--border-color)", flexShrink: 0, background: "var(--bg-secondary)" }}>
-        <Shield size={14} style={{ color: sandboxPath ? "#4caf50" : "var(--text-muted)" }} />
+        <Shield size={14} style={{ color: sandboxPath ? "var(--success-color)" : "var(--text-muted)" }} />
         <span style={{ fontSize: 12, fontWeight: 500, color: "var(--text-primary)" }}>Sandbox</span>
         {sandboxPath ? (
           <span style={{ fontSize: 11, color: "var(--text-secondary)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={sandboxPath}>
@@ -175,7 +175,7 @@ export function SandboxChatPanel({ provider: initialProvider, availableProviders
             </div>
             <div style={{ flex: 1, overflowY: "auto", padding: "4px 0" }}>
               {dirError && (
-                <div style={{ padding: "8px 10px", fontSize: 11, color: "#ef4444" }}>{dirError}</div>
+                <div style={{ padding: "8px 10px", fontSize: 11, color: "var(--error-color)" }}>{dirError}</div>
               )}
               {tree.map((node) => (
                 <TreeNodeRow key={node.entry.path} node={node} depth={0} onToggle={toggleNode} />
@@ -185,7 +185,7 @@ export function SandboxChatPanel({ provider: initialProvider, availableProviders
               <div style={{ borderTop: "1px solid var(--border-color)", padding: "6px 10px", flexShrink: 0 }}>
                 <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>RECENT WRITES</div>
                 {writeLog.slice(-4).map((p, i) => (
-                  <div key={i} style={{ fontSize: 10, color: "#4caf50", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={p}>
+                  <div key={i} style={{ fontSize: 10, color: "var(--success-color)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={p}>
                     ✓ {p.split("/").pop()}
                   </div>
                 ))}

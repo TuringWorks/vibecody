@@ -46,7 +46,7 @@ interface McpPlugin {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const panelStyle: React.CSSProperties = { display: "flex", flexDirection: "column", color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", overflow: "hidden", background: "var(--bg-primary)" };
+const panelStyle: React.CSSProperties = { display: "flex", flexDirection: "column", color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", flex: 1, minHeight: 0, overflow: "hidden", background: "var(--bg-primary)" };
 const headingStyle: React.CSSProperties = { margin: "0 0 4px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" };
 const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-color)" };
 const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };

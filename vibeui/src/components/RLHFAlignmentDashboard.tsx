@@ -31,7 +31,7 @@ interface SafetyBenchmark {
   passed: boolean;
 }
 
-const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", overflow: "auto", background: "var(--bg-primary)" };
+const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", flex: 1, minHeight: 0, overflow: "auto", background: "var(--bg-primary)" };
 const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" };
 const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-color)" };
 const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
@@ -40,7 +40,7 @@ const tableStyle: React.CSSProperties = { width: "100%", borderCollapse: "collap
 const thStyle: React.CSSProperties = { textAlign: "left", padding: "6px 8px", borderBottom: "1px solid var(--border-color)", color: "var(--text-secondary)", fontWeight: 600 };
 const tdStyle: React.CSSProperties = { padding: "6px 8px", borderBottom: "1px solid var(--border-color)" };
 
-const stageStatusColor = (s: string) => s === "complete" ? "#4caf50" : s === "running" ? "#ff9800" : "var(--text-secondary)";
+const stageStatusColor = (s: string) => s === "complete" ? "var(--success-color)" : s === "running" ? "var(--warning-color)" : "var(--text-secondary)";
 
 export function RLHFAlignmentDashboard() {
   const [runId, setRunId] = useState("");
@@ -94,7 +94,7 @@ export function RLHFAlignmentDashboard() {
 
           <div style={{ ...cardStyle, display: "flex", gap: 16, justifyContent: "space-around", textAlign: "center" }}>
             <div>
-              <div style={{ fontSize: 24, fontWeight: 700, color: data.alignmentTax > 0.1 ? "#f44336" : "#4caf50" }}>{(data.alignmentTax * 100).toFixed(1)}%</div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: data.alignmentTax > 0.1 ? "var(--error-color)" : "var(--success-color)" }}>{(data.alignmentTax * 100).toFixed(1)}%</div>
               <div style={labelStyle}>Alignment Tax</div>
             </div>
             <div>
@@ -107,7 +107,7 @@ export function RLHFAlignmentDashboard() {
             <div style={labelStyle}>Reward Model Accuracy ({data.rewardModelAccuracy.length} pts)</div>
             <div style={{ display: "flex", alignItems: "flex-end", gap: 1, height: 50 }}>
               {data.rewardModelAccuracy.slice(-60).map((v, i) => (
-                <div key={i} style={{ flex: 1, height: `${v * 100}%`, background: "#2196f3", borderRadius: "2px 2px 0 0" }} />
+                <div key={i} style={{ flex: 1, height: `${v * 100}%`, background: "var(--info-color)", borderRadius: "2px 2px 0 0" }} />
               ))}
             </div>
           </div>
@@ -117,7 +117,7 @@ export function RLHFAlignmentDashboard() {
             <div style={{ display: "flex", alignItems: "flex-end", gap: 1, height: 50 }}>
               {data.klDivergence.slice(-60).map((v, i, a) => {
                 const max = Math.max(...a, 0.01);
-                return <div key={i} style={{ flex: 1, height: `${(v / max) * 100}%`, background: v > max * 0.7 ? "#f44336" : "#ff9800", borderRadius: "2px 2px 0 0" }} />;
+                return <div key={i} style={{ flex: 1, height: `${(v / max) * 100}%`, background: v > max * 0.7 ? "var(--error-color)" : "var(--warning-color)", borderRadius: "2px 2px 0 0" }} />;
               })}
             </div>
           </div>
@@ -132,7 +132,7 @@ export function RLHFAlignmentDashboard() {
                     <td style={tdStyle}>{b.name}</td>
                     <td style={tdStyle}>{b.score.toFixed(4)}</td>
                     <td style={tdStyle}>{b.threshold.toFixed(4)}</td>
-                    <td style={{ ...tdStyle, color: b.passed ? "#4caf50" : "#f44336", fontWeight: 600 }}>{b.passed ? "PASS" : "FAIL"}</td>
+                    <td style={{ ...tdStyle, color: b.passed ? "var(--success-color)" : "var(--error-color)", fontWeight: 600 }}>{b.passed ? "PASS" : "FAIL"}</td>
                   </tr>
                 ))}
               </tbody>

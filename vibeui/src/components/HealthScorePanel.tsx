@@ -30,14 +30,15 @@ interface RemediationItem {
   autoFixable: boolean;
 }
 
-const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", overflow: "auto", background: "var(--bg-primary)" };
-const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" };
-const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-color)" };
-const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
-const btnStyle: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", cursor: "pointer", fontSize: 12, marginRight: 8 };
-const tabRow: React.CSSProperties = { display: "flex", gap: 4, marginBottom: 12 };
-
 type Tab = "scan" | "remediate";
+
+const scoreColor = (s: number) =>
+  s >= 80 ? "var(--success-color)" : s >= 60 ? "var(--warning-color)" : "var(--error-color)";
+
+const priorityTag = (p: string) =>
+  p === "Critical" ? "panel-tag panel-tag-danger"
+  : p === "High" ? "panel-tag panel-tag-warning"
+  : "panel-tag panel-tag-neutral";
 
 export default function HealthScorePanel() {
   const [tab, setTab] = useState<Tab>("scan");
@@ -45,94 +46,151 @@ export default function HealthScorePanel() {
   const [scan, setScan] = useState<ScanResult | null>(null);
   const [remediations, setRemediations] = useState<RemediationItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const [scanError, setScanError] = useState("");
+  const [error, setError] = useState("");
 
   const doScan = useCallback(async () => {
     setLoading(true);
     setScan(null);
-    setScanError("");
+    setError("");
     try {
       const res = await invoke<ScanResult>("healthscore_scan", { path });
       setScan(res);
-    } catch (e) { setScanError(String(e)); }
-    setLoading(false);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
   }, [path]);
 
   const doRemediate = useCallback(async () => {
     setLoading(true);
+    setError("");
     try {
       const res = await invoke<{ remediations: RemediationItem[] }>("healthscore_remediate", { path });
       setRemediations(res.remediations);
-    } catch (e) { console.error(e); }
-    setLoading(false);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
   }, [path]);
 
-  const scoreColor = (s: number) => s >= 80 ? "#4caf50" : s >= 60 ? "#ff9800" : "#f44336";
-
   return (
-    <div style={panelStyle}>
-      <h2 style={headingStyle}>Codebase Health Score</h2>
-      <div style={tabRow}>
-        {(["scan", "remediate"] as Tab[]).map(t => (
-          <button key={t} style={{ ...btnStyle, background: tab === t ? "var(--accent-color)" : "var(--bg-tertiary)", color: tab === t ? "#fff" : "var(--text-primary)" }} onClick={() => setTab(t)}>
-            {t === "scan" ? "Scan" : "Remediate"}
+    <div className="panel-container">
+      <div className="panel-header">
+        <h3>Codebase Health Score</h3>
+        <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+          {(["scan", "remediate"] as Tab[]).map(t => (
+            <button
+              key={t}
+              className={`panel-btn ${tab === t ? "panel-btn-primary" : "panel-btn-secondary"}`}
+              onClick={() => setTab(t)}
+            >
+              {t === "scan" ? "Scan" : "Remediate"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="panel-body">
+        {/* Path + action row */}
+        <div className="panel-card panel-row" style={{ marginBottom: 10 }}>
+          <span className="panel-label" style={{ marginBottom: 0, whiteSpace: "nowrap" }}>Path</span>
+          <input
+            className="panel-input panel-input-full"
+            value={path}
+            onChange={e => setPath(e.target.value)}
+          />
+          <button
+            className="panel-btn panel-btn-primary"
+            onClick={tab === "scan" ? doScan : doRemediate}
+            disabled={loading}
+          >
+            {loading ? "…" : tab === "scan" ? "Scan" : "Analyze"}
           </button>
-        ))}
-      </div>
+        </div>
 
-      <div style={{ ...cardStyle, display: "flex", gap: 8, alignItems: "center" }}>
-        <label style={labelStyle}>Path:</label>
-        <input value={path} onChange={e => setPath(e.target.value)} style={{ flex: 1, padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", fontSize: 12 }} />
-        <button style={btnStyle} onClick={tab === "scan" ? doScan : doRemediate} disabled={loading}>
-          {loading ? "..." : tab === "scan" ? "Scan" : "Analyze"}
-        </button>
-      </div>
-
-      {scanError && (
-        <div style={{ ...cardStyle, border: "1px solid var(--error-color)", color: "var(--error-color)", fontSize: 12 }}>{scanError}</div>
-      )}
-
-      {tab === "scan" && scan && (
-        <>
-          <div style={{ ...cardStyle, textAlign: "center" }}>
-            <div style={{ fontSize: 36, fontWeight: 700, color: scoreColor(scan.overall) }}>{scan.overall.toFixed(0)}</div>
-            <div style={labelStyle}>Overall Health Score</div>
-            <div style={{ ...labelStyle, marginTop: 2 }}>{scan.dimensions.length} dimensions · {path}</div>
+        {error && (
+          <div className="panel-error" style={{ marginBottom: 10 }}>
+            {error}
+            <button onClick={() => setError("")}>✕</button>
           </div>
-          {scan.dimensions.map(d => (
-            <div key={d.dimension} style={cardStyle}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                <span style={{ fontWeight: 600 }}>{d.dimension}</span>
-                <span style={{ color: scoreColor(d.score), fontWeight: 600 }}>{d.score.toFixed(0)}/100</span>
-              </div>
-              <div style={{ height: 6, borderRadius: 3, background: "var(--bg-tertiary)", overflow: "hidden" }}>
-                <div style={{ width: `${d.score}%`, height: "100%", background: scoreColor(d.score), borderRadius: 3 }} />
-              </div>
-              <div style={{ ...labelStyle, marginTop: 4 }}>{d.details}</div>
-            </div>
-          ))}
-        </>
-      )}
+        )}
 
-      {tab === "remediate" && remediations.length > 0 && (
-        <>
-          <div style={labelStyle}>{remediations.length} suggestion(s)</div>
-          {remediations.map((r, i) => (
-            <div key={i} style={cardStyle}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                <span style={{ fontWeight: 600 }}>{r.title}</span>
-                <span style={{ fontSize: 11, padding: "2px 6px", borderRadius: 3, background: r.priority === "Critical" ? "#f44336" : r.priority === "High" ? "#ff9800" : "var(--bg-tertiary)", color: r.priority === "Critical" || r.priority === "High" ? "#fff" : "var(--text-secondary)" }}>{r.priority}</span>
-              </div>
-              <div style={labelStyle}>{r.dimension}</div>
-              <div style={{ marginTop: 4 }}>{r.description}</div>
-              <div style={{ ...labelStyle, marginTop: 4 }}>Impact: +{r.impact.toFixed(0)} pts {r.autoFixable && <span style={{ color: "#4caf50" }}>(auto-fixable)</span>}</div>
-            </div>
-          ))}
-        </>
-      )}
+        {loading && <div className="panel-loading">Analyzing codebase…</div>}
 
-      {tab === "scan" && !scan && !loading && <div style={labelStyle}>Click Scan to analyze your codebase health.</div>}
-      {tab === "remediate" && remediations.length === 0 && !loading && <div style={labelStyle}>Click Analyze to get improvement suggestions.</div>}
+        {/* Scan results */}
+        {tab === "scan" && scan && !loading && (
+          <>
+            {/* Overall score */}
+            <div className="panel-card" style={{ textAlign: "center", marginBottom: 10 }}>
+              <div style={{ fontSize: "var(--font-size-3xl)", fontWeight: "var(--font-bold)", color: scoreColor(scan.overall) }}>
+                {scan.overall.toFixed(0)}
+              </div>
+              <div className="panel-label" style={{ marginTop: 4, marginBottom: 0 }}>Overall Health Score</div>
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", marginTop: 2 }}>
+                {scan.dimensions.length} dimensions · {path}
+              </div>
+            </div>
+
+            {/* Dimension cards */}
+            {scan.dimensions.map(d => (
+              <div key={d.dimension} className="panel-card" style={{ marginBottom: 8 }}>
+                <div className="panel-row" style={{ marginBottom: 6 }}>
+                  <span style={{ fontWeight: "var(--font-semibold)", fontSize: "var(--font-size-base)" }}>{d.dimension}</span>
+                  <span style={{ marginLeft: "auto", color: scoreColor(d.score), fontWeight: "var(--font-semibold)" }}>
+                    {d.score.toFixed(0)}/100
+                  </span>
+                </div>
+                <div className="progress-bar" style={{ marginBottom: 6 }}>
+                  <div
+                    className="progress-bar-fill"
+                    style={{ width: `${d.score}%`, background: scoreColor(d.score) }}
+                  />
+                </div>
+                <div className="panel-label" style={{ marginBottom: 0 }}>{d.details}</div>
+              </div>
+            ))}
+          </>
+        )}
+
+        {tab === "scan" && !scan && !loading && !error && (
+          <div className="panel-empty">Click Scan to analyze your codebase health.</div>
+        )}
+
+        {/* Remediation results */}
+        {tab === "remediate" && remediations.length > 0 && !loading && (
+          <>
+            <div className="panel-label" style={{ marginBottom: 8 }}>
+              {remediations.length} suggestion{remediations.length !== 1 ? "s" : ""}
+            </div>
+            {remediations.map((r, i) => (
+              <div key={i} className="panel-card" style={{ marginBottom: 8 }}>
+                <div className="panel-row" style={{ marginBottom: 6 }}>
+                  <span style={{ fontWeight: "var(--font-semibold)", fontSize: "var(--font-size-base)" }}>{r.title}</span>
+                  <span className={priorityTag(r.priority)} style={{ marginLeft: 8 }}>{r.priority}</span>
+                </div>
+                <div className="panel-label" style={{ marginBottom: 4 }}>{r.dimension}</div>
+                <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-primary)", marginBottom: 6 }}>
+                  {r.description}
+                </div>
+                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>
+                  Impact: <span style={{ color: "var(--text-success)", fontWeight: "var(--font-semibold)" }}>
+                    +{r.impact.toFixed(0)} pts
+                  </span>
+                  {r.autoFixable && (
+                    <span className="panel-tag panel-tag-success" style={{ marginLeft: 8 }}>auto-fixable</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </>
+        )}
+
+        {tab === "remediate" && remediations.length === 0 && !loading && !error && (
+          <div className="panel-empty">Click Analyze to get improvement suggestions.</div>
+        )}
+      </div>
     </div>
   );
 }

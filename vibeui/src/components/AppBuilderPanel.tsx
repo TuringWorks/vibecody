@@ -158,7 +158,7 @@ const categoryBadgeStyle = (cat: TemplateCategory): React.CSSProperties => {
     Mobile: "var(--accent-green)",
     API: "#f7a41d",
     FullStack: "#9c7ce1",
-    Landing: "#e91e63",
+    Landing: "var(--error-color)",
     Dashboard: "#00bcd4",
   };
   const c = colors[cat];

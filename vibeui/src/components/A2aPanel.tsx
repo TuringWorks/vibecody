@@ -171,7 +171,7 @@ const capBadgeColors: Record<string, string> = {
   Documentation: "var(--accent-color)",
   Security: "var(--error-color)",
   Deployment: "#f97316",
-  DataAnalysis: "#ec4899",
+  DataAnalysis: "var(--error-color)",
 };
 
 const badgeStyle = (color: string): React.CSSProperties => ({

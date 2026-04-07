@@ -150,7 +150,7 @@ const DOMAIN_METRICS: Record<ResearchDomain, MetricDef[]> = {
 };
 
 const STATUS_COLORS: Record<ExperimentStatus, string> = {
-  pending: "#9e9e9e", running: "#2196f3", completed: "var(--accent-green)",
+  pending: "#9e9e9e", running: "var(--info-color)", completed: "var(--accent-green)",
   kept: "var(--accent-green)", discarded: "var(--accent-gold)", failed: "var(--accent-rose)",
   timeout: "#ff5722", crashed: "#b71c1c",
 };
@@ -393,7 +393,7 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
                 <td style={{ padding: 6, ...monoStyle }}>{m.name}</td>
                 <td style={{ padding: 6 }}>{m.description}</td>
                 <td style={{ padding: 6, textAlign: "center" }}>
-                  <span style={tagStyle(m.direction === "lower" ? "#2196f3" : "var(--accent-green)")}>
+                  <span style={tagStyle(m.direction === "lower" ? "var(--info-color)" : "var(--accent-green)")}>
                     {m.direction === "lower" ? "lower is better" : "higher is better"}
                   </span>
                 </td>

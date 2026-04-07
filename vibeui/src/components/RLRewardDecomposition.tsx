@@ -26,13 +26,13 @@ interface TimeSeriesPoint {
   values: Record<string, number>;
 }
 
-const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", overflow: "auto", background: "var(--bg-primary)" };
+const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", flex: 1, minHeight: 0, overflow: "auto", background: "var(--bg-primary)" };
 const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" };
 const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-color)" };
 const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
 const btnStyle: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", cursor: "pointer", fontSize: 12, marginRight: 8 };
 
-const DEFAULT_COLORS = ["#2196f3", "#4caf50", "#ff9800", "#f44336", "#9c27b0", "#00bcd4", "#e91e63", "#795548"];
+const DEFAULT_COLORS = ["var(--info-color)", "var(--success-color)", "var(--warning-color)", "var(--error-color)", "#9c27b0", "#00bcd4", "var(--error-color)", "#795548"];
 
 export function RLRewardDecomposition() {
   const [policyId, setPolicyId] = useState("");

@@ -45,8 +45,8 @@ export interface CollabChatPanelProps {
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const PEER_COLORS = [
-  "#4f9cf9", "#f97b22", "#4caf50", "#e91e63",
-  "#9c27b0", "#00bcd4", "#ff9800", "#795548",
+  "#4f9cf9", "#f97b22", "var(--success-color)", "var(--error-color)",
+  "#9c27b0", "#00bcd4", "var(--warning-color)", "#795548",
 ];
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -404,7 +404,7 @@ export function CollabChatPanel({ provider = "claude", daemonPort = 7878 }: Coll
         </button>
 
         {error && (
-          <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 6, padding: "8px 12px", fontSize: 12, color: "#ef4444" }}>
+          <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 6, padding: "8px 12px", fontSize: 12, color: "var(--error-color)" }}>
             {error}
           </div>
         )}
@@ -418,12 +418,12 @@ export function CollabChatPanel({ provider = "claude", daemonPort = 7878 }: Coll
     <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderBottom: "1px solid var(--border-color)", flexShrink: 0, background: "var(--bg-secondary)" }}>
-        <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#4caf50", flexShrink: 0 }} />
+        <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--success-color)", flexShrink: 0 }} />
         <span style={{ fontSize: 12, fontWeight: 500, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           Room: {roomId}
         </span>
         <button onClick={handleCopy} title="Copy room ID" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", padding: 2 }}>
-          {copied ? <Check size={14} style={{ color: "#4caf50" }} /> : <Copy size={14} />}
+          {copied ? <Check size={14} style={{ color: "var(--success-color)" }} /> : <Copy size={14} />}
         </button>
         <button onClick={handleLeave} title="Leave room" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", padding: 2 }}>
           <LogOut size={14} />
@@ -526,7 +526,7 @@ function MessageBubble({ msg, myPeerId }: { msg: DisplayMsg; myPeerId: string | 
         whiteSpace: "pre-wrap",
         wordBreak: "break-word",
         border: isAi ? "1px solid var(--border-color)" : "none",
-        ...(msg.isError ? { borderColor: "rgba(239,68,68,0.4)", color: "#ef4444" } : {}),
+        ...(msg.isError ? { borderColor: "rgba(239,68,68,0.4)", color: "var(--error-color)" } : {}),
       }}>
         {msg.content || (msg.streaming ? <span style={{ opacity: 0.4 }}>…</span> : "")}
       </div>

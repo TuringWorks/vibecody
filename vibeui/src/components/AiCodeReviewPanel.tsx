@@ -37,7 +37,7 @@ interface QualityGateResult {
   message: string;
 }
 
-const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", overflow: "auto", background: "var(--bg-primary)" };
+const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", flex: 1, minHeight: 0, overflow: "auto", background: "var(--bg-primary)" };
 const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" };
 const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-color)" };
 const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
@@ -46,7 +46,7 @@ const inputStyle: React.CSSProperties = { width: "100%", padding: "6px 8px", bor
 const tabRow: React.CSSProperties = { display: "flex", gap: 4, marginBottom: 12 };
 
 const severityColor = (s: string) => {
-  switch (s) { case "Critical": case "Security": return "#f44336"; case "Error": return "#ff5722"; case "Warning": return "#ff9800"; default: return "#2196f3"; }
+  switch (s) { case "Critical": case "Security": return "var(--error-color)"; case "Error": return "#ff5722"; case "Warning": return "var(--warning-color)"; default: return "var(--info-color)"; }
 };
 
 type Tab = "review" | "gates" | "findings" | "learning";
@@ -100,13 +100,13 @@ export default function AiCodeReviewPanel() {
             <div style={cardStyle}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
                 <span style={{ fontWeight: 600 }}>{analysis.title}</span>
-                <span style={{ padding: "2px 8px", borderRadius: 3, background: analysis.riskScore > 70 ? "#f44336" : analysis.riskScore > 40 ? "#ff9800" : "#4caf50", color: "#fff", fontSize: 11 }}>Risk: {analysis.riskScore.toFixed(0)}</span>
+                <span style={{ padding: "2px 8px", borderRadius: 3, background: analysis.riskScore > 70 ? "var(--error-color)" : analysis.riskScore > 40 ? "var(--warning-color)" : "var(--success-color)", color: "#fff", fontSize: 11 }}>Risk: {analysis.riskScore.toFixed(0)}</span>
               </div>
               <div style={labelStyle}>{analysis.filesChanged} files | +{analysis.linesAdded} -{analysis.linesRemoved} | {analysis.findings.length} finding(s)</div>
               <div style={{ marginTop: 8 }}>{analysis.summary}</div>
               {analysis.breakingChanges.length > 0 && (
                 <div style={{ marginTop: 8, padding: 8, background: "#f4433620", borderRadius: 4 }}>
-                  <div style={{ fontWeight: 600, color: "#f44336", marginBottom: 4 }}>Breaking Changes</div>
+                  <div style={{ fontWeight: 600, color: "var(--error-color)", marginBottom: 4 }}>Breaking Changes</div>
                   {analysis.breakingChanges.map((bc, i) => <div key={i} style={{ fontSize: 12 }}>{bc}</div>)}
                 </div>
               )}
@@ -127,7 +127,7 @@ export default function AiCodeReviewPanel() {
               <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>[{f.category}] confidence: {(f.confidence * 100).toFixed(0)}%</div>
               <div>{f.message}</div>
               {f.suggestion && <div style={{ marginTop: 4, fontStyle: "italic", color: "var(--text-secondary)" }}>Suggestion: {f.suggestion}</div>}
-              {f.autoFixable && <span style={{ fontSize: 10, color: "#4caf50" }}>Auto-fixable</span>}
+              {f.autoFixable && <span style={{ fontSize: 10, color: "var(--success-color)" }}>Auto-fixable</span>}
             </div>
           ))}
         </>
@@ -139,10 +139,10 @@ export default function AiCodeReviewPanel() {
             <button style={btnStyle} onClick={doGates} disabled={loading}>Check Quality Gates</button>
           </div>
           {gateResults.map(g => (
-            <div key={g.gateId} style={{ ...cardStyle, borderLeft: `3px solid ${g.passed ? "#4caf50" : "#f44336"}` }}>
+            <div key={g.gateId} style={{ ...cardStyle, borderLeft: `3px solid ${g.passed ? "var(--success-color)" : "var(--error-color)"}` }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ fontWeight: 600 }}>{g.gateId}</span>
-                <span style={{ fontSize: 11, color: g.passed ? "#4caf50" : "#f44336" }}>{g.passed ? "PASSED" : "FAILED"}</span>
+                <span style={{ fontSize: 11, color: g.passed ? "var(--success-color)" : "var(--error-color)" }}>{g.passed ? "PASSED" : "FAILED"}</span>
               </div>
               <div style={labelStyle}>{g.message}</div>
             </div>

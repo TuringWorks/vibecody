@@ -23,7 +23,7 @@ interface Pattern {
   description: string;
 }
 
-const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", overflow: "auto", background: "var(--bg-primary)" };
+const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", flex: 1, minHeight: 0, overflow: "auto", background: "var(--bg-primary)" };
 const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" };
 const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-color)" };
 const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
@@ -68,7 +68,7 @@ export default function SkillDistillationPanel() {
 
   useEffect(() => { loadStatus(); }, [loadStatus]);
 
-  const confidenceColor = (c: string) => c.includes("Confident") ? "#4caf50" : c.includes("Tentative") ? "#ff9800" : "#f44336";
+  const confidenceColor = (c: string) => c.includes("Confident") ? "var(--success-color)" : c.includes("Tentative") ? "var(--warning-color)" : "var(--error-color)";
 
   return (
     <div style={panelStyle}>
@@ -99,7 +99,7 @@ export default function SkillDistillationPanel() {
           </div>
           <div style={cardStyle}>
             <div style={labelStyle}>Improvement Estimate</div>
-            <div style={{ fontSize: 18, fontWeight: 600, color: status.improvementEstimate > 0 ? "#4caf50" : "var(--text-secondary)" }}>
+            <div style={{ fontSize: 18, fontWeight: 600, color: status.improvementEstimate > 0 ? "var(--success-color)" : "var(--text-secondary)" }}>
               {status.improvementEstimate > 0 ? `+${(status.improvementEstimate * 100).toFixed(1)}%` : "Not enough data"}
             </div>
             <div style={{ ...labelStyle, marginTop: 4 }}>

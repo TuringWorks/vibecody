@@ -36,13 +36,13 @@ interface ABTestResult {
   significant: boolean;
 }
 
-const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", overflow: "auto", background: "var(--bg-primary)" };
+const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", flex: 1, minHeight: 0, overflow: "auto", background: "var(--bg-primary)" };
 const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" };
 const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-color)" };
 const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
 const badgeStyle: React.CSSProperties = { fontSize: 10, padding: "2px 6px", borderRadius: 3, color: "#fff", marginLeft: 6 };
 
-const statusColor = (s: string) => s === "healthy" ? "#4caf50" : s === "degraded" ? "#ff9800" : s === "rollback" ? "#f44336" : "var(--text-secondary)";
+const statusColor = (s: string) => s === "healthy" ? "var(--success-color)" : s === "degraded" ? "var(--warning-color)" : s === "rollback" ? "var(--error-color)" : "var(--text-secondary)";
 
 export function RLDeploymentMonitor() {
   const [deployments, setDeployments] = useState<Deployment[]>([]);
@@ -76,7 +76,7 @@ export function RLDeploymentMonitor() {
               <span style={{ fontWeight: 600 }}>{d.name}</span>
               <span style={{ ...badgeStyle, background: statusColor(d.status) }}>{d.status}</span>
             </span>
-            <span style={labelStyle}>v{d.policyVersion} {d.autoRollback && <span style={{ ...badgeStyle, background: "#2196f3" }}>auto-rollback</span>}</span>
+            <span style={labelStyle}>v{d.policyVersion} {d.autoRollback && <span style={{ ...badgeStyle, background: "var(--info-color)" }}>auto-rollback</span>}</span>
           </div>
         ))}
         {deployments.length === 0 && <div style={labelStyle}>No deployments found.</div>}
@@ -91,18 +91,18 @@ export function RLDeploymentMonitor() {
               {health.rewardDrift.map((v, i, a) => {
                 const max = Math.max(...a.map(Math.abs), 0.01);
                 const h = Math.abs(v) / max * 50;
-                return <div key={i} style={{ flex: 1, height: h, background: v >= 0 ? "#4caf50" : "#f44336", borderRadius: "2px 2px 0 0" }} />;
+                return <div key={i} style={{ flex: 1, height: h, background: v >= 0 ? "var(--success-color)" : "var(--error-color)", borderRadius: "2px 2px 0 0" }} />;
               })}
             </div>
           </div>
 
           <div style={{ ...cardStyle, display: "flex", gap: 16, justifyContent: "space-around", textAlign: "center" }}>
             <div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: health.distributionalShift > health.shiftThreshold ? "#f44336" : "#4caf50" }}>{health.distributionalShift.toFixed(4)}</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: health.distributionalShift > health.shiftThreshold ? "var(--error-color)" : "var(--success-color)" }}>{health.distributionalShift.toFixed(4)}</div>
               <div style={labelStyle}>Dist. Shift (threshold: {health.shiftThreshold})</div>
             </div>
             <div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: health.rollbackTriggered ? "#f44336" : "#4caf50" }}>{health.rollbackTriggered ? "TRIGGERED" : "OK"}</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: health.rollbackTriggered ? "var(--error-color)" : "var(--success-color)" }}>{health.rollbackTriggered ? "TRIGGERED" : "OK"}</div>
               <div style={labelStyle}>Auto-Rollback</div>
             </div>
           </div>
@@ -112,7 +112,7 @@ export function RLDeploymentMonitor() {
             <div style={{ display: "flex", gap: 16, justifyContent: "space-around", textAlign: "center" }}>
               <div><div style={{ fontWeight: 700 }}>{health.latencyP50.toFixed(1)}ms</div><div style={labelStyle}>p50</div></div>
               <div><div style={{ fontWeight: 700 }}>{health.latencyP95.toFixed(1)}ms</div><div style={labelStyle}>p95</div></div>
-              <div><div style={{ fontWeight: 700, color: health.latencyP99 > 100 ? "#f44336" : "var(--text-primary)" }}>{health.latencyP99.toFixed(1)}ms</div><div style={labelStyle}>p99</div></div>
+              <div><div style={{ fontWeight: 700, color: health.latencyP99 > 100 ? "var(--error-color)" : "var(--text-primary)" }}>{health.latencyP99.toFixed(1)}ms</div><div style={labelStyle}>p99</div></div>
             </div>
           </div>
 
@@ -125,7 +125,7 @@ export function RLDeploymentMonitor() {
                 <span>{health.abTest.variantB}: <strong>{health.abTest.rewardB.toFixed(4)}</strong></span>
               </div>
               <div style={labelStyle}>
-                p-value: {health.abTest.pValue.toFixed(4)} — <span style={{ color: health.abTest.significant ? "#4caf50" : "#ff9800" }}>{health.abTest.significant ? "Significant" : "Not significant"}</span>
+                p-value: {health.abTest.pValue.toFixed(4)} — <span style={{ color: health.abTest.significant ? "var(--success-color)" : "var(--warning-color)" }}>{health.abTest.significant ? "Significant" : "Not significant"}</span>
               </div>
             </div>
           )}

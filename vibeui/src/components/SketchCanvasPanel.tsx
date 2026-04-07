@@ -75,7 +75,7 @@ const toolBtnStyle = (active: boolean): React.CSSProperties => ({
   fontWeight: active ? 600 : 400,
 });
 
-const COLORS = ["#4f8ff7", "#f44336", "#4caf50", "#ff9800", "#9c27b0", "#607d8b"];
+const COLORS = ["#4f8ff7", "var(--error-color)", "var(--success-color)", "var(--warning-color)", "#9c27b0", "#607d8b"];
 
 export function SketchCanvasPanel() {
   const [tab, setTab] = useState("canvas");

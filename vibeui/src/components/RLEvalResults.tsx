@@ -49,7 +49,7 @@ interface OPEResult {
   ciHigh: number;
 }
 
-const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", overflow: "auto", background: "var(--bg-primary)" };
+const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", flex: 1, minHeight: 0, overflow: "auto", background: "var(--bg-primary)" };
 const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" };
 const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-color)" };
 const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
@@ -101,7 +101,7 @@ export function RLEvalResults() {
             <div style={labelStyle}>Quality Gates</div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
               {results.qualityGates.map(g => (
-                <span key={g.name} style={{ ...passBadge, background: g.passed ? "#4caf50" : "#f44336" }}>{g.name}: {g.passed ? "PASS" : "FAIL"}</span>
+                <span key={g.name} style={{ ...passBadge, background: g.passed ? "var(--success-color)" : "var(--error-color)" }}>{g.name}: {g.passed ? "PASS" : "FAIL"}</span>
               ))}
             </div>
             <div style={{ ...labelStyle, marginTop: 6 }}>{passedCount}/{totalCount} scenarios passed</div>
@@ -111,7 +111,7 @@ export function RLEvalResults() {
             <div key={sc.name} style={cardStyle}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                 <span style={{ fontWeight: 600 }}>{sc.name}</span>
-                <span style={{ ...passBadge, background: sc.passed ? "#4caf50" : "#f44336" }}>{sc.passed ? "PASS" : "FAIL"}</span>
+                <span style={{ ...passBadge, background: sc.passed ? "var(--success-color)" : "var(--error-color)" }}>{sc.passed ? "PASS" : "FAIL"}</span>
               </div>
               <table style={tableStyle}>
                 <thead><tr><th style={thStyle}>Metric</th><th style={thStyle}>Value</th></tr></thead>
@@ -125,7 +125,7 @@ export function RLEvalResults() {
               {sc.safetyConstraints.map(c => (
                 <div key={c.name} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "2px 0" }}>
                   <span>{c.name}</span>
-                  <span style={{ color: c.satisfied ? "#4caf50" : "#f44336" }}>{c.value.toFixed(4)} / {c.threshold.toFixed(4)}</span>
+                  <span style={{ color: c.satisfied ? "var(--success-color)" : "var(--error-color)" }}>{c.value.toFixed(4)} / {c.threshold.toFixed(4)}</span>
                 </div>
               ))}
             </div>
