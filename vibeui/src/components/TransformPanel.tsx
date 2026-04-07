@@ -262,7 +262,7 @@ export function TransformPanel({ provider }: TransformPanelProps) {
   const selectedDef = ALL_TRANSFORMS.find(t => t.id === selectedTransform);
 
   return (
-    <div style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
+    <div className="panel-container" style={{ flexDirection: "row" }}>
       {/* ── Left: Transform picker ──────────────────────────────── */}
       <div style={{ width: 310, flexShrink: 0, borderRight: "1px solid var(--border-color)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
         <div style={{ padding: "12px 14px", borderBottom: "1px solid var(--border-color)", flexShrink: 0 }}>
@@ -271,7 +271,7 @@ export function TransformPanel({ provider }: TransformPanelProps) {
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search transforms... (e.g. COBOL, .NET, Rust)"
-            style={{ width: "100%", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: 6, color: "inherit", padding: "6px 10px", fontSize: 12, boxSizing: "border-box" }}
+            className="panel-input panel-input-full" style={{ fontSize: 12 }}
           />
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
             <label style={{ fontSize: 11, color: "var(--text-secondary)", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>

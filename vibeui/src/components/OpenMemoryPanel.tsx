@@ -355,7 +355,7 @@ const OpenMemoryPanel: React.FC = () => {
         {tab === 'memories' && (
           <div>
             <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-              <select value={sectorFilter} onChange={e => setSectorFilter(e.target.value)} style={selectStyle}>
+              <select value={sectorFilter} onChange={e => setSectorFilter(e.target.value)} className="panel-select">
                 <option value="all">All Sectors</option>
                 {Object.keys(SECTOR_COLORS).map(s => (
                   <option key={s} value={s}>{s}</option>
@@ -434,12 +434,9 @@ const OpenMemoryPanel: React.FC = () => {
                 value={queryText} onChange={e => setQueryText(e.target.value)}
                 placeholder="Search your memories..."
                 onKeyDown={e => e.key === 'Enter' && handleQuery()}
-                style={{
-                  flex: 1, padding: '8px 12px', borderRadius: 6, border: '1px solid var(--border-color)',
-                  background: 'var(--bg-tertiary)', color: 'var(--text-primary)', fontSize: 13,
-                }}
+                className="panel-input" style={{ flex: 1 }}
               />
-              <select value={sectorFilter} onChange={e => setSectorFilter(e.target.value)} style={selectStyle}>
+              <select value={sectorFilter} onChange={e => setSectorFilter(e.target.value)} className="panel-select">
                 <option value="all">All Sectors</option>
                 {Object.keys(SECTOR_COLORS).map(s => (
                   <option key={s} value={s}>{s}</option>
@@ -496,15 +493,15 @@ const OpenMemoryPanel: React.FC = () => {
             <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
               <input
                 value={addFactForm.subject} onChange={e => setAddFactForm(f => ({ ...f, subject: e.target.value }))}
-                placeholder="Subject" style={inputStyle}
+                placeholder="Subject" className="panel-input" style={{flex:1}}
               />
               <input
                 value={addFactForm.predicate} onChange={e => setAddFactForm(f => ({ ...f, predicate: e.target.value }))}
-                placeholder="Predicate" style={inputStyle}
+                placeholder="Predicate" className="panel-input" style={{flex:1}}
               />
               <input
                 value={addFactForm.object} onChange={e => setAddFactForm(f => ({ ...f, object: e.target.value }))}
-                placeholder="Object" style={inputStyle}
+                placeholder="Object" className="panel-input" style={{flex:1}}
                 onKeyDown={e => e.key === 'Enter' && handleAddFact()}
               />
               <button onClick={handleAddFact} style={{
@@ -594,7 +591,7 @@ const OpenMemoryPanel: React.FC = () => {
                   type="password"
                   value={encryptionKey} onChange={e => setEncryptionKey(e.target.value)}
                   placeholder="Encryption passphrase..."
-                  style={inputStyle}
+                  className="panel-input" style={{flex:1}}
                 />
                 <button onClick={async () => {
                   if (encryptionKey) {
@@ -807,15 +804,6 @@ const smallBtnStyle: React.CSSProperties = {
   background: 'transparent', color: 'var(--text-secondary)',
 };
 
-const selectStyle: React.CSSProperties = {
-  padding: '8px 12px', borderRadius: 6, border: '1px solid var(--border-color)',
-  background: 'var(--bg-tertiary)', color: 'var(--text-primary)', fontSize: 13,
-};
-
-const inputStyle: React.CSSProperties = {
-  flex: 1, padding: '8px 12px', borderRadius: 6, border: '1px solid var(--border-color)',
-  background: 'var(--bg-tertiary)', color: 'var(--text-primary)', fontSize: 13,
-};
 
 const thStyle: React.CSSProperties = {
   textAlign: 'left', padding: '6px 8px', color: 'var(--text-secondary)', fontWeight: 600,

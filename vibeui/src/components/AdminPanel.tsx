@@ -160,8 +160,8 @@ export function AdminPanel() {
                     }}>{m.role}</span>
                   </div>
                   <div style={{ display: 'flex', gap: 4 }}>
-                    <button onClick={() => setEditingMember(m)} style={smallBtn}>Edit</button>
-                    <button onClick={() => handleRemoveMember(m.id)} style={{ ...smallBtn, color: 'var(--error-color)' }}>Remove</button>
+                    <button onClick={() => setEditingMember(m)} className="panel-btn panel-btn-secondary panel-btn-xs">Edit</button>
+                    <button onClick={() => handleRemoveMember(m.id)} className="panel-btn panel-btn-danger panel-btn-xs">Remove</button>
                   </div>
                 </div>
                 <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 4 }}>
@@ -185,12 +185,12 @@ export function AdminPanel() {
           <div style={{ marginBottom: 8 }}>
             <label className="panel-label">Name</label>
             <input value={editingMember.name} onChange={e => setEditingMember({ ...editingMember, name: e.target.value })}
-              style={inputStyle} placeholder="Jane Developer" />
+              className="panel-input panel-input-full" placeholder="Jane Developer" />
           </div>
           <div style={{ marginBottom: 8 }}>
             <label className="panel-label">Email</label>
             <input value={editingMember.email} onChange={e => setEditingMember({ ...editingMember, email: e.target.value })}
-              style={inputStyle} placeholder="jane@example.com" type="email" />
+              className="panel-input panel-input-full" placeholder="jane@example.com" type="email" />
           </div>
           <div style={{ marginBottom: 12 }}>
             <label className="panel-label">Role</label>
@@ -220,7 +220,7 @@ export function AdminPanel() {
         <>
           <div style={{ marginBottom: 8 }}>
             <input value={filterAction} onChange={e => setFilterAction(e.target.value)}
-              placeholder="Filter by action..." style={{ ...inputStyle, maxWidth: 300 }} />
+              placeholder="Filter by action..." className="panel-input" style={{ maxWidth: 300 }} />
           </div>
           <div style={{ display: 'grid', gap: 4 }}>
             {filteredAudit.map(entry => (
@@ -275,7 +275,7 @@ export function AdminPanel() {
                     ))}
                   </div>
                 </div>
-                <button onClick={() => handleDeletePolicy(p.id)} style={{ ...smallBtn, color: 'var(--error-color)' }}>Delete</button>
+                <button onClick={() => handleDeletePolicy(p.id)} className="panel-btn panel-btn-danger panel-btn-xs">Delete</button>
               </div>
             ))}
             {policies.length === 0 && (
@@ -312,13 +312,3 @@ export function AdminPanel() {
   );
 }
 
-const smallBtn: React.CSSProperties = {
-  padding: '2px 8px', fontSize: 11, background: 'var(--bg-tertiary)',
-  color: 'var(--text-secondary)', border: '1px solid var(--border-color)',
-  borderRadius: 3, cursor: 'pointer',
-};
-const inputStyle: React.CSSProperties = {
-  width: '100%', padding: '5px 8px', fontSize: 12, borderRadius: 4,
-  background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)',
-  color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box',
-};

@@ -207,7 +207,8 @@ function TabContent({ tab }: { tab: Tab }) {
 
       <div style={{ display: "flex", gap: 6 }}>
         <input
-          style={{ flex: 1, padding: "6px 10px", fontSize: 12, background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4, outline: "none" }}
+          className="panel-input"
+          style={{ flex: 1 }}
           value={cmd}
           onChange={(e) => setCmd(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") run(cmd); }}

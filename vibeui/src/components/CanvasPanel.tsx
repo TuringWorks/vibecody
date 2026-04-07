@@ -151,7 +151,7 @@ export default function CanvasPanel() {
  };
 
  return (
- <div style={{ display: "flex", flex: 1, minHeight: 0, background: "var(--bg-primary)", color: "var(--text-secondary)" }}>
+ <div className="panel-container" style={{ flexDirection: "row" }}>
  {/* Palette sidebar */}
  {showPalette && (
  <div style={{ width: 180, borderRight: "1px solid var(--border-color)", padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
@@ -212,12 +212,13 @@ export default function CanvasPanel() {
  value={newName || currentWorkflow.name}
  onChange={e => setNewName(e.target.value)}
  placeholder="Workflow name"
- style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", color: "var(--text-secondary)", padding: "4px 8px", borderRadius: 4, flex: 1, maxWidth: 200 }}
+ className="panel-input"
+ style={{ flex: 1, maxWidth: 200 }}
  />
- <button onClick={handleSave} style={{ background: "var(--success-color)", border: "none", color: "var(--btn-primary-fg)", padding: "4px 12px", borderRadius: 4, cursor: "pointer" }}>
+ <button onClick={handleSave} className="panel-btn panel-btn-primary panel-btn-xs">
  Save
  </button>
- <button onClick={handleRun} style={{ background: "var(--accent-color)", border: "none", color: "var(--btn-primary-fg)", padding: "4px 12px", borderRadius: 4, cursor: "pointer" }}>
+ <button onClick={handleRun} className="panel-btn panel-btn-primary panel-btn-xs">
  Run
  </button>
  {connecting && (

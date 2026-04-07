@@ -38,7 +38,6 @@ interface AcpStatus {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const inputStyle: React.CSSProperties = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: 12, boxSizing: "border-box" };
 const badgeStyle = (variant: string): React.CSSProperties => {
   const colors: Record<string, string> = { tool: "var(--accent-color)", resource: "var(--accent-purple)", prompt: "var(--warning-color)", ok: "var(--success-color)", error: "var(--error-color)", pending: "var(--text-secondary)", sent: "var(--accent-color)", received: "var(--accent-purple)" };
   return { display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600, color: "var(--btn-primary-fg)", background: colors[variant] || "var(--text-secondary)" };
@@ -236,9 +235,9 @@ export function AcpPanel() {
           <div className="panel-card" style={{ marginTop: 12 }}>
             <div className="panel-label" style={{ fontWeight: 600, marginBottom: 8 }}>Register New Capability</div>
             <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-              <input style={{ ...inputStyle, flex: 2 }} placeholder="Name" value={newCapName} onChange={(e) => setNewCapName(e.target.value)} />
+              <input className="panel-input" style={{ flex: 2 }} placeholder="Name" value={newCapName} onChange={(e) => setNewCapName(e.target.value)} />
               <select
-                style={{ ...inputStyle, flex: 1 }}
+                className="panel-select" style={{ flex: 1 }}
                 value={newCapType}
                 onChange={(e) => setNewCapType(e.target.value as "tool" | "resource" | "prompt")}
               >
@@ -246,10 +245,10 @@ export function AcpPanel() {
                 <option value="resource">resource</option>
                 <option value="prompt">prompt</option>
               </select>
-              <input style={{ ...inputStyle, flex: 1 }} placeholder="Version" value={newCapVersion} onChange={(e) => setNewCapVersion(e.target.value)} />
+              <input className="panel-input" style={{ flex: 1 }} placeholder="Version" value={newCapVersion} onChange={(e) => setNewCapVersion(e.target.value)} />
             </div>
             <div style={{ display: "flex", gap: 6 }}>
-              <input style={{ ...inputStyle, flex: 1 }} placeholder="Description" value={newCapDesc} onChange={(e) => setNewCapDesc(e.target.value)} />
+              <input className="panel-input" style={{ flex: 1 }} placeholder="Description" value={newCapDesc} onChange={(e) => setNewCapDesc(e.target.value)} />
               <button className="panel-btn panel-btn-primary" onClick={handleRegisterCapability}>Register</button>
             </div>
           </div>
@@ -261,7 +260,7 @@ export function AcpPanel() {
           <div className="panel-card">
             <div className="panel-label">External ACP Server URL</div>
             <div style={{ display: "flex", gap: 8 }}>
-              <input style={{ ...inputStyle, flex: 1 }} value={clientUrl} onChange={(e) => setClientUrl(e.target.value)} placeholder="http://localhost:3001/acp" />
+              <input className="panel-input" style={{ flex: 1 }} value={clientUrl} onChange={(e) => setClientUrl(e.target.value)} placeholder="http://localhost:3001/acp" />
               {!clientConnected ? (
                 <button className="panel-btn panel-btn-primary" onClick={connectClient}>Connect</button>
               ) : (

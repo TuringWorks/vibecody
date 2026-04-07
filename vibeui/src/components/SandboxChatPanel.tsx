@@ -143,7 +143,7 @@ export function SandboxChatPanel({ provider: initialProvider, availableProviders
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+    <div className="panel-container">
       {/* Toolbar */}
       <div className="panel-header">
         <Shield size={14} style={{ color: sandboxPath ? "var(--success-color)" : "var(--text-muted)" }} />
@@ -155,7 +155,7 @@ export function SandboxChatPanel({ provider: initialProvider, availableProviders
         ) : (
           <span style={{ fontSize: 11, color: "var(--text-muted)", flex: 1 }}>No folder selected</span>
         )}
-        <button onClick={handlePickFolder} title="Pick sandbox folder" style={{ background: "none", border: "1px solid var(--border-color)", borderRadius: 5, padding: "3px 8px", cursor: "pointer", fontSize: 11, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap" }}>
+        <button onClick={handlePickFolder} title="Pick sandbox folder" className="panel-btn panel-btn-secondary panel-btn-xs" style={{ display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap" }}>
           <FolderOpen size={12} /> {sandboxPath ? "Change" : "Open Folder"}
         </button>
         {sandboxPath && (

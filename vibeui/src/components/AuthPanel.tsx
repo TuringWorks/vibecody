@@ -307,9 +307,9 @@ export function AuthPanel({ workspacePath, provider }: { workspacePath: string |
             <input
               type="text" placeholder="Search frameworks..."
               value={fwSearch} onChange={e => setFwSearch(e.target.value)}
-              style={{ ...inputStyle, flex: 1 }}
+              className="panel-input" style={{ flex: 1 }}
             />
-            <select value={langFilter} onChange={e => setLangFilter(e.target.value)} style={{ ...inputStyle, width: "auto", cursor: "pointer" }}>
+            <select value={langFilter} onChange={e => setLangFilter(e.target.value)} className="panel-select">
               <option value="All">All Languages</option>
               {LANGUAGES.map(l => <option key={l} value={l}>{l}</option>)}
             </select>
@@ -367,7 +367,7 @@ export function AuthPanel({ workspacePath, provider }: { workspacePath: string |
             <div>
               <div style={labelStyle}>Save to workspace</div>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <input style={inputStyle} value={targetPath} onChange={e => setTargetPath(e.target.value)} />
+                <input className="panel-input" style={{ flex: 1 }} value={targetPath} onChange={e => setTargetPath(e.target.value)} />
                 <button onClick={saveToWorkspace} disabled={loading}
                   style={{ padding: "8px 16px", background: "var(--accent-color)", color: "var(--btn-primary-fg, #fff)", border: "none", borderRadius: 4, cursor: "pointer", fontSize: 12, fontWeight: 600, whiteSpace: "nowrap" }}>
                   {saved ? "Saved" : "Save Files"}
@@ -383,7 +383,6 @@ export function AuthPanel({ workspacePath, provider }: { workspacePath: string |
 }
 
 const labelStyle: React.CSSProperties = { display: "block", marginBottom: 4, fontSize: 11, color: "var(--text-secondary)" };
-const inputStyle: React.CSSProperties = { background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", color: "var(--text-primary)", padding: "6px 8px", borderRadius: 4, fontSize: 12, boxSizing: "border-box", outline: "none" };
 const chipStyle = (active: boolean): React.CSSProperties => ({
   padding: "4px 12px", border: `1px solid ${active ? "var(--accent-color)" : "var(--border-color)"}`,
   borderRadius: 12, cursor: "pointer", fontSize: 12, background: active ? "rgba(0,122,204,0.15)" : "transparent",

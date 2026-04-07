@@ -24,10 +24,6 @@ interface HeartbeatRun {
   summary: string | null;
 }
 
-const inputStyle: React.CSSProperties = {
-  fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)",
-  border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)",
-};
 
 function statusBadgeStyle(status: HeartbeatRun['status']): React.CSSProperties {
   const color =
@@ -92,21 +88,22 @@ export function CompanyHeartbeatPanel({ workspacePath: _wp }: CompanyHeartbeatPa
   return (
     <div className="panel-container">
       {/* Header */}
-      <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontWeight: 600, fontSize: 14 }}>Heartbeats</span>
-        <button onClick={load} className="panel-btn panel-btn-secondary">Refresh</button>
+      <div className="panel-header">
+        <h3>Heartbeats</h3>
+        <button onClick={load} className="panel-btn panel-btn-secondary" style={{ marginLeft: "auto" }}>Refresh</button>
       </div>
       <div className="panel-body">
 
       {/* Manual trigger */}
       <div className="panel-card" style={{ marginBottom: 14 }}>
-        <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 8, fontWeight: 600 }}>MANUAL TRIGGER</div>
+        <div className="panel-label" style={{ marginBottom: 8, fontWeight: 600 }}>MANUAL TRIGGER</div>
         <div style={{ display: "flex", gap: 8 }}>
           <input
             value={triggerAgent}
             onChange={(e) => setTriggerAgent(e.target.value)}
             placeholder="Agent ID"
-            style={{ ...inputStyle, flex: 1 }}
+            className="panel-input"
+            style={{ flex: 1 }}
           />
           <button
             onClick={trigger}
@@ -131,7 +128,8 @@ export function CompanyHeartbeatPanel({ workspacePath: _wp }: CompanyHeartbeatPa
           value={agentFilter}
           onChange={(e) => setAgentFilter(e.target.value)}
           placeholder="Filter by Agent ID (blank = all)"
-          style={{ ...inputStyle, flex: 1 }}
+          className="panel-input"
+          style={{ flex: 1 }}
           onKeyDown={(e) => e.key === "Enter" && load()}
         />
         <button onClick={load} className="panel-btn panel-btn-secondary" style={{ padding: "4px 12px" }}>Filter</button>

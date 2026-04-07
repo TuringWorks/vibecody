@@ -85,21 +85,22 @@ const ProcessPanel: React.FC = () => {
  );
 
  return (
- <div className="process-panel" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, fontSize: 13 }}>
+ <div className="panel-container" style={{ fontSize: 13 }}>
  {/* Toolbar */}
- <div style={{ display: "flex", gap: 8, padding: "8px 12px", alignItems: "center", borderBottom: "1px solid var(--border)" }}>
+ <div className="panel-header">
  <input
  type="search"
  placeholder="Filter by name or PID…"
  value={filter}
  onChange={(e) => setFilter(e.target.value)}
- style={{ flex: 1, padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border)", background: "var(--input-bg)", color: "inherit" }}
+ className="panel-input"
+ style={{ flex: 1 }}
  aria-label="Filter processes"
  />
  <button
  onClick={() => void loadProcesses()}
  disabled={loading}
- style={{ padding: "4px 10px", borderRadius: 4, border: "1px solid var(--border)", cursor: "pointer", background: "var(--btn-bg)", color: "inherit" }}
+ className="panel-btn panel-btn-secondary"
  title="Refresh process list"
  >
  {loading ? "…" : "↻ Refresh"}

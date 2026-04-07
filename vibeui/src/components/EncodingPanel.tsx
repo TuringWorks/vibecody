@@ -167,14 +167,14 @@ export function EncodingPanel() {
  ];
 
  return (
- <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+ <div className="panel-container">
 
  {/* Header */}
- <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
- <span style={{ fontSize: 13, fontWeight: 600 }}>Encoding & Hash</span>
- <div style={{ display: "flex", gap: 4 }}>
+ <div className="panel-header" style={{ flexWrap: "wrap" }}>
+ <span style={{ fontSize: 13, fontWeight: 600 }}>Encoding &amp; Hash</span>
+ <div className="panel-tab-bar" style={{ border: "none", padding: 0, margin: 0 }}>
  {TABS.map(t => (
- <button key={t.id} onClick={() => setSubTab(t.id)} style={{ padding: "2px 10px", fontSize: 10, borderRadius: 10, background: subTab === t.id ? "color-mix(in srgb, var(--accent-blue) 20%, transparent)" : "var(--bg-primary)", border: `1px solid ${subTab === t.id ? "var(--accent-color)" : "var(--border-color)"}`, color: subTab === t.id ? "var(--info-color)" : "var(--text-secondary)", cursor: "pointer", fontWeight: subTab === t.id ? 700 : 400 }}>{t.label}</button>
+ <button key={t.id} onClick={() => setSubTab(t.id)} className={`panel-tab ${subTab === t.id ? "active" : ""}`}>{t.label}</button>
  ))}
  </div>
  </div>

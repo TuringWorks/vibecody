@@ -150,54 +150,29 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
  }
 
  return (
- <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden", fontSize: 12 }}>
- <div style={{ flex: 1, overflowY: "auto", padding: "12px", display: "flex", flexDirection: "column", gap: "10px" }}>
- {/* Header */}
- <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
- <span style={{ fontWeight: 700, fontSize: 14 }}>Test Runner</span>
+ <div className="panel-container" style={{ fontSize: 12 }}>
+ <div className="panel-header">
+ <h3>Test Runner</h3>
  {framework && (
  <span style={{ fontSize: 10, padding: "2px 6px", background: "color-mix(in srgb, var(--accent-blue) 20%, transparent)", color: "var(--text-info)", borderRadius: 3 }}>
  {framework}
  </span>
  )}
  {running ? (
- <button
- onClick={handleSuspend}
- style={{
- marginLeft: "auto", padding: "4px 12px", fontSize: 12,
- background: "var(--error-color)", color: "var(--btn-primary-fg)",
- border: "none", borderRadius: 4, cursor: "pointer",
- fontWeight: 600,
- }}
- >
- Suspend
- </button>
+ <button onClick={handleSuspend} className="panel-btn panel-btn-danger" style={{ marginLeft: "auto" }}>Suspend</button>
  ) : (
- <button
- onClick={runTests}
- style={{
- marginLeft: "auto", padding: "4px 12px", fontSize: 12,
- background: "var(--accent-blue)", color: "var(--btn-primary-fg)",
- border: "none", borderRadius: 4, cursor: "pointer",
- fontWeight: 600,
- }}
- >
- Run Tests
- </button>
+ <button onClick={runTests} className="panel-btn panel-btn-primary" style={{ marginLeft: "auto" }}>Run Tests</button>
  )}
  </div>
-
+ <div className="panel-body" style={{ gap: "10px" }}>
  {/* Custom command override */}
  <input
  type="text"
  value={customCmd}
  onChange={(e) => setCustomCmd(e.target.value)}
  placeholder={`Custom command (default: auto-detect${framework ? ` → ${framework}` : ""})`}
- style={{
- padding: "5px 8px", fontSize: 11, fontFamily: "var(--font-mono)",
- background: "var(--bg-secondary)", border: "1px solid var(--border-color)",
- borderRadius: 4, color: "var(--text-primary)", outline: "none",
- }}
+ className="panel-input panel-input-full"
+ style={{ fontFamily: "var(--font-mono)" }}
  />
 
  {/* Summary bar */}

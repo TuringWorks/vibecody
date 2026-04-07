@@ -7,7 +7,6 @@
 import { useState, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
-const inputStyle: React.CSSProperties = { width: "100%", padding: "6px 8px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", fontSize: 12, boxSizing: "border-box" };
 const cellStyle = (filled: boolean): React.CSSProperties => ({ padding: 6, fontSize: 10, textAlign: "center", border: "1px solid var(--border-color)", background: filled ? "var(--bg-secondary)" : "var(--bg-tertiary)", minWidth: 80, color: filled ? "var(--text-primary)" : "var(--text-secondary)" });
 
 type Tab = "togaf" | "zachman" | "c4" | "adr" | "governance";
@@ -99,11 +98,11 @@ export default function ArchitectureSpecPanel() {
           <div className="panel-card">
             <div style={{ fontWeight: 600, marginBottom: 8 }}>New Architecture Decision Record</div>
             <div className="panel-label">Title</div>
-            <input value={adrTitle} onChange={e => setAdrTitle(e.target.value)} style={{ ...inputStyle, marginBottom: 8 }} placeholder="Use PostgreSQL for primary database" />
+            <input value={adrTitle} onChange={e => setAdrTitle(e.target.value)} className="panel-input panel-input-full" style={{ marginBottom: 8 }} placeholder="Use PostgreSQL for primary database" />
             <div className="panel-label">Context</div>
-            <textarea value={adrContext} onChange={e => setAdrContext(e.target.value)} rows={3} style={{ ...inputStyle, marginBottom: 8, resize: "vertical" }} placeholder="We need a reliable RDBMS that supports..." />
+            <textarea value={adrContext} onChange={e => setAdrContext(e.target.value)} rows={3} className="panel-input panel-input-full" style={{ marginBottom: 8, resize: "vertical" }} placeholder="We need a reliable RDBMS that supports..." />
             <div className="panel-label">Decision</div>
-            <textarea value={adrDecision} onChange={e => setAdrDecision(e.target.value)} rows={3} style={{ ...inputStyle, marginBottom: 8, resize: "vertical" }} placeholder="We will use PostgreSQL because..." />
+            <textarea value={adrDecision} onChange={e => setAdrDecision(e.target.value)} rows={3} className="panel-input panel-input-full" style={{ marginBottom: 8, resize: "vertical" }} placeholder="We will use PostgreSQL because..." />
             <button className="panel-btn panel-btn-secondary" disabled={!adrTitle || loading}>Create ADR</button>
           </div>
         </>

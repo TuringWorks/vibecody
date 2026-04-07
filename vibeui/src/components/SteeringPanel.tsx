@@ -140,14 +140,14 @@ export default function SteeringPanel({ workspaceRoot }: SteeringPanelProps) {
  const editing = isNew || selected !== null;
 
  return (
- <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, gap: 8, padding: 8, fontSize: 13 }}>
+ <div className="panel-container">
  {/* Header */}
- <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
- <span style={{ fontWeight: 600, fontSize: 14 }}>Steering Files</span>
+ <div className="panel-header">
+ <h3>Steering Files</h3>
  <select
  value={scope}
  onChange={(e) => setScope(e.target.value as "workspace" | "global")}
- style={{ fontSize: 12, padding: "2px 4px", borderRadius: 4, background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-color)" }}
+ className="panel-select"
  >
  {SCOPE_OPTIONS.map((o) => (
  <option key={o.value} value={o.value}>{o.label}</option>
@@ -176,7 +176,7 @@ export default function SteeringPanel({ workspaceRoot }: SteeringPanelProps) {
  </div>
  )}
 
- <div style={{ display: "flex", gap: 8, flex: 1, minHeight: 0 }}>
+ <div className="panel-body" style={{ flexDirection: "row", gap: 8 }}>
  {/* File list */}
  <div style={{ width: 160, flexShrink: 0, overflowY: "auto", background: "var(--bg-tertiary)", borderRadius: 6, padding: 4 }}>
  {files.length === 0 && (
@@ -247,7 +247,8 @@ export default function SteeringPanel({ workspaceRoot }: SteeringPanelProps) {
  value={editFilename}
  onChange={(e) => setEditFilename(e.target.value)}
  disabled={!isNew}
- style={{ flex: 1, padding: "4px 8px", borderRadius: 4, background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: 12 }}
+ className="panel-input"
+ style={{ flex: 1 }}
  />
  <button onClick={save} disabled={saving} className="panel-btn panel-btn-primary" style={{ background: saving ? "var(--bg-secondary)" : undefined, color: saving ? "var(--text-info)" : undefined }}>
  {saving ? "Saving…" : "Save"}
@@ -258,14 +259,10 @@ export default function SteeringPanel({ workspaceRoot }: SteeringPanelProps) {
  value={editContent}
  onChange={(e) => setEditContent(e.target.value)}
  spellCheck={false}
+ className="panel-input panel-textarea"
  style={{
  flex: 1,
  resize: "none",
- padding: 10,
- borderRadius: 6,
- background: "var(--bg-primary)",
- color: "var(--text-primary)",
- border: "1px solid var(--bg-secondary)",
  fontSize: 13,
  fontFamily: "var(--font-mono)",
  lineHeight: 1.6,

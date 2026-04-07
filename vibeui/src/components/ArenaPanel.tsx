@@ -53,7 +53,7 @@ function ProviderSelector({
       <select
         value={provider}
         onChange={e => { onProvider(e.target.value); onModel(PROVIDER_DEFAULT_MODEL[e.target.value] ?? ""); }}
-        style={{ background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "4px", padding: "3px 6px", fontSize: "12px" }}
+        className="panel-select"
       >
         {providers.map(p => <option key={p} value={p}>{p}</option>)}
       </select>
@@ -65,7 +65,8 @@ function ProviderSelector({
         onChange={e => onModel(e.target.value)}
         list={listId}
         placeholder="model"
-        style={{ flex: 1, background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "4px", padding: "3px 6px", fontSize: "12px", minWidth: 0 }}
+        className="panel-input"
+        style={{ flex: 1, minWidth: 0 }}
       />
     </div>
   );
@@ -224,7 +225,7 @@ export function ArenaPanel() {
   const sortedStats = [...stats].sort((a, b) => b.win_rate - a.win_rate);
 
   return (
-    <div className="panel-container" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, padding: "12px", gap: "10px", fontSize: "13px" }}>
+    <div className="panel-container" style={{ padding: "12px", gap: "10px" }}>
       {/* Header */}
       <div style={{ fontWeight: "bold", marginBottom: "2px", display: "flex", alignItems: "center", gap: "8px" }}>
         <span>Arena Mode</span>
@@ -246,16 +247,8 @@ export function ArenaPanel() {
         onKeyDown={handleKey}
         placeholder="Enter a prompt... (Ctrl+Enter to battle)"
         rows={3}
-        style={{
-          resize: "vertical",
-          background: "var(--bg-secondary)",
-          color: "var(--text-primary)",
-          border: "1px solid var(--border-color)",
-          borderRadius: "4px",
-          padding: "8px",
-          fontFamily: "inherit",
-          fontSize: "13px",
-        }}
+        className="panel-input panel-textarea panel-input-full"
+        style={{ resize: "vertical", fontFamily: "inherit" }}
       />
 
       <button
@@ -268,7 +261,7 @@ export function ArenaPanel() {
       </button>
 
       {error && (
-        <div style={{ color: "var(--error-color)", fontSize: "12px" }}>{error}</div>
+        <div className="panel-error">{error}</div>
       )}
 
       {/* Side-by-side blind responses */}
@@ -335,12 +328,8 @@ export function ArenaPanel() {
           </div>
           <button
             onClick={handleSendWinner}
-            style={{
-              marginTop: "8px",
-              background: "var(--accent-color)",
-              color: "var(--btn-primary-fg)", border: "none", borderRadius: "4px",
-              padding: "4px 12px", cursor: "pointer", fontSize: "12px",
-            }}
+            className="panel-btn panel-btn-primary panel-btn-sm"
+            style={{ marginTop: "8px" }}
           >
             Send winner to Chat
           </button>

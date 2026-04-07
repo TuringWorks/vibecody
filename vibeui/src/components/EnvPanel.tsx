@@ -224,8 +224,8 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
     : entries;
 
   return (
-    <div className="panel-container" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
-    <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
+    <div className="panel-container">
+    <div className="panel-body" style={{ overflowY: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
       {/* Environment selector */}
       <div>
         <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>Environment</div>
@@ -259,20 +259,13 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
               onChange={(e) => setNewEnvName(e.target.value)}
               placeholder="new env"
               onKeyDown={(e) => e.key === "Enter" && handleCreateEnv()}
-              style={{
-                width: 80, padding: "3px 8px", fontSize: 11, background: "var(--bg-secondary)",
-                border: "1px solid var(--border-color)", borderRadius: 4,
-                color: "var(--text-primary)", outline: "none",
-              }}
+              className="panel-input"
+              style={{ width: 80 }}
             />
             <button
               onClick={handleCreateEnv}
               disabled={!newEnvName.trim()}
-              style={{
-                padding: "3px 8px", fontSize: 11, background: "var(--bg-secondary)",
-                border: "1px solid var(--border-color)", borderRadius: 4,
-                color: "var(--text-primary)", cursor: "pointer",
-              }}
+              className="panel-btn panel-btn-secondary panel-btn-xs"
             >
               +
             </button>
@@ -293,22 +286,13 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
           placeholder="Filter by key..."
-          style={{
-            flex: 1, padding: "6px 10px", fontSize: 12, background: "var(--bg-secondary)",
-            border: "1px solid var(--border-color)", borderRadius: 4,
-            color: "var(--text-primary)", outline: "none",
-          }}
+          className="panel-input panel-input-full"
+          style={{ flex: 1 }}
         />
         <button
           onClick={handleSave}
           disabled={!dirty || saving}
-          style={{
-            padding: "6px 14px", fontSize: 12, fontWeight: 600,
-            background: dirty ? "var(--accent-color)" : "var(--bg-secondary)",
-            color: dirty ? "var(--btn-primary-fg)" : "var(--text-secondary)",
-            border: "none", borderRadius: 4, cursor: dirty ? "pointer" : "default",
-            opacity: dirty ? 1 : 0.5,
-          }}
+          className="panel-btn panel-btn-primary panel-btn-sm"
         >
           {saving ? "Saving..." : "Save"}
         </button>
@@ -316,7 +300,7 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
 
       {/* Error */}
       {error && (
-        <div className="panel-error" style={{ padding: 8, fontSize: 11 }}>
+        <div className="panel-error">
           {error}
         </div>
       )}
@@ -349,12 +333,8 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
                 type={entry.is_secret && !revealedKeys.has(entry.key) ? "password" : "text"}
                 value={entry.value}
                 onChange={(e) => handleValueChange(entry.key, e.target.value)}
-                style={{
-                  flex: 1, padding: "3px 8px", fontSize: 11, fontFamily: "var(--font-mono)",
-                  background: "var(--bg-secondary)",
-                  border: "1px solid var(--border-color)", borderRadius: 4,
-                  color: "var(--text-primary)", outline: "none",
-                }}
+                className="panel-input panel-input-full"
+                style={{ flex: 1, fontFamily: "var(--font-mono)" }}
               />
               {/* Secret badge + reveal toggle */}
               {entry.is_secret && (
@@ -394,12 +374,8 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
             value={newKey}
             onChange={(e) => setNewKey(e.target.value)}
             placeholder="KEY_NAME"
-            style={{
-              width: 140, padding: "6px 8px", fontSize: 11, fontFamily: "var(--font-mono)",
-              background: "var(--bg-secondary)", textTransform: "uppercase",
-              border: "1px solid var(--border-color)", borderRadius: 4,
-              color: "var(--text-primary)", outline: "none",
-            }}
+            className="panel-input"
+            style={{ width: 140, fontFamily: "var(--font-mono)", textTransform: "uppercase" }}
           />
           <input
             type="text"
@@ -407,21 +383,14 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
             onChange={(e) => setNewValue(e.target.value)}
             placeholder="value"
             onKeyDown={(e) => e.key === "Enter" && handleAddVar()}
-            style={{
-              flex: 1, padding: "6px 8px", fontSize: 11, fontFamily: "var(--font-mono)",
-              background: "var(--bg-secondary)",
-              border: "1px solid var(--border-color)", borderRadius: 4,
-              color: "var(--text-primary)", outline: "none",
-            }}
+            className="panel-input panel-input-full"
+            style={{ flex: 1, fontFamily: "var(--font-mono)" }}
           />
           <button
             onClick={handleAddVar}
             disabled={!newKey.trim() || !newValue.trim()}
-            style={{
-              padding: "6px 14px", fontSize: 12, fontWeight: 600,
-              background: "var(--accent-color)", color: "var(--btn-primary-fg)", border: "none", borderRadius: 4,
-              cursor: "pointer", whiteSpace: "nowrap",
-            }}
+            className="panel-btn panel-btn-primary panel-btn-sm"
+            style={{ whiteSpace: "nowrap" }}
           >
             Add
           </button>

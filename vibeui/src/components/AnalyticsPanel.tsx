@@ -67,8 +67,6 @@ function fmtHours(mins: number): string {
 
 /* ── Styles ─────────────────────────────────────────────────────────── */
 
-const thStyle: React.CSSProperties = { textAlign: "left", padding: "6px 8px", fontSize: 12, color: "var(--text-secondary)", borderBottom: "1px solid var(--border-color)" };
-const tdStyle: React.CSSProperties = { padding: "8px", fontSize: 13, borderBottom: "1px solid var(--border-color)" };
 
 /* ── Component ──────────────────────────────────────────────────────── */
 
@@ -268,26 +266,26 @@ export function AnalyticsPanel() {
           {providerRows.length === 0 ? (
             <div className="panel-empty">No cost data recorded yet</div>
           ) : (
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <table className="panel-table">
               <thead>
                 <tr>
-                  <th style={thStyle}>Provider</th>
-                  <th style={thStyle}>Sessions</th>
-                  <th style={thStyle}>API Calls</th>
-                  <th style={thStyle}>Tokens</th>
-                  <th style={thStyle}>Cost</th>
-                  <th style={thStyle}>Est. Time Saved</th>
+                  <th>Provider</th>
+                  <th>Sessions</th>
+                  <th>API Calls</th>
+                  <th>Tokens</th>
+                  <th>Cost</th>
+                  <th>Est. Time Saved</th>
                 </tr>
               </thead>
               <tbody>
                 {providerRows.map((u) => (
                   <tr key={u.name}>
-                    <td style={tdStyle}><span style={{ fontWeight: 600 }}>{u.name}</span></td>
-                    <td style={tdStyle}>{u.tasks}</td>
-                    <td style={tdStyle}>{u.calls}</td>
-                    <td style={{ ...tdStyle, fontFamily: "monospace", fontSize: 12 }}>{u.tokens}</td>
-                    <td style={tdStyle}>{u.cost}</td>
-                    <td style={tdStyle}>{u.timeSaved}</td>
+                    <td><span style={{ fontWeight: 600 }}>{u.name}</span></td>
+                    <td>{u.tasks}</td>
+                    <td>{u.calls}</td>
+                    <td style={{ fontFamily: "monospace", fontSize: 12 }}>{u.tokens}</td>
+                    <td>{u.cost}</td>
+                    <td>{u.timeSaved}</td>
                   </tr>
                 ))}
               </tbody>

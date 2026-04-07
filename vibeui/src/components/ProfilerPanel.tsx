@@ -99,8 +99,8 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
-    <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
+    <div className="panel-container">
+    <div className="panel-body" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       {/* Tool badge */}
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <div style={{

@@ -272,19 +272,20 @@ export function AgentOSDashboard() {
     branches.filter(a => a.status === "active" || a.status === "running").length;
 
   return (
-    <div style={S.root}>
+    <div className="panel-container">
       {/* Header */}
-      <div style={S.header}>
+      <div className="panel-header">
         <div style={S.title}>
           <Cpu size={18} />
-          Agent-OS Dashboard
+          <h3>Agent-OS Dashboard</h3>
         </div>
-        <button style={S.refreshBtn} onClick={refresh} disabled={loading}>
+        <button className="panel-btn panel-btn-secondary" style={{ marginLeft: "auto" }} onClick={refresh} disabled={loading}>
           {loading ? <Loader2 size={12} className="spin" /> : <RefreshCw size={12} />}
           {lastRefresh ? `${lastRefresh.toLocaleTimeString()}` : "Refresh"}
         </button>
       </div>
 
+      <div className="panel-body">
       {/* Pool Stats */}
       <div style={S.grid}>
         <div style={S.statCard}>
@@ -453,6 +454,7 @@ export function AgentOSDashboard() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

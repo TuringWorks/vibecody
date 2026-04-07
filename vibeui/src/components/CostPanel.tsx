@@ -100,11 +100,14 @@ export function CostPanel() {
  const maxProviderCost = providerCosts.length > 0 ? Math.max(...providerCosts) : 0;
 
  return (
- <div style={{ padding: "12px", fontFamily: "var(--font-family)", fontSize: "13px", height: "100%", overflowY: "auto" }}>
- <div style={{ fontWeight: "bold", marginBottom: "12px" }}>Cost & Performance Observatory</div>
+ <div className="panel-container">
+ <div className="panel-header">
+   <h3>Cost &amp; Performance Observatory</h3>
+ </div>
 
+ <div className="panel-body">
  {loading && !metrics && (
- <div style={{ color: "var(--text-secondary)" }}>Loading…</div>
+ <div className="panel-loading">Loading…</div>
  )}
 
  {metrics && (
@@ -226,13 +229,14 @@ export function CostPanel() {
  )}
 
  {metrics.entries.length === 0 && (
- <div style={{ color: "var(--text-secondary)", textAlign: "center", padding: "30px" }}>
+ <div className="panel-empty">
  No cost records yet.<br />
  Costs are recorded automatically when using AI chat and agent features.
  </div>
  )}
  </>
  )}
+ </div>
  </div>
  );
 }

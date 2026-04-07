@@ -138,8 +138,6 @@ const STEPS = [
 const tableStyle: React.CSSProperties = { width: "100%", borderCollapse: "collapse", fontSize: 12 };
 const thStyle: React.CSSProperties = { textAlign: "left", padding: "6px 8px", borderBottom: "1px solid var(--border-color)", color: "var(--text-secondary)", fontWeight: 600 };
 const tdStyle: React.CSSProperties = { padding: "6px 8px", borderBottom: "1px solid var(--border-color)" };
-const inputStyle: React.CSSProperties = { width: "100%", padding: "6px 8px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", fontSize: 12, boxSizing: "border-box" };
-const selectStyle: React.CSSProperties = { ...inputStyle, appearance: "auto" as const };
 const fieldRow: React.CSSProperties = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 };
 const fieldCol: React.CSSProperties = { display: "flex", flexDirection: "column", gap: 4 };
 const fieldLabel: React.CSSProperties = { fontSize: 11, fontWeight: 600, color: "var(--text-secondary)" };
@@ -223,7 +221,7 @@ export function RLTrainingDashboard(_props: { workspacePath?: string | null; pro
       <div style={fieldRow}>
         <div style={fieldCol}>
           <span style={fieldLabel}>Algorithm Family</span>
-          <select style={selectStyle} value={config.algorithmFamily} onChange={e => {
+          <select className="panel-select" value={config.algorithmFamily} onChange={e => {
             const fam = e.target.value;
             const algos = ALGORITHM_FAMILIES[fam] || [];
             upd({ algorithmFamily: fam, algorithmId: algos[0] || "" });
@@ -233,7 +231,7 @@ export function RLTrainingDashboard(_props: { workspacePath?: string | null; pro
         </div>
         <div style={fieldCol}>
           <span style={fieldLabel}>Algorithm</span>
-          <select style={selectStyle} value={config.algorithmId} onChange={e => upd({ algorithmId: e.target.value })}>
+          <select className="panel-select" value={config.algorithmId} onChange={e => upd({ algorithmId: e.target.value })}>
             {(ALGORITHM_FAMILIES[config.algorithmFamily] || []).map(a => <option key={a}>{a}</option>)}
           </select>
         </div>
@@ -255,27 +253,27 @@ export function RLTrainingDashboard(_props: { workspacePath?: string | null; pro
         <div style={fieldCol}>
           <span style={fieldLabel}>Environment</span>
           {envList.length > 0 ? (
-            <select style={selectStyle} value={config.environmentName} onChange={e => upd({ environmentName: e.target.value })}>
+            <select className="panel-select" value={config.environmentName} onChange={e => upd({ environmentName: e.target.value })}>
               <option value="">-- Select environment --</option>
               {envList.map(e => <option key={e}>{e}</option>)}
             </select>
           ) : (
-            <input style={inputStyle} placeholder="e.g. trading-env, franka-reach, CartPole-v1" value={config.environmentName} onChange={e => upd({ environmentName: e.target.value })} />
+            <input className="panel-input panel-input-full" placeholder="e.g. trading-env, franka-reach, CartPole-v1" value={config.environmentName} onChange={e => upd({ environmentName: e.target.value })} />
           )}
         </div>
         <div style={fieldCol}>
           <span style={fieldLabel}>Version</span>
-          <input style={inputStyle} placeholder="latest" value={config.environmentVersion} onChange={e => upd({ environmentVersion: e.target.value })} />
+          <input className="panel-input panel-input-full" placeholder="latest" value={config.environmentVersion} onChange={e => upd({ environmentVersion: e.target.value })} />
         </div>
       </div>
       <div style={fieldRow}>
         <div style={fieldCol}>
           <span style={fieldLabel}>Parallel Environments</span>
-          <input type="number" style={inputStyle} min={1} max={4096} value={config.nEnvs} onChange={e => upd({ nEnvs: parseInt(e.target.value) || 1 })} />
+          <input type="number" className="panel-input panel-input-full" min={1} max={4096} value={config.nEnvs} onChange={e => upd({ nEnvs: parseInt(e.target.value) || 1 })} />
         </div>
         <div style={fieldCol}>
           <span style={fieldLabel}>Total Timesteps</span>
-          <select style={selectStyle} value={config.totalTimesteps} onChange={e => upd({ totalTimesteps: parseInt(e.target.value) })}>
+          <select className="panel-select" value={config.totalTimesteps} onChange={e => upd({ totalTimesteps: parseInt(e.target.value) })}>
             <option value={100000}>100K (quick test)</option>
             <option value={500000}>500K (short run)</option>
             <option value={1000000}>1M (standard)</option>
@@ -293,20 +291,20 @@ export function RLTrainingDashboard(_props: { workspacePath?: string | null; pro
       <div style={fieldRow}>
         <div style={fieldCol}>
           <span style={fieldLabel}>Network Architecture</span>
-          <select style={selectStyle} value={config.networkType} onChange={e => upd({ networkType: e.target.value })}>
+          <select className="panel-select" value={config.networkType} onChange={e => upd({ networkType: e.target.value })}>
             {NETWORK_TYPES.map(n => <option key={n}>{n}</option>)}
           </select>
         </div>
         <div style={fieldCol}>
           <span style={fieldLabel}>Activation Function</span>
-          <select style={selectStyle} value={config.activation} onChange={e => upd({ activation: e.target.value })}>
+          <select className="panel-select" value={config.activation} onChange={e => upd({ activation: e.target.value })}>
             {ACTIVATIONS.map(a => <option key={a}>{a}</option>)}
           </select>
         </div>
       </div>
       <div style={fieldCol}>
         <span style={fieldLabel}>Hidden Layers (comma-separated dimensions)</span>
-        <input style={inputStyle} placeholder="256, 256" value={config.hiddenLayers} onChange={e => upd({ hiddenLayers: e.target.value })} />
+        <input className="panel-input panel-input-full" placeholder="256, 256" value={config.hiddenLayers} onChange={e => upd({ hiddenLayers: e.target.value })} />
         <span className="panel-label">
           {config.networkType === "MLP" && "Fully connected layers. 2-3 layers of 64-512 units typical."}
           {config.networkType === "CNN" && "Convolutional network for image observations (Atari, visual control)."}
@@ -323,13 +321,13 @@ export function RLTrainingDashboard(_props: { workspacePath?: string | null; pro
       <div style={fieldRow}>
         <div style={fieldCol}>
           <span style={fieldLabel}>Learning Rate</span>
-          <select style={selectStyle} value={config.learningRate} onChange={e => upd({ learningRate: e.target.value })}>
+          <select className="panel-select" value={config.learningRate} onChange={e => upd({ learningRate: e.target.value })}>
             {["1e-2", "3e-3", "1e-3", "3e-4", "1e-4", "3e-5", "1e-5"].map(lr => <option key={lr}>{lr}</option>)}
           </select>
         </div>
         <div style={fieldCol}>
           <span style={fieldLabel}>Discount Factor (gamma)</span>
-          <select style={selectStyle} value={config.gamma} onChange={e => upd({ gamma: e.target.value })}>
+          <select className="panel-select" value={config.gamma} onChange={e => upd({ gamma: e.target.value })}>
             {["0.9", "0.95", "0.99", "0.995", "0.999", "1.0"].map(g => <option key={g}>{g}</option>)}
           </select>
         </div>
@@ -337,13 +335,13 @@ export function RLTrainingDashboard(_props: { workspacePath?: string | null; pro
       <div style={fieldRow}>
         <div style={fieldCol}>
           <span style={fieldLabel}>Batch Size</span>
-          <select style={selectStyle} value={config.batchSize} onChange={e => upd({ batchSize: parseInt(e.target.value) })}>
+          <select className="panel-select" value={config.batchSize} onChange={e => upd({ batchSize: parseInt(e.target.value) })}>
             {[32, 64, 128, 256, 512, 1024, 2048].map(b => <option key={b} value={b}>{b}</option>)}
           </select>
         </div>
         <div style={fieldCol}>
           <span style={fieldLabel}>GAE Lambda</span>
-          <select style={selectStyle} value={config.gaeLambda} onChange={e => upd({ gaeLambda: e.target.value })}>
+          <select className="panel-select" value={config.gaeLambda} onChange={e => upd({ gaeLambda: e.target.value })}>
             {["0.9", "0.92", "0.95", "0.97", "0.99", "1.0"].map(l => <option key={l}>{l}</option>)}
           </select>
         </div>
@@ -352,13 +350,13 @@ export function RLTrainingDashboard(_props: { workspacePath?: string | null; pro
         <div style={fieldRow}>
           <div style={fieldCol}>
             <span style={fieldLabel}>Clip Range (PPO)</span>
-            <select style={selectStyle} value={config.clipRange} onChange={e => upd({ clipRange: e.target.value })}>
+            <select className="panel-select" value={config.clipRange} onChange={e => upd({ clipRange: e.target.value })}>
               {["0.1", "0.15", "0.2", "0.25", "0.3", "0.4"].map(c => <option key={c}>{c}</option>)}
             </select>
           </div>
           <div style={fieldCol}>
             <span style={fieldLabel}>Entropy Coefficient</span>
-            <select style={selectStyle} value={config.entropyCoef} onChange={e => upd({ entropyCoef: e.target.value })}>
+            <select className="panel-select" value={config.entropyCoef} onChange={e => upd({ entropyCoef: e.target.value })}>
               {["0.0", "0.001", "0.005", "0.01", "0.02", "0.05"].map(e2 => <option key={e2}>{e2}</option>)}
             </select>
           </div>
@@ -378,23 +376,23 @@ export function RLTrainingDashboard(_props: { workspacePath?: string | null; pro
           <div style={fieldRow}>
             <div style={fieldCol}>
               <span style={fieldLabel}>Number of Workers</span>
-              <input type="number" style={inputStyle} min={1} max={64} value={config.numWorkers} onChange={e => upd({ numWorkers: parseInt(e.target.value) || 1 })} />
+              <input type="number" className="panel-input panel-input-full" min={1} max={64} value={config.numWorkers} onChange={e => upd({ numWorkers: parseInt(e.target.value) || 1 })} />
             </div>
             <div style={fieldCol}>
               <span style={fieldLabel}>GPUs per Worker</span>
-              <input type="number" style={inputStyle} min={0} max={8} value={config.gpusPerWorker} onChange={e => upd({ gpusPerWorker: parseInt(e.target.value) || 0 })} />
+              <input type="number" className="panel-input panel-input-full" min={0} max={8} value={config.gpusPerWorker} onChange={e => upd({ gpusPerWorker: parseInt(e.target.value) || 0 })} />
             </div>
           </div>
           <div style={fieldRow}>
             <div style={fieldCol}>
               <span style={fieldLabel}>Strategy</span>
-              <select style={selectStyle} value={config.strategy} onChange={e => upd({ strategy: e.target.value })}>
+              <select className="panel-select" value={config.strategy} onChange={e => upd({ strategy: e.target.value })}>
                 {STRATEGIES.map(s => <option key={s}>{s}</option>)}
               </select>
             </div>
             <div style={fieldCol}>
               <span style={fieldLabel}>Checkpoint Every N Steps</span>
-              <select style={selectStyle} value={config.checkpointFrequency} onChange={e => upd({ checkpointFrequency: parseInt(e.target.value) })}>
+              <select className="panel-select" value={config.checkpointFrequency} onChange={e => upd({ checkpointFrequency: parseInt(e.target.value) })}>
                 {[10000, 50000, 100000, 250000, 500000].map(f => <option key={f} value={f}>{(f / 1000) + "K"}</option>)}
               </select>
             </div>
@@ -429,7 +427,7 @@ export function RLTrainingDashboard(_props: { workspacePath?: string | null; pro
               <div style={fieldRow}>
                 <div style={fieldCol}>
                   <span style={fieldLabel}>Stage Name</span>
-                  <input style={inputStyle} value={stage.name} onChange={e => {
+                  <input className="panel-input panel-input-full" value={stage.name} onChange={e => {
                     const next = [...config.curriculumStages];
                     next[idx] = { ...stage, name: e.target.value };
                     upd({ curriculumStages: next });
@@ -437,7 +435,7 @@ export function RLTrainingDashboard(_props: { workspacePath?: string | null; pro
                 </div>
                 <div style={fieldCol}>
                   <span style={fieldLabel}>Duration (timesteps)</span>
-                  <input type="number" style={inputStyle} value={stage.duration} onChange={e => {
+                  <input type="number" className="panel-input panel-input-full" value={stage.duration} onChange={e => {
                     const next = [...config.curriculumStages];
                     next[idx] = { ...stage, duration: parseInt(e.target.value) || 0 };
                     upd({ curriculumStages: next });
@@ -447,7 +445,7 @@ export function RLTrainingDashboard(_props: { workspacePath?: string | null; pro
               <div style={fieldRow}>
                 <div style={fieldCol}>
                   <span style={fieldLabel}>Promotion Metric</span>
-                  <select style={selectStyle} value={stage.promotionMetric} onChange={e => {
+                  <select className="panel-select" value={stage.promotionMetric} onChange={e => {
                     const next = [...config.curriculumStages];
                     next[idx] = { ...stage, promotionMetric: e.target.value };
                     upd({ curriculumStages: next });
@@ -457,7 +455,7 @@ export function RLTrainingDashboard(_props: { workspacePath?: string | null; pro
                 </div>
                 <div style={fieldCol}>
                   <span style={fieldLabel}>Threshold</span>
-                  <input type="number" style={inputStyle} step="0.1" value={stage.promotionThreshold} onChange={e => {
+                  <input type="number" className="panel-input panel-input-full" step="0.1" value={stage.promotionThreshold} onChange={e => {
                     const next = [...config.curriculumStages];
                     next[idx] = { ...stage, promotionThreshold: parseFloat(e.target.value) || 0 };
                     upd({ curriculumStages: next });
@@ -466,7 +464,7 @@ export function RLTrainingDashboard(_props: { workspacePath?: string | null; pro
               </div>
               <div style={fieldCol}>
                 <span style={fieldLabel}>Environment Override (optional YAML)</span>
-                <input style={inputStyle} placeholder='e.g. { difficulty: "hard" }' value={stage.envOverride} onChange={e => {
+                <input className="panel-input panel-input-full" placeholder='e.g. { difficulty: "hard" }' value={stage.envOverride} onChange={e => {
                   const next = [...config.curriculumStages];
                   next[idx] = { ...stage, envOverride: e.target.value };
                   upd({ curriculumStages: next });
@@ -486,7 +484,7 @@ export function RLTrainingDashboard(_props: { workspacePath?: string | null; pro
     <div className="panel-card">
       <div style={fieldCol}>
         <span style={fieldLabel}>Training Run Name</span>
-        <input style={inputStyle} placeholder={`${config.algorithmId.toLowerCase()}-${config.environmentName || "env"}-run`} value={config.runName} onChange={e => upd({ runName: e.target.value })} />
+        <input className="panel-input panel-input-full" placeholder={`${config.algorithmId.toLowerCase()}-${config.environmentName || "env"}-run`} value={config.runName} onChange={e => upd({ runName: e.target.value })} />
       </div>
       <div style={{ marginTop: 12 }}>
         <div style={{ ...fieldLabel, marginBottom: 8 }}>Configuration Summary</div>

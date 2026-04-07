@@ -94,8 +94,9 @@ export function HttpPlayground({ workspacePath }: { workspacePath: string | null
  })();
 
  return (
- <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, padding: "12px", gap: "10px", fontSize: "13px" }}>
- <div style={{ fontWeight: "bold" }}>HTTP Playground</div>
+ <div className="panel-container">
+ <div className="panel-header"><h3>HTTP Playground</h3></div>
+ <div className="panel-body" style={{ gap: "10px", fontSize: "13px" }}>
 
  {/* URL bar */}
  <div style={{ display: "flex", gap: "6px" }}>
@@ -263,10 +264,11 @@ export function HttpPlayground({ workspacePath }: { workspacePath: string | null
  )}
 
  {!response && !loading && (
- <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-secondary)", textAlign: "center" }}>
+ <div className="panel-empty">
  Build a request above and click Send<br />(Ctrl+Enter also works)
  </div>
  )}
+ </div>
  </div>
  );
 }

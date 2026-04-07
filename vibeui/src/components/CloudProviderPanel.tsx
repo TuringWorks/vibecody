@@ -61,8 +61,6 @@ const preStyle: React.CSSProperties = { background: "var(--bg-tertiary)", paddin
 const providerColor: Record<string, string> = { AWS: "var(--warning-color)", GCP: "var(--info-color)", Azure: "var(--accent-primary)" };
 const confidenceColor = (c: number) => c >= 0.9 ? "var(--success-color)" : c >= 0.7 ? "var(--warning-color)" : "var(--error-color)";
 
-const thStyle: React.CSSProperties = { textAlign: "left", padding: "6px 10px", borderBottom: "1px solid var(--border-color)", fontSize: 11, color: "var(--text-secondary)" };
-const tdStyle: React.CSSProperties = { padding: "6px 10px", borderBottom: "1px solid var(--border-color)", fontSize: 12 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -400,32 +398,32 @@ export function CloudProviderPanel() {
                     </div>
                   </div>
                   <div className="panel-card">
-                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <table className="panel-table">
                       <thead>
                         <tr>
-                          <th style={thStyle}>Service</th>
-                          <th style={thStyle}>Provider</th>
-                          <th style={thStyle}>Tier</th>
-                          <th style={{ ...thStyle, textAlign: "right" }}>Monthly</th>
-                          <th style={{ ...thStyle, textAlign: "right" }}>Yearly</th>
+                          <th>Service</th>
+                          <th>Provider</th>
+                          <th>Tier</th>
+                          <th style={{ textAlign: "right" }}>Monthly</th>
+                          <th style={{ textAlign: "right" }}>Yearly</th>
                         </tr>
                       </thead>
                       <tbody>
                         {costResult.services.map((c, i) => (
                           <tr key={i}>
-                            <td style={tdStyle}>{c.service}</td>
-                            <td style={{ ...tdStyle, color: providerColor[c.provider] }}>{c.provider}</td>
-                            <td style={{ ...tdStyle, fontSize: 11, color: "var(--text-secondary)" }}>{c.tier}</td>
-                            <td style={{ ...tdStyle, textAlign: "right" }}>${c.monthly.toFixed(2)}</td>
-                            <td style={{ ...tdStyle, textAlign: "right" }}>${c.yearly.toFixed(2)}</td>
+                            <td>{c.service}</td>
+                            <td style={{ color: providerColor[c.provider] }}>{c.provider}</td>
+                            <td style={{ fontSize: 11, color: "var(--text-secondary)" }}>{c.tier}</td>
+                            <td style={{ textAlign: "right" }}>${c.monthly.toFixed(2)}</td>
+                            <td style={{ textAlign: "right" }}>${c.yearly.toFixed(2)}</td>
                           </tr>
                         ))}
                       </tbody>
                       <tfoot>
                         <tr>
-                          <td colSpan={3} style={{ ...tdStyle, fontWeight: 600 }}>Total</td>
-                          <td style={{ ...tdStyle, textAlign: "right", fontWeight: 600 }}>${costResult.total_monthly_usd.toFixed(2)}</td>
-                          <td style={{ ...tdStyle, textAlign: "right", fontWeight: 600 }}>${costResult.total_yearly_usd.toFixed(2)}</td>
+                          <td colSpan={3} style={{ fontWeight: 600 }}>Total</td>
+                          <td style={{ textAlign: "right", fontWeight: 600 }}>${costResult.total_monthly_usd.toFixed(2)}</td>
+                          <td style={{ textAlign: "right", fontWeight: 600 }}>${costResult.total_yearly_usd.toFixed(2)}</td>
                         </tr>
                       </tfoot>
                     </table>

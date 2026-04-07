@@ -3,7 +3,6 @@ import { invoke } from "@tauri-apps/api/core";
 
 type SubTab = "browse" | "sessions" | "config";
 
-const inputStyle: React.CSSProperties = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", fontSize: 12, fontFamily: "var(--font-mono)", boxSizing: "border-box" as const };
 
 interface BrowseSession {
   id: string;
@@ -62,7 +61,7 @@ export function BrowserAgentPanel() {
   if (error) return <div className="panel-error">Error: {error}</div>;
 
   return (
-    <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 16, fontSize: 13, color: "var(--text-primary)" }}>
+    <div className="panel-container">
       <div className="panel-tab-bar" style={{ padding: "0 16px", flexShrink: 0 }}>
         {(["browse", "sessions", "config"] as const).map(t => (
           <button key={t} onClick={() => setTab(t)} className={`panel-tab ${tab === t ? "active" : ""}`}>
@@ -76,10 +75,10 @@ export function BrowserAgentPanel() {
           <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Browser Agent Task</div>
           <div className="panel-card">
             <label className="panel-label">Target URL</label>
-            <input style={inputStyle} value={url} onChange={e => setUrl(e.target.value)} placeholder="https://example.com" />
+            <input className="panel-input panel-input-full" value={url} onChange={e => setUrl(e.target.value)} placeholder="https://example.com" />
             <div style={{ marginTop: 8 }}>
               <label className="panel-label">Task Description</label>
-              <textarea style={{ ...inputStyle, height: 60, resize: "vertical" as const }} value={task} onChange={e => setTask(e.target.value)} placeholder="Extract all product names and prices from the page..." />
+              <textarea className="panel-input panel-input-full" style={{ height: 60, resize: "vertical" }} value={task} onChange={e => setTask(e.target.value)} placeholder="Extract all product names and prices from the page..." />
             </div>
             <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8 }}>
               <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>

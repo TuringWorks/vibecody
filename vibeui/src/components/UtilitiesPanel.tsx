@@ -501,7 +501,7 @@ export function UtilitiesPanel() {
  const [activeTool, setActiveTool] = useState<ToolId>("jwt");
 
  return (
- <div style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
+ <div className="panel-container" style={{ flexDirection: "row" }}>
  {/* Sidebar */}
  <div style={{
  width: 80, flexShrink: 0, borderRight: "1px solid var(--border-color)",

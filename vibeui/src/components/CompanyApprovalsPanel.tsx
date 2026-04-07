@@ -12,10 +12,6 @@ interface CompanyApprovalsPanelProps {
   workspacePath?: string | null;
 }
 
-const inputStyle: React.CSSProperties = {
-  fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)",
-  border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)",
-};
 
 export function CompanyApprovalsPanel({ workspacePath: _wp }: CompanyApprovalsPanelProps) {
   const [output, setOutput] = useState<string>("");
@@ -82,7 +78,7 @@ export function CompanyApprovalsPanel({ workspacePath: _wp }: CompanyApprovalsPa
   return (
     <div className="panel-container">
       <div className="panel-header" style={{ justifyContent: "space-between" }}>
-        <span>Approvals</span>
+        <h3>Approvals</h3>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <label style={{ fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
             <input type="checkbox" checked={showAll} onChange={(e) => setShowAll(e.target.checked)} />
@@ -94,21 +90,21 @@ export function CompanyApprovalsPanel({ workspacePath: _wp }: CompanyApprovalsPa
           <button onClick={load} className="panel-btn panel-btn-secondary">Refresh</button>
         </div>
       </div>
-      <div className="panel-body" style={{ fontSize: 13 }}>
+      <div className="panel-body">
 
       {/* Request form */}
       {showRequest && (
         <div className="panel-card" style={{ marginBottom: 12 }}>
           <div style={{ fontWeight: 600, marginBottom: 8 }}>New Approval Request</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
-            <select value={reqType} onChange={(e) => setReqType(e.target.value)} style={inputStyle}>
+            <select value={reqType} onChange={(e) => setReqType(e.target.value)} className="panel-select">
               {["hire", "strategy", "budget", "task", "deploy"].map((t) => (
                 <option key={t} value={t}>{t}</option>
               ))}
             </select>
-            <input value={reqSubject} onChange={(e) => setReqSubject(e.target.value)} placeholder="Subject ID *" style={inputStyle} />
-            <input value={reqRequester} onChange={(e) => setReqRequester(e.target.value)} placeholder="Requester" style={inputStyle} />
-            <input value={reqReason} onChange={(e) => setReqReason(e.target.value)} placeholder="Reason" style={inputStyle} />
+            <input value={reqSubject} onChange={(e) => setReqSubject(e.target.value)} placeholder="Subject ID *" className="panel-input" />
+            <input value={reqRequester} onChange={(e) => setReqRequester(e.target.value)} placeholder="Requester" className="panel-input" />
+            <input value={reqReason} onChange={(e) => setReqReason(e.target.value)} placeholder="Reason" className="panel-input" />
           </div>
           <button onClick={requestApproval} disabled={!reqSubject.trim()} className="panel-btn panel-btn-primary" style={{ opacity: reqSubject.trim() ? 1 : 0.5 }}>
             Submit Request
@@ -134,13 +130,15 @@ export function CompanyApprovalsPanel({ workspacePath: _wp }: CompanyApprovalsPa
           value={approvalId}
           onChange={(e) => setApprovalId(e.target.value)}
           placeholder="Approval ID"
-          style={{ ...inputStyle, flex: 2 }}
+          className="panel-input"
+          style={{ flex: 2 }}
         />
         <input
           value={decider}
           onChange={(e) => setDecider(e.target.value)}
           placeholder="Your name"
-          style={{ ...inputStyle, flex: 1 }}
+          className="panel-input"
+          style={{ flex: 1 }}
         />
       </div>
       <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>

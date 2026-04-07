@@ -34,17 +34,6 @@ const ConversationalSearchPanel: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const inputStyle: React.CSSProperties = {
-    padding: "6px 10px",
-    background: "var(--bg-secondary)",
-    color: "var(--text-primary)",
-    border: "1px solid var(--border-color)",
-    borderRadius: "3px",
-    fontFamily: "inherit",
-    fontSize: "inherit",
-    width: "100%",
-    boxSizing: "border-box",
-  };
 
   const loadHistory = useCallback(async () => {
     try {
@@ -129,7 +118,7 @@ const ConversationalSearchPanel: React.FC = () => {
       {activeTab === "search" && (
         <div>
           <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
-            <input style={inputStyle} placeholder="Ask about your codebase..." value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSearch()} />
+            <input className="panel-input panel-input-full" placeholder="Ask about your codebase..." value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSearch()} />
             <button className="panel-btn panel-btn-primary" onClick={handleSearch} disabled={loading}>
               {loading ? "Searching..." : "Search"}
             </button>
@@ -197,20 +186,20 @@ const ConversationalSearchPanel: React.FC = () => {
           <div className="panel-card">
             <div style={{ marginBottom: "10px" }}>
               <label className="panel-label">File Types</label>
-              <input style={inputStyle} value={filters.fileTypes} onChange={(e) => setFilters({ ...filters, fileTypes: e.target.value })} placeholder="*.rs, *.ts, *.tsx" />
+              <input className="panel-input panel-input-full" value={filters.fileTypes} onChange={(e) => setFilters({ ...filters, fileTypes: e.target.value })} placeholder="*.rs, *.ts, *.tsx" />
             </div>
             <div style={{ marginBottom: "10px" }}>
               <label className="panel-label">Paths</label>
-              <input style={inputStyle} value={filters.paths} onChange={(e) => setFilters({ ...filters, paths: e.target.value })} placeholder="src/" />
+              <input className="panel-input panel-input-full" value={filters.paths} onChange={(e) => setFilters({ ...filters, paths: e.target.value })} placeholder="src/" />
             </div>
             <div style={{ display: "flex", gap: "8px" }}>
               <div style={{ flex: 1 }}>
                 <label className="panel-label">Date From</label>
-                <input style={inputStyle} type="date" value={filters.dateFrom} onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })} />
+                <input className="panel-input panel-input-full" type="date" value={filters.dateFrom} onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })} />
               </div>
               <div style={{ flex: 1 }}>
                 <label className="panel-label">Date To</label>
-                <input style={inputStyle} type="date" value={filters.dateTo} onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })} />
+                <input className="panel-input panel-input-full" type="date" value={filters.dateTo} onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })} />
               </div>
             </div>
           </div>

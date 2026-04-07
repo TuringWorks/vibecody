@@ -112,81 +112,67 @@ export function SupabasePanel({ workspacePath, provider }: { workspacePath: stri
  setActiveTab("query");
  };
 
- const s = {
- panel: { display: "flex", flexDirection: "column", flex: 1, minHeight: 0, background: "var(--bg-primary)", color: "var(--text-primary)", fontSize: "13px" } as React.CSSProperties,
- header: { padding: "10px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" } as React.CSSProperties,
- tabs: { display: "flex", gap: 2, borderBottom: "1px solid var(--border-color)", padding: "0 16px", flexShrink: 0 } as React.CSSProperties,
- tab: (active: boolean): React.CSSProperties => ({ padding: "6px 14px", border: "none", cursor: "pointer", fontSize: "12px", background: "none", borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent", color: active ? "var(--text-primary)" : "var(--text-secondary)" }),
- input: { width: "100%", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", color: "var(--text-primary)", padding: "6px 8px", borderRadius: "4px", fontSize: "12px", boxSizing: "border-box" as const } as React.CSSProperties,
- btn: { padding: "6px 12px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "12px" } as React.CSSProperties,
- content: { flex: 1, overflow: "auto", padding: "12px" } as React.CSSProperties,
- table: { borderCollapse: "collapse" as const, width: "100%", fontSize: "12px" } as React.CSSProperties,
- th: { background: "var(--bg-secondary)", padding: "4px 8px", textAlign: "left" as const, borderBottom: "1px solid var(--border-color)" } as React.CSSProperties,
- td: { padding: "4px 8px", borderBottom: "1px solid var(--border-color)" } as React.CSSProperties,
- };
-
  return (
- <div style={s.panel}>
- <div style={s.header}>
- <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
- <span style={{ fontSize: "14px", fontWeight: 600 }}>Supabase</span>
+ <div className="panel-container">
+ <div className="panel-header">
+ <h3>Supabase</h3>
  <span style={{ fontSize: "11px", padding: "2px 6px", borderRadius: "10px", background: connected ? "rgba(76,175,80,0.15)" : "color-mix(in srgb, var(--accent-rose) 15%, transparent)", color: connected ? "var(--success-color)" : "var(--error-color)" }}>
  {connected ? "Connected" : "Disconnected"}
  </span>
  </div>
  {!connected && (
  <div style={{ marginTop: "8px", display: "flex", flexDirection: "column", gap: "6px" }}>
- <input style={s.input} placeholder="Project URL (https://xxx.supabase.co)" value={config.url} onChange={e => setConfig(c => ({ ...c, url: e.target.value }))} />
- <input style={s.input} placeholder="Anon key (public)" type="password" value={config.anon_key} onChange={e => setConfig(c => ({ ...c, anon_key: e.target.value }))} />
- <button style={s.btn} onClick={saveConfig} disabled={loading}>Connect</button>
+ <input className="panel-input panel-input-full" placeholder="Project URL (https://xxx.supabase.co)" value={config.url} onChange={e => setConfig(c => ({ ...c, url: e.target.value }))} />
+ <input className="panel-input panel-input-full" placeholder="Anon key (public)" type="password" value={config.anon_key} onChange={e => setConfig(c => ({ ...c, anon_key: e.target.value }))} />
+ <button className="panel-btn panel-btn-primary" onClick={saveConfig} disabled={loading}>Connect</button>
  </div>
  )}
- </div>
 
- {error && <div style={{ padding: "8px 12px", background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", color: "var(--error-color)", fontSize: "12px" }}>{error}</div>}
+ {error && <div className="panel-error">{error}</div>}
 
  {connected && (
  <>
- <div style={s.tabs}>
+ <div className="panel-tab-bar">
  {(["tables", "query", "ai"] as const).map(t => (
- <button key={t} style={s.tab(activeTab === t)} onClick={() => setActiveTab(t)}>
+ <button key={t} className={`panel-tab ${activeTab === t ? "active" : ""}`} onClick={() => setActiveTab(t)}>
  {t === "tables" ? "Tables" : t === "query" ? "SQL" : "AI Query"}
  </button>
  ))}
  </div>
 
- <div style={s.content}>
+ <div className="panel-body">
  {activeTab === "tables" && (
  <div>
  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
  <span style={{ color: "var(--text-secondary)", fontSize: "11px" }}>{tables.length} table(s)</span>
- <button style={{ ...s.btn, background: "var(--bg-secondary)", color: "var(--text-secondary)" }} onClick={() => fetchTables()}>Refresh</button>
+ <button className="panel-btn panel-btn-secondary" onClick={() => fetchTables()}>Refresh</button>
  </div>
  {tables.map(t => (
- <div key={t.name} role="button" tabIndex={0} onClick={() => selectTable(t.name)} onKeyDown={e => e.key === "Enter" && selectTable(t.name)} style={{ display: "flex", justifyContent: "space-between", padding: "8px 10px", borderRadius: "4px", cursor: "pointer", marginBottom: "2px", background: selectedTable === t.name ? "var(--bg-tertiary)" : "transparent" }}>
+ <div key={t.name} role="button" tabIndex={0} onClick={() => selectTable(t.name)} onKeyDown={e => e.key === "Enter" && selectTable(t.name)} className="panel-card" style={{ display: "flex", justifyContent: "space-between", cursor: "pointer", background: selectedTable === t.name ? "var(--bg-tertiary)" : undefined }}>
  <span> {t.name}</span>
  <span style={{ color: "var(--text-secondary)", fontSize: "11px" }}>{t.row_count.toLocaleString()} rows</span>
  </div>
  ))}
- {tables.length === 0 && <div style={{ color: "var(--text-secondary)", textAlign: "center", marginTop: "20px" }}>No tables found</div>}
+ {tables.length === 0 && <div className="panel-empty">No tables found</div>}
  </div>
  )}
 
  {activeTab === "query" && (
  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
  <textarea
- style={{ ...s.input, height: "120px", resize: "vertical", fontFamily: "var(--font-mono)" }}
+ className="panel-input panel-textarea panel-input-full"
+ style={{ height: "120px", resize: "vertical", fontFamily: "var(--font-mono)" }}
  placeholder="SELECT * FROM users LIMIT 10"
  value={query}
  onChange={e => setQuery(e.target.value)}
  onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) runQuery(); }}
  />
- <button style={s.btn} onClick={runQuery} disabled={loading}>Run (Cmd+Enter)</button>
+ <button className="panel-btn panel-btn-primary" onClick={runQuery} disabled={loading}>Run (Cmd+Enter)</button>
  {queryResult && !queryResult.error && (
  <div style={{ overflow: "auto" }}>
- <table style={s.table}>
- <thead><tr>{queryResult.columns.map(c => <th key={c} style={s.th}>{c}</th>)}</tr></thead>
- <tbody>{queryResult.rows.map((row, i) => <tr key={i}>{row.map((cell, j) => <td key={j} style={s.td}>{cell}</td>)}</tr>)}</tbody>
+ <table className="panel-table">
+ <thead><tr>{queryResult.columns.map(c => <th key={c}>{c}</th>)}</tr></thead>
+ <tbody>{queryResult.rows.map((row, i) => <tr key={i}>{row.map((cell, j) => <td key={j}>{cell}</td>)}</tr>)}</tbody>
  </table>
  <div style={{ marginTop: "6px", color: "var(--text-secondary)", fontSize: "11px" }}>{queryResult.rows.length} row(s)</div>
  </div>
@@ -197,8 +183,8 @@ export function SupabasePanel({ workspacePath, provider }: { workspacePath: stri
  {activeTab === "ai" && (
  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
  <p style={{ color: "var(--text-secondary)", fontSize: "12px", margin: 0 }}>Describe what you want to query in plain English:</p>
- <textarea style={{ ...s.input, height: "80px", resize: "vertical" }} placeholder="Show me all users who signed up in the last 7 days" value={naturalQuery} onChange={e => setNaturalQuery(e.target.value)} />
- <button style={s.btn} onClick={generateQuery} disabled={loading || !naturalQuery.trim()}>Generate SQL</button>
+ <textarea className="panel-input panel-textarea panel-input-full" style={{ height: "80px", resize: "vertical" }} placeholder="Show me all users who signed up in the last 7 days" value={naturalQuery} onChange={e => setNaturalQuery(e.target.value)} />
+ <button className="panel-btn panel-btn-primary" onClick={generateQuery} disabled={loading || !naturalQuery.trim()}>Generate SQL</button>
  <div style={{ marginTop: "8px" }}>
  <p style={{ color: "var(--text-secondary)", fontSize: "11px", margin: "0 0 6px" }}>Quick queries:</p>
  {[
@@ -206,15 +192,15 @@ export function SupabasePanel({ workspacePath, provider }: { workspacePath: stri
  "Show latest 20 records from selected table",
  "Find tables with most rows",
  ].map(q => (
- <div key={q} onClick={() => setNaturalQuery(q)} style={{ padding: "6px 10px", marginBottom: "4px", background: "var(--bg-secondary)", borderRadius: "4px", cursor: "pointer", fontSize: "12px" }}>{q}</div>
+ <div key={q} onClick={() => setNaturalQuery(q)} className="panel-card" style={{ cursor: "pointer" }}>{q}</div>
  ))}
  </div>
  </div>
  )}
  </div>
 
- <div style={{ padding: "8px 12px", borderTop: "1px solid var(--border-color)", display: "flex", gap: "8px" }}>
- <button style={{ ...s.btn, background: "var(--error-color)" }} onClick={() => { setConnected(false); setTables([]); invoke("save_supabase_config", { workspacePath, url: "", anonKey: "" }).catch(() => {}); }}>Disconnect</button>
+ <div className="panel-footer">
+ <button className="panel-btn panel-btn-danger" onClick={() => { setConnected(false); setTables([]); invoke("save_supabase_config", { workspacePath, url: "", anonKey: "" }).catch(() => {}); }}>Disconnect</button>
  </div>
  </>
  )}

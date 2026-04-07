@@ -94,16 +94,6 @@ interface RemoteStatus {
   connectedCount: number;
 }
 
-const tabBtn = (active: boolean): React.CSSProperties => ({
-  padding: "6px 14px",
-  fontSize: 11,
-  fontWeight: active ? 600 : 400,
-  background: active ? "var(--accent-bg)" : "transparent",
-  border: "1px solid " + (active ? "var(--accent-color)" : "var(--border-color)"),
-  borderRadius: 4,
-  color: active ? "var(--text-info)" : "var(--text-secondary)",
-  cursor: "pointer",
-});
 
 const typeIcon: Record<string, string> = { mobile: "phone", tablet: "tablet", desktop: "monitor", web: "globe" };
 
@@ -196,20 +186,20 @@ export default function RemoteControlPanel() {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+    <div className="panel-container">
       {/* Tab bar */}
-      <div style={{ display: "flex", gap: 6, padding: "8px 10px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
+      <div className="panel-header">
         {(["server", "clients", "events"] as Tab[]).map(t => (
-          <button key={t} onClick={() => setTab(t)} style={tabBtn(tab === t)}>
+          <button key={t} onClick={() => setTab(t)} className={`panel-btn ${tab === t ? "panel-btn-primary" : "panel-btn-secondary"}`}>
             {t[0].toUpperCase() + t.slice(1)}
           </button>
         ))}
-        <span style={{ marginLeft: "auto", fontSize: 10, color: serverRunning ? "var(--text-success)" : "var(--text-secondary)", alignSelf: "center" }}>
+        <span style={{ marginLeft: "auto", fontSize: 10, color: serverRunning ? "var(--success-color)" : "var(--text-secondary)", alignSelf: "center" }}>
           {serverRunning ? "Listening" : "Stopped"}
         </span>
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 12 }}>
+      <div className="panel-body" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {/* Server tab */}
         {tab === "server" && (
           <>

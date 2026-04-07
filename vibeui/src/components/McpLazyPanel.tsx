@@ -43,9 +43,6 @@ interface LazyMetrics {
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
-
-
-const inputStyle: React.CSSProperties = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: 12, fontFamily: "var(--font-family)", boxSizing: "border-box" };
 const badgeStyle = (variant: string): React.CSSProperties => ({ display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600, color: "var(--btn-primary-fg)", background: variant === "loaded" ? "var(--success-color)" : variant === "loading" ? "var(--warning-color)" : "var(--text-secondary)" });
 const barBg: React.CSSProperties = { height: 8, borderRadius: 4, background: "var(--bg-tertiary)", overflow: "hidden" };
 const barFill = (pct: number, color: string): React.CSSProperties => ({ height: "100%", width: `${Math.min(pct, 100)}%`, borderRadius: 4, background: color });
@@ -227,7 +224,7 @@ export function McpLazyPanel() {
         {tab === "search" && (
           <div>
             <div style={{ marginBottom: 12 }}>
-              <input style={inputStyle} placeholder="Search tools by name or description..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+              <input className="panel-input panel-input-full" placeholder="Search tools by name or description..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
             </div>
             {searchLoading && <div className="panel-loading">Searching...</div>}
             {searchQuery.trim() === "" && !searchLoading && <div className="panel-empty">Type a query to search across tool manifests.</div>}

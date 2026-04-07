@@ -62,9 +62,9 @@ export function CompanyAdapterPanel({ workspacePath: _wp }: CompanyAdapterPanelP
 
   return (
     <div className="panel-container">
-      <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontWeight: 600, fontSize: 14 }}>Adapter Registry</span>
-        <button onClick={load} className="panel-btn panel-btn-secondary">
+      <div className="panel-header">
+        <h3>Adapter Registry</h3>
+        <button onClick={load} className="panel-btn panel-btn-secondary" style={{ marginLeft: "auto" }}>
           Refresh
         </button>
       </div>
@@ -72,22 +72,22 @@ export function CompanyAdapterPanel({ workspacePath: _wp }: CompanyAdapterPanelP
 
       {/* Register adapter */}
       <div className="panel-card" style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8 }}>Register Adapter</div>
+        <div className="panel-label" style={{ marginBottom: 8 }}>Register Adapter</div>
         <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name"
-            style={{ flex: 1, fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }} />
+            className="panel-input" style={{ flex: 1 }} />
           <select value={adapterType} onChange={(e) => setAdapterType(e.target.value as "http" | "process")}
-            style={{ fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }}>
+            className="panel-select">
             <option value="http">HTTP</option>
             <option value="process">Process</option>
           </select>
         </div>
         {adapterType === "http" ? (
           <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Endpoint URL"
-            style={{ width: "100%", fontSize: 12, padding: "4px 8px", marginBottom: 6, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", boxSizing: "border-box" }} />
+            className="panel-input panel-input-full" style={{ marginBottom: 6 }} />
         ) : (
           <input value={command} onChange={(e) => setCommand(e.target.value)} placeholder="Shell command"
-            style={{ width: "100%", fontSize: 12, padding: "4px 8px", marginBottom: 6, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", boxSizing: "border-box" }} />
+            className="panel-input panel-input-full" style={{ marginBottom: 6 }} />
         )}
         <button onClick={register} className="panel-btn panel-btn-primary">
           Register
@@ -105,7 +105,8 @@ export function CompanyAdapterPanel({ workspacePath: _wp }: CompanyAdapterPanelP
         <input
           id="remove-adapter-input"
           placeholder="Adapter name to remove"
-          style={{ flex: 1, fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }}
+          className="panel-input"
+          style={{ flex: 1 }}
         />
         <button
           onClick={() => {

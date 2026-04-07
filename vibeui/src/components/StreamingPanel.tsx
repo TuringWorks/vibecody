@@ -392,7 +392,7 @@ export function StreamingPanel() {
                   <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>Generated Command</span>
                   <button
                     onClick={() => navigator.clipboard.writeText(generatedCommand)}
-                    style={{ background: "none", border: "1px solid var(--border)", borderRadius: 4, padding: "2px 8px", cursor: "pointer", fontSize: 10, color: "var(--text-secondary)" }}
+                    className="panel-btn panel-btn-secondary panel-btn-xs"
                   >
                     Copy
                   </button>
@@ -441,7 +441,7 @@ export function StreamingPanel() {
                   <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>docker-compose.yml</span>
                   <button
                     onClick={() => navigator.clipboard.writeText(composeYaml)}
-                    style={{ background: "none", border: "1px solid var(--border)", borderRadius: 4, padding: "2px 8px", cursor: "pointer", fontSize: 10, color: "var(--text-secondary)" }}
+                    className="panel-btn panel-btn-secondary panel-btn-xs"
                   >
                     Copy
                   </button>
@@ -485,7 +485,7 @@ export function StreamingPanel() {
                   <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>Connector Configuration</span>
                   <button
                     onClick={() => navigator.clipboard.writeText(connectorJson)}
-                    style={{ background: "none", border: "1px solid var(--border)", borderRadius: 4, padding: "2px 8px", cursor: "pointer", fontSize: 10, color: "var(--text-secondary)" }}
+                    className="panel-btn panel-btn-secondary panel-btn-xs"
                   >
                     Copy
                   </button>

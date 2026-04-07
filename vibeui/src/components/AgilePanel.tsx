@@ -221,16 +221,7 @@ const badgeStyle = (bg: string, fg = "white"): React.CSSProperties => ({
 });
 
 
-const inputStyle: React.CSSProperties = {
-  padding: "6px 10px",
-  borderRadius: "var(--radius-sm)",
-  border: "1px solid var(--border-color)",
-  background: "var(--bg-secondary)",
-  color: "var(--text-primary)",
-  fontSize: 13,
-  width: "100%",
-  boxSizing: "border-box",
-};
+
 
 const sectionTitle: React.CSSProperties = {
   fontSize: 15,
@@ -486,7 +477,7 @@ function BoardTab() {
         </div>
 
         {boardMode === "sprint" && (
-          <select style={{ ...inputStyle, width: "auto", fontSize: 11, padding: "4px 8px" }} value={activeSprint} onChange={e => setActiveSprint(e.target.value)}>
+          <select className="panel-select" style={{ width: "auto", fontSize: 11, padding: "4px 8px" }} value={activeSprint} onChange={e => setActiveSprint(e.target.value)}>
             <option value="">All Sprints</option>
             {sprints.map(s => <option key={s.id} value={s.id}>{s.name} ({s.status})</option>)}
           </select>
@@ -497,7 +488,7 @@ function BoardTab() {
         {/* Swimlane selector */}
         <label style={{ fontSize: 11, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4 }}>
           Swimlanes:
-          <select style={{ ...inputStyle, width: "auto", fontSize: 11, padding: "4px 8px" }} value={swimlane} onChange={e => setSwimlane(e.target.value as SwimlaneMode)}>
+          <select className="panel-select" style={{ width: "auto", fontSize: 11, padding: "4px 8px" }} value={swimlane} onChange={e => setSwimlane(e.target.value as SwimlaneMode)}>
             <option value="none">None</option>
             <option value="assignee">Assignee</option>
             <option value="priority">Priority</option>
@@ -508,17 +499,17 @@ function BoardTab() {
         <div style={{ width: 1, height: 20, background: "var(--border-color)" }} />
 
         {/* Quick filters */}
-        <input style={{ ...inputStyle, width: 140, fontSize: 11, padding: "4px 8px" }} placeholder="Search cards..." value={filterText} onChange={e => setFilterText(e.target.value)} />
-        <select style={{ ...inputStyle, width: "auto", fontSize: 11, padding: "4px 8px" }} value={filterAssignee} onChange={e => setFilterAssignee(e.target.value)}>
+        <input className="panel-input" style={{ width: 140, fontSize: 11, padding: "4px 8px" }} placeholder="Search cards..." value={filterText} onChange={e => setFilterText(e.target.value)} />
+        <select className="panel-select" style={{ width: "auto", fontSize: 11, padding: "4px 8px" }} value={filterAssignee} onChange={e => setFilterAssignee(e.target.value)}>
           <option value="">All Assignees</option>
           {allAssignees.map(a => <option key={a} value={a}>{a}</option>)}
         </select>
-        <select style={{ ...inputStyle, width: "auto", fontSize: 11, padding: "4px 8px" }} value={filterPriority} onChange={e => setFilterPriority(e.target.value as Priority | "")}>
+        <select className="panel-select" style={{ width: "auto", fontSize: 11, padding: "4px 8px" }} value={filterPriority} onChange={e => setFilterPriority(e.target.value as Priority | "")}>
           <option value="">All Priorities</option>
           {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
         </select>
         {allLabels.length > 0 && (
-          <select style={{ ...inputStyle, width: "auto", fontSize: 11, padding: "4px 8px" }} value={filterLabel} onChange={e => setFilterLabel(e.target.value)}>
+          <select className="panel-select" style={{ width: "auto", fontSize: 11, padding: "4px 8px" }} value={filterLabel} onChange={e => setFilterLabel(e.target.value)}>
             <option value="">All Labels</option>
             {allLabels.map(l => <option key={l} value={l}>{l}</option>)}
           </select>
@@ -604,7 +595,7 @@ function BoardTab() {
                   {lane.key === lanes[0].key && (
                     addingTo === col ? (
                       <div style={{ marginTop: 6 }}>
-                        <input style={inputStyle} placeholder="Card title..." value={newTitle} onChange={e => setNewTitle(e.target.value)} onKeyDown={e => e.key === "Enter" && addCard(col)} autoFocus />
+                        <input className="panel-input panel-input-full" placeholder="Card title..." value={newTitle} onChange={e => setNewTitle(e.target.value)} onKeyDown={e => e.key === "Enter" && addCard(col)} autoFocus />
                         <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
                           <button className="panel-btn panel-btn-primary" onClick={() => addCard(col)}>Add</button>
                           <button className="panel-btn panel-btn-secondary" onClick={() => { setAddingTo(null); setNewTitle(""); }}>Cancel</button>
@@ -633,40 +624,40 @@ function BoardTab() {
               </div>
             </div>
             <label style={{ fontSize: 12, color: "var(--text-secondary)" }}>Title</label>
-            <input style={{ ...inputStyle, marginBottom: 8 }} value={editingCard.title} onChange={e => setEditingCard({ ...editingCard, title: e.target.value })} />
+            <input className="panel-input panel-input-full" style={{ marginBottom: 8 }} value={editingCard.title} onChange={e => setEditingCard({ ...editingCard, title: e.target.value })} />
             <label style={{ fontSize: 12, color: "var(--text-secondary)" }}>Description</label>
-            <textarea style={{ ...inputStyle, minHeight: 60, marginBottom: 8, resize: "vertical" }} value={editingCard.description} onChange={e => setEditingCard({ ...editingCard, description: e.target.value })} />
+            <textarea className="panel-input panel-input-full" style={{ minHeight: 60, marginBottom: 8, resize: "vertical" }} value={editingCard.description} onChange={e => setEditingCard({ ...editingCard, description: e.target.value })} />
             <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
               <div style={{ flex: 1 }}>
                 <label style={{ fontSize: 12, color: "var(--text-secondary)" }}>Assignee</label>
-                <input style={inputStyle} value={editingCard.assignee} onChange={e => setEditingCard({ ...editingCard, assignee: e.target.value })} />
+                <input className="panel-input panel-input-full" value={editingCard.assignee} onChange={e => setEditingCard({ ...editingCard, assignee: e.target.value })} />
               </div>
               <div style={{ flex: 1 }}>
                 <label style={{ fontSize: 12, color: "var(--text-secondary)" }}>Priority</label>
-                <select style={inputStyle} value={editingCard.priority} onChange={e => setEditingCard({ ...editingCard, priority: e.target.value as Priority })}>
+                <select className="panel-select" value={editingCard.priority} onChange={e => setEditingCard({ ...editingCard, priority: e.target.value as Priority })}>
                   {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
               </div>
               <div style={{ width: 80 }}>
                 <label style={{ fontSize: 12, color: "var(--text-secondary)" }}>Points</label>
-                <input style={inputStyle} type="number" min={0} value={editingCard.storyPoints} onChange={e => setEditingCard({ ...editingCard, storyPoints: Number(e.target.value) })} />
+                <input className="panel-input panel-input-full" type="number" min={0} value={editingCard.storyPoints} onChange={e => setEditingCard({ ...editingCard, storyPoints: Number(e.target.value) })} />
               </div>
             </div>
             <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
               <div style={{ flex: 1 }}>
                 <label style={{ fontSize: 12, color: "var(--text-secondary)" }}>Epic</label>
-                <input style={inputStyle} placeholder="Epic name" value={editingCard.epic || ""} onChange={e => setEditingCard({ ...editingCard, epic: e.target.value || undefined })} list="epic-suggestions" />
+                <input className="panel-input panel-input-full" placeholder="Epic name" value={editingCard.epic || ""} onChange={e => setEditingCard({ ...editingCard, epic: e.target.value || undefined })} list="epic-suggestions" />
                 <datalist id="epic-suggestions">{allEpics.map(ep => <option key={ep} value={ep} />)}</datalist>
               </div>
               <div style={{ flex: 1 }}>
                 <label style={{ fontSize: 12, color: "var(--text-secondary)" }}>Column</label>
-                <select style={inputStyle} value={editingCard.column} onChange={e => setEditingCard({ ...editingCard, column: e.target.value as Column })}>
+                <select className="panel-select" value={editingCard.column} onChange={e => setEditingCard({ ...editingCard, column: e.target.value as Column })}>
                   {COLUMNS.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
             </div>
             <label style={{ fontSize: 12, color: "var(--text-secondary)" }}>Labels (comma-separated)</label>
-            <input style={{ ...inputStyle, marginBottom: 8 }} value={editingCard.labels.join(", ")} onChange={e => setEditingCard({ ...editingCard, labels: e.target.value.split(",").map(s => s.trim()).filter(Boolean) })} />
+            <input className="panel-input panel-input-full" style={{ marginBottom: 8 }} value={editingCard.labels.join(", ")} onChange={e => setEditingCard({ ...editingCard, labels: e.target.value.split(",").map(s => s.trim()).filter(Boolean) })} />
 
             {/* Acceptance Criteria */}
             <div style={{ marginBottom: 12 }}>
@@ -691,7 +682,7 @@ function BoardTab() {
                   }}>x</button>
                 </div>
               ))}
-              <input style={{ ...inputStyle, fontSize: 12 }} placeholder="Add acceptance criterion..." onKeyDown={e => {
+              <input className="panel-input panel-input-full" style={{ fontSize: 12 }} placeholder="Add acceptance criterion..." onKeyDown={e => {
                 if (e.key === "Enter" && (e.target as HTMLInputElement).value.trim()) {
                   setEditingCard({ ...editingCard, acceptanceCriteria: [...editingCard.acceptanceCriteria, (e.target as HTMLInputElement).value.trim()] });
                   (e.target as HTMLInputElement).value = "";
@@ -824,7 +815,7 @@ function SprintTab() {
 
       {/* Sprint selector */}
       <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12 }}>
-        <select style={{ ...inputStyle, width: "auto" }} value={current?.id || ""} onChange={e => { const s = sprints.find(x => x.id === e.target.value); if (s) setCurrent(s); }}>
+        <select className="panel-select" style={{ width: "auto" }} value={current?.id || ""} onChange={e => { const s = sprints.find(x => x.id === e.target.value); if (s) setCurrent(s); }}>
           <option value="">Select Sprint</option>
           {sprints.map(s => <option key={s.id} value={s.id}>{s.name} ({s.status})</option>)}
         </select>
@@ -838,11 +829,11 @@ function SprintTab() {
         <div style={{ ...cardBaseStyle, marginBottom: 12 }}>
           <h4 style={{ margin: "0 0 8px", color: "var(--text-primary)" }}>New Sprint</h4>
           <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-            <input style={{ ...inputStyle, flex: 2 }} placeholder="Sprint name" value={newSprint.name} onChange={e => setNewSprint({ ...newSprint, name: e.target.value })} />
-            <input style={{ ...inputStyle, flex: 1 }} type="date" value={newSprint.startDate} onChange={e => setNewSprint({ ...newSprint, startDate: e.target.value })} />
-            <input style={{ ...inputStyle, flex: 1 }} type="date" value={newSprint.endDate} onChange={e => setNewSprint({ ...newSprint, endDate: e.target.value })} />
+            <input className="panel-input" style={{ flex: 2 }} placeholder="Sprint name" value={newSprint.name} onChange={e => setNewSprint({ ...newSprint, name: e.target.value })} />
+            <input className="panel-input" style={{ flex: 1 }} type="date" value={newSprint.startDate} onChange={e => setNewSprint({ ...newSprint, startDate: e.target.value })} />
+            <input className="panel-input" style={{ flex: 1 }} type="date" value={newSprint.endDate} onChange={e => setNewSprint({ ...newSprint, endDate: e.target.value })} />
           </div>
-          <input style={{ ...inputStyle, marginBottom: 8 }} placeholder="Sprint goal" value={newSprint.goal} onChange={e => setNewSprint({ ...newSprint, goal: e.target.value })} />
+          <input className="panel-input panel-input-full" style={{ marginBottom: 8 }} placeholder="Sprint goal" value={newSprint.goal} onChange={e => setNewSprint({ ...newSprint, goal: e.target.value })} />
           <div style={{ display: "flex", gap: 8 }}>
             <button className="panel-btn panel-btn-primary" onClick={createSprint}>Create</button>
             <button className="panel-btn panel-btn-secondary" onClick={() => setCreating(false)}>Cancel</button>
@@ -1163,7 +1154,7 @@ function BacklogTab() {
               Describe what you want to build. The AI will analyze your project structure and generate epics, stories, estimates, dependencies, and ordering.
             </div>
             <textarea
-              style={{ ...inputStyle, marginBottom: 8, minHeight: 80, resize: "vertical" }}
+              className="panel-input panel-input-full" style={{ marginBottom: 8, minHeight: 80, resize: "vertical" }}
               placeholder="e.g., Build a user authentication system with OAuth2, email/password login, role-based access control, and password reset flow..."
               value={aiPrompt}
               onChange={e => setAiPrompt(e.target.value)}
@@ -1278,16 +1269,16 @@ function BacklogTab() {
       {showCreate && !showAiGenerate && (
         <div style={{ ...cardBaseStyle, marginBottom: 12 }}>
           <h4 style={{ margin: "0 0 8px", color: "var(--text-primary)" }}>Create Story</h4>
-          <input style={{ ...inputStyle, marginBottom: 6 }} placeholder="Title" value={newStory.title} onChange={e => setNewStory({ ...newStory, title: e.target.value })} />
-          <textarea style={{ ...inputStyle, marginBottom: 6, minHeight: 50, resize: "vertical" }} placeholder="Description" value={newStory.description} onChange={e => setNewStory({ ...newStory, description: e.target.value })} />
+          <input className="panel-input panel-input-full" style={{ marginBottom: 6 }} placeholder="Title" value={newStory.title} onChange={e => setNewStory({ ...newStory, title: e.target.value })} />
+          <textarea className="panel-input panel-input-full" style={{ marginBottom: 6, minHeight: 50, resize: "vertical" }} placeholder="Description" value={newStory.description} onChange={e => setNewStory({ ...newStory, description: e.target.value })} />
           <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
-            <select style={{ ...inputStyle, width: "auto" }} value={newStory.priority} onChange={e => setNewStory({ ...newStory, priority: e.target.value as Priority })}>
+            <select className="panel-select" style={{ width: "auto" }} value={newStory.priority} onChange={e => setNewStory({ ...newStory, priority: e.target.value as Priority })}>
               {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
-            <input style={{ ...inputStyle, width: 80 }} type="number" min={0} placeholder="Points" value={newStory.storyPoints || ""} onChange={e => setNewStory({ ...newStory, storyPoints: Number(e.target.value) })} />
-            <input style={{ ...inputStyle, flex: 1 }} placeholder="Labels (comma-separated)" value={newStory.labels} onChange={e => setNewStory({ ...newStory, labels: e.target.value })} />
+            <input className="panel-input" style={{ width: 80 }} type="number" min={0} placeholder="Points" value={newStory.storyPoints || ""} onChange={e => setNewStory({ ...newStory, storyPoints: Number(e.target.value) })} />
+            <input className="panel-input" style={{ flex: 1 }} placeholder="Labels (comma-separated)" value={newStory.labels} onChange={e => setNewStory({ ...newStory, labels: e.target.value })} />
           </div>
-          <textarea style={{ ...inputStyle, marginBottom: 8, minHeight: 40, resize: "vertical" }} placeholder="Acceptance criteria (one per line)" value={newStory.acceptanceCriteria} onChange={e => setNewStory({ ...newStory, acceptanceCriteria: e.target.value })} />
+          <textarea className="panel-input panel-input-full" style={{ marginBottom: 8, minHeight: 40, resize: "vertical" }} placeholder="Acceptance criteria (one per line)" value={newStory.acceptanceCriteria} onChange={e => setNewStory({ ...newStory, acceptanceCriteria: e.target.value })} />
           <div style={{ display: "flex", gap: 8 }}>
             <button className="panel-btn panel-btn-primary" onClick={createStory}>Create</button>
             <button className="panel-btn panel-btn-secondary" onClick={() => setShowCreate(false)}>Cancel</button>
@@ -1298,12 +1289,12 @@ function BacklogTab() {
       {/* Filters */}
       <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap", alignItems: "center" }}>
         <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>Filter:</span>
-        <select style={{ ...inputStyle, width: "auto" }} value={filterPriority} onChange={e => setFilterPriority(e.target.value as Priority | "")}>
+        <select className="panel-select" style={{ width: "auto" }} value={filterPriority} onChange={e => setFilterPriority(e.target.value as Priority | "")}>
           <option value="">All Priorities</option>
           {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
         </select>
-        <input style={{ ...inputStyle, width: 140 }} placeholder="Label" value={filterLabel} onChange={e => setFilterLabel(e.target.value)} />
-        <input style={{ ...inputStyle, width: 140 }} placeholder="Assignee" value={filterAssignee} onChange={e => setFilterAssignee(e.target.value)} />
+        <input className="panel-input" style={{ width: 140 }} placeholder="Label" value={filterLabel} onChange={e => setFilterLabel(e.target.value)} />
+        <input className="panel-input" style={{ width: 140 }} placeholder="Assignee" value={filterAssignee} onChange={e => setFilterAssignee(e.target.value)} />
         <button className="panel-btn panel-btn-primary" style={{ fontSize: 11, padding: "4px 10px", marginLeft: "auto" }} onClick={async () => {
           const unestimated = items.filter(c => c.storyPoints === 0);
           if (unestimated.length === 0) { setError("All stories already have estimates."); setTimeout(() => setError(""), 3000); return; }
@@ -1339,7 +1330,7 @@ function BacklogTab() {
             </div>
           </div>
           <select
-            style={{ ...inputStyle, width: 60 }}
+            className="panel-input" style={{ width: 60 }}
             value={item.priority}
             onChange={e => updateInline(item.id, "priority", e.target.value)}
             onClick={e => e.stopPropagation()}
@@ -1347,7 +1338,7 @@ function BacklogTab() {
             {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
           </select>
           <input
-            style={{ ...inputStyle, width: 55, textAlign: "center" }}
+            className="panel-input" style={{ width: 55, textAlign: "center" }}
             type="number"
             min={0}
             value={item.storyPoints}
@@ -1465,10 +1456,10 @@ function CeremoniesTab() {
             </div>
           ))}
           <div style={{ ...cardBaseStyle, background: "var(--bg-secondary)" }}>
-            <input style={{ ...inputStyle, marginBottom: 4 }} placeholder="Team member" value={newStandup.member} onChange={e => setNewStandup({ ...newStandup, member: e.target.value })} />
-            <input style={{ ...inputStyle, marginBottom: 4 }} placeholder="What I did yesterday" value={newStandup.didYesterday} onChange={e => setNewStandup({ ...newStandup, didYesterday: e.target.value })} />
-            <input style={{ ...inputStyle, marginBottom: 4 }} placeholder="What I'll do today" value={newStandup.willDoToday} onChange={e => setNewStandup({ ...newStandup, willDoToday: e.target.value })} />
-            <input style={{ ...inputStyle, marginBottom: 6 }} placeholder="Blockers (if any)" value={newStandup.blockers} onChange={e => setNewStandup({ ...newStandup, blockers: e.target.value })} />
+            <input className="panel-input panel-input-full" style={{ marginBottom: 4 }} placeholder="Team member" value={newStandup.member} onChange={e => setNewStandup({ ...newStandup, member: e.target.value })} />
+            <input className="panel-input panel-input-full" style={{ marginBottom: 4 }} placeholder="What I did yesterday" value={newStandup.didYesterday} onChange={e => setNewStandup({ ...newStandup, didYesterday: e.target.value })} />
+            <input className="panel-input panel-input-full" style={{ marginBottom: 4 }} placeholder="What I'll do today" value={newStandup.willDoToday} onChange={e => setNewStandup({ ...newStandup, willDoToday: e.target.value })} />
+            <input className="panel-input panel-input-full" style={{ marginBottom: 6 }} placeholder="Blockers (if any)" value={newStandup.blockers} onChange={e => setNewStandup({ ...newStandup, blockers: e.target.value })} />
             <button className="panel-btn panel-btn-primary" onClick={addStandup}>Add Entry</button>
           </div>
         </div>
@@ -1481,15 +1472,15 @@ function CeremoniesTab() {
           <div style={{ display: "flex", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
             <div>
               <label style={{ fontSize: 12, color: "var(--text-secondary)" }}>Team Members</label>
-              <input style={{ ...inputStyle, width: 80 }} type="number" min={1} value={capacity.members} onChange={e => { const v = { ...capacity, members: Number(e.target.value) }; setCapacity(v); saveCeremony({ capacity: v }); }} />
+              <input className="panel-input" style={{ width: 80 }} type="number" min={1} value={capacity.members} onChange={e => { const v = { ...capacity, members: Number(e.target.value) }; setCapacity(v); saveCeremony({ capacity: v }); }} />
             </div>
             <div>
               <label style={{ fontSize: 12, color: "var(--text-secondary)" }}>Available Days</label>
-              <input style={{ ...inputStyle, width: 80 }} type="number" min={1} value={capacity.days} onChange={e => { const v = { ...capacity, days: Number(e.target.value) }; setCapacity(v); saveCeremony({ capacity: v }); }} />
+              <input className="panel-input" style={{ width: 80 }} type="number" min={1} value={capacity.days} onChange={e => { const v = { ...capacity, days: Number(e.target.value) }; setCapacity(v); saveCeremony({ capacity: v }); }} />
             </div>
             <div>
               <label style={{ fontSize: 12, color: "var(--text-secondary)" }}>Focus Factor</label>
-              <input style={{ ...inputStyle, width: 80 }} type="number" step={0.05} min={0} max={1} value={capacity.focusFactor} onChange={e => { const v = { ...capacity, focusFactor: Number(e.target.value) }; setCapacity(v); saveCeremony({ capacity: v }); }} />
+              <input className="panel-input" style={{ width: 80 }} type="number" step={0.05} min={0} max={1} value={capacity.focusFactor} onChange={e => { const v = { ...capacity, focusFactor: Number(e.target.value) }; setCapacity(v); saveCeremony({ capacity: v }); }} />
             </div>
           </div>
           <div style={{ ...cardBaseStyle, background: "var(--bg-secondary)" }}>
@@ -1514,7 +1505,7 @@ function CeremoniesTab() {
             </div>
           ))}
           <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-            <input style={{ ...inputStyle, flex: 1 }} placeholder="Add demo item..." value={newDemoItem} onChange={e => setNewDemoItem(e.target.value)} onKeyDown={e => e.key === "Enter" && addDemoItem()} />
+            <input className="panel-input" style={{ flex: 1 }} placeholder="Add demo item..." value={newDemoItem} onChange={e => setNewDemoItem(e.target.value)} onKeyDown={e => e.key === "Enter" && addDemoItem()} />
             <button className="panel-btn panel-btn-primary" onClick={addDemoItem}>Add</button>
           </div>
         </div>
@@ -1525,7 +1516,7 @@ function CeremoniesTab() {
         <div>
           <div style={sectionTitle}>Retrospective</div>
           <div style={{ display: "flex", gap: 8, marginBottom: 12, alignItems: "center" }}>
-            <input style={{ ...inputStyle, flex: 1 }} placeholder="Add a card..." value={newRetroText} onChange={e => setNewRetroText(e.target.value)} />
+            <input className="panel-input" style={{ flex: 1 }} placeholder="Add a card..." value={newRetroText} onChange={e => setNewRetroText(e.target.value)} />
             <button className="panel-btn panel-btn-primary" style={{ whiteSpace: "nowrap", fontSize: 12 }} onClick={async () => {
               try {
                 const sprintData = await invoke("agile_get_sprints");
@@ -1933,7 +1924,7 @@ function AiCoachTab() {
       {error && <div style={{ color: "var(--error-color)", marginBottom: 8, fontSize: 12 }}>{error}</div>}
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16, alignItems: "center" }}>
-        <select style={{ ...inputStyle, width: 200 }} value={sprintId} onChange={e => setSprintId(e.target.value)}>
+        <select className="panel-select" style={{ width: 200 }} value={sprintId} onChange={e => setSprintId(e.target.value)}>
           <option value="">Select Sprint...</option>
           {sprints.map(s => <option key={s.id} value={s.id}>{s.name} ({s.status})</option>)}
         </select>
@@ -2147,8 +2138,8 @@ function SAFeTab() {
         <div className="panel-card" style={{ marginBottom: 12 }}>
           <div style={{ fontWeight: 600, marginBottom: 8 }}>Create Program Increment</div>
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            <input style={inputStyle} placeholder="PI name (e.g. PI 24.1)" value={name} onChange={e => setName(e.target.value)} />
-            <label style={{ fontSize: 12 }}>Iterations: <input type="number" min={2} max={12} value={iterations} onChange={e => setIterations(+e.target.value)} style={{ ...inputStyle, width: 60 }} /></label>
+            <input className="panel-input panel-input-full" placeholder="PI name (e.g. PI 24.1)" value={name} onChange={e => setName(e.target.value)} />
+            <label style={{ fontSize: 12 }}>Iterations: <input type="number" min={2} max={12} value={iterations} onChange={e => setIterations(+e.target.value)} className="panel-input" style={{ width: 60 }} /></label>
             <button className="panel-btn panel-btn-secondary" onClick={createPI}>Create PI</button>
           </div>
         </div>
@@ -2175,7 +2166,7 @@ function SAFeTab() {
               </div>
               {showFeatureForm === pi.id && (
                 <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
-                  <input style={{ ...inputStyle, fontSize: 12 }} placeholder="Feature title" value={featureTitle} onChange={e => setFeatureTitle(e.target.value)} onKeyDown={e => e.key === "Enter" && addFeature(pi.id)} autoFocus />
+                  <input className="panel-input panel-input-full" style={{ fontSize: 12 }} placeholder="Feature title" value={featureTitle} onChange={e => setFeatureTitle(e.target.value)} onKeyDown={e => e.key === "Enter" && addFeature(pi.id)} autoFocus />
                   <button className="panel-btn panel-btn-primary" style={{ padding: "2px 10px", fontSize: 11 }} onClick={() => addFeature(pi.id)}>Add</button>
                   <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 10px", fontSize: 11 }} onClick={() => { setShowFeatureForm(null); setFeatureTitle(""); }}>Cancel</button>
                 </div>
@@ -2194,7 +2185,7 @@ function SAFeTab() {
               </div>
               {showObjectiveForm === pi.id && (
                 <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
-                  <input style={{ ...inputStyle, fontSize: 12 }} placeholder="PI Objective description" value={objectiveDesc} onChange={e => setObjectiveDesc(e.target.value)} onKeyDown={e => e.key === "Enter" && addObjective(pi.id)} autoFocus />
+                  <input className="panel-input panel-input-full" style={{ fontSize: 12 }} placeholder="PI Objective description" value={objectiveDesc} onChange={e => setObjectiveDesc(e.target.value)} onKeyDown={e => e.key === "Enter" && addObjective(pi.id)} autoFocus />
                   <button className="panel-btn panel-btn-primary" style={{ padding: "2px 10px", fontSize: 11 }} onClick={() => addObjective(pi.id)}>Add</button>
                   <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 10px", fontSize: 11 }} onClick={() => { setShowObjectiveForm(null); setObjectiveDesc(""); }}>Cancel</button>
                 </div>
@@ -2238,9 +2229,9 @@ function SAFeTab() {
         <div className="panel-card" style={{ marginBottom: 12 }}>
           <div style={{ fontWeight: 600, marginBottom: 8 }}>Add Team to ART</div>
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            <input style={inputStyle} placeholder="Team name" value={teamName} onChange={e => setTeamName(e.target.value)} />
-            <label style={{ fontSize: 12 }}>Capacity: <input type="number" min={10} max={200} value={teamCapacity} onChange={e => setTeamCapacity(+e.target.value)} style={{ ...inputStyle, width: 60 }} /></label>
-            <label style={{ fontSize: 12 }}>Members: <input type="number" min={3} max={15} value={teamMembers} onChange={e => setTeamMembers(+e.target.value)} style={{ ...inputStyle, width: 60 }} /></label>
+            <input className="panel-input panel-input-full" placeholder="Team name" value={teamName} onChange={e => setTeamName(e.target.value)} />
+            <label style={{ fontSize: 12 }}>Capacity: <input type="number" min={10} max={200} value={teamCapacity} onChange={e => setTeamCapacity(+e.target.value)} className="panel-input" style={{ width: 60 }} /></label>
+            <label style={{ fontSize: 12 }}>Members: <input type="number" min={3} max={15} value={teamMembers} onChange={e => setTeamMembers(+e.target.value)} className="panel-input" style={{ width: 60 }} /></label>
             <button className="panel-btn panel-btn-secondary" onClick={addTeam}>Add Team</button>
           </div>
         </div>
@@ -2294,7 +2285,7 @@ function SAFeTab() {
         </div>
         {showEpicForm && (
           <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
-            <input style={{ ...inputStyle, fontSize: 12 }} placeholder="Epic title" value={epicTitle} onChange={e => setEpicTitle(e.target.value)} onKeyDown={e => e.key === "Enter" && addEpic()} autoFocus />
+            <input className="panel-input panel-input-full" style={{ fontSize: 12 }} placeholder="Epic title" value={epicTitle} onChange={e => setEpicTitle(e.target.value)} onKeyDown={e => e.key === "Enter" && addEpic()} autoFocus />
             <button className="panel-btn panel-btn-primary" style={{ padding: "4px 12px", fontSize: 11 }} onClick={addEpic}>Add</button>
             <button className="panel-btn panel-btn-secondary" style={{ padding: "4px 12px", fontSize: 11 }} onClick={() => { setShowEpicForm(false); setEpicTitle(""); }}>Cancel</button>
           </div>

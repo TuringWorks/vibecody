@@ -71,8 +71,8 @@ export function CompanySecretsPanel({ workspacePath: _wp }: CompanySecretsPanelP
   return (
     <div className="panel-container">
       <div className="panel-header">
-        <span style={{ fontWeight: 600, fontSize: 14 }}>Secrets Vault</span>
-        <div style={{ display: "flex", gap: 6 }}>
+        <h3>Secrets Vault</h3>
+        <div style={{ display: "flex", gap: 6, marginLeft: "auto" }}>
           <button onClick={() => { setShowAdd(!showAdd); setCmdResult(null); }} className="panel-btn panel-btn-secondary">
             {showAdd ? "Cancel" : "+ Add Secret"}
           </button>
@@ -86,14 +86,14 @@ export function CompanySecretsPanel({ workspacePath: _wp }: CompanySecretsPanelP
           <div className="panel-card" style={{ marginBottom: 12 }}>
             <div style={{ fontWeight: 600, marginBottom: 8 }}>Add Secret</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <input value={newKey} onChange={(e) => setNewKey(e.target.value)} placeholder="Key name *" autoFocus style={{ width: "100%", boxSizing: "border-box", fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }} />
+              <input value={newKey} onChange={(e) => setNewKey(e.target.value)} placeholder="Key name *" autoFocus className="panel-input panel-input-full" />
               <input
                 value={newValue}
                 onChange={(e) => setNewValue(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && addSecret()}
                 placeholder="Secret value *"
                 type="password"
-                style={{ width: "100%", boxSizing: "border-box", fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }}
+                className="panel-input panel-input-full"
               />
               <button onClick={addSecret} disabled={saving || !newKey.trim() || !newValue.trim()} className="panel-btn panel-btn-primary" style={{ opacity: saving ? 0.6 : 1, alignSelf: "flex-start" }}>
                 {saving ? "Saving…" : "Save Secret"}
@@ -134,14 +134,15 @@ export function CompanySecretsPanel({ workspacePath: _wp }: CompanySecretsPanelP
         {/* Delete */}
         {!isEmpty && (
           <div>
-            <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 6, fontWeight: 600 }}>DELETE SECRET</div>
+            <div className="panel-label" style={{ marginBottom: 6, fontWeight: 600 }}>DELETE SECRET</div>
             <div style={{ display: "flex", gap: 8 }}>
               <input
                 value={deleteKey}
                 onChange={(e) => setDeleteKey(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && deleteSecret(deleteKey)}
                 placeholder="Key name to delete"
-                style={{ flex: 1, fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }}
+                className="panel-input"
+                style={{ flex: 1 }}
               />
               <button
                 onClick={() => deleteSecret(deleteKey)}

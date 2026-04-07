@@ -142,38 +142,23 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
 
  const selected = profiles.find((p) => p.id === selectedId);
 
- const TAB_STYLE = (active: boolean) => ({
- padding: "6px 14px", fontSize: 12, cursor: "pointer",
- background: active ? "transparent" : "transparent",
- color: active ? "var(--text-primary)" : "var(--text-secondary)",
- border: "none", borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent",
- fontWeight: active ? 600 : 400,
- });
-
  return (
- <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+ <div className="panel-container">
  {/* Header */}
- <div style={{
- padding: "10px 12px", borderBottom: "1px solid var(--border-color)",
- background: "var(--bg-secondary)", flexShrink: 0,
- display: "flex", alignItems: "center", gap: 8,
- }}>
- <span style={{ fontSize: 16 }}></span>
- <div>
- <div style={{ fontSize: 13, fontWeight: 600 }}>SSH Remote Manager</div>
+ <div className="panel-header">
+ <h3>SSH Remote Manager</h3>
  <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
  {profiles.length} profile{profiles.length !== 1 ? "s" : ""}
  </div>
  </div>
- </div>
 
  {/* Sub-tabs */}
- <div style={{ display: "flex", gap: 2, borderBottom: "1px solid var(--border-color)", padding: "0 16px", flexShrink: 0 }}>
- <button onClick={() => setTab("profiles")} style={TAB_STYLE(tab === "profiles")}>Profiles</button>
- <button onClick={() => setTab("run")} style={TAB_STYLE(tab === "run")}>Run Command</button>
+ <div className="panel-tab-bar">
+ <button onClick={() => setTab("profiles")} className={`panel-tab ${tab === "profiles" ? "active" : ""}`}>Profiles</button>
+ <button onClick={() => setTab("run")} className={`panel-tab ${tab === "run" ? "active" : ""}`}>Run Command</button>
  </div>
 
- <div style={{ flex: 1, overflow: "auto" }}>
+ <div className="panel-body">
  {error && (
  <div style={{ margin: "8px 12px" }}>
  <StatusMessage variant="error" message={error} inline />
@@ -188,10 +173,7 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  <div style={{ display: "flex", gap: 6 }}>
  <button
  onClick={() => { setEditingProfile({ ...BLANK_PROFILE }); setIsNew(true); }}
- style={{
- padding: "5px 12px", fontSize: 11, background: "var(--accent-color)", color: "var(--text-primary)",
- border: "none", borderRadius: 4, cursor: "pointer",
- }}
+ className="panel-btn panel-btn-primary panel-btn-sm"
  >
  + New Profile
  </button>
@@ -199,13 +181,13 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  <>
  <button
  onClick={() => { setEditingProfile({ ...selected }); setIsNew(false); }}
- style={{ padding: "5px 12px", fontSize: 11, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-secondary)", cursor: "pointer" }}
+ className="panel-btn panel-btn-secondary panel-btn-sm"
  >
  Edit
  </button>
  <button
  onClick={() => deleteProfile(selected.id)}
- style={{ padding: "5px 12px", fontSize: 11, background: "rgba(244, 67, 54, 0.1)", border: "1px solid var(--error-color)", borderRadius: 4, color: "var(--error-color)", cursor: "pointer" }}
+ className="panel-btn panel-btn-danger panel-btn-sm"
  >
  Delete
  </button>
@@ -279,27 +261,13 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  [key]: key === "port" ? parseInt(e.target.value) || 22 : e.target.value || null,
  })}
  placeholder={placeholder}
- style={{
- padding: "5px 8px", fontSize: 11,
- background: "var(--bg-primary)", border: "1px solid var(--border-color)",
- borderRadius: 4, color: "var(--text-primary)", outline: "none",
- }}
+ className="panel-input panel-input-full"
  />
  </div>
  ))}
  <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
- <button
- onClick={saveProfile}
- style={{ padding: "6px 16px", fontSize: 12, background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
- >
- Save
- </button>
- <button
- onClick={() => { setEditingProfile(null); setIsNew(false); }}
- style={{ padding: "6px 12px", fontSize: 12, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-secondary)", cursor: "pointer" }}
- >
- Cancel
- </button>
+ <button onClick={saveProfile} className="panel-btn panel-btn-primary">Save</button>
+ <button onClick={() => { setEditingProfile(null); setIsNew(false); }} className="panel-btn panel-btn-secondary">Cancel</button>
  </div>
  </div>
  )}
@@ -315,11 +283,8 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  <select
  value={selectedId ?? ""}
  onChange={(e) => setSelectedId(e.target.value)}
- style={{
- flex: 1, padding: "5px 8px", fontSize: 12,
- background: "var(--bg-secondary)", border: "1px solid var(--border-color)",
- borderRadius: 4, color: "var(--text-primary)", outline: "none",
- }}
+ className="panel-select"
+ style={{ flex: 1 }}
  >
  <option value="">— Select a profile —</option>
  {profiles.map((p) => (
@@ -360,23 +325,13 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  onKeyDown={(e) => e.key === "Enter" && runCommand()}
  placeholder="Remote command to run…"
  disabled={running}
- style={{
- flex: 1, padding: "6px 10px", fontSize: 12,
- background: "var(--bg-secondary)", border: "1px solid var(--border-color)",
- borderRadius: 4, color: "var(--text-primary)", outline: "none",
- fontFamily: "var(--font-mono)",
- }}
+ className="panel-input"
+ style={{ flex: 1, fontFamily: "var(--font-mono)" }}
  />
  <button
  onClick={runCommand}
  disabled={running || !selectedId || !command.trim()}
- style={{
- padding: "6px 16px", fontSize: 12, fontWeight: 600,
- background: running ? "var(--bg-secondary)" : "var(--accent-color)",
- color: running ? "var(--text-secondary)" : "var(--text-primary)",
- border: "none", borderRadius: 4,
- cursor: running || !selectedId ? "not-allowed" : "pointer",
- }}
+ className={`panel-btn ${running ? "panel-btn-secondary" : "panel-btn-primary"}`}
  >
  {running ? "" : "Run"}
  </button>

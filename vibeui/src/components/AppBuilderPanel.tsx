@@ -95,23 +95,6 @@ interface HistoryEntry {
 const CATEGORIES: TemplateCategory[] = ["All", "Web", "Mobile", "API", "FullStack", "Landing", "Dashboard"];
 
 
-const inputStyle: React.CSSProperties = {
-  padding: "6px 10px",
-  fontSize: 12,
-  border: "1px solid var(--border)",
-  borderRadius: 4,
-  background: "var(--bg-primary)",
-  color: "var(--text-primary)",
-  outline: "none",
-  width: "100%",
-  boxSizing: "border-box",
-};
-
-const selectStyle: React.CSSProperties = {
-  ...inputStyle,
-  width: "auto",
-  minWidth: 140,
-};
 
 
 const tagStyle: React.CSSProperties = {
@@ -452,13 +435,8 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
                 value={ideaText}
                 onChange={(e) => setIdeaText(e.target.value)}
                 placeholder="Describe your app idea in natural language. For example: A task management app with user accounts, project boards, drag-and-drop cards, due dates, and team collaboration..."
-                style={{
-                  ...inputStyle,
-                  minHeight: 120,
-                  resize: "vertical",
-                  fontFamily: "inherit",
-                  lineHeight: 1.5,
-                }}
+                className="panel-input panel-input-full"
+                style={{ minHeight: 120, resize: "vertical", fontFamily: "inherit", lineHeight: 1.5 }}
               />
               <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
                 <button
@@ -596,7 +574,7 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value as TemplateCategory)}
-                style={selectStyle}
+                className="panel-select"
               >
                 {CATEGORIES.map((c) => (
                   <option key={c} value={c}>{c}</option>
@@ -616,19 +594,19 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
                 <div className="panel-label" style={{ marginBottom: 8 }}>Save Current Project as Template</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   <input
-                    style={inputStyle}
+                    className="panel-input panel-input-full"
                     placeholder="Template name"
                     value={newTemplateName}
                     onChange={(e) => setNewTemplateName(e.target.value)}
                   />
                   <input
-                    style={inputStyle}
+                    className="panel-input panel-input-full"
                     placeholder="Description"
                     value={newTemplateDesc}
                     onChange={(e) => setNewTemplateDesc(e.target.value)}
                   />
                   <select
-                    style={selectStyle}
+                    className="panel-select"
                     value={newTemplateCategory}
                     onChange={(e) => setNewTemplateCategory(e.target.value as TemplateCategory)}
                   >
@@ -650,7 +628,7 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
               <div className="panel-card">
                 <div className="panel-label" style={{ marginBottom: 8 }}>Import Template (JSON)</div>
                 <textarea
-                  style={{ ...inputStyle, minHeight: 80, fontFamily: "var(--font-mono)", resize: "vertical" }}
+                  className="panel-input panel-input-full" style={{ minHeight: 80, fontFamily: "var(--font-mono)", resize: "vertical" }}
                   placeholder='Paste template JSON here...'
                   value={importJson}
                   onChange={(e) => setImportJson(e.target.value)}
@@ -737,7 +715,7 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
                     <span style={{ fontSize: 13, color: "var(--text-primary)", fontWeight: 500 }}>Database</span>
                   </label>
                   <select
-                    style={{ ...selectStyle, opacity: provisionConfig.database.enabled ? 1 : 0.5 }}
+                    className="panel-select" style={{ opacity: provisionConfig.database.enabled ? 1 : 0.5 }}
                     disabled={!provisionConfig.database.enabled}
                     value={provisionConfig.database.type}
                     onChange={(e) => setProvisionConfig((p) => ({ ...p, database: { ...p.database, type: e.target.value as ProvisionConfig["database"]["type"] } }))}
@@ -760,7 +738,7 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
                     <span style={{ fontSize: 13, color: "var(--text-primary)", fontWeight: 500 }}>Authentication</span>
                   </label>
                   <select
-                    style={{ ...selectStyle, opacity: provisionConfig.auth.enabled ? 1 : 0.5 }}
+                    className="panel-select" style={{ opacity: provisionConfig.auth.enabled ? 1 : 0.5 }}
                     disabled={!provisionConfig.auth.enabled}
                     value={provisionConfig.auth.provider}
                     onChange={(e) => setProvisionConfig((p) => ({ ...p, auth: { ...p.auth, provider: e.target.value as ProvisionConfig["auth"]["provider"] } }))}
@@ -776,7 +754,7 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
                   <Globe size={16} color="var(--text-secondary)" />
                   <span style={{ fontSize: 13, color: "var(--text-primary)", fontWeight: 500, minWidth: 120, paddingLeft: 22 }}>Hosting</span>
                   <select
-                    style={selectStyle}
+                    className="panel-select"
                     value={provisionConfig.hosting.target}
                     onChange={(e) => setProvisionConfig((p) => ({ ...p, hosting: { ...p.hosting, target: e.target.value as ProvisionConfig["hosting"]["target"] } }))}
                   >
@@ -949,13 +927,13 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
                 {envVars.map((v, i) => (
                   <div key={i} style={{ display: "flex", gap: 6, alignItems: "center" }}>
                     <input
-                      style={{ ...inputStyle, width: "40%", fontFamily: "var(--font-mono)", fontSize: 11 }}
+                      className="panel-input" style={{ width: "40%", fontFamily: "var(--font-mono)", fontSize: 11 }}
                       placeholder="KEY"
                       value={v.key}
                       onChange={(e) => handleUpdateEnvVar(i, "key", e.target.value)}
                     />
                     <input
-                      style={{ ...inputStyle, flex: 1, fontFamily: "var(--font-mono)", fontSize: 11 }}
+                      className="panel-input" style={{ flex: 1, fontFamily: "var(--font-mono)", fontSize: 11 }}
                       placeholder="value"
                       value={v.value}
                       onChange={(e) => handleUpdateEnvVar(i, "value", e.target.value)}

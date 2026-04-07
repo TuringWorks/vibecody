@@ -3,7 +3,6 @@ import { invoke } from "@tauri-apps/api/core";
 
 type SubTab = "setup" | "monitor" | "history" | "safety";
 
-const input: React.CSSProperties = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", fontSize: 12, boxSizing: "border-box" as const };
 
 interface Step {
   num: number;
@@ -86,11 +85,11 @@ export function ObserveActPanel() {
           </p>
           <div className="panel-card">
             <label className="panel-label">Task Description</label>
-            <textarea style={{ ...input, height: 60, resize: "vertical" as const }} value={task} onChange={e => setTask(e.target.value)} placeholder="Log into the admin panel and export the user report as CSV..." />
+            <textarea className="panel-input panel-textarea panel-input-full" style={{ height: 60, resize: "vertical" as const }} value={task} onChange={e => setTask(e.target.value)} placeholder="Log into the admin panel and export the user report as CSV..." />
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 8 }}>
               <div>
                 <label className="panel-label">Safety Mode</label>
-                <select style={input} value={mode} onChange={e => setMode(e.target.value as any)}>
+                <select className="panel-select" style={{ width: "100%" }} value={mode} onChange={e => setMode(e.target.value as any)}>
                   <option value="cautious">Cautious (confirm destructive)</option>
                   <option value="autonomous">Autonomous (full auto)</option>
                   <option value="restricted">Restricted (read-only)</option>
@@ -98,11 +97,11 @@ export function ObserveActPanel() {
               </div>
               <div>
                 <label className="panel-label">Max Steps</label>
-                <input type="number" style={input} value={maxSteps} onChange={e => setMaxSteps(+e.target.value)} min={1} max={200} />
+                <input type="number" className="panel-input panel-input-full" value={maxSteps} onChange={e => setMaxSteps(+e.target.value)} min={1} max={200} />
               </div>
               <div>
                 <label className="panel-label">Interval (ms)</label>
-                <input type="number" style={input} value={interval} onChange={e => setInterval_(+e.target.value)} min={500} max={10000} step={500} />
+                <input type="number" className="panel-input panel-input-full" value={interval} onChange={e => setInterval_(+e.target.value)} min={500} max={10000} step={500} />
               </div>
             </div>
             <div style={{ marginTop: 12, display: "flex", gap: 8 }}>

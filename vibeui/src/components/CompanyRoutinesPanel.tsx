@@ -30,12 +30,6 @@ interface SkillSummary {
   filename: string;
 }
 
-const inputStyle: React.CSSProperties = {
-  fontSize: 12, padding: "4px 8px",
-  background: "var(--bg-primary)",
-  border: "1px solid var(--border-color)", borderRadius: 4,
-  color: "var(--text-primary)",
-};
 
 function deliveryBadgeStyle(mode: Routine['delivery_mode']): React.CSSProperties {
   const color = mode === 'none' ? 'var(--text-secondary)' : mode === 'announce' ? 'var(--accent-blue)' : 'var(--accent-gold)';
@@ -131,8 +125,8 @@ export function CompanyRoutinesPanel({ workspacePath: _wp }: CompanyRoutinesPane
   return (
     <div className="panel-container">
       <div className="panel-header">
-        <span style={{ fontWeight: 600, fontSize: 14 }}>Routines & Heartbeats</span>
-        <button onClick={load} className="panel-btn panel-btn-secondary">
+        <h3>Routines & Heartbeats</h3>
+        <button onClick={load} className="panel-btn panel-btn-secondary" style={{ marginLeft: "auto" }}>
           Refresh
         </button>
       </div>
@@ -140,15 +134,15 @@ export function CompanyRoutinesPanel({ workspacePath: _wp }: CompanyRoutinesPane
       <div className="panel-body">
         {/* Create routine */}
         <div className="panel-card" style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8, fontWeight: 600 }}>Create Routine</div>
+          <div className="panel-label" style={{ marginBottom: 8, fontWeight: 600 }}>Create Routine</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <div style={{ display: "flex", gap: 6 }}>
               <input value={agentId} onChange={(e) => setAgentId(e.target.value)} placeholder="Agent ID"
-                style={{ ...inputStyle, flex: 1 }} />
+                className="panel-input" style={{ flex: 1 }} />
               <input value={routineName} onChange={(e) => setRoutineName(e.target.value)} placeholder="Routine name"
-                style={{ ...inputStyle, flex: 1 }} />
+                className="panel-input" style={{ flex: 1 }} />
               <input value={intervalMin} onChange={(e) => setIntervalMin(e.target.value)} placeholder="Min"
-                type="number" style={{ ...inputStyle, width: 70 }} />
+                type="number" className="panel-input" style={{ width: 70 }} />
             </div>
             {/* Delivery mode */}
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
@@ -156,7 +150,8 @@ export function CompanyRoutinesPanel({ workspacePath: _wp }: CompanyRoutinesPane
               <select
                 value={deliveryMode}
                 onChange={(e) => setDeliveryMode(e.target.value as typeof deliveryMode)}
-                style={{ ...inputStyle, flex: 1 }}
+                className="panel-select"
+                style={{ flex: 1 }}
               >
                 <option value="none">None — {DELIVERY_DESCRIPTIONS.none}</option>
                 <option value="announce">Announce — {DELIVERY_DESCRIPTIONS.announce}</option>
@@ -169,7 +164,8 @@ export function CompanyRoutinesPanel({ workspacePath: _wp }: CompanyRoutinesPane
               <select
                 value={skillName}
                 onChange={(e) => setSkillName(e.target.value)}
-                style={{ ...inputStyle, flex: 1 }}
+                className="panel-select"
+                style={{ flex: 1 }}
               >
                 <option value="">— None (use prompt) —</option>
                 {skills.map((s) => (
@@ -184,7 +180,8 @@ export function CompanyRoutinesPanel({ workspacePath: _wp }: CompanyRoutinesPane
                 onChange={(e) => setPrompt(e.target.value)}
                 placeholder={promptPlaceholder}
                 rows={2}
-                style={{ ...inputStyle, flex: 1, resize: "vertical" }}
+                className="panel-input panel-textarea"
+                style={{ flex: 1 }}
               />
               <button onClick={createRoutine} className="panel-btn panel-btn-primary" style={{ alignSelf: "flex-start" }}>
                 Create
@@ -195,10 +192,10 @@ export function CompanyRoutinesPanel({ workspacePath: _wp }: CompanyRoutinesPane
 
         {/* Manual heartbeat */}
         <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 6 }}>Manual Heartbeat</div>
+          <div className="panel-label" style={{ marginBottom: 6 }}>Manual Heartbeat</div>
           <div style={{ display: "flex", gap: 8 }}>
             <input value={agentId} onChange={(e) => setAgentId(e.target.value)} placeholder="Agent ID"
-              style={{ ...inputStyle, flex: 1 }} />
+              className="panel-input" style={{ flex: 1 }} />
             <button onClick={triggerHeartbeat} className="panel-btn panel-btn-secondary" style={{ display: "inline-flex", alignItems: "center" }}>
               <Heart size={13} strokeWidth={1.5} style={{ marginRight: 4 }} /> Trigger
             </button>
@@ -218,7 +215,7 @@ export function CompanyRoutinesPanel({ workspacePath: _wp }: CompanyRoutinesPane
 
         {/* Routine cards */}
         <div className="panel-card" style={{ padding: 0, overflow: "hidden" }}>
-          <div style={{ fontSize: 12, color: "var(--text-secondary)", padding: "8px 12px", borderBottom: "1px solid var(--border-color)", fontWeight: 600 }}>Active Routines</div>
+          <div className="panel-label" style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", fontWeight: 600 }}>Active Routines</div>
           {loading ? (
             <div className="panel-loading" style={{ padding: 16 }}>Loading…</div>
           ) : routines.length === 0 ? (

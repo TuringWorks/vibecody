@@ -65,12 +65,6 @@ interface SessionConfig {
 }
 
 /* ── Style Helpers ─────────────────────────── */
-const inputStyle: React.CSSProperties = {
-  width: "100%", padding: "6px 10px", borderRadius: 6,
-  border: "1px solid var(--border)", background: "var(--bg-primary)",
-  color: "var(--text-primary)", fontSize: 13, boxSizing: "border-box",
-};
-const selectStyle: React.CSSProperties = { ...inputStyle, cursor: "pointer" };
 const tagStyle = (color: string): React.CSSProperties => ({
   display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 11, fontWeight: 500,
   background: color + "22", color, marginRight: 4,
@@ -250,11 +244,11 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
         <div style={gridStyle(2)}>
           <div>
             <label className="panel-label">Session Name</label>
-            <input style={inputStyle} placeholder="e.g. GPT-small pretraining" value={config.name} onChange={e => updateConfig("name", e.target.value)} />
+            <input className="panel-input panel-input-full" placeholder="e.g. GPT-small pretraining" value={config.name} onChange={e => updateConfig("name", e.target.value)} />
           </div>
           <div>
             <label className="panel-label">Research Domain</label>
-            <select style={selectStyle} value={config.domain} onChange={e => updateConfig("domain", e.target.value as ResearchDomain)}>
+            <select className="panel-select" value={config.domain} onChange={e => updateConfig("domain", e.target.value as ResearchDomain)}>
               <option value="ml_training">ML Training</option>
               <option value="api_performance">API Performance</option>
               <option value="build_optimization">Build Optimization</option>
@@ -272,7 +266,7 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
         <div style={gridStyle(2)}>
           <div>
             <label className="panel-label">Strategy</label>
-            <select style={selectStyle} value={config.strategy} onChange={e => updateConfig("strategy", e.target.value as SearchStrategy)}>
+            <select className="panel-select" value={config.strategy} onChange={e => updateConfig("strategy", e.target.value as SearchStrategy)}>
               <option value="greedy">Greedy (keep/discard each independently)</option>
               <option value="beam_search">Beam Search (top-K candidates)</option>
               <option value="genetic">Genetic (evolutionary population)</option>
@@ -283,29 +277,29 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
           {config.strategy === "beam_search" && (
             <div>
               <label className="panel-label">Beam Width</label>
-              <input style={inputStyle} type="number" min={2} max={20} value={config.beamWidth} onChange={e => updateConfig("beamWidth", +e.target.value)} />
+              <input className="panel-input panel-input-full" type="number" min={2} max={20} value={config.beamWidth} onChange={e => updateConfig("beamWidth", +e.target.value)} />
             </div>
           )}
           {config.strategy === "genetic" && (<>
             <div>
               <label className="panel-label">Population Size</label>
-              <input style={inputStyle} type="number" min={5} max={100} value={config.populationSize} onChange={e => updateConfig("populationSize", +e.target.value)} />
+              <input className="panel-input panel-input-full" type="number" min={5} max={100} value={config.populationSize} onChange={e => updateConfig("populationSize", +e.target.value)} />
             </div>
             <div>
               <label className="panel-label">Mutation Rate</label>
-              <input style={inputStyle} type="number" min={0} max={1} step={0.05} value={config.mutationRate} onChange={e => updateConfig("mutationRate", +e.target.value)} />
+              <input className="panel-input panel-input-full" type="number" min={0} max={1} step={0.05} value={config.mutationRate} onChange={e => updateConfig("mutationRate", +e.target.value)} />
             </div>
           </>)}
           {config.strategy === "combinatorial" && (
             <div>
               <label className="panel-label">Max Combinations</label>
-              <input style={inputStyle} type="number" min={2} max={50} value={config.maxCombinations} onChange={e => updateConfig("maxCombinations", +e.target.value)} />
+              <input className="panel-input panel-input-full" type="number" min={2} max={50} value={config.maxCombinations} onChange={e => updateConfig("maxCombinations", +e.target.value)} />
             </div>
           )}
           {config.strategy === "bayesian" && (
             <div>
               <label className="panel-label">Exploration Weight</label>
-              <input style={inputStyle} type="number" min={0} max={2} step={0.1} value={config.explorationWeight} onChange={e => updateConfig("explorationWeight", +e.target.value)} />
+              <input className="panel-input panel-input-full" type="number" min={0} max={2} step={0.1} value={config.explorationWeight} onChange={e => updateConfig("explorationWeight", +e.target.value)} />
             </div>
           )}
         </div>
@@ -316,33 +310,33 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
         <div style={gridStyle(2)}>
           <div>
             <label className="panel-label">Run Command</label>
-            <input style={inputStyle} placeholder="python train.py" value={config.runCommand} onChange={e => updateConfig("runCommand", e.target.value)} />
+            <input className="panel-input panel-input-full" placeholder="python train.py" value={config.runCommand} onChange={e => updateConfig("runCommand", e.target.value)} />
           </div>
           <div>
             <label className="panel-label">Eval Command (optional)</label>
-            <input style={inputStyle} placeholder="python eval.py" value={config.evalCommand} onChange={e => updateConfig("evalCommand", e.target.value)} />
+            <input className="panel-input panel-input-full" placeholder="python eval.py" value={config.evalCommand} onChange={e => updateConfig("evalCommand", e.target.value)} />
           </div>
           <div>
             <label className="panel-label">Editable Files (comma-separated)</label>
-            <input style={inputStyle} placeholder="train.py, model.py" value={config.editableFiles} onChange={e => updateConfig("editableFiles", e.target.value)} />
+            <input className="panel-input panel-input-full" placeholder="train.py, model.py" value={config.editableFiles} onChange={e => updateConfig("editableFiles", e.target.value)} />
           </div>
           <div>
             <label className="panel-label">Metric Extract Pattern (regex)</label>
-            <input style={{ ...inputStyle, ...monoStyle }} placeholder='val_bpb:\s*([\d.]+)' value={config.metricPattern} onChange={e => updateConfig("metricPattern", e.target.value)} />
+            <input className="panel-input panel-input-full" style={monoStyle} placeholder='val_bpb:\s*([\d.]+)' value={config.metricPattern} onChange={e => updateConfig("metricPattern", e.target.value)} />
           </div>
         </div>
         <div style={{ ...gridStyle(3), marginTop: 12 }}>
           <div>
             <label className="panel-label">Max Experiments</label>
-            <input style={inputStyle} type="number" min={1} value={config.maxExperiments} onChange={e => updateConfig("maxExperiments", +e.target.value)} />
+            <input className="panel-input panel-input-full" type="number" min={1} value={config.maxExperiments} onChange={e => updateConfig("maxExperiments", +e.target.value)} />
           </div>
           <div>
             <label className="panel-label">Timeout (seconds)</label>
-            <input style={inputStyle} type="number" min={30} value={config.timeoutSeconds} onChange={e => updateConfig("timeoutSeconds", +e.target.value)} />
+            <input className="panel-input panel-input-full" type="number" min={30} value={config.timeoutSeconds} onChange={e => updateConfig("timeoutSeconds", +e.target.value)} />
           </div>
           <div>
             <label className="panel-label">Parallel Workers</label>
-            <input style={inputStyle} type="number" min={1} max={8} value={config.parallelWorkers} onChange={e => updateConfig("parallelWorkers", +e.target.value)} />
+            <input className="panel-input panel-input-full" type="number" min={1} max={8} value={config.parallelWorkers} onChange={e => updateConfig("parallelWorkers", +e.target.value)} />
           </div>
         </div>
       </div>

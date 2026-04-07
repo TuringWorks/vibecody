@@ -202,11 +202,11 @@ export function NumberBasePanel() {
  const validBin = binInput === "" || parseBigInt(binInput.replace(/\s/g,""), 2) !== null;
 
  return (
- <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+ <div className="panel-container">
 
  {/* Header */}
- <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
- <span style={{ fontSize: 13, fontWeight: 600 }}>Number Bases</span>
+ <div className="panel-header" style={{ flexWrap: "wrap" }}>
+ <h3>Number Bases</h3>
  {(["convert","bitwise","float32"] as SubTab[]).map(t => (
  <button key={t} onClick={() => setSubTab(t)} style={{ padding: "2px 10px", fontSize: 10, borderRadius: 10, background: subTab === t ? "color-mix(in srgb, var(--accent-blue) 20%, transparent)" : "var(--bg-primary)", border: `1px solid ${subTab === t ? "var(--accent-color)" : "var(--border-color)"}`, color: subTab === t ? "var(--info-color)" : "var(--text-secondary)", cursor: "pointer", fontWeight: subTab === t ? 700 : 400 }}>
  {t === "convert" ? "Convert" : t === "bitwise" ? "Bitwise" : "Float32"}
@@ -224,7 +224,7 @@ export function NumberBasePanel() {
  </div>
  </div>
 
- <div style={{ flex: 1, overflow: "auto", padding: "12px" }}>
+ <div className="panel-body">
 
  {/* ── CONVERT ── */}
  {subTab === "convert" && (

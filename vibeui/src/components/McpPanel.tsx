@@ -303,16 +303,16 @@ export function McpPanel() {
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="panel-container">
-      <div style={{ padding: "16px 16px 0", flexShrink: 0 }}>
-        <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>MCP</h2>
-        <p style={{ fontSize: 11, color: "var(--text-secondary)", margin: "0 0 10px" }}>
+      <div className="panel-header" style={{ flexDirection: "column", alignItems: "flex-start" }}>
+        <h3>MCP</h3>
+        <p style={{ fontSize: 11, color: "var(--text-secondary)", margin: 0 }}>
           Model Context Protocol — servers, tools, and plugins
         </p>
 
         {error && (
           <div className="panel-error" style={{ marginBottom: 8 }}>
             <span>{error}</span>
-            <button style={{ fontSize: 10, marginLeft: 8, padding: "2px 8px", background: "none", border: "none", color: "inherit", cursor: "pointer" }} onClick={() => setError(null)}>Dismiss</button>
+            <button onClick={() => setError(null)}>Dismiss</button>
           </div>
         )}
 

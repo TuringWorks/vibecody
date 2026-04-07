@@ -136,11 +136,6 @@ const TeamGovernancePanel: React.FC = () => {
     padding: "2px 8px", borderRadius: "10px", fontSize: "11px", fontWeight: 600,
     backgroundColor: color, color: "var(--text-primary)", marginLeft: "6px",
   });
-  const input: React.CSSProperties = {
-    padding: "6px 10px", borderRadius: "4px", border: "1px solid var(--border-color)",
-    backgroundColor: "var(--bg-secondary)", color: "var(--text-primary)", width: "100%", boxSizing: "border-box",
-  };
-
   const visibilityColor = (v: string) => v === "Public" ? "var(--success-color)" : v === "Org" ? "var(--info-color)" : v === "TeamOnly" ? "var(--accent-color)" : "var(--text-secondary)";
   const statusColor = (s: string) => s === "Approved" ? "var(--success-color)" : s === "Pending" ? "var(--warning-color)" : s === "Rejected" ? "var(--error-color)" : "var(--text-secondary)";
 
@@ -169,15 +164,15 @@ const TeamGovernancePanel: React.FC = () => {
             <div className="panel-card" style={{ marginBottom: "16px" }}>
               <div style={{ marginBottom: "8px" }}>
                 <label className="panel-label">Plugin Name</label>
-                <input style={input} value={newName} onChange={e => setNewName(e.target.value)} placeholder="e.g. my-plugin" />
+                <input className="panel-input panel-input-full" value={newName} onChange={e => setNewName(e.target.value)} placeholder="e.g. my-plugin" />
               </div>
               <div style={{ marginBottom: "8px" }}>
                 <label className="panel-label">Version</label>
-                <input style={input} value={newVersion} onChange={e => setNewVersion(e.target.value)} placeholder="e.g. 1.0.0" />
+                <input className="panel-input panel-input-full" value={newVersion} onChange={e => setNewVersion(e.target.value)} placeholder="e.g. 1.0.0" />
               </div>
               <div style={{ marginBottom: "8px" }}>
                 <label className="panel-label">Visibility</label>
-                <select style={{ ...input, width: "auto" }} value={newVisibility} onChange={e => setNewVisibility(e.target.value)}>
+                <select className="panel-select" value={newVisibility} onChange={e => setNewVisibility(e.target.value)}>
                   <option value="Private">Private</option>
                   <option value="TeamOnly">TeamOnly</option>
                   <option value="Org">Org</option>
@@ -186,7 +181,7 @@ const TeamGovernancePanel: React.FC = () => {
               </div>
               <div style={{ marginBottom: "8px" }}>
                 <label className="panel-label">Author</label>
-                <input style={input} value={newAuthor} onChange={e => setNewAuthor(e.target.value)} placeholder="e.g. alice" />
+                <input className="panel-input panel-input-full" value={newAuthor} onChange={e => setNewAuthor(e.target.value)} placeholder="e.g. alice" />
               </div>
               <button className="panel-btn panel-btn-primary" disabled={loading || !newName || !newVersion || !newAuthor} onClick={handleSubmitPlugin}>
                 {loading ? "Submitting..." : "Submit for Approval"}
@@ -239,11 +234,11 @@ const TeamGovernancePanel: React.FC = () => {
             </label>
             <div style={{ marginBottom: "12px" }}>
               <label className="panel-label">Allowed Categories</label>
-              <input style={input} value={policies.allowedCategories} onChange={e => setPolicies({ ...policies, allowedCategories: e.target.value })} />
+              <input className="panel-input panel-input-full" value={policies.allowedCategories} onChange={e => setPolicies({ ...policies, allowedCategories: e.target.value })} />
             </div>
             <div style={{ marginBottom: "12px" }}>
               <label className="panel-label">Max Plugin Size (MB)</label>
-              <input style={{ ...input, width: "120px" }} type="number" value={policies.maxSizeMb} onChange={e => setPolicies({ ...policies, maxSizeMb: Number(e.target.value) })} />
+              <input className="panel-input" style={{ width: "120px" }} type="number" value={policies.maxSizeMb} onChange={e => setPolicies({ ...policies, maxSizeMb: Number(e.target.value) })} />
             </div>
             <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <input type="checkbox" checked={policies.requireShaPin} onChange={e => setPolicies({ ...policies, requireShaPin: e.target.checked })} />

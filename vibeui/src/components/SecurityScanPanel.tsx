@@ -336,33 +336,28 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
   );
 
   return (
-    <div style={{ padding: 12, fontSize: 13, flex: 1, minHeight: 0, display: "flex", flexDirection: "column", gap: 10, color: "var(--text-primary)", background: "var(--bg-primary)" }}>
+    <div className="panel-container">
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div>
-          <div style={{ fontWeight: 600, fontSize: 14 }}>Security Scanner</div>
-          <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
-            {lastScanTime ? `Last scan: ${lastScanTime}` : "Static analysis for common vulnerabilities"}
-          </div>
+      <div className="panel-header">
+        <h3>Security Scanner</h3>
+        <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+          {lastScanTime ? `Last scan: ${lastScanTime}` : "Static analysis for common vulnerabilities"}
         </div>
         <button
           onClick={runScan}
           disabled={scanning || !workspacePath}
-          style={{
-            padding: "5px 14px", borderRadius: 5, border: "none",
-            background: scanning ? "var(--bg-tertiary)" : "var(--accent-blue)",
-            color: "var(--text-primary)", cursor: scanning ? "wait" : "pointer",
-            fontWeight: 600, fontSize: 12, flexShrink: 0,
-          }}
+          className={`panel-btn ${scanning ? "panel-btn-secondary" : "panel-btn-primary"}`}
+          style={{ marginLeft: "auto" }}
         >
           {scanning ? "Scanning..." : "Run Scan"}
         </button>
       </div>
 
+      <div className="panel-body">
       {error && (
-        <div style={{ padding: "6px 10px", background: "color-mix(in srgb, var(--accent-rose) 13%, transparent)", color: "var(--error-color)", borderRadius: 5, fontSize: 12, display: "flex", justifyContent: "space-between" }}>
+        <div className="panel-error" style={{ display: "flex", justifyContent: "space-between" }}>
           <span>{error}</span>
-          <button aria-label="Dismiss error" onClick={() => setError(null)} style={{ background: "none", border: "none", color: "var(--error-color)", cursor: "pointer" }}>x</button>
+          <button aria-label="Dismiss error" onClick={() => setError(null)} style={{ background: "none", border: "none", cursor: "pointer" }}>x</button>
         </div>
       )}
 
@@ -427,7 +422,7 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
         ))}
       </div>
 
-      {/* Content area */}
+      {/* Content area - nested scroll within panel-body */}
       <div style={{ flex: 1, overflowY: "auto" }}>
         {/* Findings Tab */}
         {tab === "Findings" && (
@@ -438,10 +433,8 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search findings by title, file, or CWE..."
-                style={{
-                  padding: "5px 8px", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)",
-                  color: "var(--text-primary)", borderRadius: 4, fontSize: 12, marginBottom: 4,
-                }}
+                className="panel-input panel-input-full"
+                style={{ marginBottom: 4 }}
               />
             )}
 
@@ -691,6 +684,7 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
           {activeFindings.length} active issue{activeFindings.length !== 1 ? "s" : ""} — click to expand, file links open in editor
         </div>
       )}
+      </div>
     </div>
   );
 };

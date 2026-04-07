@@ -101,7 +101,7 @@ function HookRow({
  </div>
  <button
  onClick={(e) => { e.stopPropagation(); onDelete(index); }}
- style={{ padding: "2px 6px", fontSize: "11px", background: "none", border: "1px solid var(--border-color)", borderRadius: "3px", color: "var(--error-color)", cursor: "pointer" }}
+ className="panel-btn panel-btn-secondary panel-btn-xs" style={{ color: "var(--error-color)" }}
  >
  ✕
  </button>
@@ -317,15 +317,7 @@ export function HooksPanel({ workspacePath }: HooksPanelProps) {
  </div>
  <button
  onClick={addHook}
- style={{
- fontSize: "11px",
- padding: "4px 10px",
- background: "none",
- border: "1px dashed var(--border-color)",
- borderRadius: "3px",
- color: "var(--text-secondary)",
- cursor: "pointer",
- }}
+ className="panel-btn panel-btn-secondary panel-btn-sm"
  >
  + Add Hook
  </button>

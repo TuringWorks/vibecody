@@ -72,17 +72,6 @@ const TACTICS = [
   "Discovery", "Lateral Movement", "Collection", "C2", "Exfiltration", "Impact",
 ];
 
-const inputStyle: React.CSSProperties = {
-  padding: "6px 10px",
-  background: "var(--bg-tertiary)",
-  color: "var(--text-primary)",
-  border: "1px solid var(--border-color)",
-  borderRadius: 4,
-  fontSize: 13,
-  fontFamily: "inherit",
-  width: "100%",
-  boxSizing: "border-box",
-};
 
 const tableStyle: React.CSSProperties = {
   width: "100%",
@@ -323,7 +312,7 @@ export function PurpleTeamPanel() {
               Describe a threat scenario and the AI will generate a complete purple team exercise with ATT&CK technique mappings, attack steps, and detection expectations.
             </div>
             <textarea
-              style={{ ...inputStyle, height: 80, resize: "vertical" }}
+              className="panel-input panel-textarea panel-input-full" style={{ height: 80, resize: "vertical" }}
               value={aiPrompt}
               onChange={(e) => setAiPrompt(e.target.value)}
               placeholder="e.g., Simulate a ransomware attack targeting healthcare organizations via spear-phishing with macro-enabled documents, followed by lateral movement and data exfiltration before encryption..."
@@ -416,15 +405,15 @@ export function PurpleTeamPanel() {
           <div className="panel-card" style={{ marginBottom: 16 }}>
             <div style={formGroup}>
               <label className="panel-label">Exercise Name</label>
-              <input style={inputStyle} value={exName} onChange={(e) => setExName(e.target.value)} placeholder="e.g. Q1 2026 Ransomware Simulation" />
+              <input className="panel-input panel-input-full" value={exName} onChange={(e) => setExName(e.target.value)} placeholder="e.g. Q1 2026 Ransomware Simulation" />
             </div>
             <div style={formGroup}>
               <label className="panel-label">Lead</label>
-              <input style={inputStyle} value={exLead} onChange={(e) => setExLead(e.target.value)} placeholder="Exercise lead name" />
+              <input className="panel-input panel-input-full" value={exLead} onChange={(e) => setExLead(e.target.value)} placeholder="Exercise lead name" />
             </div>
             <div style={formGroup}>
               <label className="panel-label">Description</label>
-              <textarea style={{ ...inputStyle, height: 60, resize: "vertical" }} value={exDescription} onChange={(e) => setExDescription(e.target.value)} placeholder="Exercise objectives and scope..." />
+              <textarea className="panel-input panel-textarea panel-input-full" style={{ height: 60, resize: "vertical" }} value={exDescription} onChange={(e) => setExDescription(e.target.value)} placeholder="Exercise objectives and scope..." />
             </div>
             <button className="panel-btn panel-btn-primary" onClick={createExercise} disabled={!exName || !exLead}>Create Exercise</button>
           </div>
@@ -557,7 +546,7 @@ export function PurpleTeamPanel() {
 
         <div style={{ marginBottom: 12 }}>
           <label className="panel-label">Filter by Exercise</label>
-          <select style={{ ...inputStyle, width: 300 }} value={selectedExercise} onChange={(e) => setSelectedExercise(e.target.value)}>
+          <select className="panel-select" style={{ width: 300 }} value={selectedExercise} onChange={(e) => setSelectedExercise(e.target.value)}>
             <option value="">All Exercises</option>
             {exercises.map((ex) => (
               <option key={ex.id} value={ex.id}>{ex.name}</option>
@@ -570,7 +559,7 @@ export function PurpleTeamPanel() {
             <div style={{ display: "flex", gap: 10 }}>
               <div style={{ ...formGroup, flex: 1 }}>
                 <label className="panel-label">Exercise</label>
-                <select style={inputStyle} value={simExerciseId} onChange={(e) => setSimExerciseId(e.target.value)}>
+                <select className="panel-select" value={simExerciseId} onChange={(e) => setSimExerciseId(e.target.value)}>
                   <option value="">Select exercise...</option>
                   {exercises.map((ex) => (
                     <option key={ex.id} value={ex.id}>{ex.name}</option>
@@ -579,17 +568,17 @@ export function PurpleTeamPanel() {
               </div>
               <div style={{ ...formGroup, flex: 1 }}>
                 <label className="panel-label">Technique ID</label>
-                <input style={inputStyle} value={simTechniqueId} onChange={(e) => setSimTechniqueId(e.target.value)} placeholder="e.g. T1059.001" />
+                <input className="panel-input panel-input-full" value={simTechniqueId} onChange={(e) => setSimTechniqueId(e.target.value)} placeholder="e.g. T1059.001" />
               </div>
             </div>
             <div style={{ display: "flex", gap: 10 }}>
               <div style={{ ...formGroup, flex: 2 }}>
                 <label className="panel-label">Technique Name</label>
-                <input style={inputStyle} value={simTechniqueName} onChange={(e) => setSimTechniqueName(e.target.value)} placeholder="e.g. PowerShell" />
+                <input className="panel-input panel-input-full" value={simTechniqueName} onChange={(e) => setSimTechniqueName(e.target.value)} placeholder="e.g. PowerShell" />
               </div>
               <div style={{ ...formGroup, flex: 1 }}>
                 <label className="panel-label">Outcome</label>
-                <select style={inputStyle} value={simOutcome} onChange={(e) => setSimOutcome(e.target.value as "Detected" | "Partial" | "Missed")}>
+                <select className="panel-select" value={simOutcome} onChange={(e) => setSimOutcome(e.target.value as "Detected" | "Partial" | "Missed")}>
                   <option value="Detected">Detected</option>
                   <option value="Partial">Partial</option>
                   <option value="Missed">Missed</option>
@@ -599,20 +588,20 @@ export function PurpleTeamPanel() {
             <div style={{ display: "flex", gap: 10 }}>
               <div style={{ ...formGroup, flex: 1 }}>
                 <label className="panel-label">Detection Time (seconds)</label>
-                <input style={inputStyle} type="number" value={simDetectionTime} onChange={(e) => setSimDetectionTime(e.target.value)} placeholder="e.g. 120" />
+                <input className="panel-input panel-input-full" type="number" value={simDetectionTime} onChange={(e) => setSimDetectionTime(e.target.value)} placeholder="e.g. 120" />
               </div>
               <div style={{ ...formGroup, flex: 1 }}>
                 <label className="panel-label">Detection Source</label>
-                <input style={inputStyle} value={simDetectionSource} onChange={(e) => setSimDetectionSource(e.target.value)} placeholder="e.g. CrowdStrike EDR" />
+                <input className="panel-input panel-input-full" value={simDetectionSource} onChange={(e) => setSimDetectionSource(e.target.value)} placeholder="e.g. CrowdStrike EDR" />
               </div>
             </div>
             <div style={formGroup}>
               <label className="panel-label">Steps (one per line)</label>
-              <textarea style={{ ...inputStyle, height: 60, resize: "vertical" }} value={simSteps} onChange={(e) => setSimSteps(e.target.value)} placeholder="Step 1: Execute payload&#10;Step 2: Observe detection" />
+              <textarea className="panel-input panel-textarea panel-input-full" style={{ height: 60, resize: "vertical" }} value={simSteps} onChange={(e) => setSimSteps(e.target.value)} placeholder="Step 1: Execute payload&#10;Step 2: Observe detection" />
             </div>
             <div style={formGroup}>
               <label className="panel-label">Notes</label>
-              <textarea style={{ ...inputStyle, height: 40, resize: "vertical" }} value={simNotes} onChange={(e) => setSimNotes(e.target.value)} />
+              <textarea className="panel-input panel-textarea panel-input-full" style={{ height: 40, resize: "vertical" }} value={simNotes} onChange={(e) => setSimNotes(e.target.value)} />
             </div>
             <button className="panel-btn panel-btn-primary" onClick={recordSimulation} disabled={!simExerciseId || !simTechniqueId}>Record Simulation</button>
           </div>
@@ -697,7 +686,7 @@ export function PurpleTeamPanel() {
           <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
             <div style={{ ...formGroup, flex: 1, marginBottom: 0 }}>
               <label className="panel-label">Exercise</label>
-              <select style={inputStyle} value={reportExerciseId} onChange={(e) => setReportExerciseId(e.target.value)}>
+              <select className="panel-select" value={reportExerciseId} onChange={(e) => setReportExerciseId(e.target.value)}>
                 <option value="">Select exercise...</option>
                 {exercises.map((ex) => (
                   <option key={ex.id} value={ex.id}>{ex.name}</option>
@@ -706,7 +695,7 @@ export function PurpleTeamPanel() {
             </div>
             <div style={{ ...formGroup, flex: 1, marginBottom: 0 }}>
               <label className="panel-label">Compare With (optional)</label>
-              <select style={inputStyle} value={compareExerciseId} onChange={(e) => setCompareExerciseId(e.target.value)}>
+              <select className="panel-select" value={compareExerciseId} onChange={(e) => setCompareExerciseId(e.target.value)}>
                 <option value="">None</option>
                 {exercises.filter((ex) => ex.id !== reportExerciseId).map((ex) => (
                   <option key={ex.id} value={ex.id}>{ex.name}</option>

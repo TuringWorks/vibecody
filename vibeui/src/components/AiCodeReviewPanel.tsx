@@ -38,7 +38,6 @@ interface QualityGateResult {
 }
 
 const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" };
-const inputStyle: React.CSSProperties = { width: "100%", padding: "6px 8px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", fontSize: 12, boxSizing: "border-box" };
 
 const severityColor = (s: string) => {
   switch (s) { case "Critical": case "Security": return "var(--error-color)"; case "Error": return "#ff5722"; case "Warning": return "var(--warning-color)"; default: return "var(--info-color)"; }
@@ -86,7 +85,7 @@ export default function AiCodeReviewPanel() {
         <>
           <div className="panel-card">
             <div className="panel-label">Paste unified diff or code to review</div>
-            <textarea value={diff} onChange={e => setDiff(e.target.value)} rows={10} style={{ ...inputStyle, fontFamily: "monospace", resize: "vertical", marginBottom: 8 }} placeholder="diff --git a/src/main.rs b/src/main.rs..." />
+            <textarea value={diff} onChange={e => setDiff(e.target.value)} rows={10} className="panel-input panel-input-full" style={{ fontFamily: "monospace", resize: "vertical", marginBottom: 8 }} placeholder="diff --git a/src/main.rs b/src/main.rs..." />
             <button className="panel-btn panel-btn-secondary" onClick={doReview} disabled={loading || !diff}>
               {loading ? "Analyzing..." : "Review"}
             </button>

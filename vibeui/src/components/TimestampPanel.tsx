@@ -207,7 +207,7 @@ export function TimestampPanel() {
  const offsets = [-365, -90, -30, -14, -7, -1, 0, 1, 7, 14, 30, 90, 180, 365];
 
  return (
- <div className="panel-container" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+ <div className="panel-container">
 
  {/* Header */}
  <div className="panel-tab-bar" style={{ padding: "8px 12px", alignItems: "center", flexWrap: "wrap" }}>
@@ -222,7 +222,7 @@ export function TimestampPanel() {
  </div>
  </div>
 
- <div style={{ flex: 1, overflow: "auto" }}>
+ <div className="panel-body" style={{ overflow: "auto" }}>
 
  {/* ── CONVERT ── */}
  {subTab === "convert" && (
@@ -231,9 +231,8 @@ export function TimestampPanel() {
  <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
  <input value={tsInput} onChange={e => setTsInput(e.target.value)} placeholder="Unix timestamp or ISO date string…"
  style={{ flex: 1, minWidth: 200, padding: "5px 10px", fontSize: 12, fontFamily: "var(--font-mono)", background: !parsedDate && tsInput ? "color-mix(in srgb, var(--accent-rose) 8%, transparent)" : "var(--bg-primary)", border: `1px solid ${!parsedDate && tsInput ? "var(--text-danger)" : "var(--border-color)"}`, borderRadius: 4, color: "var(--text-primary)", outline: "none" }} />
- <button onClick={setNow} style={{ padding: "4px 12px", fontSize: 11, background: "color-mix(in srgb, var(--accent-blue) 10%, transparent)", border: "1px solid var(--text-info)", borderRadius: 4, color: "var(--text-info)", cursor: "pointer" }}>Now</button>
- <select value={tz} onChange={e => setTz(e.target.value)}
- style={{ padding: "4px 8px", fontSize: 11, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none" }}>
+ <button onClick={setNow} className="panel-btn panel-btn-secondary panel-btn-xs" style={{ color: "var(--text-info)" }}>Now</button>
+ <select value={tz} onChange={e => setTz(e.target.value)} className="panel-select">
  {TIMEZONES.map(z => <option key={z} value={z}>{z}</option>)}
  </select>
  </div>

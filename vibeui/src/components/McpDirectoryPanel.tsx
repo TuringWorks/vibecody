@@ -29,8 +29,6 @@ const CATEGORIES = ["All", "File Systems", "Git", "Databases", "Cloud", "AI/ML",
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const inputStyle: React.CSSProperties = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: 12, fontFamily: "var(--font-family)", boxSizing: "border-box" };
-const selectStyle: React.CSSProperties = { ...inputStyle, width: "auto", cursor: "pointer" };
 
 const renderStars = (rating: number): string => {
   const full = Math.floor(rating);
@@ -289,8 +287,8 @@ export function McpDirectoryPanel() {
       {!loading && tab === "search" && (
         <div>
           <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-            <input style={{ ...inputStyle, flex: 1 }} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search plugins..." />
-            <select style={selectStyle} value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+            <input className="panel-input" style={{ flex: 1 }} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search plugins..." />
+            <select className="panel-select" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
               {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>

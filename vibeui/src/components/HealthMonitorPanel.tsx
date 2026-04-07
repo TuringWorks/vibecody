@@ -168,9 +168,9 @@ export function HealthMonitorPanel() {
  const checkedCount = monitors.filter(m => results[m.id] !== undefined).length;
 
  return (
- <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+ <div className="panel-container">
  {/* Header */}
- <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", flexShrink: 0, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+ <div className="panel-header" style={{ flexWrap: "wrap" }}>
  <span style={{ fontSize: 15 }}></span>
  <div style={{ fontSize: 13, fontWeight: 600, flex: 1 }}>Service Health Monitor</div>
 
@@ -233,12 +233,10 @@ export function HealthMonitorPanel() {
  </div>
  )}
 
- {error && (
- <div style={{ padding: "6px 12px", background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", color: "var(--text-danger)", fontSize: 11, borderBottom: "1px solid var(--border-color)", flexShrink: 0 }}> {error}</div>
- )}
+ {error && <div className="panel-error">{error}</div>}
 
  {/* Monitor list */}
- <div style={{ flex: 1, overflowY: "auto" }}>
+ <div className="panel-body">
  {monitors.length === 0 ? (
  <div style={{ padding: 32, textAlign: "center", color: "var(--text-secondary)", fontSize: 13 }}>
  No monitors configured.<br />Click <b>+ Add</b> to add a service.

@@ -38,28 +38,22 @@ const DashboardPanel: React.FC = () => {
   }, []);
 
   return (
-    <div style={{ padding: 16, fontFamily: "var(--font-mono, monospace)", color: "var(--text-primary)" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <h3 style={{ margin: 0 }}>Project Dashboard</h3>
+    <div className="panel-container">
+      <div className="panel-header">
+        <h3>Project Dashboard</h3>
         <button
           onClick={refresh}
           disabled={loading}
-          style={{
-            padding: "4px 12px",
-            background: "var(--accent-color)",
-            color: "var(--bg-primary)",
-            border: "none",
-            borderRadius: 4,
-            cursor: loading ? "wait" : "pointer",
-            fontSize: 12,
-          }}
+          className="panel-btn panel-btn-primary"
+          style={{ marginLeft: "auto" }}
         >
           {loading ? "Scanning..." : "Refresh"}
         </button>
       </div>
 
+      <div className="panel-body">
       {error && (
-        <div style={{ padding: 8, background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", borderRadius: 4, marginBottom: 12, fontSize: 12, color: "var(--error-color)" }}>
+        <div className="panel-error" style={{ marginBottom: 12 }}>
           {error}
         </div>
       )}
@@ -107,10 +101,11 @@ const DashboardPanel: React.FC = () => {
       )}
 
       {!data && !loading && !error && (
-        <div style={{ color: "var(--text-secondary)", textAlign: "center", padding: 32 }}>
+        <div className="panel-empty">
           Click Refresh to scan the project.
         </div>
       )}
+      </div>
     </div>
   );
 };

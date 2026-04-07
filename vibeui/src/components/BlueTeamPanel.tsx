@@ -99,38 +99,6 @@ const STATUS_COLORS: Record<string, string> = {
   Running: "var(--accent-gold)",
 };
 
-const inputStyle: React.CSSProperties = {
-  padding: "6px 10px",
-  background: "var(--bg-tertiary)",
-  color: "var(--text-primary)",
-  border: "1px solid var(--border-color)",
-  borderRadius: 4,
-  fontSize: 13,
-  fontFamily: "inherit",
-  width: "100%",
-  boxSizing: "border-box",
-};
-
-const tableStyle: React.CSSProperties = {
-  width: "100%",
-  borderCollapse: "collapse",
-  fontSize: 13,
-};
-
-const thStyle: React.CSSProperties = {
-  textAlign: "left",
-  padding: "8px 10px",
-  borderBottom: "1px solid var(--border-color)",
-  color: "var(--text-secondary)",
-  fontWeight: 600,
-  fontSize: 12,
-};
-
-const tdStyle: React.CSSProperties = {
-  padding: "8px 10px",
-  borderBottom: "1px solid var(--border-color)",
-};
-
 const badgeStyle = (color: string): React.CSSProperties => ({
   display: "inline-block",
   padding: "2px 8px",
@@ -409,12 +377,12 @@ export function BlueTeamPanel() {
           <div className="panel-card" style={{ marginBottom: 16 }}>
             <div style={formGroup}>
               <label className="panel-label">Title</label>
-              <input style={inputStyle} value={incTitle} onChange={(e) => setIncTitle(e.target.value)} placeholder="Incident title..." />
+              <input className="panel-input panel-input-full" value={incTitle} onChange={(e) => setIncTitle(e.target.value)} placeholder="Incident title..." />
             </div>
             <div style={{ display: "flex", gap: 10 }}>
               <div style={{ ...formGroup, flex: 1 }}>
                 <label className="panel-label">Severity</label>
-                <select style={inputStyle} value={incSeverity} onChange={(e) => setIncSeverity(e.target.value as "P1" | "P2" | "P3" | "P4")}>
+                <select className="panel-input panel-input-full" value={incSeverity} onChange={(e) => setIncSeverity(e.target.value as "P1" | "P2" | "P3" | "P4")}>
                   <option value="P1">P1 - Critical</option>
                   <option value="P2">P2 - High</option>
                   <option value="P3">P3 - Medium</option>
@@ -423,7 +391,7 @@ export function BlueTeamPanel() {
               </div>
               <div style={{ ...formGroup, flex: 1 }}>
                 <label className="panel-label">Category</label>
-                <select style={inputStyle} value={incCategory} onChange={(e) => setIncCategory(e.target.value)}>
+                <select className="panel-input panel-input-full" value={incCategory} onChange={(e) => setIncCategory(e.target.value)}>
                   {["Malware", "Phishing", "Ransomware", "Data Breach", "DDoS", "Insider Threat", "Unauthorized Access", "Other"].map((c) => (
                     <option key={c} value={c}>{c}</option>
                   ))}
@@ -432,35 +400,35 @@ export function BlueTeamPanel() {
             </div>
             <div style={formGroup}>
               <label className="panel-label">Description</label>
-              <textarea style={{ ...inputStyle, height: 60, resize: "vertical" }} value={incDescription} onChange={(e) => setIncDescription(e.target.value)} placeholder="Describe the incident..." />
+              <textarea className="panel-input panel-input-full" style={{ height: 60, resize: "vertical" }} value={incDescription} onChange={(e) => setIncDescription(e.target.value)} placeholder="Describe the incident..." />
             </div>
             <button className="panel-btn panel-btn-primary" onClick={createIncident} disabled={!incTitle}>Create Incident</button>
           </div>
         )}
 
-        <table style={tableStyle}>
+        <table className="panel-table">
           <thead>
             <tr>
-              <th style={thStyle}>Severity</th>
-              <th style={thStyle}>Status</th>
-              <th style={thStyle}>Title</th>
-              <th style={thStyle}>Category</th>
-              <th style={thStyle}>Assignee</th>
-              <th style={thStyle}>Created</th>
+              <th >Severity</th>
+              <th >Status</th>
+              <th >Title</th>
+              <th >Category</th>
+              <th >Assignee</th>
+              <th >Created</th>
             </tr>
           </thead>
           <tbody>
             {incidents.length === 0 && (
-              <tr><td colSpan={6} style={{ ...tdStyle, textAlign: "center", color: "var(--text-secondary)" }}>No incidents found. Create one to get started.</td></tr>
+              <tr><td colSpan={6} style={{ textAlign: "center", color: "var(--text-secondary)" }}>No incidents found. Create one to get started.</td></tr>
             )}
             {incidents.map((inc) => (
               <tr key={inc.id}>
-                <td style={tdStyle}><span style={badgeStyle(SEVERITY_COLORS[inc.severity] || "var(--text-secondary)")}>{inc.severity}</span></td>
-                <td style={tdStyle}><span style={badgeStyle(STATUS_COLORS[inc.status] || "var(--text-secondary)")}>{inc.status}</span></td>
-                <td style={tdStyle}>{inc.title}</td>
-                <td style={tdStyle}>{inc.category}</td>
-                <td style={tdStyle}>{inc.assignee || "—"}</td>
-                <td style={tdStyle}>{inc.created}</td>
+                <td ><span style={badgeStyle(SEVERITY_COLORS[inc.severity] || "var(--text-secondary)")}>{inc.severity}</span></td>
+                <td ><span style={badgeStyle(STATUS_COLORS[inc.status] || "var(--text-secondary)")}>{inc.status}</span></td>
+                <td >{inc.title}</td>
+                <td >{inc.category}</td>
+                <td >{inc.assignee || "—"}</td>
+                <td >{inc.created}</td>
               </tr>
             ))}
           </tbody>
@@ -480,7 +448,7 @@ export function BlueTeamPanel() {
         </div>
 
         <div style={{ marginBottom: 12, display: "flex", gap: 8 }}>
-          <input style={{ ...inputStyle, flex: 1 }} value={iocSearch} onChange={(e) => setIOCSearch(e.target.value)} placeholder="Search IOCs..." />
+          <input className="panel-input" style={{ flex: 1 }} value={iocSearch} onChange={(e) => setIOCSearch(e.target.value)} placeholder="Search IOCs..." />
           <button className="panel-btn panel-btn-secondary" onClick={loadIOCs}>Search</button>
         </div>
 
@@ -489,7 +457,7 @@ export function BlueTeamPanel() {
             <div style={{ display: "flex", gap: 10 }}>
               <div style={{ ...formGroup, flex: 1 }}>
                 <label className="panel-label">Type</label>
-                <select style={inputStyle} value={iocType} onChange={(e) => setIOCType(e.target.value as "IP" | "Domain" | "Hash" | "URL" | "Email" | "File")}>
+                <select className="panel-input panel-input-full" value={iocType} onChange={(e) => setIOCType(e.target.value as "IP" | "Domain" | "Hash" | "URL" | "Email" | "File")}>
                   {["IP", "Domain", "Hash", "URL", "Email", "File"].map((t) => (
                     <option key={t} value={t}>{t}</option>
                   ))}
@@ -497,7 +465,7 @@ export function BlueTeamPanel() {
               </div>
               <div style={{ ...formGroup, flex: 2 }}>
                 <label className="panel-label">Value</label>
-                <input style={inputStyle} value={iocValue} onChange={(e) => setIOCValue(e.target.value)} placeholder="e.g. 192.168.1.100 or malware.exe" />
+                <input className="panel-input panel-input-full" value={iocValue} onChange={(e) => setIOCValue(e.target.value)} placeholder="e.g. 192.168.1.100 or malware.exe" />
               </div>
             </div>
             <div style={formGroup}>
@@ -508,25 +476,25 @@ export function BlueTeamPanel() {
           </div>
         )}
 
-        <table style={tableStyle}>
+        <table className="panel-table">
           <thead>
             <tr>
-              <th style={thStyle}>Type</th>
-              <th style={thStyle}>Value</th>
-              <th style={thStyle}>Confidence</th>
-              <th style={thStyle}>Source</th>
-              <th style={thStyle}>First Seen</th>
+              <th >Type</th>
+              <th >Value</th>
+              <th >Confidence</th>
+              <th >Source</th>
+              <th >First Seen</th>
             </tr>
           </thead>
           <tbody>
             {iocs.length === 0 && (
-              <tr><td colSpan={5} style={{ ...tdStyle, textAlign: "center", color: "var(--text-secondary)" }}>No IOCs found.</td></tr>
+              <tr><td colSpan={5} style={{ textAlign: "center", color: "var(--text-secondary)" }}>No IOCs found.</td></tr>
             )}
             {iocs.map((ioc) => (
               <tr key={ioc.id}>
-                <td style={tdStyle}><span style={badgeStyle("var(--accent-blue)")}>{ioc.ioc_type}</span></td>
-                <td style={{ ...tdStyle, fontFamily: "inherit", fontSize: 12 }}>{ioc.value}</td>
-                <td style={tdStyle}>
+                <td ><span style={badgeStyle("var(--accent-blue)")}>{ioc.ioc_type}</span></td>
+                <td style={{ fontSize: 12 }}>{ioc.value}</td>
+                <td >
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <div style={{ flex: 1, height: 6, background: "var(--bg-tertiary)", borderRadius: 3, overflow: "hidden" }}>
                       <div style={{ width: `${ioc.confidence}%`, height: "100%", background: ioc.confidence > 75 ? "var(--accent-green)" : ioc.confidence > 40 ? "var(--accent-gold)" : "var(--accent-rose)", borderRadius: 3 }} />
@@ -534,8 +502,8 @@ export function BlueTeamPanel() {
                     <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{ioc.confidence}%</span>
                   </div>
                 </td>
-                <td style={tdStyle}>{ioc.source}</td>
-                <td style={tdStyle}>{ioc.first_seen}</td>
+                <td >{ioc.source}</td>
+                <td >{ioc.first_seen}</td>
               </tr>
             ))}
           </tbody>
@@ -558,12 +526,12 @@ export function BlueTeamPanel() {
           <div className="panel-card" style={{ marginBottom: 16 }}>
             <div style={formGroup}>
               <label className="panel-label">Rule Name</label>
-              <input style={inputStyle} value={ruleName} onChange={(e) => setRuleName(e.target.value)} placeholder="e.g. Suspicious PowerShell Execution" />
+              <input className="panel-input panel-input-full" value={ruleName} onChange={(e) => setRuleName(e.target.value)} placeholder="e.g. Suspicious PowerShell Execution" />
             </div>
             <div style={{ display: "flex", gap: 10 }}>
               <div style={{ ...formGroup, flex: 1 }}>
                 <label className="panel-label">Platform</label>
-                <select style={inputStyle} value={rulePlatform} onChange={(e) => setRulePlatform(e.target.value as "Sigma" | "YARA" | "Snort" | "KQL" | "SPL" | "EQL")}>
+                <select className="panel-input panel-input-full" value={rulePlatform} onChange={(e) => setRulePlatform(e.target.value as "Sigma" | "YARA" | "Snort" | "KQL" | "SPL" | "EQL")}>
                   {["Sigma", "YARA", "Snort", "KQL", "SPL", "EQL"].map((p) => (
                     <option key={p} value={p}>{p}</option>
                   ))}
@@ -571,12 +539,12 @@ export function BlueTeamPanel() {
               </div>
               <div style={{ ...formGroup, flex: 1 }}>
                 <label className="panel-label">MITRE ATT&CK IDs (comma-separated)</label>
-                <input style={inputStyle} value={ruleMitre} onChange={(e) => setRuleMitre(e.target.value)} placeholder="T1059.001, T1027" />
+                <input className="panel-input panel-input-full" value={ruleMitre} onChange={(e) => setRuleMitre(e.target.value)} placeholder="T1059.001, T1027" />
               </div>
             </div>
             <div style={formGroup}>
               <label className="panel-label">Detection Query</label>
-              <textarea style={{ ...inputStyle, height: 80, resize: "vertical" }} value={ruleQuery} onChange={(e) => setRuleQuery(e.target.value)} placeholder="Enter detection query..." />
+              <textarea className="panel-input panel-input-full" style={{ height: 80, resize: "vertical" }} value={ruleQuery} onChange={(e) => setRuleQuery(e.target.value)} placeholder="Enter detection query..." />
             </div>
             <button className="panel-btn panel-btn-primary" onClick={createRule} disabled={!ruleName}>Create Rule</button>
           </div>
@@ -612,26 +580,26 @@ export function BlueTeamPanel() {
       <div>
         <h3 style={{ margin: "0 0 14px", fontSize: 15 }}>Forensic Cases</h3>
         {cases.length === 0 && <p style={{ color: "var(--text-secondary)", textAlign: "center" }}>No forensic cases. Cases are created from incident investigations.</p>}
-        <table style={tableStyle}>
+        <table className="panel-table">
           <thead>
             <tr>
-              <th style={thStyle}>Case ID</th>
-              <th style={thStyle}>Linked Incident</th>
-              <th style={thStyle}>Status</th>
-              <th style={thStyle}>Artifacts</th>
-              <th style={thStyle}>Findings</th>
-              <th style={thStyle}>Created</th>
+              <th >Case ID</th>
+              <th >Linked Incident</th>
+              <th >Status</th>
+              <th >Artifacts</th>
+              <th >Findings</th>
+              <th >Created</th>
             </tr>
           </thead>
           <tbody>
             {cases.map((c) => (
               <tr key={c.id}>
-                <td style={{ ...tdStyle, fontFamily: "inherit", fontSize: 11 }}>{c.id.slice(0, 8)}</td>
-                <td style={tdStyle}>{c.incident_title}</td>
-                <td style={tdStyle}><span style={badgeStyle(STATUS_COLORS[c.status] || "var(--text-secondary)")}>{c.status}</span></td>
-                <td style={tdStyle}>{c.artifact_count}</td>
-                <td style={tdStyle}>{c.finding_count}</td>
-                <td style={tdStyle}>{c.created}</td>
+                <td style={{ fontSize: 11 }}>{c.id.slice(0, 8)}</td>
+                <td >{c.incident_title}</td>
+                <td ><span style={badgeStyle(STATUS_COLORS[c.status] || "var(--text-secondary)")}>{c.status}</span></td>
+                <td >{c.artifact_count}</td>
+                <td >{c.finding_count}</td>
+                <td >{c.created}</td>
               </tr>
             ))}
           </tbody>
@@ -655,7 +623,7 @@ export function BlueTeamPanel() {
             <div style={{ display: "flex", gap: 10 }}>
               <div style={{ ...formGroup, flex: 1 }}>
                 <label className="panel-label">Platform</label>
-                <select style={inputStyle} value={siemPlatform} onChange={(e) => setSiemPlatform(e.target.value)}>
+                <select className="panel-input panel-input-full" value={siemPlatform} onChange={(e) => setSiemPlatform(e.target.value)}>
                   {["Splunk", "Elastic SIEM", "Microsoft Sentinel", "QRadar", "Chronicle", "Sumo Logic", "Wazuh", "Graylog"].map((p) => (
                     <option key={p} value={p}>{p}</option>
                   ))}
@@ -663,7 +631,7 @@ export function BlueTeamPanel() {
               </div>
               <div style={{ ...formGroup, flex: 2 }}>
                 <label className="panel-label">Endpoint URL</label>
-                <input style={inputStyle} value={siemEndpoint} onChange={(e) => setSiemEndpoint(e.target.value)} placeholder="https://siem.example.com:8089" />
+                <input className="panel-input panel-input-full" value={siemEndpoint} onChange={(e) => setSiemEndpoint(e.target.value)} placeholder="https://siem.example.com:8089" />
               </div>
             </div>
             <button className="panel-btn panel-btn-primary" onClick={addSIEM} disabled={!siemEndpoint}>Connect</button>
@@ -748,15 +716,15 @@ export function BlueTeamPanel() {
           <div className="panel-card" style={{ marginBottom: 16 }}>
             <div style={formGroup}>
               <label className="panel-label">Hypothesis</label>
-              <textarea style={{ ...inputStyle, height: 50, resize: "vertical" }} value={huntHypothesis} onChange={(e) => setHuntHypothesis(e.target.value)} placeholder="e.g. An attacker is using living-off-the-land binaries for lateral movement..." />
+              <textarea className="panel-input panel-input-full" style={{ height: 50, resize: "vertical" }} value={huntHypothesis} onChange={(e) => setHuntHypothesis(e.target.value)} placeholder="e.g. An attacker is using living-off-the-land binaries for lateral movement..." />
             </div>
             <div style={formGroup}>
               <label className="panel-label">Data Sources (comma-separated)</label>
-              <input style={inputStyle} value={huntSources} onChange={(e) => setHuntSources(e.target.value)} placeholder="e.g. EDR, Firewall Logs, DNS Logs" />
+              <input className="panel-input panel-input-full" value={huntSources} onChange={(e) => setHuntSources(e.target.value)} placeholder="e.g. EDR, Firewall Logs, DNS Logs" />
             </div>
             <div style={formGroup}>
               <label className="panel-label">Hunting Query</label>
-              <textarea style={{ ...inputStyle, height: 80, resize: "vertical", fontFamily: "inherit" }} value={huntQuery} onChange={(e) => setHuntQuery(e.target.value)} placeholder="Enter hunting query..." />
+              <textarea className="panel-input panel-input-full" style={{ height: 80, resize: "vertical" }} value={huntQuery} onChange={(e) => setHuntQuery(e.target.value)} placeholder="Enter hunting query..." />
             </div>
             <button className="panel-btn panel-btn-primary" onClick={createHunt} disabled={!huntHypothesis}>Create Hunt</button>
           </div>

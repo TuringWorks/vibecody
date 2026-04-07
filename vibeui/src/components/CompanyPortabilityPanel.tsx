@@ -44,11 +44,11 @@ export function CompanyPortabilityPanel({ workspacePath: _wp }: CompanyPortabili
 
   return (
     <div className="panel-container">
-      <div className="panel-header">Company Portability</div>
+      <div className="panel-header"><h3>Company Portability</h3></div>
       <div className="panel-body">
 
       <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8 }}>
+        <div className="panel-label" style={{ marginBottom: 8 }}>
           Export Company Blueprint
         </div>
         <p style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 10, lineHeight: 1.5 }}>
@@ -60,25 +60,21 @@ export function CompanyPortabilityPanel({ workspacePath: _wp }: CompanyPortabili
         </button>
         {exportOutput && (
           <div style={{ marginTop: 12 }}>
-            <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>
+            <div className="panel-label" style={{ marginBottom: 4 }}>
               Export output (copy to save as .json file):
             </div>
             <textarea
               readOnly
               value={exportOutput}
-              style={{
-                width: "100%", height: 200, fontSize: 11, padding: 8,
-                background: "var(--panel-bg, rgba(0,0,0,0.2))",
-                border: "1px solid var(--border-color)", borderRadius: 4,
-                color: "var(--text-primary)", resize: "vertical", boxSizing: "border-box",
-              }}
+              className="panel-input panel-textarea panel-input-full"
+              style={{ height: 200 }}
             />
           </div>
         )}
       </div>
 
       <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16 }}>
-        <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8 }}>
+        <div className="panel-label" style={{ marginBottom: 8 }}>
           Import Company Blueprint
         </div>
         <p style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 10, lineHeight: 1.5 }}>
@@ -89,7 +85,8 @@ export function CompanyPortabilityPanel({ workspacePath: _wp }: CompanyPortabili
             value={importPath}
             onChange={(e) => setImportPath(e.target.value)}
             placeholder="/path/to/company-export.json"
-            style={{ flex: 1, fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }}
+            className="panel-input"
+            style={{ flex: 1 }}
           />
           <button onClick={runImport} disabled={loading} className="panel-btn panel-btn-secondary">
             Import

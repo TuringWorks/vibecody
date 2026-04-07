@@ -199,13 +199,10 @@ export default function KnowledgeGraphPanel() {
  };
 
  return (
-   <div style={{ padding: 16, color: "var(--text-primary)", background: "var(--bg-primary)", minHeight: "100%" }}>
-     <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-       <h2 style={{ margin: 0, fontSize: 18 }}>Knowledge Graph</h2>
-       <button onClick={handleRefresh} disabled={loading} style={{
-         padding: "4px 10px", background: "var(--accent-color)", color: "var(--text-primary)",
-         border: "none", borderRadius: 4, cursor: loading ? "wait" : "pointer", opacity: loading ? 0.6 : 1,
-       }}>
+   <div className="panel-container">
+     <div className="panel-header">
+       <h3>Knowledge Graph</h3>
+       <button onClick={handleRefresh} disabled={loading} className="panel-btn panel-btn-primary" style={{ opacity: loading ? 0.6 : 1 }}>
          {loading ? "Scanning..." : "Refresh"}
        </button>
        <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
@@ -213,12 +210,9 @@ export default function KnowledgeGraphPanel() {
        </span>
      </div>
 
-     {error && (
-       <div style={{ padding: 8, marginBottom: 12, background: "var(--error-bg)", border: "1px solid var(--error-color)", borderRadius: 6, fontSize: 12, color: "var(--error-color)" }}>
-         {error}
-       </div>
-     )}
+     {error && <div className="panel-error">{error}</div>}
 
+     <div className="panel-body">
      {/* Workspace Path */}
      <div style={{ marginBottom: 12, display: "flex", gap: 6, alignItems: "center" }}>
        <label style={{ fontSize: 12 }}>Workspace:</label>
@@ -463,6 +457,7 @@ export default function KnowledgeGraphPanel() {
          </button>
        </div>
      )}
+     </div>
    </div>
  );
 }

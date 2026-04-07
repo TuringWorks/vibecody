@@ -2831,9 +2831,9 @@ export function SettingsPanel({ onClose }: { onClose?: () => void }) {
   const [section, setSection] = useState<SettingsSection>("profile");
 
   return (
-    <div style={{
-      display: "flex", flex: 1, minHeight: 0, background: "var(--bg-primary)", color: "var(--text-primary)",
-      borderRadius: "var(--radius-lg)", overflow: "hidden", border: "1px solid var(--border-color)",
+    <div className="panel-container" style={{
+      flexDirection: "row",
+      borderRadius: "var(--radius-lg)", border: "1px solid var(--border-color)",
       boxShadow: "var(--elevation-3)",
     }}>
       {/* Sidebar nav */}

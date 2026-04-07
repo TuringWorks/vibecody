@@ -118,7 +118,7 @@ export function BugBotPanel({ workspacePath, provider, onOpenFile }: BugBotPanel
  <select
  value={scanScope}
  onChange={(e) => setScanScope(e.target.value)}
- style={selectStyle}
+ className="panel-select"
  >
  <option value="workspace">Entire Workspace</option>
  <option value="file">Specific File</option>
@@ -140,13 +140,14 @@ export function BugBotPanel({ workspacePath, provider, onOpenFile }: BugBotPanel
  placeholder="Path relative to workspace, e.g. src/main.rs"
  value={customFile}
  onChange={(e) => setCustomFile(e.target.value)}
- style={{ ...selectStyle, flex: 1 }}
+ className="panel-input panel-input-full"
+ style={{ flex: 1 }}
  />
  )}
  </div>
 
  {error && (
- <div style={{ background: "color-mix(in srgb, var(--accent-rose) 13%, transparent)", color: "var(--error-color)", borderRadius: 5, padding: "6px 10px", fontSize: 12 }}>
+ <div className="panel-error">
  {error}
  </div>
  )}
@@ -309,11 +310,3 @@ export function BugBotPanel({ workspacePath, provider, onOpenFile }: BugBotPanel
  );
 }
 
-const selectStyle: React.CSSProperties = {
- padding: "4px 8px",
- borderRadius: 4,
- border: "1px solid var(--border-color)",
- background: "var(--bg-tertiary)",
- color: "var(--text-primary)",
- fontSize: 12,
-};

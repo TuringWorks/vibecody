@@ -102,7 +102,7 @@ export function CIReviewPanel() {
                 value={config.app_id || ""}
                 onChange={(e) => setConfig({ ...config, app_id: parseInt(e.target.value) || 0 })}
                 placeholder="12345"
-                style={inputStyle}
+                className="panel-input panel-input-full"
               />
             </div>
 
@@ -112,7 +112,7 @@ export function CIReviewPanel() {
                 value={config.private_key_path || ""}
                 onChange={(e) => setConfig({ ...config, private_key_path: e.target.value || null })}
                 placeholder="/path/to/private-key.pem"
-                style={inputStyle}
+                className="panel-input panel-input-full"
               />
             </div>
 
@@ -123,7 +123,7 @@ export function CIReviewPanel() {
                 value={config.webhook_secret || ""}
                 onChange={(e) => setConfig({ ...config, webhook_secret: e.target.value || null })}
                 placeholder="your-webhook-secret"
-                style={inputStyle}
+                className="panel-input panel-input-full"
               />
             </div>
 
@@ -132,7 +132,7 @@ export function CIReviewPanel() {
               <select
                 value={config.severity_threshold}
                 onChange={(e) => setConfig({ ...config, severity_threshold: e.target.value })}
-                style={inputStyle}
+                className="panel-input panel-input-full"
               >
                 <option value="critical">Critical only</option>
                 <option value="high">High + Critical</option>
@@ -265,9 +265,3 @@ export function CIReviewPanel() {
   );
 }
 
-const inputStyle: React.CSSProperties = {
-  padding: "5px 8px", fontSize: 11, borderRadius: 4, width: "100%", boxSizing: "border-box" as const,
-  border: "1px solid var(--border-color)",
-  background: "var(--bg-primary)", color: "var(--text-primary)",
-  outline: "none",
-};

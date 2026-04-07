@@ -118,14 +118,14 @@ export function LoadTestPanel() {
  const successRate = result ? Math.round((result.success / result.total_requests) * 100) : null;
 
  return (
- <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+ <div className="panel-container">
  {/* Header */}
- <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", flexShrink: 0, display: "flex", alignItems: "center", gap: 8 }}>
+ <div className="panel-header">
  <span style={{ fontSize: 16 }}></span>
- <div style={{ fontSize: 13, fontWeight: 600 }}>HTTP Load Tester</div>
+ <h3>HTTP Load Tester</h3>
  </div>
 
- <div style={{ flex: 1, overflow: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+ <div className="panel-body" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
  {error && (
  <div style={{ padding: "6px 10px", background: "var(--error-bg)", color: "var(--error-color)", borderRadius: 4, fontSize: 11 }}> {error}</div>
  )}

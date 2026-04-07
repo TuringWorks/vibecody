@@ -115,20 +115,14 @@ export function GitHubSyncPanel({ workspacePath }: { workspacePath: string | nul
  finally { setLoading(false); }
  };
 
- const s = {
- panel: { display: "flex", flexDirection: "column", flex: 1, minHeight: 0, background: "var(--bg-primary)", color: "var(--text-primary)", fontSize: "13px" } as React.CSSProperties,
- header: { padding: "10px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" } as React.CSSProperties,
- tabs: { display: "flex", gap: 2, borderBottom: "1px solid var(--border-color)", padding: "0 16px", flexShrink: 0 } as React.CSSProperties,
- tab: (active: boolean): React.CSSProperties => ({ padding: "6px 14px", border: "none", cursor: "pointer", fontSize: "12px", background: "none", borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent", color: active ? "var(--text-primary)" : "var(--text-secondary)" }),
- content: { flex: 1, overflow: "auto", padding: "12px", display: "flex", flexDirection: "column", gap: "10px" } as React.CSSProperties,
- input: { width: "100%", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", color: "var(--text-primary)", padding: "6px 8px", borderRadius: "4px", fontSize: "12px", boxSizing: "border-box" as const } as React.CSSProperties,
- btn: (variant?: "danger" | "secondary"): React.CSSProperties => ({ padding: "6px 14px", background: variant === "danger" ? "var(--error-color)" : variant === "secondary" ? "var(--bg-secondary)" : "var(--accent-color)", color: variant === "secondary" ? "var(--text-primary)" : "white", border: variant === "secondary" ? "1px solid var(--border-color)" : "none", borderRadius: "4px", cursor: "pointer", fontSize: "12px" }),
- statusBadge: (n: number, type: "ahead" | "behind"): React.CSSProperties => ({ padding: "2px 8px", borderRadius: "10px", fontSize: "11px", background: n > 0 ? (type === "ahead" ? "var(--success-bg)" : "var(--error-bg)") : "var(--bg-secondary)", color: n > 0 ? (type === "ahead" ? "var(--success-color)" : "var(--error-color)") : "var(--text-secondary)" }),
- };
+ const statusBadgeBg = (n: number, type: "ahead" | "behind") =>
+   n > 0 ? (type === "ahead" ? "var(--success-bg)" : "var(--error-bg)") : "var(--bg-secondary)";
+ const statusBadgeFg = (n: number, type: "ahead" | "behind") =>
+   n > 0 ? (type === "ahead" ? "var(--success-color)" : "var(--error-color)") : "var(--text-secondary)";
 
  return (
- <div style={s.panel}>
- <div style={s.header}>
+ <div className="panel-container">
+ <div className="panel-header">
  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
  <span style={{ fontSize: "14px", fontWeight: 600 }}>GitHub Sync</span>
  {status?.has_remote && (
@@ -137,8 +131,8 @@ export function GitHubSyncPanel({ workspacePath }: { workspacePath: string | nul
  </div>
  {status?.has_remote && (
  <div style={{ display: "flex", gap: "8px", marginTop: "6px" }}>
- <span style={s.statusBadge(status.ahead, "ahead")}>↑ {status.ahead} ahead</span>
- <span style={s.statusBadge(status.behind, "behind")}>↓ {status.behind} behind</span>
+ <span style={{ padding: "2px 8px", borderRadius: "10px", fontSize: "11px", background: statusBadgeBg(status.ahead, "ahead"), color: statusBadgeFg(status.ahead, "ahead") }}>↑ {status.ahead} ahead</span>
+ <span style={{ padding: "2px 8px", borderRadius: "10px", fontSize: "11px", background: statusBadgeBg(status.behind, "behind"), color: statusBadgeFg(status.behind, "behind") }}>↓ {status.behind} behind</span>
  <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>branch: {status.branch}</span>
  </div>
  )}
@@ -148,34 +142,34 @@ export function GitHubSyncPanel({ workspacePath }: { workspacePath: string | nul
  <div style={{ padding: "10px 12px", background: "var(--warning-bg)", borderBottom: "1px solid var(--border-color)" }}>
  <div style={{ fontSize: "12px", marginBottom: "6px", color: "var(--warning-color)" }}>GITHUB_TOKEN required for sync</div>
  <div style={{ display: "flex", gap: "6px" }}>
- <input style={{ ...s.input, flex: 1 }} type="password" placeholder="ghp_..." value={token} onChange={e => setToken(e.target.value)} />
- <button style={s.btn()} onClick={saveToken}>Save</button>
+ <input className="panel-input" style={{ flex: 1 }} type="password" placeholder="ghp_..." value={token} onChange={e => setToken(e.target.value)} />
+ <button className="panel-btn panel-btn-primary" onClick={saveToken}>Save</button>
  </div>
  </div>
  )}
 
- <div style={s.tabs}>
+ <div className="panel-tab-bar">
  {(["sync", "repos", "create"] as const).map(t => (
- <button key={t} style={s.tab(activeTab === t)} onClick={() => { setActiveTab(t); if (t === "repos") listRepos(); }}>
+ <button key={t} className={`panel-tab ${activeTab === t ? "active" : ""}`} onClick={() => { setActiveTab(t); if (t === "repos") listRepos(); }}>
  {t === "sync" ? "Sync" : t === "repos" ? "Repos" : "New Repo"}
  </button>
  ))}
  </div>
 
  {(error || success) && (
- <div style={{ padding: "8px 12px", background: error ? "var(--error-bg)" : "var(--success-bg)", color: error ? "var(--error-color)" : "var(--success-color)", fontSize: "12px" }}>
+ <div className={error ? "panel-error" : "panel-section"} style={{ color: error ? "var(--error-color)" : "var(--success-color)", background: error ? "var(--error-bg)" : "var(--success-bg)" }}>
  {error || success}
  <button aria-label="Dismiss" style={{ float: "right", background: "none", border: "none", cursor: "pointer", color: "inherit" }} onClick={() => { setError(null); setSuccess(null); }}>×</button>
  </div>
  )}
 
- <div style={s.content}>
+ <div className="panel-body">
  {activeTab === "sync" && (
  <>
  {!status?.has_remote && (
- <div style={{ color: "var(--text-secondary)", fontSize: "12px", textAlign: "center", marginTop: "20px" }}>
+ <div className="panel-empty">
  No remote configured. Create a repo or link an existing one.
- <button style={{ ...s.btn(), display: "block", margin: "10px auto 0" }} onClick={() => setActiveTab("create")}>Create Repository</button>
+ <button className="panel-btn panel-btn-primary" style={{ display: "block", margin: "10px auto 0" }} onClick={() => setActiveTab("create")}>Create Repository</button>
  </div>
  )}
  {status?.has_remote && (
@@ -183,16 +177,17 @@ export function GitHubSyncPanel({ workspacePath }: { workspacePath: string | nul
  <div>
  <label style={{ fontSize: "11px", color: "var(--text-secondary)", display: "block", marginBottom: "4px" }}>Commit message</label>
  <textarea
- style={{ ...s.input, height: "60px", resize: "vertical", fontFamily: "inherit" }}
+ className="panel-textarea panel-input-full"
+ style={{ height: "60px", resize: "vertical", fontFamily: "inherit" }}
  placeholder="feat: add new feature"
  value={commitMsg}
  onChange={e => setCommitMsg(e.target.value)}
  />
  </div>
  <div style={{ display: "flex", gap: "8px" }}>
- <button style={{ ...s.btn(), flex: 1 }} onClick={push} disabled={loading || !commitMsg.trim()}>↑ Commit & Push</button>
- <button style={s.btn("secondary")} onClick={pull} disabled={loading}>↓ Pull</button>
- <button style={s.btn("secondary")} onClick={loadStatus} disabled={loading}>⟳</button>
+ <button className="panel-btn panel-btn-primary" style={{ flex: 1 }} onClick={push} disabled={loading || !commitMsg.trim()}>↑ Commit & Push</button>
+ <button className="panel-btn panel-btn-secondary" onClick={pull} disabled={loading}>↓ Pull</button>
+ <button className="panel-btn panel-btn-secondary" onClick={loadStatus} disabled={loading}>⟳</button>
  </div>
  {status.last_synced && <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>Last synced: {status.last_synced}</div>}
  </>
@@ -202,7 +197,7 @@ export function GitHubSyncPanel({ workspacePath }: { workspacePath: string | nul
 
  {activeTab === "repos" && (
  <div>
- {repos.length === 0 && !loading && <div style={{ color: "var(--text-secondary)", textAlign: "center", marginTop: "20px" }}>Click "Repos" tab to load your repositories</div>}
+ {repos.length === 0 && !loading && <div className="panel-empty">Click "Repos" tab to load your repositories</div>}
  {repos.map(r => (
  <div key={r.full_name} style={{ padding: "8px 10px", borderRadius: "4px", marginBottom: "4px", background: "var(--bg-secondary)" }}>
  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -219,13 +214,13 @@ export function GitHubSyncPanel({ workspacePath }: { workspacePath: string | nul
  <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
  <div>
  <label style={{ fontSize: "11px", color: "var(--text-secondary)", display: "block", marginBottom: "4px" }}>Repository name</label>
- <input style={s.input} placeholder="my-project" value={newRepoName} onChange={e => setNewRepoName(e.target.value)} />
+ <input className="panel-input panel-input-full" placeholder="my-project" value={newRepoName} onChange={e => setNewRepoName(e.target.value)} />
  </div>
  <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", fontSize: "12px" }}>
  <input type="checkbox" checked={isPrivate} onChange={e => setIsPrivate(e.target.checked)} />
  Private repository
  </label>
- <button style={s.btn()} onClick={createRepo} disabled={loading || !newRepoName.trim()}>
+ <button className="panel-btn panel-btn-primary" onClick={createRepo} disabled={loading || !newRepoName.trim()}>
  {loading ? "Creating..." : "Create & Push to GitHub"}
  </button>
  <p style={{ fontSize: "11px", color: "var(--text-secondary)", margin: 0 }}>Creates a new GitHub repository and pushes the current workspace to it.</p>

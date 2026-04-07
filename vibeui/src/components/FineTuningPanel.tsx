@@ -165,25 +165,25 @@ export default function FineTuningPanel() {
  };
 
  return (
-   <div style={{ padding: 16, color: "var(--text-primary)", background: "var(--bg-primary)", minHeight: "100%" }}>
-     <h2 style={{ margin: "0 0 12px", fontSize: 18 }}>Fine-Tuning</h2>
+   <div className="panel-container">
+     <div className="panel-header">
+       <h3>Fine-Tuning</h3>
+     </div>
 
      {error && (
-       <div style={{ padding: 8, marginBottom: 8, background: "var(--error-bg)", color: "var(--text-danger)", borderRadius: 4, fontSize: 12 }}>
+       <div className="panel-error">
          {error}
          <button onClick={() => setError(null)} style={{ marginLeft: 8, background: "transparent", color: "var(--text-danger)", border: "none", cursor: "pointer" }}>dismiss</button>
        </div>
      )}
 
      {/* Tabs */}
-     <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
+     <div className="panel-tab-bar">
        {(["dataset", "train", "jobs", "eval", "lora"] as const).map(t => (
-         <button key={t} onClick={() => setTab(t)} style={{
-           padding: "4px 12px", border: "1px solid var(--border-color)", borderRadius: 4, cursor: "pointer",
-           background: tab === t ? "var(--accent-color)" : "transparent", color: tab === t ? "var(--text-primary)" : "var(--text-primary)",
-         }}>{t === "eval" ? "SWE-Bench" : t === "lora" ? "LoRA" : t.charAt(0).toUpperCase() + t.slice(1)}</button>
+         <button key={t} onClick={() => setTab(t)} className={`panel-tab ${tab === t ? "active" : ""}`}>{t === "eval" ? "SWE-Bench" : t === "lora" ? "LoRA" : t.charAt(0).toUpperCase() + t.slice(1)}</button>
        ))}
      </div>
+     <div className="panel-body">
 
      {tab === "dataset" && (
        <>
@@ -436,6 +436,7 @@ export default function FineTuningPanel() {
          </button>
        </>
      )}
+     </div>
    </div>
  );
 }

@@ -128,7 +128,8 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
     : [];
 
   return (
-    <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12, flex: 1, minHeight: 0, overflowY: "auto" }}>
+    <div className="panel-container">
+    <div className="panel-body" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       {/* Manager badge + Scan button */}
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <div style={{
@@ -140,11 +141,7 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
         {scanning ? (
           <button
             onClick={handleSuspend}
-            style={{
-              padding: "6px 16px", fontSize: 12, fontWeight: 600,
-              background: "var(--error-color)", color: "var(--btn-primary-fg)",
-              border: "none", borderRadius: 6, cursor: "pointer",
-            }}
+            className="panel-btn panel-btn-danger panel-btn-sm"
           >
             Suspend
           </button>
@@ -152,12 +149,7 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
           <button
             onClick={handleScan}
             disabled={!manager}
-            style={{
-              padding: "6px 16px", fontSize: 12, fontWeight: 600,
-              background: !manager ? "var(--bg-tertiary)" : "var(--accent-blue)",
-              color: "var(--btn-primary-fg)", border: "none", borderRadius: 6,
-              cursor: !manager ? "not-allowed" : "pointer",
-            }}
+            className="panel-btn panel-btn-primary panel-btn-sm"
           >
             Scan Dependencies
           </button>
@@ -306,6 +298,7 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
           description={manager ? "Click Scan Dependencies to check for outdated and vulnerable packages." : "No package manager detected for this workspace."}
         />
       )}
+    </div>
     </div>
   );
 }

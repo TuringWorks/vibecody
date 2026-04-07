@@ -177,21 +177,21 @@ export function JwtPanel() {
  // ── Render ─────────────────────────────────────────────────────────────────
 
  return (
- <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+ <div className="panel-container">
 
  {/* Header */}
- <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 10, alignItems: "center" }}>
+ <div className="panel-header">
  <span style={{ fontSize: 13, fontWeight: 600 }}>JWT Debugger</span>
  <div style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
  {(["decode", "sign", "claims"] as Tab[]).map(t => (
- <button key={t} onClick={() => setTab(t)} style={{ padding: "2px 10px", fontSize: 10, borderRadius: 10, background: tab === t ? "color-mix(in srgb, var(--accent-blue) 20%, transparent)" : "var(--bg-primary)", border: `1px solid ${tab === t ? "var(--accent-primary)" : "var(--border-color)"}`, color: tab === t ? "var(--text-info)" : "var(--text-secondary)", cursor: "pointer", fontWeight: tab === t ? 700 : 400 }}>
+ <button key={t} onClick={() => setTab(t)} className={`panel-tab ${tab === t ? "active" : ""}`}>
  {t === "decode" ? "Decode" : t === "sign" ? "Sign" : "Claims Ref"}
  </button>
  ))}
  </div>
  </div>
 
- <div style={{ flex: 1, overflow: "auto" }}>
+ <div className="panel-body">
 
  {/* ── DECODE TAB ── */}
  {tab === "decode" && (

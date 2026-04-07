@@ -328,41 +328,29 @@ export function RedTeamPanel({ workspacePath, onOpenFile }: Props) {
   const formatElapsed = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
   return (
-    <div style={{ height: "100%", overflow: "auto", padding: "12px", fontFamily: "var(--font-family)" }}>
+    <div className="panel-container" style={{ fontFamily: "var(--font-family)" }}>
       {/* Header */}
-      <div style={{ marginBottom: 16 }}>
-        <h3 style={{ margin: 0, fontSize: 14 }}>Red Team Security Scanner</h3>
-        <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--text-secondary)" }}>
-          Autonomous penetration testing for your applications
-        </p>
+      <div className="panel-header">
+        <h3>Red Team Security Scanner</h3>
       </div>
 
+      <div className="panel-body" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       {/* Target input */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+      <div style={{ display: "flex", gap: 8 }}>
         <input
           value={targetUrl}
           onChange={(e) => setTargetUrl(e.target.value)}
           placeholder="http://localhost:3000"
           disabled={scanning}
-          style={{
-            flex: 1, padding: "6px 10px", fontSize: 13,
-            background: "var(--bg-tertiary)", color: "var(--text-primary)",
-            border: "1px solid var(--border-color)", borderRadius: 4,
-          }}
+          className="panel-input"
+          style={{ flex: 1 }}
         />
         {scanning ? (
-          <button onClick={handleSuspend} style={{
-            padding: "6px 16px", fontSize: 13, borderRadius: 4, border: "none",
-            background: "var(--error-color)", color: "var(--btn-primary-fg, #fff)", cursor: "pointer", fontWeight: 600,
-          }}>
+          <button onClick={handleSuspend} className="panel-btn panel-btn-danger">
             Suspend
           </button>
         ) : (
-          <button onClick={startScan} disabled={!targetUrl.trim()} style={{
-            padding: "6px 16px", fontSize: 13, borderRadius: 4, border: "none",
-            background: "var(--accent-color)", color: "var(--btn-primary-fg, #fff)",
-            cursor: !targetUrl.trim() ? "not-allowed" : "pointer", fontWeight: 600,
-          }}>
+          <button onClick={startScan} disabled={!targetUrl.trim()} className="panel-btn panel-btn-primary">
             Start Scan
           </button>
         )}
@@ -615,6 +603,7 @@ export function RedTeamPanel({ workspacePath, onOpenFile }: Props) {
       <style>{`
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
       `}</style>
+      </div>
     </div>
   );
 }

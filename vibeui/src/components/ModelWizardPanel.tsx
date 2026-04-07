@@ -89,10 +89,6 @@ const STEPS = [
 // ── Styles ───────────────────────────────────────────────────────────────
 
 const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4, display: "block" };
-const inputStyle: React.CSSProperties = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", fontSize: 12, fontFamily: "var(--font-family)", boxSizing: "border-box" as const };
-const selectStyle: React.CSSProperties = { ...inputStyle, cursor: "pointer" };
-const btnPrimary: React.CSSProperties = { padding: "8px 20px", borderRadius: 4, border: "none", background: "var(--accent-primary, #7c6aef)", color: "var(--btn-primary-fg)", cursor: "pointer", fontSize: 13, fontWeight: 600 };
-const btnSecondary: React.CSSProperties = { padding: "8px 20px", borderRadius: 4, border: "1px solid var(--border-color)", background: "transparent", color: "var(--text-primary)", cursor: "pointer", fontSize: 13 };
 const optionBtn = (active: boolean): React.CSSProperties => ({
   padding: "8px 14px", borderRadius: 6, cursor: "pointer", fontSize: 12, textAlign: "left" as const,
   border: `1px solid ${active ? "var(--accent-primary, #7c6aef)" : "var(--border-color)"}`,
@@ -412,7 +408,7 @@ export function ModelWizardPanel() {
             </div>
 
             <label style={labelStyle}>Base Model</label>
-            <select style={selectStyle} value={config.baseModel} onChange={e => { set("baseModel", e.target.value); set("modelSize", e.target.value.includes("70") ? "70B" : e.target.value.includes("13") || e.target.value.includes("14") ? "14B" : e.target.value.includes("3") ? "3B" : "8B"); }}>
+            <select className="panel-select" value={config.baseModel} onChange={e => { set("baseModel", e.target.value); set("modelSize", e.target.value.includes("70") ? "70B" : e.target.value.includes("13") || e.target.value.includes("14") ? "14B" : e.target.value.includes("3") ? "3B" : "8B"); }}>
               <optgroup label="Meta Llama">
                 <option value="meta-llama/Llama-3.1-8B-Instruct">Llama 3.1 8B Instruct</option>
                 <option value="meta-llama/Llama-3.1-70B-Instruct">Llama 3.1 70B Instruct</option>
@@ -446,7 +442,7 @@ export function ModelWizardPanel() {
             {config.modelSource === "local" && (
               <div style={{ marginTop: 8 }}>
                 <label style={labelStyle}>Local Path</label>
-                <input style={inputStyle} placeholder="/path/to/model/checkpoint" />
+                <input className="panel-input panel-input-full" placeholder="/path/to/model/checkpoint" />
               </div>
             )}
           </div>
@@ -474,7 +470,7 @@ export function ModelWizardPanel() {
             {config.dataSource === "documents" && (
               <div style={{ marginBottom: 12 }}>
                 <label style={labelStyle}>Document Processor</label>
-                <select style={selectStyle} value={config.docProcessor} onChange={e => set("docProcessor", e.target.value)}>
+                <select className="panel-select" value={config.docProcessor} onChange={e => set("docProcessor", e.target.value)}>
                   <option value="builtin">VibeCody Built-in (9 formats)</option>
                   <option value="mineru">MinerU (PDF to Markdown, 109 languages)</option>
                   <option value="docling">Docling (IBM document understanding)</option>
@@ -485,7 +481,7 @@ export function ModelWizardPanel() {
             )}
 
             <label style={labelStyle}>Output Format</label>
-            <select style={selectStyle} value={config.dataFormat} onChange={e => set("dataFormat", e.target.value)}>
+            <select className="panel-select" value={config.dataFormat} onChange={e => set("dataFormat", e.target.value)}>
               <option value="chatml">ChatML (OpenAI compatible)</option>
               <option value="alpaca">Alpaca (instruction/input/output)</option>
               <option value="sharegpt">ShareGPT (conversations)</option>
@@ -494,7 +490,7 @@ export function ModelWizardPanel() {
 
             <div style={{ marginTop: 8 }}>
               <label style={labelStyle}>Dataset Path</label>
-              <input style={inputStyle} value={config.dataPath} onChange={e => set("dataPath", e.target.value)} />
+              <input className="panel-input panel-input-full" value={config.dataPath} onChange={e => set("dataPath", e.target.value)} />
             </div>
           </div>
         )}
@@ -523,7 +519,7 @@ export function ModelWizardPanel() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
               <div>
                 <label style={labelStyle}>Method</label>
-                <select style={selectStyle} value={config.method} onChange={e => set("method", e.target.value)}>
+                <select className="panel-select" value={config.method} onChange={e => set("method", e.target.value)}>
                   <option value="qlora">QLoRA (4-bit, memory efficient)</option>
                   <option value="lora">LoRA (full precision adapters)</option>
                   <option value="full">Full fine-tune (all parameters)</option>
@@ -531,7 +527,7 @@ export function ModelWizardPanel() {
               </div>
               <div>
                 <label style={labelStyle}>Alignment</label>
-                <select style={selectStyle} value={config.alignment} onChange={e => set("alignment", e.target.value)}>
+                <select className="panel-select" value={config.alignment} onChange={e => set("alignment", e.target.value)}>
                   <option value="sft">SFT (Supervised Fine-Tuning)</option>
                   <option value="dpo">DPO (Direct Preference Optimization)</option>
                   <option value="ppo">PPO (Proximal Policy Optimization)</option>
@@ -543,23 +539,23 @@ export function ModelWizardPanel() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10 }}>
               <div>
                 <label style={labelStyle}>LoRA Rank</label>
-                <select style={selectStyle} value={config.loraRank} onChange={e => set("loraRank", Number(e.target.value))}>
+                <select className="panel-select" value={config.loraRank} onChange={e => set("loraRank", Number(e.target.value))}>
                   {[8, 16, 32, 64, 128].map(r => <option key={r} value={r}>{r}</option>)}
                 </select>
               </div>
               <div>
                 <label style={labelStyle}>Epochs</label>
-                <input type="number" style={inputStyle} value={config.epochs} min={1} max={20} onChange={e => set("epochs", Number(e.target.value))} />
+                <input type="number" className="panel-input panel-input-full" value={config.epochs} min={1} max={20} onChange={e => set("epochs", Number(e.target.value))} />
               </div>
               <div>
                 <label style={labelStyle}>Batch Size</label>
-                <select style={selectStyle} value={config.batchSize} onChange={e => set("batchSize", Number(e.target.value))}>
+                <select className="panel-select" value={config.batchSize} onChange={e => set("batchSize", Number(e.target.value))}>
                   {[1, 2, 4, 8, 16].map(b => <option key={b} value={b}>{b}</option>)}
                 </select>
               </div>
               <div>
                 <label style={labelStyle}>Learning Rate</label>
-                <select style={selectStyle} value={config.learningRate} onChange={e => set("learningRate", e.target.value)}>
+                <select className="panel-select" value={config.learningRate} onChange={e => set("learningRate", e.target.value)}>
                   {["1e-5", "2e-5", "5e-5", "1e-4", "2e-4", "5e-4"].map(lr => <option key={lr} value={lr}>{lr}</option>)}
                 </select>
               </div>
@@ -592,7 +588,7 @@ export function ModelWizardPanel() {
 
             <div>
               <label style={labelStyle}>GPU Count</label>
-              <select style={selectStyle} value={config.gpuCount} onChange={e => set("gpuCount", Number(e.target.value))}>
+              <select className="panel-select" value={config.gpuCount} onChange={e => set("gpuCount", Number(e.target.value))}>
                 {[1, 2, 4, 8].map(n => <option key={n} value={n}>{n} GPU{n > 1 ? "s" : ""}</option>)}
               </select>
             </div>
@@ -668,12 +664,12 @@ export function ModelWizardPanel() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <div>
                 <label style={labelStyle}>Port</label>
-                <input type="number" style={inputStyle} value={config.port} onChange={e => set("port", Number(e.target.value))} />
+                <input type="number" className="panel-input panel-input-full" value={config.port} onChange={e => set("port", Number(e.target.value))} />
               </div>
               {config.deployTarget === "k8s" && (
                 <div>
                   <label style={labelStyle}>Max Replicas</label>
-                  <input type="number" style={inputStyle} value={config.maxReplicas} min={1} max={16} onChange={e => set("maxReplicas", Number(e.target.value))} />
+                  <input type="number" className="panel-input panel-input-full" value={config.maxReplicas} min={1} max={16} onChange={e => set("maxReplicas", Number(e.target.value))} />
                 </div>
               )}
             </div>
@@ -704,7 +700,7 @@ export function ModelWizardPanel() {
             {/* Generated script */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
               <label style={{ ...labelStyle, margin: 0 }}>Generated Script</label>
-              <button style={{ ...btnSecondary, fontSize: 11, padding: "3px 10px" }} onClick={() => copyScript(generateFullScript())}>
+              <button className="panel-btn panel-btn-secondary panel-btn-sm" onClick={() => copyScript(generateFullScript())}>
                 {copied ? "Copied!" : "Copy"}
               </button>
             </div>
@@ -715,12 +711,12 @@ export function ModelWizardPanel() {
 
       {/* Navigation footer */}
       <div style={{ padding: "10px 16px", borderTop: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", flexShrink: 0 }}>
-        <button style={btnSecondary} onClick={prev} disabled={step === 1}>Back</button>
+        <button className="panel-btn panel-btn-secondary" onClick={prev} disabled={step === 1}>Back</button>
         <div style={{ fontSize: 11, color: "var(--text-secondary)", alignSelf: "center" }}>Step {step} of 7</div>
         {step < 7 ? (
-          <button style={btnPrimary} onClick={next}>Next</button>
+          <button className="panel-btn panel-btn-primary" onClick={next}>Next</button>
         ) : (
-          <button style={{ ...btnPrimary, background: "var(--accent-green)" }} onClick={() => copyScript(generateFullScript())}>
+          <button className="panel-btn panel-btn-primary" style={{ background: "var(--accent-green)" }} onClick={() => copyScript(generateFullScript())}>
             {copied ? "Copied!" : "Copy Script"}
           </button>
         )}

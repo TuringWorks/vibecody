@@ -39,7 +39,6 @@ interface LineageNode {
 const tableStyle: React.CSSProperties = { width: "100%", borderCollapse: "collapse", fontSize: 12 };
 const thStyle: React.CSSProperties = { textAlign: "left", padding: "6px 8px", borderBottom: "1px solid var(--border-color)", color: "var(--text-secondary)", fontWeight: 600 };
 const tdStyle: React.CSSProperties = { padding: "6px 8px", borderBottom: "1px solid var(--border-color)" };
-const selectStyle: React.CSSProperties = { padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", fontSize: 12, flex: 1 };
 
 const diffColor = (a: number, b: number, higherBetter = true) => {
   const better = higherBetter ? b > a : b < a;
@@ -74,12 +73,12 @@ export function RLPolicyComparison() {
       <h2 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>Policy Comparison</h2>
 
       <div className="panel-card" style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <select style={selectStyle} value={policyA} onChange={e => setPolicyA(e.target.value)}>
+        <select className="panel-select" style={{flex:1}} value={policyA} onChange={e => setPolicyA(e.target.value)}>
           <option value="">Select Policy A</option>
           {policies.map(p => <option key={p.id} value={p.id}>{p.name} (v{p.version})</option>)}
         </select>
         <span style={{ fontWeight: 600 }}>vs</span>
-        <select style={selectStyle} value={policyB} onChange={e => setPolicyB(e.target.value)}>
+        <select className="panel-select" style={{flex:1}} value={policyB} onChange={e => setPolicyB(e.target.value)}>
           <option value="">Select Policy B</option>
           {policies.map(p => <option key={p.id} value={p.id}>{p.name} (v{p.version})</option>)}
         </select>

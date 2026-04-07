@@ -247,14 +247,12 @@ export function UnitConverterPanel() {
  if (!isNaN(result)) setInputVal(fmt(result));
  };
 
- const sel: React.CSSProperties = { background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4, padding: "5px 8px", fontSize: 13 };
-
  return (
- <div style={{ display: "flex", flex: 1, minHeight: 0, fontSize: 13, color: "var(--text-primary)" }}>
+ <div className="panel-container" style={{ flexDirection: "row", fontSize: 13 }}>
  {/* Category sidebar */}
  <div style={{ width: 140, borderRight: "1px solid var(--border-color)", display: "flex", flexDirection: "column", overflow: "hidden", flexShrink: 0 }}>
  <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search…"
- style={{ margin: 6, padding: "4px 7px", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4, fontSize: 12 }} />
+ className="panel-input" style={{ margin: 6, fontSize: 12 }} />
  <div style={{ flex: 1, overflowY: "auto" }}>
  {filteredCats.map((c) => {
  const realIdx = CATEGORIES.indexOf(c);
@@ -275,13 +273,13 @@ export function UnitConverterPanel() {
  <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>{cat.icon} {cat.name}</div>
  <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
  <input value={inputVal} onChange={e => setInputVal(e.target.value)} type="number"
- style={{ width: 140, padding: "6px 10px", background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4, fontSize: 14 }} />
- <select value={fromIdx} onChange={e => setFromIdx(Number(e.target.value))} style={{ ...sel, minWidth: 150 }}>
+ className="panel-input" style={{ width: 140, fontSize: 14 }} />
+ <select value={fromIdx} onChange={e => setFromIdx(Number(e.target.value))} className="panel-select" style={{ minWidth: 150 }}>
  {cat.units.map((u, i) => <option key={i} value={i}>{u.label} ({u.symbol})</option>)}
  </select>
  <button onClick={swap} title="Swap"
  style={{ padding: "5px 10px", background: "none", border: "1px solid var(--border-color)", borderRadius: 4, cursor: "pointer", color: "var(--text-primary)", fontSize: 16 }}>⇄</button>
- <select value={toIdx} onChange={e => setToIdx(Number(e.target.value))} style={{ ...sel, minWidth: 150 }}>
+ <select value={toIdx} onChange={e => setToIdx(Number(e.target.value))} className="panel-select" style={{ minWidth: 150 }}>
  {cat.units.map((u, i) => <option key={i} value={i}>{u.label} ({u.symbol})</option>)}
  </select>
  <span style={{ fontSize: 15, fontWeight: 600, color: "var(--accent-color)", minWidth: 180 }}>

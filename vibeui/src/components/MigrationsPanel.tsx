@@ -116,30 +116,29 @@ export function MigrationsPanel({ workspacePath }: MigrationsPanelProps) {
  .sort((a, b) => a.name.localeCompare(b.name));
 
  return (
- <div className="panel-container" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+ <div className="panel-container">
  {/* Header */}
- <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", flexShrink: 0, display: "flex", alignItems: "center", gap: 8 }}>
+ <div className="panel-header">
  <span style={{ fontSize: 16 }}>{TOOL_ICONS[tool]}</span>
- <div>
- <div style={{ fontSize: 13, fontWeight: 600 }}>
+ <h3>
  {tool === "unknown" ? "No migration tool detected" : tool.charAt(0).toUpperCase() + tool.slice(1)}
- </div>
+ </h3>
  {status && (
- <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+ <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>
  {status.applied.length} applied · {status.pending.length} pending
- </div>
+ </span>
  )}
- </div>
  <button
  onClick={load}
  disabled={loading}
- style={{ marginLeft: "auto", padding: "4px 10px", fontSize: 11, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-secondary)", cursor: "pointer" }}
+ className="panel-btn panel-btn-secondary"
+ style={{ marginLeft: "auto" }}
  >
  {loading ? "" : "↻ Refresh"}
  </button>
  </div>
 
- <div style={{ flex: 1, overflow: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+ <div className="panel-body" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
  {error && (
  <div className="panel-error" style={{ padding: "7px 10px", fontSize: 12 }}>
  {error}

@@ -115,36 +115,30 @@ export function ReviewPanel({ workspacePath, onOpenFile }: ReviewPanelProps) {
  report?.issues.filter((i) => i.severity === sev).length ?? 0;
 
  return (
- <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', padding: 12, gap: 10 }}>
+ <div className="panel-container">
  {/* ── Toolbar ── */}
- <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+ <div className="panel-header">
  <input
  value={baseRef}
  onChange={(e) => setBaseRef(e.target.value)}
  placeholder="Base ref (e.g. main, HEAD~1) — leave blank for uncommitted"
- style={{
- flex: 1, minWidth: 180, padding: '4px 8px', borderRadius: 4,
- border: '1px solid var(--border-color)', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', fontSize: 12,
- }}
+ className="panel-input"
+ style={{ flex: 1, minWidth: 180 }}
  />
  <button
  onClick={runReview}
  disabled={isLoading || !workspacePath}
- style={{
- padding: '5px 14px', borderRadius: 4, border: 'none', cursor: 'pointer',
- background: isLoading ? 'var(--border-color)' : 'var(--accent-primary)', color: 'var(--text-on-accent)', fontSize: 13,
- opacity: !workspacePath ? 0.5 : 1,
- }}
+ className="panel-btn panel-btn-primary"
+ style={{ opacity: !workspacePath ? 0.5 : 1 }}
  >
  {isLoading ? ' Reviewing…' : ' Run Review'}
  </button>
  </div>
 
+ <div className="panel-body" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
  {/* ── Error ── */}
  {error && (
- <div style={{ padding: 8, borderRadius: 4, background: 'var(--error-bg)', color: 'var(--text-danger)', fontSize: 12 }}>
- {error}
- </div>
+ <div className="panel-error">{error}</div>
  )}
 
  {/* ── Loading placeholder ── */}
@@ -312,12 +306,12 @@ export function ReviewPanel({ workspacePath, onOpenFile }: ReviewPanelProps) {
 
  {/* ── Empty state ── */}
  {!report && !isLoading && !error && (
- <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8, color: 'var(--text-secondary)' }}>
- <div style={{ fontSize: 32 }}></div>
+ <div className="panel-empty">
  <div style={{ fontSize: 13 }}>Run a code review to see issues</div>
  <div style={{ fontSize: 11 }}>Analyzes your uncommitted changes or compares branches</div>
  </div>
  )}
+ </div>
  </div>
  );
 }

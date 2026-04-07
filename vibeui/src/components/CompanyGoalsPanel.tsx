@@ -11,10 +11,6 @@ interface CompanyGoalsPanelProps {
   workspacePath?: string | null;
 }
 
-const inputStyle: React.CSSProperties = {
-  fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)",
-  border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)",
-};
 
 export function CompanyGoalsPanel({ workspacePath: _wp }: CompanyGoalsPanelProps) {
   const [output, setOutput] = useState<string>("");
@@ -65,9 +61,9 @@ export function CompanyGoalsPanel({ workspacePath: _wp }: CompanyGoalsPanelProps
 
   return (
     <div className="panel-container">
-      <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontWeight: 600, fontSize: 14 }}>Agent Goals</span>
-        <div style={{ display: "flex", gap: 6 }}>
+      <div className="panel-header">
+        <h3>Agent Goals</h3>
+        <div style={{ display: "flex", gap: 6, marginLeft: "auto" }}>
           {(["list", "tree", "create"] as const).map((v) => (
             <button key={v} onClick={() => setView(v)} className={`panel-btn ${view === v ? "panel-btn-primary" : "panel-btn-secondary"}`} style={{ padding: "2px 8px" }}>
               {v === "create" ? "+ New" : v.charAt(0).toUpperCase() + v.slice(1)}
@@ -90,8 +86,8 @@ export function CompanyGoalsPanel({ workspacePath: _wp }: CompanyGoalsPanelProps
         <div className="panel-card" style={{ marginBottom: 12 }}>
           <div style={{ fontWeight: 600, marginBottom: 8 }}>New Goal</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} onKeyDown={(e) => e.key === "Enter" && createGoal()} placeholder="Goal title *" autoFocus style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} />
-            <input value={newDesc} onChange={(e) => setNewDesc(e.target.value)} placeholder="Description (optional)" style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} />
+            <input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} onKeyDown={(e) => e.key === "Enter" && createGoal()} placeholder="Goal title *" autoFocus className="panel-input panel-input-full" />
+            <input value={newDesc} onChange={(e) => setNewDesc(e.target.value)} placeholder="Description (optional)" className="panel-input panel-input-full" />
             <button onClick={createGoal} disabled={creating || !newTitle.trim()} className="panel-btn panel-btn-primary" style={{ opacity: creating ? 0.6 : 1, alignSelf: "flex-start" }}>
               {creating ? "Creating…" : "Create Goal"}
             </button>

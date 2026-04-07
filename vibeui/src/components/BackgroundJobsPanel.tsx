@@ -144,10 +144,10 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
  new Date(ms).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' });
 
  return (
- <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', padding: '8px' }}>
+ <div className="panel-container">
  {/* Header */}
- <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
- <strong style={{ fontSize: '13px' }}>Background Jobs</strong>
+ <div className="panel-header">
+ <h3>Background Jobs</h3>
  <span style={{
  fontSize: '10px', padding: '2px 8px', borderRadius: '10px',
  background: daemonOnline ? 'var(--accent-green)' : 'var(--text-secondary)',
@@ -157,49 +157,43 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
  </span>
  </div>
 
+ <div className="panel-body">
  {!daemonOnline && (
- <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '8px', padding: '6px', background: 'var(--bg-tertiary)', borderRadius: '4px' }}>
+ <div className="panel-error">
  Daemon not running. Start it with: <code>vibecli --serve --port 7878</code>
  </div>
  )}
 
  {/* Submit form */}
- <div style={{ marginBottom: '10px', padding: '8px', background: 'var(--bg-secondary)', borderRadius: '6px' }}>
+ <div className="panel-card" style={{ marginBottom: '10px' }}>
  <textarea
  value={task}
  onChange={(e) => setTask(e.target.value)}
  placeholder="Describe a background agent task…"
  rows={2}
- style={{
- width: '100%', boxSizing: 'border-box', resize: 'vertical',
- padding: '6px', fontSize: '12px', fontFamily: 'inherit',
- background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)',
- color: 'var(--text-primary)', borderRadius: '4px', marginBottom: '6px',
- }}
+ className="panel-input panel-input-full"
+ style={{ resize: 'vertical', marginBottom: '6px' }}
  />
  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
  <select
  value={provider}
  onChange={(e) => setProvider(e.target.value)}
- style={selectStyle}
+ className="panel-select"
  >
  {PROVIDERS.map((p) => <option key={p} value={p}>{p}</option>)}
  </select>
  <select
  value={approval}
  onChange={(e) => setApproval(e.target.value)}
- style={selectStyle}
+ className="panel-select"
  >
  {APPROVALS.map((a) => <option key={a} value={a}>{a}</option>)}
  </select>
  <button
  onClick={submitJob}
  disabled={submitting || !task.trim() || !daemonOnline}
- style={{
- padding: '4px 12px', fontSize: '12px', borderRadius: '4px',
- background: 'var(--accent-blue)', color: 'white', border: 'none',
- cursor: submitting ? 'wait' : 'pointer', marginLeft: 'auto',
- }}
+ className="panel-btn panel-btn-primary"
+ style={{ marginLeft: 'auto' }}
  >
  {submitting ? 'Submitting…' : ' Submit'}
  </button>
@@ -207,7 +201,7 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
  </div>
 
  {/* Job list */}
- <div style={{ flex: 1, overflowY: 'auto' }}>
+ <div>
  {jobs.length === 0 && daemonOnline && (
  <p style={{ fontSize: '12px', color: 'var(--text-secondary)', textAlign: 'center', marginTop: '20px' }}>
  No jobs yet. Submit one above.
@@ -274,13 +268,8 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
  </div>
  ))}
  </div>
+ </div>
  <Toaster toasts={toasts} onDismiss={dismiss} />
  </div>
  );
 }
-
-const selectStyle: React.CSSProperties = {
- padding: '3px 6px', fontSize: '11px', borderRadius: '4px',
- background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)',
- color: 'var(--text-primary)',
-};

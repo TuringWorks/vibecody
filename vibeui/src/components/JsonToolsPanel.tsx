@@ -251,14 +251,14 @@ export function JsonToolsPanel() {
  };
 
  return (
- <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+ <div className="panel-container">
 
  {/* Header */}
- <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+ <div className="panel-header" style={{ flexWrap: "wrap" }}>
  <span style={{ fontSize: 13, fontWeight: 600 }}>JSON Tools</span>
  <div style={{ display: "flex", gap: 4 }}>
  {(["format", "typescript", "yaml", "query"] as SubTab[]).map(t => (
- <button key={t} onClick={() => setSubTab(t)} style={{ padding: "2px 10px", fontSize: 10, borderRadius: 10, background: subTab === t ? "color-mix(in srgb, var(--accent-blue) 20%, transparent)" : "var(--bg-primary)", border: `1px solid ${subTab === t ? "var(--accent-color)" : "var(--border-color)"}`, color: subTab === t ? "var(--accent-color)" : "var(--text-secondary)", cursor: "pointer", fontWeight: subTab === t ? 700 : 400 }}>
+ <button key={t} onClick={() => setSubTab(t)} className={`panel-tab ${subTab === t ? "active" : ""}`}>
  {t === "format" ? "Format" : t === "typescript" ? "TypeScript" : t === "yaml" ? "YAML" : "Query"}
  </button>
  ))}

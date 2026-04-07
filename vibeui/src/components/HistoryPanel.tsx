@@ -77,15 +77,16 @@ export function HistoryPanel() {
  };
 
  return (
- <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, padding: "12px", gap: "8px" }}>
- <div style={{ fontWeight: 600, fontSize: "14px" }}>Agent History</div>
- <p style={{ fontSize: "12px", color: "var(--text-secondary)", margin: 0 }}>
- Audit log of past agent sessions.
- </p>
+ <div className="panel-container">
+ <div className="panel-header">
+ <h3>Agent History</h3>
+ <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>Audit log of past agent sessions.</span>
+ </div>
 
+ <div className="panel-body">
  {selected === null ? (
  // Session list view
- <div style={{ flex: 1, overflowY: "auto" }}>
+ <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
  {sessions.length === 0 ? (
  <div style={{ fontSize: "12px", color: "var(--text-secondary)", textAlign: "center", marginTop: "24px" }}>
  No agent sessions yet.
@@ -198,6 +199,7 @@ export function HistoryPanel() {
  </div>
  </>
  )}
+ </div>
  </div>
  );
 }

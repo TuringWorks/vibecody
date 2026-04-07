@@ -64,28 +64,6 @@ interface QueryHistoryEntry {
 
 // ── Styles ───────────────────────────────────────────────────────────────────
 
-const card: React.CSSProperties = {
-  padding: 10, marginBottom: 8, borderRadius: "var(--radius-sm)",
-  background: "var(--bg-secondary)", border: "1px solid var(--border-color)",
-};
-const label: React.CSSProperties = {
-  display: "block", marginBottom: 4, fontWeight: 600, fontSize: 11,
-  color: "var(--text-secondary)", textTransform: "uppercase" as const, letterSpacing: "0.03em",
-};
-const input: React.CSSProperties = {
-  width: "100%", boxSizing: "border-box" as const, padding: "7px 10px", fontSize: 13,
-  background: "var(--bg-tertiary)", border: "1px solid var(--border-color)",
-  color: "var(--text-primary)", borderRadius: "var(--radius-sm)", fontFamily: "inherit",
-};
-const monoInput: React.CSSProperties = { ...input, fontFamily: "var(--font-mono, monospace)" };
-const btnPrimary: React.CSSProperties = {
-  padding: "7px 16px", cursor: "pointer", border: "none", borderRadius: "var(--radius-sm)",
-  background: "var(--accent-color)", color: "var(--btn-primary-fg)", fontSize: 12, fontWeight: 600,
-};
-const btnSecondary: React.CSSProperties = {
-  ...btnPrimary, background: "var(--bg-tertiary)", color: "var(--text-primary)",
-  border: "1px solid var(--border-color)",
-};
 const badge = (bg: string): React.CSSProperties => ({
   display: "inline-block", padding: "2px 8px", borderRadius: 10,
   fontSize: 10, fontWeight: 600, background: bg, color: "var(--btn-primary-fg)",
@@ -271,14 +249,14 @@ export function VibeSqlPanel({ provider }: { workspacePath: string | null; provi
 
   const renderConnect = () => (
     <div>
-      {error && <div style={{ ...card, borderColor: "var(--error-color)", color: "var(--error-color)", fontSize: 12 }}>{error}</div>}
+      {error && <div className="panel-error" style={{ marginBottom: 8 }}>{error}</div>}
 
       {/* Saved connections */}
       {connections.length > 0 && (
         <div style={{ marginBottom: 14 }}>
-          <div style={{ ...label, marginBottom: 8 }}>Saved Connections</div>
+          <div className="panel-label" style={{ marginBottom: 8 }}>Saved Connections</div>
           {connections.map(c => (
-            <div key={c.id} style={{ ...card, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px" }}>
+            <div key={c.id} className="panel-card" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div style={{ flex: 1, cursor: "pointer" }} role="button" tabIndex={0}
                 onClick={() => handleQuickConnect(c)} onKeyDown={e => e.key === "Enter" && handleQuickConnect(c)}>
                 <div style={{ fontSize: 13, fontWeight: 600 }}>{c.name}</div>
@@ -295,32 +273,31 @@ export function VibeSqlPanel({ provider }: { workspacePath: string | null; provi
       )}
 
       {/* New connection form */}
-      <div style={{ ...label, marginBottom: 8 }}>New Connection</div>
+      <div className="panel-label" style={{ marginBottom: 8 }}>New Connection</div>
 
       <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
         {(["self-hosted", "cloud"] as const).map(e => (
-          <button key={e} onClick={() => setEdition(e)} style={{
-            ...e === edition ? btnPrimary : btnSecondary,
-            flex: 1, textTransform: "capitalize",
-          }}>{e === "cloud" ? "VibeSQL Cloud" : "Self-Hosted"}</button>
+          <button key={e} onClick={() => setEdition(e)}
+            className={`panel-btn ${e === edition ? "panel-btn-primary" : "panel-btn-secondary"}`}
+            style={{ flex: 1 }}>{e === "cloud" ? "VibeSQL Cloud" : "Self-Hosted"}</button>
         ))}
       </div>
 
       <div style={{ marginBottom: 10 }}>
-        <label style={label}>Connection Name</label>
-        <input style={input} value={connName} onChange={e => setConnName(e.target.value)} placeholder="My VibeSQL Server" />
+        <label className="panel-label">Connection Name</label>
+        <input className="panel-input panel-input-full" value={connName} onChange={e => setConnName(e.target.value)} placeholder="My VibeSQL Server" />
       </div>
 
       {edition === "cloud" ? (
         <>
           <div style={{ marginBottom: 10 }}>
-            <label style={label}>Cloud API Key</label>
-            <input style={monoInput} type="password" value={cloudApiKey} onChange={e => setCloudApiKey(e.target.value)}
+            <label className="panel-label">Cloud API Key</label>
+            <input className="panel-input panel-input-full" style={{ fontFamily: "var(--font-mono, monospace)" }} type="password" value={cloudApiKey} onChange={e => setCloudApiKey(e.target.value)}
               placeholder="vsql_cloud_..." />
           </div>
           <div style={{ marginBottom: 10 }}>
-            <label style={label}>Database</label>
-            <input style={input} value={database} onChange={e => setDatabase(e.target.value)} placeholder="mydb" />
+            <label className="panel-label">Database</label>
+            <input className="panel-input panel-input-full" value={database} onChange={e => setDatabase(e.target.value)} placeholder="mydb" />
           </div>
           <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 10 }}>
             Connects to <strong>cloud.vibesql.online</strong> with TLS. Get your API key at{" "}
@@ -331,26 +308,26 @@ export function VibeSqlPanel({ provider }: { workspacePath: string | null; provi
         <>
           <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
             <div style={{ flex: 3 }}>
-              <label style={label}>Host</label>
-              <input style={monoInput} value={host} onChange={e => setHost(e.target.value)} placeholder="localhost" />
+              <label className="panel-label">Host</label>
+              <input className="panel-input panel-input-full" style={{ fontFamily: "var(--font-mono, monospace)" }} value={host} onChange={e => setHost(e.target.value)} placeholder="localhost" />
             </div>
             <div style={{ flex: 1 }}>
-              <label style={label}>Port</label>
-              <input style={monoInput} type="number" value={port} onChange={e => setPort(Number(e.target.value))} />
+              <label className="panel-label">Port</label>
+              <input className="panel-input panel-input-full" style={{ fontFamily: "var(--font-mono, monospace)" }} type="number" value={port} onChange={e => setPort(Number(e.target.value))} />
             </div>
           </div>
           <div style={{ marginBottom: 10 }}>
-            <label style={label}>Database</label>
-            <input style={input} value={database} onChange={e => setDatabase(e.target.value)} placeholder="vibesql" />
+            <label className="panel-label">Database</label>
+            <input className="panel-input panel-input-full" value={database} onChange={e => setDatabase(e.target.value)} placeholder="vibesql" />
           </div>
           <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
             <div style={{ flex: 1 }}>
-              <label style={label}>Username</label>
-              <input style={input} value={username} onChange={e => setUsername(e.target.value)} placeholder="admin" />
+              <label className="panel-label">Username</label>
+              <input className="panel-input panel-input-full" value={username} onChange={e => setUsername(e.target.value)} placeholder="admin" />
             </div>
             <div style={{ flex: 1 }}>
-              <label style={label}>Password</label>
-              <input style={monoInput} type="password" value={password} onChange={e => setPassword(e.target.value)} />
+              <label className="panel-label">Password</label>
+              <input className="panel-input panel-input-full" style={{ fontFamily: "var(--font-mono, monospace)" }} type="password" value={password} onChange={e => setPassword(e.target.value)} />
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, fontSize: 12 }}>
@@ -360,7 +337,7 @@ export function VibeSqlPanel({ provider }: { workspacePath: string | null; provi
         </>
       )}
 
-      <button style={{ ...btnPrimary, width: "100%", opacity: loading ? 0.6 : 1 }} onClick={handleConnect} disabled={loading}>
+      <button className="panel-btn panel-btn-primary panel-input-full" style={{ opacity: loading ? 0.6 : 1 }} onClick={handleConnect} disabled={loading}>
         {loading ? "Connecting..." : "Connect"}
       </button>
     </div>
@@ -374,7 +351,7 @@ export function VibeSqlPanel({ provider }: { workspacePath: string | null; provi
     <div style={{ display: "flex", gap: 10, height: "100%", minHeight: 300 }}>
       {/* Table list */}
       <div style={{ width: 180, flexShrink: 0, borderRight: "1px solid var(--border-color)", paddingRight: 8, overflowY: "auto" }}>
-        <div style={{ ...label, marginBottom: 6 }}>Tables ({tables.length})</div>
+        <div className="panel-label" style={{ marginBottom: 6 }}>Tables ({tables.length})</div>
         {tables.map(t => (
           <div key={t.name} role="button" tabIndex={0}
             onClick={() => setSelectedTable(t.name)} onKeyDown={e => e.key === "Enter" && setSelectedTable(t.name)}
@@ -417,10 +394,10 @@ export function VibeSqlPanel({ provider }: { workspacePath: string | null; provi
               </tbody>
             </table>
             <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
-              <button style={btnSecondary} onClick={() => { setSql(`SELECT * FROM ${selectedTableInfo.schema}.${selectedTableInfo.name} LIMIT 100;`); setTab("query"); }}>
+              <button className="panel-btn panel-btn-secondary" onClick={() => { setSql(`SELECT * FROM ${selectedTableInfo.schema}.${selectedTableInfo.name} LIMIT 100;`); setTab("query"); }}>
                 Query Table
               </button>
-              <button style={btnSecondary} onClick={() => { setSql(`SELECT COUNT(*) FROM ${selectedTableInfo.schema}.${selectedTableInfo.name};`); setTab("query"); }}>
+              <button className="panel-btn panel-btn-secondary" onClick={() => { setSql(`SELECT COUNT(*) FROM ${selectedTableInfo.schema}.${selectedTableInfo.name};`); setTab("query"); }}>
                 Count Rows
               </button>
             </div>
@@ -440,11 +417,11 @@ export function VibeSqlPanel({ provider }: { workspacePath: string | null; provi
     <div>
       {/* Natural language input */}
       <div style={{ marginBottom: 10 }}>
-        <label style={label}>Ask in Plain English</label>
+        <label className="panel-label">Ask in Plain English</label>
         <div style={{ display: "flex", gap: 6 }}>
-          <input style={{ ...input, flex: 1 }} value={nlQuery} onChange={e => setNlQuery(e.target.value)}
+          <input className="panel-input" style={{ flex: 1 }} value={nlQuery} onChange={e => setNlQuery(e.target.value)}
             placeholder="Show top 10 customers by revenue..." onKeyDown={e => e.key === "Enter" && generateSql()} />
-          <button style={btnPrimary} onClick={generateSql} disabled={!nlQuery.trim() || !provider || queryLoading}>
+          <button className="panel-btn panel-btn-primary" onClick={generateSql} disabled={!nlQuery.trim() || !provider || queryLoading}>
             Generate
           </button>
         </div>
@@ -452,21 +429,21 @@ export function VibeSqlPanel({ provider }: { workspacePath: string | null; provi
 
       {/* SQL editor */}
       <div style={{ marginBottom: 10 }}>
-        <label style={label}>SQL</label>
-        <textarea ref={sqlRef} style={{ ...monoInput, minHeight: 100, resize: "vertical" }}
+        <label className="panel-label">SQL</label>
+        <textarea ref={sqlRef} className="panel-input panel-textarea panel-input-full" style={{ fontFamily: "var(--font-mono, monospace)", minHeight: 100, resize: "vertical" }}
           value={sql} onChange={e => setSql(e.target.value)}
           placeholder="SELECT * FROM ..."
           onKeyDown={e => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); executeQuery(); } }} />
       </div>
 
       <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
-        <button style={{ ...btnPrimary, flex: 1 }} onClick={executeQuery} disabled={!sql.trim() || queryLoading}>
+        <button className="panel-btn panel-btn-primary" style={{ flex: 1 }} onClick={executeQuery} disabled={!sql.trim() || queryLoading}>
           {queryLoading ? "Running..." : "Execute (⌘+Enter)"}
         </button>
-        <button style={btnSecondary} onClick={() => { setSql(""); setQueryResult(null); }}>Clear</button>
+        <button className="panel-btn panel-btn-secondary" onClick={() => { setSql(""); setQueryResult(null); }}>Clear</button>
       </div>
 
-      {error && <div style={{ ...card, borderColor: "var(--error-color)", color: "var(--error-color)", fontSize: 12, marginBottom: 8 }}>{error}</div>}
+      {error && <div className="panel-error" style={{ marginBottom: 8 }}>{error}</div>}
 
       {/* Results */}
       {queryResult && (
@@ -511,12 +488,12 @@ export function VibeSqlPanel({ provider }: { workspacePath: string | null; provi
 
   const renderHistory = () => (
     <div>
-      <div style={{ ...label, marginBottom: 8 }}>Query History ({queryHistory.length})</div>
+      <div className="panel-label" style={{ marginBottom: 8 }}>Query History ({queryHistory.length})</div>
       {queryHistory.length === 0 && (
-        <div style={{ ...card, textAlign: "center", color: "var(--text-secondary)", padding: 20 }}>No queries executed yet</div>
+        <div className="panel-empty">No queries executed yet</div>
       )}
       {queryHistory.map((h, i) => (
-        <div key={i} style={{ ...card, cursor: "pointer" }} role="button" tabIndex={0}
+        <div key={i} className="panel-card" style={{ cursor: "pointer" }} role="button" tabIndex={0}
           onClick={() => { setSql(h.sql); setTab("query"); }}
           onKeyDown={e => { if (e.key === "Enter") { setSql(h.sql); setTab("query"); } }}>
           <div style={{ fontFamily: "var(--font-mono, monospace)", fontSize: 11, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -540,11 +517,11 @@ export function VibeSqlPanel({ provider }: { workspacePath: string | null; provi
       {serverInfo ? (
         <>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
-            <div style={card}>
+            <div className="panel-card">
               <div style={{ fontSize: 10, color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: 2 }}>Version</div>
               <div style={{ fontSize: 16, fontWeight: 700, fontFamily: "var(--font-mono, monospace)" }}>{serverInfo.version}</div>
             </div>
-            <div style={card}>
+            <div className="panel-card">
               <div style={{ fontSize: 10, color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: 2 }}>Edition</div>
               <div style={{ fontSize: 16, fontWeight: 700 }}>
                 {serverInfo.edition}
@@ -553,21 +530,21 @@ export function VibeSqlPanel({ provider }: { workspacePath: string | null; provi
                 </span>
               </div>
             </div>
-            <div style={card}>
+            <div className="panel-card">
               <div style={{ fontSize: 10, color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: 2 }}>Uptime</div>
               <div style={{ fontSize: 16, fontWeight: 700, fontFamily: "var(--font-mono, monospace)" }}>{serverInfo.uptime}</div>
             </div>
-            <div style={card}>
+            <div className="panel-card">
               <div style={{ fontSize: 10, color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: 2 }}>Connections</div>
               <div style={{ fontSize: 16, fontWeight: 700, fontFamily: "var(--font-mono, monospace)" }}>{serverInfo.connections_active}</div>
             </div>
           </div>
-          <div style={card}>
+          <div className="panel-card">
             <div style={{ fontSize: 10, color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: 4 }}>Memory</div>
             <div style={{ fontSize: 13, fontFamily: "var(--font-mono, monospace)" }}>{serverInfo.memory_used_mb} MB</div>
           </div>
           {serverInfo.databases.length > 0 && (
-            <div style={{ ...card, marginTop: 8 }}>
+            <div className="panel-card" style={{ marginTop: 8 }}>
               <div style={{ fontSize: 10, color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: 6 }}>Databases</div>
               <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                 {serverInfo.databases.map(db => (
@@ -578,7 +555,7 @@ export function VibeSqlPanel({ provider }: { workspacePath: string | null; provi
           )}
         </>
       ) : (
-        <div style={{ ...card, textAlign: "center", color: "var(--text-secondary)", padding: 20 }}>Connect to a server to view status</div>
+        <div className="panel-empty">Connect to a server to view status</div>
       )}
     </div>
   );
@@ -586,19 +563,17 @@ export function VibeSqlPanel({ provider }: { workspacePath: string | null; provi
   // ── Layout ──────────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ padding: 16, height: "100%", overflow: "auto", color: "var(--text-primary)" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 14, fontWeight: 700 }}>VibeSQL</span>
-          {connected && activeConn && (
-            <span style={{ ...badge("var(--success-color)"), fontSize: 9 }}>
-              {activeConn.name}
-            </span>
-          )}
-        </div>
-        <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+    <div className="panel-container">
+      <div className="panel-header">
+        <h3>VibeSQL</h3>
+        {connected && activeConn && (
+          <span style={{ ...badge("var(--success-color)"), fontSize: 9 }}>
+            {activeConn.name}
+          </span>
+        )}
+        <div style={{ display: "flex", gap: 4, alignItems: "center", marginLeft: "auto" }}>
           {connected && (
-            <button style={{ ...btnSecondary, padding: "3px 10px", fontSize: 11 }} onClick={handleDisconnect}>Disconnect</button>
+            <button className="panel-btn panel-btn-secondary panel-btn-xs" onClick={handleDisconnect}>Disconnect</button>
           )}
           {tabBtn("connect", "Connect")}
           {tabBtn("browser", "Schema", !connected)}
@@ -607,11 +582,13 @@ export function VibeSqlPanel({ provider }: { workspacePath: string | null; provi
           {tabBtn("status", "Status", !connected)}
         </div>
       </div>
-      {tab === "connect" && renderConnect()}
-      {tab === "browser" && renderBrowser()}
-      {tab === "query" && renderQuery()}
-      {tab === "history" && renderHistory()}
-      {tab === "status" && renderStatus()}
+      <div className="panel-body">
+        {tab === "connect" && renderConnect()}
+        {tab === "browser" && renderBrowser()}
+        {tab === "query" && renderQuery()}
+        {tab === "history" && renderHistory()}
+        {tab === "status" && renderStatus()}
+      </div>
     </div>
   );
 }

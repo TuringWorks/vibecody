@@ -25,9 +25,6 @@ const MODEL_OPTIONS = ["claude-opus-4-20250514", "claude-sonnet-4-20250514", "gp
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const inputStyle: React.CSSProperties = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: 12, fontFamily: "var(--font-family)", boxSizing: "border-box" };
-const textareaStyle: React.CSSProperties = { ...inputStyle, minHeight: 80, resize: "vertical" as const };
-const selectStyle: React.CSSProperties = { ...inputStyle, cursor: "pointer" };
 const toggleStyle = (on: boolean): React.CSSProperties => ({ display: "inline-block", width: 36, height: 18, borderRadius: 9, background: on ? "var(--success-color)" : "var(--bg-tertiary)", position: "relative", cursor: "pointer", border: "1px solid var(--border-color)", transition: "background 0.2s" });
 const toggleDot = (on: boolean): React.CSSProperties => ({ position: "absolute", top: 2, left: on ? 18 : 2, width: 12, height: 12, borderRadius: "50%", background: "white", transition: "left 0.2s" });
 
@@ -184,23 +181,23 @@ export function ContextBundlePanel() {
           <div className="panel-card">
             <div style={{ marginBottom: 10 }}>
               <div className="panel-label">Bundle Name *</div>
-              <input style={inputStyle} value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="e.g. Backend API" />
+              <input className="panel-input panel-input-full" value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="e.g. Backend API" />
             </div>
             <div style={{ marginBottom: 10 }}>
               <div className="panel-label">Description</div>
-              <input style={inputStyle} value={formDesc} onChange={(e) => setFormDesc(e.target.value)} placeholder="Short description of this context bundle" />
+              <input className="panel-input panel-input-full" value={formDesc} onChange={(e) => setFormDesc(e.target.value)} placeholder="Short description of this context bundle" />
             </div>
             <div style={{ marginBottom: 10 }}>
               <div className="panel-label">Pinned Files (one per line)</div>
-              <textarea style={textareaStyle} value={formFiles} onChange={(e) => setFormFiles(e.target.value)} placeholder={"src/main.rs\nsrc/lib.rs\nCargo.toml"} />
+              <textarea className="panel-input panel-input-full" style={{ minHeight: 80, resize: "vertical" }} value={formFiles} onChange={(e) => setFormFiles(e.target.value)} placeholder={"src/main.rs\nsrc/lib.rs\nCargo.toml"} />
             </div>
             <div style={{ marginBottom: 10 }}>
               <div className="panel-label">Instructions</div>
-              <textarea style={textareaStyle} value={formInstructions} onChange={(e) => setFormInstructions(e.target.value)} placeholder="Custom instructions for the AI when this bundle is active..." />
+              <textarea className="panel-input panel-input-full" style={{ minHeight: 80, resize: "vertical" }} value={formInstructions} onChange={(e) => setFormInstructions(e.target.value)} placeholder="Custom instructions for the AI when this bundle is active..." />
             </div>
             <div style={{ marginBottom: 12 }}>
               <div className="panel-label">Model Preference</div>
-              <select style={selectStyle} value={formModel} onChange={(e) => setFormModel(e.target.value)}>
+              <select className="panel-select" value={formModel} onChange={(e) => setFormModel(e.target.value)}>
                 {MODEL_OPTIONS.map((m) => <option key={m} value={m}>{m}</option>)}
               </select>
             </div>
@@ -213,7 +210,7 @@ export function ContextBundlePanel() {
         <div>
           <div className="panel-card">
             <div className="panel-label">Bundle JSON</div>
-            <textarea style={{ ...textareaStyle, minHeight: 200 }} value={jsonText} onChange={(e) => setJsonText(e.target.value)} placeholder="Paste bundle JSON here to import, or click Export to populate..." />
+            <textarea className="panel-input panel-input-full" style={{ minHeight: 200, resize: "vertical" }} value={jsonText} onChange={(e) => setJsonText(e.target.value)} placeholder="Paste bundle JSON here to import, or click Export to populate..." />
             <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
               <button className="panel-btn panel-btn-secondary" onClick={exportBundles}>Export Current Bundles</button>
               <button className="panel-btn panel-btn-primary" onClick={importBundles}>Import from JSON</button>

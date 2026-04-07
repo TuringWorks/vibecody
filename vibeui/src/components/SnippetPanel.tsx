@@ -130,7 +130,7 @@ export function SnippetPanel({ workspacePath: _workspacePath }: SnippetPanelProp
   };
 
   return (
-    <div style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
+    <div className="panel-container" style={{ flexDirection: "row" }}>
       {/* Left: snippet list */}
       <div style={{
         width: "40%", borderRight: "1px solid var(--border-color)",
@@ -141,9 +141,9 @@ export function SnippetPanel({ workspacePath: _workspacePath }: SnippetPanelProp
             placeholder="Search..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            style={{ ...inputStyle, flex: 1 }}
+            className="panel-input" style={{ flex: 1 }}
           />
-          <select value={langFilter} onChange={(e) => setLangFilter(e.target.value)} style={selectStyle}>
+          <select value={langFilter} onChange={(e) => setLangFilter(e.target.value)} className="panel-select">
             <option value="">All langs</option>
             {LANG_OPTIONS.filter(Boolean).map((l) => <option key={l} value={l}>{l}</option>)}
           </select>
@@ -231,17 +231,17 @@ export function SnippetPanel({ workspacePath: _workspacePath }: SnippetPanelProp
         {creating && (
           <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "auto", padding: "8px 10px", gap: 8 }}>
             <div style={{ display: "flex", gap: 6 }}>
-              <input placeholder="Snippet name..." value={newName} onChange={(e) => setNewName(e.target.value)} style={{ ...inputStyle, flex: 1 }} />
-              <select value={newLang} onChange={(e) => setNewLang(e.target.value)} style={selectStyle}>
+              <input placeholder="Snippet name..." value={newName} onChange={(e) => setNewName(e.target.value)} className="panel-input" style={{ flex: 1 }} />
+              <select value={newLang} onChange={(e) => setNewLang(e.target.value)} className="panel-select">
                 <option value="">Language</option>
                 {LANG_OPTIONS.filter(Boolean).map((l) => <option key={l} value={l}>{l}</option>)}
               </select>
             </div>
-            <input placeholder="Tags (comma-separated)..." value={newTags} onChange={(e) => setNewTags(e.target.value)} style={inputStyle} />
+            <input placeholder="Tags (comma-separated)..." value={newTags} onChange={(e) => setNewTags(e.target.value)} className="panel-input panel-input-full" />
 
             {/* AI Generate */}
             <div style={{ display: "flex", gap: 6 }}>
-              <input placeholder="Describe what to generate..." value={genDesc} onChange={(e) => setGenDesc(e.target.value)} style={{ ...inputStyle, flex: 1 }} />
+              <input placeholder="Describe what to generate..." value={genDesc} onChange={(e) => setGenDesc(e.target.value)} className="panel-input" style={{ flex: 1 }} />
               <button onClick={handleGenerate} disabled={generating} className="panel-btn panel-btn-secondary" style={{ color: "var(--text-info)" }}>
                 {generating ? "..." : "AI Generate"}
               </button>
@@ -251,12 +251,11 @@ export function SnippetPanel({ workspacePath: _workspacePath }: SnippetPanelProp
               value={newContent}
               onChange={(e) => setNewContent(e.target.value)}
               placeholder="Snippet code..."
+              className="panel-input panel-textarea"
               style={{
-                flex: 1, minHeight: 120, padding: "8px 10px",
+                flex: 1, minHeight: 120,
                 fontFamily: "var(--font-mono)", fontSize: 12, lineHeight: 1.5,
-                background: "var(--bg-primary)", color: "var(--text-primary)",
-                border: "1px solid var(--border-color)", borderRadius: 4,
-                outline: "none", resize: "vertical",
+                resize: "vertical",
               }}
             />
 
@@ -280,15 +279,3 @@ export function SnippetPanel({ workspacePath: _workspacePath }: SnippetPanelProp
   );
 }
 
-const inputStyle: React.CSSProperties = {
-  padding: "4px 8px", fontSize: 11, borderRadius: 4,
-  border: "1px solid var(--border-color)",
-  background: "var(--bg-primary)", color: "var(--text-primary)",
-  outline: "none",
-};
-
-const selectStyle: React.CSSProperties = {
-  padding: "4px 6px", fontSize: 11, borderRadius: 4,
-  border: "1px solid var(--border-color)",
-  background: "var(--bg-primary)", color: "var(--text-primary)",
-};

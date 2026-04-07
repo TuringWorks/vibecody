@@ -139,7 +139,7 @@ export function BookmarkPanel({ workspacePath }: BookmarkPanelProps) {
               placeholder="Filter by file..."
               value={fileFilter}
               onChange={(e) => setFileFilter(e.target.value)}
-              style={{ padding: "4px 8px", fontSize: 11, borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)", outline: "none" }}
+              className="panel-input"
             />
             <span style={{ fontSize: 10, opacity: 0.5 }}>{filteredMarkers.length} results</span>
           </div>

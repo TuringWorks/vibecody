@@ -21,38 +21,14 @@ export function TabbedPanel({ tabs, defaultTab }: TabbedPanelProps) {
   visitedRef.current.add(active);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
-      <div
-        style={{
-          display: "flex",
-          gap: 2,
-          borderBottom: "1px solid var(--border-color)",
-          background: "var(--bg-secondary)",
-          overflowX: "auto",
-          flexShrink: 0,
-        }}
-      >
+    <div className="panel-container">
+      <div className="panel-tab-bar" style={{ overflowX: "auto" }}>
         {tabs.map((t) => (
           <button
             key={t.id}
             onClick={() => setActive(t.id)}
-            style={{
-              padding: "8px 14px",
-              border: "none",
-              background: "transparent",
-              cursor: "pointer",
-              borderBottom:
-                active === t.id
-                  ? "2px solid var(--accent-color)"
-                  : "2px solid transparent",
-              color:
-                active === t.id
-                  ? "var(--accent-color)"
-                  : "var(--text-secondary)",
-              fontSize: 13,
-              fontFamily: "inherit",
-              whiteSpace: "nowrap",
-            }}
+            className={`panel-tab ${active === t.id ? "active" : ""}`}
+            style={{ whiteSpace: "nowrap" }}
           >
             {t.label}
           </button>

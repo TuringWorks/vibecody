@@ -306,21 +306,11 @@ export function ManagerView({ provider }: ManagerViewProps) {
  const failed = agentList.filter((a) => a.status === "failed").length;
 
  return (
- <div className="panel-container" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+ <div className="panel-container">
  {/* Header */}
- <div style={{
- padding: "10px 12px",
- borderBottom: "1px solid var(--border-color)",
- display: "flex",
- alignItems: "center",
- gap: "8px",
- flexShrink: 0,
- }}>
+ <div className="panel-header">
  <span style={{ fontSize: "16px" }}></span>
- <div style={{ flex: 1 }}>
- <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>
- Manager View
- </div>
+ <h3>Manager View</h3>
  {agentList.length > 0 && (
  <div style={{ fontSize: "10px", color: "var(--text-secondary)" }}>
  {running > 0 && <span style={{ color: "var(--accent-color)", marginRight: "8px" }}> {running} running</span>}
@@ -329,10 +319,9 @@ export function ManagerView({ provider }: ManagerViewProps) {
  </div>
  )}
  </div>
- </div>
 
  {/* Content */}
- <div style={{ flex: 1, overflowY: "auto", padding: "10px" }}>
+ <div className="panel-body">
  {/* Task composition area */}
  <div style={{
  background: "var(--bg-secondary)",

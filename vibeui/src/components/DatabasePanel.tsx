@@ -134,7 +134,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
  };
 
  return (
- <div className="panel-container" style={{ display: "flex", flex: 1, minHeight: 0 }}>
+ <div className="panel-container" style={{ flexDirection: "row" }}>
  {/* Left: Tables list */}
  <div style={{ width: 200, borderRight: "1px solid var(--border-color)", display: "flex", flexDirection: "column" }}>
  {/* Connection area */}
@@ -164,12 +164,14 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
  value={connectionString}
  onChange={(e) => setConnectionString(e.target.value)}
  placeholder={dbType === "sqlite" ? "path/to/db.sqlite" : dbType === "postgres" ? "postgresql://..." : "https://xxx.supabase.co"}
- style={{ width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "inherit", padding: "4px 6px", fontSize: 11, boxSizing: "border-box", marginBottom: 6 }}
+ className="panel-input panel-input-full"
+ style={{ marginBottom: 6 }}
  />
  <button
  onClick={handleConnect}
  disabled={isLoading}
- style={{ width: "100%", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: 4, padding: "5px 0", cursor: "pointer", fontSize: 12, fontWeight: 600 }}
+ className="panel-btn panel-btn-primary"
+ style={{ width: "100%" }}
  >
  {isConnected ? "Reconnect" : "Connect"}
  </button>
@@ -216,9 +218,10 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
  onChange={(e) => setNlQuery(e.target.value)}
  onKeyDown={(e) => e.key === "Enter" && handleNlQuery()}
  placeholder="Ask in plain English (e.g., 'Show users signed up this week')"
- style={{ flex: 1, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "inherit", padding: "5px 8px", fontSize: 12 }}
+ className="panel-input panel-input-full"
+ style={{ flex: 1 }}
  />
- <button onClick={handleNlQuery} disabled={isLoading} style={{ background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: 4, padding: "5px 12px", cursor: "pointer", fontSize: 12 }}>Ask AI</button>
+ <button onClick={handleNlQuery} disabled={isLoading} className="panel-btn panel-btn-primary panel-btn-sm">Ask AI</button>
  </div>
  {/* SQL editor */}
  <div style={{ display: "flex", gap: 8 }}>
@@ -227,11 +230,12 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
  onChange={(e) => setSqlQuery(e.target.value)}
  rows={2}
  placeholder="SELECT * FROM users LIMIT 50"
- style={{ flex: 1, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "inherit", padding: "5px 8px", fontSize: 12, fontFamily: "var(--font-mono)", resize: "none" }}
+ className="panel-input panel-textarea panel-input-full"
+ style={{ flex: 1, fontFamily: "var(--font-mono)", resize: "none" }}
  />
  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
- <button onClick={() => runQuery(sqlQuery)} disabled={isLoading || !sqlQuery.trim()} style={{ background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: 4, padding: "4px 10px", cursor: "pointer", fontSize: 11 }}>Run</button>
- <button onClick={handleGenerateMigration} disabled={isLoading} style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, padding: "4px 6px", cursor: "pointer", fontSize: 10, color: "inherit" }}>+ Migration</button>
+ <button onClick={() => runQuery(sqlQuery)} disabled={isLoading || !sqlQuery.trim()} className="panel-btn panel-btn-primary panel-btn-xs">Run</button>
+ <button onClick={handleGenerateMigration} disabled={isLoading} className="panel-btn panel-btn-secondary panel-btn-xs">+ Migration</button>
  </div>
  </div>
  </div>

@@ -52,12 +52,12 @@ export function CompanyAgentDetailPanel({ workspacePath: _wp }: CompanyAgentDeta
 
   return (
     <div className="panel-container">
-      <div className="panel-header">Agent Detail</div>
-      <div className="panel-body" style={{ fontSize: 13 }}>
+      <div className="panel-header"><h3>Agent Detail</h3></div>
+      <div className="panel-body">
 
       {/* Agent list */}
       <div className="panel-card" style={{ marginBottom: 16, maxHeight: 200, overflowY: "auto" }}>
-        <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 6 }}>All Agents</div>
+        <div className="panel-label">All Agents</div>
         <pre style={{ margin: 0, fontSize: 12, whiteSpace: "pre-wrap" }}>
           {allAgents || "No agents. Use /company agent hire <name>"}
         </pre>
@@ -70,15 +70,8 @@ export function CompanyAgentDetailPanel({ workspacePath: _wp }: CompanyAgentDeta
           onChange={(e) => setAgentId(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && loadAgent()}
           placeholder="Agent ID (first 8 chars ok)"
-          style={{
-            flex: 1,
-            fontSize: 12,
-            padding: "4px 8px",
-            background: "var(--bg-primary)",
-            border: "1px solid var(--border-color)",
-            borderRadius: 4,
-            color: "var(--text-primary)",
-          }}
+          className="panel-input"
+          style={{ flex: 1 }}
         />
         <button onClick={loadAgent} disabled={loading} className="panel-btn panel-btn-secondary">
           {loading ? "…" : "Lookup"}

@@ -370,7 +370,7 @@ export function GatewaySandboxPanel({ provider: defaultProvider = "claude" }: Ga
   const def = PLATFORM_BY_ID[platform];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+    <div className="panel-container">
       {/* Header */}
       <div className="panel-header">
         <MessageSquare size={14} style={{ color: "var(--text-secondary)" }} />

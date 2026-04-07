@@ -150,10 +150,10 @@ export default function WorkManagementPanel() {
   ];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, color: "var(--text-primary)" }}>
+    <div className="panel-container">
       {/* Header */}
-      <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", display: "flex", alignItems: "center", gap: 8 }}>
-        <span style={{ fontSize: 14, fontWeight: 700 }}>Projects</span>
+      <div className="panel-header">
+        <h3>Projects</h3>
         {scope.orgId && <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>
           {orgs.find(o => o.id === scope.orgId)?.name}
           {scope.groupId && ` / ${groups.find(g => g.id === scope.groupId)?.name || ""}`}
@@ -164,19 +164,15 @@ export default function WorkManagementPanel() {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: "flex", gap: 2, borderBottom: "1px solid var(--border-color)", padding: "0 16px", flexShrink: 0 }}>
+      <div className="panel-tab-bar" style={{ padding: "0 16px" }}>
         {tabs.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)} style={{
-            padding: "6px 14px", fontSize: 12, border: "none", background: "none", cursor: "pointer",
-            borderBottom: tab === t.id ? "2px solid var(--accent-blue)" : "2px solid transparent",
-            color: tab === t.id ? "var(--text-primary)" : "var(--text-secondary)",
-          }}>{t.label}</button>
+          <button key={t.id} onClick={() => setTab(t.id)} className={`panel-tab ${tab === t.id ? "active" : ""}`}>{t.label}</button>
         ))}
       </div>
 
-      {error && <div style={{ padding: "6px 12px", fontSize: 11, color: "var(--error-color)", background: "var(--error-bg)" }}>{error}<button style={{ float: "right", ...btnS, fontSize: 10, padding: "1px 6px" }} onClick={() => setError("")}>x</button></div>}
+      {error && <div className="panel-error">{error}<button style={{ float: "right", ...btnS, fontSize: 10, padding: "1px 6px" }} onClick={() => setError("")}>x</button></div>}
 
-      <div style={{ flex: 1, overflowY: "auto", padding: "10px 12px" }}>
+      <div className="panel-body">
         {tab === "hierarchy" && <HierarchyTab orgs={orgs} groups={groups} teams={teams} workspaces={workspaces} scope={scope} setScope={setScope} onRefresh={refreshAll} setError={setError} />}
         {tab === "agile" && (
           <Suspense fallback={<div style={{ padding: 16, color: "var(--text-secondary)" }}>Loading Agile...</div>}>

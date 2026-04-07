@@ -38,12 +38,6 @@ const statusColors: Record<PlanStatus, string> = {
   archived: "var(--text-secondary)",
 };
 
-const tabBtn = (active: boolean): React.CSSProperties => ({
-  padding: "6px 14px", fontSize: 11, fontWeight: active ? 600 : 400,
-  background: active ? "var(--accent-bg)" : "transparent",
-  border: "1px solid " + (active ? "var(--accent-primary)" : "var(--border-color)"),
-  borderRadius: 4, color: active ? "var(--text-info)" : "var(--text-secondary)", cursor: "pointer",
-});
 
 export default function PlanDocumentPanel() {
   const [tab, setTab] = useState<Tab>("plans");
@@ -155,24 +149,24 @@ export default function PlanDocumentPanel() {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+    <div className="panel-container">
       {error && (
-        <div style={{ padding: "6px 10px", fontSize: 11, background: "var(--text-danger)", color: "var(--bg-primary)", cursor: "pointer" }} onClick={() => setError(null)}>
+        <div className="panel-error" style={{ cursor: "pointer" }} onClick={() => setError(null)}>
           {error} (click to dismiss)
         </div>
       )}
-      <div style={{ display: "flex", gap: 6, padding: "8px 10px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
+      <div className="panel-header">
         {(["plans", "editor", "comments"] as Tab[]).map(t => (
-          <button key={t} onClick={() => setTab(t)} style={tabBtn(tab === t)}>
+          <button key={t} onClick={() => setTab(t)} className={`panel-btn ${tab === t ? "panel-btn-primary" : "panel-btn-secondary"}`}>
             {t[0].toUpperCase() + t.slice(1)}
             {t === "comments" && allUnresolved.length > 0 && (
-              <span style={{ marginLeft: 4, fontSize: 9, padding: "0 4px", borderRadius: 6, background: "var(--text-danger)", color: "var(--bg-primary)" }}>{allUnresolved.length}</span>
+              <span style={{ marginLeft: 4, fontSize: 9, padding: "0 4px", borderRadius: 6, background: "var(--error-color)", color: "var(--bg-primary)" }}>{allUnresolved.length}</span>
             )}
           </button>
         ))}
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+      <div className="panel-body" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {tab === "plans" && (
           <>
             <button onClick={() => setShowNewPlan(!showNewPlan)}

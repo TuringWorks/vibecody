@@ -25,10 +25,6 @@ const STATUS_BADGE: Record<string, string> = {
   idle: "○", active: "●", paused: "‖", terminated: "×",
 };
 
-const inputStyle: React.CSSProperties = {
-  fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)",
-  border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)",
-};
 
 export function CompanyOrgChartPanel({ workspacePath: _wp }: CompanyOrgChartPanelProps) {
   const [agentText, setAgentText] = useState<string>("");
@@ -108,9 +104,9 @@ export function CompanyOrgChartPanel({ workspacePath: _wp }: CompanyOrgChartPane
   return (
     <div className="panel-container">
       {/* Header */}
-      <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontWeight: 600, fontSize: 14 }}>Agents</span>
-        <div style={{ display: "flex", gap: 6 }}>
+      <div className="panel-header">
+        <h3>Agents</h3>
+        <div style={{ display: "flex", gap: 6, marginLeft: "auto" }}>
           {(["list", "tree", "hire"] as const).map((v) => (
             <button key={v} onClick={() => setView(v)} className={`panel-btn ${view === v ? "panel-btn-primary" : "panel-btn-secondary"}`} style={{ padding: "2px 8px" }}>
               {v === "hire" ? "+ Hire" : v.charAt(0).toUpperCase() + v.slice(1)}
@@ -135,12 +131,12 @@ export function CompanyOrgChartPanel({ workspacePath: _wp }: CompanyOrgChartPane
         <div className="panel-card" style={{ marginBottom: 12 }}>
           <div style={{ fontWeight: 600, marginBottom: 10 }}>Hire New Agent</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
-            <input value={hireName} onChange={(e) => setHireName(e.target.value)} placeholder="Name *" style={inputStyle} autoFocus />
-            <input value={hireTitle} onChange={(e) => setHireTitle(e.target.value)} placeholder="Title (e.g. Senior Engineer)" style={inputStyle} />
-            <select value={hireRole} onChange={(e) => setHireRole(e.target.value)} style={{ ...inputStyle }}>
+            <input value={hireName} onChange={(e) => setHireName(e.target.value)} placeholder="Name *" className="panel-input" autoFocus />
+            <input value={hireTitle} onChange={(e) => setHireTitle(e.target.value)} placeholder="Title (e.g. Senior Engineer)" className="panel-input" />
+            <select value={hireRole} onChange={(e) => setHireRole(e.target.value)} className="panel-select">
               {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
             </select>
-            <input placeholder="Reports to (agent name, optional)" style={inputStyle} />
+            <input placeholder="Reports to (agent name, optional)" className="panel-input" />
           </div>
           {hireResult && <div style={{ fontSize: 12, marginBottom: 8, color: hireResult.startsWith("Error") ? "var(--danger, #e74c3c)" : "var(--success, #27ae60)" }}>{hireResult}</div>}
           <button onClick={hireAgent} disabled={hiring || !hireName.trim()} className="panel-btn panel-btn-primary" style={{ opacity: hiring ? 0.6 : 1 }}>
@@ -190,7 +186,8 @@ export function CompanyOrgChartPanel({ workspacePath: _wp }: CompanyOrgChartPane
                 value={fireId}
                 onChange={(e) => setFireId(e.target.value)}
                 placeholder="Agent name or ID to fire"
-                style={{ ...inputStyle, flex: 1 }}
+                className="panel-input"
+                style={{ flex: 1 }}
               />
               <button
                 onClick={() => fireAgent(fireId)}

@@ -171,7 +171,8 @@ export function OrchestrationPanel({ workspacePath: _workspacePath }: Orchestrat
                     onChange={e => setNewGoal(e.target.value)}
                     onKeyDown={e => e.key === "Enter" && createTask()}
                     placeholder="Describe the task goal..."
-                    style={{ flex: 1, padding: "6px 8px", background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "4px", fontSize: "13px" }}
+                    className="panel-input panel-input-full"
+                    style={{ flex: 1 }}
                   />
                   <button onClick={createTask} className="panel-btn panel-btn-primary">Create</button>
                 </div>

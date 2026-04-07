@@ -61,30 +61,6 @@ const ALL_CAPABILITIES = [
   "DataAnalysis",
 ] as const;
 
-// ── Shared inline styles (non-design-system items) ────────────────────────────
-
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "6px 10px",
-  borderRadius: "var(--border-radius, 4px)",
-  border: "1px solid var(--border)",
-  background: "var(--bg-tertiary)",
-  color: "var(--text-primary)",
-  fontSize: 13,
-  boxSizing: "border-box",
-};
-
-const textareaStyle: React.CSSProperties = {
-  ...inputStyle,
-  minHeight: 80,
-  resize: "vertical",
-  fontFamily: "monospace",
-};
-
-const selectStyle: React.CSSProperties = {
-  ...inputStyle,
-  cursor: "pointer",
-};
 
 const capBadgeColors: Record<string, string> = {
   CodeGeneration: "#6366f1",
@@ -363,7 +339,8 @@ export function A2aPanel() {
           <div>
             <div className="panel-card" style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <input
-                style={{ ...inputStyle, flex: 1 }}
+                className="panel-input"
+                style={{ flex: 1 }}
                 placeholder="Agent URL (e.g. http://localhost:9100/.well-known/agent.json)"
                 value={discoverUrl}
                 onChange={(e) => setDiscoverUrl(e.target.value)}
@@ -419,7 +396,8 @@ export function A2aPanel() {
               <div style={rowStyle}>
                 <label style={{ ...labelStyle, marginBottom: 0, minWidth: 50 }}>Agent:</label>
                 <select
-                  style={{ ...selectStyle, flex: 1 }}
+                  className="panel-select"
+                  style={{ flex: 1 }}
                   value={taskAgentUrl}
                   onChange={(e) => setTaskAgentUrl(e.target.value)}
                 >
@@ -450,7 +428,8 @@ export function A2aPanel() {
               <div style={{ marginBottom: 8 }}>
                 <label className="panel-label">Input:</label>
                 <textarea
-                  style={textareaStyle}
+                  className="panel-input panel-textarea panel-input-full"
+                  style={{ minHeight: 80, resize: "vertical", fontFamily: "monospace" }}
                   placeholder="Enter task input..."
                   value={taskInput}
                   onChange={(e) => setTaskInput(e.target.value)}
@@ -540,7 +519,7 @@ export function A2aPanel() {
                 <div style={{ marginBottom: 10 }}>
                   <label className="panel-label">Name</label>
                   <input
-                    style={inputStyle}
+                    className="panel-input panel-input-full"
                     value={agentCard.name}
                     onChange={(e) => setAgentCard((prev) => ({ ...prev, name: e.target.value }))}
                     placeholder="VibeCody"
@@ -550,7 +529,8 @@ export function A2aPanel() {
                 <div style={{ marginBottom: 10 }}>
                   <label className="panel-label">Description</label>
                   <textarea
-                    style={{ ...textareaStyle, minHeight: 60 }}
+                    className="panel-input panel-textarea panel-input-full"
+                    style={{ minHeight: 60, resize: "vertical" }}
                     value={agentCard.description}
                     onChange={(e) => setAgentCard((prev) => ({ ...prev, description: e.target.value }))}
                     placeholder="AI-powered code assistant with multi-provider support"
@@ -560,7 +540,8 @@ export function A2aPanel() {
                 <div style={{ marginBottom: 10 }}>
                   <label className="panel-label">URL</label>
                   <input
-                    style={{ ...inputStyle, color: "var(--text-muted)" }}
+                    className="panel-input panel-input-full"
+                    style={{ color: "var(--text-muted)" }}
                     value={agentCard.url}
                     readOnly
                     title="URL is set by the server configuration"
@@ -570,7 +551,8 @@ export function A2aPanel() {
                 <div style={{ marginBottom: 10 }}>
                   <label className="panel-label">Version</label>
                   <input
-                    style={{ ...inputStyle, color: "var(--text-muted)" }}
+                    className="panel-input panel-input-full"
+                    style={{ color: "var(--text-muted)" }}
                     value={agentCard.version}
                     readOnly
                     title="Version is set automatically"

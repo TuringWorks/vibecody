@@ -186,16 +186,6 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
  { id: "contexts", label: "Contexts" },
  ];
 
- const inputStyle: React.CSSProperties = {
- padding: "5px 8px",
- fontSize: 12,
- background: "var(--bg-secondary)",
- border: "1px solid var(--border-color)",
- borderRadius: 4,
- color: "var(--text-primary)",
- width: "100%",
- boxSizing: "border-box",
- };
 
  return (
  <div className="panel-container">
@@ -223,27 +213,27 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
  <div>
  <label className="panel-label">APP NAME</label>
- <input style={inputStyle} value={appName} onChange={(e) => setAppName(e.target.value)} />
+ <input className="panel-input panel-input-full" value={appName} onChange={(e) => setAppName(e.target.value)} />
  </div>
  <div>
  <label className="panel-label">IMAGE</label>
- <input style={inputStyle} value={image} onChange={(e) => setImage(e.target.value)} placeholder="nginx:latest" />
+ <input className="panel-input panel-input-full" value={image} onChange={(e) => setImage(e.target.value)} placeholder="nginx:latest" />
  </div>
  <div>
  <label className="panel-label">PORT</label>
- <input style={inputStyle} type="number" value={port} onChange={(e) => setPort(Number(e.target.value))} />
+ <input className="panel-input panel-input-full" type="number" value={port} onChange={(e) => setPort(Number(e.target.value))} />
  </div>
  <div>
  <label className="panel-label">REPLICAS</label>
- <input style={inputStyle} type="number" min={1} value={replicas} onChange={(e) => setReplicas(Number(e.target.value))} />
+ <input className="panel-input panel-input-full" type="number" min={1} value={replicas} onChange={(e) => setReplicas(Number(e.target.value))} />
  </div>
  <div>
  <label className="panel-label">NAMESPACE</label>
- <input style={inputStyle} value={namespace} onChange={(e) => setNamespace(e.target.value)} />
+ <input className="panel-input panel-input-full" value={namespace} onChange={(e) => setNamespace(e.target.value)} />
  </div>
  <div>
  <label className="panel-label">INGRESS HOST (optional)</label>
- <input style={inputStyle} value={ingressHost} onChange={(e) => setIngressHost(e.target.value)} placeholder="myapp.example.com" />
+ <input className="panel-input panel-input-full" value={ingressHost} onChange={(e) => setIngressHost(e.target.value)} placeholder="myapp.example.com" />
  </div>
  </div>
 
@@ -298,7 +288,7 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
  <label className="panel-label">CONTEXT</label>
  {contexts.length > 0 ? (
  <select
- style={inputStyle}
+ className="panel-input panel-input-full"
  value={selectedContext}
  onChange={(e) => setSelectedContext(e.target.value)}
  >
@@ -309,7 +299,7 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
  </select>
  ) : (
  <input
- style={inputStyle}
+ className="panel-input panel-input-full"
  value={selectedContext}
  onChange={(e) => setSelectedContext(e.target.value)}
  placeholder="kubectl not found or no contexts"
@@ -318,7 +308,7 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
  </div>
  <div>
  <label className="panel-label">NAMESPACE</label>
- <input style={inputStyle} value={deployNamespace} onChange={(e) => setDeployNamespace(e.target.value)} />
+ <input className="panel-input panel-input-full" value={deployNamespace} onChange={(e) => setDeployNamespace(e.target.value)} />
  </div>
  </div>
 
@@ -348,7 +338,7 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
  <div style={{ flex: 1 }}>
  <label className="panel-label">KUBECTL COMMAND</label>
  <input
- style={inputStyle}
+ className="panel-input panel-input-full"
  value={kubectlCmd}
  onChange={(e) => setKubectlCmd(e.target.value)}
  onKeyDown={(e) => e.key === "Enter" && handleRunKubectl()}
@@ -400,23 +390,23 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
  <div>
  <label className="panel-label">APP NAME</label>
- <input style={inputStyle} value={argoAppName} onChange={(e) => setArgoAppName(e.target.value)} />
+ <input className="panel-input panel-input-full" value={argoAppName} onChange={(e) => setArgoAppName(e.target.value)} />
  </div>
  <div>
  <label className="panel-label">TARGET NAMESPACE</label>
- <input style={inputStyle} value={argoNamespace} onChange={(e) => setArgoNamespace(e.target.value)} />
+ <input className="panel-input panel-input-full" value={argoNamespace} onChange={(e) => setArgoNamespace(e.target.value)} />
  </div>
  <div style={{ gridColumn: "1 / -1" }}>
  <label className="panel-label">REPO URL</label>
- <input style={inputStyle} value={argoRepoUrl} onChange={(e) => setArgoRepoUrl(e.target.value)} placeholder="https://github.com/org/repo" />
+ <input className="panel-input panel-input-full" value={argoRepoUrl} onChange={(e) => setArgoRepoUrl(e.target.value)} placeholder="https://github.com/org/repo" />
  </div>
  <div>
  <label className="panel-label">MANIFESTS PATH</label>
- <input style={inputStyle} value={argoPath} onChange={(e) => setArgoPath(e.target.value)} placeholder="./k8s" />
+ <input className="panel-input panel-input-full" value={argoPath} onChange={(e) => setArgoPath(e.target.value)} placeholder="./k8s" />
  </div>
  <div>
  <label className="panel-label">ARGOCD SERVER</label>
- <input style={inputStyle} value={argoServer} onChange={(e) => setArgoServer(e.target.value)} placeholder="https://kubernetes.default.svc" />
+ <input className="panel-input panel-input-full" value={argoServer} onChange={(e) => setArgoServer(e.target.value)} placeholder="https://kubernetes.default.svc" />
  </div>
  </div>
 

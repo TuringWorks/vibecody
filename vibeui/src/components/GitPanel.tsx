@@ -386,22 +386,15 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  const changedFiles = Object.entries(gitStatus.file_statuses);
 
  return (
- <div style={{ padding: '10px', display: 'flex', flexDirection: 'column', height: '100%' }}>
+ <div className="panel-container" style={{ padding: '10px' }}>
  <div style={{ marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
  <strong>Branch:</strong>
  <select
  value={gitStatus.branch}
  onChange={(e) => handleSwitchBranch(e.target.value)}
  disabled={isLoading}
- style={{
- flex: 1,
- padding: '4px 8px',
- background: 'var(--bg-tertiary)',
- border: '1px solid var(--border-color)',
- color: 'var(--text-primary)',
- borderRadius: '4px',
- fontSize: '12px',
- }}
+ className="panel-select"
+ style={{ flex: 1 }}
  >
  {branches.map(branch => (
  <option key={branch} value={branch}>{branch}</option>
@@ -560,20 +553,8 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  value={commitMessage}
  onChange={(e) => setCommitMessage(e.target.value)}
  placeholder="Commit message..."
- style={{
- width: '100%',
- minHeight: '50px',
- padding: '6px',
- paddingRight: '60px',
- background: 'var(--bg-tertiary)',
- border: '1px solid var(--border-color)',
- color: 'var(--text-primary)',
- borderRadius: '4px',
- marginBottom: '6px',
- fontFamily: 'inherit',
- fontSize: '12px',
- boxSizing: 'border-box',
- }}
+ className="panel-input panel-textarea panel-input-full"
+ style={{ minHeight: '50px', paddingRight: '60px', marginBottom: '6px', fontFamily: 'inherit' }}
  />
  <button
  onClick={handleGenerateMsg}

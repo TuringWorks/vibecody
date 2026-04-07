@@ -22,7 +22,6 @@ interface PolicyConflictDisplay {
 }
 
 const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" };
-const inputStyle: React.CSSProperties = { width: "100%", padding: "6px 8px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", fontSize: 12, boxSizing: "border-box" };
 
 type Tab = "check" | "policies" | "test" | "audit" | "conflicts";
 
@@ -75,19 +74,19 @@ export default function PolicyEnginePanel() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
               <div>
                 <div className="panel-label">Principal</div>
-                <input value={principal} onChange={e => setPrincipal(e.target.value)} style={inputStyle} />
+                <input value={principal} onChange={e => setPrincipal(e.target.value)} className="panel-input panel-input-full" />
               </div>
               <div>
                 <div className="panel-label">Roles (comma-separated)</div>
-                <input value={roles} onChange={e => setRoles(e.target.value)} style={inputStyle} />
+                <input value={roles} onChange={e => setRoles(e.target.value)} className="panel-input panel-input-full" />
               </div>
               <div>
                 <div className="panel-label">Resource (kind:id)</div>
-                <input value={resource} onChange={e => setResource(e.target.value)} style={inputStyle} />
+                <input value={resource} onChange={e => setResource(e.target.value)} className="panel-input panel-input-full" />
               </div>
               <div>
                 <div className="panel-label">Action</div>
-                <input value={action} onChange={e => setAction(e.target.value)} style={inputStyle} />
+                <input value={action} onChange={e => setAction(e.target.value)} className="panel-input panel-input-full" />
               </div>
             </div>
             <button className="panel-btn panel-btn-secondary" onClick={doCheck} disabled={loading}>
@@ -107,7 +106,7 @@ export default function PolicyEnginePanel() {
       {tab === "policies" && (
         <div className="panel-card">
           <div style={{ fontWeight: 600, marginBottom: 8 }}>Add Policy (YAML)</div>
-          <textarea value={yamlPolicy} onChange={e => setYamlPolicy(e.target.value)} rows={12} style={{ ...inputStyle, fontFamily: "monospace", resize: "vertical", marginBottom: 8 }} placeholder={'resourcePolicy:\n  resource: "document"\n  rules:\n    - actions: ["read"]\n      effect: ALLOW\n      roles: ["viewer"]'} />
+          <textarea value={yamlPolicy} onChange={e => setYamlPolicy(e.target.value)} rows={12} className="panel-input panel-textarea panel-input-full" style={{ fontFamily: "monospace", resize: "vertical", marginBottom: 8 }} placeholder={'resourcePolicy:\n  resource: "document"\n  rules:\n    - actions: ["read"]\n      effect: ALLOW\n      roles: ["viewer"]'} />
           <button className="panel-btn panel-btn-secondary" disabled={!yamlPolicy || loading}>Add Policy</button>
           <div className="panel-label" style={{ marginTop: 8 }}>Use <code>/policy template &lt;resource&gt;</code> in terminal to generate a starter policy.</div>
         </div>

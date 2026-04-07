@@ -179,7 +179,7 @@ export function BrowserPanel() {
  };
 
  return (
- <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg-primary)' }}>
+ <div className="panel-container">
  {/* Toolbar */}
  <div style={{
  display: 'flex', alignItems: 'center', gap: '4px',

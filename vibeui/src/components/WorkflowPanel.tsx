@@ -166,14 +166,14 @@ export function WorkflowPanel({ workspacePath, provider = "ollama" }: WorkflowPa
  const canAdvance = selected && activeStage === selected.current_stage && stageTotal > 0 && stageChecked / stageTotal >= 0.8;
 
  return (
- <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, background: "var(--bg-primary)", color: "var(--text-primary)", fontSize: "13px" }}>
+ <div className="panel-container" style={{ fontSize: "13px" }}>
  {/* Header */}
- <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "10px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
- <span style={{ fontWeight: 600 }}>Workflow</span>
+ <div className="panel-header">
+ <h3>Workflow</h3>
  {selected && view === "detail" && (
  <button
  onClick={() => { setView("list"); setSelected(null); }}
- style={{ padding: "3px 8px", fontSize: "10px", background: "none", border: "1px solid var(--border-color)", borderRadius: "4px", cursor: "pointer", color: "var(--text-secondary)" }}
+ className="panel-btn panel-btn-secondary panel-btn-xs"
  >
  ← Back
  </button>
@@ -181,13 +181,13 @@ export function WorkflowPanel({ workspacePath, provider = "ollama" }: WorkflowPa
  <div style={{ flex: 1 }} />
  <button
  onClick={() => setShowNewForm((f) => !f)}
- style={{ padding: "4px 10px", fontSize: "11px", background: "var(--accent-color)", color: "var(--btn-primary-fg)", border: "none", borderRadius: "4px", cursor: "pointer" }}
+ className="panel-btn panel-btn-primary panel-btn-sm"
  >
  + New Workflow
  </button>
  <button
  onClick={loadWorkflows}
- style={{ padding: "4px 8px", fontSize: "11px", background: "none", border: "1px solid var(--border-color)", borderRadius: "4px", cursor: "pointer", color: "var(--text-secondary)" }}
+ className="panel-btn panel-btn-secondary panel-btn-sm"
  >
  ↺
  </button>
@@ -200,26 +200,26 @@ export function WorkflowPanel({ workspacePath, provider = "ollama" }: WorkflowPa
  value={newName}
  onChange={(e) => setNewName(e.target.value)}
  placeholder="Workflow name (e.g. my_todo_app)"
- style={{ padding: "6px 8px", background: "var(--bg-input, var(--bg-primary))", border: "1px solid var(--border-color)", borderRadius: "4px", color: "var(--text-primary)", fontSize: "12px" }}
+ className="panel-input panel-input-full"
  />
  <textarea
  value={newDesc}
  onChange={(e) => setNewDesc(e.target.value)}
  placeholder="Describe the application you want to build..."
  rows={3}
- style={{ padding: "6px 8px", background: "var(--bg-input, var(--bg-primary))", border: "1px solid var(--border-color)", borderRadius: "4px", color: "var(--text-primary)", fontSize: "12px", resize: "vertical" }}
+ className="panel-input panel-textarea panel-input-full" style={{ resize: "vertical" }}
  />
  <div style={{ display: "flex", gap: "8px" }}>
  <button
  onClick={createWorkflow}
  disabled={loading || !newName.trim() || !newDesc.trim()}
- style={{ flex: 1, padding: "6px", background: "var(--accent-color)", color: "var(--btn-primary-fg)", border: "none", borderRadius: "4px", cursor: "pointer", opacity: loading ? 0.6 : 1 }}
+ className="panel-btn panel-btn-primary" style={{ flex: 1, opacity: loading ? 0.6 : 1 }}
  >
  {loading ? "Creating..." : "Create Workflow"}
  </button>
  <button
  onClick={() => setShowNewForm(false)}
- style={{ padding: "6px 12px", background: "none", border: "1px solid var(--border-color)", borderRadius: "4px", cursor: "pointer", color: "var(--text-secondary)" }}
+ className="panel-btn panel-btn-secondary"
  >
  Cancel
  </button>
@@ -229,7 +229,7 @@ export function WorkflowPanel({ workspacePath, provider = "ollama" }: WorkflowPa
 
  {/* Error */}
  {error && (
- <div style={{ padding: "8px 12px", background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", color: "var(--error-color)", fontSize: "12px", display: "flex", alignItems: "center", gap: "6px" }}>
+ <div className="panel-error">
  <span>{error}</span>
  <button onClick={() => setError(null)} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "var(--error-color)" }}>
  ✕
@@ -237,7 +237,7 @@ export function WorkflowPanel({ workspacePath, provider = "ollama" }: WorkflowPa
  </div>
  )}
 
- <div style={{ flex: 1, overflow: "auto" }}>
+ <div className="panel-body">
  {/* Workflow List */}
  {view === "list" && (
  <div style={{ padding: "8px" }}>

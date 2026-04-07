@@ -265,7 +265,7 @@ export function CounselPanel() {
   // ── Render ───
 
   return (
-    <div style={S.container}>
+    <div className="panel-container" style={{ flexDirection: "row" }}>
       {/* Sidebar */}
       <div style={S.sidebar}>
         <div style={{ marginBottom: 12 }}>

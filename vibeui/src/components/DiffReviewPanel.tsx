@@ -262,16 +262,9 @@ export function DiffReviewPanel({ original, modified, filePath, onApply }: DiffR
  };
 
  return (
- <div style={{
- display: "flex", flexDirection: "column", flex: 1, minHeight: 0,
- background: "var(--bg-primary)", fontFamily: "var(--font-mono)",
- }}>
+ <div className="panel-container" style={{ fontFamily: "var(--font-mono)" }}>
  {/* Header — buttons LEFT so they're never obscured by the Monaco minimap */}
- <div style={{
-   display: "flex", alignItems: "center", gap: 6,
-   padding: "4px 10px", borderBottom: "1px solid var(--border-color)",
-   background: "var(--bg-secondary)", flexShrink: 0, minHeight: 32,
- }}>
+ <div className="panel-header" style={{ minHeight: 32 }}>
    {/* Action buttons — anchored left, always visible */}
    <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
      <button onClick={handleApply} style={btnStyle("var(--accent-primary, #6366f1)")}>Apply ({acceptedCount})</button>
@@ -291,7 +284,7 @@ export function DiffReviewPanel({ original, modified, filePath, onApply }: DiffR
  </div>
 
  {/* Diff body */}
- <div style={{ flex: 1, overflowY: "auto" }}>
+ <div className="panel-body">
  {noChanges ? (
  <div style={{ padding: 24, textAlign: "center", color: "var(--text-secondary)", fontSize: 13 }}>
  No changes detected.

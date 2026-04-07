@@ -153,10 +153,9 @@ export function ScreenshotToApp({ workspacePath, provider }: { workspacePath: st
   };
 
   return (
-    <div style={{ padding: "12px", fontFamily: "var(--font-family)", fontSize: "13px", height: "100%", overflowY: "auto", background: "var(--bg-tertiary)" }}>
-      <div style={{ fontWeight: "bold", marginBottom: "12px", color: "var(--text-primary)" }}>
-        Screenshot to App
-      </div>
+    <div className="panel-container">
+      <div className="panel-header"><h3>Screenshot to App</h3></div>
+      <div className="panel-body">
 
       {/* Upload area */}
       <div
@@ -403,6 +402,7 @@ export function ScreenshotToApp({ workspacePath, provider }: { workspacePath: st
           </ol>
         </div>
       )}
+      </div>
     </div>
   );
 }

@@ -91,25 +91,18 @@ export function TraceDashboard() {
  const totalDuration = steps.reduce((sum, s) => sum + s.duration_ms, 0);
 
  return (
- <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+ <div className="panel-container">
  {/* Header */}
- <div style={{
- padding: "8px 12px", borderBottom: "1px solid var(--border-color)",
- display: "flex", alignItems: "center", gap: 8,
- }}>
- <span style={{ fontSize: 14, fontWeight: 700 }}>Trace Dashboard</span>
- <div style={{ flex: 1 }} />
+ <div className="panel-header">
+ <h3>Trace Dashboard</h3>
  {selectedSession && (
- <button onClick={() => { setSelectedSession(null); setSteps([]); }} style={{
- ...chipStyle, cursor: "pointer", background: "color-mix(in srgb, var(--accent-blue) 15%, transparent)",
- border: "1px solid var(--accent-color)",
- }}>
+ <button onClick={() => { setSelectedSession(null); setSteps([]); }} className="panel-btn panel-btn-secondary panel-btn-xs" style={{ marginLeft: "auto" }}>
  Back to list
  </button>
  )}
  </div>
 
- <div style={{ flex: 1, overflowY: "auto", padding: "8px 12px" }}>
+ <div className="panel-body">
  {!selectedSession ? (
  /* Session list */
  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>

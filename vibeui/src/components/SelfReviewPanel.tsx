@@ -100,16 +100,17 @@ const SelfReviewPanel: React.FC = () => {
 
   if (loading) {
     return (
-      <div style={{ padding: 16, color: 'var(--text-primary)', background: 'var(--bg-primary)', minHeight: '100%' }}>
-        <h2 style={{ margin: '0 0 12px' }}>Agent Self-Review Gate</h2>
-        <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-secondary)', fontSize: 13 }}>Loading self-review data...</div>
+      <div className="panel-container">
+        <div className="panel-header"><h3>Agent Self-Review Gate</h3></div>
+        <div className="panel-body"><div className="panel-loading">Loading self-review data...</div></div>
       </div>
     );
   }
 
   return (
-    <div style={{ padding: 16, color: 'var(--text-primary)', background: 'var(--bg-primary)', minHeight: '100%' }}>
-      <h2 style={{ margin: '0 0 12px' }}>Agent Self-Review Gate</h2>
+    <div className="panel-container">
+      <div className="panel-header"><h3>Agent Self-Review Gate</h3></div>
+      <div className="panel-body">
 
       {/* Status banner */}
       {iterations.length === 0 ? (
@@ -307,6 +308,7 @@ ${iterations.map(iter => `## Iteration ${iter.iteration}: ${iter.passed ? 'PASS'
 ${iter.checks.map(c => `  - ${c.kind}: ${c.passed ? 'pass' : 'fail'} (${c.findings.length} findings, ${c.durationMs}ms)`).join('\n')}`).join('\n\n')}`}
         </div>
       )}
+      </div>
     </div>
   );
 };

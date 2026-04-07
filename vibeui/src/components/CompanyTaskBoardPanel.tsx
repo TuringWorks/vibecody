@@ -29,12 +29,6 @@ interface CompanyTaskBoardPanelProps {
   workspacePath?: string | null;
 }
 
-const inputStyle: React.CSSProperties = {
-  fontSize: 12, padding: "4px 8px",
-  background: "var(--bg-primary)",
-  border: "1px solid var(--border-color)", borderRadius: 4,
-  color: "var(--text-primary)",
-};
 
 function ownerBadge(owner: TaskOwner): React.CSSProperties {
   const color = owner === 'principal' ? 'var(--accent-gold)' : owner === 'assistant' ? 'var(--accent-blue)' : 'var(--accent-green)';
@@ -120,8 +114,8 @@ export function CompanyTaskBoardPanel({ workspacePath: _wp }: CompanyTaskBoardPa
   return (
     <div className="panel-container">
       <div className="panel-header">
-        <span style={{ fontWeight: 600, fontSize: 14 }}>Agent Tasks</span>
-        <button onClick={load} className="panel-btn panel-btn-secondary">
+        <h3>Agent Tasks</h3>
+        <button onClick={load} className="panel-btn panel-btn-secondary" style={{ marginLeft: "auto" }}>
           Refresh
         </button>
       </div>
@@ -159,27 +153,29 @@ export function CompanyTaskBoardPanel({ workspacePath: _wp }: CompanyTaskBoardPa
 
         {/* Create task form */}
         <div className="panel-card" style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 8 }}>NEW TASK</div>
+          <div className="panel-label" style={{ marginBottom: 8, fontWeight: 600 }}>NEW TASK</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <input
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && createTask()}
               placeholder="Task title…"
-              style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
+              className="panel-input panel-input-full"
             />
             <div style={{ display: "flex", gap: 6 }}>
               <select
                 value={newOwner}
                 onChange={(e) => setNewOwner(e.target.value as TaskOwner)}
-                style={{ ...inputStyle, flex: 1 }}
+                className="panel-select"
+                style={{ flex: 1 }}
               >
                 {OWNERS.map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
               <select
                 value={newProgram}
                 onChange={(e) => setNewProgram(e.target.value as TaskProgram)}
-                style={{ ...inputStyle, flex: 1 }}
+                className="panel-select"
+                style={{ flex: 1 }}
               >
                 {PROGRAMS.map((p) => <option key={p} value={p}>{p}</option>)}
               </select>
@@ -187,7 +183,8 @@ export function CompanyTaskBoardPanel({ workspacePath: _wp }: CompanyTaskBoardPa
                 value={newRecurrence}
                 onChange={(e) => setNewRecurrence(e.target.value)}
                 placeholder="Recurrence (optional)"
-                style={{ ...inputStyle, flex: 1 }}
+                className="panel-input"
+                style={{ flex: 1 }}
                 title="e.g. daily, weekdays, weekly, or cron expression"
               />
               <button onClick={createTask} className="panel-btn panel-btn-primary">

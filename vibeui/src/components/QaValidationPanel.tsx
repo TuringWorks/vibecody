@@ -72,53 +72,22 @@ export function QaValidationPanel() {
     { key: "reports", label: "Reports" },
   ];
 
-  const inputStyle: React.CSSProperties = {
-    width: "100%",
-    background: "var(--bg-secondary)",
-    border: "1px solid var(--border)",
-    borderRadius: 4,
-    color: "var(--text-primary)",
-    padding: "6px 8px",
-    fontSize: 12,
-    boxSizing: "border-box",
-  };
-
-  const btnPrimary: React.CSSProperties = {
-    background: "var(--accent)",
-    color: "var(--btn-primary-fg)",
-    border: "none",
-    borderRadius: 4,
-    padding: "8px 16px",
-    cursor: "pointer",
-    fontSize: 12,
-    fontWeight: 600,
-  };
-
   return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, background: "var(--bg-primary)", color: "var(--text-primary)" }}>
+    <div className="panel-container">
       {/* Tab bar */}
-      <div style={{ display: "flex", borderBottom: "1px solid var(--border)", background: "var(--bg-secondary)" }}>
+      <div className="panel-header" style={{ borderBottom: "1px solid var(--border-color)" }}>
         {tabs.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            style={{
-              padding: "8px 16px",
-              background: tab === t.key ? "var(--bg-primary)" : "transparent",
-              border: "none",
-              borderBottom: tab === t.key ? "2px solid var(--accent)" : "2px solid transparent",
-              color: tab === t.key ? "var(--text-primary)" : "var(--text-secondary)",
-              cursor: "pointer",
-              fontSize: 12,
-              fontWeight: tab === t.key ? 600 : 400,
-            }}
+            className={`panel-btn ${tab === t.key ? "panel-btn-primary" : "panel-btn-secondary"}`}
           >
             {t.label}
           </button>
         ))}
       </div>
 
-      <div style={{ flex: 1, overflow: "auto", padding: 16 }}>
+      <div className="panel-body">
         {loading && (
           <div style={{ color: "var(--text-secondary)", fontSize: 12, textAlign: "center", marginTop: 32 }}>Loading...</div>
         )}
@@ -132,14 +101,14 @@ export function QaValidationPanel() {
                 onChange={(e) => setInputText(e.target.value)}
                 placeholder={"response contains 'success'\nstatus_code == 200\nlatency_ms < 500\nresult.length > 0\nno errors in output"}
                 rows={8}
-                style={{ ...inputStyle, fontFamily: "var(--font-mono)", resize: "vertical" }}
+                className="panel-input panel-textarea panel-input-full" style={{ fontFamily: "var(--font-mono)", resize: "vertical" }}
               />
             </div>
 
             <button
               onClick={handleRunValidation}
               disabled={isRunning || !inputText.trim()}
-              style={{ ...btnPrimary, alignSelf: "flex-start", opacity: isRunning || !inputText.trim() ? 0.5 : 1 }}
+              className="panel-btn panel-btn-primary" style={{ alignSelf: "flex-start", opacity: isRunning || !inputText.trim() ? 0.5 : 1 }}
             >
               {isRunning ? "Running..." : "Run Validation"}
             </button>

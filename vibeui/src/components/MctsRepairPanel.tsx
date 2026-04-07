@@ -34,16 +34,6 @@ const badgeStyle = (color: string): React.CSSProperties => ({
 const statusColor: Record<string, string> = { running: "var(--accent-color)", success: "var(--success-color)", failed: "var(--error-color)" };
 const stratColor: Record<string, string> = { mcts: "var(--accent-purple)", agentless: "var(--warning-color)", linear: "var(--text-secondary)" };
 
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: 8,
-  borderRadius: 6,
-  border: "1px solid var(--border-color)",
-  background: "var(--bg-primary)",
-  color: "var(--text-primary)",
-  fontSize: 13,
-  marginBottom: 8,
-};
 
 export function MctsRepairPanel() {
   const [tab, setTab] = useState("sessions");
@@ -141,9 +131,9 @@ export function MctsRepairPanel() {
       {tab === "new" && (
         <div className="panel-card">
           <div style={{ fontWeight: 600, marginBottom: 8 }}>Create Repair Session</div>
-          <input placeholder="File path (e.g. src/auth.rs)" style={inputStyle} value={newFile} onChange={(e) => setNewFile(e.target.value)} />
-          <input placeholder="Error message" style={inputStyle} value={newError} onChange={(e) => setNewError(e.target.value)} />
-          <select value={newStrategy} onChange={(e) => setNewStrategy(e.target.value)} style={{ ...inputStyle, width: "auto" }}>
+          <input placeholder="File path (e.g. src/auth.rs)" className="panel-input panel-input-full" style={{ marginBottom: 8 }} value={newFile} onChange={(e) => setNewFile(e.target.value)} />
+          <input placeholder="Error message" className="panel-input panel-input-full" style={{ marginBottom: 8 }} value={newError} onChange={(e) => setNewError(e.target.value)} />
+          <select value={newStrategy} onChange={(e) => setNewStrategy(e.target.value)} className="panel-select" style={{ marginBottom: 8 }}>
             <option value="mcts">MCTS</option>
             <option value="agentless">Agentless</option>
             <option value="linear">Linear</option>

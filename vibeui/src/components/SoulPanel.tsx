@@ -137,18 +137,8 @@ export function SoulPanel({ workspacePath }: { workspacePath?: string | null }) 
                 onChange={(e) => setCustomContext(e.target.value)}
                 placeholder="Describe your project's purpose, motivation, or key values in a few sentences..."
                 rows={4}
-                style={{
-                  width: "100%",
-                  padding: "8px 12px",
-                  fontSize: "13px",
-                  fontFamily: "inherit",
-                  background: "var(--bg-primary)",
-                  color: "var(--text-primary)",
-                  border: "1px solid var(--border-color)",
-                  borderRadius: "6px",
-                  resize: "vertical",
-                  boxSizing: "border-box",
-                }}
+                className="panel-input panel-textarea panel-input-full"
+                style={{ resize: "vertical" }}
               />
 
               <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>

@@ -110,15 +110,6 @@ const AgentModesPanel: React.FC = () => {
     }
   };
 
-  const inputStyle: React.CSSProperties = {
-    padding: "4px 8px",
-    background: "var(--bg-secondary)",
-    color: "var(--text-primary)",
-    border: "1px solid var(--border-color)",
-    borderRadius: "3px",
-    fontFamily: "inherit",
-    fontSize: "inherit",
-  };
 
   const tabs = ["modes", "stats", "profiles"];
 
@@ -218,14 +209,14 @@ const AgentModesPanel: React.FC = () => {
           <div className="panel-card" style={{ marginTop: "12px" }}>
             <div style={{ fontWeight: 600, marginBottom: "8px" }}>New Profile</div>
             <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
-              <input style={{ ...inputStyle, width: "120px" }} placeholder="Name" value={newName} onChange={(e) => setNewName(e.target.value)} />
-              <select style={inputStyle} value={newBase} onChange={(e) => setNewBase(e.target.value)}>
+              <input className="panel-input" style={{ width: "120px" }} placeholder="Name" value={newName} onChange={(e) => setNewName(e.target.value)} />
+              <select className="panel-select" value={newBase} onChange={(e) => setNewBase(e.target.value)}>
                 <option value="smart">Smart</option>
                 <option value="rush">Rush</option>
                 <option value="deep">Deep</option>
               </select>
-              <input style={{ ...inputStyle, width: "80px" }} placeholder="Max tokens" value={newMaxTokens} onChange={(e) => setNewMaxTokens(e.target.value)} />
-              <input style={{ ...inputStyle, width: "60px" }} placeholder="Temp" value={newTemp} onChange={(e) => setNewTemp(e.target.value)} />
+              <input className="panel-input" style={{ width: "80px" }} placeholder="Max tokens" value={newMaxTokens} onChange={(e) => setNewMaxTokens(e.target.value)} />
+              <input className="panel-input" style={{ width: "60px" }} placeholder="Temp" value={newTemp} onChange={(e) => setNewTemp(e.target.value)} />
               <button className="panel-btn panel-btn-primary" onClick={addProfile}>Create</button>
             </div>
           </div>

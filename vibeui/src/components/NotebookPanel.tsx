@@ -168,13 +168,13 @@ export function NotebookPanel({ workspacePath }: NotebookPanelProps) {
  display: "flex", gap: 6, padding: "8px 12px", alignItems: "center",
  borderBottom: "1px solid var(--border-color)", flexWrap: "wrap",
  }}>
- <button onClick={() => addCell("code")} style={toolBtnStyle}>+ Code</button>
- <button onClick={() => addCell("markdown")} style={toolBtnStyle}>+ Markdown</button>
+ <button onClick={() => addCell("code")} className="panel-btn panel-btn-secondary">+ Code</button>
+ <button onClick={() => addCell("markdown")} className="panel-btn panel-btn-secondary">+ Markdown</button>
  <div style={{ flex: 1 }} />
- <button onClick={runAll} disabled={runningAll} style={{ ...toolBtnStyle, background: "var(--accent-color)", color: "var(--text-primary)" }}>
+ <button onClick={runAll} disabled={runningAll} className="panel-btn panel-btn-primary">
  {runningAll ? "Running..." : "Run All"}
  </button>
- <button onClick={clearAll} style={toolBtnStyle}>Clear All</button>
+ <button onClick={clearAll} className="panel-btn panel-btn-secondary">Clear All</button>
  <span style={{ fontSize: 11, opacity: 0.5 }}>{cells.length} cell{cells.length !== 1 ? "s" : ""}</span>
  </div>
 
@@ -336,12 +336,6 @@ export function NotebookPanel({ workspacePath }: NotebookPanelProps) {
  );
 }
 
-const toolBtnStyle: React.CSSProperties = {
- padding: "4px 10px", fontSize: 11, fontWeight: 600,
- border: "1px solid var(--border-color)", borderRadius: 4,
- background: "var(--bg-secondary)", color: "var(--text-primary)",
- cursor: "pointer",
-};
 
 const cellBtnStyle: React.CSSProperties = {
  background: "none", border: "none", cursor: "pointer",

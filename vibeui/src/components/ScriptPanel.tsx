@@ -144,16 +144,12 @@ export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
  });
 
  return (
- <div className="panel-container" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+ <div className="panel-container">
  {/* Header */}
- <div style={{
- padding: "10px 12px", borderBottom: "1px solid var(--border-color)",
- background: "var(--bg-secondary)", flexShrink: 0,
- display: "flex", alignItems: "center", gap: 8,
- }}>
+ <div className="panel-header">
  <span style={{ fontSize: 16 }}></span>
  <div style={{ flex: 1 }}>
- <div style={{ fontSize: 13, fontWeight: 600 }}>Script Runner</div>
+ <h3>Script Runner</h3>
  {data && (
  <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
  {data.scripts.length} scripts · {data.detected_tools.join(", ")}
@@ -163,17 +159,13 @@ export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
  <button
  onClick={load}
  disabled={loading}
- style={{
- padding: "4px 10px", fontSize: 11, cursor: "pointer",
- background: "var(--bg-secondary)", border: "1px solid var(--border-color)",
- borderRadius: 4, color: "var(--text-secondary)",
- }}
+ className="panel-btn panel-btn-secondary panel-btn-sm"
  >
  {loading ? "" : "↻ Refresh"}
  </button>
  </div>
 
- <div style={{ flex: 1, overflow: "auto", display: "flex", flexDirection: "column", gap: 0 }}>
+ <div className="panel-body" style={{ overflow: "auto", display: "flex", flexDirection: "column", gap: 0 }}>
  {/* Filter + Search bar */}
  {data && (
  <div style={{
@@ -209,7 +201,7 @@ export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
  )}
 
  {error && (
- <div style={{ margin: "8px 12px", padding: "6px 10px", background: "var(--error-bg)", color: "var(--error-color)", borderRadius: 4, fontSize: 12 }}>
+ <div className="panel-error" style={{ margin: "8px 12px" }}>
  {error}
  </div>
  )}
@@ -264,14 +256,8 @@ export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
  <button
  onClick={() => runScript(script.command)}
  disabled={!!running}
- style={{
- padding: "5px 14px", fontSize: 11, fontWeight: 600,
- background: isRunning ? "rgba(99,102,241,0.3)" : "var(--accent-color)",
- color: "var(--text-primary)", border: "none", borderRadius: 4,
- cursor: running ? "not-allowed" : "pointer",
- opacity: running && !isRunning ? 0.4 : 1,
- flexShrink: 0,
- }}
+ className="panel-btn panel-btn-primary panel-btn-sm"
+ style={{ flexShrink: 0 }}
  >
  {isRunning ? "Running…" : "Run"}
  </button>
@@ -281,10 +267,7 @@ export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
  </div>
 
  {/* Custom command */}
- <div style={{
- padding: "8px 12px", borderTop: "1px solid var(--border-color)",
- background: "var(--bg-secondary)", display: "flex", gap: 6,
- }}>
+ <div className="panel-footer">
  <input
  value={customCmd}
  onChange={(e) => setCustomCmd(e.target.value)}
@@ -296,11 +279,8 @@ export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
  }}
  placeholder="Run custom command…"
  disabled={!!running}
- style={{
- flex: 1, padding: "5px 8px", fontSize: 12,
- background: "var(--bg-primary)", border: "1px solid var(--border-color)",
- borderRadius: 4, color: "var(--text-primary)", outline: "none",
- }}
+ className="panel-input panel-input-full"
+ style={{ flex: 1 }}
  />
  <button
  onClick={() => {
@@ -310,11 +290,7 @@ export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
  }
  }}
  disabled={!!running || !customCmd.trim()}
- style={{
- padding: "5px 12px", fontSize: 12,
- background: "var(--bg-secondary)", border: "1px solid var(--border-color)",
- borderRadius: 4, color: "var(--text-secondary)", cursor: "pointer",
- }}
+ className="panel-btn panel-btn-secondary panel-btn-sm"
  >
  {running ? "" : "Run"}
  </button>

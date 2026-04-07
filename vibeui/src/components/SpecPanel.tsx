@@ -139,20 +139,20 @@ export function SpecPanel({ workspacePath, provider = "ollama" }: SpecPanelProps
  const doneCount = selectedSpec?.tasks.filter(t => t.done).length ?? 0;
 
  return (
- <div className="panel-container" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, fontSize: "13px" }}>
+ <div className="panel-container">
  {/* Header */}
- <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "10px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
- <span style={{ fontWeight: 600 }}>Specs</span>
+ <div className="panel-header">
+ <h3>Specs</h3>
  <div style={{ flex: 1 }} />
  <button
  onClick={() => setShowNewForm(f => !f)}
- style={{ padding: "4px 10px", fontSize: "11px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "4px", cursor: "pointer" }}
+ className="panel-btn panel-btn-primary panel-btn-sm"
  >
  + New Spec
  </button>
  <button
  onClick={loadSpecs}
- style={{ padding: "4px 8px", fontSize: "11px", background: "none", border: "1px solid var(--border-color)", borderRadius: "4px", cursor: "pointer", color: "var(--text-secondary)" }}
+ className="panel-btn panel-btn-secondary panel-btn-sm"
  >
  ↺
  </button>
@@ -160,31 +160,33 @@ export function SpecPanel({ workspacePath, provider = "ollama" }: SpecPanelProps
 
  {/* New spec form */}
  {showNewForm && (
- <div style={{ padding: "12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", flexDirection: "column", gap: "8px" }}>
+ <div className="panel-card" style={{ margin: "8px 12px", display: "flex", flexDirection: "column", gap: "8px" }}>
  <input
  value={newSpecName}
  onChange={e => setNewSpecName(e.target.value)}
  placeholder="Spec name (e.g. dark_mode)"
- style={{ padding: "6px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "4px", color: "var(--text-primary)", fontSize: "12px" }}
+ className="panel-input panel-input-full"
  />
  <textarea
  value={newSpecRequirements}
  onChange={e => setNewSpecRequirements(e.target.value)}
  placeholder="Describe the requirements in natural language..."
  rows={4}
- style={{ padding: "6px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "4px", color: "var(--text-primary)", fontSize: "12px", resize: "vertical" }}
+ className="panel-input panel-textarea panel-input-full"
+ style={{ resize: "vertical" }}
  />
  <div style={{ display: "flex", gap: "8px" }}>
  <button
  onClick={generateSpec}
  disabled={generating || !newSpecName.trim() || !newSpecRequirements.trim()}
- style={{ flex: 1, padding: "6px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "4px", cursor: "pointer", opacity: generating ? 0.6 : 1 }}
+ className="panel-btn panel-btn-primary"
+ style={{ flex: 1 }}
  >
  {generating ? "Generating..." : "Generate Spec"}
  </button>
  <button
  onClick={() => setShowNewForm(false)}
- style={{ padding: "6px 12px", background: "none", border: "1px solid var(--border-color)", borderRadius: "4px", cursor: "pointer", color: "var(--text-secondary)" }}
+ className="panel-btn panel-btn-secondary"
  >
  Cancel
  </button>
@@ -194,9 +196,9 @@ export function SpecPanel({ workspacePath, provider = "ollama" }: SpecPanelProps
 
  {/* Error */}
  {error && (
- <div className="panel-error" style={{ padding: "8px 12px", display: "flex", alignItems: "center", gap: "6px" }}>
+ <div className="panel-error">
  <span>{error}</span>
- <button onClick={() => setError(null)} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "var(--error-color)" }}>✕</button>
+ <button onClick={() => setError(null)}>✕</button>
  </div>
  )}
 
@@ -214,7 +216,7 @@ export function SpecPanel({ workspacePath, provider = "ollama" }: SpecPanelProps
  ))}
  </div>
 
- <div style={{ flex: 1, overflow: "auto" }}>
+ <div className="panel-body" style={{ overflow: "auto" }}>
  {/* Spec List */}
  {activeTab === "list" && (
  <div style={{ padding: "8px" }}>

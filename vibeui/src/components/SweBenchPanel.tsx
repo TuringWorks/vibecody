@@ -54,13 +54,8 @@ interface ResultsResponse {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const selectStyle: React.CSSProperties = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: 12, fontFamily: "var(--font-family)", boxSizing: "border-box", cursor: "pointer" };
-
 const barBg: React.CSSProperties = { height: 8, borderRadius: 4, background: "var(--bg-tertiary)", overflow: "hidden" };
 const barFill = (pct: number, color: string): React.CSSProperties => ({ height: "100%", width: `${Math.min(pct, 100)}%`, borderRadius: 4, background: color });
-
-const thStyle: React.CSSProperties = { textAlign: "left", padding: "6px 10px", borderBottom: "1px solid var(--border-color)", fontSize: 11, color: "var(--text-secondary)" };
-const tdStyle: React.CSSProperties = { padding: "6px 10px", borderBottom: "1px solid var(--border-color)", fontSize: 12 };
 
 const statusColor: Record<string, string> = { pass: "var(--success-color)", fail: "var(--error-color)", error: "var(--warning-color)", completed: "var(--success-color)", running: "var(--info-color)", pending: "var(--text-secondary)", failed: "var(--error-color)" };
 const badgeStyle = (status: string): React.CSSProperties => ({ display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600, color: "var(--text-primary)", background: statusColor[status] || "var(--text-secondary)" });
@@ -204,19 +199,19 @@ export function SweBenchPanel() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
               <div>
                 <div className="panel-label">Suite</div>
-                <select style={selectStyle} value={selectedSuite} onChange={(e) => setSelectedSuite(e.target.value)}>
+                <select className="panel-select panel-input-full" value={selectedSuite} onChange={(e) => setSelectedSuite(e.target.value)}>
                   {suites.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
               <div>
                 <div className="panel-label">Provider</div>
-                <select style={selectStyle} value={selectedProvider} onChange={(e) => handleProviderChange(e.target.value)}>
+                <select className="panel-select panel-input-full" value={selectedProvider} onChange={(e) => handleProviderChange(e.target.value)}>
                   {providers.map((p) => <option key={p} value={p}>{p}</option>)}
                 </select>
               </div>
               <div>
                 <div className="panel-label">Model</div>
-                <select style={selectStyle} value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)}>
+                <select className="panel-select panel-input-full" value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)}>
                   {availableModels.map((m) => <option key={m} value={m}>{m}</option>)}
                 </select>
               </div>
@@ -258,7 +253,7 @@ export function SweBenchPanel() {
         <div>
           <div style={{ marginBottom: 10 }}>
             <div className="panel-label">Select Run</div>
-            <select style={selectStyle} value={selectedRunId} onChange={(e) => setSelectedRunId(e.target.value)}>
+            <select className="panel-select panel-input-full" value={selectedRunId} onChange={(e) => setSelectedRunId(e.target.value)}>
               {runs.length === 0 && <option value="">No runs available</option>}
               {runs.map((r) => <option key={r.id} value={r.id}>{r.model} — {r.suite} ({r.status})</option>)}
             </select>
@@ -289,24 +284,24 @@ export function SweBenchPanel() {
                 <div className="panel-label">Task Breakdown</div>
                 {taskResults.length === 0 && <div style={{ fontSize: 12, color: "var(--text-secondary)", padding: "8px 0" }}>No task results available for this run.</div>}
                 {taskResults.length > 0 && (
-                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <table className="panel-table">
                     <thead>
                       <tr>
-                        <th style={thStyle}>Task</th>
-                        <th style={thStyle}>Repository</th>
-                        <th style={thStyle}>Status</th>
-                        <th style={{ ...thStyle, textAlign: "right" }}>Duration</th>
-                        <th style={{ ...thStyle, textAlign: "right" }}>Tokens</th>
+                        <th>Task</th>
+                        <th>Repository</th>
+                        <th>Status</th>
+                        <th style={{ textAlign: "right" }}>Duration</th>
+                        <th style={{ textAlign: "right" }}>Tokens</th>
                       </tr>
                     </thead>
                     <tbody>
                       {taskResults.map((t) => (
                         <tr key={t.id}>
-                          <td style={{ ...tdStyle, fontSize: 11 }}>{t.task}</td>
-                          <td style={{ ...tdStyle, fontSize: 11 }}>{t.repo}</td>
-                          <td style={tdStyle}><span style={badgeStyle(t.status)}>{t.status}</span></td>
-                          <td style={{ ...tdStyle, textAlign: "right" }}>{t.durationSec}s</td>
-                          <td style={{ ...tdStyle, textAlign: "right" }}>{t.tokensUsed.toLocaleString()}</td>
+                          <td style={{ fontSize: 11 }}>{t.task}</td>
+                          <td style={{ fontSize: 11 }}>{t.repo}</td>
+                          <td><span style={badgeStyle(t.status)}>{t.status}</span></td>
+                          <td style={{ textAlign: "right" }}>{t.durationSec}s</td>
+                          <td style={{ textAlign: "right" }}>{t.tokensUsed.toLocaleString()}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -338,39 +333,39 @@ export function SweBenchPanel() {
 
           {compareRuns.length >= 2 && (
             <div className="panel-card">
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <table className="panel-table">
                 <thead>
                   <tr>
-                    <th style={thStyle}>Metric</th>
-                    {compareRuns.map((r) => <th key={r.id} style={thStyle}>{r.model}</th>)}
+                    <th>Metric</th>
+                    {compareRuns.map((r) => <th key={r.id}>{r.model}</th>)}
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
-                    <td style={tdStyle}>Suite</td>
-                    {compareRuns.map((r) => <td key={r.id} style={tdStyle}>{r.suite}</td>)}
+                    <td>Suite</td>
+                    {compareRuns.map((r) => <td key={r.id}>{r.suite}</td>)}
                   </tr>
                   <tr>
-                    <td style={{ ...tdStyle, fontWeight: 600 }}>Pass@1</td>
+                    <td style={{ fontWeight: 600 }}>Pass@1</td>
                     {compareRuns.map((r) => (
-                      <td key={r.id} style={{ ...tdStyle, fontWeight: 600, color: "var(--success-color)" }}>{r.passRate}%</td>
+                      <td key={r.id} style={{ fontWeight: 600, color: "var(--success-color)" }}>{r.passRate}%</td>
                     ))}
                   </tr>
                   <tr>
-                    <td style={tdStyle}>Passed / Total</td>
-                    {compareRuns.map((r) => <td key={r.id} style={tdStyle}>{r.passed} / {r.totalTasks}</td>)}
+                    <td>Passed / Total</td>
+                    {compareRuns.map((r) => <td key={r.id}>{r.passed} / {r.totalTasks}</td>)}
                   </tr>
                   <tr>
-                    <td style={tdStyle}>Failed</td>
-                    {compareRuns.map((r) => <td key={r.id} style={{ ...tdStyle, color: "var(--error-color)" }}>{r.failed}</td>)}
+                    <td>Failed</td>
+                    {compareRuns.map((r) => <td key={r.id} style={{ color: "var(--error-color)" }}>{r.failed}</td>)}
                   </tr>
                   <tr>
-                    <td style={tdStyle}>Errors</td>
-                    {compareRuns.map((r) => <td key={r.id} style={{ ...tdStyle, color: "var(--warning-color)" }}>{r.errored}</td>)}
+                    <td>Errors</td>
+                    {compareRuns.map((r) => <td key={r.id} style={{ color: "var(--warning-color)" }}>{r.errored}</td>)}
                   </tr>
                   <tr>
-                    <td style={tdStyle}>Avg Duration</td>
-                    {compareRuns.map((r) => <td key={r.id} style={tdStyle}>{r.avgDurationSec}s</td>)}
+                    <td>Avg Duration</td>
+                    {compareRuns.map((r) => <td key={r.id}>{r.avgDurationSec}s</td>)}
                   </tr>
                 </tbody>
               </table>

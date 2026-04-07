@@ -74,15 +74,12 @@ export function MarketplacePanel() {
   const filtered = plugins;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+    <div className="panel-container">
       {/* Header */}
-      <div style={{
-        padding: "8px 12px", borderBottom: "1px solid var(--border-color)",
-        display: "flex", alignItems: "center", gap: 8,
-      }}>
-        <span style={{ fontSize: 14, fontWeight: 700 }}>Marketplace</span>
-        <div style={{ flex: 1 }} />
-        <button onClick={loadPlugins} style={chipStyle}>Refresh</button>
+      <div className="panel-header">
+        <h3>Marketplace</h3>
+        <div style={{ marginLeft: "auto" }} />
+        <button onClick={loadPlugins} className="panel-btn panel-btn-secondary">Refresh</button>
       </div>
 
       {/* Search */}
@@ -92,9 +89,10 @@ export function MarketplacePanel() {
           onChange={(e) => setSearch(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSearch()}
           placeholder="Search plugins..."
-          style={{ ...inputStyle, flex: 1 }}
+          className="panel-input"
+          style={{ flex: 1 }}
         />
-        <button onClick={handleSearch} style={{ ...chipStyle, cursor: "pointer" }}>Search</button>
+        <button onClick={handleSearch} className="panel-btn panel-btn-secondary">Search</button>
       </div>
 
       {message && (
@@ -107,7 +105,7 @@ export function MarketplacePanel() {
         </div>
       )}
 
-      <div style={{ flex: 1, overflowY: "auto", padding: "8px 12px" }}>
+      <div className="panel-body">
         {loading ? (
           <div style={{ padding: 16, textAlign: "center", opacity: 0.5, fontSize: 11 }}>
             Loading...
@@ -129,22 +127,15 @@ export function MarketplacePanel() {
                   <span style={{ fontSize: 9, opacity: 0.5 }}>v{p.version}</span>
                   <div style={{ flex: 1 }} />
                   {installed.has(p.name) ? (
-                    <span style={{
-                      ...chipStyle,
-                      background: "color-mix(in srgb, var(--accent-green) 15%, transparent)", border: "1px solid var(--success-color)",
-                      color: "var(--success-color)", cursor: "default",
-                    }}>
+                    <span className="panel-tag panel-tag-success" style={{ cursor: "default" }}>
                       ✓ Installed
                     </span>
                   ) : (
                     <button
                       onClick={() => handleInstall(p.name, p.repo_url)}
                       disabled={installing === p.name}
-                      style={{
-                        ...chipStyle, cursor: "pointer",
-                        background: "color-mix(in srgb, var(--accent-blue) 15%, transparent)", border: "1px solid var(--accent-color)",
-                        opacity: installing === p.name ? 0.5 : 1,
-                      }}
+                      className="panel-btn panel-btn-primary"
+                      style={{ opacity: installing === p.name ? 0.5 : 1 }}
                     >
                       {installing === p.name ? "Installing..." : "Install"}
                     </button>
@@ -171,15 +162,3 @@ export function MarketplacePanel() {
   );
 }
 
-const chipStyle: React.CSSProperties = {
-  padding: "3px 8px", fontSize: 10, fontWeight: 600, borderRadius: 4, cursor: "pointer",
-  border: "1px solid var(--border-color)",
-  background: "transparent", color: "var(--text-primary)",
-};
-
-const inputStyle: React.CSSProperties = {
-  padding: "4px 8px", fontSize: 11, borderRadius: 4,
-  border: "1px solid var(--border-color)",
-  background: "var(--bg-primary)", color: "var(--text-primary)",
-  outline: "none",
-};

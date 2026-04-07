@@ -195,25 +195,16 @@ export function GraphQLPanel() {
  <button
  key={id}
  onClick={() => setTab(id as typeof tab)}
- style={{
- padding: "6px 14px", fontSize: 11, fontWeight: active ? 600 : 400,
- background: active ? "color-mix(in srgb, var(--accent-blue) 15%, transparent)" : "transparent",
- color: active ? "var(--text-primary)" : "var(--text-secondary)",
- border: "none", borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent",
- cursor: "pointer",
- }}
+ className={`panel-tab ${active ? "active" : ""}`}
  >
  {label}
  </button>
  );
 
  return (
- <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+ <div className="panel-container">
  {/* Header */}
- <div style={{
- padding: "8px 12px", borderBottom: "1px solid var(--border-color)",
- background: "var(--bg-secondary)", flexShrink: 0,
- }}>
+ <div className="panel-header" style={{ flexWrap: "wrap" }}>
  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
  <span style={{ fontSize: 15 }}></span>
  <input
@@ -273,14 +264,10 @@ export function GraphQLPanel() {
  </div>
  </div>
 
- {error && (
- <div style={{ margin: "6px 12px", padding: "6px 10px", background: "var(--error-bg)", color: "var(--text-danger)", borderRadius: 4, fontSize: 11 }}>
- {error}
- </div>
- )}
+ {error && <div className="panel-error" style={{ margin: "6px 12px" }}>{error}</div>}
 
  {/* Sub-tabs */}
- <div style={{ display: "flex", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", flexShrink: 0 }}>
+ <div className="panel-tab-bar">
  {TAB("query", "Query", tab === "query")}
  {TAB("schema", `Schema${schema ? ` (${schema.types.length})` : ""}`, tab === "schema")}
  {TAB("history", `History (${history.length})`, tab === "history")}

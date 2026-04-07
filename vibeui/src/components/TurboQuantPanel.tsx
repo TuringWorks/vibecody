@@ -161,37 +161,28 @@ export function TurboQuantPanel() {
   const tabBtn = (t: Tab, label: string) => (
     <button
       onClick={() => setTab(t)}
-      style={{
-        padding: "6px 12px",
-        borderRadius: 6,
-        border: "none",
-        background: tab === t ? "var(--accent-color)" : "transparent",
-        color: tab === t ? "#fff" : "var(--text-secondary)",
-        cursor: "pointer",
-        fontSize: 12,
-        fontFamily: "inherit",
-        fontWeight: tab === t ? 600 : 400,
-      }}
+      className={`panel-tab ${tab === t ? "active" : ""}`}
     >
       {label}
     </button>
   );
 
   return (
-    <div style={{ padding: 16, fontFamily: "var(--font-mono, monospace)", fontSize: 13, color: "var(--text-primary)" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
-        <span style={{ fontWeight: 700, fontSize: 14 }}>TurboQuant</span>
+    <div className="panel-container" style={{ fontFamily: "var(--font-mono, monospace)", fontSize: 13 }}>
+      <div className="panel-header">
+        <h3>TurboQuant</h3>
         <span style={{ fontSize: 11, color: "var(--text-tertiary)" }}>PolarQuant + QJL ~3 bits/dim</span>
       </div>
 
       {/* Tab bar */}
-      <div style={{ display: "flex", gap: 4, marginBottom: 16, background: "var(--bg-secondary)", padding: 4, borderRadius: 8 }}>
+      <div className="panel-tab-bar">
         {tabBtn("overview", "Overview")}
         {tabBtn("compress", "Compress")}
         {tabBtn("search", "Search")}
         {tabBtn("benchmark", "Benchmark")}
       </div>
 
+      <div className="panel-body">
       {/* ── Overview ──────────────────────────────────────────────────── */}
       {tab === "overview" && (
         <div>
@@ -342,6 +333,7 @@ export function TurboQuantPanel() {
           )}
         </div>
       )}
+      </div>
     </div>
   );
 }

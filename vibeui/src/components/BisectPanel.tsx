@@ -121,13 +121,10 @@ export function BisectPanel({ workspacePath }: BisectPanelProps) {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+    <div className="panel-container">
       {/* Header */}
-      <div style={{
-        display: "flex", gap: 6, padding: "8px 12px", alignItems: "center",
-        borderBottom: "1px solid var(--border-color)",
-      }}>
-        <span style={{ fontSize: 12, fontWeight: 600 }}>Git Bisect</span>
+      <div className="panel-header">
+        <h3>Git Bisect</h3>
         <div style={{ flex: 1 }} />
         {view !== "setup" && (
           <button onClick={handleReset} className="panel-btn panel-btn-danger">Reset</button>
@@ -135,12 +132,10 @@ export function BisectPanel({ workspacePath }: BisectPanelProps) {
       </div>
 
       {error && (
-        <div style={{ padding: "6px 12px", fontSize: 11, color: "var(--text-danger)", background: "color-mix(in srgb, var(--accent-rose) 5%, transparent)" }}>
-          {error}
-        </div>
+        <div className="panel-error">{error}</div>
       )}
 
-      <div style={{ flex: 1, overflowY: "auto", padding: "8px 12px" }}>
+      <div className="panel-body">
         {/* Setup view */}
         {view === "setup" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -154,7 +149,7 @@ export function BisectPanel({ workspacePath }: BisectPanelProps) {
                 value={bad}
                 onChange={(e) => setBad(e.target.value)}
                 placeholder="HEAD or commit SHA..."
-                style={inputStyle}
+                className="panel-input panel-input-full"
               />
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -163,7 +158,7 @@ export function BisectPanel({ workspacePath }: BisectPanelProps) {
                 value={good}
                 onChange={(e) => setGood(e.target.value)}
                 placeholder="Commit SHA or tag..."
-                style={inputStyle}
+                className="panel-input panel-input-full"
               />
             </div>
             <button onClick={handleStart} disabled={loading} className="panel-btn panel-btn-primary">
@@ -292,9 +287,3 @@ export function BisectPanel({ workspacePath }: BisectPanelProps) {
   );
 }
 
-const inputStyle: React.CSSProperties = {
-  padding: "6px 8px", fontSize: 12, borderRadius: 4,
-  border: "1px solid var(--border-color)",
-  background: "var(--bg-primary)", color: "var(--text-primary)",
-  outline: "none", fontFamily: "var(--font-mono)",
-};

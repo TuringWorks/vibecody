@@ -290,16 +290,6 @@ const badge = (_: string, color: string): React.CSSProperties => ({
   marginRight: 4,
 });
 
-const inputStyle: React.CSSProperties = {
-  background: "var(--bg-secondary)",
-  color: "var(--text-primary)",
-  border: "1px solid var(--border-color)",
-  borderRadius: 4,
-  padding: "6px 10px",
-  fontSize: 13,
-  width: "100%",
-  boxSizing: "border-box",
-};
 
 
 const sectionTitle: React.CSSProperties = {
@@ -311,25 +301,6 @@ const sectionTitle: React.CSSProperties = {
 };
 
 
-const tableStyle: React.CSSProperties = {
-  width: "100%",
-  borderCollapse: "collapse" as const,
-  fontSize: 12,
-};
-
-const thStyle: React.CSSProperties = {
-  textAlign: "left",
-  padding: "6px 8px",
-  borderBottom: "1px solid var(--border-color)",
-  fontWeight: 600,
-  color: "var(--text-primary)",
-};
-
-const tdStyle: React.CSSProperties = {
-  padding: "6px 8px",
-  borderBottom: "1px solid var(--border-color)",
-  color: "var(--text-primary)",
-};
 
 /* ── Default empty state builders (no dummy data) ────────────────────── */
 
@@ -696,13 +667,13 @@ const BatchBuilderPanel: React.FC = () => {
       {/* Title & Description */}
       <div style={sectionTitle}>Project Details</div>
       <input
-        style={{ ...inputStyle, marginBottom: 8 }}
+        className="panel-input panel-input-full" style={{ marginBottom: 8 }}
         placeholder="Project title..."
         value={projectTitle}
         onChange={(e) => setProjectTitle(e.target.value)}
       />
       <textarea
-        style={{ ...inputStyle, minHeight: 80, resize: "vertical" }}
+        className="panel-input panel-input-full" style={{ minHeight: 80, resize: "vertical" }}
         placeholder="Project description..."
         value={projectDesc}
         onChange={(e) => setProjectDesc(e.target.value)}
@@ -713,7 +684,7 @@ const BatchBuilderPanel: React.FC = () => {
         <div style={{ flex: 1 }}>
           <label style={{ fontSize: 12, color: "var(--text-primary)", display: "block", marginBottom: 4 }}>Tech Stack</label>
           <select
-            style={{ ...inputStyle }}
+            className="panel-input panel-input-full"
             value={techStack}
             onChange={(e) => setTechStack(e.target.value as TechStack)}
           >
@@ -751,7 +722,7 @@ const BatchBuilderPanel: React.FC = () => {
       <div style={sectionTitle}>Requirements</div>
       <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
         <input
-          style={{ ...inputStyle, flex: 1 }}
+          className="panel-input" style={{ flex: 1 }}
           placeholder="Add a requirement..."
           value={reqInput}
           onChange={(e) => setReqInput(e.target.value)}
@@ -769,10 +740,10 @@ const BatchBuilderPanel: React.FC = () => {
       {/* User Stories */}
       <div style={sectionTitle}>User Stories</div>
       <div className="panel-card" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-        <input style={inputStyle} placeholder="As a [persona]..." value={storyForm.persona} onChange={(e) => setStoryForm({ ...storyForm, persona: e.target.value })} />
-        <input style={inputStyle} placeholder="I want to [action]..." value={storyForm.action} onChange={(e) => setStoryForm({ ...storyForm, action: e.target.value })} />
-        <input style={inputStyle} placeholder="So that [benefit]..." value={storyForm.benefit} onChange={(e) => setStoryForm({ ...storyForm, benefit: e.target.value })} />
-        <input style={inputStyle} placeholder="Acceptance criteria..." value={storyForm.criteria} onChange={(e) => setStoryForm({ ...storyForm, criteria: e.target.value })} />
+        <input className="panel-input panel-input-full" placeholder="As a [persona]..." value={storyForm.persona} onChange={(e) => setStoryForm({ ...storyForm, persona: e.target.value })} />
+        <input className="panel-input panel-input-full" placeholder="I want to [action]..." value={storyForm.action} onChange={(e) => setStoryForm({ ...storyForm, action: e.target.value })} />
+        <input className="panel-input panel-input-full" placeholder="So that [benefit]..." value={storyForm.benefit} onChange={(e) => setStoryForm({ ...storyForm, benefit: e.target.value })} />
+        <input className="panel-input panel-input-full" placeholder="Acceptance criteria..." value={storyForm.criteria} onChange={(e) => setStoryForm({ ...storyForm, criteria: e.target.value })} />
         <button className="panel-btn panel-btn-primary" style={{ gridColumn: "span 2" }} onClick={addUserStory}>Add User Story</button>
       </div>
       {userStories.map((s) => (
@@ -786,29 +757,29 @@ const BatchBuilderPanel: React.FC = () => {
       {/* API Endpoints */}
       <div style={sectionTitle}>API Endpoints</div>
       <div className="panel-card" style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-        <select style={{ ...inputStyle, width: 90 }} value={epForm.method} onChange={(e) => setEpForm({ ...epForm, method: e.target.value as HttpMethod })}>
+        <select className="panel-select" style={{ width: 90 }} value={epForm.method} onChange={(e) => setEpForm({ ...epForm, method: e.target.value as HttpMethod })}>
           {(["GET", "POST", "PUT", "PATCH", "DELETE"] as HttpMethod[]).map((m) => <option key={m} value={m}>{m}</option>)}
         </select>
-        <input style={{ ...inputStyle, flex: 1, minWidth: 140 }} placeholder="/api/resource" value={epForm.path} onChange={(e) => setEpForm({ ...epForm, path: e.target.value })} />
-        <input style={{ ...inputStyle, flex: 1, minWidth: 140 }} placeholder="Description" value={epForm.desc} onChange={(e) => setEpForm({ ...epForm, desc: e.target.value })} />
+        <input className="panel-input" style={{ flex: 1, minWidth: 140 }} placeholder="/api/resource" value={epForm.path} onChange={(e) => setEpForm({ ...epForm, path: e.target.value })} />
+        <input className="panel-input" style={{ flex: 1, minWidth: 140 }} placeholder="Description" value={epForm.desc} onChange={(e) => setEpForm({ ...epForm, desc: e.target.value })} />
         <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 4, cursor: "pointer", color: "var(--text-primary)" }}>
           <input type="checkbox" checked={epForm.auth} onChange={(e) => setEpForm({ ...epForm, auth: e.target.checked })} /> Auth
         </label>
         <button className="panel-btn panel-btn-primary" onClick={addEndpoint}>Add</button>
       </div>
       {endpoints.length > 0 && (
-        <table style={tableStyle}>
+        <table className="panel-table">
           <thead>
-            <tr><th style={thStyle}>Method</th><th style={thStyle}>Path</th><th style={thStyle}>Description</th><th style={thStyle}>Auth</th><th style={thStyle}></th></tr>
+            <tr><th>Method</th><th>Path</th><th>Description</th><th>Auth</th><th></th></tr>
           </thead>
           <tbody>
             {endpoints.map((ep) => (
               <tr key={ep.id}>
-                <td style={tdStyle}><span style={badge(ep.method, ep.method === "GET" ? "var(--success-color)" : ep.method === "DELETE" ? "var(--error-color)" : "var(--info-color)")}>{ep.method}</span></td>
-                <td style={{ ...tdStyle, fontFamily: "var(--font-mono)" }}>{ep.path}</td>
-                <td style={tdStyle}>{ep.description}</td>
-                <td style={tdStyle}>{ep.auth ? "Yes" : "No"}</td>
-                <td style={tdStyle}><button className="panel-btn panel-btn-danger" style={{ padding: "2px 8px", fontSize: 11 }} onClick={() => removeEndpoint(ep.id)}>Remove</button></td>
+                <td><span style={badge(ep.method, ep.method === "GET" ? "var(--success-color)" : ep.method === "DELETE" ? "var(--error-color)" : "var(--info-color)")}>{ep.method}</span></td>
+                <td style={{ fontFamily: "var(--font-mono)" }}>{ep.path}</td>
+                <td>{ep.description}</td>
+                <td>{ep.auth ? "Yes" : "No"}</td>
+                <td><button className="panel-btn panel-btn-danger" style={{ padding: "2px 8px", fontSize: 11 }} onClick={() => removeEndpoint(ep.id)}>Remove</button></td>
               </tr>
             ))}
           </tbody>
@@ -818,10 +789,10 @@ const BatchBuilderPanel: React.FC = () => {
       {/* Data Models */}
       <div style={sectionTitle}>Data Models</div>
       <div className="panel-card">
-        <input style={{ ...inputStyle, marginBottom: 8 }} placeholder="Model name (e.g., User)" value={modelName} onChange={(e) => setModelName(e.target.value)} />
+        <input className="panel-input panel-input-full" style={{ marginBottom: 8 }} placeholder="Model name (e.g., User)" value={modelName} onChange={(e) => setModelName(e.target.value)} />
         <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
-          <input style={{ ...inputStyle, flex: 1 }} placeholder="Field name" value={fieldForm.name} onChange={(e) => setFieldForm({ ...fieldForm, name: e.target.value })} />
-          <select style={{ ...inputStyle, width: 100 }} value={fieldForm.type} onChange={(e) => setFieldForm({ ...fieldForm, type: e.target.value as FieldType })}>
+          <input className="panel-input" style={{ flex: 1 }} placeholder="Field name" value={fieldForm.name} onChange={(e) => setFieldForm({ ...fieldForm, name: e.target.value })} />
+          <select className="panel-select" style={{ width: 100 }} value={fieldForm.type} onChange={(e) => setFieldForm({ ...fieldForm, type: e.target.value as FieldType })}>
             {(["string", "number", "boolean", "date", "uuid", "json", "array", "enum"] as FieldType[]).map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
           <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 4, cursor: "pointer", color: "var(--text-primary)" }}>
@@ -830,15 +801,15 @@ const BatchBuilderPanel: React.FC = () => {
           <button className="panel-btn panel-btn-primary" onClick={addField}>+ Field</button>
         </div>
         {modelFields.length > 0 && (
-          <table style={{ ...tableStyle, marginBottom: 8 }}>
-            <thead><tr><th style={thStyle}>Name</th><th style={thStyle}>Type</th><th style={thStyle}>Required</th><th style={thStyle}></th></tr></thead>
+          <table className="panel-table" style={{ marginBottom: 8 }}>
+            <thead><tr><th>Name</th><th>Type</th><th>Required</th><th></th></tr></thead>
             <tbody>
               {modelFields.map((f) => (
                 <tr key={f.id}>
-                  <td style={tdStyle}>{f.name}</td>
-                  <td style={tdStyle}>{f.type}</td>
-                  <td style={tdStyle}>{f.required ? "Yes" : "No"}</td>
-                  <td style={tdStyle}><button className="panel-btn panel-btn-danger" style={{ padding: "2px 6px", fontSize: 11 }} onClick={() => removeField(f.id)}>X</button></td>
+                  <td>{f.name}</td>
+                  <td>{f.type}</td>
+                  <td>{f.required ? "Yes" : "No"}</td>
+                  <td><button className="panel-btn panel-btn-danger" style={{ padding: "2px 6px", fontSize: 11 }} onClick={() => removeField(f.id)}>X</button></td>
                 </tr>
               ))}
             </tbody>
@@ -1012,7 +983,7 @@ const BatchBuilderPanel: React.FC = () => {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <label style={{ fontSize: 12, color: "var(--text-primary)" }}>QA Round:</label>
-            <select style={{ ...inputStyle, width: 100 }} value={qaRound} onChange={(e) => setQaRound(Number(e.target.value))}>
+            <select className="panel-select" style={{ width: 100 }} value={qaRound} onChange={(e) => setQaRound(Number(e.target.value))}>
               {Array.from({ length: qaRound }, (_, i) => (
                 <option key={i + 1} value={i + 1}>Round {i + 1}</option>
               ))}
@@ -1071,28 +1042,28 @@ const BatchBuilderPanel: React.FC = () => {
           </div>
         </div>
         <div style={{ overflowX: "auto" }}>
-          <table style={tableStyle}>
+          <table className="panel-table">
             <thead>
               <tr>
-                <th style={thStyle}>Severity</th>
-                <th style={thStyle}>File</th>
-                <th style={thStyle}>Line</th>
-                <th style={thStyle}>Message</th>
-                <th style={thStyle}>Suggestion</th>
-                <th style={thStyle}>Auto-Fix</th>
-                <th style={thStyle}>Resolved</th>
+                <th>Severity</th>
+                <th>File</th>
+                <th>Line</th>
+                <th>Message</th>
+                <th>Suggestion</th>
+                <th>Auto-Fix</th>
+                <th>Resolved</th>
               </tr>
             </thead>
             <tbody>
               {sortedFindings.map((f) => (
                 <tr key={f.id} style={{ opacity: f.resolved ? 0.5 : 1 }}>
-                  <td style={tdStyle}><span style={badge(f.severity, SEVERITY_COLORS[f.severity])}>{f.severity}</span></td>
-                  <td style={{ ...tdStyle, fontFamily: "var(--font-mono)", fontSize: 11 }}>{f.file}</td>
-                  <td style={tdStyle}>{f.line}</td>
-                  <td style={tdStyle}>{f.message}</td>
-                  <td style={{ ...tdStyle, fontSize: 11, color: "var(--text-secondary)" }}>{f.suggestion}</td>
-                  <td style={tdStyle}>{f.autoFixable ? "Yes" : "No"}</td>
-                  <td style={tdStyle}>
+                  <td><span style={badge(f.severity, SEVERITY_COLORS[f.severity])}>{f.severity}</span></td>
+                  <td style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>{f.file}</td>
+                  <td>{f.line}</td>
+                  <td>{f.message}</td>
+                  <td style={{ fontSize: 11, color: "var(--text-secondary)" }}>{f.suggestion}</td>
+                  <td>{f.autoFixable ? "Yes" : "No"}</td>
+                  <td>
                     <input type="checkbox" checked={f.resolved} onChange={() => toggleResolved(f.id)} />
                   </td>
                 </tr>
@@ -1103,24 +1074,24 @@ const BatchBuilderPanel: React.FC = () => {
 
         {/* Cross-validation */}
         <div style={sectionTitle}>Cross-Validation</div>
-        <table style={tableStyle}>
+        <table className="panel-table">
           <thead>
             <tr>
-              <th style={thStyle}>Agent A</th>
-              <th style={thStyle}>Agent B</th>
-              <th style={thStyle}>Confidence</th>
-              <th style={thStyle}>Agreements</th>
-              <th style={thStyle}>Disagreements</th>
+              <th>Agent A</th>
+              <th>Agent B</th>
+              <th>Confidence</th>
+              <th>Agreements</th>
+              <th>Disagreements</th>
             </tr>
           </thead>
           <tbody>
             {crossValidations.map((cv, i) => (
               <tr key={i}>
-                <td style={tdStyle}>{cv.agentA}</td>
-                <td style={tdStyle}>{cv.agentB}</td>
-                <td style={tdStyle}><span style={{ color: scoreColor(cv.confidence), fontWeight: 600 }}>{cv.confidence}%</span></td>
-                <td style={tdStyle}>{cv.agreements}</td>
-                <td style={tdStyle}>{cv.disagreements}</td>
+                <td>{cv.agentA}</td>
+                <td>{cv.agentB}</td>
+                <td><span style={{ color: scoreColor(cv.confidence), fontWeight: 600 }}>{cv.confidence}%</span></td>
+                <td>{cv.agreements}</td>
+                <td>{cv.disagreements}</td>
               </tr>
             ))}
           </tbody>
@@ -1151,19 +1122,19 @@ const BatchBuilderPanel: React.FC = () => {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
           <div>
             <label style={{ fontSize: 12, color: "var(--text-primary)", display: "block", marginBottom: 4 }}>Source Language</label>
-            <select style={inputStyle} value={sourceLang} onChange={(e) => setSourceLang(e.target.value)}>
+            <select className="panel-input panel-input-full" value={sourceLang} onChange={(e) => setSourceLang(e.target.value)}>
               {SOURCE_LANGS.map((l) => <option key={l} value={l}>{l}</option>)}
             </select>
           </div>
           <div>
             <label style={{ fontSize: 12, color: "var(--text-primary)", display: "block", marginBottom: 4 }}>Target Language</label>
-            <select style={inputStyle} value={targetLang} onChange={(e) => setTargetLang(e.target.value)}>
+            <select className="panel-input panel-input-full" value={targetLang} onChange={(e) => setTargetLang(e.target.value)}>
               {TARGET_LANGS.map((l) => <option key={l} value={l}>{l}</option>)}
             </select>
           </div>
           <div>
             <label style={{ fontSize: 12, color: "var(--text-primary)", display: "block", marginBottom: 4 }}>Strategy</label>
-            <select style={inputStyle} value={strategy} onChange={(e) => setStrategy(e.target.value as MigrationStrategy)}>
+            <select className="panel-input panel-input-full" value={strategy} onChange={(e) => setStrategy(e.target.value as MigrationStrategy)}>
               {(Object.keys(STRATEGY_DESCRIPTIONS) as MigrationStrategy[]).map((s) => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
             </select>
           </div>
@@ -1174,28 +1145,28 @@ const BatchBuilderPanel: React.FC = () => {
 
         {/* Component list */}
         <div style={sectionTitle}>Components</div>
-        <table style={tableStyle}>
+        <table className="panel-table">
           <thead>
             <tr>
-              <th style={thStyle}>Name</th>
-              <th style={thStyle}>Type</th>
-              <th style={thStyle}>Language</th>
-              <th style={thStyle}>Lines</th>
-              <th style={thStyle}>Complexity</th>
-              <th style={thStyle}>Risk</th>
-              <th style={thStyle}>Status</th>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Language</th>
+              <th>Lines</th>
+              <th>Complexity</th>
+              <th>Risk</th>
+              <th>Status</th>
             </tr>
           </thead>
           <tbody>
             {migComponents.map((c) => (
               <tr key={c.id}>
-                <td style={tdStyle}>{c.name}</td>
-                <td style={tdStyle}>{c.compType}</td>
-                <td style={tdStyle}>{c.language}</td>
-                <td style={tdStyle}>{c.lines.toLocaleString()}</td>
-                <td style={tdStyle}><span style={badge(c.complexity, c.complexity === "High" ? "var(--error-color)" : c.complexity === "Medium" ? "var(--warning-color)" : "var(--success-color)")}>{c.complexity}</span></td>
-                <td style={tdStyle}><span style={badge(c.risk, SEVERITY_COLORS[c.risk === "Critical" ? "Critical" : c.risk === "High" ? "High" : c.risk === "Medium" ? "Medium" : "Low"])}>{c.risk}</span></td>
-                <td style={tdStyle}><span style={badge(c.status, c.status === "Completed" ? "var(--success-color)" : c.status === "In Progress" ? "var(--info-color)" : c.status === "Failed" ? "var(--error-color)" : "var(--text-secondary)")}>{c.status}</span></td>
+                <td>{c.name}</td>
+                <td>{c.compType}</td>
+                <td>{c.language}</td>
+                <td>{c.lines.toLocaleString()}</td>
+                <td><span style={badge(c.complexity, c.complexity === "High" ? "var(--error-color)" : c.complexity === "Medium" ? "var(--warning-color)" : "var(--success-color)")}>{c.complexity}</span></td>
+                <td><span style={badge(c.risk, SEVERITY_COLORS[c.risk === "Critical" ? "Critical" : c.risk === "High" ? "High" : c.risk === "Medium" ? "Medium" : "Low"])}>{c.risk}</span></td>
+                <td><span style={badge(c.status, c.status === "Completed" ? "var(--success-color)" : c.status === "In Progress" ? "var(--info-color)" : c.status === "Failed" ? "var(--error-color)" : "var(--text-secondary)")}>{c.status}</span></td>
               </tr>
             ))}
           </tbody>
@@ -1225,22 +1196,22 @@ const BatchBuilderPanel: React.FC = () => {
 
         {/* Translation rules */}
         <div style={sectionTitle}>Translation Rules</div>
-        <table style={tableStyle}>
+        <table className="panel-table">
           <thead>
             <tr>
-              <th style={thStyle}>Source Pattern</th>
-              <th style={thStyle}>Target Pattern</th>
-              <th style={thStyle}>Confidence</th>
-              <th style={thStyle}>Example</th>
+              <th>Source Pattern</th>
+              <th>Target Pattern</th>
+              <th>Confidence</th>
+              <th>Example</th>
             </tr>
           </thead>
           <tbody>
             {translationRules.map((rule) => (
               <tr key={rule.id}>
-                <td style={{ ...tdStyle, fontFamily: "var(--font-mono)", fontSize: 11 }}>{rule.sourcePattern}</td>
-                <td style={{ ...tdStyle, fontFamily: "var(--font-mono)", fontSize: 11 }}>{rule.targetPattern}</td>
-                <td style={tdStyle}><span style={{ color: scoreColor(rule.confidence), fontWeight: 600 }}>{rule.confidence}%</span></td>
-                <td style={{ ...tdStyle, fontSize: 11, color: "var(--text-secondary)" }}>{rule.example}</td>
+                <td style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>{rule.sourcePattern}</td>
+                <td style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>{rule.targetPattern}</td>
+                <td><span style={{ color: scoreColor(rule.confidence), fontWeight: 600 }}>{rule.confidence}%</span></td>
+                <td style={{ fontSize: 11, color: "var(--text-secondary)" }}>{rule.example}</td>
               </tr>
             ))}
           </tbody>
@@ -1355,17 +1326,17 @@ const BatchBuilderPanel: React.FC = () => {
       </div>
 
       {/* Runs table */}
-      <table style={tableStyle}>
+      <table className="panel-table">
         <thead>
           <tr>
-            <th style={thStyle}>ID</th>
-            <th style={thStyle}>Title</th>
-            <th style={thStyle}>Status</th>
-            <th style={thStyle}>Files</th>
-            <th style={thStyle}>Lines</th>
-            <th style={thStyle}>Duration</th>
-            <th style={thStyle}>Agents</th>
-            <th style={thStyle}>Date</th>
+            <th>ID</th>
+            <th>Title</th>
+            <th>Status</th>
+            <th>Files</th>
+            <th>Lines</th>
+            <th>Duration</th>
+            <th>Agents</th>
+            <th>Date</th>
           </tr>
         </thead>
         <tbody>
@@ -1377,22 +1348,22 @@ const BatchBuilderPanel: React.FC = () => {
                 onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-secondary)"; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
               >
-                <td style={{ ...tdStyle, fontFamily: "var(--font-mono)", fontSize: 11 }}>{run.id}</td>
-                <td style={tdStyle}>{run.title}</td>
-                <td style={tdStyle}>
+                <td style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>{run.id}</td>
+                <td>{run.title}</td>
+                <td>
                   <span style={badge(run.status, run.status === "Completed" ? "var(--success-color)" : run.status === "Failed" ? "var(--error-color)" : "var(--text-secondary)")}>
                     {run.status}
                   </span>
                 </td>
-                <td style={tdStyle}>{run.files}</td>
-                <td style={tdStyle}>{run.lines.toLocaleString()}</td>
-                <td style={tdStyle}>{run.duration}</td>
-                <td style={tdStyle}>{run.agents}</td>
-                <td style={tdStyle}>{run.date}</td>
+                <td>{run.files}</td>
+                <td>{run.lines.toLocaleString()}</td>
+                <td>{run.duration}</td>
+                <td>{run.agents}</td>
+                <td>{run.date}</td>
               </tr>
               {expandedRun === run.id && (
                 <tr>
-                  <td colSpan={8} style={{ ...tdStyle, padding: 16, background: "var(--bg-secondary)" }}>
+                  <td colSpan={8} style={{ padding: 16, background: "var(--bg-secondary)" }}>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                       <div>
                         <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 13 }}>Detailed Metrics</div>

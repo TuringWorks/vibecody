@@ -21,11 +21,6 @@ interface Company {
   active: boolean;
 }
 
-const inputStyle: React.CSSProperties = {
-  fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)",
-  border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)",
-};
-
 /** Parse text lines from company_list into Company objects */
 function parseCompanies(text: string): Company[] {
   // Format: "▶ [active] Acme  Build great stuff" or "  [active] Acme  desc"
@@ -119,9 +114,9 @@ export function CompanyDashboardPanel({ workspacePath: _wp }: CompanyDashboardPa
   return (
     <div className="panel-container">
       {/* Header */}
-      <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontWeight: 700, fontSize: 15 }}>Companies</span>
-        <div style={{ display: "flex", gap: 6 }}>
+      <div className="panel-header">
+        <h3>Companies</h3>
+        <div style={{ display: "flex", gap: 6, marginLeft: "auto" }}>
           <button onClick={() => { setShowCreate(!showCreate); setCreateError(null); }} className="panel-btn panel-btn-secondary">
             {showCreate ? "Cancel" : "+ New Company"}
           </button>
@@ -141,14 +136,14 @@ export function CompanyDashboardPanel({ workspacePath: _wp }: CompanyDashboardPa
               onKeyDown={(e) => e.key === "Enter" && createCompany()}
               placeholder="Company name *"
               autoFocus
-              style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
+              className="panel-input panel-input-full"
             />
             <input
               value={newDesc}
               onChange={(e) => setNewDesc(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && createCompany()}
               placeholder="Description (optional)"
-              style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
+              className="panel-input panel-input-full"
             />
             {createError && <div className="panel-error" style={{ fontSize: 12 }}>{createError}</div>}
             <div style={{ display: "flex", gap: 8 }}>
@@ -232,7 +227,7 @@ export function CompanyDashboardPanel({ workspacePath: _wp }: CompanyDashboardPa
       {/* Active company status */}
       {rawStatus && rawStatus !== "No companies yet.\nUse: /company create <name>" && (
         <div style={{ marginTop: 16 }}>
-          <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 6, fontWeight: 600 }}>STATUS</div>
+          <div className="panel-label" style={{ marginBottom: 6, fontWeight: 600 }}>STATUS</div>
           <div className="panel-card">
             <pre style={{ margin: 0, fontSize: 11, whiteSpace: "pre-wrap", lineHeight: 1.5 }}>
               {rawStatus}

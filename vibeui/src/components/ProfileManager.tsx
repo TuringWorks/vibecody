@@ -100,15 +100,10 @@ export function ProfileManager() {
     input.click();
   };
 
-  const inputStyle: React.CSSProperties = {
-    padding: "4px 8px", fontSize: 12, borderRadius: 4,
-    border: "1px solid var(--border-color)", background: "var(--bg-secondary)",
-    color: "var(--text-primary)",
-  };
 
   return (
     <div className="panel-container">
-      <div className="panel-header">Settings Profiles</div>
+      <div className="panel-header"><h3>Settings Profiles</h3></div>
       <div className="panel-body">
       <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 12px" }}>
         Profiles let you save and switch between different panel configurations. All settings are encrypted and stored locally.
@@ -153,8 +148,8 @@ export function ProfileManager() {
       <div className="panel-card">
         <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 8 }}>New Profile</div>
         <div style={{ display: "flex", gap: 6 }}>
-          <input style={{ ...inputStyle, width: 120 }} placeholder="Profile ID" value={newId} onChange={(e) => setNewId(e.target.value)} />
-          <input style={{ ...inputStyle, flex: 1 }} placeholder="Profile Name" value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleCreate()} />
+          <input className="panel-input" style={{ width: 120 }} placeholder="Profile ID" value={newId} onChange={(e) => setNewId(e.target.value)} />
+          <input className="panel-input" style={{ flex: 1 }} placeholder="Profile Name" value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleCreate()} />
           <button className="panel-btn panel-btn-primary" onClick={handleCreate}>Create</button>
         </div>
       </div>

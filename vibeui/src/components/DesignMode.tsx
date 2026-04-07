@@ -428,9 +428,9 @@ try {
   );
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, background: "var(--bg-primary)", color: "var(--text-primary)", overflow: "hidden" }}>
+    <div className="panel-container">
       {/* Tab bar */}
-      <div style={{ display: "flex", alignItems: "center", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", flexShrink: 0, overflow: "auto" }}>
+      <div className="panel-header" style={{ overflow: "auto", padding: 0 }}>
         {tabDefs.map(({ id, label }) => (
           <button
             key={id}

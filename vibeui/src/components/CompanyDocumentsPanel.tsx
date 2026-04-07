@@ -59,10 +59,6 @@ function roleBadgeStyle(role: DocRole): React.CSSProperties {
   };
 }
 
-const inputStyle: React.CSSProperties = {
-  fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)",
-  border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)",
-};
 
 export function CompanyDocumentsPanel({ workspacePath: _wp }: CompanyDocumentsPanelProps) {
   // Tabs: list | create | view | meeting
@@ -193,9 +189,9 @@ export function CompanyDocumentsPanel({ workspacePath: _wp }: CompanyDocumentsPa
 
   return (
     <div className="panel-container">
-      <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontWeight: 600, fontSize: 14 }}>Agent Docs</span>
-        <div style={{ display: "flex", gap: 6 }}>
+      <div className="panel-header">
+        <h3>Agent Docs</h3>
+        <div style={{ display: "flex", gap: 6, marginLeft: "auto" }}>
           {(["list", "create", "meeting"] as const).map((t) => (
             <button
               key={t}
@@ -224,7 +220,7 @@ export function CompanyDocumentsPanel({ workspacePath: _wp }: CompanyDocumentsPa
         <>
           <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
             <input value={docId} onChange={(e) => setDocId(e.target.value)} onKeyDown={(e) => e.key === "Enter" && viewDoc()} placeholder="Document ID to view"
-              style={{ ...inputStyle, flex: 1 }} />
+              className="panel-input" style={{ flex: 1 }} />
             <button onClick={viewDoc} className="panel-btn panel-btn-primary">View</button>
           </div>
           <div className="panel-card" style={{ minHeight: 200, padding: useStructured ? 0 : undefined, overflow: "hidden" }}>
@@ -286,9 +282,9 @@ export function CompanyDocumentsPanel({ workspacePath: _wp }: CompanyDocumentsPa
       {tab === "create" && (
         <div>
           <input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="Document title"
-            style={{ width: "100%", fontSize: 13, padding: "6px 10px", marginBottom: 8, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", boxSizing: "border-box" }} />
+            className="panel-input panel-input-full" style={{ marginBottom: 8 }} />
           <textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="Document content (Markdown)"
-            style={{ width: "100%", height: 300, fontSize: 12, padding: "8px", marginBottom: 8, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", resize: "vertical", boxSizing: "border-box" }} />
+            className="panel-input panel-textarea panel-input-full" style={{ height: 300, marginBottom: 8 }} />
           <button onClick={createDoc} className="panel-btn panel-btn-primary">
             Create Document
           </button>
@@ -315,17 +311,14 @@ export function CompanyDocumentsPanel({ workspacePath: _wp }: CompanyDocumentsPa
               value={meetingTitle}
               onChange={(e) => setMeetingTitle(e.target.value)}
               placeholder="Title (optional)"
-              style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
+              className="panel-input panel-input-full"
             />
             <textarea
               value={meetingContent}
               onChange={(e) => setMeetingContent(e.target.value)}
               placeholder="Paste meeting notes, transcript, or summary..."
               rows={8}
-              style={{
-                ...inputStyle, width: "100%", boxSizing: "border-box",
-                resize: "vertical", lineHeight: 1.5,
-              }}
+              className="panel-input panel-textarea panel-input-full"
             />
             <button
               onClick={ingestMeeting}

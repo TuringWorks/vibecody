@@ -170,11 +170,11 @@ export function NetworkPanel() {
  );
 
  return (
- <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+ <div className="panel-container">
  {/* Header */}
- <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", flexShrink: 0, display: "flex", alignItems: "center", gap: 8 }}>
+ <div className="panel-header">
  <span style={{ fontSize: 16 }}></span>
- <div style={{ fontSize: 13, fontWeight: 600 }}>Network Tools</div>
+ <h3>Network Tools</h3>
  </div>
 
  {/* Sub-tabs */}

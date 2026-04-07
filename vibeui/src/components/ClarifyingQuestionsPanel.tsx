@@ -56,7 +56,6 @@ const ClarifyingQuestionsPanel: React.FC = () => {
     try { await invoke("save_clarify_questions", { questions: updated }); } catch { /* ignore */ }
   };
 
-  const inputStyle: React.CSSProperties = { padding: "6px 10px", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "3px", fontFamily: "inherit", fontSize: "inherit", width: "100%", boxSizing: "border-box" };
 
   const priorityColor = (p: string) => p === "high" ? "var(--error-color)" : p === "medium" ? "var(--warning-color)" : "var(--text-secondary)";
   const statusColor = (s: string) => s === "done" ? "var(--success-color)" : s === "in-progress" ? "var(--warning-color)" : "var(--text-secondary)";
@@ -95,7 +94,7 @@ const ClarifyingQuestionsPanel: React.FC = () => {
         <div>
           <div style={{ marginBottom: "12px" }}>
             <label style={{ fontSize: "12px", fontWeight: 600, display: "block", marginBottom: "4px" }}>Task Description</label>
-            <textarea style={{ ...inputStyle, minHeight: "60px", resize: "vertical" }} placeholder="Describe what you want to build or change..." value={taskInput} onChange={(e) => setTaskInput(e.target.value)} />
+            <textarea className="panel-input panel-input-full" style={{ minHeight: "60px", resize: "vertical" }} placeholder="Describe what you want to build or change..." value={taskInput} onChange={(e) => setTaskInput(e.target.value)} />
           </div>
           {questions.length === 0 && (
             <div className="panel-empty">
@@ -110,7 +109,7 @@ const ClarifyingQuestionsPanel: React.FC = () => {
               </div>
               {!q.skipped ? (
                 <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                  <input style={{ ...inputStyle, flex: 1 }} placeholder="Your answer..." value={q.answer} onChange={(e) => updateAnswer(q.id, e.target.value)} />
+                  <input className="panel-input" style={{ flex: 1 }} placeholder="Your answer..." value={q.answer} onChange={(e) => updateAnswer(q.id, e.target.value)} />
                   <button className="panel-btn panel-btn-secondary" onClick={() => skipQuestion(q.id)}>Skip</button>
                 </div>
               ) : (

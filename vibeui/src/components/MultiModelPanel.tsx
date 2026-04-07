@@ -75,7 +75,7 @@ function ProviderSelector({
  <select
  value={provider}
  onChange={e => { onProvider(e.target.value); onModel(PROVIDER_DEFAULT_MODEL[e.target.value] ?? ""); }}
- style={{ background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "4px", padding: "3px 6px", fontSize: "12px" }}
+ className="panel-select"
  >
  {providers.map(p => <option key={p} value={p}>{p}</option>)}
  </select>
@@ -87,7 +87,8 @@ function ProviderSelector({
  onChange={e => onModel(e.target.value)}
  list={listId}
  placeholder="model"
- style={{ flex: 1, background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "4px", padding: "3px 6px", fontSize: "12px", minWidth: 0 }}
+ className="panel-input"
+ style={{ flex: 1, minWidth: 0 }}
  />
  </div>
  );
@@ -126,10 +127,13 @@ export function MultiModelPanel() {
  };
 
  return (
- <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, padding: "12px", gap: "10px", fontSize: "13px" }}>
+ <div className="panel-container">
  {/* Header */}
- <div style={{ fontWeight: "bold", marginBottom: "2px" }}>Multi-Model Comparison</div>
+ <div className="panel-header">
+ <h3>Multi-Model Comparison</h3>
+ </div>
 
+ <div className="panel-body" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
  {/* Provider selectors */}
  <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
  <ProviderSelector label="A" provider={providerA} model={modelA} onProvider={setProviderA} onModel={setModelA} />
@@ -143,27 +147,15 @@ export function MultiModelPanel() {
  onKeyDown={handleKey}
  placeholder="Enter a prompt… (Ctrl+Enter to send)"
  rows={4}
- style={{
- resize: "vertical",
- background: "var(--bg-secondary)",
- color: "var(--text-primary)",
- border: "1px solid var(--border-color)",
- borderRadius: "4px",
- padding: "8px",
- fontFamily: "inherit",
- fontSize: "13px",
- }}
+ className="panel-input panel-textarea panel-input-full"
+ style={{ resize: "vertical" }}
  />
 
  <button
  onClick={handleCompare}
  disabled={loading || !prompt.trim()}
- style={{
- alignSelf: "flex-start",
- background: loading ? "var(--bg-secondary)" : "var(--accent-color)",
- color: "var(--text-primary)", border: "none", borderRadius: "4px",
- padding: "6px 18px", cursor: loading ? "default" : "pointer",
- }}
+ className="panel-btn panel-btn-primary"
+ style={{ alignSelf: "flex-start" }}
  >
  {loading ? "Comparing…" : "Compare"}
  </button>
@@ -181,11 +173,12 @@ export function MultiModelPanel() {
  )}
 
  {!result && !loading && (
- <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-secondary)", textAlign: "center" }}>
+ <div className="panel-empty">
  Enter a prompt above and click Compare<br />
  to see both models' responses side-by-side.
  </div>
  )}
+ </div>
  </div>
  );
 }

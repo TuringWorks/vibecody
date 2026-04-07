@@ -40,11 +40,6 @@ const FIELD_LABELS: Record<keyof WorkspaceConfig, string> = {
   work_email: "Work Email",
 };
 
-const inputStyle: React.CSSProperties = {
-  width: "100%", fontSize: 13, padding: "6px 10px",
-  background: "var(--bg-primary)", border: "1px solid var(--border-color)",
-  borderRadius: 4, color: "var(--text-primary)", boxSizing: "border-box",
-};
 
 export function CompanyWorkspaceConfigPanel() {
   const [config, setConfig] = useState<WorkspaceConfig>(EMPTY_CONFIG);
@@ -84,9 +79,9 @@ export function CompanyWorkspaceConfigPanel() {
 
   return (
     <div className="panel-container">
-      <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontWeight: 600, fontSize: 14 }}>Workspace Config</span>
-        <button onClick={load} className="panel-btn panel-btn-secondary">Refresh</button>
+      <div className="panel-header">
+        <h3>Workspace Config</h3>
+        <button onClick={load} className="panel-btn panel-btn-secondary" style={{ marginLeft: "auto" }}>Refresh</button>
       </div>
       <div className="panel-body">
 
@@ -117,7 +112,7 @@ export function CompanyWorkspaceConfigPanel() {
                   type="text"
                   value={config[key]}
                   onChange={(e) => setConfig((prev) => ({ ...prev, [key]: e.target.value }))}
-                  style={inputStyle}
+                  className="panel-input panel-input-full"
                   placeholder={`{{${key}}}`}
                 />
               </label>

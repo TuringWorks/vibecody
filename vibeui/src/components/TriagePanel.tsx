@@ -89,7 +89,6 @@ export function TriagePanel() {
     }
   }, [newTitle, newBody, fetchData]);
 
-  const inputStyle: React.CSSProperties = { width: "100%", padding: 8, borderRadius: 6, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)", fontSize: 13, marginBottom: 8 };
 
   const allIssues = issues;
   const accuracy = history.length > 0 ? ((history.filter((h) => h.correct).length / history.length) * 100).toFixed(0) : "0";
@@ -134,8 +133,8 @@ export function TriagePanel() {
         <div>
           <div className="panel-card">
             <div style={{ fontWeight: 600, marginBottom: 8 }}>Submit Issue for Triage</div>
-            <input placeholder="Issue title" style={inputStyle} value={newTitle} onChange={(e) => setNewTitle(e.target.value)} />
-            <textarea placeholder="Issue body / description" style={{ ...inputStyle, height: 80, resize: "vertical" as const }} value={newBody} onChange={(e) => setNewBody(e.target.value)} />
+            <input placeholder="Issue title" className="panel-input panel-input-full" style={{ marginBottom: 8 }} value={newTitle} onChange={(e) => setNewTitle(e.target.value)} />
+            <textarea placeholder="Issue body / description" className="panel-input panel-textarea panel-input-full" style={{ height: 80, resize: "vertical", marginBottom: 8 }} value={newBody} onChange={(e) => setNewBody(e.target.value)} />
             <button className="panel-btn panel-btn-primary" onClick={handleTriage} disabled={!newTitle.trim()}>Triage</button>
           </div>
         </div>

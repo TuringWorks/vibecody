@@ -26,11 +26,6 @@ function defaultMap(): ProgramEntry[] {
   return PROGRAMS.map((program) => ({ program, urgency: 2 as const, routing_rules: "" }));
 }
 
-const inputStyle: React.CSSProperties = {
-  fontSize: 12, padding: "4px 8px",
-  background: "var(--bg-primary)", border: "1px solid var(--border-color)",
-  borderRadius: 4, color: "var(--text-primary)", flex: 1, minWidth: 0,
-};
 
 export function CompanyPriorityMapPanel() {
   const [map, setMap] = useState<ProgramEntry[]>(defaultMap());
@@ -81,9 +76,9 @@ export function CompanyPriorityMapPanel() {
 
   return (
     <div className="panel-container">
-      <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontWeight: 600, fontSize: 14 }}>Priority Map</span>
-        <button onClick={load} className="panel-btn panel-btn-secondary">Refresh</button>
+      <div className="panel-header">
+        <h3>Priority Map</h3>
+        <button onClick={load} className="panel-btn panel-btn-secondary" style={{ marginLeft: "auto" }}>Refresh</button>
       </div>
       <div className="panel-body">
 
@@ -160,7 +155,8 @@ export function CompanyPriorityMapPanel() {
                     value={entry.routing_rules}
                     onChange={(e) => setRouting(i, e.target.value)}
                     placeholder="e.g. cfo, legal-team"
-                    style={inputStyle}
+                    className="panel-input"
+                    style={{ flex: 1, minWidth: 0 }}
                   />
                 </div>
               );

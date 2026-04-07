@@ -47,12 +47,6 @@ const kindColor: Record<NodeKind, string> = {
   type: "#f5c2e7",
 };
 
-const tabBtn = (active: boolean): React.CSSProperties => ({
-  padding: "6px 14px", fontSize: 11, fontWeight: active ? 600 : 400,
-  background: active ? "var(--accent-bg, color-mix(in srgb, var(--accent-blue) 15%, transparent))" : "transparent",
-  border: "1px solid " + (active ? "var(--accent-primary)" : "var(--border-color)"),
-  borderRadius: 4, color: active ? "var(--text-info)" : "var(--text-secondary)", cursor: "pointer",
-});
 
 function NodeTree({ nodes, depth = 0 }: { nodes: AstNode[]; depth?: number }) {
   return (
@@ -133,10 +127,10 @@ export default function AstEditPanel() {
   const selected = edits.find(e => e.id === selectedEdit);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
-      <div style={{ display: "flex", gap: 6, padding: "8px 10px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
+    <div className="panel-container">
+      <div className="panel-header">
         {(["files", "edits", "preview"] as Tab[]).map(t => (
-          <button key={t} onClick={() => setTab(t)} style={tabBtn(tab === t)}>
+          <button key={t} onClick={() => setTab(t)} className={`panel-btn ${tab === t ? "panel-btn-primary" : "panel-btn-secondary"}`}>
             {t[0].toUpperCase() + t.slice(1)}
           </button>
         ))}
@@ -145,12 +139,12 @@ export default function AstEditPanel() {
         </span>
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+      <div className="panel-body" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {loading && (
-          <div style={{ textAlign: "center", color: "var(--text-secondary)", fontSize: 12, padding: 40 }}>Loading...</div>
+          <div className="panel-loading">Loading...</div>
         )}
         {error && (
-          <div style={{ textAlign: "center", color: "var(--text-danger)", fontSize: 12, padding: 20 }}>{error}</div>
+          <div className="panel-error">{error}</div>
         )}
 
         {tab === "files" && !loading && files.map(f => (
@@ -163,7 +157,7 @@ export default function AstEditPanel() {
           </div>
         ))}
         {tab === "files" && !loading && files.length === 0 && !error && (
-          <div style={{ textAlign: "center", color: "var(--text-secondary)", fontSize: 12, padding: 40 }}>No source files found in workspace</div>
+          <div className="panel-empty">No source files found in workspace</div>
         )}
 
         {tab === "edits" && edits.map(e => (
@@ -181,14 +175,14 @@ export default function AstEditPanel() {
               </div>
               <span style={{ fontSize: 10, color: "var(--text-secondary)", minWidth: 30 }}>{(e.confidence * 100).toFixed(0)}%</span>
               <button onClick={(ev) => { ev.stopPropagation(); dismissEdit(e.id); }}
-                style={{ padding: "3px 8px", fontSize: 10, borderRadius: 3, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-danger)", cursor: "pointer" }}>Reject</button>
+                className="panel-btn panel-btn-secondary panel-btn-xs" style={{ color: "var(--text-danger)" }}>Reject</button>
               <button onClick={(ev) => { ev.stopPropagation(); applyEdit(e.id); }}
-                style={{ padding: "3px 8px", fontSize: 10, borderRadius: 3, border: "none", background: "var(--text-success)", color: "var(--bg-primary)", cursor: "pointer", fontWeight: 600 }}>Apply</button>
+                className="panel-btn panel-btn-primary panel-btn-xs">Apply</button>
             </div>
           </div>
         ))}
         {tab === "edits" && edits.length === 0 && (
-          <div style={{ textAlign: "center", color: "var(--text-secondary)", fontSize: 12, padding: 40 }}>No pending AST edits</div>
+          <div className="panel-empty">No pending AST edits</div>
         )}
 
         {tab === "preview" && selected && (
@@ -208,7 +202,7 @@ export default function AstEditPanel() {
           </div>
         )}
         {tab === "preview" && !selected && (
-          <div style={{ textAlign: "center", color: "var(--text-secondary)", fontSize: 12, padding: 40 }}>Select an edit from the Edits tab to preview</div>
+          <div className="panel-empty">Select an edit from the Edits tab to preview</div>
         )}
       </div>
     </div>

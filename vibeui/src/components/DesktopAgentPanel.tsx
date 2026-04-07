@@ -66,8 +66,8 @@ export function DesktopAgentPanel() {
   }, []);
 
   return (
-    <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 16, fontSize: 13, color: "var(--text-primary)" }}>
-      <div className="panel-tab-bar" style={{ padding: "0 16px", flexShrink: 0 }}>
+    <div className="panel-container">
+      <div className="panel-tab-bar">
         {(["actions", "windows", "macros", "config"] as const).map(t => (
           <button key={t} onClick={() => setTab(t)} className={`panel-tab ${tab === t ? "active" : ""}`} style={{ textTransform: "capitalize" }}>{t}</button>
         ))}
@@ -79,6 +79,7 @@ export function DesktopAgentPanel() {
         </div>
       )}
 
+      <div className="panel-body" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {actionResult && (
         <div style={{ padding: "8px 12px", background: "var(--success-bg, #00ff0011)", border: "1px solid var(--success-color)", borderRadius: 4, fontSize: 12, color: "var(--success-color)" }}>
           {actionResult}
@@ -195,6 +196,7 @@ export function DesktopAgentPanel() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

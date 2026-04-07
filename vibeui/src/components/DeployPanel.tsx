@@ -143,10 +143,11 @@ export function DeployPanel({ workspacePath }: DeployPanelProps) {
  };
 
  return (
- <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 16, flex: 1, minHeight: 0, overflowY: "auto" }}>
+ <div className="panel-container">
+ <div className="panel-body" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
  {/* Detected project */}
  {detected && (
- <div style={{ background: "var(--bg-secondary)", borderRadius: 8, padding: 12, border: "1px solid var(--border-color)" }}>
+ <div className="panel-card">
  <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 4 }}>Detected Project</div>
  <div style={{ fontWeight: 600 }}>{detected.detected_framework || "Static Site"}</div>
  <div style={{ fontSize: 11, opacity: 0.6, fontFamily: "var(--font-mono)" }}>Build: {detected.build_cmd}</div>
@@ -191,16 +192,8 @@ export function DeployPanel({ workspacePath }: DeployPanelProps) {
  <button
  onClick={handleDeploy}
  disabled={isDeploying}
- style={{
- background: isDeploying ? "var(--bg-tertiary)" : "var(--accent-color)",
- color: "var(--text-primary)",
- border: "none",
- borderRadius: 6,
- padding: "10px 0",
- cursor: isDeploying ? "not-allowed" : "pointer",
- fontWeight: 700,
- fontSize: 14,
- }}
+ className="panel-btn panel-btn-primary panel-btn-lg"
+ style={{ width: "100%" }}
  >
  {isDeploying ? "Deploying…" : "Deploy"}
  </button>
@@ -225,12 +218,14 @@ export function DeployPanel({ workspacePath }: DeployPanelProps) {
  onChange={(e) => setCustomDomain(e.target.value)}
  placeholder="myapp.example.com"
  onKeyDown={(e) => e.key === "Enter" && handleSetDomain()}
- style={{ flex: 1, padding: "6px 10px", fontSize: 12, fontFamily: "var(--font-mono)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none" }}
+ className="panel-input panel-input-full"
+ style={{ flex: 1, fontFamily: "var(--font-mono)" }}
  />
  <button
  onClick={handleSetDomain}
  disabled={domainBusy || !customDomain.trim()}
- style={{ padding: "6px 12px", fontSize: 12, background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: 4, cursor: "pointer", whiteSpace: "nowrap" }}
+ className="panel-btn panel-btn-primary panel-btn-sm"
+ style={{ whiteSpace: "nowrap" }}
  >
  {domainBusy ? "…" : "Add Domain"}
  </button>
@@ -269,6 +264,7 @@ export function DeployPanel({ workspacePath }: DeployPanelProps) {
  ))}
  </div>
  )}
+ </div>
  </div>
  );
 }

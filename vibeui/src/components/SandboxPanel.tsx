@@ -132,10 +132,10 @@ export function SandboxPanel() {
 
   return (
     <div className="panel-container">
-      <div className="panel-header">Container Sandbox</div>
+      <div className="panel-header"><h3>Container Sandbox</h3></div>
       <div className="panel-body" style={{ color: "var(--text-secondary)", fontSize: 13 }}>
 
-      {error && <div className="panel-error" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", marginBottom: 12, background: "var(--error-color)", borderRadius: 4, color: "var(--btn-primary-fg)", fontSize: 12 }}><span>{error}</span><button onClick={() => setError(null)} style={{ background: "none", border: "none", color: "var(--btn-primary-fg)", cursor: "pointer", fontSize: 14 }}>&#x2715;</button></div>}
+      {error && <div className="panel-error" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><span>{error}</span><button onClick={() => setError(null)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14 }}>&#x2715;</button></div>}
 
       {/* Runtime Detection */}
       <div style={{ marginBottom: 16, padding: "8px 12px", background: "var(--bg-primary)", borderRadius: 6, border: "1px solid var(--border-color)" }}>
@@ -156,21 +156,21 @@ export function SandboxPanel() {
       <div style={{ marginBottom: 16, padding: "8px 12px", background: "var(--bg-primary)", borderRadius: 6, border: "1px solid var(--border-color)" }}>
         <div style={{ fontWeight: 600, marginBottom: 8, color: "var(--text-primary)" }}>Create Sandbox</div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-          <label style={labelStyle}>
+          <label style={{ display: "flex", flexDirection: "column", gap: 2, fontSize: 11, color: "var(--text-secondary)" }}>
             Image
-            <input value={newImage} onChange={(e) => setNewImage(e.target.value)} style={inputStyle} placeholder="ubuntu:22.04" />
+            <input value={newImage} onChange={(e) => setNewImage(e.target.value)} className="panel-input" placeholder="ubuntu:22.04" />
           </label>
-          <label style={labelStyle}>
+          <label style={{ display: "flex", flexDirection: "column", gap: 2, fontSize: 11, color: "var(--text-secondary)" }}>
             CPUs
-            <input value={newCpus} onChange={(e) => setNewCpus(e.target.value)} style={{ ...inputStyle, width: 60 }} />
+            <input value={newCpus} onChange={(e) => setNewCpus(e.target.value)} className="panel-input" style={{ width: 60 }} />
           </label>
-          <label style={labelStyle}>
+          <label style={{ display: "flex", flexDirection: "column", gap: 2, fontSize: 11, color: "var(--text-secondary)" }}>
             Memory
-            <input value={newMemory} onChange={(e) => setNewMemory(e.target.value)} style={{ ...inputStyle, width: 70 }} />
+            <input value={newMemory} onChange={(e) => setNewMemory(e.target.value)} className="panel-input" style={{ width: 70 }} />
           </label>
-          <label style={labelStyle}>
+          <label style={{ display: "flex", flexDirection: "column", gap: 2, fontSize: 11, color: "var(--text-secondary)" }}>
             Network
-            <select value={newNetwork} onChange={(e) => setNewNetwork(e.target.value)} style={inputStyle}>
+            <select value={newNetwork} onChange={(e) => setNewNetwork(e.target.value)} className="panel-select">
               <option value="full">Full</option>
               <option value="restricted">Restricted</option>
               <option value="none">None</option>
@@ -191,29 +191,29 @@ export function SandboxPanel() {
         {instances.length === 0 ? (
           <div style={{ color: "var(--text-secondary)", fontStyle: "italic" }}>No sandbox containers running.</div>
         ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+          <table className="panel-table">
             <thead>
-              <tr style={{ borderBottom: "1px solid var(--border-color)", textAlign: "left" }}>
-                <th style={thStyle}>ID</th>
-                <th style={thStyle}>Image</th>
-                <th style={thStyle}>Status</th>
-                <th style={thStyle}>Runtime</th>
-                <th style={thStyle}>Actions</th>
+              <tr>
+                <th>ID</th>
+                <th>Image</th>
+                <th>Status</th>
+                <th>Runtime</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {instances.map((c) => (
-                <tr key={c.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
-                  <td style={tdStyle}><code>{c.id.substring(0, 12)}</code></td>
-                  <td style={tdStyle}>{c.image}</td>
-                  <td style={tdStyle}>
+                <tr key={c.id}>
+                  <td><code>{c.id.substring(0, 12)}</code></td>
+                  <td>{c.image}</td>
+                  <td>
                     <span style={{ color: statusColor(c.status) }}>{c.status}</span>
                   </td>
-                  <td style={tdStyle}>{c.runtime}</td>
-                  <td style={tdStyle}>
-                    <button onClick={() => handlePause(c.id)} style={smallBtn} title="Pause">Pause</button>
-                    <button onClick={() => handleResume(c.id)} style={smallBtn} title="Resume">Resume</button>
-                    <button onClick={() => handleStop(c.id)} style={{ ...smallBtn, color: "var(--error-color)" }} title="Stop & Remove">Stop</button>
+                  <td>{c.runtime}</td>
+                  <td>
+                    <button onClick={() => handlePause(c.id)} className="panel-btn panel-btn-secondary panel-btn-xs" title="Pause">Pause</button>
+                    <button onClick={() => handleResume(c.id)} className="panel-btn panel-btn-secondary panel-btn-xs" title="Resume">Resume</button>
+                    <button onClick={() => handleStop(c.id)} className="panel-btn panel-btn-danger panel-btn-xs" title="Stop & Remove">Stop</button>
                   </td>
                 </tr>
               ))}
@@ -231,7 +231,8 @@ export function SandboxPanel() {
               <select
                 value={execContainerId}
                 onChange={(e) => setExecContainerId(e.target.value)}
-                style={{ ...inputStyle, width: 160 }}
+                className="panel-select"
+                style={{ width: 160 }}
               >
                 {instances.map((c) => (
                   <option key={c.id} value={c.id}>{c.id.substring(0, 12)} ({c.image})</option>
@@ -241,7 +242,8 @@ export function SandboxPanel() {
                 value={execCmd}
                 onChange={(e) => setExecCmd(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleExec()}
-                style={{ ...inputStyle, flex: 1 }}
+                className="panel-input"
+                style={{ flex: 1 }}
                 placeholder="ls -la /workspace"
               />
               <button onClick={handleExec} className="panel-btn panel-btn-primary">Run</button>
@@ -294,41 +296,3 @@ function RuntimeBadge({ name, version, active }: { name: string; version: string
 }
 
 
-const smallBtn: React.CSSProperties = {
-  background: "transparent",
-  color: "var(--text-secondary)",
-  border: "1px solid var(--border-color)",
-  borderRadius: 3,
-  padding: "2px 6px",
-  cursor: "pointer",
-  fontSize: 11,
-  marginRight: 4,
-};
-
-const inputStyle: React.CSSProperties = {
-  background: "var(--bg-secondary)",
-  color: "var(--text-secondary)",
-  border: "1px solid var(--border-color)",
-  borderRadius: 4,
-  padding: "4px 8px",
-  fontSize: 12,
-};
-
-const labelStyle: React.CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  gap: 2,
-  fontSize: 11,
-  color: "var(--text-secondary)",
-};
-
-const thStyle: React.CSSProperties = {
-  padding: "4px 8px",
-  color: "var(--text-secondary)",
-  fontWeight: 500,
-  fontSize: 11,
-};
-
-const tdStyle: React.CSSProperties = {
-  padding: "4px 8px",
-};

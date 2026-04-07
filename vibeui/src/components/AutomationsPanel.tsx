@@ -223,9 +223,11 @@ const AutomationsPanel: React.FC = () => {
   }
 
   return (
-    <div style={{ padding: 16, color: 'var(--text-primary)', background: 'var(--bg-primary)', minHeight: '100%' }}>
-      <h2 style={{ margin: '0 0 12px' }}>Event-Driven Automations</h2>
-
+    <div className="panel-container">
+      <div className="panel-header">
+        <h3>Event-Driven Automations</h3>
+      </div>
+      <div className="panel-body">
       {/* Stats bar */}
       <div style={{ display: 'flex', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}>
         {[
@@ -243,36 +245,29 @@ const AutomationsPanel: React.FC = () => {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 12, borderBottom: '1px solid var(--border-color)' }}>
+      <div className="panel-tab-bar">
         {(['rules', 'tasks', 'logs'] as const).map((t) => (
-          <button key={t} onClick={() => setTab(t)} style={{
-            padding: '6px 16px', border: 'none', cursor: 'pointer', fontSize: 13,
-            background: tab === t ? 'var(--accent-color)' : 'transparent',
-            color: tab === t ? 'var(--text-primary)' : 'var(--text-secondary)', borderRadius: '6px 6px 0 0',
-          }}>
+          <button key={t} onClick={() => setTab(t)} className={`panel-tab${tab === t ? ' active' : ''}`}>
             {t.charAt(0).toUpperCase() + t.slice(1)}
           </button>
         ))}
-        <button onClick={() => setShowCreateModal(!showCreateModal)} style={{
-          marginLeft: 'auto', padding: '6px 14px', border: 'none', cursor: 'pointer',
-          background: 'var(--success-color)', color: 'var(--text-primary)', borderRadius: 6, fontSize: 13,
-        }}>
+        <button onClick={() => setShowCreateModal(!showCreateModal)} className="panel-btn panel-btn-primary panel-btn-sm" style={{ marginLeft: 'auto' }}>
           + New Rule
         </button>
       </div>
 
       {/* Create modal */}
       {showCreateModal && (
-        <div style={{ background: 'var(--bg-secondary)', padding: 16, borderRadius: 8, marginBottom: 12, border: '1px solid var(--border-color)' }}>
-          <h3 style={{ margin: '0 0 8px' }}>Create Automation Rule</h3>
+        <div className="panel-card" style={{ marginBottom: 12 }}>
+          <div style={{ fontWeight: 600, marginBottom: 8 }}>Create Automation Rule</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             <label style={{ fontSize: 12 }}>
               Name
-              <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="e.g. PR Review Agent" style={{ width: '100%', padding: 6, background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4 }} />
+              <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="e.g. PR Review Agent" className="panel-input panel-input-full" />
             </label>
             <label style={{ fontSize: 12 }}>
               Trigger Source
-              <select value={newTrigger} onChange={(e) => setNewTrigger(e.target.value as TriggerSource)} style={{ width: '100%', padding: 6, background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4 }}>
+              <select value={newTrigger} onChange={(e) => setNewTrigger(e.target.value as TriggerSource)} className="panel-select panel-input-full">
                 <option value="github">GitHub</option>
                 <option value="slack">Slack</option>
                 <option value="linear">Linear</option>
@@ -294,7 +289,7 @@ const AutomationsPanel: React.FC = () => {
             </label>
             <label style={{ fontSize: 12 }}>
               Resolution Mode
-              <select value={newResolutionMode} onChange={(e) => setNewResolutionMode(e.target.value as ResolutionMode)} style={{ width: '100%', padding: 6, background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4 }}>
+              <select value={newResolutionMode} onChange={(e) => setNewResolutionMode(e.target.value as ResolutionMode)} className="panel-select panel-input-full">
                 <option value="auto">Auto — {RESOLUTION_MODE_DESCRIPTIONS.auto}</option>
                 <option value="draft">Draft — {RESOLUTION_MODE_DESCRIPTIONS.draft}</option>
                 <option value="approve">Approve — {RESOLUTION_MODE_DESCRIPTIONS.approve}</option>
@@ -303,22 +298,22 @@ const AutomationsPanel: React.FC = () => {
             </label>
             <label style={{ fontSize: 12, gridColumn: 'span 2' }}>
               Events (comma-separated)
-              <input type="text" value={newEvents} onChange={(e) => setNewEvents(e.target.value)} placeholder="e.g. push, pull_request.opened" style={{ width: '100%', padding: 6, background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4 }} />
+              <input type="text" value={newEvents} onChange={(e) => setNewEvents(e.target.value)} placeholder="e.g. push, pull_request.opened" className="panel-input panel-input-full" />
             </label>
             <label style={{ fontSize: 12, gridColumn: 'span 2' }}>
               Prompt Template
-              <textarea value={newPrompt} onChange={(e) => setNewPrompt(e.target.value)} placeholder="Use {{variables}} from event payload" rows={3} style={{ width: '100%', padding: 6, background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4, fontFamily: 'var(--font-mono)' }} />
+              <textarea value={newPrompt} onChange={(e) => setNewPrompt(e.target.value)} placeholder="Use {{variables}} from event payload" rows={3} className="panel-input panel-textarea panel-input-full" style={{ fontFamily: 'var(--font-mono)' }} />
             </label>
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-            <button onClick={handleCreate} style={{ padding: '6px 14px', background: 'var(--accent-color)', color: 'var(--text-primary)', border: 'none', borderRadius: 4, cursor: 'pointer' }}>Create</button>
-            <button onClick={() => setShowCreateModal(false)} style={{ padding: '6px 14px', background: 'var(--bg-primary)', color: 'var(--text-secondary)', border: '1px solid var(--border-color)', borderRadius: 4, cursor: 'pointer' }}>Cancel</button>
+            <button onClick={handleCreate} className="panel-btn panel-btn-primary panel-btn-sm">Create</button>
+            <button onClick={() => setShowCreateModal(false)} className="panel-btn panel-btn-secondary panel-btn-sm">Cancel</button>
           </div>
         </div>
       )}
 
       {loading && (
-        <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-secondary)' }}>Loading...</div>
+        <div className="panel-loading">Loading...</div>
       )}
 
       {/* Rules tab */}
@@ -420,6 +415,7 @@ const AutomationsPanel: React.FC = () => {
           ))}
         </div>
       )}
+      </div>
     </div>
   );
 };

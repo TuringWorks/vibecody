@@ -165,13 +165,7 @@ const ImageGenPanel: React.FC = () => {
   // ── Tab buttons ─────────────────────────────────────────────────────────────
 
   const tabBtn = (id: string, lbl: string) => (
-    <button key={id} onClick={() => setTab(id as typeof tab)} style={{
-      padding: "5px 14px", fontSize: 12, fontWeight: tab === id ? 600 : 400, cursor: "pointer",
-      background: tab === id ? "var(--accent-color)" : "transparent",
-      color: tab === id ? "var(--btn-primary-fg, #fff)" : "var(--text-secondary)",
-      border: "1px solid " + (tab === id ? "var(--accent-color)" : "var(--border-color)"),
-      borderRadius: "var(--radius-sm)",
-    }}>{lbl}</button>
+    <button key={id} onClick={() => setTab(id as typeof tab)} className={`panel-tab ${tab === id ? "active" : ""}`}>{lbl}</button>
   );
 
   // ── Generate tab ────────────────────────────────────────────────────────────
@@ -399,18 +393,20 @@ const ImageGenPanel: React.FC = () => {
   // ── Layout ──────────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ padding: 16, height: "100%", overflow: "auto", color: "var(--text-primary)" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+    <div className="panel-container">
+      <div className="panel-header">
         <span style={{ fontSize: 14, fontWeight: 700 }}>Image Generation</span>
-        <div style={{ display: "flex", gap: 4 }}>
+        <div className="panel-tab-bar" style={{ border: "none", padding: 0, marginLeft: "auto" }}>
           {tabBtn("generate", "Generate")}
           {tabBtn("gallery", "Gallery")}
           {tabBtn("stats", "Stats")}
         </div>
       </div>
-      {tab === "generate" && renderGenerate()}
-      {tab === "gallery" && renderGallery()}
-      {tab === "stats" && renderStats()}
+      <div className="panel-body">
+        {tab === "generate" && renderGenerate()}
+        {tab === "gallery" && renderGallery()}
+        {tab === "stats" && renderStats()}
+      </div>
     </div>
   );
 };

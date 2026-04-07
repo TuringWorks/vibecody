@@ -144,81 +144,26 @@ const SessionBrowserPanel: React.FC = () => {
   const tabs: TabName[] = ["Sessions", "Replay", "Stats"];
 
   return (
-    <div
-      style={{
-        padding: 12,
-        fontFamily: "var(--font-family, system-ui, sans-serif)",
-        fontSize: 13,
-        height: "100%",
-        overflowY: "auto",
-        color: "var(--text-primary)",
-        background: "var(--bg-primary)",
-      }}
-    >
-      <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>
-        Session Browser
-      </div>
-
-      {/* Workspace input */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+    <div className="panel-container">
+      <div className="panel-header">
+        <h3>Session Browser</h3>
         <input
           value={workspace}
           onChange={(e) => setWorkspace(e.target.value)}
           placeholder="Workspace path..."
-          style={{
-            flex: 1,
-            padding: "6px 10px",
-            fontSize: 12,
-            background: "var(--bg-secondary)",
-            color: "var(--text-primary)",
-            border: "1px solid var(--border-color)",
-            borderRadius: 4,
-            boxSizing: "border-box",
-          }}
+          className="panel-input"
+          style={{ flex: 1 }}
         />
-        <button
-          onClick={loadSessions}
-          style={{
-            padding: "6px 12px",
-            fontSize: 12,
-            borderRadius: 4,
-            border: "none",
-            background: "var(--accent-color)",
-            color: "var(--btn-primary-fg)",
-            cursor: "pointer",
-          }}
-        >
+        <button onClick={loadSessions} className="panel-btn panel-btn-primary">
           Refresh
         </button>
       </div>
+      <div className="panel-body">
 
       {/* Tab bar */}
-      <div
-        style={{
-          display: "flex",
-          gap: 0,
-          marginBottom: 12,
-          borderBottom: "1px solid var(--border-color)",
-        }}
-      >
+      <div className="panel-tab-bar" style={{ marginBottom: 12 }}>
         {tabs.map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            style={{
-              padding: "6px 16px",
-              fontSize: 12,
-              background: "none",
-              border: "none",
-              borderBottom:
-                tab === t
-                  ? "2px solid var(--accent-blue)"
-                  : "2px solid transparent",
-              color: tab === t ? "var(--text-primary)" : "var(--text-secondary)",
-              cursor: "pointer",
-              fontWeight: tab === t ? 600 : 400,
-            }}
-          >
+          <button key={t} className={`panel-tab ${tab === t ? "active" : ""}`} onClick={() => setTab(t)}>
             {t}
           </button>
         ))}
@@ -261,17 +206,8 @@ const SessionBrowserPanel: React.FC = () => {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search sessions by ID..."
-            style={{
-              width: "100%",
-              padding: "6px 10px",
-              fontSize: 12,
-              background: "var(--bg-secondary)",
-              color: "var(--text-primary)",
-              border: "1px solid var(--border-color)",
-              borderRadius: 4,
-              marginBottom: 10,
-              boxSizing: "border-box",
-            }}
+            className="panel-input panel-input-full"
+            style={{ marginBottom: 10 }}
           />
 
           {sessionsLoading && (
@@ -711,6 +647,7 @@ const SessionBrowserPanel: React.FC = () => {
             })}
         </div>
       )}
+      </div>
     </div>
   );
 };

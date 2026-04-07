@@ -136,17 +136,13 @@ export default function GpuTerminalPanel() {
  const glyphs = glyphAtlas?.glyphs ?? "";
 
  return (
-   <div style={{ padding: 16, color: "var(--text-primary)", background: "var(--bg-primary)", minHeight: "100%" }}>
-     <h2 style={{ margin: "0 0 12px", fontSize: 18 }}>GPU Terminal</h2>
+   <div className="panel-container">
+     <div className="panel-header"><h3>GPU Terminal</h3></div>
 
-     {error && (
-       <div style={{ padding: 8, marginBottom: 12, background: "var(--error-color)", color: "var(--btn-primary-fg)", borderRadius: 4, fontSize: 12 }}>
-         {error}
-       </div>
-     )}
+     {error && <div className="panel-error">{error}</div>}
 
      {/* Backend selector */}
-     <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+     <div style={{ display: "flex", gap: 6, padding: "8px 12px", flexShrink: 0 }}>
        {BACKENDS.map(b => (
          <button key={b} onClick={() => setConfig({ ...config, preferred_backend: b })} style={{
            padding: "4px 12px", border: "1px solid var(--border-color)", borderRadius: 4, cursor: "pointer",
@@ -157,14 +153,12 @@ export default function GpuTerminalPanel() {
      </div>
 
      {/* Tabs */}
-     <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
+     <div className="panel-tab-bar">
        {(["monitor", "atlas", "config", "benchmark"] as const).map(t => (
-         <button key={t} onClick={() => setTab(t)} style={{
-           padding: "4px 12px", border: "1px solid var(--border-color)", borderRadius: 4, cursor: "pointer",
-           background: tab === t ? "var(--accent-color)" : "transparent", color: tab === t ? "white" : "var(--text-primary)",
-         }}>{t.charAt(0).toUpperCase() + t.slice(1)}</button>
+         <button key={t} className={`panel-tab ${tab === t ? "active" : ""}`} onClick={() => setTab(t)}>{t.charAt(0).toUpperCase() + t.slice(1)}</button>
        ))}
      </div>
+     <div className="panel-body">
 
      {tab === "monitor" && (
        <>
@@ -353,6 +347,7 @@ export default function GpuTerminalPanel() {
          )}
        </>
      )}
+     </div>
    </div>
  );
 }

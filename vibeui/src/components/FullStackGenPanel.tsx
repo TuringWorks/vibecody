@@ -40,14 +40,6 @@ const FullStackGenPanel: React.FC = () => {
   const dbOptions = ["PostgreSQL", "MySQL", "SQLite", "MongoDB", "DynamoDB", "Supabase"];
   const authOptions = ["JWT", "OAuth 2.0", "Session-based", "API Keys", "None"];
 
-  const inputStyle: React.CSSProperties = {
-    width: "100%", padding: "6px 10px", boxSizing: "border-box",
-    backgroundColor: "var(--bg-tertiary)", color: "var(--text-primary)",
-    border: "1px solid var(--border-color)", borderRadius: "4px",
-    fontFamily: "inherit", fontSize: 12,
-  };
-  const fieldGroup: React.CSSProperties = { marginBottom: "12px" };
-  const labelStyle: React.CSSProperties = { display: "block", marginBottom: "4px", fontWeight: 600, fontSize: "12px" };
 
   const layerColors: Record<string, string> = {
     Frontend: "#1565c0", Backend: "#2e7d32", Database: "var(--accent-purple)",
@@ -135,51 +127,51 @@ const FullStackGenPanel: React.FC = () => {
 
   const renderConfigure = () => (
     <div>
-      <div style={fieldGroup}>
-        <label style={labelStyle}>Project Name</label>
-        <input style={inputStyle} value={projectName} onChange={e => setProjectName(e.target.value)}
+      <div style={{ marginBottom: "12px" }}>
+        <label style={{ display: "block", marginBottom: "4px", fontWeight: 600, fontSize: "12px" }}>Project Name</label>
+        <input className="panel-input panel-input-full" value={projectName} onChange={e => setProjectName(e.target.value)}
           placeholder="my-fullstack-app" />
       </div>
-      <div style={fieldGroup}>
-        <label style={labelStyle}>Output Directory</label>
-        <input style={inputStyle} value={outputDir} onChange={e => setOutputDir(e.target.value)}
+      <div style={{ marginBottom: "12px" }}>
+        <label style={{ display: "block", marginBottom: "4px", fontWeight: 600, fontSize: "12px" }}>Output Directory</label>
+        <input className="panel-input panel-input-full" value={outputDir} onChange={e => setOutputDir(e.target.value)}
           placeholder="~/projects" />
       </div>
       <div style={{ display: "flex", gap: "12px", marginBottom: "12px" }}>
         <div style={{ flex: 1 }}>
-          <label style={labelStyle}>Frontend</label>
-          <select style={inputStyle} value={frontend} onChange={e => setFrontend(e.target.value)}>
+          <label style={{ display: "block", marginBottom: "4px", fontWeight: 600, fontSize: "12px" }}>Frontend</label>
+          <select className="panel-select" value={frontend} onChange={e => setFrontend(e.target.value)}>
             {frontendOptions.map(o => <option key={o} value={o}>{o}</option>)}
           </select>
         </div>
         <div style={{ flex: 1 }}>
-          <label style={labelStyle}>Backend</label>
-          <select style={inputStyle} value={backend} onChange={e => setBackend(e.target.value)}>
+          <label style={{ display: "block", marginBottom: "4px", fontWeight: 600, fontSize: "12px" }}>Backend</label>
+          <select className="panel-select" value={backend} onChange={e => setBackend(e.target.value)}>
             {backendOptions.map(o => <option key={o} value={o}>{o}</option>)}
           </select>
         </div>
       </div>
       <div style={{ display: "flex", gap: "12px", marginBottom: "12px" }}>
         <div style={{ flex: 1 }}>
-          <label style={labelStyle}>Database</label>
-          <select style={inputStyle} value={database} onChange={e => setDatabase(e.target.value)}>
+          <label style={{ display: "block", marginBottom: "4px", fontWeight: 600, fontSize: "12px" }}>Database</label>
+          <select className="panel-select" value={database} onChange={e => setDatabase(e.target.value)}>
             {dbOptions.map(o => <option key={o} value={o}>{o}</option>)}
           </select>
         </div>
         <div style={{ flex: 1 }}>
-          <label style={labelStyle}>Auth</label>
-          <select style={inputStyle} value={auth} onChange={e => setAuth(e.target.value)}>
+          <label style={{ display: "block", marginBottom: "4px", fontWeight: 600, fontSize: "12px" }}>Auth</label>
+          <select className="panel-select" value={auth} onChange={e => setAuth(e.target.value)}>
             {authOptions.map(o => <option key={o} value={o}>{o}</option>)}
           </select>
         </div>
       </div>
-      <div style={fieldGroup}>
-        <label style={labelStyle}>Features / Requirements</label>
-        <textarea style={{ ...inputStyle, minHeight: "80px", resize: "vertical" }} value={features}
+      <div style={{ marginBottom: "12px" }}>
+        <label style={{ display: "block", marginBottom: "4px", fontWeight: 600, fontSize: "12px" }}>Features / Requirements</label>
+        <textarea className="panel-textarea panel-input-full" style={{ minHeight: "80px", resize: "vertical" }} value={features}
           onChange={e => setFeatures(e.target.value)}
           placeholder="Describe additional features (e.g., real-time chat, file uploads, admin dashboard)..." />
       </div>
-      {error && <div style={{ color: "var(--error-color)", fontSize: 12, marginTop: 8 }}>{error}</div>}
+      {error && <div className="panel-error" style={{ marginTop: 8 }}>{error}</div>}
     </div>
   );
 

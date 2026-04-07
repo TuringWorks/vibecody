@@ -324,8 +324,8 @@ export function SuperBrainPanel() {
     : "Synthesized Consensus";
 
   return (
-    <div style={S.container}>
-      <div style={S.scrollArea}>
+    <div className="panel-container">
+      <div className="panel-body">
 
         {/* ── Mode Selector ──────────────────────────────────────────── */}
         <div style={S.sectionTitle}>

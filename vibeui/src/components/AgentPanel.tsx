@@ -119,12 +119,15 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  runLinter(filePath).then((result) => {
  const msg = formatLintForAgent(result);
  if (msg) {
+ const hasErrors = result.errors.length > 0;
  setSteps((prev) => [...prev, {
  step_num: step.step_num + 0.5,
  tool_name: "linter",
- tool_summary: `Auto-lint: ${filePath.split("/").pop() || "file"}`,
+ tool_summary: hasErrors
+ ? `Linter ERRORS - agent must fix before proceeding (${filePath.split("/").pop() || "file"})`
+ : `Auto-lint OK: ${filePath.split("/").pop() || "file"}`,
  output: msg,
- success: result.errors.length === 0,
+ success: !hasErrors,
  approved: true,
  }]);
  }
@@ -288,7 +291,7 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  : "Agent idle";
 
  return (
- <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, padding: "12px", gap: "8px" }}>
+ <div className="panel-container" style={{ padding: "12px", gap: "8px" }}>
  <div className="sr-only" aria-live="polite">{statusLabel}</div>
  <div style={{ fontWeight: 600, fontSize: "14px", display: "flex", alignItems: "center", gap: 6 }}><Bot size={16} strokeWidth={1.5} />Agent Mode</div>
  <p style={{ fontSize: "12px", color: "var(--text-secondary)", margin: 0 }}>
@@ -307,16 +310,8 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  placeholder={`e.g. Add a /health endpoint to src/server.ts\n\n(⌘Enter to run)`}
  rows={4}
  disabled={isRunning}
- style={{
- background: "var(--bg-tertiary)",
- border: "1px solid var(--border-color)",
- color: "var(--text-primary)",
- borderRadius: "4px",
- padding: "8px",
- fontSize: "13px",
- resize: "vertical",
- fontFamily: "inherit",
- }}
+ className="panel-input panel-textarea panel-input-full"
+ style={{ resize: "vertical", fontFamily: "inherit" }}
  />
 
  <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
@@ -327,15 +322,8 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  setTurboMode(e.target.value === "full-auto");
  }}
  disabled={isRunning}
- style={{
- fontSize: "12px",
- background: "var(--bg-tertiary)",
- color: "var(--text-primary)",
- border: "1px solid var(--border-color)",
- borderRadius: "4px",
- padding: "4px 6px",
- flex: 1,
- }}
+ className="panel-select"
+ style={{ flex: 1 }}
  >
  <option value="suggest">Suggest — approve each step</option>
  <option value="auto-edit">Auto-Edit — auto files, approve bash</option>
@@ -375,7 +363,8 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  {isRunning && (
  <button
  onClick={stopAgent}
- style={{ whiteSpace: "nowrap", padding: "4px 10px", fontSize: "12px", background: "var(--error-color)", color: "var(--text-primary)", border: "none", borderRadius: "4px", cursor: "pointer" }}
+ className="panel-btn panel-btn-danger panel-btn-sm"
+ style={{ whiteSpace: "nowrap" }}
  title="Stop the agent"
  >
  <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Square size={14} strokeWidth={1.5} />Stop</span>
@@ -385,7 +374,8 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  {status === "error" && (
  <button
    onClick={retry}
-   style={{ whiteSpace: "nowrap", padding: "4px 10px", fontSize: "12px", background: "var(--accent-color)", color: "var(--bg-primary)", border: "none", borderRadius: "4px", cursor: "pointer", fontWeight: 600 }}
+   className="panel-btn panel-btn-primary panel-btn-sm"
+   style={{ whiteSpace: "nowrap" }}
    title="Retry — keeps completed steps"
  >
    ⟳ Retry
@@ -492,9 +482,32 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  const streamBlocks = parseVibeUIBlocks(streaming);
  const streamText = streamBlocks.length > 0 ? stripVibeUIBlocks(streaming) : streaming;
  return (
- <>
+ <div
+ className="panel-card"
+ style={{ borderLeft: "3px solid var(--accent-color)", marginBottom: 8 }}
+ >
+ {/* Metrics header row */}
+ <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+ <Loader2 size={12} style={{ animation: "spin 1s linear infinite", flexShrink: 0 }} />
+ <span style={{ fontSize: 11, color: "var(--text-secondary)", fontVariantNumeric: "tabular-nums" }}>
+ Thinking…{streamMetrics
+ ? ` ${streamMetrics.tokensPerSec} tok/s · ${streamMetrics.totalTokens} tokens${streamMetrics.ttftMs !== null ? ` · ${streamMetrics.ttftMs}ms TTFT` : ""}`
+ : ""}
+ </span>
+ </div>
+
+ {/* Streaming text body */}
  {streamText && (
- <div style={{ color: "var(--text-primary)", whiteSpace: "pre-wrap" }}>
+ <div
+ style={{
+ fontSize: 12,
+ color: "var(--text-primary)",
+ fontFamily: "var(--font-mono)",
+ whiteSpace: "pre-wrap",
+ maxHeight: 200,
+ overflowY: "auto",
+ }}
+ >
  {streamText}
  {isRunning && (
  <span
@@ -510,39 +523,14 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  )}
  </div>
  )}
+
+ {/* Interactive UI blocks embedded in stream */}
  {streamBlocks.length > 0 && (
  <AgentUIRenderer blocks={streamBlocks} onAction={handleVibeUIAction} />
  )}
- </>
+ </div>
  );
  })()}
-
- {/* Streaming metrics badge */}
- {streamMetrics && isRunning && (
- <div
- aria-live="polite"
- aria-label="Streaming speed"
- style={{
- display: "inline-flex",
- gap: 10,
- fontSize: 11,
- color: "var(--text-secondary)",
- padding: "2px 6px",
- background: "var(--bg-secondary)",
- borderRadius: 4,
- border: "1px solid var(--border)",
- marginTop: 4,
- fontVariantNumeric: "tabular-nums",
- }}
- >
- <span title="Estimated tokens per second">
- {streamMetrics.tokensPerSec} tok/s
- </span>
- <span title="Total estimated tokens streamed so far">
- ~{streamMetrics.totalTokens} tokens
- </span>
- </div>
- )}
 
  {/* Approval prompt */}
  {pending && (
