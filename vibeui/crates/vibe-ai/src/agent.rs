@@ -773,7 +773,21 @@ impl AgentLoop {
             // ── 2. Parse tool calls ───────────────────────────────────────────
             let tool_calls = parse_tool_calls(&accumulated);
             if tool_calls.is_empty() {
-                // Model responded with prose — treat as final answer.
+                // On the very first step, the model may output planning prose instead
+                // of a tool call. Re-prompt it once to force a tool call.
+                if step == 0 {
+                    tracing::warn!("Agent step 0 returned prose with no tool call — re-prompting");
+                    messages.push(Message {
+                        role: MessageRole::Assistant,
+                        content: accumulated,
+                    });
+                    messages.push(Message {
+                        role: MessageRole::User,
+                        content: "You did not call a tool. You MUST respond with a <tool_call> block immediately — no prose, no planning text. Call your first tool now.".to_string(),
+                    });
+                    continue;
+                }
+                // Model responded with prose on a later step — treat as final answer.
                 // Fire Stop hook
                 if let Some(hooks) = &self.hooks {
                     let _hook_span = tracing::info_span!(
