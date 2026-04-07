@@ -111,13 +111,13 @@ const badgeStyle = (color: string): React.CSSProperties => ({
 });
 
 const statusBadgeColors: Record<string, string> = {
-  online: "var(--success, #22c55e)",
+  online: "var(--success-color)",
   offline: "var(--text-secondary)",
-  unknown: "var(--warning, #f59e0b)",
+  unknown: "var(--warning-color)",
   submitted: "#6366f1",
-  working: "var(--warning, #f59e0b)",
-  completed: "var(--success, #22c55e)",
-  failed: "var(--error, #ef4444)",
+  working: "var(--warning-color)",
+  completed: "var(--success-color)",
+  failed: "var(--error-color)",
   cancelled: "var(--text-secondary)",
 };
 
@@ -651,13 +651,13 @@ export function A2aPanel() {
                   </div>
                   <div className="panel-card" style={{ textAlign: "center" }}>
                     <div style={labelStyle}>Completed</div>
-                    <div style={{ fontSize: 28, fontWeight: 700, color: "var(--success, #22c55e)" }}>
+                    <div style={{ fontSize: 28, fontWeight: 700, color: "var(--success-color)" }}>
                       {metrics.tasks_completed}
                     </div>
                   </div>
                   <div className="panel-card" style={{ textAlign: "center" }}>
                     <div style={labelStyle}>Failed</div>
-                    <div style={{ fontSize: 28, fontWeight: 700, color: "var(--error, #ef4444)" }}>
+                    <div style={{ fontSize: 28, fontWeight: 700, color: "var(--error-color)" }}>
                       {metrics.tasks_failed}
                     </div>
                   </div>
@@ -678,10 +678,10 @@ export function A2aPanel() {
                         fontWeight: 700,
                         color:
                           metrics.success_rate >= 80
-                            ? "var(--success, #22c55e)"
+                            ? "var(--success-color)"
                             : metrics.success_rate >= 50
-                            ? "var(--warning, #f59e0b)"
-                            : "var(--error, #ef4444)",
+                            ? "var(--warning-color)"
+                            : "var(--error-color)",
                       }}
                     >
                       {metrics.success_rate.toFixed(1)}%
@@ -707,13 +707,13 @@ export function A2aPanel() {
                   <div className="panel-card" style={{ marginTop: 10 }}>
                     <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 12 }}>Task Distribution</div>
                     {[
-                      { label: "Completed", count: metrics.tasks_completed, color: "var(--success, #22c55e)" },
-                      { label: "Failed", count: metrics.tasks_failed, color: "var(--error, #ef4444)" },
+                      { label: "Completed", count: metrics.tasks_completed, color: "var(--success-color)" },
+                      { label: "Failed", count: metrics.tasks_failed, color: "var(--error-color)" },
                       { label: "Cancelled", count: metrics.tasks_cancelled, color: "var(--text-secondary)" },
                       {
                         label: "In Progress",
                         count: metrics.tasks_created - metrics.tasks_completed - metrics.tasks_failed - metrics.tasks_cancelled,
-                        color: "var(--warning, #f59e0b)",
+                        color: "var(--warning-color)",
                       },
                     ]
                       .filter((item) => item.count > 0)

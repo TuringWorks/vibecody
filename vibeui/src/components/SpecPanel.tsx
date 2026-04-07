@@ -139,7 +139,7 @@ export function SpecPanel({ workspacePath, provider = "ollama" }: SpecPanelProps
  const doneCount = selectedSpec?.tasks.filter(t => t.done).length ?? 0;
 
  return (
- <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, background: "var(--bg-primary)", color: "var(--text-primary)", fontSize: "13px" }}>
+ <div className="panel-container" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, fontSize: "13px" }}>
  {/* Header */}
  <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "10px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
  <span style={{ fontWeight: 600 }}>Specs</span>
@@ -194,24 +194,20 @@ export function SpecPanel({ workspacePath, provider = "ollama" }: SpecPanelProps
 
  {/* Error */}
  {error && (
- <div style={{ padding: "8px 12px", background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", color: "var(--error-color)", fontSize: "12px", display: "flex", alignItems: "center", gap: "6px" }}>
- <span> {error}</span>
+ <div className="panel-error" style={{ padding: "8px 12px", display: "flex", alignItems: "center", gap: "6px" }}>
+ <span>{error}</span>
  <button onClick={() => setError(null)} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "var(--error-color)" }}>✕</button>
  </div>
  )}
 
  {/* Sub-tabs */}
- <div style={{ display: "flex", gap: 2, borderBottom: "1px solid var(--border-color)", padding: "0 16px", flexShrink: 0 }}>
+ <div className="panel-tab-bar" style={{ padding: "0 16px" }}>
  {(["list", "editor"] as const).map(tab => (
  <button
  key={tab}
  onClick={() => setActiveTab(tab)}
- style={{
- flex: 1, padding: "6px", fontSize: "11px", background: "none", border: "none",
- borderBottom: activeTab === tab ? "2px solid var(--accent-blue)" : "2px solid transparent",
- color: activeTab === tab ? "var(--text-primary)" : "var(--text-secondary)",
- cursor: "pointer", fontWeight: activeTab === tab ? 600 : 400,
- }}
+ className={`panel-tab${activeTab === tab ? " active" : ""}`}
+ style={{ flex: 1 }}
  >
  {tab === "list" ? ` All Specs (${specs.length})` : ` ${selectedSpec?.name ?? "Select a spec"}`}
  </button>
@@ -222,12 +218,9 @@ export function SpecPanel({ workspacePath, provider = "ollama" }: SpecPanelProps
  {/* Spec List */}
  {activeTab === "list" && (
  <div style={{ padding: "8px" }}>
- {loading && <div style={{ color: "var(--text-secondary)", padding: "20px", textAlign: "center" }}>Loading...</div>}
+ {loading && <div className="panel-loading">Loading...</div>}
  {!loading && specs.length === 0 && (
- <div style={{ color: "var(--text-secondary)", padding: "24px", textAlign: "center" }}>
- <div style={{ fontSize: "32px", marginBottom: "8px" }}></div>
- <div>No specs yet. Create one to get started.</div>
- </div>
+ <div className="panel-empty">No specs yet. Create one to get started.</div>
  )}
  {specs.map(spec => {
  const done = spec.tasks.filter(t => t.done).length;
@@ -237,13 +230,10 @@ export function SpecPanel({ workspacePath, provider = "ollama" }: SpecPanelProps
  <div
  key={spec.name}
  onClick={() => openSpec(spec.name)}
- style={{
- padding: "10px 12px", marginBottom: "6px", borderRadius: "6px",
- background: "var(--bg-secondary)", border: "1px solid var(--border-color)",
- cursor: "pointer", transition: "background 0.15s",
- }}
+ className="panel-card"
+ style={{ marginBottom: "6px", cursor: "pointer", transition: "background 0.15s" }}
  onMouseEnter={e => (e.currentTarget.style.background = "var(--bg-hover)")}
- onMouseLeave={e => (e.currentTarget.style.background = "var(--bg-secondary)")}
+ onMouseLeave={e => (e.currentTarget.style.background = "")}
  >
  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
  <span style={{ fontSize: "16px" }}>{STATUS_ICONS[spec.status] ?? ""}</span>

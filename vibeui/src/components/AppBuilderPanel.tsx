@@ -126,20 +126,6 @@ const selectStyle: React.CSSProperties = {
   minWidth: 140,
 };
 
-const cardStyle: React.CSSProperties = {
-  border: "1px solid var(--border)",
-  borderRadius: 6,
-  padding: 12,
-  background: "var(--bg-secondary)",
-};
-
-const labelStyle: React.CSSProperties = {
-  fontSize: 11,
-  color: "var(--text-secondary)",
-  fontWeight: 600,
-  textTransform: "uppercase" as const,
-  letterSpacing: "0.5px",
-};
 
 const tagStyle: React.CSSProperties = {
   padding: "1px 7px",
@@ -448,23 +434,14 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+    <div className="panel-container">
       {/* Sub-tab bar */}
-      <div style={{ display: "flex", borderBottom: "1px solid var(--border)", background: "var(--bg-secondary)", flexShrink: 0 }}>
+      <div className="panel-tab-bar">
         {(["quickstart", "templates", "provision", "backend"] as SubTab[]).map((t) => (
           <button
             key={t}
             onClick={() => setSubTab(t)}
-            style={{
-              padding: "6px 14px",
-              fontSize: 12,
-              background: "transparent",
-              color: subTab === t ? "var(--text-primary)" : "var(--text-secondary)",
-              border: "none",
-              borderBottom: subTab === t ? "2px solid var(--accent)" : "2px solid transparent",
-              cursor: "pointer",
-              fontWeight: subTab === t ? 600 : 400,
-            }}
+            className={`panel-tab ${subTab === t ? "active" : ""}`}
           >
             {tabLabels[t]}
           </button>
@@ -472,18 +449,18 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
       </div>
 
       {errorMsg && (
-        <div style={{ padding: "6px 12px", fontSize: 12, color: "var(--error)", background: "var(--bg-secondary)", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}>
+        <div className="panel-error" style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <AlertCircle size={13} /> {errorMsg}
-          <button onClick={() => setErrorMsg("")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--error)", marginLeft: "auto" }}><X size={12} /></button>
+          <button onClick={() => setErrorMsg("")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--error-color)", marginLeft: "auto" }}><X size={12} /></button>
         </div>
       )}
 
-      <div style={{ flex: 1, overflow: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 12 }}>
+      <div className="panel-body" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {/* ── Quick Start ── */}
         {subTab === "quickstart" && (
           <>
-            <div style={cardStyle}>
-              <div style={{ ...labelStyle, marginBottom: 8 }}>Describe Your App Idea</div>
+            <div className="panel-card">
+              <div className="panel-label" style={{ marginBottom: 8 }}>Describe Your App Idea</div>
               <textarea
                 value={ideaText}
                 onChange={(e) => setIdeaText(e.target.value)}
@@ -512,8 +489,8 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
             </div>
 
             {enhancedSpec && (
-              <div style={cardStyle}>
-                <div style={{ ...labelStyle, marginBottom: 10 }}>Enhanced Specification</div>
+              <div className="panel-card">
+                <div className="panel-label" style={{ marginBottom: 10 }}>Enhanced Specification</div>
 
                 <div style={{ marginBottom: 10 }}>
                   <div style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>
@@ -523,33 +500,33 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                   <div>
-                    <div style={{ ...labelStyle, marginBottom: 4 }}>User Stories</div>
+                    <div className="panel-label" style={{ marginBottom: 4 }}>User Stories</div>
                     <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.8 }}>
                       {enhancedSpec.userStories.map((s, i) => <li key={i}>{s}</li>)}
                     </ul>
                   </div>
 
                   <div>
-                    <div style={{ ...labelStyle, marginBottom: 4 }}>Tech Stack</div>
+                    <div className="panel-label" style={{ marginBottom: 4 }}>Tech Stack</div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                       {enhancedSpec.techStack.map((t, i) => (
                         <span key={i} style={tagStyle}>{t}</span>
                       ))}
                     </div>
 
-                    <div style={{ ...labelStyle, marginTop: 10, marginBottom: 4 }}>Complexity</div>
+                    <div className="panel-label" style={{ marginTop: 10, marginBottom: 4 }}>Complexity</div>
                     <div style={{ fontSize: 12, color: "var(--warning)" }}>{enhancedSpec.complexityEstimate}</div>
                   </div>
 
                   <div>
-                    <div style={{ ...labelStyle, marginBottom: 4 }}>API Endpoints</div>
+                    <div className="panel-label" style={{ marginBottom: 4 }}>API Endpoints</div>
                     <ul style={{ margin: 0, paddingLeft: 16, fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.8, fontFamily: "var(--font-mono)" }}>
                       {enhancedSpec.apiEndpoints.map((e, i) => <li key={i}>{e}</li>)}
                     </ul>
                   </div>
 
                   <div>
-                    <div style={{ ...labelStyle, marginBottom: 4 }}>UI Components</div>
+                    <div className="panel-label" style={{ marginBottom: 4 }}>UI Components</div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                       {enhancedSpec.uiComponents.map((c, i) => (
                         <span key={i} style={{ ...tagStyle, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border)" }}>
@@ -612,8 +589,8 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
 
             {/* Recent history */}
             {history.length > 0 && (
-              <div style={cardStyle}>
-                <div style={{ ...labelStyle, marginBottom: 8 }}>Recent Projects</div>
+              <div className="panel-card">
+                <div className="panel-label" style={{ marginBottom: 8 }}>Recent Projects</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   {history.slice(-5).reverse().map((h) => (
                     <div key={h.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
@@ -643,17 +620,17 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
                 ))}
               </select>
               <div style={{ flex: 1 }} />
-              <button onClick={() => setShowSaveForm(!showSaveForm)} style={btnStyle()}>
+              <button onClick={() => setShowSaveForm(!showSaveForm)} className="panel-btn panel-btn-secondary">
                 <Plus size={12} /> Save Current as Template
               </button>
-              <button onClick={() => setShowImportForm(!showImportForm)} style={btnStyle()}>
+              <button onClick={() => setShowImportForm(!showImportForm)} className="panel-btn panel-btn-secondary">
                 <Upload size={12} /> Import
               </button>
             </div>
 
             {showSaveForm && (
-              <div style={cardStyle}>
-                <div style={{ ...labelStyle, marginBottom: 8 }}>Save Current Project as Template</div>
+              <div className="panel-card">
+                <div className="panel-label" style={{ marginBottom: 8 }}>Save Current Project as Template</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   <input
                     style={inputStyle}
@@ -677,18 +654,18 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
                     ))}
                   </select>
                   <div style={{ display: "flex", gap: 8 }}>
-                    <button onClick={handleSaveTemplate} style={btnStyle("primary")}>
+                    <button onClick={handleSaveTemplate} className="panel-btn panel-btn-primary">
                       <Check size={12} /> Save
                     </button>
-                    <button onClick={() => setShowSaveForm(false)} style={btnStyle()}>Cancel</button>
+                    <button onClick={() => setShowSaveForm(false)} className="panel-btn panel-btn-secondary">Cancel</button>
                   </div>
                 </div>
               </div>
             )}
 
             {showImportForm && (
-              <div style={cardStyle}>
-                <div style={{ ...labelStyle, marginBottom: 8 }}>Import Template (JSON)</div>
+              <div className="panel-card">
+                <div className="panel-label" style={{ marginBottom: 8 }}>Import Template (JSON)</div>
                 <textarea
                   style={{ ...inputStyle, minHeight: 80, fontFamily: "var(--font-mono)", resize: "vertical" }}
                   placeholder='Paste template JSON here...'
@@ -696,10 +673,10 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
                   onChange={(e) => setImportJson(e.target.value)}
                 />
                 <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                  <button onClick={handleImportTemplate} style={btnStyle("primary")}>
+                  <button onClick={handleImportTemplate} className="panel-btn panel-btn-primary">
                     <Upload size={12} /> Import
                   </button>
-                  <button onClick={() => setShowImportForm(false)} style={btnStyle()}>Cancel</button>
+                  <button onClick={() => setShowImportForm(false)} className="panel-btn panel-btn-secondary">Cancel</button>
                 </div>
               </div>
             )}
@@ -713,7 +690,7 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 10 }}>
               {filteredTemplates.map((t) => (
-                <div key={t.id} style={cardStyle}>
+                <div key={t.id} className="panel-card">
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
                     <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>{t.name}</div>
                     <span style={categoryBadgeStyle(t.category as TemplateCategory)}>{t.category}</span>
@@ -727,21 +704,21 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
                     ))}
                   </div>
                   <div style={{ display: "flex", gap: 6 }}>
-                    <button onClick={() => handleUseTemplate(t)} style={btnStyle("primary")}>
+                    <button onClick={() => handleUseTemplate(t)} className="panel-btn panel-btn-primary">
                       <Layout size={11} /> Use Template
                     </button>
-                    <button onClick={() => handleExportTemplate(t)} style={btnStyle()} title="Copy JSON to clipboard">
+                    <button onClick={() => handleExportTemplate(t)} className="panel-btn panel-btn-secondary" title="Copy JSON to clipboard">
                       <Download size={11} /> Export
                     </button>
                     {deleteConfirmId === t.id ? (
                       <>
-                        <button onClick={() => handleDeleteTemplate(t.id)} style={btnStyle("danger")}>
+                        <button onClick={() => handleDeleteTemplate(t.id)} className="panel-btn panel-btn-danger">
                           <Trash2 size={11} /> Confirm
                         </button>
-                        <button onClick={() => setDeleteConfirmId(null)} style={btnStyle()}>Cancel</button>
+                        <button onClick={() => setDeleteConfirmId(null)} className="panel-btn panel-btn-secondary">Cancel</button>
                       </>
                     ) : (
-                      <button onClick={() => setDeleteConfirmId(t.id)} style={btnStyle("danger")} title="Delete template">
+                      <button onClick={() => setDeleteConfirmId(t.id)} className="panel-btn panel-btn-danger" title="Delete template">
                         <Trash2 size={11} />
                       </button>
                     )}
@@ -762,8 +739,8 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
         {/* ── Provision ── */}
         {subTab === "provision" && (
           <>
-            <div style={cardStyle}>
-              <div style={{ ...labelStyle, marginBottom: 12 }}>Infrastructure Configuration</div>
+            <div className="panel-card">
+              <div className="panel-label" style={{ marginBottom: 12 }}>Infrastructure Configuration</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 {/* Database */}
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -870,8 +847,8 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
             </div>
 
             {generatedFiles.length > 0 && (
-              <div style={cardStyle}>
-                <div style={{ ...labelStyle, marginBottom: 8 }}>Generated Files</div>
+              <div className="panel-card">
+                <div className="panel-label" style={{ marginBottom: 8 }}>Generated Files</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                   {generatedFiles.map((f, i) => (
                     <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
@@ -891,8 +868,8 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
         {/* ── Backend ── */}
         {subTab === "backend" && (
           <>
-            <div style={cardStyle}>
-              <div style={{ ...labelStyle, marginBottom: 10 }}>Service Status</div>
+            <div className="panel-card">
+              <div className="panel-label" style={{ marginBottom: 10 }}>Service Status</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                 {services.map((svc, i) => (
                   <div
@@ -920,8 +897,8 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
               </div>
             </div>
 
-            <div style={cardStyle}>
-              <div style={{ ...labelStyle, marginBottom: 10 }}>Backend Configuration</div>
+            <div className="panel-card">
+              <div className="panel-label" style={{ marginBottom: 10 }}>Backend Configuration</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, fontSize: 12, marginBottom: 12 }}>
                 <div>
                   <span style={{ color: "var(--text-secondary)" }}>Database:</span>{" "}
@@ -984,10 +961,10 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
               )}
             </div>
 
-            <div style={cardStyle}>
+            <div className="panel-card">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                <div style={labelStyle}>Environment Variables</div>
-                <button onClick={handleAddEnvVar} style={btnStyle()}>
+                <div className="panel-label">Environment Variables</div>
+                <button onClick={handleAddEnvVar} className="panel-btn panel-btn-secondary">
                   <Plus size={12} /> Add
                 </button>
               </div>

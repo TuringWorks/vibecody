@@ -99,61 +99,6 @@ const STATUS_COLORS: Record<string, string> = {
   Running: "var(--accent-gold)",
 };
 
-const containerStyle: React.CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  height: "100%",
-  background: "var(--bg-primary)",
-  color: "var(--text-primary)",
-  fontFamily: "inherit",
-  overflow: "hidden",
-};
-
-const tabBarStyle: React.CSSProperties = {
-  display: "flex",
-  gap: 2,
-  padding: "8px 12px 0",
-  borderBottom: "1px solid var(--border-color)",
-  background: "var(--bg-secondary)",
-  overflowX: "auto",
-  flexShrink: 0,
-};
-
-const tabStyle = (active: boolean): React.CSSProperties => ({
-  padding: "8px 14px",
-  cursor: "pointer",
-  background: active ? "var(--bg-primary)" : "transparent",
-  color: active ? "var(--accent-blue)" : "var(--text-secondary)",
-  border: "none",
-  borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent",
-  fontSize: 13,
-  fontFamily: "inherit",
-  whiteSpace: "nowrap",
-});
-
-const contentStyle: React.CSSProperties = {
-  flex: 1,
-  overflow: "auto",
-  padding: 16,
-};
-
-const btnStyle: React.CSSProperties = {
-  padding: "6px 14px",
-  background: "var(--accent-blue)",
-  color: "var(--bg-primary)",
-  border: "none",
-  borderRadius: 4,
-  cursor: "pointer",
-  fontSize: 12,
-  fontFamily: "inherit",
-};
-
-const btnSecondary: React.CSSProperties = {
-  ...btnStyle,
-  background: "var(--bg-tertiary)",
-  color: "var(--text-primary)",
-};
-
 const inputStyle: React.CSSProperties = {
   padding: "6px 10px",
   background: "var(--bg-tertiary)",
@@ -196,23 +141,8 @@ const badgeStyle = (color: string): React.CSSProperties => ({
   color,
 });
 
-const cardStyle: React.CSSProperties = {
-  background: "var(--bg-secondary)",
-  border: "1px solid var(--border-color)",
-  borderRadius: 6,
-  padding: 14,
-  marginBottom: 10,
-};
-
 const formGroup: React.CSSProperties = {
   marginBottom: 10,
-};
-
-const labelStyle: React.CSSProperties = {
-  display: "block",
-  fontSize: 12,
-  color: "var(--text-secondary)",
-  marginBottom: 4,
 };
 
 export function BlueTeamPanel() {
@@ -468,22 +398,22 @@ export function BlueTeamPanel() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <h3 style={{ margin: 0, fontSize: 15 }}>Security Incidents</h3>
           <div style={{ display: "flex", gap: 8 }}>
-            <button style={btnSecondary} onClick={generateReport}>Generate Report</button>
-            <button style={btnStyle} onClick={() => setShowIncidentForm(!showIncidentForm)}>
+            <button className="panel-btn panel-btn-secondary" onClick={generateReport}>Generate Report</button>
+            <button className="panel-btn panel-btn-primary" onClick={() => setShowIncidentForm(!showIncidentForm)}>
               {showIncidentForm ? "Cancel" : "+ New Incident"}
             </button>
           </div>
         </div>
 
         {showIncidentForm && (
-          <div style={{ ...cardStyle, marginBottom: 16 }}>
+          <div className="panel-card" style={{ marginBottom: 16 }}>
             <div style={formGroup}>
-              <label style={labelStyle}>Title</label>
+              <label className="panel-label">Title</label>
               <input style={inputStyle} value={incTitle} onChange={(e) => setIncTitle(e.target.value)} placeholder="Incident title..." />
             </div>
             <div style={{ display: "flex", gap: 10 }}>
               <div style={{ ...formGroup, flex: 1 }}>
-                <label style={labelStyle}>Severity</label>
+                <label className="panel-label">Severity</label>
                 <select style={inputStyle} value={incSeverity} onChange={(e) => setIncSeverity(e.target.value as "P1" | "P2" | "P3" | "P4")}>
                   <option value="P1">P1 - Critical</option>
                   <option value="P2">P2 - High</option>
@@ -492,7 +422,7 @@ export function BlueTeamPanel() {
                 </select>
               </div>
               <div style={{ ...formGroup, flex: 1 }}>
-                <label style={labelStyle}>Category</label>
+                <label className="panel-label">Category</label>
                 <select style={inputStyle} value={incCategory} onChange={(e) => setIncCategory(e.target.value)}>
                   {["Malware", "Phishing", "Ransomware", "Data Breach", "DDoS", "Insider Threat", "Unauthorized Access", "Other"].map((c) => (
                     <option key={c} value={c}>{c}</option>
@@ -501,10 +431,10 @@ export function BlueTeamPanel() {
               </div>
             </div>
             <div style={formGroup}>
-              <label style={labelStyle}>Description</label>
+              <label className="panel-label">Description</label>
               <textarea style={{ ...inputStyle, height: 60, resize: "vertical" }} value={incDescription} onChange={(e) => setIncDescription(e.target.value)} placeholder="Describe the incident..." />
             </div>
-            <button style={btnStyle} onClick={createIncident} disabled={!incTitle}>Create Incident</button>
+            <button className="panel-btn panel-btn-primary" onClick={createIncident} disabled={!incTitle}>Create Incident</button>
           </div>
         )}
 
@@ -544,21 +474,21 @@ export function BlueTeamPanel() {
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <h3 style={{ margin: 0, fontSize: 15 }}>Indicators of Compromise</h3>
-          <button style={btnStyle} onClick={() => setShowIOCForm(!showIOCForm)}>
+          <button className="panel-btn panel-btn-primary" onClick={() => setShowIOCForm(!showIOCForm)}>
             {showIOCForm ? "Cancel" : "+ Add IOC"}
           </button>
         </div>
 
         <div style={{ marginBottom: 12, display: "flex", gap: 8 }}>
           <input style={{ ...inputStyle, flex: 1 }} value={iocSearch} onChange={(e) => setIOCSearch(e.target.value)} placeholder="Search IOCs..." />
-          <button style={btnSecondary} onClick={loadIOCs}>Search</button>
+          <button className="panel-btn panel-btn-secondary" onClick={loadIOCs}>Search</button>
         </div>
 
         {showIOCForm && (
-          <div style={{ ...cardStyle, marginBottom: 16 }}>
+          <div className="panel-card" style={{ marginBottom: 16 }}>
             <div style={{ display: "flex", gap: 10 }}>
               <div style={{ ...formGroup, flex: 1 }}>
-                <label style={labelStyle}>Type</label>
+                <label className="panel-label">Type</label>
                 <select style={inputStyle} value={iocType} onChange={(e) => setIOCType(e.target.value as "IP" | "Domain" | "Hash" | "URL" | "Email" | "File")}>
                   {["IP", "Domain", "Hash", "URL", "Email", "File"].map((t) => (
                     <option key={t} value={t}>{t}</option>
@@ -566,15 +496,15 @@ export function BlueTeamPanel() {
                 </select>
               </div>
               <div style={{ ...formGroup, flex: 2 }}>
-                <label style={labelStyle}>Value</label>
+                <label className="panel-label">Value</label>
                 <input style={inputStyle} value={iocValue} onChange={(e) => setIOCValue(e.target.value)} placeholder="e.g. 192.168.1.100 or malware.exe" />
               </div>
             </div>
             <div style={formGroup}>
-              <label style={labelStyle}>Confidence: {iocConfidence}%</label>
+              <label className="panel-label">Confidence: {iocConfidence}%</label>
               <input type="range" min={0} max={100} value={iocConfidence} onChange={(e) => setIOCConfidence(Number(e.target.value))} style={{ width: "100%" }} />
             </div>
-            <button style={btnStyle} onClick={addIOC} disabled={!iocValue}>Add IOC</button>
+            <button className="panel-btn panel-btn-primary" onClick={addIOC} disabled={!iocValue}>Add IOC</button>
           </div>
         )}
 
@@ -619,20 +549,20 @@ export function BlueTeamPanel() {
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <h3 style={{ margin: 0, fontSize: 15 }}>Detection Rules</h3>
-          <button style={btnStyle} onClick={() => setShowRuleForm(!showRuleForm)}>
+          <button className="panel-btn panel-btn-primary" onClick={() => setShowRuleForm(!showRuleForm)}>
             {showRuleForm ? "Cancel" : "+ New Rule"}
           </button>
         </div>
 
         {showRuleForm && (
-          <div style={{ ...cardStyle, marginBottom: 16 }}>
+          <div className="panel-card" style={{ marginBottom: 16 }}>
             <div style={formGroup}>
-              <label style={labelStyle}>Rule Name</label>
+              <label className="panel-label">Rule Name</label>
               <input style={inputStyle} value={ruleName} onChange={(e) => setRuleName(e.target.value)} placeholder="e.g. Suspicious PowerShell Execution" />
             </div>
             <div style={{ display: "flex", gap: 10 }}>
               <div style={{ ...formGroup, flex: 1 }}>
-                <label style={labelStyle}>Platform</label>
+                <label className="panel-label">Platform</label>
                 <select style={inputStyle} value={rulePlatform} onChange={(e) => setRulePlatform(e.target.value as "Sigma" | "YARA" | "Snort" | "KQL" | "SPL" | "EQL")}>
                   {["Sigma", "YARA", "Snort", "KQL", "SPL", "EQL"].map((p) => (
                     <option key={p} value={p}>{p}</option>
@@ -640,21 +570,21 @@ export function BlueTeamPanel() {
                 </select>
               </div>
               <div style={{ ...formGroup, flex: 1 }}>
-                <label style={labelStyle}>MITRE ATT&CK IDs (comma-separated)</label>
+                <label className="panel-label">MITRE ATT&CK IDs (comma-separated)</label>
                 <input style={inputStyle} value={ruleMitre} onChange={(e) => setRuleMitre(e.target.value)} placeholder="T1059.001, T1027" />
               </div>
             </div>
             <div style={formGroup}>
-              <label style={labelStyle}>Detection Query</label>
+              <label className="panel-label">Detection Query</label>
               <textarea style={{ ...inputStyle, height: 80, resize: "vertical" }} value={ruleQuery} onChange={(e) => setRuleQuery(e.target.value)} placeholder="Enter detection query..." />
             </div>
-            <button style={btnStyle} onClick={createRule} disabled={!ruleName}>Create Rule</button>
+            <button className="panel-btn panel-btn-primary" onClick={createRule} disabled={!ruleName}>Create Rule</button>
           </div>
         )}
 
         {rules.length === 0 && <p style={{ color: "var(--text-secondary)", textAlign: "center" }}>No detection rules configured.</p>}
         {rules.map((rule) => (
-          <div key={rule.id} style={cardStyle}>
+          <div key={rule.id} className="panel-card">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <strong style={{ fontSize: 14 }}>{rule.name}</strong>
@@ -715,16 +645,16 @@ export function BlueTeamPanel() {
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <h3 style={{ margin: 0, fontSize: 15 }}>SIEM Connections</h3>
-          <button style={btnStyle} onClick={() => setShowSIEMForm(!showSIEMForm)}>
+          <button className="panel-btn panel-btn-primary" onClick={() => setShowSIEMForm(!showSIEMForm)}>
             {showSIEMForm ? "Cancel" : "+ Add Connection"}
           </button>
         </div>
 
         {showSIEMForm && (
-          <div style={{ ...cardStyle, marginBottom: 16 }}>
+          <div className="panel-card" style={{ marginBottom: 16 }}>
             <div style={{ display: "flex", gap: 10 }}>
               <div style={{ ...formGroup, flex: 1 }}>
-                <label style={labelStyle}>Platform</label>
+                <label className="panel-label">Platform</label>
                 <select style={inputStyle} value={siemPlatform} onChange={(e) => setSiemPlatform(e.target.value)}>
                   {["Splunk", "Elastic SIEM", "Microsoft Sentinel", "QRadar", "Chronicle", "Sumo Logic", "Wazuh", "Graylog"].map((p) => (
                     <option key={p} value={p}>{p}</option>
@@ -732,11 +662,11 @@ export function BlueTeamPanel() {
                 </select>
               </div>
               <div style={{ ...formGroup, flex: 2 }}>
-                <label style={labelStyle}>Endpoint URL</label>
+                <label className="panel-label">Endpoint URL</label>
                 <input style={inputStyle} value={siemEndpoint} onChange={(e) => setSiemEndpoint(e.target.value)} placeholder="https://siem.example.com:8089" />
               </div>
             </div>
-            <button style={btnStyle} onClick={addSIEM} disabled={!siemEndpoint}>Connect</button>
+            <button className="panel-btn panel-btn-primary" onClick={addSIEM} disabled={!siemEndpoint}>Connect</button>
           </div>
         )}
 
@@ -745,7 +675,7 @@ export function BlueTeamPanel() {
             <p style={{ color: "var(--text-secondary)", gridColumn: "1/-1", textAlign: "center" }}>No SIEM connections configured.</p>
           )}
           {siemConns.map((conn) => (
-            <div key={conn.id} style={cardStyle}>
+            <div key={conn.id} className="panel-card">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                 <strong style={{ fontSize: 14 }}>{conn.platform}</strong>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -773,7 +703,7 @@ export function BlueTeamPanel() {
         <h3 style={{ margin: "0 0 14px", fontSize: 15 }}>Incident Response Playbooks</h3>
         {playbooks.length === 0 && <p style={{ color: "var(--text-secondary)", textAlign: "center" }}>No playbooks defined.</p>}
         {playbooks.map((pb) => (
-          <div key={pb.id} style={cardStyle}>
+          <div key={pb.id} className="panel-card">
             <div role="button" tabIndex={0} aria-expanded={expandedPlaybook === pb.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }} onClick={() => setExpandedPlaybook(expandedPlaybook === pb.id ? null : pb.id)} onKeyDown={e => e.key === "Enter" && setExpandedPlaybook(expandedPlaybook === pb.id ? null : pb.id)}>
               <div>
                 <strong style={{ fontSize: 14 }}>{pb.name}</strong>
@@ -809,32 +739,32 @@ export function BlueTeamPanel() {
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <h3 style={{ margin: 0, fontSize: 15 }}>Threat Hunting</h3>
-          <button style={btnStyle} onClick={() => setShowHuntForm(!showHuntForm)}>
+          <button className="panel-btn panel-btn-primary" onClick={() => setShowHuntForm(!showHuntForm)}>
             {showHuntForm ? "Cancel" : "+ New Hunt"}
           </button>
         </div>
 
         {showHuntForm && (
-          <div style={{ ...cardStyle, marginBottom: 16 }}>
+          <div className="panel-card" style={{ marginBottom: 16 }}>
             <div style={formGroup}>
-              <label style={labelStyle}>Hypothesis</label>
+              <label className="panel-label">Hypothesis</label>
               <textarea style={{ ...inputStyle, height: 50, resize: "vertical" }} value={huntHypothesis} onChange={(e) => setHuntHypothesis(e.target.value)} placeholder="e.g. An attacker is using living-off-the-land binaries for lateral movement..." />
             </div>
             <div style={formGroup}>
-              <label style={labelStyle}>Data Sources (comma-separated)</label>
+              <label className="panel-label">Data Sources (comma-separated)</label>
               <input style={inputStyle} value={huntSources} onChange={(e) => setHuntSources(e.target.value)} placeholder="e.g. EDR, Firewall Logs, DNS Logs" />
             </div>
             <div style={formGroup}>
-              <label style={labelStyle}>Hunting Query</label>
+              <label className="panel-label">Hunting Query</label>
               <textarea style={{ ...inputStyle, height: 80, resize: "vertical", fontFamily: "inherit" }} value={huntQuery} onChange={(e) => setHuntQuery(e.target.value)} placeholder="Enter hunting query..." />
             </div>
-            <button style={btnStyle} onClick={createHunt} disabled={!huntHypothesis}>Create Hunt</button>
+            <button className="panel-btn panel-btn-primary" onClick={createHunt} disabled={!huntHypothesis}>Create Hunt</button>
           </div>
         )}
 
         {hunts.length === 0 && <p style={{ color: "var(--text-secondary)", textAlign: "center" }}>No threat hunts. Start a hypothesis-driven hunt.</p>}
         {hunts.map((hunt) => (
-          <div key={hunt.id} style={cardStyle}>
+          <div key={hunt.id} className="panel-card">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
               <strong style={{ fontSize: 14 }}>{hunt.hypothesis.slice(0, 80)}{hunt.hypothesis.length > 80 ? "..." : ""}</strong>
               <span style={badgeStyle(STATUS_COLORS[hunt.status] || "var(--text-secondary)")}>{hunt.status}</span>
@@ -876,27 +806,27 @@ export function BlueTeamPanel() {
   };
 
   return (
-    <div style={containerStyle}>
-      <div style={tabBarStyle}>
+    <div className="panel-container">
+      <div className="panel-tab-bar">
         {TABS.map((tab) => (
-          <button key={tab} style={tabStyle(activeTab === tab)} onClick={() => setActiveTab(tab)}>
+          <button key={tab} className={`panel-tab ${activeTab === tab ? "active" : ""}`} onClick={() => setActiveTab(tab)}>
             {tab}
           </button>
         ))}
       </div>
-      <div style={contentStyle}>
+      <div className="panel-body">
         {successMsg && (
           <div style={{ padding: "8px 12px", marginBottom: 12, background: "var(--success-bg)", border: "1px solid var(--success-color)", borderRadius: 4, fontSize: 12, color: "var(--success-color)" }}>
             {successMsg}
           </div>
         )}
         {error && (
-          <div style={{ padding: "8px 12px", marginBottom: 12, background: "var(--error-bg)", border: "1px solid var(--error-color)", borderRadius: 4, fontSize: 12, color: "var(--error-color)", display: "flex", justifyContent: "space-between" }}>
+          <div className="panel-error" style={{ marginBottom: 12, display: "flex", justifyContent: "space-between" }}>
             <span>{error}</span>
             <button aria-label="Dismiss error" style={{ background: "none", border: "none", color: "var(--error-color)", cursor: "pointer", fontSize: 14 }} onClick={() => setError(null)}>×</button>
           </div>
         )}
-        {loading && <div style={{ textAlign: "center", padding: 20, color: "var(--text-secondary)", fontSize: 13 }}>Loading...</div>}
+        {loading && <div className="panel-loading">Loading...</div>}
         {!loading && renderTab()}
       </div>
     </div>

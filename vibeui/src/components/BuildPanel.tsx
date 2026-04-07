@@ -248,7 +248,7 @@ export function BuildPanel({ workspacePath, currentFile, onOpenFile }: BuildPane
     : "/";
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden", color: "var(--text-primary)" }}>
+    <div className="panel-container">
       {/* Working directory selector */}
       <div style={{ padding: "4px 12px", borderBottom: "1px solid var(--border-color)", display: "flex", alignItems: "center", gap: 6, fontSize: 11, background: "var(--bg-secondary)" }}>
         <span style={{ color: "var(--text-secondary)", flexShrink: 0 }}>Working dir:</span>
@@ -273,7 +273,7 @@ export function BuildPanel({ workspacePath, currentFile, onOpenFile }: BuildPane
       </div>
 
       {/* Header */}
-      <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+      <div className="panel-header" style={{ flexWrap: "wrap" }}>
         <span style={{ fontSize: 14, fontWeight: 700 }}>Build</span>
         <span style={{ fontSize: 10, fontFamily: "var(--font-mono, monospace)", color: "var(--text-secondary)", background: "var(--bg-tertiary)", padding: "1px 6px", borderRadius: 3 }}>{shortDir}</span>
 
@@ -305,16 +305,16 @@ export function BuildPanel({ workspacePath, currentFile, onOpenFile }: BuildPane
         <div style={{ flex: 1 }} />
 
         {/* Action buttons */}
-        <button onClick={handleBuild} disabled={busy || !effectiveDir} style={{ ...btnS, background: "var(--accent-color)", color: "var(--btn-primary-fg)", borderColor: "var(--accent-color)", opacity: busy ? 0.5 : 1 }}>
+        <button onClick={handleBuild} disabled={busy || !effectiveDir} className="panel-btn panel-btn-primary" style={{ opacity: busy ? 0.5 : 1 }}>
           Build
         </button>
-        <button onClick={handleRun} disabled={busy || !effectiveDir} style={{ ...btnS, opacity: busy ? 0.5 : 1 }}>
+        <button onClick={handleRun} disabled={busy || !effectiveDir} className="panel-btn panel-btn-secondary" style={{ opacity: busy ? 0.5 : 1 }}>
           Run
         </button>
-        <button onClick={handleBuildAndRun} disabled={busy || !effectiveDir} style={{ ...btnS, background: "var(--accent-color)", color: "var(--btn-primary-fg)", borderColor: "var(--accent-color)", opacity: busy ? 0.5 : 1 }}>
+        <button onClick={handleBuildAndRun} disabled={busy || !effectiveDir} className="panel-btn panel-btn-primary" style={{ opacity: busy ? 0.5 : 1 }}>
           Build & Run
         </button>
-        <button onClick={() => setShowCustom(prev => !prev)} style={{ ...btnS, fontSize: 10, padding: "2px 6px" }}>
+        <button onClick={() => setShowCustom(prev => !prev)} className="panel-btn panel-btn-secondary" style={{ fontSize: 10, padding: "2px 6px" }}>
           {showCustom ? "Hide" : "Custom"}
         </button>
       </div>
@@ -324,14 +324,14 @@ export function BuildPanel({ workspacePath, currentFile, onOpenFile }: BuildPane
         <div style={{ padding: "6px 12px", borderBottom: "1px solid var(--border-color)", display: "flex", gap: 6, alignItems: "center", fontSize: 11 }}>
           <span style={{ color: "var(--text-secondary)", flexShrink: 0 }}>Build:</span>
           <input
-            style={inputS}
+            style={{ flex: 1, minWidth: 0, padding: "3px 6px", fontSize: 11, borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)" }}
             value={customBuildCmd}
             onChange={e => setCustomBuildCmd(e.target.value)}
             placeholder={selected?.build_command || "auto-detect"}
           />
           <span style={{ color: "var(--text-secondary)", flexShrink: 0 }}>Run:</span>
           <input
-            style={inputS}
+            style={{ flex: 1, minWidth: 0, padding: "3px 6px", fontSize: 11, borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)" }}
             value={customRunCmd}
             onChange={e => setCustomRunCmd(e.target.value)}
             placeholder={selected?.run_command || "auto-detect"}
@@ -365,7 +365,7 @@ export function BuildPanel({ workspacePath, currentFile, onOpenFile }: BuildPane
           </span>
           <span style={{ color: "var(--text-secondary)" }}>{(result.duration_ms / 1000).toFixed(1)}s</span>
           {errorCount > 0 && (
-            <button onClick={() => setShowErrors(true)} style={{ ...btnS, fontSize: 10, padding: "1px 6px", color: "var(--error-color)" }}>
+            <button onClick={() => setShowErrors(true)} className="panel-btn panel-btn-secondary" style={{ fontSize: 10, padding: "1px 6px", color: "var(--error-color)" }}>
               {errorCount} error{errorCount !== 1 ? "s" : ""}
             </button>
           )}
@@ -383,7 +383,7 @@ export function BuildPanel({ workspacePath, currentFile, onOpenFile }: BuildPane
               Diagnostics ({result.errors.length})
             </span>
             <div style={{ flex: 1 }} />
-            <button onClick={() => setShowErrors(false)} style={{ ...btnS, fontSize: 9, padding: "1px 4px" }}>Hide</button>
+            <button onClick={() => setShowErrors(false)} className="panel-btn panel-btn-secondary" style={{ fontSize: 9, padding: "1px 4px" }}>Hide</button>
           </div>
           {result.errors.map((err, i) => (
             <div
@@ -420,7 +420,7 @@ export function BuildPanel({ workspacePath, currentFile, onOpenFile }: BuildPane
       )}
 
       {/* Output log */}
-      <div style={{ flex: 1, overflowY: "auto", background: "var(--bg-primary)", padding: "8px 12px" }}>
+      <div className="panel-body" style={{ padding: "8px 12px" }}>
         {log.length === 0 && !busy && (
           <div style={{ textAlign: "center", color: "var(--text-secondary)", padding: 24, fontSize: 12 }}>
             {systems.length > 0 ? (
@@ -465,14 +465,3 @@ export function BuildPanel({ workspacePath, currentFile, onOpenFile }: BuildPane
   );
 }
 
-const btnS: React.CSSProperties = {
-  padding: "4px 10px", fontSize: 11, fontWeight: 600, borderRadius: 4,
-  border: "1px solid var(--border-color)", background: "var(--bg-elevated)",
-  color: "var(--text-primary)", cursor: "pointer",
-};
-
-const inputS: React.CSSProperties = {
-  flex: 1, minWidth: 0, padding: "3px 6px", fontSize: 11, borderRadius: 4,
-  border: "1px solid var(--border-color)", background: "var(--bg-primary)",
-  color: "var(--text-primary)",
-};

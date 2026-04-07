@@ -139,34 +139,6 @@ const DebugModePanel: React.FC = () => {
     }
   };
 
-  const containerStyle: React.CSSProperties = {
-    padding: "16px",
-    color: "var(--text-primary)",
-    backgroundColor: "var(--bg-primary)",
-    fontFamily: "inherit",
-    fontSize: "13px",
-    height: "100%",
-    overflow: "auto",
-  };
-
-  const tabBarStyle: React.CSSProperties = {
-    display: "flex",
-    gap: "4px",
-    borderBottom: "1px solid var(--border-color)",
-    marginBottom: "12px",
-  };
-
-  const tabStyle = (active: boolean): React.CSSProperties => ({
-    padding: "8px 16px",
-    cursor: "pointer",
-    border: "none",
-    background: active ? "var(--bg-secondary)" : "transparent",
-    color: active ? "var(--text-primary)" : "var(--text-secondary)",
-    borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent",
-    fontFamily: "inherit",
-    fontSize: "inherit",
-  });
-
   const badgeStyle = (status: string): React.CSSProperties => ({
     padding: "2px 8px",
     borderRadius: "10px",
@@ -175,23 +147,6 @@ const DebugModePanel: React.FC = () => {
     backgroundColor: status === "running" ? "var(--success-color)" : status === "paused" ? "var(--warning-color)" : "var(--text-secondary)",
     color: "var(--bg-primary)",
   });
-
-  const btnStyle: React.CSSProperties = {
-    padding: "4px 10px",
-    border: "1px solid var(--accent-color)",
-    background: "var(--accent-color)",
-    color: "var(--btn-primary-fg)",
-    borderRadius: "3px",
-    cursor: "pointer",
-    fontFamily: "inherit",
-    fontSize: "12px",
-  };
-
-  const btnDangerStyle: React.CSSProperties = {
-    ...btnStyle,
-    background: "var(--error-color)",
-    border: "1px solid var(--error-color)",
-  };
 
   const inputStyle: React.CSSProperties = {
     padding: "4px 8px",
@@ -203,38 +158,31 @@ const DebugModePanel: React.FC = () => {
     fontSize: "inherit",
   };
 
-  const cardStyle: React.CSSProperties = {
-    padding: "10px",
-    marginBottom: "8px",
-    borderRadius: "4px",
-    backgroundColor: "var(--bg-secondary)",
-    border: "1px solid var(--border-color)",
-  };
-
   const sessionBreakpoints = breakpoints.filter((b) => b.session_id === selectedSession);
   const tabs = ["sessions", "breakpoints", "analysis"];
 
   return (
-    <div style={containerStyle}>
-      <h3 style={{ margin: "0 0 12px" }}>Debug Mode</h3>
+    <div className="panel-container">
+      <div className="panel-header">Debug Mode</div>
 
       {error && (
-        <div style={{ padding: "8px", marginBottom: "8px", background: "var(--error-color)", color: "var(--btn-primary-fg)", borderRadius: "4px", fontSize: "12px" }}>
+        <div className="panel-error" style={{ margin: "8px 16px 0" }}>
           {error}
         </div>
       )}
 
-      <div style={tabBarStyle}>
+      <div className="panel-tab-bar">
         {tabs.map((t) => (
-          <button key={t} style={tabStyle(activeTab === t)} onClick={() => setActiveTab(t)}>
+          <button key={t} className={`panel-tab ${activeTab === t ? "active" : ""}`} onClick={() => setActiveTab(t)}>
             {t.charAt(0).toUpperCase() + t.slice(1)}
           </button>
         ))}
       </div>
+      <div className="panel-body">
 
       {activeTab === "sessions" && (
         <div>
-          <div style={{ ...cardStyle, display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center", marginBottom: "12px" }}>
+          <div className="panel-card" style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center", marginBottom: "12px" }}>
             <input
               style={{ ...inputStyle, width: "140px" }}
               placeholder="File or function name"
@@ -250,27 +198,26 @@ const DebugModePanel: React.FC = () => {
               <option value="Java">Java</option>
               <option value="C++">C++</option>
             </select>
-            <button style={btnStyle} onClick={createSession} disabled={loading}>
+            <button className="panel-btn panel-btn-primary" onClick={createSession} disabled={loading}>
               {loading ? "Creating..." : "New Session"}
             </button>
           </div>
 
           {sessions.length === 0 && (
-            <div style={{ opacity: 0.6, textAlign: "center", padding: "20px" }}>
-              No debug sessions. Create one above.
-            </div>
+            <div className="panel-empty">No debug sessions. Create one above.</div>
           )}
 
           {sessions.map((s) => (
             <div
               key={s.id}
+              className="panel-card"
               style={{
-                ...cardStyle,
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
-                border: selectedSession === s.id ? "1px solid var(--accent-color)" : cardStyle.border,
+                border: selectedSession === s.id ? "1px solid var(--accent-color)" : undefined,
                 cursor: "pointer",
+                marginBottom: "8px",
               }}
               onClick={() => setSelectedSession(s.id)}
             >
@@ -280,7 +227,7 @@ const DebugModePanel: React.FC = () => {
               </div>
               <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
                 <span style={badgeStyle(s.status)}>{s.status}</span>
-                <button style={btnDangerStyle} onClick={(e) => { e.stopPropagation(); deleteSession(s.id); }}>
+                <button className="panel-btn panel-btn-danger" onClick={(e) => { e.stopPropagation(); deleteSession(s.id); }}>
                   Delete
                 </button>
               </div>
@@ -292,9 +239,7 @@ const DebugModePanel: React.FC = () => {
       {activeTab === "breakpoints" && (
         <div>
           {!selectedSession && (
-            <div style={{ opacity: 0.6, textAlign: "center", padding: "20px" }}>
-              Select a session in the Sessions tab first.
-            </div>
+            <div className="panel-empty">Select a session in the Sessions tab first.</div>
           )}
 
           {selectedSession && (
@@ -304,7 +249,7 @@ const DebugModePanel: React.FC = () => {
               </div>
 
               {sessionBreakpoints.map((bp) => (
-                <div key={bp.id} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div key={bp.id} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
                   <div>
                     <strong>{bp.file}:{bp.line}</strong>{" "}
                     <span style={{ opacity: 0.7, fontSize: "12px" }}>[{bp.type}]</span>
@@ -314,18 +259,16 @@ const DebugModePanel: React.FC = () => {
                     <span style={{ fontSize: "12px", color: bp.enabled ? "var(--success-color)" : "var(--text-secondary)" }}>
                       {bp.enabled ? "Enabled" : "Disabled"}
                     </span>
-                    <button style={btnStyle} onClick={() => removeBreakpoint(bp.id)}>Remove</button>
+                    <button className="panel-btn panel-btn-secondary" onClick={() => removeBreakpoint(bp.id)}>Remove</button>
                   </div>
                 </div>
               ))}
 
               {sessionBreakpoints.length === 0 && (
-                <div style={{ opacity: 0.6, textAlign: "center", padding: "12px" }}>
-                  No breakpoints for this session.
-                </div>
+                <div className="panel-empty">No breakpoints for this session.</div>
               )}
 
-              <div style={{ ...cardStyle, display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
+              <div className="panel-card" style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
                 <input style={{ ...inputStyle, width: "120px" }} placeholder="File" value={newBpFile} onChange={(e) => setNewBpFile(e.target.value)} />
                 <input style={{ ...inputStyle, width: "60px" }} placeholder="Line" value={newBpLine} onChange={(e) => setNewBpLine(e.target.value)} />
                 <select style={inputStyle} value={newBpType} onChange={(e) => setNewBpType(e.target.value as Breakpoint["type"])}>
@@ -334,7 +277,7 @@ const DebugModePanel: React.FC = () => {
                   <option value="logpoint">Logpoint</option>
                 </select>
                 <input style={{ ...inputStyle, width: "140px" }} placeholder="Condition" value={newBpCondition} onChange={(e) => setNewBpCondition(e.target.value)} />
-                <button style={btnStyle} onClick={addBreakpoint} disabled={loading}>Add</button>
+                <button className="panel-btn panel-btn-primary" onClick={addBreakpoint} disabled={loading}>Add</button>
               </div>
             </>
           )}
@@ -344,9 +287,7 @@ const DebugModePanel: React.FC = () => {
       {activeTab === "analysis" && (
         <div>
           {!selectedSession && (
-            <div style={{ opacity: 0.6, textAlign: "center", padding: "20px" }}>
-              Select a session in the Sessions tab first.
-            </div>
+            <div className="panel-empty">Select a session in the Sessions tab first.</div>
           )}
 
           {selectedSession && (
@@ -355,19 +296,17 @@ const DebugModePanel: React.FC = () => {
                 <span style={{ fontSize: "12px", opacity: 0.7 }}>
                   Session: {sessions.find((s) => s.id === selectedSession)?.name || selectedSession}
                 </span>
-                <button style={btnStyle} onClick={runAnalysis} disabled={loading}>
+                <button className="panel-btn panel-btn-primary" onClick={runAnalysis} disabled={loading}>
                   {loading ? "Analyzing..." : "Run Analysis"}
                 </button>
               </div>
 
               {analysis.length === 0 && (
-                <div style={{ opacity: 0.6, textAlign: "center", padding: "20px" }}>
-                  Click "Run Analysis" to detect potential issues.
-                </div>
+                <div className="panel-empty">Click "Run Analysis" to detect potential issues.</div>
               )}
 
               {analysis.map((a, i) => (
-                <div key={i} style={cardStyle}>
+                <div key={i} className="panel-card" style={{ marginBottom: "8px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
                     <strong>Hypothesis {i + 1}</strong>
                     <span style={{ fontSize: "12px", opacity: 0.7 }}>Confidence: {(a.confidence * 100).toFixed(0)}%</span>
@@ -387,6 +326,7 @@ const DebugModePanel: React.FC = () => {
           )}
         </div>
       )}
+      </div>
     </div>
   );
 };

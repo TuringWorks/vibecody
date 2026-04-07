@@ -540,7 +540,7 @@ export function McpPanel() {
                             <div key={`live-${serverName}-${t.name}`} style={{
                               ...cardStyle,
                               display: "flex", justifyContent: "space-between", alignItems: "center", marginLeft: 8,
-                              borderLeft: isHighlighted ? "3px solid var(--accent-primary)" : "3px solid var(--info-color, #2196f3)",
+                              borderLeft: isHighlighted ? "3px solid var(--accent-primary)" : "3px solid var(--info-color)",
                             }}>
                               <div style={{ flex: 1 }}>
                                 <div style={{ fontWeight: 600 }}>{t.name}</div>

@@ -167,7 +167,7 @@ export function ObserveActPanel() {
                   <span style={{ fontWeight: 600 }}>Step {s.num}</span>
                   <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                     <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>{s.durationMs}ms</span>
-                    <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 3, background: s.verified ? "#4caf5022" : "#f4433622", color: s.verified ? "var(--accent-green)" : "var(--accent-rose)" }}>
+                    <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 3, background: s.verified ? "var(--success-bg)" : "var(--error-bg)", color: s.verified ? "var(--accent-green)" : "var(--accent-rose)" }}>
                       {s.verified ? "Verified" : "Failed"}
                     </span>
                   </div>

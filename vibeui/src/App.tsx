@@ -1461,6 +1461,9 @@ function App() {
                     <button className="btn-icon" onClick={openFolder} title="Open Folder">
                       <Icon name="folder-open" size={16} />
                     </button>
+                    <button className="btn-icon" onClick={() => { if (currentDirectory) loadDirectory(currentDirectory); }} title="Refresh" disabled={!currentDirectory}>
+                      <Icon name="refresh-cw" size={16} />
+                    </button>
                   </div>
                 </div>
                 <div className="file-tree">

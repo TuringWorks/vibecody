@@ -232,7 +232,7 @@ export function CloudProviderPanel() {
           ))
         ) : (
           <span style={{ color: "var(--text-secondary)" }}>
-            None — connect providers in Settings &rarr; OAuth
+            None — connect providers in Settings → OAuth
           </span>
         )}
       </div>

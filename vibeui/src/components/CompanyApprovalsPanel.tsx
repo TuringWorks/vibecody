@@ -12,11 +12,6 @@ interface CompanyApprovalsPanelProps {
   workspacePath?: string | null;
 }
 
-const btnStyle: React.CSSProperties = {
-  fontSize: 11, padding: "3px 10px", cursor: "pointer", borderRadius: 4,
-  background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", color: "var(--text-primary)",
-};
-
 const inputStyle: React.CSSProperties = {
   fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)",
   border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)",
@@ -85,24 +80,25 @@ export function CompanyApprovalsPanel({ workspacePath: _wp }: CompanyApprovalsPa
   };
 
   return (
-    <div style={{ padding: 16, fontSize: 13, height: "100%", overflowY: "auto" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-        <span style={{ fontWeight: 600, fontSize: 14 }}>Approvals</span>
+    <div className="panel-container">
+      <div className="panel-header" style={{ justifyContent: "space-between" }}>
+        <span>Approvals</span>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <label style={{ fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
             <input type="checkbox" checked={showAll} onChange={(e) => setShowAll(e.target.checked)} />
             Show all
           </label>
-          <button onClick={() => setShowRequest(!showRequest)} style={btnStyle}>
+          <button onClick={() => setShowRequest(!showRequest)} className="panel-btn panel-btn-secondary">
             {showRequest ? "Cancel" : "+ Request"}
           </button>
-          <button onClick={load} style={btnStyle}>Refresh</button>
+          <button onClick={load} className="panel-btn panel-btn-secondary">Refresh</button>
         </div>
       </div>
+      <div className="panel-body" style={{ fontSize: 13 }}>
 
       {/* Request form */}
       {showRequest && (
-        <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 6, padding: 12, marginBottom: 12 }}>
+        <div className="panel-card" style={{ marginBottom: 12 }}>
           <div style={{ fontWeight: 600, marginBottom: 8 }}>New Approval Request</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
             <select value={reqType} onChange={(e) => setReqType(e.target.value)} style={inputStyle}>
@@ -114,16 +110,16 @@ export function CompanyApprovalsPanel({ workspacePath: _wp }: CompanyApprovalsPa
             <input value={reqRequester} onChange={(e) => setReqRequester(e.target.value)} placeholder="Requester" style={inputStyle} />
             <input value={reqReason} onChange={(e) => setReqReason(e.target.value)} placeholder="Reason" style={inputStyle} />
           </div>
-          <button onClick={requestApproval} disabled={!reqSubject.trim()} style={{ ...btnStyle, padding: "4px 14px", opacity: reqSubject.trim() ? 1 : 0.5 }}>
+          <button onClick={requestApproval} disabled={!reqSubject.trim()} className="panel-btn panel-btn-primary" style={{ opacity: reqSubject.trim() ? 1 : 0.5 }}>
             Submit Request
           </button>
         </div>
       )}
 
       {/* Approvals list */}
-      <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 6, padding: 12, marginBottom: 14, minHeight: 120 }}>
+      <div className="panel-card" style={{ marginBottom: 14, minHeight: 120 }}>
         {loading ? (
-          <span style={{ color: "var(--text-secondary)" }}>Loading…</span>
+          <span className="panel-loading">Loading…</span>
         ) : (
           <pre style={{ margin: 0, fontSize: 12, whiteSpace: "pre-wrap", lineHeight: 1.7, fontFamily: "inherit" }}>
             {output || "No pending approvals."}
@@ -132,7 +128,7 @@ export function CompanyApprovalsPanel({ workspacePath: _wp }: CompanyApprovalsPa
       </div>
 
       {/* Decision form */}
-      <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 6, fontWeight: 600 }}>DECIDE</div>
+      <div className="panel-label" style={{ marginBottom: 6 }}>DECIDE</div>
       <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
         <input
           value={approvalId}
@@ -151,25 +147,28 @@ export function CompanyApprovalsPanel({ workspacePath: _wp }: CompanyApprovalsPa
         <button
           onClick={() => decide("approve")}
           disabled={!approvalId.trim()}
-          style={{ ...btnStyle, padding: "5px 14px", border: "1px solid var(--success, #27ae60)", color: "var(--success, #27ae60)", opacity: approvalId.trim() ? 1 : 0.5, display: "inline-flex", alignItems: "center" }}
+          className="panel-btn panel-btn-primary"
+          style={{ opacity: approvalId.trim() ? 1 : 0.5, display: "inline-flex", alignItems: "center" }}
         >
           <Check size={13} strokeWidth={2} style={{ marginRight: 4 }} /> Approve
         </button>
         <button
           onClick={() => decide("reject")}
           disabled={!approvalId.trim()}
-          style={{ ...btnStyle, padding: "5px 14px", border: "1px solid var(--danger, #e74c3c)", color: "var(--danger, #e74c3c)", opacity: approvalId.trim() ? 1 : 0.5, display: "inline-flex", alignItems: "center" }}
+          className="panel-btn panel-btn-danger"
+          style={{ opacity: approvalId.trim() ? 1 : 0.5, display: "inline-flex", alignItems: "center" }}
         >
           <X size={13} strokeWidth={2} style={{ marginRight: 4 }} /> Reject
         </button>
       </div>
 
       {cmdResult && (
-        <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 4, padding: 8, fontSize: 12 }}>
+        <div className="panel-card" style={{ fontSize: 12 }}>
           {cmdResult}
           <button onClick={() => setCmdResult(null)} style={{ marginLeft: 8, cursor: "pointer", background: "none", border: "none", color: "var(--text-secondary)", display: "inline-flex" }}><X size={12} /></button>
         </div>
       )}
+      </div>
     </div>
   );
 }

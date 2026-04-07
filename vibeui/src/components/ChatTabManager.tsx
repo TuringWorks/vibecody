@@ -308,29 +308,17 @@ export function ChatTabManager({
     };
 
     return (
-        <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+        <div className="panel-container">
             {/* Tab strip */}
-            <div style={{
-                display: "flex", alignItems: "center", gap: "1px",
-                background: "var(--bg-secondary)", borderBottom: "1px solid var(--border-color)",
-                flexShrink: 0, overflowX: "auto", minHeight: "32px",
-            }}>
+            <div className="panel-tab-bar" style={{ alignItems: "center", gap: "1px", overflowX: "auto", minHeight: "32px" }}>
                 {tabs.map((tab) => {
                     const msgCount = (tabMessages[tab.id] ?? []).length;
                     return (
                         <div
                             key={tab.id}
                             onClick={() => { if (editingTabId !== tab.id) { setActiveTabId(tab.id); setShowHistory(false); } }}
-                            style={{
-                                display: "flex", alignItems: "center", gap: "4px",
-                                padding: "4px 10px", cursor: "pointer", flexShrink: 0,
-                                fontSize: "12px", userSelect: "none",
-                                background: activeTabId === tab.id && !showHistory ? "var(--bg-primary)" : "transparent",
-                                color: activeTabId === tab.id && !showHistory ? "var(--text-primary)" : "var(--text-secondary)",
-                                borderBottom: activeTabId === tab.id && !showHistory
-                                    ? "2px solid var(--accent-blue)"
-                                    : "2px solid transparent",
-                            }}
+                            className={`panel-tab ${activeTabId === tab.id && !showHistory ? "active" : ""}`}
+                            style={{ display: "flex", alignItems: "center", gap: "4px", flexShrink: 0, userSelect: "none" }}
                         >
                             {editingTabId === tab.id ? (
                                 <input

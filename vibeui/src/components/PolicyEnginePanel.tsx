@@ -133,7 +133,7 @@ export default function PolicyEnginePanel() {
         <>
           {conflicts.length === 0 && !loading && <div className="panel-empty">No policy conflicts detected.</div>}
           {conflicts.map((c, i) => (
-            <div key={i} className="panel-card" style={{ borderLeft: "3px solid #ff9800" }}>
+            <div key={i} className="panel-card" style={{ borderLeft: "3px solid var(--warning-color)" }}>
               <div style={{ fontWeight: 600 }}>{c.policyA} vs {c.policyB}</div>
               <div className="panel-label">Resource: {c.resource}</div>
               <div>{c.description}</div>

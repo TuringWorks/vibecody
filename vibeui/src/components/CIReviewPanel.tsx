@@ -96,7 +96,7 @@ export function CIReviewPanel() {
 
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <div>
-              <div style={labelStyle}>App ID</div>
+              <div className="panel-label">App ID</div>
               <input
                 type="number"
                 value={config.app_id || ""}
@@ -107,7 +107,7 @@ export function CIReviewPanel() {
             </div>
 
             <div>
-              <div style={labelStyle}>Private Key Path</div>
+              <div className="panel-label">Private Key Path</div>
               <input
                 value={config.private_key_path || ""}
                 onChange={(e) => setConfig({ ...config, private_key_path: e.target.value || null })}
@@ -117,7 +117,7 @@ export function CIReviewPanel() {
             </div>
 
             <div>
-              <div style={labelStyle}>Webhook Secret</div>
+              <div className="panel-label">Webhook Secret</div>
               <input
                 type="password"
                 value={config.webhook_secret || ""}
@@ -128,7 +128,7 @@ export function CIReviewPanel() {
             </div>
 
             <div>
-              <div style={labelStyle}>Severity Threshold</div>
+              <div className="panel-label">Severity Threshold</div>
               <select
                 value={config.severity_threshold}
                 onChange={(e) => setConfig({ ...config, severity_threshold: e.target.value })}
@@ -150,10 +150,7 @@ export function CIReviewPanel() {
               Auto-fix: push fixes to PR branch
             </label>
 
-            <button onClick={handleSave} disabled={saving} style={{
-              ...btnStyle, background: "var(--accent-primary)", color: "var(--btn-primary-fg)", fontWeight: 700,
-              opacity: saving ? 0.5 : 1,
-            }}>
+            <button onClick={handleSave} disabled={saving} className="panel-btn panel-btn-primary" style={{ fontWeight: 700, opacity: saving ? 0.5 : 1 }}>
               {saving ? "Saving..." : "Save Configuration"}
             </button>
 
@@ -268,22 +265,9 @@ export function CIReviewPanel() {
   );
 }
 
-const btnStyle: React.CSSProperties = {
-  padding: "6px 12px", fontSize: 12, fontWeight: 600,
-  border: "1px solid var(--border-color)", borderRadius: 4,
-  background: "var(--bg-secondary)", color: "var(--text-primary)",
-  cursor: "pointer",
-};
-
 const inputStyle: React.CSSProperties = {
   padding: "5px 8px", fontSize: 11, borderRadius: 4, width: "100%", boxSizing: "border-box" as const,
   border: "1px solid var(--border-color)",
   background: "var(--bg-primary)", color: "var(--text-primary)",
   outline: "none",
-};
-
-const labelStyle: React.CSSProperties = {
-  fontSize: 10, fontWeight: 600, marginBottom: 3,
-  color: "var(--text-secondary)",
-  textTransform: "uppercase" as const, letterSpacing: "0.06em",
 };

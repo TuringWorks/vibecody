@@ -28,28 +28,6 @@ const DISPATCH_STATUS_COLORS: Record<string, string> = {
   timed_out: "var(--warning-color)",
 };
 
-const containerStyle: React.CSSProperties = {
-  display: "flex", flexDirection: "column", height: "100%",
-  background: "var(--bg-primary)", color: "var(--text-primary)",
-  fontFamily: "inherit", overflow: "hidden",
-};
-const tabBarStyle: React.CSSProperties = {
-  display: "flex", gap: 2, padding: "8px 12px 0",
-  borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)",
-  overflowX: "auto", flexShrink: 0,
-};
-const tabStyle = (active: boolean): React.CSSProperties => ({
-  padding: "8px 14px", cursor: "pointer",
-  background: active ? "var(--bg-primary)" : "transparent",
-  color: active ? "var(--text-primary)" : "var(--text-secondary)",
-  border: "none", borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent",
-  fontSize: 13, fontFamily: "inherit", whiteSpace: "nowrap",
-});
-const contentStyle: React.CSSProperties = { flex: 1, overflow: "auto", padding: 16 };
-const cardStyle: React.CSSProperties = {
-  background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 8,
-  border: "1px solid var(--border-color)",
-};
 const badgeStyle = (color: string): React.CSSProperties => ({
   display: "inline-block", padding: "2px 8px", borderRadius: 10,
   fontSize: 11, background: color, color: "var(--bg-primary)", fontWeight: 600,
@@ -102,17 +80,17 @@ export default function MobileDispatchPanel() {
   const [tab, setTab] = useState<Tab>("Machines");
 
   return (
-    <div style={containerStyle}>
+    <div className="panel-container">
       <div style={statusBarStyle}>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Smartphone size={13} strokeWidth={1.5} /> Mobile Gateway</span>
         <span>3 machines online · 3 devices paired · 2 active dispatches</span>
       </div>
-      <div style={tabBarStyle}>
+      <div className="panel-tab-bar">
         {TABS.map(t => (
-          <button key={t} style={tabStyle(t === tab)} onClick={() => setTab(t)}>{t}</button>
+          <button key={t} className={`panel-tab ${t === tab ? "active" : ""}`} onClick={() => setTab(t)}>{t}</button>
         ))}
       </div>
-      <div style={contentStyle}>
+      <div className="panel-body">
         {tab === "Machines" && <MachinesTab />}
         {tab === "Devices" && <DevicesTab />}
         {tab === "Dispatches" && <DispatchesTab />}
@@ -127,7 +105,7 @@ function MachinesTab() {
   return (
     <>
       {MACHINES.map(m => (
-        <div key={m.machine_id} style={cardStyle}>
+        <div key={m.machine_id} className="panel-card" style={{ marginBottom: 8 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <OsIcon os={m.os} />
@@ -159,7 +137,7 @@ function DevicesTab() {
   return (
     <>
       {DEVICES.map(d => (
-        <div key={d.device_id} style={cardStyle}>
+        <div key={d.device_id} className="panel-card" style={{ marginBottom: 8 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
               <div style={{ fontWeight: 600 }}>{d.device_name}</div>
@@ -185,7 +163,7 @@ function DispatchesTab() {
   return (
     <>
       {DISPATCHES.map(d => (
-        <div key={d.task_id} style={cardStyle}>
+        <div key={d.task_id} className="panel-card" style={{ marginBottom: 8 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={badgeStyle(DISPATCH_STATUS_COLORS[d.status] || "var(--text-secondary)")}>{d.status}</span>
@@ -210,7 +188,7 @@ function PairingTab() {
       <div style={{ marginBottom: 16 }}>
         <div style={{ fontWeight: 600, marginBottom: 8 }}>Active Pairing Requests</div>
         {PAIRINGS.map(p => (
-          <div key={p.id} style={cardStyle}>
+          <div key={p.id} className="panel-card" style={{ marginBottom: 8 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <div style={{ fontWeight: 600 }}>{p.machine}</div>
@@ -227,7 +205,7 @@ function PairingTab() {
           </div>
         ))}
       </div>
-      <div style={{ padding: 16, background: "var(--bg-secondary)", borderRadius: 8, border: "1px solid var(--border-color)" }}>
+      <div className="panel-card">
         <div style={{ fontWeight: 600, marginBottom: 12 }}>How to Pair</div>
         <ol style={{ margin: 0, paddingLeft: 20, fontSize: 13, lineHeight: 1.8 }}>
           <li>Install <strong>VibeCody Mobile</strong> from App Store or Play Store</li>

@@ -40,39 +40,14 @@ const FullStackGenPanel: React.FC = () => {
   const dbOptions = ["PostgreSQL", "MySQL", "SQLite", "MongoDB", "DynamoDB", "Supabase"];
   const authOptions = ["JWT", "OAuth 2.0", "Session-based", "API Keys", "None"];
 
-  const containerStyle: React.CSSProperties = {
-    padding: "16px", color: "var(--text-primary)",
-    backgroundColor: "var(--bg-primary)",
-    fontFamily: "inherit", fontSize: 13,
-    height: "100%", overflow: "auto",
-  };
-  const tabBarStyle: React.CSSProperties = {
-    display: "flex", gap: "4px", marginBottom: "16px",
-    borderBottom: "1px solid var(--border-color)", paddingBottom: "8px",
-  };
-  const tabStyle = (active: boolean): React.CSSProperties => ({
-    padding: "6px 14px", cursor: "pointer", border: "none",
-    backgroundColor: active ? "var(--accent-blue)" : "transparent",
-    color: active ? "var(--btn-primary-fg)" : "var(--text-primary)",
-    borderRadius: "4px", fontSize: 12,
-  });
   const inputStyle: React.CSSProperties = {
     width: "100%", padding: "6px 10px", boxSizing: "border-box",
     backgroundColor: "var(--bg-tertiary)", color: "var(--text-primary)",
     border: "1px solid var(--border-color)", borderRadius: "4px",
     fontFamily: "inherit", fontSize: 12,
   };
-  const btnStyle: React.CSSProperties = {
-    padding: "6px 14px", cursor: "pointer", border: "none", borderRadius: "4px",
-    backgroundColor: "var(--accent-blue)", color: "var(--btn-primary-fg)", fontSize: 12,
-  };
-  const cardStyle: React.CSSProperties = {
-    padding: "10px", marginBottom: "8px", borderRadius: "4px",
-    backgroundColor: "var(--bg-secondary)",
-    border: "1px solid var(--border-color)",
-  };
-  const labelStyle: React.CSSProperties = { display: "block", marginBottom: "4px", fontWeight: 600, fontSize: "12px" };
   const fieldGroup: React.CSSProperties = { marginBottom: "12px" };
+  const labelStyle: React.CSSProperties = { display: "block", marginBottom: "4px", fontWeight: 600, fontSize: "12px" };
 
   const layerColors: Record<string, string> = {
     Frontend: "#1565c0", Backend: "#2e7d32", Database: "var(--accent-purple)",
@@ -210,7 +185,7 @@ const FullStackGenPanel: React.FC = () => {
 
   const renderGenerate = () => (
     <div>
-      <div style={cardStyle}>
+      <div className="panel-card" style={{ marginBottom: "8px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
           <span>Project</span><strong>{projectName || "Unnamed Project"}</strong>
         </div>
@@ -227,8 +202,8 @@ const FullStackGenPanel: React.FC = () => {
           <span>Output</span><strong style={{ fontSize: 11, wordBreak: "break-all" }}>{outputDir}/{projectName || "project"}</strong>
         </div>
       </div>
-      {error && <div style={{ color: "var(--error-color)", fontSize: 12, marginBottom: 8, padding: "8px", background: "var(--bg-tertiary)", borderRadius: 4 }}>{error}</div>}
-      <button style={{ ...btnStyle, width: "100%", padding: "10px", opacity: generating ? 0.6 : 1 }}
+      {error && <div className="panel-error" style={{ marginBottom: 8 }}>{error}</div>}
+      <button className="panel-btn panel-btn-primary" style={{ width: "100%", padding: "10px", opacity: generating ? 0.6 : 1 }}
         onClick={handleGenerate} disabled={generating}>
         {generating ? "Generating project files..." : "Generate Full Stack"}
       </button>
@@ -238,11 +213,11 @@ const FullStackGenPanel: React.FC = () => {
   const renderFiles = () => (
     <div>
       {generatedDir && (
-        <div style={{ ...cardStyle, fontSize: 11, wordBreak: "break-all" }}>
+        <div className="panel-card" style={{ fontSize: 11, wordBreak: "break-all", marginBottom: "8px" }}>
           Output: <strong>{generatedDir}</strong>
         </div>
       )}
-      <div style={{ ...cardStyle, display: "flex", justifyContent: "space-between", marginBottom: "12px" }}>
+      <div className="panel-card" style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px" }}>
         <span>{files.length} files generated</span>
         <strong>{totalLines.toLocaleString()} lines</strong>
       </div>
@@ -265,7 +240,7 @@ const FullStackGenPanel: React.FC = () => {
           ))}
         </div>
       ))}
-      {files.length === 0 && <div style={{ opacity: 0.6, textAlign: "center", padding: "24px" }}>
+      {files.length === 0 && <div className="panel-empty">
         No files generated yet. Go to the Generate tab to create your project.
       </div>}
     </div>
@@ -282,10 +257,10 @@ const FullStackGenPanel: React.FC = () => {
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               {saveMsg && <span style={{ fontSize: 11, color: saveMsg === "Saved" ? "var(--success-color)" : "var(--error-color)" }}>{saveMsg}</span>}
-              <button style={{ ...btnStyle, opacity: saving ? 0.6 : 1 }} onClick={saveFile} disabled={saving}>
+              <button className="panel-btn panel-btn-primary" style={{ opacity: saving ? 0.6 : 1 }} onClick={saveFile} disabled={saving}>
                 {saving ? "Saving..." : "Save"}
               </button>
-              <button style={{ ...btnStyle, backgroundColor: "var(--bg-tertiary)", color: "var(--text-primary)" }}
+              <button className="panel-btn panel-btn-secondary"
                 onClick={() => { setSelectedFile(null); setActiveTab("files"); }}>
                 Back
               </button>
@@ -309,17 +284,19 @@ const FullStackGenPanel: React.FC = () => {
   );
 
   return (
-    <div style={containerStyle}>
-      <h2 style={{ margin: "0 0 12px" }}>Full Stack Generator</h2>
-      <div style={tabBarStyle}>
+    <div className="panel-container">
+      <div className="panel-header">Full Stack Generator</div>
+      <div className="panel-tab-bar">
         {[["configure", "Configure"], ["generate", "Generate"], ["files", "Files"], ...(selectedFile ? [["editor", "Editor"]] : [])].map(([id, label]) => (
-          <button key={id} style={tabStyle(activeTab === id)} onClick={() => setActiveTab(id)}>{label}</button>
+          <button key={id} className={`panel-tab ${activeTab === id ? "active" : ""}`} onClick={() => setActiveTab(id)}>{label}</button>
         ))}
       </div>
-      {activeTab === "configure" && renderConfigure()}
-      {activeTab === "generate" && renderGenerate()}
-      {activeTab === "files" && renderFiles()}
-      {activeTab === "editor" && renderEditor()}
+      <div className="panel-body">
+        {activeTab === "configure" && renderConfigure()}
+        {activeTab === "generate" && renderGenerate()}
+        {activeTab === "files" && renderFiles()}
+        {activeTab === "editor" && renderEditor()}
+      </div>
     </div>
   );
 };

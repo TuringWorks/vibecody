@@ -224,7 +224,7 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
     : entries;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+    <div className="panel-container" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
     <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
       {/* Environment selector */}
       <div>
@@ -316,7 +316,7 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
 
       {/* Error */}
       {error && (
-        <div style={{ background: "var(--error-bg)", border: "1px solid var(--error-color)", borderRadius: 6, padding: 8, fontSize: 11, color: "var(--text-danger)" }}>
+        <div className="panel-error" style={{ padding: 8, fontSize: 11 }}>
           {error}
         </div>
       )}
@@ -324,12 +324,12 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
       {/* Variable list */}
       <div style={{ flex: 1, overflowY: "auto" }}>
         {filtered.length === 0 && !filter ? (
-          <div style={{ textAlign: "center", padding: 24, opacity: 0.5, fontSize: 12 }}>
+          <div className="panel-empty">
             No variables in {envToFilename(activeEnv)}. Add one below.
           </div>
         ) : filtered.length === 0 ? (
-          <div style={{ textAlign: "center", padding: 24, opacity: 0.5, fontSize: 12 }}>
-            No variables matching "{filter}"
+          <div className="panel-empty">
+            No variables matching &ldquo;{filter}&rdquo;
           </div>
         ) : (
           filtered.map((entry) => (

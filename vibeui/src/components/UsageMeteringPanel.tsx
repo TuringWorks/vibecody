@@ -43,13 +43,6 @@ interface KpiData {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", flex: 1, minHeight: 0, overflow: "auto", background: "var(--bg-primary)" };
-const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" };
-const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-color)" };
-const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
-const btnStyle: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", cursor: "pointer", fontSize: 12 };
-const tabBtnStyle = (active: boolean): React.CSSProperties => ({ ...btnStyle, background: active ? "var(--accent-primary)" : "var(--bg-tertiary)", color: active ? "var(--btn-primary-fg)" : "var(--text-primary)", marginRight: 4 });
-
 const inputStyle: React.CSSProperties = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: 12, fontFamily: "var(--font-family)", boxSizing: "border-box" };
 const selectStyle: React.CSSProperties = { ...inputStyle, width: "auto", cursor: "pointer" };
 
@@ -167,45 +160,50 @@ export function UsageMeteringPanel() {
   );
 
   if (loading) {
-    return <div style={panelStyle}><h2 style={headingStyle}>Usage Metering</h2><div style={cardStyle}>Loading...</div></div>;
+    return (
+      <div className="panel-container">
+        <h2 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>Usage Metering</h2>
+        <div className="panel-loading">Loading...</div>
+      </div>
+    );
   }
 
   return (
-    <div style={panelStyle}>
-      <h2 style={headingStyle}>Usage Metering</h2>
+    <div className="panel-container">
+      <h2 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>Usage Metering</h2>
 
       {error && (
-        <div style={{ ...cardStyle, borderColor: "var(--error-color)", color: "var(--error-color)", marginBottom: 12 }}>
+        <div className="panel-error" style={{ marginBottom: 12 }}>
           {error}
         </div>
       )}
 
-      <div style={{ marginBottom: 12 }}>
-        <button style={tabBtnStyle(tab === "dashboard")} onClick={() => setTab("dashboard")}>Dashboard</button>
-        <button style={tabBtnStyle(tab === "budgets")} onClick={() => setTab("budgets")}>Budgets</button>
-        <button style={tabBtnStyle(tab === "reports")} onClick={() => setTab("reports")}>Reports</button>
-        <button style={tabBtnStyle(tab === "alerts")} onClick={() => setTab("alerts")}>Alerts ({alerts.filter((a) => !a.dismissed).length})</button>
+      <div className="panel-tab-bar" style={{ marginBottom: 12 }}>
+        <button className={`panel-tab ${tab === "dashboard" ? "active" : ""}`} onClick={() => setTab("dashboard")}>Dashboard</button>
+        <button className={`panel-tab ${tab === "budgets" ? "active" : ""}`} onClick={() => setTab("budgets")}>Budgets</button>
+        <button className={`panel-tab ${tab === "reports" ? "active" : ""}`} onClick={() => setTab("reports")}>Reports</button>
+        <button className={`panel-tab ${tab === "alerts" ? "active" : ""}`} onClick={() => setTab("alerts")}>Alerts ({alerts.filter((a) => !a.dismissed).length})</button>
       </div>
 
       {tab === "dashboard" && (
         <div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
-            <div style={cardStyle}>
-              <div style={labelStyle}>Total Spend</div>
+            <div className="panel-card">
+              <div className="panel-label">Total Spend</div>
               <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--accent-primary)" }}>${kpis.totalSpend.toFixed(2)}</div>
             </div>
-            <div style={cardStyle}>
-              <div style={labelStyle}>Tokens Used</div>
+            <div className="panel-card">
+              <div className="panel-label">Tokens Used</div>
               <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{formatTokens(kpis.tokensUsed)}</div>
             </div>
-            <div style={cardStyle}>
-              <div style={labelStyle}>Requests</div>
+            <div className="panel-card">
+              <div className="panel-label">Requests</div>
               <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{kpis.requests.toLocaleString()}</div>
             </div>
           </div>
 
-          <div style={cardStyle}>
-            <div style={labelStyle}>Spend by Provider</div>
+          <div className="panel-card">
+            <div className="panel-label">Spend by Provider</div>
             {byProvider.length === 0 && <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>No provider data yet.</div>}
             {byProvider.map((p) => {
               const pct = kpis.totalSpend > 0 ? (p.cost / kpis.totalSpend) * 100 : 0;
@@ -225,17 +223,17 @@ export function UsageMeteringPanel() {
 
       {tab === "budgets" && (
         <div>
-          {budgets.length === 0 && <div style={cardStyle}>No budgets configured. Create one below.</div>}
+          {budgets.length === 0 && <div className="panel-empty">No budgets configured. Create one below.</div>}
           {budgets.map((b) => {
             const pct = b.limit > 0 ? (b.used / b.limit) * 100 : 0;
             return (
-              <div key={b.id} style={cardStyle}>
+              <div key={b.id} className="panel-card">
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                   <div>
                     <span style={{ fontWeight: 600 }}>{b.name}</span>
                     <span style={{ fontSize: 10, color: "var(--text-secondary)", marginLeft: 6 }}>{b.period}</span>
                   </div>
-                  <button style={{ ...btnStyle, fontSize: 10, padding: "3px 8px" }} onClick={() => deleteBudget(b.id)}>Remove</button>
+                  <button className="panel-btn panel-btn-secondary" style={{ fontSize: 10, padding: "3px 8px" }} onClick={() => deleteBudget(b.id)}>Remove</button>
                 </div>
                 <div style={barBg}>
                   <div style={barFill(pct, budgetBarColor(pct))} />
@@ -248,19 +246,19 @@ export function UsageMeteringPanel() {
             );
           })}
 
-          <div style={cardStyle}>
-            <div style={{ ...labelStyle, fontWeight: 600, fontSize: 12 }}>Create Budget</div>
+          <div className="panel-card">
+            <div className="panel-label" style={{ fontWeight: 600, fontSize: 12 }}>Create Budget</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 8 }}>
               <div>
-                <div style={labelStyle}>Name</div>
+                <div className="panel-label">Name</div>
                 <input style={inputStyle} value={newBudgetName} onChange={(e) => setNewBudgetName(e.target.value)} placeholder="Budget name" />
               </div>
               <div>
-                <div style={labelStyle}>Limit ($)</div>
+                <div className="panel-label">Limit ($)</div>
                 <input style={inputStyle} type="number" value={newBudgetLimit} onChange={(e) => setNewBudgetLimit(e.target.value)} placeholder="100.00" />
               </div>
               <div>
-                <div style={labelStyle}>Period</div>
+                <div className="panel-label">Period</div>
                 <select style={selectStyle} value={newBudgetPeriod} onChange={(e) => setNewBudgetPeriod(e.target.value as "daily" | "weekly" | "monthly")}>
                   <option value="daily">Daily</option>
                   <option value="weekly">Weekly</option>
@@ -268,18 +266,18 @@ export function UsageMeteringPanel() {
                 </select>
               </div>
             </div>
-            <button style={{ ...btnStyle, background: "var(--accent-primary)", color: "var(--btn-primary-fg)", marginTop: 8 }} onClick={createBudget}>Create</button>
+            <button className="panel-btn panel-btn-primary" style={{ marginTop: 8 }} onClick={createBudget}>Create</button>
           </div>
         </div>
       )}
 
       {tab === "reports" && (
         <div>
-          <div style={{ marginBottom: 10 }}>
-            <button style={tabBtnStyle(reportView === "provider")} onClick={() => setReportView("provider")}>By Provider</button>
-            <button style={tabBtnStyle(reportView === "model")} onClick={() => setReportView("model")}>By Model</button>
+          <div className="panel-tab-bar" style={{ marginBottom: 10 }}>
+            <button className={`panel-tab ${reportView === "provider" ? "active" : ""}`} onClick={() => setReportView("provider")}>By Provider</button>
+            <button className={`panel-tab ${reportView === "model" ? "active" : ""}`} onClick={() => setReportView("model")}>By Model</button>
           </div>
-          <div style={cardStyle}>
+          <div className="panel-card">
             {reportData[reportView].length === 0
               ? <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>No data yet.</div>
               : renderTable(reportData[reportView])}
@@ -289,16 +287,16 @@ export function UsageMeteringPanel() {
 
       {tab === "alerts" && (
         <div>
-          {alerts.filter((a) => !a.dismissed).length === 0 && <div style={cardStyle}>No active alerts.</div>}
+          {alerts.filter((a) => !a.dismissed).length === 0 && <div className="panel-empty">No active alerts.</div>}
           {alerts.map((a) => (
-            <div key={a.id} style={{ ...cardStyle, opacity: a.dismissed ? 0.5 : 1 }}>
+            <div key={a.id} className="panel-card" style={{ opacity: a.dismissed ? 0.5 : 1 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={badgeStyle(a.severity)}>{a.severity}</span>
                   <span>{a.message}</span>
                 </div>
                 {!a.dismissed && (
-                  <button style={{ ...btnStyle, fontSize: 10, padding: "3px 8px" }} onClick={() => dismissAlert(a.id)}>Dismiss</button>
+                  <button className="panel-btn panel-btn-secondary" style={{ fontSize: 10, padding: "3px 8px" }} onClick={() => dismissAlert(a.id)}>Dismiss</button>
                 )}
               </div>
               <div style={{ fontSize: 10, color: "var(--text-secondary)", marginTop: 4 }}>{new Date(a.timestamp).toLocaleString()}</div>

@@ -55,13 +55,6 @@ const FALLBACK_HEALTH: HealthStatus = {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", flex: 1, minHeight: 0, overflow: "auto", background: "var(--bg-primary)" };
-const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" };
-const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-color)" };
-const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
-const btnStyle: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", cursor: "pointer", fontSize: 12 };
-const tabBtnStyle = (active: boolean): React.CSSProperties => ({ ...btnStyle, background: active ? "var(--accent-primary)" : "var(--bg-tertiary)", color: active ? "var(--btn-primary-fg)" : "var(--text-primary)", marginRight: 4 });
-
 const barBg: React.CSSProperties = { height: 12, borderRadius: 6, background: "var(--bg-tertiary)", overflow: "hidden" };
 const barFill = (pct: number, color: string): React.CSSProperties => ({ height: "100%", width: `${Math.min(pct, 100)}%`, borderRadius: 6, background: color });
 
@@ -162,34 +155,34 @@ export function SessionMemoryPanel() {
   };
 
   return (
-    <div style={panelStyle}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-        <h2 style={{ ...headingStyle, margin: 0 }}>Session Memory Profiling</h2>
+    <div className="panel-container">
+      <div className="panel-header">
+        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>Session Memory Profiling</h2>
         <div style={{ display: "flex", gap: 6 }}>
-          <button style={btnStyle} onClick={runCompact} disabled={compacting}>
+          <button className="panel-btn panel-btn-secondary" onClick={runCompact} disabled={compacting}>
             {compacting ? "Compacting..." : "Compact"}
           </button>
-          <button style={btnStyle} onClick={loadAll} disabled={loading}>
+          <button className="panel-btn panel-btn-secondary" onClick={loadAll} disabled={loading}>
             {loading ? "Loading..." : "Refresh"}
           </button>
         </div>
       </div>
 
       {error && (
-        <div style={{ ...cardStyle, borderColor: "var(--error-color)", color: "var(--error-color)", fontSize: 12 }}>
+        <div className="panel-error">
           Error: {error}
         </div>
       )}
 
-      <div style={{ marginBottom: 12 }}>
-        <button style={tabBtnStyle(tab === "health")} onClick={() => setTab("health")}>Health</button>
-        <button style={tabBtnStyle(tab === "samples")} onClick={() => setTab("samples")}>Samples</button>
-        <button style={tabBtnStyle(tab === "alerts")} onClick={() => setTab("alerts")}>Alerts ({activeAlerts.length})</button>
+      <div className="panel-tab-bar" style={{ marginBottom: 12 }}>
+        <button className={`panel-tab ${tab === "health" ? "active" : ""}`} onClick={() => setTab("health")}>Health</button>
+        <button className={`panel-tab ${tab === "samples" ? "active" : ""}`} onClick={() => setTab("samples")}>Samples</button>
+        <button className={`panel-tab ${tab === "alerts" ? "active" : ""}`} onClick={() => setTab("alerts")}>Alerts ({activeAlerts.length})</button>
       </div>
 
       {tab === "health" && (
         <div>
-          <div style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
               <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text-primary)" }}>Session Status</div>
               <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2, fontFamily: "var(--font-mono)" }}>
@@ -199,9 +192,9 @@ export function SessionMemoryPanel() {
             <span style={badgeStyle(statusColors[health.status] || "var(--info-color)")}>{health.status.toUpperCase()}</span>
           </div>
 
-          <div style={cardStyle}>
+          <div className="panel-card">
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-              <span style={labelStyle}>Memory Usage</span>
+              <span className="panel-label">Memory Usage</span>
               <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{health.memoryUsedMb} / {health.memoryLimitMb} MB</span>
             </div>
             <div style={barBg}>
@@ -214,18 +207,18 @@ export function SessionMemoryPanel() {
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-            <div style={cardStyle}>
-              <div style={labelStyle}>Growth Rate</div>
+            <div className="panel-card">
+              <div className="panel-label">Growth Rate</div>
               <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)", color: health.growthRateMbPerMin > 1 ? "var(--warning-color)" : "var(--success-color)" }}>
                 {health.growthRateMbPerMin} MB/min
               </div>
             </div>
-            <div style={cardStyle}>
-              <div style={labelStyle}>Last GC</div>
+            <div className="panel-card">
+              <div className="panel-label">Last GC</div>
               <div style={{ fontSize: 13, fontWeight: 600, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{new Date(health.lastGcAt).toLocaleTimeString()}</div>
             </div>
-            <div style={cardStyle}>
-              <div style={labelStyle}>Active Alerts</div>
+            <div className="panel-card">
+              <div className="panel-label">Active Alerts</div>
               <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)", color: activeAlerts.length > 0 ? "var(--warning-color)" : "var(--success-color)" }}>
                 {activeAlerts.length}
               </div>
@@ -236,11 +229,11 @@ export function SessionMemoryPanel() {
 
       {tab === "samples" && (
         <div>
-          {samples.length === 0 && <div style={cardStyle}>No memory samples recorded yet.</div>}
+          {samples.length === 0 && <div className="panel-empty">No memory samples recorded yet.</div>}
           {samples.length > 0 && (
             <>
-              <div style={cardStyle}>
-                <div style={labelStyle}>Memory Timeline (heap used)</div>
+              <div className="panel-card">
+                <div className="panel-label">Memory Timeline (heap used)</div>
                 <div style={{ marginTop: 8 }}>
                   {samples.map((s) => {
                     const pct = (s.heapUsedMb / maxHeap) * 100;
@@ -257,8 +250,8 @@ export function SessionMemoryPanel() {
                 </div>
               </div>
 
-              <div style={cardStyle}>
-                <div style={labelStyle}>Detailed Samples</div>
+              <div className="panel-card">
+                <div className="panel-label">Detailed Samples</div>
                 <div style={{ overflowX: "auto" }}>
                   <table style={{ width: "100%", borderCollapse: "collapse" }}>
                     <thead>
@@ -293,17 +286,17 @@ export function SessionMemoryPanel() {
 
       {tab === "alerts" && (
         <div>
-          {alerts.length === 0 && <div style={cardStyle}>No memory alerts recorded.</div>}
-          {activeAlerts.length === 0 && alerts.length > 0 && <div style={{ ...cardStyle, color: "var(--success-color)" }}>All alerts resolved.</div>}
+          {alerts.length === 0 && <div className="panel-empty">No memory alerts recorded.</div>}
+          {activeAlerts.length === 0 && alerts.length > 0 && <div className="panel-card" style={{ color: "var(--success-color)" }}>All alerts resolved.</div>}
           {alerts.map((a) => (
-            <div key={a.id} style={{ ...cardStyle, opacity: a.resolved ? 0.5 : 1 }}>
+            <div key={a.id} className="panel-card" style={{ opacity: a.resolved ? 0.5 : 1 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={badgeStyle(severityColors[a.severity])}>{a.severity}</span>
                   <span style={badgeStyle("var(--bg-tertiary)")}>{typeLabels[a.type]}</span>
                 </div>
                 {!a.resolved && (
-                  <button style={{ ...btnStyle, fontSize: 10, padding: "3px 8px" }} onClick={() => resolveAlert(a.id)}>Resolve</button>
+                  <button className="panel-btn panel-btn-secondary" style={{ fontSize: 10, padding: "3px 8px" }} onClick={() => resolveAlert(a.id)}>Resolve</button>
                 )}
               </div>
               <div style={{ marginTop: 6, color: "var(--text-primary)" }}>{a.message}</div>

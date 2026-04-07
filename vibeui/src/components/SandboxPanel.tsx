@@ -131,8 +131,9 @@ export function SandboxPanel() {
   };
 
   return (
-    <div style={{ padding: "12px", height: "100%", overflow: "auto", color: "var(--text-secondary)", fontSize: 13 }}>
-      <h3 style={{ margin: "0 0 12px", color: "var(--text-primary)" }}>Container Sandbox</h3>
+    <div className="panel-container">
+      <div className="panel-header">Container Sandbox</div>
+      <div className="panel-body" style={{ color: "var(--text-secondary)", fontSize: 13 }}>
 
       {error && <div className="panel-error" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", marginBottom: 12, background: "var(--error-color)", borderRadius: 4, color: "var(--btn-primary-fg)", fontSize: 12 }}><span>{error}</span><button onClick={() => setError(null)} style={{ background: "none", border: "none", color: "var(--btn-primary-fg)", cursor: "pointer", fontSize: 14 }}>&#x2715;</button></div>}
 
@@ -148,7 +149,7 @@ export function SandboxPanel() {
         ) : (
           <span style={{ color: "var(--text-secondary)" }}>Detecting...</span>
         )}
-        <button onClick={detectRuntimes} style={btnStyle} title="Refresh">Refresh</button>
+        <button onClick={detectRuntimes} className="panel-btn panel-btn-secondary" title="Refresh">Refresh</button>
       </div>
 
       {/* Create Sandbox Form */}
@@ -175,7 +176,7 @@ export function SandboxPanel() {
               <option value="none">None</option>
             </select>
           </label>
-          <button onClick={handleCreate} disabled={loading} style={{ ...btnStyle, background: "var(--accent-color)" }}>
+          <button onClick={handleCreate} disabled={loading} className="panel-btn panel-btn-primary">
             {loading ? "Starting..." : "Start"}
           </button>
         </div>
@@ -185,7 +186,7 @@ export function SandboxPanel() {
       <div style={{ marginBottom: 16 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
           <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>Running Instances ({instances.length})</span>
-          <button onClick={refreshInstances} style={btnStyle}>Refresh</button>
+          <button onClick={refreshInstances} className="panel-btn panel-btn-secondary">Refresh</button>
         </div>
         {instances.length === 0 ? (
           <div style={{ color: "var(--text-secondary)", fontStyle: "italic" }}>No sandbox containers running.</div>
@@ -243,7 +244,7 @@ export function SandboxPanel() {
                 style={{ ...inputStyle, flex: 1 }}
                 placeholder="ls -la /workspace"
               />
-              <button onClick={handleExec} style={btnStyle}>Run</button>
+              <button onClick={handleExec} className="panel-btn panel-btn-primary">Run</button>
             </div>
             {execOutput && (
               <pre style={{
@@ -263,8 +264,9 @@ export function SandboxPanel() {
             )}
           </>
         ) : (
-          <div style={{ color: "var(--text-secondary)", fontStyle: "italic" }}>Start a sandbox to use the exec console.</div>
+          <div className="panel-empty">Start a sandbox to use the exec console.</div>
         )}
+      </div>
       </div>
     </div>
   );
@@ -291,15 +293,6 @@ function RuntimeBadge({ name, version, active }: { name: string; version: string
   );
 }
 
-const btnStyle: React.CSSProperties = {
-  background: "var(--bg-secondary)",
-  color: "var(--text-secondary)",
-  border: "1px solid var(--border-color)",
-  borderRadius: 4,
-  padding: "4px 10px",
-  cursor: "pointer",
-  fontSize: 12,
-};
 
 const smallBtn: React.CSSProperties = {
   background: "transparent",

@@ -17,51 +17,6 @@ interface ScanRecord {
   duration: string;
 }
 
-const panelStyle: React.CSSProperties = {
-  padding: 16,
-  height: "100%",
-  overflow: "auto",
-  color: "var(--text-primary)",
-  background: "var(--bg-primary)",
-};
-
-const headingStyle: React.CSSProperties = {
-  fontSize: 18,
-  fontWeight: 600,
-  marginBottom: 12,
-  color: "var(--text-primary)",
-};
-
-const cardStyle: React.CSSProperties = {
-  background: "var(--bg-secondary)",
-  borderRadius: 8,
-  padding: 12,
-  marginBottom: 8,
-  border: "1px solid var(--border-color)",
-};
-
-const btnStyle: React.CSSProperties = {
-  padding: "6px 14px",
-  borderRadius: 6,
-  border: "1px solid var(--border-color)",
-  background: "var(--accent-color)",
-  color: "var(--btn-primary-fg, #fff)",
-  cursor: "pointer",
-  fontSize: 13,
-  marginRight: 8,
-};
-
-const tabStyle = (active: boolean): React.CSSProperties => ({
-  padding: "8px 16px",
-  cursor: "pointer",
-  borderBottom: active ? "2px solid var(--accent-color)" : "2px solid transparent",
-  color: active ? "var(--accent-color)" : "var(--text-secondary)",
-  background: "transparent",
-  border: "none",
-  fontSize: 13,
-  fontWeight: active ? 600 : 400,
-});
-
 const badgeStyle = (color: string): React.CSSProperties => ({
   display: "inline-block",
   padding: "2px 8px",
@@ -144,43 +99,43 @@ export function ProactivePanel() {
   const total = suggestions.length;
   const categories = [...new Set(suggestions.map((s) => s.category))];
 
-  if (loading) return <div style={panelStyle}><div style={{ color: "var(--text-secondary)", fontSize: 13 }}>Loading proactive intelligence...</div></div>;
-  if (error) return <div style={panelStyle}><div style={{ color: "var(--error-color)", fontSize: 13 }}>Error: {error}</div></div>;
+  if (loading) return <div className="panel-container"><div className="panel-loading">Loading proactive intelligence...</div></div>;
+  if (error) return <div className="panel-container"><div className="panel-error">Error: {error}</div></div>;
 
   return (
-    <div style={panelStyle}>
-      <h2 style={headingStyle}>Proactive Agent Intelligence</h2>
-      <div style={{ display: "flex", gap: 0, borderBottom: "1px solid var(--border-color)", marginBottom: 16 }}>
-        <button style={tabStyle(tab === "suggestions")} onClick={() => setTab("suggestions")}>Suggestions</button>
-        <button style={tabStyle(tab === "scan")} onClick={() => setTab("scan")}>Scan</button>
-        <button style={tabStyle(tab === "learning")} onClick={() => setTab("learning")}>Learning</button>
-        <button style={tabStyle(tab === "config")} onClick={() => setTab("config")}>Config</button>
+    <div className="panel-container">
+      <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 12, color: "var(--text-primary)" }}>Proactive Agent Intelligence</h2>
+      <div className="panel-tab-bar" style={{ marginBottom: 16 }}>
+        <button className={`panel-tab ${tab === "suggestions" ? "active" : ""}`} onClick={() => setTab("suggestions")}>Suggestions</button>
+        <button className={`panel-tab ${tab === "scan" ? "active" : ""}`} onClick={() => setTab("scan")}>Scan</button>
+        <button className={`panel-tab ${tab === "learning" ? "active" : ""}`} onClick={() => setTab("learning")}>Learning</button>
+        <button className={`panel-tab ${tab === "config" ? "active" : ""}`} onClick={() => setTab("config")}>Config</button>
       </div>
 
       {tab === "suggestions" && (
         <div>
           {suggestions.filter((s) => s.status === "pending").map((s) => (
-            <div key={s.id} style={cardStyle}>
+            <div key={s.id} className="panel-card">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                 <strong>{s.title}</strong>
                 <span style={badgeStyle(priorityColor[s.priority])}>{s.priority}</span>
               </div>
               <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8 }}>{s.description}</div>
               <div>
-                <button style={btnStyle} onClick={() => handleAction(s.id, "accepted")}>Accept</button>
-                <button style={{ ...btnStyle, background: "var(--error-color)" }} onClick={() => handleAction(s.id, "rejected")}>Reject</button>
+                <button className="panel-btn panel-btn-primary" onClick={() => handleAction(s.id, "accepted")}>Accept</button>
+                <button className="panel-btn panel-btn-danger" onClick={() => handleAction(s.id, "rejected")}>Reject</button>
               </div>
             </div>
           ))}
           {suggestions.filter((s) => s.status === "pending").length === 0 && (
-            <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>No pending suggestions</div>
+            <div className="panel-empty">No pending suggestions</div>
           )}
         </div>
       )}
 
       {tab === "scan" && (
         <div>
-          <button style={btnStyle} onClick={handleScan}>Trigger Scan</button>
+          <button className="panel-btn panel-btn-primary" onClick={handleScan}>Trigger Scan</button>
           <table style={{ width: "100%", fontSize: 13, marginTop: 12, borderCollapse: "collapse" }}>
             <thead><tr style={{ borderBottom: "1px solid var(--border-color)" }}>
               <th style={{ textAlign: "left", padding: 8 }}>Time</th>
@@ -200,18 +155,18 @@ export function ProactivePanel() {
 
       {tab === "learning" && (
         <div>
-          <div style={cardStyle}>
+          <div className="panel-card">
             <div style={{ fontWeight: 600, marginBottom: 8 }}>Acceptance Rate</div>
             <div style={{ fontSize: 24, fontWeight: 700 }}>{total > 0 ? ((accepted / total) * 100).toFixed(0) : 0}%</div>
             <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{accepted} accepted / {rejected} rejected / {total} total</div>
           </div>
           {digest && (
-            <div style={cardStyle}>
+            <div className="panel-card">
               <div style={{ fontWeight: 600, marginBottom: 8 }}>Digest</div>
               <pre style={{ fontSize: 12, color: "var(--text-secondary)", whiteSpace: "pre-wrap" }}>{JSON.stringify(digest, null, 2)}</pre>
             </div>
           )}
-          <div style={cardStyle}>
+          <div className="panel-card">
             <div style={{ fontWeight: 600, marginBottom: 8 }}>Top Patterns by Category</div>
             {categories.map((c) => {
               const count = suggestions.filter((s) => s.category === c).length;
@@ -223,7 +178,7 @@ export function ProactivePanel() {
 
       {tab === "config" && (
         <div>
-          <div style={cardStyle}>
+          <div className="panel-card">
             <div style={{ fontWeight: 600, marginBottom: 8 }}>Scan Cadence</div>
             <select value={cadence} onChange={(e) => setCadence(e.target.value)} style={{ padding: 8, borderRadius: 6, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)", fontSize: 13 }}>
               <option value="realtime">Real-time</option>
@@ -232,11 +187,11 @@ export function ProactivePanel() {
               <option value="manual">Manual only</option>
             </select>
           </div>
-          <div style={cardStyle}>
+          <div className="panel-card">
             <div style={{ fontWeight: 600, marginBottom: 8 }}>Min Confidence: {minConfidence}%</div>
             <input type="range" min={0} max={100} value={minConfidence} onChange={(e) => setMinConfidence(Number(e.target.value))} style={{ width: "100%" }} />
           </div>
-          <div style={cardStyle}>
+          <div className="panel-card">
             <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
               <input type="checkbox" checked={quietMode} onChange={(e) => setQuietMode(e.target.checked)} />
               <span style={{ fontWeight: 600 }}>Quiet Mode (suppress notifications)</span>

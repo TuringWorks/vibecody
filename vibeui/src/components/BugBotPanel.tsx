@@ -105,9 +105,9 @@ export function BugBotPanel({ workspacePath, provider, onOpenFile }: BugBotPanel
  );
 
  return (
- <div style={{ display: "flex", flexDirection: "column", height: "100%", padding: 10, gap: 10, fontSize: 13 }}>
- {/* Header */}
- <div style={{ fontWeight: 600, fontSize: 14 }}>BugBot — AI Code Scanner</div>
+ <div className="panel-container">
+ <div className="panel-header">BugBot — AI Code Scanner</div>
+ <div className="panel-body" style={{ gap: 10, display: "flex", flexDirection: "column", fontSize: 13 }}>
  <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>
  Automatically detects bugs, security vulnerabilities, and code smells using AI.
  </p>
@@ -124,37 +124,11 @@ export function BugBotPanel({ workspacePath, provider, onOpenFile }: BugBotPanel
  <option value="file">Specific File</option>
  </select>
  {scanning ? (
- <button
- onClick={handleSuspend}
- style={{
- padding: "5px 14px",
- borderRadius: 5,
- border: "none",
- background: "var(--error-color)",
- color: "var(--text-primary)",
- cursor: "pointer",
- fontWeight: 600,
- fontSize: 12,
- flexShrink: 0,
- }}
- >
+ <button onClick={handleSuspend} className="panel-btn panel-btn-danger" style={{ flexShrink: 0 }}>
  Suspend
  </button>
  ) : (
- <button
- onClick={runScan}
- style={{
- padding: "5px 14px",
- borderRadius: 5,
- border: "none",
- background: "var(--accent-blue)",
- color: "var(--text-primary)",
- cursor: "pointer",
- fontWeight: 600,
- fontSize: 12,
- flexShrink: 0,
- }}
- >
+ <button onClick={runScan} className="panel-btn panel-btn-primary" style={{ flexShrink: 0 }}>
  Run Scan
  </button>
  )}
@@ -330,6 +304,7 @@ export function BugBotPanel({ workspacePath, provider, onOpenFile }: BugBotPanel
  {reports.length} issue{reports.length !== 1 ? "s" : ""} found — click any issue to expand
  </div>
  )}
+ </div>
  </div>
  );
 }

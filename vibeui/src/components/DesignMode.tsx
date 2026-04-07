@@ -379,14 +379,14 @@ try {
   const renderFigma = () => (
     <div style={{ ...panelStyle, maxWidth: 500, margin: "0 auto" }}>
       <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 12 }}>Import from Figma</div>
-      <label style={{ fontSize: 12, display: "block", marginBottom: 4, color: "var(--text-secondary)" }}>Figma File URL</label>
+      <label className="panel-label" style={{ display: "block" }}>Figma File URL</label>
       <input
         value={figmaUrl}
         onChange={(e) => setFigmaUrl(e.target.value)}
         placeholder="https://www.figma.com/file/..."
         style={{ width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 6, color: "inherit", padding: "8px 10px", fontSize: 13, marginBottom: 14, boxSizing: "border-box" }}
       />
-      <label style={{ fontSize: 12, display: "block", marginBottom: 4, color: "var(--text-secondary)" }}>Figma API Token</label>
+      <label className="panel-label" style={{ display: "block" }}>Figma API Token</label>
       <input
         type="password"
         value={figmaToken}

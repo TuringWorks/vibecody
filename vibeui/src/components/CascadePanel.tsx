@@ -79,18 +79,10 @@ export function CascadePanel({ onInjectContext }: CascadePanelProps) {
  const filters: FilterKind[] = ["all", "chat", "inline_edit", "agent_step", "agent_complete", "terminal_cmd", "file_edit"];
 
  return (
- <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "var(--bg-primary)" }}>
+ <div className="panel-container">
 
  {/* ── Header ────────────────────────────────────────────────────────── */}
- <div style={{
- display: "flex",
- alignItems: "center",
- justifyContent: "space-between",
- padding: "8px 12px",
- borderBottom: "1px solid var(--border-color)",
- background: "var(--bg-secondary)",
- flexShrink: 0,
- }}>
+ <div className="panel-header" style={{ justifyContent: "space-between" }}>
  <span style={{ fontWeight: 600, fontSize: 13, color: "var(--text-primary)" }}>
  Cascade Flow
  </span>
@@ -99,14 +91,14 @@ export function CascadePanel({ onInjectContext }: CascadePanelProps) {
  <>
  <button
  onClick={handleCopyAll}
- style={btnStyle}
+ className="panel-btn panel-btn-secondary"
  title="Copy all events as AI context"
  >
  {copied ? "✓ Copied" : "Copy All"}
  </button>
  <button
  onClick={() => flowContext.clear()}
- style={{ ...btnStyle, color: "var(--text-danger)" }}
+ className="panel-btn panel-btn-danger"
  title="Clear flow history"
  >
  Clear
@@ -117,28 +109,12 @@ export function CascadePanel({ onInjectContext }: CascadePanelProps) {
  </div>
 
  {/* ── Filter bar ────────────────────────────────────────────────────── */}
- <div style={{
- display: "flex",
- gap: 4,
- padding: "6px 10px",
- borderBottom: "1px solid var(--border-color)",
- flexWrap: "wrap",
- flexShrink: 0,
- background: "var(--bg-secondary)",
- }}>
+ <div className="panel-tab-bar" style={{ padding: "6px 10px", flexWrap: "wrap" }}>
  {filters.map((f) => (
  <button
  key={f}
  onClick={() => setFilter(f)}
- style={{
- padding: "2px 8px",
- fontSize: 11,
- borderRadius: 10,
- border: "1px solid var(--border-color)",
- background: filter === f ? "var(--accent-color)" : "transparent",
- color: filter === f ? "var(--text-primary)" : "var(--text-secondary)",
- cursor: "pointer",
- }}
+ className={`panel-tab ${filter === f ? "active" : ""}`}
  >
  {f === "all" ? "All" : KIND_LABELS[f as FlowEventKind]}
  </button>
@@ -146,7 +122,7 @@ export function CascadePanel({ onInjectContext }: CascadePanelProps) {
  </div>
 
  {/* ── Timeline ──────────────────────────────────────────────────────── */}
- <div style={{ flex: 1, overflowY: "auto", padding: "8px 0" }}>
+ <div className="panel-body" style={{ padding: "8px 0" }}>
  {visible.length === 0 ? (
  <div style={{
  padding: 24,
@@ -279,7 +255,8 @@ function FlowEventRow({
  {showInject && (
  <button
  onClick={(e) => { e.stopPropagation(); onInject(); }}
- style={{ ...btnStyle, fontSize: 10 }}
+ className="panel-btn panel-btn-secondary"
+ style={{ fontSize: 10 }}
  title="Inject this event's content into chat"
  >
  Inject
@@ -296,14 +273,3 @@ function FlowEventRow({
  );
 }
 
-// ── Shared styles ─────────────────────────────────────────────────────────────
-
-const btnStyle: React.CSSProperties = {
- padding: "2px 8px",
- fontSize: 11,
- borderRadius: 4,
- border: "1px solid var(--border-color)",
- background: "transparent",
- color: "var(--text-secondary)",
- cursor: "pointer",
-};

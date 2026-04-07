@@ -19,51 +19,6 @@ interface DrawnShape {
   text?: string;
 }
 
-const panelStyle: React.CSSProperties = {
-  padding: 16,
-  height: "100%",
-  overflow: "auto",
-  color: "var(--text-primary)",
-  background: "var(--bg-primary)",
-};
-
-const headingStyle: React.CSSProperties = {
-  fontSize: 18,
-  fontWeight: 600,
-  marginBottom: 12,
-  color: "var(--text-primary)",
-};
-
-const cardStyle: React.CSSProperties = {
-  background: "var(--bg-secondary)",
-  borderRadius: 8,
-  padding: 12,
-  marginBottom: 8,
-  border: "1px solid var(--border-color)",
-};
-
-const btnStyle: React.CSSProperties = {
-  padding: "6px 14px",
-  borderRadius: 6,
-  border: "1px solid var(--border-color)",
-  background: "var(--accent-color)",
-  color: "var(--btn-primary-fg, #fff)",
-  cursor: "pointer",
-  fontSize: 13,
-  marginRight: 8,
-};
-
-const tabStyle = (active: boolean): React.CSSProperties => ({
-  padding: "8px 16px",
-  cursor: "pointer",
-  borderBottom: active ? "2px solid var(--accent-color)" : "2px solid transparent",
-  color: active ? "var(--accent-color)" : "var(--text-secondary)",
-  background: "transparent",
-  border: "none",
-  fontSize: 13,
-  fontWeight: active ? 600 : 400,
-});
-
 const toolBtnStyle = (active: boolean): React.CSSProperties => ({
   padding: "8px 12px",
   borderRadius: 6,
@@ -451,11 +406,11 @@ export function SketchCanvasPanel() {
   const confColor = (c: number) => c >= 85 ? "var(--success-color)" : c >= 70 ? "var(--warning-color)" : "var(--error-color)";
 
   return (
-    <div style={panelStyle}>
-      <h2 style={headingStyle}>Sketch Canvas</h2>
-      <div style={{ display: "flex", gap: 0, borderBottom: "1px solid var(--border-color)", marginBottom: 16 }}>
+    <div className="panel-container">
+      <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 12, color: "var(--text-primary)" }}>Sketch Canvas</h2>
+      <div className="panel-tab-bar" style={{ marginBottom: 16 }}>
         {["canvas", "recognize", "code", "export"].map((t) => (
-          <button key={t} style={tabStyle(tab === t)} onClick={() => setTab(t)}>
+          <button key={t} className={`panel-tab ${tab === t ? "active" : ""}`} onClick={() => setTab(t)}>
             {t.charAt(0).toUpperCase() + t.slice(1)}
           </button>
         ))}
@@ -481,10 +436,10 @@ export function SketchCanvasPanel() {
             />
           ))}
           <span style={{ width: 1, height: 24, background: "var(--border-color)", margin: "0 4px" }} />
-          <button style={{ ...btnStyle, background: "transparent", color: "var(--text-primary)" }} onClick={handleUndo} disabled={shapes.length === 0}>
+          <button className="panel-btn panel-btn-secondary" style={{ background: "transparent", color: "var(--text-primary)" }} onClick={handleUndo} disabled={shapes.length === 0}>
             Undo
           </button>
-          <button style={{ ...btnStyle, background: "transparent", color: "var(--text-primary)" }} onClick={handleClear} disabled={shapes.length === 0}>
+          <button className="panel-btn panel-btn-secondary" style={{ background: "transparent", color: "var(--text-primary)" }} onClick={handleClear} disabled={shapes.length === 0}>
             Clear
           </button>
           <span style={{ fontSize: 11, color: "var(--text-secondary)", marginLeft: "auto" }}>
@@ -538,15 +493,15 @@ export function SketchCanvasPanel() {
       {tab === "recognize" && (
         <div>
           <div style={{ marginBottom: 12 }}>
-            <button style={btnStyle} onClick={handleRecognize} disabled={recognizing || shapes.length === 0}>
+            <button className="panel-btn panel-btn-primary" onClick={handleRecognize} disabled={recognizing || shapes.length === 0}>
               {recognizing ? "Recognizing..." : `Recognize (${shapes.length} shapes)`}
             </button>
           </div>
-          {recognizing && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>Analyzing shapes...</div>}
-          {!recognizing && shapes.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>Draw shapes on the canvas first.</div>}
+          {recognizing && <div className="panel-loading">Analyzing shapes...</div>}
+          {!recognizing && shapes.length === 0 && <div className="panel-empty">Draw shapes on the canvas first.</div>}
           {!recognizing && shapes.length > 0 && recognized.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>Click Recognize to analyze your sketch.</div>}
           {recognized.map((r, i) => (
-            <div key={i} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div key={i} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <span style={{ fontWeight: 600, fontSize: 13 }}>{r.shape}</span>
                 <span style={{ fontSize: 12, color: "var(--text-secondary)", marginLeft: 8 }}>at ({r.x}, {r.y})</span>
@@ -565,22 +520,19 @@ export function SketchCanvasPanel() {
           <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
             {["react", "html", "swiftui"].map((f) => (
               <button key={f} onClick={() => setFramework(f)}
-                style={{ ...btnStyle, background: framework === f ? "var(--accent-color)" : "transparent", color: framework === f ? "var(--btn-primary-fg, #fff)" : "var(--text-primary)", border: "1px solid var(--border-color)" }}>
+                className={`panel-btn ${framework === f ? "panel-btn-primary" : "panel-btn-secondary"}`}>
                 {f === "swiftui" ? "SwiftUI" : f === "html" ? "HTML" : "React"}
               </button>
             ))}
-            <button style={btnStyle} onClick={handleGenerate} disabled={generating || shapes.length === 0}>
+            <button className="panel-btn panel-btn-primary" onClick={handleGenerate} disabled={generating || shapes.length === 0}>
               {generating ? "Generating..." : `Generate Code (${shapes.length} shapes)`}
             </button>
           </div>
-          {generating && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>Generating code...</div>}
-          {!generating && !generatedCode && shapes.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>Draw shapes on the canvas first.</div>}
+          {generating && <div className="panel-loading">Generating code...</div>}
+          {!generating && !generatedCode && shapes.length === 0 && <div className="panel-empty">Draw shapes on the canvas first.</div>}
           {!generating && !generatedCode && shapes.length > 0 && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>Click Generate Code to create SVG-based code from your sketch.</div>}
           {generatedCode && (
-            <pre style={{
-              ...cardStyle, fontFamily: "monospace", fontSize: 12, whiteSpace: "pre-wrap",
-              lineHeight: 1.5, maxHeight: 400, overflow: "auto",
-            }}>
+            <pre className="panel-card" style={{ fontFamily: "monospace", fontSize: 12, whiteSpace: "pre-wrap", lineHeight: 1.5, maxHeight: 400, overflow: "auto" }}>
               {generatedCode}
             </pre>
           )}
@@ -589,19 +541,19 @@ export function SketchCanvasPanel() {
 
       {tab === "export" && (
         <div>
-          <div style={cardStyle}>
+          <div className="panel-card">
             <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Export Canvas</div>
             {shapes.length === 0 && <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 8 }}>Draw shapes on the canvas first.</div>}
             <div style={{ display: "flex", gap: 8 }}>
-              <button style={btnStyle} onClick={() => handleExport("svg")} disabled={exporting || shapes.length === 0}>
+              <button className="panel-btn panel-btn-primary" onClick={() => handleExport("svg")} disabled={exporting || shapes.length === 0}>
                 {exporting ? "Exporting..." : "Download SVG"}
               </button>
-              <button style={btnStyle} onClick={() => handleExport("png")} disabled={exporting || shapes.length === 0}>
+              <button className="panel-btn panel-btn-primary" onClick={() => handleExport("png")} disabled={exporting || shapes.length === 0}>
                 {exporting ? "Exporting..." : "Download PNG"}
               </button>
             </div>
           </div>
-          <div style={{ ...cardStyle, fontSize: 13, color: "var(--text-secondary)" }}>
+          <div className="panel-card" style={{ fontSize: 13, color: "var(--text-secondary)" }}>
             {shapes.length} shape{shapes.length !== 1 ? "s" : ""} drawn
           </div>
         </div>

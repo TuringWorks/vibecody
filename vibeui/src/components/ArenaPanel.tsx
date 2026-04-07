@@ -224,7 +224,7 @@ export function ArenaPanel() {
   const sortedStats = [...stats].sort((a, b) => b.win_rate - a.win_rate);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, padding: "12px", gap: "10px", fontSize: "13px" }}>
+    <div className="panel-container" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, padding: "12px", gap: "10px", fontSize: "13px" }}>
       {/* Header */}
       <div style={{ fontWeight: "bold", marginBottom: "2px", display: "flex", alignItems: "center", gap: "8px" }}>
         <span>Arena Mode</span>
@@ -261,13 +261,8 @@ export function ArenaPanel() {
       <button
         onClick={handleBattle}
         disabled={loading || !prompt.trim()}
-        style={{
-          alignSelf: "flex-start",
-          background: loading ? "var(--bg-secondary)" : "var(--accent-color)",
-          color: loading ? "var(--text-primary)" : "white", border: "none", borderRadius: "4px",
-          padding: "6px 18px", cursor: loading ? "default" : "pointer",
-          fontWeight: "bold",
-        }}
+        className="panel-btn panel-btn-primary"
+        style={{ alignSelf: "flex-start" }}
       >
         {loading ? "Fighting..." : "Battle"}
       </button>
@@ -354,7 +349,7 @@ export function ArenaPanel() {
 
       {/* Placeholder when idle */}
       {!result && !loading && (
-        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-secondary)", textAlign: "center" }}>
+        <div className="panel-empty" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
           Enter a prompt and click Battle to start a blind comparison.<br />
           Identities are hidden until you vote.
         </div>

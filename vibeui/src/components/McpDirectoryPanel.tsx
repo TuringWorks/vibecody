@@ -29,13 +29,6 @@ const CATEGORIES = ["All", "File Systems", "Git", "Databases", "Cloud", "AI/ML",
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", flex: 1, minHeight: 0, overflow: "auto", background: "var(--bg-primary)" };
-const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" };
-const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-color)" };
-const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
-const btnStyle: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", cursor: "pointer", fontSize: 12 };
-const tabBtnStyle = (active: boolean): React.CSSProperties => ({ ...btnStyle, background: active ? "var(--accent-primary)" : "var(--bg-tertiary)", color: active ? "var(--text-primary)" : "var(--text-primary)", marginRight: 4 });
-
 const inputStyle: React.CSSProperties = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: 12, fontFamily: "var(--font-family)", boxSizing: "border-box" };
 const selectStyle: React.CSSProperties = { ...inputStyle, width: "auto", cursor: "pointer" };
 
@@ -142,7 +135,7 @@ export function McpDirectoryPanel() {
   const renderPluginCard = (plugin: McpPlugin, showInstallBtn: boolean) => {
     const isActioning = actionInProgress === plugin.id;
     return (
-      <div key={plugin.id} style={cardStyle}>
+      <div key={plugin.id} className="panel-card">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 600 }}>{plugin.name} <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>v{plugin.version}</span></div>
@@ -156,7 +149,7 @@ export function McpDirectoryPanel() {
           <div style={{ display: "flex", gap: 6 }}>
             {showInstallBtn && !plugin.installed && (
               <button
-                style={{ ...btnStyle, background: "var(--accent-primary)", color: "var(--text-primary)" }}
+                className="panel-btn panel-btn-primary"
                 onClick={() => handleInstall(plugin.id)}
                 disabled={isActioning}
               >
@@ -164,11 +157,11 @@ export function McpDirectoryPanel() {
               </button>
             )}
             {plugin.installed && plugin.updatable && (
-              <button style={{ ...btnStyle, background: "var(--warning-color)", color: "var(--text-primary)" }} onClick={() => updatePlugin(plugin.id)}>Update</button>
+              <button className="panel-btn panel-btn-secondary" style={{ background: "var(--warning-color)", color: "var(--text-primary)" }} onClick={() => updatePlugin(plugin.id)}>Update</button>
             )}
             {plugin.installed && (
               <button
-                style={{ ...btnStyle, background: "var(--error-color)", color: "var(--text-primary)" }}
+                className="panel-btn panel-btn-danger"
                 onClick={() => handleUninstall(plugin.id)}
                 disabled={isActioning}
               >
@@ -182,27 +175,27 @@ export function McpDirectoryPanel() {
   };
 
   return (
-    <div style={panelStyle}>
-      <h2 style={headingStyle}>MCP Plugin Directory</h2>
+    <div className="panel-container">
+      <h2 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>MCP Plugin Directory</h2>
 
       {error && (
-        <div style={{ ...cardStyle, borderColor: "var(--error-color)", color: "var(--error-color)", fontSize: 12, marginBottom: 12 }}>
+        <div className="panel-error" style={{ marginBottom: 12 }}>
           {error}
-          <button style={{ ...btnStyle, marginLeft: 8, fontSize: 11 }} onClick={() => setError(null)}>Dismiss</button>
+          <button className="panel-btn panel-btn-secondary" style={{ marginLeft: 8, fontSize: 11 }} onClick={() => setError(null)}>Dismiss</button>
         </div>
       )}
 
-      <div style={{ marginBottom: 12 }}>
-        <button style={tabBtnStyle(tab === "browse")} onClick={() => setTab("browse")}>Browse</button>
-        <button style={tabBtnStyle(tab === "installed")} onClick={() => setTab("installed")}>Installed ({installedPlugins.length})</button>
-        <button style={tabBtnStyle(tab === "search")} onClick={() => setTab("search")}>Search</button>
+      <div className="panel-tab-bar" style={{ marginBottom: 12 }}>
+        <button className={`panel-tab ${tab === "browse" ? "active" : ""}`} onClick={() => setTab("browse")}>Browse</button>
+        <button className={`panel-tab ${tab === "installed" ? "active" : ""}`} onClick={() => setTab("installed")}>Installed ({installedPlugins.length})</button>
+        <button className={`panel-tab ${tab === "search" ? "active" : ""}`} onClick={() => setTab("search")}>Search</button>
       </div>
 
-      {loading && <div style={cardStyle}>Loading plugins...</div>}
+      {loading && <div className="panel-loading">Loading plugins...</div>}
 
       {!loading && tab === "browse" && (
         <div>
-          <div style={{ ...cardStyle, fontSize: 12 }}>
+          <div className="panel-card" style={{ fontSize: 12 }}>
             {plugins.length} plugins available | {installedPlugins.length} installed
           </div>
           {browsePlugins.map((p) => renderPluginCard(p, true))}
@@ -212,13 +205,13 @@ export function McpDirectoryPanel() {
       {!loading && tab === "installed" && (
         <div>
           {installedPlugins.length === 0 && (
-            <div style={cardStyle}>
+            <div className="panel-card">
               <div style={{ textAlign: "center", padding: "16px 0" }}>
                 <div style={{ fontSize: 14, marginBottom: 6 }}>No MCP plugins installed</div>
                 <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 10 }}>
                   Browse the directory to find and install plugins.
                 </div>
-                <button style={{ ...btnStyle, background: "var(--accent-primary, #0e639c)", color: "var(--btn-primary-fg)" }} onClick={() => setTab("browse")}>
+                <button className="panel-btn panel-btn-primary" onClick={() => setTab("browse")}>
                   Browse Directory
                 </button>
               </div>
@@ -228,7 +221,7 @@ export function McpDirectoryPanel() {
           {installedPlugins.length > 0 && (
             <>
               {/* Summary */}
-              <div style={{ ...cardStyle, display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+              <div className="panel-card" style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
                 <span>{installedPlugins.length} plugin{installedPlugins.length !== 1 ? "s" : ""} installed</span>
                 {installedPlugins.some(p => p.updatable) && (
                   <span style={{ color: "var(--warning-color, #cca700)" }}>
@@ -239,7 +232,7 @@ export function McpDirectoryPanel() {
 
               {/* Plugin cards with status and config info */}
               {installedPlugins.map((p) => (
-                <div key={p.id} style={{ ...cardStyle, borderLeft: `3px solid ${p.updatable ? "var(--warning-color, #cca700)" : "var(--accent-green)"}` }}>
+                <div key={p.id} className="panel-card" style={{ borderLeft: `3px solid ${p.updatable ? "var(--warning-color, #cca700)" : "var(--accent-green)"}` }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -268,7 +261,8 @@ export function McpDirectoryPanel() {
                     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                       {p.updatable && (
                         <button
-                          style={{ ...btnStyle, background: "var(--warning-color, #cca700)", color: "var(--btn-primary-fg)", fontSize: 11 }}
+                          className="panel-btn panel-btn-secondary"
+                          style={{ background: "var(--warning-color, #cca700)", color: "var(--btn-primary-fg)", fontSize: 11 }}
                           onClick={() => handleInstall(p.id)}
                           disabled={actionInProgress === p.id}
                         >
@@ -276,7 +270,8 @@ export function McpDirectoryPanel() {
                         </button>
                       )}
                       <button
-                        style={{ ...btnStyle, borderColor: "var(--accent-rose)", color: "var(--accent-rose)", fontSize: 11 }}
+                        className="panel-btn panel-btn-secondary"
+                        style={{ borderColor: "var(--accent-rose)", color: "var(--accent-rose)", fontSize: 11 }}
                         onClick={() => handleUninstall(p.id)}
                         disabled={actionInProgress === p.id}
                       >
@@ -299,8 +294,8 @@ export function McpDirectoryPanel() {
               {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
-          {searchResults.length === 0 && <div style={cardStyle}>No plugins match your search.</div>}
-          <div style={labelStyle}>{searchResults.length} result(s)</div>
+          {searchResults.length === 0 && <div className="panel-empty">No plugins match your search.</div>}
+          <div className="panel-label">{searchResults.length} result(s)</div>
           {searchResults.map((p) => renderPluginCard(p, true))}
         </div>
       )}

@@ -99,9 +99,9 @@ export function CheckpointPanel({ workspacePath }: CheckpointPanelProps) {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+    <div className="panel-container">
       {/* Header */}
-      <div style={{ padding: "12px", borderBottom: "1px solid var(--border-color)" }}>
+      <div className="panel-header" style={{ padding: "12px", flexDirection: "column", alignItems: "stretch" }}>
         <div style={{ fontSize: "11px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-secondary)", marginBottom: "8px" }}>
           Checkpoints
         </div>
@@ -128,13 +128,8 @@ export function CheckpointPanel({ workspacePath }: CheckpointPanelProps) {
           <button
             onClick={createCheckpoint}
             disabled={!label.trim() || loading}
+            className="panel-btn panel-btn-primary"
             style={{
-              padding: "5px 10px",
-              fontSize: "12px",
-              background: "var(--accent-color)",
-              color: "var(--text-primary)",
-              border: "none",
-              borderRadius: "4px",
               cursor: label.trim() && !loading ? "pointer" : "not-allowed",
               opacity: label.trim() && !loading ? 1 : 0.5,
               whiteSpace: "nowrap",
@@ -152,15 +147,15 @@ export function CheckpointPanel({ workspacePath }: CheckpointPanelProps) {
       </div>
 
       {/* Checkpoint list */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "8px 0" }}>
+      <div className="panel-body" style={{ padding: "8px 0" }}>
         {loading && checkpoints.length === 0 && (
-          <div style={{ padding: "16px", color: "var(--text-secondary)", fontSize: "12px", textAlign: "center" }}>
+          <div className="panel-loading">
             Loading…
           </div>
         )}
 
         {!loading && checkpoints.length === 0 && (
-          <div style={{ padding: "16px", color: "var(--text-secondary)", fontSize: "12px", textAlign: "center" }}>
+          <div className="panel-empty">
             No checkpoints yet.{" "}
             <span style={{ opacity: 0.7 }}>Save one above before making risky changes.</span>
           </div>
@@ -206,17 +201,8 @@ export function CheckpointPanel({ workspacePath }: CheckpointPanelProps) {
             <button
               onClick={() => setConfirmRestore(cp)}
               disabled={restoring === cp.index || deleting === cp.index}
-              style={{
-                padding: "3px 8px",
-                fontSize: "11px",
-                background: "var(--bg-secondary)",
-                border: "1px solid var(--border-color)",
-                borderRadius: "3px",
-                color: "var(--text-primary)",
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-                flexShrink: 0,
-              }}
+              className="panel-btn panel-btn-secondary"
+              style={{ whiteSpace: "nowrap", flexShrink: 0 }}
             >
               {restoring === cp.index ? "…" : "Restore"}
             </button>
@@ -226,17 +212,8 @@ export function CheckpointPanel({ workspacePath }: CheckpointPanelProps) {
               onClick={() => setConfirmDelete(cp)}
               disabled={deleting === cp.index || restoring === cp.index}
               title="Delete checkpoint"
-              style={{
-                padding: "3px 7px",
-                fontSize: "11px",
-                background: "transparent",
-                border: "1px solid var(--border-color)",
-                borderRadius: "3px",
-                color: "var(--text-secondary)",
-                cursor: "pointer",
-                flexShrink: 0,
-                lineHeight: 1,
-              }}
+              className="panel-btn panel-btn-danger"
+              style={{ flexShrink: 0, lineHeight: 1, padding: "3px 7px" }}
             >
               {deleting === cp.index ? "…" : "✕"}
             </button>
@@ -274,21 +251,13 @@ export function CheckpointPanel({ workspacePath }: CheckpointPanelProps) {
             <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
               <button
                 onClick={() => setConfirmDelete(null)}
-                style={{
-                  padding: "6px 14px", fontSize: "12px",
-                  background: "var(--bg-primary)", border: "1px solid var(--border-color)",
-                  borderRadius: "4px", color: "var(--text-primary)", cursor: "pointer",
-                }}
+                className="panel-btn panel-btn-secondary"
               >
                 Cancel
               </button>
               <button
                 onClick={() => deleteCheckpoint(confirmDelete.index)}
-                style={{
-                  padding: "6px 14px", fontSize: "12px",
-                  background: "var(--error-color)", border: "none",
-                  borderRadius: "4px", color: "var(--text-primary)", cursor: "pointer",
-                }}
+                className="panel-btn panel-btn-danger"
               >
                 Delete
               </button>
@@ -327,21 +296,13 @@ export function CheckpointPanel({ workspacePath }: CheckpointPanelProps) {
             <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
               <button
                 onClick={() => setConfirmRestore(null)}
-                style={{
-                  padding: "6px 14px", fontSize: "12px",
-                  background: "var(--bg-primary)", border: "1px solid var(--border-color)",
-                  borderRadius: "4px", color: "var(--text-primary)", cursor: "pointer",
-                }}
+                className="panel-btn panel-btn-secondary"
               >
                 Cancel
               </button>
               <button
                 onClick={() => restoreCheckpoint(confirmRestore.index)}
-                style={{
-                  padding: "6px 14px", fontSize: "12px",
-                  background: "var(--accent-color)", border: "none",
-                  borderRadius: "4px", color: "var(--text-primary)", cursor: "pointer",
-                }}
+                className="panel-btn panel-btn-primary"
               >
                 Restore
               </button>

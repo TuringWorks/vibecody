@@ -207,13 +207,13 @@ export function TimestampPanel() {
  const offsets = [-365, -90, -30, -14, -7, -1, 0, 1, 7, 14, 30, 90, 180, 365];
 
  return (
- <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+ <div className="panel-container" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
 
  {/* Header */}
- <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
- <span style={{ fontSize: 13, fontWeight: 600 }}>Timestamp</span>
+ <div className="panel-tab-bar" style={{ padding: "8px 12px", alignItems: "center", flexWrap: "wrap" }}>
+ <span style={{ fontSize: 13, fontWeight: 600, marginRight: 6 }}>Timestamp</span>
  {(["convert","duration","relative","formats"] as SubTab[]).map(t => (
- <button key={t} onClick={() => setSubTab(t)} style={{ padding: "2px 10px", fontSize: 10, borderRadius: 10, background: subTab === t ? "color-mix(in srgb, var(--accent-blue) 20%, transparent)" : "var(--bg-primary)", border: `1px solid ${subTab === t ? "var(--accent-primary)" : "var(--border-color)"}`, color: subTab === t ? "var(--text-info)" : "var(--text-secondary)", cursor: "pointer", fontWeight: subTab === t ? 700 : 400 }}>
+ <button key={t} onClick={() => setSubTab(t)} className={`panel-tab${subTab === t ? " active" : ""}`}>
  {t.charAt(0).toUpperCase() + t.slice(1)}
  </button>
  ))}

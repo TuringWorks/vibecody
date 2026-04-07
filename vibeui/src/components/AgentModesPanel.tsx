@@ -110,53 +110,6 @@ const AgentModesPanel: React.FC = () => {
     }
   };
 
-  const containerStyle: React.CSSProperties = {
-    padding: "16px",
-    color: "var(--text-primary)",
-    backgroundColor: "var(--bg-primary)",
-    fontFamily: "inherit",
-    fontSize: "13px",
-    height: "100%",
-    overflow: "auto",
-  };
-
-  const tabBarStyle: React.CSSProperties = {
-    display: "flex",
-    gap: "4px",
-    borderBottom: "1px solid var(--border-color)",
-    marginBottom: "12px",
-  };
-
-  const tabStyle = (active: boolean): React.CSSProperties => ({
-    padding: "8px 16px",
-    cursor: "pointer",
-    border: "none",
-    background: active ? "var(--bg-secondary)" : "transparent",
-    color: active ? "var(--text-primary)" : "var(--text-secondary)",
-    borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent",
-    fontFamily: "inherit",
-    fontSize: "inherit",
-  });
-
-  const cardStyle: React.CSSProperties = {
-    padding: "12px",
-    marginBottom: "8px",
-    borderRadius: "4px",
-    backgroundColor: "var(--bg-secondary)",
-    border: "1px solid var(--border-color)",
-  };
-
-  const btnStyle: React.CSSProperties = {
-    padding: "4px 10px",
-    border: "1px solid var(--accent-color)",
-    background: "var(--accent-color)",
-    color: "var(--btn-primary-fg)",
-    borderRadius: "3px",
-    cursor: "pointer",
-    fontFamily: "inherit",
-    fontSize: "12px",
-  };
-
   const inputStyle: React.CSSProperties = {
     padding: "4px 8px",
     background: "var(--bg-secondary)",
@@ -170,32 +123,34 @@ const AgentModesPanel: React.FC = () => {
   const tabs = ["modes", "stats", "profiles"];
 
   return (
-    <div style={containerStyle}>
-      <h3 style={{ margin: "0 0 12px" }}>Agent Modes</h3>
+    <div className="panel-container">
+      <div className="panel-header">Agent Modes</div>
       {error && (
-        <div style={{ padding: "8px", marginBottom: "8px", borderRadius: "4px", backgroundColor: "var(--error-bg)", color: "var(--error-color)", fontSize: "12px" }}>
+        <div className="panel-error" style={{ margin: "8px 16px 0" }}>
           {error}
         </div>
       )}
-      <div style={tabBarStyle}>
+      <div className="panel-tab-bar">
         {tabs.map((t) => (
-          <button key={t} style={tabStyle(activeTab === t)} onClick={() => setActiveTab(t)}>
+          <button key={t} className={`panel-tab ${activeTab === t ? "active" : ""}`} onClick={() => setActiveTab(t)}>
             {t === "modes" ? "Mode Select" : t.charAt(0).toUpperCase() + t.slice(1)}
           </button>
         ))}
       </div>
+      <div className="panel-body">
 
-      {loading && <div style={{ padding: "12px", opacity: 0.6 }}>Loading...</div>}
+      {loading && <div className="panel-loading">Loading...</div>}
 
       {!loading && activeTab === "modes" && (
         <div>
           {modes.map((m) => (
             <div
               key={m.id}
+              className="panel-card"
               style={{
-                ...cardStyle,
-                border: activeMode === m.id ? "2px solid var(--accent-color)" : cardStyle.border,
+                border: activeMode === m.id ? "2px solid var(--accent-color)" : undefined,
                 cursor: "pointer",
+                marginBottom: "8px",
               }}
               onClick={() => handleSetMode(m.id)}
             >
@@ -243,14 +198,14 @@ const AgentModesPanel: React.FC = () => {
           <div style={{ marginTop: "12px", fontSize: "12px", opacity: 0.6 }}>
             Total invocations: {stats.reduce((a, s) => a + s.invocations, 0)}
           </div>
-          <button style={{ ...btnStyle, marginTop: "8px" }} onClick={loadStats}>Refresh</button>
+          <button className="panel-btn panel-btn-secondary" style={{ marginTop: "8px" }} onClick={loadStats}>Refresh</button>
         </div>
       )}
 
       {!loading && activeTab === "profiles" && (
         <div>
           {profiles.map((p) => (
-            <div key={p.id} style={cardStyle}>
+            <div key={p.id} className="panel-card" style={{ marginBottom: "8px" }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <strong>{p.name}</strong>
                 <span style={{ fontSize: "12px", opacity: 0.7 }}>Base: {p.baseMode}</span>
@@ -260,7 +215,7 @@ const AgentModesPanel: React.FC = () => {
               </div>
             </div>
           ))}
-          <div style={{ ...cardStyle, marginTop: "12px" }}>
+          <div className="panel-card" style={{ marginTop: "12px" }}>
             <div style={{ fontWeight: 600, marginBottom: "8px" }}>New Profile</div>
             <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
               <input style={{ ...inputStyle, width: "120px" }} placeholder="Name" value={newName} onChange={(e) => setNewName(e.target.value)} />
@@ -271,11 +226,12 @@ const AgentModesPanel: React.FC = () => {
               </select>
               <input style={{ ...inputStyle, width: "80px" }} placeholder="Max tokens" value={newMaxTokens} onChange={(e) => setNewMaxTokens(e.target.value)} />
               <input style={{ ...inputStyle, width: "60px" }} placeholder="Temp" value={newTemp} onChange={(e) => setNewTemp(e.target.value)} />
-              <button style={btnStyle} onClick={addProfile}>Create</button>
+              <button className="panel-btn panel-btn-primary" onClick={addProfile}>Create</button>
             </div>
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };

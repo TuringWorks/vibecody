@@ -114,7 +114,7 @@ export function BrowserAgentPanel() {
                   <div style={{ fontWeight: 600, fontSize: 13 }}>{s.task}</div>
                   <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{s.url}</div>
                 </div>
-                <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 4, background: s.status === "completed" ? "#4caf5022" : s.status === "running" ? "#2196f322" : "#ff980022", color: s.status === "completed" ? "var(--accent-green)" : s.status === "running" ? "var(--accent-blue)" : "var(--accent-gold)" }}>{s.status}</span>
+                <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 4, background: s.status === "completed" ? "var(--success-bg)" : s.status === "running" ? "#2196f322" : "#ff980022", color: s.status === "completed" ? "var(--accent-green)" : s.status === "running" ? "var(--accent-blue)" : "var(--accent-gold)" }}>{s.status}</span>
               </div>
               <div style={{ marginTop: 6, fontSize: 11, color: "var(--text-secondary)" }}>
                 {s.actions} actions | {s.screenshots} screenshots

@@ -134,7 +134,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
  };
 
  return (
- <div style={{ display: "flex", flex: 1, minHeight: 0, background: "var(--bg-primary)", color: "var(--text-primary)" }}>
+ <div className="panel-container" style={{ display: "flex", flex: 1, minHeight: 0 }}>
  {/* Left: Tables list */}
  <div style={{ width: 200, borderRight: "1px solid var(--border-color)", display: "flex", flexDirection: "column" }}>
  {/* Connection area */}
@@ -238,9 +238,9 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
 
  {/* Results table */}
  <div style={{ flex: 1, overflow: "auto", padding: 12 }}>
- {isLoading && <div style={{ opacity: 0.5 }}>Loading…</div>}
+ {isLoading && <div className="panel-loading">Loading…</div>}
  {queryResult?.error && (
- <div style={{ color: "var(--error-color)", fontFamily: "var(--font-mono)", fontSize: 12, padding: 8, background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", borderRadius: 4 }}>
+ <div className="panel-error" style={{ fontFamily: "var(--font-mono)", fontSize: 12, padding: 8 }}>
  {queryResult.error}
  </div>
  )}

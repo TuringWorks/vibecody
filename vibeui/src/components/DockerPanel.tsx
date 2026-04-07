@@ -202,20 +202,14 @@ export function DockerPanel({ workspacePath }: DockerPanelProps) {
  };
 
  return (
- <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+ <div className="panel-container">
  {/* Sub-tab bar */}
- <div style={{ display: "flex", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", flexShrink: 0 }}>
+ <div className="panel-tab-bar">
  {(["containers", "images", "compose"] as SubTab[]).map((t) => (
  <button
  key={t}
  onClick={() => setSubTab(t)}
- style={{
- padding: "6px 14px", fontSize: 12, background: "transparent",
- color: subTab === t ? "var(--text-primary)" : "var(--text-secondary)",
- border: "none",
- borderBottom: subTab === t ? "2px solid var(--accent-blue)" : "2px solid transparent",
- cursor: "pointer", fontWeight: subTab === t ? 600 : 400,
- }}
+ className={`panel-tab ${subTab === t ? "active" : ""}`}
  >
  {t === "containers" ? "Containers"
  : t === "images" ? "Images"
@@ -224,7 +218,7 @@ export function DockerPanel({ workspacePath }: DockerPanelProps) {
  ))}
  </div>
 
- <div style={{ flex: 1, overflow: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+ <div className="panel-body" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
  {error && (
  <StatusMessage variant="error" message={error} inline />
  )}

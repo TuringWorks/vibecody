@@ -62,45 +62,11 @@ const FastContextPanel: React.FC<{ workspacePath?: string | null }> = ({ workspa
     loadCacheStats();
   }, [loadIndexStats, loadCacheStats]);
 
-  const containerStyle: React.CSSProperties = {
-    padding: "16px", color: "var(--text-primary)",
-    backgroundColor: "var(--bg-primary)",
-    fontFamily: "var(--font-mono, monospace)", fontSize: "13px",
-    height: "100%", overflow: "auto",
-  };
-  const tabBarStyle: React.CSSProperties = {
-    display: "flex", gap: "4px", marginBottom: "16px",
-    borderBottom: "1px solid var(--border-color)",
-    paddingBottom: "8px",
-  };
-  const tabStyle = (active: boolean): React.CSSProperties => ({
-    padding: "6px 14px", cursor: "pointer",
-    border: active ? "none" : "1px solid var(--border-color)",
-    backgroundColor: active ? "var(--accent-color)" : "var(--bg-secondary)",
-    color: active ? "var(--btn-primary-fg, #fff)" : "var(--text-secondary)",
-    borderRadius: "4px", fontSize: "13px", fontWeight: active ? 600 : 400,
-  });
   const inputStyle: React.CSSProperties = {
     width: "100%", padding: "6px 10px", boxSizing: "border-box",
     backgroundColor: "var(--bg-secondary)",
     color: "var(--text-primary)",
     border: "1px solid var(--border-color)", borderRadius: "4px",
-  };
-  const btnStyle: React.CSSProperties = {
-    padding: "6px 14px", cursor: "pointer", border: "none", borderRadius: "4px",
-    backgroundColor: "var(--accent-color)",
-    color: "var(--btn-primary-fg, #fff)",
-    fontWeight: 500,
-  };
-  const btnDisabledStyle: React.CSSProperties = {
-    ...btnStyle,
-    opacity: 0.6,
-    cursor: "not-allowed",
-  };
-  const cardStyle: React.CSSProperties = {
-    padding: "10px", marginBottom: "8px", borderRadius: "4px",
-    backgroundColor: "var(--bg-secondary)",
-    border: "1px solid var(--border-color)",
   };
   const badgeStyle = (color: string): React.CSSProperties => ({
     display: "inline-block", padding: "2px 8px", borderRadius: "10px",
@@ -164,18 +130,18 @@ const FastContextPanel: React.FC<{ workspacePath?: string | null }> = ({ workspa
           onChange={e => setMatchType(e.target.value)}>
           {matchTypes.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
-        <button style={searching ? btnDisabledStyle : btnStyle} onClick={handleSearch} disabled={searching}>
+        <button className="panel-btn panel-btn-primary" onClick={handleSearch} disabled={searching} style={{ opacity: searching ? 0.6 : 1 }}>
           {searching ? "Searching..." : "Search"}
         </button>
       </div>
       {error && (
-        <div style={{ color: "var(--error-color)", fontSize: "12px", marginBottom: "8px" }}>{error}</div>
+        <div className="panel-error" style={{ marginBottom: "8px" }}>{error}</div>
       )}
       <div style={{ fontSize: "12px", marginBottom: "8px", color: "var(--text-secondary)" }}>
         {results.length} result{results.length !== 1 ? "s" : ""}
       </div>
       {results.map((r, i) => (
-        <div key={i} style={cardStyle}>
+        <div key={i} className="panel-card" style={{ marginBottom: "8px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
             <span style={{ fontWeight: 600 }}>{r.file}:{r.line}</span>
             <span style={badgeStyle(r.relevance > 0.9 ? "var(--success-color)" : r.relevance > 0.7 ? "var(--warning-color)" : "var(--error-color)")}>
@@ -205,12 +171,12 @@ const FastContextPanel: React.FC<{ workspacePath?: string | null }> = ({ workspa
         </div>
       )}
       <div style={{ marginTop: "16px" }}>
-        <button style={reindexing ? btnDisabledStyle : btnStyle} onClick={handleReindex} disabled={reindexing}>
+        <button className="panel-btn panel-btn-primary" onClick={handleReindex} disabled={reindexing} style={{ opacity: reindexing ? 0.6 : 1 }}>
           {reindexing ? "Rebuilding..." : "Rebuild Index"}
         </button>
       </div>
       {error && (
-        <div style={{ color: "var(--error-color)", fontSize: "12px", marginTop: "8px" }}>{error}</div>
+        <div className="panel-error" style={{ marginTop: "8px" }}>{error}</div>
       )}
     </div>
   );
@@ -218,7 +184,7 @@ const FastContextPanel: React.FC<{ workspacePath?: string | null }> = ({ workspa
   const renderCache = () => (
     <div>
       <h3 style={{ margin: "0 0 12px", color: "var(--text-primary)" }}>Cache Statistics</h3>
-      <div style={{ ...cardStyle, textAlign: "center", marginBottom: "16px" }}>
+      <div className="panel-card" style={{ textAlign: "center", marginBottom: "16px" }}>
         <div style={{ fontSize: "28px", fontWeight: 700, color: "var(--text-primary)" }}>{hitRate}%</div>
         <div style={{ color: "var(--text-secondary)", fontSize: "12px" }}>Hit Rate</div>
       </div>
@@ -227,7 +193,7 @@ const FastContextPanel: React.FC<{ workspacePath?: string | null }> = ({ workspa
       <div style={statRow}><span>Cache Size</span><strong style={{ color: "var(--text-primary)" }}>{cacheStats.size}</strong></div>
       <div style={statRow}><span>Max Size</span><strong style={{ color: "var(--text-primary)" }}>{cacheStats.maxSize}</strong></div>
       <div style={{ marginTop: "16px" }}>
-        <button style={btnStyle} onClick={handleClearCache}>
+        <button className="panel-btn panel-btn-secondary" onClick={handleClearCache}>
           Clear Cache
         </button>
       </div>
@@ -236,7 +202,7 @@ const FastContextPanel: React.FC<{ workspacePath?: string | null }> = ({ workspa
 
   if (!workspace) {
     return (
-      <div style={{ padding: 24, textAlign: "center", color: "var(--text-secondary)", fontSize: 13 }}>
+      <div className="panel-empty" style={{ padding: 24, textAlign: "center", fontSize: 13 }}>
         <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 8, color: "var(--text-primary)" }}>Fast Context</div>
         <p>Open a folder to use fast context indexing.</p>
       </div>
@@ -244,16 +210,18 @@ const FastContextPanel: React.FC<{ workspacePath?: string | null }> = ({ workspa
   }
 
   return (
-    <div style={containerStyle}>
-      <h2 style={{ margin: "0 0 12px" }}>Fast Context</h2>
-      <div style={tabBarStyle}>
+    <div className="panel-container">
+      <div className="panel-header">Fast Context</div>
+      <div className="panel-tab-bar">
         {[["search", "Search"], ["index", "Index"], ["cache", "Cache"]].map(([id, label]) => (
-          <button key={id} style={tabStyle(activeTab === id)} onClick={() => setActiveTab(id)}>{label}</button>
+          <button key={id} className={`panel-tab ${activeTab === id ? "active" : ""}`} onClick={() => setActiveTab(id)}>{label}</button>
         ))}
       </div>
-      {activeTab === "search" && renderSearch()}
-      {activeTab === "index" && renderIndex()}
-      {activeTab === "cache" && renderCache()}
+      <div className="panel-body">
+        {activeTab === "search" && renderSearch()}
+        {activeTab === "index" && renderIndex()}
+        {activeTab === "cache" && renderCache()}
+      </div>
     </div>
   );
 };

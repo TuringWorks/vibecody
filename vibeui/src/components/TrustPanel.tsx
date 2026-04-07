@@ -309,7 +309,7 @@ export function TrustPanel() {
                 <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{timeAgo(e.timestamp)}</span>
                 <span style={{
                   padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 600,
-                  background: e.success ? "#22c55e20" : "#ef444420",
+                  background: e.success ? "var(--success-bg)" : "var(--error-bg)",
                   color: e.success ? "var(--success-color)" : "var(--error-color)",
                 }}>{e.success ? "success" : "failure"}</span>
                 <span style={{ fontWeight: 600, fontSize: 12, color: e.delta >= 0 ? "var(--success-color)" : "var(--error-color)", minWidth: 28, textAlign: "right" }}>

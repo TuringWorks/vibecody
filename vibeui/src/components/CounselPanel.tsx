@@ -329,7 +329,7 @@ export function CounselPanel() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <h3 style={S.h3}>Participants</h3>
               {selectedParticipants.size > 0 && (
-                <button style={{ ...S.btnSecondary, fontSize: 11, padding: "3px 8px", color: "var(--accent-rose, #f44336)" }} onClick={removeSelectedParticipants}>
+                <button style={{ ...S.btnSecondary, fontSize: 11, padding: "3px 8px", color: "var(--accent-rose, var(--error-color))" }} onClick={removeSelectedParticipants}>
                   Remove {selectedParticipants.size} selected
                 </button>
               )}

@@ -78,23 +78,14 @@ export function DocumentIngestPanel() {
   ];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, background: "var(--bg-primary)", color: "var(--text-primary)" }}>
+    <div className="panel-container" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
       {/* Tab bar */}
-      <div style={{ display: "flex", borderBottom: "1px solid var(--border)", background: "var(--bg-secondary)" }}>
+      <div className="panel-tab-bar">
         {tabs.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            style={{
-              padding: "8px 16px",
-              background: tab === t.key ? "var(--bg-primary)" : "transparent",
-              border: "none",
-              borderBottom: tab === t.key ? "2px solid var(--accent)" : "2px solid transparent",
-              color: tab === t.key ? "var(--text-primary)" : "var(--text-secondary)",
-              cursor: "pointer",
-              fontSize: 12,
-              fontWeight: tab === t.key ? 600 : 400,
-            }}
+            className={`panel-tab${tab === t.key ? " active" : ""}`}
           >
             {t.label}
           </button>
@@ -140,14 +131,16 @@ export function DocumentIngestPanel() {
               <button
                 onClick={handleIngestFile}
                 disabled={isLoading || !filePath.trim()}
-                style={{ flex: 1, background: "var(--accent)", color: "var(--btn-primary-fg)", border: "none", borderRadius: 4, padding: "8px 0", cursor: "pointer", fontSize: 12, fontWeight: 600, opacity: isLoading || !filePath.trim() ? 0.5 : 1 }}
+                className="panel-btn panel-btn-primary"
+                style={{ flex: 1, opacity: isLoading || !filePath.trim() ? 0.5 : 1 }}
               >
                 {isLoading ? "Ingesting..." : "Ingest File"}
               </button>
               <button
                 onClick={handleIngestDirectory}
                 disabled={isLoading || !filePath.trim()}
-                style={{ flex: 1, background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border)", borderRadius: 4, padding: "8px 0", cursor: "pointer", fontSize: 12, fontWeight: 600, opacity: isLoading || !filePath.trim() ? 0.5 : 1 }}
+                className="panel-btn panel-btn-secondary"
+                style={{ flex: 1, opacity: isLoading || !filePath.trim() ? 0.5 : 1 }}
               >
                 Ingest Directory
               </button>
@@ -160,7 +153,8 @@ export function DocumentIngestPanel() {
                 {results.map((r) => (
                   <div
                     key={r.id}
-                    style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: 4, padding: "10px 12px", marginBottom: 6 }}
+                    className="panel-card"
+                    style={{ marginBottom: 6 }}
                   >
                     <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 4 }}>{r.title}</div>
                     <div style={{ display: "flex", gap: 16, fontSize: 11, color: "var(--text-secondary)" }}>
@@ -174,7 +168,7 @@ export function DocumentIngestPanel() {
               </div>
             )}
             {results.length === 0 && !isLoading && (
-              <div style={{ textAlign: "center", opacity: 0.4, fontSize: 12, marginTop: 32 }}>No documents ingested yet. Enter a path and click Ingest.</div>
+              <div className="panel-empty" style={{ marginTop: 32 }}>No documents ingested yet. Enter a path and click Ingest.</div>
             )}
           </div>
         )}

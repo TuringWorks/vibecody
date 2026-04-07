@@ -49,12 +49,6 @@ const stateColors: Record<string, string> = {
   running: "var(--text-warning)", warn: "var(--text-warning)",
 };
 
-const tabBtn = (active: boolean): React.CSSProperties => ({
-  padding: "6px 14px", fontSize: 11, fontWeight: active ? 600 : 400,
-  background: active ? "var(--accent-bg)" : "transparent",
-  border: "1px solid " + (active ? "var(--accent-primary)" : "var(--border-color)"),
-  borderRadius: 4, color: active ? "var(--text-info)" : "var(--text-secondary)", cursor: "pointer",
-});
 
 export default function CiStatusPanel() {
   const [tab, setTab] = useState<Tab>("suites");
@@ -124,32 +118,32 @@ export default function CiStatusPanel() {
 
   if (loading) {
     return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--text-secondary)", fontSize: 12 }}>
+      <div className="panel-loading">
         Loading CI status...
       </div>
     );
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
-      <div style={{ display: "flex", gap: 6, padding: "8px 10px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", alignItems: "center" }}>
+    <div className="panel-container">
+      <div className="panel-tab-bar" style={{ padding: "8px 10px" }}>
         {(["suites", "checks", "config"] as Tab[]).map(t => (
-          <button key={t} onClick={() => setTab(t)} style={tabBtn(tab === t)}>
+          <button key={t} onClick={() => setTab(t)} className={`panel-tab ${tab === t ? "active" : ""}`}>
             {t[0].toUpperCase() + t.slice(1)}
           </button>
         ))}
-        <button onClick={loadData} style={{ marginLeft: "auto", padding: "4px 10px", fontSize: 10, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-secondary)", cursor: "pointer" }}>
+        <button onClick={loadData} className="panel-btn panel-btn-secondary" style={{ marginLeft: "auto", fontSize: 10, padding: "4px 10px" }}>
           Refresh
         </button>
       </div>
 
       {error && (
-        <div style={{ padding: "6px 10px", fontSize: 11, color: "var(--text-danger)", background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", borderBottom: "1px solid var(--border-color)" }}>
+        <div className="panel-error" style={{ borderBottom: "1px solid var(--border-color)" }}>
           {error}
         </div>
       )}
 
-      <div style={{ flex: 1, overflowY: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+      <div className="panel-body" style={{ padding: 12 }}>
         {tab === "suites" && suites.length === 0 && (
           <div style={{ fontSize: 12, color: "var(--text-secondary)", textAlign: "center", padding: 24 }}>
             No CI configurations detected in this workspace.
@@ -181,7 +175,7 @@ export default function CiStatusPanel() {
           <>
             {selectedSuite && (
               <button onClick={() => setSelectedSuite(null)}
-                style={{ alignSelf: "flex-start", padding: "4px 10px", fontSize: 10, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-secondary)", cursor: "pointer", marginBottom: 4 }}>
+                className="panel-btn panel-btn-secondary" style={{ alignSelf: "flex-start", marginBottom: 4 }}>
                 Show all checks
               </button>
             )}
@@ -229,11 +223,9 @@ export default function CiStatusPanel() {
                 <button
                   disabled={!c.enabled || runningCheck === c.name}
                   onClick={() => triggerCheck(c.name)}
+                  className={`panel-btn ${c.enabled ? "panel-btn-primary" : "panel-btn-secondary"}`}
                   style={{
-                    padding: "2px 8px", fontSize: 10, borderRadius: 3, cursor: c.enabled ? "pointer" : "default",
-                    background: c.enabled ? "var(--accent-bg)" : "var(--bg-primary)",
-                    border: "1px solid " + (c.enabled ? "var(--accent-primary)" : "var(--border-color)"),
-                    color: c.enabled ? "var(--text-info)" : "var(--text-secondary)",
+                    padding: "2px 8px", fontSize: 10, cursor: c.enabled ? "pointer" : "default",
                     opacity: runningCheck === c.name ? 0.6 : 1,
                   }}>
                   {runningCheck === c.name ? "..." : "Run"}

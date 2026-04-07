@@ -30,51 +30,6 @@ interface LearningRule {
   enabled: boolean;
 }
 
-const panelStyle: React.CSSProperties = {
-  padding: 16,
-  height: "100%",
-  overflow: "auto",
-  color: "var(--text-primary)",
-  background: "var(--bg-primary)",
-};
-
-const headingStyle: React.CSSProperties = {
-  fontSize: 18,
-  fontWeight: 600,
-  marginBottom: 12,
-  color: "var(--text-primary)",
-};
-
-const cardStyle: React.CSSProperties = {
-  background: "var(--bg-secondary)",
-  borderRadius: 8,
-  padding: 12,
-  marginBottom: 8,
-  border: "1px solid var(--border-color)",
-};
-
-const btnStyle: React.CSSProperties = {
-  padding: "6px 14px",
-  borderRadius: 6,
-  border: "1px solid var(--border-color)",
-  background: "var(--accent-color)",
-  color: "var(--btn-primary-fg, #fff)",
-  cursor: "pointer",
-  fontSize: 13,
-  marginRight: 8,
-};
-
-const tabStyle = (active: boolean): React.CSSProperties => ({
-  padding: "8px 16px",
-  cursor: "pointer",
-  borderBottom: active ? "2px solid var(--accent-color)" : "2px solid transparent",
-  color: active ? "var(--accent-color)" : "var(--text-secondary)",
-  background: "transparent",
-  border: "none",
-  fontSize: 13,
-  fontWeight: active ? 600 : 400,
-});
-
 const badgeStyle = (color: string): React.CSSProperties => ({
   display: "inline-block",
   padding: "2px 8px",
@@ -152,27 +107,27 @@ export function NextTaskPanel() {
 
   if (loading) {
     return (
-      <div style={panelStyle}>
-        <h2 style={headingStyle}>Next-Task Prediction</h2>
-        <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>Loading...</div>
+      <div className="panel-container">
+        <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 12, color: "var(--text-primary)" }}>Next-Task Prediction</h2>
+        <div className="panel-loading">Loading...</div>
       </div>
     );
   }
 
   return (
-    <div style={panelStyle}>
-      <h2 style={headingStyle}>Next-Task Prediction</h2>
-      <div style={{ display: "flex", gap: 0, borderBottom: "1px solid var(--border-color)", marginBottom: 16 }}>
-        <button style={tabStyle(tab === "suggestions")} onClick={() => setTab("suggestions")}>Suggestions</button>
-        <button style={tabStyle(tab === "history")} onClick={() => setTab("history")}>History</button>
-        <button style={tabStyle(tab === "learning")} onClick={() => setTab("learning")}>Learning</button>
-        <button style={tabStyle(tab === "config")} onClick={() => setTab("config")}>Config</button>
+    <div className="panel-container">
+      <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 12, color: "var(--text-primary)" }}>Next-Task Prediction</h2>
+      <div className="panel-tab-bar" style={{ marginBottom: 16 }}>
+        <button className={`panel-tab ${tab === "suggestions" ? "active" : ""}`} onClick={() => setTab("suggestions")}>Suggestions</button>
+        <button className={`panel-tab ${tab === "history" ? "active" : ""}`} onClick={() => setTab("history")}>History</button>
+        <button className={`panel-tab ${tab === "learning" ? "active" : ""}`} onClick={() => setTab("learning")}>Learning</button>
+        <button className={`panel-tab ${tab === "config" ? "active" : ""}`} onClick={() => setTab("config")}>Config</button>
       </div>
 
       {tab === "suggestions" && (
         <div>
           {predictions.map((p) => (
-            <div key={p.id} style={cardStyle}>
+            <div key={p.id} className="panel-card">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                 <strong>{p.action}</strong>
                 <span style={badgeStyle(confColor(p.confidence))}>{p.confidence}%</span>
@@ -184,21 +139,21 @@ export function NextTaskPanel() {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>Source: {p.source}</span>
                 <div>
-                  <button style={btnStyle} onClick={() => handleAccept(p.id)}>Accept</button>
-                  <button style={{ ...btnStyle, background: "var(--text-secondary)" }} onClick={() => handleDismiss(p.id)}>Dismiss</button>
+                  <button className="panel-btn panel-btn-primary" onClick={() => handleAccept(p.id)}>Accept</button>
+                  <button className="panel-btn panel-btn-secondary" onClick={() => handleDismiss(p.id)}>Dismiss</button>
                 </div>
               </div>
             </div>
           ))}
-          {predictions.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>No predictions available</div>}
+          {predictions.length === 0 && <div className="panel-empty">No predictions available</div>}
         </div>
       )}
 
       {tab === "history" && (
         <div>
-          {history.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>No action history recorded yet.</div>}
+          {history.length === 0 && <div className="panel-empty">No action history recorded yet.</div>}
           {history.map((h) => (
-            <div key={h.id} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div key={h.id} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <strong style={{ fontSize: 13 }}>{h.action}</strong>
                 <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{h.timestamp}</div>
@@ -212,12 +167,12 @@ export function NextTaskPanel() {
 
       {tab === "learning" && (
         <div>
-          <div style={cardStyle}>
+          <div className="panel-card">
             <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Prediction Accuracy</div>
             <div style={{ fontSize: 24, fontWeight: 700 }}>{accuracy}%</div>
             <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{predictedCorrect} / {history.length} actions correctly predicted</div>
           </div>
-          <div style={cardStyle}>
+          <div className="panel-card">
             <div style={{ fontWeight: 600, marginBottom: 8 }}>Transition Matrix</div>
             {transitions.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: 12 }}>No transitions recorded yet.</div>}
             {transitions.length > 0 && (
@@ -256,9 +211,9 @@ export function NextTaskPanel() {
       {tab === "config" && (
         <div>
           <div style={{ fontWeight: 600, marginBottom: 8 }}>Enabled Rules</div>
-          {rules.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>No learning rules configured.</div>}
+          {rules.length === 0 && <div className="panel-empty">No learning rules configured.</div>}
           {rules.map((r) => (
-            <div key={r.id} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div key={r.id} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <strong style={{ fontSize: 13 }}>{r.name}</strong>
                 <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{r.description}</div>

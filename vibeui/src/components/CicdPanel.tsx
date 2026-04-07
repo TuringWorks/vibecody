@@ -142,30 +142,21 @@ export default function CicdPanel({ workspacePath }: CicdPanelProps) {
  const platformSecrets = SECRETS_REFERENCE.find((s) => s.platform === platform)?.secrets ?? [];
 
  return (
- <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+ <div className="panel-container">
  {/* Sub-tab bar */}
- <div style={{ display: "flex", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", flexShrink: 0 }}>
+ <div className="panel-tab-bar">
  {(["config", "release", "secrets"] as SubTab[]).map((t) => (
  <button
  key={t}
  onClick={() => setSubTab(t)}
- style={{
- padding: "6px 14px",
- fontSize: "12px",
- background: subTab === t ? "var(--bg-primary)" : "transparent",
- color: subTab === t ? "var(--text-primary)" : "var(--text-secondary)",
- border: "none",
- borderBottom: subTab === t ? "2px solid var(--accent-blue)" : "2px solid transparent",
- cursor: "pointer",
- fontWeight: subTab === t ? 600 : 400,
- }}
+ className={`panel-tab ${subTab === t ? "active" : ""}`}
  >
  {t === "config" ? "Config Generator" : t === "release" ? "Binary Builds" : "Secrets"}
  </button>
  ))}
  </div>
 
- <div style={{ flex: 1, overflow: "auto", padding: "12px" }}>
+ <div className="panel-body" style={{ padding: "12px" }}>
  {error && (
  <div style={{ marginBottom: 10 }}>
  <StatusMessage variant="error" message={error} inline />

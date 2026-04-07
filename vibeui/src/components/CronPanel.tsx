@@ -192,10 +192,10 @@ export function CronPanel() {
  };
 
  return (
- <div style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
+ <div className="panel-container" style={{ flexDirection: "row" }}>
  {/* Preset sidebar */}
  <div style={{ width: 200, borderRight: "1px solid var(--border-color)", display: "flex", flexDirection: "column", flexShrink: 0 }}>
- <div style={{ padding: "8px 10px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", fontSize: 11, fontWeight: 600 }}>
+ <div className="panel-header" style={{ fontSize: 11, fontWeight: 600 }}>
  Presets
  </div>
  <div style={{ flex: 1, overflowY: "auto" }}>
@@ -219,7 +219,7 @@ export function CronPanel() {
  </div>
 
  {/* Main */}
- <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", padding: 16, gap: 16, overflowY: "auto" }}>
+ <div className="panel-body" style={{ padding: 16, gap: 16 }}>
 
  {/* Expression input */}
  <div>

@@ -101,7 +101,7 @@ export function SmartDepsPanel() {
 
   const sevColor = (s: string) => {
     if (s === "critical") return { color: "var(--btn-primary-fg, #fff)", bg: "var(--error-color)" };
-    if (s === "high") return { color: "var(--error-color)", bg: "#ef444420" };
+    if (s === "high") return { color: "var(--error-color)", bg: "var(--error-bg)" };
     if (s === "medium") return { color: "var(--warning-color)", bg: "#eab30820" };
     return { color: "var(--accent-color)", bg: "#3b82f620" };
   };
@@ -238,7 +238,7 @@ export function SmartDepsPanel() {
               </div>
               <span style={badgeStyle(
                 l.status === "compliant" ? "var(--success-color)" : "var(--error-color)",
-                l.status === "compliant" ? "#22c55e20" : "#ef444420"
+                l.status === "compliant" ? "var(--success-bg)" : "var(--error-bg)"
               )}>{l.status === "compliant" ? "Compliant" : "Violation"}</span>
             </div>
           ))}

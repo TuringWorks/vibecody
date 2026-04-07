@@ -20,51 +20,6 @@ interface TreeNode {
   isBestPath: boolean;
 }
 
-const panelStyle: React.CSSProperties = {
-  padding: 16,
-  height: "100%",
-  overflow: "auto",
-  color: "var(--text-primary)",
-  background: "var(--bg-primary)",
-};
-
-const headingStyle: React.CSSProperties = {
-  fontSize: 18,
-  fontWeight: 600,
-  marginBottom: 12,
-  color: "var(--text-primary)",
-};
-
-const cardStyle: React.CSSProperties = {
-  background: "var(--bg-secondary)",
-  borderRadius: 8,
-  padding: 12,
-  marginBottom: 8,
-  border: "1px solid var(--border-color)",
-};
-
-const btnStyle: React.CSSProperties = {
-  padding: "6px 14px",
-  borderRadius: 6,
-  border: "1px solid var(--border-color)",
-  background: "var(--accent-color)",
-  color: "var(--btn-primary-fg, #fff)",
-  cursor: "pointer",
-  fontSize: 13,
-  marginRight: 8,
-};
-
-const tabStyle = (active: boolean): React.CSSProperties => ({
-  padding: "8px 16px",
-  cursor: "pointer",
-  borderBottom: active ? "2px solid var(--accent-color)" : "2px solid transparent",
-  color: active ? "var(--accent-color)" : "var(--text-secondary)",
-  background: "transparent",
-  border: "none",
-  fontSize: 13,
-  fontWeight: active ? 600 : 400,
-});
-
 const badgeStyle = (color: string): React.CSSProperties => ({
   display: "inline-block",
   padding: "2px 8px",
@@ -150,25 +105,25 @@ export function MctsRepairPanel() {
 
   const phaseColor: Record<string, string> = { done: "var(--success-color)", running: "var(--accent-color)", pending: "var(--text-secondary)" };
 
-  if (loading) return <div style={panelStyle}><div style={{ color: "var(--text-secondary)", fontSize: 13 }}>Loading repair sessions...</div></div>;
-  if (error) return <div style={panelStyle}><div style={{ color: "var(--error-color)", fontSize: 13 }}>Error: {error}</div></div>;
+  if (loading) return <div className="panel-container"><div className="panel-loading">Loading repair sessions...</div></div>;
+  if (error) return <div className="panel-container"><div className="panel-error">Error: {error}</div></div>;
 
   return (
-    <div style={panelStyle}>
-      <h2 style={headingStyle}>MCTS Code Repair</h2>
-      <div style={{ display: "flex", gap: 0, borderBottom: "1px solid var(--border-color)", marginBottom: 16 }}>
-        <button style={tabStyle(tab === "sessions")} onClick={() => setTab("sessions")}>Sessions</button>
-        <button style={tabStyle(tab === "new")} onClick={() => setTab("new")}>New</button>
-        <button style={tabStyle(tab === "tree")} onClick={() => setTab("tree")}>Tree</button>
-        <button style={tabStyle(tab === "agentless")} onClick={() => setTab("agentless")}>Agentless</button>
-        <button style={tabStyle(tab === "compare")} onClick={() => setTab("compare")}>Compare</button>
+    <div className="panel-container">
+      <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 12, color: "var(--text-primary)" }}>MCTS Code Repair</h2>
+      <div className="panel-tab-bar" style={{ marginBottom: 16 }}>
+        <button className={`panel-tab ${tab === "sessions" ? "active" : ""}`} onClick={() => setTab("sessions")}>Sessions</button>
+        <button className={`panel-tab ${tab === "new" ? "active" : ""}`} onClick={() => setTab("new")}>New</button>
+        <button className={`panel-tab ${tab === "tree" ? "active" : ""}`} onClick={() => setTab("tree")}>Tree</button>
+        <button className={`panel-tab ${tab === "agentless" ? "active" : ""}`} onClick={() => setTab("agentless")}>Agentless</button>
+        <button className={`panel-tab ${tab === "compare" ? "active" : ""}`} onClick={() => setTab("compare")}>Compare</button>
       </div>
 
       {tab === "sessions" && (
         <div>
-          {sessions.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>No repair sessions yet. Create one from the New tab.</div>}
+          {sessions.length === 0 && <div className="panel-empty">No repair sessions yet. Create one from the New tab.</div>}
           {sessions.map((s) => (
-            <div key={s.id} style={cardStyle}>
+            <div key={s.id} className="panel-card">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                 <strong>{s.file}</strong>
                 <div>
@@ -184,7 +139,7 @@ export function MctsRepairPanel() {
       )}
 
       {tab === "new" && (
-        <div style={cardStyle}>
+        <div className="panel-card">
           <div style={{ fontWeight: 600, marginBottom: 8 }}>Create Repair Session</div>
           <input placeholder="File path (e.g. src/auth.rs)" style={inputStyle} value={newFile} onChange={(e) => setNewFile(e.target.value)} />
           <input placeholder="Error message" style={inputStyle} value={newError} onChange={(e) => setNewError(e.target.value)} />
@@ -194,7 +149,7 @@ export function MctsRepairPanel() {
             <option value="linear">Linear</option>
           </select>
           <div style={{ marginTop: 8 }}>
-            <button style={btnStyle} onClick={handleCreate} disabled={!newFile.trim() || !newError.trim()}>Create Session</button>
+            <button className="panel-btn panel-btn-primary" onClick={handleCreate} disabled={!newFile.trim() || !newError.trim()}>Create Session</button>
           </div>
         </div>
       )}
@@ -202,9 +157,9 @@ export function MctsRepairPanel() {
       {tab === "tree" && (
         <div>
           <div style={{ fontWeight: 600, marginBottom: 8 }}>MCTS Tree Visualization</div>
-          {treeNodes.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>No tree data available. Start a repair session to populate.</div>}
+          {treeNodes.length === 0 && <div className="panel-empty">No tree data available. Start a repair session to populate.</div>}
           {treeNodes.map((n, i) => (
-            <div key={n.id} style={{ ...cardStyle, marginLeft: i * 16, borderLeft: n.isBestPath ? "3px solid #22c55e" : "3px solid var(--border-color)" }}>
+            <div key={n.id} className="panel-card" style={{ marginLeft: i * 16, borderLeft: n.isBestPath ? "3px solid #22c55e" : "3px solid var(--border-color)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <strong style={{ fontSize: 13 }}>{n.label}</strong>
                 {n.isBestPath && <span style={badgeStyle("var(--success-color)")}>best path</span>}
@@ -221,7 +176,7 @@ export function MctsRepairPanel() {
         <div>
           <div style={{ fontWeight: 600, marginBottom: 12 }}>3-Phase Pipeline</div>
           {phases.map((p, i) => (
-            <div key={i} style={{ ...cardStyle, display: "flex", alignItems: "center", gap: 12 }}>
+            <div key={i} className="panel-card" style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <span style={{ width: 10, height: 10, borderRadius: "50%", background: phaseColor[p.status], flexShrink: 0 }} />
               <div>
                 <strong>{p.name}</strong>

@@ -144,7 +144,7 @@ export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
  });
 
  return (
- <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+ <div className="panel-container" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
  {/* Header */}
  <div style={{
  padding: "10px 12px", borderBottom: "1px solid var(--border-color)",
@@ -217,7 +217,7 @@ export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
  {/* Script list */}
  <div style={{ flex: 1, overflow: "auto", padding: "8px 12px", display: "flex", flexDirection: "column", gap: 4 }}>
  {filtered.length === 0 && !loading && (
- <div style={{ textAlign: "center", padding: "30px 0", color: "var(--text-secondary)", fontSize: 12 }}>
+ <div className="panel-empty">
  {data ? "No scripts match your filter." : "No scripts detected in this workspace."}
  </div>
  )}

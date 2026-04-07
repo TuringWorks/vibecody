@@ -38,13 +38,6 @@ interface AcpStatus {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", flex: 1, minHeight: 0, overflow: "auto", background: "var(--bg-primary)" };
-const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" };
-const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-color)" };
-const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
-const btnStyle: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", cursor: "pointer", fontSize: 12 };
-const tabBtnStyle = (active: boolean): React.CSSProperties => ({ ...btnStyle, background: active ? "var(--accent-primary)" : "var(--bg-tertiary)", color: active ? "var(--btn-primary-fg)" : "var(--text-primary)", marginRight: 4 });
-
 const inputStyle: React.CSSProperties = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: 12, boxSizing: "border-box" };
 const badgeStyle = (variant: string): React.CSSProperties => {
   const colors: Record<string, string> = { tool: "var(--accent-color)", resource: "var(--accent-purple)", prompt: "var(--warning-color)", ok: "var(--success-color)", error: "var(--error-color)", pending: "var(--text-secondary)", sent: "var(--accent-color)", received: "var(--accent-purple)" };
@@ -169,29 +162,34 @@ export function AcpPanel() {
   const promptCount = capabilities.filter((c) => c.type === "prompt").length;
 
   if (loading) {
-    return <div style={panelStyle}><h2 style={headingStyle}>Agent Client Protocol (ACP)</h2><div>Loading...</div></div>;
+    return (
+      <div className="panel-container">
+        <h2>Agent Client Protocol (ACP)</h2>
+        <div className="panel-loading">Loading...</div>
+      </div>
+    );
   }
 
   return (
-    <div style={panelStyle}>
-      <h2 style={headingStyle}>Agent Client Protocol (ACP)</h2>
+    <div className="panel-container">
+      <h2 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>Agent Client Protocol (ACP)</h2>
 
       {error && (
-        <div style={{ ...cardStyle, borderColor: "var(--error-color)", color: "var(--error-color)", marginBottom: 12 }}>
+        <div className="panel-error" style={{ marginBottom: 12 }}>
           {error}
-          <button style={{ ...btnStyle, marginLeft: 8, fontSize: 10 }} onClick={() => setError(null)}>Dismiss</button>
+          <button className="panel-btn panel-btn-secondary" style={{ marginLeft: 8, fontSize: 10 }} onClick={() => setError(null)}>Dismiss</button>
         </div>
       )}
 
-      <div style={{ marginBottom: 12 }}>
-        <button style={tabBtnStyle(tab === "server")} onClick={() => setTab("server")}>Server</button>
-        <button style={tabBtnStyle(tab === "client")} onClick={() => setTab("client")}>Client</button>
-        <button style={tabBtnStyle(tab === "protocol")} onClick={() => setTab("protocol")}>Protocol</button>
+      <div className="panel-tab-bar" style={{ marginBottom: 12 }}>
+        <button className={`panel-tab ${tab === "server" ? "active" : ""}`} onClick={() => setTab("server")}>Server</button>
+        <button className={`panel-tab ${tab === "client" ? "active" : ""}`} onClick={() => setTab("client")}>Client</button>
+        <button className={`panel-tab ${tab === "protocol" ? "active" : ""}`} onClick={() => setTab("protocol")}>Protocol</button>
       </div>
 
       {tab === "server" && (
         <div>
-          <div style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
               <div style={{ fontWeight: 600 }}>ACP Server</div>
               <div style={{ fontSize: 11, color: serverRunning ? "var(--success-color)" : "var(--text-secondary)" }}>
@@ -200,7 +198,7 @@ export function AcpPanel() {
               {status && <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>v{status.version} | {status.connected_clients} client(s)</div>}
             </div>
             <button
-              style={{ ...btnStyle, background: serverRunning ? "var(--error-color)" : "var(--success-color)", color: "var(--btn-primary-fg)" }}
+              className={serverRunning ? "panel-btn panel-btn-danger" : "panel-btn panel-btn-primary"}
               onClick={handleToggleServer}
             >
               {serverRunning ? "Stop Server" : "Start Server"}
@@ -208,23 +206,23 @@ export function AcpPanel() {
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
-            <div style={cardStyle}>
-              <div style={labelStyle}>Tools</div>
+            <div className="panel-card">
+              <div className="panel-label">Tools</div>
               <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{toolCount}</div>
             </div>
-            <div style={cardStyle}>
-              <div style={labelStyle}>Resources</div>
+            <div className="panel-card">
+              <div className="panel-label">Resources</div>
               <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{resourceCount}</div>
             </div>
-            <div style={cardStyle}>
-              <div style={labelStyle}>Prompts</div>
+            <div className="panel-card">
+              <div className="panel-label">Prompts</div>
               <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{promptCount}</div>
             </div>
           </div>
 
-          <div style={labelStyle}>Registered Capabilities</div>
+          <div className="panel-label">Registered Capabilities</div>
           {capabilities.map((cap) => (
-            <div key={cap.id} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div key={cap.id} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <span style={{ fontWeight: 600 }}>{cap.name}</span>{" "}
                 <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>v{cap.version}</span>
@@ -235,8 +233,8 @@ export function AcpPanel() {
           ))}
 
           {/* Register new capability form */}
-          <div style={{ ...cardStyle, marginTop: 12 }}>
-            <div style={{ ...labelStyle, fontWeight: 600, marginBottom: 8 }}>Register New Capability</div>
+          <div className="panel-card" style={{ marginTop: 12 }}>
+            <div className="panel-label" style={{ fontWeight: 600, marginBottom: 8 }}>Register New Capability</div>
             <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
               <input style={{ ...inputStyle, flex: 2 }} placeholder="Name" value={newCapName} onChange={(e) => setNewCapName(e.target.value)} />
               <select
@@ -252,7 +250,7 @@ export function AcpPanel() {
             </div>
             <div style={{ display: "flex", gap: 6 }}>
               <input style={{ ...inputStyle, flex: 1 }} placeholder="Description" value={newCapDesc} onChange={(e) => setNewCapDesc(e.target.value)} />
-              <button style={{ ...btnStyle, background: "var(--accent-primary)", color: "var(--btn-primary-fg)" }} onClick={handleRegisterCapability}>Register</button>
+              <button className="panel-btn panel-btn-primary" onClick={handleRegisterCapability}>Register</button>
             </div>
           </div>
         </div>
@@ -260,20 +258,20 @@ export function AcpPanel() {
 
       {tab === "client" && (
         <div>
-          <div style={cardStyle}>
-            <div style={labelStyle}>External ACP Server URL</div>
+          <div className="panel-card">
+            <div className="panel-label">External ACP Server URL</div>
             <div style={{ display: "flex", gap: 8 }}>
               <input style={{ ...inputStyle, flex: 1 }} value={clientUrl} onChange={(e) => setClientUrl(e.target.value)} placeholder="http://localhost:3001/acp" />
               {!clientConnected ? (
-                <button style={{ ...btnStyle, background: "var(--accent-primary)", color: "var(--btn-primary-fg)" }} onClick={connectClient}>Connect</button>
+                <button className="panel-btn panel-btn-primary" onClick={connectClient}>Connect</button>
               ) : (
-                <button style={{ ...btnStyle, background: "var(--error-color)", color: "var(--btn-primary-fg)" }} onClick={disconnectClient}>Disconnect</button>
+                <button className="panel-btn panel-btn-danger" onClick={disconnectClient}>Disconnect</button>
               )}
             </div>
           </div>
 
-          <div style={cardStyle}>
-            <div style={labelStyle}>Negotiation Status</div>
+          <div className="panel-card">
+            <div className="panel-label">Negotiation Status</div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
               <span style={badgeStyle(negotiationStatus === "connected" ? "ok" : negotiationStatus === "failed" ? "error" : "pending")}>
                 {negotiationStatus}
@@ -283,8 +281,8 @@ export function AcpPanel() {
           </div>
 
           {clientConnected && (
-            <div style={cardStyle}>
-              <div style={labelStyle}>Remote Server Capabilities</div>
+            <div className="panel-card">
+              <div className="panel-label">Remote Server Capabilities</div>
               <div style={{ fontSize: 12, marginTop: 4 }}>
                 <div>Tools: {capabilities.filter((c) => c.type === "tool").map((c) => c.name).join(", ")}</div>
                 <div>Resources: {capabilities.filter((c) => c.type === "resource").map((c) => c.name).join(", ")}</div>
@@ -297,29 +295,29 @@ export function AcpPanel() {
 
       {tab === "protocol" && (
         <div>
-          <div style={{ ...cardStyle, display: "flex", justifyContent: "space-between" }}>
+          <div className="panel-card" style={{ display: "flex", justifyContent: "space-between" }}>
             <div>
               <div style={{ fontWeight: 600 }}>ACP Protocol</div>
               <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Based on Model Context Protocol (MCP) specification</div>
             </div>
             <div style={{ textAlign: "right" }}>
-              <div style={labelStyle}>Version</div>
+              <div className="panel-label">Version</div>
               <div style={{ fontWeight: 600 }}>{status?.version ?? "1.0.0"}</div>
             </div>
           </div>
 
           {/* Quick-send message controls */}
-          <div style={{ ...cardStyle, display: "flex", gap: 6, alignItems: "center" }}>
-            <span style={labelStyle}>Quick Send:</span>
-            <button style={btnStyle} onClick={() => handleSendMessage("initialize", "{}")}>initialize</button>
-            <button style={btnStyle} onClick={() => handleSendMessage("tools/list", "{}")}>tools/list</button>
-            <button style={btnStyle} onClick={() => handleSendMessage("resources/list", "{}")}>resources/list</button>
-            <button style={{ ...btnStyle, marginLeft: "auto" }} onClick={fetchMessages}>Refresh</button>
+          <div className="panel-card" style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <span className="panel-label">Quick Send:</span>
+            <button className="panel-btn panel-btn-secondary" onClick={() => handleSendMessage("initialize", "{}")}>initialize</button>
+            <button className="panel-btn panel-btn-secondary" onClick={() => handleSendMessage("tools/list", "{}")}>tools/list</button>
+            <button className="panel-btn panel-btn-secondary" onClick={() => handleSendMessage("resources/list", "{}")}>resources/list</button>
+            <button className="panel-btn panel-btn-secondary" style={{ marginLeft: "auto" }} onClick={fetchMessages}>Refresh</button>
           </div>
 
-          <div style={labelStyle}>Message Log ({messages.length} messages)</div>
+          <div className="panel-label">Message Log ({messages.length} messages)</div>
           {messages.map((msg) => (
-            <div key={msg.id} style={{ ...cardStyle, padding: 8 }}>
+            <div key={msg.id} className="panel-card" style={{ padding: 8 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <span style={badgeStyle(msg.direction)}>{msg.direction === "sent" ? "OUT" : "IN"}</span>
@@ -333,7 +331,7 @@ export function AcpPanel() {
               </div>
             </div>
           ))}
-          {messages.length === 0 && <div style={{ ...cardStyle, textAlign: "center", color: "var(--text-secondary)" }}>No messages yet. Use Quick Send or toggle the server to generate protocol messages.</div>}
+          {messages.length === 0 && <div className="panel-empty">No messages yet. Use Quick Send or toggle the server to generate protocol messages.</div>}
         </div>
       )}
     </div>

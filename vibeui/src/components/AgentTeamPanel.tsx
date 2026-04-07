@@ -104,12 +104,9 @@ export function AgentTeamPanel() {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+    <div className="panel-container">
       {/* Header */}
-      <div style={{
-        padding: "8px 12px", borderBottom: "1px solid var(--border-color)",
-        display: "flex", alignItems: "center", gap: 8,
-      }}>
+      <div className="panel-header">
         <span style={{ fontSize: 14, fontWeight: 700 }}>Agent Teams</span>
         <div style={{ flex: 1 }} />
         {team && (
@@ -121,7 +118,7 @@ export function AgentTeamPanel() {
             }}>
               {team.status}
             </span>
-            <button onClick={handleDismiss} style={{ ...btnStyle, fontSize: 10, padding: "2px 8px" }}>
+            <button onClick={handleDismiss} className="panel-btn panel-btn-secondary" style={{ fontSize: 10, padding: "2px 8px" }}>
               New Team
             </button>
           </>
@@ -136,25 +133,24 @@ export function AgentTeamPanel() {
             The lead agent decomposes the task and coordinates members.
           </div>
           <div>
-            <div style={labelStyle}>Goal</div>
+            <div className="panel-label">Goal</div>
             <textarea
               value={goal}
               onChange={(e) => setGoal(e.target.value)}
               rows={3}
               placeholder="Describe the goal for the team..."
-              style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit", width: "100%", boxSizing: "border-box" }}
+              style={{ padding: "5px 8px", fontSize: 11, borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)", outline: "none", resize: "vertical", fontFamily: "inherit", width: "100%", boxSizing: "border-box" }}
             />
           </div>
           <div>
-            <div style={labelStyle}>Team Size ({memberCount} agents)</div>
+            <div className="panel-label">Team Size ({memberCount} agents)</div>
             <input
               type="range" min={2} max={8} value={memberCount}
               onChange={(e) => setMemberCount(parseInt(e.target.value))}
               style={{ width: "100%" }}
             />
           </div>
-          <button onClick={handleCreate} disabled={loading || !goal.trim()} style={{
-            ...btnStyle, background: "var(--accent-primary)", color: "var(--text-primary)", fontWeight: 700,
+          <button onClick={handleCreate} disabled={loading || !goal.trim()} className="panel-btn panel-btn-primary" style={{
             opacity: loading || !goal.trim() ? 0.5 : 1,
           }}>
             {loading ? "Creating Team..." : "Create Team"}
@@ -169,24 +165,19 @@ export function AgentTeamPanel() {
         /* Team view */
         <>
           {/* Sub-tabs */}
-          <div style={{ display: "flex", gap: 4, padding: "6px 12px", borderBottom: "1px solid var(--border-color)" }}>
+          <div className="panel-tab-bar" style={{ padding: "6px 12px" }}>
             {(["overview", "tasks", "messages"] as const).map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                style={{
-                  padding: "3px 10px", fontSize: 10, fontWeight: 600, borderRadius: 4, cursor: "pointer",
-                  border: tab === t ? "1px solid var(--accent-color)" : "1px solid var(--border-color)",
-                  background: tab === t ? "color-mix(in srgb, var(--accent-blue) 15%, transparent)" : "transparent",
-                  color: "var(--text-primary)",
-                }}
+                className={`panel-tab ${tab === t ? "active" : ""}`}
               >
                 {t === "overview" ? "Overview" : t === "tasks" ? `Tasks (${team.tasks.length})` : `Messages (${team.message_count})`}
               </button>
             ))}
           </div>
 
-          <div style={{ flex: 1, overflowY: "auto", padding: "8px 12px" }}>
+          <div className="panel-body" style={{ padding: "8px 12px" }}>
             {/* Overview tab */}
             {tab === "overview" && (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -295,22 +286,3 @@ export function AgentTeamPanel() {
   );
 }
 
-const btnStyle: React.CSSProperties = {
-  padding: "6px 12px", fontSize: 12, fontWeight: 600,
-  border: "1px solid var(--border-color)", borderRadius: 4,
-  background: "var(--bg-secondary)", color: "var(--text-primary)",
-  cursor: "pointer",
-};
-
-const inputStyle: React.CSSProperties = {
-  padding: "5px 8px", fontSize: 11, borderRadius: 4,
-  border: "1px solid var(--border-color)",
-  background: "var(--bg-primary)", color: "var(--text-primary)",
-  outline: "none",
-};
-
-const labelStyle: React.CSSProperties = {
-  fontSize: 10, fontWeight: 600, marginBottom: 3,
-  color: "var(--text-secondary)",
-  textTransform: "uppercase" as const, letterSpacing: "0.06em",
-};

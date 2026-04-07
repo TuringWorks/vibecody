@@ -968,12 +968,6 @@ const btnSmall: React.CSSProperties = {
   fontSize: 11,
 };
 
-const cardStyle: React.CSSProperties = {
-  padding: 12,
-  borderRadius: 8,
-  background: "var(--bg-secondary)",
-  border: "1px solid var(--border-color)",
-};
 
 // ── Component ────────────────────────────────────────────────────────────────
 
@@ -1600,7 +1594,7 @@ export function QuantumComputingPanel() {
     const py = svgCy - sz + sy * 0.3;
 
     return (
-      <div style={{ ...cardStyle, marginTop: 12 }}>
+      <div className="panel-card" style={{ marginTop: 12 }}>
         <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Bloch Sphere</div>
         <svg width={200} height={200} viewBox="0 0 200 200">
           {/* Main circle */}
@@ -1637,7 +1631,7 @@ export function QuantumComputingPanel() {
     const maxP = Math.max(...nonZero.map(([, p]) => p));
 
     return (
-      <div style={{ ...cardStyle, marginTop: 12 }}>
+      <div className="panel-card" style={{ marginTop: 12 }}>
         <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Probability Distribution</div>
         {nonZero.map(([label, prob]) => (
           <div key={label} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
@@ -1672,7 +1666,7 @@ export function QuantumComputingPanel() {
     const maxCount = Math.max(...entries.map(([, c]) => c));
 
     return (
-      <div style={{ ...cardStyle, marginTop: 12 }}>
+      <div className="panel-card" style={{ marginTop: 12 }}>
         <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Sample Histogram (top {entries.length})</div>
         {entries.map(([label, count]) => (
           <div key={label} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
@@ -1811,31 +1805,21 @@ export function QuantumComputingPanel() {
   // ── Render ──────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, color: "var(--text-primary)", background: "var(--bg-primary)" }}>
+    <div className="panel-container">
       {/* Tab bar */}
-      <div style={{ display: "flex", gap: 2, padding: "8px 12px", borderBottom: "1px solid var(--border-color)", flexWrap: "wrap" }}>
+      <div className="panel-tab-bar" style={{ flexWrap: "wrap" }}>
         {TABS.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            style={{
-              padding: "6px 14px",
-              borderRadius: 6,
-              border: "none",
-              cursor: "pointer",
-              background: tab === t.id ? "var(--accent-primary)" : "var(--bg-secondary)",
-              color: tab === t.id ? "var(--btn-primary-fg, #fff)" : "var(--text-secondary)",
-              fontWeight: tab === t.id ? 600 : 400,
-              fontSize: 13,
-              borderBottom: tab === t.id ? "2px solid var(--accent-primary)" : "2px solid transparent",
-            }}
+            className={`panel-tab ${tab === t.id ? "active" : ""}`}
           >
             {t.label}
           </button>
         ))}
       </div>
 
-      <div style={{ flex: 1, overflow: "auto", padding: 16 }}>
+      <div className="panel-body">
         {/* ── Circuit Builder Tab ─────────────────────────────────────── */}
         {tab === "circuitBuilder" && (
           <div>
@@ -2103,7 +2087,7 @@ export function QuantumComputingPanel() {
                 {renderSampleHistogram(simResult.samples)}
 
                 {/* Amplitudes table */}
-                <div style={{ ...cardStyle, marginTop: 12 }}>
+                <div className="panel-card" style={{ marginTop: 12 }}>
                   <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>State Amplitudes</div>
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
                     <thead>
@@ -2149,7 +2133,7 @@ export function QuantumComputingPanel() {
               <div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
                   {/* Original card */}
-                  <div style={cardStyle}>
+                  <div className="panel-card">
                     <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8, color: "var(--text-secondary)" }}>Original</div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                       <div style={{ fontSize: 12 }}>
@@ -2161,7 +2145,7 @@ export function QuantumComputingPanel() {
                     </div>
                   </div>
                   {/* Optimized card */}
-                  <div style={{ ...cardStyle, borderColor: "var(--accent-primary)" }}>
+                  <div className="panel-card" style={{ borderColor: "var(--accent-primary)" }}>
                     <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8, color: "var(--accent-primary)" }}>
                       Optimized ({optResult.savingsPercent.toFixed(1)}% savings)
                     </div>
@@ -2178,7 +2162,7 @@ export function QuantumComputingPanel() {
 
                 {/* Rules applied */}
                 {optResult.rulesApplied.length > 0 && (
-                  <div style={cardStyle}>
+                  <div className="panel-card">
                     <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Optimization Rules Applied</div>
                     <ul style={{ margin: 0, paddingLeft: 20, fontSize: 12, color: "var(--text-secondary)" }}>
                       {optResult.rulesApplied.map((r, i) => (
@@ -2258,7 +2242,7 @@ export function QuantumComputingPanel() {
             <h3 style={{ margin: "0 0 12px", color: "var(--text-primary)" }}>Algorithm Templates</h3>
 
             {/* Parameters section */}
-            <div style={{ ...cardStyle, marginBottom: 16 }}>
+            <div className="panel-card" style={{ marginBottom: 16 }}>
               <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Template Parameters</div>
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
                 <label style={{ fontSize: 12 }}>
@@ -2295,7 +2279,7 @@ export function QuantumComputingPanel() {
             ) : (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
                 {templateList.map((tpl) => (
-                  <div key={tpl.name} style={cardStyle}>
+                  <div key={tpl.name} className="panel-card">
                     <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>{tpl.name}</div>
                     <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8 }}>{tpl.description}</div>
                     <div style={{ display: "flex", gap: 6 }}>
@@ -2350,7 +2334,7 @@ export function QuantumComputingPanel() {
                   Generated {scafFiles.length} file(s)
                 </div>
                 {scafFiles.map((f) => (
-                  <div key={f.path} style={{ ...cardStyle, marginBottom: 8 }}>
+                  <div key={f.path} className="panel-card" style={{ marginBottom: 8 }}>
                     <div
                       style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}
                       onClick={() => toggleScafExpand(f.path)}
@@ -2617,7 +2601,7 @@ export function QuantumComputingPanel() {
               const isExpanded = algoExpanded === a.name;
               const examples = ALGORITHM_EXAMPLES[a.name];
               return (
-                <div key={a.name} style={{ ...cardStyle, marginBottom: 8 }}>
+                <div key={a.name} className="panel-card" style={{ marginBottom: 8 }}>
                   <div
                     style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}
                     onClick={() => setAlgoExpanded(isExpanded ? null : a.name)}

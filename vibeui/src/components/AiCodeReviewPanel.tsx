@@ -100,7 +100,7 @@ export default function AiCodeReviewPanel() {
               <div className="panel-label">{analysis.filesChanged} files | +{analysis.linesAdded} -{analysis.linesRemoved} | {analysis.findings.length} finding(s)</div>
               <div style={{ marginTop: 8 }}>{analysis.summary}</div>
               {analysis.breakingChanges.length > 0 && (
-                <div style={{ marginTop: 8, padding: 8, background: "#f4433620", borderRadius: 4 }}>
+                <div style={{ marginTop: 8, padding: 8, background: "var(--error-bg)", borderRadius: 4 }}>
                   <div style={{ fontWeight: 600, color: "var(--error-color)", marginBottom: 4 }}>Breaking Changes</div>
                   {analysis.breakingChanges.map((bc, i) => <div key={i} style={{ fontSize: 12 }}>{bc}</div>)}
                 </div>

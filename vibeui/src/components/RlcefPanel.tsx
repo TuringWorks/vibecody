@@ -1,50 +1,5 @@
 import { useState } from "react";
 
-const panelStyle: React.CSSProperties = {
-  padding: 16,
-  height: "100%",
-  overflow: "auto",
-  color: "var(--text-primary)",
-  background: "var(--bg-primary)",
-};
-
-const headingStyle: React.CSSProperties = {
-  fontSize: 18,
-  fontWeight: 600,
-  marginBottom: 12,
-  color: "var(--text-primary)",
-};
-
-const cardStyle: React.CSSProperties = {
-  background: "var(--bg-secondary)",
-  borderRadius: 8,
-  padding: 12,
-  marginBottom: 8,
-  border: "1px solid var(--border-color)",
-};
-
-const btnStyle: React.CSSProperties = {
-  padding: "6px 14px",
-  borderRadius: 6,
-  border: "1px solid var(--border-color)",
-  background: "var(--accent-color)",
-  color: "var(--btn-primary-fg, #fff)",
-  cursor: "pointer",
-  fontSize: 13,
-  marginRight: 8,
-};
-
-const tabStyle = (active: boolean): React.CSSProperties => ({
-  padding: "8px 16px",
-  cursor: "pointer",
-  borderBottom: active ? "2px solid var(--accent-color)" : "2px solid transparent",
-  color: active ? "var(--accent-color)" : "var(--text-secondary)",
-  background: "transparent",
-  border: "none",
-  fontSize: 13,
-  fontWeight: active ? 600 : 400,
-});
-
 export function RlcefPanel() {
   const [tab, setTab] = useState("dashboard");
   const [exportFormat, setExportFormat] = useState("jsonl");
@@ -83,11 +38,11 @@ export function RlcefPanel() {
   ];
 
   return (
-    <div style={panelStyle}>
-      <h2 style={headingStyle}>RLCEF Training Loop</h2>
-      <div style={{ display: "flex", gap: 0, borderBottom: "1px solid var(--border-color)", marginBottom: 16 }}>
+    <div className="panel-container">
+      <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 12, color: "var(--text-primary)" }}>RLCEF Training Loop</h2>
+      <div className="panel-tab-bar" style={{ marginBottom: 16 }}>
         {["dashboard", "mistakes", "strategies", "export"].map((t) => (
-          <button key={t} style={tabStyle(tab === t)} onClick={() => setTab(t)}>
+          <button key={t} className={`panel-tab ${tab === t ? "active" : ""}`} onClick={() => setTab(t)}>
             {t.charAt(0).toUpperCase() + t.slice(1)}
           </button>
         ))}
@@ -96,22 +51,22 @@ export function RlcefPanel() {
       {tab === "dashboard" && (
         <div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 16 }}>
-            <div style={cardStyle}>
+            <div className="panel-card">
               <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Pass</div>
               <div style={{ fontSize: 22, fontWeight: 700, color: "var(--success-color)" }}>{outcomes.pass}</div>
             </div>
-            <div style={cardStyle}>
+            <div className="panel-card">
               <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Fail</div>
               <div style={{ fontSize: 22, fontWeight: 700, color: "var(--error-color)" }}>{outcomes.fail}</div>
             </div>
-            <div style={cardStyle}>
+            <div className="panel-card">
               <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Pass Rate</div>
               <div style={{ fontSize: 22, fontWeight: 700, color: "var(--accent-color)" }}>{passRate}%</div>
             </div>
           </div>
-          <div style={{ ...cardStyle, fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Reward Distribution</div>
+          <div className="panel-card" style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Reward Distribution</div>
           {rewards.map((r) => (
-            <div key={r.range} style={{ ...cardStyle, display: "flex", alignItems: "center", gap: 8 }}>
+            <div key={r.range} className="panel-card" style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ fontSize: 12, minWidth: 100, color: "var(--text-secondary)" }}>{r.range}</span>
               <div style={{ flex: 1, height: 8, borderRadius: 4, background: "var(--border-color)" }}>
                 <div style={{ width: `${(r.count / maxReward) * 100}%`, height: 8, borderRadius: 4, background: r.color }} />
@@ -125,7 +80,7 @@ export function RlcefPanel() {
       {tab === "mistakes" && (
         <div>
           {mistakes.map((m, i) => (
-            <div key={i} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div key={i} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600 }}>{m.pattern}</div>
                 <span style={{ fontSize: 11, color: catColor(m.category), fontWeight: 600 }}>{m.category}</span>
@@ -142,7 +97,7 @@ export function RlcefPanel() {
       {tab === "strategies" && (
         <div>
           {strategies.map((s, i) => (
-            <div key={i} style={cardStyle}>
+            <div key={i} className="panel-card">
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                 <span style={{ fontWeight: 600, fontSize: 13 }}>{s.name}</span>
                 <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{s.time}</span>
@@ -160,21 +115,21 @@ export function RlcefPanel() {
 
       {tab === "export" && (
         <div>
-          <div style={cardStyle}>
+          <div className="panel-card">
             <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Training Data Format</div>
             <div style={{ display: "flex", gap: 8 }}>
               {["jsonl", "parquet", "csv"].map((f) => (
                 <button key={f} onClick={() => setExportFormat(f)}
-                  style={{ ...btnStyle, background: exportFormat === f ? "var(--accent-color)" : "transparent", color: exportFormat === f ? "var(--btn-primary-fg, #fff)" : "var(--text-primary)", border: "1px solid var(--border-color)" }}>
+                  className={`panel-btn ${exportFormat === f ? "panel-btn-primary" : "panel-btn-secondary"}`}>
                   {f.toUpperCase()}
                 </button>
               ))}
             </div>
           </div>
-          <div style={{ ...cardStyle, fontSize: 13, color: "var(--text-secondary)" }}>
+          <div className="panel-card" style={{ fontSize: 13, color: "var(--text-secondary)" }}>
             {outcomes.total} samples | {outcomes.pass} positive | {outcomes.fail} negative
           </div>
-          <button style={btnStyle}>Export Training Data</button>
+          <button className="panel-btn panel-btn-primary">Export Training Data</button>
         </div>
       )}
     </div>

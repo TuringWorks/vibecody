@@ -116,7 +116,7 @@ export function MigrationsPanel({ workspacePath }: MigrationsPanelProps) {
  .sort((a, b) => a.name.localeCompare(b.name));
 
  return (
- <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+ <div className="panel-container" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
  {/* Header */}
  <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", flexShrink: 0, display: "flex", alignItems: "center", gap: 8 }}>
  <span style={{ fontSize: 16 }}>{TOOL_ICONS[tool]}</span>
@@ -141,7 +141,7 @@ export function MigrationsPanel({ workspacePath }: MigrationsPanelProps) {
 
  <div style={{ flex: 1, overflow: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
  {error && (
- <div style={{ padding: "7px 10px", background: "var(--error-bg)", color: "var(--text-danger)", borderRadius: 4, fontSize: 12 }}>
+ <div className="panel-error" style={{ padding: "7px 10px", fontSize: 12 }}>
  {error}
  </div>
  )}
@@ -251,7 +251,7 @@ export function MigrationsPanel({ workspacePath }: MigrationsPanelProps) {
  ))}
  </div>
  ) : !loading && status && (
- <div style={{ textAlign: "center", padding: "20px 0", color: "var(--text-secondary)", fontSize: 12 }}>
+ <div className="panel-empty">
  {tool === "unknown"
  ? "No migration tool found. Add Prisma, Diesel, Alembic, Flyway, or golang-migrate."
  : "No migrations found. Generate one above."}

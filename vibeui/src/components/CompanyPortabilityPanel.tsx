@@ -42,13 +42,10 @@ export function CompanyPortabilityPanel({ workspacePath: _wp }: CompanyPortabili
     }
   };
 
-  const btnStyle: React.CSSProperties = {
-    fontSize: 11, padding: "3px 10px", cursor: "pointer", borderRadius: 4,
-    background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", color: "var(--text-primary)",
-  };
   return (
-    <div style={{ padding: 16, fontSize: 13, height: "100%", overflowY: "auto" }}>
-      <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 16 }}>Company Portability</div>
+    <div className="panel-container">
+      <div className="panel-header">Company Portability</div>
+      <div className="panel-body">
 
       <div style={{ marginBottom: 20 }}>
         <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8 }}>
@@ -58,7 +55,7 @@ export function CompanyPortabilityPanel({ workspacePath: _wp }: CompanyPortabili
           Exports the active company's full structure: org chart, agents, goals, tasks, documents,
           and routines. <strong>Secrets are scrubbed</strong> from the export.
         </p>
-        <button onClick={runExport} disabled={loading} style={{...btnStyle, padding: "4px 16px"}}>
+        <button onClick={runExport} disabled={loading} className="panel-btn panel-btn-primary">
           {loading ? "Exporting…" : "Export Company"}
         </button>
         {exportOutput && (
@@ -94,15 +91,16 @@ export function CompanyPortabilityPanel({ workspacePath: _wp }: CompanyPortabili
             placeholder="/path/to/company-export.json"
             style={{ flex: 1, fontSize: 12, padding: "4px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }}
           />
-          <button onClick={runImport} disabled={loading} style={{...btnStyle, padding: "4px 12px"}}>
+          <button onClick={runImport} disabled={loading} className="panel-btn panel-btn-secondary">
             Import
           </button>
         </div>
         {cmdResult && (
-          <div style={{ background: "var(--panel-bg, rgba(0,0,0,0.2))", border: "1px solid var(--border-color)", borderRadius: 4, padding: 8, fontSize: 12 }}>
+          <div className="panel-card" style={{ fontSize: 12 }}>
             {cmdResult}
           </div>
         )}
+      </div>
       </div>
     </div>
   );

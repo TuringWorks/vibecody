@@ -25,13 +25,6 @@ const MODEL_OPTIONS = ["claude-opus-4-20250514", "claude-sonnet-4-20250514", "gp
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", flex: 1, minHeight: 0, overflow: "auto", background: "var(--bg-primary)" };
-const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" };
-const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-color)" };
-const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
-const btnStyle: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", cursor: "pointer", fontSize: 12 };
-const tabBtnStyle = (active: boolean): React.CSSProperties => ({ ...btnStyle, background: active ? "var(--accent-primary)" : "var(--bg-tertiary)", color: active ? "var(--btn-primary-fg)" : "var(--text-primary)", marginRight: 4 });
-
 const inputStyle: React.CSSProperties = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: 12, fontFamily: "var(--font-family)", boxSizing: "border-box" };
 const textareaStyle: React.CSSProperties = { ...inputStyle, minHeight: 80, resize: "vertical" as const };
 const selectStyle: React.CSSProperties = { ...inputStyle, cursor: "pointer" };
@@ -140,23 +133,23 @@ export function ContextBundlePanel() {
   };
 
   return (
-    <div style={panelStyle}>
-      <h2 style={headingStyle}>Context Bundles</h2>
+    <div className="panel-container">
+      <h2 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>Context Bundles</h2>
 
-      {error && <div style={{ ...cardStyle, borderColor: "var(--error-color)", color: "var(--error-color)", marginBottom: 12 }}>{error}</div>}
+      {error && <div className="panel-error" style={{ marginBottom: 12 }}>{error}</div>}
 
-      <div style={{ marginBottom: 12 }}>
-        <button style={tabBtnStyle(tab === "bundles")} onClick={() => setTab("bundles")}>My Bundles</button>
-        <button style={tabBtnStyle(tab === "create")} onClick={() => setTab("create")}>Create</button>
-        <button style={tabBtnStyle(tab === "importexport")} onClick={() => setTab("importexport")}>Import / Export</button>
+      <div className="panel-tab-bar" style={{ marginBottom: 12 }}>
+        <button className={`panel-tab ${tab === "bundles" ? "active" : ""}`} onClick={() => setTab("bundles")}>My Bundles</button>
+        <button className={`panel-tab ${tab === "create" ? "active" : ""}`} onClick={() => setTab("create")}>Create</button>
+        <button className={`panel-tab ${tab === "importexport" ? "active" : ""}`} onClick={() => setTab("importexport")}>Import / Export</button>
       </div>
 
       {tab === "bundles" && (
         <div>
-          {loading && <div style={cardStyle}>Loading bundles...</div>}
-          {!loading && bundles.length === 0 && <div style={cardStyle}>No bundles yet. Create one to get started.</div>}
+          {loading && <div className="panel-loading">Loading bundles...</div>}
+          {!loading && bundles.length === 0 && <div className="panel-empty">No bundles yet. Create one to get started.</div>}
           {bundles.map((b) => (
-            <div key={b.id} style={cardStyle}>
+            <div key={b.id} className="panel-card">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                 <div style={{ fontWeight: 600 }}>{b.name}</div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -166,7 +159,7 @@ export function ContextBundlePanel() {
                   <span style={{ fontSize: 10, color: b.active ? "var(--success-color)" : "var(--text-secondary)" }}>{b.active ? "Active" : "Inactive"}</span>
                 </div>
               </div>
-              <div style={labelStyle}>{b.description}</div>
+              <div className="panel-label">{b.description}</div>
               <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>
                 Model: {b.modelPreference} | Files: {b.pinnedFiles.length} pinned
               </div>
@@ -179,7 +172,7 @@ export function ContextBundlePanel() {
                 </div>
               )}
               <div style={{ display: "flex", gap: 6 }}>
-                <button style={btnStyle} onClick={() => deleteBundle(b.id)}>Delete</button>
+                <button className="panel-btn panel-btn-danger" onClick={() => deleteBundle(b.id)}>Delete</button>
               </div>
             </div>
           ))}
@@ -188,42 +181,42 @@ export function ContextBundlePanel() {
 
       {tab === "create" && (
         <div>
-          <div style={cardStyle}>
+          <div className="panel-card">
             <div style={{ marginBottom: 10 }}>
-              <div style={labelStyle}>Bundle Name *</div>
+              <div className="panel-label">Bundle Name *</div>
               <input style={inputStyle} value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="e.g. Backend API" />
             </div>
             <div style={{ marginBottom: 10 }}>
-              <div style={labelStyle}>Description</div>
+              <div className="panel-label">Description</div>
               <input style={inputStyle} value={formDesc} onChange={(e) => setFormDesc(e.target.value)} placeholder="Short description of this context bundle" />
             </div>
             <div style={{ marginBottom: 10 }}>
-              <div style={labelStyle}>Pinned Files (one per line)</div>
+              <div className="panel-label">Pinned Files (one per line)</div>
               <textarea style={textareaStyle} value={formFiles} onChange={(e) => setFormFiles(e.target.value)} placeholder={"src/main.rs\nsrc/lib.rs\nCargo.toml"} />
             </div>
             <div style={{ marginBottom: 10 }}>
-              <div style={labelStyle}>Instructions</div>
+              <div className="panel-label">Instructions</div>
               <textarea style={textareaStyle} value={formInstructions} onChange={(e) => setFormInstructions(e.target.value)} placeholder="Custom instructions for the AI when this bundle is active..." />
             </div>
             <div style={{ marginBottom: 12 }}>
-              <div style={labelStyle}>Model Preference</div>
+              <div className="panel-label">Model Preference</div>
               <select style={selectStyle} value={formModel} onChange={(e) => setFormModel(e.target.value)}>
                 {MODEL_OPTIONS.map((m) => <option key={m} value={m}>{m}</option>)}
               </select>
             </div>
-            <button style={{ ...btnStyle, background: "var(--accent-primary)", color: "var(--btn-primary-fg)" }} onClick={createBundle}>Create Bundle</button>
+            <button className="panel-btn panel-btn-primary" onClick={createBundle}>Create Bundle</button>
           </div>
         </div>
       )}
 
       {tab === "importexport" && (
         <div>
-          <div style={cardStyle}>
-            <div style={labelStyle}>Bundle JSON</div>
+          <div className="panel-card">
+            <div className="panel-label">Bundle JSON</div>
             <textarea style={{ ...textareaStyle, minHeight: 200 }} value={jsonText} onChange={(e) => setJsonText(e.target.value)} placeholder="Paste bundle JSON here to import, or click Export to populate..." />
             <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-              <button style={btnStyle} onClick={exportBundles}>Export Current Bundles</button>
-              <button style={{ ...btnStyle, background: "var(--accent-primary)", color: "var(--btn-primary-fg)" }} onClick={importBundles}>Import from JSON</button>
+              <button className="panel-btn panel-btn-secondary" onClick={exportBundles}>Export Current Bundles</button>
+              <button className="panel-btn panel-btn-primary" onClick={importBundles}>Import from JSON</button>
             </div>
             {importMsg && <div style={{ marginTop: 8, fontSize: 11, color: importMsg.startsWith("Error") ? "var(--error-color)" : "var(--success-color)" }}>{importMsg}</div>}
           </div>

@@ -126,17 +126,6 @@ export function VisualTestPanel() {
     }
   };
 
-  const panelStyle: React.CSSProperties = {
-    display: "flex",
-    flexDirection: "column",
-    height: "100%",
-    padding: 12,
-    gap: 10,
-    overflow: "auto",
-    color: "var(--text-primary)",
-    fontSize: 13,
-  };
-
   const inputStyle: React.CSSProperties = {
     flex: 1,
     padding: "6px 10px",
@@ -147,20 +136,8 @@ export function VisualTestPanel() {
     fontSize: 13,
   };
 
-  const btnStyle: React.CSSProperties = {
-    padding: "6px 14px",
-    borderRadius: 4,
-    border: "none",
-    background: "var(--accent-color)",
-    color: "var(--text-primary)",
-    cursor: "pointer",
-    fontWeight: 600,
-    fontSize: 12,
-    whiteSpace: "nowrap",
-  };
-
   return (
-    <div style={panelStyle}>
+    <div className="panel-container" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       {/* Header */}
       <div
         style={{
@@ -180,8 +157,8 @@ export function VisualTestPanel() {
         <button
           onClick={handleStart}
           disabled={status === "running" || !url.trim()}
+          className="panel-btn panel-btn-primary"
           style={{
-            ...btnStyle,
             opacity: status === "running" || !url.trim() ? 0.5 : 1,
           }}
         >
@@ -193,10 +170,10 @@ export function VisualTestPanel() {
       {/* Actions row */}
       {sessionId && (
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button onClick={handleScreenshot} style={btnStyle}>
+          <button onClick={handleScreenshot} className="panel-btn panel-btn-secondary">
             Take Screenshot
           </button>
-          <button onClick={handleLoadResults} style={btnStyle}>
+          <button onClick={handleLoadResults} className="panel-btn panel-btn-secondary">
             Load Results
           </button>
           <input
@@ -211,15 +188,7 @@ export function VisualTestPanel() {
 
       {/* Error */}
       {error && (
-        <div
-          style={{
-            padding: 8,
-            borderRadius: 4,
-            background: "color-mix(in srgb, var(--accent-rose) 15%, transparent)",
-            color: "var(--error-color)",
-            fontSize: 12,
-          }}
-        >
+        <div className="panel-error">
           {error}
         </div>
       )}
@@ -240,13 +209,10 @@ export function VisualTestPanel() {
           {steps.map((step, i) => (
             <div
               key={i}
+              className="panel-card"
               style={{
                 display: "flex",
                 gap: 10,
-                padding: 10,
-                borderRadius: 6,
-                background: "var(--bg-secondary)",
-                border: "1px solid var(--border-color)",
                 alignItems: "flex-start",
               }}
             >
@@ -323,13 +289,7 @@ export function VisualTestPanel() {
 
       {/* Empty state */}
       {steps.length === 0 && status === "idle" && (
-        <div
-          style={{
-            textAlign: "center",
-            padding: 40,
-            color: "var(--text-secondary)",
-          }}
-        >
+        <div className="panel-empty" style={{ padding: 40 }}>
           <div style={{ fontSize: 32, marginBottom: 8 }}>
             Visual Self-Testing
           </div>

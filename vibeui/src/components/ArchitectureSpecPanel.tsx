@@ -7,13 +7,7 @@
 import { useState, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
-const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", flex: 1, minHeight: 0, overflow: "auto", background: "var(--bg-primary)" };
-const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" };
-const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-color)" };
-const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
-const btnStyle: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", cursor: "pointer", fontSize: 12, marginRight: 8 };
 const inputStyle: React.CSSProperties = { width: "100%", padding: "6px 8px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", fontSize: 12, boxSizing: "border-box" };
-const tabRow: React.CSSProperties = { display: "flex", gap: 4, marginBottom: 12, flexWrap: "wrap" };
 const cellStyle = (filled: boolean): React.CSSProperties => ({ padding: 6, fontSize: 10, textAlign: "center", border: "1px solid var(--border-color)", background: filled ? "var(--bg-secondary)" : "var(--bg-tertiary)", minWidth: 80, color: filled ? "var(--text-primary)" : "var(--text-secondary)" });
 
 type Tab = "togaf" | "zachman" | "c4" | "adr" | "governance";
@@ -40,11 +34,11 @@ export default function ArchitectureSpecPanel() {
   }, []);
 
   return (
-    <div style={panelStyle}>
-      <h2 style={headingStyle}>Architecture Specification</h2>
-      <div style={tabRow}>
+    <div className="panel-container">
+      <h2 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>Architecture Specification</h2>
+      <div className="panel-tab-bar" style={{ marginBottom: 12 }}>
         {(["togaf", "zachman", "c4", "adr", "governance"] as Tab[]).map(t => (
-          <button key={t} style={{ ...btnStyle, background: tab === t ? "var(--accent-color)" : "var(--bg-tertiary)", color: tab === t ? "#fff" : "var(--text-primary)" }} onClick={() => { setTab(t); if (t !== "adr") loadReport(t); }}>
+          <button key={t} className={`panel-tab ${tab === t ? "active" : ""}`} onClick={() => { setTab(t); if (t !== "adr") loadReport(t); }}>
             {t === "togaf" ? "TOGAF ADM" : t === "zachman" ? "Zachman" : t === "c4" ? "C4 Model" : t === "adr" ? "ADRs" : "Governance"}
           </button>
         ))}
@@ -52,16 +46,16 @@ export default function ArchitectureSpecPanel() {
 
       {tab === "togaf" && (
         <>
-          <div style={cardStyle}>
+          <div className="panel-card">
             <div style={{ fontWeight: 600, marginBottom: 8 }}>TOGAF ADM Phases</div>
             {togafPhases.map((p, i) => (
               <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", borderBottom: "1px solid var(--border-color)" }}>
                 <span>{i + 1}. {p}</span>
-                <span style={labelStyle}>0 artifacts</span>
+                <span className="panel-label">0 artifacts</span>
               </div>
             ))}
           </div>
-          {report && <div style={cardStyle}><pre style={{ whiteSpace: "pre-wrap", margin: 0, fontSize: 11 }}>{report}</pre></div>}
+          {report && <div className="panel-card"><pre style={{ whiteSpace: "pre-wrap", margin: 0, fontSize: 11 }}>{report}</pre></div>}
         </>
       )}
 
@@ -83,17 +77,17 @@ export default function ArchitectureSpecPanel() {
               ))}
             </tbody>
           </table>
-          <div style={{ ...labelStyle, marginTop: 8 }}>Use <code>/archspec zachman set perspective aspect content</code> to fill cells.</div>
+          <div className="panel-label" style={{ marginTop: 8 }}>Use <code>/archspec zachman set perspective aspect content</code> to fill cells.</div>
         </div>
       )}
 
       {tab === "c4" && (
-        <div style={cardStyle}>
+        <div className="panel-card">
           <div style={{ fontWeight: 600, marginBottom: 8 }}>C4 Model Levels</div>
           {["Context", "Container", "Component", "Code"].map((level, i) => (
             <div key={i} style={{ padding: "8px 0", borderBottom: "1px solid var(--border-color)" }}>
               <div style={{ fontWeight: 600 }}>L{i + 1}: {level}</div>
-              <div style={labelStyle}>Use <code>/archspec c4 {level.toLowerCase()}</code> to generate diagram</div>
+              <div className="panel-label">Use <code>/archspec c4 {level.toLowerCase()}</code> to generate diagram</div>
             </div>
           ))}
           {report && <pre style={{ whiteSpace: "pre-wrap", marginTop: 8, fontSize: 11 }}>{report}</pre>}
@@ -102,25 +96,25 @@ export default function ArchitectureSpecPanel() {
 
       {tab === "adr" && (
         <>
-          <div style={cardStyle}>
+          <div className="panel-card">
             <div style={{ fontWeight: 600, marginBottom: 8 }}>New Architecture Decision Record</div>
-            <div style={labelStyle}>Title</div>
+            <div className="panel-label">Title</div>
             <input value={adrTitle} onChange={e => setAdrTitle(e.target.value)} style={{ ...inputStyle, marginBottom: 8 }} placeholder="Use PostgreSQL for primary database" />
-            <div style={labelStyle}>Context</div>
+            <div className="panel-label">Context</div>
             <textarea value={adrContext} onChange={e => setAdrContext(e.target.value)} rows={3} style={{ ...inputStyle, marginBottom: 8, resize: "vertical" }} placeholder="We need a reliable RDBMS that supports..." />
-            <div style={labelStyle}>Decision</div>
+            <div className="panel-label">Decision</div>
             <textarea value={adrDecision} onChange={e => setAdrDecision(e.target.value)} rows={3} style={{ ...inputStyle, marginBottom: 8, resize: "vertical" }} placeholder="We will use PostgreSQL because..." />
-            <button style={btnStyle} disabled={!adrTitle || loading}>Create ADR</button>
+            <button className="panel-btn panel-btn-secondary" disabled={!adrTitle || loading}>Create ADR</button>
           </div>
         </>
       )}
 
       {tab === "governance" && (
-        <div style={cardStyle}>
+        <div className="panel-card">
           <div style={{ fontWeight: 600, marginBottom: 8 }}>Architecture Governance</div>
-          <div style={labelStyle}>Governance rules validate architecture decisions against organizational standards.</div>
+          <div className="panel-label">Governance rules validate architecture decisions against organizational standards.</div>
           <div style={{ marginTop: 8 }}>
-            <button style={btnStyle} onClick={() => loadReport("governance")} disabled={loading}>Run Governance Check</button>
+            <button className="panel-btn panel-btn-secondary" onClick={() => loadReport("governance")} disabled={loading}>Run Governance Check</button>
           </div>
           {report && <pre style={{ whiteSpace: "pre-wrap", marginTop: 8, fontSize: 11 }}>{report}</pre>}
         </div>

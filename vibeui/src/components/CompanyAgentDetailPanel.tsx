@@ -50,26 +50,13 @@ export function CompanyAgentDetailPanel({ workspacePath: _wp }: CompanyAgentDeta
     }
   };
 
-  const btnStyle: React.CSSProperties = {
-    fontSize: 11, padding: "3px 10px", cursor: "pointer", borderRadius: 4,
-    background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", color: "var(--text-primary)",
-  };
   return (
-    <div style={{ padding: 16, fontSize: 13, height: "100%", overflowY: "auto" }}>
-      <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 16 }}>Agent Detail</div>
+    <div className="panel-container">
+      <div className="panel-header">Agent Detail</div>
+      <div className="panel-body" style={{ fontSize: 13 }}>
 
       {/* Agent list */}
-      <div
-        style={{
-          background: "var(--panel-bg, rgba(0,0,0,0.2))",
-          border: "1px solid var(--border-color)",
-          borderRadius: 6,
-          padding: 10,
-          marginBottom: 16,
-          maxHeight: 200,
-          overflowY: "auto",
-        }}
-      >
+      <div className="panel-card" style={{ marginBottom: 16, maxHeight: 200, overflowY: "auto" }}>
         <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 6 }}>All Agents</div>
         <pre style={{ margin: 0, fontSize: 12, whiteSpace: "pre-wrap" }}>
           {allAgents || "No agents. Use /company agent hire <name>"}
@@ -93,33 +80,24 @@ export function CompanyAgentDetailPanel({ workspacePath: _wp }: CompanyAgentDeta
             color: "var(--text-primary)",
           }}
         />
-        <button onClick={loadAgent} disabled={loading} style={{...btnStyle, padding: "4px 12px"}}>
+        <button onClick={loadAgent} disabled={loading} className="panel-btn panel-btn-secondary">
           {loading ? "…" : "Lookup"}
         </button>
-        <button
-          onClick={fireAgent}
-          style={{ ...btnStyle, padding: "4px 12px", border: "1px solid var(--danger, #e74c3c)", color: "var(--danger, #e74c3c)" }}
-        >
+        <button onClick={fireAgent} className="panel-btn panel-btn-danger">
           Fire
         </button>
       </div>
 
-      {error && <div style={{ color: "var(--danger, #e74c3c)", marginBottom: 8 }}>{error}</div>}
+      {error && <div className="panel-error">{error}</div>}
 
       {agentInfo && (
-        <div
-          style={{
-            background: "var(--panel-bg, rgba(0,0,0,0.2))",
-            border: "1px solid var(--border-color)",
-            borderRadius: 6,
-            padding: 12,
-          }}
-        >
+        <div className="panel-card">
           <pre style={{ margin: 0, fontSize: 12, whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
             {agentInfo}
           </pre>
         </div>
       )}
+      </div>
     </div>
   );
 }

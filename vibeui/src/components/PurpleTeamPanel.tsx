@@ -72,61 +72,6 @@ const TACTICS = [
   "Discovery", "Lateral Movement", "Collection", "C2", "Exfiltration", "Impact",
 ];
 
-const containerStyle: React.CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  height: "100%",
-  background: "var(--bg-primary)",
-  color: "var(--text-primary)",
-  fontFamily: "inherit",
-  overflow: "hidden",
-};
-
-const tabBarStyle: React.CSSProperties = {
-  display: "flex",
-  gap: 2,
-  padding: "8px 12px 0",
-  borderBottom: "1px solid var(--border-color)",
-  background: "var(--bg-secondary)",
-  overflowX: "auto",
-  flexShrink: 0,
-};
-
-const tabStyle = (active: boolean): React.CSSProperties => ({
-  padding: "8px 14px",
-  cursor: "pointer",
-  background: active ? "var(--bg-primary)" : "transparent",
-  color: active ? "var(--accent-blue)" : "var(--text-secondary)",
-  border: "none",
-  borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent",
-  fontSize: 13,
-  fontFamily: "inherit",
-  whiteSpace: "nowrap",
-});
-
-const contentStyle: React.CSSProperties = {
-  flex: 1,
-  overflow: "auto",
-  padding: 16,
-};
-
-const btnStyle: React.CSSProperties = {
-  padding: "6px 14px",
-  background: "var(--accent-blue)",
-  color: "var(--bg-primary)",
-  border: "none",
-  borderRadius: 4,
-  cursor: "pointer",
-  fontSize: 12,
-  fontFamily: "inherit",
-};
-
-const btnSecondary: React.CSSProperties = {
-  ...btnStyle,
-  background: "var(--bg-tertiary)",
-  color: "var(--text-primary)",
-};
-
 const inputStyle: React.CSSProperties = {
   padding: "6px 10px",
   background: "var(--bg-tertiary)",
@@ -169,23 +114,8 @@ const badgeStyle = (color: string): React.CSSProperties => ({
   color,
 });
 
-const cardStyle: React.CSSProperties = {
-  background: "var(--bg-secondary)",
-  border: "1px solid var(--border-color)",
-  borderRadius: 6,
-  padding: 14,
-  marginBottom: 10,
-};
-
 const formGroup: React.CSSProperties = {
   marginBottom: 10,
-};
-
-const labelStyle: React.CSSProperties = {
-  display: "block",
-  fontSize: 12,
-  color: "var(--text-secondary)",
-  marginBottom: 4,
 };
 
 export function PurpleTeamPanel() {
@@ -377,10 +307,10 @@ export function PurpleTeamPanel() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <h3 style={{ margin: 0, fontSize: 15 }}>Purple Team Exercises</h3>
           <div style={{ display: "flex", gap: 8 }}>
-            <button style={{ ...btnStyle, background: "var(--accent-color)", color: "var(--btn-primary-fg)", borderColor: "var(--accent-color)" }} onClick={() => { setShowAiGenerate(!showAiGenerate); setShowExerciseForm(false); }}>
+            <button className="panel-btn panel-btn-primary" onClick={() => { setShowAiGenerate(!showAiGenerate); setShowExerciseForm(false); }}>
               {showAiGenerate ? "Cancel" : "AI Generate Exercise"}
             </button>
-            <button style={btnStyle} onClick={() => { setShowExerciseForm(!showExerciseForm); setShowAiGenerate(false); }}>
+            <button className="panel-btn panel-btn-primary" onClick={() => { setShowExerciseForm(!showExerciseForm); setShowAiGenerate(false); }}>
               {showExerciseForm ? "Cancel" : "+ Manual"}
             </button>
           </div>
@@ -388,7 +318,7 @@ export function PurpleTeamPanel() {
 
         {/* AI Exercise Generation */}
         {showAiGenerate && (
-          <div style={{ ...cardStyle, marginBottom: 16 }}>
+          <div className="panel-card" style={{ marginBottom: 16 }}>
             <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8, lineHeight: 1.5 }}>
               Describe a threat scenario and the AI will generate a complete purple team exercise with ATT&CK technique mappings, attack steps, and detection expectations.
             </div>
@@ -400,7 +330,7 @@ export function PurpleTeamPanel() {
             />
             <div style={{ display: "flex", gap: 8, marginTop: 8, alignItems: "center" }}>
               <button
-                style={{ ...btnStyle, background: "var(--accent-color)", color: "var(--btn-primary-fg)", borderColor: "var(--accent-color)" }}
+                className="panel-btn panel-btn-primary"
                 onClick={async () => {
                   if (!aiPrompt.trim()) return;
                   setAiGenerating(true);
@@ -483,26 +413,26 @@ export function PurpleTeamPanel() {
         )}
 
         {showExerciseForm && (
-          <div style={{ ...cardStyle, marginBottom: 16 }}>
+          <div className="panel-card" style={{ marginBottom: 16 }}>
             <div style={formGroup}>
-              <label style={labelStyle}>Exercise Name</label>
+              <label className="panel-label">Exercise Name</label>
               <input style={inputStyle} value={exName} onChange={(e) => setExName(e.target.value)} placeholder="e.g. Q1 2026 Ransomware Simulation" />
             </div>
             <div style={formGroup}>
-              <label style={labelStyle}>Lead</label>
+              <label className="panel-label">Lead</label>
               <input style={inputStyle} value={exLead} onChange={(e) => setExLead(e.target.value)} placeholder="Exercise lead name" />
             </div>
             <div style={formGroup}>
-              <label style={labelStyle}>Description</label>
+              <label className="panel-label">Description</label>
               <textarea style={{ ...inputStyle, height: 60, resize: "vertical" }} value={exDescription} onChange={(e) => setExDescription(e.target.value)} placeholder="Exercise objectives and scope..." />
             </div>
-            <button style={btnStyle} onClick={createExercise} disabled={!exName || !exLead}>Create Exercise</button>
+            <button className="panel-btn panel-btn-primary" onClick={createExercise} disabled={!exName || !exLead}>Create Exercise</button>
           </div>
         )}
 
         {exercises.length === 0 && <p style={{ color: "var(--text-secondary)", textAlign: "center" }}>No exercises found. Create one to start testing.</p>}
         {exercises.map((ex) => (
-          <div key={ex.id} style={cardStyle}>
+          <div key={ex.id} className="panel-card">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <strong style={{ fontSize: 14 }}>{ex.name}</strong>
@@ -543,11 +473,11 @@ export function PurpleTeamPanel() {
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <h3 style={{ margin: 0, fontSize: 15 }}>MITRE ATT&CK Coverage Matrix</h3>
-          <button style={btnSecondary} onClick={loadMatrix}>Refresh Matrix</button>
+          <button className="panel-btn panel-btn-secondary" onClick={loadMatrix}>Refresh Matrix</button>
         </div>
 
         <div style={{ display: "flex", gap: 16, marginBottom: 16, flexWrap: "wrap" }}>
-          <div style={{ ...cardStyle, flex: "1 1 120px", textAlign: "center", marginBottom: 0 }}>
+          <div className="panel-card" style={{ flex: "1 1 120px", textAlign: "center", marginBottom: 0 }}>
             <div style={{ fontSize: 24, fontWeight: 700, fontFamily: "var(--font-mono)", color: stats.percentage >= 70 ? "var(--success-color)" : stats.percentage >= 40 ? "var(--warning-color)" : "var(--error-color)" }}>{stats.percentage}%</div>
             <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Overall Coverage</div>
           </div>
@@ -620,13 +550,13 @@ export function PurpleTeamPanel() {
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <h3 style={{ margin: 0, fontSize: 15 }}>Attack Simulations</h3>
-          <button style={btnStyle} onClick={() => setShowSimForm(!showSimForm)}>
+          <button className="panel-btn panel-btn-primary" onClick={() => setShowSimForm(!showSimForm)}>
             {showSimForm ? "Cancel" : "+ Record Simulation"}
           </button>
         </div>
 
         <div style={{ marginBottom: 12 }}>
-          <label style={labelStyle}>Filter by Exercise</label>
+          <label className="panel-label">Filter by Exercise</label>
           <select style={{ ...inputStyle, width: 300 }} value={selectedExercise} onChange={(e) => setSelectedExercise(e.target.value)}>
             <option value="">All Exercises</option>
             {exercises.map((ex) => (
@@ -636,10 +566,10 @@ export function PurpleTeamPanel() {
         </div>
 
         {showSimForm && (
-          <div style={{ ...cardStyle, marginBottom: 16 }}>
+          <div className="panel-card" style={{ marginBottom: 16 }}>
             <div style={{ display: "flex", gap: 10 }}>
               <div style={{ ...formGroup, flex: 1 }}>
-                <label style={labelStyle}>Exercise</label>
+                <label className="panel-label">Exercise</label>
                 <select style={inputStyle} value={simExerciseId} onChange={(e) => setSimExerciseId(e.target.value)}>
                   <option value="">Select exercise...</option>
                   {exercises.map((ex) => (
@@ -648,17 +578,17 @@ export function PurpleTeamPanel() {
                 </select>
               </div>
               <div style={{ ...formGroup, flex: 1 }}>
-                <label style={labelStyle}>Technique ID</label>
+                <label className="panel-label">Technique ID</label>
                 <input style={inputStyle} value={simTechniqueId} onChange={(e) => setSimTechniqueId(e.target.value)} placeholder="e.g. T1059.001" />
               </div>
             </div>
             <div style={{ display: "flex", gap: 10 }}>
               <div style={{ ...formGroup, flex: 2 }}>
-                <label style={labelStyle}>Technique Name</label>
+                <label className="panel-label">Technique Name</label>
                 <input style={inputStyle} value={simTechniqueName} onChange={(e) => setSimTechniqueName(e.target.value)} placeholder="e.g. PowerShell" />
               </div>
               <div style={{ ...formGroup, flex: 1 }}>
-                <label style={labelStyle}>Outcome</label>
+                <label className="panel-label">Outcome</label>
                 <select style={inputStyle} value={simOutcome} onChange={(e) => setSimOutcome(e.target.value as "Detected" | "Partial" | "Missed")}>
                   <option value="Detected">Detected</option>
                   <option value="Partial">Partial</option>
@@ -668,29 +598,29 @@ export function PurpleTeamPanel() {
             </div>
             <div style={{ display: "flex", gap: 10 }}>
               <div style={{ ...formGroup, flex: 1 }}>
-                <label style={labelStyle}>Detection Time (seconds)</label>
+                <label className="panel-label">Detection Time (seconds)</label>
                 <input style={inputStyle} type="number" value={simDetectionTime} onChange={(e) => setSimDetectionTime(e.target.value)} placeholder="e.g. 120" />
               </div>
               <div style={{ ...formGroup, flex: 1 }}>
-                <label style={labelStyle}>Detection Source</label>
+                <label className="panel-label">Detection Source</label>
                 <input style={inputStyle} value={simDetectionSource} onChange={(e) => setSimDetectionSource(e.target.value)} placeholder="e.g. CrowdStrike EDR" />
               </div>
             </div>
             <div style={formGroup}>
-              <label style={labelStyle}>Steps (one per line)</label>
+              <label className="panel-label">Steps (one per line)</label>
               <textarea style={{ ...inputStyle, height: 60, resize: "vertical" }} value={simSteps} onChange={(e) => setSimSteps(e.target.value)} placeholder="Step 1: Execute payload&#10;Step 2: Observe detection" />
             </div>
             <div style={formGroup}>
-              <label style={labelStyle}>Notes</label>
+              <label className="panel-label">Notes</label>
               <textarea style={{ ...inputStyle, height: 40, resize: "vertical" }} value={simNotes} onChange={(e) => setSimNotes(e.target.value)} />
             </div>
-            <button style={btnStyle} onClick={recordSimulation} disabled={!simExerciseId || !simTechniqueId}>Record Simulation</button>
+            <button className="panel-btn panel-btn-primary" onClick={recordSimulation} disabled={!simExerciseId || !simTechniqueId}>Record Simulation</button>
           </div>
         )}
 
         {filtered.length === 0 && <p style={{ color: "var(--text-secondary)", textAlign: "center" }}>No simulations recorded yet.</p>}
         {filtered.map((sim) => (
-          <div key={sim.id} style={cardStyle}>
+          <div key={sim.id} className="panel-card">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
               <div>
                 <span style={{ fontFamily: "inherit", fontSize: 12, color: "var(--accent-blue)" }}>{sim.technique_id}</span>
@@ -763,10 +693,10 @@ export function PurpleTeamPanel() {
     return (
       <div>
         <h3 style={{ margin: "0 0 14px", fontSize: 15 }}>Exercise Reports</h3>
-        <div style={cardStyle}>
+        <div className="panel-card">
           <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
             <div style={{ ...formGroup, flex: 1, marginBottom: 0 }}>
-              <label style={labelStyle}>Exercise</label>
+              <label className="panel-label">Exercise</label>
               <select style={inputStyle} value={reportExerciseId} onChange={(e) => setReportExerciseId(e.target.value)}>
                 <option value="">Select exercise...</option>
                 {exercises.map((ex) => (
@@ -775,7 +705,7 @@ export function PurpleTeamPanel() {
               </select>
             </div>
             <div style={{ ...formGroup, flex: 1, marginBottom: 0 }}>
-              <label style={labelStyle}>Compare With (optional)</label>
+              <label className="panel-label">Compare With (optional)</label>
               <select style={inputStyle} value={compareExerciseId} onChange={(e) => setCompareExerciseId(e.target.value)}>
                 <option value="">None</option>
                 {exercises.filter((ex) => ex.id !== reportExerciseId).map((ex) => (
@@ -783,7 +713,7 @@ export function PurpleTeamPanel() {
                 ))}
               </select>
             </div>
-            <button style={btnStyle} onClick={generateReport} disabled={!reportExerciseId}>Generate Report</button>
+            <button className="panel-btn panel-btn-primary" onClick={generateReport} disabled={!reportExerciseId}>Generate Report</button>
           </div>
         </div>
 
@@ -791,7 +721,7 @@ export function PurpleTeamPanel() {
           <div style={{ marginTop: 16 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
               <h4 style={{ margin: 0, fontSize: 14 }}>Generated Report</h4>
-              <button style={btnSecondary} onClick={() => navigator.clipboard.writeText(reportContent)}>Copy</button>
+              <button className="panel-btn panel-btn-secondary" onClick={() => navigator.clipboard.writeText(reportContent)}>Copy</button>
             </div>
             <pre style={{
               background: "var(--bg-tertiary)",
@@ -823,27 +753,27 @@ export function PurpleTeamPanel() {
   };
 
   return (
-    <div style={containerStyle}>
-      <div style={tabBarStyle}>
+    <div className="panel-container">
+      <div className="panel-tab-bar">
         {TABS.map((tab) => (
-          <button key={tab} style={tabStyle(activeTab === tab)} onClick={() => setActiveTab(tab)}>
+          <button key={tab} className={`panel-tab ${activeTab === tab ? "active" : ""}`} onClick={() => setActiveTab(tab)}>
             {tab}
           </button>
         ))}
       </div>
-      <div style={contentStyle}>
+      <div className="panel-body">
         {successMsg && (
           <div style={{ padding: "8px 12px", marginBottom: 12, background: "rgba(76,175,80,0.13)", border: "1px solid var(--success-color)", borderRadius: 4, fontSize: 12, color: "var(--success-color)" }}>
             {successMsg}
           </div>
         )}
         {error && (
-          <div style={{ padding: "8px 12px", marginBottom: 12, background: "color-mix(in srgb, var(--accent-rose) 13%, transparent)", border: "1px solid var(--error-color)", borderRadius: 4, fontSize: 12, color: "var(--error-color)", display: "flex", justifyContent: "space-between" }}>
+          <div className="panel-error" style={{ marginBottom: 12, display: "flex", justifyContent: "space-between" }}>
             <span>{error}</span>
             <button style={{ background: "none", border: "none", color: "var(--error-color)", cursor: "pointer", fontSize: 14 }} onClick={() => setError(null)}>x</button>
           </div>
         )}
-        {loading && <div style={{ textAlign: "center", padding: 20, color: "var(--text-secondary)", fontSize: 13 }}>Loading...</div>}
+        {loading && <div className="panel-loading">Loading...</div>}
         {!loading && renderTab()}
       </div>
     </div>

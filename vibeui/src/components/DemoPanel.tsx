@@ -42,52 +42,6 @@ interface DemoRecording {
 
 // ── Styles ───────────────────────────────────────────────────────────────────
 
-const panelStyle: React.CSSProperties = {
-  padding: 12,
-  height: "100%",
-  overflow: "auto",
-  background: "var(--bg-tertiary)",
-  color: "var(--text-primary)",
-  fontFamily: "var(--font-family, 'Segoe UI', system-ui, sans-serif)",
-  fontSize: 13,
-};
-
-const headerStyle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  marginBottom: 12,
-};
-
-const tabBarStyle: React.CSSProperties = {
-  display: "flex",
-  gap: 2,
-  marginBottom: 12,
-  borderBottom: "1px solid var(--border-color)",
-  paddingBottom: 8,
-};
-
-const tabStyle = (active: boolean): React.CSSProperties => ({
-  padding: "6px 14px",
-  cursor: "pointer",
-  borderRadius: "4px 4px 0 0",
-  background: active ? "var(--accent-color)" : "transparent",
-  color: active ? "var(--text-primary)" : "var(--text-secondary)",
-  border: "none",
-  fontSize: 12,
-  fontWeight: active ? 600 : 400,
-});
-
-const cardStyle: React.CSSProperties = {
-  background: "var(--bg-secondary)",
-  borderRadius: 6,
-  padding: 10,
-  marginBottom: 8,
-  cursor: "pointer",
-  border: "1px solid transparent",
-  transition: "border-color 0.15s",
-};
-
 const badgeStyle = (status: string): React.CSSProperties => ({
   borderRadius: 10,
   padding: "2px 8px",
@@ -119,17 +73,6 @@ const thumbStyle: React.CSSProperties = {
   borderRadius: 4,
   border: "1px solid var(--border-color)",
   background: "var(--bg-primary)",
-};
-
-const btnStyle: React.CSSProperties = {
-  background: "var(--accent-color)",
-  color: "var(--text-primary)",
-  border: "none",
-  borderRadius: 4,
-  padding: "6px 14px",
-  cursor: "pointer",
-  fontSize: 12,
-  fontWeight: 500,
 };
 
 const inputStyle: React.CSSProperties = {
@@ -320,31 +263,31 @@ export function DemoPanel() {
   // ── Render ─────────────────────────────────────────────────────────────
 
   return (
-    <div style={panelStyle}>
-      <div style={headerStyle}>
+    <div className="panel-container">
+      <div className="panel-header">
         <span style={{ fontWeight: 700, fontSize: 15 }}>Feature Demos</span>
-        <button onClick={loadDemos} disabled={loading} style={btnStyle}>
+        <button onClick={loadDemos} disabled={loading} className="panel-btn panel-btn-primary">
           {loading ? "Loading..." : "Refresh"}
         </button>
       </div>
 
-      <div style={tabBarStyle}>
+      <div className="panel-tab-bar">
         {(["demos", "create", "generate"] as TabKey[]).map((t) => (
-          <button key={t} style={tabStyle(tab === t)} onClick={() => setTab(t)}>
+          <button key={t} className={`panel-tab ${tab === t ? "active" : ""}`} onClick={() => setTab(t)}>
             {t === "demos" ? "Demos" : t === "create" ? "Create" : "AI Generate"}
           </button>
         ))}
       </div>
 
       {error && (
-        <div style={{ color: "var(--error-color)", marginBottom: 8, fontSize: 12 }}>{error}</div>
+        <div className="panel-error">{error}</div>
       )}
 
       {/* ── Demos Tab ────────────────────────────────────────────────── */}
       {tab === "demos" && (
         <div>
           {!loading && demos.length === 0 && (
-            <div style={{ color: "var(--text-secondary)", textAlign: "center", marginTop: 24 }}>
+            <div className="panel-empty">
               No demos yet. Create one using the "Create" or "AI Generate" tabs.
             </div>
           )}
@@ -352,9 +295,10 @@ export function DemoPanel() {
           {demos.map((demo) => (
             <div
               key={demo.id}
+              className="panel-card"
               style={{
-                ...cardStyle,
-                borderColor: expanded.has(demo.id) ? "var(--accent-color)" : "transparent",
+                borderColor: expanded.has(demo.id) ? "var(--accent-color)" : "var(--border-color)",
+                cursor: "pointer",
               }}
               onClick={() => toggle(demo.id)}
             >
@@ -375,7 +319,8 @@ export function DemoPanel() {
                 <div style={{ marginTop: 10 }}>
                   <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
                     <button
-                      style={{ ...btnStyle, fontSize: 11, padding: "4px 10px" }}
+                      className="panel-btn panel-btn-secondary"
+                      style={{ fontSize: 11, padding: "4px 10px" }}
                       onClick={(e) => {
                         e.stopPropagation();
                         exportDemo(demo.id, "html");
@@ -384,7 +329,8 @@ export function DemoPanel() {
                       Export HTML
                     </button>
                     <button
-                      style={{ ...btnStyle, fontSize: 11, padding: "4px 10px" }}
+                      className="panel-btn panel-btn-secondary"
+                      style={{ fontSize: 11, padding: "4px 10px" }}
                       onClick={(e) => {
                         e.stopPropagation();
                         exportDemo(demo.id, "markdown");
@@ -443,7 +389,7 @@ export function DemoPanel() {
       {tab === "create" && (
         <div>
           <div style={{ marginBottom: 10 }}>
-            <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>
+            <label className="panel-label" style={{ display: "block" }}>
               Demo Name
             </label>
             <input
@@ -454,7 +400,7 @@ export function DemoPanel() {
             />
           </div>
           <div style={{ marginBottom: 10 }}>
-            <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>
+            <label className="panel-label" style={{ display: "block" }}>
               Description
             </label>
             <input
@@ -465,7 +411,7 @@ export function DemoPanel() {
             />
           </div>
           <div style={{ marginBottom: 10 }}>
-            <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>
+            <label className="panel-label" style={{ display: "block" }}>
               CDP Port
             </label>
             <input
@@ -535,7 +481,7 @@ export function DemoPanel() {
                 onChange={(e) => setNewStepCaption(e.target.value)}
               />
             </div>
-            <button style={btnStyle} onClick={addStep}>
+            <button className="panel-btn panel-btn-primary" onClick={addStep}>
               + Add Step
             </button>
           </div>
@@ -580,7 +526,8 @@ export function DemoPanel() {
           )}
 
           <button
-            style={{ ...btnStyle, width: "100%", padding: "10px 0", fontSize: 14 }}
+            className="panel-btn panel-btn-primary"
+            style={{ width: "100%", padding: "10px 0", fontSize: 14 }}
             disabled={!demoName || steps.length === 0 || loading}
             onClick={() => runDemo(demoName, demoDesc, steps)}
           >
@@ -593,7 +540,7 @@ export function DemoPanel() {
       {tab === "generate" && (
         <div>
           <div style={{ marginBottom: 10 }}>
-            <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>
+            <label className="panel-label" style={{ display: "block" }}>
               Feature Description
             </label>
             <textarea
@@ -604,7 +551,7 @@ export function DemoPanel() {
             />
           </div>
           <div style={{ marginBottom: 10 }}>
-            <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>
+            <label className="panel-label" style={{ display: "block" }}>
               App URL
             </label>
             <input
@@ -614,7 +561,7 @@ export function DemoPanel() {
             />
           </div>
           <div style={{ marginBottom: 10 }}>
-            <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>
+            <label className="panel-label" style={{ display: "block" }}>
               CDP Port
             </label>
             <input
@@ -624,7 +571,8 @@ export function DemoPanel() {
             />
           </div>
           <button
-            style={{ ...btnStyle, marginBottom: 12 }}
+            className="panel-btn panel-btn-primary"
+            style={{ marginBottom: 12 }}
             disabled={!featureDesc || generating}
             onClick={generateSteps}
           >
@@ -651,7 +599,8 @@ export function DemoPanel() {
                 </div>
               ))}
               <button
-                style={{ ...btnStyle, width: "100%", padding: "10px 0", fontSize: 14, marginTop: 10 }}
+                className="panel-btn panel-btn-primary"
+                style={{ width: "100%", padding: "10px 0", fontSize: 14, marginTop: 10 }}
                 disabled={loading}
                 onClick={() =>
                   runDemo(

@@ -14,23 +14,6 @@ interface Recording {
   finished_at: number | null;
 }
 
-const panelStyle: React.CSSProperties = {
-  padding: 12,
-  height: "100%",
-  overflow: "auto",
-  background: "var(--bg-tertiary)",
-  color: "var(--text-primary)",
-  fontFamily: "var(--font-family, 'Segoe UI', system-ui, sans-serif)",
-  fontSize: 13,
-};
-
-const headerStyle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  marginBottom: 12,
-};
-
 const badgeStyle: React.CSSProperties = {
   background: "var(--accent-color)",
   color: "var(--text-primary)",
@@ -105,32 +88,24 @@ export function AgentRecordingPanel() {
   };
 
   return (
-    <div style={panelStyle}>
-      <div style={headerStyle}>
+    <div className="panel-container">
+      <div className="panel-header">
         <span style={{ fontWeight: 700, fontSize: 15 }}>Agent Recordings</span>
         <button
           onClick={load}
           disabled={loading}
-          style={{
-            background: "var(--accent-color)",
-            color: "var(--text-primary)",
-            border: "none",
-            borderRadius: 4,
-            padding: "4px 12px",
-            cursor: loading ? "wait" : "pointer",
-            fontSize: 12,
-          }}
+          className="panel-btn panel-btn-primary"
         >
           {loading ? "Loading..." : "Refresh"}
         </button>
       </div>
 
       {error && (
-        <div style={{ color: "var(--error-color)", marginBottom: 8, fontSize: 12 }}>{error}</div>
+        <div className="panel-error">{error}</div>
       )}
 
       {!loading && recordings.length === 0 && (
-        <div style={{ color: "var(--text-secondary)", textAlign: "center", marginTop: 24 }}>
+        <div className="panel-empty">
           No recordings found. Use <code>--record</code> with the agent to capture sessions.
         </div>
       )}

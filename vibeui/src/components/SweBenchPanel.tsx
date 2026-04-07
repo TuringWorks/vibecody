@@ -54,13 +54,6 @@ interface ResultsResponse {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", flex: 1, minHeight: 0, overflow: "auto", background: "var(--bg-primary)" };
-const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" };
-const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-color)" };
-const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
-const btnStyle: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", cursor: "pointer", fontSize: 12 };
-const tabBtnStyle = (active: boolean): React.CSSProperties => ({ ...btnStyle, background: active ? "var(--accent-primary)" : "var(--bg-tertiary)", color: active ? "var(--btn-primary-fg)" : "var(--text-primary)", marginRight: 4 });
-
 const selectStyle: React.CSSProperties = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: 12, fontFamily: "var(--font-family)", boxSizing: "border-box", cursor: "pointer" };
 
 const barBg: React.CSSProperties = { height: 8, borderRadius: 4, background: "var(--bg-tertiary)", overflow: "hidden" };
@@ -186,9 +179,9 @@ export function SweBenchPanel() {
 
   if (loading) {
     return (
-      <div style={panelStyle}>
-        <h2 style={headingStyle}>SWE-bench Benchmarking</h2>
-        <div style={cardStyle}>Loading...</div>
+      <div className="panel-container">
+        <h2 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>SWE-bench Benchmarking</h2>
+        <div className="panel-loading">Loading...</div>
       </div>
     );
   }
@@ -196,40 +189,41 @@ export function SweBenchPanel() {
   const availableModels = models[selectedProvider] || [];
 
   return (
-    <div style={panelStyle}>
-      <h2 style={headingStyle}>SWE-bench Benchmarking</h2>
+    <div className="panel-container">
+      <h2 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>SWE-bench Benchmarking</h2>
 
-      <div style={{ marginBottom: 12 }}>
-        <button style={tabBtnStyle(tab === "run")} onClick={() => setTab("run")}>Run</button>
-        <button style={tabBtnStyle(tab === "results")} onClick={() => setTab("results")}>Results</button>
-        <button style={tabBtnStyle(tab === "compare")} onClick={() => setTab("compare")}>Compare</button>
+      <div className="panel-tab-bar" style={{ marginBottom: 12 }}>
+        <button className={`panel-tab ${tab === "run" ? "active" : ""}`} onClick={() => setTab("run")}>Run</button>
+        <button className={`panel-tab ${tab === "results" ? "active" : ""}`} onClick={() => setTab("results")}>Results</button>
+        <button className={`panel-tab ${tab === "compare" ? "active" : ""}`} onClick={() => setTab("compare")}>Compare</button>
       </div>
 
       {tab === "run" && (
         <div>
-          <div style={cardStyle}>
+          <div className="panel-card">
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
               <div>
-                <div style={labelStyle}>Suite</div>
+                <div className="panel-label">Suite</div>
                 <select style={selectStyle} value={selectedSuite} onChange={(e) => setSelectedSuite(e.target.value)}>
                   {suites.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
               <div>
-                <div style={labelStyle}>Provider</div>
+                <div className="panel-label">Provider</div>
                 <select style={selectStyle} value={selectedProvider} onChange={(e) => handleProviderChange(e.target.value)}>
                   {providers.map((p) => <option key={p} value={p}>{p}</option>)}
                 </select>
               </div>
               <div>
-                <div style={labelStyle}>Model</div>
+                <div className="panel-label">Model</div>
                 <select style={selectStyle} value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)}>
                   {availableModels.map((m) => <option key={m} value={m}>{m}</option>)}
                 </select>
               </div>
             </div>
             <button
-              style={{ ...btnStyle, background: "var(--accent-primary)", color: "var(--btn-primary-fg)", marginTop: 12 }}
+              className="panel-btn panel-btn-primary"
+              style={{ marginTop: 12 }}
               onClick={startBenchmark}
               disabled={isStarting}
             >
@@ -237,10 +231,10 @@ export function SweBenchPanel() {
             </button>
           </div>
 
-          <div style={labelStyle}>Recent Runs</div>
-          {runs.length === 0 && <div style={cardStyle}>No benchmark runs yet. Start one above.</div>}
+          <div className="panel-label">Recent Runs</div>
+          {runs.length === 0 && <div className="panel-empty">No benchmark runs yet. Start one above.</div>}
           {runs.map((r) => (
-            <div key={r.id} style={cardStyle}>
+            <div key={r.id} className="panel-card">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                 <div>
                   <span style={{ fontWeight: 600 }}>{r.model}</span>
@@ -263,7 +257,7 @@ export function SweBenchPanel() {
       {tab === "results" && (
         <div>
           <div style={{ marginBottom: 10 }}>
-            <div style={labelStyle}>Select Run</div>
+            <div className="panel-label">Select Run</div>
             <select style={selectStyle} value={selectedRunId} onChange={(e) => setSelectedRunId(e.target.value)}>
               {runs.length === 0 && <option value="">No runs available</option>}
               {runs.map((r) => <option key={r.id} value={r.id}>{r.model} — {r.suite} ({r.status})</option>)}
@@ -273,26 +267,26 @@ export function SweBenchPanel() {
           {selectedRun && (
             <>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
-                <div style={cardStyle}>
-                  <div style={labelStyle}>Pass@1</div>
+                <div className="panel-card">
+                  <div className="panel-label">Pass@1</div>
                   <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--success-color)" }}>{selectedRun.passRate}%</div>
                 </div>
-                <div style={cardStyle}>
-                  <div style={labelStyle}>Passed</div>
+                <div className="panel-card">
+                  <div className="panel-label">Passed</div>
                   <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{selectedRun.passed}/{selectedRun.totalTasks}</div>
                 </div>
-                <div style={cardStyle}>
-                  <div style={labelStyle}>Failed</div>
+                <div className="panel-card">
+                  <div className="panel-label">Failed</div>
                   <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--error-color)" }}>{selectedRun.failed}</div>
                 </div>
-                <div style={cardStyle}>
-                  <div style={labelStyle}>Avg Duration</div>
+                <div className="panel-card">
+                  <div className="panel-label">Avg Duration</div>
                   <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{selectedRun.avgDurationSec}s</div>
                 </div>
               </div>
 
-              <div style={cardStyle}>
-                <div style={labelStyle}>Task Breakdown</div>
+              <div className="panel-card">
+                <div className="panel-label">Task Breakdown</div>
                 {taskResults.length === 0 && <div style={{ fontSize: 12, color: "var(--text-secondary)", padding: "8px 0" }}>No task results available for this run.</div>}
                 {taskResults.length > 0 && (
                   <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -326,14 +320,14 @@ export function SweBenchPanel() {
 
       {tab === "compare" && (
         <div>
-          <div style={cardStyle}>
-            <div style={labelStyle}>Select runs to compare</div>
+          <div className="panel-card">
+            <div className="panel-label">Select runs to compare</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
               {completedRuns.length === 0 && <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>No completed runs to compare.</div>}
               {completedRuns.map((r) => (
                 <button
                   key={r.id}
-                  style={tabBtnStyle(compareIds.includes(r.id))}
+                  className={`panel-tab ${compareIds.includes(r.id) ? "active" : ""}`}
                   onClick={() => toggleCompare(r.id)}
                 >
                   {r.model}
@@ -343,7 +337,7 @@ export function SweBenchPanel() {
           </div>
 
           {compareRuns.length >= 2 && (
-            <div style={cardStyle}>
+            <div className="panel-card">
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
                   <tr>
@@ -384,7 +378,7 @@ export function SweBenchPanel() {
           )}
 
           {compareRuns.length < 2 && completedRuns.length >= 2 && (
-            <div style={cardStyle}>Select at least 2 completed runs to compare.</div>
+            <div className="panel-empty">Select at least 2 completed runs to compare.</div>
           )}
         </div>
       )}

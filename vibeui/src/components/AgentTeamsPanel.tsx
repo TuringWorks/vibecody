@@ -165,12 +165,9 @@ const AgentTeamsPanel: React.FC = () => {
   const progressPct = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden", color: "var(--text-primary)" }}>
+    <div className="panel-container">
       {/* Header */}
-      <div style={{
-        padding: "8px 12px", borderBottom: "1px solid var(--border-color)",
-        display: "flex", alignItems: "center", gap: 8,
-      }}>
+      <div className="panel-header">
         <span style={{ fontSize: 14, fontWeight: 700 }}>Agent Teams</span>
         {team && (
           <>
@@ -188,14 +185,14 @@ const AgentTeamsPanel: React.FC = () => {
         )}
         <div style={{ flex: 1 }} />
         {team && (
-          <button onClick={handleDismiss} style={btnSecondary}>
+          <button onClick={handleDismiss} className="panel-btn panel-btn-secondary">
             New Team
           </button>
         )}
       </div>
 
       {/* Tab bar */}
-      <div style={{ display: "flex", gap: 0, borderBottom: "1px solid var(--border-color)" }}>
+      <div className="panel-tab-bar">
         {([
           ["team", "Team"],
           ["tasks", `Tasks${team ? ` (${totalTasks})` : ""}`],
@@ -205,12 +202,7 @@ const AgentTeamsPanel: React.FC = () => {
           <button
             key={id}
             onClick={() => setTab(id)}
-            style={{
-              padding: "6px 14px", cursor: "pointer", fontSize: 12,
-              borderBottom: tab === id ? "2px solid var(--accent-blue)" : "2px solid transparent",
-              color: tab === id ? "var(--text-primary)" : "var(--text-secondary)",
-              background: "none", border: "none", borderBottomStyle: "solid",
-            }}
+            className={`panel-tab ${tab === id ? "active" : ""}`}
           >
             {label}
           </button>
@@ -219,17 +211,17 @@ const AgentTeamsPanel: React.FC = () => {
 
       {/* Error banner */}
       {error && (
-        <div style={{
-          padding: "6px 12px", background: "var(--error-bg)", borderBottom: "1px solid var(--error-color)",
-          display: "flex", alignItems: "center", gap: 8, fontSize: 11, color: "var(--text-danger)",
+        <div className="panel-error" style={{
+          borderBottom: "1px solid var(--error-color)",
+          display: "flex", alignItems: "center", gap: 8,
         }}>
           <span style={{ flex: 1 }}>{error}</span>
-          <button onClick={() => setError(null)} style={{ ...btnSecondary, fontSize: 10, padding: "2px 6px" }}>Dismiss</button>
+          <button onClick={() => setError(null)} className="panel-btn panel-btn-secondary" style={{ fontSize: 10, padding: "2px 6px" }}>Dismiss</button>
         </div>
       )}
 
       {/* Content area */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "10px 12px" }}>
+      <div className="panel-body" style={{ padding: "10px 12px" }}>
 
         {/* TEAM TAB */}
         {tab === "team" && !team && (
@@ -240,17 +232,17 @@ const AgentTeamsPanel: React.FC = () => {
               Each agent works autonomously and communicates findings via the message bus.
             </div>
             <div>
-              <div style={labelStyle}>Goal</div>
+              <div className="panel-label">Goal</div>
               <textarea
                 value={goal}
                 onChange={(e) => setGoal(e.target.value)}
                 rows={4}
                 placeholder="e.g., Refactor the authentication module to use JWT tokens with refresh rotation..."
-                style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit", width: "100%", boxSizing: "border-box" }}
+                style={{ padding: "6px 10px", fontSize: 12, borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)", outline: "none", resize: "vertical", fontFamily: "inherit", width: "100%", boxSizing: "border-box" }}
               />
             </div>
             <div>
-              <div style={labelStyle}>Team Size</div>
+              <div className="panel-label">Team Size</div>
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <input
                   type="range" min={2} max={8} value={memberCount}
@@ -265,8 +257,7 @@ const AgentTeamsPanel: React.FC = () => {
                 1 lead + {memberCount - 1} worker{memberCount - 1 !== 1 ? "s" : ""}
               </div>
             </div>
-            <button onClick={handleCreate} disabled={loading || !goal.trim()} style={{
-              ...btnPrimary,
+            <button onClick={handleCreate} disabled={loading || !goal.trim()} className="panel-btn panel-btn-primary" style={{
               opacity: loading || !goal.trim() ? 0.5 : 1,
               cursor: loading || !goal.trim() ? "not-allowed" : "pointer",
             }}>
@@ -496,10 +487,9 @@ const AgentTeamsPanel: React.FC = () => {
             onChange={(e) => setUserMsg(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
             placeholder="Send a message to the team..."
-            style={{ ...inputStyle, flex: 1 }}
+            style={{ padding: "6px 10px", fontSize: 12, borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)", outline: "none", flex: 1 }}
           />
-          <button onClick={handleSendMessage} disabled={!userMsg.trim()} style={{
-            ...btnPrimary,
+          <button onClick={handleSendMessage} disabled={!userMsg.trim()} className="panel-btn panel-btn-primary" style={{
             opacity: !userMsg.trim() ? 0.5 : 1,
             cursor: !userMsg.trim() ? "not-allowed" : "pointer",
           }}>
@@ -513,29 +503,3 @@ const AgentTeamsPanel: React.FC = () => {
 
 export default AgentTeamsPanel;
 
-const btnPrimary: React.CSSProperties = {
-  padding: "6px 14px", fontSize: 12, fontWeight: 600,
-  border: "none", borderRadius: 4,
-  background: "var(--accent-color)", color: "var(--btn-primary-fg)",
-  cursor: "pointer",
-};
-
-const btnSecondary: React.CSSProperties = {
-  padding: "4px 10px", fontSize: 10, fontWeight: 600,
-  border: "1px solid var(--border-color)", borderRadius: 4,
-  background: "var(--bg-secondary)", color: "var(--text-primary)",
-  cursor: "pointer",
-};
-
-const inputStyle: React.CSSProperties = {
-  padding: "6px 10px", fontSize: 12, borderRadius: 4,
-  border: "1px solid var(--border-color)",
-  background: "var(--bg-primary)", color: "var(--text-primary)",
-  outline: "none",
-};
-
-const labelStyle: React.CSSProperties = {
-  fontSize: 10, fontWeight: 600, marginBottom: 4,
-  color: "var(--text-secondary)",
-  textTransform: "uppercase" as const, letterSpacing: "0.05em",
-};

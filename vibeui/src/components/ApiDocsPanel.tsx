@@ -392,28 +392,16 @@ export function ApiDocsPanel({ workspacePath }: ApiDocsPanelProps) {
  (grouped[ep.tag] ??= []).push(ep);
  }
 
- const inputStyle: React.CSSProperties = {
- padding: "5px 8px", fontSize: 12, background: "var(--bg-secondary)",
- border: "1px solid var(--border-color)", borderRadius: 4,
- color: "var(--text-primary)", outline: "none",
- };
-
  return (
- <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+ <div className="panel-container">
  {/* Header: Load spec */}
- <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", flexShrink: 0 }}>
+ <div className="panel-header" style={{ padding: "10px 12px", flexDirection: "column", alignItems: "stretch" }}>
  <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
  {(["file", "url"] as const).map((s) => (
  <button
  key={s}
  onClick={() => setSource(s)}
- style={{
- padding: "3px 10px", fontSize: 11, borderRadius: 12,
- background: source === s ? "var(--accent-color)" : "transparent",
- color: source === s ? "var(--text-primary)" : "var(--text-secondary)",
- border: `1px solid ${source === s ? "var(--accent-color)" : "var(--border-color)"}`,
- cursor: "pointer",
- }}
+ className={`panel-tab ${source === s ? "active" : ""}`}
  >
  {s === "file" ? "File" : "URL"}
  </button>
@@ -424,7 +412,7 @@ export function ApiDocsPanel({ workspacePath }: ApiDocsPanelProps) {
  <div style={{ display: "flex", gap: 6 }}>
  <div style={{ position: "relative", flex: 1 }}>
  <input
- style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
+ style={{ padding: "5px 8px", fontSize: 12, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none", width: "100%", boxSizing: "border-box" }}
  value={filePath}
  onChange={(e) => setFilePath(e.target.value)}
  placeholder="openapi.json / openapi.yaml"
@@ -445,7 +433,7 @@ export function ApiDocsPanel({ workspacePath }: ApiDocsPanelProps) {
  ) : (
  <div style={{ display: "flex", gap: 6 }}>
  <input
- style={{ ...inputStyle, flex: 1 }}
+ style={{ padding: "5px 8px", fontSize: 12, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none", flex: 1 }}
  value={urlInput}
  onChange={(e) => setUrlInput(e.target.value)}
  onKeyDown={(e) => e.key === "Enter" && handleLoadUrl()}
@@ -477,7 +465,7 @@ export function ApiDocsPanel({ workspacePath }: ApiDocsPanelProps) {
  <div style={{ padding: "6px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", flexShrink: 0, display: "flex", gap: 6, alignItems: "center" }}>
  <span style={{ fontSize: 11, color: "var(--text-secondary)", flexShrink: 0 }}>Base URL</span>
  <input
- style={{ ...inputStyle, flex: 1, fontSize: 11 }}
+ style={{ padding: "5px 8px", fontSize: 11, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none", flex: 1 }}
  value={serverUrl}
  onChange={(e) => setServerUrl(e.target.value)}
  />
@@ -486,7 +474,7 @@ export function ApiDocsPanel({ workspacePath }: ApiDocsPanelProps) {
  {/* Filters */}
  <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", flexShrink: 0, display: "flex", gap: 8, alignItems: "center" }}>
  <input
- style={{ ...inputStyle, flex: 1 }}
+ style={{ padding: "5px 8px", fontSize: 12, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none", flex: 1 }}
  value={search}
  onChange={(e) => setSearch(e.target.value)}
  placeholder="Filter endpoints…"
@@ -512,7 +500,7 @@ export function ApiDocsPanel({ workspacePath }: ApiDocsPanelProps) {
  </div>
 
  {/* Endpoint list */}
- <div style={{ flex: 1, overflow: "auto", padding: "8px 12px" }}>
+ <div className="panel-body" style={{ padding: "8px 12px", overflow: "auto", display: "block" }}>
  {Object.entries(grouped).map(([tag, eps]) => (
  <div key={tag} style={{ marginBottom: 16 }}>
  <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>
@@ -533,7 +521,7 @@ export function ApiDocsPanel({ workspacePath }: ApiDocsPanelProps) {
  )}
 
  {!spec && !loading && (
- <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "var(--text-secondary)", gap: 10 }}>
+ <div className="panel-empty" style={{ gap: 10 }}>
  <div style={{ fontSize: 36 }}></div>
  <div style={{ fontSize: 13 }}>Load an OpenAPI / Swagger spec to get started.</div>
  <div style={{ fontSize: 11, textAlign: "center", lineHeight: 1.6, maxWidth: 280 }}>

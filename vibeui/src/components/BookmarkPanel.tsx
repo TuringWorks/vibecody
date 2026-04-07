@@ -108,19 +108,14 @@ export function BookmarkPanel({ workspacePath }: BookmarkPanelProps) {
   });
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+    <div className="panel-container">
       {/* Sub-tabs */}
-      <div style={{ display: "flex", gap: 4, padding: "8px 12px", borderBottom: "1px solid var(--border-color)" }}>
+      <div className="panel-tab-bar" style={{ padding: "8px 12px" }}>
         {(["markers", "bookmarks"] as const).map((t) => (
           <button
             key={t}
             onClick={() => { setTab(t); if (t === "bookmarks") loadBookmarks(); }}
-            style={{
-              padding: "4px 12px", fontSize: 11, fontWeight: 600, borderRadius: 4, cursor: "pointer",
-              border: "1px solid var(--border-color)",
-              background: tab === t ? "var(--accent)" : "var(--bg-secondary)",
-              color: tab === t ? "var(--text-primary)" : "var(--text-primary)",
-            }}
+            className={`panel-tab ${tab === t ? "active" : ""}`}
           >
             {t === "markers" ? "Markers" : "Bookmarks"}
           </button>
@@ -137,14 +132,14 @@ export function BookmarkPanel({ workspacePath }: BookmarkPanelProps) {
       {tab === "markers" && (
         <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
           <div style={{ display: "flex", gap: 6, padding: "8px 12px", alignItems: "center", flexWrap: "wrap" }}>
-            <button onClick={scanMarkers} disabled={scanning} style={btnStyle}>
+            <button onClick={scanMarkers} disabled={scanning} className="panel-btn panel-btn-secondary">
               {scanning ? "Scanning..." : "Scan"}
             </button>
             <input
               placeholder="Filter by file..."
               value={fileFilter}
               onChange={(e) => setFileFilter(e.target.value)}
-              style={inputStyle}
+              style={{ padding: "4px 8px", fontSize: 11, borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)", outline: "none" }}
             />
             <span style={{ fontSize: 10, opacity: 0.5 }}>{filteredMarkers.length} results</span>
           </div>
@@ -190,7 +185,7 @@ export function BookmarkPanel({ workspacePath }: BookmarkPanelProps) {
                 </span>
                 <button
                   onClick={(e) => { e.stopPropagation(); handleAddBookmark(m.file, m.line, m.text); }}
-                  style={{ ...cellBtn, color: "var(--text-warning)" }}
+                  style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, padding: "0 3px", color: "var(--text-warning)", opacity: 0.7 }}
                   title="Bookmark this"
                 >
                   +
@@ -209,9 +204,9 @@ export function BookmarkPanel({ workspacePath }: BookmarkPanelProps) {
               placeholder="Label for new bookmark..."
               value={addLabel}
               onChange={(e) => setAddLabel(e.target.value)}
-              style={{ ...inputStyle, flex: 1 }}
+              style={{ padding: "4px 8px", fontSize: 11, borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)", outline: "none", flex: 1 }}
             />
-            <button onClick={loadBookmarks} style={btnStyle}>Refresh</button>
+            <button onClick={loadBookmarks} className="panel-btn panel-btn-secondary">Refresh</button>
             <span style={{ fontSize: 10, opacity: 0.5 }}>{bookmarks.length}</span>
           </div>
           <div style={{ flex: 1, overflowY: "auto", padding: "0 12px" }}>
@@ -236,7 +231,7 @@ export function BookmarkPanel({ workspacePath }: BookmarkPanelProps) {
                 </span>
                 <button
                   onClick={(e) => { e.stopPropagation(); handleRemoveBookmark(b.id); }}
-                  style={{ ...cellBtn, color: "var(--text-danger)" }}
+                  style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, padding: "0 3px", color: "var(--text-danger)", opacity: 0.7 }}
                   title="Remove bookmark"
                 >
                   ✕
@@ -250,21 +245,3 @@ export function BookmarkPanel({ workspacePath }: BookmarkPanelProps) {
   );
 }
 
-const btnStyle: React.CSSProperties = {
-  padding: "4px 10px", fontSize: 11, fontWeight: 600,
-  border: "1px solid var(--border-color)", borderRadius: 4,
-  background: "var(--bg-secondary)", color: "var(--text-primary)",
-  cursor: "pointer",
-};
-
-const inputStyle: React.CSSProperties = {
-  padding: "4px 8px", fontSize: 11, borderRadius: 4,
-  border: "1px solid var(--border-color)",
-  background: "var(--bg-primary)", color: "var(--text-primary)",
-  outline: "none",
-};
-
-const cellBtn: React.CSSProperties = {
-  background: "none", border: "none", cursor: "pointer",
-  fontSize: 12, padding: "0 3px", color: "var(--text-primary)", opacity: 0.7,
-};

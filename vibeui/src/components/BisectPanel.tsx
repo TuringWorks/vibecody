@@ -130,7 +130,7 @@ export function BisectPanel({ workspacePath }: BisectPanelProps) {
         <span style={{ fontSize: 12, fontWeight: 600 }}>Git Bisect</span>
         <div style={{ flex: 1 }} />
         {view !== "setup" && (
-          <button onClick={handleReset} style={{ ...btnStyle, color: "var(--text-danger)" }}>Reset</button>
+          <button onClick={handleReset} className="panel-btn panel-btn-danger">Reset</button>
         )}
       </div>
 
@@ -166,7 +166,7 @@ export function BisectPanel({ workspacePath }: BisectPanelProps) {
                 style={inputStyle}
               />
             </div>
-            <button onClick={handleStart} disabled={loading} style={{ ...btnStyle, background: "var(--accent-color)", color: "var(--text-primary)" }}>
+            <button onClick={handleStart} disabled={loading} className="panel-btn panel-btn-primary">
               {loading ? "Starting..." : "Start Bisect"}
             </button>
           </div>
@@ -201,21 +201,24 @@ export function BisectPanel({ workspacePath }: BisectPanelProps) {
               <button
                 onClick={() => handleStep("good")}
                 disabled={loading}
-                style={{ ...btnStyle, flex: 1, background: "color-mix(in srgb, var(--accent-green) 15%, transparent)", color: "var(--text-success)", fontWeight: 700 }}
+                className="panel-btn panel-btn-primary"
+                style={{ flex: 1, background: "color-mix(in srgb, var(--accent-green) 15%, transparent)", color: "var(--text-success)", fontWeight: 700 }}
               >
                 Good
               </button>
               <button
                 onClick={() => handleStep("bad")}
                 disabled={loading}
-                style={{ ...btnStyle, flex: 1, background: "color-mix(in srgb, var(--accent-rose) 15%, transparent)", color: "var(--text-danger)", fontWeight: 700 }}
+                className="panel-btn panel-btn-danger"
+                style={{ flex: 1, background: "color-mix(in srgb, var(--accent-rose) 15%, transparent)", color: "var(--text-danger)", fontWeight: 700 }}
               >
                 Bad
               </button>
               <button
                 onClick={() => handleStep("skip")}
                 disabled={loading}
-                style={{ ...btnStyle, flex: 1 }}
+                className="panel-btn panel-btn-secondary"
+                style={{ flex: 1 }}
               >
                 Skip
               </button>
@@ -223,8 +226,8 @@ export function BisectPanel({ workspacePath }: BisectPanelProps) {
 
             {/* Log + AI */}
             <div style={{ display: "flex", gap: 6 }}>
-              <button onClick={handleLog} style={btnStyle}>Show Log</button>
-              <button onClick={handleAnalyze} disabled={loading} style={{ ...btnStyle, color: "var(--text-info)" }}>
+              <button onClick={handleLog} className="panel-btn panel-btn-secondary">Show Log</button>
+              <button onClick={handleAnalyze} disabled={loading} className="panel-btn panel-btn-secondary">
                 {loading ? "Analyzing..." : "AI Analyze"}
               </button>
             </div>
@@ -267,7 +270,7 @@ export function BisectPanel({ workspacePath }: BisectPanelProps) {
               </div>
             </div>
 
-            <button onClick={handleAnalyze} disabled={loading} style={{ ...btnStyle, color: "var(--text-info)" }}>
+            <button onClick={handleAnalyze} disabled={loading} className="panel-btn panel-btn-secondary">
               {loading ? "Analyzing..." : "AI Root Cause Analysis"}
             </button>
 
@@ -281,20 +284,13 @@ export function BisectPanel({ workspacePath }: BisectPanelProps) {
               </div>
             )}
 
-            <button onClick={handleReset} style={{ ...btnStyle, color: "var(--text-danger)" }}>Reset Bisect</button>
+            <button onClick={handleReset} className="panel-btn panel-btn-danger">Reset Bisect</button>
           </div>
         )}
       </div>
     </div>
   );
 }
-
-const btnStyle: React.CSSProperties = {
-  padding: "4px 10px", fontSize: 11, fontWeight: 600,
-  border: "1px solid var(--border-color)", borderRadius: 4,
-  background: "var(--bg-secondary)", color: "var(--text-primary)",
-  cursor: "pointer",
-};
 
 const inputStyle: React.CSSProperties = {
   padding: "6px 8px", fontSize: 12, borderRadius: 4,

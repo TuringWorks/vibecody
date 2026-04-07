@@ -156,7 +156,7 @@ export function DesktopAgentPanel() {
                 <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>{w.app}</div>
               </div>
               <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                {w.focused && <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 3, background: "#4caf5022", color: "var(--accent-green)" }}>Focused</span>}
+                {w.focused && <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 3, background: "var(--success-bg)", color: "var(--accent-green)" }}>Focused</span>}
                 <button className="panel-btn panel-btn-primary" style={{ fontSize: 10, padding: "3px 8px" }} onClick={() => runAction("focus_window", { id: w.id, app: w.app })}>Focus</button>
               </div>
             </div>
