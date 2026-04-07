@@ -1624,12 +1624,6 @@ const fieldStyle: React.CSSProperties = {
   background: "var(--bg-tertiary)", border: "1px solid var(--border-color)",
   color: "var(--text-primary)", borderRadius: "var(--radius-sm)", transition: "var(--transition-fast)",
 };
-const btnStyle: React.CSSProperties = {
-  padding: "8px 16px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)",
-  background: "var(--bg-elevated)", color: "var(--text-primary)", cursor: "pointer",
-  fontSize: 12, fontWeight: 500, transition: "var(--transition-fast)",
-};
-const btnPrimary: React.CSSProperties = { ...btnStyle, background: "var(--accent-blue)", color: "var(--btn-primary-fg)", borderColor: "var(--accent-blue)" };
 const modelsHintStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", margin: "4px 0 0", lineHeight: 1.4, opacity: 0.8 };
 const dividerStyle: React.CSSProperties = { height: 1, background: "var(--border-color)", margin: "16px 0" };
 const inputStyle: React.CSSProperties = {
@@ -1872,10 +1866,10 @@ function ProfileSection() {
           <div>
             {googleConnected ? (
               <div style={{ display: "flex", gap: 6 }}>
-                <button style={{ ...btnStyle, padding: "5px 12px", fontSize: 11 }} onClick={handleGoogleLogin}>
+                <button className="panel-btn panel-btn-secondary" style={{ padding: "5px 12px", fontSize: 11 }} onClick={handleGoogleLogin}>
                   Refresh
                 </button>
-                <button style={{ ...btnStyle, padding: "5px 12px", fontSize: 11, color: "var(--error-color)" }} onClick={handleGoogleDisconnect}>
+                <button className="panel-btn panel-btn-secondary" style={{ padding: "5px 12px", fontSize: 11, color: "var(--error-color)" }} onClick={handleGoogleDisconnect}>
                   Disconnect
                 </button>
               </div>
@@ -1914,8 +1908,8 @@ function ProfileSection() {
               <input style={{ ...inputStyle, fontSize: 12 }} placeholder="Client ID" value={gClientId} onChange={e => setGClientId(e.target.value)} />
               <input style={{ ...inputStyle, fontSize: 12 }} placeholder="Client Secret" type="password" value={gClientSecret} onChange={e => setGClientSecret(e.target.value)} />
               <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
-                <button style={{ ...btnStyle, padding: "4px 10px", fontSize: 11 }} onClick={() => setGoogleConfiguring(false)}>Cancel</button>
-                <button style={{ ...btnPrimary, padding: "4px 10px", fontSize: 11 }} onClick={saveGoogleConfig} disabled={googleLoading || !gClientId.trim()}>
+                <button className="panel-btn panel-btn-secondary" style={{ padding: "4px 10px", fontSize: 11 }} onClick={() => setGoogleConfiguring(false)}>Cancel</button>
+                <button className="panel-btn panel-btn-primary" style={{ padding: "4px 10px", fontSize: 11 }} onClick={saveGoogleConfig} disabled={googleLoading || !gClientId.trim()}>
                   {googleLoading ? "Saving..." : "Save & Connect"}
                 </button>
               </div>
@@ -1933,8 +1927,8 @@ function ProfileSection() {
               <input style={{ ...inputStyle, fontSize: 12, flex: 1 }} placeholder="Paste authorization code here"
                 value={gAuthCode} onChange={e => setGAuthCode(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && completeGoogleOAuth()} />
-              <button style={{ ...btnStyle, padding: "4px 10px", fontSize: 11 }} onClick={() => { setGAwaitingCode(false); setGAuthCode(""); }}>Cancel</button>
-              <button style={{ ...btnPrimary, padding: "4px 10px", fontSize: 11 }} onClick={completeGoogleOAuth} disabled={googleLoading || !gAuthCode.trim()}>
+              <button className="panel-btn panel-btn-secondary" style={{ padding: "4px 10px", fontSize: 11 }} onClick={() => { setGAwaitingCode(false); setGAuthCode(""); }}>Cancel</button>
+              <button className="panel-btn panel-btn-primary" style={{ padding: "4px 10px", fontSize: 11 }} onClick={completeGoogleOAuth} disabled={googleLoading || !gAuthCode.trim()}>
                 {googleLoading ? "Connecting..." : "Complete"}
               </button>
             </div>
@@ -1974,7 +1968,7 @@ function ProfileSection() {
         <input style={fieldStyle} value={profile.avatarUrl} onChange={e => setProfile({ ...profile, avatarUrl: e.target.value })} placeholder="https://..." />
       </div>
 
-      <button style={btnPrimary} onClick={save}>
+      <button className="panel-btn panel-btn-primary" onClick={save}>
         {saved ? <><Check size={14} /> Saved</> : <><Save size={14} /> Save Profile</>}
       </button>
     </div>
@@ -2023,12 +2017,7 @@ function AppearanceSection() {
       {/* Category filter */}
       <div style={{ display: "flex", gap: 4, marginBottom: 14, flexWrap: "wrap" }}>
         {(["all", "standard", "supercar", "high-contrast", "color-blind"] as const).map(cat => (
-          <button key={cat} onClick={() => setFilterCategory(cat)} style={{
-            ...btnStyle, padding: "4px 12px", fontSize: 11, textTransform: "capitalize",
-            background: filterCategory === cat ? "var(--accent-blue)" : "var(--bg-elevated)",
-            color: filterCategory === cat ? "var(--btn-primary-fg)" : "var(--text-primary)",
-            borderColor: filterCategory === cat ? "var(--accent-blue)" : "var(--border-color)",
-          }}>
+          <button key={cat} onClick={() => setFilterCategory(cat)} className={`panel-tab ${filterCategory === cat ? "active" : ""}`} style={{ textTransform: "capitalize" }}>
             {cat === "all" ? "All Themes" : cat.replace("-", " ")}
           </button>
         ))}
@@ -2096,12 +2085,7 @@ function AppearanceSection() {
         <label style={labelStyle}>UI Density</label>
         <div style={{ display: "flex", gap: 8 }}>
           {(["compact", "normal", "spacious"] as const).map(d => (
-            <button key={d} onClick={() => applyDensity(d)} style={{
-              ...btnStyle, flex: 1, textTransform: "capitalize",
-              background: density === d ? "var(--accent-blue)" : "var(--bg-elevated)",
-              color: density === d ? "var(--btn-primary-fg)" : "var(--text-primary)",
-              borderColor: density === d ? "var(--accent-blue)" : "var(--border-color)",
-            }}>{d}</button>
+            <button key={d} onClick={() => applyDensity(d)} className={`panel-tab ${density === d ? "active" : ""}`} style={{ flex: 1, textTransform: "capitalize" }}>{d}</button>
           ))}
         </div>
       </div>
@@ -2295,18 +2279,18 @@ function OAuthSection() {
             </div>
             <div style={{ display: "flex", gap: 6 }}>
               {p.connected && p.expired && (
-                <button style={{ ...btnStyle, padding: "5px 10px", fontSize: 11, color: "var(--warning-color)" }}
+                <button className="panel-btn panel-btn-secondary" style={{ padding: "5px 10px", fontSize: 11, color: "var(--warning-color)" }}
                   onClick={() => handleRefresh(p.id)} disabled={loading === p.id}>
                   Refresh
                 </button>
               )}
               {p.connected ? (
-                <button style={{ ...btnStyle, padding: "5px 12px", fontSize: 11, color: "var(--error-color)" }}
+                <button className="panel-btn panel-btn-secondary" style={{ padding: "5px 12px", fontSize: 11, color: "var(--error-color)" }}
                   onClick={() => handleDisconnect(p.id)} disabled={loading === p.id}>
                   Disconnect
                 </button>
               ) : (
-                <button style={{ ...btnPrimary, padding: "5px 12px", fontSize: 11 }}
+                <button className="panel-btn panel-btn-primary" style={{ padding: "5px 12px", fontSize: 11 }}
                   onClick={() => handleConnect(p.id)} disabled={loading === p.id}>
                   {loading === p.id ? "..." : "Connect"}
                 </button>
@@ -2325,8 +2309,8 @@ function OAuthSection() {
                 <input style={{ ...inputStyle, fontSize: 12 }} placeholder="Client Secret (optional for some providers)" type="password"
                   value={clientSecret} onChange={e => setClientSecret(e.target.value)} />
                 <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
-                  <button style={{ ...btnStyle, padding: "4px 10px", fontSize: 11 }} onClick={() => setConfiguring(null)}>Cancel</button>
-                  <button style={{ ...btnPrimary, padding: "4px 10px", fontSize: 11 }}
+                  <button className="panel-btn panel-btn-secondary" style={{ padding: "4px 10px", fontSize: 11 }} onClick={() => setConfiguring(null)}>Cancel</button>
+                  <button className="panel-btn panel-btn-primary" style={{ padding: "4px 10px", fontSize: 11 }}
                     onClick={() => saveClientConfig(p.id)} disabled={loading === p.id || !clientId.trim()}>
                     {loading === p.id ? "Saving..." : "Save & Connect"}
                   </button>
@@ -2344,8 +2328,8 @@ function OAuthSection() {
               <div style={{ display: "flex", gap: 6 }}>
                 <input style={{ ...inputStyle, fontSize: 12, flex: 1 }} placeholder="Paste authorization code here"
                   value={authCode} onChange={e => setAuthCode(e.target.value)} />
-                <button style={{ ...btnStyle, padding: "4px 10px", fontSize: 11 }} onClick={() => { setAwaitingCode(null); setAuthCode(""); }}>Cancel</button>
-                <button style={{ ...btnPrimary, padding: "4px 10px", fontSize: 11 }}
+                <button className="panel-btn panel-btn-secondary" style={{ padding: "4px 10px", fontSize: 11 }} onClick={() => { setAwaitingCode(null); setAuthCode(""); }}>Cancel</button>
+                <button className="panel-btn panel-btn-primary" style={{ padding: "4px 10px", fontSize: 11 }}
                   onClick={() => completeOAuth(p.id)} disabled={loading === p.id || !authCode.trim()}>
                   {loading === p.id ? "Connecting..." : "Complete"}
                 </button>
@@ -2453,7 +2437,7 @@ function CustomizationsSection() {
       {/* Save current */}
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         <input style={{ ...fieldStyle, flex: 1 }} placeholder="Customization name..." value={name} onChange={e => setName(e.target.value)} onKeyDown={e => e.key === "Enter" && saveCurrentPrefs()} />
-        <button style={btnPrimary} onClick={saveCurrentPrefs}><Save size={14} /> Save Current</button>
+        <button className="panel-btn panel-btn-primary" onClick={saveCurrentPrefs}><Save size={14} /> Save Current</button>
       </div>
 
       {message && <div style={{ padding: "6px 10px", borderRadius: "var(--radius-sm)", background: "var(--success-bg)", color: "var(--success-color)", fontSize: 12, marginBottom: 12 }}>{message}</div>}
@@ -2471,8 +2455,8 @@ function CustomizationsSection() {
               </div>
             </div>
             <div style={{ display: "flex", gap: 4 }}>
-              <button style={{ ...btnStyle, padding: "4px 10px", fontSize: 11 }} onClick={() => loadCustom(c)}>Load</button>
-              <button style={{ ...btnStyle, padding: "4px 10px", fontSize: 11, color: "var(--error-color)" }} onClick={() => deleteCustom(c.id)}>Delete</button>
+              <button className="panel-btn panel-btn-secondary" style={{ padding: "4px 10px", fontSize: 11 }} onClick={() => loadCustom(c)}>Load</button>
+              <button className="panel-btn panel-btn-secondary" style={{ padding: "4px 10px", fontSize: 11, color: "var(--error-color)" }} onClick={() => deleteCustom(c.id)}>Delete</button>
             </div>
           </div>
         ))
@@ -2482,9 +2466,9 @@ function CustomizationsSection() {
 
       {/* Import / Export / Reset */}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <button style={btnStyle} onClick={exportAll}><Download size={13} /> Export All</button>
-        <button style={btnStyle} onClick={importSettings}><Upload size={13} /> Import</button>
-        <button style={{ ...btnStyle, color: "var(--error-color)" }} onClick={resetAll}><RotateCcw size={13} /> Reset All</button>
+        <button className="panel-btn panel-btn-secondary" onClick={exportAll}><Download size={13} /> Export All</button>
+        <button className="panel-btn panel-btn-secondary" onClick={importSettings}><Upload size={13} /> Import</button>
+        <button className="panel-btn panel-btn-secondary" style={{ color: "var(--error-color)" }} onClick={resetAll}><RotateCcw size={13} /> Reset All</button>
       </div>
     </div>
   );
@@ -2626,14 +2610,15 @@ function ApiKeysSection() {
             placeholder={placeholder}
             style={{ ...fieldStyle, flex: 1, fontFamily: "var(--font-mono)" }}
           />
-          <button onClick={() => setShowKey({ ...showKey, [fieldKey]: !showKey[fieldKey] })} style={{ ...btnStyle, padding: "4px 8px", display: "flex", alignItems: "center" }}>
+          <button onClick={() => setShowKey({ ...showKey, [fieldKey]: !showKey[fieldKey] })} className="panel-btn panel-btn-secondary" style={{ padding: "4px 8px", display: "flex", alignItems: "center" }}>
             {showKey[fieldKey] ? <EyeOff size={14} /> : <Eye size={14} />}
           </button>
           {provider && (settings[fieldKey] || provider === "ollama") && (
             <button
               onClick={() => validateSingle(provider, settings[fieldKey] || "", provider === "ollama" ? settings.ollama_api_url : provider === "azure_openai" ? settings.azure_openai_api_url : provider === "vercel_ai" ? settings.vercel_ai_api_url : undefined)}
               disabled={isValidating}
-              style={{ ...btnStyle, padding: "4px 8px", display: "flex", alignItems: "center", gap: 4, fontSize: 11, opacity: isValidating ? 0.5 : 1 }}
+              className="panel-btn panel-btn-secondary"
+              style={{ padding: "4px 8px", display: "flex", alignItems: "center", gap: 4, fontSize: 11, opacity: isValidating ? 0.5 : 1 }}
             >
               {isValidating ? <Loader2 size={12} strokeWidth={2} className="spin" /> : <Zap size={12} strokeWidth={2} />}
               Test
@@ -2805,7 +2790,7 @@ function ApiKeysSection() {
         </p>
       </div>
 
-      <button style={{ ...btnPrimary, width: "100%" }} onClick={handleSave} disabled={saving}>
+      <button className="panel-btn panel-btn-primary" style={{ width: "100%" }} onClick={handleSave} disabled={saving}>
         {saving ? "Saving..." : "Save & Apply"}
       </button>
 

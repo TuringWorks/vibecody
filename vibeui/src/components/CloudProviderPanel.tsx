@@ -56,7 +56,6 @@ interface CostResult {
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
-const btnStyle: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", cursor: "pointer", fontSize: 12 };
 
 const preStyle: React.CSSProperties = { background: "var(--bg-tertiary)", padding: 10, borderRadius: 4, fontSize: 11, overflow: "auto", whiteSpace: "pre-wrap", border: "1px solid var(--border-color)", maxHeight: 400 };
 const providerColor: Record<string, string> = { AWS: "var(--warning-color)", GCP: "var(--info-color)", Azure: "var(--accent-primary)" };
@@ -64,7 +63,6 @@ const confidenceColor = (c: number) => c >= 0.9 ? "var(--success-color)" : c >= 
 
 const thStyle: React.CSSProperties = { textAlign: "left", padding: "6px 10px", borderBottom: "1px solid var(--border-color)", fontSize: 11, color: "var(--text-secondary)" };
 const tdStyle: React.CSSProperties = { padding: "6px 10px", borderBottom: "1px solid var(--border-color)", fontSize: 12 };
-const tabBtnActiveStyle: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--accent-primary)", color: "var(--text-primary)", cursor: "pointer", fontSize: 12, marginRight: 4 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -302,7 +300,7 @@ export function CloudProviderPanel() {
                 {detectedProviders.map(p => (
                   <button
                     key={p}
-                    style={iamProvider === p ? tabBtnActiveStyle : btnStyle}
+                    className={iamProvider === p ? "panel-tab active" : "panel-tab"}
                     onClick={() => {
                       setIamProvider(p);
                       setIamResult(null);
@@ -343,7 +341,7 @@ export function CloudProviderPanel() {
                 {IAC_FORMATS.map((fmt) => (
                   <button
                     key={fmt}
-                    style={iacFormat === fmt ? tabBtnActiveStyle : btnStyle}
+                    className={iacFormat === fmt ? "panel-tab active" : "panel-tab"}
                     onClick={() => {
                       setIacFormat(fmt);
                       setIacResult(null);

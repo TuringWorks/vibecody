@@ -85,7 +85,7 @@ const ProcessPanel: React.FC = () => {
  );
 
  return (
- <div className="process-panel" style={{ display: "flex", flexDirection: "column", height: "100%", fontSize: 13 }}>
+ <div className="process-panel" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, fontSize: 13 }}>
  {/* Toolbar */}
  <div style={{ display: "flex", gap: 8, padding: "8px 12px", alignItems: "center", borderBottom: "1px solid var(--border)" }}>
  <input

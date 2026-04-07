@@ -94,19 +94,6 @@ interface HistoryEntry {
 
 const CATEGORIES: TemplateCategory[] = ["All", "Web", "Mobile", "API", "FullStack", "Landing", "Dashboard"];
 
-const btnStyle = (variant: "primary" | "default" | "danger" = "default"): React.CSSProperties => ({
-  padding: "6px 14px",
-  fontSize: 12,
-  border: variant === "primary" ? "none" : variant === "danger" ? "1px solid var(--error)" : "1px solid var(--border)",
-  borderRadius: 4,
-  cursor: "pointer",
-  fontWeight: 500,
-  background: variant === "primary" ? "var(--accent)" : variant === "danger" ? "transparent" : "var(--bg-secondary)",
-  color: variant === "primary" ? "var(--text-primary)" : variant === "danger" ? "var(--error)" : "var(--text-primary)",
-  display: "inline-flex",
-  alignItems: "center",
-  gap: 5,
-});
 
 const inputStyle: React.CSSProperties = {
   padding: "6px 10px",
@@ -477,10 +464,8 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
                 <button
                   onClick={handleEnhance}
                   disabled={isEnhancing || !ideaText.trim()}
-                  style={{
-                    ...btnStyle("primary"),
-                    opacity: isEnhancing || !ideaText.trim() ? 0.6 : 1,
-                  }}
+                  className="panel-btn panel-btn-primary"
+                  style={{ opacity: isEnhancing || !ideaText.trim() ? 0.6 : 1 }}
                 >
                   {isEnhancing ? <Loader2 size={13} className="spin" /> : <Sparkles size={13} />}
                   {isEnhancing ? "Enhancing..." : "Enhance"}
@@ -541,10 +526,8 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
                   <button
                     onClick={handleBuild}
                     disabled={isBuilding}
-                    style={{
-                      ...btnStyle("primary"),
-                      opacity: isBuilding ? 0.6 : 1,
-                    }}
+                    className="panel-btn panel-btn-primary"
+                    style={{ opacity: isBuilding ? 0.6 : 1 }}
                   >
                     {isBuilding ? <Loader2 size={13} className="spin" /> : <Play size={13} />}
                     {isBuilding ? "Building..." : "Build"}
@@ -835,10 +818,8 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
                 <button
                   onClick={handleProvisionAll}
                   disabled={isProvisioning}
-                  style={{
-                    ...btnStyle("primary"),
-                    opacity: isProvisioning ? 0.6 : 1,
-                  }}
+                  className="panel-btn panel-btn-primary"
+                  style={{ opacity: isProvisioning ? 0.6 : 1 }}
                 >
                   {isProvisioning ? <Loader2 size={13} className="spin" /> : <Server size={13} />}
                   {isProvisioning ? "Provisioning..." : "Provision All"}
@@ -922,10 +903,8 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
                 <button
                   onClick={handleGenerateDocker}
                   disabled={isGeneratingDocker}
-                  style={{
-                    ...btnStyle("primary"),
-                    opacity: isGeneratingDocker ? 0.6 : 1,
-                  }}
+                  className="panel-btn panel-btn-primary"
+                  style={{ opacity: isGeneratingDocker ? 0.6 : 1 }}
                 >
                   {isGeneratingDocker ? <Loader2 size={13} className="spin" /> : <Server size={13} />}
                   Generate docker-compose.yml
@@ -933,10 +912,8 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
                 <button
                   onClick={handleGenerateDeploy}
                   disabled={isGeneratingDeploy}
-                  style={{
-                    ...btnStyle(),
-                    opacity: isGeneratingDeploy ? 0.6 : 1,
-                  }}
+                  className="panel-btn panel-btn-secondary"
+                  style={{ opacity: isGeneratingDeploy ? 0.6 : 1 }}
                 >
                   {isGeneratingDeploy ? <Loader2 size={13} className="spin" /> : <Globe size={13} />}
                   Generate deployment manifest

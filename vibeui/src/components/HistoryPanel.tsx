@@ -77,7 +77,7 @@ export function HistoryPanel() {
  };
 
  return (
- <div style={{ display: "flex", flexDirection: "column", height: "100%", padding: "12px", gap: "8px" }}>
+ <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, padding: "12px", gap: "8px" }}>
  <div style={{ fontWeight: 600, fontSize: "14px" }}>Agent History</div>
  <p style={{ fontSize: "12px", color: "var(--text-secondary)", margin: 0 }}>
  Audit log of past agent sessions.

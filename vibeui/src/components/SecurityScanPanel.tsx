@@ -336,7 +336,7 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
   );
 
   return (
-    <div style={{ padding: 12, fontSize: 13, height: "100%", display: "flex", flexDirection: "column", gap: 10, color: "var(--text-primary)", background: "var(--bg-primary)" }}>
+    <div style={{ padding: 12, fontSize: 13, flex: 1, minHeight: 0, display: "flex", flexDirection: "column", gap: 10, color: "var(--text-primary)", background: "var(--bg-primary)" }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>

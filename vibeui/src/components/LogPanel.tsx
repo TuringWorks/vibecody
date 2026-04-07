@@ -151,7 +151,7 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
     : [];
 
   return (
-    <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 10, height: "100%", overflowY: "auto" }}>
+    <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 10, flex: 1, minHeight: 0, overflowY: "auto" }}>
       {/* Source selector */}
       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
         <select

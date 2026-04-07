@@ -250,7 +250,7 @@ export function UnitConverterPanel() {
  const sel: React.CSSProperties = { background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4, padding: "5px 8px", fontSize: 13 };
 
  return (
- <div style={{ display: "flex", height: "100%", fontSize: 13, color: "var(--text-primary)" }}>
+ <div style={{ display: "flex", flex: 1, minHeight: 0, fontSize: 13, color: "var(--text-primary)" }}>
  {/* Category sidebar */}
  <div style={{ width: 140, borderRight: "1px solid var(--border-color)", display: "flex", flexDirection: "column", overflow: "hidden", flexShrink: 0 }}>
  <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search…"

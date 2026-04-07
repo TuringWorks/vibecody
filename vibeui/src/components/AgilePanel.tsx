@@ -220,24 +220,6 @@ const badgeStyle = (bg: string, fg = "white"): React.CSSProperties => ({
   marginRight: 4,
 });
 
-const btnStyle: React.CSSProperties = {
-  padding: "6px 14px",
-  borderRadius: "var(--radius-sm)",
-  border: "1px solid var(--border-color)",
-  background: "var(--bg-elevated)",
-  color: "var(--text-primary)",
-  cursor: "pointer",
-  fontSize: 12,
-  fontWeight: 500,
-  transition: "var(--transition-fast)",
-};
-
-const btnPrimaryStyle: React.CSSProperties = {
-  ...btnStyle,
-  background: "var(--accent-blue)",
-  color: "var(--btn-primary-fg)",
-  borderColor: "var(--accent-blue)",
-};
 
 const inputStyle: React.CSSProperties = {
   padding: "6px 10px",
@@ -248,13 +230,6 @@ const inputStyle: React.CSSProperties = {
   fontSize: 13,
   width: "100%",
   boxSizing: "border-box",
-};
-
-const cardStyle: React.CSSProperties = {
-  padding: 12,
-  borderRadius: "var(--radius-md)",
-  border: "1px solid var(--border-color)",
-  background: "var(--bg-secondary)",
 };
 
 const sectionTitle: React.CSSProperties = {
@@ -506,8 +481,8 @@ function BoardTab() {
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginBottom: 10, padding: "8px 0", borderBottom: "1px solid var(--border-color)" }}>
         {/* Board mode toggle */}
         <div style={{ display: "flex", borderRadius: "var(--radius-sm)", overflow: "hidden", border: "1px solid var(--border-color)" }}>
-          <button style={{ ...btnStyle, border: "none", borderRadius: 0, background: boardMode === "kanban" ? "var(--accent-blue)" : "var(--bg-elevated)", color: boardMode === "kanban" ? "var(--btn-primary-fg)" : "var(--text-primary)", fontSize: 11, padding: "4px 10px" }} onClick={() => setBoardMode("kanban")}>Kanban</button>
-          <button style={{ ...btnStyle, border: "none", borderRadius: 0, background: boardMode === "sprint" ? "var(--accent-blue)" : "var(--bg-elevated)", color: boardMode === "sprint" ? "var(--btn-primary-fg)" : "var(--text-primary)", fontSize: 11, padding: "4px 10px" }} onClick={() => setBoardMode("sprint")}>Sprint Board</button>
+          <button className={`panel-tab ${boardMode === "kanban" ? "active" : ""}`} style={{ border: "none", borderRadius: 0, fontSize: 11, padding: "4px 10px" }} onClick={() => setBoardMode("kanban")}>Kanban</button>
+          <button className={`panel-tab ${boardMode === "sprint" ? "active" : ""}`} style={{ border: "none", borderRadius: 0, fontSize: 11, padding: "4px 10px" }} onClick={() => setBoardMode("sprint")}>Sprint Board</button>
         </div>
 
         {boardMode === "sprint" && (
@@ -549,7 +524,7 @@ function BoardTab() {
           </select>
         )}
         {hasFilters && (
-          <button style={{ ...btnStyle, padding: "3px 8px", fontSize: 11, color: "var(--error-color)" }} onClick={() => { setFilterText(""); setFilterAssignee(""); setFilterPriority(""); setFilterLabel(""); }}>Clear Filters</button>
+          <button className="panel-btn panel-btn-secondary" style={{ padding: "3px 8px", fontSize: 11, color: "var(--error-color)" }} onClick={() => { setFilterText(""); setFilterAssignee(""); setFilterPriority(""); setFilterLabel(""); }}>Clear Filters</button>
         )}
         <span style={{ fontSize: 11, color: "var(--text-secondary)", marginLeft: "auto" }}>{filteredCards.length} card{filteredCards.length !== 1 ? "s" : ""}</span>
       </div>
@@ -619,8 +594,8 @@ function BoardTab() {
                           {age > 3 && <span style={{ fontSize: 10, color: aging || "var(--text-secondary)" }} title="Card age">{age}d</span>}
                         </div>
                         <div style={{ display: "flex", gap: 4, marginTop: 6 }} onClick={e => e.stopPropagation()}>
-                          {colIdx(col) > 0 && <button style={{ ...btnStyle, padding: "2px 8px", fontSize: 11 }} onClick={() => moveCard(card.id, COLUMNS[colIdx(col) - 1])}>&larr;</button>}
-                          {colIdx(col) < COLUMNS.length - 1 && <button style={{ ...btnStyle, padding: "2px 8px", fontSize: 11 }} onClick={() => moveCard(card.id, COLUMNS[colIdx(col) + 1])}>&rarr;</button>}
+                          {colIdx(col) > 0 && <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 8px", fontSize: 11 }} onClick={() => moveCard(card.id, COLUMNS[colIdx(col) - 1])}>&larr;</button>}
+                          {colIdx(col) < COLUMNS.length - 1 && <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 8px", fontSize: 11 }} onClick={() => moveCard(card.id, COLUMNS[colIdx(col) + 1])}>&rarr;</button>}
                         </div>
                       </div>
                     );
@@ -631,12 +606,12 @@ function BoardTab() {
                       <div style={{ marginTop: 6 }}>
                         <input style={inputStyle} placeholder="Card title..." value={newTitle} onChange={e => setNewTitle(e.target.value)} onKeyDown={e => e.key === "Enter" && addCard(col)} autoFocus />
                         <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
-                          <button style={btnPrimaryStyle} onClick={() => addCard(col)}>Add</button>
+                          <button className="panel-btn panel-btn-primary" onClick={() => addCard(col)}>Add</button>
                           <button className="panel-btn panel-btn-secondary" onClick={() => { setAddingTo(null); setNewTitle(""); }}>Cancel</button>
                         </div>
                       </div>
                     ) : (
-                      <button style={{ ...btnStyle, width: "100%", marginTop: 6, fontSize: 12 }} onClick={() => setAddingTo(col)}>+ Add Card</button>
+                      <button className="panel-btn panel-btn-secondary" style={{ width: "100%", marginTop: 6, fontSize: 12 }} onClick={() => setAddingTo(col)}>+ Add Card</button>
                     )
                   )}
                 </div>
@@ -653,8 +628,8 @@ function BoardTab() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
               <h3 style={{ margin: 0, color: "var(--text-primary)", fontSize: 16 }}>Edit Card</h3>
               <div style={{ display: "flex", gap: 6 }}>
-                <button style={{ ...btnStyle, padding: "4px 10px", fontSize: 11, color: "var(--error-color)" }} onClick={() => { if (confirm("Delete this card?")) deleteCard(editingCard.id); }}>Delete</button>
-                <button style={{ ...btnStyle, padding: "4px 10px", fontSize: 11 }} onClick={() => setEditingCard(null)}>Close</button>
+                <button className="panel-btn panel-btn-danger" style={{ padding: "4px 10px", fontSize: 11 }} onClick={() => { if (confirm("Delete this card?")) deleteCard(editingCard.id); }}>Delete</button>
+                <button className="panel-btn panel-btn-secondary" style={{ padding: "4px 10px", fontSize: 11 }} onClick={() => setEditingCard(null)}>Close</button>
               </div>
             </div>
             <label style={{ fontSize: 12, color: "var(--text-secondary)" }}>Title</label>
@@ -697,7 +672,7 @@ function BoardTab() {
             <div style={{ marginBottom: 12 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                 <label style={{ fontSize: 12, color: "var(--text-secondary)" }}>Acceptance Criteria</label>
-                <button style={{ ...btnStyle, padding: "2px 8px", fontSize: 11, color: "var(--accent-blue)" }} onClick={async () => {
+                <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 8px", fontSize: 11, color: "var(--accent-blue)" }} onClick={async () => {
                   try {
                     const result = await invoke<{ criteria: string[] }>("agile_ai_generate_ac", { title: editingCard.title, description: editingCard.description });
                     if (result.criteria?.length) {
@@ -729,8 +704,8 @@ function BoardTab() {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                 <label style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>Subtasks ({(editingCard.subtasks || []).length})</label>
                 <div style={{ display: "flex", gap: 4 }}>
-                  <button style={{ ...btnStyle, padding: "3px 10px", fontSize: 11 }} onClick={addSubtask}>+ Add</button>
-                  <button style={{ ...btnPrimaryStyle, padding: "3px 10px", fontSize: 11 }} onClick={aiGenerateSubtasks} disabled={subtaskLoading}>
+                  <button className="panel-btn panel-btn-secondary" style={{ padding: "3px 10px", fontSize: 11 }} onClick={addSubtask}>+ Add</button>
+                  <button className="panel-btn panel-btn-primary" style={{ padding: "3px 10px", fontSize: 11 }} onClick={aiGenerateSubtasks} disabled={subtaskLoading}>
                     {subtaskLoading ? "Generating..." : "AI Generate"}
                   </button>
                 </div>
@@ -751,7 +726,7 @@ function BoardTab() {
             </div>
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
               <button className="panel-btn panel-btn-secondary" onClick={() => setEditingCard(null)}>Cancel</button>
-              <button style={btnPrimaryStyle} onClick={() => saveCard(editingCard)}>Save</button>
+              <button className="panel-btn panel-btn-primary" onClick={() => saveCard(editingCard)}>Save</button>
             </div>
           </div>
         </div>
@@ -853,9 +828,9 @@ function SprintTab() {
           <option value="">Select Sprint</option>
           {sprints.map(s => <option key={s.id} value={s.id}>{s.name} ({s.status})</option>)}
         </select>
-        <button style={btnPrimaryStyle} onClick={() => setCreating(true)}>+ New Sprint</button>
-        {current && current.status === "Planning" && <button style={{ ...btnStyle, background: "var(--accent-green)", color: "var(--btn-primary-fg)" }} onClick={() => updateSprintStatus("Active")}>Start Sprint</button>}
-        {current && current.status === "Active" && <button style={{ ...btnStyle, background: "var(--accent-rose)", color: "var(--btn-error-fg)" }} onClick={() => updateSprintStatus("Completed")}>End Sprint</button>}
+        <button className="panel-btn panel-btn-primary" onClick={() => setCreating(true)}>+ New Sprint</button>
+        {current && current.status === "Planning" && <button className="panel-btn panel-btn-secondary" style={{ background: "var(--accent-green)", color: "var(--btn-primary-fg)" }} onClick={() => updateSprintStatus("Active")}>Start Sprint</button>}
+        {current && current.status === "Active" && <button className="panel-btn panel-btn-secondary" style={{ background: "var(--accent-rose)", color: "var(--btn-error-fg)" }} onClick={() => updateSprintStatus("Completed")}>End Sprint</button>}
       </div>
 
       {/* Create sprint form */}
@@ -869,8 +844,8 @@ function SprintTab() {
           </div>
           <input style={{ ...inputStyle, marginBottom: 8 }} placeholder="Sprint goal" value={newSprint.goal} onChange={e => setNewSprint({ ...newSprint, goal: e.target.value })} />
           <div style={{ display: "flex", gap: 8 }}>
-            <button style={btnPrimaryStyle} onClick={createSprint}>Create</button>
-            <button style={btnStyle} onClick={() => setCreating(false)}>Cancel</button>
+            <button className="panel-btn panel-btn-primary" onClick={createSprint}>Create</button>
+            <button className="panel-btn panel-btn-secondary" onClick={() => setCreating(false)}>Cancel</button>
           </div>
         </div>
       )}
@@ -934,7 +909,8 @@ function SprintTab() {
                       <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{item.priority} · {item.storyPoints} pts</div>
                     </div>
                     <button
-                      style={{ ...btnPrimaryStyle, fontSize: 11, padding: "3px 8px", flexShrink: 0 }}
+                      className="panel-btn panel-btn-primary"
+                      style={{ fontSize: 11, padding: "3px 8px", flexShrink: 0 }}
                       onClick={async () => {
                         const updated: Sprint = {
                           ...current,
@@ -1194,10 +1170,10 @@ function BacklogTab() {
               onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleAiGenerate(); }}
             />
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <button style={btnPrimaryStyle} onClick={handleAiGenerate} disabled={aiGenerating || !aiPrompt.trim()}>
+              <button className="panel-btn panel-btn-primary" onClick={handleAiGenerate} disabled={aiGenerating || !aiPrompt.trim()}>
                 {aiGenerating ? "Analyzing project..." : "Generate Backlog"}
               </button>
-              <button style={btnStyle} onClick={() => { setShowAiGenerate(false); setAiSuggestions([]); setAiEpics([]); }}>Cancel</button>
+              <button className="panel-btn panel-btn-secondary" onClick={() => { setShowAiGenerate(false); setAiSuggestions([]); setAiEpics([]); }}>Cancel</button>
               {aiGenerating && <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>AI is scanning files and generating stories...</span>}
             </div>
 
@@ -1210,8 +1186,8 @@ function BacklogTab() {
                     {aiEpics.length > 0 && <span style={{ fontWeight: 400, color: "var(--text-secondary)" }}> across {aiEpics.length} epic{aiEpics.length !== 1 ? "s" : ""}</span>}
                   </div>
                   <div style={{ display: "flex", gap: 6 }}>
-                    <button style={{ ...btnStyle, fontSize: 11, padding: "3px 8px" }} onClick={acceptAllSuggestions}>Accept All</button>
-                    <button style={{ ...btnStyle, fontSize: 11, padding: "3px 8px" }} onClick={rejectAllSuggestions}>Reject All</button>
+                    <button className="panel-btn panel-btn-secondary" style={{ fontSize: 11, padding: "3px 8px" }} onClick={acceptAllSuggestions}>Accept All</button>
+                    <button className="panel-btn panel-btn-secondary" style={{ fontSize: 11, padding: "3px 8px" }} onClick={rejectAllSuggestions}>Reject All</button>
                   </div>
                 </div>
 
@@ -1282,18 +1258,18 @@ function BacklogTab() {
                 })}
 
                 <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                  <button style={btnPrimaryStyle} onClick={commitAccepted} disabled={acceptedCount === 0}>
+                  <button className="panel-btn panel-btn-primary" onClick={commitAccepted} disabled={acceptedCount === 0}>
                     Add {acceptedCount} Stor{acceptedCount !== 1 ? "ies" : "y"} to Backlog
                   </button>
-                  <button style={btnStyle} onClick={() => { setAiSuggestions([]); setAiEpics([]); }}>Discard All</button>
+                  <button className="panel-btn panel-btn-secondary" onClick={() => { setAiSuggestions([]); setAiEpics([]); }}>Discard All</button>
                 </div>
               </div>
             )}
           </div>
         ) : (
           <div style={{ display: "flex", gap: 8 }}>
-            <button style={btnPrimaryStyle} onClick={() => setShowAiGenerate(true)}>AI Generate Backlog</button>
-            <button style={btnStyle} onClick={() => setShowCreate(true)}>+ Create Story</button>
+            <button className="panel-btn panel-btn-primary" onClick={() => setShowAiGenerate(true)}>AI Generate Backlog</button>
+            <button className="panel-btn panel-btn-secondary" onClick={() => setShowCreate(true)}>+ Create Story</button>
           </div>
         )}
       </div>
@@ -1313,8 +1289,8 @@ function BacklogTab() {
           </div>
           <textarea style={{ ...inputStyle, marginBottom: 8, minHeight: 40, resize: "vertical" }} placeholder="Acceptance criteria (one per line)" value={newStory.acceptanceCriteria} onChange={e => setNewStory({ ...newStory, acceptanceCriteria: e.target.value })} />
           <div style={{ display: "flex", gap: 8 }}>
-            <button style={btnPrimaryStyle} onClick={createStory}>Create</button>
-            <button style={btnStyle} onClick={() => setShowCreate(false)}>Cancel</button>
+            <button className="panel-btn panel-btn-primary" onClick={createStory}>Create</button>
+            <button className="panel-btn panel-btn-secondary" onClick={() => setShowCreate(false)}>Cancel</button>
           </div>
         </div>
       )}
@@ -1328,7 +1304,7 @@ function BacklogTab() {
         </select>
         <input style={{ ...inputStyle, width: 140 }} placeholder="Label" value={filterLabel} onChange={e => setFilterLabel(e.target.value)} />
         <input style={{ ...inputStyle, width: 140 }} placeholder="Assignee" value={filterAssignee} onChange={e => setFilterAssignee(e.target.value)} />
-        <button style={{ ...btnPrimaryStyle, fontSize: 11, padding: "4px 10px", marginLeft: "auto" }} onClick={async () => {
+        <button className="panel-btn panel-btn-primary" style={{ fontSize: 11, padding: "4px 10px", marginLeft: "auto" }} onClick={async () => {
           const unestimated = items.filter(c => c.storyPoints === 0);
           if (unestimated.length === 0) { setError("All stories already have estimates."); setTimeout(() => setError(""), 3000); return; }
           try {
@@ -1378,7 +1354,7 @@ function BacklogTab() {
             onChange={e => updateInline(item.id, "storyPoints", Number(e.target.value))}
             onClick={e => e.stopPropagation()}
           />
-          <button style={{ ...btnPrimaryStyle, fontSize: 11, padding: "4px 8px" }} title="AI-powered story decomposition" onClick={() => suggestSplit(item.id)} disabled={splitLoading === item.id}>
+          <button className="panel-btn panel-btn-primary" style={{ fontSize: 11, padding: "4px 8px" }} title="AI-powered story decomposition" onClick={() => suggestSplit(item.id)} disabled={splitLoading === item.id}>
             {splitLoading === item.id ? "Splitting..." : "AI Split"}
           </button>
         </div>
@@ -1463,7 +1439,7 @@ function CeremoniesTab() {
   };
 
   const subTabBtn = (key: typeof subTab, label: string) => (
-    <button style={{ ...btnStyle, background: subTab === key ? "var(--accent-blue)" : "var(--bg-elevated)", color: subTab === key ? "var(--btn-primary-fg)" : "var(--text-primary)" }} onClick={() => setSubTab(key)}>{label}</button>
+    <button className={`panel-tab ${subTab === key ? "active" : ""}`} onClick={() => setSubTab(key)}>{label}</button>
   );
 
   return (
@@ -1493,7 +1469,7 @@ function CeremoniesTab() {
             <input style={{ ...inputStyle, marginBottom: 4 }} placeholder="What I did yesterday" value={newStandup.didYesterday} onChange={e => setNewStandup({ ...newStandup, didYesterday: e.target.value })} />
             <input style={{ ...inputStyle, marginBottom: 4 }} placeholder="What I'll do today" value={newStandup.willDoToday} onChange={e => setNewStandup({ ...newStandup, willDoToday: e.target.value })} />
             <input style={{ ...inputStyle, marginBottom: 6 }} placeholder="Blockers (if any)" value={newStandup.blockers} onChange={e => setNewStandup({ ...newStandup, blockers: e.target.value })} />
-            <button style={btnPrimaryStyle} onClick={addStandup}>Add Entry</button>
+            <button className="panel-btn panel-btn-primary" onClick={addStandup}>Add Entry</button>
           </div>
         </div>
       )}
@@ -1539,7 +1515,7 @@ function CeremoniesTab() {
           ))}
           <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
             <input style={{ ...inputStyle, flex: 1 }} placeholder="Add demo item..." value={newDemoItem} onChange={e => setNewDemoItem(e.target.value)} onKeyDown={e => e.key === "Enter" && addDemoItem()} />
-            <button style={btnPrimaryStyle} onClick={addDemoItem}>Add</button>
+            <button className="panel-btn panel-btn-primary" onClick={addDemoItem}>Add</button>
           </div>
         </div>
       )}
@@ -1550,7 +1526,7 @@ function CeremoniesTab() {
           <div style={sectionTitle}>Retrospective</div>
           <div style={{ display: "flex", gap: 8, marginBottom: 12, alignItems: "center" }}>
             <input style={{ ...inputStyle, flex: 1 }} placeholder="Add a card..." value={newRetroText} onChange={e => setNewRetroText(e.target.value)} />
-            <button style={{ ...btnPrimaryStyle, whiteSpace: "nowrap", fontSize: 12 }} onClick={async () => {
+            <button className="panel-btn panel-btn-primary" style={{ whiteSpace: "nowrap", fontSize: 12 }} onClick={async () => {
               try {
                 const sprintData = await invoke("agile_get_sprints");
                 const result = await invoke<{ well: string[]; didnt: string[]; actions: string[] }>("agile_ai_retro_generate", { sprintData });
@@ -1575,7 +1551,7 @@ function CeremoniesTab() {
                 <div key={cat} style={{ flex: 1, background: "var(--bg-secondary)", borderRadius: "var(--radius-md)", padding: 10, border: "1px solid var(--border-color)" }}>
                   <div style={{ fontWeight: 600, fontSize: 13, color, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     {title}
-                    <button style={{ ...btnStyle, padding: "2px 8px", fontSize: 11 }} onClick={() => addRetroCard(cat)}>+</button>
+                    <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 8px", fontSize: 11 }} onClick={() => addRetroCard(cat)}>+</button>
                   </div>
                   {retro.filter(r => r.category === cat).map(r => (
                     <div key={r.id} style={{ ...cardBaseStyle, fontSize: 12 }}>{r.text}</div>
@@ -1814,11 +1790,11 @@ function MethodologyTab() {
       {/* Methodology selector */}
       <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
         {METHODOLOGIES.map(m => (
-          <button key={m.name} style={{ ...btnStyle, background: selected === m.name ? "var(--accent-blue)" : "var(--bg-elevated)", color: selected === m.name ? "var(--btn-primary-fg)" : "var(--text-primary)" }} onClick={() => setSelected(m.name)}>
+          <button key={m.name} className={`panel-tab ${selected === m.name ? "active" : ""}`} onClick={() => setSelected(m.name)}>
             {m.name}
           </button>
         ))}
-        <button style={{ ...btnStyle, marginLeft: "auto" }} onClick={() => setShowCompare(!showCompare)}>
+        <button className="panel-btn panel-btn-secondary" style={{ marginLeft: "auto" }} onClick={() => setShowCompare(!showCompare)}>
           {showCompare ? "Hide" : "Show"} Comparison
         </button>
       </div>
@@ -1961,11 +1937,11 @@ function AiCoachTab() {
           <option value="">Select Sprint...</option>
           {sprints.map(s => <option key={s.id} value={s.id}>{s.name} ({s.status})</option>)}
         </select>
-        <button style={btnPrimaryStyle} onClick={analyzesprint} disabled={loading || !sprintId}>
+        <button className="panel-btn panel-btn-primary" onClick={analyzesprint} disabled={loading || !sprintId}>
           {loading ? "Analyzing..." : "Analyze Sprint"}
         </button>
         {loading && (
-          <button style={{ ...btnStyle, background: "var(--accent-rose)", color: "var(--btn-error-fg)", borderColor: "var(--accent-rose)" }} onClick={handleSuspend}>
+          <button className="panel-btn panel-btn-danger" onClick={handleSuspend}>
             Suspend
           </button>
         )}
@@ -2168,21 +2144,21 @@ function SAFeTab() {
 
     return (
       <div>
-        <div style={{ ...cardStyle, marginBottom: 12 }}>
+        <div className="panel-card" style={{ marginBottom: 12 }}>
           <div style={{ fontWeight: 600, marginBottom: 8 }}>Create Program Increment</div>
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <input style={inputStyle} placeholder="PI name (e.g. PI 24.1)" value={name} onChange={e => setName(e.target.value)} />
             <label style={{ fontSize: 12 }}>Iterations: <input type="number" min={2} max={12} value={iterations} onChange={e => setIterations(+e.target.value)} style={{ ...inputStyle, width: 60 }} /></label>
-            <button style={btnStyle} onClick={createPI}>Create PI</button>
+            <button className="panel-btn panel-btn-secondary" onClick={createPI}>Create PI</button>
           </div>
         </div>
         {safeData.programIncrements.map(pi => (
-          <div key={pi.id} style={{ ...cardStyle, marginBottom: 12 }}>
+          <div key={pi.id} className="panel-card" style={{ marginBottom: 12 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
               <div style={{ fontWeight: 600, fontSize: 14 }}>{pi.name}</div>
               <div style={{ display: "flex", gap: 4 }}>
                 {PI_STATUSES.map(s => (
-                  <button key={s} style={{ ...btnStyle, padding: "2px 8px", fontSize: 11, background: pi.status === s ? "var(--accent-blue)" : "var(--bg-tertiary)", color: pi.status === s ? "var(--btn-primary-fg)" : "var(--text-secondary)" }} onClick={() => updatePIStatus(pi.id, s)}>{s}</button>
+                  <button key={s} className={`panel-tab ${pi.status === s ? "active" : ""}`} style={{ padding: "2px 8px", fontSize: 11 }} onClick={() => updatePIStatus(pi.id, s)}>{s}</button>
                 ))}
               </div>
             </div>
@@ -2191,8 +2167,8 @@ function SAFeTab() {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                 <span style={{ fontWeight: 600, fontSize: 12 }}>Features ({pi.features.length})</span>
                 <div style={{ display: "flex", gap: 4 }}>
-                  <button style={{ ...btnStyle, padding: "2px 8px", fontSize: 11 }} onClick={() => addFeature(pi.id)}>+ Feature</button>
-                  <button style={{ ...btnPrimaryStyle, padding: "2px 8px", fontSize: 11 }} onClick={() => aiGenerateFeatures(pi.id)} disabled={featureLoading}>
+                  <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 8px", fontSize: 11 }} onClick={() => addFeature(pi.id)}>+ Feature</button>
+                  <button className="panel-btn panel-btn-primary" style={{ padding: "2px 8px", fontSize: 11 }} onClick={() => aiGenerateFeatures(pi.id)} disabled={featureLoading}>
                     {featureLoading ? "Generating..." : "AI Generate"}
                   </button>
                 </div>
@@ -2200,8 +2176,8 @@ function SAFeTab() {
               {showFeatureForm === pi.id && (
                 <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
                   <input style={{ ...inputStyle, fontSize: 12 }} placeholder="Feature title" value={featureTitle} onChange={e => setFeatureTitle(e.target.value)} onKeyDown={e => e.key === "Enter" && addFeature(pi.id)} autoFocus />
-                  <button style={{ ...btnPrimaryStyle, padding: "2px 10px", fontSize: 11 }} onClick={() => addFeature(pi.id)}>Add</button>
-                  <button style={{ ...btnStyle, padding: "2px 10px", fontSize: 11 }} onClick={() => { setShowFeatureForm(null); setFeatureTitle(""); }}>Cancel</button>
+                  <button className="panel-btn panel-btn-primary" style={{ padding: "2px 10px", fontSize: 11 }} onClick={() => addFeature(pi.id)}>Add</button>
+                  <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 10px", fontSize: 11 }} onClick={() => { setShowFeatureForm(null); setFeatureTitle(""); }}>Cancel</button>
                 </div>
               )}
               {pi.features.sort((a, b) => wsjf(b) - wsjf(a)).map(f => (
@@ -2214,13 +2190,13 @@ function SAFeTab() {
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                 <span style={{ fontWeight: 600, fontSize: 12 }}>PI Objectives ({pi.objectives.length})</span>
-                <button style={{ ...btnStyle, padding: "2px 8px", fontSize: 11 }} onClick={() => addObjective(pi.id)}>+ Objective</button>
+                <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 8px", fontSize: 11 }} onClick={() => addObjective(pi.id)}>+ Objective</button>
               </div>
               {showObjectiveForm === pi.id && (
                 <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
                   <input style={{ ...inputStyle, fontSize: 12 }} placeholder="PI Objective description" value={objectiveDesc} onChange={e => setObjectiveDesc(e.target.value)} onKeyDown={e => e.key === "Enter" && addObjective(pi.id)} autoFocus />
-                  <button style={{ ...btnPrimaryStyle, padding: "2px 10px", fontSize: 11 }} onClick={() => addObjective(pi.id)}>Add</button>
-                  <button style={{ ...btnStyle, padding: "2px 10px", fontSize: 11 }} onClick={() => { setShowObjectiveForm(null); setObjectiveDesc(""); }}>Cancel</button>
+                  <button className="panel-btn panel-btn-primary" style={{ padding: "2px 10px", fontSize: 11 }} onClick={() => addObjective(pi.id)}>Add</button>
+                  <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 10px", fontSize: 11 }} onClick={() => { setShowObjectiveForm(null); setObjectiveDesc(""); }}>Cancel</button>
                 </div>
               )}
               {pi.objectives.map(obj => (
@@ -2259,13 +2235,13 @@ function SAFeTab() {
 
     return (
       <div>
-        <div style={{ ...cardStyle, marginBottom: 12 }}>
+        <div className="panel-card" style={{ marginBottom: 12 }}>
           <div style={{ fontWeight: 600, marginBottom: 8 }}>Add Team to ART</div>
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <input style={inputStyle} placeholder="Team name" value={teamName} onChange={e => setTeamName(e.target.value)} />
             <label style={{ fontSize: 12 }}>Capacity: <input type="number" min={10} max={200} value={teamCapacity} onChange={e => setTeamCapacity(+e.target.value)} style={{ ...inputStyle, width: 60 }} /></label>
             <label style={{ fontSize: 12 }}>Members: <input type="number" min={3} max={15} value={teamMembers} onChange={e => setTeamMembers(+e.target.value)} style={{ ...inputStyle, width: 60 }} /></label>
-            <button style={btnStyle} onClick={addTeam}>Add Team</button>
+            <button className="panel-btn panel-btn-secondary" onClick={addTeam}>Add Team</button>
           </div>
         </div>
         <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 8 }}>Agile Release Train ({safeData.teams.length} teams)</div>
@@ -2273,10 +2249,10 @@ function SAFeTab() {
           const totalLoad = safeData.programIncrements.flatMap(p => p.features).filter(f => f.teamId === team.id).length;
           const loadPct = team.capacity > 0 ? Math.min(100, (totalLoad / team.capacity) * 100 * 10) : 0;
           return (
-            <div key={team.id} style={{ ...cardStyle, marginBottom: 8 }}>
+            <div key={team.id} className="panel-card" style={{ marginBottom: 8 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                 <span style={{ fontWeight: 600 }}>{team.name}</span>
-                <button onClick={() => removeTeam(team.id)} style={{ ...btnStyle, background: "var(--error-color)", padding: "2px 8px", fontSize: 11 }}>Remove</button>
+                <button onClick={() => removeTeam(team.id)} className="panel-btn panel-btn-danger" style={{ padding: "2px 8px", fontSize: 11 }}>Remove</button>
               </div>
               <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>{team.members} members · Capacity: {team.capacity} pts · Features: {totalLoad}</div>
               <div style={{ height: 6, borderRadius: 3, background: "var(--bg-tertiary)", overflow: "hidden" }}>
@@ -2314,13 +2290,13 @@ function SAFeTab() {
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
           <div style={{ fontWeight: 600, fontSize: 14 }}>Portfolio Kanban</div>
-          <button style={btnStyle} onClick={() => setShowEpicForm(true)}>+ Epic</button>
+          <button className="panel-btn panel-btn-secondary" onClick={() => setShowEpicForm(true)}>+ Epic</button>
         </div>
         {showEpicForm && (
           <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
             <input style={{ ...inputStyle, fontSize: 12 }} placeholder="Epic title" value={epicTitle} onChange={e => setEpicTitle(e.target.value)} onKeyDown={e => e.key === "Enter" && addEpic()} autoFocus />
-            <button style={{ ...btnPrimaryStyle, padding: "4px 12px", fontSize: 11 }} onClick={addEpic}>Add</button>
-            <button style={{ ...btnStyle, padding: "4px 12px", fontSize: 11 }} onClick={() => { setShowEpicForm(false); setEpicTitle(""); }}>Cancel</button>
+            <button className="panel-btn panel-btn-primary" style={{ padding: "4px 12px", fontSize: 11 }} onClick={addEpic}>Add</button>
+            <button className="panel-btn panel-btn-secondary" style={{ padding: "4px 12px", fontSize: 11 }} onClick={() => { setShowEpicForm(false); setEpicTitle(""); }}>Cancel</button>
           </div>
         )}
         <div style={{ display: "grid", gridTemplateColumns: `repeat(${EPIC_COLUMNS.length}, 1fr)`, gap: 8 }}>
@@ -2333,9 +2309,9 @@ function SAFeTab() {
                   {epic.wsjfScore > 0 && <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>WSJF: {epic.wsjfScore}</div>}
                   <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                     {EPIC_COLUMNS.filter(c => c !== col).map(c => (
-                      <button key={c} style={{ ...btnStyle, padding: "1px 6px", fontSize: 10 }} onClick={() => moveEpic(epic.id, c)}>→ {c}</button>
+                      <button key={c} className="panel-btn panel-btn-secondary" style={{ padding: "1px 6px", fontSize: 10 }} onClick={() => moveEpic(epic.id, c)}>→ {c}</button>
                     ))}
-                    <button style={{ ...btnStyle, padding: "1px 6px", fontSize: 10, background: "var(--error-color)" }} onClick={() => removeEpic(epic.id)}>×</button>
+                    <button className="panel-btn panel-btn-danger" style={{ padding: "1px 6px", fontSize: 10 }} onClick={() => removeEpic(epic.id)}>×</button>
                   </div>
                 </div>
               ))}
@@ -2407,7 +2383,7 @@ function SAFeTab() {
     <div>
       <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
         {SUB_VIEWS.map(sv => (
-          <button key={sv.key} style={{ ...btnStyle, background: subView === sv.key ? "var(--accent-blue)" : "var(--bg-tertiary)", color: subView === sv.key ? "var(--btn-primary-fg)" : "var(--text-secondary)", fontSize: 12 }} onClick={() => setSubView(sv.key)}>
+          <button key={sv.key} className={`panel-tab ${subView === sv.key ? "active" : ""}`} style={{ fontSize: 12 }} onClick={() => setSubView(sv.key)}>
             {sv.label}
           </button>
         ))}

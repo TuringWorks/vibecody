@@ -10,7 +10,7 @@
  *
  * Schema save/load wired to Tauri backend. Generation logic stays client-side.
  */
-import React, { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { CopyButton as CopyBtn } from "./shared/CopyButton";
 
@@ -271,12 +271,6 @@ export function DataGenPanel() {
  { id: "password", label: "Password" },
  ];
 
- const btnStyle = (active: boolean): React.CSSProperties => ({
- background: active ? "color-mix(in srgb, var(--accent-blue) 20%, transparent)" : undefined,
- border: `1px solid ${active ? "var(--accent-color)" : "var(--border-color)"}`,
- color: active ? "var(--info-color)" : undefined,
- });
-
  return (
  <div className="panel-container">
 
@@ -326,7 +320,7 @@ export function DataGenPanel() {
  style={{ width: 60, padding: "2px 6px", fontSize: 11, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none" }} />
  </div>
  <div style={{ display: "flex", gap: 4 }}>
- {(["json","csv","sql"] as const).map(f => <button key={f} onClick={() => setOutFormat(f)} style={btnStyle(outFormat === f)}>{f.toUpperCase()}</button>)}
+ {(["json","csv","sql"] as const).map(f => <button key={f} onClick={() => setOutFormat(f)} className={`panel-tab ${outFormat === f ? "active" : ""}`}>{f.toUpperCase()}</button>)}
  </div>
  {outFormat === "sql" && (
  <input value={sqlTable} onChange={e => setSqlTable(e.target.value)} placeholder="table name"
@@ -362,7 +356,7 @@ export function DataGenPanel() {
  <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
  <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
  {(["words","sentences","paragraphs"] as const).map(m => (
- <button key={m} onClick={() => setLoremMode(m)} style={btnStyle(loremMode === m)}>{m.charAt(0).toUpperCase() + m.slice(1)}</button>
+ <button key={m} onClick={() => setLoremMode(m)} className={`panel-tab ${loremMode === m ? "active" : ""}`}>{m.charAt(0).toUpperCase() + m.slice(1)}</button>
  ))}
  <input type="number" value={loremCount} min={1} max={loremMode === "words" ? 500 : loremMode === "sentences" ? 100 : 20}
  onChange={e => setLoremCount(Math.max(1, +e.target.value))}
@@ -380,7 +374,7 @@ export function DataGenPanel() {
  {subTab === "uuid" && (
  <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
  <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
- {(["v4","v7"] as const).map(v => <button key={v} onClick={() => setUuidVersion(v)} style={btnStyle(uuidVersion === v)}>UUID {v}</button>)}
+ {(["v4","v7"] as const).map(v => <button key={v} onClick={() => setUuidVersion(v)} className={`panel-tab ${uuidVersion === v ? "active" : ""}`}>UUID {v}</button>)}
  <input type="number" value={uuidCount} min={1} max={100} onChange={e => setUuidCount(Math.min(100, Math.max(1, +e.target.value)))}
  style={{ width: 60, padding: "3px 8px", fontSize: 12, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none" }} />
  <button onClick={genUuids} style={{ padding: "3px 14px", fontSize: 11, fontWeight: 700, background: "color-mix(in srgb, var(--accent-green) 15%, transparent)", border: "1px solid var(--success-color)", borderRadius: 4, color: "var(--text-success)", cursor: "pointer" }}>Generate</button>

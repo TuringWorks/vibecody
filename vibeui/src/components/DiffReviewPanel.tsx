@@ -263,7 +263,7 @@ export function DiffReviewPanel({ original, modified, filePath, onApply }: DiffR
 
  return (
  <div style={{
- display: "flex", flexDirection: "column", height: "100%",
+ display: "flex", flexDirection: "column", flex: 1, minHeight: 0,
  background: "var(--bg-primary)", fontFamily: "var(--font-mono)",
  }}>
  {/* Header — buttons LEFT so they're never obscured by the Monaco minimap */}

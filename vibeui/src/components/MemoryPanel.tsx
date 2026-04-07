@@ -132,7 +132,7 @@ function DirRulesTab({ workspacePath }: { workspacePath?: string | null }) {
  : "~/.vibecli/rules/";
 
  return (
- <div style={{ display: "flex", flexDirection: "column", gap: "8px", height: "100%" }}>
+ <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, gap: "8px" }}>
  {/* Scope selector */}
  <div style={{ display: "flex", gap: "4px" }}>
  {(["workspace", "global"] as const).map((s) => (
@@ -405,7 +405,7 @@ function AutoFactsTab() {
  }
 
  return (
- <div style={{ display: "flex", flexDirection: "column", gap: 8, height: "100%" }}>
+ <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, gap: 8 }}>
  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
  <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
  {facts.length} fact{facts.length !== 1 ? "s" : ""} extracted from sessions
@@ -584,7 +584,7 @@ export function MemoryPanel({ workspacePath }: MemoryPanelProps) {
  ];
 
  return (
- <div style={{ display: "flex", flexDirection: "column", height: "100%", padding: "12px", gap: "8px" }}>
+ <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, padding: "12px", gap: "8px" }}>
  <div style={{ fontWeight: 600, fontSize: "14px" }}>AI Rules / Memory</div>
  <p style={{ fontSize: "12px", color: "var(--text-secondary)", margin: 0 }}>
  Persistent instructions injected into every AI request.

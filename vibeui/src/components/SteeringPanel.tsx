@@ -140,7 +140,7 @@ export default function SteeringPanel({ workspaceRoot }: SteeringPanelProps) {
  const editing = isNew || selected !== null;
 
  return (
- <div style={{ display: "flex", flexDirection: "column", height: "100%", gap: 8, padding: 8, fontSize: 13 }}>
+ <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, gap: 8, padding: 8, fontSize: 13 }}>
  {/* Header */}
  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
  <span style={{ fontWeight: 600, fontSize: 14 }}>Steering Files</span>

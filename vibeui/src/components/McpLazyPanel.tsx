@@ -43,7 +43,7 @@ interface LazyMetrics {
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
-const btnStyle: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", cursor: "pointer", fontSize: 12 };
+
 
 const inputStyle: React.CSSProperties = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: 12, fontFamily: "var(--font-family)", boxSizing: "border-box" };
 const badgeStyle = (variant: string): React.CSSProperties => ({ display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600, color: "var(--btn-primary-fg)", background: variant === "loaded" ? "var(--success-color)" : variant === "loading" ? "var(--warning-color)" : "var(--text-secondary)" });
@@ -177,7 +177,7 @@ export function McpLazyPanel() {
         {error && (
           <div className="panel-error" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span>{error}</span>
-            <button style={{ ...btnStyle, marginLeft: 8 }} onClick={() => setError(null)}>Dismiss</button>
+            <button className="panel-btn panel-btn-secondary" style={{ marginLeft: 8 }} onClick={() => setError(null)}>Dismiss</button>
           </div>
         )}
 
@@ -210,7 +210,8 @@ export function McpLazyPanel() {
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={badgeStyle(m.status)}>{m.status}</span>
                   <button
-                    style={{ ...btnStyle, opacity: actionLoading === m.id ? 0.6 : 1 }}
+                    className="panel-btn panel-btn-secondary"
+                    style={{ opacity: actionLoading === m.id ? 0.6 : 1 }}
                     disabled={actionLoading === m.id}
                     onClick={() => toggleLoad(m.id, m.status)}
                   >

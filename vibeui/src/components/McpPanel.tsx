@@ -46,9 +46,8 @@ interface McpPlugin {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-color)" };
 const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
-const btnStyle: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", cursor: "pointer", fontSize: 12 };
+
 const inputStyle: React.CSSProperties = { padding: "5px 8px", fontSize: "12px", background: "var(--bg-input, var(--bg-primary))", border: "1px solid var(--border-color)", borderRadius: "4px", color: "var(--text-primary)", outline: "none", width: "100%", boxSizing: "border-box" };
 const barBg: React.CSSProperties = { height: 8, borderRadius: 4, background: "var(--bg-tertiary)", overflow: "hidden" };
 const barFill = (pct: number, color: string): React.CSSProperties => ({ height: "100%", width: `${Math.min(pct, 100)}%`, borderRadius: 4, background: color });
@@ -344,10 +343,10 @@ export function McpPanel() {
             <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
               Tools are injected as <code style={{ fontSize: 11 }}>mcp__&lt;server&gt;__&lt;tool&gt;</code>
             </span>
-            <button onClick={() => { setEditing({ ...EMPTY_SERVER }); setEditIdx(null); }} style={{ ...btnStyle, background: "var(--accent-color)", fontSize: 11 }}>+ Add Server</button>
+            <button onClick={() => { setEditing({ ...EMPTY_SERVER }); setEditIdx(null); }} className="panel-btn panel-btn-primary" style={{ fontSize: 11 }}>+ Add Server</button>
           </div>
 
-          {servers.length === 0 && <div style={{ ...cardStyle, textAlign: "center", color: "var(--text-secondary)" }}>No MCP servers configured.</div>}
+          {servers.length === 0 && <div className="panel-card" style={{ textAlign: "center", color: "var(--text-secondary)" }}>No MCP servers configured.</div>}
 
           {servers.map((srv, idx) => {
             const res = testResult[idx];
@@ -359,10 +358,10 @@ export function McpPanel() {
                     {srv.name}
                     {tokenStatus[srv.name] && <span style={{ marginLeft: 6, fontSize: 10, color: "var(--success-color)", background: "color-mix(in srgb, var(--accent-green) 15%, transparent)", padding: "1px 5px", borderRadius: 3 }}>OAuth</span>}
                   </span>
-                  <button onClick={() => testServer(idx)} disabled={testing === idx} style={{ ...btnStyle, fontSize: 11, padding: "2px 8px" }}>{testing === idx ? "..." : "Test"}</button>
-                  <button onClick={() => startOAuth(srv.name)} style={{ ...btnStyle, fontSize: 11, padding: "2px 8px" }}>OAuth</button>
-                  <button onClick={() => { setEditing({ ...srv, args: [...srv.args] }); setEditIdx(idx); }} style={{ ...btnStyle, fontSize: 11, padding: "2px 8px" }}>Edit</button>
-                  <button onClick={() => setConfirmDelete(idx)} style={{ ...btnStyle, fontSize: 11, padding: "2px 8px", borderColor: "var(--error-color)", color: "var(--error-color)" }}>✕</button>
+                  <button onClick={() => testServer(idx)} disabled={testing === idx} className="panel-btn panel-btn-secondary" style={{ fontSize: 11, padding: "2px 8px" }}>{testing === idx ? "..." : "Test"}</button>
+                  <button onClick={() => startOAuth(srv.name)} className="panel-btn panel-btn-secondary" style={{ fontSize: 11, padding: "2px 8px" }}>OAuth</button>
+                  <button onClick={() => { setEditing({ ...srv, args: [...srv.args] }); setEditIdx(idx); }} className="panel-btn panel-btn-secondary" style={{ fontSize: 11, padding: "2px 8px" }}>Edit</button>
+                  <button onClick={() => setConfirmDelete(idx)} className="panel-btn panel-btn-danger" style={{ fontSize: 11, padding: "2px 8px" }}>✕</button>
                 </div>
                 <div style={{ fontSize: 11, color: "var(--text-secondary)", fontFamily: "var(--font-mono)", marginTop: 4 }}>$ {srv.command}{srv.args.length > 0 ? " " + srv.args.join(" ") : ""}</div>
                 {isErr && <div style={{ fontSize: 11, color: "var(--error-color)", marginTop: 4 }}>{res}</div>}
@@ -400,7 +399,7 @@ export function McpPanel() {
                 const builtInMatches = BUILTIN_TOOLS.filter(t => t.name.toLowerCase().includes(q) || t.description.toLowerCase().includes(q));
                 if (builtInMatches.length === 0) return <div className="panel-card">No tools matching &quot;{toolSearch}&quot;.</div>;
                 return builtInMatches.map(t => (
-                  <div key={t.name} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div key={t.name} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 600 }}>{t.name} <span style={badgeStyle("loaded")}>built-in</span></div>
                       <div style={labelStyle}>{t.description}</div>
@@ -410,7 +409,7 @@ export function McpPanel() {
                 ));
               })()}
               {searchResults.map(r => (
-                <div key={r.tool_id} style={{ ...cardStyle, display: "flex", justifyContent: "space-between" }}>
+                <div key={r.tool_id} className="panel-card" style={{ display: "flex", justifyContent: "space-between" }}>
                   <div><div style={{ fontWeight: 600 }}>{r.name}</div><div style={labelStyle}>{r.description}</div></div>
                   <div style={{ textAlign: "right" }}><div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Relevance</div><div style={{ fontWeight: 600, color: "var(--accent-primary)" }}>{(r.relevance * 100).toFixed(0)}%</div></div>
                 </div>
@@ -420,7 +419,7 @@ export function McpPanel() {
             /* Full listing mode */
             <>
               {/* Summary bar */}
-              <div style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span>{BUILTIN_TOOLS.length} built-in + {manifests.length + Object.values(serverTools).reduce((s, t) => s + t.length, 0)} MCP tools{serverToolsLoading ? " (discovering...)" : ` (${loadedCount} loaded)`}</span>
                 <div style={{ ...barBg, minWidth: 120 }}><div style={barFill(manifests.length > 0 ? (loadedCount / manifests.length) * 100 : 0, "var(--info-color)")} /></div>
               </div>
@@ -428,7 +427,7 @@ export function McpPanel() {
               {/* Built-in Agent Tools */}
               <div style={{ fontSize: 12, fontWeight: 600, margin: "12px 0 6px", color: "var(--text-secondary)" }}>BUILT-IN AGENT TOOLS</div>
               {BUILTIN_TOOLS.map(t => (
-                <div key={t.name} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center", borderLeft: "3px solid var(--success-color)" }}>
+                <div key={t.name} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderLeft: "3px solid var(--success-color)" }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 600 }}>{t.name}</div>
                     <div style={labelStyle}>{t.description}</div>
@@ -471,7 +470,7 @@ export function McpPanel() {
 
                 if (serverNames.length === 0 && !serverToolsLoading) {
                   return (
-                    <div style={{ ...cardStyle, marginTop: 12 }}>
+                    <div className="panel-card" style={{ marginTop: 12 }}>
                       <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
                         No MCP server tools found. Add MCP servers in the Servers tab or install plugins from the Directory.
                       </div>
@@ -514,11 +513,8 @@ export function McpPanel() {
 
                           {/* Manifest tools (richer metadata) */}
                           {mTools.map(m => (
-                            <div key={m.id} style={{
-                              ...cardStyle,
-                              display: "flex", justifyContent: "space-between", alignItems: "center", marginLeft: 8,
-                              borderLeft: isHighlighted ? "3px solid var(--accent-primary)" : undefined,
-                            }}>
+                            <div key={m.id} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginLeft: 8,
+                              borderLeft: isHighlighted ? "3px solid var(--accent-primary)" : undefined, }}>
                               <div style={{ flex: 1 }}>
                                 <div style={{ fontWeight: 600 }}>{m.name} <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>v{m.version}</span></div>
                                 <div style={labelStyle}>{m.description}</div>
@@ -528,7 +524,7 @@ export function McpPanel() {
                               </div>
                               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                                 <span style={badgeStyle(m.status)}>{m.status}</span>
-                                <button style={{ ...btnStyle, opacity: actionLoading === m.id ? 0.6 : 1 }} disabled={actionLoading === m.id} onClick={() => toggleTool(m.id, m.status)}>
+                                <button className="panel-btn panel-btn-secondary" style={{ opacity: actionLoading === m.id ? 0.6 : 1 }} disabled={actionLoading === m.id} onClick={() => toggleTool(m.id, m.status)}>
                                   {actionLoading === m.id ? "..." : m.status === "loaded" ? "Unload" : "Load"}
                                 </button>
                               </div>
@@ -537,11 +533,8 @@ export function McpPanel() {
 
                           {/* Live-discovered tools (from server connection) */}
                           {liveTools.map(t => (
-                            <div key={`live-${serverName}-${t.name}`} style={{
-                              ...cardStyle,
-                              display: "flex", justifyContent: "space-between", alignItems: "center", marginLeft: 8,
-                              borderLeft: isHighlighted ? "3px solid var(--accent-primary)" : "3px solid var(--info-color)",
-                            }}>
+                            <div key={`live-${serverName}-${t.name}`} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginLeft: 8,
+                              borderLeft: isHighlighted ? "3px solid var(--accent-primary)" : "3px solid var(--info-color)", }}>
                               <div style={{ flex: 1 }}>
                                 <div style={{ fontWeight: 600 }}>{t.name}</div>
                                 <div style={labelStyle}>{t.description || "No description"}</div>
@@ -551,7 +544,7 @@ export function McpPanel() {
                           ))}
 
                           {totalCount === 0 && (
-                            <div style={{ ...cardStyle, marginLeft: 8, fontSize: 12, color: "var(--text-secondary)" }}>
+                            <div className="panel-card" style={{ marginLeft: 8, fontSize: 12, color: "var(--text-secondary)" }}>
                               {serverToolsLoading ? "Connecting to server..." : "No tools discovered. Server may be offline."}
                             </div>
                           )}
@@ -596,8 +589,8 @@ export function McpPanel() {
                         <div key={`plugin-${p.id}`}>
                           <div
                             onClick={() => togglePlugin(p.id)}
+                            className="panel-card"
                             style={{
-                              ...cardStyle,
                               display: "flex", justifyContent: "space-between", alignItems: "center",
                               borderLeft: `3px solid ${isExpanded ? "var(--accent-primary)" : "var(--success-color)"}`,
                               cursor: "pointer",
@@ -683,8 +676,8 @@ export function McpPanel() {
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 6 }}>
-                  {!p.installed && <button style={{ ...btnStyle, background: "var(--accent-primary)" }} onClick={() => installPlugin(p.id)} disabled={pluginAction === p.id}>{pluginAction === p.id ? "..." : "Install"}</button>}
-                  {p.installed && <button style={{ ...btnStyle, borderColor: "var(--error-color)", color: "var(--error-color)" }} onClick={() => uninstallPlugin(p.id)} disabled={pluginAction === p.id}>{pluginAction === p.id ? "..." : "Uninstall"}</button>}
+                  {!p.installed && <button className="panel-btn panel-btn-primary" onClick={() => installPlugin(p.id)} disabled={pluginAction === p.id}>{pluginAction === p.id ? "..." : "Install"}</button>}
+                  {p.installed && <button className="panel-btn panel-btn-danger" onClick={() => uninstallPlugin(p.id)} disabled={pluginAction === p.id}>{pluginAction === p.id ? "..." : "Uninstall"}</button>}
                 </div>
               </div>
             </div>
@@ -705,7 +698,7 @@ export function McpPanel() {
                     <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 12 }}>
                       Browse the Directory tab to find and install plugins.
                     </div>
-                    <button style={{ ...btnStyle, background: "var(--accent-primary)" }} onClick={() => setTab("directory")}>
+                    <button className="panel-btn panel-btn-primary" onClick={() => setTab("directory")}>
                       Browse Directory
                     </button>
                   </div>
@@ -737,7 +730,7 @@ export function McpPanel() {
                 {/* Update all button */}
                 {installed.some(p => p.updatable) && (
                   <div style={{ marginBottom: 12 }}>
-                    <button style={{ ...btnStyle, background: "var(--warning-color)", color: "var(--text-primary)" }}>
+                    <button className="panel-btn panel-btn-secondary" style={{ background: "var(--warning-color)", color: "var(--text-primary)" }}>
                       Update All ({installed.filter(p => p.updatable).length})
                     </button>
                   </div>
@@ -745,7 +738,7 @@ export function McpPanel() {
 
                 {/* Installed plugin cards with details */}
                 {installed.map(p => (
-                  <div key={p.id} style={{ ...cardStyle, borderLeft: `3px solid ${p.updatable ? "var(--warning-color)" : "var(--success-color)"}` }}>
+                  <div key={p.id} className="panel-card" style={{ borderLeft: `3px solid ${p.updatable ? "var(--warning-color)" : "var(--success-color)"}` }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -783,7 +776,8 @@ export function McpPanel() {
                       <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 80 }}>
                         {p.updatable && (
                           <button
-                            style={{ ...btnStyle, background: "var(--warning-color)", color: "var(--btn-primary-fg)", fontSize: 11 }}
+                            className="panel-btn panel-btn-secondary"
+                            style={{ background: "var(--warning-color)", color: "var(--btn-primary-fg)", fontSize: 11 }}
                             onClick={() => installPlugin(p.id)}
                             disabled={pluginAction === p.id}
                           >
@@ -791,7 +785,8 @@ export function McpPanel() {
                           </button>
                         )}
                         <button
-                          style={{ ...btnStyle, fontSize: 11 }}
+                          className="panel-btn panel-btn-secondary"
+                          style={{ fontSize: 11 }}
                           onClick={() => {
                             // Navigate to Tools tab and scroll to this plugin's server section
                             setToolsHighlightServer(p.name);
@@ -802,7 +797,8 @@ export function McpPanel() {
                           View Tools
                         </button>
                         <button
-                          style={{ ...btnStyle, borderColor: "var(--error-color)", color: "var(--error-color)", fontSize: 11 }}
+                          className="panel-btn panel-btn-danger"
+                          style={{ fontSize: 11 }}
                           onClick={() => uninstallPlugin(p.id)}
                           disabled={pluginAction === p.id}
                         >
@@ -859,7 +855,7 @@ export function McpPanel() {
             <label style={{ fontSize: 12, display: "flex", flexDirection: "column", gap: 4 }}>Args (space-separated)<input type="text" value={editing.args.join(" ")} onChange={e => setEditing({ ...editing, args: e.target.value ? e.target.value.split(" ") : [] })} placeholder="optional" style={inputStyle} /></label>
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
               <button onClick={() => { setEditing(null); setEditIdx(null); }} className="panel-btn panel-btn-secondary">Cancel</button>
-              <button onClick={commitEdit} disabled={!editing.name.trim() || !editing.command.trim() || saving} style={{ ...btnStyle, background: "var(--accent-color)" }}>{saving ? "Saving..." : editIdx === null ? "Add" : "Save"}</button>
+              <button onClick={commitEdit} disabled={!editing.name.trim() || !editing.command.trim() || saving} className="panel-btn panel-btn-primary">{saving ? "Saving..." : editIdx === null ? "Add" : "Save"}</button>
             </div>
           </div>
         </div>
@@ -881,9 +877,9 @@ export function McpPanel() {
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
               <button onClick={() => setOauthForm(null)} className="panel-btn panel-btn-secondary">Cancel</button>
               {oauthForm.step === "config" ? (
-                <button onClick={initiateOAuth} disabled={oauthForm.busy || !oauthForm.clientId || !oauthForm.authUrl} style={{ ...btnStyle, background: "var(--accent-color)" }}>{oauthForm.busy ? "Opening..." : "Open Browser"}</button>
+                <button onClick={initiateOAuth} disabled={oauthForm.busy || !oauthForm.clientId || !oauthForm.authUrl} className="panel-btn panel-btn-primary">{oauthForm.busy ? "Opening..." : "Open Browser"}</button>
               ) : (
-                <button onClick={completeOAuth} disabled={oauthForm.busy || !oauthForm.authCode} style={{ ...btnStyle, background: "var(--success-color)", fontWeight: 600 }}>{oauthForm.busy ? "Exchanging..." : "Connect"}</button>
+                <button onClick={completeOAuth} disabled={oauthForm.busy || !oauthForm.authCode} className="panel-btn panel-btn-primary" style={{ fontWeight: 600 }}>{oauthForm.busy ? "Exchanging..." : "Connect"}</button>
               )}
             </div>
           </div>
@@ -897,7 +893,7 @@ export function McpPanel() {
             <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Remove <strong>{servers[confirmDelete]?.name}</strong>?</div>
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
               <button onClick={() => setConfirmDelete(null)} className="panel-btn panel-btn-secondary">Cancel</button>
-              <button onClick={async () => { await saveServers(servers.filter((_, i) => i !== confirmDelete)); setConfirmDelete(null); }} style={{ ...btnStyle, background: "var(--error-color)" }}>Remove</button>
+              <button onClick={async () => { await saveServers(servers.filter((_, i) => i !== confirmDelete)); setConfirmDelete(null); }} className="panel-btn panel-btn-danger">Remove</button>
             </div>
           </div>
         </div>

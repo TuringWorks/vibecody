@@ -223,7 +223,7 @@ export function UnicodePanel() {
   ];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", fontSize: 13, color: "var(--text-primary)", overflow: "hidden" }}>
+    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, fontSize: 13, color: "var(--text-primary)", overflow: "hidden" }}>
       {/* Sub-tab bar */}
       <div style={{ display: "flex", gap: 4, padding: "6px 12px 0", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", flexShrink: 0 }}>
         {TABS.map(t => (

@@ -387,7 +387,7 @@ export function TransformPanel({ provider }: TransformPanelProps) {
 
         <div style={{ flex: 1, overflow: "auto", padding: 16 }}>
         {!selectedTransform ? (
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--text-secondary)" }}>
+          <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, alignItems: "center", justifyContent: "center", color: "var(--text-secondary)" }}>
             <div style={{ fontSize: 40, marginBottom: 12, opacity: 0.3 }}>&#8644;</div>
             <div style={{ fontSize: 15, fontWeight: 500 }}>Select a transform</div>
             <div style={{ fontSize: 12, marginTop: 4 }}>Choose a code transformation from the left panel</div>

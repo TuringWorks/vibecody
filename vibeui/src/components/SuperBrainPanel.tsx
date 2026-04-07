@@ -68,7 +68,7 @@ const CHAIN_STEP_COLORS = ["var(--accent-blue)", "var(--accent-gold)", "var(--ac
 
 const S = {
   container: {
-    height: "100%", display: "flex", flexDirection: "column",
+    flex: 1, minHeight: 0, display: "flex", flexDirection: "column",
     fontFamily: "var(--font-family, system-ui, sans-serif)",
     color: "var(--text-primary)",
     background: "var(--bg-primary)",

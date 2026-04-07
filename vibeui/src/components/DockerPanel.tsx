@@ -179,18 +179,6 @@ export function DockerPanel({ workspacePath }: DockerPanelProps) {
  borderRadius: 4, color: "var(--text-primary)", outline: "none",
  };
 
- const btnStyle = (variant: "primary" | "secondary" | "danger" = "secondary"): React.CSSProperties => ({
- padding: "4px 10px", fontSize: 11, borderRadius: 4, border: "none", cursor: "pointer",
- background: variant === "primary" ? "var(--accent-color)"
- : variant === "danger" ? "rgba(244, 67, 54, 0.1)"
- : "var(--bg-secondary)",
- color: variant === "primary" ? "var(--text-primary)"
- : variant === "danger" ? "var(--error-color)"
- : "var(--text-secondary)",
- borderWidth: variant === "danger" ? 1 : 0,
- borderStyle: "solid",
- borderColor: variant === "danger" ? "var(--error-color)" : "transparent",
- });
 
  const terminal: React.CSSProperties = {
  background: "var(--bg-primary)", color: "var(--text-primary)",
@@ -230,7 +218,7 @@ export function DockerPanel({ workspacePath }: DockerPanelProps) {
  <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
  {containers.length} container{containers.length !== 1 ? "s" : ""}
  </span>
- <button onClick={loadContainers} disabled={containersLoading} style={btnStyle()}>
+ <button onClick={loadContainers} disabled={containersLoading} className="panel-btn panel-btn-secondary">
  {containersLoading ? "" : "↻ Refresh"}
  </button>
  </div>
@@ -271,16 +259,16 @@ export function DockerPanel({ workspacePath }: DockerPanelProps) {
  <div style={{ display: "flex", gap: 5, marginTop: 8, flexWrap: "wrap" }}
  onClick={(e) => e.stopPropagation()}>
  {c.status.toLowerCase().startsWith("exited") ? (
- <button onClick={() => runAction(c.id, "start")} disabled={actionLoading} style={btnStyle("primary")}>Start</button>
+ <button onClick={() => runAction(c.id, "start")} disabled={actionLoading} className="panel-btn panel-btn-primary">Start</button>
  ) : (
- <button onClick={() => runAction(c.id, "stop")} disabled={actionLoading} style={btnStyle()}>Stop</button>
+ <button onClick={() => runAction(c.id, "stop")} disabled={actionLoading} className="panel-btn panel-btn-secondary">Stop</button>
  )}
- <button onClick={() => runAction(c.id, "restart")} disabled={actionLoading} style={btnStyle()}>↻ Restart</button>
- <button onClick={() => runAction(c.id, "logs")} disabled={actionLoading} style={btnStyle()}>Logs</button>
+ <button onClick={() => runAction(c.id, "restart")} disabled={actionLoading} className="panel-btn panel-btn-secondary">↻ Restart</button>
+ <button onClick={() => runAction(c.id, "logs")} disabled={actionLoading} className="panel-btn panel-btn-secondary">Logs</button>
  <button
  onClick={() => { if (confirm(`Remove container ${c.name}?`)) runAction(c.id, "remove"); }}
  disabled={actionLoading}
- style={btnStyle("danger")}
+ className="panel-btn panel-btn-danger"
  >
  ✕ Remove
  </button>
@@ -310,10 +298,10 @@ export function DockerPanel({ workspacePath }: DockerPanelProps) {
  onKeyDown={(e) => e.key === "Enter" && handlePull()}
  placeholder="Pull image: nginx:latest, node:20-alpine, ..."
  />
- <button onClick={handlePull} disabled={pulling || !pullImage.trim()} style={btnStyle("primary")}>
+ <button onClick={handlePull} disabled={pulling || !pullImage.trim()} className="panel-btn panel-btn-primary">
  {pulling ? "" : "Pull"}
  </button>
- <button onClick={loadImages} disabled={imagesLoading} style={btnStyle()}>
+ <button onClick={loadImages} disabled={imagesLoading} className="panel-btn panel-btn-secondary">
  {imagesLoading ? "" : "↻"}
  </button>
  </div>
@@ -379,7 +367,7 @@ export function DockerPanel({ workspacePath }: DockerPanelProps) {
  key={action}
  onClick={() => runCompose(action)}
  disabled={composeLoading || !workspacePath}
- style={btnStyle(variant as "primary" | "secondary")}
+ className={`panel-btn panel-btn-${variant === "primary" ? "primary" : "secondary"}`}
  >
  {composeLoading ? "" : label}
  </button>
