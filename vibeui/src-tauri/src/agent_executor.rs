@@ -274,6 +274,106 @@ impl TauriToolExecutor {
             Err(e) => ToolResult::err("list_directory", e.to_string()),
         }
     }
+
+    async fn apply_patch_tool(&self, path: &str, patch: &str) -> ToolResult {
+        let resolved = match self.resolve(path) {
+            Ok(p) => p,
+            Err(e) => return ToolResult::err("apply_patch", e),
+        };
+        let tmp = std::env::temp_dir().join(format!(
+            "vibe_patch_{}.diff",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis()
+        ));
+        if let Err(e) = std::fs::write(&tmp, patch) {
+            return ToolResult::err("apply_patch", format!("Failed to write patch: {}", e));
+        }
+        let patch_file = match std::fs::File::open(&tmp) {
+            Ok(f) => f,
+            Err(e) => {
+                let _ = std::fs::remove_file(&tmp);
+                return ToolResult::err("apply_patch", format!("Failed to open patch file: {}", e));
+            }
+        };
+        let result = std::process::Command::new("patch")
+            .args(["-p1", resolved.to_str().unwrap_or(path)])
+            .stdin(patch_file)
+            .current_dir(&self.workspace_root)
+            .output();
+        let _ = std::fs::remove_file(&tmp);
+        match result {
+            Ok(out) if out.status.success() => {
+                let msg = String::from_utf8_lossy(&out.stdout).to_string();
+                ToolResult::ok(
+                    "apply_patch",
+                    if msg.trim().is_empty() {
+                        format!("Patch applied to {}", path)
+                    } else {
+                        msg
+                    },
+                )
+            }
+            Ok(out) => {
+                let err = String::from_utf8_lossy(&out.stderr).to_string()
+                    + &String::from_utf8_lossy(&out.stdout);
+                ToolResult::err("apply_patch", err)
+            }
+            Err(e) => ToolResult::err("apply_patch", format!("patch command failed: {}", e)),
+        }
+    }
+
+    async fn diffstat_tool(&self, path: &str) -> ToolResult {
+        let resolved = match self.resolve(path) {
+            Ok(p) => p,
+            Err(e) => return ToolResult::err("diffstat", e),
+        };
+        let output = std::process::Command::new("git")
+            .args(["diff", "--stat", "HEAD", "--", resolved.to_str().unwrap_or(path)])
+            .current_dir(&self.workspace_root)
+            .output();
+        match output {
+            Ok(out) => {
+                let text = String::from_utf8_lossy(&out.stdout).to_string()
+                    + &String::from_utf8_lossy(&out.stderr);
+                let (truncated_text, trunc) = Self::truncate(if text.trim().is_empty() {
+                    "No changes compared to HEAD (file may be untracked)".to_string()
+                } else {
+                    text
+                });
+                ToolResult { tool_name: "diffstat".into(), output: truncated_text, success: true, truncated: trunc }
+            }
+            Err(e) => ToolResult::err("diffstat", e.to_string()),
+        }
+    }
+
+    async fn record_memory_tool(&self, key: &str, value: &str) -> ToolResult {
+        let memory_path = self.workspace_root.join(".vibe").join("memory.md");
+        if let Some(parent) = memory_path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        let entry = format!("- **{}**: {}\n", key, value);
+        let mut content = std::fs::read_to_string(&memory_path).unwrap_or_default();
+        // Deduplicate same key
+        content = content
+            .lines()
+            .filter(|l| !l.contains(&format!("**{}**:", key)))
+            .collect::<Vec<_>>()
+            .join("\n");
+        if !content.is_empty() && !content.ends_with('\n') {
+            content.push('\n');
+        }
+        content.push_str(&entry);
+        // Cap at 4KB
+        if content.len() > 4096 {
+            content = content[content.len() - 4096..].to_string();
+        }
+        match std::fs::write(&memory_path, &content) {
+            Ok(_) => ToolResult::ok("record_memory", format!("Saved: {} = {}", key, value)),
+            Err(e) => ToolResult::err("record_memory", e.to_string()),
+        }
+    }
 }
 
 /// Convenience method callable without the trait in scope (used by approval command).
@@ -282,10 +382,7 @@ impl TauriToolExecutor {
         match call {
             ToolCall::ReadFile { path }          => self.read_file(path).await,
             ToolCall::WriteFile { path, content } => self.write_file(path, content).await,
-            ToolCall::ApplyPatch { .. }           => ToolResult::err(
-                "apply_patch",
-                "apply_patch is not supported in VibeUI — use write_file instead.",
-            ),
+            ToolCall::ApplyPatch { path, patch }  => self.apply_patch_tool(path, patch).await,
             ToolCall::Bash { command }            => self.run_bash(command).await,
             ToolCall::SearchFiles { query, glob } => self.search_files(query, glob.as_deref()).await,
             ToolCall::ListDirectory { path }      => self.list_dir(path).await,
@@ -299,6 +396,11 @@ impl TauriToolExecutor {
             ToolCall::Think { thought } => {
                 ToolResult::ok("think", format!("Reasoning noted ({} chars).", thought.len()))
             }
+            ToolCall::PlanTask { steps } => {
+                ToolResult::ok("plan_task", format!("Plan recorded:\n{}", steps))
+            }
+            ToolCall::Diffstat { path } => self.diffstat_tool(path).await,
+            ToolCall::RecordMemory { key, value } => self.record_memory_tool(key, value).await,
         }
     }
 }
@@ -380,10 +482,11 @@ mod tests {
     #[tokio::test]
     async fn execute_call_apply_patch_returns_error() {
         let exec = TauriToolExecutor::new(PathBuf::from("/tmp"));
-        let call = ToolCall::ApplyPatch { path: "test.rs".into(), patch: "test".into() };
+        let call = ToolCall::ApplyPatch { path: "nonexistent_test_xyz.rs".into(), patch: "bad patch".into() };
+        // apply_patch now actually invokes `patch`; with a bad/invalid patch it should fail
         let result = exec.execute_call(&call).await;
+        // Either the path resolution fails or patch rejects the bad input — not success
         assert!(!result.success);
-        assert!(result.output.contains("not supported"));
     }
 
     #[tokio::test]
@@ -614,10 +717,7 @@ impl ToolExecutorTrait for TauriToolExecutor {
         match call {
             ToolCall::ReadFile { path }           => self.read_file(path).await,
             ToolCall::WriteFile { path, content } => self.write_file(path, content).await,
-            ToolCall::ApplyPatch { .. }           => {
-                // ApplyPatch requires a unified-diff engine; instruct the agent to use write_file.
-                ToolResult::err("apply_patch", "apply_patch is not supported in VibeUI — use write_file with the complete file contents instead.")
-            }
+            ToolCall::ApplyPatch { path, patch }  => self.apply_patch_tool(path, patch).await,
             ToolCall::Bash { command }            => self.run_bash(command).await,
             ToolCall::SearchFiles { query, glob } => self.search_files(query, glob.as_deref()).await,
             ToolCall::ListDirectory { path }      => self.list_dir(path).await,
@@ -631,6 +731,11 @@ impl ToolExecutorTrait for TauriToolExecutor {
             ToolCall::Think { thought } => {
                 ToolResult::ok("think", format!("Reasoning noted ({} chars).", thought.len()))
             }
+            ToolCall::PlanTask { steps } => {
+                ToolResult::ok("plan_task", format!("Plan recorded:\n{}", steps))
+            }
+            ToolCall::Diffstat { path } => self.diffstat_tool(path).await,
+            ToolCall::RecordMemory { key, value } => self.record_memory_tool(key, value).await,
         }
     }
 }

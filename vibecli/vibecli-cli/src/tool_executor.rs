@@ -228,6 +228,58 @@ impl ToolExecutorTrait for ToolExecutor {
             ToolCall::Think { thought } => {
                 ToolResult::ok("think", format!("Reasoning noted ({} chars).", thought.len()))
             }
+            ToolCall::PlanTask { steps } => {
+                ToolResult::ok("plan_task", format!("Plan recorded:\n{}", steps))
+            }
+            ToolCall::Diffstat { path } => {
+                let resolved = match self.resolve_safe(path) {
+                    Ok(p) => p,
+                    Err(e) => return ToolResult::err("diffstat", e),
+                };
+                let output = std::process::Command::new("git")
+                    .args(["diff", "--stat", "HEAD", "--", resolved.to_str().unwrap_or(path)])
+                    .current_dir(&self.workspace_root)
+                    .output();
+                match output {
+                    Ok(out) => {
+                        let text = String::from_utf8_lossy(&out.stdout).to_string()
+                            + &String::from_utf8_lossy(&out.stderr);
+                        ToolResult::ok(
+                            "diffstat",
+                            if text.trim().is_empty() {
+                                "No changes compared to HEAD (file may be untracked)".to_string()
+                            } else {
+                                text
+                            },
+                        )
+                    }
+                    Err(e) => ToolResult::err("diffstat", e.to_string()),
+                }
+            }
+            ToolCall::RecordMemory { key, value } => {
+                let memory_path = self.workspace_root.join(".vibe").join("memory.md");
+                if let Some(parent) = memory_path.parent() {
+                    let _ = std::fs::create_dir_all(parent);
+                }
+                let entry = format!("- **{}**: {}\n", key, value);
+                let mut content = std::fs::read_to_string(&memory_path).unwrap_or_default();
+                content = content
+                    .lines()
+                    .filter(|l| !l.contains(&format!("**{}**:", key)))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                if !content.is_empty() && !content.ends_with('\n') {
+                    content.push('\n');
+                }
+                content.push_str(&entry);
+                if content.len() > 4096 {
+                    content = content[content.len() - 4096..].to_string();
+                }
+                match std::fs::write(&memory_path, &content) {
+                    Ok(_) => ToolResult::ok("record_memory", format!("Saved: {} = {}", key, value)),
+                    Err(e) => ToolResult::err("record_memory", e.to_string()),
+                }
+            }
         }
     }
 }

@@ -3921,6 +3921,10 @@ pub async fn start_agent_task(
             d[..end].to_string() + "\n…(truncated)"
         } else { d }
     });
+    let memory_context = {
+        let mem_path = workspace_root.join(".vibe").join("memory.md");
+        std::fs::read_to_string(&mem_path).ok().filter(|s| !s.trim().is_empty())
+    };
     let context = AgentContext {
         workspace_root: workspace_root.clone(),
         open_files: vec![],
@@ -3936,7 +3940,8 @@ pub async fn start_agent_task(
         team_agent_id: None,
         project_summary: None,
         task_context_files: vec![],
-        memory_context: None,
+        memory_context,
+        auto_commit: false,
     };
 
     let executor = Arc::new(TauriToolExecutor::new(workspace_root.clone()));
@@ -6897,6 +6902,10 @@ pub async fn start_parallel_agents(
 
         tokio::spawn(async move {
             let git_branch = vibe_core::git::get_current_branch(&root2).ok();
+            let memory_context = {
+                let mem_path = root2.join(".vibe").join("memory.md");
+                std::fs::read_to_string(&mem_path).ok().filter(|s| !s.trim().is_empty())
+            };
             let context = AgentContext {
                 workspace_root: root2.clone(),
                 open_files: vec![],
@@ -6912,7 +6921,8 @@ pub async fn start_parallel_agents(
                 team_agent_id: None,
                 project_summary: None,
                 task_context_files: vec![],
-                memory_context: None,
+                memory_context,
+                auto_commit: false,
             };
 
             let executor = Arc::new(TauriToolExecutor::new(root2));

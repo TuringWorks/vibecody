@@ -160,6 +160,36 @@ Let me read the existing router first.</thought>
 </tool_call>
 ```
 
+### plan_task
+Break the current task into numbered steps. Call this FIRST for complex multi-file tasks. It does not execute anything — just displays your plan.
+```
+<tool_call name="plan_task">
+<steps>
+1. Read current schema in src/db.rs
+2. Add migration file
+3. Update model struct
+4. Run cargo test
+</steps>
+</tool_call>
+```
+
+### diffstat
+Show what changed in a file compared to git HEAD. Use before calling task_complete to summarize changes.
+```
+<tool_call name="diffstat">
+<path>src/main.rs</path>
+</tool_call>
+```
+
+### record_memory
+Save a key insight to persistent memory for future agent sessions. Use to record discovered file locations, error patterns, and important context.
+```
+<tool_call name="record_memory">
+<key>database_url_location</key>
+<value>Found in src/config.rs line 42</value>
+</tool_call>
+```
+
 ## Developer Workflow Best Practices
 
 When starting work on a task:
@@ -350,6 +380,19 @@ pub enum ToolCall {
     Think {
         thought: String,
     },
+    /// Break the task into numbered steps for display. Pure display — no side effects.
+    PlanTask {
+        steps: String,
+    },
+    /// Show git diff --stat for a file compared to HEAD.
+    Diffstat {
+        path: String,
+    },
+    /// Save a key/value insight to .vibe/memory.md for future sessions.
+    RecordMemory {
+        key: String,
+        value: String,
+    },
 }
 
 impl ToolCall {
@@ -367,6 +410,9 @@ impl ToolCall {
             ToolCall::TaskComplete { .. } => "task_complete",
             ToolCall::SpawnAgent { .. } => "spawn_agent",
             ToolCall::Think { .. } => "think",
+            ToolCall::PlanTask { .. } => "plan_task",
+            ToolCall::Diffstat { .. } => "diffstat",
+            ToolCall::RecordMemory { .. } => "record_memory",
         }
     }
 
@@ -417,6 +463,12 @@ impl ToolCall {
                 let short = if thought.len() > 80 { let end = thought.char_indices().nth(80).map(|(i,_)| i).unwrap_or(thought.len()); format!("{}…", &thought[..end]) } else { thought.clone() };
                 format!("think({})", short)
             }
+            ToolCall::PlanTask { steps } => {
+                let lines = steps.lines().count();
+                format!("plan_task({} steps)", lines)
+            }
+            ToolCall::Diffstat { path } => format!("diffstat({})", path),
+            ToolCall::RecordMemory { key, .. } => format!("record_memory(key={})", key),
         }
     }
 
@@ -425,7 +477,7 @@ impl ToolCall {
         matches!(
             self,
             ToolCall::Bash { .. } | ToolCall::WriteFile { .. } | ToolCall::ApplyPatch { .. }
-                | ToolCall::SpawnAgent { .. }
+                | ToolCall::SpawnAgent { .. } | ToolCall::RecordMemory { .. }
         )
     }
 
@@ -556,6 +608,19 @@ fn parse_single_tool(name: &str, body: &str) -> Option<ToolCall> {
         "think" => {
             let thought = extract_tag(body, "thought").unwrap_or_default();
             Some(ToolCall::Think { thought })
+        }
+        "plan_task" => {
+            let steps = extract_tag(body, "steps").unwrap_or_default();
+            Some(ToolCall::PlanTask { steps })
+        }
+        "diffstat" => {
+            let path = extract_tag(body, "path")?;
+            Some(ToolCall::Diffstat { path })
+        }
+        "record_memory" => {
+            let key = extract_tag(body, "key")?;
+            let value = extract_tag(body, "value").unwrap_or_default();
+            Some(ToolCall::RecordMemory { key, value })
         }
         _ => None,
     }

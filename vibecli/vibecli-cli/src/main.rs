@@ -12625,6 +12625,7 @@ async fn run_watch_mode(
                 project_summary: None,
                 task_context_files: vec![],
                 memory_context: None,
+                auto_commit: false,
             };
             tokio::spawn(async move {
                 let _ = agent.run(&task_clone, ctx, event_tx).await;

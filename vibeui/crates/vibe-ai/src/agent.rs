@@ -495,6 +495,10 @@ pub struct AgentContext {
     /// Auto-gathered relevant file contents for the current task.
     #[serde(default)]
     pub task_context_files: Vec<(String, String)>, // (path, preview)
+    /// When true, automatically commit each successful write_file / apply_patch.
+    /// Overrides AgentLoop::atomic_commits when set to true.
+    #[serde(default)]
+    pub auto_commit: bool,
 }
 
 // ── Tool Executor Trait ───────────────────────────────────────────────────────
@@ -1043,18 +1047,20 @@ impl AgentLoop {
             }
 
             // ── 3e. Atomic commits ─────────────────────────────────────────────
-            if self.atomic_commits && tool_result.success {
+            if (self.atomic_commits || context.auto_commit) && tool_result.success {
                 if let ToolCall::WriteFile { path, .. } | ToolCall::ApplyPatch { path, .. } = &call {
                     let ws = context.workspace_root.clone();
                     let p = path.clone();
+                    let tool_label = call.name();
+                    let short_name = p.rsplit('/').next().unwrap_or(&p);
                     let _ = tokio::process::Command::new("git")
                         .args(["add", &p])
                         .current_dir(&ws)
                         .output()
                         .await;
-                    let msg = format!("agent: update {}", p.rsplit('/').next().unwrap_or(&p));
+                    let commit_msg = format!("Agent: {} — {}", tool_label, short_name);
                     let _ = tokio::process::Command::new("git")
-                        .args(["commit", "-m", &msg, "--allow-empty-message"])
+                        .args(["commit", "-m", &commit_msg, "--no-verify"])
                         .current_dir(&ws)
                         .output()
                         .await;
@@ -1271,6 +1277,90 @@ mod context_tests {
     }
 }
 
+/// Generate a compact repo map: 2-level directory tree (up to 40 entries) plus
+/// detection of well-known key files. Returns an empty string when the root
+/// cannot be read. No caching — regenerated each call (cheap).
+fn build_repo_map(root: &std::path::Path) -> String {
+    use std::fs;
+
+    // Key files to highlight if present at workspace root.
+    const KEY_FILES: &[&str] = &[
+        "README.md", "Cargo.toml", "package.json", "pyproject.toml",
+        "go.mod", "src/main.rs", "src/lib.rs", "index.ts",
+    ];
+
+    let mut lines: Vec<String> = Vec::new();
+    let root_name = root.file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| root.display().to_string());
+    lines.push(format!("{}/", root_name));
+
+    // Walk top-level entries.
+    let top_entries = match fs::read_dir(root) {
+        Ok(rd) => {
+            let mut entries: Vec<_> = rd
+                .filter_map(|e| e.ok())
+                .collect();
+            entries.sort_by_key(|e| e.file_name());
+            entries
+        }
+        Err(_) => return String::new(),
+    };
+
+    let mut count = 0usize;
+    for entry in &top_entries {
+        if count >= 40 { lines.push("  …".to_string()); break; }
+        let name = entry.file_name();
+        let name_str = name.to_string_lossy();
+        // Skip hidden dot-dirs (except .github, .vibecli)
+        if name_str.starts_with('.') && name_str != ".github" && name_str != ".vibecli" {
+            continue;
+        }
+        let meta = match entry.metadata() { Ok(m) => m, Err(_) => continue };
+        if meta.is_dir() {
+            lines.push(format!("  {}/", name_str));
+            // One level deeper (up to 10 sub-entries).
+            if let Ok(sub_rd) = fs::read_dir(entry.path()) {
+                let mut sub_entries: Vec<_> = sub_rd.filter_map(|e| e.ok()).collect();
+                sub_entries.sort_by_key(|e| e.file_name());
+                let mut sub_count = 0usize;
+                for sub in &sub_entries {
+                    if sub_count >= 10 { lines.push("    …".to_string()); break; }
+                    let sub_name = sub.file_name();
+                    let sub_str = sub_name.to_string_lossy();
+                    if sub_str.starts_with('.') { continue; }
+                    let is_dir = sub.metadata().map(|m| m.is_dir()).unwrap_or(false);
+                    if is_dir {
+                        lines.push(format!("    {}/", sub_str));
+                    } else {
+                        lines.push(format!("    {}", sub_str));
+                    }
+                    sub_count += 1;
+                }
+            }
+        } else {
+            lines.push(format!("  {}", name_str));
+        }
+        count += 1;
+        // Cap total output lines to keep prompt small.
+        if lines.len() >= 78 { lines.push("  …".to_string()); break; }
+    }
+
+    // Detect key files.
+    let mut found_keys: Vec<&str> = KEY_FILES.iter()
+        .filter(|&&f| root.join(f).exists())
+        .copied()
+        .collect();
+    if !found_keys.is_empty() {
+        lines.push(String::new());
+        lines.push("Key files detected:".to_string());
+        for f in &found_keys { lines.push(format!("  {}", f)); }
+    }
+    found_keys.clear(); // suppress unused-variable lint
+
+    lines.join("\n")
+}
+
 fn build_system_prompt(context: &AgentContext, approval: &ApprovalPolicy) -> String {
     let mut extras = String::new();
 
@@ -1290,6 +1380,12 @@ fn build_system_prompt(context: &AgentContext, approval: &ApprovalPolicy) -> Str
             "\n\n## Environment\nWorkspace root: {}",
             context.workspace_root.display()
         ));
+
+        // Repo-map: compact 2-level directory tree + key file detection.
+        let repo_map = build_repo_map(&context.workspace_root);
+        if !repo_map.is_empty() {
+            extras.push_str(&format!("\n\n## Workspace Structure\n{}", repo_map));
+        }
     }
     if let Some(branch) = &context.git_branch {
         extras.push_str(&format!("\nGit branch: {}", branch));

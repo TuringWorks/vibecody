@@ -185,6 +185,41 @@ impl ToolExecutorTrait for ContainerToolExecutor {
             ToolCall::Think { thought } => {
                 ToolResult::ok("think", format!("Reasoning noted ({} chars).", thought.len()))
             }
+
+            ToolCall::PlanTask { steps } => {
+                ToolResult::ok("plan_task", format!("Plan recorded:\n{}", steps))
+            }
+
+            ToolCall::Diffstat { path } => {
+                let cmd = format!("git diff --stat HEAD -- {}", path.replace('\'', "'\\''"));
+                match self.runtime.exec(&self.container_id, &cmd, None).await {
+                    Ok(result) => {
+                        let text = result.stdout + &result.stderr;
+                        ToolResult::ok(
+                            "diffstat",
+                            if text.trim().is_empty() {
+                                "No changes compared to HEAD (file may be untracked)".to_string()
+                            } else {
+                                text
+                            },
+                        )
+                    }
+                    Err(e) => ToolResult::err("diffstat", e.to_string()),
+                }
+            }
+
+            ToolCall::RecordMemory { key, value } => {
+                let cmd = format!(
+                    "mkdir -p .vibe && grep -v '**{}**:' .vibe/memory.md 2>/dev/null > /tmp/mem_tmp.md; echo '- **{}**: {}' >> /tmp/mem_tmp.md; mv /tmp/mem_tmp.md .vibe/memory.md",
+                    key.replace('\'', "'\\''"),
+                    key.replace('\'', "'\\''"),
+                    value.replace('\'', "'\\''"),
+                );
+                match self.runtime.exec(&self.container_id, &cmd, None).await {
+                    Ok(_) => ToolResult::ok("record_memory", format!("Saved: {} = {}", key, value)),
+                    Err(e) => ToolResult::err("record_memory", e.to_string()),
+                }
+            }
         }
     }
 }

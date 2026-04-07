@@ -464,6 +464,7 @@ async fn start_agent(
             project_summary: None,
             task_context_files: vec![],
             memory_context: None,
+            auto_commit: false,
         };
 
         let (event_tx, mut event_rx) = tokio::sync::mpsc::channel::<AgentEvent>(64);
