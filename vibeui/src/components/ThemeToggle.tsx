@@ -14,7 +14,7 @@ export const ThemeToggle = () => {
         setMode(initial);
 
         // Always restore full theme (CSS vars + data-theme + Monaco event)
-        const idToApply = storedId || (initial === 'dark' ? 'dark-default' : 'light-default');
+        const idToApply = storedId || (initial === 'dark' ? 'dark-robinhood' : 'light-default');
         applyThemeById(idToApply);
 
         // Listen for OS-level theme changes (e.g., macOS auto dark mode)
@@ -24,7 +24,7 @@ export const ThemeToggle = () => {
             if (!localStorage.getItem('vibeui-theme')) {
                 const newMode = e.matches ? 'dark' : 'light';
                 setMode(newMode);
-                applyThemeById(newMode === 'dark' ? 'dark-default' : 'light-default');
+                applyThemeById(newMode === 'dark' ? 'dark-robinhood' : 'light-default');
             }
         };
         mql?.addEventListener?.('change', handleSystemChange);
@@ -40,7 +40,7 @@ export const ThemeToggle = () => {
         } else {
             // Fallback: simple dark/light toggle with default pair
             const newMode = mode === 'dark' ? 'light' : 'dark';
-            const fallbackId = newMode === 'dark' ? 'dark-default' : 'light-default';
+            const fallbackId = newMode === 'dark' ? 'dark-robinhood' : 'light-default';
             applyThemeById(fallbackId);
             setMode(newMode);
         }

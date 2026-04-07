@@ -1,6 +1,7 @@
 import React, { useState, useRef } from "react";
 import { AlertCircle, AlertTriangle, Info } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
+import { PROVIDER_DEFAULT_MODEL } from "../hooks/useModelRegistry";
 
 interface BugReport {
  id: string;
@@ -16,6 +17,7 @@ interface BugReport {
 
 interface BugBotPanelProps {
  workspacePath?: string;
+ provider?: string;
  onOpenFile?: (path: string, line?: number) => void;
 }
 
@@ -43,7 +45,7 @@ const CATEGORY_LABEL: Record<string, string> = {
  smell: "Code Smell",
 };
 
-export function BugBotPanel({ workspacePath, onOpenFile }: BugBotPanelProps) {
+export function BugBotPanel({ workspacePath, provider, onOpenFile }: BugBotPanelProps) {
  const [reports, setReports] = useState<BugReport[]>([]);
  const [scanning, setScanning] = useState(false);
  const [scanScope, setScanScope] = useState("workspace");
@@ -75,9 +77,12 @@ export function BugBotPanel({ workspacePath, onOpenFile }: BugBotPanelProps) {
  const scope = scanScope === "file" && customFile.trim()
  ? `file:${customFile.trim()}`
  : "workspace";
+ const model = provider ? (PROVIDER_DEFAULT_MODEL[provider] || "") : undefined;
  const result = await invoke<BugReport[]>("run_bugbot", {
  workspacePath,
  scanScope: scope,
+ provider: provider || null,
+ model: model || null,
  });
  if (cancelRef.current || scanIdRef.current !== thisId) return;
  setReports(result);

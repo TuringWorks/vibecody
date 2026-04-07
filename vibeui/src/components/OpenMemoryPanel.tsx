@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -79,30 +80,6 @@ function salienceColor(sal: number): string {
   return 'var(--accent-rose, #ef4444)';
 }
 
-// ─── Tauri invoke wrapper (falls back to mock data) ──────────────────────────
-
-async function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
-  try {
-    const { invoke: tauriInvoke } = await import('@tauri-apps/api/core');
-    return await tauriInvoke<T>(cmd, args);
-  } catch {
-    return getMockData(cmd, args) as T;
-  }
-}
-
-function getMockData(cmd: string, _args?: Record<string, unknown>): unknown {
-  switch (cmd) {
-    case 'openmemory_stats': return {
-      total_memories: 0, total_waypoints: 0, total_facts: 0,
-      sectors: [],
-    };
-    case 'openmemory_list': return [];
-    case 'openmemory_query': return [];
-    case 'openmemory_facts': return [];
-    default: return null;
-  }
-}
-
 // ─── Component ───────────────────────────────────────────────────────────────
 
 const OpenMemoryPanel: React.FC = () => {
@@ -121,6 +98,7 @@ const OpenMemoryPanel: React.FC = () => {
   const [addFactForm, setAddFactForm] = useState({ subject: '', predicate: '', object: '' });
   const [encryptionKey, setEncryptionKey] = useState('');
   const [encryptionEnabled, setEncryptionEnabled] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -128,20 +106,33 @@ const OpenMemoryPanel: React.FC = () => {
   }, []);
 
   const loadStats = useCallback(async () => {
-    const s = await invoke<typeof stats>('openmemory_stats');
-    if (s) setStats(s);
+    try {
+      const s = await invoke<typeof stats>('openmemory_stats');
+      if (s) setStats(s);
+      setError(null);
+    } catch (err) {
+      setError(String(err));
+    }
   }, []);
 
   const loadMemories = useCallback(async () => {
-    const m = await invoke<MemoryNode[]>('openmemory_list', {
-      offset: 0, limit: 100, sector: sectorFilter === 'all' ? null : sectorFilter,
-    });
-    if (m) setMemories(m);
+    try {
+      const m = await invoke<MemoryNode[]>('openmemory_list', {
+        offset: 0, limit: 100, sector: sectorFilter === 'all' ? null : sectorFilter,
+      });
+      if (m) setMemories(m);
+    } catch (err) {
+      console.error('Failed to load memories:', err);
+    }
   }, [sectorFilter]);
 
   const loadFacts = useCallback(async () => {
-    const f = await invoke<TemporalFact[]>('openmemory_facts');
-    if (f) setFacts(f);
+    try {
+      const f = await invoke<TemporalFact[]>('openmemory_facts');
+      if (f) setFacts(f);
+    } catch (err) {
+      console.error('Failed to load facts:', err);
+    }
   }, []);
 
   useEffect(() => {
@@ -253,6 +244,12 @@ const OpenMemoryPanel: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', fontFamily: 'var(--font-family)' }}>
+      {/* Error */}
+      {error && (
+        <div style={{ padding: '8px 16px', background: 'color-mix(in srgb, var(--error-color, #ef4444) 12%, transparent)', borderBottom: '1px solid var(--error-color, #ef4444)', color: 'var(--error-color, #ef4444)', fontSize: 12 }}>
+          {error}
+        </div>
+      )}
       {/* Toast */}
       {toast && (
         <div style={{

@@ -10479,6 +10479,8 @@ pub struct BugReport {
 pub async fn run_bugbot(
     workspace_path: String,
     scan_scope: String, // "workspace" | "file:<path>"
+    provider: Option<String>,
+    model: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<BugReport>, String> {
     // Collect files to scan
@@ -10558,9 +10560,25 @@ Code to analyze:
 
     let messages = vec![Message { role: vibe_ai::MessageRole::User, content: prompt }];
 
-    let engine = state.chat_engine.lock().await;
-    let raw_response = engine.chat(&messages, None).await.map_err(|e| e.to_string())?;
-    drop(engine);
+    let raw_response = if let Some(ref prov_name) = provider {
+        let engine = state.chat_engine.lock().await;
+        let registered = engine.get_provider_by_name(prov_name);
+        drop(engine);
+        if let Some(p) = registered {
+            p.chat(&messages, None).await.map_err(|e| e.to_string())?
+        } else {
+            // Fall back to build_temp_provider for raw provider type names (e.g. "claude", "openai")
+            let mdl = model.as_deref().unwrap_or("");
+            let temp = build_temp_provider(prov_name, mdl)
+                .ok_or_else(|| format!("Provider '{}' is not configured — add an API key in Settings", prov_name))?;
+            temp.chat(&messages, None).await.map_err(|e| e.to_string())?
+        }
+    } else {
+        let engine = state.chat_engine.lock().await;
+        let resp = engine.chat(&messages, None).await.map_err(|e| e.to_string())?;
+        drop(engine);
+        resp
+    };
 
     // Parse JSON from response
     let json_start = raw_response.find('[').unwrap_or(0);

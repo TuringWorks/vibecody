@@ -3,7 +3,7 @@
  *
  * Sections:
  *   1. Profile — Display name, avatar, email, bio
- *   2. Appearance — 18 theme pairs (dark/light/high-contrast/color-blind/supercar), font size, UI density
+ *   2. Appearance — 19 theme pairs (dark/light/high-contrast/color-blind/supercar), font size, UI density
  *   3. OAuth Login — Google, GitHub, GitLab, Bitbucket, Microsoft, Apple
  *   4. Saved Customizations — Export/import/reset workspace preferences
  *   5. API Keys — BYOK provider keys (existing functionality preserved)
@@ -96,7 +96,7 @@ export const THEMES: ThemeDef[] = [
       "--bg-primary": "#0f1117", "--bg-secondary": "#161821", "--bg-tertiary": "#1c1f2b", "--bg-elevated": "#222638",
       "--text-primary": "#e2e4ea", "--text-secondary": "#6e7491", "--accent-blue": "#6c8cff", "--accent-green": "#34d399",
       "--accent-purple": "#a78bfa", "--accent-gold": "#f5c542", "--accent-rose": "#f472b6",
-      "--border-color": "rgba(255, 255, 255, 0.06)", "--error-color": "#ef4444",
+      "--border-color": "rgba(255, 255, 255, 0.06)", "--error-color": "var(--error-color)",
     },
   },
   {
@@ -104,9 +104,9 @@ export const THEMES: ThemeDef[] = [
     preview: { bg: "#fafbfd", fg: "#1a1d2e", accent: "#4f6df5", secondary: "#f0f1f5" },
     vars: {
       "--bg-primary": "#fafbfd", "--bg-secondary": "#f0f1f5", "--bg-tertiary": "#e6e8ef", "--bg-elevated": "#ffffff",
-      "--text-primary": "#1a1d2e", "--text-secondary": "#6b7089", "--accent-blue": "#4f6df5", "--accent-green": "#10b981",
-      "--accent-purple": "#8b5cf6", "--accent-gold": "#d4a017", "--accent-rose": "#ec4899",
-      "--border-color": "rgba(0, 0, 0, 0.08)", "--error-color": "#dc2626",
+      "--text-primary": "#1a1d2e", "--text-secondary": "#6b7089", "--accent-blue": "#4f6df5", "--accent-green": "var(--success-color)",
+      "--accent-purple": "var(--accent-purple)", "--accent-gold": "#d4a017", "--accent-rose": "var(--error-color)",
+      "--border-color": "rgba(0, 0, 0, 0.08)", "--error-color": "var(--error-color)",
     },
   },
   // ── Pair: Charcoal / Silver ──
@@ -179,8 +179,8 @@ export const THEMES: ThemeDef[] = [
     vars: {
       "--bg-primary": "#1a0f10", "--bg-secondary": "#2a1a1c", "--bg-tertiary": "#3a2528", "--bg-elevated": "#452e32",
       "--text-primary": "#f0dde0", "--text-secondary": "#a88b8e", "--accent-blue": "#f43f5e", "--accent-green": "#059669",
-      "--accent-purple": "#a855f7", "--accent-gold": "#ca8a04", "--accent-rose": "#f43f5e",
-      "--border-color": "rgba(255, 255, 255, 0.06)", "--error-color": "#ef4444",
+      "--accent-purple": "var(--accent-purple)", "--accent-gold": "#ca8a04", "--accent-rose": "#f43f5e",
+      "--border-color": "rgba(255, 255, 255, 0.06)", "--error-color": "var(--error-color)",
     },
   },
   {
@@ -189,8 +189,8 @@ export const THEMES: ThemeDef[] = [
     vars: {
       "--bg-primary": "#fff5f5", "--bg-secondary": "#ffe4e6", "--bg-tertiary": "#fecdd3", "--bg-elevated": "#ffffff",
       "--text-primary": "#2d1b1b", "--text-secondary": "#9f6b6b", "--accent-blue": "#e11d48", "--accent-green": "#059669",
-      "--accent-purple": "#a855f7", "--accent-gold": "#ca8a04", "--accent-rose": "#e11d48",
-      "--border-color": "rgba(0, 0, 0, 0.06)", "--error-color": "#dc2626",
+      "--accent-purple": "var(--accent-purple)", "--accent-gold": "#ca8a04", "--accent-rose": "#e11d48",
+      "--border-color": "rgba(0, 0, 0, 0.06)", "--error-color": "var(--error-color)",
     },
   },
   // ── Pair: High Contrast ──
@@ -322,12 +322,12 @@ export const THEMES: ThemeDef[] = [
   },
   {
     id: "light-dracula", name: "Dracula", category: "standard", mode: "light", pairId: "dracula",
-    preview: { bg: "#f8f8f2", fg: "#282a36", accent: "#7c3aed", secondary: "#ededec" },
+    preview: { bg: "#f8f8f2", fg: "#282a36", accent: "var(--accent-purple)", secondary: "#ededec" },
     vars: {
       "--bg-primary": "#f8f8f2", "--bg-secondary": "#ededec", "--bg-tertiary": "#e0dfe0", "--bg-elevated": "#ffffff",
       "--text-primary": "#282a36", "--text-secondary": "#4e5a7e", "--accent-blue": "#0891b2", "--accent-green": "#16a34a",
-      "--accent-purple": "#7c3aed", "--accent-gold": "#a16207", "--accent-rose": "#db2777",
-      "--border-color": "rgba(0, 0, 0, 0.08)", "--error-color": "#dc2626",
+      "--accent-purple": "var(--accent-purple)", "--accent-gold": "#a16207", "--accent-rose": "#db2777",
+      "--border-color": "rgba(0, 0, 0, 0.08)", "--error-color": "var(--error-color)",
     },
   },
   // ── Pair: Nord ──
@@ -757,10 +757,10 @@ export const THEMES: ThemeDef[] = [
   // ── Pair: Launch Green (R1 Quad-Motor exclusive) ──
   {
     id: "dark-rivian-launch", name: "Rivian Launch", category: "standard", mode: "dark", pairId: "rivian-launch",
-    preview: { bg: "#0a140e", fg: "#d0e0d4", accent: "#4caf50", secondary: "#142218" },
+    preview: { bg: "#0a140e", fg: "#d0e0d4", accent: "var(--success-color)", secondary: "#142218" },
     vars: {
       "--bg-primary": "#0a140e", "--bg-secondary": "#142218", "--bg-tertiary": "#1e3024", "--bg-elevated": "#283e30",
-      "--text-primary": "#d0e0d4", "--text-secondary": "#7aa088", "--accent-blue": "#4caf50", "--accent-green": "#66cc6a",
+      "--text-primary": "#d0e0d4", "--text-secondary": "#7aa088", "--accent-blue": "var(--success-color)", "--accent-green": "#66cc6a",
       "--accent-purple": "#a090c0", "--accent-gold": "#ccb040", "--accent-rose": "#e05858",
       "--border-color": "rgba(76, 175, 80, 0.14)", "--error-color": "#e05858",
     },
@@ -1392,7 +1392,7 @@ export const THEMES: ThemeDef[] = [
     preview: { bg: "#040810", fg: "#c0c8e0", accent: "#1e3a8a", secondary: "#0c1428" },
     vars: {
       "--bg-primary": "#040810", "--bg-secondary": "#0c1428", "--bg-tertiary": "#142040", "--bg-elevated": "#1c2850",
-      "--text-primary": "#c0c8e0", "--text-secondary": "#5868a0", "--accent-blue": "#3b82f6", "--accent-green": "#38b2ac",
+      "--text-primary": "#c0c8e0", "--text-secondary": "#5868a0", "--accent-blue": "var(--info-color)", "--accent-green": "#38b2ac",
       "--accent-purple": "#5b6abf", "--accent-gold": "#c0a030", "--accent-rose": "#c84858",
       "--border-color": "rgba(59, 130, 246, 0.10)", "--error-color": "#c84858",
     },
@@ -1427,6 +1427,30 @@ export const THEMES: ThemeDef[] = [
       "--text-primary": "#0c1020", "--text-secondary": "#4a5a80", "--accent-blue": "#2c5282", "--accent-green": "#2a8060",
       "--accent-purple": "#4a6098", "--accent-gold": "#8a7820", "--accent-rose": "#984050",
       "--border-color": "rgba(44, 82, 130, 0.10)", "--error-color": "#984050",
+    },
+  },
+
+  // ── Pair: Robinhood (Fintech Green) ──
+  {
+    id: "dark-robinhood", name: "Robinhood", category: "standard", mode: "dark", pairId: "robinhood",
+    preview: { bg: "#0a0a0a", fg: "#f0f0f0", accent: "#00c805", secondary: "#141414" },
+    vars: {
+      "--bg-primary": "#0a0a0a", "--bg-secondary": "#141414", "--bg-tertiary": "#1c1c1c", "--bg-elevated": "#242424",
+      "--text-primary": "#f0f0f0", "--text-secondary": "#8a8a8a", "--accent-blue": "#00c805", "--accent-green": "#00c805",
+      "--accent-purple": "#9c88ff", "--accent-gold": "#f0c040", "--accent-rose": "#ff4d4d",
+      "--border-color": "rgba(255, 255, 255, 0.07)", "--error-color": "#ff4d4d",
+      "--success-color": "#00c805", "--warning-color": "#f0c040",
+    },
+  },
+  {
+    id: "light-robinhood", name: "Robinhood", category: "standard", mode: "light", pairId: "robinhood",
+    preview: { bg: "#ffffff", fg: "#1a1a1a", accent: "#00c805", secondary: "#f5f5f5" },
+    vars: {
+      "--bg-primary": "#ffffff", "--bg-secondary": "#f5f5f5", "--bg-tertiary": "#ebebeb", "--bg-elevated": "#ffffff",
+      "--text-primary": "#1a1a1a", "--text-secondary": "#6e6e6e", "--accent-blue": "#00a804", "--accent-green": "#00a804",
+      "--accent-purple": "#6c5ce7", "--accent-gold": "#c8960a", "--accent-rose": "#e03030",
+      "--border-color": "rgba(0, 0, 0, 0.09)", "--error-color": "#e03030",
+      "--success-color": "#00a804", "--warning-color": "#c8960a",
     },
   },
 
@@ -1961,13 +1985,13 @@ function ProfileSection() {
 }
 
 function AppearanceSection() {
-  const [activeThemeId, setActiveThemeId] = useState("dark-default");
+  const [activeThemeId, setActiveThemeId] = useState("dark-robinhood");
   const [fontSize, setFontSize] = useState(13);
   const [density, setDensity] = useState<"compact" | "normal" | "spacious">("normal");
   const [filterCategory, setFilterCategory] = useState<"all" | "standard" | "high-contrast" | "color-blind" | "supercar">("all");
 
   useEffect(() => {
-    const storedTheme = localStorage.getItem(STORAGE_KEYS.theme) || "dark-default";
+    const storedTheme = localStorage.getItem(STORAGE_KEYS.theme) || "dark-robinhood";
     const storedSize = localStorage.getItem(STORAGE_KEYS.fontSize);
     const storedDensity = localStorage.getItem("vibeui-density");
     setActiveThemeId(storedTheme);
@@ -2356,7 +2380,7 @@ function CustomizationsSection() {
       id: Date.now().toString(36),
       name: name.trim(),
       createdAt: new Date().toISOString(),
-      theme: localStorage.getItem(STORAGE_KEYS.theme) || "dark-default",
+      theme: localStorage.getItem(STORAGE_KEYS.theme) || "dark-robinhood",
       fontSize: parseInt(localStorage.getItem(STORAGE_KEYS.fontSize) || "13", 10),
       density: localStorage.getItem("vibeui-density") || "normal",
     };

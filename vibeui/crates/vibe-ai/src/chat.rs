@@ -96,6 +96,11 @@ impl ChatEngine {
         }
     }
 
+    /// Get a provider Arc by name (case-insensitive prefix match)
+    pub fn get_provider_by_name(&self, name: &str) -> Option<Arc<dyn AIProvider>> {
+        self.providers.iter().find(|p| p.name() == name).cloned()
+    }
+
     /// Set the active provider by name
     pub fn set_provider_by_name(&mut self, name: &str) -> Result<()> {
         if let Some(index) = self.providers.iter().position(|p| p.name() == name) {
