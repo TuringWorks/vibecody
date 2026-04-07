@@ -356,7 +356,7 @@ export function CollabChatPanel({ provider = "claude", daemonPort = 7878 }: Coll
 
   if (!connected) {
     return (
-      <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12, height: "100%", overflow: "auto" }}>
+      <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12, flex: 1, minHeight: 0, overflow: "auto" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
           <Users size={16} style={{ color: "var(--text-secondary)" }} />
           <span style={{ fontWeight: 600, fontSize: 14 }}>Collaborative AI Chat</span>

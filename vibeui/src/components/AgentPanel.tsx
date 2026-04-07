@@ -288,7 +288,7 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  : "Agent idle";
 
  return (
- <div style={{ display: "flex", flexDirection: "column", height: "100%", padding: "12px", gap: "8px" }}>
+ <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, padding: "12px", gap: "8px" }}>
  <div className="sr-only" aria-live="polite">{statusLabel}</div>
  <div style={{ fontWeight: 600, fontSize: "14px", display: "flex", alignItems: "center", gap: 6 }}><Bot size={16} strokeWidth={1.5} />Agent Mode</div>
  <p style={{ fontSize: "12px", color: "var(--text-secondary)", margin: 0 }}>

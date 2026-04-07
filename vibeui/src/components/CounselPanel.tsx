@@ -68,7 +68,7 @@ const DEFAULT_PARTICIPANTS: Participant[] = [
 // ── Styles ───────────────────────────────────────────────────────────────────
 
 const S = {
-  container: { display: "flex", height: "100%", fontFamily: "var(--font-family, system-ui, sans-serif)", color: "var(--text-primary)", background: "var(--bg-primary)" } as const,
+  container: { display: "flex", flex: 1, minHeight: 0, fontFamily: "var(--font-family, system-ui, sans-serif)", color: "var(--text-primary)", background: "var(--bg-primary)" } as const,
   sidebar: { width: 220, borderRight: "1px solid var(--border-color)", padding: 12, overflowY: "auto", flexShrink: 0 } as const,
   main: { flex: 1, padding: 20, overflowY: "auto" } as const,
   btn: { padding: "8px 16px", border: "none", borderRadius: 6, cursor: "pointer", fontSize: 13, fontWeight: 600, background: "var(--accent-blue)", color: "var(--btn-primary-fg, #fff)" } as const,

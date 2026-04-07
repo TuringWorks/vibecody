@@ -39425,6 +39425,34 @@ pub async fn company_ingest_meeting_notes(
     serde_json::to_value(&result).map_err(|e| e.to_string())
 }
 
+// ── Task list JSON ────────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn company_task_list_json(status: Option<String>) -> Result<serde_json::Value, String> {
+    let db_path = vibecli_cli::company_store::default_db_path();
+    let company_id = vibecli_cli::company_store::get_active_company_id()
+        .ok_or_else(|| "No active company".to_string())?;
+    let conn = rusqlite::Connection::open(&db_path).map_err(|e| e.to_string())?;
+    let store = vibecli_cli::company_tasks::TaskStore::new(&conn);
+    store.ensure_schema().map_err(|e| e.to_string())?;
+    let tasks = store.list(&company_id, status.as_deref()).map_err(|e| e.to_string())?;
+    serde_json::to_value(&tasks).map_err(|e| e.to_string())
+}
+
+// ── Document list JSON ────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn company_doc_list_json() -> Result<serde_json::Value, String> {
+    let db_path = vibecli_cli::company_store::default_db_path();
+    let company_id = vibecli_cli::company_store::get_active_company_id()
+        .ok_or_else(|| "No active company".to_string())?;
+    let conn = rusqlite::Connection::open(&db_path).map_err(|e| e.to_string())?;
+    let store = vibecli_cli::company_documents::DocumentStore::new(&conn);
+    store.ensure_schema().map_err(|e| e.to_string())?;
+    let docs = store.list(&company_id).map_err(|e| e.to_string())?;
+    serde_json::to_value(&docs).map_err(|e| e.to_string())
+}
+
 // ── Automation resolution mode ────────────────────────────────────────────────
 
 #[tauri::command]

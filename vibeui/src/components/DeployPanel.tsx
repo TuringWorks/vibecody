@@ -143,7 +143,7 @@ export function DeployPanel({ workspacePath }: DeployPanelProps) {
  };
 
  return (
- <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 16, height: "100%", overflowY: "auto" }}>
+ <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 16, flex: 1, minHeight: 0, overflowY: "auto" }}>
  {/* Detected project */}
  {detected && (
  <div style={{ background: "var(--bg-secondary)", borderRadius: 8, padding: 12, border: "1px solid var(--border-color)" }}>

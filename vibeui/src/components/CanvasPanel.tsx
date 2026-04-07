@@ -151,7 +151,7 @@ export default function CanvasPanel() {
  };
 
  return (
- <div style={{ display: "flex", height: "100%", background: "var(--bg-primary)", color: "var(--text-secondary)" }}>
+ <div style={{ display: "flex", flex: 1, minHeight: 0, background: "var(--bg-primary)", color: "var(--text-secondary)" }}>
  {/* Palette sidebar */}
  {showPalette && (
  <div style={{ width: 180, borderRight: "1px solid var(--border-color)", padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>

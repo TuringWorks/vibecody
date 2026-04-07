@@ -128,7 +128,7 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
     : [];
 
   return (
-    <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12, height: "100%", overflowY: "auto" }}>
+    <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12, flex: 1, minHeight: 0, overflowY: "auto" }}>
       {/* Manager badge + Scan button */}
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <div style={{
