@@ -126,6 +126,12 @@ pub struct CompanyTask {
     pub result_summary: Option<String>,
     pub created_at: u64,
     pub updated_at: u64,
+    /// Owner of the task: "agent", "human", etc.
+    pub owner: String,
+    /// Program or workstream this task belongs to.
+    pub program: String,
+    /// Optional recurrence rule (e.g. "daily", "weekly", cron expression).
+    pub recurrence: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -180,6 +186,9 @@ impl<'a> TaskStore<'a> {
             );
             CREATE INDEX IF NOT EXISTS idx_comments_task ON task_comments(task_id);
         "#)?;
+        let _ = self.conn.execute_batch("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS owner TEXT NOT NULL DEFAULT 'agent'");
+        let _ = self.conn.execute_batch("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS program TEXT NOT NULL DEFAULT ''");
+        let _ = self.conn.execute_batch("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS recurrence TEXT");
         Ok(())
     }
 
@@ -208,14 +217,64 @@ impl<'a> TaskStore<'a> {
             result_summary: None,
             created_at: now_ms(),
             updated_at: now_ms(),
+            owner: "agent".to_string(),
+            program: String::new(),
+            recurrence: None,
         };
         self.conn.execute(
-            "INSERT INTO tasks (id, company_id, goal_id, parent_task_id, assigned_agent, title, description, status, priority, created_at, updated_at)
-             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)",
+            "INSERT INTO tasks (id, company_id, goal_id, parent_task_id, assigned_agent, title, description, status, priority, created_at, updated_at, owner, program)
+             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)",
             params![
                 task.id, task.company_id, task.goal_id, task.parent_task_id, task.assigned_agent,
                 task.title, task.description, task.status.as_str(), task.priority.clone() as i64,
                 task.created_at as i64, task.updated_at as i64,
+                task.owner, task.program,
+            ],
+        )?;
+        Ok(task)
+    }
+
+    /// Create a task with owner, program, and recurrence fields.
+    pub fn create_v2(
+        &self,
+        company_id: &str,
+        title: &str,
+        description: &str,
+        goal_id: Option<&str>,
+        parent_task_id: Option<&str>,
+        assigned_agent: Option<&str>,
+        priority: TaskPriority,
+        owner: &str,
+        program: &str,
+        recurrence: Option<&str>,
+    ) -> Result<CompanyTask> {
+        let task = CompanyTask {
+            id: new_id(),
+            company_id: company_id.to_string(),
+            goal_id: goal_id.map(|s| s.to_string()),
+            parent_task_id: parent_task_id.map(|s| s.to_string()),
+            assigned_agent: assigned_agent.map(|s| s.to_string()),
+            title: title.to_string(),
+            description: description.to_string(),
+            status: TaskStatus::Backlog,
+            priority,
+            branch_name: None,
+            session_id: None,
+            result_summary: None,
+            created_at: now_ms(),
+            updated_at: now_ms(),
+            owner: owner.to_string(),
+            program: program.to_string(),
+            recurrence: recurrence.map(|s| s.to_string()),
+        };
+        self.conn.execute(
+            "INSERT INTO tasks (id, company_id, goal_id, parent_task_id, assigned_agent, title, description, status, priority, created_at, updated_at, owner, program, recurrence)
+             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14)",
+            params![
+                task.id, task.company_id, task.goal_id, task.parent_task_id, task.assigned_agent,
+                task.title, task.description, task.status.as_str(), task.priority.clone() as i64,
+                task.created_at as i64, task.updated_at as i64,
+                task.owner, task.program, task.recurrence,
             ],
         )?;
         Ok(task)
@@ -224,7 +283,8 @@ impl<'a> TaskStore<'a> {
     pub fn get(&self, id: &str) -> Result<Option<CompanyTask>> {
         let mut stmt = self.conn.prepare(
             "SELECT id, company_id, goal_id, parent_task_id, assigned_agent, title, description,
-                    status, priority, branch_name, session_id, result_summary, created_at, updated_at
+                    status, priority, branch_name, session_id, result_summary, created_at, updated_at,
+                    COALESCE(owner,'agent'), COALESCE(program,''), recurrence
              FROM tasks WHERE id = ?1",
         )?;
         let mut rows = stmt.query_map(params![id], |row| row_to_task(row))?;
@@ -234,11 +294,13 @@ impl<'a> TaskStore<'a> {
     pub fn list(&self, company_id: &str, status_filter: Option<&str>) -> Result<Vec<CompanyTask>> {
         let sql = if status_filter.is_some() {
             "SELECT id, company_id, goal_id, parent_task_id, assigned_agent, title, description,
-                    status, priority, branch_name, session_id, result_summary, created_at, updated_at
+                    status, priority, branch_name, session_id, result_summary, created_at, updated_at,
+                    COALESCE(owner,'agent'), COALESCE(program,''), recurrence
              FROM tasks WHERE company_id = ?1 AND status = ?2 ORDER BY priority DESC, created_at ASC"
         } else {
             "SELECT id, company_id, goal_id, parent_task_id, assigned_agent, title, description,
-                    status, priority, branch_name, session_id, result_summary, created_at, updated_at
+                    status, priority, branch_name, session_id, result_summary, created_at, updated_at,
+                    COALESCE(owner,'agent'), COALESCE(program,''), recurrence
              FROM tasks WHERE company_id = ?1 ORDER BY priority DESC, created_at ASC"
         };
         let mut stmt = self.conn.prepare(sql)?;
@@ -356,6 +418,9 @@ fn row_to_task(row: &rusqlite::Row) -> Result<CompanyTask, rusqlite::Error> {
         result_summary: row.get(11)?,
         created_at: row.get::<_, i64>(12)? as u64,
         updated_at: row.get::<_, i64>(13)? as u64,
+        owner: row.get::<_, Option<String>>(14)?.unwrap_or_else(|| "agent".to_string()),
+        program: row.get::<_, Option<String>>(15)?.unwrap_or_default(),
+        recurrence: row.get(16)?,
     })
 }
 

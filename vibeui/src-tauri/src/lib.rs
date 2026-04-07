@@ -1404,6 +1404,19 @@ pub fn run() {
             commands::company_import,
             commands::company_adapter_list,
             commands::company_dashboard,
+            commands::company_workspace_config_get,
+            commands::company_workspace_config_set,
+            commands::company_priority_map_get,
+            commands::company_priority_map_set,
+            commands::company_heartbeat_history_json,
+            commands::company_routine_create_v2,
+            commands::company_routine_list_json,
+            commands::company_routine_set_delivery_mode,
+            commands::company_task_create_v2,
+            commands::company_doc_set_role,
+            commands::company_ingest_meeting_notes,
+            commands::set_automation_resolution_mode,
+            commands::company_list_skills,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

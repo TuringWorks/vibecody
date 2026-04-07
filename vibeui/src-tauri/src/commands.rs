@@ -39260,3 +39260,228 @@ pub async fn company_adapter_list() -> Result<String, String> {
 pub async fn company_dashboard() -> Result<String, String> {
     Ok(vibecli_cli::company_cmd::handle_company_cmd_once("status").await)
 }
+
+// ── Workspace Config ──────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn company_workspace_config_get() -> Result<serde_json::Value, String> {
+    let home = std::env::var("HOME").map_err(|_| "HOME not set".to_string())?;
+    let path = std::path::PathBuf::from(&home).join(".vibecli").join("workspace_config.db");
+    let store = vibecli_cli::company_workspace_config::WorkspaceConfigStore::open(&path)
+        .map_err(|e| e.to_string())?;
+    let cfg = store.get().map_err(|e| e.to_string())?;
+    serde_json::to_value(&cfg).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn company_workspace_config_set(config: serde_json::Value) -> Result<String, String> {
+    let home = std::env::var("HOME").map_err(|_| "HOME not set".to_string())?;
+    let path = std::path::PathBuf::from(&home).join(".vibecli").join("workspace_config.db");
+    let store = vibecli_cli::company_workspace_config::WorkspaceConfigStore::open(&path)
+        .map_err(|e| e.to_string())?;
+    let cfg: vibecli_cli::company_workspace_config::WorkspaceConfig =
+        serde_json::from_value(config).map_err(|e| e.to_string())?;
+    store.set(&cfg).map_err(|e| e.to_string())?;
+    Ok("ok".to_string())
+}
+
+// ── Priority Map ──────────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn company_priority_map_get() -> Result<serde_json::Value, String> {
+    let home = std::env::var("HOME").map_err(|_| "HOME not set".to_string())?;
+    let path = std::path::PathBuf::from(&home).join(".vibecli").join("priority_map.db");
+    let store = vibecli_cli::company_priority_map::PriorityMapStore::open(&path)
+        .map_err(|e| e.to_string())?;
+    let map = store.get().map_err(|e| e.to_string())?;
+    serde_json::to_value(&map).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn company_priority_map_set(map: serde_json::Value) -> Result<String, String> {
+    let home = std::env::var("HOME").map_err(|_| "HOME not set".to_string())?;
+    let path = std::path::PathBuf::from(&home).join(".vibecli").join("priority_map.db");
+    let store = vibecli_cli::company_priority_map::PriorityMapStore::open(&path)
+        .map_err(|e| e.to_string())?;
+    let entries: Vec<vibecli_cli::company_priority_map::ProgramEntry> =
+        serde_json::from_value(map).map_err(|e| e.to_string())?;
+    store.set(&entries).map_err(|e| e.to_string())?;
+    Ok("ok".to_string())
+}
+
+// ── Heartbeat JSON ────────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn company_heartbeat_history_json(
+    agent_id: Option<String>,
+    limit: Option<i64>,
+) -> Result<serde_json::Value, String> {
+    let db_path = vibecli_cli::company_store::default_db_path();
+    let conn = rusqlite::Connection::open(&db_path).map_err(|e| e.to_string())?;
+    let store = vibecli_cli::company_heartbeat::HeartbeatStore::new(&conn);
+    store.ensure_schema().map_err(|e| e.to_string())?;
+    let runs = store.history_json(agent_id.as_deref(), limit.unwrap_or(50))
+        .map_err(|e| e.to_string())?;
+    Ok(serde_json::json!(runs))
+}
+
+// ── Routine v2 ────────────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn company_routine_create_v2(
+    agent_id: String,
+    name: String,
+    interval_secs: i64,
+    prompt: String,
+    delivery_mode: String,
+    skill_name: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let db_path = vibecli_cli::company_store::default_db_path();
+    let company_id = vibecli_cli::company_store::get_active_company_id()
+        .ok_or_else(|| "No active company".to_string())?;
+    let conn = rusqlite::Connection::open(&db_path).map_err(|e| e.to_string())?;
+    let store = vibecli_cli::company_routines::RoutineStore::new(&conn);
+    store.ensure_schema().map_err(|e| e.to_string())?;
+    let routine = store.create_with_delivery(
+        &company_id, &agent_id, &name, &prompt, interval_secs,
+        &delivery_mode, skill_name.as_deref(),
+    ).map_err(|e| e.to_string())?;
+    serde_json::to_value(&routine).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn company_routine_list_json() -> Result<serde_json::Value, String> {
+    let db_path = vibecli_cli::company_store::default_db_path();
+    let conn = rusqlite::Connection::open(&db_path).map_err(|e| e.to_string())?;
+    let store = vibecli_cli::company_routines::RoutineStore::new(&conn);
+    store.ensure_schema().map_err(|e| e.to_string())?;
+    let routines = store.list_json().map_err(|e| e.to_string())?;
+    Ok(serde_json::json!(routines))
+}
+
+#[tauri::command]
+pub async fn company_routine_set_delivery_mode(
+    id: String,
+    delivery_mode: String,
+) -> Result<String, String> {
+    let db_path = vibecli_cli::company_store::default_db_path();
+    let conn = rusqlite::Connection::open(&db_path).map_err(|e| e.to_string())?;
+    let store = vibecli_cli::company_routines::RoutineStore::new(&conn);
+    store.set_delivery_mode(&id, &delivery_mode).map_err(|e| e.to_string())?;
+    Ok("ok".to_string())
+}
+
+// ── Task v2 ───────────────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn company_task_create_v2(
+    title: String,
+    status: String,
+    owner: String,
+    program: String,
+    recurrence: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let db_path = vibecli_cli::company_store::default_db_path();
+    let company_id = vibecli_cli::company_store::get_active_company_id()
+        .ok_or_else(|| "No active company".to_string())?;
+    let conn = rusqlite::Connection::open(&db_path).map_err(|e| e.to_string())?;
+    let store = vibecli_cli::company_tasks::TaskStore::new(&conn);
+    store.ensure_schema().map_err(|e| e.to_string())?;
+    let task = store.create_v2(
+        &company_id, &title, "", None, None, None,
+        vibecli_cli::company_tasks::TaskPriority::Medium,
+        &owner, &program, recurrence.as_deref(),
+    ).map_err(|e| e.to_string())?;
+    // Apply requested initial status transition if not backlog
+    let final_task = if status != "backlog" {
+        let new_status = vibecli_cli::company_tasks::TaskStatus::from_str(&status);
+        store.transition(&task.id, new_status).unwrap_or(task)
+    } else {
+        task
+    };
+    serde_json::to_value(&final_task).map_err(|e| e.to_string())
+}
+
+// ── Document role ─────────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn company_doc_set_role(doc_id: String, role: String) -> Result<String, String> {
+    let db_path = vibecli_cli::company_store::default_db_path();
+    let conn = rusqlite::Connection::open(&db_path).map_err(|e| e.to_string())?;
+    let store = vibecli_cli::company_documents::DocumentStore::new(&conn);
+    store.set_role(&doc_id, &role).map_err(|e| e.to_string())?;
+    Ok("ok".to_string())
+}
+
+// ── Meeting notes ingestion ───────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn company_ingest_meeting_notes(
+    content: String,
+    source_title: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let _ = source_title; // metadata for future use
+    let result = vibecli_cli::company_meeting_notes::ingest_meeting_notes(&content);
+    serde_json::to_value(&result).map_err(|e| e.to_string())
+}
+
+// ── Automation resolution mode ────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn set_automation_resolution_mode(
+    rule_id: String,
+    resolution_mode: String,
+) -> Result<(), String> {
+    let mut rules = automations_read_json("rules.json");
+    let arr = rules.as_array_mut().ok_or("Invalid rules data")?;
+    if let Some(existing) = arr.iter_mut().find(|r| r.get("id").and_then(|v| v.as_str()) == Some(&rule_id)) {
+        existing.as_object_mut()
+            .ok_or("Rule must be an object")?
+            .insert("resolution_mode".to_string(), serde_json::json!(resolution_mode));
+    }
+    automations_write_json("rules.json", &rules)
+}
+
+// ── List skills ───────────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn company_list_skills() -> Result<serde_json::Value, String> {
+    let home = std::env::var("HOME").map_err(|_| "HOME not set".to_string())?;
+    let skills_dir = std::path::PathBuf::from(&home).join(".vibecli").join("skills");
+    let mut skills = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(&skills_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|e| e.to_str()) == Some("md") {
+                let name = path.file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or_default()
+                    .to_string();
+                let mut description = String::new();
+                let mut frontmatter_name = name.clone();
+                if let Ok(content) = std::fs::read_to_string(&path) {
+                    // Parse YAML frontmatter between --- delimiters
+                    if content.starts_with("---") {
+                        let rest = &content[3..];
+                        if let Some(end) = rest.find("---") {
+                            let fm = &rest[..end];
+                            for line in fm.lines() {
+                                if let Some(val) = line.strip_prefix("name:") {
+                                    frontmatter_name = val.trim().to_string();
+                                } else if let Some(val) = line.strip_prefix("description:") {
+                                    description = val.trim().to_string();
+                                }
+                            }
+                        }
+                    }
+                }
+                skills.push(serde_json::json!({
+                    "name": frontmatter_name,
+                    "file": name,
+                    "description": description,
+                }));
+            }
+        }
+    }
+    Ok(serde_json::json!(skills))
+}

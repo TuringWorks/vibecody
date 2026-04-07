@@ -28,6 +28,8 @@ pub struct Document {
     pub revision: i64,
     pub created_at: u64,
     pub updated_at: u64,
+    /// Role of the document: "reference", "source_of_truth", "draft", etc.
+    pub role: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -76,6 +78,7 @@ impl<'a> DocumentStore<'a> {
                 created_at      INTEGER NOT NULL
             );
         "#)?;
+        let _ = self.conn.execute_batch("ALTER TABLE documents ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'reference'");
         Ok(())
     }
 
@@ -99,14 +102,15 @@ impl<'a> DocumentStore<'a> {
             revision: 1,
             created_at: now_ms(),
             updated_at: now_ms(),
+            role: "reference".to_string(),
         };
         self.conn.execute(
-            "INSERT INTO documents (id, company_id, title, content, linked_task_id, linked_goal_id, author_agent_id, revision, created_at, updated_at)
-             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)",
+            "INSERT INTO documents (id, company_id, title, content, linked_task_id, linked_goal_id, author_agent_id, revision, created_at, updated_at, role)
+             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)",
             params![
                 doc.id, doc.company_id, doc.title, doc.content,
                 doc.linked_task_id, doc.linked_goal_id, doc.author_agent_id,
-                doc.revision, doc.created_at as i64, doc.updated_at as i64,
+                doc.revision, doc.created_at as i64, doc.updated_at as i64, doc.role,
             ],
         )?;
         // Record initial revision
@@ -117,10 +121,42 @@ impl<'a> DocumentStore<'a> {
         Ok(doc)
     }
 
+    pub fn set_role(&self, id: &str, role: &str) -> Result<()> {
+        self.conn.execute(
+            "UPDATE documents SET role = ?1 WHERE id = ?2",
+            params![role, id],
+        )?;
+        Ok(())
+    }
+
+    pub fn list_source_of_truth(&self) -> Result<Vec<Document>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, company_id, title, content, linked_task_id, linked_goal_id,
+                    author_agent_id, revision, created_at, updated_at, COALESCE(role,'reference')
+             FROM documents WHERE role = 'source_of_truth' ORDER BY updated_at DESC",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            Ok(Document {
+                id: row.get(0)?,
+                company_id: row.get(1)?,
+                title: row.get(2)?,
+                content: row.get(3)?,
+                linked_task_id: row.get(4)?,
+                linked_goal_id: row.get(5)?,
+                author_agent_id: row.get(6)?,
+                revision: row.get(7)?,
+                created_at: row.get::<_, i64>(8)? as u64,
+                updated_at: row.get::<_, i64>(9)? as u64,
+                role: row.get::<_, Option<String>>(10)?.unwrap_or_else(|| "reference".to_string()),
+            })
+        })?;
+        rows.collect::<rusqlite::Result<_>>().map_err(|e| e.into())
+    }
+
     pub fn get(&self, id: &str) -> Result<Option<Document>> {
         let mut stmt = self.conn.prepare(
             "SELECT id, company_id, title, content, linked_task_id, linked_goal_id,
-                    author_agent_id, revision, created_at, updated_at
+                    author_agent_id, revision, created_at, updated_at, COALESCE(role,'reference')
              FROM documents WHERE id = ?1",
         )?;
         let mut rows = stmt.query_map(params![id], |row| {
@@ -135,6 +171,7 @@ impl<'a> DocumentStore<'a> {
                 revision: row.get(7)?,
                 created_at: row.get::<_, i64>(8)? as u64,
                 updated_at: row.get::<_, i64>(9)? as u64,
+                role: row.get::<_, Option<String>>(10)?.unwrap_or_else(|| "reference".to_string()),
             })
         })?;
         rows.next().transpose().map_err(|e| e.into())
@@ -143,7 +180,7 @@ impl<'a> DocumentStore<'a> {
     pub fn list(&self, company_id: &str) -> Result<Vec<Document>> {
         let mut stmt = self.conn.prepare(
             "SELECT id, company_id, title, content, linked_task_id, linked_goal_id,
-                    author_agent_id, revision, created_at, updated_at
+                    author_agent_id, revision, created_at, updated_at, COALESCE(role,'reference')
              FROM documents WHERE company_id = ?1 ORDER BY updated_at DESC",
         )?;
         let rows = stmt.query_map(params![company_id], |row| {
@@ -158,6 +195,7 @@ impl<'a> DocumentStore<'a> {
                 revision: row.get(7)?,
                 created_at: row.get::<_, i64>(8)? as u64,
                 updated_at: row.get::<_, i64>(9)? as u64,
+                role: row.get::<_, Option<String>>(10)?.unwrap_or_else(|| "reference".to_string()),
             })
         })?;
         rows.collect::<rusqlite::Result<_>>().map_err(|e| e.into())

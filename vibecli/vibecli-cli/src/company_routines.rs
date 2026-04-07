@@ -36,6 +36,16 @@ pub struct Routine {
     /// Max simultaneous runs (0 = unlimited).
     pub max_concurrent: i64,
     pub created_at: u64,
+    /// Delivery mode: "none", "email", "slack", etc.
+    pub delivery_mode: String,
+    /// Optional skill name to invoke.
+    pub skill_name: Option<String>,
+    /// Optional model override.
+    pub model: Option<String>,
+    /// Optional thinking level override.
+    pub thinking_level: Option<String>,
+    /// Optional timeout in seconds.
+    pub timeout_secs: Option<i64>,
 }
 
 // ── RoutineStore ──────────────────────────────────────────────────────────────
@@ -66,6 +76,12 @@ impl<'a> RoutineStore<'a> {
             CREATE INDEX IF NOT EXISTS idx_routines_agent ON routines(agent_id);
             CREATE INDEX IF NOT EXISTS idx_routines_due ON routines(active, next_run_at);
         "#)?;
+        // Schema migrations for new columns
+        let _ = self.conn.execute_batch("ALTER TABLE routines ADD COLUMN IF NOT EXISTS delivery_mode TEXT NOT NULL DEFAULT 'none'");
+        let _ = self.conn.execute_batch("ALTER TABLE routines ADD COLUMN IF NOT EXISTS skill_name TEXT");
+        let _ = self.conn.execute_batch("ALTER TABLE routines ADD COLUMN IF NOT EXISTS model TEXT");
+        let _ = self.conn.execute_batch("ALTER TABLE routines ADD COLUMN IF NOT EXISTS thinking_level TEXT");
+        let _ = self.conn.execute_batch("ALTER TABLE routines ADD COLUMN IF NOT EXISTS timeout_secs INTEGER");
         Ok(())
     }
 
@@ -76,6 +92,19 @@ impl<'a> RoutineStore<'a> {
         name: &str,
         prompt: &str,
         interval_secs: i64,
+    ) -> Result<Routine> {
+        self.create_with_delivery(company_id, agent_id, name, prompt, interval_secs, "none", None)
+    }
+
+    pub fn create_with_delivery(
+        &self,
+        company_id: &str,
+        agent_id: &str,
+        name: &str,
+        prompt: &str,
+        interval_secs: i64,
+        delivery_mode: &str,
+        skill_name: Option<&str>,
     ) -> Result<Routine> {
         let now = now_ms();
         let routine = Routine {
@@ -90,35 +119,62 @@ impl<'a> RoutineStore<'a> {
             active: true,
             max_concurrent: 1,
             created_at: now,
+            delivery_mode: delivery_mode.to_string(),
+            skill_name: skill_name.map(|s| s.to_string()),
+            model: None,
+            thinking_level: None,
+            timeout_secs: None,
         };
         self.conn.execute(
-            "INSERT INTO routines (id, company_id, agent_id, name, prompt, interval_secs, next_run_at, last_run_at, active, max_concurrent, created_at)
-             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)",
+            "INSERT INTO routines (id, company_id, agent_id, name, prompt, interval_secs, next_run_at, last_run_at, active, max_concurrent, created_at, delivery_mode, skill_name)
+             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)",
             params![
                 routine.id, routine.company_id, routine.agent_id, routine.name,
                 routine.prompt, routine.interval_secs,
                 routine.next_run_at as i64, routine.last_run_at as i64,
                 routine.active as i64, routine.max_concurrent, routine.created_at as i64,
+                routine.delivery_mode, routine.skill_name,
             ],
         )?;
         Ok(routine)
     }
 
+    pub fn set_delivery_mode(&self, id: &str, mode: &str) -> Result<()> {
+        self.conn.execute(
+            "UPDATE routines SET delivery_mode = ?1 WHERE id = ?2",
+            params![mode, id],
+        )?;
+        Ok(())
+    }
+
+    pub fn list_json(&self) -> Result<Vec<serde_json::Value>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, company_id, agent_id, name, prompt, interval_secs, next_run_at, last_run_at, active, max_concurrent, created_at, delivery_mode, skill_name, model, thinking_level, timeout_secs
+             FROM routines ORDER BY name ASC",
+        )?;
+        let rows = stmt.query_map([], |row| row_to_routine_full(row))?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        let values = rows.into_iter()
+            .map(|r| serde_json::to_value(&r).unwrap_or(serde_json::Value::Null))
+            .collect();
+        Ok(values)
+    }
+
     pub fn get(&self, id: &str) -> Result<Option<Routine>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, company_id, agent_id, name, prompt, interval_secs, next_run_at, last_run_at, active, max_concurrent, created_at
+            "SELECT id, company_id, agent_id, name, prompt, interval_secs, next_run_at, last_run_at, active, max_concurrent, created_at, COALESCE(delivery_mode,'none'), skill_name, model, thinking_level, timeout_secs
              FROM routines WHERE id = ?1",
         )?;
-        let mut rows = stmt.query_map(params![id], |row| row_to_routine(row))?;
+        let mut rows = stmt.query_map(params![id], |row| row_to_routine_full(row))?;
         rows.next().transpose().map_err(|e| anyhow!("{e}"))
     }
 
     pub fn list(&self, company_id: &str) -> Result<Vec<Routine>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, company_id, agent_id, name, prompt, interval_secs, next_run_at, last_run_at, active, max_concurrent, created_at
+            "SELECT id, company_id, agent_id, name, prompt, interval_secs, next_run_at, last_run_at, active, max_concurrent, created_at, COALESCE(delivery_mode,'none'), skill_name, model, thinking_level, timeout_secs
              FROM routines WHERE company_id = ?1 ORDER BY name ASC",
         )?;
-        let rows = stmt.query_map(params![company_id], |row| row_to_routine(row))?
+        let rows = stmt.query_map(params![company_id], |row| row_to_routine_full(row))?
             .collect::<rusqlite::Result<Vec<_>>>()?;
         Ok(rows)
     }
@@ -142,10 +198,10 @@ impl<'a> RoutineStore<'a> {
     pub fn due_routines(&self) -> Result<Vec<Routine>> {
         let now = now_ms() as i64;
         let mut stmt = self.conn.prepare(
-            "SELECT id, company_id, agent_id, name, prompt, interval_secs, next_run_at, last_run_at, active, max_concurrent, created_at
+            "SELECT id, company_id, agent_id, name, prompt, interval_secs, next_run_at, last_run_at, active, max_concurrent, created_at, COALESCE(delivery_mode,'none'), skill_name, model, thinking_level, timeout_secs
              FROM routines WHERE active = 1 AND next_run_at <= ?1 ORDER BY next_run_at ASC",
         )?;
-        let rows = stmt.query_map(params![now], |row| row_to_routine(row))?
+        let rows = stmt.query_map(params![now], |row| row_to_routine_full(row))?
             .collect::<rusqlite::Result<Vec<_>>>()?;
         Ok(rows)
     }
@@ -163,7 +219,7 @@ impl<'a> RoutineStore<'a> {
     }
 }
 
-fn row_to_routine(row: &rusqlite::Row) -> rusqlite::Result<Routine> {
+fn row_to_routine_full(row: &rusqlite::Row) -> rusqlite::Result<Routine> {
     Ok(Routine {
         id: row.get(0)?,
         company_id: row.get(1)?,
@@ -176,6 +232,11 @@ fn row_to_routine(row: &rusqlite::Row) -> rusqlite::Result<Routine> {
         active: row.get::<_, i64>(8)? != 0,
         max_concurrent: row.get(9)?,
         created_at: row.get::<_, i64>(10)? as u64,
+        delivery_mode: row.get::<_, Option<String>>(11)?.unwrap_or_else(|| "none".to_string()),
+        skill_name: row.get(12)?,
+        model: row.get(13)?,
+        thinking_level: row.get(14)?,
+        timeout_secs: row.get(15)?,
     })
 }
 
