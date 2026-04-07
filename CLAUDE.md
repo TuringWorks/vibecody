@@ -2,6 +2,8 @@
 
 See **[AGENTS.md](./AGENTS.md)** for the full storage architecture, security rules, and Rust/Tauri API references that apply to all AI coding agents.
 
+See **[vibeui/design-system/README.md](./vibeui/design-system/README.md)** for the complete UI/UX design system — tokens, components, and patterns that all panels must follow.
+
 ---
 
 ## Quick Reference
