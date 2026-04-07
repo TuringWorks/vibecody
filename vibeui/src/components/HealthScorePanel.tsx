@@ -41,17 +41,20 @@ type Tab = "scan" | "remediate";
 
 export default function HealthScorePanel() {
   const [tab, setTab] = useState<Tab>("scan");
-  const [path, setPath] = useState(".");
+  const [path, setPath] = useState(() => localStorage.getItem("vibeui_workspace") || ".");
   const [scan, setScan] = useState<ScanResult | null>(null);
   const [remediations, setRemediations] = useState<RemediationItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [scanError, setScanError] = useState("");
 
   const doScan = useCallback(async () => {
     setLoading(true);
+    setScan(null);
+    setScanError("");
     try {
       const res = await invoke<ScanResult>("healthscore_scan", { path });
       setScan(res);
-    } catch (e) { console.error(e); }
+    } catch (e) { setScanError(String(e)); }
     setLoading(false);
   }, [path]);
 
@@ -85,11 +88,16 @@ export default function HealthScorePanel() {
         </button>
       </div>
 
+      {scanError && (
+        <div style={{ ...cardStyle, border: "1px solid var(--error-color)", color: "var(--error-color)", fontSize: 12 }}>{scanError}</div>
+      )}
+
       {tab === "scan" && scan && (
         <>
           <div style={{ ...cardStyle, textAlign: "center" }}>
             <div style={{ fontSize: 36, fontWeight: 700, color: scoreColor(scan.overall) }}>{scan.overall.toFixed(0)}</div>
             <div style={labelStyle}>Overall Health Score</div>
+            <div style={{ ...labelStyle, marginTop: 2 }}>{scan.dimensions.length} dimensions · {path}</div>
           </div>
           {scan.dimensions.map(d => (
             <div key={d.dimension} style={cardStyle}>

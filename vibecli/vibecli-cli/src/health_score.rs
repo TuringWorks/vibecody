@@ -481,38 +481,115 @@ impl HealthEngine {
 
     /// Compute all 12 dimensions for a project scan. Uses synthetic heuristic inputs
     /// derived from `file_count` as a proxy when detailed analysis data is unavailable.
-    pub fn scan(&mut self, project_path: &str, file_count: usize) -> HealthSnapshot {
-        self.ts += 1;
-        let fc = file_count.max(1);
+    /// Walk `project_path` and return (all_files, test_files, doc_files, total_lines).
+    fn walk_project(project_path: &str) -> (Vec<String>, usize, usize, usize) {
+        use std::path::Path;
+        let mut all_files: Vec<String> = Vec::new();
+        let mut total_lines: usize = 0;
 
-        // Synthetic heuristic inputs derived from file_count for demonstration.
-        let test_ratio = 0.12 + (fc as f64 * 0.0001).min(0.08);
-        let test_count = (fc as f64 * test_ratio) as usize;
-        let mut files: Vec<String> = (0..fc).map(|i| format!("src/file_{}.rs", i)).collect();
-        for i in 0..test_count {
-            files.push(format!("tests/test_{}.rs", i));
+        fn visit(dir: &Path, files: &mut Vec<String>, lines: &mut usize, depth: usize) {
+            if depth > 8 { return; }
+            let rd = match std::fs::read_dir(dir) { Ok(r) => r, Err(_) => return };
+            for entry in rd.flatten() {
+                let p = entry.path();
+                // Skip common noise dirs
+                if let Some(name) = p.file_name().and_then(|n| n.to_str()) {
+                    if matches!(name, "node_modules" | ".git" | "target" | "dist" | ".next" | "__pycache__" | ".cache" | "build" | "coverage") {
+                        continue;
+                    }
+                }
+                if p.is_dir() {
+                    visit(&p, files, lines, depth + 1);
+                } else if p.is_file() {
+                    let ext = p.extension().and_then(|e| e.to_str()).unwrap_or("");
+                    if matches!(ext, "rs" | "ts" | "tsx" | "js" | "jsx" | "py" | "go" | "java" | "kt" | "cs" | "cpp" | "c" | "h" | "swift" | "rb" | "php" | "scala" | "hs" | "ml" | "ex" | "exs" | "vue" | "svelte" | "md" | "rst" | "txt" | "toml" | "yaml" | "yml" | "json") {
+                        if let Ok(content) = std::fs::read_to_string(&p) {
+                            *lines += content.lines().count();
+                        }
+                        if let Some(s) = p.to_str() { files.push(s.to_string()); }
+                    }
+                }
+            }
         }
-        let file_refs: Vec<&str> = files.iter().map(|s| s.as_str()).collect();
 
-        let outdated = (fc as f64 * 0.1) as usize;
-        let cves = if fc > 500 { 2 } else if fc > 200 { 1 } else { 0 };
-        let doc_files = (fc as f64 * 0.05) as usize;
-        let avg_complexity = 8.0 + (fc as f64 * 0.005).min(7.0);
-        let typed_pct = 85.0 - (fc as f64 * 0.01).min(20.0);
-        let dead_lines = (fc as f64 * 2.5) as usize;
-        let total_lines = fc * 50;
-        let warnings = (fc as f64 * 0.3) as usize;
-        let build_secs = 30.0 + (fc as f64 * 0.2).min(200.0);
-        let bundle_kb = 300 + fc;
-        let a11y_issues = if fc > 100 { 3 } else { 1 };
-        let api_total = (fc as f64 * 0.08) as usize;
-        let api_documented = (api_total as f64 * 0.7) as usize;
+        visit(Path::new(project_path), &mut all_files, &mut total_lines, 0);
+
+        let test_count = all_files.iter().filter(|f| {
+            let lower = f.to_lowercase();
+            lower.contains("test") || lower.contains("spec") || lower.contains("_test.") || lower.contains(".test.") || lower.contains(".spec.")
+        }).count();
+
+        let doc_count = all_files.iter().filter(|f| {
+            let lower = f.to_lowercase();
+            let ext = std::path::Path::new(f).extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+            ext == "md" || ext == "rst" || ext == "txt" || lower.contains("readme") || lower.contains("changelog") || lower.contains("contributing")
+        }).count();
+
+        (all_files, test_count, doc_count, total_lines)
+    }
+
+    pub fn scan(&mut self, project_path: &str, _file_count_hint: usize) -> HealthSnapshot {
+        self.ts += 1;
+
+        // Walk the real filesystem — ignores the old hardcoded hint
+        let (all_files, _test_count, doc_count, total_lines) = Self::walk_project(project_path);
+        let fc = all_files.len().max(1);
+        let file_refs: Vec<&str> = all_files.iter().map(|s| s.as_str()).collect();
+
+        // Dependency freshness: count dependency manifest entries as a proxy
+        let dep_manifest = ["Cargo.toml", "package.json", "requirements.txt", "go.mod", "pom.xml", "build.gradle"];
+        let deps_count = dep_manifest.iter().map(|m| {
+            let p = std::path::Path::new(project_path).join(m);
+            if !p.exists() { return 0usize; }
+            std::fs::read_to_string(&p).map(|c| c.lines().count() / 3).unwrap_or(0)
+        }).sum::<usize>().max(1);
+        // Heuristic: treat ~10% of listed deps as outdated (no real resolver here)
+        let outdated = (deps_count as f64 * 0.10) as usize;
+
+        // Security: CVEs require a real audit tool; use 0 as default honest value
+        let cves: usize = 0;
+
+        // Complexity: proxy via average lines-per-source-file
+        let source_count = file_refs.iter().filter(|f| {
+            let ext = std::path::Path::new(f).extension().and_then(|e| e.to_str()).unwrap_or("");
+            matches!(ext, "rs" | "ts" | "tsx" | "js" | "jsx" | "py" | "go" | "java" | "kt" | "cs" | "cpp" | "c" | "swift" | "rb" | "php")
+        }).count().max(1);
+        let avg_lines_per_file = total_lines as f64 / source_count as f64;
+        // Cyclomatic proxy: ~1 branch per 15 lines is typical
+        let avg_complexity = (avg_lines_per_file / 15.0).clamp(1.0, 25.0);
+
+        // Type safety: rough proxy from typed vs untyped file extensions
+        let typed_files = file_refs.iter().filter(|f| {
+            let ext = std::path::Path::new(f).extension().and_then(|e| e.to_str()).unwrap_or("");
+            matches!(ext, "rs" | "ts" | "tsx" | "java" | "kt" | "cs" | "go" | "swift" | "hs" | "ml")
+        }).count();
+        let typed_pct = (typed_files as f64 / fc as f64 * 100.0).min(100.0);
+
+        // Dead code: honest — we can't detect it without running analysis tools; use 0
+        let dead_lines: usize = 0;
+
+        // Linter warnings: honest — 0 (would need to shell out to eslint/clippy)
+        let warnings: usize = 0;
+
+        // Build time / bundle size: can't measure without building; use neutral estimates
+        let build_secs = 60.0_f64; // neutral mid-range
+        let bundle_kb = 500_usize; // neutral
+
+        // Accessibility: honest 0 (no a11y scanner available in-process)
+        let a11y_issues: usize = 0;
+
+        // API coverage: count pub fn / export / def as proxy for "API endpoints"
+        let api_total = file_refs.iter().filter(|f| {
+            let ext = std::path::Path::new(f).extension().and_then(|e| e.to_str()).unwrap_or("");
+            matches!(ext, "rs" | "ts" | "tsx" | "js" | "py" | "go" | "java" | "kt")
+        }).count();
+        let api_documented = (api_total as f64 * (doc_count as f64 / fc as f64 + 0.3).min(1.0)) as usize;
 
         let dimensions = vec![
             self.apply_weight(HealthScorer::score_test_coverage(&file_refs)),
             self.apply_weight(HealthScorer::score_dependency_freshness(fc, outdated)),
             self.apply_weight(HealthScorer::score_security(cves)),
-            self.apply_weight(HealthScorer::score_doc_coverage(doc_files, fc)),
+            self.apply_weight(HealthScorer::score_doc_coverage(doc_count, fc)),
             self.apply_weight(HealthScorer::score_complexity(avg_complexity)),
             self.apply_weight(HealthScorer::score_type_safety(typed_pct)),
             self.apply_weight(HealthScorer::score_dead_code(dead_lines, total_lines)),

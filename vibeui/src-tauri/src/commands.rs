@@ -38443,7 +38443,7 @@ pub async fn turboquant_clear(
 pub async fn healthscore_scan(path: String) -> Result<serde_json::Value, String> {
     let config = vibecli_cli::health_score::HealthConfig::default();
     let mut engine = vibecli_cli::health_score::HealthEngine::new(config);
-    let snapshot = engine.scan(&path, 100);
+    let snapshot = engine.scan(&path, 0); // 0 = let scan() walk the real filesystem
     let overall = vibecli_cli::health_score::HealthEngine::overall_score(&snapshot);
     let dims: Vec<serde_json::Value> = snapshot.dimensions.iter().map(|d| {
         serde_json::json!({
@@ -38465,7 +38465,7 @@ pub async fn healthscore_scan(path: String) -> Result<serde_json::Value, String>
 pub async fn healthscore_remediate(path: String) -> Result<serde_json::Value, String> {
     let config = vibecli_cli::health_score::HealthConfig::default();
     let mut engine = vibecli_cli::health_score::HealthEngine::new(config);
-    let snapshot = engine.scan(&path, 100);
+    let snapshot = engine.scan(&path, 0); // 0 = let scan() walk the real filesystem
     let rems = engine.suggest_remediations(&snapshot);
     let items: Vec<serde_json::Value> = rems.iter().map(|r| {
         serde_json::json!({
