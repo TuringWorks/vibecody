@@ -31,14 +31,14 @@ use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum RlAlgorithm {
-    PPO,
-    SAC,
-    DQN,
-    A2C,
-    TD3,
-    DDPG,
-    TRPO,
-    IMPALA,
+    Ppo,
+    Sac,
+    Dqn,
+    A2c,
+    Td3,
+    Ddpg,
+    Trpo,
+    Impala,
     Dreamer,
     MuZero,
     Custom(String),
