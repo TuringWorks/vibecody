@@ -26,6 +26,7 @@ Both tools are backed by a shared set of Rust library crates for AI provider int
 | [Tutorials](./tutorials/) | Step-by-step guides for common workflows |
 | [VibeCLI Reference](./vibecli/) | CLI commands, TUI usage, and configuration |
 | [VibeUI Reference](./vibeui/) | Desktop editor features and setup |
+| [Design System](./design-system/) | Token-based UI system — colors, spacing, typography, components |
 | [Configuration Guide](./configuration/) | All configuration options for providers and UI |
 | [Architecture](./architecture/) | Crate structure, data flow, and design decisions |
 | [Roadmap v5](./ROADMAP-v5/) | Current roadmap and planned features |

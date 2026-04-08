@@ -146,6 +146,8 @@ top_tabs:
   - title: Docs
     url: /
     active: true
+  - title: Design System
+    url: /design-system/
   - title: API Reference
     url: /api-reference/
   - title: Release Notes
