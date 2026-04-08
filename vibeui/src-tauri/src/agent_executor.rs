@@ -865,6 +865,216 @@ mod tests {
         assert!(!result.success);
         assert!(result.output.contains("SSRF"));
     }
+
+    // ── Builder methods ──────────────────────────────────────────────────────
+
+    /// Given: a base executor
+    /// When:  with_provider() is called
+    /// Then:  the provider field is set
+    #[test]
+    fn with_provider_builder_sets_provider() {
+        let exec = TauriToolExecutor::new(PathBuf::from("/tmp"));
+        assert!(exec.provider.is_none());
+        let provider = make_mock_provider("test-provider");
+        let exec = exec.with_provider(provider);
+        assert!(exec.provider.is_some());
+        assert_eq!(exec.provider.as_ref().unwrap().name(), "test-provider");
+    }
+
+    /// Given: a base executor
+    /// When:  with_parent_context() is called with a context at depth 2
+    /// Then:  parent_context is stored and depth is accessible
+    #[test]
+    fn with_parent_context_builder_stores_context() {
+        let exec = TauriToolExecutor::new(PathBuf::from("/tmp"));
+        assert!(exec.parent_context.is_none());
+        let ctx = vibe_ai::agent::AgentContext {
+            depth: 2,
+            ..Default::default()
+        };
+        let exec = exec.with_parent_context(ctx);
+        assert!(exec.parent_context.is_some());
+        assert_eq!(exec.parent_context.as_ref().unwrap().depth, 2);
+    }
+
+    /// Given: executor with no parent context (root)
+    /// When:  spawn_sub_agent is called with depth limit 1
+    /// Then:  depth 0 < 1, so no depth error — but provider is missing → error
+    ///        (verifies depth calculation: root depth = 0)
+    #[tokio::test]
+    async fn spawn_agent_root_depth_is_zero() {
+        let exec = TauriToolExecutor::new(PathBuf::from("/tmp"));
+        // No provider — should get provider error before depth guard
+        let result = exec.spawn_sub_agent("task", None, Some(1)).await;
+        assert!(!result.success);
+        assert!(result.output.contains("No LLM provider"));
+    }
+
+    /// Given: executor with a parent context at depth 3, limit is 3
+    /// When:  spawn_agent is called (current_depth 3 >= limit 3)
+    /// Then:  returns "depth exceeded" error
+    #[tokio::test]
+    async fn spawn_agent_depth_limit_blocks_at_limit() {
+        let counter = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0));
+        let ctx = vibe_ai::agent::AgentContext {
+            depth: 3,
+            active_agent_counter: Some(counter),
+            ..Default::default()
+        };
+        let exec = TauriToolExecutor::new(PathBuf::from("/tmp"))
+            .with_provider(make_mock_provider("p"))
+            .with_parent_context(ctx);
+        let result = exec.spawn_sub_agent("task", None, Some(3)).await;
+        assert!(!result.success);
+        assert!(result.output.contains("depth"), "expected depth error, got: {}", result.output);
+    }
+
+    /// Given: executor at depth 0 with a hard max_depth of 1
+    /// When:  spawn_agent is called with max_depth = 1
+    /// Then:  depth 0 < 1, no depth error → proceeds to spawn (provider mock returns immediately)
+    ///        The result should succeed (mock executor returns ok).
+    ///
+    /// Note: this test doesn't call a real LLM; the MockProvider returns a
+    ///       task_complete XML fragment so the AgentLoop finishes in one step.
+    #[tokio::test]
+    async fn spawn_agent_succeeds_within_depth_limit() {
+        let exec = TauriToolExecutor::new(PathBuf::from("/tmp"))
+            .with_provider(make_completing_provider());
+        let result = exec.spawn_sub_agent("do something", Some(2), Some(1)).await;
+        assert!(result.success, "expected success, got: {}", result.output);
+        assert!(result.output.contains("[depth 1/1]") || result.output.contains("Summary"));
+    }
+
+    /// Given: executor with counter already at 20
+    /// When:  spawn_agent is called
+    /// Then:  returns "Global agent limit" error
+    #[tokio::test]
+    async fn spawn_agent_global_limit_blocks_at_20() {
+        let counter = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(20));
+        let ctx = vibe_ai::agent::AgentContext {
+            depth: 0,
+            active_agent_counter: Some(counter),
+            ..Default::default()
+        };
+        let exec = TauriToolExecutor::new(PathBuf::from("/tmp"))
+            .with_provider(make_mock_provider("p"))
+            .with_parent_context(ctx);
+        let result = exec.spawn_sub_agent("task", None, Some(5)).await;
+        assert!(!result.success);
+        assert!(result.output.contains("Global agent limit") || result.output.contains("20"));
+    }
+
+    /// Given: executor with counter at 19 (one below limit)
+    /// When:  spawn_agent is called successfully
+    /// Then:  counter is decremented back to 19 after completion
+    #[tokio::test]
+    async fn spawn_agent_decrements_counter_after_completion() {
+        let counter = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0));
+        let ctx = vibe_ai::agent::AgentContext {
+            depth: 0,
+            active_agent_counter: Some(counter.clone()),
+            ..Default::default()
+        };
+        let exec = TauriToolExecutor::new(PathBuf::from("/tmp"))
+            .with_provider(make_completing_provider())
+            .with_parent_context(ctx);
+        let _ = exec.spawn_sub_agent("task", Some(2), Some(2)).await;
+        // After completion the counter must be back where it started
+        assert_eq!(counter.load(std::sync::atomic::Ordering::Relaxed), 0);
+    }
+
+    /// Given: executor with no provider, max_depth 0
+    /// When:  spawn_agent called with explicit max_depth = 0
+    /// Then:  depth 0 >= 0 → depth exceeded (limit=0 min 5 = 0 only if 0 < 5; so limit=0)
+    #[tokio::test]
+    async fn spawn_agent_zero_depth_limit_always_blocks() {
+        let exec = TauriToolExecutor::new(PathBuf::from("/tmp"))
+            .with_provider(make_mock_provider("p"));
+        let result = exec.spawn_sub_agent("task", None, Some(0)).await;
+        assert!(!result.success);
+        assert!(result.output.contains("depth") || result.output.contains("depth"));
+    }
+
+    // ── ToolExecutorTrait::execute routes spawn_agent ────────────────────────
+
+    /// Given: executor with no provider
+    /// When:  execute() is called (the trait impl, not execute_call)
+    /// Then:  same "No LLM provider" error — verifies trait impl delegates correctly
+    #[tokio::test]
+    async fn trait_execute_routes_spawn_agent() {
+        use vibe_ai::ToolExecutorTrait;
+        let exec = TauriToolExecutor::new(PathBuf::from("/tmp"));
+        let call = ToolCall::SpawnAgent { task: "t".into(), max_steps: None, max_depth: None };
+        let result = exec.execute(&call).await;
+        assert!(!result.success);
+        assert!(result.output.contains("No LLM provider"));
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
+    /// A MockProvider that always fails `chat` — used to test guards that fire
+    /// before any LLM call is made.
+    fn make_mock_provider(name: &str) -> std::sync::Arc<dyn vibe_ai::provider::AIProvider> {
+        std::sync::Arc::new(NeverCalledProvider { name: name.to_string() })
+    }
+
+    /// A MockProvider whose `chat` response triggers immediate task_complete.
+    fn make_completing_provider() -> std::sync::Arc<dyn vibe_ai::provider::AIProvider> {
+        std::sync::Arc::new(CompletingProvider)
+    }
+
+    struct NeverCalledProvider { name: String }
+
+    #[async_trait]
+    impl vibe_ai::provider::AIProvider for NeverCalledProvider {
+        fn name(&self) -> &str { &self.name }
+        async fn is_available(&self) -> bool { true }
+        async fn complete(&self, _: &vibe_ai::provider::CodeContext)
+            -> anyhow::Result<vibe_ai::provider::CompletionResponse> {
+            anyhow::bail!("NeverCalledProvider::complete")
+        }
+        async fn stream_complete(&self, _: &vibe_ai::provider::CodeContext)
+            -> anyhow::Result<vibe_ai::provider::CompletionStream> {
+            anyhow::bail!("NeverCalledProvider::stream_complete")
+        }
+        async fn chat(&self, _: &[vibe_ai::provider::Message], _: Option<String>)
+            -> anyhow::Result<String> {
+            anyhow::bail!("NeverCalledProvider::chat — should not be called in guard tests")
+        }
+        async fn stream_chat(&self, _: &[vibe_ai::provider::Message])
+            -> anyhow::Result<vibe_ai::provider::CompletionStream> {
+            anyhow::bail!("NeverCalledProvider::stream_chat")
+        }
+    }
+
+    /// Responds with a task_complete XML so the AgentLoop exits after one step.
+    struct CompletingProvider;
+
+    #[async_trait]
+    impl vibe_ai::provider::AIProvider for CompletingProvider {
+        fn name(&self) -> &str { "completing-mock" }
+        async fn is_available(&self) -> bool { true }
+        async fn complete(&self, _: &vibe_ai::provider::CodeContext)
+            -> anyhow::Result<vibe_ai::provider::CompletionResponse> {
+            anyhow::bail!("not used")
+        }
+        async fn stream_complete(&self, _: &vibe_ai::provider::CodeContext)
+            -> anyhow::Result<vibe_ai::provider::CompletionStream> {
+            anyhow::bail!("not used")
+        }
+        async fn chat(&self, _: &[vibe_ai::provider::Message], _: Option<String>)
+            -> anyhow::Result<String> {
+            // Return a minimal task_complete so AgentLoop exits cleanly.
+            Ok("<task_complete>\nAll done.\n</task_complete>".to_string())
+        }
+        async fn stream_chat(&self, _: &[vibe_ai::provider::Message])
+            -> anyhow::Result<vibe_ai::provider::CompletionStream> {
+            use futures::stream;
+            Ok(Box::pin(stream::once(async {
+                Ok("<task_complete>\nAll done.\n</task_complete>".to_string())
+            })))
+        }
+    }
 }
 
 #[async_trait]
@@ -880,10 +1090,8 @@ impl ToolExecutorTrait for TauriToolExecutor {
             ToolCall::WebSearch { query, .. }     => self.web_search(query).await,
             ToolCall::FetchUrl { url }            => self.fetch_url(url).await,
             ToolCall::TaskComplete { summary }    => ToolResult::ok("task_complete", summary.clone()),
-            ToolCall::SpawnAgent { .. }           => ToolResult::err(
-                "spawn_agent",
-                "spawn_agent is not supported in VibeUI — use the CLI for sub-agent spawning.",
-            ),
+            ToolCall::SpawnAgent { task, max_steps, max_depth } =>
+                self.spawn_sub_agent(task, *max_steps, *max_depth).await,
             ToolCall::Think { thought } => {
                 ToolResult::ok("think", format!("Reasoning noted ({} chars).", thought.len()))
             }

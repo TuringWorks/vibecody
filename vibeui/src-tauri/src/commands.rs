@@ -39900,6 +39900,13 @@ pub async fn company_list_skills() -> Result<serde_json::Value, String> {
 /// Locate the vibecli binary: check PATH via `which`, then ~/.cargo/bin, then
 /// common install prefixes.
 pub fn find_vibecli_binary() -> Option<std::path::PathBuf> {
+    let home = std::env::var("HOME").or_else(|_| std::env::var("USERPROFILE")).ok();
+    find_vibecli_binary_with_home(home.as_deref())
+}
+
+/// Inner implementation that accepts an explicit home directory so it can be
+/// tested without mutating the process-global HOME environment variable.
+pub(crate) fn find_vibecli_binary_with_home(home: Option<&str>) -> Option<std::path::PathBuf> {
     // 1. Let the shell resolve it (handles shims, nvm, asdf, etc.)
     #[cfg(unix)]
     if let Ok(out) = std::process::Command::new("which").arg("vibecli").output() {
@@ -39922,8 +39929,8 @@ pub fn find_vibecli_binary() -> Option<std::path::PathBuf> {
     }
 
     // 2. ~/.cargo/bin (Rust installation default)
-    if let Ok(home) = std::env::var("HOME").or_else(|_| std::env::var("USERPROFILE")) {
-        let p = std::path::PathBuf::from(&home).join(".cargo").join("bin").join("vibecli");
+    if let Some(h) = home {
+        let p = std::path::PathBuf::from(h).join(".cargo").join("bin").join("vibecli");
         if p.exists() { return Some(p); }
     }
 
@@ -39937,7 +39944,7 @@ pub fn find_vibecli_binary() -> Option<std::path::PathBuf> {
 }
 
 /// Quick TCP probe — is something listening on 127.0.0.1:port?
-async fn port_open(port: u16) -> bool {
+pub(crate) async fn port_open(port: u16) -> bool {
     tokio::net::TcpStream::connect(format!("127.0.0.1:{}", port))
         .await
         .is_ok()
@@ -40026,5 +40033,116 @@ pub async fn stop_daemon(state: tauri::State<'_, AppState>) -> Result<String, St
         Ok("stopped".to_string())
     } else {
         Ok("not_managed".to_string())
+    }
+}
+
+// ─── Daemon tests ────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod daemon_tests {
+    use super::*;
+    use std::net::TcpListener;
+
+    // ── find_vibecli_binary_with_home (no process-env mutation) ─────────────
+
+    /// Given: a home directory that has no .cargo/bin/vibecli
+    ///   AND: `which` / system prefixes find nothing
+    /// When:  find_vibecli_binary_with_home(Some(empty_dir)) is called
+    /// Then:  returns None (cargo-bin fallback finds nothing)
+    ///
+    /// Note: on systems where vibecli is in PATH, `which` still fires and the
+    /// function may return Some.  This test only asserts it doesn't panic.
+    #[test]
+    fn find_vibecli_binary_with_empty_home_does_not_panic() {
+        let dir = std::env::temp_dir().join(format!("vibe_nohome_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let result = find_vibecli_binary_with_home(Some(dir.to_str().unwrap()));
+        let _ = std::fs::remove_dir_all(&dir);
+        // No assertion on Some/None — depends on whether vibecli is in PATH.
+        drop(result);
+    }
+
+    /// Given: a fake vibecli executable at <tmp>/.cargo/bin/vibecli
+    /// When:  find_vibecli_binary_with_home(Some(tmp)) is called
+    /// Then:  the cargo-bin path OR a PATH-found path is returned (both valid)
+    #[test]
+    fn find_vibecli_binary_with_home_finds_cargo_bin() {
+        use std::os::unix::fs::PermissionsExt;
+        let tmp = std::env::temp_dir().join(format!("vibe_cargo_{}", std::process::id()));
+        let cargo_bin = tmp.join(".cargo").join("bin");
+        std::fs::create_dir_all(&cargo_bin).unwrap();
+        let fake = cargo_bin.join("vibecli");
+        std::fs::write(&fake, "#!/bin/sh\n").unwrap();
+        std::fs::set_permissions(&fake, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+        let result = find_vibecli_binary_with_home(Some(tmp.to_str().unwrap()));
+        let _ = std::fs::remove_dir_all(&tmp);
+
+        // Either the system vibecli (found via `which`) or our fake was returned.
+        assert!(result.is_some(), "should find a vibecli binary");
+        assert!(result.unwrap().ends_with("vibecli"));
+    }
+
+    // ── port_open ────────────────────────────────────────────────────────────
+
+    /// Given: nothing is bound on a high port
+    /// When:  port_open(port) is called
+    /// Then:  returns false
+    #[tokio::test]
+    async fn port_open_returns_false_for_unbound_port() {
+        // Use a port in the ephemeral range unlikely to be occupied in CI
+        let port = 19_876u16;
+        // Make sure it really is free before the assertion
+        if TcpListener::bind(format!("127.0.0.1:{}", port)).is_ok() {
+            assert!(!port_open(port).await);
+        }
+        // If it's in use we skip rather than flake
+    }
+
+    /// Given: a TCP listener is bound on a port
+    /// When:  port_open(port) is called
+    /// Then:  returns true
+    #[tokio::test]
+    async fn port_open_returns_true_for_bound_port() {
+        // Bind to port 0 to get an OS-assigned free port
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind failed");
+        let port = listener.local_addr().unwrap().port();
+        assert!(port_open(port).await, "port {port} should be detected as open");
+        drop(listener); // release it
+        // After release the port should close
+        // (allow brief OS teardown before asserting closed)
+        tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+        assert!(!port_open(port).await, "port {port} should now be closed");
+    }
+
+    // ── find_vibecli_binary: common prefix paths ─────────────────────────────
+
+    /// Given: PATH contains a vibecli binary (real or fake)
+    ///   AND: ~/.cargo/bin also contains a vibecli binary
+    /// When:  find_vibecli_binary scans
+    /// Then:  returns a valid path to a vibecli binary (PATH wins, which is correct)
+    ///
+    /// This test verifies that the lookup succeeds and returns a readable path.
+    /// It does NOT assert which source wins — `which` takes priority by design
+    /// (e.g. vibecli installed via cargo install into ~/.local/bin or /usr/local/bin).
+    /// Given: cargo-bin home with fake vibecli OR system vibecli in PATH
+    /// When:  find_vibecli_binary_with_home is called
+    /// Then:  returned path (if any) ends with "vibecli"
+    #[test]
+    fn find_vibecli_binary_path_ends_with_vibecli_when_found() {
+        use std::os::unix::fs::PermissionsExt;
+        let tmp = std::env::temp_dir().join(format!("vibe_pref_{}", std::process::id()));
+        let cargo_bin = tmp.join(".cargo").join("bin");
+        std::fs::create_dir_all(&cargo_bin).unwrap();
+        let fake = cargo_bin.join("vibecli");
+        std::fs::write(&fake, "#!/bin/sh\n").unwrap();
+        std::fs::set_permissions(&fake, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+        let result = find_vibecli_binary_with_home(Some(tmp.to_str().unwrap()));
+        let _ = std::fs::remove_dir_all(&tmp);
+
+        assert!(result.is_some(), "should find a vibecli binary");
+        let p = result.unwrap();
+        assert!(p.ends_with("vibecli"), "path should end with 'vibecli', got {}", p.display());
     }
 }

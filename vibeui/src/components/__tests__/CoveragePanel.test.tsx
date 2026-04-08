@@ -8,6 +8,12 @@ vi.mock('@tauri-apps/api/core', () => ({
   invoke: (...args: unknown[]) => mockInvoke(...args),
 }));
 
+// ── Mock @tauri-apps/api/event (used by CoveragePanel for coverage:log) ────
+
+vi.mock('@tauri-apps/api/event', () => ({
+  listen: vi.fn().mockResolvedValue(() => {}),
+}));
+
 // ── Mock lucide-react icons ────────────────────────────────────────────────
 
 vi.mock('lucide-react', () => {
@@ -59,6 +65,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
   setupMocks();
+  // jsdom doesn't implement scrollIntoView — stub it so CoveragePanel's auto-scroll doesn't throw
+  window.HTMLElement.prototype.scrollIntoView = vi.fn();
 });
 
 // ── Tests ──────────────────────────────────────────────────────────────────

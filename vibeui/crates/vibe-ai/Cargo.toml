@@ -45,3 +45,8 @@ cucumber = { version = "0.20", features = ["macros"] }
 name = "rules_matching_bdd"
 path = "tests/rules_matching_bdd.rs"
 harness = false
+
+[[test]]
+name = "agent_spawn_bdd"
+path = "tests/agent_spawn_bdd.rs"
+harness = false

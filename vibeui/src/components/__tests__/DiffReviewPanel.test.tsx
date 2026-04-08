@@ -187,10 +187,19 @@ describe('DiffReviewPanel — hunk toggle', () => {
   it('toggles hunk acceptance state when hunk button is clicked', () => {
     renderPanel('a\n', 'b\n', vi.fn());
 
-    const hunkBtn = screen.getAllByText(/✓ Accept|✗ Reject/)[0];
-    const initialText = hunkBtn.textContent;
-    fireEvent.click(hunkBtn);
-    expect(hunkBtn.textContent).not.toBe(initialText);
+    // The hunk toggle button renders SVG icon + " Accept" or " Reject".
+    // Exclude "Accept All" / "Reject All" toolbar buttons by checking textContent
+    // does NOT contain "All".
+    const buttons = screen.getAllByRole('button');
+    const hunkBtn = buttons.find((btn) => {
+      const t = btn.textContent ?? '';
+      return /Accept|Reject/.test(t) && !/All/.test(t) && !/Apply/.test(t);
+    });
+
+    expect(hunkBtn).toBeDefined();
+    const initialText = hunkBtn!.textContent;
+    fireEvent.click(hunkBtn!);
+    expect(hunkBtn!.textContent).not.toBe(initialText);
   });
 });
 
