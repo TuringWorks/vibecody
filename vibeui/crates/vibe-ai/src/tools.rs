@@ -135,11 +135,16 @@ Call this when the task is fully done. Provide a summary of what was accomplishe
 Delegate an independent sub-task to a child agent. The child runs with the same tools and
 workspace. Use this to parallelize work or isolate complex sub-problems.
 The child can spawn its own sub-agents up to `max_depth` levels deep (default: 3, hard max: 5).
+
+**IMPORTANT constraints:**
+- Only spawn an agent for a task that is **explicitly part of the user's current request**.
+- Do NOT invent side-tasks (e.g., writing tests, adding docs) unless the user asked for them.
+- Do NOT copy or adapt the example task below — it is illustrative only.
 ```
 <tool_call name="spawn_agent">
-<task>Write unit tests for src/utils.rs and verify they pass with cargo test.</task>
-<max_steps>10</max_steps>
-<max_depth>3</max_depth>
+<task>Implement the authentication module described in the requirements.</task>
+<max_steps>15</max_steps>
+<max_depth>2</max_depth>
 </tool_call>
 ```
 
@@ -210,13 +215,13 @@ Instead, follow this incremental approach:
 2. Write ONE file per tool call — keep each file focused and complete
 3. For large files (>200 lines), write the skeleton first, then fill in sections
 4. After every 2-3 files, run `build` or type-check to catch errors early
-5. Use `spawn_agent` to delegate independent sub-tasks (e.g., tests, docs, config) in parallel
+5. Use `spawn_agent` only when the user explicitly asked for a parallel sub-task (e.g., "also write tests", "generate docs too")
 
 **File creation order:**
 - Config files first (package.json, Cargo.toml, tsconfig, etc.)
 - Core types/interfaces
 - Implementation modules (one at a time)
-- Tests (can be delegated to spawn_agent)
+- Tests (only if the user requested them)
 - Documentation last
 
 When working on a **new (greenfield) project**:
