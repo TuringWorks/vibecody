@@ -11,15 +11,15 @@ Feature: FailoverProvider — multi-provider chain with health-aware ordering
     Then the provider name should be "Failover(empty)"
 
   Scenario: Single-provider chain name includes the provider name
-    Given a failover chain with providers ["Claude"]
+    Given a failover chain with providers '["Claude"]'
     Then the provider name should be "Failover(Claude)"
 
   Scenario: Two-provider chain uses arrow separator
-    Given a failover chain with providers ["Claude", "Ollama"]
+    Given a failover chain with providers '["Claude", "Ollama"]'
     Then the provider name should be "Failover(Claude -> Ollama)"
 
   Scenario: Four-provider chain name lists all providers
-    Given a failover chain with providers ["A", "B", "C", "D"]
+    Given a failover chain with providers '["A", "B", "C", "D"]'
     Then the provider name should be "Failover(A -> B -> C -> D)"
 
   # ── is_available ──────────────────────────────────────────────────────────────
@@ -71,18 +71,18 @@ Feature: FailoverProvider — multi-provider chain with health-aware ordering
   # ── Health-aware ordering ─────────────────────────────────────────────────────
 
   Scenario: Without health tracker, providers are tried in original order
-    Given a failover chain with providers ["First", "Second"] and no health tracker
+    Given a failover chain with providers '["First", "Second"]' and no health tracker
     When both providers succeed and chat is called
     Then the response should contain "First"
 
   Scenario: Health tracker causes healthier provider to be tried first
-    Given a failover chain with providers ["Primary", "Backup"] and a health tracker
+    Given a failover chain with providers '["Primary", "Backup"]' and a health tracker
     And "Backup" has 5 successful calls recorded and "Primary" has 5 failed calls
     When both providers succeed and chat is called
     Then the response should contain "Backup"
 
   Scenario: Health tracker records outcomes for each provider call
-    Given a failover chain with providers ["Failing", "Working"] and a health tracker
+    Given a failover chain with providers '["Failing", "Working"]' and a health tracker
     When the first provider fails and the second succeeds on a chat call
     Then the tracker should record 1 failure for "Failing"
     And the tracker should record 1 success for "Working"

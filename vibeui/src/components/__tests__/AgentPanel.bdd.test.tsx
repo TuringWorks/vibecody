@@ -87,6 +87,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   Object.keys(eventHandlers).forEach(k => delete eventHandlers[k]);
   mockInvoke.mockResolvedValue(undefined);
+  // jsdom doesn't implement scrollIntoView
+  window.HTMLElement.prototype.scrollIntoView = vi.fn();
 });
 
 afterEach(() => vi.restoreAllMocks());
@@ -227,10 +229,11 @@ describe('Given the user changes the approval dropdown to "full-auto"', () => {
 describe('Given the agent completes successfully', () => {
   it('When "agent:complete" fires, Then the Reset button appears', async () => {
     renderPanel('ollama');
+    await waitFor(() => expect(eventHandlers['agent:complete']).toBeDefined());
     fillTask('Build something');
     fireEvent.click(screen.getByRole('button', { name: /Run/i }));
     await waitFor(() => screen.getByTitle('Stop the agent'));
-    act(() => { eventHandlers['agent:complete']?.('Task done!'); });
+    act(() => { eventHandlers['agent:complete']('Task done!'); });
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /Reset/i })).toBeInTheDocument();
     });
@@ -242,10 +245,11 @@ describe('Given the agent completes successfully', () => {
 describe('Given the agent encounters an error', () => {
   it('When "agent:error" fires, Then the Retry button appears', async () => {
     renderPanel('ollama');
+    await waitFor(() => expect(eventHandlers['agent:error']).toBeDefined());
     fillTask('Broken task');
     fireEvent.click(screen.getByRole('button', { name: /Run/i }));
     await waitFor(() => screen.getByTitle('Stop the agent'));
-    act(() => { eventHandlers['agent:error']?.('provider timeout'); });
+    act(() => { eventHandlers['agent:error']('provider timeout'); });
     await waitFor(() => {
       expect(screen.getByTitle(/Retry/i)).toBeInTheDocument();
     });
@@ -257,11 +261,15 @@ describe('Given the agent encounters an error', () => {
 describe('Given a pending approval request arrives', () => {
   async function setupPendingState() {
     renderPanel('ollama');
+    // Wait for all 6 Tauri event listeners to register before proceeding
+    await waitFor(() => {
+      expect(eventHandlers['agent:pending']).toBeDefined();
+    });
     fillTask('Pending task');
     fireEvent.click(screen.getByRole('button', { name: /Run/i }));
     await waitFor(() => screen.getByTitle('Stop the agent'));
     act(() => {
-      eventHandlers['agent:pending']?.({
+      eventHandlers['agent:pending']({
         name: 'bash',
         summary: 'rm -rf /tmp/old',
         is_destructive: true,
@@ -303,10 +311,11 @@ describe('Given a pending approval request arrives', () => {
 describe('Given the agent has completed and Reset is clicked', () => {
   it('When Reset is clicked, Then the task textarea is cleared', async () => {
     renderPanel('ollama');
+    await waitFor(() => expect(eventHandlers['agent:complete']).toBeDefined());
     fillTask('Some task');
     fireEvent.click(screen.getByRole('button', { name: /Run/i }));
     await waitFor(() => screen.getByTitle('Stop the agent'));
-    act(() => { eventHandlers['agent:complete']?.('done'); });
+    act(() => { eventHandlers['agent:complete']('done'); });
     await waitFor(() => screen.getByRole('button', { name: /Reset/i }));
     fireEvent.click(screen.getByRole('button', { name: /Reset/i }));
     expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe('');
@@ -314,13 +323,14 @@ describe('Given the agent has completed and Reset is clicked', () => {
 
   it('When Reset is clicked, Then the step count disappears', async () => {
     renderPanel('ollama');
+    await waitFor(() => expect(eventHandlers['agent:step']).toBeDefined());
     fillTask('Some task');
     fireEvent.click(screen.getByRole('button', { name: /Run/i }));
     await waitFor(() => screen.getByTitle('Stop the agent'));
     act(() => {
-      eventHandlers['agent:step']?.({ step_num: 1, tool_name: 'write_file', tool_summary: 'wrote out.rs', output: '', success: true, approved: true });
+      eventHandlers['agent:step']({ step_num: 1, tool_name: 'write_file', tool_summary: 'wrote out.rs', output: '', success: true, approved: true });
     });
-    act(() => { eventHandlers['agent:complete']?.('done'); });
+    act(() => { eventHandlers['agent:complete']('done'); });
     await waitFor(() => screen.getByRole('button', { name: /Reset/i }));
     fireEvent.click(screen.getByRole('button', { name: /Reset/i }));
     expect(screen.queryByText(/step.*completed/i)).not.toBeInTheDocument();
@@ -332,6 +342,7 @@ describe('Given the agent has completed and Reset is clicked', () => {
 describe('Given a task is entered', () => {
   it('When Ctrl+Enter is pressed in the textarea, Then the agent starts', async () => {
     renderPanel('ollama');
+    await waitFor(() => expect(eventHandlers['agent:complete']).toBeDefined());
     const textarea = screen.getByRole('textbox');
     fireEvent.change(textarea, { target: { value: 'Keyboard shortcut task' } });
     fireEvent.keyDown(textarea, { key: 'Enter', ctrlKey: true });
