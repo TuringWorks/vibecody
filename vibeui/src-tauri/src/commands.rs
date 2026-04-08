@@ -141,6 +141,8 @@ pub struct AppState {
     pub worktree_metrics: Arc<Mutex<serde_json::Value>>,
     pub hosted_agents: Arc<Mutex<Vec<serde_json::Value>>>,
     pub host_output: Arc<Mutex<Vec<serde_json::Value>>>,
+    /// Abort handles for running hosted-agent subprocesses, keyed by agent id.
+    pub host_processes: Arc<Mutex<std::collections::HashMap<String, tokio::task::AbortHandle>>>,
     // Phase 25: Proactive Agent + Issue Triage
     pub proactive_suggestions: Arc<Mutex<Vec<serde_json::Value>>>,
     pub proactive_metrics: Arc<Mutex<serde_json::Value>>,
@@ -2245,6 +2247,7 @@ pub struct ChatResponse {
 pub async fn send_chat_message(
     mut request: ChatRequest,
     state: tauri::State<'_, AppState>,
+    app_handle: tauri::AppHandle,
 ) -> Result<ChatResponse, String> {
     let mut chat_engine = state.chat_engine.lock().await;
     
@@ -2361,7 +2364,7 @@ pub async fn send_chat_message(
         .map_err(|e| e.to_string())?;
 
     // Process tool calls
-    let (tool_output, pending_write) = process_tool_calls(&response_text, &state.workspace).await;
+    let (tool_output, pending_write) = process_tool_calls(&response_text, &state.workspace, &app_handle).await;
 
     Ok(ChatResponse {
         message: response_text,
@@ -2705,7 +2708,7 @@ pub async fn stream_chat_message(
                 latency: stream_start.elapsed(), timestamp: Instant::now(),
                 error_category: None,
             });
-            let (tool_output, pending_write) = process_tool_calls(&accumulated, &workspace).await;
+            let (tool_output, pending_write) = process_tool_calls(&accumulated, &workspace, &app_handle).await;
             let response = ChatResponse { message: accumulated.clone(), tool_output, pending_write };
             let _ = app_handle.emit("chat:complete", response);
             let estimated_tokens = accumulated.len() / 4;
@@ -2900,7 +2903,7 @@ pub async fn stream_chat_message(
         let _ = write_scan_pos; // consumed
 
         // Process remaining tool calls (read_file, list_dir, build, run, fenced code blocks)
-        let (mut tool_output, pending_write) = process_tool_calls(&accumulated, &workspace).await;
+        let (mut tool_output, pending_write) = process_tool_calls(&accumulated, &workspace, &app_handle).await;
 
         // Prepend incremental write summary if files were saved during streaming
         if !files_written.is_empty() {
@@ -3385,7 +3388,7 @@ async fn fetch_github_issue(url: &str, token: Option<String>) -> Result<GithubIs
     }).await.map_err(|e| e.to_string())
 }
 
-async fn process_tool_calls(response: &str, workspace_lock: &Arc<Mutex<Workspace>>) -> (String, Option<PendingWrite>) {
+async fn process_tool_calls(response: &str, workspace_lock: &Arc<Mutex<Workspace>>, app: &tauri::AppHandle) -> (String, Option<PendingWrite>) {
     // Normalize GLM/Qwen-style delimiters: <|tag|> → <tag>, </|tag|> → </tag>
     // These models wrap tool calls in <|...|> instead of <...>
     let response = &response
@@ -3453,6 +3456,10 @@ async fn process_tool_calls(response: &str, workspace_lock: &Arc<Mutex<Workspace
                     Ok(_) => {
                         output.push_str(&format!("Wrote file '{}'.\n", path));
                         wrote_any = true;
+                        let _ = app.emit("file:written", serde_json::json!({
+                            "path": target.to_string_lossy(),
+                            "content": content,
+                        }));
                     }
                     Err(e) => output.push_str(&format!("Failed to write '{}': {}\n", path, e)),
                 }
@@ -3498,7 +3505,13 @@ async fn process_tool_calls(response: &str, workspace_lock: &Arc<Mutex<Workspace
                                 let _ = std::fs::create_dir_all(parent);
                             }
                             match std::fs::write(&target, content) {
-                                Ok(_) => output.push_str(&format!("Wrote file '{}' (from code block).\n", file_path)),
+                                Ok(_) => {
+                                    output.push_str(&format!("Wrote file '{}' (from code block).\n", file_path));
+                                    let _ = app.emit("file:written", serde_json::json!({
+                                        "path": target.to_string_lossy(),
+                                        "content": content,
+                                    }));
+                                }
                                 Err(e) => output.push_str(&format!("Failed to write '{}': {}\n", file_path, e)),
                             }
                         }
@@ -3944,7 +3957,7 @@ pub async fn start_agent_task(
         auto_commit: false,
     };
 
-    let executor = Arc::new(TauriToolExecutor::new(workspace_root.clone()));
+    let executor = Arc::new(TauriToolExecutor::with_app(workspace_root.clone(), app_handle.clone()));
     let approval = ApprovalPolicy::from_str(&approval_policy);
     let agent = AgentLoop::new(provider_arc, approval, executor)
         .with_policy(&workspace_root);
@@ -3952,6 +3965,30 @@ pub async fn start_agent_task(
     let (event_tx, mut event_rx) = tokio::sync::mpsc::channel::<AgentEvent>(64);
     let agent_pending = state.agent_pending.clone();
     let abort_handle_slot = state.agent_abort_handle.clone();
+
+    // Register this task in the Agent-OS dashboard tracker
+    let agent_task_id = format!("agent-{}", chrono::Utc::now().timestamp_millis());
+    let active_mode_for_stats = load_agent_modes_data().active_mode;
+    {
+        let dto = SubAgentDto {
+            id: agent_task_id.clone(),
+            role: "agent".to_string(),
+            status: "working".to_string(),
+            context_files: vec![],
+            provider: provider.clone(),
+            task_description: Some(task.clone()),
+            result_summary: None,
+            findings: vec![],
+            files_modified: vec![],
+            created_at: chrono::Utc::now().to_rfc3339(),
+            completed_at: None,
+            error: None,
+            tokens_used: None,
+        };
+        let mut agents = state.sub_agents.lock().await;
+        agents.push(dto);
+    }
+    let sub_agents_tracker = state.sub_agents.clone();
 
     // Spawn the agent loop and store its abort handle for stop_agent_task
     let join = tokio::spawn(async move {
@@ -3991,11 +4028,30 @@ pub async fn start_agent_task(
                     let _ = app_handle.emit("agent:step", payload);
                 }
                 AgentEvent::Complete(summary) => {
-                    let _ = app_handle.emit("agent:complete", summary);
+                    let _ = app_handle.emit("agent:complete", summary.clone());
+                    // Estimate tokens from summary length (4 chars ≈ 1 token)
+                    let estimated_tokens = (summary.len() as u64 / 4).max(1);
+                    record_agent_run_stats(&active_mode_for_stats, estimated_tokens);
+                    {
+                        let mut agents = sub_agents_tracker.lock().await;
+                        if let Some(a) = agents.iter_mut().find(|a| a.id == agent_task_id) {
+                            a.status = "completed".to_string();
+                            a.completed_at = Some(chrono::Utc::now().to_rfc3339());
+                            a.result_summary = Some(summary);
+                            a.tokens_used = Some(estimated_tokens);
+                        }
+                    }
                     break;
                 }
                 AgentEvent::Error(msg) => {
-                    let _ = app_handle.emit("agent:error", msg);
+                    let _ = app_handle.emit("agent:error", msg.clone());
+                    {
+                        let mut agents = sub_agents_tracker.lock().await;
+                        if let Some(a) = agents.iter_mut().find(|a| a.id == agent_task_id) {
+                            a.status = "failed".to_string();
+                            a.error = Some(msg);
+                        }
+                    }
                     break;
                 }
                 AgentEvent::RetryableError { error, attempt, max_attempts, backoff_ms } => {
@@ -4045,6 +4101,15 @@ pub async fn stop_agent_task(
         let mut slot = state.agent_pending.lock().await;
         *slot = None;
     }
+    // Mark any tracked agent task as cancelled in the dashboard
+    {
+        let mut agents = state.sub_agents.lock().await;
+        for a in agents.iter_mut() {
+            if a.role == "agent" && a.status == "working" {
+                a.status = "cancelled".to_string();
+            }
+        }
+    }
     let _ = app_handle.emit("agent:error", "Agent stopped by user");
     Ok(())
 }
@@ -4073,7 +4138,7 @@ pub async fn respond_to_agent_approval(
             let ws = state.workspace.lock().await;
             ws.folders().first().cloned().unwrap_or_else(|| PathBuf::from("."))
         };
-        let executor = TauriToolExecutor::new(workspace_root);
+        let executor = TauriToolExecutor::with_app(workspace_root, app_handle.clone());
         let result = executor.execute_call(&call).await;
 
         // Emit a step event so the UI shows what happened
@@ -6925,7 +6990,7 @@ pub async fn start_parallel_agents(
                 auto_commit: false,
             };
 
-            let executor = Arc::new(TauriToolExecutor::new(root2));
+            let executor = Arc::new(TauriToolExecutor::with_app(root2, h2.clone()));
             let agent = AgentLoop::new(prov2, approval2, executor);
             let (event_tx, mut event_rx) = tokio::sync::mpsc::channel::<AgentEvent>(64);
 
@@ -30028,6 +30093,7 @@ pub struct SubAgentDto {
     pub created_at: String,    // ISO timestamp
     pub completed_at: Option<String>,
     pub error: Option<String>,
+    pub tokens_used: Option<u64>,
 }
 
 #[tauri::command]
@@ -30061,6 +30127,7 @@ pub async fn spawn_sub_agent(
         created_at: chrono::Utc::now().to_rfc3339(),
         completed_at: None,
         error: None,
+        tokens_used: None,
     };
 
     {
@@ -31639,6 +31706,79 @@ pub struct AgentModesData {
     pub profiles: Vec<AgentModeProfile>,
 }
 
+// ── Adventure Tab Names ─────────────────────────────────────────────────────
+
+const DEFAULT_ADVENTURE_NAMES: &[&str] = &[
+    "Uncharted Waters", "The Lost Meridian", "Edge of the Map", "Stormbreak",
+    "The Iron Compass", "Ember Ridge", "Voidtide", "Last Horizon",
+    "The Silent Expanse", "Frostfall", "Ironwood Vale", "The Amber Route",
+    "Deeprun", "Skyrift", "Thornwatch", "The Wandering Star",
+    "Ashgate", "Duskward", "The Ruined Coast", "Brightfall",
+    "Mistkeep", "Sunken Archive", "The Final League", "Coldveil",
+    "Hearthless", "Dawnseeker", "The Forgotten Shore", "Ironclad Run",
+    "The Open Reach", "Starfall Pass",
+];
+
+fn adventure_names_path() -> std::path::PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    std::path::PathBuf::from(home).join(".vibeui").join("adventure-names.json")
+}
+
+fn load_adventure_names() -> Vec<String> {
+    let path = adventure_names_path();
+    if let Ok(data) = std::fs::read_to_string(&path) {
+        if let Ok(names) = serde_json::from_str::<Vec<String>>(&data) {
+            if !names.is_empty() {
+                return names;
+            }
+        }
+    }
+    DEFAULT_ADVENTURE_NAMES.iter().map(|s| s.to_string()).collect()
+}
+
+/// Return all adventure tab names (defaults + any user-added names).
+#[tauri::command]
+pub async fn get_adventure_names() -> Result<Vec<String>, String> {
+    Ok(load_adventure_names())
+}
+
+/// Append a new name to the adventure names list and persist it.
+#[tauri::command]
+pub async fn add_adventure_name(name: String) -> Result<Vec<String>, String> {
+    let name = name.trim().to_string();
+    if name.is_empty() {
+        return Err("Name cannot be empty".to_string());
+    }
+    let mut names = load_adventure_names();
+    if !names.iter().any(|n| n.eq_ignore_ascii_case(&name)) {
+        names.push(name);
+        let path = adventure_names_path();
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+        let json = serde_json::to_string_pretty(&names).map_err(|e| e.to_string())?;
+        std::fs::write(&path, json).map_err(|e| e.to_string())?;
+    }
+    Ok(names)
+}
+
+/// Remove a name from the adventure names list and persist the result.
+#[tauri::command]
+pub async fn remove_adventure_name(name: String) -> Result<Vec<String>, String> {
+    let mut names = load_adventure_names();
+    let before = names.len();
+    names.retain(|n| !n.eq_ignore_ascii_case(&name));
+    if names.len() != before {
+        let path = adventure_names_path();
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+        let json = serde_json::to_string_pretty(&names).map_err(|e| e.to_string())?;
+        std::fs::write(&path, json).map_err(|e| e.to_string())?;
+    }
+    Ok(names)
+}
+
 fn agent_modes_path() -> std::path::PathBuf {
     let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
     std::path::PathBuf::from(home).join(".vibeui").join("agent-modes.json")
@@ -31676,6 +31816,20 @@ fn save_agent_modes_data(data: &AgentModesData) -> Result<(), String> {
     }
     let json = serde_json::to_string_pretty(data).map_err(|e| e.to_string())?;
     std::fs::write(&path, &json).map_err(|e| e.to_string())
+}
+
+/// Called after each agent run to update invocations and running-average tokens for the active mode.
+fn record_agent_run_stats(mode_id: &str, tokens_used: u64) {
+    let mut data = load_agent_modes_data();
+    let now = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
+    if let Some(stat) = data.stats.iter_mut().find(|s| s.mode_id == mode_id) {
+        let prev = stat.invocations;
+        stat.invocations += 1;
+        // Cumulative running average: new_avg = (old_avg * prev_count + new_value) / new_count
+        stat.avg_tokens = (stat.avg_tokens * prev + tokens_used) / stat.invocations;
+        stat.last_used = now;
+    }
+    let _ = save_agent_modes_data(&data);
 }
 
 /// Return the three built-in agent modes (Smart, Rush, Deep) with their active status.
@@ -36795,13 +36949,114 @@ pub async fn host_register(
 pub async fn host_start(
     agent_id: String,
     state: tauri::State<'_, AppState>,
+    app_handle: tauri::AppHandle,
 ) -> Result<serde_json::Value, String> {
-    let mut agents = state.hosted_agents.lock().await;
-    let agent = agents.iter_mut().find(|a| a.get("id").and_then(|v| v.as_str()) == Some(&agent_id));
-    match agent {
-        Some(a) => { a["status"] = serde_json::json!("running"); Ok(serde_json::json!({ "agent_id": agent_id, "status": "running" })) }
-        None => Err(format!("Agent not found: {}", agent_id)),
+    // Retrieve the command string and update status
+    let command = {
+        let mut agents = state.hosted_agents.lock().await;
+        let a = agents.iter_mut()
+            .find(|a| a.get("id").and_then(|v| v.as_str()) == Some(&agent_id))
+            .ok_or_else(|| format!("Agent not found: {}", agent_id))?;
+        a["status"] = serde_json::json!("running");
+        a.get("command").and_then(|v| v.as_str()).unwrap_or("").to_string()
+    };
+
+    if command.is_empty() {
+        return Err("Agent has no command configured".to_string());
     }
+
+    let host_output = state.host_output.clone();
+    let hosted_agents = state.hosted_agents.clone();
+    let host_processes = state.host_processes.clone();
+    let id = agent_id.clone();
+
+    let join = tokio::spawn(async move {
+        use tokio::io::{AsyncBufReadExt, BufReader};
+        use tokio::process::Command;
+
+        let parts: Vec<&str> = command.split_whitespace().collect();
+        if parts.is_empty() { return; }
+
+        let mut child = match Command::new(parts[0])
+            .args(&parts[1..])
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+        {
+            Ok(c) => c,
+            Err(e) => {
+                let mut agents = hosted_agents.lock().await;
+                if let Some(a) = agents.iter_mut().find(|a| a.get("id").and_then(|v| v.as_str()) == Some(&id)) {
+                    a["status"] = serde_json::json!("error");
+                }
+                let mut out = host_output.lock().await;
+                out.push(serde_json::json!({
+                    "agent_id": id, "agent_name": id,
+                    "text": format!("Failed to start: {}", e),
+                    "timestamp": chrono::Utc::now().to_rfc3339(),
+                    "color": "var(--error-color)",
+                }));
+                return;
+            }
+        };
+
+        let stdout = child.stdout.take().expect("stdout");
+        let stderr = child.stderr.take().expect("stderr");
+        let mut out_lines = BufReader::new(stdout).lines();
+        let mut err_lines = BufReader::new(stderr).lines();
+
+        loop {
+            tokio::select! {
+                line = out_lines.next_line() => match line {
+                    Ok(Some(text)) => {
+                        let mut out = host_output.lock().await;
+                        out.push(serde_json::json!({
+                            "agent_id": id, "agent_name": id,
+                            "text": text,
+                            "timestamp": chrono::Utc::now().to_rfc3339(),
+                            "color": "var(--text-primary)",
+                        }));
+                        if out.len() > 500 { out.remove(0); }
+                        let _ = app_handle.emit("host:output", &id);
+                    }
+                    _ => break,
+                },
+                line = err_lines.next_line() => match line {
+                    Ok(Some(text)) => {
+                        let mut out = host_output.lock().await;
+                        out.push(serde_json::json!({
+                            "agent_id": id, "agent_name": id,
+                            "text": text,
+                            "timestamp": chrono::Utc::now().to_rfc3339(),
+                            "color": "var(--warning-color)",
+                        }));
+                        if out.len() > 500 { out.remove(0); }
+                        let _ = app_handle.emit("host:output", &id);
+                    }
+                    _ => break,
+                },
+            }
+        }
+
+        let exit_ok = child.wait().await.map(|s| s.success()).unwrap_or(false);
+        let final_status = if exit_ok { "stopped" } else { "error" };
+        let mut agents = hosted_agents.lock().await;
+        if let Some(a) = agents.iter_mut().find(|a| a.get("id").and_then(|v| v.as_str()) == Some(&id)) {
+            a["status"] = serde_json::json!(final_status);
+        }
+        let _ = app_handle.emit("host:status_changed", &id);
+        // Remove abort handle when done
+        let mut procs = host_processes.lock().await;
+        procs.remove(&id);
+    });
+
+    // Store abort handle so host_stop can cancel it
+    {
+        let mut procs = state.host_processes.lock().await;
+        procs.insert(agent_id.clone(), join.abort_handle());
+    }
+
+    Ok(serde_json::json!({ "agent_id": agent_id, "status": "running" }))
 }
 
 #[tauri::command]
@@ -36809,10 +37064,19 @@ pub async fn host_stop(
     agent_id: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
+    // Abort the subprocess task if running
+    {
+        let mut procs = state.host_processes.lock().await;
+        if let Some(handle) = procs.remove(&agent_id) {
+            handle.abort();
+        }
+    }
     let mut agents = state.hosted_agents.lock().await;
-    let agent = agents.iter_mut().find(|a| a.get("id").and_then(|v| v.as_str()) == Some(&agent_id));
-    match agent {
-        Some(a) => { a["status"] = serde_json::json!("stopped"); Ok(serde_json::json!({ "agent_id": agent_id, "status": "stopped" })) }
+    match agents.iter_mut().find(|a| a.get("id").and_then(|v| v.as_str()) == Some(&agent_id)) {
+        Some(a) => {
+            a["status"] = serde_json::json!("stopped");
+            Ok(serde_json::json!({ "agent_id": agent_id, "status": "stopped" }))
+        }
         None => Err(format!("Agent not found: {}", agent_id)),
     }
 }
@@ -36824,8 +37088,11 @@ pub async fn host_get_output(
 ) -> Result<serde_json::Value, String> {
     let output = state.host_output.lock().await;
     let lines: Vec<_> = output.iter()
-        .filter(|l| l.get("agent_id").and_then(|v| v.as_str()) == Some(&agent_id))
-        .rev().take(last_n).collect();
+        .filter(|l| {
+            agent_id == "all"
+                || l.get("agent_id").and_then(|v| v.as_str()) == Some(&agent_id)
+        })
+        .rev().take(last_n).cloned().collect();
     Ok(serde_json::json!({ "agent_id": agent_id, "lines": lines, "requested": last_n }))
 }
 
@@ -38337,7 +38604,7 @@ pub async fn browser_create_session(
     headless: bool,
     state: tauri::State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
-    let id = chrono::Utc::now().timestamp();
+    let id = chrono::Utc::now().timestamp_millis().to_string();
     let entry = serde_json::json!({
         "id": id,
         "url": url,
@@ -38348,9 +38615,61 @@ pub async fn browser_create_session(
         "screenshots": 0,
         "created": chrono::Utc::now().to_rfc3339(),
     });
-    let mut sessions = state.browser_sessions.lock().await;
-    sessions.insert(0, entry.clone());
+    {
+        let mut sessions = state.browser_sessions.lock().await;
+        sessions.insert(0, entry.clone());
+    }
+
+    // Simulate browser task execution: update actions/screenshots each step
+    let sessions_ref = state.browser_sessions.clone();
+    let session_id = id.clone();
+    tokio::spawn(async move {
+        // Each tuple: (additional_actions, additional_screenshots) per step
+        let steps: &[(u64, u64)] = &[(2, 1), (3, 1), (2, 0), (4, 2), (1, 1)];
+        for &(act, ss) in steps {
+            tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+            let mut sessions = sessions_ref.lock().await;
+            if let Some(s) = sessions.iter_mut().find(|s| {
+                s.get("id").and_then(|v| v.as_str()) == Some(&session_id)
+            }) {
+                if s.get("status").and_then(|v| v.as_str()) != Some("running") {
+                    return;
+                }
+                let cur_actions = s["actions"].as_u64().unwrap_or(0);
+                let cur_ss = s["screenshots"].as_u64().unwrap_or(0);
+                s["actions"] = serde_json::json!(cur_actions + act);
+                s["screenshots"] = serde_json::json!(cur_ss + ss);
+            } else {
+                return;
+            }
+        }
+        // Mark completed
+        let mut sessions = sessions_ref.lock().await;
+        if let Some(s) = sessions.iter_mut().find(|s| {
+            s.get("id").and_then(|v| v.as_str()) == Some(&session_id)
+        }) {
+            if s.get("status").and_then(|v| v.as_str()) == Some("running") {
+                s["status"] = serde_json::json!("completed");
+            }
+        }
+    });
+
     Ok(entry)
+}
+
+#[tauri::command]
+pub async fn browser_close_session(
+    session_id: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let mut sessions = state.browser_sessions.lock().await;
+    match sessions.iter_mut().find(|s| s.get("id").and_then(|v| v.as_str()) == Some(&session_id)) {
+        Some(s) => {
+            s["status"] = serde_json::json!("completed");
+            Ok(serde_json::json!({ "session_id": session_id, "status": "completed" }))
+        }
+        None => Err(format!("Session not found: {}", session_id)),
+    }
 }
 
 // ── TurboQuant commands ──────────────────────────────────────────────────────

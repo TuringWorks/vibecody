@@ -1335,6 +1335,14 @@ export function AIChat({
       });
       if (cancelled) { u5(); return; }
       unlisteners.push(u5);
+
+      // Receive file writes from agent/sandbox tool execution and forward to
+      // the workspace explorer via the onPendingWrite callback.
+      const u6 = await listen<{ path: string; content: string }>("file:written", (e) => {
+        onPendingWriteRef.current?.(e.payload.path, e.payload.content);
+      });
+      if (cancelled) { u6(); return; }
+      unlisteners.push(u6);
     })();
 
     return () => {

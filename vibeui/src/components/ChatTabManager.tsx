@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { AIChat, Message } from "./AIChat";
 import { ChatMemoryPanel } from "./ChatMemoryPanel";
 import { useSessionMemory } from "../hooks/useSessionMemory";
@@ -57,7 +58,9 @@ function saveHistory(history: ChatSession[]) {
 
 let nextTabId = 1;
 
-const ADVENTURE_NAMES = [
+// Module-level cache: seeded with defaults so tab creation is always synchronous.
+// Updated from ~/.vibeui/adventure-names.json once the backend responds.
+let adventureNames: string[] = [
   "Uncharted Waters", "The Lost Meridian", "Edge of the Map", "Stormbreak",
   "The Iron Compass", "Ember Ridge", "Voidtide", "Last Horizon",
   "The Silent Expanse", "Frostfall", "Ironwood Vale", "The Amber Route",
@@ -67,12 +70,20 @@ const ADVENTURE_NAMES = [
   "Hearthless", "Dawnseeker", "The Forgotten Shore", "Ironclad Run",
   "The Open Reach", "Starfall Pass",
 ];
+let adventureIdx = Math.floor(Math.random() * adventureNames.length);
 
-let adventureIdx = Math.floor(Math.random() * ADVENTURE_NAMES.length);
 function nextAdventureName(): string {
-  const name = ADVENTURE_NAMES[adventureIdx % ADVENTURE_NAMES.length];
+  const name = adventureNames[adventureIdx % adventureNames.length];
   adventureIdx++;
   return name;
+}
+
+/** Fetch names from the backend and refresh the module cache. */
+async function refreshAdventureNames(): Promise<void> {
+  try {
+    const names = await invoke<string[]>("get_adventure_names");
+    if (names.length > 0) adventureNames = names;
+  } catch { /* backend unavailable during dev — keep defaults */ }
 }
 
 export function ChatTabManager({
@@ -85,6 +96,9 @@ export function ChatTabManager({
 }: ChatTabManagerProps) {
     // Restore persisted sessions on mount
     const initialSessions = useRef(loadPersistedSessions());
+
+    // Refresh adventure names from backend once on mount (non-blocking)
+    useEffect(() => { refreshAdventureNames(); }, []);
 
     // ── Session memory ─────────────────────────────────────────────────────────
     const memory = useSessionMemory();

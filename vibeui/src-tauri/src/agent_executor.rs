@@ -5,6 +5,7 @@
 
 use async_trait::async_trait;
 use std::path::PathBuf;
+use tauri::Emitter;
 use vibe_ai::{ToolCall, ToolResult, ToolExecutorTrait};
 
 const MAX_OUTPUT: usize = 8_000;
@@ -52,11 +53,16 @@ fn validate_url_for_ssrf(url: &str) -> Result<(), String> {
 
 pub struct TauriToolExecutor {
     pub workspace_root: PathBuf,
+    app: Option<tauri::AppHandle>,
 }
 
 impl TauriToolExecutor {
     pub fn new(workspace_root: PathBuf) -> Self {
-        Self { workspace_root }
+        Self { workspace_root, app: None }
+    }
+
+    pub fn with_app(workspace_root: PathBuf, app: tauri::AppHandle) -> Self {
+        Self { workspace_root, app: Some(app) }
     }
 
     /// Resolve a path safely within the workspace boundary.
@@ -128,10 +134,15 @@ impl TauriToolExecutor {
             }
         }
         match std::fs::write(&p, content) {
-            Ok(_) => ToolResult::ok(
-                "write_file",
-                format!("Wrote {} bytes to {}", content.len(), path),
-            ),
+            Ok(_) => {
+                if let Some(ref app) = self.app {
+                    let _ = app.emit("file:written", serde_json::json!({
+                        "path": p.to_string_lossy(),
+                        "content": content,
+                    }));
+                }
+                ToolResult::ok("write_file", format!("Wrote {} bytes to {}", content.len(), path))
+            }
             Err(e) => ToolResult::err("write_file", e.to_string()),
         }
     }
