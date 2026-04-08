@@ -57,6 +57,7 @@ pub struct TauriToolExecutor {
 }
 
 impl TauriToolExecutor {
+    #[cfg(test)]
     pub fn new(workspace_root: PathBuf) -> Self {
         Self { workspace_root, app: None }
     }
