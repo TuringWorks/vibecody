@@ -474,8 +474,8 @@ async fn gateway_process_tool_calls(response: &str, sandbox_path: &str) -> Strin
     if !written.is_empty() {
         if !result.is_empty() { result.push('\n'); }
         for w in &written {
-            if w.starts_with("ERROR:") {
-                result.push_str(&format!("\n❌ {}", &w[6..]));
+            if let Some(w_stripped) = w.strip_prefix("ERROR:") {
+                result.push_str(&format!("\n❌ {}", w_stripped));
             } else {
                 result.push_str(&format!("\n✅ Wrote `{}`", w));
             }
@@ -799,7 +799,7 @@ pub async fn start_sandbox_gateway(
                                 .or_else(|| body["senderId"].as_str())
                                 .unwrap_or("unknown").to_string();
                             let session_webhook = body["sessionWebhook"].as_str()
-                                .or_else(|| Some(ou.as_str())).unwrap_or("").to_string();
+                                .or(Some(ou.as_str())).unwrap_or("").to_string();
                             if text.is_empty() { return; }
                             if !au.is_empty() && !au.contains(&sender) { return; }
                             push_log(&gl, "in", "dingtalk", &sender, &text).await;
@@ -2959,7 +2959,7 @@ pub(crate) async fn fetch_and_strip(url: &str) -> Result<String, String> {
     if !lower_url.starts_with("http://") && !lower_url.starts_with("https://") {
         return Err(format!("Only http/https URLs allowed (got '{}')", url));
     }
-    let after_scheme = if lower_url.starts_with("https://") { &lower_url[8..] } else { &lower_url[7..] };
+    let after_scheme = if let Some(s) = lower_url.strip_prefix("https://") { s } else { &lower_url[7..] };
     let host = after_scheme.split('/').next().unwrap_or("").split(':').next().unwrap_or("");
     if host == "localhost" || host == "127.0.0.1" || host == "::1" || host == "0.0.0.0"
         || host == "169.254.169.254" || host == "metadata.google.internal"
@@ -6330,9 +6330,9 @@ fn parse_build_errors(output: &str, build_system: &str) -> Vec<BuildError> {
                     let mut file = None;
                     let mut ln = None;
                     let mut col = None;
-                    for j in i+1..lines.len().min(i+5) {
-                        if let Some(arrow) = lines[j].find("--> ") {
-                            let loc = &lines[j][arrow+4..];
+                    for line_j in lines.iter().take(lines.len().min(i+5)).skip(i+1) {
+                        if let Some(arrow) = line_j.find("--> ") {
+                            let loc = &line_j[arrow+4..];
                             let parts: Vec<&str> = loc.rsplitn(3, ':').collect();
                             if parts.len() >= 3 {
                                 col = parts[0].trim().parse().ok();
@@ -11292,7 +11292,7 @@ pub async fn run_coverage(
             .args(["llvm-cov", "--version"])
             .output()
             .await;
-        if !check.as_ref().map_or(false, |o| o.status.success()) {
+        if !check.as_ref().is_ok_and(|o| o.status.success()) {
             return Err(
                 "cargo-llvm-cov is not installed. Install it with:\n  \
                  cargo install cargo-llvm-cov\n\n\
@@ -11500,7 +11500,7 @@ fn build_temp_provider(provider_type: &str, model: &str)
         "together"             => std::env::var("TOGETHER_API_KEY").ok(),
         "fireworks"            => std::env::var("FIREWORKS_API_KEY").ok(),
         "ollama"               => Some(String::new()),
-        _                      => std::env::var(&format!("{}_API_KEY", provider_type.to_uppercase())).ok(),
+        _                      => std::env::var(format!("{}_API_KEY", provider_type.to_uppercase())).ok(),
     };
 
     // Fall back to saved settings from profile_settings.db
@@ -11519,7 +11519,7 @@ fn build_temp_provider(provider_type: &str, model: &str)
     };
 
     // Reject providers that need an API key but don't have one
-    if provider_type != "ollama" && api_key.as_ref().map_or(true, |k| k.is_empty()) {
+    if provider_type != "ollama" && api_key.as_ref().is_none_or(|k| k.is_empty()) {
         return None;
     }
 
@@ -29671,7 +29671,7 @@ pub async fn superbrain_query(
             }
 
             let judge = judge_entry.as_ref()
-                .or(provider_entries.first().map(|e| e))
+                .or(provider_entries.first())
                 .ok_or("No judge provider configured")?;
             let judge_msgs = SuperBrainPrompts::best_of_n_judge_prompt(&prompt, &contributions);
             let judge_prov = build_temp_provider(&judge.provider, &judge.model)
@@ -36865,7 +36865,7 @@ pub async fn worktree_list(
 ) -> Result<serde_json::Value, String> {
     let agents = state.worktree_agents.lock().await;
     let active = agents.iter().filter(|a| {
-        a.get("status").and_then(|v| v.as_str()).map_or(false, |s| s == "running")
+        a.get("status").and_then(|v| v.as_str()) == Some("running")
     }).count();
     Ok(serde_json::json!({ "agents": *agents, "active_count": active }))
 }
@@ -36878,7 +36878,7 @@ pub async fn worktree_spawn(
     let now = chrono::Utc::now().timestamp();
     let mut agents = state.worktree_agents.lock().await;
     let active = agents.iter().filter(|a| {
-        a.get("status").and_then(|v| v.as_str()).map_or(false, |s| s == "running")
+        a.get("status").and_then(|v| v.as_str()) == Some("running")
     }).count();
     if active >= 4 {
         return Err("Maximum 4 concurrent worktree agents".to_string());
@@ -37385,7 +37385,7 @@ pub async fn semindex_search(
     let q = query.to_lowercase();
     let results: Vec<_> = symbols.iter()
         .filter(|s| {
-            s.get("name").and_then(|v| v.as_str()).map_or(false, |n| n.to_lowercase().contains(&q))
+            s.get("name").and_then(|v| v.as_str()).is_some_and(|n| n.to_lowercase().contains(&q))
         })
         .take(20).cloned().collect();
     Ok(serde_json::json!({ "query": query, "results": results, "count": results.len() }))
@@ -37399,7 +37399,7 @@ pub async fn semindex_callers(
     let symbols = state.semindex_symbols.lock().await;
     // Simulate: find symbols that might call this one
     let callers: Vec<_> = symbols.iter()
-        .filter(|s| s.get("name").and_then(|v| v.as_str()).map_or(false, |n| n != symbol))
+        .filter(|s| s.get("name").and_then(|v| v.as_str()).is_some_and(|n| n != symbol))
         .take(5).cloned().collect();
     Ok(serde_json::json!({ "symbol": symbol, "callers": callers }))
 }
@@ -37411,7 +37411,7 @@ pub async fn semindex_callees(
 ) -> Result<serde_json::Value, String> {
     let symbols = state.semindex_symbols.lock().await;
     let callees: Vec<_> = symbols.iter()
-        .filter(|s| s.get("name").and_then(|v| v.as_str()).map_or(false, |n| n != symbol))
+        .filter(|s| s.get("name").and_then(|v| v.as_str()).is_some_and(|n| n != symbol))
         .take(5).cloned().collect();
     Ok(serde_json::json!({ "symbol": symbol, "callees": callees }))
 }
@@ -38136,7 +38136,7 @@ pub async fn sketch_generate(_state: tauri::State<'_, AppState>, framework: Stri
                 swift_shapes, canvas_w, canvas_h
             )
         },
-        _ => format!("{}", svg_body),
+        _ => svg_body.to_string(),
     };
     Ok(serde_json::json!({ "framework": framework, "code": code, "shape_count": shapes.len() }))
 }
@@ -39408,7 +39408,7 @@ pub async fn handle_productivity_command(args: String) -> Result<String, String>
     } else {
         "todo"
     };
-    let rest = args.splitn(2, ' ').nth(1).unwrap_or("").to_string();
+    let rest = args.split_once(' ').map(|x| x.1).unwrap_or("").to_string();
     tokio::task::spawn_blocking(move || run_vibecli_cmd(sub, &rest))
         .await
         .map_err(|e| e.to_string())?
@@ -39866,8 +39866,7 @@ pub async fn company_list_skills() -> Result<serde_json::Value, String> {
                 let mut frontmatter_name = name.clone();
                 if let Ok(content) = std::fs::read_to_string(&path) {
                     // Parse YAML frontmatter between --- delimiters
-                    if content.starts_with("---") {
-                        let rest = &content[3..];
+                    if let Some(rest) = content.strip_prefix("---") {
                         if let Some(end) = rest.find("---") {
                             let fm = &rest[..end];
                             for line in fm.lines() {

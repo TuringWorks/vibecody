@@ -530,7 +530,7 @@ pub fn ks_test(sample_a: &[f64], sample_b: &[f64]) -> KsTestResult {
     // Approximate p-value using Kolmogorov distribution asymptotic form
     let en = (n_a * n_b / (n_a + n_b)).sqrt();
     let lambda_val = (en + 0.12 + 0.11 / en) * d_max;
-    let p_value = (-2.0 * lambda_val * lambda_val).exp().max(0.0).min(1.0);
+    let p_value = (-2.0 * lambda_val * lambda_val).exp().clamp(0.0, 1.0);
 
     KsTestResult {
         statistic: d_max,
@@ -633,7 +633,7 @@ impl RewardDriftDetector {
                     / (self.recent_window.len() - 1) as f64
             };
             let ratio = recent_var / (self.baseline_std.powi(2)).max(0.0001);
-            if ratio > 2.0 || ratio < 0.5 {
+            if !(0.5..=2.0).contains(&ratio) {
                 reports.push(RewardDriftReport {
                     drift_type: DriftType::VarianceChange,
                     detected: true,
@@ -1518,7 +1518,7 @@ impl TrainingHealthMonitor {
         if initial == 0.0 {
             return 100.0;
         }
-        ((initial - current) / initial * 100.0).max(0.0).min(100.0)
+        ((initial - current) / initial * 100.0).clamp(0.0, 100.0)
     }
 
     pub fn health_summary(&self) -> TrainingHealthSummary {

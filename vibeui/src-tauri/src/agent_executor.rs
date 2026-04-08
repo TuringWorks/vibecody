@@ -27,7 +27,7 @@ fn validate_url_for_ssrf(url: &str) -> Result<(), String> {
     }
 
     // Extract hostname
-    let after_scheme = if lower.starts_with("https://") { &lower[8..] } else { &lower[7..] };
+    let after_scheme = if let Some(s) = lower.strip_prefix("https://") { s } else { &lower[7..] };
     let host = after_scheme.split('/').next().unwrap_or("");
     let host = host.split(':').next().unwrap_or(""); // strip port
 

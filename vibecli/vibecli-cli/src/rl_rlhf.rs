@@ -546,6 +546,7 @@ impl PpoConfig {
     }
 
     /// Simulate a PPO step with provided rollout data.
+    #[allow(clippy::too_many_arguments)]
     pub fn simulate_step(
         &self,
         ratios: &[f64],
@@ -1067,9 +1068,7 @@ impl RewardModelEnsemble {
     pub fn new(num_models: usize, aggregation: EnsembleAggregation) -> Self {
         let models: Vec<RewardModelConfig> = (0..num_models)
             .map(|i| {
-                let mut cfg = RewardModelConfig::default();
-                cfg.model_name = format!("reward-model-{}", i);
-                cfg
+                RewardModelConfig { model_name: format!("reward-model-{}", i), ..Default::default() }
             })
             .collect();
         let weights = vec![1.0 / num_models as f64; num_models];
@@ -1094,7 +1093,7 @@ impl RewardModelEnsemble {
                 let mut sorted = scores.to_vec();
                 sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
                 let mid = sorted.len() / 2;
-                if sorted.len() % 2 == 0 {
+                if sorted.len().is_multiple_of(2) {
                     (sorted[mid - 1] + sorted[mid]) / 2.0
                 } else {
                     sorted[mid]

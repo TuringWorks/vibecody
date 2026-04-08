@@ -565,7 +565,7 @@ impl PolicyConfig {
 }
 
 /// Observation preprocessing configuration.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct PreprocessConfig {
     pub normalize: bool,
     pub mean: Vec<f64>,
@@ -573,19 +573,6 @@ pub struct PreprocessConfig {
     pub clip_min: Option<f64>,
     pub clip_max: Option<f64>,
     pub feature_select: Option<Vec<usize>>,
-}
-
-impl Default for PreprocessConfig {
-    fn default() -> Self {
-        Self {
-            normalize: false,
-            mean: Vec::new(),
-            std_dev: Vec::new(),
-            clip_min: None,
-            clip_max: None,
-            feature_select: None,
-        }
-    }
 }
 
 impl PreprocessConfig {
@@ -1679,14 +1666,14 @@ impl PolicyExecutor {
         let act_dim = config.action_dim;
         let mut output = vec![0.0; act_dim];
 
-        for i in 0..act_dim {
+        for (i, out) in output.iter_mut().enumerate().take(act_dim) {
             let mut val = config.bias.get(i).copied().unwrap_or(0.0);
-            for j in 0..obs_dim.min(obs.len()) {
+            for (j, &ob) in obs.iter().enumerate().take(obs_dim.min(obs.len())) {
                 let w_idx = i * obs_dim + j;
                 let w = config.weights.get(w_idx).copied().unwrap_or(0.0);
-                val += w * obs[j];
+                val += w * ob;
             }
-            output[i] = val;
+            *out = val;
         }
 
         output
