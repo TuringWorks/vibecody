@@ -49,7 +49,7 @@ fn days_to_year_month(mut days: u64) -> (u64, u64) {
 }
 
 fn is_leap(y: u64) -> bool {
-    (y % 4 == 0 && y % 100 != 0) || y % 400 == 0
+    (y.is_multiple_of(4) && !y.is_multiple_of(100)) || y.is_multiple_of(400)
 }
 
 // ── Data structs ──────────────────────────────────────────────────────────────
@@ -168,7 +168,7 @@ impl<'a> BudgetStore<'a> {
             "SELECT id, company_id, agent_id, month, limit_cents, spent_cents, hard_stop, alert_pct, created_at
              FROM budgets WHERE id = ?1",
         )?;
-        let mut rows = stmt.query_map(params![id], |row| row_to_budget(row))?;
+        let mut rows = stmt.query_map(params![id], row_to_budget)?;
         rows.next().transpose().map_err(|e| anyhow!("{e}"))
     }
 
@@ -182,7 +182,7 @@ impl<'a> BudgetStore<'a> {
             "SELECT id, company_id, agent_id, month, limit_cents, spent_cents, hard_stop, alert_pct, created_at
              FROM budgets WHERE company_id = ?1 AND agent_id = ?2 AND month = ?3",
         )?;
-        let mut rows = stmt.query_map(params![company_id, agent_id, month], |row| row_to_budget(row))?;
+        let mut rows = stmt.query_map(params![company_id, agent_id, month], row_to_budget)?;
         rows.next().transpose().map_err(|e| anyhow!("{e}"))
     }
 
@@ -191,7 +191,7 @@ impl<'a> BudgetStore<'a> {
             "SELECT id, company_id, agent_id, month, limit_cents, spent_cents, hard_stop, alert_pct, created_at
              FROM budgets WHERE company_id = ?1 ORDER BY month DESC, agent_id ASC",
         )?;
-        let rows = stmt.query_map(params![company_id], |row| row_to_budget(row))?
+        let rows = stmt.query_map(params![company_id], row_to_budget)?
             .collect::<rusqlite::Result<Vec<_>>>()?;
         Ok(rows)
     }
@@ -245,10 +245,10 @@ impl<'a> BudgetStore<'a> {
         };
         let mut stmt = self.conn.prepare(sql)?;
         let rows = if use_agent {
-            stmt.query_map(params![company_id, agent_id.unwrap()], |row| row_to_event(row))?
+            stmt.query_map(params![company_id, agent_id.unwrap()], row_to_event)?
                 .collect::<rusqlite::Result<Vec<_>>>()?
         } else {
-            stmt.query_map(params![company_id], |row| row_to_event(row))?
+            stmt.query_map(params![company_id], row_to_event)?
                 .collect::<rusqlite::Result<Vec<_>>>()?
         };
         Ok(rows)

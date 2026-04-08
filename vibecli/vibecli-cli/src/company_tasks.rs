@@ -48,6 +48,7 @@ impl TaskStatus {
             Self::Cancelled => "cancelled",
         }
     }
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         match s {
             "todo" => Self::Todo,
@@ -201,6 +202,7 @@ impl<'a> TaskStore<'a> {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn create(
         &self,
         company_id: &str,
@@ -244,6 +246,7 @@ impl<'a> TaskStore<'a> {
     }
 
     /// Create a task with owner, program, and recurrence fields.
+    #[allow(clippy::too_many_arguments)]
     pub fn create_v2(
         &self,
         company_id: &str,
@@ -296,7 +299,7 @@ impl<'a> TaskStore<'a> {
                     COALESCE(owner,'agent'), COALESCE(program,''), recurrence
              FROM tasks WHERE id = ?1",
         )?;
-        let mut rows = stmt.query_map(params![id], |row| row_to_task(row))?;
+        let mut rows = stmt.query_map(params![id], row_to_task)?;
         rows.next().transpose().map_err(|e| anyhow!("{e}"))
     }
 
@@ -314,10 +317,10 @@ impl<'a> TaskStore<'a> {
         };
         let mut stmt = self.conn.prepare(sql)?;
         let rows = if let Some(sf) = status_filter {
-            stmt.query_map(params![company_id, sf], |row| row_to_task(row))?
+            stmt.query_map(params![company_id, sf], row_to_task)?
                 .collect::<rusqlite::Result<Vec<_>>>()?
         } else {
-            stmt.query_map(params![company_id], |row| row_to_task(row))?
+            stmt.query_map(params![company_id], row_to_task)?
                 .collect::<rusqlite::Result<Vec<_>>>()?
         };
         rows.into_iter()

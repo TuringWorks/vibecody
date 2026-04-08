@@ -283,8 +283,8 @@ impl TestSuggester {
                 let trimmed = line.trim();
 
                 // New function → unit test
-                if trimmed.starts_with('+') {
-                    let code = &trimmed[1..].trim();
+                if let Some(stripped) = trimmed.strip_prefix('+') {
+                    let code = &stripped.trim();
                     if code.starts_with("pub fn ")
                         || code.starts_with("fn ")
                         || code.starts_with("pub async fn ")
@@ -385,13 +385,11 @@ fn extract_js_fn_name(code: &str) -> Option<String> {
     let code = code
         .trim_start_matches("export ")
         .trim_start_matches("default ");
-    if code.starts_with("function ") {
-        let rest = &code["function ".len()..];
+    if let Some(rest) = code.strip_prefix("function ") {
         let end = rest.find('(')?;
         let name = rest[..end].trim();
         if name.is_empty() { None } else { Some(name.to_string()) }
-    } else if code.starts_with("const ") {
-        let rest = &code["const ".len()..];
+    } else if let Some(rest) = code.strip_prefix("const ") {
         let end = rest.find(' ').or_else(|| rest.find('='))?;
         let name = rest[..end].trim();
         if name.is_empty() { None } else { Some(name.to_string()) }
@@ -611,7 +609,7 @@ impl DiffAnalyzer {
         let test_suggestions = if self.config.include_test_suggestions {
             limited
                 .iter()
-                .flat_map(|f| TestSuggester::suggest(f))
+                .flat_map(TestSuggester::suggest)
                 .collect::<Vec<_>>()
         } else {
             vec![]
@@ -783,7 +781,7 @@ impl DiffAnalyzer {
     pub fn suggest_tests(&self, files: &[DiffFile]) -> Vec<String> {
         let mut all: Vec<String> = files
             .iter()
-            .flat_map(|f| TestSuggester::suggest(f))
+            .flat_map(TestSuggester::suggest)
             .collect();
         all.sort();
         all.dedup();

@@ -333,7 +333,7 @@ fn parse_unified_diff(diff: &str) -> Vec<DiffFile> {
             // Parse hunk header: @@ -start,count +start,count @@
             if let Some(plus_pos) = line.find('+') {
                 let after_plus = &line[plus_pos + 1..];
-                if let Some(comma_or_space) = after_plus.find(|c: char| c == ',' || c == ' ') {
+                if let Some(comma_or_space) = after_plus.find([',', ' ']) {
                     if let Ok(n) = after_plus[..comma_or_space].parse::<usize>() {
                         current_line = n.saturating_sub(1);
                     }
@@ -344,9 +344,9 @@ fn parse_unified_diff(diff: &str) -> Vec<DiffFile> {
                 current_line += 1;
                 f.added_lines.push((current_line, added.to_string()));
                 f.lines_added += 1;
-            } else if line.starts_with('-') {
+            } else if let Some(stripped) = line.strip_prefix('-') {
                 f.removed_lines
-                    .push((current_line, line[1..].to_string()));
+                    .push((current_line, stripped.to_string()));
                 f.lines_removed += 1;
             } else {
                 current_line += 1;
@@ -643,6 +643,7 @@ fn extract_function_name(line: &str) -> Option<String> {
     None
 }
 
+#[allow(clippy::too_many_arguments)]
 fn emit_complexity_findings(
     findings: &mut Vec<ReviewFinding>,
     next_id: &mut u64,
@@ -764,22 +765,22 @@ pub fn detect_style_issues(code: &str) -> Vec<ReviewFinding> {
 
         // TODO/FIXME/HACK/XXX comments
         let upper = trimmed.to_uppercase();
-        if upper.contains("TODO") || upper.contains("FIXME") || upper.contains("HACK") || upper.contains("XXX") {
-            if trimmed.starts_with("//") || trimmed.starts_with('#') || trimmed.starts_with("*") {
-                findings.push(ReviewFinding {
-                    id: format!("STY-{}", next_id),
-                    file: String::new(),
-                    line_start: ln,
-                    line_end: ln,
-                    severity: ReviewSeverity::Info,
-                    category: ReviewCategory::Style,
-                    message: "TODO/FIXME/HACK comment found".to_string(),
-                    suggestion: Some("Track in issue tracker instead of code comments".to_string()),
-                    auto_fixable: false,
-                    confidence: 0.95,
-                });
-                next_id += 1;
-            }
+        if (upper.contains("TODO") || upper.contains("FIXME") || upper.contains("HACK") || upper.contains("XXX"))
+            && (trimmed.starts_with("//") || trimmed.starts_with('#') || trimmed.starts_with('*'))
+        {
+            findings.push(ReviewFinding {
+                id: format!("STY-{}", next_id),
+                file: String::new(),
+                line_start: ln,
+                line_end: ln,
+                severity: ReviewSeverity::Info,
+                category: ReviewCategory::Style,
+                message: "TODO/FIXME/HACK comment found".to_string(),
+                suggestion: Some("Track in issue tracker instead of code comments".to_string()),
+                auto_fixable: false,
+                confidence: 0.95,
+            });
+            next_id += 1;
         }
 
         // Consecutive blank lines (check with context)
@@ -798,7 +799,7 @@ pub fn detect_style_issues(code: &str) -> Vec<ReviewFinding> {
             // Check for bare numeric literals > 2 digits that are not 0, 1, 2, 100, etc.
             for word in trimmed.split_whitespace() {
                 if let Ok(n) = word.trim_matches(|c: char| !c.is_ascii_digit() && c != '-').parse::<i64>() {
-                    if n.abs() > 2 && n != 10 && n != 100 && n != 1000 && n != 0xFF && n != 255 {
+                    if n.abs() > 2 && n != 10 && n != 100 && n != 1000 && n != 0xFF {
                         // Only flag if it looks like a standalone number in an expression
                         if (trimmed.contains("==") || trimmed.contains(">=") || trimmed.contains("<=") || trimmed.contains("> ") || trimmed.contains("< "))
                             && word.chars().all(|c| c.is_ascii_digit() || c == '-')
@@ -1259,6 +1260,12 @@ pub fn detect_architecture_violations(code: &str) -> Vec<ReviewFinding> {
 
 pub struct LinterAggregator {
     supported_linters: HashMap<String, Vec<String>>,
+}
+
+impl Default for LinterAggregator {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl LinterAggregator {
@@ -1788,7 +1795,7 @@ impl AiCodeReviewEngine {
         md.push_str(&format!("{}\n\n", analysis.summary));
 
         md.push_str("### Stats\n\n");
-        md.push_str(&format!("| Metric | Value |\n|--------|-------|\n"));
+        md.push_str("| Metric | Value |\n|--------|-------|\n");
         md.push_str(&format!("| Files changed | {} |\n", analysis.files_changed));
         md.push_str(&format!("| Lines added | +{} |\n", analysis.lines_added));
         md.push_str(&format!("| Lines removed | -{} |\n", analysis.lines_removed));
@@ -1911,14 +1918,14 @@ impl AiCodeReviewEngine {
         for (dir, files) in &dirs {
             let dir_id = format!("D{}", node_id);
             node_id += 1;
-            let sanitized_dir = dir.replace('-', "_").replace('.', "_");
+            let sanitized_dir = dir.replace(['-', '.'], "_");
             mermaid.push_str(&format!("    {}[\"{}\"]\n", dir_id, sanitized_dir));
             dir_nodes.insert(dir.clone(), dir_id.clone());
 
             for file in files {
                 let file_id = format!("F{}", node_id);
                 node_id += 1;
-                let sanitized = file.replace('-', "_").replace('.', "_");
+                let sanitized = file.replace(['-', '.'], "_");
                 mermaid.push_str(&format!("    {}[\"{}\"]\n", file_id, sanitized));
                 mermaid.push_str(&format!("    {} --> {}\n", dir_id, file_id));
             }
@@ -2059,7 +2066,7 @@ impl AiCodeReviewEngine {
 
         // Rough heuristic: ratio of test files to source files
         let ratio = test_files as f64 / src_files as f64;
-        (ratio - 0.5).max(-0.5).min(0.5) // Delta between -50% and +50%
+        (ratio - 0.5).clamp(-0.5, 0.5) // Delta between -50% and +50%
     }
 
     fn infer_pr_title(&self, diff_files: &[DiffFile]) -> String {

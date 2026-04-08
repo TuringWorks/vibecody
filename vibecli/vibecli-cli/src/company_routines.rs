@@ -102,6 +102,7 @@ impl<'a> RoutineStore<'a> {
         self.create_with_delivery(company_id, agent_id, name, prompt, interval_secs, "none", None)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn create_with_delivery(
         &self,
         company_id: &str,
@@ -158,7 +159,7 @@ impl<'a> RoutineStore<'a> {
             "SELECT id, company_id, agent_id, name, prompt, interval_secs, next_run_at, last_run_at, active, max_concurrent, created_at, delivery_mode, skill_name, model, thinking_level, timeout_secs
              FROM routines ORDER BY name ASC",
         )?;
-        let rows = stmt.query_map([], |row| row_to_routine_full(row))?
+        let rows = stmt.query_map([], row_to_routine_full)?
             .collect::<rusqlite::Result<Vec<_>>>()?;
         let values = rows.into_iter()
             .map(|r| serde_json::to_value(&r).unwrap_or(serde_json::Value::Null))
@@ -171,7 +172,7 @@ impl<'a> RoutineStore<'a> {
             "SELECT id, company_id, agent_id, name, prompt, interval_secs, next_run_at, last_run_at, active, max_concurrent, created_at, COALESCE(delivery_mode,'none'), skill_name, model, thinking_level, timeout_secs
              FROM routines WHERE id = ?1",
         )?;
-        let mut rows = stmt.query_map(params![id], |row| row_to_routine_full(row))?;
+        let mut rows = stmt.query_map(params![id], row_to_routine_full)?;
         rows.next().transpose().map_err(|e| anyhow!("{e}"))
     }
 
@@ -180,7 +181,7 @@ impl<'a> RoutineStore<'a> {
             "SELECT id, company_id, agent_id, name, prompt, interval_secs, next_run_at, last_run_at, active, max_concurrent, created_at, COALESCE(delivery_mode,'none'), skill_name, model, thinking_level, timeout_secs
              FROM routines WHERE company_id = ?1 ORDER BY name ASC",
         )?;
-        let rows = stmt.query_map(params![company_id], |row| row_to_routine_full(row))?
+        let rows = stmt.query_map(params![company_id], row_to_routine_full)?
             .collect::<rusqlite::Result<Vec<_>>>()?;
         Ok(rows)
     }
@@ -207,7 +208,7 @@ impl<'a> RoutineStore<'a> {
             "SELECT id, company_id, agent_id, name, prompt, interval_secs, next_run_at, last_run_at, active, max_concurrent, created_at, COALESCE(delivery_mode,'none'), skill_name, model, thinking_level, timeout_secs
              FROM routines WHERE active = 1 AND next_run_at <= ?1 ORDER BY next_run_at ASC",
         )?;
-        let rows = stmt.query_map(params![now], |row| row_to_routine_full(row))?
+        let rows = stmt.query_map(params![now], row_to_routine_full)?
             .collect::<rusqlite::Result<Vec<_>>>()?;
         Ok(rows)
     }

@@ -41,6 +41,7 @@ impl CompanyStatus {
             Self::Archived => "archived",
         }
     }
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         match s {
             "paused" => Self::Paused,
@@ -68,6 +69,7 @@ impl CompanyRole {
             Self::Specialist(s) => format!("specialist:{s}"),
         }
     }
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         match s {
             "ceo" => Self::Ceo,
@@ -99,6 +101,7 @@ impl AgentStatus {
             Self::Terminated => "terminated",
         }
     }
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         match s {
             "active" => Self::Active,
@@ -131,6 +134,7 @@ impl AdapterType {
             Self::Process => "process",
         }
     }
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         match s {
             "claude" => Self::Claude,
@@ -422,6 +426,7 @@ impl CompanyStore {
 
     // ── Agent CRUD ────────────────────────────────────────────────────────────
 
+    #[allow(clippy::too_many_arguments)]
     pub fn hire_agent(
         &self,
         company_id: &str,

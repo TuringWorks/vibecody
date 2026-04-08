@@ -288,8 +288,8 @@ impl ConditionEvaluator {
                 let lhs = resolved.clone().unwrap_or_default();
                 match &condition.value {
                     ConditionValue::String(s) => lhs == *s,
-                    ConditionValue::Number(n) => lhs.parse::<f64>().map_or(false, |v| (v - n).abs() < f64::EPSILON),
-                    ConditionValue::Bool(b) => lhs.parse::<bool>().map_or(false, |v| v == *b),
+                    ConditionValue::Number(n) => lhs.parse::<f64>().is_ok_and(|v| (v - n).abs() < f64::EPSILON),
+                    ConditionValue::Bool(b) => lhs.parse::<bool>() == Ok(*b),
                     ConditionValue::Null => is_none,
                     ConditionValue::List(_) => false,
                 }
@@ -299,7 +299,7 @@ impl ConditionEvaluator {
                 match &condition.value {
                     ConditionValue::String(s) => lhs != *s,
                     ConditionValue::Number(n) => lhs.parse::<f64>().map_or(true, |v| (v - n).abs() >= f64::EPSILON),
-                    ConditionValue::Bool(b) => lhs.parse::<bool>().map_or(true, |v| v != *b),
+                    ConditionValue::Bool(b) => lhs.parse::<bool>() != Ok(*b),
                     ConditionValue::Null => is_some,
                     ConditionValue::List(_) => true,
                 }
@@ -343,7 +343,7 @@ impl ConditionEvaluator {
                 let lhs = resolved.unwrap_or_default();
                 match &condition.value {
                     ConditionValue::String(pattern) => {
-                        Regex::new(pattern).map_or(false, |re| re.is_match(&lhs))
+                        Regex::new(pattern).is_ok_and(|re| re.is_match(&lhs))
                     }
                     _ => false,
                 }
@@ -389,7 +389,7 @@ impl ConditionEvaluator {
                 // Negate: resolve the expression and compare to the value.
                 let lhs = resolved.unwrap_or_default();
                 match &condition.value {
-                    ConditionValue::Bool(b) => lhs.parse::<bool>().map_or(false, |v| v != *b),
+                    ConditionValue::Bool(b) => lhs.parse::<bool>().is_ok_and(|v| v != *b),
                     ConditionValue::String(s) => lhs != *s,
                     _ => false,
                 }
@@ -580,17 +580,10 @@ impl PolicyEngine {
                         ));
                     }
                     Some((_, _, _, current_priority)) => {
-                        // Lower priority number = higher precedence.
-                        if rule.priority < *current_priority {
-                            best_match = Some((
-                                rule.effect.clone(),
-                                rule.id.clone(),
-                                policy.id.clone(),
-                                rule.priority,
-                            ));
-                        }
-                        // At equal priority, Deny wins.
-                        else if rule.priority == *current_priority && rule.effect == Effect::Deny {
+                        // Lower priority number = higher precedence; at equal priority, Deny wins.
+                        if rule.priority < *current_priority
+                            || (rule.priority == *current_priority && rule.effect == Effect::Deny)
+                        {
                             best_match = Some((
                                 rule.effect.clone(),
                                 rule.id.clone(),

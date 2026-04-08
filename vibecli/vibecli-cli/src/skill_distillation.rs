@@ -707,7 +707,7 @@ impl DistillationEngine {
                 .flat_map(|p| {
                     p.rule
                         .split(':')
-                        .last()
+                        .next_back()
                         .map(|s| s.to_string())
                         .into_iter()
                 })
