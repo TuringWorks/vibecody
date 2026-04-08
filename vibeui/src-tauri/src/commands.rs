@@ -28927,9 +28927,9 @@ fn json_gates_to_quantum_circuit(circuit_json: &serde_json::Value) -> Result<vib
                 "Rx" => { let t = get_target(gate); let a = gate.get("angle").and_then(|a| a.as_f64()).unwrap_or(0.0); Some(QuantumGate::Rx(t, a)) }
                 "Ry" => { let t = get_target(gate); let a = gate.get("angle").and_then(|a| a.as_f64()).unwrap_or(0.0); Some(QuantumGate::Ry(t, a)) }
                 "Rz" => { let t = get_target(gate); let a = gate.get("angle").and_then(|a| a.as_f64()).unwrap_or(0.0); Some(QuantumGate::Rz(t, a)) }
-                "CNOT" => { let c = gate.get("control").and_then(|c| c.as_u64()).unwrap_or(0) as usize; let t = get_target(gate); Some(QuantumGate::CNOT(c, t)) }
+                "CNOT" => { let c = gate.get("control").and_then(|c| c.as_u64()).unwrap_or(0) as usize; let t = get_target(gate); Some(QuantumGate::Cnot(c, t)) }
                 "CZ" => { let c = gate.get("control").and_then(|c| c.as_u64()).unwrap_or(0) as usize; let t = get_target(gate); Some(QuantumGate::CZ(c, t)) }
-                "SWAP" => { let c = gate.get("control").and_then(|c| c.as_u64()).unwrap_or(0) as usize; let t = get_target(gate); Some(QuantumGate::SWAP(c, t)) }
+                "SWAP" => { let c = gate.get("control").and_then(|c| c.as_u64()).unwrap_or(0) as usize; let t = get_target(gate); Some(QuantumGate::Swap(c, t)) }
                 "Toffoli" => {
                     let ctrls = gate.get("controls").and_then(|c| c.as_array());
                     let t = get_target(gate);
@@ -28964,9 +28964,9 @@ fn quantum_circuit_to_gate_json(circuit: &vibecli_cli::quantum_computing::Quantu
         QuantumGate::Rx(t, a) => serde_json::json!({"type": "Rx", "target": t, "angle": a}),
         QuantumGate::Ry(t, a) => serde_json::json!({"type": "Ry", "target": t, "angle": a}),
         QuantumGate::Rz(t, a) => serde_json::json!({"type": "Rz", "target": t, "angle": a}),
-        QuantumGate::CNOT(c, t) => serde_json::json!({"type": "CNOT", "control": c, "target": t}),
+        QuantumGate::Cnot(c, t) => serde_json::json!({"type": "CNOT", "control": c, "target": t}),
         QuantumGate::CZ(c, t) => serde_json::json!({"type": "CZ", "control": c, "target": t}),
-        QuantumGate::SWAP(a, b) => serde_json::json!({"type": "SWAP", "control": a, "target": b}),
+        QuantumGate::Swap(a, b) => serde_json::json!({"type": "SWAP", "control": a, "target": b}),
         QuantumGate::Toffoli(c1, c2, t) => serde_json::json!({"type": "Toffoli", "controls": [c1, c2], "target": t}),
         QuantumGate::Measure(q, c) => serde_json::json!({"type": "Measure", "qubit": q, "classical": c}),
     }).collect()

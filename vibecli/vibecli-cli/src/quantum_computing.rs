@@ -1729,8 +1729,8 @@ mod tests {
 
     #[test]
     fn test_qml_algorithms() {
-        assert_eq!(QuantumAlgorithm::QSVM.category(), "Quantum machine learning");
-        assert_eq!(QuantumAlgorithm::QNN.category(), "Quantum machine learning");
+        assert_eq!(QuantumAlgorithm::Qsvm.category(), "Quantum machine learning");
+        assert_eq!(QuantumAlgorithm::Qnn.category(), "Quantum machine learning");
     }
 
     // --- Error correction tests ---

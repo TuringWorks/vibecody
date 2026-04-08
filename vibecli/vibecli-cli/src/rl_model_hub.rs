@@ -47,14 +47,14 @@ pub enum RlAlgorithm {
 impl RlAlgorithm {
     pub fn label(&self) -> &str {
         match self {
-            Self::PPO => "PPO",
-            Self::SAC => "SAC",
-            Self::DQN => "DQN",
-            Self::A2C => "A2C",
-            Self::TD3 => "TD3",
-            Self::DDPG => "DDPG",
-            Self::TRPO => "TRPO",
-            Self::IMPALA => "IMPALA",
+            Self::Ppo => "PPO",
+            Self::Sac => "SAC",
+            Self::Dqn => "DQN",
+            Self::A2c => "A2C",
+            Self::Td3 => "TD3",
+            Self::Ddpg => "DDPG",
+            Self::Trpo => "TRPO",
+            Self::Impala => "IMPALA",
             Self::Dreamer => "Dreamer",
             Self::MuZero => "MuZero",
             Self::Custom(s) => s.as_str(),
@@ -62,11 +62,11 @@ impl RlAlgorithm {
     }
 
     pub fn is_on_policy(&self) -> bool {
-        matches!(self, Self::PPO | Self::A2C | Self::TRPO | Self::IMPALA)
+        matches!(self, Self::Ppo | Self::A2c | Self::Trpo | Self::Impala)
     }
 
     pub fn is_off_policy(&self) -> bool {
-        matches!(self, Self::SAC | Self::DQN | Self::TD3 | Self::DDPG)
+        matches!(self, Self::Sac | Self::Dqn | Self::Td3 | Self::Ddpg)
     }
 
     pub fn is_model_based(&self) -> bool {
@@ -83,9 +83,9 @@ impl std::fmt::Display for RlAlgorithm {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ArtifactFormat {
     PyTorch,
-    ONNX,
+    Onnx,
     TorchScript,
-    WASM,
+    Wasm,
     TFLite,
     CustomRuntime(String),
 }
@@ -94,9 +94,9 @@ impl ArtifactFormat {
     pub fn label(&self) -> &str {
         match self {
             Self::PyTorch => "pytorch",
-            Self::ONNX => "onnx",
+            Self::Onnx => "onnx",
             Self::TorchScript => "torchscript",
-            Self::WASM => "wasm",
+            Self::Wasm => "wasm",
             Self::TFLite => "tflite",
             Self::CustomRuntime(s) => s.as_str(),
         }
@@ -105,9 +105,9 @@ impl ArtifactFormat {
     pub fn file_extension(&self) -> &str {
         match self {
             Self::PyTorch => ".pt",
-            Self::ONNX => ".onnx",
+            Self::Onnx => ".onnx",
             Self::TorchScript => ".pt",
-            Self::WASM => ".wasm",
+            Self::Wasm => ".wasm",
             Self::TFLite => ".tflite",
             Self::CustomRuntime(_) => ".bin",
         }
@@ -143,14 +143,14 @@ impl PromotionStage {
     }
 
     pub fn can_promote_to(&self, target: &PromotionStage) -> bool {
-        match (self, target) {
-            (Self::Development, Self::Staging) => true,
-            (Self::Staging, Self::Canary) => true,
-            (Self::Canary, Self::Production) => true,
-            (Self::Production, Self::Deprecated) => true,
-            (Self::Deprecated, Self::Archived) => true,
-            _ => false,
-        }
+        matches!(
+            (self, target),
+            (Self::Development, Self::Staging)
+                | (Self::Staging, Self::Canary)
+                | (Self::Canary, Self::Production)
+                | (Self::Production, Self::Deprecated)
+                | (Self::Deprecated, Self::Archived)
+        )
     }
 
     pub fn ordinal(&self) -> u8 {
@@ -401,10 +401,10 @@ impl NormalizationStats {
         }
         self.count += 1;
         let n = self.count as f64;
-        for i in 0..observation.len() {
-            let delta = observation[i] - self.running_mean[i];
+        for (i, &obs_val) in observation.iter().enumerate() {
+            let delta = obs_val - self.running_mean[i];
             self.running_mean[i] += delta / n;
-            let delta2 = observation[i] - self.running_mean[i];
+            let delta2 = obs_val - self.running_mean[i];
             let new_var = ((n - 1.0) * self.running_std[i].powi(2) + delta * delta2) / n;
             self.running_std[i] = new_var.max(1e-8).sqrt();
         }
@@ -786,7 +786,7 @@ impl EvaluationResults {
     }
 
     pub fn safety_passed(&self) -> bool {
-        self.safety_report.as_ref().map_or(true, |r| r.passed)
+        self.safety_report.as_ref().is_none_or(|r| r.passed)
     }
 
     pub fn scenario_count(&self) -> usize {
@@ -1231,6 +1231,7 @@ pub struct ExportBundle {
 }
 
 impl ExportBundle {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         format: ArtifactFormat,
         policy_name: &str,
@@ -1406,7 +1407,7 @@ impl ModelCard {
             for lim in &self.known_limitations {
                 md.push_str(&format!("- {}\n", lim));
             }
-            md.push_str("\n");
+            md.push('\n');
         }
         if !self.tags.is_empty() {
             md.push_str(&format!("## Tags\n\n{}\n\n", self.tags.join(", ")));
@@ -1416,7 +1417,7 @@ impl ModelCard {
             for fmt in &self.artifact_formats {
                 md.push_str(&format!("- {}\n", fmt));
             }
-            md.push_str("\n");
+            md.push('\n');
         }
         md.push_str(&format!("## Deployment\n\n{}\n", self.deployment_notes));
         md
@@ -1504,6 +1505,7 @@ pub struct PolicyRecord {
 }
 
 impl PolicyRecord {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         name: &str,
         version: SemanticVersion,
@@ -1833,7 +1835,7 @@ impl ModelHub {
         let full_id = record.full_id();
         self.log_audit(&key, &version_str, &record.author, AuditAction::Register);
 
-        self.policies.entry(key).or_insert_with(Vec::new).push(record);
+        self.policies.entry(key).or_default().push(record);
         Ok(full_id)
     }
 
@@ -2092,7 +2094,7 @@ impl ModelHub {
             bundle = bundle.with_normalization(stats.clone());
         }
 
-        bundle.set_metadata("algorithm", &record.algorithm.label().to_string());
+        bundle.set_metadata("algorithm", record.algorithm.label());
         bundle.set_metadata("author", &record.author);
         bundle.set_metadata("env_name", &record.env_name);
         bundle.set_metadata("training_steps", &record.lineage.training_steps.to_string());
@@ -2187,7 +2189,7 @@ impl ModelHub {
                 .unwrap_or(false);
 
             if !exists {
-                self.policies.entry(key.clone()).or_insert_with(Vec::new).push(record);
+                self.policies.entry(key.clone()).or_default().push(record);
                 self.log_audit(&key, &version_str, actor, AuditAction::Import);
                 imported += 1;
             }
@@ -2225,11 +2227,7 @@ impl ModelHub {
         let mut current_name = name.to_string();
         let mut current_version = version.to_string();
 
-        loop {
-            let record = match self.get(&current_name, &current_version) {
-                Some(r) => r,
-                None => break,
-            };
+        while let Some(record) = self.get(&current_name, &current_version) {
             chain.push(record.full_id());
 
             if let Some(ref parent) = record.lineage.parent_policy {
@@ -2367,7 +2365,7 @@ mod tests {
         PolicyRecord::new(
             name,
             ver,
-            RlAlgorithm::PPO,
+            RlAlgorithm::Ppo,
             "tester",
             "CartPole-v1",
             SpaceType::Continuous { dims: 4 },
@@ -2479,11 +2477,11 @@ mod tests {
 
     #[test]
     fn test_algorithm_classification() {
-        assert!(RlAlgorithm::PPO.is_on_policy());
-        assert!(!RlAlgorithm::PPO.is_off_policy());
-        assert!(RlAlgorithm::SAC.is_off_policy());
+        assert!(RlAlgorithm::Ppo.is_on_policy());
+        assert!(!RlAlgorithm::Ppo.is_off_policy());
+        assert!(RlAlgorithm::Sac.is_off_policy());
         assert!(RlAlgorithm::MuZero.is_model_based());
-        assert!(!RlAlgorithm::DQN.is_model_based());
+        assert!(!RlAlgorithm::Dqn.is_model_based());
     }
 
     #[test]
@@ -2496,7 +2494,7 @@ mod tests {
 
     #[test]
     fn test_algorithm_display() {
-        assert_eq!(format!("{}", RlAlgorithm::PPO), "PPO");
+        assert_eq!(format!("{}", RlAlgorithm::Ppo), "PPO");
         assert_eq!(format!("{}", RlAlgorithm::Dreamer), "Dreamer");
     }
 
@@ -2548,8 +2546,8 @@ mod tests {
     #[test]
     fn test_artifact_format_extension() {
         assert_eq!(ArtifactFormat::PyTorch.file_extension(), ".pt");
-        assert_eq!(ArtifactFormat::ONNX.file_extension(), ".onnx");
-        assert_eq!(ArtifactFormat::WASM.file_extension(), ".wasm");
+        assert_eq!(ArtifactFormat::Onnx.file_extension(), ".onnx");
+        assert_eq!(ArtifactFormat::Wasm.file_extension(), ".wasm");
         assert_eq!(ArtifactFormat::TFLite.file_extension(), ".tflite");
         assert_eq!(ArtifactFormat::CustomRuntime("myrt".into()).file_extension(), ".bin");
     }
@@ -3136,9 +3134,9 @@ mod tests {
     fn test_search_by_algorithm() {
         let mut hub = make_hub();
         register_sample(&mut hub);
-        let results = hub.search_by_algorithm(RlAlgorithm::PPO);
+        let results = hub.search_by_algorithm(RlAlgorithm::Ppo);
         assert_eq!(results.len(), 1);
-        let results = hub.search_by_algorithm(RlAlgorithm::SAC);
+        let results = hub.search_by_algorithm(RlAlgorithm::Sac);
         assert_eq!(results.len(), 0);
     }
 
@@ -3189,7 +3187,7 @@ mod tests {
         let mut criteria = SearchCriteria::new();
         criteria.has_artifact_format = Some(ArtifactFormat::PyTorch);
         assert_eq!(hub.search(&criteria).len(), 1);
-        criteria.has_artifact_format = Some(ArtifactFormat::ONNX);
+        criteria.has_artifact_format = Some(ArtifactFormat::Onnx);
         assert_eq!(hub.search(&criteria).len(), 0);
     }
 
@@ -3199,7 +3197,7 @@ mod tests {
     fn test_add_artifact() {
         let mut hub = make_hub();
         register_sample(&mut hub);
-        let onnx = Artifact::new(ArtifactFormat::ONNX, "/models/policy.onnx", "sha256:cafe", 2048, 2000);
+        let onnx = Artifact::new(ArtifactFormat::Onnx, "/models/policy.onnx", "sha256:cafe", 2048, 2000);
         hub.add_artifact("cart-ppo", "1.0.0", onnx, "tester").unwrap();
         let record = hub.get("cart-ppo", "1.0.0").unwrap();
         assert_eq!(record.artifacts.len(), 2);
@@ -3217,7 +3215,7 @@ mod tests {
     fn test_get_artifact_not_found() {
         let mut hub = make_hub();
         register_sample(&mut hub);
-        let err = hub.get_artifact("cart-ppo", "1.0.0", &ArtifactFormat::WASM).unwrap_err();
+        let err = hub.get_artifact("cart-ppo", "1.0.0", &ArtifactFormat::Wasm).unwrap_err();
         assert!(matches!(err, HubError::ArtifactNotFound { .. }));
     }
 
@@ -3268,7 +3266,7 @@ mod tests {
         hub.register(r1).unwrap();
 
         let mut r2 = make_record("sac-v1", "1.0.0");
-        r2.algorithm = RlAlgorithm::SAC;
+        r2.algorithm = RlAlgorithm::Sac;
         r2.lineage = PolicyLineage::new("HalfCheetah-v3", "different_hash", "config/sac.yaml");
         r2.latest_eval = Some(make_eval(150.0));
         hub.register(r2).unwrap();
@@ -3295,7 +3293,7 @@ mod tests {
     fn test_export_bundle_missing_format() {
         let mut hub = make_hub();
         register_sample(&mut hub);
-        let err = hub.export_bundle("cart-ppo", "1.0.0", ArtifactFormat::WASM).unwrap_err();
+        let err = hub.export_bundle("cart-ppo", "1.0.0", ArtifactFormat::Wasm).unwrap_err();
         assert!(matches!(err, HubError::ArtifactNotFound { .. }));
     }
 
@@ -3318,7 +3316,7 @@ mod tests {
         register_sample(&mut hub);
         let card = hub.generate_model_card("cart-ppo", "1.0.0").unwrap();
         assert_eq!(card.policy_name, "cart-ppo");
-        assert_eq!(card.algorithm, RlAlgorithm::PPO);
+        assert_eq!(card.algorithm, RlAlgorithm::Ppo);
         assert!(card.eval_summary.contains("Mean reward"));
     }
 
@@ -3537,7 +3535,7 @@ mod tests {
     #[test]
     fn test_export_bundle_reproducible() {
         let bundle = ExportBundle::new(
-            ArtifactFormat::ONNX,
+            ArtifactFormat::Onnx,
             "test-pol",
             "1.0.0",
             SpaceType::Continuous { dims: 4 },
@@ -3554,7 +3552,7 @@ mod tests {
     #[test]
     fn test_export_bundle_not_reproducible() {
         let bundle = ExportBundle::new(
-            ArtifactFormat::ONNX,
+            ArtifactFormat::Onnx,
             "test-pol",
             "1.0.0",
             SpaceType::Continuous { dims: 4 },
@@ -3571,7 +3569,7 @@ mod tests {
     #[test]
     fn test_export_bundle_summary() {
         let bundle = ExportBundle::new(
-            ArtifactFormat::ONNX,
+            ArtifactFormat::Onnx,
             "test-pol",
             "1.0.0",
             SpaceType::Continuous { dims: 4 },
@@ -3677,13 +3675,13 @@ mod tests {
         hub.add_tag("cart-ppo", "1.0.0", "stable", "tester").unwrap();
 
         let mut r2 = make_record("lunar-sac", "1.0.0");
-        r2.algorithm = RlAlgorithm::SAC;
+        r2.algorithm = RlAlgorithm::Sac;
         r2.env_name = "LunarLander-v2".to_string();
         hub.register(r2).unwrap();
 
         let criteria = SearchCriteria::new()
             .with_env("CartPole-v1")
-            .with_algorithm(RlAlgorithm::PPO)
+            .with_algorithm(RlAlgorithm::Ppo)
             .with_tag("stable");
         let results = hub.search(&criteria);
         assert_eq!(results.len(), 1);

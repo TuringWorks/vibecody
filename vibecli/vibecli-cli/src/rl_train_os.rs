@@ -2537,41 +2537,41 @@ mod tests {
 
     #[test]
     fn test_algorithm_families() {
-        assert_eq!(AlgorithmId::PPO.family(), AlgorithmFamily::OnPolicy);
-        assert_eq!(AlgorithmId::SAC.family(), AlgorithmFamily::OffPolicy);
-        assert_eq!(AlgorithmId::CQL.family(), AlgorithmFamily::OfflineRL);
+        assert_eq!(AlgorithmId::Ppo.family(), AlgorithmFamily::OnPolicy);
+        assert_eq!(AlgorithmId::Sac.family(), AlgorithmFamily::OffPolicy);
+        assert_eq!(AlgorithmId::Cql.family(), AlgorithmFamily::OfflineRL);
         assert_eq!(AlgorithmId::DreamerV3.family(), AlgorithmFamily::ModelBased);
-        assert_eq!(AlgorithmId::MAPPO.family(), AlgorithmFamily::MultiAgent);
+        assert_eq!(AlgorithmId::Mappo.family(), AlgorithmFamily::MultiAgent);
         assert_eq!(AlgorithmId::Bc.family(), AlgorithmFamily::Imitation);
     }
 
     #[test]
     fn test_algorithm_names() {
-        assert_eq!(AlgorithmId::PPO.name(), "PPO");
+        assert_eq!(AlgorithmId::Ppo.name(), "PPO");
         assert_eq!(AlgorithmId::Td3bc.name(), "TD3+BC");
-        assert_eq!(AlgorithmId::QRDQN.name(), "QR-DQN");
+        assert_eq!(AlgorithmId::Qrdqn.name(), "QR-DQN");
         assert_eq!(AlgorithmId::DecisionTransformer.name(), "Decision Transformer");
     }
 
     #[test]
     fn test_algorithm_requires_replay_buffer() {
-        assert!(!AlgorithmId::PPO.requires_replay_buffer());
-        assert!(AlgorithmId::SAC.requires_replay_buffer());
-        assert!(AlgorithmId::CQL.requires_replay_buffer());
-        assert!(!AlgorithmId::MAPPO.requires_replay_buffer());
+        assert!(!AlgorithmId::Ppo.requires_replay_buffer());
+        assert!(AlgorithmId::Sac.requires_replay_buffer());
+        assert!(AlgorithmId::Cql.requires_replay_buffer());
+        assert!(!AlgorithmId::Mappo.requires_replay_buffer());
     }
 
     #[test]
     fn test_algorithm_continuous_action_support() {
-        assert!(AlgorithmId::PPO.supports_continuous_actions());
-        assert!(AlgorithmId::SAC.supports_continuous_actions());
-        assert!(!AlgorithmId::DQN.supports_continuous_actions());
+        assert!(AlgorithmId::Ppo.supports_continuous_actions());
+        assert!(AlgorithmId::Sac.supports_continuous_actions());
+        assert!(!AlgorithmId::Dqn.supports_continuous_actions());
         assert!(!AlgorithmId::C51.supports_continuous_actions());
     }
 
     #[test]
     fn test_algorithm_default_hyperparams_ppo() {
-        let hp = AlgorithmId::PPO.default_hyperparams();
+        let hp = AlgorithmId::Ppo.default_hyperparams();
         assert_eq!(*hp.get("clip_ratio").unwrap(), 0.2);
         assert_eq!(*hp.get("entropy_coef").unwrap(), 0.01);
         assert!(hp.contains_key("learning_rate"));
@@ -2579,7 +2579,7 @@ mod tests {
 
     #[test]
     fn test_algorithm_default_hyperparams_sac() {
-        let hp = AlgorithmId::SAC.default_hyperparams();
+        let hp = AlgorithmId::Sac.default_hyperparams();
         assert_eq!(*hp.get("tau").unwrap(), 0.005);
         assert_eq!(*hp.get("alpha").unwrap(), 0.2);
     }
@@ -2618,7 +2618,7 @@ mod tests {
     #[test]
     fn test_algorithm_registry_custom_registration() {
         let mut reg = AlgorithmRegistry::new();
-        let desc = AlgorithmDescriptor::new(AlgorithmId::PPO);
+        let desc = AlgorithmDescriptor::new(AlgorithmId::Ppo);
         reg.register_custom("custom_ppo".into(), desc);
         assert_eq!(reg.count(), 31);
         assert!(reg.get("custom_ppo").is_some());

@@ -1744,7 +1744,7 @@ mod tests {
     #[test]
     fn test_push_platform_display() {
         assert_eq!(PushPlatform::APNs.to_string(), "apns");
-        assert_eq!(PushPlatform::FCM.to_string(), "fcm");
+        assert_eq!(PushPlatform::Fcm.to_string(), "fcm");
     }
 
     #[test]
@@ -1772,7 +1772,7 @@ mod tests {
 
         // Pair second device.
         let p2 = gw.create_pairing(&mid, PairingMethod::Pin).unwrap().id.clone();
-        gw.accept_pairing(&p2, "dev-2", "Pixel", PushPlatform::FCM, None, "1.0", "14.0").unwrap();
+        gw.accept_pairing(&p2, "dev-2", "Pixel", PushPlatform::Fcm, None, "1.0", "14.0").unwrap();
 
         assert_eq!(gw.list_devices_for_machine(&mid).len(), 2);
     }
