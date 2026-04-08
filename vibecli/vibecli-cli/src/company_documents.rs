@@ -65,7 +65,8 @@ impl<'a> DocumentStore<'a> {
                 author_agent_id TEXT,
                 revision        INTEGER NOT NULL DEFAULT 1,
                 created_at      INTEGER NOT NULL,
-                updated_at      INTEGER NOT NULL
+                updated_at      INTEGER NOT NULL,
+                role            TEXT NOT NULL DEFAULT 'reference'
             );
             CREATE INDEX IF NOT EXISTS idx_documents_company ON documents(company_id);
 
@@ -78,7 +79,8 @@ impl<'a> DocumentStore<'a> {
                 created_at      INTEGER NOT NULL
             );
         "#)?;
-        let _ = self.conn.execute_batch("ALTER TABLE documents ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'reference'");
+        // Migration: add role column to existing databases (silently ignore if already present)
+        let _ = self.conn.execute_batch("ALTER TABLE documents ADD COLUMN role TEXT NOT NULL DEFAULT 'reference'");
         Ok(())
     }
 

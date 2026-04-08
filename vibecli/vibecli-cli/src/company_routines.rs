@@ -70,18 +70,24 @@ impl<'a> RoutineStore<'a> {
                 last_run_at     INTEGER NOT NULL DEFAULT 0,
                 active          INTEGER NOT NULL DEFAULT 1,
                 max_concurrent  INTEGER NOT NULL DEFAULT 1,
-                created_at      INTEGER NOT NULL
+                created_at      INTEGER NOT NULL,
+                delivery_mode   TEXT NOT NULL DEFAULT 'none',
+                skill_name      TEXT,
+                model           TEXT,
+                thinking_level  TEXT,
+                timeout_secs    INTEGER
             );
             CREATE INDEX IF NOT EXISTS idx_routines_company ON routines(company_id);
             CREATE INDEX IF NOT EXISTS idx_routines_agent ON routines(agent_id);
             CREATE INDEX IF NOT EXISTS idx_routines_due ON routines(active, next_run_at);
         "#)?;
         // Schema migrations for new columns
-        let _ = self.conn.execute_batch("ALTER TABLE routines ADD COLUMN IF NOT EXISTS delivery_mode TEXT NOT NULL DEFAULT 'none'");
-        let _ = self.conn.execute_batch("ALTER TABLE routines ADD COLUMN IF NOT EXISTS skill_name TEXT");
-        let _ = self.conn.execute_batch("ALTER TABLE routines ADD COLUMN IF NOT EXISTS model TEXT");
-        let _ = self.conn.execute_batch("ALTER TABLE routines ADD COLUMN IF NOT EXISTS thinking_level TEXT");
-        let _ = self.conn.execute_batch("ALTER TABLE routines ADD COLUMN IF NOT EXISTS timeout_secs INTEGER");
+        // Migrations for existing databases (silently ignored if columns already present)
+        let _ = self.conn.execute_batch("ALTER TABLE routines ADD COLUMN delivery_mode TEXT NOT NULL DEFAULT 'none'");
+        let _ = self.conn.execute_batch("ALTER TABLE routines ADD COLUMN skill_name TEXT");
+        let _ = self.conn.execute_batch("ALTER TABLE routines ADD COLUMN model TEXT");
+        let _ = self.conn.execute_batch("ALTER TABLE routines ADD COLUMN thinking_level TEXT");
+        let _ = self.conn.execute_batch("ALTER TABLE routines ADD COLUMN timeout_secs INTEGER");
         Ok(())
     }
 

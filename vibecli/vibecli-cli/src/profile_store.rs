@@ -228,7 +228,7 @@ impl ProfileStore {
         for row in rows {
             let (k, blob) = row.map_err(|e| e.to_string())?;
             if let Ok(v) = decrypt(&self.key, &blob) {
-                let val = serde_json::from_str(&v).unwrap_or(serde_json::Value::String(v));
+                let val = serde_json::Value::String(v);
                 map.insert(k, val);
             }
         }

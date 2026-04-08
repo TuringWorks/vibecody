@@ -531,9 +531,9 @@ impl HealthEngine {
     pub fn scan(&mut self, project_path: &str, _file_count_hint: usize) -> HealthSnapshot {
         self.ts += 1;
 
-        // Walk the real filesystem — ignores the old hardcoded hint
+        // Walk the real filesystem; fall back to hint for non-existent paths (tests / remote scans)
         let (all_files, _test_count, doc_count, total_lines) = Self::walk_project(project_path);
-        let fc = all_files.len().max(1);
+        let fc = if all_files.is_empty() { _file_count_hint.max(1) } else { all_files.len() };
         let file_refs: Vec<&str> = all_files.iter().map(|s| s.as_str()).collect();
 
         // Dependency freshness: count dependency manifest entries as a proxy
