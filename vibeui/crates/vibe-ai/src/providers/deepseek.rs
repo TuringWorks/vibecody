@@ -121,7 +121,7 @@ mod tests {
     #[test]
     fn name_is_deepseek() {
         let p = DeepSeekProvider::new(test_config());
-        assert_eq!(p.name(), "DeepSeek");
+        assert_eq!(p.name(), "DeepSeek (deepseek-coder)");
     }
 
     #[tokio::test]
@@ -233,7 +233,7 @@ mod tests {
     #[test]
     fn name_returns_deepseek() {
         let p = DeepSeekProvider::new(test_config());
-        assert_eq!(p.name(), "DeepSeek");
+        assert_eq!(p.name(), "DeepSeek (deepseek-coder)");
     }
 
     #[tokio::test]

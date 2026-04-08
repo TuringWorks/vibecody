@@ -121,7 +121,7 @@ mod tests {
     #[test]
     fn name_is_perplexity() {
         let p = PerplexityProvider::new(test_config());
-        assert_eq!(p.name(), "Perplexity");
+        assert_eq!(p.name(), "Perplexity (sonar-pro)");
     }
 
     #[tokio::test]

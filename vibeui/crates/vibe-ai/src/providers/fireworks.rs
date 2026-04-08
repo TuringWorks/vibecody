@@ -121,7 +121,7 @@ mod tests {
     #[test]
     fn name_is_fireworks_ai() {
         let p = FireworksProvider::new(test_config());
-        assert_eq!(p.name(), "Fireworks AI");
+        assert_eq!(p.name(), "Fireworks AI (accounts/fireworks/models/llama-v3p1-70b-instruct)");
     }
 
     #[tokio::test]

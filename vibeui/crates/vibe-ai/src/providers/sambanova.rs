@@ -121,7 +121,7 @@ mod tests {
     #[test]
     fn name_is_sambanova() {
         let p = SambaNovaProvider::new(test_config());
-        assert_eq!(p.name(), "SambaNova");
+        assert_eq!(p.name(), "SambaNova (Meta-Llama-3.1-70B-Instruct)");
     }
 
     #[tokio::test]

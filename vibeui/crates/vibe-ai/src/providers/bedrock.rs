@@ -741,7 +741,7 @@ mod tests {
     #[test]
     fn bedrock_provider_name() {
         let provider = BedrockProvider::new(test_bedrock_config());
-        assert_eq!(provider.name(), "Bedrock");
+        assert_eq!(provider.name(), "Bedrock (anthropic.claude-3-sonnet-20240229-v1:0)");
     }
 
     // ── ConverseResponse deserialization ─────────────────────────────────

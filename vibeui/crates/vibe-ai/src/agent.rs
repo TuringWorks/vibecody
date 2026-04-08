@@ -1800,7 +1800,7 @@ mod circuit_breaker_tests {
         );
         let exec: Arc<dyn ToolExecutorTrait> = Arc::new(DummyExecutor);
         let agent = AgentLoop::new(provider, ApprovalPolicy::Suggest, exec);
-        assert_eq!(agent.max_steps, 30);
+        assert_eq!(agent.max_steps, 50);
     }
 
     // ── AgentHealthState Display & Eq ───────────────────────────────────

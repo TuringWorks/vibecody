@@ -222,7 +222,7 @@ mod tests {
     #[test]
     fn name_is_zhipu() {
         let p = ZhipuProvider::new(test_config());
-        assert_eq!(p.name(), "Zhipu");
+        assert_eq!(p.name(), "Zhipu (glm-4)");
     }
 
     #[tokio::test]

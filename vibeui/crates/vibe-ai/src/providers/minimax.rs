@@ -121,7 +121,7 @@ mod tests {
     #[test]
     fn name_is_minimax() {
         let p = MiniMaxProvider::new(test_config());
-        assert_eq!(p.name(), "MiniMax");
+        assert_eq!(p.name(), "MiniMax (abab6.5s-chat)");
     }
 
     #[tokio::test]

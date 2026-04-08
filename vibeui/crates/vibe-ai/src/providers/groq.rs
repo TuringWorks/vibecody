@@ -122,7 +122,7 @@ mod tests {
     #[test]
     fn name_is_groq() {
         let p = GroqProvider::new(test_config());
-        assert_eq!(p.name(), "Groq");
+        assert_eq!(p.name(), "Groq (llama-3.3-70b-versatile)");
     }
 
     #[tokio::test]

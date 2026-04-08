@@ -248,7 +248,7 @@ mod tests {
     #[test]
     fn name_is_azure_openai() {
         let p = AzureOpenAIProvider::new(test_config());
-        assert_eq!(p.name(), "AzureOpenAI");
+        assert_eq!(p.name(), "AzureOpenAI (gpt-4o)");
     }
 
     #[tokio::test]

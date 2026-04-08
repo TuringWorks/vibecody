@@ -416,7 +416,7 @@ mod tests {
     #[test]
     fn name_is_copilot() {
         let p = CopilotProvider::new(test_config());
-        assert_eq!(p.name(), "Copilot");
+        assert_eq!(p.name(), "Copilot (gpt-4o)");
     }
 
     #[test]

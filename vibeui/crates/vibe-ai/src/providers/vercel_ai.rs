@@ -124,7 +124,7 @@ mod tests {
     #[test]
     fn name_is_vercel_ai() {
         let p = VercelAIProvider::new(test_config());
-        assert_eq!(p.name(), "VercelAI");
+        assert_eq!(p.name(), "VercelAI (gpt-4o)");
     }
 
     #[tokio::test]
@@ -386,7 +386,7 @@ mod tests {
         let mut cfg = test_config();
         cfg.model = "custom-model-v2".into();
         let p = VercelAIProvider::new(cfg);
-        assert_eq!(p.name(), "VercelAI");
+        assert_eq!(p.name(), "VercelAI (custom-model-v2)");
         // Model is stored in config
         assert_eq!(p.config.model, "custom-model-v2");
     }

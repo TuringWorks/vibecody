@@ -122,7 +122,7 @@ mod tests {
     #[test]
     fn name_is_mistral() {
         let p = MistralProvider::new(test_config());
-        assert_eq!(p.name(), "Mistral");
+        assert_eq!(p.name(), "Mistral (mistral-large-latest)");
     }
 
     #[tokio::test]
@@ -235,7 +235,7 @@ mod tests {
     #[test]
     fn name_returns_correct_string() {
         let p = MistralProvider::new(test_config());
-        assert_eq!(p.name(), "Mistral");
+        assert_eq!(p.name(), "Mistral (mistral-large-latest)");
         // Verify it is a static str, not dynamic
         let name: &str = p.name();
         assert!(!name.is_empty());

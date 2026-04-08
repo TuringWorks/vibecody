@@ -121,7 +121,7 @@ mod tests {
     #[test]
     fn name_is_cerebras() {
         let p = CerebrasProvider::new(test_config());
-        assert_eq!(p.name(), "Cerebras");
+        assert_eq!(p.name(), "Cerebras (llama3.1-70b)");
     }
 
     #[tokio::test]
@@ -239,7 +239,7 @@ mod tests {
     #[test]
     fn name_returns_cerebras() {
         let p = CerebrasProvider::new(test_config());
-        assert_eq!(p.name(), "Cerebras");
+        assert_eq!(p.name(), "Cerebras (llama3.1-70b)");
     }
 
     #[tokio::test]

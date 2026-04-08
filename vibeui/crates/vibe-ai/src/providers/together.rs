@@ -121,7 +121,7 @@ mod tests {
     #[test]
     fn name_is_together_ai() {
         let p = TogetherProvider::new(test_config());
-        assert_eq!(p.name(), "Together AI");
+        assert_eq!(p.name(), "Together AI (meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo)");
     }
 
     #[tokio::test]
