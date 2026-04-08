@@ -2027,10 +2027,10 @@ async fn main() -> Result<()> {
                             let dir = command.strip_prefix("cd").unwrap_or("").trim();
                             let target = if dir.is_empty() || dir == "~" {
                                 dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("/"))
-                            } else if dir.starts_with("~/") {
+                            } else if let Some(stripped) = dir.strip_prefix("~/") {
                                 dirs::home_dir()
                                     .unwrap_or_else(|| std::path::PathBuf::from("/"))
-                                    .join(&dir[2..])
+                                    .join(stripped)
                             } else if dir == "-" {
                                 std::env::var("OLDPWD")
                                     .map(std::path::PathBuf::from)
@@ -6684,7 +6684,7 @@ async fn main() -> Result<()> {
                             match subcmd {
                                 "benchmark" => {
                                     let bench_args: Vec<&str> = if sub_parts.len() > 1 {
-                                        sub_parts[1].trim().split_whitespace().collect()
+                                        sub_parts[1].split_whitespace().collect()
                                     } else {
                                         vec![]
                                     };

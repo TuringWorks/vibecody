@@ -2239,8 +2239,7 @@ pub fn detect_anomalies_isolation(values: &[f64], contamination: f64) -> Vec<Ano
             }
             let deviation = (v - median).abs() / mad;
             let path_est = avg_path_length / (1.0 + deviation);
-            let score = 2.0_f64.powf(-path_est / avg_path_length);
-            score
+            2.0_f64.powf(-path_est / avg_path_length)
         })
         .collect();
 
