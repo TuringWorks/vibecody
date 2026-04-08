@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! RL-OS Evaluation Operating System — comprehensive reinforcement learning policy evaluation.
 //!
 //! Provides a full-stack evaluation pipeline for RL policies:
@@ -244,19 +243,19 @@ impl ReportFormat {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum DriftType {
-    RewardDrift,
-    StateDrift,
-    ActionDrift,
-    DistributionalDrift,
+    Reward,
+    State,
+    Action,
+    Distributional,
 }
 
 impl DriftType {
     pub fn label(&self) -> &'static str {
         match self {
-            Self::RewardDrift => "Reward Drift",
-            Self::StateDrift => "State Drift",
-            Self::ActionDrift => "Action Drift",
-            Self::DistributionalDrift => "Distributional Drift",
+            Self::Reward => "Reward Drift",
+            Self::State => "State Drift",
+            Self::Action => "Action Drift",
+            Self::Distributional => "Distributional Drift",
         }
     }
 }
@@ -535,7 +534,7 @@ pub fn compute_performance_metrics(episodes: &[EpisodeRecord], win_threshold: f6
     let mean_len = lengths.iter().sum::<usize>() as f64 / n;
     let mut sorted_lengths = lengths.clone();
     sorted_lengths.sort();
-    let median_len = if sorted_lengths.len() % 2 == 0 {
+    let median_len = if sorted_lengths.len().is_multiple_of(2) {
         let mid = sorted_lengths.len() / 2;
         (sorted_lengths[mid - 1] + sorted_lengths[mid]) as f64 / 2.0
     } else {
@@ -1082,7 +1081,7 @@ pub fn run_adversarial_eval(
         .fold(f64::NEG_INFINITY, f64::max);
 
     let robustness = if clean_mean.abs() > f64::EPSILON {
-        (adv_mean / clean_mean).min(1.0).max(0.0)
+        (adv_mean / clean_mean).clamp(0.0, 1.0)
     } else {
         1.0
     };
@@ -1339,7 +1338,7 @@ pub fn compute_generalization_score(
         } else {
             0.0
         };
-        let score = ratio.min(1.0).max(0.0);
+        let score = ratio.clamp(0.0, 1.0);
         per_env.insert(env.env_name.clone(), score);
         if score < worst_score {
             worst_score = score;
@@ -1372,7 +1371,7 @@ pub fn compute_generalization_score(
     // Transfer efficiency: ratio of eval performance to training performance
     let eval_mean_reward = eval_envs.iter().map(|e| e.mean_reward).sum::<f64>() / eval_envs.len() as f64;
     let transfer_efficiency = if training_env.mean_reward.abs() > f64::EPSILON {
-        (eval_mean_reward / training_env.mean_reward).min(1.0).max(0.0)
+        (eval_mean_reward / training_env.mean_reward).clamp(0.0, 1.0)
     } else {
         0.0
     };
@@ -2402,7 +2401,7 @@ impl ContinuousEvalState {
         };
 
         let detection = DriftDetection {
-            drift_type: DriftType::RewardDrift,
+            drift_type: DriftType::Reward,
             metric_name: "mean_reward".to_string(),
             baseline_value: baseline_mean,
             current_value: recent_mean,
@@ -2427,7 +2426,7 @@ impl ContinuousEvalState {
         let wr_magnitude = (recent_wr - baseline_wr).abs();
         if wr_magnitude > self.config.drift_threshold {
             let wr_detection = DriftDetection {
-                drift_type: DriftType::ActionDrift,
+                drift_type: DriftType::Action,
                 metric_name: "win_rate".to_string(),
                 baseline_value: baseline_wr,
                 current_value: recent_wr,
@@ -3733,7 +3732,7 @@ mod tests {
 
     #[test]
     fn test_drift_type_display() {
-        assert_eq!(format!("{}", DriftType::RewardDrift), "Reward Drift");
+        assert_eq!(format!("{}", DriftType::Reward), "Reward Drift");
     }
 
     #[test]

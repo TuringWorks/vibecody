@@ -277,7 +277,7 @@ impl<'a> SecretStore<'a> {
             "SELECT id, company_id, key_name, encrypted_value, nonce, version, created_by, created_at, updated_at
              FROM secrets WHERE company_id = ?1 AND key_name = ?2",
         )?;
-        let mut rows = stmt.query_map(params![company_id, key_name], |row| row_to_secret(row))?;
+        let mut rows = stmt.query_map(params![company_id, key_name], row_to_secret)?;
         rows.next().transpose().map_err(|e| anyhow!("{e}"))
     }
 
@@ -286,7 +286,7 @@ impl<'a> SecretStore<'a> {
             "SELECT id, company_id, key_name, encrypted_value, nonce, version, created_by, created_at, updated_at
              FROM secrets WHERE company_id = ?1 ORDER BY key_name ASC",
         )?;
-        let rows = stmt.query_map(params![company_id], |row| row_to_secret(row))?
+        let rows = stmt.query_map(params![company_id], row_to_secret)?
             .collect::<rusqlite::Result<Vec<_>>>()?;
         Ok(rows)
     }

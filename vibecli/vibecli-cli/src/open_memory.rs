@@ -1800,8 +1800,8 @@ impl OpenMemoryStore {
 
         for line in markdown.lines() {
             let trimmed = line.trim();
-            if trimmed.starts_with("## ") {
-                current_tag = trimmed[3..].trim().to_string();
+            if let Some(after_header) = trimmed.strip_prefix("## ") {
+                current_tag = after_header.trim().to_string();
             } else if trimmed.starts_with("- ") || trimmed.starts_with("* ") {
                 let content = trimmed[2..].trim();
                 if content.len() >= 3 {

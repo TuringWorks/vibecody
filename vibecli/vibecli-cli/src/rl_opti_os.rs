@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! OptiOS — Reinforcement Learning Operating System for model optimization.
 //!
 //! A production-grade RL-aware optimization pipeline covering:
@@ -431,7 +430,7 @@ pub struct ModelLayer {
 impl ModelLayer {
     pub fn memory_bytes(&self, precision: &QuantizationPrecision) -> u64 {
         let bits = precision.bits() as u64;
-        (self.parameter_count * bits + 7) / 8
+        (self.parameter_count * bits).div_ceil(8)
     }
 }
 
@@ -804,14 +803,14 @@ impl QualityGateCondition {
             Self::MaxRewardRegression(max) => metrics.reward_regression <= *max,
             Self::MaxActionKl(max) => metrics.action_kl_divergence <= *max,
             Self::MaxValueMse(max) => metrics.value_mse <= *max,
-            Self::MaxLatencyMs(max) => metrics.latency_ms.map_or(true, |l| l <= *max),
-            Self::MinThroughput(min) => metrics.throughput.map_or(true, |t| t >= *min),
-            Self::MaxMemoryMb(max) => metrics.memory_mb.map_or(true, |m| m <= *max),
+            Self::MaxLatencyMs(max) => metrics.latency_ms.is_none_or(|l| l <= *max),
+            Self::MinThroughput(min) => metrics.throughput.is_none_or(|t| t >= *min),
+            Self::MaxMemoryMb(max) => metrics.memory_mb.is_none_or(|m| m <= *max),
             Self::MinCompressionRatio(min) => metrics.compression_ratio >= *min,
-            Self::MaxSparsity(max) => metrics.sparsity.map_or(true, |s| s <= *max),
+            Self::MaxSparsity(max) => metrics.sparsity.is_none_or(|s| s <= *max),
             Self::MinRewardRetention(min) => metrics.reward_retention >= *min,
             Self::Custom { metric_name, threshold, less_than } => {
-                metrics.custom_metrics.get(metric_name).map_or(true, |v| {
+                metrics.custom_metrics.get(metric_name).is_none_or(|v| {
                     if *less_than { *v <= *threshold } else { *v >= *threshold }
                 })
             }
@@ -1373,7 +1372,7 @@ impl OptiOsEngine {
                 config.default_precision.clone()
             };
 
-            let layer_bytes = (layer.parameter_count * assigned_precision.bits() as u64 + 7) / 8;
+            let layer_bytes = (layer.parameter_count * assigned_precision.bits() as u64).div_ceil(8);
             quantized_size += layer_bytes;
 
             layer_assignments.push(LayerQuantizationAssignment {
@@ -1440,7 +1439,7 @@ impl OptiOsEngine {
                 let sensitivity_factor = sens.map_or(0.5, |s| s.action_gradient_norm);
                 // Less pruning for high-sensitivity layers
                 let adjusted_sparsity = config.target_sparsity * (1.0 - sensitivity_factor * 0.5);
-                (adjusted_sparsity.max(0.0).min(0.99), false)
+                (adjusted_sparsity.clamp(0.0, 0.99), false)
             };
 
             let pruned_params = (layer.parameter_count as f64 * layer_sparsity) as u64;

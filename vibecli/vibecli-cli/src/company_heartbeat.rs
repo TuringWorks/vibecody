@@ -37,6 +37,7 @@ impl HeartbeatTrigger {
             Self::Manual => "manual",
         }
     }
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         match s {
             "event" => Self::Event,
@@ -62,6 +63,7 @@ impl HeartbeatStatus {
             Self::Failed => "failed",
         }
     }
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         match s {
             "completed" => Self::Completed,
@@ -172,7 +174,7 @@ impl<'a> HeartbeatStore<'a> {
             "SELECT id, company_id, agent_id, trigger, status, session_id, started_at, finished_at, summary
              FROM heartbeat_runs WHERE id = ?1",
         )?;
-        let mut rows = stmt.query_map(params![id], |row| row_to_run(row))?;
+        let mut rows = stmt.query_map(params![id], row_to_run)?;
         rows.next().transpose().map_err(|e| anyhow!("{e}"))
     }
 
@@ -182,7 +184,7 @@ impl<'a> HeartbeatStore<'a> {
             "SELECT id, company_id, agent_id, trigger, status, session_id, started_at, finished_at, summary
              FROM heartbeat_runs WHERE agent_id = ?1 ORDER BY started_at DESC LIMIT ?2",
         )?;
-        let rows = stmt.query_map(params![agent_id, limit], |row| row_to_run(row))?
+        let rows = stmt.query_map(params![agent_id, limit], row_to_run)?
             .collect::<rusqlite::Result<Vec<_>>>()?;
         Ok(rows)
     }
@@ -193,7 +195,7 @@ impl<'a> HeartbeatStore<'a> {
             "SELECT id, company_id, agent_id, trigger, status, session_id, started_at, finished_at, summary
              FROM heartbeat_runs WHERE company_id = ?1 ORDER BY started_at DESC LIMIT ?2",
         )?;
-        let rows = stmt.query_map(params![company_id, limit], |row| row_to_run(row))?
+        let rows = stmt.query_map(params![company_id, limit], row_to_run)?
             .collect::<rusqlite::Result<Vec<_>>>()?;
         Ok(rows)
     }
@@ -217,7 +219,7 @@ impl<'a> HeartbeatStore<'a> {
                 "SELECT id, company_id, agent_id, trigger, status, session_id, started_at, finished_at, summary
                  FROM heartbeat_runs ORDER BY started_at DESC LIMIT ?1",
             )?;
-            let mapped = stmt.query_map(params![limit], |row| row_to_run(row))?;
+            let mapped = stmt.query_map(params![limit], row_to_run)?;
             let collected: Vec<_> = mapped.collect::<rusqlite::Result<Vec<_>>>()?;
             collected
         };

@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! RL Observability module — comprehensive monitoring for Reinforcement Learning systems.
 //!
 //! Provides production-grade RL-OS (Reinforcement Learning Operating System) observability:

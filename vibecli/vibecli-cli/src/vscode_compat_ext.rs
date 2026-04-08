@@ -3,8 +3,6 @@
 //! Provides manifest parsing, compatibility analysis, API shim generation,
 //! and scoring for VS Code extensions running under VibeCody.
 
-#![allow(dead_code)]
-
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

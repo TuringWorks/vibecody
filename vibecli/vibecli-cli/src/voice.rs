@@ -498,7 +498,7 @@ impl VoiceDispatcher {
     /// Show current engine status.
     pub fn status(&self) -> String {
         let mut lines = Vec::new();
-        lines.push(format!("Voice Engine Status:"));
+        lines.push("Voice Engine Status:".to_string());
         lines.push(format!("  Cloud STT (Groq Whisper): {}", if self.cloud_stt_key.is_some() { "configured" } else { "not configured" }));
         lines.push(format!("  Cloud TTS (ElevenLabs):   {}", if self.cloud_tts_key.is_some() { "configured" } else { "not configured" }));
         lines.push(format!("  Local model:              {} ({}MB)", self.local_model.name(), self.local_model.size_mb()));
@@ -532,7 +532,6 @@ async fn play_audio(path: &Path) {
             .arg(path_str)
             .status()
             .await;
-        return;
     }
 
     #[cfg(target_os = "linux")]

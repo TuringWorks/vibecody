@@ -322,7 +322,7 @@ impl WorkspaceStore {
             )
             .map_err(|e| e.to_string())?;
         let rows = stmt
-            .query_map([], |r| row_to_meta(r))
+            .query_map([], row_to_meta)
             .map_err(|e| e.to_string())?
             .collect::<rusqlite::Result<Vec<_>>>()
             .map_err(|e| e.to_string())?;
@@ -337,7 +337,7 @@ impl WorkspaceStore {
                  FROM workspace_secrets WHERE key_name=?1",
             )
             .map_err(|e| e.to_string())?;
-        let result = stmt.query_row(params![key_name], |r| row_to_meta(r));
+        let result = stmt.query_row(params![key_name], row_to_meta);
         match result {
             Ok(m) => Ok(Some(m)),
             Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),

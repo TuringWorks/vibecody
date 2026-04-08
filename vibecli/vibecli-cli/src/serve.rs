@@ -2238,7 +2238,7 @@ fn parse_pairing_method(s: &str) -> crate::mobile_gateway::PairingMethod {
 
 fn parse_push_platform(s: &str) -> crate::mobile_gateway::PushPlatform {
     match s {
-        "fcm" => crate::mobile_gateway::PushPlatform::FCM,
+        "fcm" => crate::mobile_gateway::PushPlatform::Fcm,
         "webpush" => crate::mobile_gateway::PushPlatform::WebPush,
         _ => crate::mobile_gateway::PushPlatform::APNs,
     }

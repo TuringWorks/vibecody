@@ -297,13 +297,11 @@ fn step_provider(info: &PlatformInfo) -> Result<(String, Option<String>)> {
             .map(|o| o.status.success())
             .unwrap_or(false);
 
-        if !model_exists {
-            if prompt_yn(&format!("Pull {model} now? (this may take a few minutes)"), true) {
-                println!("  {DIM}Running: ollama pull {model}{RESET}");
-                let _ = std::process::Command::new("ollama")
-                    .args(["pull", &model])
-                    .status();
-            }
+        if !model_exists && prompt_yn(&format!("Pull {model} now? (this may take a few minutes)"), true) {
+            println!("  {DIM}Running: ollama pull {model}{RESET}");
+            let _ = std::process::Command::new("ollama")
+                .args(["pull", &model])
+                .status();
         }
 
         return Ok((provider, Some(model)));

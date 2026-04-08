@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! RL-OS Environment Operating System — full reinforcement learning environment management.
 //!
 //! Provides a production-grade RL environment stack:
@@ -1001,7 +1000,7 @@ impl RandomizationParam {
     }
 
     pub fn should_apply(&self, episode: u64) -> bool {
-        self.enabled && (episode % self.apply_every_n_episodes == 0)
+        self.enabled && episode.is_multiple_of(self.apply_every_n_episodes)
     }
 
     pub fn sample(&self, seed: u64) -> f64 {

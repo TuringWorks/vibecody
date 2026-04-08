@@ -68,7 +68,7 @@ pub enum Language {
     Cpp,
     C,
     Ruby,
-    PHP,
+    Php,
     Swift,
     Kotlin,
     Scala,
@@ -93,7 +93,7 @@ impl Language {
             Self::Cpp => "Cpp",
             Self::C => "C",
             Self::Ruby => "Ruby",
-            Self::PHP => "PHP",
+            Self::Php => "PHP",
             Self::Swift => "Swift",
             Self::Kotlin => "Kotlin",
             Self::Scala => "Scala",
@@ -493,7 +493,7 @@ impl SimpleParser {
             "cpp" | "cc" | "cxx" => Language::Cpp,
             "c" | "h" => Language::C,
             "rb" => Language::Ruby,
-            "php" => Language::PHP,
+            "php" => Language::Php,
             "swift" => Language::Swift,
             "kt" | "kts" => Language::Kotlin,
             "scala" | "sc" => Language::Scala,
@@ -1437,7 +1437,7 @@ mod tests {
         assert_eq!(SimpleParser::detect_language("X.cpp"), Language::Cpp);
         assert_eq!(SimpleParser::detect_language("X.c"), Language::C);
         assert_eq!(SimpleParser::detect_language("X.rb"), Language::Ruby);
-        assert_eq!(SimpleParser::detect_language("X.php"), Language::PHP);
+        assert_eq!(SimpleParser::detect_language("X.php"), Language::Php);
         assert_eq!(SimpleParser::detect_language("X.swift"), Language::Swift);
         assert_eq!(SimpleParser::detect_language("X.kt"), Language::Kotlin);
         assert_eq!(SimpleParser::detect_language("X.scala"), Language::Scala);

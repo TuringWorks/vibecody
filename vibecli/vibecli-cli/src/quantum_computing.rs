@@ -212,7 +212,7 @@ pub enum QuantumOS {
     AmazonBraket,        // AWS Braket orchestration layer
     CirqEngine,          // Google Quantum Engine (Cirq backend)
     QuOS,                // Quantum Machines — QUA language runtime
-    ARTIQ,               // M-Labs — Advanced Real-Time Infrastructure for Quantum
+    Artiq,               // M-Labs — Advanced Real-Time Infrastructure for Quantum
     QCtrl,               // Q-CTRL — firmware-level pulse optimisation
     Mitiq,               // Unitary Fund — quantum error mitigation OS layer
     Qibo,                // TII (UAE) — full-stack quantum OS
@@ -221,7 +221,7 @@ pub enum QuantumOS {
     Delft,               // QuTech — quantum network OS (QNodeOS prototype)
     FireOpal,            // Q-CTRL Fire Opal — automated error suppression
     TrueQ,               // Keysight True-Q — characterisation & mitigation
-    QCS,                 // Rigetti Quantum Cloud Services
+    Qcs,                 // Rigetti Quantum Cloud Services
 }
 
 impl QuantumOS {
@@ -232,7 +232,7 @@ impl QuantumOS {
             Self::AmazonBraket => "Amazon Braket",
             Self::CirqEngine => "Google Quantum Engine",
             Self::QuOS => "QUA / Quantum Machines OPX+",
-            Self::ARTIQ => "ARTIQ",
+            Self::Artiq => "ARTIQ",
             Self::QCtrl => "Q-CTRL Boulder Opal",
             Self::Mitiq => "Mitiq",
             Self::Qibo => "Qibo",
@@ -241,15 +241,15 @@ impl QuantumOS {
             Self::Delft => "QNodeOS (QuTech)",
             Self::FireOpal => "Q-CTRL Fire Opal",
             Self::TrueQ => "Keysight True-Q",
-            Self::QCS => "Rigetti QCS",
+            Self::Qcs => "Rigetti QCS",
         }
     }
 
     pub fn layer(&self) -> &'static str {
         match self {
             Self::QiskitRuntime | Self::AzureQuantum | Self::AmazonBraket
-            | Self::CirqEngine | Self::QCS => "Cloud orchestration",
-            Self::QuOS | Self::ARTIQ | Self::PulseOS => "Hardware control plane",
+            | Self::CirqEngine | Self::Qcs => "Cloud orchestration",
+            Self::QuOS | Self::Artiq | Self::PulseOS => "Hardware control plane",
             Self::QCtrl | Self::FireOpal | Self::TrueQ => "Error mitigation / firmware",
             Self::Mitiq => "Error mitigation (software)",
             Self::Qibo => "Full-stack (compiler + runtime)",
@@ -265,7 +265,7 @@ impl QuantumOS {
             Self::AmazonBraket => "Amazon Web Services",
             Self::CirqEngine => "Google Quantum AI",
             Self::QuOS => "Quantum Machines",
-            Self::ARTIQ => "M-Labs (NIST / Oxford)",
+            Self::Artiq => "M-Labs (NIST / Oxford)",
             Self::QCtrl | Self::FireOpal => "Q-CTRL",
             Self::Mitiq => "Unitary Fund",
             Self::Qibo => "Technology Innovation Institute",
@@ -273,16 +273,16 @@ impl QuantumOS {
             Self::Staq => "Princeton / Yale",
             Self::Delft => "QuTech (TU Delft + TNO)",
             Self::TrueQ => "Keysight Technologies",
-            Self::QCS => "Rigetti Computing",
+            Self::Qcs => "Rigetti Computing",
         }
     }
 
     pub fn all() -> Vec<QuantumOS> {
         vec![
             Self::QiskitRuntime, Self::AzureQuantum, Self::AmazonBraket,
-            Self::CirqEngine, Self::QuOS, Self::ARTIQ, Self::QCtrl,
+            Self::CirqEngine, Self::QuOS, Self::Artiq, Self::QCtrl,
             Self::Mitiq, Self::Qibo, Self::PulseOS, Self::Staq,
-            Self::Delft, Self::FireOpal, Self::TrueQ, Self::QCS,
+            Self::Delft, Self::FireOpal, Self::TrueQ, Self::Qcs,
         ]
     }
 }
@@ -335,19 +335,19 @@ impl QuantumHardwareType {
 pub enum QuantumAlgorithm {
     Grover,
     Shor,
-    VQE,
-    QAOA,
-    QPE,
+    Vqe,
+    Qaoa,
+    Qpe,
     BernsteinVazirani,
     DeutschJozsa,
     SimonProblem,
-    HHL,
+    Hhl,
     QuantumWalk,
     QuantumMonteCarlo,
-    QSVM,
-    QNN,
+    Qsvm,
+    Qnn,
     QuantumBoltzmann,
-    DMRG,
+    Dmrg,
 }
 
 impl QuantumAlgorithm {
@@ -355,19 +355,19 @@ impl QuantumAlgorithm {
         match self {
             Self::Grover => "Grover's search",
             Self::Shor => "Shor's factoring",
-            Self::VQE => "Variational Quantum Eigensolver (VQE)",
-            Self::QAOA => "Quantum Approximate Optimisation (QAOA)",
-            Self::QPE => "Quantum Phase Estimation (QPE)",
+            Self::Vqe => "Variational Quantum Eigensolver (VQE)",
+            Self::Qaoa => "Quantum Approximate Optimisation (QAOA)",
+            Self::Qpe => "Quantum Phase Estimation (QPE)",
             Self::BernsteinVazirani => "Bernstein–Vazirani",
             Self::DeutschJozsa => "Deutsch–Jozsa",
             Self::SimonProblem => "Simon's problem",
-            Self::HHL => "HHL (linear systems)",
+            Self::Hhl => "HHL (linear systems)",
             Self::QuantumWalk => "Quantum walk",
             Self::QuantumMonteCarlo => "Quantum Monte Carlo",
-            Self::QSVM => "Quantum SVM",
-            Self::QNN => "Quantum Neural Network",
+            Self::Qsvm => "Quantum SVM",
+            Self::Qnn => "Quantum Neural Network",
             Self::QuantumBoltzmann => "Quantum Boltzmann Machine",
-            Self::DMRG => "DMRG / tensor-network",
+            Self::Dmrg => "DMRG / tensor-network",
         }
     }
 
@@ -375,12 +375,12 @@ impl QuantumAlgorithm {
         match self {
             Self::Grover | Self::BernsteinVazirani | Self::DeutschJozsa
             | Self::SimonProblem => "Oracle / search",
-            Self::Shor | Self::QPE => "Number-theoretic",
-            Self::VQE | Self::QAOA => "Variational (NISQ-friendly)",
-            Self::HHL | Self::QuantumMonteCarlo => "Linear algebra / simulation",
+            Self::Shor | Self::Qpe => "Number-theoretic",
+            Self::Vqe | Self::Qaoa => "Variational (NISQ-friendly)",
+            Self::Hhl | Self::QuantumMonteCarlo => "Linear algebra / simulation",
             Self::QuantumWalk => "Graph / combinatorial",
-            Self::QSVM | Self::QNN | Self::QuantumBoltzmann => "Quantum machine learning",
-            Self::DMRG => "Tensor-network / chemistry",
+            Self::Qsvm | Self::Qnn | Self::QuantumBoltzmann => "Quantum machine learning",
+            Self::Dmrg => "Tensor-network / chemistry",
         }
     }
 
@@ -388,28 +388,28 @@ impl QuantumAlgorithm {
         match self {
             Self::Grover => "O(√N) queries, N qubits for N-item search",
             Self::Shor => "O(n³) gates for n-bit integer (2n+3 qubits)",
-            Self::VQE => "Problem-dependent ansatz depth, typically 4-50 qubits (NISQ)",
-            Self::QAOA => "Problem-size + p rounds of alternating unitaries",
-            Self::QPE => "O(1/ε) ancilla qubits for precision ε",
+            Self::Vqe => "Problem-dependent ansatz depth, typically 4-50 qubits (NISQ)",
+            Self::Qaoa => "Problem-size + p rounds of alternating unitaries",
+            Self::Qpe => "O(1/ε) ancilla qubits for precision ε",
             Self::BernsteinVazirani => "n qubits for n-bit secret",
             Self::DeutschJozsa => "n+1 qubits, single oracle query",
             Self::SimonProblem => "n qubits, O(n) queries",
-            Self::HHL => "O(log N) qubits for N×N system (exponential speedup)",
+            Self::Hhl => "O(log N) qubits for N×N system (exponential speedup)",
             Self::QuantumWalk => "O(log N) qubits for N-vertex graph",
             Self::QuantumMonteCarlo => "Quadratic speedup over classical MC",
-            Self::QSVM => "O(log N) qubits for N-dimensional feature space",
-            Self::QNN => "Parameterised circuit depth × width",
+            Self::Qsvm => "O(log N) qubits for N-dimensional feature space",
+            Self::Qnn => "Parameterised circuit depth × width",
             Self::QuantumBoltzmann => "Visible + hidden qubit layers",
-            Self::DMRG => "Bond dimension dependent, hybrid classical-quantum",
+            Self::Dmrg => "Bond dimension dependent, hybrid classical-quantum",
         }
     }
 
     pub fn all() -> Vec<QuantumAlgorithm> {
         vec![
-            Self::Grover, Self::Shor, Self::VQE, Self::QAOA, Self::QPE,
+            Self::Grover, Self::Shor, Self::Vqe, Self::Qaoa, Self::Qpe,
             Self::BernsteinVazirani, Self::DeutschJozsa, Self::SimonProblem,
-            Self::HHL, Self::QuantumWalk, Self::QuantumMonteCarlo,
-            Self::QSVM, Self::QNN, Self::QuantumBoltzmann, Self::DMRG,
+            Self::Hhl, Self::QuantumWalk, Self::QuantumMonteCarlo,
+            Self::Qsvm, Self::Qnn, Self::QuantumBoltzmann, Self::Dmrg,
         ]
     }
 }
@@ -481,9 +481,9 @@ pub enum QuantumGate {
     Rx(usize, f64),                // Rotation around X
     Ry(usize, f64),                // Rotation around Y
     Rz(usize, f64),                // Rotation around Z
-    CNOT(usize, usize),            // Controlled-NOT
+    Cnot(usize, usize),            // Controlled-NOT
     CZ(usize, usize),              // Controlled-Z
-    SWAP(usize, usize),            // SWAP
+    Swap(usize, usize),            // SWAP
     Toffoli(usize, usize, usize),  // CCX (Toffoli)
     Measure(usize, usize),         // Measure qubit -> classical bit
 }
@@ -500,9 +500,9 @@ impl QuantumGate {
             Self::Rx(q, theta) => format!("rx({:.6}) q[{}];", theta, q),
             Self::Ry(q, theta) => format!("ry({:.6}) q[{}];", theta, q),
             Self::Rz(q, theta) => format!("rz({:.6}) q[{}];", theta, q),
-            Self::CNOT(c, t) => format!("cx q[{}], q[{}];", c, t),
+            Self::Cnot(c, t) => format!("cx q[{}], q[{}];", c, t),
             Self::CZ(c, t) => format!("cz q[{}], q[{}];", c, t),
-            Self::SWAP(a, b) => format!("swap q[{}], q[{}];", a, b),
+            Self::Swap(a, b) => format!("swap q[{}], q[{}];", a, b),
             Self::Toffoli(a, b, t) => format!("ccx q[{}], q[{}], q[{}];", a, b, t),
             Self::Measure(q, c) => format!("c[{}] = measure q[{}];", c, q),
         }
@@ -513,7 +513,7 @@ impl QuantumGate {
             Self::H(q) | Self::X(q) | Self::Y(q) | Self::Z(q)
             | Self::S(q) | Self::T(q)
             | Self::Rx(q, _) | Self::Ry(q, _) | Self::Rz(q, _) => *q,
-            Self::CNOT(a, b) | Self::CZ(a, b) | Self::SWAP(a, b) => (*a).max(*b),
+            Self::Cnot(a, b) | Self::CZ(a, b) | Self::Swap(a, b) => (*a).max(*b),
             Self::Toffoli(a, b, c) => (*a).max(*b).max(*c),
             Self::Measure(q, _) => *q,
         }
@@ -562,7 +562,7 @@ impl QuantumCircuit {
                         qubit_depth[*q] += 1;
                     }
                 }
-                QuantumGate::CNOT(a, b) | QuantumGate::CZ(a, b) | QuantumGate::SWAP(a, b) => {
+                QuantumGate::Cnot(a, b) | QuantumGate::CZ(a, b) | QuantumGate::Swap(a, b) => {
                     if *a < self.num_qubits && *b < self.num_qubits {
                         let d = qubit_depth[*a].max(qubit_depth[*b]) + 1;
                         qubit_depth[*a] = d;
@@ -584,7 +584,7 @@ impl QuantumCircuit {
 
     pub fn two_qubit_gate_count(&self) -> usize {
         self.gates.iter().filter(|g| matches!(g,
-            QuantumGate::CNOT(..) | QuantumGate::CZ(..) | QuantumGate::SWAP(..)
+            QuantumGate::Cnot(..) | QuantumGate::CZ(..) | QuantumGate::Swap(..)
         )).count()
     }
 
@@ -622,9 +622,9 @@ impl QuantumCircuit {
                 QuantumGate::Rx(q, t) => format!("qc.rx({:.6}, {})", t, q),
                 QuantumGate::Ry(q, t) => format!("qc.ry({:.6}, {})", t, q),
                 QuantumGate::Rz(q, t) => format!("qc.rz({:.6}, {})", t, q),
-                QuantumGate::CNOT(c, t) => format!("qc.cx({}, {})", c, t),
+                QuantumGate::Cnot(c, t) => format!("qc.cx({}, {})", c, t),
                 QuantumGate::CZ(c, t) => format!("qc.cz({}, {})", c, t),
-                QuantumGate::SWAP(a, b) => format!("qc.swap({}, {})", a, b),
+                QuantumGate::Swap(a, b) => format!("qc.swap({}, {})", a, b),
                 QuantumGate::Toffoli(a, b, t) => format!("qc.ccx({}, {}, {})", a, b, t),
                 QuantumGate::Measure(q, c) => format!("qc.measure({}, {})", q, c),
             };
@@ -654,9 +654,9 @@ impl QuantumCircuit {
                 QuantumGate::Rx(q, t) => format!("    cirq.rx({:.6})(qubits[{}]),", t, q),
                 QuantumGate::Ry(q, t) => format!("    cirq.ry({:.6})(qubits[{}]),", t, q),
                 QuantumGate::Rz(q, t) => format!("    cirq.rz({:.6})(qubits[{}]),", t, q),
-                QuantumGate::CNOT(c, t) => format!("    cirq.CNOT(qubits[{}], qubits[{}]),", c, t),
+                QuantumGate::Cnot(c, t) => format!("    cirq.CNOT(qubits[{}], qubits[{}]),", c, t),
                 QuantumGate::CZ(c, t) => format!("    cirq.CZ(qubits[{}], qubits[{}]),", c, t),
-                QuantumGate::SWAP(a, b) => format!("    cirq.SWAP(qubits[{}], qubits[{}]),", a, b),
+                QuantumGate::Swap(a, b) => format!("    cirq.SWAP(qubits[{}], qubits[{}]),", a, b),
                 QuantumGate::Toffoli(a, b, t) => format!("    cirq.CCX(qubits[{}], qubits[{}], qubits[{}]),", a, b, t),
                 QuantumGate::Measure(q, _) => format!("    cirq.measure(qubits[{}], key='m{}'),", q, q),
             };
@@ -843,7 +843,7 @@ impl QuantumComputingManager {
             (QuantumLanguage::PennyLane, vec![QuantumOS::QiskitRuntime, QuantumOS::AmazonBraket, QuantumOS::CirqEngine]),
             (QuantumLanguage::QSharp, vec![QuantumOS::AzureQuantum]),
             (QuantumLanguage::BraketSDK, vec![QuantumOS::AmazonBraket]),
-            (QuantumLanguage::TKet, vec![QuantumOS::QiskitRuntime, QuantumOS::AzureQuantum, QuantumOS::AmazonBraket, QuantumOS::QCS]),
+            (QuantumLanguage::TKet, vec![QuantumOS::QiskitRuntime, QuantumOS::AzureQuantum, QuantumOS::AmazonBraket, QuantumOS::Qcs]),
             (QuantumLanguage::CudaQuantum, vec![QuantumOS::QiskitRuntime, QuantumOS::CirqEngine]),
             (QuantumLanguage::Bloqade, vec![QuantumOS::AmazonBraket]),
             (QuantumLanguage::OpenQASM3, vec![QuantumOS::QiskitRuntime, QuantumOS::AzureQuantum, QuantumOS::AmazonBraket]),
@@ -1035,9 +1035,9 @@ impl StatevectorSimulator {
             QuantumGate::Rx(q, theta) => self.apply_single_qubit(*q, &gate_rx(*theta)),
             QuantumGate::Ry(q, theta) => self.apply_single_qubit(*q, &gate_ry(*theta)),
             QuantumGate::Rz(q, theta) => self.apply_single_qubit(*q, &gate_rz(*theta)),
-            QuantumGate::CNOT(c, t) => self.apply_controlled(*c, *t, &gate_x()),
+            QuantumGate::Cnot(c, t) => self.apply_controlled(*c, *t, &gate_x()),
             QuantumGate::CZ(c, t) => self.apply_controlled(*c, *t, &gate_z()),
-            QuantumGate::SWAP(a, b) => self.apply_swap(*a, *b),
+            QuantumGate::Swap(a, b) => self.apply_swap(*a, *b),
             QuantumGate::Toffoli(c1, c2, t) => self.apply_double_controlled(*c1, *c2, *t, &gate_x()),
             QuantumGate::Measure(_, _) => {} // measurement handled separately
         }
@@ -1177,7 +1177,7 @@ impl CircuitOptimizer {
                     (QuantumGate::X(q1), QuantumGate::X(q2)) if q1 == q2 => { rules.push(format!("XX→I on q{}", q1)); true }
                     (QuantumGate::Y(q1), QuantumGate::Y(q2)) if q1 == q2 => { rules.push(format!("YY→I on q{}", q1)); true }
                     (QuantumGate::Z(q1), QuantumGate::Z(q2)) if q1 == q2 => { rules.push(format!("ZZ→I on q{}", q1)); true }
-                    (QuantumGate::CNOT(c1, t1), QuantumGate::CNOT(c2, t2)) if c1 == c2 && t1 == t2 => { rules.push(format!("CNOT·CNOT→I on q{},q{}", c1, t1)); true }
+                    (QuantumGate::Cnot(c1, t1), QuantumGate::Cnot(c2, t2)) if c1 == c2 && t1 == t2 => { rules.push(format!("CNOT·CNOT→I on q{},q{}", c1, t1)); true }
                     _ => false,
                 };
                 if cancelled { i += 2; continue; }
@@ -1247,7 +1247,7 @@ impl AlgorithmTemplates {
     pub fn bell_state() -> QuantumCircuit {
         let mut c = QuantumCircuit::new("Bell State", 2, 2);
         c.add_gate(QuantumGate::H(0));
-        c.add_gate(QuantumGate::CNOT(0, 1));
+        c.add_gate(QuantumGate::Cnot(0, 1));
         c.add_gate(QuantumGate::Measure(0, 0));
         c.add_gate(QuantumGate::Measure(1, 1));
         c
@@ -1258,7 +1258,7 @@ impl AlgorithmTemplates {
         let mut c = QuantumCircuit::new(&format!("GHZ-{}", n), n, n);
         c.add_gate(QuantumGate::H(0));
         for i in 0..n - 1 {
-            c.add_gate(QuantumGate::CNOT(0, i + 1));
+            c.add_gate(QuantumGate::Cnot(0, i + 1));
         }
         for i in 0..n { c.add_gate(QuantumGate::Measure(i, i)); }
         c
@@ -1278,7 +1278,7 @@ impl AlgorithmTemplates {
         }
         // SWAP to reverse qubit order
         for i in 0..n / 2 {
-            c.add_gate(QuantumGate::SWAP(i, n - 1 - i));
+            c.add_gate(QuantumGate::Swap(i, n - 1 - i));
         }
         c
     }
@@ -1312,7 +1312,7 @@ impl AlgorithmTemplates {
         // Hadamard all qubits
         for i in 0..=n { c.add_gate(QuantumGate::H(i)); }
         // Oracle: balanced function f(x) = x_0 (CNOT from q0 to ancilla)
-        c.add_gate(QuantumGate::CNOT(0, n));
+        c.add_gate(QuantumGate::Cnot(0, n));
         // Hadamard on input qubits
         for i in 0..n { c.add_gate(QuantumGate::H(i)); }
         // Measure input qubits
@@ -1330,7 +1330,7 @@ impl AlgorithmTemplates {
         for i in 0..=n { c.add_gate(QuantumGate::H(i)); }
         // Oracle: CNOT from q_i to ancilla where secret bit is 1
         for (i, &bit) in bits.iter().enumerate() {
-            if bit { c.add_gate(QuantumGate::CNOT(i, n)); }
+            if bit { c.add_gate(QuantumGate::Cnot(i, n)); }
         }
         // Hadamard on input qubits
         for i in 0..n { c.add_gate(QuantumGate::H(i)); }
@@ -1351,7 +1351,7 @@ impl AlgorithmTemplates {
             }
             // Entangling layer
             for q in 0..n - 1 {
-                c.add_gate(QuantumGate::CNOT(q, q + 1));
+                c.add_gate(QuantumGate::Cnot(q, q + 1));
             }
         }
         for i in 0..n { c.add_gate(QuantumGate::Measure(i, i)); }
@@ -1365,9 +1365,9 @@ impl AlgorithmTemplates {
         for q in 0..n { c.add_gate(QuantumGate::H(q)); }
         // Cost layer: ZZ interactions on nearest-neighbor pairs
         for q in 0..n - 1 {
-            c.add_gate(QuantumGate::CNOT(q, q + 1));
+            c.add_gate(QuantumGate::Cnot(q, q + 1));
             c.add_gate(QuantumGate::Rz(q + 1, 2.0 * gamma));
-            c.add_gate(QuantumGate::CNOT(q, q + 1));
+            c.add_gate(QuantumGate::Cnot(q, q + 1));
         }
         // Mixer layer: Rx on all qubits
         for q in 0..n { c.add_gate(QuantumGate::Rx(q, 2.0 * beta)); }
@@ -1660,7 +1660,7 @@ mod tests {
 
     #[test]
     fn test_os_artiq() {
-        let a = QuantumOS::ARTIQ;
+        let a = QuantumOS::Artiq;
         assert_eq!(a.layer(), "Hardware control plane");
         assert_eq!(a.vendor(), "M-Labs (NIST / Oxford)");
     }
@@ -1723,7 +1723,7 @@ mod tests {
 
     #[test]
     fn test_vqe_algorithm() {
-        let vqe = QuantumAlgorithm::VQE;
+        let vqe = QuantumAlgorithm::Vqe;
         assert_eq!(vqe.category(), "Variational (NISQ-friendly)");
     }
 
@@ -1765,9 +1765,9 @@ mod tests {
 
     #[test]
     fn test_gate_qasm3_two_qubit() {
-        assert_eq!(QuantumGate::CNOT(0, 1).qasm3(), "cx q[0], q[1];");
+        assert_eq!(QuantumGate::Cnot(0, 1).qasm3(), "cx q[0], q[1];");
         assert_eq!(QuantumGate::CZ(1, 2).qasm3(), "cz q[1], q[2];");
-        assert_eq!(QuantumGate::SWAP(0, 3).qasm3(), "swap q[0], q[3];");
+        assert_eq!(QuantumGate::Swap(0, 3).qasm3(), "swap q[0], q[3];");
     }
 
     #[test]
@@ -1789,7 +1789,7 @@ mod tests {
     #[test]
     fn test_gate_max_qubit() {
         assert_eq!(QuantumGate::H(3).max_qubit(), 3);
-        assert_eq!(QuantumGate::CNOT(1, 4).max_qubit(), 4);
+        assert_eq!(QuantumGate::Cnot(1, 4).max_qubit(), 4);
         assert_eq!(QuantumGate::Toffoli(2, 5, 3).max_qubit(), 5);
     }
 
@@ -1807,7 +1807,7 @@ mod tests {
     fn test_circuit_add_gate() {
         let mut c = QuantumCircuit::new("bell", 2, 2);
         c.add_gate(QuantumGate::H(0));
-        c.add_gate(QuantumGate::CNOT(0, 1));
+        c.add_gate(QuantumGate::Cnot(0, 1));
         assert_eq!(c.gate_count(), 2);
     }
 
@@ -1824,7 +1824,7 @@ mod tests {
     fn test_circuit_depth_serial() {
         let mut c = QuantumCircuit::new("test", 2, 0);
         c.add_gate(QuantumGate::H(0));
-        c.add_gate(QuantumGate::CNOT(0, 1));
+        c.add_gate(QuantumGate::Cnot(0, 1));
         c.add_gate(QuantumGate::Measure(0, 0));
         // H on q0 (depth 1), CNOT on q0,q1 (depth 2), Measure on q0 (depth 3)
         assert_eq!(c.depth(), 3);
@@ -1840,7 +1840,7 @@ mod tests {
     fn test_circuit_two_qubit_count() {
         let mut c = QuantumCircuit::new("test", 3, 0);
         c.add_gate(QuantumGate::H(0));
-        c.add_gate(QuantumGate::CNOT(0, 1));
+        c.add_gate(QuantumGate::Cnot(0, 1));
         c.add_gate(QuantumGate::CZ(1, 2));
         c.add_gate(QuantumGate::X(0));
         assert_eq!(c.two_qubit_gate_count(), 2);
@@ -1850,7 +1850,7 @@ mod tests {
     fn test_circuit_to_qasm3() {
         let mut c = QuantumCircuit::new("bell", 2, 2);
         c.add_gate(QuantumGate::H(0));
-        c.add_gate(QuantumGate::CNOT(0, 1));
+        c.add_gate(QuantumGate::Cnot(0, 1));
         c.add_gate(QuantumGate::Measure(0, 0));
         c.add_gate(QuantumGate::Measure(1, 1));
         let qasm = c.to_qasm3();
@@ -1865,7 +1865,7 @@ mod tests {
     fn test_circuit_to_qiskit() {
         let mut c = QuantumCircuit::new("bell", 2, 2);
         c.add_gate(QuantumGate::H(0));
-        c.add_gate(QuantumGate::CNOT(0, 1));
+        c.add_gate(QuantumGate::Cnot(0, 1));
         let code = c.to_qiskit();
         assert!(code.contains("QuantumCircuit(2, 2)"));
         assert!(code.contains("qc.h(0)"));
@@ -1876,7 +1876,7 @@ mod tests {
     fn test_circuit_to_cirq() {
         let mut c = QuantumCircuit::new("bell", 2, 0);
         c.add_gate(QuantumGate::H(0));
-        c.add_gate(QuantumGate::CNOT(0, 1));
+        c.add_gate(QuantumGate::Cnot(0, 1));
         let code = c.to_cirq();
         assert!(code.contains("import cirq"));
         assert!(code.contains("cirq.H(qubits[0])"));
@@ -2018,7 +2018,7 @@ mod tests {
         let mut mgr = make_manager();
         let idx = mgr.create_circuit("bell", 2, 2);
         mgr.add_gate_to_circuit(idx, QuantumGate::H(0));
-        mgr.add_gate_to_circuit(idx, QuantumGate::CNOT(0, 1));
+        mgr.add_gate_to_circuit(idx, QuantumGate::Cnot(0, 1));
         let qasm = mgr.export_circuit_qasm3(idx).unwrap();
         assert!(qasm.contains("OPENQASM 3.0"));
     }
@@ -2128,9 +2128,9 @@ mod tests {
         c.add_gate(QuantumGate::Rx(0, 1.0));
         c.add_gate(QuantumGate::Ry(1, 2.0));
         c.add_gate(QuantumGate::Rz(2, 3.0));
-        c.add_gate(QuantumGate::CNOT(0, 1));
+        c.add_gate(QuantumGate::Cnot(0, 1));
         c.add_gate(QuantumGate::CZ(2, 3));
-        c.add_gate(QuantumGate::SWAP(0, 4));
+        c.add_gate(QuantumGate::Swap(0, 4));
         c.add_gate(QuantumGate::Toffoli(0, 1, 2));
         c.add_gate(QuantumGate::Measure(0, 0));
         let qasm = c.to_qasm3();
@@ -2150,7 +2150,7 @@ mod tests {
         c.add_gate(QuantumGate::S(1));
         c.add_gate(QuantumGate::T(2));
         c.add_gate(QuantumGate::CZ(0, 1));
-        c.add_gate(QuantumGate::SWAP(2, 3));
+        c.add_gate(QuantumGate::Swap(2, 3));
         c.add_gate(QuantumGate::Toffoli(0, 1, 2));
         let code = c.to_qiskit();
         assert!(code.contains("qc.y(0)"));
@@ -2172,7 +2172,7 @@ mod tests {
         c.add_gate(QuantumGate::Ry(1, 2.0));
         c.add_gate(QuantumGate::Rz(2, 3.0));
         c.add_gate(QuantumGate::CZ(0, 1));
-        c.add_gate(QuantumGate::SWAP(2, 3));
+        c.add_gate(QuantumGate::Swap(2, 3));
         c.add_gate(QuantumGate::Toffoli(0, 1, 2));
         c.add_gate(QuantumGate::Measure(0, 0));
         let code = c.to_cirq();
@@ -2248,7 +2248,7 @@ mod tests {
     fn test_cnot_entanglement() {
         let mut sim = StatevectorSimulator::new(2).unwrap();
         sim.apply_gate(&QuantumGate::H(0));
-        sim.apply_gate(&QuantumGate::CNOT(0, 1));
+        sim.apply_gate(&QuantumGate::Cnot(0, 1));
         let probs = sim.probabilities();
         assert_eq!(probs.len(), 2);
     }
@@ -2268,7 +2268,7 @@ mod tests {
     fn test_swap_gate() {
         let mut sim = StatevectorSimulator::new(2).unwrap();
         sim.apply_gate(&QuantumGate::X(0)); // bit 0 set -> index 0b01
-        sim.apply_gate(&QuantumGate::SWAP(0, 1)); // swap bits -> index 0b10
+        sim.apply_gate(&QuantumGate::Swap(0, 1)); // swap bits -> index 0b10
         assert!((sim.state[0b10].re - 1.0).abs() < 1e-10);
     }
 
@@ -2352,8 +2352,8 @@ mod tests {
     #[test]
     fn test_optimizer_cnot_cancel() {
         let mut c = QuantumCircuit::new("test", 2, 0);
-        c.add_gate(QuantumGate::CNOT(0, 1));
-        c.add_gate(QuantumGate::CNOT(0, 1));
+        c.add_gate(QuantumGate::Cnot(0, 1));
+        c.add_gate(QuantumGate::Cnot(0, 1));
         let (opt, _) = CircuitOptimizer::optimize(&c);
         assert_eq!(opt.gate_count(), 0);
     }
@@ -2362,7 +2362,7 @@ mod tests {
     fn test_optimizer_no_change() {
         let mut c = QuantumCircuit::new("test", 2, 2);
         c.add_gate(QuantumGate::H(0));
-        c.add_gate(QuantumGate::CNOT(0, 1));
+        c.add_gate(QuantumGate::Cnot(0, 1));
         let (opt, result) = CircuitOptimizer::optimize(&c);
         assert_eq!(opt.gate_count(), 2);
         assert_eq!(result.savings_percent, 0.0);

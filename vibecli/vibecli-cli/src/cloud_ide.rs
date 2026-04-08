@@ -106,8 +106,8 @@ pub struct PortMapping {
 #[derive(Debug, Clone, PartialEq)]
 pub enum CloudProvider {
     VibeCodyCloud,
-    AWS,
-    GCP,
+    Aws,
+    Gcp,
     Azure,
     DigitalOcean,
     Fly,
@@ -835,7 +835,7 @@ mod tests {
     fn test_cloud_provider_variants() {
         let p = CloudProvider::Custom("hetzner".to_string());
         assert_eq!(p, CloudProvider::Custom("hetzner".to_string()));
-        assert_ne!(p, CloudProvider::AWS);
+        assert_ne!(p, CloudProvider::Aws);
     }
 
     #[test]

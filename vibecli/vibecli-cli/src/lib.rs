@@ -3,6 +3,7 @@ pub mod cost_router;
 pub mod agent_skills_compat;
 pub mod quantum_computing;
 pub mod spawn_agent;
+#[allow(dead_code)]
 pub mod browser_agent;
 pub mod counsel;
 pub mod superbrain;
@@ -10,6 +11,7 @@ pub mod a2a_protocol;
 pub mod issue_triage;
 pub mod web_grounding;
 pub mod agent_host;
+#[allow(dead_code)]
 pub mod worktree_pool;
 pub mod proactive_agent;
 pub mod semantic_index;

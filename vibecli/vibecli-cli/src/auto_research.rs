@@ -900,8 +900,8 @@ impl MetricExtractor {
         let mut results = Vec::new();
         for line in output.lines().rev() {
             let line = line.trim();
-            if line.starts_with(prefix) {
-                let rest = line[prefix.len()..].trim();
+            if let Some(after_prefix) = line.strip_prefix(prefix) {
+                let rest = after_prefix.trim();
                 let numeric: String = rest.chars().take_while(|c| c.is_ascii_digit() || *c == '.' || *c == '-' || *c == 'e' || *c == 'E' || *c == '+').collect();
                 if let Ok(val) = numeric.parse::<f64>() {
                     results.push(MetricValue { name: prefix.trim_end_matches(&[':', '=', ' '][..]).to_string(), value: val, unit: None });
@@ -961,7 +961,7 @@ impl StatisticalValidator {
         let z = t_abs * (df / (df - 2.0)).sqrt().recip();
         // Approximation of 2 * (1 - Φ(z)) using logistic function
         let p = 2.0 * (1.0 / (1.0 + (1.7 * z).exp()));
-        p.min(1.0).max(0.0)
+        p.clamp(0.0, 1.0)
     }
 
     /// Bootstrap confidence interval for the mean difference.
@@ -1349,7 +1349,7 @@ impl WarmStarter {
         }
         let needed_improvements = (target_improvement_pct / (avg_delta_per_kept * 100.0)).ceil() as usize;
         let needed_experiments = (needed_improvements as f64 / avg_acceptance).ceil() as usize;
-        needed_experiments.max(5).min(1000)
+        needed_experiments.clamp(5, 1000)
     }
 }
 
@@ -1494,9 +1494,9 @@ impl SimplicityScorer {
             SimplicityVerdict::NoImprovement
         } else if net_lines < 0 {
             SimplicityVerdict::CleanupWin
-        } else if delta < min_meaningful_delta && lines_added > 10 {
-            SimplicityVerdict::Marginal
-        } else if lines_added > 20 && delta < min_meaningful_delta * 3.0 {
+        } else if (delta < min_meaningful_delta && lines_added > 10)
+            || (lines_added > 20 && delta < min_meaningful_delta * 3.0)
+        {
             SimplicityVerdict::Marginal
         } else if lines_added > 5 {
             SimplicityVerdict::Acceptable

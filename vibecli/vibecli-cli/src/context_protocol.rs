@@ -53,9 +53,9 @@ pub enum ShareMode {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum EvictionPolicy {
-    LRU,
+    Lru,
     Priority,
-    FIFO,
+    Fifo,
     SmallestFirst,
 }
 
@@ -160,7 +160,7 @@ impl ContextManager {
                 items: Vec::new(),
                 max_tokens,
                 used_tokens: 0,
-                eviction_policy: EvictionPolicy::LRU,
+                eviction_policy: EvictionPolicy::Lru,
             },
             budget: ContextBudget {
                 total_tokens: max_tokens,
@@ -377,7 +377,7 @@ impl ContextManager {
         }
 
         let victim_id = match self.window.eviction_policy {
-            EvictionPolicy::LRU => {
+            EvictionPolicy::Lru => {
                 // Find item with lowest (oldest) access counter
                 self.window
                     .items
@@ -401,7 +401,7 @@ impl ContextManager {
                     })
                     .map(|item| item.id.clone())
             }
-            EvictionPolicy::FIFO => {
+            EvictionPolicy::Fifo => {
                 // Evict the item inserted first
                 self.window
                     .items
@@ -681,7 +681,7 @@ mod tests {
     #[test]
     fn test_eviction_lru() {
         let mut mgr = ContextManager::new(200);
-        mgr.window.eviction_policy = EvictionPolicy::LRU;
+        mgr.window.eviction_policy = EvictionPolicy::Lru;
         mgr.add(make_item("a", 100, ContextPriority::Medium)).unwrap();
         mgr.add(make_item("b", 100, ContextPriority::Medium)).unwrap();
         // Access "a" so "b" is LRU
@@ -697,7 +697,7 @@ mod tests {
     #[test]
     fn test_eviction_lru_oldest_evicted() {
         let mut mgr = ContextManager::new(150);
-        mgr.window.eviction_policy = EvictionPolicy::LRU;
+        mgr.window.eviction_policy = EvictionPolicy::Lru;
         mgr.add(make_item("a", 50, ContextPriority::Medium)).unwrap();
         mgr.add(make_item("b", 50, ContextPriority::Medium)).unwrap();
         mgr.add(make_item("c", 50, ContextPriority::Medium)).unwrap();
@@ -741,7 +741,7 @@ mod tests {
     #[test]
     fn test_eviction_fifo() {
         let mut mgr = ContextManager::new(200);
-        mgr.window.eviction_policy = EvictionPolicy::FIFO;
+        mgr.window.eviction_policy = EvictionPolicy::Fifo;
         mgr.add(make_item("first", 100, ContextPriority::High)).unwrap();
         mgr.add(make_item("second", 100, ContextPriority::Low)).unwrap();
         // Even though "first" has higher priority, FIFO evicts it first
@@ -753,7 +753,7 @@ mod tests {
     #[test]
     fn test_eviction_fifo_order() {
         let mut mgr = ContextManager::new(150);
-        mgr.window.eviction_policy = EvictionPolicy::FIFO;
+        mgr.window.eviction_policy = EvictionPolicy::Fifo;
         mgr.add(make_item("a", 50, ContextPriority::Medium)).unwrap();
         mgr.add(make_item("b", 50, ContextPriority::Medium)).unwrap();
         mgr.add(make_item("c", 50, ContextPriority::Medium)).unwrap();

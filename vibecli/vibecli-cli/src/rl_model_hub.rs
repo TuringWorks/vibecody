@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! RL Model Hub — policy registry, lineage tracking, artifact management, and deployment for RL-OS.
 //!
 //! Production-grade reinforcement learning model hub providing:

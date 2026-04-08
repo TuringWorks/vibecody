@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! TrainOS — Reinforcement Learning Operating System for VibeCody.
 //!
 //! A production-grade RL training framework covering the full lifecycle of
@@ -89,104 +88,104 @@ impl std::fmt::Display for AlgorithmFamily {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum AlgorithmId {
     // On-policy
-    PPO,
-    A2C,
-    TRPO,
-    PPG,
+    Ppo,
+    A2c,
+    Trpo,
+    Ppg,
     // Off-policy
-    SAC,
-    TD3,
-    DQN,
-    DDPG,
+    Sac,
+    Td3,
+    Dqn,
+    Ddpg,
     C51,
-    QRDQN,
-    IQN,
+    Qrdqn,
+    Iqn,
     // Offline RL
-    CQL,
-    IQL,
-    BCQ,
-    BEAR,
-    CRR,
-    TD3BC,
+    Cql,
+    Iql,
+    Bcq,
+    Bear,
+    Crr,
+    Td3bc,
     DecisionTransformer,
-    COMBO,
+    Combo,
     // Model-based
     DreamerV3,
     WorldModels,
     MuZeroStyle,
     // Multi-agent
-    MAPPO,
-    QMIX,
-    VDN,
-    MADDPG,
-    COMA,
+    Mappo,
+    Qmix,
+    Vdn,
+    Maddpg,
+    Coma,
     // Imitation
-    BC,
-    GAIL,
+    Bc,
+    Gail,
     DAgger,
 }
 
 impl AlgorithmId {
     pub fn family(&self) -> AlgorithmFamily {
         match self {
-            Self::PPO | Self::A2C | Self::TRPO | Self::PPG => AlgorithmFamily::OnPolicy,
-            Self::SAC | Self::TD3 | Self::DQN | Self::DDPG | Self::C51 | Self::QRDQN | Self::IQN => {
+            Self::Ppo | Self::A2c | Self::Trpo | Self::Ppg => AlgorithmFamily::OnPolicy,
+            Self::Sac | Self::Td3 | Self::Dqn | Self::Ddpg | Self::C51 | Self::Qrdqn | Self::Iqn => {
                 AlgorithmFamily::OffPolicy
             }
-            Self::CQL | Self::IQL | Self::BCQ | Self::BEAR | Self::CRR | Self::TD3BC
-            | Self::DecisionTransformer | Self::COMBO => AlgorithmFamily::OfflineRL,
+            Self::Cql | Self::Iql | Self::Bcq | Self::Bear | Self::Crr | Self::Td3bc
+            | Self::DecisionTransformer | Self::Combo => AlgorithmFamily::OfflineRL,
             Self::DreamerV3 | Self::WorldModels | Self::MuZeroStyle => AlgorithmFamily::ModelBased,
-            Self::MAPPO | Self::QMIX | Self::VDN | Self::MADDPG | Self::COMA => {
+            Self::Mappo | Self::Qmix | Self::Vdn | Self::Maddpg | Self::Coma => {
                 AlgorithmFamily::MultiAgent
             }
-            Self::BC | Self::GAIL | Self::DAgger => AlgorithmFamily::Imitation,
+            Self::Bc | Self::Gail | Self::DAgger => AlgorithmFamily::Imitation,
         }
     }
 
     pub fn name(&self) -> &'static str {
         match self {
-            Self::PPO => "PPO",
-            Self::A2C => "A2C",
-            Self::TRPO => "TRPO",
-            Self::PPG => "PPG",
-            Self::SAC => "SAC",
-            Self::TD3 => "TD3",
-            Self::DQN => "DQN",
-            Self::DDPG => "DDPG",
+            Self::Ppo => "PPO",
+            Self::A2c => "A2C",
+            Self::Trpo => "TRPO",
+            Self::Ppg => "PPG",
+            Self::Sac => "SAC",
+            Self::Td3 => "TD3",
+            Self::Dqn => "DQN",
+            Self::Ddpg => "DDPG",
             Self::C51 => "C51",
-            Self::QRDQN => "QR-DQN",
-            Self::IQN => "IQN",
-            Self::CQL => "CQL",
-            Self::IQL => "IQL",
-            Self::BCQ => "BCQ",
-            Self::BEAR => "BEAR",
-            Self::CRR => "CRR",
-            Self::TD3BC => "TD3+BC",
+            Self::Qrdqn => "QR-DQN",
+            Self::Iqn => "IQN",
+            Self::Cql => "CQL",
+            Self::Iql => "IQL",
+            Self::Bcq => "BCQ",
+            Self::Bear => "BEAR",
+            Self::Crr => "CRR",
+            Self::Td3bc => "TD3+BC",
             Self::DecisionTransformer => "Decision Transformer",
-            Self::COMBO => "COMBO",
+            Self::Combo => "COMBO",
             Self::DreamerV3 => "DreamerV3",
             Self::WorldModels => "World Models",
             Self::MuZeroStyle => "MuZero-Style",
-            Self::MAPPO => "MAPPO",
-            Self::QMIX => "QMIX",
-            Self::VDN => "VDN",
-            Self::MADDPG => "MADDPG",
-            Self::COMA => "COMA",
-            Self::BC => "BC",
-            Self::GAIL => "GAIL",
+            Self::Mappo => "MAPPO",
+            Self::Qmix => "QMIX",
+            Self::Vdn => "VDN",
+            Self::Maddpg => "MADDPG",
+            Self::Coma => "COMA",
+            Self::Bc => "BC",
+            Self::Gail => "GAIL",
             Self::DAgger => "DAgger",
         }
     }
 
     pub fn all() -> Vec<AlgorithmId> {
         vec![
-            Self::PPO, Self::A2C, Self::TRPO, Self::PPG,
-            Self::SAC, Self::TD3, Self::DQN, Self::DDPG, Self::C51, Self::QRDQN, Self::IQN,
-            Self::CQL, Self::IQL, Self::BCQ, Self::BEAR, Self::CRR, Self::TD3BC,
-            Self::DecisionTransformer, Self::COMBO,
+            Self::Ppo, Self::A2c, Self::Trpo, Self::Ppg,
+            Self::Sac, Self::Td3, Self::Dqn, Self::Ddpg, Self::C51, Self::Qrdqn, Self::Iqn,
+            Self::Cql, Self::Iql, Self::Bcq, Self::Bear, Self::Crr, Self::Td3bc,
+            Self::DecisionTransformer, Self::Combo,
             Self::DreamerV3, Self::WorldModels, Self::MuZeroStyle,
-            Self::MAPPO, Self::QMIX, Self::VDN, Self::MADDPG, Self::COMA,
-            Self::BC, Self::GAIL, Self::DAgger,
+            Self::Mappo, Self::Qmix, Self::Vdn, Self::Maddpg, Self::Coma,
+            Self::Bc, Self::Gail, Self::DAgger,
         ]
     }
 
@@ -198,13 +197,13 @@ impl AlgorithmId {
     }
 
     pub fn supports_continuous_actions(&self) -> bool {
-        !matches!(self, Self::DQN | Self::C51 | Self::QRDQN | Self::IQN)
+        !matches!(self, Self::Dqn | Self::C51 | Self::Qrdqn | Self::Iqn)
     }
 
     pub fn default_hyperparams(&self) -> HashMap<String, f64> {
         let mut hp = HashMap::new();
         match self {
-            Self::PPO => {
+            Self::Ppo => {
                 hp.insert("clip_ratio".into(), 0.2);
                 hp.insert("entropy_coef".into(), 0.01);
                 hp.insert("value_coef".into(), 0.5);
@@ -213,25 +212,25 @@ impl AlgorithmId {
                 hp.insert("num_epochs".into(), 10.0);
                 hp.insert("minibatch_size".into(), 64.0);
             }
-            Self::SAC => {
+            Self::Sac => {
                 hp.insert("tau".into(), 0.005);
                 hp.insert("alpha".into(), 0.2);
                 hp.insert("target_update_interval".into(), 1.0);
                 hp.insert("auto_alpha".into(), 1.0);
             }
-            Self::TD3 => {
+            Self::Td3 => {
                 hp.insert("tau".into(), 0.005);
                 hp.insert("policy_noise".into(), 0.2);
                 hp.insert("noise_clip".into(), 0.5);
                 hp.insert("policy_delay".into(), 2.0);
             }
-            Self::DQN => {
+            Self::Dqn => {
                 hp.insert("epsilon_start".into(), 1.0);
                 hp.insert("epsilon_end".into(), 0.01);
                 hp.insert("epsilon_decay".into(), 0.995);
                 hp.insert("target_update_freq".into(), 1000.0);
             }
-            Self::CQL => {
+            Self::Cql => {
                 hp.insert("cql_alpha".into(), 1.0);
                 hp.insert("min_q_weight".into(), 5.0);
                 hp.insert("tau".into(), 0.005);
@@ -242,7 +241,7 @@ impl AlgorithmId {
                 hp.insert("kl_scale".into(), 0.1);
                 hp.insert("discount".into(), 0.997);
             }
-            Self::MAPPO => {
+            Self::Mappo => {
                 hp.insert("clip_ratio".into(), 0.2);
                 hp.insert("share_policy".into(), 1.0);
                 hp.insert("centralized_value".into(), 1.0);
@@ -292,11 +291,11 @@ impl AlgorithmDescriptor {
         let default_hyperparams = id.default_hyperparams();
         let description = format!("{} ({}) algorithm", id.name(), family.label());
         let paper_reference = match &id {
-            AlgorithmId::PPO => "Schulman et al., 2017",
-            AlgorithmId::SAC => "Haarnoja et al., 2018",
+            AlgorithmId::Ppo => "Schulman et al., 2017",
+            AlgorithmId::Sac => "Haarnoja et al., 2018",
             AlgorithmId::DreamerV3 => "Hafner et al., 2023",
-            AlgorithmId::MAPPO => "Yu et al., 2022",
-            AlgorithmId::CQL => "Kumar et al., 2020",
+            AlgorithmId::Mappo => "Yu et al., 2022",
+            AlgorithmId::Cql => "Kumar et al., 2020",
             _ => "See literature",
         }
         .to_string();
@@ -390,10 +389,10 @@ pub enum Activation {
     ReLU,
     Tanh,
     Sigmoid,
-    GELU,
+    Gelu,
     SiLU,
     LeakyReLU(f64),
-    ELU(f64),
+    Elu(f64),
     Softmax,
     Identity,
 }
@@ -404,10 +403,10 @@ impl Activation {
             Self::ReLU => x.max(0.0),
             Self::Tanh => x.tanh(),
             Self::Sigmoid => 1.0 / (1.0 + (-x).exp()),
-            Self::GELU => 0.5 * x * (1.0 + (0.7978845608 * (x + 0.044715 * x.powi(3))).tanh()),
+            Self::Gelu => 0.5 * x * (1.0 + (0.7978845608 * (x + 0.044715 * x.powi(3))).tanh()),
             Self::SiLU => x * (1.0 / (1.0 + (-x).exp())),
             Self::LeakyReLU(alpha) => if x >= 0.0 { x } else { alpha * x },
-            Self::ELU(alpha) => if x >= 0.0 { x } else { alpha * (x.exp() - 1.0) },
+            Self::Elu(alpha) => if x >= 0.0 { x } else { alpha * (x.exp() - 1.0) },
             Self::Softmax => x.exp(), // simplified; real softmax needs vector context
             Self::Identity => x,
         }
@@ -419,7 +418,7 @@ impl Activation {
 pub enum LayerType {
     Dense { in_features: usize, out_features: usize },
     Conv2d { in_channels: usize, out_channels: usize, kernel_size: usize, stride: usize },
-    LSTM { input_size: usize, hidden_size: usize, num_layers: usize },
+    Lstm { input_size: usize, hidden_size: usize, num_layers: usize },
     TransformerBlock { d_model: usize, n_heads: usize, d_ff: usize },
     LayerNorm { features: usize },
     BatchNorm { features: usize },
@@ -436,7 +435,7 @@ impl LayerType {
             Self::Conv2d { in_channels, out_channels, kernel_size, .. } => {
                 in_channels * out_channels * kernel_size * kernel_size + out_channels
             }
-            Self::LSTM { input_size, hidden_size, num_layers } => {
+            Self::Lstm { input_size, hidden_size, num_layers } => {
                 num_layers * 4 * (input_size * hidden_size + hidden_size * hidden_size + hidden_size)
             }
             Self::TransformerBlock { d_model, d_ff, .. } => {
@@ -461,9 +460,9 @@ pub struct LayerConfig {
 /// Network architecture type.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum NetworkType {
-    MLP,
-    CNN,
-    LSTM,
+    Mlp,
+    Cnn,
+    LstmNet,
     Transformer,
     Custom,
 }
@@ -471,9 +470,9 @@ pub enum NetworkType {
 impl std::fmt::Display for NetworkType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::MLP => write!(f, "MLP"),
-            Self::CNN => write!(f, "CNN"),
-            Self::LSTM => write!(f, "LSTM"),
+            Self::Mlp => write!(f, "MLP"),
+            Self::Cnn => write!(f, "CNN"),
+            Self::LstmNet => write!(f, "LSTM"),
             Self::Transformer => write!(f, "Transformer"),
             Self::Custom => write!(f, "Custom"),
         }
@@ -511,7 +510,7 @@ impl PolicyNetwork {
         });
         Self {
             name: "mlp_policy".into(),
-            network_type: NetworkType::MLP,
+            network_type: NetworkType::Mlp,
             layers,
             input_shape: vec![input_dim],
             output_dim,
@@ -561,7 +560,7 @@ impl PolicyNetwork {
         ];
         Self {
             name: "cnn_policy".into(),
-            network_type: NetworkType::CNN,
+            network_type: NetworkType::Cnn,
             layers,
             input_shape: vec![input_channels, img_size, img_size],
             output_dim,
@@ -580,7 +579,7 @@ impl PolicyNetwork {
                     n_heads,
                     d_ff: d_model * 4,
                 },
-                activation: Some(Activation::GELU),
+                activation: Some(Activation::Gelu),
             });
         }
         layers.push(LayerConfig {
@@ -603,7 +602,7 @@ impl PolicyNetwork {
         let layers = vec![
             LayerConfig {
                 name: "lstm".into(),
-                layer_type: LayerType::LSTM { input_size, hidden_size, num_layers },
+                layer_type: LayerType::Lstm { input_size, hidden_size, num_layers },
                 activation: Some(Activation::Tanh),
             },
             LayerConfig {
@@ -614,7 +613,7 @@ impl PolicyNetwork {
         ];
         Self {
             name: "lstm_policy".into(),
-            network_type: NetworkType::LSTM,
+            network_type: NetworkType::LstmNet,
             layers,
             input_shape: vec![input_size],
             output_dim,
@@ -1132,7 +1131,7 @@ impl DistributedManager {
                 result
             }
             GradientSyncStrategy::LocalSGD { sync_every } => {
-                if self.global_step % sync_every == 0 {
+                if self.global_step.is_multiple_of(*sync_every) {
                     let mut result = vec![0.0; len];
                     let n = gradients.len() as f64;
                     for grad in gradients {
@@ -1232,7 +1231,7 @@ impl Trajectory {
     pub fn compute_nstep_returns(&self, gamma: f64, n: usize) -> Vec<f64> {
         let len = self.transitions.len();
         let mut returns = vec![0.0; len];
-        for i in 0..len {
+        for (i, ret_val) in returns.iter_mut().enumerate() {
             let mut ret = 0.0;
             let mut discount = 1.0;
             for j in 0..n.min(len - i) {
@@ -1242,7 +1241,7 @@ impl Trajectory {
                     break;
                 }
             }
-            returns[i] = ret;
+            *ret_val = ret;
         }
         returns
     }
@@ -1786,7 +1785,7 @@ pub enum SearchStrategy {
     RandomSearch,
     BayesianOptimization { acquisition: String },
     PopulationBased { population_size: usize, exploit_fraction: f64 },
-    NAS { max_layers: usize, max_width: usize },
+    NeuralArchSearch { max_layers: usize, max_width: usize },
 }
 
 /// A hyperparameter search space entry.
@@ -1923,7 +1922,7 @@ impl AutoRL {
                     }
                 }
             }
-            SearchStrategy::NAS { .. } => {
+            SearchStrategy::NeuralArchSearch { .. } => {
                 for p in &self.search_space {
                     let frac = ((trial_idx * 4391 + 17) % 10000) as f64 / 10000.0;
                     params.insert(p.name.clone(), p.sample_at(frac));
@@ -2543,13 +2542,13 @@ mod tests {
         assert_eq!(AlgorithmId::CQL.family(), AlgorithmFamily::OfflineRL);
         assert_eq!(AlgorithmId::DreamerV3.family(), AlgorithmFamily::ModelBased);
         assert_eq!(AlgorithmId::MAPPO.family(), AlgorithmFamily::MultiAgent);
-        assert_eq!(AlgorithmId::BC.family(), AlgorithmFamily::Imitation);
+        assert_eq!(AlgorithmId::Bc.family(), AlgorithmFamily::Imitation);
     }
 
     #[test]
     fn test_algorithm_names() {
         assert_eq!(AlgorithmId::PPO.name(), "PPO");
-        assert_eq!(AlgorithmId::TD3BC.name(), "TD3+BC");
+        assert_eq!(AlgorithmId::Td3bc.name(), "TD3+BC");
         assert_eq!(AlgorithmId::QRDQN.name(), "QR-DQN");
         assert_eq!(AlgorithmId::DecisionTransformer.name(), "Decision Transformer");
     }
@@ -2673,7 +2672,7 @@ mod tests {
     #[test]
     fn test_mlp_policy_creation() {
         let net = PolicyNetwork::mlp(64, &[256, 256], 4);
-        assert_eq!(net.network_type, NetworkType::MLP);
+        assert_eq!(net.network_type, NetworkType::Mlp);
         assert_eq!(net.output_dim, 4);
         assert_eq!(net.layers.len(), 3); // 2 hidden + 1 output
     }
@@ -2689,7 +2688,7 @@ mod tests {
     #[test]
     fn test_cnn_policy_creation() {
         let net = PolicyNetwork::cnn(3, 84, 18);
-        assert_eq!(net.network_type, NetworkType::CNN);
+        assert_eq!(net.network_type, NetworkType::Cnn);
         assert_eq!(net.output_dim, 18);
         assert_eq!(net.input_shape, vec![3, 84, 84]);
     }
@@ -2704,7 +2703,7 @@ mod tests {
     #[test]
     fn test_lstm_policy_creation() {
         let net = PolicyNetwork::lstm(64, 128, 2, 8);
-        assert_eq!(net.network_type, NetworkType::LSTM);
+        assert_eq!(net.network_type, NetworkType::LstmNet);
         assert_eq!(net.output_dim, 8);
     }
 

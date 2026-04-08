@@ -479,6 +479,7 @@ impl PurpleTeamManager {
         false
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn validate_detection(
         &mut self,
         exercise_id: &str,

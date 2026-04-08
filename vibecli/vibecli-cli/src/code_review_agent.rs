@@ -333,7 +333,7 @@ impl PatternAnalyzer {
                     .split(fn_keyword)
                     .nth(1)
                     .unwrap_or("")
-                    .split(|c: char| c == '(' || c == '<' || c == ' ')
+                    .split(['(', '<', ' '])
                     .next()
                     .unwrap_or("unknown")
                     .to_string();
@@ -462,7 +462,7 @@ impl NamingChecker {
 
             // Function names — `fn some_name(`
             if let Some(rest) = trimmed.strip_prefix("fn ").or_else(|| trimmed.strip_prefix("pub fn ").or_else(|| trimmed.strip_prefix("pub(crate) fn "))) {
-                let name = rest.split(|c: char| c == '(' || c == '<' || c == ' ')
+                let name = rest.split(['(', '<', ' '])
                     .next()
                     .unwrap_or("");
                 if !name.is_empty() && !Self::is_snake_case(name) {
@@ -493,7 +493,7 @@ impl NamingChecker {
                 ];
                 for prefix in &prefix_variants {
                     if let Some(rest) = trimmed.strip_prefix(prefix.as_str()) {
-                        let name = rest.split(|c: char| c == '{' || c == '(' || c == '<' || c == ' ' || c == ';')
+                        let name = rest.split(['{', '(', '<', ' ', ';'])
                             .next()
                             .unwrap_or("");
                         if !name.is_empty() && !Self::is_camel_case(name) {
@@ -530,7 +530,7 @@ impl NamingChecker {
 
             // function declarations
             if let Some(rest) = trimmed.strip_prefix("function ") {
-                let name = rest.split(|c: char| c == '(' || c == '<' || c == ' ')
+                let name = rest.split(['(', '<', ' '])
                     .next()
                     .unwrap_or("");
                 if !name.is_empty() && !Self::is_camel_case_lower(name) {
@@ -561,7 +561,7 @@ impl NamingChecker {
                 } else {
                     trimmed.strip_prefix("const ").unwrap_or("")
                 };
-                let name = after_const.split(|c: char| c == ' ' || c == ':' || c == '=')
+                let name = after_const.split([' ', ':', '='])
                     .next()
                     .unwrap_or("");
                 if !name.is_empty() && !Self::is_pascal_case(name) {
@@ -611,13 +611,13 @@ impl NamingChecker {
 
     fn is_camel_case(s: &str) -> bool {
         !s.is_empty()
-            && s.chars().next().map_or(false, |c| c.is_ascii_uppercase())
+            && s.chars().next().is_some_and(|c| c.is_ascii_uppercase())
             && !s.contains('_')
     }
 
     fn is_camel_case_lower(s: &str) -> bool {
         !s.is_empty()
-            && s.chars().next().map_or(false, |c| c.is_ascii_lowercase())
+            && s.chars().next().is_some_and(|c| c.is_ascii_lowercase())
             && !s.contains('_')
     }
 

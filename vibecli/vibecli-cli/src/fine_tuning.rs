@@ -56,7 +56,7 @@ pub enum FineTuneLibrary {
     /// HuggingFace TRL — Transformer Reinforcement Learning (SFT, DPO, PPO).
     HuggingFaceTRL,
     /// PEFT — Parameter-Efficient Fine-Tuning (LoRA, AdaLoRA, prefix tuning).
-    PEFT,
+    Peft,
 }
 
 impl FineTuneLibrary {
@@ -67,7 +67,7 @@ impl FineTuneLibrary {
             Self::LlamaFactory => "llama-factory",
             Self::DeepSpeed => "deepspeed",
             Self::HuggingFaceTRL => "trl",
-            Self::PEFT => "peft",
+            Self::Peft => "peft",
         }
     }
 
@@ -78,7 +78,7 @@ impl FineTuneLibrary {
             Self::LlamaFactory => "https://github.com/hiyouga/LLaMA-Factory",
             Self::DeepSpeed => "https://github.com/deepspeedai/DeepSpeed",
             Self::HuggingFaceTRL => "https://github.com/huggingface/trl",
-            Self::PEFT => "https://github.com/huggingface/peft",
+            Self::Peft => "https://github.com/huggingface/peft",
         }
     }
 
@@ -89,7 +89,7 @@ impl FineTuneLibrary {
             Self::LlamaFactory => "pip install llamafactory",
             Self::DeepSpeed => "pip install deepspeed",
             Self::HuggingFaceTRL => "pip install trl",
-            Self::PEFT => "pip install peft",
+            Self::Peft => "pip install peft",
         }
     }
 
@@ -100,7 +100,7 @@ impl FineTuneLibrary {
             Self::LlamaFactory => "100+ LLMs/VLMs. Full alignment: SFT, DPO, PPO, RLHF, KTO. CLI + Web UI. Distributed training support.",
             Self::DeepSpeed => "Multi-GPU/multi-node distributed training. ZeRO stages 0-3 + Infinity. Gradient checkpointing, mixed precision.",
             Self::HuggingFaceTRL => "Transformer RL: SFTTrainer, DPOTrainer, PPOTrainer. Direct preference optimization, reward modeling.",
-            Self::PEFT => "Parameter-efficient methods: LoRA, AdaLoRA, prefix tuning, prompt tuning, IA3. Works with any HuggingFace model.",
+            Self::Peft => "Parameter-efficient methods: LoRA, AdaLoRA, prefix tuning, prompt tuning, IA3. Works with any HuggingFace model.",
         }
     }
 
@@ -122,14 +122,14 @@ impl FineTuneLibrary {
             Self::HuggingFaceTRL => format!(
                 "python -c \"\nfrom trl import SFTTrainer, SFTConfig\nfrom transformers import AutoModelForCausalLM, AutoTokenizer\nfrom datasets import load_dataset\nmodel = AutoModelForCausalLM.from_pretrained('{model}')\ntokenizer = AutoTokenizer.from_pretrained('{model}')\ndataset = load_dataset('json', data_files='{dataset}')\ntrainer = SFTTrainer(model=model, tokenizer=tokenizer, train_dataset=dataset['train'],\n    args=SFTConfig(output_dir='{output}', num_train_epochs=3))\ntrainer.train()\n\""
             ),
-            Self::PEFT => format!(
+            Self::Peft => format!(
                 "python -c \"\nfrom peft import LoraConfig, get_peft_model\nfrom transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments, Trainer\nfrom datasets import load_dataset\nmodel = AutoModelForCausalLM.from_pretrained('{model}')\nlora_config = LoraConfig(r=16, lora_alpha=32, target_modules=['q_proj', 'v_proj'])\nmodel = get_peft_model(model, lora_config)\ndataset = load_dataset('json', data_files='{dataset}')\ntrainer = Trainer(model=model, train_dataset=dataset['train'],\n    args=TrainingArguments(output_dir='{output}', num_train_epochs=3))\ntrainer.train()\nmodel.save_pretrained('{output}')\n\""
             ),
         }
     }
 
     pub fn all() -> Vec<Self> {
-        vec![Self::Unsloth, Self::Axolotl, Self::LlamaFactory, Self::DeepSpeed, Self::HuggingFaceTRL, Self::PEFT]
+        vec![Self::Unsloth, Self::Axolotl, Self::LlamaFactory, Self::DeepSpeed, Self::HuggingFaceTRL, Self::Peft]
     }
 }
 

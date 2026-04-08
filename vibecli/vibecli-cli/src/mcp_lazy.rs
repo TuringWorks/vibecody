@@ -80,6 +80,8 @@ pub struct RegistryMetrics {
     pub total_load_time_ms: u64,
 }
 
+type SchemaLoader = Option<Box<dyn Fn(&str, &str) -> Option<ToolSchema> + Send + Sync>>;
+
 /// Entry in the LRU schema cache, tracking last access time.
 #[derive(Debug, Clone)]
 struct CachedSchema {
@@ -101,7 +103,7 @@ pub struct LazyToolRegistry {
     total_load_time_ms: u64,
     /// External schema loader function. In production this calls the MCP server;
     /// for tests it can be replaced with a closure.
-    schema_loader: Option<Box<dyn Fn(&str, &str) -> Option<ToolSchema> + Send + Sync>>,
+    schema_loader: SchemaLoader,
 }
 
 impl std::fmt::Debug for LazyToolRegistry {

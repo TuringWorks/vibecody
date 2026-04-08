@@ -1,8 +1,8 @@
 //! Email integration for VibeCLI (Gmail + Outlook).
 //!
 //! Configuration:
-//! - Gmail: `GMAIL_ACCESS_TOKEN` env or `email.gmail_access_token` in config
-//!          `GMAIL_APP_PASSWORD` + `GMAIL_ADDRESS` for app password auth
+//! - Gmail: `GMAIL_ACCESS_TOKEN` env or `email.gmail_access_token` in config,
+//!   or `GMAIL_APP_PASSWORD` + `GMAIL_ADDRESS` for app password auth
 //! - Outlook: `OUTLOOK_ACCESS_TOKEN` env or `email.outlook_access_token` in config
 //!
 //! REPL commands:

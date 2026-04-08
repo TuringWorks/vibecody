@@ -44,7 +44,7 @@ impl std::fmt::Display for BranchAgentStatus {
 pub enum PrStatus {
     Open,
     Draft,
-    WIP,
+    Wip,
     Merged,
     Closed,
 }
@@ -54,7 +54,7 @@ impl std::fmt::Display for PrStatus {
         match self {
             Self::Open => write!(f, "open"),
             Self::Draft => write!(f, "draft"),
-            Self::WIP => write!(f, "wip"),
+            Self::Wip => write!(f, "wip"),
             Self::Merged => write!(f, "merged"),
             Self::Closed => write!(f, "closed"),
         }
@@ -512,7 +512,7 @@ impl BranchAgentManager {
         if self.config.wip_pr_on_failure {
             let pr = self.build_pr_info(
                 &self.agents[agent_id].clone(),
-                PrStatus::WIP,
+                PrStatus::Wip,
             );
             let agent = self.agents.get_mut(agent_id).expect("agent exists");
             agent.pr = Some(pr.clone());
@@ -995,7 +995,7 @@ mod tests {
         let pr = mgr.fail_agent(&id, "compilation error").unwrap();
         assert!(pr.is_some());
         let pr = pr.unwrap();
-        assert_eq!(pr.status, PrStatus::WIP);
+        assert_eq!(pr.status, PrStatus::Wip);
         let agent = mgr.get_agent(&id).unwrap();
         assert_eq!(agent.status, BranchAgentStatus::Failed);
         assert_eq!(agent.error.as_deref(), Some("compilation error"));
@@ -1463,7 +1463,7 @@ mod tests {
     #[test]
     fn test_pr_status_display() {
         assert_eq!(format!("{}", PrStatus::Open), "open");
-        assert_eq!(format!("{}", PrStatus::WIP), "wip");
+        assert_eq!(format!("{}", PrStatus::Wip), "wip");
         assert_eq!(format!("{}", PrStatus::Merged), "merged");
     }
 

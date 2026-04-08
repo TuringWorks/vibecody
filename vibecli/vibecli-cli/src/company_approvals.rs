@@ -70,6 +70,7 @@ impl ApprovalStatus {
             Self::Cancelled => "cancelled",
         }
     }
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         match s {
             "approved" => Self::Approved,
@@ -166,7 +167,7 @@ impl<'a> ApprovalStore<'a> {
                     reason, decided_by, decided_at, created_at
              FROM approvals WHERE id = ?1",
         )?;
-        let mut rows = stmt.query_map(params![id], |row| row_to_approval(row))?;
+        let mut rows = stmt.query_map(params![id], row_to_approval)?;
         rows.next().transpose().map_err(|e| anyhow!("{e}"))
     }
 
@@ -182,10 +183,10 @@ impl<'a> ApprovalStore<'a> {
         };
         let mut stmt = self.conn.prepare(sql)?;
         let rows = if use_status {
-            stmt.query_map(params![company_id, status_filter.unwrap()], |row| row_to_approval(row))?
+            stmt.query_map(params![company_id, status_filter.unwrap()], row_to_approval)?
                 .collect::<rusqlite::Result<Vec<_>>>()?
         } else {
-            stmt.query_map(params![company_id], |row| row_to_approval(row))?
+            stmt.query_map(params![company_id], row_to_approval)?
                 .collect::<rusqlite::Result<Vec<_>>>()?
         };
         Ok(rows)

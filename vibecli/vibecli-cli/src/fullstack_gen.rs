@@ -38,11 +38,11 @@ pub enum DatabaseType {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum AuthStrategy {
-    JWT,
+    Jwt,
     OAuth2,
     SessionBased,
     ApiKey,
-    SAML,
+    Saml,
     None,
 }
 
@@ -240,12 +240,12 @@ fn database_schema_template(db: &DatabaseType) -> Vec<(&'static str, &'static st
 fn auth_middleware_template(auth: &AuthStrategy, backend: &BackendFramework) -> Option<(&'static str, &'static str, FileType)> {
     match (auth, backend) {
         (AuthStrategy::None, _) => None,
-        (AuthStrategy::JWT, BackendFramework::Express) => Some((
+        (AuthStrategy::Jwt, BackendFramework::Express) => Some((
             "backend/src/middleware/auth.ts",
             "import { Request, Response, NextFunction } from 'express';\nimport jwt from 'jsonwebtoken';\n\nconst SECRET = process.env.JWT_SECRET || 'change-me';\n\nexport function authenticate(req: Request, res: Response, next: NextFunction) {\n  const token = req.headers.authorization?.replace('Bearer ', '');\n  if (!token) return res.status(401).json({ error: 'Unauthorized' });\n  try {\n    const payload = jwt.verify(token, SECRET);\n    (req as any).user = payload;\n    next();\n  } catch {\n    res.status(401).json({ error: 'Invalid token' });\n  }\n}\n",
             FileType::Controller,
         )),
-        (AuthStrategy::JWT, _) => Some((
+        (AuthStrategy::Jwt, _) => Some((
             "backend/src/middleware/auth.rs",
             "// JWT authentication middleware placeholder\npub fn verify_jwt(token: &str) -> Result<Claims, AuthError> {\n    todo!(\"implement JWT verification\")\n}\n\npub struct Claims {\n    pub sub: String,\n    pub exp: u64,\n}\n\n#[derive(Debug)]\npub enum AuthError {\n    Expired,\n    Invalid,\n}\n",
             FileType::Controller,
@@ -265,7 +265,7 @@ fn auth_middleware_template(auth: &AuthStrategy, backend: &BackendFramework) -> 
             "import { Request, Response, NextFunction } from 'express';\n\nexport function validateApiKey(req: Request, res: Response, next: NextFunction) {\n  const key = req.headers['x-api-key'];\n  if (!key) return res.status(401).json({ error: 'API key required' });\n  // Validate against stored keys\n  next();\n}\n",
             FileType::Controller,
         )),
-        (AuthStrategy::SAML, _) => Some((
+        (AuthStrategy::Saml, _) => Some((
             "backend/src/middleware/saml.ts",
             "// SAML authentication configuration placeholder\nexport const samlConfig = {\n  entryPoint: 'https://idp.example.com/sso',\n  issuer: 'app',\n  cert: process.env.SAML_CERT || '',\n  callbackUrl: '/auth/saml/callback',\n};\n",
             FileType::Config,
@@ -577,7 +577,7 @@ mod tests {
             frontend: FrontendFramework::React,
             backend: BackendFramework::Express,
             database: DatabaseType::PostgreSQL,
-            auth: AuthStrategy::JWT,
+            auth: AuthStrategy::Jwt,
             features: vec!["auth".to_string(), "crud".to_string()],
         }
     }

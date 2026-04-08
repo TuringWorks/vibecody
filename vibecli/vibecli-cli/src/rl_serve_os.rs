@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! RL-OS ServeOS — Reinforcement Learning serving operating system.
 //!
 //! Production-grade RL model serving with stateful session management,

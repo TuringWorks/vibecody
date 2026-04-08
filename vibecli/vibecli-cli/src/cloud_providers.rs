@@ -10,16 +10,16 @@ use std::fmt;
 /// Supported cloud providers.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum CloudProvider {
-    AWS,
-    GCP,
+    Aws,
+    Gcp,
     Azure,
 }
 
 impl fmt::Display for CloudProvider {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CloudProvider::AWS => write!(f, "AWS"),
-            CloudProvider::GCP => write!(f, "GCP"),
+            CloudProvider::Aws => write!(f, "AWS"),
+            CloudProvider::Gcp => write!(f, "GCP"),
             CloudProvider::Azure => write!(f, "Azure"),
         }
     }
@@ -36,7 +36,7 @@ pub enum ServiceUsage {
     Network,
     AI,
     Container,
-    CDN,
+    Cdn,
     Auth,
     Monitoring,
     Cache,
@@ -53,7 +53,7 @@ impl fmt::Display for ServiceUsage {
             ServiceUsage::Network => "Network",
             ServiceUsage::AI => "AI/ML",
             ServiceUsage::Container => "Container",
-            ServiceUsage::CDN => "CDN",
+            ServiceUsage::Cdn => "CDN",
             ServiceUsage::Auth => "Auth",
             ServiceUsage::Monitoring => "Monitoring",
             ServiceUsage::Cache => "Cache",
@@ -182,69 +182,69 @@ struct ServicePattern {
 
 fn aws_patterns() -> Vec<ServicePattern> {
     vec![
-        ServicePattern { pattern: "s3_client", provider: CloudProvider::AWS, service_name: "S3", usage_type: ServiceUsage::Storage, confidence: 0.95 },
-        ServicePattern { pattern: "S3Client", provider: CloudProvider::AWS, service_name: "S3", usage_type: ServiceUsage::Storage, confidence: 0.95 },
-        ServicePattern { pattern: "create_bucket", provider: CloudProvider::AWS, service_name: "S3", usage_type: ServiceUsage::Storage, confidence: 0.85 },
-        ServicePattern { pattern: "put_object", provider: CloudProvider::AWS, service_name: "S3", usage_type: ServiceUsage::Storage, confidence: 0.85 },
-        ServicePattern { pattern: "get_object", provider: CloudProvider::AWS, service_name: "S3", usage_type: ServiceUsage::Storage, confidence: 0.85 },
-        ServicePattern { pattern: "DynamoDB", provider: CloudProvider::AWS, service_name: "DynamoDB", usage_type: ServiceUsage::Database, confidence: 0.95 },
-        ServicePattern { pattern: "dynamodb_client", provider: CloudProvider::AWS, service_name: "DynamoDB", usage_type: ServiceUsage::Database, confidence: 0.95 },
-        ServicePattern { pattern: "DynamoDbClient", provider: CloudProvider::AWS, service_name: "DynamoDB", usage_type: ServiceUsage::Database, confidence: 0.95 },
-        ServicePattern { pattern: "put_item", provider: CloudProvider::AWS, service_name: "DynamoDB", usage_type: ServiceUsage::Database, confidence: 0.75 },
-        ServicePattern { pattern: "Lambda", provider: CloudProvider::AWS, service_name: "Lambda", usage_type: ServiceUsage::Serverless, confidence: 0.80 },
-        ServicePattern { pattern: "lambda_client", provider: CloudProvider::AWS, service_name: "Lambda", usage_type: ServiceUsage::Serverless, confidence: 0.95 },
-        ServicePattern { pattern: "invoke_function", provider: CloudProvider::AWS, service_name: "Lambda", usage_type: ServiceUsage::Serverless, confidence: 0.85 },
-        ServicePattern { pattern: "LambdaClient", provider: CloudProvider::AWS, service_name: "Lambda", usage_type: ServiceUsage::Serverless, confidence: 0.95 },
-        ServicePattern { pattern: "SqsClient", provider: CloudProvider::AWS, service_name: "SQS", usage_type: ServiceUsage::Messaging, confidence: 0.95 },
-        ServicePattern { pattern: "sqs_client", provider: CloudProvider::AWS, service_name: "SQS", usage_type: ServiceUsage::Messaging, confidence: 0.95 },
-        ServicePattern { pattern: "send_message", provider: CloudProvider::AWS, service_name: "SQS", usage_type: ServiceUsage::Messaging, confidence: 0.70 },
-        ServicePattern { pattern: "receive_message", provider: CloudProvider::AWS, service_name: "SQS", usage_type: ServiceUsage::Messaging, confidence: 0.70 },
-        ServicePattern { pattern: "SnsClient", provider: CloudProvider::AWS, service_name: "SNS", usage_type: ServiceUsage::Messaging, confidence: 0.95 },
-        ServicePattern { pattern: "sns_client", provider: CloudProvider::AWS, service_name: "SNS", usage_type: ServiceUsage::Messaging, confidence: 0.95 },
-        ServicePattern { pattern: "publish", provider: CloudProvider::AWS, service_name: "SNS", usage_type: ServiceUsage::Messaging, confidence: 0.50 },
-        ServicePattern { pattern: "Ec2Client", provider: CloudProvider::AWS, service_name: "EC2", usage_type: ServiceUsage::Compute, confidence: 0.95 },
-        ServicePattern { pattern: "ec2_client", provider: CloudProvider::AWS, service_name: "EC2", usage_type: ServiceUsage::Compute, confidence: 0.95 },
-        ServicePattern { pattern: "run_instances", provider: CloudProvider::AWS, service_name: "EC2", usage_type: ServiceUsage::Compute, confidence: 0.90 },
-        ServicePattern { pattern: "describe_instances", provider: CloudProvider::AWS, service_name: "EC2", usage_type: ServiceUsage::Compute, confidence: 0.90 },
-        ServicePattern { pattern: "ElastiCache", provider: CloudProvider::AWS, service_name: "ElastiCache", usage_type: ServiceUsage::Cache, confidence: 0.95 },
-        ServicePattern { pattern: "CloudFront", provider: CloudProvider::AWS, service_name: "CloudFront", usage_type: ServiceUsage::CDN, confidence: 0.90 },
-        ServicePattern { pattern: "SageMaker", provider: CloudProvider::AWS, service_name: "SageMaker", usage_type: ServiceUsage::AI, confidence: 0.90 },
-        ServicePattern { pattern: "Bedrock", provider: CloudProvider::AWS, service_name: "Bedrock", usage_type: ServiceUsage::AI, confidence: 0.85 },
-        ServicePattern { pattern: "EcsClient", provider: CloudProvider::AWS, service_name: "ECS", usage_type: ServiceUsage::Container, confidence: 0.95 },
-        ServicePattern { pattern: "EksClient", provider: CloudProvider::AWS, service_name: "EKS", usage_type: ServiceUsage::Container, confidence: 0.95 },
-        ServicePattern { pattern: "CloudWatch", provider: CloudProvider::AWS, service_name: "CloudWatch", usage_type: ServiceUsage::Monitoring, confidence: 0.90 },
-        ServicePattern { pattern: "Cognito", provider: CloudProvider::AWS, service_name: "Cognito", usage_type: ServiceUsage::Auth, confidence: 0.90 },
-        ServicePattern { pattern: "RdsClient", provider: CloudProvider::AWS, service_name: "RDS", usage_type: ServiceUsage::Database, confidence: 0.95 },
+        ServicePattern { pattern: "s3_client", provider: CloudProvider::Aws, service_name: "S3", usage_type: ServiceUsage::Storage, confidence: 0.95 },
+        ServicePattern { pattern: "S3Client", provider: CloudProvider::Aws, service_name: "S3", usage_type: ServiceUsage::Storage, confidence: 0.95 },
+        ServicePattern { pattern: "create_bucket", provider: CloudProvider::Aws, service_name: "S3", usage_type: ServiceUsage::Storage, confidence: 0.85 },
+        ServicePattern { pattern: "put_object", provider: CloudProvider::Aws, service_name: "S3", usage_type: ServiceUsage::Storage, confidence: 0.85 },
+        ServicePattern { pattern: "get_object", provider: CloudProvider::Aws, service_name: "S3", usage_type: ServiceUsage::Storage, confidence: 0.85 },
+        ServicePattern { pattern: "DynamoDB", provider: CloudProvider::Aws, service_name: "DynamoDB", usage_type: ServiceUsage::Database, confidence: 0.95 },
+        ServicePattern { pattern: "dynamodb_client", provider: CloudProvider::Aws, service_name: "DynamoDB", usage_type: ServiceUsage::Database, confidence: 0.95 },
+        ServicePattern { pattern: "DynamoDbClient", provider: CloudProvider::Aws, service_name: "DynamoDB", usage_type: ServiceUsage::Database, confidence: 0.95 },
+        ServicePattern { pattern: "put_item", provider: CloudProvider::Aws, service_name: "DynamoDB", usage_type: ServiceUsage::Database, confidence: 0.75 },
+        ServicePattern { pattern: "Lambda", provider: CloudProvider::Aws, service_name: "Lambda", usage_type: ServiceUsage::Serverless, confidence: 0.80 },
+        ServicePattern { pattern: "lambda_client", provider: CloudProvider::Aws, service_name: "Lambda", usage_type: ServiceUsage::Serverless, confidence: 0.95 },
+        ServicePattern { pattern: "invoke_function", provider: CloudProvider::Aws, service_name: "Lambda", usage_type: ServiceUsage::Serverless, confidence: 0.85 },
+        ServicePattern { pattern: "LambdaClient", provider: CloudProvider::Aws, service_name: "Lambda", usage_type: ServiceUsage::Serverless, confidence: 0.95 },
+        ServicePattern { pattern: "SqsClient", provider: CloudProvider::Aws, service_name: "SQS", usage_type: ServiceUsage::Messaging, confidence: 0.95 },
+        ServicePattern { pattern: "sqs_client", provider: CloudProvider::Aws, service_name: "SQS", usage_type: ServiceUsage::Messaging, confidence: 0.95 },
+        ServicePattern { pattern: "send_message", provider: CloudProvider::Aws, service_name: "SQS", usage_type: ServiceUsage::Messaging, confidence: 0.70 },
+        ServicePattern { pattern: "receive_message", provider: CloudProvider::Aws, service_name: "SQS", usage_type: ServiceUsage::Messaging, confidence: 0.70 },
+        ServicePattern { pattern: "SnsClient", provider: CloudProvider::Aws, service_name: "SNS", usage_type: ServiceUsage::Messaging, confidence: 0.95 },
+        ServicePattern { pattern: "sns_client", provider: CloudProvider::Aws, service_name: "SNS", usage_type: ServiceUsage::Messaging, confidence: 0.95 },
+        ServicePattern { pattern: "publish", provider: CloudProvider::Aws, service_name: "SNS", usage_type: ServiceUsage::Messaging, confidence: 0.50 },
+        ServicePattern { pattern: "Ec2Client", provider: CloudProvider::Aws, service_name: "EC2", usage_type: ServiceUsage::Compute, confidence: 0.95 },
+        ServicePattern { pattern: "ec2_client", provider: CloudProvider::Aws, service_name: "EC2", usage_type: ServiceUsage::Compute, confidence: 0.95 },
+        ServicePattern { pattern: "run_instances", provider: CloudProvider::Aws, service_name: "EC2", usage_type: ServiceUsage::Compute, confidence: 0.90 },
+        ServicePattern { pattern: "describe_instances", provider: CloudProvider::Aws, service_name: "EC2", usage_type: ServiceUsage::Compute, confidence: 0.90 },
+        ServicePattern { pattern: "ElastiCache", provider: CloudProvider::Aws, service_name: "ElastiCache", usage_type: ServiceUsage::Cache, confidence: 0.95 },
+        ServicePattern { pattern: "CloudFront", provider: CloudProvider::Aws, service_name: "CloudFront", usage_type: ServiceUsage::Cdn, confidence: 0.90 },
+        ServicePattern { pattern: "SageMaker", provider: CloudProvider::Aws, service_name: "SageMaker", usage_type: ServiceUsage::AI, confidence: 0.90 },
+        ServicePattern { pattern: "Bedrock", provider: CloudProvider::Aws, service_name: "Bedrock", usage_type: ServiceUsage::AI, confidence: 0.85 },
+        ServicePattern { pattern: "EcsClient", provider: CloudProvider::Aws, service_name: "ECS", usage_type: ServiceUsage::Container, confidence: 0.95 },
+        ServicePattern { pattern: "EksClient", provider: CloudProvider::Aws, service_name: "EKS", usage_type: ServiceUsage::Container, confidence: 0.95 },
+        ServicePattern { pattern: "CloudWatch", provider: CloudProvider::Aws, service_name: "CloudWatch", usage_type: ServiceUsage::Monitoring, confidence: 0.90 },
+        ServicePattern { pattern: "Cognito", provider: CloudProvider::Aws, service_name: "Cognito", usage_type: ServiceUsage::Auth, confidence: 0.90 },
+        ServicePattern { pattern: "RdsClient", provider: CloudProvider::Aws, service_name: "RDS", usage_type: ServiceUsage::Database, confidence: 0.95 },
     ]
 }
 
 fn gcp_patterns() -> Vec<ServicePattern> {
     vec![
-        ServicePattern { pattern: "storage.Client", provider: CloudProvider::GCP, service_name: "Cloud Storage", usage_type: ServiceUsage::Storage, confidence: 0.90 },
-        ServicePattern { pattern: "storage::Client", provider: CloudProvider::GCP, service_name: "Cloud Storage", usage_type: ServiceUsage::Storage, confidence: 0.90 },
-        ServicePattern { pattern: "google.cloud.storage", provider: CloudProvider::GCP, service_name: "Cloud Storage", usage_type: ServiceUsage::Storage, confidence: 0.95 },
-        ServicePattern { pattern: "bigquery", provider: CloudProvider::GCP, service_name: "BigQuery", usage_type: ServiceUsage::Database, confidence: 0.90 },
-        ServicePattern { pattern: "BigQueryClient", provider: CloudProvider::GCP, service_name: "BigQuery", usage_type: ServiceUsage::Database, confidence: 0.95 },
-        ServicePattern { pattern: "google.cloud.bigquery", provider: CloudProvider::GCP, service_name: "BigQuery", usage_type: ServiceUsage::Database, confidence: 0.95 },
-        ServicePattern { pattern: "pubsub", provider: CloudProvider::GCP, service_name: "Pub/Sub", usage_type: ServiceUsage::Messaging, confidence: 0.85 },
-        ServicePattern { pattern: "PublisherClient", provider: CloudProvider::GCP, service_name: "Pub/Sub", usage_type: ServiceUsage::Messaging, confidence: 0.95 },
-        ServicePattern { pattern: "SubscriberClient", provider: CloudProvider::GCP, service_name: "Pub/Sub", usage_type: ServiceUsage::Messaging, confidence: 0.95 },
-        ServicePattern { pattern: "google.cloud.pubsub", provider: CloudProvider::GCP, service_name: "Pub/Sub", usage_type: ServiceUsage::Messaging, confidence: 0.95 },
-        ServicePattern { pattern: "cloud_run", provider: CloudProvider::GCP, service_name: "Cloud Run", usage_type: ServiceUsage::Serverless, confidence: 0.90 },
-        ServicePattern { pattern: "CloudRunClient", provider: CloudProvider::GCP, service_name: "Cloud Run", usage_type: ServiceUsage::Serverless, confidence: 0.95 },
-        ServicePattern { pattern: "google.cloud.run", provider: CloudProvider::GCP, service_name: "Cloud Run", usage_type: ServiceUsage::Serverless, confidence: 0.95 },
-        ServicePattern { pattern: "cloud_functions", provider: CloudProvider::GCP, service_name: "Cloud Functions", usage_type: ServiceUsage::Serverless, confidence: 0.90 },
-        ServicePattern { pattern: "ComputeClient", provider: CloudProvider::GCP, service_name: "Compute Engine", usage_type: ServiceUsage::Compute, confidence: 0.95 },
-        ServicePattern { pattern: "google.cloud.compute", provider: CloudProvider::GCP, service_name: "Compute Engine", usage_type: ServiceUsage::Compute, confidence: 0.95 },
-        ServicePattern { pattern: "FirestoreClient", provider: CloudProvider::GCP, service_name: "Firestore", usage_type: ServiceUsage::Database, confidence: 0.95 },
-        ServicePattern { pattern: "google.cloud.firestore", provider: CloudProvider::GCP, service_name: "Firestore", usage_type: ServiceUsage::Database, confidence: 0.95 },
-        ServicePattern { pattern: "VertexAI", provider: CloudProvider::GCP, service_name: "Vertex AI", usage_type: ServiceUsage::AI, confidence: 0.90 },
-        ServicePattern { pattern: "google.cloud.aiplatform", provider: CloudProvider::GCP, service_name: "Vertex AI", usage_type: ServiceUsage::AI, confidence: 0.95 },
-        ServicePattern { pattern: "GkeClient", provider: CloudProvider::GCP, service_name: "GKE", usage_type: ServiceUsage::Container, confidence: 0.95 },
-        ServicePattern { pattern: "Memorystore", provider: CloudProvider::GCP, service_name: "Memorystore", usage_type: ServiceUsage::Cache, confidence: 0.90 },
-        ServicePattern { pattern: "CloudCDN", provider: CloudProvider::GCP, service_name: "Cloud CDN", usage_type: ServiceUsage::CDN, confidence: 0.90 },
-        ServicePattern { pattern: "Stackdriver", provider: CloudProvider::GCP, service_name: "Cloud Monitoring", usage_type: ServiceUsage::Monitoring, confidence: 0.85 },
-        ServicePattern { pattern: "google.cloud.monitoring", provider: CloudProvider::GCP, service_name: "Cloud Monitoring", usage_type: ServiceUsage::Monitoring, confidence: 0.95 },
+        ServicePattern { pattern: "storage.Client", provider: CloudProvider::Gcp, service_name: "Cloud Storage", usage_type: ServiceUsage::Storage, confidence: 0.90 },
+        ServicePattern { pattern: "storage::Client", provider: CloudProvider::Gcp, service_name: "Cloud Storage", usage_type: ServiceUsage::Storage, confidence: 0.90 },
+        ServicePattern { pattern: "google.cloud.storage", provider: CloudProvider::Gcp, service_name: "Cloud Storage", usage_type: ServiceUsage::Storage, confidence: 0.95 },
+        ServicePattern { pattern: "bigquery", provider: CloudProvider::Gcp, service_name: "BigQuery", usage_type: ServiceUsage::Database, confidence: 0.90 },
+        ServicePattern { pattern: "BigQueryClient", provider: CloudProvider::Gcp, service_name: "BigQuery", usage_type: ServiceUsage::Database, confidence: 0.95 },
+        ServicePattern { pattern: "google.cloud.bigquery", provider: CloudProvider::Gcp, service_name: "BigQuery", usage_type: ServiceUsage::Database, confidence: 0.95 },
+        ServicePattern { pattern: "pubsub", provider: CloudProvider::Gcp, service_name: "Pub/Sub", usage_type: ServiceUsage::Messaging, confidence: 0.85 },
+        ServicePattern { pattern: "PublisherClient", provider: CloudProvider::Gcp, service_name: "Pub/Sub", usage_type: ServiceUsage::Messaging, confidence: 0.95 },
+        ServicePattern { pattern: "SubscriberClient", provider: CloudProvider::Gcp, service_name: "Pub/Sub", usage_type: ServiceUsage::Messaging, confidence: 0.95 },
+        ServicePattern { pattern: "google.cloud.pubsub", provider: CloudProvider::Gcp, service_name: "Pub/Sub", usage_type: ServiceUsage::Messaging, confidence: 0.95 },
+        ServicePattern { pattern: "cloud_run", provider: CloudProvider::Gcp, service_name: "Cloud Run", usage_type: ServiceUsage::Serverless, confidence: 0.90 },
+        ServicePattern { pattern: "CloudRunClient", provider: CloudProvider::Gcp, service_name: "Cloud Run", usage_type: ServiceUsage::Serverless, confidence: 0.95 },
+        ServicePattern { pattern: "google.cloud.run", provider: CloudProvider::Gcp, service_name: "Cloud Run", usage_type: ServiceUsage::Serverless, confidence: 0.95 },
+        ServicePattern { pattern: "cloud_functions", provider: CloudProvider::Gcp, service_name: "Cloud Functions", usage_type: ServiceUsage::Serverless, confidence: 0.90 },
+        ServicePattern { pattern: "ComputeClient", provider: CloudProvider::Gcp, service_name: "Compute Engine", usage_type: ServiceUsage::Compute, confidence: 0.95 },
+        ServicePattern { pattern: "google.cloud.compute", provider: CloudProvider::Gcp, service_name: "Compute Engine", usage_type: ServiceUsage::Compute, confidence: 0.95 },
+        ServicePattern { pattern: "FirestoreClient", provider: CloudProvider::Gcp, service_name: "Firestore", usage_type: ServiceUsage::Database, confidence: 0.95 },
+        ServicePattern { pattern: "google.cloud.firestore", provider: CloudProvider::Gcp, service_name: "Firestore", usage_type: ServiceUsage::Database, confidence: 0.95 },
+        ServicePattern { pattern: "VertexAI", provider: CloudProvider::Gcp, service_name: "Vertex AI", usage_type: ServiceUsage::AI, confidence: 0.90 },
+        ServicePattern { pattern: "google.cloud.aiplatform", provider: CloudProvider::Gcp, service_name: "Vertex AI", usage_type: ServiceUsage::AI, confidence: 0.95 },
+        ServicePattern { pattern: "GkeClient", provider: CloudProvider::Gcp, service_name: "GKE", usage_type: ServiceUsage::Container, confidence: 0.95 },
+        ServicePattern { pattern: "Memorystore", provider: CloudProvider::Gcp, service_name: "Memorystore", usage_type: ServiceUsage::Cache, confidence: 0.90 },
+        ServicePattern { pattern: "CloudCDN", provider: CloudProvider::Gcp, service_name: "Cloud CDN", usage_type: ServiceUsage::Cdn, confidence: 0.90 },
+        ServicePattern { pattern: "Stackdriver", provider: CloudProvider::Gcp, service_name: "Cloud Monitoring", usage_type: ServiceUsage::Monitoring, confidence: 0.85 },
+        ServicePattern { pattern: "google.cloud.monitoring", provider: CloudProvider::Gcp, service_name: "Cloud Monitoring", usage_type: ServiceUsage::Monitoring, confidence: 0.95 },
     ]
 }
 
@@ -272,7 +272,7 @@ fn azure_patterns() -> Vec<ServicePattern> {
         ServicePattern { pattern: "AzureOpenAI", provider: CloudProvider::Azure, service_name: "Azure OpenAI", usage_type: ServiceUsage::AI, confidence: 0.90 },
         ServicePattern { pattern: "azure.ai.openai", provider: CloudProvider::Azure, service_name: "Azure OpenAI", usage_type: ServiceUsage::AI, confidence: 0.95 },
         ServicePattern { pattern: "AzureCacheForRedis", provider: CloudProvider::Azure, service_name: "Cache for Redis", usage_type: ServiceUsage::Cache, confidence: 0.90 },
-        ServicePattern { pattern: "AzureCDN", provider: CloudProvider::Azure, service_name: "CDN", usage_type: ServiceUsage::CDN, confidence: 0.90 },
+        ServicePattern { pattern: "AzureCDN", provider: CloudProvider::Azure, service_name: "CDN", usage_type: ServiceUsage::Cdn, confidence: 0.90 },
         ServicePattern { pattern: "MonitorClient", provider: CloudProvider::Azure, service_name: "Monitor", usage_type: ServiceUsage::Monitoring, confidence: 0.85 },
         ServicePattern { pattern: "azure.identity", provider: CloudProvider::Azure, service_name: "Active Directory", usage_type: ServiceUsage::Auth, confidence: 0.85 },
         ServicePattern { pattern: "SqlClient", provider: CloudProvider::Azure, service_name: "SQL Database", usage_type: ServiceUsage::Database, confidence: 0.80 },
@@ -375,8 +375,8 @@ impl CloudProviderManager {
     /// Return least-privilege actions and resource ARNs for a given service.
     fn iam_actions_for_service(provider: &CloudProvider, service_name: &str) -> (Vec<String>, Vec<String>) {
         match provider {
-            CloudProvider::AWS => Self::aws_iam_actions(service_name),
-            CloudProvider::GCP => Self::gcp_iam_actions(service_name),
+            CloudProvider::Aws => Self::aws_iam_actions(service_name),
+            CloudProvider::Gcp => Self::gcp_iam_actions(service_name),
             CloudProvider::Azure => Self::azure_iam_actions(service_name),
         }
     }
@@ -663,7 +663,7 @@ impl CloudProviderManager {
         let mut props = HashMap::new();
 
         match (provider, format) {
-            (CloudProvider::AWS, IacFormat::Terraform) => {
+            (CloudProvider::Aws, IacFormat::Terraform) => {
                 let (resource_type, logical) = match service_name {
                     "S3" => ("aws_s3_bucket", "app_bucket"),
                     "DynamoDB" => { props.insert("billing_mode".into(), "PAY_PER_REQUEST".into()); ("aws_dynamodb_table", "app_table") },
@@ -677,7 +677,7 @@ impl CloudProviderManager {
                 };
                 (resource_type.into(), logical.into(), props)
             }
-            (CloudProvider::AWS, IacFormat::CloudFormation) => {
+            (CloudProvider::Aws, IacFormat::CloudFormation) => {
                 let (resource_type, logical) = match service_name {
                     "S3" => ("AWS::S3::Bucket", "AppBucket"),
                     "DynamoDB" => { props.insert("BillingMode".into(), "PAY_PER_REQUEST".into()); ("AWS::DynamoDB::Table", "AppTable") },
@@ -689,7 +689,7 @@ impl CloudProviderManager {
                 };
                 (resource_type.into(), logical.into(), props)
             }
-            (CloudProvider::AWS, IacFormat::Pulumi) => {
+            (CloudProvider::Aws, IacFormat::Pulumi) => {
                 let (resource_type, logical) = match service_name {
                     "S3" => ("aws.s3.Bucket", "appBucket"),
                     "DynamoDB" => { props.insert("billingMode".into(), "PAY_PER_REQUEST".into()); ("aws.dynamodb.Table", "appTable") },
@@ -700,7 +700,7 @@ impl CloudProviderManager {
                 };
                 (resource_type.into(), logical.into(), props)
             }
-            (CloudProvider::GCP, IacFormat::Terraform) => {
+            (CloudProvider::Gcp, IacFormat::Terraform) => {
                 let (resource_type, logical) = match service_name {
                     "Cloud Storage" => ("google_storage_bucket", "app_bucket"),
                     "BigQuery" => ("google_bigquery_dataset", "app_dataset"),
@@ -734,7 +734,7 @@ impl CloudProviderManager {
     /// Estimate monthly and yearly costs for detected services.
     pub fn estimate_costs(&self, services: &[DetectedService]) -> CostEstimate {
         let mut service_costs = Vec::new();
-        let mut provider = CloudProvider::AWS;
+        let mut provider = CloudProvider::Aws;
 
         for svc in services {
             provider = svc.service.provider.clone();
@@ -761,32 +761,32 @@ impl CloudProviderManager {
     fn estimate_service_cost(service: &CloudService) -> (String, f64, String) {
         match (&service.provider, service.service_name.as_str()) {
             // AWS
-            (CloudProvider::AWS, "S3") => ("Standard".into(), 23.0, "Estimated 1TB storage + requests".into()),
-            (CloudProvider::AWS, "DynamoDB") => ("On-Demand".into(), 25.0, "Pay-per-request, ~1M reads/writes".into()),
-            (CloudProvider::AWS, "Lambda") => ("Free Tier".into(), 0.0, "1M requests/month free".into()),
-            (CloudProvider::AWS, "SQS") => ("Standard".into(), 0.40, "~1M messages/month".into()),
-            (CloudProvider::AWS, "SNS") => ("Standard".into(), 0.50, "~1M notifications/month".into()),
-            (CloudProvider::AWS, "EC2") => ("t3.micro".into(), 8.35, "On-demand Linux, us-east-1".into()),
-            (CloudProvider::AWS, "RDS") => ("db.t3.micro".into(), 15.0, "Single-AZ PostgreSQL".into()),
-            (CloudProvider::AWS, "ECS") => ("Fargate".into(), 36.0, "0.25 vCPU, 0.5GB, always-on".into()),
-            (CloudProvider::AWS, "EKS") => ("Standard".into(), 73.0, "Cluster fee + t3.medium node".into()),
-            (CloudProvider::AWS, "CloudWatch") => ("Basic".into(), 3.0, "10 custom metrics + 5GB logs".into()),
-            (CloudProvider::AWS, "Cognito") => ("Free Tier".into(), 0.0, "First 50K MAU free".into()),
-            (CloudProvider::AWS, "SageMaker") => ("ml.t3.medium".into(), 50.0, "Notebook + endpoint".into()),
-            (CloudProvider::AWS, "Bedrock") => ("On-Demand".into(), 30.0, "~1M tokens/month".into()),
-            (CloudProvider::AWS, "ElastiCache") => ("cache.t3.micro".into(), 12.0, "Redis single node".into()),
-            (CloudProvider::AWS, "CloudFront") => ("Standard".into(), 10.0, "~100GB transfer/month".into()),
+            (CloudProvider::Aws, "S3") => ("Standard".into(), 23.0, "Estimated 1TB storage + requests".into()),
+            (CloudProvider::Aws, "DynamoDB") => ("On-Demand".into(), 25.0, "Pay-per-request, ~1M reads/writes".into()),
+            (CloudProvider::Aws, "Lambda") => ("Free Tier".into(), 0.0, "1M requests/month free".into()),
+            (CloudProvider::Aws, "SQS") => ("Standard".into(), 0.40, "~1M messages/month".into()),
+            (CloudProvider::Aws, "SNS") => ("Standard".into(), 0.50, "~1M notifications/month".into()),
+            (CloudProvider::Aws, "EC2") => ("t3.micro".into(), 8.35, "On-demand Linux, us-east-1".into()),
+            (CloudProvider::Aws, "RDS") => ("db.t3.micro".into(), 15.0, "Single-AZ PostgreSQL".into()),
+            (CloudProvider::Aws, "ECS") => ("Fargate".into(), 36.0, "0.25 vCPU, 0.5GB, always-on".into()),
+            (CloudProvider::Aws, "EKS") => ("Standard".into(), 73.0, "Cluster fee + t3.medium node".into()),
+            (CloudProvider::Aws, "CloudWatch") => ("Basic".into(), 3.0, "10 custom metrics + 5GB logs".into()),
+            (CloudProvider::Aws, "Cognito") => ("Free Tier".into(), 0.0, "First 50K MAU free".into()),
+            (CloudProvider::Aws, "SageMaker") => ("ml.t3.medium".into(), 50.0, "Notebook + endpoint".into()),
+            (CloudProvider::Aws, "Bedrock") => ("On-Demand".into(), 30.0, "~1M tokens/month".into()),
+            (CloudProvider::Aws, "ElastiCache") => ("cache.t3.micro".into(), 12.0, "Redis single node".into()),
+            (CloudProvider::Aws, "CloudFront") => ("Standard".into(), 10.0, "~100GB transfer/month".into()),
             // GCP
-            (CloudProvider::GCP, "Cloud Storage") => ("Standard".into(), 20.0, "Estimated 1TB storage".into()),
-            (CloudProvider::GCP, "BigQuery") => ("On-Demand".into(), 25.0, "~1TB queries/month".into()),
-            (CloudProvider::GCP, "Pub/Sub") => ("Standard".into(), 0.40, "~1M messages/month".into()),
-            (CloudProvider::GCP, "Cloud Run") => ("Pay-per-use".into(), 5.0, "Low-traffic service".into()),
-            (CloudProvider::GCP, "Cloud Functions") => ("Free Tier".into(), 0.0, "2M invocations/month free".into()),
-            (CloudProvider::GCP, "Compute Engine") => ("e2-micro".into(), 6.11, "Always-on, us-central1".into()),
-            (CloudProvider::GCP, "Firestore") => ("Spark".into(), 0.0, "Free tier limits".into()),
-            (CloudProvider::GCP, "Vertex AI") => ("Standard".into(), 50.0, "Prediction endpoint".into()),
-            (CloudProvider::GCP, "GKE") => ("Autopilot".into(), 65.0, "Cluster management + compute".into()),
-            (CloudProvider::GCP, "Memorystore") => ("Basic M1".into(), 36.0, "1GB Redis instance".into()),
+            (CloudProvider::Gcp, "Cloud Storage") => ("Standard".into(), 20.0, "Estimated 1TB storage".into()),
+            (CloudProvider::Gcp, "BigQuery") => ("On-Demand".into(), 25.0, "~1TB queries/month".into()),
+            (CloudProvider::Gcp, "Pub/Sub") => ("Standard".into(), 0.40, "~1M messages/month".into()),
+            (CloudProvider::Gcp, "Cloud Run") => ("Pay-per-use".into(), 5.0, "Low-traffic service".into()),
+            (CloudProvider::Gcp, "Cloud Functions") => ("Free Tier".into(), 0.0, "2M invocations/month free".into()),
+            (CloudProvider::Gcp, "Compute Engine") => ("e2-micro".into(), 6.11, "Always-on, us-central1".into()),
+            (CloudProvider::Gcp, "Firestore") => ("Spark".into(), 0.0, "Free tier limits".into()),
+            (CloudProvider::Gcp, "Vertex AI") => ("Standard".into(), 50.0, "Prediction endpoint".into()),
+            (CloudProvider::Gcp, "GKE") => ("Autopilot".into(), 65.0, "Cluster management + compute".into()),
+            (CloudProvider::Gcp, "Memorystore") => ("Basic M1".into(), 36.0, "1GB Redis instance".into()),
             // Azure
             (CloudProvider::Azure, "Blob Storage") => ("Hot".into(), 20.0, "~1TB storage".into()),
             (CloudProvider::Azure, "Cosmos DB") => ("Serverless".into(), 25.0, "~1M RU/s".into()),
@@ -809,13 +809,13 @@ impl CloudProviderManager {
 
         // Provider block
         let provider_name = match template.provider {
-            CloudProvider::AWS => "aws",
-            CloudProvider::GCP => "google",
+            CloudProvider::Aws => "aws",
+            CloudProvider::Gcp => "google",
             CloudProvider::Azure => "azurerm",
         };
         output.push_str(&format!("terraform {{\n  required_providers {{\n    {} = {{\n      source = \"{}\"\n    }}\n  }}\n}}\n\n", provider_name, match template.provider {
-            CloudProvider::AWS => "hashicorp/aws",
-            CloudProvider::GCP => "hashicorp/google",
+            CloudProvider::Aws => "hashicorp/aws",
+            CloudProvider::Gcp => "hashicorp/google",
             CloudProvider::Azure => "hashicorp/azurerm",
         }));
         output.push_str(&format!("provider \"{}\" {{\n  region = \"us-east-1\"\n}}\n\n", provider_name));
@@ -871,8 +871,8 @@ impl CloudProviderManager {
         let mut output = String::with_capacity(1024);
 
         let import_pkg = match template.provider {
-            CloudProvider::AWS => "@pulumi/aws",
-            CloudProvider::GCP => "@pulumi/gcp",
+            CloudProvider::Aws => "@pulumi/aws",
+            CloudProvider::Gcp => "@pulumi/gcp",
             CloudProvider::Azure => "@pulumi/azure-native",
         };
         output.push_str("import * as pulumi from \"@pulumi/pulumi\";\n");
@@ -930,12 +930,12 @@ impl CloudProviderManager {
     /// List all supported services for a given provider.
     pub fn list_supported_services(provider: &CloudProvider) -> Vec<&'static str> {
         match provider {
-            CloudProvider::AWS => vec![
+            CloudProvider::Aws => vec![
                 "S3", "DynamoDB", "Lambda", "SQS", "SNS", "EC2", "RDS",
                 "ECS", "EKS", "CloudWatch", "Cognito", "SageMaker",
                 "Bedrock", "ElastiCache", "CloudFront",
             ],
-            CloudProvider::GCP => vec![
+            CloudProvider::Gcp => vec![
                 "Cloud Storage", "BigQuery", "Pub/Sub", "Cloud Run",
                 "Cloud Functions", "Compute Engine", "Firestore",
                 "Vertex AI", "GKE", "Memorystore", "Cloud CDN",
@@ -965,13 +965,13 @@ impl CloudProviderManager {
         let has_aws_cargo = aws_cargo.iter().any(|p| cargo_toml.contains(p));
         let has_aws_npm = aws_npm.iter().any(|p| package_json.contains(p));
         if has_aws_cargo || has_aws_npm {
-            providers.push(CloudProvider::AWS);
+            providers.push(CloudProvider::Aws);
         }
 
         let has_gcp_cargo = gcp_cargo.iter().any(|p| cargo_toml.contains(p));
         let has_gcp_npm = gcp_npm.iter().any(|p| package_json.contains(p));
         if has_gcp_cargo || has_gcp_npm {
-            providers.push(CloudProvider::GCP);
+            providers.push(CloudProvider::Gcp);
         }
 
         let has_azure_cargo = azure_cargo.iter().any(|p| cargo_toml.contains(p));
@@ -996,7 +996,7 @@ mod tests {
         let code = "let client = s3_client.get_object(req).await;";
         let results = mgr.scan_code(code, "src/storage.rs");
         assert_eq!(results.len(), 1);
-        assert_eq!(results[0].service.provider, CloudProvider::AWS);
+        assert_eq!(results[0].service.provider, CloudProvider::Aws);
         assert_eq!(results[0].service.service_name, "S3");
         assert_eq!(results[0].service.usage_type, ServiceUsage::Storage);
         assert_eq!(results[0].source_file, "src/storage.rs");
@@ -1087,7 +1087,7 @@ mod tests {
         let code = "from google.cloud.storage import Client";
         let results = mgr.scan_code(code, "upload.py");
         assert!(results.iter().any(|r| r.service.service_name == "Cloud Storage"));
-        assert!(results.iter().any(|r| r.service.provider == CloudProvider::GCP));
+        assert!(results.iter().any(|r| r.service.provider == CloudProvider::Gcp));
     }
 
     #[test]
@@ -1183,14 +1183,14 @@ mod tests {
     fn test_iam_policy_aws_s3() {
         let mgr = CloudProviderManager::new();
         let services = vec![DetectedService {
-            service: CloudService { provider: CloudProvider::AWS, service_name: "S3".into(), usage_type: ServiceUsage::Storage, region: None },
+            service: CloudService { provider: CloudProvider::Aws, service_name: "S3".into(), usage_type: ServiceUsage::Storage, region: None },
             source_file: "src/lib.rs".into(),
             line_number: 10,
             confidence: 0.95,
         }];
-        let policy = mgr.generate_iam_policy(&CloudProvider::AWS, &services);
+        let policy = mgr.generate_iam_policy(&CloudProvider::Aws, &services);
         assert_eq!(policy.name, "vibecody-aws-policy");
-        assert_eq!(policy.provider, CloudProvider::AWS);
+        assert_eq!(policy.provider, CloudProvider::Aws);
         assert_eq!(policy.statements.len(), 1);
         assert_eq!(policy.statements[0].effect, Effect::Allow);
         assert!(policy.statements[0].actions.contains(&"s3:GetObject".to_string()));
@@ -1201,12 +1201,12 @@ mod tests {
     fn test_iam_policy_least_privilege_dynamodb() {
         let mgr = CloudProviderManager::new();
         let services = vec![DetectedService {
-            service: CloudService { provider: CloudProvider::AWS, service_name: "DynamoDB".into(), usage_type: ServiceUsage::Database, region: None },
+            service: CloudService { provider: CloudProvider::Aws, service_name: "DynamoDB".into(), usage_type: ServiceUsage::Database, region: None },
             source_file: "src/db.rs".into(),
             line_number: 5,
             confidence: 0.95,
         }];
-        let policy = mgr.generate_iam_policy(&CloudProvider::AWS, &services);
+        let policy = mgr.generate_iam_policy(&CloudProvider::Aws, &services);
         assert_eq!(policy.statements.len(), 1);
         // Should have specific DynamoDB actions, not wildcard
         assert!(policy.statements[0].actions.iter().all(|a| a.starts_with("dynamodb:")));
@@ -1218,15 +1218,15 @@ mod tests {
         let mgr = CloudProviderManager::new();
         let services = vec![
             DetectedService {
-                service: CloudService { provider: CloudProvider::AWS, service_name: "S3".into(), usage_type: ServiceUsage::Storage, region: None },
+                service: CloudService { provider: CloudProvider::Aws, service_name: "S3".into(), usage_type: ServiceUsage::Storage, region: None },
                 source_file: "src/lib.rs".into(), line_number: 1, confidence: 0.9,
             },
             DetectedService {
-                service: CloudService { provider: CloudProvider::AWS, service_name: "Lambda".into(), usage_type: ServiceUsage::Serverless, region: None },
+                service: CloudService { provider: CloudProvider::Aws, service_name: "Lambda".into(), usage_type: ServiceUsage::Serverless, region: None },
                 source_file: "src/lib.rs".into(), line_number: 5, confidence: 0.9,
             },
         ];
-        let policy = mgr.generate_iam_policy(&CloudProvider::AWS, &services);
+        let policy = mgr.generate_iam_policy(&CloudProvider::Aws, &services);
         assert_eq!(policy.statements.len(), 2);
     }
 
@@ -1235,17 +1235,17 @@ mod tests {
         let mgr = CloudProviderManager::new();
         let services = vec![
             DetectedService {
-                service: CloudService { provider: CloudProvider::AWS, service_name: "S3".into(), usage_type: ServiceUsage::Storage, region: None },
+                service: CloudService { provider: CloudProvider::Aws, service_name: "S3".into(), usage_type: ServiceUsage::Storage, region: None },
                 source_file: "lib.rs".into(), line_number: 1, confidence: 0.9,
             },
             DetectedService {
-                service: CloudService { provider: CloudProvider::GCP, service_name: "BigQuery".into(), usage_type: ServiceUsage::Database, region: None },
+                service: CloudService { provider: CloudProvider::Gcp, service_name: "BigQuery".into(), usage_type: ServiceUsage::Database, region: None },
                 source_file: "lib.rs".into(), line_number: 2, confidence: 0.9,
             },
         ];
-        let aws_policy = mgr.generate_iam_policy(&CloudProvider::AWS, &services);
+        let aws_policy = mgr.generate_iam_policy(&CloudProvider::Aws, &services);
         assert_eq!(aws_policy.statements.len(), 1);
-        let gcp_policy = mgr.generate_iam_policy(&CloudProvider::GCP, &services);
+        let gcp_policy = mgr.generate_iam_policy(&CloudProvider::Gcp, &services);
         assert_eq!(gcp_policy.statements.len(), 1);
     }
 
@@ -1253,10 +1253,10 @@ mod tests {
     fn test_iam_policy_gcp() {
         let mgr = CloudProviderManager::new();
         let services = vec![DetectedService {
-            service: CloudService { provider: CloudProvider::GCP, service_name: "Cloud Storage".into(), usage_type: ServiceUsage::Storage, region: None },
+            service: CloudService { provider: CloudProvider::Gcp, service_name: "Cloud Storage".into(), usage_type: ServiceUsage::Storage, region: None },
             source_file: "gcs.py".into(), line_number: 1, confidence: 0.9,
         }];
-        let policy = mgr.generate_iam_policy(&CloudProvider::GCP, &services);
+        let policy = mgr.generate_iam_policy(&CloudProvider::Gcp, &services);
         assert!(policy.statements[0].actions.iter().any(|a| a.contains("storage")));
     }
 
@@ -1274,7 +1274,7 @@ mod tests {
     #[test]
     fn test_policy_to_json() {
         let policy = IamPolicy {
-            provider: CloudProvider::AWS,
+            provider: CloudProvider::Aws,
             name: "test-policy".into(),
             statements: vec![PolicyStatement {
                 effect: Effect::Allow,
@@ -1293,7 +1293,7 @@ mod tests {
     #[test]
     fn test_policy_to_json_deny() {
         let policy = IamPolicy {
-            provider: CloudProvider::AWS,
+            provider: CloudProvider::Aws,
             name: "deny-policy".into(),
             statements: vec![PolicyStatement {
                 effect: Effect::Deny,
@@ -1312,10 +1312,10 @@ mod tests {
     fn test_render_terraform_aws_s3() {
         let mgr = CloudProviderManager::new();
         let services = vec![DetectedService {
-            service: CloudService { provider: CloudProvider::AWS, service_name: "S3".into(), usage_type: ServiceUsage::Storage, region: None },
+            service: CloudService { provider: CloudProvider::Aws, service_name: "S3".into(), usage_type: ServiceUsage::Storage, region: None },
             source_file: "lib.rs".into(), line_number: 1, confidence: 0.9,
         }];
-        let template = mgr.generate_iac_template(&CloudProvider::AWS, IacFormat::Terraform, &services);
+        let template = mgr.generate_iac_template(&CloudProvider::Aws, IacFormat::Terraform, &services);
         let tf = CloudProviderManager::render_terraform(&template);
         assert!(tf.contains("hashicorp/aws"));
         assert!(tf.contains("aws_s3_bucket"));
@@ -1327,10 +1327,10 @@ mod tests {
     fn test_render_terraform_aws_dynamodb() {
         let mgr = CloudProviderManager::new();
         let services = vec![DetectedService {
-            service: CloudService { provider: CloudProvider::AWS, service_name: "DynamoDB".into(), usage_type: ServiceUsage::Database, region: None },
+            service: CloudService { provider: CloudProvider::Aws, service_name: "DynamoDB".into(), usage_type: ServiceUsage::Database, region: None },
             source_file: "db.rs".into(), line_number: 1, confidence: 0.9,
         }];
-        let template = mgr.generate_iac_template(&CloudProvider::AWS, IacFormat::Terraform, &services);
+        let template = mgr.generate_iac_template(&CloudProvider::Aws, IacFormat::Terraform, &services);
         let tf = CloudProviderManager::render_terraform(&template);
         assert!(tf.contains("aws_dynamodb_table"));
         assert!(tf.contains("PAY_PER_REQUEST"));
@@ -1340,10 +1340,10 @@ mod tests {
     fn test_render_terraform_gcp() {
         let mgr = CloudProviderManager::new();
         let services = vec![DetectedService {
-            service: CloudService { provider: CloudProvider::GCP, service_name: "Cloud Storage".into(), usage_type: ServiceUsage::Storage, region: None },
+            service: CloudService { provider: CloudProvider::Gcp, service_name: "Cloud Storage".into(), usage_type: ServiceUsage::Storage, region: None },
             source_file: "gcs.py".into(), line_number: 1, confidence: 0.9,
         }];
-        let template = mgr.generate_iac_template(&CloudProvider::GCP, IacFormat::Terraform, &services);
+        let template = mgr.generate_iac_template(&CloudProvider::Gcp, IacFormat::Terraform, &services);
         let tf = CloudProviderManager::render_terraform(&template);
         assert!(tf.contains("hashicorp/google"));
         assert!(tf.contains("google_storage_bucket"));
@@ -1369,15 +1369,15 @@ mod tests {
         let mgr = CloudProviderManager::new();
         let services = vec![
             DetectedService {
-                service: CloudService { provider: CloudProvider::AWS, service_name: "S3".into(), usage_type: ServiceUsage::Storage, region: None },
+                service: CloudService { provider: CloudProvider::Aws, service_name: "S3".into(), usage_type: ServiceUsage::Storage, region: None },
                 source_file: "lib.rs".into(), line_number: 1, confidence: 0.9,
             },
             DetectedService {
-                service: CloudService { provider: CloudProvider::AWS, service_name: "Lambda".into(), usage_type: ServiceUsage::Serverless, region: None },
+                service: CloudService { provider: CloudProvider::Aws, service_name: "Lambda".into(), usage_type: ServiceUsage::Serverless, region: None },
                 source_file: "lib.rs".into(), line_number: 5, confidence: 0.9,
             },
         ];
-        let template = mgr.generate_iac_template(&CloudProvider::AWS, IacFormat::CloudFormation, &services);
+        let template = mgr.generate_iac_template(&CloudProvider::Aws, IacFormat::CloudFormation, &services);
         let cf = CloudProviderManager::render_cloudformation(&template);
         assert!(cf.contains("AWSTemplateFormatVersion"));
         assert!(cf.contains("AWS::S3::Bucket"));
@@ -1390,10 +1390,10 @@ mod tests {
     fn test_render_cloudformation_properties() {
         let mgr = CloudProviderManager::new();
         let services = vec![DetectedService {
-            service: CloudService { provider: CloudProvider::AWS, service_name: "Lambda".into(), usage_type: ServiceUsage::Serverless, region: None },
+            service: CloudService { provider: CloudProvider::Aws, service_name: "Lambda".into(), usage_type: ServiceUsage::Serverless, region: None },
             source_file: "fn.rs".into(), line_number: 1, confidence: 0.9,
         }];
-        let template = mgr.generate_iac_template(&CloudProvider::AWS, IacFormat::CloudFormation, &services);
+        let template = mgr.generate_iac_template(&CloudProvider::Aws, IacFormat::CloudFormation, &services);
         let cf = CloudProviderManager::render_cloudformation(&template);
         assert!(cf.contains("Runtime:"));
         assert!(cf.contains("provided.al2023"));
@@ -1405,10 +1405,10 @@ mod tests {
     fn test_render_pulumi_typescript() {
         let mgr = CloudProviderManager::new();
         let services = vec![DetectedService {
-            service: CloudService { provider: CloudProvider::AWS, service_name: "SQS".into(), usage_type: ServiceUsage::Messaging, region: None },
+            service: CloudService { provider: CloudProvider::Aws, service_name: "SQS".into(), usage_type: ServiceUsage::Messaging, region: None },
             source_file: "queue.rs".into(), line_number: 1, confidence: 0.9,
         }];
-        let template = mgr.generate_iac_template(&CloudProvider::AWS, IacFormat::Pulumi, &services);
+        let template = mgr.generate_iac_template(&CloudProvider::Aws, IacFormat::Pulumi, &services);
         let pulumi = CloudProviderManager::render_pulumi_typescript(&template);
         assert!(pulumi.contains("@pulumi/aws"));
         assert!(pulumi.contains("aws.sqs.Queue"));
@@ -1419,10 +1419,10 @@ mod tests {
     fn test_render_pulumi_gcp() {
         let mgr = CloudProviderManager::new();
         let services = vec![DetectedService {
-            service: CloudService { provider: CloudProvider::GCP, service_name: "Cloud Storage".into(), usage_type: ServiceUsage::Storage, region: None },
+            service: CloudService { provider: CloudProvider::Gcp, service_name: "Cloud Storage".into(), usage_type: ServiceUsage::Storage, region: None },
             source_file: "gcs.py".into(), line_number: 1, confidence: 0.9,
         }];
-        let template = mgr.generate_iac_template(&CloudProvider::GCP, IacFormat::Pulumi, &services);
+        let template = mgr.generate_iac_template(&CloudProvider::Gcp, IacFormat::Pulumi, &services);
         let pulumi = CloudProviderManager::render_pulumi_typescript(&template);
         assert!(pulumi.contains("@pulumi/gcp"));
     }
@@ -1433,11 +1433,11 @@ mod tests {
     fn test_cost_estimate_aws_s3() {
         let mgr = CloudProviderManager::new();
         let services = vec![DetectedService {
-            service: CloudService { provider: CloudProvider::AWS, service_name: "S3".into(), usage_type: ServiceUsage::Storage, region: None },
+            service: CloudService { provider: CloudProvider::Aws, service_name: "S3".into(), usage_type: ServiceUsage::Storage, region: None },
             source_file: "lib.rs".into(), line_number: 1, confidence: 0.9,
         }];
         let cost = mgr.estimate_costs(&services);
-        assert_eq!(cost.provider, CloudProvider::AWS);
+        assert_eq!(cost.provider, CloudProvider::Aws);
         assert_eq!(cost.services.len(), 1);
         assert_eq!(cost.services[0].service_name, "S3");
         assert!(cost.total_monthly_usd > 0.0);
@@ -1448,7 +1448,7 @@ mod tests {
     fn test_cost_estimate_free_tier() {
         let mgr = CloudProviderManager::new();
         let services = vec![DetectedService {
-            service: CloudService { provider: CloudProvider::AWS, service_name: "Lambda".into(), usage_type: ServiceUsage::Serverless, region: None },
+            service: CloudService { provider: CloudProvider::Aws, service_name: "Lambda".into(), usage_type: ServiceUsage::Serverless, region: None },
             source_file: "fn.rs".into(), line_number: 1, confidence: 0.9,
         }];
         let cost = mgr.estimate_costs(&services);
@@ -1461,11 +1461,11 @@ mod tests {
         let mgr = CloudProviderManager::new();
         let services = vec![
             DetectedService {
-                service: CloudService { provider: CloudProvider::AWS, service_name: "S3".into(), usage_type: ServiceUsage::Storage, region: None },
+                service: CloudService { provider: CloudProvider::Aws, service_name: "S3".into(), usage_type: ServiceUsage::Storage, region: None },
                 source_file: "lib.rs".into(), line_number: 1, confidence: 0.9,
             },
             DetectedService {
-                service: CloudService { provider: CloudProvider::AWS, service_name: "EC2".into(), usage_type: ServiceUsage::Compute, region: None },
+                service: CloudService { provider: CloudProvider::Aws, service_name: "EC2".into(), usage_type: ServiceUsage::Compute, region: None },
                 source_file: "lib.rs".into(), line_number: 5, confidence: 0.9,
             },
         ];
@@ -1479,11 +1479,11 @@ mod tests {
     fn test_cost_estimate_gcp() {
         let mgr = CloudProviderManager::new();
         let services = vec![DetectedService {
-            service: CloudService { provider: CloudProvider::GCP, service_name: "BigQuery".into(), usage_type: ServiceUsage::Database, region: None },
+            service: CloudService { provider: CloudProvider::Gcp, service_name: "BigQuery".into(), usage_type: ServiceUsage::Database, region: None },
             source_file: "bq.py".into(), line_number: 1, confidence: 0.9,
         }];
         let cost = mgr.estimate_costs(&services);
-        assert_eq!(cost.provider, CloudProvider::GCP);
+        assert_eq!(cost.provider, CloudProvider::Gcp);
         assert!(cost.total_monthly_usd > 0.0);
     }
 
@@ -1505,14 +1505,14 @@ mod tests {
     fn test_detect_aws_from_cargo() {
         let cargo = "[dependencies]\naws-sdk-s3 = \"1.0\"";
         let providers = CloudProviderManager::detect_provider_from_deps(cargo, "");
-        assert!(providers.contains(&CloudProvider::AWS));
+        assert!(providers.contains(&CloudProvider::Aws));
     }
 
     #[test]
     fn test_detect_gcp_from_npm() {
         let npm = r#"{ "dependencies": { "@google-cloud/storage": "^7.0" } }"#;
         let providers = CloudProviderManager::detect_provider_from_deps("", npm);
-        assert!(providers.contains(&CloudProvider::GCP));
+        assert!(providers.contains(&CloudProvider::Gcp));
     }
 
     #[test]
@@ -1528,8 +1528,8 @@ mod tests {
         let npm = r#"{ "dependencies": { "@google-cloud/bigquery": "^6.0" } }"#;
         let providers = CloudProviderManager::detect_provider_from_deps(cargo, npm);
         assert_eq!(providers.len(), 3);
-        assert!(providers.contains(&CloudProvider::AWS));
-        assert!(providers.contains(&CloudProvider::GCP));
+        assert!(providers.contains(&CloudProvider::Aws));
+        assert!(providers.contains(&CloudProvider::Gcp));
         assert!(providers.contains(&CloudProvider::Azure));
     }
 
@@ -1543,14 +1543,14 @@ mod tests {
     fn test_detect_firebase_as_gcp() {
         let npm = r#"{ "dependencies": { "firebase": "^10.0" } }"#;
         let providers = CloudProviderManager::detect_provider_from_deps("", npm);
-        assert!(providers.contains(&CloudProvider::GCP));
+        assert!(providers.contains(&CloudProvider::Gcp));
     }
 
     #[test]
     fn test_detect_rusoto_as_aws() {
         let cargo = "rusoto_core = \"0.48\"";
         let providers = CloudProviderManager::detect_provider_from_deps(cargo, "");
-        assert!(providers.contains(&CloudProvider::AWS));
+        assert!(providers.contains(&CloudProvider::Aws));
     }
 
     // --- Edge Cases ---
@@ -1576,8 +1576,8 @@ mod tests {
         let code = "let s3 = S3Client::new(&config);\nlet bq = BigQueryClient::new();\nlet blob = BlobServiceClient::new(acct, cred);";
         let results = mgr.scan_code(code, "multi.rs");
         let providers: Vec<&CloudProvider> = results.iter().map(|r| &r.service.provider).collect();
-        assert!(providers.contains(&&CloudProvider::AWS));
-        assert!(providers.contains(&&CloudProvider::GCP));
+        assert!(providers.contains(&&CloudProvider::Aws));
+        assert!(providers.contains(&&CloudProvider::Gcp));
         assert!(providers.contains(&&CloudProvider::Azure));
     }
 
@@ -1602,7 +1602,7 @@ mod tests {
     fn test_iac_template_empty_services() {
         let mgr = CloudProviderManager::new();
         let services: Vec<DetectedService> = vec![];
-        let template = mgr.generate_iac_template(&CloudProvider::AWS, IacFormat::Terraform, &services);
+        let template = mgr.generate_iac_template(&CloudProvider::Aws, IacFormat::Terraform, &services);
         assert!(template.resources.is_empty());
         assert!(template.outputs.is_empty());
     }
@@ -1611,7 +1611,7 @@ mod tests {
     fn test_iam_policy_empty_services() {
         let mgr = CloudProviderManager::new();
         let services: Vec<DetectedService> = vec![];
-        let policy = mgr.generate_iam_policy(&CloudProvider::AWS, &services);
+        let policy = mgr.generate_iam_policy(&CloudProvider::Aws, &services);
         assert!(policy.statements.is_empty());
     }
 
@@ -1627,7 +1627,7 @@ mod tests {
 
     #[test]
     fn test_list_supported_services_aws() {
-        let services = CloudProviderManager::list_supported_services(&CloudProvider::AWS);
+        let services = CloudProviderManager::list_supported_services(&CloudProvider::Aws);
         assert!(services.contains(&"S3"));
         assert!(services.contains(&"DynamoDB"));
         assert!(services.contains(&"Lambda"));
@@ -1637,7 +1637,7 @@ mod tests {
 
     #[test]
     fn test_list_supported_services_gcp() {
-        let services = CloudProviderManager::list_supported_services(&CloudProvider::GCP);
+        let services = CloudProviderManager::list_supported_services(&CloudProvider::Gcp);
         assert!(services.contains(&"Cloud Storage"));
         assert!(services.contains(&"BigQuery"));
         assert!(services.len() >= 8);
@@ -1653,8 +1653,8 @@ mod tests {
 
     #[test]
     fn test_cloud_provider_display() {
-        assert_eq!(CloudProvider::AWS.to_string(), "AWS");
-        assert_eq!(CloudProvider::GCP.to_string(), "GCP");
+        assert_eq!(CloudProvider::Aws.to_string(), "AWS");
+        assert_eq!(CloudProvider::Gcp.to_string(), "GCP");
         assert_eq!(CloudProvider::Azure.to_string(), "Azure");
     }
 
@@ -1694,19 +1694,19 @@ mod tests {
         let mgr = CloudProviderManager::new();
         let services = vec![
             DetectedService {
-                service: CloudService { provider: CloudProvider::AWS, service_name: "S3".into(), usage_type: ServiceUsage::Storage, region: None },
+                service: CloudService { provider: CloudProvider::Aws, service_name: "S3".into(), usage_type: ServiceUsage::Storage, region: None },
                 source_file: "lib.rs".into(), line_number: 1, confidence: 0.9,
             },
             DetectedService {
-                service: CloudService { provider: CloudProvider::AWS, service_name: "SQS".into(), usage_type: ServiceUsage::Messaging, region: None },
+                service: CloudService { provider: CloudProvider::Aws, service_name: "SQS".into(), usage_type: ServiceUsage::Messaging, region: None },
                 source_file: "lib.rs".into(), line_number: 5, confidence: 0.9,
             },
             DetectedService {
-                service: CloudService { provider: CloudProvider::AWS, service_name: "Lambda".into(), usage_type: ServiceUsage::Serverless, region: None },
+                service: CloudService { provider: CloudProvider::Aws, service_name: "Lambda".into(), usage_type: ServiceUsage::Serverless, region: None },
                 source_file: "lib.rs".into(), line_number: 10, confidence: 0.9,
             },
         ];
-        let template = mgr.generate_iac_template(&CloudProvider::AWS, IacFormat::Terraform, &services);
+        let template = mgr.generate_iac_template(&CloudProvider::Aws, IacFormat::Terraform, &services);
         assert_eq!(template.resources.len(), 3);
         assert_eq!(template.outputs.len(), 3);
         let tf = CloudProviderManager::render_terraform(&template);
@@ -1719,7 +1719,7 @@ mod tests {
     fn test_unknown_service_cost_fallback() {
         let mgr = CloudProviderManager::new();
         let services = vec![DetectedService {
-            service: CloudService { provider: CloudProvider::AWS, service_name: "UnknownService".into(), usage_type: ServiceUsage::Network, region: None },
+            service: CloudService { provider: CloudProvider::Aws, service_name: "UnknownService".into(), usage_type: ServiceUsage::Network, region: None },
             source_file: "lib.rs".into(), line_number: 1, confidence: 0.5,
         }];
         let cost = mgr.estimate_costs(&services);
@@ -1732,7 +1732,7 @@ mod tests {
     fn test_detect_aws_amplify_npm() {
         let npm = r#"{ "dependencies": { "aws-amplify": "^6.0" } }"#;
         let providers = CloudProviderManager::detect_provider_from_deps("", npm);
-        assert!(providers.contains(&CloudProvider::AWS));
+        assert!(providers.contains(&CloudProvider::Aws));
     }
 
     #[test]
@@ -1753,14 +1753,14 @@ mod tests {
     fn test_iac_template_format_preserved() {
         let mgr = CloudProviderManager::new();
         let services = vec![DetectedService {
-            service: CloudService { provider: CloudProvider::AWS, service_name: "S3".into(), usage_type: ServiceUsage::Storage, region: None },
+            service: CloudService { provider: CloudProvider::Aws, service_name: "S3".into(), usage_type: ServiceUsage::Storage, region: None },
             source_file: "lib.rs".into(), line_number: 1, confidence: 0.9,
         }];
-        let tf_template = mgr.generate_iac_template(&CloudProvider::AWS, IacFormat::Terraform, &services);
+        let tf_template = mgr.generate_iac_template(&CloudProvider::Aws, IacFormat::Terraform, &services);
         assert_eq!(tf_template.format, IacFormat::Terraform);
-        let cf_template = mgr.generate_iac_template(&CloudProvider::AWS, IacFormat::CloudFormation, &services);
+        let cf_template = mgr.generate_iac_template(&CloudProvider::Aws, IacFormat::CloudFormation, &services);
         assert_eq!(cf_template.format, IacFormat::CloudFormation);
-        let pu_template = mgr.generate_iac_template(&CloudProvider::AWS, IacFormat::Pulumi, &services);
+        let pu_template = mgr.generate_iac_template(&CloudProvider::Aws, IacFormat::Pulumi, &services);
         assert_eq!(pu_template.format, IacFormat::Pulumi);
     }
 }

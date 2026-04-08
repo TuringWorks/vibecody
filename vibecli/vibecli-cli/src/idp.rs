@@ -503,6 +503,7 @@ impl IdpManager {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn register_service(
         &mut self,
         name: &str,

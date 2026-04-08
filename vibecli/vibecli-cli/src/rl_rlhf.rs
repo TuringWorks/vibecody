@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! RL-OS RLHF module — Reinforcement Learning from Human Feedback operating system.
 //!
 //! Provides a comprehensive, production-grade RLHF pipeline covering the full

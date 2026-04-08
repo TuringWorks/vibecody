@@ -104,7 +104,7 @@ impl NotionClient {
             let api_key = api_key.clone();
             let payload = payload_c.clone();
             async move {
-                client.post(&format!("{}/search", NOTION_API))
+                client.post(format!("{}/search", NOTION_API))
                     .header("Authorization", format!("Bearer {}", api_key))
                     .header("Notion-Version", "2022-06-28")
                     .json(&payload)
@@ -270,7 +270,7 @@ impl TodoistClient {
             let api_key = api_key.clone();
             let payload = payload.clone();
             async move {
-                client.post(&format!("{}/tasks", TODOIST_API))
+                client.post(format!("{}/tasks", TODOIST_API))
                     .header("Authorization", format!("Bearer {}", api_key))
                     .json(&payload)
                     .send()

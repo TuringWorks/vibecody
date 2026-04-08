@@ -39,7 +39,7 @@ pub enum MachineOS {
     Linux,
     Windows,
     Docker,
-    WSL,
+    Wsl,
     Unknown,
 }
 
@@ -50,7 +50,7 @@ impl fmt::Display for MachineOS {
             Self::Linux => write!(f, "Linux"),
             Self::Windows => write!(f, "Windows"),
             Self::Docker => write!(f, "Docker"),
-            Self::WSL => write!(f, "WSL"),
+            Self::Wsl => write!(f, "WSL"),
             Self::Unknown => write!(f, "Unknown"),
         }
     }
@@ -141,7 +141,7 @@ impl fmt::Display for DispatchStatus {
 #[derive(Debug, Clone, PartialEq)]
 pub enum PushPlatform {
     APNs,
-    FCM,
+    Fcm,
     WebPush,
 }
 
@@ -149,7 +149,7 @@ impl fmt::Display for PushPlatform {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::APNs => write!(f, "apns"),
-            Self::FCM => write!(f, "fcm"),
+            Self::Fcm => write!(f, "fcm"),
             Self::WebPush => write!(f, "webpush"),
         }
     }
@@ -477,7 +477,7 @@ fn detect_os() -> MachineOS {
             .to_lowercase()
             .contains("microsoft")
         {
-            MachineOS::WSL
+            MachineOS::Wsl
         } else {
             MachineOS::Linux
         }
@@ -734,6 +734,7 @@ impl MobileGateway {
     }
 
     /// Accept a pairing request from a mobile device.
+    #[allow(clippy::too_many_arguments)]
     pub fn accept_pairing(
         &mut self,
         pairing_id: &str,
@@ -1716,7 +1717,7 @@ mod tests {
         assert_eq!(MachineOS::MacOS.to_string(), "macOS");
         assert_eq!(MachineOS::Linux.to_string(), "Linux");
         assert_eq!(MachineOS::Docker.to_string(), "Docker");
-        assert_eq!(MachineOS::WSL.to_string(), "WSL");
+        assert_eq!(MachineOS::Wsl.to_string(), "WSL");
     }
 
     #[test]
