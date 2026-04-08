@@ -125,10 +125,10 @@ impl Default for CircuitBreaker {
             output_volumes: Vec::new(),
             approach_rotations: 0,
             state: AgentHealthState::Progress,
-            stall_threshold: 5,
-            spin_threshold: 3,
-            degradation_pct: 50.0,
-            max_rotations: 3,
+            stall_threshold: 10,
+            spin_threshold: 4,
+            degradation_pct: 70.0,
+            max_rotations: 6,
             last_state_change: None,
             recovery: crate::resilience::RecoveryPolicy::default(),
         }
@@ -192,12 +192,13 @@ impl CircuitBreaker {
             }
         }
 
-        // Track file changes
-        let is_file_change = matches!(tool_call, ToolCall::WriteFile { .. } | ToolCall::ApplyPatch { .. })
-            && tool_result.success;
-        if is_file_change {
+        // Reset stall counter on any successful productive tool call.
+        // Only genuinely idle steps (Think, failed calls) increment it.
+        let is_productive = tool_result.success
+            && !matches!(tool_call, ToolCall::Think { .. } | ToolCall::TaskComplete { .. });
+        if is_productive {
             self.steps_since_file_change = 0;
-        } else {
+        } else if !tool_result.success || matches!(tool_call, ToolCall::Think { .. }) {
             self.steps_since_file_change += 1;
         }
 
@@ -283,9 +284,9 @@ impl CircuitBreaker {
         match &self.state {
             AgentHealthState::Stalled => {
                 format!(
-                    "⚠️ CIRCUIT BREAKER: Agent appears STALLED — no file changes for {} steps. \
-                     Try a different approach: re-read the requirements, search for existing patterns, \
-                     or break the task into smaller sub-tasks. (Rotation {}/{})",
+                    "⚠️ CIRCUIT BREAKER: Agent appears STALLED — {} consecutive idle/failed steps without progress. \
+                     Try a different approach: write partial output to disk, break the task into smaller steps, \
+                     or attempt a simpler sub-goal first. (Rotation {}/{})",
                     self.steps_since_file_change, self.approach_rotations, self.max_rotations
                 )
             }
@@ -1514,14 +1515,15 @@ mod circuit_breaker_tests {
 
     #[test]
     fn stall_detected_after_threshold() {
+        // Failed calls count as idle/stall steps; successful productive calls reset the counter.
         let mut cb = CircuitBreaker { stall_threshold: 3, ..Default::default() };
-        let bash = ToolCall::Bash { command: "ls".into() };
+        let think = ToolCall::Think { thought: "pondering".into() };
         for _ in 0..2 {
-            cb.record_step(&bash, &ok_result("bash"), 100);
+            cb.record_step(&think, &ok_result("think"), 100);
         }
         assert_eq!(cb.state, AgentHealthState::Progress);
-        // Third step triggers stall
-        let state = cb.record_step(&bash, &ok_result("bash"), 100);
+        // Third idle step triggers stall
+        let state = cb.record_step(&think, &ok_result("think"), 100);
         assert!(state.is_some());
         assert_eq!(cb.state, AgentHealthState::Stalled);
     }
@@ -1543,18 +1545,18 @@ mod circuit_breaker_tests {
     #[test]
     fn blocked_after_max_rotations() {
         let mut cb = CircuitBreaker { stall_threshold: 1, max_rotations: 2, ..Default::default() };
-        let bash = ToolCall::Bash { command: "ls".into() };
-        // First stall → rotation 1
-        cb.record_step(&bash, &ok_result("bash"), 100);
+        let think = ToolCall::Think { thought: "pondering".into() };
+        // First stall (1 idle step) → rotation 1
+        cb.record_step(&think, &ok_result("think"), 100);
         assert_eq!(cb.state, AgentHealthState::Stalled);
         // Reset stall by writing a file
         let write = ToolCall::WriteFile { path: "x".into(), content: "y".into() };
         cb.record_step(&write, &ok_result("write_file"), 100);
         // Second stall → rotation 2 → now at max
-        cb.record_step(&bash, &ok_result("bash"), 100);
+        cb.record_step(&think, &ok_result("think"), 100);
         assert_eq!(cb.approach_rotations, 2);
         // Next eval should be BLOCKED
-        cb.record_step(&bash, &ok_result("bash"), 100);
+        cb.record_step(&think, &ok_result("think"), 100);
         assert_eq!(cb.state, AgentHealthState::Blocked);
     }
 
@@ -1732,8 +1734,8 @@ mod circuit_breaker_tests {
     #[test]
     fn rotation_hint_stalled_contains_rotation_count() {
         let mut cb = CircuitBreaker { stall_threshold: 1, max_rotations: 3, ..Default::default() };
-        let bash = ToolCall::Bash { command: "ls".into() };
-        cb.record_step(&bash, &ok_result("bash"), 100);
+        let think = ToolCall::Think { thought: "pondering".into() };
+        cb.record_step(&think, &ok_result("think"), 100);
         assert_eq!(cb.state, AgentHealthState::Stalled);
         let hint = cb.rotation_hint();
         assert!(hint.contains("STALLED"));
