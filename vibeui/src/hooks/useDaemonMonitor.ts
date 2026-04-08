@@ -11,6 +11,7 @@
  */
 
 import { useEffect, useRef, useCallback, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import type { ToastApi } from "./useToast";
 import type { AddNotificationOpts } from "./useNotifications";
 
@@ -52,6 +53,8 @@ export function useDaemonMonitor({
 
   // Track previous online state to fire notifications only on transitions.
   const prevOnlineRef = useRef<boolean | null>(null);
+  // Prevent hammering start_daemon on every poll tick while it boots.
+  const startingRef = useRef(false);
 
   const check = useCallback(async () => {
     let isOnline = false;
@@ -77,9 +80,12 @@ export function useDaemonMonitor({
 
     const prev = prevOnlineRef.current;
 
-    if (prev === null) {
-      // First check — only notify if already running so user sees confirmation.
-      if (isOnline) {
+    if (isOnline) {
+      // Reset the "starting" guard so we retry if it ever goes offline again.
+      startingRef.current = false;
+
+      if (prev === null) {
+        // First check and already running — silent confirmation.
         toastRef.current.success("VibeCLI daemon is running on port 7878");
         addNotificationRef.current({
           title: "Daemon online",
@@ -87,25 +93,50 @@ export function useDaemonMonitor({
           severity: "success",
           category: "system",
         });
+      } else if (!prev) {
+        // Was offline, now online.
+        toastRef.current.success("VibeCLI daemon is back online");
+        addNotificationRef.current({
+          title: "Daemon recovered",
+          body: "VibeCLI daemon is reachable again on port 7878.",
+          severity: "success",
+          category: "system",
+        });
       }
-    } else if (prev && !isOnline) {
-      // Was online, now offline.
-      toastRef.current.warn("VibeCLI daemon went offline. Start it with: vibecli --serve --port 7878");
-      addNotificationRef.current({
-        title: "Daemon offline",
-        body: "The VibeCLI daemon is no longer reachable. Run: vibecli --serve --port 7878",
-        severity: "warn",
-        category: "system",
-      });
-    } else if (!prev && isOnline) {
-      // Was offline, now online.
-      toastRef.current.success("VibeCLI daemon is back online");
-      addNotificationRef.current({
-        title: "Daemon recovered",
-        body: "VibeCLI daemon is reachable again on port 7878.",
-        severity: "success",
-        category: "system",
-      });
+    } else {
+      // Daemon is offline. Try to start it via the Tauri backend (which knows
+      // where the vibecli binary lives and manages the child process lifetime).
+      if (!startingRef.current) {
+        startingRef.current = true;
+        try {
+          const result = await invoke<string>("start_daemon");
+          if (result === "started" || result === "running") {
+            // Daemon came up — next poll tick will pick it up as online.
+            startingRef.current = false;
+          }
+          // If result === "starting", keep startingRef=true and wait for next tick.
+        } catch {
+          // vibecli not installed or spawn failed — fall through to warning.
+          startingRef.current = false;
+          if (prev === null || prev) {
+            toastRef.current.warn(
+              "VibeCLI daemon is not running and could not be auto-started. " +
+              "Install or run: vibecli --serve --port 7878"
+            );
+            addNotificationRef.current({
+              title: "Daemon unavailable",
+              body: "Could not auto-start the VibeCLI daemon. Install vibecli or start it manually.",
+              severity: "warn",
+              category: "system",
+            });
+          }
+        }
+      }
+
+      if (prev && !startingRef.current) {
+        // Was online, went offline and we couldn't restart it.
+        toastRef.current.warn("VibeCLI daemon went offline — attempting to restart…");
+      }
     }
 
     prevOnlineRef.current = isOnline;

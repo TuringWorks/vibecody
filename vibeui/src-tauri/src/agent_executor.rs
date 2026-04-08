@@ -5,8 +5,12 @@
 
 use async_trait::async_trait;
 use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::atomic::Ordering;
 use tauri::Emitter;
 use vibe_ai::{ToolCall, ToolResult, ToolExecutorTrait};
+use vibe_ai::provider::AIProvider;
+use vibe_ai::agent::{AgentContext, AgentEvent, AgentLoop, ApprovalPolicy};
 
 const MAX_OUTPUT: usize = 8_000;
 /// Maximum wall-clock time for a single bash command (seconds).
@@ -54,16 +58,32 @@ fn validate_url_for_ssrf(url: &str) -> Result<(), String> {
 pub struct TauriToolExecutor {
     pub workspace_root: PathBuf,
     app: Option<tauri::AppHandle>,
+    /// Provider for sub-agent spawning. Set via `with_provider`.
+    pub provider: Option<Arc<dyn AIProvider>>,
+    /// Parent agent context (depth, active counter) — `None` for root agents.
+    pub parent_context: Option<AgentContext>,
 }
 
 impl TauriToolExecutor {
     #[cfg(test)]
     pub fn new(workspace_root: PathBuf) -> Self {
-        Self { workspace_root, app: None }
+        Self { workspace_root, app: None, provider: None, parent_context: None }
     }
 
     pub fn with_app(workspace_root: PathBuf, app: tauri::AppHandle) -> Self {
-        Self { workspace_root, app: Some(app) }
+        Self { workspace_root, app: Some(app), provider: None, parent_context: None }
+    }
+
+    /// Attach an AI provider so that `spawn_agent` tool calls can create child agents.
+    pub fn with_provider(mut self, provider: Arc<dyn AIProvider>) -> Self {
+        self.provider = Some(provider);
+        self
+    }
+
+    /// Attach the parent agent context (depth / counter) for sub-agent tracking.
+    pub fn with_parent_context(mut self, ctx: AgentContext) -> Self {
+        self.parent_context = Some(ctx);
+        self
     }
 
     /// Resolve a path safely within the workspace boundary.
@@ -360,6 +380,131 @@ impl TauriToolExecutor {
         }
     }
 
+    /// Spawn a child `AgentLoop` for the given `task` and collect its output.
+    ///
+    /// Mirrors `ToolExecutor::spawn_sub_agent` in the CLI, but uses
+    /// `TauriToolExecutor::with_app` for child executors so file-write events
+    /// continue to propagate to the VibeUI frontend.
+    async fn spawn_sub_agent(
+        &self,
+        task: &str,
+        max_steps: Option<usize>,
+        max_depth: Option<u32>,
+    ) -> ToolResult {
+        let provider = match &self.provider {
+            Some(p) => p.clone(),
+            None => {
+                return ToolResult::err(
+                    "spawn_agent",
+                    "No LLM provider configured for sub-agent spawning in VibeUI.",
+                )
+            }
+        };
+
+        // ── Depth and global-counter guards ──────────────────────────────────
+        let current_depth = self.parent_context.as_ref().map(|c| c.depth).unwrap_or(0);
+        let depth_limit = max_depth.unwrap_or(3).min(5);
+        if current_depth >= depth_limit {
+            return ToolResult::err(
+                "spawn_agent",
+                format!(
+                    "Maximum agent nesting depth ({}) exceeded at depth {}",
+                    depth_limit, current_depth
+                ),
+            );
+        }
+
+        let counter = self
+            .parent_context
+            .as_ref()
+            .and_then(|c| c.active_agent_counter.clone())
+            .unwrap_or_else(|| Arc::new(std::sync::atomic::AtomicU32::new(0)));
+
+        let active = counter.load(Ordering::Relaxed);
+        if active >= 20 {
+            return ToolResult::err(
+                "spawn_agent",
+                format!(
+                    "Global agent limit (20) reached — {} agents active across the tree",
+                    active
+                ),
+            );
+        }
+        counter.fetch_add(1, Ordering::Relaxed);
+
+        // ── Build child context ───────────────────────────────────────────────
+        let child_context = AgentContext {
+            workspace_root: self.workspace_root.clone(),
+            parent_session_id: self
+                .parent_context
+                .as_ref()
+                .and_then(|c| c.parent_session_id.clone())
+                .or_else(|| Some(format!("root-{}", std::process::id()))),
+            depth: current_depth + 1,
+            active_agent_counter: Some(counter.clone()),
+            ..Default::default()
+        };
+
+        // ── Build child executor ──────────────────────────────────────────────
+        let child_exec = TauriToolExecutor {
+            workspace_root: self.workspace_root.clone(),
+            app: self.app.clone(),
+            provider: Some(provider.clone()),
+            parent_context: Some(child_context.clone()),
+        };
+
+        let child_executor: Arc<dyn ToolExecutorTrait> = Arc::new(child_exec);
+        let mut agent = AgentLoop::new(provider, ApprovalPolicy::FullAuto, child_executor);
+        agent.max_steps = max_steps.unwrap_or(10);
+
+        let (event_tx, mut event_rx) = tokio::sync::mpsc::channel::<AgentEvent>(64);
+        let task_owned = task.to_string();
+        let handle = tokio::spawn(async move {
+            agent.run(&task_owned, child_context, event_tx).await
+        });
+
+        let mut summary = String::new();
+        let mut steps: Vec<String> = Vec::new();
+
+        while let Some(event) = event_rx.recv().await {
+            match event {
+                AgentEvent::Complete(s) => {
+                    summary = s;
+                    break;
+                }
+                AgentEvent::Error(e) => {
+                    handle.abort();
+                    counter.fetch_sub(1, Ordering::Relaxed);
+                    return ToolResult::err("spawn_agent", format!("Sub-agent error: {}", e));
+                }
+                AgentEvent::ToolCallExecuted(step) => {
+                    steps.push(format!(
+                        "  [step {}] {} → {}",
+                        step.step_num,
+                        step.tool_call.summary(),
+                        if step.tool_result.success { "ok" } else { "err" }
+                    ));
+                }
+                _ => {}
+            }
+        }
+
+        let _ = handle.await;
+        counter.fetch_sub(1, Ordering::Relaxed);
+
+        let mut output = String::new();
+        output.push_str(&format!("[depth {}/{}] ", current_depth + 1, depth_limit));
+        if !steps.is_empty() {
+            output.push_str("Steps:\n");
+            output.push_str(&steps.join("\n"));
+            output.push_str("\n\n");
+        }
+        output.push_str("Summary: ");
+        output.push_str(if summary.is_empty() { "Sub-agent completed." } else { &summary });
+
+        ToolResult::ok("spawn_agent", output)
+    }
+
     async fn record_memory_tool(&self, key: &str, value: &str) -> ToolResult {
         let memory_path = self.workspace_root.join(".vibe").join("memory.md");
         if let Some(parent) = memory_path.parent() {
@@ -401,10 +546,8 @@ impl TauriToolExecutor {
             ToolCall::WebSearch { query, .. } => self.web_search(query).await,
             ToolCall::FetchUrl { url }         => self.fetch_url(url).await,
             ToolCall::TaskComplete { summary } => ToolResult::ok("task_complete", summary.clone()),
-            ToolCall::SpawnAgent { .. }        => ToolResult::err(
-                "spawn_agent",
-                "spawn_agent is not supported in VibeUI — use the CLI for sub-agent spawning.",
-            ),
+            ToolCall::SpawnAgent { task, max_steps, max_depth } =>
+                self.spawn_sub_agent(task, *max_steps, *max_depth).await,
             ToolCall::Think { thought } => {
                 ToolResult::ok("think", format!("Reasoning noted ({} chars).", thought.len()))
             }
@@ -502,7 +645,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn execute_call_spawn_agent_returns_error() {
+    async fn execute_call_spawn_agent_no_provider_returns_error() {
+        // Without a provider attached, spawn_agent should fail gracefully.
         let exec = TauriToolExecutor::new(PathBuf::from("/tmp"));
         let call = ToolCall::SpawnAgent {
             task: "test".into(),
@@ -511,7 +655,7 @@ mod tests {
         };
         let result = exec.execute_call(&call).await;
         assert!(!result.success);
-        assert!(result.output.contains("not supported"));
+        assert!(result.output.contains("No LLM provider"));
     }
 
     #[tokio::test]

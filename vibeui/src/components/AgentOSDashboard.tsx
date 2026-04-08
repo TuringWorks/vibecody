@@ -33,7 +33,7 @@ interface SubAgent {
   id: string;
   role: string;
   status: string;
-  task?: string;
+  task_description?: string;
   tokens_used?: number;
 }
 
@@ -370,7 +370,7 @@ export function AgentOSDashboard() {
                 <td style={S.td}><code>{a.id.slice(0, 8)}</code></td>
                 <td style={S.td}>{a.role}</td>
                 <td style={S.td}><StatusBadge status={a.status} /></td>
-                <td style={{ ...S.td, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.task ?? "-"}</td>
+                <td style={{ ...S.td, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.task_description ?? "-"}</td>
                 <td style={S.td}>{a.tokens_used?.toLocaleString() ?? "-"}</td>
               </tr>
             ))}

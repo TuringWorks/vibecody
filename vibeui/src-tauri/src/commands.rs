@@ -206,6 +206,8 @@ pub struct AppState {
     pub browser_sessions: Arc<Mutex<Vec<serde_json::Value>>>,
     // TurboQuant compressed vector index
     pub turboquant_index: Arc<Mutex<Option<serde_json::Value>>>,
+    /// vibecli daemon child process spawned by VibeUI (if we started it).
+    pub daemon_process: Arc<Mutex<Option<tokio::process::Child>>>,
 }
 
 const MAX_TERMINAL_LINES: usize = 500;
@@ -3957,7 +3959,11 @@ pub async fn start_agent_task(
         auto_commit: false,
     };
 
-    let executor = Arc::new(TauriToolExecutor::with_app(workspace_root.clone(), app_handle.clone()));
+    let executor = Arc::new(
+        TauriToolExecutor::with_app(workspace_root.clone(), app_handle.clone())
+            .with_provider(provider_arc.clone())
+            .with_parent_context(context.clone()),
+    );
     let approval = ApprovalPolicy::from_str(&approval_policy);
     let agent = AgentLoop::new(provider_arc, approval, executor)
         .with_policy(&workspace_root);
@@ -4138,7 +4144,13 @@ pub async fn respond_to_agent_approval(
             let ws = state.workspace.lock().await;
             ws.folders().first().cloned().unwrap_or_else(|| PathBuf::from("."))
         };
-        let executor = TauriToolExecutor::with_app(workspace_root, app_handle.clone());
+        let maybe_provider = {
+            let engine = state.chat_engine.lock().await;
+            engine.active_provider().cloned()
+        };
+        let mut exec = TauriToolExecutor::with_app(workspace_root, app_handle.clone());
+        if let Some(p) = maybe_provider { exec = exec.with_provider(p); }
+        let executor = exec;
         let result = executor.execute_call(&call).await;
 
         // Emit a step event so the UI shows what happened
@@ -6990,7 +7002,11 @@ pub async fn start_parallel_agents(
                 auto_commit: false,
             };
 
-            let executor = Arc::new(TauriToolExecutor::with_app(root2, h2.clone()));
+            let executor = Arc::new(
+                TauriToolExecutor::with_app(root2, h2.clone())
+                    .with_provider(prov2.clone())
+                    .with_parent_context(context.clone()),
+            );
             let agent = AgentLoop::new(prov2, approval2, executor);
             let (event_tx, mut event_rx) = tokio::sync::mpsc::channel::<AgentEvent>(64);
 
@@ -39873,4 +39889,142 @@ pub async fn company_list_skills() -> Result<serde_json::Value, String> {
         }
     }
     Ok(serde_json::json!(skills))
+}
+
+// ─── Daemon Management ───────────────────────────────────────────────────────
+//
+// VibeUI can spawn the vibecli daemon in-process so that panels that depend on
+// the HTTP API (BackgroundJobs, Collab, ACP…) work without the user needing to
+// run `vibecli --serve` manually.
+
+/// Locate the vibecli binary: check PATH via `which`, then ~/.cargo/bin, then
+/// common install prefixes.
+pub fn find_vibecli_binary() -> Option<std::path::PathBuf> {
+    // 1. Let the shell resolve it (handles shims, nvm, asdf, etc.)
+    #[cfg(unix)]
+    if let Ok(out) = std::process::Command::new("which").arg("vibecli").output() {
+        if out.status.success() {
+            let p = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            if !p.is_empty() {
+                return Some(std::path::PathBuf::from(p));
+            }
+        }
+    }
+    #[cfg(windows)]
+    if let Ok(out) = std::process::Command::new("where").arg("vibecli").output() {
+        if out.status.success() {
+            let p = String::from_utf8_lossy(&out.stdout).lines().next()
+                .unwrap_or("").trim().to_string();
+            if !p.is_empty() {
+                return Some(std::path::PathBuf::from(p));
+            }
+        }
+    }
+
+    // 2. ~/.cargo/bin (Rust installation default)
+    if let Ok(home) = std::env::var("HOME").or_else(|_| std::env::var("USERPROFILE")) {
+        let p = std::path::PathBuf::from(&home).join(".cargo").join("bin").join("vibecli");
+        if p.exists() { return Some(p); }
+    }
+
+    // 3. Common system-wide prefixes
+    for prefix in &["/usr/local/bin/vibecli", "/opt/homebrew/bin/vibecli", "/usr/bin/vibecli"] {
+        let p = std::path::PathBuf::from(prefix);
+        if p.exists() { return Some(p); }
+    }
+
+    None
+}
+
+/// Quick TCP probe — is something listening on 127.0.0.1:port?
+async fn port_open(port: u16) -> bool {
+    tokio::net::TcpStream::connect(format!("127.0.0.1:{}", port))
+        .await
+        .is_ok()
+}
+
+/// Return the current daemon status (is it reachable, and did VibeUI spawn it?).
+#[tauri::command]
+pub async fn get_daemon_status(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let running = port_open(7878).await;
+    let managed = {
+        let guard = state.daemon_process.lock().await;
+        guard.is_some()
+    };
+    let binary_path = find_vibecli_binary().map(|p| p.to_string_lossy().to_string());
+    Ok(serde_json::json!({
+        "running": running,
+        "managed": managed,          // true if VibeUI spawned this instance
+        "port": 7878,
+        "url": "http://localhost:7878",
+        "binary": binary_path,
+    }))
+}
+
+/// Ensure the vibecli daemon is running.
+/// - If it is already reachable on port 7878, returns immediately.
+/// - Otherwise locates the vibecli binary and spawns it with `--serve --port 7878`.
+/// - The child process is stored in `AppState.daemon_process` so VibeUI can
+///   stop it cleanly on exit.
+#[tauri::command]
+pub async fn start_daemon(
+    state: tauri::State<'_, AppState>,
+    app_handle: tauri::AppHandle,
+) -> Result<String, String> {
+    // Already reachable — nothing to do.
+    if port_open(7878).await {
+        return Ok("running".to_string());
+    }
+
+    // If we already have a child stored, check if it exited.
+    {
+        let mut guard = state.daemon_process.lock().await;
+        if let Some(ref mut child) = *guard {
+            match child.try_wait() {
+                Ok(None) => {
+                    // Still running but not yet accepting connections — tell caller to retry.
+                    return Ok("starting".to_string());
+                }
+                _ => { *guard = None; } // exited — clear the slot
+            }
+        }
+    }
+
+    let binary = find_vibecli_binary()
+        .ok_or_else(|| "vibecli binary not found. Install with: cargo install vibecli".to_string())?;
+
+    let child = tokio::process::Command::new(&binary)
+        .args(["--serve", "--port", "7878"])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .kill_on_drop(true)
+        .spawn()
+        .map_err(|e| format!("Failed to start daemon: {}", e))?;
+
+    {
+        let mut guard = state.daemon_process.lock().await;
+        *guard = Some(child);
+    }
+
+    // Brief warm-up wait, then emit an event so the UI can re-check.
+    tokio::time::sleep(tokio::time::Duration::from_millis(1800)).await;
+    if port_open(7878).await {
+        let _ = app_handle.emit("daemon:online", serde_json::json!({ "port": 7878 }));
+        Ok("started".to_string())
+    } else {
+        Ok("starting".to_string()) // still booting — frontend should poll /health
+    }
+}
+
+/// Stop the daemon process that VibeUI spawned (if any).
+/// Has no effect if the daemon was started externally.
+#[tauri::command]
+pub async fn stop_daemon(state: tauri::State<'_, AppState>) -> Result<String, String> {
+    let mut guard = state.daemon_process.lock().await;
+    if let Some(mut child) = guard.take() {
+        child.kill().await.map_err(|e| format!("Kill failed: {}", e))?;
+        Ok("stopped".to_string())
+    } else {
+        Ok("not_managed".to_string())
+    }
 }

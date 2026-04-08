@@ -38,9 +38,14 @@ const VmOrchestratorPanel: React.FC = () => {
   const [conflicts, setConflicts] = useState<Conflict[]>([]);
 
   useEffect(() => {
-    invoke<Agent[]>("list_branch_agents").then(setAgents).catch(() => {});
-    invoke<PR[]>("get_branch_prs").then(setPrs).catch(() => {});
-    invoke<Conflict[]>("get_branch_conflicts").then(setConflicts).catch(() => {});
+    const fetchData = () => {
+      invoke<Agent[]>("list_branch_agents").then(setAgents).catch(() => {});
+      invoke<PR[]>("get_branch_prs").then(setPrs).catch(() => {});
+      invoke<Conflict[]>("get_branch_conflicts").then(setConflicts).catch(() => {});
+    };
+    fetchData();
+    const id = setInterval(fetchData, 10_000);
+    return () => clearInterval(id);
   }, []);
 
   const running = agents.filter(a => a.status === "Running").length;

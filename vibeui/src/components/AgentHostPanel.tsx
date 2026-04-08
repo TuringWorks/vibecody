@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 
 interface HostedAgent {
   id: string;
@@ -46,25 +47,40 @@ export function AgentHostPanel() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function loadData() {
-      setLoading(true);
-      try {
-        const agentList = await invoke<HostedAgent[]>("host_list_agents");
-        setAgents(Array.isArray(agentList) ? agentList : []);
-      } catch (e) {
-        console.error("Failed to load agents:", e);
-      }
-      try {
-        const outputRes = await invoke<{ lines?: OutputLine[] }>("host_get_output", { agentId: "all", lastN: 50 });
-        setOutput(Array.isArray(outputRes) ? outputRes : Array.isArray(outputRes?.lines) ? outputRes.lines : []);
-      } catch (e) {
-        console.error("Failed to load output:", e);
-      }
-      setLoading(false);
-    }
-    loadData();
+  const loadOutput = useCallback(async () => {
+    try {
+      const outputRes = await invoke<{ lines?: OutputLine[] }>("host_get_output", { agentId: "all", lastN: 50 });
+      setOutput(Array.isArray(outputRes) ? outputRes : Array.isArray(outputRes?.lines) ? outputRes.lines : []);
+    } catch {/* silent */}
   }, []);
+
+  const loadAgents = useCallback(async () => {
+    try {
+      const agentList = await invoke<HostedAgent[]>("host_list_agents");
+      setAgents(Array.isArray(agentList) ? agentList : []);
+    } catch {/* silent */}
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      await Promise.all([loadAgents(), loadOutput()]);
+      setLoading(false);
+    })();
+
+    // Poll agents and output every 5 s
+    const poll = setInterval(() => { loadAgents(); loadOutput(); }, 5_000);
+
+    // Also refresh immediately on backend output events
+    const unlisten = listen("host:output", () => loadOutput());
+    const unlistenStatus = listen("host:status_changed", () => loadAgents());
+
+    return () => {
+      clearInterval(poll);
+      unlisten.then(fn => fn());
+      unlistenStatus.then(fn => fn());
+    };
+  }, [loadAgents, loadOutput]);
 
   const toggleAgent = useCallback(async (id: string) => {
     const agent = agents.find((a) => a.id === id);

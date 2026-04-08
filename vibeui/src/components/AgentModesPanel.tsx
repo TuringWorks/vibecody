@@ -78,6 +78,8 @@ const AgentModesPanel: React.FC = () => {
       setLoading(false);
     };
     init();
+    const id = setInterval(() => { loadStats(); }, 10_000);
+    return () => clearInterval(id);
   }, [loadModes, loadStats, loadProfiles]);
 
   const handleSetMode = async (modeId: string) => {

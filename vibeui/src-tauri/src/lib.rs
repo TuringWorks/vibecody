@@ -10,6 +10,7 @@ pub mod shadow_workspace;
 
 use commands::AppState;
 use std::sync::Arc;
+use tauri::Manager;
 use tokio::sync::Mutex;
 use vibe_core::Workspace;
 use vibe_ai::{ChatEngine, providers, AIConfig};
@@ -136,6 +137,37 @@ pub fn run() {
                 .build()?;
             app.set_menu(menu)?;
 
+            // Auto-spawn the vibecli daemon in the background if it isn't already running.
+            // This makes BackgroundJobs, Collab, and other HTTP-based panels work without
+            // the user needing to manually start `vibecli --serve`.
+            {
+                let app_handle2 = app.handle().clone();
+                let daemon_proc = app.state::<AppState>().daemon_process.clone();
+                tauri::async_runtime::spawn(async move {
+                    // Give the main window time to render before we try to spawn.
+                    tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+                    // Skip if something is already listening on 7878.
+                    let already_up = tokio::net::TcpStream::connect("127.0.0.1:7878").await.is_ok();
+                    if already_up { return; }
+                    if let Some(binary) = crate::commands::find_vibecli_binary() {
+                        if let Ok(child) = tokio::process::Command::new(&binary)
+                            .args(["--serve", "--port", "7878"])
+                            .stdout(std::process::Stdio::null())
+                            .stderr(std::process::Stdio::null())
+                            .kill_on_drop(true)
+                            .spawn()
+                        {
+                            *daemon_proc.lock().await = Some(child);
+                            // Wait for it to come up, then notify the frontend.
+                            tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
+                            if tokio::net::TcpStream::connect("127.0.0.1:7878").await.is_ok() {
+                                use tauri::Emitter;
+                                let _ = app_handle2.emit("daemon:online", serde_json::json!({ "port": 7878, "auto": true }));
+                            }
+                        }
+                    }
+                });
+            }
 
             Ok(())
         })
@@ -177,6 +209,7 @@ pub fn run() {
             worktree_metrics: Arc::new(Mutex::new(serde_json::json!({ "total_spawned": 0, "completed": 0, "failed": 0, "merge_conflicts": 0 }))),
             hosted_agents: Arc::new(Mutex::new(Vec::new())),
             host_output: Arc::new(Mutex::new(Vec::new())),
+            host_processes: Arc::new(Mutex::new(std::collections::HashMap::new())),
             // Phase 25
             proactive_suggestions: Arc::new(Mutex::new(Vec::new())),
             proactive_metrics: Arc::new(Mutex::new(serde_json::json!({ "total_scans": 0, "total_suggestions": 0, "accepted": 0, "rejected": 0 }))),
@@ -233,6 +266,7 @@ pub fn run() {
             training_jobs: Arc::new(Mutex::new(Vec::new())),
             browser_sessions: Arc::new(Mutex::new(Vec::new())),
             turboquant_index: Arc::new(Mutex::new(None)),
+            daemon_process: Arc::new(Mutex::new(None)),
         })
         .invoke_handler(tauri::generate_handler![
             commands::read_file,
@@ -1046,6 +1080,10 @@ pub fn run() {
             commands::get_knowledge_graph_stats,
             commands::search_knowledge_graph,
             commands::refresh_knowledge_graph,
+            // Adventure tab names
+            commands::get_adventure_names,
+            commands::add_adventure_name,
+            commands::remove_adventure_name,
             // Agent Modes
             commands::get_agent_modes,
             commands::get_agent_mode_stats,
@@ -1327,6 +1365,7 @@ pub fn run() {
             // Browser Agent
             commands::browser_list_sessions,
             commands::browser_create_session,
+            commands::browser_close_session,
             // TurboQuant
             commands::turboquant_stats,
             commands::turboquant_insert,
@@ -1419,6 +1458,10 @@ pub fn run() {
             commands::company_ingest_meeting_notes,
             commands::set_automation_resolution_mode,
             commands::company_list_skills,
+            // Daemon management
+            commands::get_daemon_status,
+            commands::start_daemon,
+            commands::stop_daemon,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

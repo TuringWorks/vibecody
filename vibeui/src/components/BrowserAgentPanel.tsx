@@ -43,6 +43,8 @@ export function BrowserAgentPanel() {
     setLoading(true);
     setError(null);
     fetchSessions().finally(() => setLoading(false));
+    const id = setInterval(fetchSessions, 5_000);
+    return () => clearInterval(id);
   }, [fetchSessions]);
 
   const handleLaunch = useCallback(async () => {
@@ -113,7 +115,15 @@ export function BrowserAgentPanel() {
                   <div style={{ fontWeight: 600, fontSize: 13 }}>{s.task}</div>
                   <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{s.url}</div>
                 </div>
-                <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 4, background: s.status === "completed" ? "var(--success-bg)" : s.status === "running" ? "#2196f322" : "#ff980022", color: s.status === "completed" ? "var(--accent-green)" : s.status === "running" ? "var(--accent-blue)" : "var(--accent-gold)" }}>{s.status}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 4, background: s.status === "completed" ? "var(--success-bg)" : s.status === "running" ? "#2196f322" : "#ff980022", color: s.status === "completed" ? "var(--accent-green)" : s.status === "running" ? "var(--accent-blue)" : "var(--accent-gold)" }}>{s.status}</span>
+                  {s.status === "running" && (
+                    <button className="panel-btn panel-btn-secondary" style={{ fontSize: 11, padding: "2px 8px" }}
+                      onClick={() => invoke("browser_close_session", { sessionId: s.id }).then(fetchSessions).catch(() => {})}>
+                      Stop
+                    </button>
+                  )}
+                </div>
               </div>
               <div style={{ marginTop: 6, fontSize: 11, color: "var(--text-secondary)" }}>
                 {s.actions} actions | {s.screenshots} screenshots
