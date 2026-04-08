@@ -57,6 +57,24 @@ function saveHistory(history: ChatSession[]) {
 
 let nextTabId = 1;
 
+const ADVENTURE_NAMES = [
+  "Uncharted Waters", "The Lost Meridian", "Edge of the Map", "Stormbreak",
+  "The Iron Compass", "Ember Ridge", "Voidtide", "Last Horizon",
+  "The Silent Expanse", "Frostfall", "Ironwood Vale", "The Amber Route",
+  "Deeprun", "Skyrift", "Thornwatch", "The Wandering Star",
+  "Ashgate", "Duskward", "The Ruined Coast", "Brightfall",
+  "Mistkeep", "Sunken Archive", "The Final League", "Coldveil",
+  "Hearthless", "Dawnseeker", "The Forgotten Shore", "Ironclad Run",
+  "The Open Reach", "Starfall Pass",
+];
+
+let adventureIdx = Math.floor(Math.random() * ADVENTURE_NAMES.length);
+function nextAdventureName(): string {
+  const name = ADVENTURE_NAMES[adventureIdx % ADVENTURE_NAMES.length];
+  adventureIdx++;
+  return name;
+}
+
 export function ChatTabManager({
     defaultProvider,
     availableProviders,
@@ -72,7 +90,7 @@ export function ChatTabManager({
     const memory = useSessionMemory();
 
     const [tabs, setTabs] = useState<ChatTab[]>([
-        { id: "tab-1", title: "Chat 1", provider: defaultProvider, manualOverride: false },
+        { id: "tab-1", title: nextAdventureName(), provider: defaultProvider, manualOverride: false },
     ]);
     const [activeTabId, setActiveTabId] = useState("tab-1");
     const [showHistory, setShowHistory] = useState(false);
@@ -136,7 +154,7 @@ export function ChatTabManager({
         nextTabId++;
         const newTab: ChatTab = {
             id: `tab-${nextTabId}`,
-            title: `Chat ${nextTabId}`,
+            title: nextAdventureName(),
             provider: defaultProvider,
             manualOverride: false,
         };
