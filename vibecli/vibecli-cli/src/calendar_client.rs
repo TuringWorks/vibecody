@@ -908,6 +908,9 @@ pub async fn handle_calendar_command(args: &str) -> String {
 mod tests {
     use super::*;
 
+    // Serialize all tests that mutate process-wide env vars to avoid races.
+    static CALENDAR_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     fn make_event(id: &str, summary: &str, start: &str, end: &str, status: &str) -> CalendarEvent {
         CalendarEvent {
             id: id.to_string(),
@@ -1171,6 +1174,7 @@ mod tests {
 
     #[test]
     fn client_from_env_google() {
+        let _lock = CALENDAR_ENV_LOCK.lock().unwrap();
         std::env::set_var("GOOGLE_CALENDAR_TOKEN", "gtest");
         std::env::remove_var("OUTLOOK_ACCESS_TOKEN");
         let c = CalendarClient::from_env_or_config();
@@ -1182,6 +1186,7 @@ mod tests {
 
     #[test]
     fn client_from_env_outlook_fallback() {
+        let _lock = CALENDAR_ENV_LOCK.lock().unwrap();
         std::env::remove_var("GOOGLE_CALENDAR_TOKEN");
         std::env::set_var("OUTLOOK_ACCESS_TOKEN", "otest");
         let c = CalendarClient::from_env_or_config();
@@ -1303,6 +1308,7 @@ mod tests {
 
     #[tokio::test]
     async fn handle_no_config_shows_warning() {
+        let _lock = CALENDAR_ENV_LOCK.lock().unwrap();
         std::env::remove_var("GOOGLE_CALENDAR_TOKEN");
         std::env::remove_var("OUTLOOK_ACCESS_TOKEN");
         let out = handle_calendar_command("today").await;
@@ -1316,6 +1322,7 @@ mod tests {
 
     #[tokio::test]
     async fn handle_unknown_subcommand_shows_usage() {
+        let _lock = CALENDAR_ENV_LOCK.lock().unwrap();
         std::env::set_var("GOOGLE_CALENDAR_TOKEN", "fake-token");
         let out = handle_calendar_command("unknown_cmd").await;
         assert!(
@@ -1327,6 +1334,7 @@ mod tests {
 
     #[tokio::test]
     async fn handle_create_missing_flags() {
+        let _lock = CALENDAR_ENV_LOCK.lock().unwrap();
         std::env::set_var("GOOGLE_CALENDAR_TOKEN", "fake-token");
         let out = handle_calendar_command("create Meeting").await;
         assert!(
@@ -1338,6 +1346,7 @@ mod tests {
 
     #[tokio::test]
     async fn handle_delete_empty_id() {
+        let _lock = CALENDAR_ENV_LOCK.lock().unwrap();
         std::env::set_var("GOOGLE_CALENDAR_TOKEN", "fake-token");
         let out = handle_calendar_command("delete").await;
         assert!(
@@ -1348,6 +1357,7 @@ mod tests {
 
     #[tokio::test]
     async fn handle_move_missing_flags() {
+        let _lock = CALENDAR_ENV_LOCK.lock().unwrap();
         std::env::set_var("GOOGLE_CALENDAR_TOKEN", "fake-token");
         let out = handle_calendar_command("move").await;
         assert!(
