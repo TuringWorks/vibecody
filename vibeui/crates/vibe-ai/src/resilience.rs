@@ -129,6 +129,7 @@ pub struct ProviderHealth {
 /// Tracks health of all providers using a sliding window of outcomes.
 ///
 /// Thread-safe via `Mutex`. Designed for moderate call rates (dozens/minute).
+#[derive(Debug)]
 pub struct ProviderHealthTracker {
     windows: Mutex<HashMap<String, Vec<ProviderCallOutcome>>>,
     window_size: usize,

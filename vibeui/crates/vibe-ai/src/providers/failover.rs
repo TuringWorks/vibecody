@@ -25,6 +25,15 @@ pub struct FailoverProvider {
     health_tracker: Option<Arc<ProviderHealthTracker>>,
 }
 
+impl std::fmt::Debug for FailoverProvider {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FailoverProvider")
+            .field("name", &self.name)
+            .field("chain_len", &self.chain.len())
+            .finish()
+    }
+}
+
 impl FailoverProvider {
     /// Create a failover provider with fixed ordering (original behavior).
     pub fn new(chain: Vec<Arc<dyn AIProvider>>) -> Self {
