@@ -6,7 +6,7 @@ This document traces a chat message from keypress to rendered response, covering
 
 ## Architecture Diagram
 
-![Chat Workflow Architecture](chat-workflow.svg)
+![Chat Workflow Architecture](/chat-workflow.svg)
 
 > [Open in draw.io](chat-workflow.drawio) for editable version.
 

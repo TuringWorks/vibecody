@@ -33,12 +33,12 @@ permalink: /whitepapers/openclaw-comparison/
 
 | Diagram | Description |
 |---------|-------------|
-| ![VibeCody Architecture](diagrams/vibecody-architecture.svg) | VibeCody: 8 access surfaces, 23 providers, triple-protocol, 187 panels |
-| ![OpenClaw Architecture](diagrams/openclaw-architecture.svg) | OpenClaw: Web UI + CLI, Docker-dependent, single-user |
-| ![Feature Heatmap](diagrams/comparison-heatmap.svg) | Competitive heatmap across 10 dimensions and 8 products |
-| ![Security Comparison](diagrams/security-comparison.svg) | Security architecture: VibeCody (7 layers, 0 CVEs) vs OpenClaw (Docker-only, 2 incidents) |
-| ![Protocol Stack](diagrams/protocol-stack.svg) | Protocol support: VibeCody (MCP+ACP+A2A) vs competitors |
-| ![Setup Complexity](diagrams/setup-complexity.svg) | Time-to-first-chat: 2 min (VibeCody) vs 30 min (OpenClaw) |
+| ![VibeCody Architecture](/whitepapers/diagrams/vibecody-architecture.svg) | VibeCody: 8 access surfaces, 23 providers, triple-protocol, 187 panels |
+| ![OpenClaw Architecture](/whitepapers/diagrams/openclaw-architecture.svg) | OpenClaw: Web UI + CLI, Docker-dependent, single-user |
+| ![Feature Heatmap](/whitepapers/diagrams/comparison-heatmap.svg) | Competitive heatmap across 10 dimensions and 8 products |
+| ![Security Comparison](/whitepapers/diagrams/security-comparison.svg) | Security architecture: VibeCody (7 layers, 0 CVEs) vs OpenClaw (Docker-only, 2 incidents) |
+| ![Protocol Stack](/whitepapers/diagrams/protocol-stack.svg) | Protocol support: VibeCody (MCP+ACP+A2A) vs competitors |
+| ![Setup Complexity](/whitepapers/diagrams/setup-complexity.svg) | Time-to-first-chat: 2 min (VibeCody) vs 30 min (OpenClaw) |
 
 > All diagrams are available as [draw.io source files](diagrams/) for editing. Export as SVG after modifications.
 
