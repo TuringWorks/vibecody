@@ -51,7 +51,7 @@ vibe-collab = { path = "../crates/vibe-collab" }
 vibecli_cli = { package = "vibecli", path = "../../vibecli/vibecli-cli" }
 base64 = "0.22.1"
 chrono = "0.4.44"
-rusqlite = { version = "0.31", features = ["bundled"] }
+rusqlite = { version = "0.39", features = ["bundled"] }
 chacha20poly1305 = "0.10"
 hostname = "0.4"
 
