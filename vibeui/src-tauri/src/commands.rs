@@ -11205,8 +11205,6 @@ pub async fn run_coverage(
         _                => return Err(format!("Unknown coverage tool: {tool}")),
     };
 
-    let _ = &app; // reserved for future event streaming
-
     // For cargo-llvm-cov, first check if the tool is installed
     if tool == "cargo-llvm-cov" {
         let check = tokio::process::Command::new("cargo")
@@ -11224,19 +11222,53 @@ pub async fn run_coverage(
         }
     }
 
-    let output = tokio::process::Command::new(prog)
+    let _ = app.emit("coverage:log", format!("$ {} {}", prog, args.join(" ")));
+
+    // Spawn process with piped stdout+stderr so we can stream lines live.
+    use tokio::io::{AsyncBufReadExt, BufReader as TokioBufReader};
+    use std::process::Stdio;
+    use std::sync::{Arc, Mutex};
+
+    let mut child = tokio::process::Command::new(prog)
         .args(args)
         .current_dir(&ws)
-        .output()
-        .await
-        .map_err(|e| format!("Failed to run {prog}: {e}"))?;
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("Failed to spawn {prog}: {e}"))?;
 
-    let raw_output = String::from_utf8_lossy(&output.stdout).to_string()
-        + &String::from_utf8_lossy(&output.stderr);
+    let stdout = child.stdout.take().unwrap();
+    let stderr = child.stderr.take().unwrap();
 
-    if !output.status.success() {
-        // Report the error but still try to parse any partial output
-        let _ = app.emit("coverage:log", format!("Coverage command exited with error:\n{}", &raw_output[..raw_output.len().min(2000)]));
+    let raw_lines: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+
+    let app_out = app.clone();
+    let lines_out = raw_lines.clone();
+    let stdout_task = tokio::spawn(async move {
+        let mut reader = TokioBufReader::new(stdout).lines();
+        while let Ok(Some(line)) = reader.next_line().await {
+            let _ = app_out.emit("coverage:log", line.clone());
+            lines_out.lock().unwrap().push(line);
+        }
+    });
+
+    let app_err = app.clone();
+    let lines_err = raw_lines.clone();
+    let stderr_task = tokio::spawn(async move {
+        let mut reader = TokioBufReader::new(stderr).lines();
+        while let Ok(Some(line)) = reader.next_line().await {
+            let _ = app_err.emit("coverage:log", line.clone());
+            lines_err.lock().unwrap().push(line);
+        }
+    });
+
+    let status = child.wait().await.map_err(|e| format!("Process error: {e}"))?;
+    let _ = tokio::join!(stdout_task, stderr_task);
+
+    let raw_output = raw_lines.lock().unwrap().join("\n");
+
+    if !status.success() {
+        let _ = app.emit("coverage:log", format!("Process exited with status: {status}"));
     }
 
     // Determine LCOV file path

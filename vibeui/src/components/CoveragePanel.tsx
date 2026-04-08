@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { CircleCheck, FlaskConical, Loader2, Play } from "lucide-react";
 import { usePersistentState } from "../hooks/usePersistentState";
 
@@ -30,6 +31,17 @@ const pctColor = (pct: number) => {
  return "var(--error-color)";
 };
 
+// Strip ANSI escape codes and handle \r (carriage return) terminal overwrite semantics.
+// cargo uses \r to update progress lines in place; we keep only the final visible state.
+const processLogLine = (raw: string): string => {
+  const s = raw.replace(/\x1B\[[0-9;]*[mGKHFJSTDCBAHfhu]/g, "");
+  const parts = s.split("\r");
+  for (let i = parts.length - 1; i >= 0; i--) {
+    if (parts[i].trim()) return parts[i];
+  }
+  return "";
+};
+
 const toolLabel: Record<string, string> = {
  "cargo-llvm-cov": "Cargo llvm-cov",
  nyc: "nyc (Istanbul)",
@@ -46,8 +58,11 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  const [filter, setFilter] = usePersistentState<Filter>("coverage.filter", "all");
  const [expanded, setExpanded] = useState<Set<string>>(new Set());
  const [showRaw, setShowRaw] = usePersistentState("coverage.showRaw", false);
+ const [logs, setLogs] = useState<string[]>([]);
  const cancelRef = useRef(false);
  const taskIdRef = useRef(0);
+ const unlistenRef = useRef<UnlistenFn | null>(null);
+ const logEndRef = useRef<HTMLDivElement>(null);
 
  useEffect(() => {
  if (!workspacePath) return;
@@ -56,10 +71,20 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  .catch(() => setTool(null));
  }, [workspacePath]);
 
+ // Auto-scroll log to bottom when new lines arrive
+ useEffect(() => {
+   logEndRef.current?.scrollIntoView({ behavior: "auto" });
+ }, [logs]);
+
+ // Clean up listener on unmount
+ useEffect(() => () => { unlistenRef.current?.(); }, []);
+
  const handleSuspend = () => {
  cancelRef.current = true;
  setRunning(false);
  setError("Suspended by user.");
+ unlistenRef.current?.();
+ unlistenRef.current = null;
  };
 
  const handleRun = async () => {
@@ -70,6 +95,15 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  setRunning(true);
  setError(null);
  setResult(null);
+ setLogs([]);
+
+ // Subscribe to streaming log lines before invoking
+ unlistenRef.current?.();
+ unlistenRef.current = await listen<string>("coverage:log", (e) => {
+   const line = processLogLine(e.payload);
+   if (line !== "") setLogs(prev => [...prev, line]);
+ });
+
  try {
  const r = await invoke<CoverageResult>("run_coverage", {
  workspace: workspacePath,
@@ -84,7 +118,11 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  setError(String(e));
  } finally {
  if (taskIdRef.current === thisId) {
- setRunning(false);
+   setRunning(false);
+   if (unlistenRef.current) {
+     unlistenRef.current();
+     unlistenRef.current = null;
+   }
  }
  }
  };
@@ -155,6 +193,16 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  </div>
  )}
 
+ {/* Live log — shown while running; after completion visible via Raw button */}
+ {(running || (!result && logs.length > 0)) && (
+   <div style={{ background: "var(--bg-secondary)", borderRadius: "4px", padding: "10px", fontFamily: "var(--font-mono, monospace)", fontSize: "11px", lineHeight: 1.5, overflowY: "auto", overflowX: "auto", maxHeight: "calc(100vh - 160px)", color: "var(--text-secondary)" }}>
+     {logs.map((line, i) => (
+       <div key={i} style={{ whiteSpace: "pre", minWidth: "max-content" }}>{line || "\u00A0"}</div>
+     ))}
+     <div ref={logEndRef} />
+   </div>
+ )}
+
  {result && (
  <>
  {/* Summary bar */}
@@ -203,8 +251,8 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  </div>
 
  {showRaw ? (
- <pre style={{ background: "var(--bg-secondary)", padding: "10px", borderRadius: "4px", fontSize: "11px", overflow: "auto", maxHeight: "400px", whiteSpace: "pre-wrap" }}>
- {result.raw_output || "(no output)"}
+ <pre style={{ background: "var(--bg-secondary)", padding: "10px", borderRadius: "4px", fontSize: "11px", overflow: "auto", maxHeight: "400px", whiteSpace: "pre-wrap", fontFamily: "var(--font-mono, monospace)" }}>
+ {logs.length > 0 ? logs.join("\n") : result.raw_output || "(no output)"}
  </pre>
  ) : (
  <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>

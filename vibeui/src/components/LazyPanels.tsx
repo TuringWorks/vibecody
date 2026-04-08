@@ -36,13 +36,11 @@ function KeepAlivePanel({ active, children }: { active: boolean; children: React
 
 // --- Lazy imports (code-split per panel) ---
 
-// Unchanged panels
-const ChatTabManager = lazy(() => import("./ChatTabManager").then(m => ({ default: m.ChatTabManager })));
-const AgentPanel = lazy(() => import("./AgentPanel").then(m => ({ default: m.AgentPanel })));
+// Standalone panels
 const MarketplacePanel = lazy(() => import("./MarketplacePanel").then(m => ({ default: m.MarketplacePanel })));
-const SandboxChatPanel = lazy(() => import("./SandboxChatPanel").then(m => ({ default: m.SandboxChatPanel })));
 
 // Composite panels
+const ChatComposite = lazy(() => import("./composite/ChatComposite").then(m => ({ default: m.ChatComposite })));
 const AgentOSComposite = lazy(() => import("./composite/AgentOSComposite").then(m => ({ default: m.AgentOSComposite })));
 const AiTeamsComposite = lazy(() => import("./composite/AiTeamsComposite").then(m => ({ default: m.AiTeamsComposite })));
 const AiPlaygroundComposite = lazy(() => import("./composite/AiPlaygroundComposite").then(m => ({ default: m.AiPlaygroundComposite })));
@@ -79,6 +77,7 @@ const AdministrationComposite = lazy(() => import("./composite/AdministrationCom
 const BillingComposite = lazy(() => import("./composite/BillingComposite").then(m => ({ default: m.BillingComposite })));
 const ToolsSettingsComposite = lazy(() => import("./composite/ToolsSettingsComposite").then(m => ({ default: m.ToolsSettingsComposite })));
 const ProductivityComposite = lazy(() => import("./composite/ProductivityComposite").then(m => ({ default: m.ProductivityComposite })));
+const ArchitectureComposite = lazy(() => import("./composite/ArchitectureComposite").then(m => ({ default: m.ArchitectureComposite })));
 const CompanyComposite = lazy(() => import("./composite/CompanyComposite").then(m => ({ default: m.CompanyComposite })));
 
 // --- Props interfaces ---
@@ -134,7 +133,7 @@ export function PanelHost(props: PanelHostProps) {
     ) : null;
 
   const KNOWN_TABS = [
-    "chat", "sandbox-chat", "agent", "agent-os", "marketplace",
+    "chat", "agent-os", "marketplace",
     "ai-teams", "ai-playground", "ai-context", "ai-generation",
     "project-hub", "planning", "observability", "design",
     "security", "testing", "code-analysis",
@@ -144,15 +143,13 @@ export function PanelHost(props: PanelHostProps) {
     "system-monitor", "terminal", "diagnostics",
     "converters", "formatters", "editors",
     "config", "integrations", "administration", "billing", "tools-settings", "productivity",
-    "company",
+    "architecture", "company",
   ];
 
   return (
     <>
       {/* --- AI --- */}
-      {panel("chat", <LazyPanel Component={ChatTabManager} props={{ defaultProvider: selectedProvider, availableProviders, context: editorContent, fileTree, currentFile, onPendingWrite }} />)}
-      {panel("sandbox-chat", <LazyPanel Component={SandboxChatPanel} props={{ provider: selectedProvider, availableProviders }} />)}
-      {panel("agent", <LazyPanel Component={AgentPanel} props={{ provider: selectedProvider, workspacePath: wp }} />)}
+      {panel("chat", <LazyPanel Component={ChatComposite} props={{ defaultProvider: selectedProvider, availableProviders, context: editorContent, fileTree, currentFile, onPendingWrite }} />)}
       {panel("agent-os", <LazyPanel Component={AgentOSComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}
       {panel("ai-teams", <LazyPanel Component={AiTeamsComposite} props={{ provider: selectedProvider }} />)}
       {panel("ai-playground", <LazyPanel Component={AiPlaygroundComposite} props={{ provider: selectedProvider }} />)}
@@ -170,6 +167,7 @@ export function PanelHost(props: PanelHostProps) {
       {panel("security", <LazyPanel Component={SecurityComposite} props={{ workspacePath: wp, provider: selectedProvider, onOpenFile }} />)}
       {panel("testing", <LazyPanel Component={TestingComposite} props={{ workspacePath: wp, provider: selectedProvider, onOpenFile }} />)}
       {panel("code-analysis", <LazyPanel Component={CodeAnalysisComposite} props={{ workspacePath: wp, provider: selectedProvider, onOpenFile }} />)}
+      {panel("architecture", <LazyPanel Component={ArchitectureComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}
 
       {/* --- Source Control --- */}
       {panel("version-control", <LazyPanel Component={VersionControlComposite} props={{ workspacePath: wp, onOpenFile }} />)}

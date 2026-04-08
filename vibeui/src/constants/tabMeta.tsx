@@ -1,8 +1,8 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  MessageSquare, Bot, Brain, UsersRound, Swords, Infinity, Factory, Store,
+  MessageSquare, Brain, UsersRound, Swords, Infinity, Factory, Store,
   ClipboardList, Ruler, Activity, Palette,
-  Shield, TestTube, TrendingUp,
+  Shield, TestTube, TrendingUp, Network,
   GitBranch, GitPullRequest, Users,
   Hammer, Container, RefreshCw, CloudCog, Workflow, Cpu,
   Database, Globe, Radio,
@@ -20,12 +20,10 @@ export interface TabMeta {
 
 export const TAB_META: Record<string, TabMeta> = {
   // --- AI ---
-  chat:            { icon: MessageSquare,  label: "Chat" },
-  "sandbox-chat":  { icon: Shield,         label: "Sandbox Chat",      aliases: ["sandbox", "filesystem chat", "file ai", "ai sandbox"] },
+  chat:            { icon: MessageSquare,  label: "Chat",              aliases: ["sandbox", "filesystem chat", "file ai", "ai sandbox", "sandbox chat"] },
   "gateway-sandbox": { icon: MessageSquare, label: "Msg Gateway",       aliases: ["telegram", "gateway", "messaging", "bot", "slack", "discord", "webhook bot"] },
-  agent:           { icon: Bot,            label: "Agent" },
-  "agent-os":      { icon: Cpu,             label: "Agent-OS",          aliases: ["agent os", "agentos", "agent dashboard", "spawn", "subagents", "agent host", "branch agent", "browser agent", "cloud agent", "orchestration", "agent modes", "agent pool"] },
-  "ai-teams":      { icon: UsersRound,     label: "AI Teams",          aliases: ["teams", "agentteams", "subagents", "cloud", "cibot", "agent modes"] },
+  "agent-os":      { icon: Cpu,             label: "Agent-OS",          aliases: ["agent os", "agentos", "agent dashboard", "agent host", "branch agent", "browser agent", "orchestration", "agent modes", "agent pool"] },
+  "ai-teams":      { icon: UsersRound,     label: "AI Teams",          aliases: ["teams", "agentteams", "subagents", "spawn", "cloud agent", "cibot", "agent modes", "hierarchy", "multi-agent"] },
   "ai-playground": { icon: Swords,         label: "AI Council",        aliases: ["counsel", "superbrain", "compare", "arena", "playground", "debate", "ensemble", "multi-model"] },
   "ai-context":    { icon: Infinity,       label: "Context & Memory",  aliases: ["icontext", "bundles", "openmemory", "fastcontext", "infinite context"] },
   "ai-generation": { icon: Factory,        label: "Generation",        aliases: ["batchbuilder", "imagegen", "autoresearch", "batch", "image", "research", "transform"] },
@@ -41,6 +39,7 @@ export const TAB_META: Record<string, TabMeta> = {
   security:        { icon: Shield,         label: "Security",          aliases: ["redteam", "blueteam", "purpleteam", "securityscan", "red team", "blue team", "purple team"] },
   testing:         { icon: TestTube,       label: "Testing",           aliases: ["tests", "coverage", "bugbot", "autofix", "cloudautofix", "qa-validation", "qa"] },
   "code-analysis": { icon: TrendingUp,     label: "Code Analysis",     aliases: ["metrics", "astedit", "editpredict", "snippets", "ast edit"] },
+  architecture:    { icon: Network,        label: "Architecture",      aliases: ["aireview", "ai review", "archspec", "policy", "policy engine", "code review", "togaf", "c4", "adr"] },
 
   // --- Source Control ---
   "version-control": { icon: GitBranch,    label: "Version Control",   aliases: ["history", "checkpoints", "bisect"] },
