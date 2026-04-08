@@ -9,7 +9,7 @@ VibeCody is a Rust workspace (monorepo) with 9 crate members: three binary appli
 
 ## Architecture Diagram
 
-![VibeCody Architecture](architecture.svg)
+![VibeCody Architecture](/architecture.svg)
 
 ## Workspace Layout
 

@@ -148,7 +148,7 @@ impl PolarQuantized {
         if radius < 1e-10 {
             return Self {
                 radius: 0.0,
-                codes: vec![0u8; (dim + 3) / 4],
+                codes: vec![0u8; dim.div_ceil(4)],
             };
         }
 
@@ -157,7 +157,7 @@ impl PolarQuantized {
 
         // Quantize each dimension to 2 bits (4 levels) in [-1, 1]
         // Levels: 0 → -0.75, 1 → -0.25, 2 → 0.25, 3 → 0.75
-        let packed_len = (dim + 3) / 4;
+        let packed_len = dim.div_ceil(4);
         let mut codes = vec![0u8; packed_len];
 
         for (i, &val) in unit.iter().enumerate() {
@@ -237,7 +237,7 @@ impl QjlCompressed {
         let dim = residual.len();
         let residual_norm: f32 = residual.iter().map(|x| x * x).sum::<f32>().sqrt();
 
-        let packed_len = (proj_dim + 7) / 8;
+        let packed_len = proj_dim.div_ceil(8);
         let mut signs = vec![0u8; packed_len];
 
         // Project and keep only signs

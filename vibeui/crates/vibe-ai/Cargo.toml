@@ -50,3 +50,8 @@ harness = false
 name = "agent_spawn_bdd"
 path = "tests/agent_spawn_bdd.rs"
 harness = false
+
+[[test]]
+name = "circuit_breaker_bdd"
+path = "tests/circuit_breaker_bdd.rs"
+harness = false
