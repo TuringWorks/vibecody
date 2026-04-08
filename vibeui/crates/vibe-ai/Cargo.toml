@@ -55,3 +55,8 @@ harness = false
 name = "circuit_breaker_bdd"
 path = "tests/circuit_breaker_bdd.rs"
 harness = false
+
+[[test]]
+name = "failover_bdd"
+path = "tests/failover_bdd.rs"
+harness = false
