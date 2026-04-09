@@ -289,7 +289,7 @@ vibecli
 
 ### 2. "API key not found" for cloud providers
 
-VibeCLI checks environment variables first, then `~/.vibecli/config.toml`. Make sure the variable is exported in your current shell:
+Make sure the environment variable is exported in your current shell:
 
 ```bash
 # Check if it is set
@@ -299,13 +299,9 @@ echo $ANTHROPIC_API_KEY
 export ANTHROPIC_API_KEY="sk-ant-your-key-here"
 ```
 
-For persistent configuration, add the key to `~/.vibecli/config.toml`:
+To persist the key, add the `export` line to your `~/.bashrc` or `~/.zshrc`. In VibeUI, you can also store keys securely via the **Settings** panel, which saves them to the encrypted ProfileStore (`~/.vibecli/profile_settings.db`).
 
-```toml
-[claude]
-enabled = true
-api_key = "sk-ant-your-key-here"
-```
+> **Security note:** Never store API keys in plaintext files such as `config.toml` or `.json` files. VibeCody's encrypted ProfileStore is the only safe persistent storage for secrets.
 
 ### 3. "cargo build" fails with missing dependencies
 
