@@ -48,11 +48,7 @@ Unauthenticated requests receive:
 
 ### API Key Rotation
 
-Restart the daemon to generate a new token. For persistent tokens, use the `--api-token` flag:
-
-```bash
-vibecli --serve --port 7878 --api-token "my-secret-token"
-```
+Restart the daemon to generate a new token. A fresh token is printed to stderr on each startup.
 
 
 ## Error Handling

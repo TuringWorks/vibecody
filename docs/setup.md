@@ -82,7 +82,7 @@ docker run -p 7878:7878 ghcr.io/turingworks/vibecody:latest
 ```bash
 git clone https://github.com/TuringWorks/vibecody.git
 cd vibecody/deploy/aws
-./setup.sh --tier lite
+./setup.sh
 ```
 
 ### Raspberry Pi
@@ -99,9 +99,9 @@ VibeCody can run as a persistent background service, just like myclaw.ai — but
 
 | Platform | Service Manager | Command |
 |----------|----------------|---------|
-| macOS | launchd | `vibecli service install && vibecli service start` |
-| Linux | systemd | `vibecli service install && vibecli service start` |
-| Windows | Windows Service | `vibecli service install && vibecli service start` |
+| macOS | launchd | `vibecli --serve --port 7878 --provider ollama` |
+| Linux | systemd | `vibecli --serve --port 7878 --provider ollama` |
+| Windows | Windows Service | `vibecli --serve --port 7878 --provider ollama` |
 | Docker | docker-compose | `docker compose up -d` |
 | Cloud | Managed (auto) | Always running after deploy |
 
@@ -122,21 +122,6 @@ vibecli gateway enable telegram
 
 ---
 
-## Setup Wizard (Interactive)
-
-Not sure which platform to choose? Run the interactive setup wizard:
-
-```bash
-vibecli setup
-```
-
-The wizard will:
-1. **Detect your platform** (OS, architecture, available RAM, GPU)
-2. **Recommend a deployment** (local, Docker, or cloud)
-3. **Guide provider setup** (Ollama for local, or API keys for cloud providers)
-4. **Configure always-on mode** (optional background service)
-5. **Run a health check** to verify everything works
-
 ---
 
 ## Tiers
@@ -149,14 +134,7 @@ Like myclaw.ai's Lite/Pro/Max plans, VibeCody offers tier presets for resource a
 | **Pro** | 4 | 8 GB | 80 GB | Agent loops + local 7B models | $20–33/mo |
 | **Max** | 8 | 16 GB | 160 GB | Multi-agent + local 13B models | $40–66/mo |
 
-```bash
-# Deploy with a specific tier
-./deploy/aws/setup.sh --tier pro
-./deploy/gcp/setup.sh --tier max
-
-# Or set in config
-vibecli config set tier pro
-```
+Resource allocation is configured through your infrastructure provider's settings (instance size, container resource limits, etc.) rather than through VibeCody CLI flags.
 
 ---
 

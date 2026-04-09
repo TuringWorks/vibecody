@@ -46,7 +46,7 @@ An alphabetical reference of terms used throughout VibeCody's documentation and 
 
 **DiffEngine** — A component in `vibe-core` that computes and displays differences between file versions. Supports unified and side-by-side views with syntax-aware line rendering.
 
-**Doctor** — A built-in diagnostic command (`vibecli doctor`) that checks system prerequisites, API key validity, provider connectivity, and configuration integrity. Reports issues with suggested fixes.
+**Doctor** — A planned diagnostic command for checking system prerequisites, API key validity, provider connectivity, and configuration integrity. Not yet implemented.
 
 **DORA Metrics** — DevOps Research and Assessment metrics (deployment frequency, lead time, change failure rate, mean time to recovery) tracked by the IDP module's scorecard system.
 
