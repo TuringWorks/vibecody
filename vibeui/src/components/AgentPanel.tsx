@@ -7,7 +7,7 @@ import { useToast } from "../hooks/useToast";
 import { Toaster } from "./Toaster";
 import { AgentUIRenderer, parseVibeUIBlocks, stripVibeUIBlocks } from "./AgentUIRenderer";
 import type { VibeUIAction } from "./AgentUIRenderer";
-import { Bot, GitBranch, Loader2, Square, Zap } from "lucide-react";
+import { Bot, GitBranch, Loader2, Square, Zap, ShieldCheck, ListOrdered } from "lucide-react";
 
 interface AgentStep {
  step_num: number;
@@ -41,6 +41,7 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  const [approvalPolicy, setApprovalPolicy] = useState("auto-edit");
  const [turboMode, setTurboMode] = useState(false);
  const [parallelMode, setParallelMode] = useState(false);
+ const [worktreeIsolation, setWorktreeIsolation] = useState<"unknown" | "worktree" | "sequential">("unknown");
  const [expandedSteps, setExpandedSteps] = useState<Set<number>>(new Set());
  const [copiedStep, setCopiedStep] = useState<number | null>(null);
  const feedEndRef = useRef<HTMLDivElement>(null);
@@ -77,6 +78,13 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  const now = Date.now();
  const chunk = e.payload;
  setStreaming((prev) => prev + chunk);
+
+ // Detect worktree isolation mode from backend status messages
+ if (chunk.includes("using worktree isolation")) {
+   setWorktreeIsolation("worktree");
+ } else if (chunk.includes("running chunks sequentially")) {
+   setWorktreeIsolation("sequential");
+ }
 
  // Compute TTFT on first chunk only (before chars are accumulated)
  const isFirstChunk = streamCharsRef.current === 0;
@@ -208,6 +216,7 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  setStreaming("");
  setPending(null);
  setStatus("running");
+ setWorktreeIsolation("unknown");
  // Reset streaming metrics — record submit time for TTFT calculation
  streamStartMsRef.current = Date.now();
  streamCharsRef.current = 0;
@@ -479,6 +488,53 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  </button>
  )}
  </div>
+
+ {/* Worktree isolation badge — shown when parallel mode is active */}
+ {parallelMode && isRunning && worktreeIsolation !== "unknown" && (
+ <div style={{
+   display: "flex",
+   alignItems: "center",
+   gap: 6,
+   padding: "4px 8px",
+   borderRadius: 4,
+   fontSize: 11,
+   fontWeight: 600,
+   background: worktreeIsolation === "worktree"
+     ? "color-mix(in srgb, var(--accent-green) 12%, transparent)"
+     : "color-mix(in srgb, var(--warning-color) 12%, transparent)",
+   color: worktreeIsolation === "worktree"
+     ? "var(--accent-green)"
+     : "var(--warning-color)",
+   border: `1px solid ${worktreeIsolation === "worktree" ? "color-mix(in srgb, var(--accent-green) 25%, transparent)" : "color-mix(in srgb, var(--warning-color) 25%, transparent)"}`,
+ }}>
+   {worktreeIsolation === "worktree" ? (
+     <><ShieldCheck size={13} strokeWidth={2} /> Worktree Isolated — each chunk runs on its own git branch</>
+   ) : (
+     <><ListOrdered size={13} strokeWidth={2} /> Sequential Mode — non-git project, chunks run one at a time</>
+   )}
+ </div>
+ )}
+
+ {/* Show isolation result after completion */}
+ {parallelMode && (status === "complete" || status === "partial") && worktreeIsolation !== "unknown" && (
+ <div style={{
+   display: "flex",
+   alignItems: "center",
+   gap: 6,
+   padding: "4px 8px",
+   borderRadius: 4,
+   fontSize: 11,
+   fontWeight: 500,
+   background: "var(--bg-tertiary)",
+   color: "var(--text-secondary)",
+ }}>
+   {worktreeIsolation === "worktree" ? (
+     <><ShieldCheck size={13} strokeWidth={1.5} /> Ran with worktree isolation — branches merged back</>
+   ) : (
+     <><ListOrdered size={13} strokeWidth={1.5} /> Ran sequentially — non-git project</>
+   )}
+ </div>
+ )}
 
  {!provider && (
  <div style={{ fontSize: "12px", color: "var(--warning-color)", padding: "6px", background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", borderRadius: "4px" }}>

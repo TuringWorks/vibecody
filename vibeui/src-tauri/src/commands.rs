@@ -4338,9 +4338,6 @@ pub async fn start_parallel_agent_task(
     app_handle: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
-    use vibe_ai::{AgentLoop, AgentContext, ApprovalPolicy, AgentEvent};
-    use crate::agent_executor::TauriToolExecutor;
-
     let max_chunks = max_chunks.unwrap_or(4).min(8);
 
     // Get the AI provider
@@ -4396,22 +4393,120 @@ pub async fn start_parallel_agent_task(
             .join("\n")
     ));
 
-    // Step 2: Spawn each chunk as its own sub-agent, running concurrently.
+    // Step 2: Spawn each chunk as its own sub-agent.
+    // Git repos → true parallel with worktree isolation per chunk.
+    // Non-git  → sequential execution to avoid concurrent write races.
     let sub_agents_tracker = state.sub_agents.clone();
     let app = app_handle.clone();
+    let is_git = vibe_core::git::is_git_repo(&workspace_root);
+
+    if is_git {
+        let _ = app.emit("agent:chunk", "Git repo detected — using worktree isolation for parallel execution".to_string());
+    } else {
+        let _ = app.emit("agent:chunk", "Non-git project — running chunks sequentially to avoid write conflicts".to_string());
+    }
 
     tokio::spawn(async move {
-        let mut handles = Vec::new();
+        // Helper closure: run a single chunk agent and return (id, success, summary).
+        async fn run_chunk(
+            chunk_idx: usize,
+            chunk_id: String,
+            chunk_task: String,
+            provider_arc: Arc<dyn vibe_ai::provider::AIProvider>,
+            agent_workspace: PathBuf,
+            app: tauri::AppHandle,
+            sub_agents: Arc<tokio::sync::Mutex<Vec<SubAgentDto>>>,
+        ) -> (String, bool, String) {
+            use vibe_ai::{AgentLoop, AgentContext, ApprovalPolicy, AgentEvent};
+            use crate::agent_executor::TauriToolExecutor;
 
+            let git_branch = vibe_core::git::get_current_branch(&agent_workspace).ok();
+            let context = AgentContext {
+                workspace_root: agent_workspace.clone(),
+                open_files: vec![],
+                git_branch,
+                git_diff_summary: None,
+                flow_context: None,
+                approved_plan: None,
+                extra_skill_dirs: vec![],
+                parent_session_id: None,
+                depth: 0,
+                active_agent_counter: None,
+                team_bus: None,
+                team_agent_id: None,
+                project_summary: None,
+                task_context_files: vec![],
+                memory_context: None,
+                auto_commit: false,
+            };
+
+            let executor = Arc::new(
+                TauriToolExecutor::with_app(agent_workspace.clone(), app.clone())
+                    .with_provider(provider_arc.clone()),
+            );
+            let agent = AgentLoop::new(provider_arc, ApprovalPolicy::FullAuto, executor)
+                .with_policy(&agent_workspace);
+
+            let (tx, mut rx) = tokio::sync::mpsc::channel::<AgentEvent>(64);
+            let agent_task = chunk_task.clone();
+            tokio::spawn(async move {
+                let _ = agent.run(&agent_task, context, tx).await;
+            });
+
+            let chunk_label = chunk_idx + 1;
+            let mut summary = String::new();
+            let mut tokens: u64 = 0;
+            let mut success = false;
+            while let Some(event) = rx.recv().await {
+                match event {
+                    AgentEvent::StreamChunk(text) => {
+                        tokens += (text.len() as u64) / 4;
+                        let _ = app.emit("agent:chunk", format!("[chunk-{}] {}", chunk_label, text));
+                    }
+                    AgentEvent::ToolCallExecuted(step) => {
+                        let _ = app.emit("agent:step", AgentStepPayload {
+                            step_num: step.step_num,
+                            tool_name: step.tool_call.name().to_string(),
+                            tool_summary: format!("[chunk-{}] {}", chunk_label, step.tool_call.summary()),
+                            output: step.tool_result.output.clone(),
+                            success: step.tool_result.success,
+                            approved: step.approved,
+                        });
+                    }
+                    AgentEvent::Complete(s) => {
+                        summary = s;
+                        success = true;
+                        break;
+                    }
+                    AgentEvent::Partial { summary: s, .. } => {
+                        summary = s;
+                        break;
+                    }
+                    AgentEvent::Error(e) => {
+                        summary = format!("Error: {}", e);
+                        break;
+                    }
+                    _ => {}
+                }
+            }
+
+            // Update sub-agent status
+            {
+                let mut agents = sub_agents.lock().await;
+                if let Some(a) = agents.iter_mut().find(|a| a.id == chunk_id) {
+                    a.status = if success { "completed" } else { "failed" }.to_string();
+                    a.completed_at = Some(chrono::Utc::now().to_rfc3339());
+                    a.result_summary = Some(summary.clone());
+                    a.tokens_used = Some(tokens.max(1));
+                }
+            }
+            (chunk_id, success, summary)
+        }
+
+        // Register all chunks in the dashboard up-front.
+        let mut chunk_ids: Vec<String> = Vec::new();
         for (i, chunk_task) in chunks.iter().enumerate() {
             let chunk_id = format!("parallel-{}-{}", i, chrono::Utc::now().timestamp_millis());
-            let chunk_task = chunk_task.clone();
-            let provider_arc = provider_arc.clone();
-            let workspace_root = workspace_root.clone();
-            let app = app.clone();
-            let sub_agents = sub_agents_tracker.clone();
-
-            // Register in dashboard
             {
                 let dto = SubAgentDto {
                     id: chunk_id.clone(),
@@ -4428,111 +4523,113 @@ pub async fn start_parallel_agent_task(
                     error: None,
                     tokens_used: None,
                 };
-                let mut agents = sub_agents.lock().await;
+                let mut agents = sub_agents_tracker.lock().await;
                 agents.push(dto);
             }
-
-            let chunk_id_inner = chunk_id.clone();
-            let sub_agents_inner = sub_agents_tracker.clone();
-
-            let handle = tokio::spawn(async move {
-                let git_branch = vibe_core::git::get_current_branch(&workspace_root).ok();
-                let context = AgentContext {
-                    workspace_root: workspace_root.clone(),
-                    open_files: vec![],
-                    git_branch,
-                    git_diff_summary: None,
-                    flow_context: None,
-                    approved_plan: None,
-                    extra_skill_dirs: vec![],
-                    parent_session_id: None,
-                    depth: 0,
-                    active_agent_counter: None,
-                    team_bus: None,
-                    team_agent_id: None,
-                    project_summary: None,
-                    task_context_files: vec![],
-                    memory_context: None,
-                    auto_commit: false,
-                };
-
-                let executor = Arc::new(
-                    TauriToolExecutor::with_app(workspace_root.clone(), app.clone())
-                        .with_provider(provider_arc.clone()),
-                );
-                let agent = AgentLoop::new(provider_arc, ApprovalPolicy::FullAuto, executor)
-                    .with_policy(&workspace_root);
-
-                let (tx, mut rx) = tokio::sync::mpsc::channel::<AgentEvent>(64);
-                let agent_task = chunk_task.clone();
-                tokio::spawn(async move {
-                    let _ = agent.run(&agent_task, context, tx).await;
-                });
-
-                let mut summary = String::new();
-                let mut tokens: u64 = 0;
-                let mut success = false;
-                while let Some(event) = rx.recv().await {
-                    match event {
-                        AgentEvent::StreamChunk(text) => {
-                            tokens += (text.len() as u64) / 4;
-                            let _ = app.emit("agent:chunk", format!("[chunk-{}] {}", chunk_id_inner.split('-').nth(1).unwrap_or("?"), text));
-                        }
-                        AgentEvent::ToolCallExecuted(step) => {
-                            let _ = app.emit("agent:step", AgentStepPayload {
-                                step_num: step.step_num,
-                                tool_name: step.tool_call.name().to_string(),
-                                tool_summary: format!("[chunk-{}] {}", chunk_id_inner.split('-').nth(1).unwrap_or("?"), step.tool_call.summary()),
-                                output: step.tool_result.output.clone(),
-                                success: step.tool_result.success,
-                                approved: step.approved,
-                            });
-                        }
-                        AgentEvent::Complete(s) => {
-                            summary = s;
-                            success = true;
-                            break;
-                        }
-                        AgentEvent::Partial { summary: s, .. } => {
-                            summary = s;
-                            break;
-                        }
-                        AgentEvent::Error(e) => {
-                            summary = format!("Error: {}", e);
-                            break;
-                        }
-                        _ => {}
-                    }
-                }
-
-                // Update sub-agent status
-                {
-                    let mut agents = sub_agents_inner.lock().await;
-                    if let Some(a) = agents.iter_mut().find(|a| a.id == chunk_id_inner) {
-                        a.status = if success { "completed" } else { "failed" }.to_string();
-                        a.completed_at = Some(chrono::Utc::now().to_rfc3339());
-                        a.result_summary = Some(summary.clone());
-                        a.tokens_used = Some(tokens.max(1));
-                    }
-                }
-                (chunk_id_inner, success, summary)
-            });
-            handles.push(handle);
+            chunk_ids.push(chunk_id);
         }
 
-        // Wait for all chunks to complete
         let mut results: Vec<(String, bool, String)> = Vec::new();
-        for handle in handles {
-            if let Ok(r) = handle.await {
+
+        if is_git {
+            // ── Git repo: true parallel with worktree isolation ──────────
+            let mut handles = Vec::new();
+            let mut worktree_branches: Vec<(PathBuf, String)> = Vec::new();
+
+            for (i, chunk_task) in chunks.iter().enumerate() {
+                let branch = format!("vibe-parallel-{}-{}", i, chrono::Utc::now().timestamp_millis());
+                let wt_path = workspace_root.join(format!(".vibe-worktree-{}", i));
+
+                // Create isolated worktree branch
+                if let Err(e) = vibe_core::git::create_worktree(&workspace_root, &branch, &wt_path) {
+                    let _ = app.emit("agent:chunk", format!("[chunk-{}] Worktree creation failed: {} — falling back to shared workspace", i + 1, e));
+                    // Fallback: use shared workspace for this chunk
+                    worktree_branches.push((workspace_root.clone(), String::new()));
+                } else {
+                    let _ = app.emit("agent:chunk", format!("[chunk-{}] Isolated worktree: {}", i + 1, wt_path.display()));
+                    worktree_branches.push((wt_path, branch));
+                }
+
+                let chunk_id = chunk_ids[i].clone();
+                let chunk_task = chunk_task.clone();
+                let provider_arc = provider_arc.clone();
+                let agent_workspace = worktree_branches[i].0.clone();
+                let app = app.clone();
+                let sub_agents = sub_agents_tracker.clone();
+
+                let handle = tokio::spawn(async move {
+                    run_chunk(i, chunk_id, chunk_task, provider_arc, agent_workspace, app, sub_agents).await
+                });
+                handles.push(handle);
+            }
+
+            // Wait for all chunks
+            for handle in handles {
+                if let Ok(r) = handle.await {
+                    results.push(r);
+                }
+            }
+
+            // Merge worktree branches back and clean up
+            let mut merge_errors: Vec<String> = Vec::new();
+            for (i, (wt_path, branch)) in worktree_branches.iter().enumerate() {
+                if branch.is_empty() {
+                    continue; // was a fallback, no worktree to clean up
+                }
+                // Merge branch back into main
+                match vibe_core::git::merge_worktree_branch(&workspace_root, branch) {
+                    Ok(mr) if mr.success => {
+                        let _ = app.emit("agent:chunk", format!("[chunk-{}] Merged worktree branch '{}' successfully", i + 1, branch));
+                    }
+                    Ok(mr) => {
+                        let msg = format!("[chunk-{}] Merge conflicts on '{}': {:?}", i + 1, branch, mr.conflicts);
+                        let _ = app.emit("agent:chunk", msg.clone());
+                        merge_errors.push(msg);
+                    }
+                    Err(e) => {
+                        let msg = format!("[chunk-{}] Merge failed for '{}': {}", i + 1, branch, e);
+                        let _ = app.emit("agent:chunk", msg.clone());
+                        merge_errors.push(msg);
+                    }
+                }
+                // Clean up worktree
+                let _ = vibe_core::git::remove_worktree(&workspace_root, wt_path);
+                // Delete leftover branch
+                let _ = std::process::Command::new("git")
+                    .args(["branch", "-D", branch])
+                    .current_dir(&workspace_root)
+                    .output();
+            }
+
+            if !merge_errors.is_empty() {
+                let _ = app.emit("agent:chunk", format!(
+                    "\n⚠ {} merge issue(s) — review manually:\n{}",
+                    merge_errors.len(),
+                    merge_errors.join("\n"),
+                ));
+            }
+        } else {
+            // ── Non-git: sequential execution ────────────────────────────
+            for (i, chunk_task) in chunks.iter().enumerate() {
+                let r = run_chunk(
+                    i,
+                    chunk_ids[i].clone(),
+                    chunk_task.clone(),
+                    provider_arc.clone(),
+                    workspace_root.clone(),
+                    app.clone(),
+                    sub_agents_tracker.clone(),
+                ).await;
                 results.push(r);
             }
         }
 
         let succeeded = results.iter().filter(|(_, ok, _)| *ok).count();
         let summary = format!(
-            "Parallel execution complete: {}/{} chunks succeeded\n\n{}",
+            "Parallel execution complete: {}/{} chunks succeeded{}\n\n{}",
             succeeded,
             results.len(),
+            if is_git { " (worktree-isolated)" } else { " (sequential)" },
             results.iter().enumerate()
                 .map(|(i, (_, ok, s))| format!("Chunk {}: {} — {}", i + 1, if *ok { "OK" } else { "FAIL" }, s.chars().take(200).collect::<String>()))
                 .collect::<Vec<_>>()
