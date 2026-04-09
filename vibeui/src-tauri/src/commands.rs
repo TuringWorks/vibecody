@@ -39360,6 +39360,27 @@ pub async fn rl_get_alignment_metrics() -> Result<serde_json::Value, String> {
 // In VibeUI, `vibecli` is bundled as a sidecar binary accessible via PATH or
 // the Tauri sidecar mechanism; for dev builds it is expected on PATH.
 
+fn vibecli_output(full_cmd: &str) -> Result<std::process::Output, String> {
+    std::process::Command::new("vibecli")
+        .args(["--cmd", full_cmd])
+        .output()
+        .map_err(|e| format!("vibecli not found on PATH: {}. Install vibecli to enable productivity integrations.", e))
+}
+
+#[cfg(target_os = "macos")]
+fn try_resign_vibecli() {
+    // On macOS, cargo's linker-signed binaries can be SIGKILL'd when copied to a new
+    // path without an explicit codesign. Re-sign ad-hoc so the OS accepts the binary.
+    if let Ok(path) = std::process::Command::new("which").arg("vibecli").output() {
+        let path_str = String::from_utf8_lossy(&path.stdout).trim().to_string();
+        if !path_str.is_empty() {
+            let _ = std::process::Command::new("codesign")
+                .args(["--force", "--sign", "-", &path_str])
+                .output();
+        }
+    }
+}
+
 fn run_vibecli_cmd(sub: &str, args: &str) -> Result<String, String> {
     let full_cmd = if args.is_empty() {
         format!("/{}", sub)
@@ -39367,10 +39388,24 @@ fn run_vibecli_cmd(sub: &str, args: &str) -> Result<String, String> {
         format!("/{} {}", sub, args)
     };
     // Use --cmd flag for single REPL command dispatch (non-interactive, exits after command)
-    let output = std::process::Command::new("vibecli")
-        .args(["--cmd", &full_cmd])
-        .output()
-        .map_err(|e| format!("vibecli not found on PATH: {}. Install vibecli to enable productivity integrations.", e))?;
+    let output = vibecli_output(&full_cmd)?;
+
+    // On macOS, a linker-signed binary copied to a new path may be SIGKILL'd (signal 9).
+    // Detect this, re-sign with codesign, and retry once.
+    #[cfg(target_os = "macos")]
+    let output = if output.status.code().is_none() {
+        // No exit code → killed by signal
+        use std::os::unix::process::ExitStatusExt;
+        if output.status.signal() == Some(9) {
+            try_resign_vibecli();
+            vibecli_output(&full_cmd)?
+        } else {
+            output
+        }
+    } else {
+        output
+    };
+
     let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
     if !output.status.success() && stdout.is_empty() {
