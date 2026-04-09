@@ -264,12 +264,45 @@ export function AgentOSDashboard() {
     return () => clearInterval(id);
   }, [refresh]);
 
-  const totalActive =
+  // Aggregate metrics across every agent source (pool + sub + hosted + branch).
+  // Status strings vary by source, so match each one's vocabulary.
+  const runningCount =
     (pool?.running ?? 0) +
-    (pool?.queued ?? 0) +
     subAgents.filter(a => a.status === "working" || a.status === "running").length +
     hosted.filter(a => a.status === "Running" || a.status === "Starting").length +
     branches.filter(a => a.status === "active" || a.status === "running").length;
+
+  const queuedCount =
+    (pool?.queued ?? 0) +
+    subAgents.filter(a => a.status === "queued" || a.status === "pending").length;
+
+  const completedCount =
+    (pool?.completed ?? 0) +
+    subAgents.filter(a => a.status === "completed" || a.status === "done" || a.status === "success").length +
+    branches.filter(a => a.status === "completed" || a.status === "merged").length;
+
+  const failedCount =
+    (pool?.failed ?? 0) +
+    subAgents.filter(a => a.status === "failed" || a.status === "error").length +
+    branches.filter(a => a.status === "failed").length;
+
+  const totalTokens =
+    (pool?.total_tokens ?? 0) +
+    subAgents.reduce((sum, a) => sum + (a.tokens_used ?? 0), 0) +
+    spawned.reduce((sum, a) => sum + (a.progress?.tokens_used ?? 0), 0);
+
+  const totalActive = runningCount + queuedCount;
+
+  // Display-friendly short ID: keep the type prefix and the last 5 chars so
+  // every agent looks distinct (raw IDs like `agent-1744151234567` would all
+  // collapse to "agent-17" under a blind slice(0,8)).
+  const shortId = (id: string): string => {
+    const prefixMatch = id.match(/^([a-z]+-)/i);
+    if (prefixMatch && id.length > prefixMatch[1].length + 5) {
+      return `${prefixMatch[1]}…${id.slice(-5)}`;
+    }
+    return id.length > 12 ? `${id.slice(0, 6)}…${id.slice(-4)}` : id;
+  };
 
   return (
     <div className="panel-container">
@@ -294,23 +327,23 @@ export function AgentOSDashboard() {
         </div>
         <div style={S.statCard}>
           <span style={S.statLabel}>Running</span>
-          <span style={{ ...S.statValue, color: "#4fc3f7" }}>{pool?.running ?? 0}</span>
+          <span style={{ ...S.statValue, color: "#4fc3f7" }}>{runningCount}</span>
         </div>
         <div style={S.statCard}>
           <span style={S.statLabel}>Queued</span>
-          <span style={{ ...S.statValue, color: "#ffb74d" }}>{pool?.queued ?? 0}</span>
+          <span style={{ ...S.statValue, color: "#ffb74d" }}>{queuedCount}</span>
         </div>
         <div style={S.statCard}>
           <span style={S.statLabel}>Completed</span>
-          <span style={{ ...S.statValue, color: "#81c784" }}>{pool?.completed ?? 0}</span>
+          <span style={{ ...S.statValue, color: "#81c784" }}>{completedCount}</span>
         </div>
         <div style={S.statCard}>
           <span style={S.statLabel}>Failed</span>
-          <span style={{ ...S.statValue, color: "#ef5350" }}>{pool?.failed ?? 0}</span>
+          <span style={{ ...S.statValue, color: "#ef5350" }}>{failedCount}</span>
         </div>
         <div style={S.statCard}>
           <span style={S.statLabel}>Tokens Used</span>
-          <span style={S.statValue}>{(pool?.total_tokens ?? 0).toLocaleString()}</span>
+          <span style={S.statValue}>{totalTokens.toLocaleString()}</span>
         </div>
       </div>
 
@@ -335,7 +368,7 @@ export function AgentOSDashboard() {
               <tr><td colSpan={6} style={S.emptyRow}>No spawned agents</td></tr>
             ) : spawned.map(a => (
               <tr key={a.id}>
-                <td style={S.td}><code>{a.id.slice(0, 8)}</code></td>
+                <td style={S.td}><code title={a.id}>{shortId(a.id)}</code></td>
                 <td style={{ ...S.td, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.task}</td>
                 <td style={S.td}><StatusBadge status={a.status} /></td>
                 <td style={S.td}>{a.priority}</td>
@@ -367,7 +400,7 @@ export function AgentOSDashboard() {
               <tr><td colSpan={5} style={S.emptyRow}>No sub-agents</td></tr>
             ) : subAgents.map(a => (
               <tr key={a.id}>
-                <td style={S.td}><code>{a.id.slice(0, 8)}</code></td>
+                <td style={S.td}><code title={a.id}>{shortId(a.id)}</code></td>
                 <td style={S.td}>{a.role}</td>
                 <td style={S.td}><StatusBadge status={a.status} /></td>
                 <td style={{ ...S.td, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.task_description ?? "-"}</td>
