@@ -39463,6 +39463,326 @@ pub async fn handle_archspec_command(args: String) -> Result<String, String> {
         .map_err(|e| e.to_string())?
 }
 
+// ── Architecture Spec persistence helpers ──────────────────────────────────
+
+const ARCHSPEC_KEY: &str = "archspec_v1";
+
+fn archspec_load_from_store(wp: &std::path::Path) -> Result<vibecli_cli::architecture_spec::ArchitectureSpec, String> {
+    use vibecli_cli::architecture_spec::ArchitectureSpec;
+    let store = vibecli_cli::workspace_store::WorkspaceStore::open(wp)?;
+    match store.setting_get(ARCHSPEC_KEY)? {
+        Some(json) => serde_json::from_str::<ArchitectureSpec>(&json).map_err(|e| e.to_string()),
+        None => Ok(ArchitectureSpec::new(
+            wp.file_name().and_then(|n| n.to_str()).unwrap_or("Project")
+        )),
+    }
+}
+
+fn archspec_save_to_store(wp: &std::path::Path, spec: &vibecli_cli::architecture_spec::ArchitectureSpec) -> Result<(), String> {
+    let json = serde_json::to_string(spec).map_err(|e| e.to_string())?;
+    vibecli_cli::workspace_store::WorkspaceStore::open(wp)?.setting_set(ARCHSPEC_KEY, &json)
+}
+
+/// Load the full ArchitectureSpec for a workspace.
+#[tauri::command]
+pub async fn archspec_load(workspace_path: String) -> Result<serde_json::Value, String> {
+    tokio::task::spawn_blocking(move || {
+        let spec = archspec_load_from_store(std::path::Path::new(&workspace_path))?;
+        serde_json::to_value(&spec).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Update a TOGAF artifact's review status (Draft / Review / Approved / Deprecated).
+#[tauri::command]
+pub async fn archspec_set_artifact_status(
+    workspace_path: String,
+    artifact_id: String,
+    status: String,
+) -> Result<serde_json::Value, String> {
+    tokio::task::spawn_blocking(move || {
+        use vibecli_cli::architecture_spec::ArtifactStatus;
+        let wp = std::path::Path::new(&workspace_path);
+        let mut spec = archspec_load_from_store(wp)?;
+        let new_status = match status.as_str() {
+            "Draft"      => ArtifactStatus::Draft,
+            "Review"     => ArtifactStatus::Review,
+            "Approved"   => ArtifactStatus::Approved,
+            "Deprecated" => ArtifactStatus::Deprecated,
+            other => return Err(format!("Unknown status: {other}")),
+        };
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        let artifact = spec.togaf.artifacts.iter_mut()
+            .find(|a| a.id == artifact_id)
+            .ok_or_else(|| format!("Artifact not found: {artifact_id}"))?;
+        artifact.status = new_status;
+        artifact.updated_at = now;
+        archspec_save_to_store(wp, &spec)?;
+        serde_json::to_value(&spec).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Scan the workspace codebase and generate draft TOGAF artifacts, then persist.
+#[tauri::command]
+pub async fn archspec_generate(workspace_path: String) -> Result<serde_json::Value, String> {
+    tokio::task::spawn_blocking(move || {
+        use vibecli_cli::architecture_spec::{ArchitectureSpec, TogafArtifact, TogafPhase, ArtifactType};
+        let wp = std::path::Path::new(&workspace_path);
+
+        // ── helpers ────────────────────────────────────────────────────────
+        let read_file = |rel: &str| -> String {
+            std::fs::read_to_string(wp.join(rel)).unwrap_or_default()
+        };
+        let dir_entries = |rel: &str| -> Vec<String> {
+            std::fs::read_dir(wp.join(rel))
+                .into_iter()
+                .flatten()
+                .flatten()
+                .filter_map(|e| e.file_name().into_string().ok())
+                .collect()
+        };
+
+        // ── project name ───────────────────────────────────────────────────
+        let cargo_toml = read_file("Cargo.toml");
+        let project_name = cargo_toml
+            .lines()
+            .find(|l| l.starts_with("name"))
+            .and_then(|l| l.split('"').nth(1))
+            .unwrap_or_else(|| {
+                wp.file_name().and_then(|n| n.to_str()).unwrap_or("Project")
+            })
+            .to_string();
+
+        let mut spec = ArchitectureSpec::new(&project_name);
+
+        // ── tech stack from Cargo.toml deps ───────────────────────────────
+        let in_deps = |s: &str| -> bool { cargo_toml.contains(s) };
+        let mut tech_stack = vec!["Rust".to_string()];
+        if in_deps("tauri")     { tech_stack.push("Tauri (desktop)".into()); }
+        if in_deps("tokio")     { tech_stack.push("Tokio (async)".into()); }
+        if in_deps("axum") || in_deps("warp") || in_deps("actix") {
+            tech_stack.push("HTTP server".into());
+        }
+        if in_deps("sqlx") || in_deps("rusqlite") { tech_stack.push("SQLite/SQL".into()); }
+        if in_deps("serde")     { tech_stack.push("Serde (serialization)".into()); }
+        if in_deps("clap")      { tech_stack.push("Clap (CLI)".into()); }
+        if in_deps("ratatui")   { tech_stack.push("Ratatui (TUI)".into()); }
+        if wp.join("vibeui").exists() || wp.join("package.json").exists() {
+            tech_stack.push("React/TypeScript (frontend)".into());
+        }
+
+        // ── src modules ───────────────────────────────────────────────────
+        let src_modules: Vec<String> = {
+            let mut mods = dir_entries("vibecli/vibecli-cli/src");
+            if mods.is_empty() { mods = dir_entries("src"); }
+            mods.into_iter()
+                .filter(|m| m.ends_with(".rs") && m != "main.rs" && m != "lib.rs")
+                .map(|m| m.trim_end_matches(".rs").to_string())
+                .collect()
+        };
+
+        // ── git log ───────────────────────────────────────────────────────
+        let git_log = std::process::Command::new("git")
+            .args(["-C", &workspace_path, "log", "--oneline", "-20"])
+            .output()
+            .ok()
+            .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+            .unwrap_or_default();
+
+        // ── readme ────────────────────────────────────────────────────────
+        let readme = read_file("README.md");
+        let vision_summary: String = readme.lines().take(8)
+            .collect::<Vec<_>>().join(" ").chars().take(400).collect();
+
+        // ── CI/CD ─────────────────────────────────────────────────────────
+        let workflows = dir_entries(".github/workflows");
+
+        // ── Generate artifacts per phase ──────────────────────────────────
+
+        // 1. Preliminary — governance principles
+        spec.togaf.add_artifact(
+            TogafArtifact::new(
+                "Architecture Principles",
+                TogafPhase::Preliminary,
+                ArtifactType::Catalog,
+                &format!("Core principles for {project_name}: security-first, open source (MIT), \
+                    modular Rust crates, Tauri for desktop cross-platform delivery, \
+                    workspace-bound encrypted storage for secrets."),
+            ).with_content(&format!("Project: {project_name}\nStack: {}", tech_stack.join(", ")))
+        );
+        spec.togaf.add_artifact(
+            TogafArtifact::new(
+                "Stakeholder Map",
+                TogafPhase::Preliminary,
+                ArtifactType::Catalog,
+                "Identifies key stakeholders: developers, end users, open-source contributors.",
+            ).with_content("Role: Developer | Interest: Code quality, tooling\nRole: End User | Interest: Productivity, reliability")
+        );
+
+        // 2. Architecture Vision
+        spec.togaf.add_artifact(
+            TogafArtifact::new(
+                "Architecture Vision Statement",
+                TogafPhase::ArchitectureVision,
+                ArtifactType::Catalog,
+                &format!("Mission: {}", if vision_summary.is_empty() {
+                    format!("{project_name} — AI-powered developer tooling.")
+                } else {
+                    vision_summary.clone()
+                }),
+            ).with_content(&vision_summary)
+        );
+        spec.togaf.add_artifact(
+            TogafArtifact::new(
+                "Value Proposition",
+                TogafPhase::ArchitectureVision,
+                ArtifactType::Catalog,
+                "Defines the core value delivered by the system to its users.",
+            ).with_content(&format!("System: {project_name}\nDelivers: {}", tech_stack.join(", ")))
+        );
+
+        // 3. Business Architecture
+        let module_list = if src_modules.is_empty() {
+            "No modules discovered".to_string()
+        } else {
+            src_modules.iter().take(20).cloned().collect::<Vec<_>>().join(", ")
+        };
+        spec.togaf.add_artifact(
+            TogafArtifact::new(
+                "Business Capability Model",
+                TogafPhase::BusinessArchitecture,
+                ArtifactType::Catalog,
+                &format!("Capabilities derived from {} source modules.", src_modules.len()),
+            ).with_content(&format!("Modules: {module_list}"))
+        );
+        spec.togaf.add_artifact(
+            TogafArtifact::new(
+                "Organization Map",
+                TogafPhase::BusinessArchitecture,
+                ArtifactType::Diagram,
+                "High-level structural map of codebase components.",
+            ).with_content(&format!("graph TD\n  {project_name} --> CLI\n  {project_name} --> UI\n  {project_name} --> SharedCrates"))
+        );
+
+        // 4. Information Systems
+        spec.togaf.add_artifact(
+            TogafArtifact::new(
+                "Data Entity Catalog",
+                TogafPhase::InformationSystems,
+                ArtifactType::Catalog,
+                "Key data entities managed by the system.",
+            ).with_content("WorkspaceStore (encrypted SQLite)\nProfileStore (encrypted SQLite)\nArtifactStore (workspace.db)\nTraces (JSONL)\nSessions (SQLite)")
+        );
+        spec.togaf.add_artifact(
+            TogafArtifact::new(
+                "Application Portfolio",
+                TogafPhase::InformationSystems,
+                ArtifactType::Catalog,
+                "Software components and their responsibilities.",
+            ).with_content(&format!("vibecli-cli: Terminal AI assistant\nvibe-ai: Provider abstraction (18 providers)\nvibe-core: File/Git/Search\nvibe-lsp: Language Server client\nvibeui: Desktop editor (Tauri)"))
+        );
+
+        // 5. Technology Architecture
+        spec.togaf.add_artifact(
+            TogafArtifact::new(
+                "Technology Stack Catalog",
+                TogafPhase::TechnologyArchitecture,
+                ArtifactType::Catalog,
+                &format!("Technologies used by {project_name}."),
+            ).with_content(&tech_stack.iter().map(|t| format!("- {t}")).collect::<Vec<_>>().join("\n"))
+        );
+        spec.togaf.add_artifact(
+            TogafArtifact::new(
+                "Infrastructure Architecture",
+                TogafPhase::TechnologyArchitecture,
+                ArtifactType::Diagram,
+                "Deployment and runtime infrastructure.",
+            ).with_content("graph LR\n  User --> VibeUI\n  VibeUI --> TauriBackend\n  TauriBackend --> vibecli\n  vibecli --> AIProviders\n  vibecli --> WorkspaceDB")
+        );
+
+        // 6. Opportunities & Solutions
+        spec.togaf.add_artifact(
+            TogafArtifact::new(
+                "Solutions Building Blocks",
+                TogafPhase::OpportunitiesAndSolutions,
+                ArtifactType::Matrix,
+                "Matrix of implemented vs planned capabilities.",
+            ).with_content(&format!("Modules implemented: {}\nStatus: Active development", src_modules.len()))
+        );
+        spec.togaf.add_artifact(
+            TogafArtifact::new(
+                "Transition Architecture",
+                TogafPhase::OpportunitiesAndSolutions,
+                ArtifactType::Catalog,
+                "Planned roadmap transitions toward target architecture.",
+            ).with_content("Phase 1: Foundation (complete)\nPhase 2: Providers & Tools (complete)\nPhase 3: UI + persistence (in progress)")
+        );
+
+        // 7. Migration Planning
+        let roadmap = read_file("ROADMAP.md");
+        spec.togaf.add_artifact(
+            TogafArtifact::new(
+                "Migration Roadmap",
+                TogafPhase::MigrationPlanning,
+                ArtifactType::Catalog,
+                "Planned migration steps and version transitions.",
+            ).with_content(if roadmap.is_empty() { "No ROADMAP.md found. Create one to populate migration planning." } else { &roadmap[..roadmap.len().min(600)] })
+        );
+
+        // 8. Implementation Governance
+        let ci_content = if workflows.is_empty() {
+            "No CI/CD workflows detected.".to_string()
+        } else {
+            format!("Workflows: {}", workflows.join(", "))
+        };
+        spec.togaf.add_artifact(
+            TogafArtifact::new(
+                "Quality Gates",
+                TogafPhase::ImplementationGovernance,
+                ArtifactType::Catalog,
+                "CI/CD quality gates and governance policies.",
+            ).with_content(&ci_content)
+        );
+        spec.togaf.add_artifact(
+            TogafArtifact::new(
+                "Architecture Compliance Review",
+                TogafPhase::ImplementationGovernance,
+                ArtifactType::Catalog,
+                "Periodic review of architecture compliance and deviations.",
+            ).with_content("Clippy: enforced (0 warnings policy)\nTests: cargo test --workspace\nSecurity: Dependabot enabled")
+        );
+
+        // 9. Change Management
+        spec.togaf.add_artifact(
+            TogafArtifact::new(
+                "Change Log",
+                TogafPhase::ArchitectureChangeManagement,
+                ArtifactType::Catalog,
+                "Recent architectural changes from git history.",
+            ).with_content(if git_log.is_empty() { "No git history available." } else { git_log.trim() })
+        );
+        spec.togaf.add_artifact(
+            TogafArtifact::new(
+                "Architecture Change Request Process",
+                TogafPhase::ArchitectureChangeManagement,
+                ArtifactType::Catalog,
+                "Process for requesting and approving architecture changes.",
+            ).with_content("1. Open GitHub issue with 'architecture' label\n2. Create ADR in /archspec ADRs tab\n3. Review in Architecture panel\n4. Approve/Reject via governance workflow")
+        );
+
+        archspec_save_to_store(wp, &spec)?;
+        serde_json::to_value(&spec).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 #[tauri::command]
 pub async fn handle_policy_command(args: String) -> Result<String, String> {
     tokio::task::spawn_blocking(move || run_vibecli_cmd("policy", &args))
