@@ -1,6 +1,6 @@
 # VibeUI Design System
 
-A complete, token-based design system for VibeUI panels and components. Inspired by Material Design 3, GitHub Primer, and Shopify Polaris. All tokens are CSS custom properties defined in `src/App.css`. All components are CSS classes, usable with `className` in React/TSX.
+A complete, token-based design system for VibeUI panels and components. Inspired by Material Design 3, GitHub Primer, and Shopify Polaris. All tokens are CSS custom properties defined in `design-system/tokens.css`. All components are CSS classes, usable with `className` in React/TSX.
 
 ---
 
@@ -44,13 +44,13 @@ A complete, token-based design system for VibeUI panels and components. Inspired
 2.  Structure: container → header → body → footer
 3.  Colors: CSS vars only                  (never #4caf50, #fff, etc.)
 4.  Spacing: multiples of 4px              (4, 8, 12, 16, 20, 24, 32)
-7.  Buttons: panel-btn + panel-btn-{variant}
-5.  Empty state: className="panel-empty"
-6.  Loading: className="panel-loading"
-7.  Error: className="panel-error"
-8.  Cards: className="panel-card"
-9.  Progress: className="progress-bar" + progress-bar-fill + progress-bar-{color}
-10. Tags: className="panel-tag panel-tag-{intent}"
+5.  Buttons: panel-btn + panel-btn-{variant}
+6.  Empty state: className="panel-empty"
+7.  Loading: className="panel-loading"
+8.  Error: className="panel-error"
+9.  Cards: className="panel-card"
+10. Progress: className="progress-bar" + progress-bar-fill + progress-bar-{color}
+11. Tags: className="panel-tag panel-tag-{intent}"
 ```
 
 ### Color quick-pick
