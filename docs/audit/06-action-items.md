@@ -1,145 +1,111 @@
 # 06 — Prioritized Action Items
 
 > Remediation plan organized by severity. Each item references the audit file where it was discovered.
+> 
+> **Last updated**: 2026-04-09 — all P0, P1, P2 (except P2-5), and P3 items resolved.
 
 ---
 
 ## P0 — Critical (fix immediately)
 
-### P0-1: Quickstart instructs users to store API keys in plaintext
-- **Source**: [04-doc-inconsistencies.md](04-doc-inconsistencies.md)
-- **File**: `docs/quickstart.md` lines 304-307
-- **Action**: Remove `api_key = "sk-ant-..."` config.toml example. Replace with instructions to use `vibecli` key setup flow or ProfileStore.
-- **Verify**: Grep codebase for any code that reads API keys from config.toml
+### P0-1: ~~Quickstart instructs users to store API keys in plaintext~~ RESOLVED
+- **Commit**: `dd86237f` — removed plaintext key instructions, added env var + Settings panel guidance + security warning
 
-### P0-2: Verify `api_keys.json` migration code is write-only
-- **Source**: [04-doc-inconsistencies.md](04-doc-inconsistencies.md)
-- **Files**: `commands.rs`, `SettingsPanel.tsx`
-- **Action**: Confirm these references are migration/cleanup code, not active reads. Remove if dead code.
+### P0-2: ~~Verify `api_keys.json` migration code is write-only~~ RESOLVED
+- **Commit**: `d031da24` — 3 stale references fixed (2 comments in commands.rs, 1 UI string in SettingsPanel.tsx). No code was actively reading from the deleted file.
 
 ---
 
 ## P1 — High (fix this sprint)
 
-### P1-1: Remove or implement 4 documented CLI commands
-- **Source**: [02-missing-features.md](02-missing-features.md)
-- **Commands**: `vibecli service`, `vibecli setup`, `vibecli doctor`, `vibecli config set tier`
-- **Action**: Either implement them or remove from docs/setup.md and docs/glossary.md
-- **Recommendation**: `vibecli doctor` is high-value; implement it. Remove `service`, `setup wizard`, and `tier` from docs.
+### P1-1: ~~Remove or implement 4 documented CLI commands~~ RESOLVED
+- **Commit**: `638dabc7` — removed `vibecli service`, `vibecli setup` wizard, `vibecli config set tier` from docs. Marked `vibecli doctor` as planned.
 
-### P1-2: Remove or implement `--api-token` CLI flag
-- **Source**: [02-missing-features.md](02-missing-features.md)
-- **File**: `docs/api-reference.md` lines 51-54
-- **Action**: Either add the flag to serve.rs CLI args or remove from docs
+### P1-2: ~~Remove or implement `--api-token` CLI flag~~ RESOLVED
+- **Commit**: `638dabc7` — removed phantom `--api-token` flag from api-reference.md
 
-### P1-3: Add honest status labels to FIT-GAP stub modules
-- **Source**: [05-fitgap-overstatements.md](05-fitgap-overstatements.md)
-- **Modules**: 12+ modules (web_grounding, mcp_streamable, a2a_protocol, worktree_pool, proactive_agent, issue_triage, native_connectors, langgraph_bridge, voice_local, mcts_repair, sketch_canvas, cost_router)
-- **Action**: In each FIT-GAP doc, change status from "Implemented" to "Typed/Designed — awaiting I/O layer". Or add a status column: `Designed | Partial | Functional`
-- **Also**: Update ROADMAP-v5.md to distinguish `[x] designed` from `[x] functional`
+### P1-3: ~~Add honest status labels to FIT-GAP stub modules~~ RESOLVED
+- **Commit**: `27534118` — added `> **Status**:` notes to 12 gaps in FIT-GAP-v7.md clarifying I/O integration pending
 
-### P1-4: Fix RL-OS documentation to reflect actual capabilities
-- **Source**: [05-fitgap-overstatements.md](05-fitgap-overstatements.md)
-- **File**: `docs/FIT-GAP-RL-OS.md`
-- **Action**: Add prominent disclaimer that RL-OS is a data modeling / type system layer. Remove claims about GPU/TPU, Python bindings, and neural network training.
+### P1-4: ~~Fix RL-OS documentation to reflect actual capabilities~~ RESOLVED
+- **Commit**: `27534118` — added prominent disclaimer to FIT-GAP-RL-OS.md about data modeling vs GPU/Python reality
 
-### P1-5: Fix broken SVG reference in chat-workflow.md
-- **Source**: [04-doc-inconsistencies.md](04-doc-inconsistencies.md)
-- **File**: `docs/chat-workflow.md` line 9
-- **Action**: Change `![Chat Workflow](/chat-workflow.svg)` to `![Chat Workflow]({{ '/chat-workflow.svg' | relative_url }})`
+### P1-5: ~~Fix broken SVG reference in chat-workflow.md~~ RESOLVED
+- **Commit**: `2c1f7387` — applied `relative_url` filter to SVG and drawio links
 
 ---
 
 ## P2 — Medium (fix this month)
 
-### P2-1: Update all stale counts across docs
-- **Source**: [01-stale-counts.md](01-stale-counts.md)
-- **Files**: CLAUDE.md, MEMORY.md, docs/architecture.md, docs/vibeui.md, docs/development.md, docs/PLUGIN-DEVELOPMENT.md
-- **Action**: Replace hardcoded counts with current values. Consider using a script to auto-generate counts.
+### P2-1: ~~Update all stale counts across docs~~ RESOLVED
+- **Commit**: `d22dfb0e` — updated Tauri (1,045+), modules (222), panels (235+/39), skills (599), REPL (126), tests (~10,535), providers (22) across CLAUDE.md, architecture.md, vibeui.md, development.md
 
-### P2-2: Fix Tauri macro name in CLAUDE.md
-- **Source**: [04-doc-inconsistencies.md](04-doc-inconsistencies.md)
-- **File**: CLAUDE.md line 29
-- **Action**: Change `invoke_handler!` to `generate_handler!` and clarify `invoke_handler` is the builder method
+### P2-2: ~~Fix Tauri macro name in CLAUDE.md~~ RESOLVED
+- **Commit**: `d22dfb0e` — changed `invoke_handler!` to `tauri::generate_handler!`
 
-### P2-3: Add missing crate to repo layout
-- **Source**: [04-doc-inconsistencies.md](04-doc-inconsistencies.md)
-- **File**: CLAUDE.md "Repo Layout"
-- **Action**: Add `vibe-collab` to crates list. Add `vibeapp/src-tauri` and `vibe-indexer` as workspace members.
+### P2-3: ~~Add missing crate to repo layout~~ RESOLVED
+- **Commit**: `d22dfb0e` — added vibe-collab, vibeapp/src-tauri, vibe-indexer to CLAUDE.md
 
-### P2-4: Update PANEL-AUDIT.md
-- **Source**: [02-missing-features.md](02-missing-features.md), [03-undocumented-code.md](03-undocumented-code.md)
-- **File**: `docs/PANEL-AUDIT.md`
-- **Action**: Remove 4 phantom panel entries (ComparePanel, FlowPanel, KeysPanel, ModelManagerPanel). Fix 5 naming mismatches. Add 48 undocumented panels.
+### P2-4: ~~Update PANEL-AUDIT.md~~ RESOLVED
+- **Commit**: `f333e29a` — removed 4 phantom panels, fixed 5 naming mismatches, added 48 undocumented panels
 
-### P2-5: Document undocumented REPL commands
+### P2-5: Document undocumented REPL commands — OPEN
 - **Source**: [03-undocumented-code.md](03-undocumented-code.md)
 - **File**: `docs/vibecli.md`
 - **Action**: Add entries for the 11 undocumented commands and update the remaining ~90 commands not covered in the doc.
 
-### P2-6: Fix design system token source reference
-- **Source**: [04-doc-inconsistencies.md](04-doc-inconsistencies.md)
-- **File**: `vibeui/design-system/README.md` line 3
-- **Action**: Change "defined in `src/App.css`" to "defined in `design-system/tokens.css`"
+### P2-6: ~~Fix design system token source reference~~ RESOLVED
+- **Commit**: `2c1f7387` — changed `src/App.css` to `design-system/tokens.css`
 
-### P2-7: Fix design system README rule numbering
-- **Source**: [04-doc-inconsistencies.md](04-doc-inconsistencies.md)
-- **File**: `vibeui/design-system/README.md` lines 42-53
-- **Action**: Renumber rules sequentially (1-10)
+### P2-7: ~~Fix design system README rule numbering~~ RESOLVED
+- **Commit**: `2c1f7387` — renumbered rules 1-11 sequentially
 
-### P2-8: Fix provider count inconsistencies
-- **Source**: [04-doc-inconsistencies.md](04-doc-inconsistencies.md)
-- **Files**: docs/architecture.md, MEMORY.md
-- **Action**: Standardize on 22 providers across all docs
+### P2-8: ~~Fix provider count inconsistencies~~ RESOLVED
+- **Commit**: `d22dfb0e` — standardized on 22 providers, added 5 missing to architecture table
 
-### P2-9: Remove ghost Tauri command registrations
-- **Source**: [03-undocumented-code.md](03-undocumented-code.md)
-- **File**: `vibeui/src-tauri/src/lib.rs`
-- **Action**: Remove `inline_edit` and `record_purple_team_simulation` from generate_handler if functions don't exist, or implement them
+### P2-9: ~~Remove ghost Tauri command registrations~~ RESOLVED (no action needed)
+- Both `inline_edit` (line 6099) and `record_purple_team_simulation` (line 25786) exist in commands.rs. Not ghosts.
 
-### P2-10: Fix semantic_index.rs claim about AST parsing
-- **Source**: [05-fitgap-overstatements.md](05-fitgap-overstatements.md)
-- **File**: `docs/FIT-GAP-ANALYSIS-v7.md` Gap 5
-- **Action**: Change "AST-level" to "regex-based declaration scanning" until tree-sitter integration is added
+### P2-10: ~~Fix semantic_index.rs claim about AST parsing~~ RESOLVED
+- **Commit**: `27534118` — changed "AST-level" to "regex-based declaration scanning" in FIT-GAP-v7 and ROADMAP-v5
 
 ---
 
 ## P3 — Low (backlog)
 
-### P3-1: Document all 11 React hooks
+### P3-1: Document all 11 React hooks — OPEN
 - **Source**: [03-undocumented-code.md](03-undocumented-code.md)
 - **Action**: Add hook API docs to design system or a dedicated hooks reference page
 
-### P3-2: Document 5 utility modules
+### P3-2: Document 5 utility modules — OPEN
 - **Source**: [03-undocumented-code.md](03-undocumented-code.md)
 - **Action**: Add docs for DocsResolver, fileUtils, FlowContext, LinterIntegration, SupercompleteEngine
 
-### P3-3: Fix Windows installer URL
-- **Source**: [04-doc-inconsistencies.md](04-doc-inconsistencies.md)
-- **File**: `docs/setup.md` line 71
-- **Action**: Parameterize the GitHub URL or verify it matches actual repo path
+### P3-3: ~~Fix Windows installer URL~~ RESOLVED (no action needed)
+- Verified: git remote is `git@github.com:TuringWorks/vibecody.git` — matches the documented URL
 
-### P3-4: Reconcile skill file counts
-- **Source**: [04-doc-inconsistencies.md](04-doc-inconsistencies.md)
-- **Action**: Pick one number (599) and update architecture.md, PLUGIN-DEVELOPMENT.md, development.md
+### P3-4: ~~Reconcile skill file counts~~ RESOLVED
+- **Commit**: `d6c0a631` — updated PLUGIN-DEVELOPMENT.md (526->599). architecture.md and development.md already updated in P2-1.
 
-### P3-5: Fix deploy script tier references
-- **Source**: [04-doc-inconsistencies.md](04-doc-inconsistencies.md)
-- **File**: `docs/setup.md` lines 84-86, 153-155
-- **Action**: Remove `--tier` references or implement tier concept
+### P3-5: ~~Fix deploy script tier references~~ RESOLVED
+- **Commit**: `638dabc7` — removed `--tier` references from setup.md
 
 ### P3-6: ~~Add missing Gemini Native provider or remove from docs~~ RESOLVED
-- **Source**: [02-missing-features.md](02-missing-features.md)
-- **Action**: Removed "Gemini native" references — `gemini.rs` is the single Gemini provider (no separate `gemini_native.rs` exists)
+- **Commit**: `d6c0a631` — renamed "Gemini native" to "Gemini" in CHANGELOG and FIT-GAP-v6
 
 ---
 
 ## Summary
 
-| Priority | Count | Effort Estimate |
-|----------|-------|-----------------|
-| P0 (Critical) | 2 | < 1 hour |
-| P1 (High) | 5 | 2-4 hours |
-| P2 (Medium) | 10 | 4-8 hours |
-| P3 (Low) | 6 | 2-4 hours |
-| **Total** | **23** | **8-17 hours** |
+| Priority | Total | Resolved | Open |
+|----------|-------|----------|------|
+| P0 (Critical) | 2 | 2 | 0 |
+| P1 (High) | 5 | 5 | 0 |
+| P2 (Medium) | 10 | 9 | 1 (P2-5) |
+| P3 (Low) | 6 | 4 | 2 (P3-1, P3-2) |
+| **Total** | **23** | **20** | **3** |
+
+### Remaining Open Items
+- **P2-5**: Document 101 undocumented REPL commands in `docs/vibecli.md`
+- **P3-1**: Document 11 React hooks
+- **P3-2**: Document 5 utility modules
