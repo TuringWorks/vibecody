@@ -26,7 +26,7 @@ Complete reference for building VibeCody plugins, WASM extensions, MCP integrati
 
 ## Architecture Overview
 
-![Plugin Architecture](/plugin-architecture.svg)
+<img src="{{ '/plugin-architecture.svg' | relative_url }}" alt="Plugin Architecture" style="max-width:100%;height:auto" />
 
 VibeCody has a **five-layer extensibility architecture**:
 

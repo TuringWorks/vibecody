@@ -21,10 +21,10 @@ VibeUI uses **Inter** for UI text and **JetBrains Mono** for code, paths, and nu
 Both are inherited from `body` — panels get them automatically. Only set `fontFamily` when overriding to mono.
 
 ```tsx
-// ✅ Inherit sans automatically (do nothing)
+// GOOD — inherit sans automatically (do nothing)
 <span>Body text</span>
 
-// ✅ Explicitly mono for paths/code/numbers
+// GOOD — explicit mono for paths/code/numbers
 <span style={{ fontFamily: "var(--font-mono)" }}>src/main.rs:42</span>
 <span className="panel-mono">src/main.rs:42</span>   // same, via utility class
 ```

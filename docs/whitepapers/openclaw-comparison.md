@@ -33,12 +33,12 @@ permalink: /whitepapers/openclaw-comparison/
 
 | Diagram | Description |
 |---------|-------------|
-| ![VibeCody Architecture](/whitepapers/diagrams/vibecody-architecture.svg) | VibeCody: 8 access surfaces, 23 providers, triple-protocol, 187 panels |
-| ![OpenClaw Architecture](/whitepapers/diagrams/openclaw-architecture.svg) | OpenClaw: Web UI + CLI, Docker-dependent, single-user |
-| ![Feature Heatmap](/whitepapers/diagrams/comparison-heatmap.svg) | Competitive heatmap across 10 dimensions and 8 products |
-| ![Security Comparison](/whitepapers/diagrams/security-comparison.svg) | Security architecture: VibeCody (7 layers, 0 CVEs) vs OpenClaw (Docker-only, 2 incidents) |
-| ![Protocol Stack](/whitepapers/diagrams/protocol-stack.svg) | Protocol support: VibeCody (MCP+ACP+A2A) vs competitors |
-| ![Setup Complexity](/whitepapers/diagrams/setup-complexity.svg) | Time-to-first-chat: 2 min (VibeCody) vs 30 min (OpenClaw) |
+| <img src="{{ '/whitepapers/diagrams/vibecody-architecture.svg' | relative_url }}" alt="VibeCody Architecture" style="max-width:100%;height:auto" /> | VibeCody: 8 access surfaces, 23 providers, triple-protocol, 187 panels |
+| <img src="{{ '/whitepapers/diagrams/openclaw-architecture.svg' | relative_url }}" alt="OpenClaw Architecture" style="max-width:100%;height:auto" /> | OpenClaw: Web UI + CLI, Docker-dependent, single-user |
+| <img src="{{ '/whitepapers/diagrams/comparison-heatmap.svg' | relative_url }}" alt="Feature Heatmap" style="max-width:100%;height:auto" /> | Competitive heatmap across 10 dimensions and 8 products |
+| <img src="{{ '/whitepapers/diagrams/security-comparison.svg' | relative_url }}" alt="Security Comparison" style="max-width:100%;height:auto" /> | Security architecture: VibeCody (7 layers, 0 CVEs) vs OpenClaw (Docker-only, 2 incidents) |
+| <img src="{{ '/whitepapers/diagrams/protocol-stack.svg' | relative_url }}" alt="Protocol Stack" style="max-width:100%;height:auto" /> | Protocol support: VibeCody (MCP+ACP+A2A) vs competitors |
+| <img src="{{ '/whitepapers/diagrams/setup-complexity.svg' | relative_url }}" alt="Setup Complexity" style="max-width:100%;height:auto" /> | Time-to-first-chat: 2 min (VibeCody) vs 30 min (OpenClaw) |
 
 > All diagrams are available as [draw.io source files](diagrams/) for editing. Export as SVG after modifications.
 

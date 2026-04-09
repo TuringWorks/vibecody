@@ -200,12 +200,12 @@ Always answer two questions:
 2. What should the user do? ("Edit some files to generate predictions")
 
 ```tsx
-// ✅ Good — explains what and why
+// GOOD — explains what and why
 <div className="panel-empty">No predictions yet. Edit some files to generate predictions.</div>
 <div className="panel-empty">Click Scan to analyze your codebase health.</div>
 <div className="panel-empty">No pending AST edits. Use the AI to suggest refactors.</div>
 
-// ❌ Unhelpful
+// BAD — unhelpful
 <div className="panel-empty">No data.</div>
 <div className="panel-empty">Nothing here.</div>
 ```

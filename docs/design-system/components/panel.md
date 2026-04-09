@@ -93,16 +93,16 @@ The Panel is the core layout primitive in VibeUI. Every panel component must fol
 **The single most important rule in VibeUI panels:**
 
 ```tsx
-// ✅ CORRECT — fills flex parent properly
+// CORRECT — fills flex parent properly
 <div className="panel-container">
 
-// ✅ CORRECT — explicit inline equivalent
+// CORRECT — explicit inline equivalent
 <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
 
-// ❌ WRONG — height: 100% does NOT resolve against a flex parent in WebKit (Tauri)
+// WRONG — height: 100% does NOT resolve against a flex parent in WebKit (Tauri)
 <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
 
-// ❌ WRONG — scrollable wrapper with height: 100%
+// WRONG — scrollable wrapper with height: 100%
 <div style={{ height: "100%", overflow: "auto", padding: 16 }}>
 ```
 

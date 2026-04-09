@@ -47,7 +47,7 @@ Rules:
 - Never place a `--bg-secondary` element inside another `--bg-secondary` element (they merge visually)
 
 ```tsx
-// ✅ Correct layering
+// CORRECT — layering
 // Panel body (bg-primary) → card (bg-secondary) → input inside card (bg-tertiary)
 <div style={{ background: "var(--bg-primary)" }}>         {/* panel body */}
   <div className="panel-card">                            {/* bg-secondary */}
@@ -55,12 +55,12 @@ Rules:
   </div>
 </div>
 
-// ❌ Wrong — card inside card, same level
+// WRONG — card inside card, same level
 <div className="panel-card">
   <div className="panel-card"> ... </div>   {/* both bg-secondary — no visual separation */}
 </div>
 
-// ✅ Correct — nested distinction
+// CORRECT — nested distinction
 <div className="panel-card">
   <div style={{ background: "var(--bg-primary)", borderRadius: "var(--radius-xs)", padding: 8 }}>
     inner content

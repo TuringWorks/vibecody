@@ -9,7 +9,7 @@ This document describes VibeCody's security model, data privacy practices, and h
 
 ## Security Model Overview
 
-![Security Architecture](/security-architecture.svg)
+<img src="{{ '/security-architecture.svg' | relative_url }}" alt="Security Architecture" style="max-width:100%;height:auto" />
 
 VibeCody follows a **defense-in-depth** approach with multiple independent layers of protection:
 
