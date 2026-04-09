@@ -1412,6 +1412,7 @@ pub fn run() {
             commands::handle_calendar_command,
             commands::handle_productivity_command,
             commands::handle_ha_command,
+            commands::handle_archspec_command,
             // Company Orchestration (Paperclip parity)
             commands::company_cmd,
             commands::company_create,

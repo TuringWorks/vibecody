@@ -39421,6 +39421,13 @@ pub async fn handle_ha_command(args: String) -> Result<String, String> {
         .map_err(|e| e.to_string())?
 }
 
+#[tauri::command]
+pub async fn handle_archspec_command(args: String) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || run_vibecli_cmd("archspec", &args))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
 // ── Company Orchestration Commands (Paperclip parity) ─────────────────────────
 
 /// Generic pass-through for /company <args> — returns text output.
