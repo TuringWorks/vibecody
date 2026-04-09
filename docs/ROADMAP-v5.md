@@ -34,7 +34,7 @@ All phases from Roadmap v1 (1-5), v2 (6-9), v3 (10-14), v4 (15-22), and v5 (23-3
 
 **Deliverables:**
 
-- [x] `a2a_protocol.rs` — Full A2A implementation:
+- [~] `a2a_protocol.rs` — Full A2A implementation (typed, I/O pending):
   - **Agent Card** generation: name, description, capabilities, supported input/output types, authentication requirements
   - **A2A Server mode**: expose VibeCody as a discoverable A2A agent (HTTP endpoint)
   - **A2A Client mode**: discover external A2A agents, negotiate capabilities, delegate tasks
@@ -73,7 +73,7 @@ All phases from Roadmap v1 (1-5), v2 (6-9), v3 (10-14), v4 (15-22), and v5 (23-3
 
 **Deliverables:**
 
-- [x] `worktree_pool.rs` — Lightweight parallel agent execution:
+- [~] `worktree_pool.rs` — Lightweight parallel agent execution (typed, I/O pending):
   - `WorktreePool` managing N git worktrees (configurable max, default 4)
   - `WorktreeAgent` — isolated agent running in its own worktree with dedicated branch
   - Automatic worktree creation/cleanup lifecycle
@@ -113,7 +113,7 @@ All phases from Roadmap v1 (1-5), v2 (6-9), v3 (10-14), v4 (15-22), and v5 (23-3
 
 **Deliverables:**
 
-- [x] `proactive_agent.rs` — Background intelligence scanner:
+- [~] `proactive_agent.rs` — Background intelligence scanner (typed, I/O pending):
   - Configurable scan cadence (every N minutes, on save, on git push)
   - Scan categories: performance, security, tech debt, correctness, accessibility, testing gaps
   - Issue detection with confidence scoring (0-100%)
@@ -130,7 +130,7 @@ All phases from Roadmap v1 (1-5), v2 (6-9), v3 (10-14), v4 (15-22), and v5 (23-3
 
 **Deliverables:**
 
-- [x] `issue_triage.rs` — Automated issue processing:
+- [~] `issue_triage.rs` — Automated issue processing (typed, I/O pending):
   - Issue classifier: bug / feature request / question / documentation / duplicate
   - Severity estimator based on impact analysis (which code paths affected)
   - Auto-labeler: apply labels based on affected components/files
@@ -155,7 +155,7 @@ All phases from Roadmap v1 (1-5), v2 (6-9), v3 (10-14), v4 (15-22), and v5 (23-3
 
 **Deliverables:**
 
-- [x] `web_grounding.rs` — Integrated web search for agent loop:
+- [~] `web_grounding.rs` — Integrated web search for agent loop (typed, I/O pending):
   - Search provider abstraction: Google Custom Search, Bing, Brave Search, SearXNG (self-hosted), Tavily
   - Result ranking: relevance to current task context, freshness, source authority
   - Citation tracking: every web-sourced fact gets a citation in agent output
@@ -172,7 +172,7 @@ All phases from Roadmap v1 (1-5), v2 (6-9), v3 (10-14), v4 (15-22), and v5 (23-3
 
 **Deliverables:**
 
-- [x] `semantic_index.rs` — AST-level codebase understanding:
+- [~] `semantic_index.rs` — Regex-based declaration scanning (typed, I/O pending — AST parsing not yet implemented):
   - Tree-sitter parsing for 20+ languages (Rust, TypeScript, Python, Go, Java, C, C++, C#, Ruby, PHP, Swift, Kotlin, Scala, Haskell, Elixir, Dart, Zig, OCaml, Lua, Bash)
   - **Call graph extraction**: who calls what, with full qualification
   - **Type hierarchy mapping**: class inheritance, interface implementations, trait impls
@@ -198,7 +198,7 @@ All phases from Roadmap v1 (1-5), v2 (6-9), v3 (10-14), v4 (15-22), and v5 (23-3
 
 **Deliverables:**
 
-- [x] `mcp_streamable.rs` — Next-gen MCP transport:
+- [~] `mcp_streamable.rs` — Next-gen MCP transport (typed, I/O pending):
   - **Streamable HTTP transport**: bidirectional streaming over HTTP (replaces SSE)
   - **OAuth 2.1 client**: PKCE flow, token refresh, scope management
   - **OAuth 2.1 server**: issue tokens for external MCP clients connecting to VibeCody
@@ -222,7 +222,7 @@ All phases from Roadmap v1 (1-5), v2 (6-9), v3 (10-14), v4 (15-22), and v5 (23-3
 
 **Deliverables:**
 
-- [x] `mcts_repair.rs` — Monte Carlo Tree Search for code repair:
+- [~] `mcts_repair.rs` — Monte Carlo Tree Search for code repair (typed, I/O pending):
   - **Tree structure**: each node = code state + applied edit
   - **UCB1 selection**: balance exploration vs. exploitation
   - **Expansion**: generate candidate fixes (multiple strategies per node)
@@ -300,7 +300,7 @@ All phases from Roadmap v1 (1-5), v2 (6-9), v3 (10-14), v4 (15-22), and v5 (23-3
 
 **Deliverables:**
 
-- [x] `voice_local.rs` — Local speech recognition:
+- [~] `voice_local.rs` — Local speech recognition (typed, I/O pending):
   - whisper.cpp integration (C bindings via FFI or WASM)
   - Model management: download/select model size (tiny 39MB → large 1.5GB)
   - Voice activity detection: start/stop recording on speech boundaries
@@ -339,7 +339,7 @@ All phases from Roadmap v1 (1-5), v2 (6-9), v3 (10-14), v4 (15-22), and v5 (23-3
 
 **Deliverables:**
 
-- [x] `native_connectors.rs` — Pre-built service connectors:
+- [~] `native_connectors.rs` — Pre-built service connectors (typed, I/O pending):
   - Connector trait: `connect()`, `query()`, `mutate()`, `webhook()`, `health()`
   - Top 20 implementations: Stripe, Figma, Notion, Jira, Slack, PagerDuty, Datadog, Sentry, LaunchDarkly, Vercel, Netlify, Supabase, Firebase, AWS, GCP, Azure, GitHub, GitLab, Linear, Confluence
   - Auto-discovery: detect which services a project uses from config files
@@ -428,7 +428,7 @@ All phases from Roadmap v1 (1-5), v2 (6-9), v3 (10-14), v4 (15-22), and v5 (23-3
 
 **Deliverables:**
 
-- [x] `langgraph_bridge.rs` — Python agent ecosystem compatibility:
+- [~] `langgraph_bridge.rs` — Python agent ecosystem compatibility (typed, I/O pending):
   - LangGraph-compatible REST API: expose VibeCody tools as LangGraph nodes
   - Agent state serialization: bidirectional JSON state exchange
   - Checkpoint format compatibility: read/write LangGraph checkpoints
@@ -443,7 +443,7 @@ All phases from Roadmap v1 (1-5), v2 (6-9), v3 (10-14), v4 (15-22), and v5 (23-3
 
 **Deliverables:**
 
-- [x] `sketch_canvas.rs` — Freeform drawing to code:
+- [~] `sketch_canvas.rs` — Freeform drawing to code (typed, I/O pending):
   - Canvas drawing primitives: rectangle, circle, line, text, arrow, freehand
   - Shape recognition: identify UI elements (button, input, card, list, navbar, sidebar, modal, table)
   - Wireframe-to-component mapping: recognized shapes → React/HTML/SwiftUI components

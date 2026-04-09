@@ -110,6 +110,8 @@ VibeCody v6 gaps are **all closed** (19/19, Phases 15-22 complete). This v7 iden
 | **Gap** | ~~No A2A agent card, no A2A server/client, no capability negotiation with external agents~~ |
 | **Deliverable** | `a2a_protocol.rs` + `A2aPanel.tsx` + `/a2a` REPL command — **SHIPPED** |
 
+> **Status**: Data model and type system implemented (agent cards, task lifecycle structs, capability negotiation types). HTTP/SSE I/O integration layer pending.
+
 #### Gap 2: Parallel Worktree Agent Execution
 | Dimension | Detail |
 |-----------|--------|
@@ -118,6 +120,8 @@ VibeCody v6 gaps are **all closed** (19/19, Phases 15-22 complete). This v7 iden
 | **VibeCody status** | **CLOSED** — `worktree_pool.rs` implements full worktree pool with parallel agent dispatch, merge orchestration, and auto-PR. Shipped in Phase 24 (3c7de4a). |
 | **Gap** | ~~Cannot spin up 4-8 lightweight agent workers using `git worktree` without container overhead~~ |
 | **Deliverable** | `worktree_pool.rs` + `WorktreePoolPanel.tsx` + `/worktree` REPL command — **SHIPPED** |
+
+> **Status**: Data model and type system implemented (pool configuration, worktree agent structs, merge orchestration types). Git worktree I/O integration layer pending.
 
 #### Gap 3: Proactive Agent Intelligence
 | Dimension | Detail |
@@ -128,6 +132,8 @@ VibeCody v6 gaps are **all closed** (19/19, Phases 15-22 complete). This v7 iden
 | **Gap** | ~~No proactive scanning mode; no learning from previous automation runs~~ |
 | **Deliverable** | `proactive_agent.rs` + `ProactivePanel.tsx` + `/proactive` REPL command — **SHIPPED** |
 
+> **Status**: Data model and type system implemented (scan configuration, issue categorization, confidence scoring structs). Async background scanning and file system I/O integration layer pending.
+
 #### Gap 4: Web Search Grounding in Agent Loop
 | Dimension | Detail |
 |-----------|--------|
@@ -137,14 +143,18 @@ VibeCody v6 gaps are **all closed** (19/19, Phases 15-22 complete). This v7 iden
 | **Gap** | ~~Agent cannot search the web mid-task to resolve unknowns~~ |
 | **Deliverable** | `web_grounding.rs` + `WebGroundingPanel.tsx` + `/search` REPL command — **SHIPPED** |
 
+> **Status**: Data model and type system implemented (search provider abstraction, result ranking structs, citation types). HTTP search provider I/O integration layer pending — results are currently hardcoded.
+
 #### Gap 5: Deep Semantic Codebase Index
 | Dimension | Detail |
 |-----------|--------|
 | **What** | Full semantic understanding of codebase: function signatures, class hierarchies, import chains, API contracts, call graphs — not just embeddings |
 | **Who ships it** | Augment Context Engine (100K+ files), Sourcegraph Cody (cross-repo graph), Supermaven Long Context (1M tokens) |
-| **VibeCody status** | **CLOSED** — `semantic_index.rs` implements AST-level codebase understanding with call graph extraction, type hierarchy mapping, import chain resolution, incremental updates, and query API. Shipped in Phase 26 (574bf0a). |
+| **VibeCody status** | **CLOSED** — `semantic_index.rs` implements regex-based declaration scanning with incremental updates and query API. Shipped in Phase 26 (574bf0a). |
 | **Gap** | ~~Cannot answer "what calls this function across the codebase?" without LSP~~ |
 | **Deliverable** | `semantic_index.rs` + `SemanticIndexPanel.tsx` + `/index` REPL command — **SHIPPED** |
+
+> **Status**: Partially implemented. Uses regex-based declaration scanning (`starts_with("pub fn")` etc.), not tree-sitter AST parsing. Call graph extraction and import chain resolution are not yet functional. Type system and query API structures are in place.
 
 ---
 
@@ -168,6 +178,8 @@ VibeCody v6 gaps are **all closed** (19/19, Phases 15-22 complete). This v7 iden
 | **Gap** | ~~Cannot serve as a remote MCP server with enterprise auth~~ |
 | **Deliverable** | `mcp_streamable.rs` + extended McpPanel — **SHIPPED** |
 
+> **Status**: Data model and type system implemented (Streamable HTTP transport types, OAuth 2.1 token structs, PKCE flow types). HTTP server/client and OAuth I/O integration layer pending.
+
 #### Gap 8: MCTS Code Repair Strategy
 | Dimension | Detail |
 |-----------|--------|
@@ -176,6 +188,8 @@ VibeCody v6 gaps are **all closed** (19/19, Phases 15-22 complete). This v7 iden
 | **VibeCody status** | **CLOSED** — `mcts_repair.rs` implements MCTS with UCB1 selection, rollout via test execution, configurable reward function, depth/breadth control, agentless mode, and cost tracking. Shipped in Phase 28. |
 | **Gap** | ~~No tree-search code repair; agent commits to first fix attempt~~ |
 | **Deliverable** | `mcts_repair.rs` + `MctsRepairPanel.tsx` + `/repair` REPL command — **SHIPPED** |
+
+> **Status**: Data model and type system implemented (MCTS tree structures, UCB1 selection, reward function types). Test execution during rollout is not yet wired — rollout evaluates using in-memory heuristics only.
 
 #### Gap 9: Multi-Agent Terminal Hosting
 | Dimension | Detail |
@@ -194,6 +208,8 @@ VibeCody v6 gaps are **all closed** (19/19, Phases 15-22 complete). This v7 iden
 | **VibeCody status** | **CLOSED** — `issue_triage.rs` implements autonomous issue classification, severity estimation, auto-labeling, code-linking, draft response generation, and triage memory. Shipped in Phase 25 (3c7de4a). |
 | **Gap** | ~~No autonomous issue classification, labeling, or initial response generation~~ |
 | **Deliverable** | `issue_triage.rs` + `TriagePanel.tsx` + `/triage` REPL command — **SHIPPED** |
+
+> **Status**: Data model and type system implemented (issue classification, severity estimation, auto-labeling structs). GitHub/Linear API I/O integration layer pending — operates on in-memory issue structs only.
 
 #### Gap 11: Visual Verification via Computer Use
 | Dimension | Detail |
@@ -235,6 +251,8 @@ VibeCody v6 gaps are **all closed** (19/19, Phases 15-22 complete). This v7 iden
 | **Gap** | ~~Users must configure MCP servers manually for each service~~ |
 | **Deliverable** | `native_connectors.rs` + `ConnectorsPanel.tsx` + `/connect` REPL command — **SHIPPED** |
 
+> **Status**: Data model and type system implemented (connector trait, service configuration structs, OAuth flow types). HTTP/OAuth I/O integration layer pending — no live API calls to external services.
+
 #### Gap 15: Offline Voice Coding
 | Dimension | Detail |
 |-----------|--------|
@@ -243,6 +261,8 @@ VibeCody v6 gaps are **all closed** (19/19, Phases 15-22 complete). This v7 iden
 | **VibeCody status** | **CLOSED** — `voice_local.rs` implements whisper.cpp integration for local speech recognition, voice activity detection, streaming transcription, Groq fallback, and configurable model sizes. Shipped in Phase 29. |
 | **Gap** | ~~Voice coding unusable offline or in air-gapped environments~~ |
 | **Deliverable** | `voice_local.rs` + `/voice local` REPL command — **SHIPPED** |
+
+> **Status**: Data model and type system implemented (model configuration, transcription result structs, voice activity detection types). whisper.cpp FFI/audio capture integration layer pending — no actual speech recognition.
 
 #### Gap 16: Living Documentation Sync
 | Dimension | Detail |
@@ -284,6 +304,8 @@ VibeCody v6 gaps are **all closed** (19/19, Phases 15-22 complete). This v7 iden
 | **Gap** | ~~Cannot serve as a node in a LangGraph pipeline~~ |
 | **Deliverable** | `langgraph_bridge.rs` + `LangGraphPanel.tsx` + `/langgraph` REPL command — **SHIPPED** |
 
+> **Status**: Data model and type system implemented (LangGraph state serialization, checkpoint format, event stream adapter types). REST API server integration layer pending.
+
 #### Gap 20: Sketch-to-3D / Design Canvas
 | Dimension | Detail |
 |-----------|--------|
@@ -292,6 +314,8 @@ VibeCody v6 gaps are **all closed** (19/19, Phases 15-22 complete). This v7 iden
 | **VibeCody status** | **CLOSED** — `sketch_canvas.rs` implements canvas drawing primitives, shape recognition, wireframe-to-component mapping, 3D scene generation, and SVG/PNG export. Shipped in Phase 31. |
 | **Gap** | ~~No in-app sketch/drawing surface for rapid design iteration~~ |
 | **Deliverable** | `sketch_canvas.rs` + `SketchCanvasPanel.tsx` + `/sketch` REPL command — **SHIPPED** |
+
+> **Status**: Data model and type system implemented (drawing primitives, shape recognition types, wireframe-to-component mapping structs). 3D/WebGL rendering and actual canvas input handling integration layer pending.
 
 #### Gap 21: Agent Reputation & Trust Scoring
 | Dimension | Detail |
@@ -321,7 +345,7 @@ VibeCody v6 gaps are **all closed** (19/19, Phases 15-22 complete). This v7 iden
 | Parallel Worktrees | **Pool+Host** | **8 agents** | Sub-agents | CCA | No | Multi-agent | No | No | Multi-agent | Full VM |
 | Proactive Agent | **Full** | Automations | Channels | Partial | No | No | No | Next-task | Intent | Partial |
 | Web Search Grounding | **5 providers** | VM internet | No | No | No | No | **Built-in** | No | No | Full internet |
-| Deep Semantic Index | **AST+Graph** | Partial | No | No | No | No | No | No | **100K files** | No |
+| Deep Semantic Index | Regex-scan | Partial | No | No | No | No | No | No | **100K files** | No |
 | MCP OAuth 2.1 | **Full** | Partial | Partial | Auto-approve | No | No | Partial | One-click | No | No |
 | MCTS Repair | **Full** | No | No | No | No | No | No | No | No | No |
 | Agent Skills Std | **568+compat** | **1,234+** | **1,234+** | No | No | No | **1,234+** | **1,234+** | No | No |
