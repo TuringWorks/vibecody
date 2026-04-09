@@ -1,6 +1,6 @@
 # VibeUI Panel Functionality Audit
 
-> **Updated:** 2026-03-29 | **Panels:** 187 | **Registered Tauri Commands:** 950+
+> **Updated:** 2026-04-09 | **Panels:** 235+ | **Composites:** 39 | **Registered Tauri Commands:** 950+
 > **Legend:** Backend = Tauri invoke wired | Utility = pure client-side JS
 
 ---
@@ -9,14 +9,15 @@
 
 | Category | Count | % |
 |----------|------:|--:|
-| Full backend integration | 163 | 87% |
-| Pure client-side utility | 24 | 13% |
+| Full backend integration | 211 | 90% |
+| Pure client-side utility | 24 | 10% |
 | Demo / mock data only | 0 | 0% |
-| **Total panels** | **187** | |
+| **Total panels** | **235+** | |
+| **Composite panels** | **39** | |
 
 | Completion Tier | Count | % |
 |-----------------|------:|--:|
-| 100% (fully functional) | 187 | 100% |
+| 100% (fully functional) | 235+ | 100% |
 | Demo shell | 0 | 0% |
 
 ### Recent Wiring (2026-03-29)
@@ -233,7 +234,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | — | Node-based flow editor | `list_canvas_workflows`, `load_canvas_workflow` | Registered | 100% |
 | — | Run workflows | `run_canvas_workflow` | Registered | 100% |
 
-### ChatPanel — AI Chat
+### AIChat — AI Chat
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Message streaming, model selection | `send_chat_message`, `stream_chat_message` | Registered | 100% |
@@ -295,11 +296,6 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Palette CRUD, export (CSS/SCSS/Tailwind/JSON) | `get_color_palettes`, `save_color_palettes`, `export_color_palette` | Registered | 100% |
-
-### ComparePanel — Model Comparison
-| Tab | Feature | Backend | Status | % |
-|-----|---------|---------|--------|--:|
-| — | Side-by-side model output comparison | `compare_models` | Registered | 100% |
 
 ### CompliancePanel — SOC 2 / GDPR
 | Tab | Feature | Backend | Status | % |
@@ -386,7 +382,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 |-----|---------|---------|--------|--:|
 | — | Side-by-side diff, unified diff | `git_diff` | Registered | 100% |
 
-### DiscussionPanel — Threaded Discussions
+### DiscussionModePanel — Threaded Discussions
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Thread CRUD, messages | `list_discussion_threads`, `create_discussion_thread`, `add_discussion_message` | Registered | 100% |
@@ -438,11 +434,6 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Jobs | Training jobs table with progress | `list_fine_tuning_jobs` | Registered | 100% |
 | SWE-Bench | Eval results table | `list_fine_tuning_evals` | Registered | 100% |
 | LoRA | Adapter management, merge/delete | `list_fine_tuning_adapters`, `create_fine_tuning_adapter` | Registered | 100% |
-
-### FlowPanel — Event Flow Tracking
-| Tab | Feature | Backend | Status | % |
-|-----|---------|---------|--------|--:|
-| — | Flow context, event tracking | `get_flow_context`, `track_flow_event` | Registered | 100% |
 
 ### FullStackGenPanel — Full-Stack Generation
 | Tab | Feature | Backend | Status | % |
@@ -505,7 +496,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 |-----|---------|---------|--------|--:|
 | — | Hook CRUD (command/LLM/HTTP handlers) | `get_hooks_config`, `save_hooks_config` | Registered | 100% |
 
-### HttpPanel — HTTP Playground
+### HttpPlayground — HTTP Playground
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Request builder, response viewer | `send_http_request` | Registered | 100% |
@@ -566,11 +557,6 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Deploy | kubectl execution, quick actions | `run_kubectl_command`, `list_k8s_contexts` | Registered | 100% |
 | ArgoCD | ArgoCD CR generation | `generate_argocd_app`, `run_argocd_command` | Registered | 100% |
 | Contexts | Kubeconfig context switcher | `list_k8s_contexts` | Registered | 100% |
-
-### KeysPanel — API Key Management
-| Tab | Feature | Backend | Status | % |
-|-----|---------|---------|--------|--:|
-| — | Key CRUD, validation, provider list | `get_provider_api_keys`, `save_provider_api_keys`, `validate_api_key`, `validate_all_api_keys` | Registered | 100% |
 
 ### KnowledgeGraphPanel — Code Graph
 | Tab | Feature | Backend | Status | % |
@@ -646,7 +632,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Directory | Directory-scoped rules | `save_rule_file` | Registered | 100% |
 | Auto-Facts | Auto-generated facts, pin/delete/add | `get_auto_memories`, `pin_auto_memory`, `delete_auto_memory`, `add_auto_memory` | Registered | 100% |
 
-### MetricsPanel — Code Metrics
+### CodeMetricsPanel — Code Metrics
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Complexity, dependencies, quality scores | `analyze_code_metrics` | Registered | 100% |
@@ -671,11 +657,6 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Routes | Route CRUD | `list_mock_routes`, `add_mock_route`, `remove_mock_route` | Registered | 100% |
 | Request Log | Request history | `get_mock_request_log` | Registered | 100% |
 | Import | OpenAPI import | `generate_mocks_from_spec` | Registered | 100% |
-
-### ModelManagerPanel — AI Model Management
-| Tab | Feature | Backend | Status | % |
-|-----|---------|---------|--------|--:|
-| — | Provider/model selection, GPU detection | `get_available_ai_providers`, `list_gpu_models` | Registered | 100% |
 
 ### MultiModelPanel — Side-by-Side Comparison
 | Tab | Feature | Backend | Status | % |
@@ -1036,7 +1017,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 |-----|---------|---------|--------|--:|
 | — | Epoch/ISO/UTC conversion, diff calculator | — | Utility | 100% |
 
-### TracesPanel — Agent Execution Traces
+### TraceDashboard — Agent Execution Traces
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Trace session list, detail viewer | `list_trace_sessions`, `load_trace_session` | Registered | 100% |
@@ -1158,6 +1139,214 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 
 ---
 
+## Company/Enterprise Panels (15)
+
+### CompanyAdapterPanel
+- **Category**: Enterprise
+- **Status**: Wired
+
+### CompanyAgentDetailPanel
+- **Category**: Enterprise
+- **Status**: Wired
+
+### CompanyApprovalsPanel
+- **Category**: Enterprise
+- **Status**: Wired
+
+### CompanyBudgetPanel
+- **Category**: Enterprise
+- **Status**: Wired
+
+### CompanyDashboardPanel
+- **Category**: Enterprise
+- **Status**: Wired
+
+### CompanyDocumentsPanel
+- **Category**: Enterprise
+- **Status**: Wired
+
+### CompanyGoalsPanel
+- **Category**: Enterprise
+- **Status**: Wired
+
+### CompanyHeartbeatPanel
+- **Category**: Enterprise
+- **Status**: Wired
+
+### CompanyOrgChartPanel
+- **Category**: Enterprise
+- **Status**: Wired
+
+### CompanyPortabilityPanel
+- **Category**: Enterprise
+- **Status**: Wired
+
+### CompanyPriorityMapPanel
+- **Category**: Enterprise
+- **Status**: Wired
+
+### CompanyRoutinesPanel
+- **Category**: Enterprise
+- **Status**: Wired
+
+### CompanySecretsPanel
+- **Category**: Enterprise
+- **Status**: Wired
+
+### CompanyTaskBoardPanel
+- **Category**: Enterprise
+- **Status**: Wired
+
+### CompanyWorkspaceConfigPanel
+- **Category**: Enterprise
+- **Status**: Wired
+
+---
+
+## RL-OS Panels (10)
+
+### RLDeploymentMonitor
+- **Category**: RL-OS
+- **Status**: Wired
+
+### RLEnvironmentViewer
+- **Category**: RL-OS
+- **Status**: Wired
+
+### RLEvalResults
+- **Category**: RL-OS
+- **Status**: Wired
+
+### RLHFAlignmentDashboard
+- **Category**: RL-OS
+- **Status**: Wired
+
+### RLModelLineage
+- **Category**: RL-OS
+- **Status**: Wired
+
+### RLMultiAgentView
+- **Category**: RL-OS
+- **Status**: Wired
+
+### RLOptimizationReport
+- **Category**: RL-OS
+- **Status**: Wired
+
+### RLPolicyComparison
+- **Category**: RL-OS
+- **Status**: Wired
+
+### RLRewardDecomposition
+- **Category**: RL-OS
+- **Status**: Wired
+
+### RLTrainingDashboard
+- **Category**: RL-OS
+- **Status**: Wired
+
+---
+
+## Phase 32 Panels (7)
+
+### AiCodeReviewPanel
+- **Category**: Code Analysis
+- **Status**: Wired
+
+### ArchitectureSpecPanel
+- **Category**: Code Analysis
+- **Status**: Wired
+
+### PolicyEnginePanel
+- **Category**: Code Analysis
+- **Status**: Wired
+
+### HealthScorePanel
+- **Category**: Code Analysis
+- **Status**: Wired
+
+### IntentRefactorPanel
+- **Category**: Code Analysis
+- **Status**: Wired
+
+### ReviewProtocolPanel
+- **Category**: Code Analysis
+- **Status**: Wired
+
+### SkillDistillationPanel
+- **Category**: Code Analysis
+- **Status**: Wired
+
+---
+
+## Other Panels (16)
+
+### AgentOSDashboard
+- **Category**: Agent Infrastructure
+- **Status**: Wired
+
+### AgentRecordingPanel
+- **Category**: Agent Infrastructure
+- **Status**: Wired
+
+### BugBotPanel
+- **Category**: DevOps
+- **Status**: Wired
+
+### CidrPanel
+- **Category**: Networking
+- **Status**: Wired
+
+### CIReviewPanel
+- **Category**: CI/CD
+- **Status**: Wired
+
+### CiStatusPanel
+- **Category**: CI/CD
+- **Status**: Wired
+
+### CollabChatPanel
+- **Category**: Collaboration
+- **Status**: Wired
+
+### ColorConverterPanel
+- **Category**: Utility
+- **Status**: Wired
+
+### DatabasePanel
+- **Category**: Data
+- **Status**: Wired
+
+### DataAnalysisPanel
+- **Category**: Data
+- **Status**: Wired
+
+### DesignCanvasPanel
+- **Category**: Design
+- **Status**: Wired
+
+### DocumentIngestPanel
+- **Category**: Data
+- **Status**: Wired
+
+### GatewaySandboxPanel
+- **Category**: Sandbox
+- **Status**: Wired
+
+### SandboxChatPanel
+- **Category**: Sandbox
+- **Status**: Wired
+
+### ScreenshotToApp
+- **Category**: Design
+- **Status**: Wired
+
+### TeamGovernancePanel
+- **Category**: Enterprise
+- **Status**: Wired
+
+---
+
 ## Panels Requiring Backend Wiring (Prioritized)
 
 These panels have UI built but use demo/mock data instead of calling registered Tauri commands:
@@ -1188,10 +1377,11 @@ These panels have UI built but use demo/mock data instead of calling registered 
 
 | Metric | Value |
 |--------|-------|
-| **Total panels** | 186 |
+| **Total panels** | 235+ |
+| **Composite panels** | 39 |
 | **Total Tauri commands registered** | 991 |
-| **Panels at 100%** | 156 (84%) |
-| **Panels at 80-99%** | 30 (16%) |
+| **Panels at 100%** | 200+ (85%) |
+| **Panels at 80-99%** | 35 (15%) |
 | **Panels at 30-79%** | 0 (0%) |
 | **Panels < 30%** | 0 (0%) |
 | **Panels with all tabs functional** | 173 (93%) |
