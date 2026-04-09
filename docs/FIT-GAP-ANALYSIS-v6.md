@@ -492,7 +492,7 @@ All 12 gaps from FIT-GAP-ANALYSIS-v5.md (Phases 10-14) are implemented and teste
 | 11 | Data analysis / BI mode | P2 | data_analysis.rs | 54 | Yes CLOSED |
 | 12 | CI-enforceable AI checks | P2 | ci_gates.rs | 47 | Yes CLOSED |
 | 13 | Sketch-to-3D generation | P2 | design_import.rs (SVG/sketch path) | — | Yes CLOSED |
-| 14 | Gemini native provider | P2 | gemini.rs (vibe-ai) | 50 | Yes CLOSED |
+| 14 | Gemini provider | P2 | gemini.rs (vibe-ai) | 50 | Yes CLOSED |
 | 15 | Massive context architecture | P3 | context_streaming.rs | 45 | Yes CLOSED |
 | 16 | VS Code extension compat | P3 | extension_compat.rs | 46 | Yes CLOSED |
 | 17 | Model provider marketplace | P3 | model_marketplace.rs | 47 | Yes CLOSED |
@@ -505,7 +505,7 @@ All 12 gaps from FIT-GAP-ANALYSIS-v5.md (Phases 10-14) are implemented and teste
 |--------|----------|-------------------------------|
 | Total unit tests | ~5,745 | **~6,628** (+883 new) |
 | Skill files | 539+ | 539+ |
-| AI providers | 17 + OpenRouter (300+) | **18** + OpenRouter (300+) (+Gemini native) |
+| AI providers | 17 + OpenRouter (300+) | **18** + OpenRouter (300+) (+Gemini) |
 | VibeUI panels | 136+ | **149+** (+10 new panels) |
 | REPL commands | 65+ | 72+ |
 | Gateway platforms | 18 | 18 |

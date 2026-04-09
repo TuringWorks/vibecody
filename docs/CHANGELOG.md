@@ -238,7 +238,7 @@ All notable changes to VibeCody are documented here. This project follows [Seman
 
 ### Changed
 
-- **23 direct AI providers** (was 17): added MiniMax, Perplexity, Together AI, Fireworks AI, SambaNova, plus Gemini native upgrade.
+- **23 direct AI providers** (was 17): added MiniMax, Perplexity, Together AI, Fireworks AI, SambaNova, plus Gemini provider upgrade.
 - Cost estimation expanded to cover all 23 providers with per-model pricing (was only Claude + OpenAI).
 - Doctor command checks all 14 cloud provider API keys (was 4).
 - Help text reorganized by popularity with all 23 providers listed.

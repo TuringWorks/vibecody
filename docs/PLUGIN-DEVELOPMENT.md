@@ -53,7 +53,7 @@ vibecody/
     serve.rs                    # HTTP daemon (REST + SSE)
     mcp_server.rs               # MCP server (JSON-RPC over stdio)
     acp.rs                      # Agent Communication Protocol
-  vibecli/vibecli-cli/skills/   # 526 built-in skill files
+  vibecli/vibecli-cli/skills/   # 599 built-in skill files
   vibeui/crates/
     vibe-ai/src/
       provider.rs               # AIProvider trait
