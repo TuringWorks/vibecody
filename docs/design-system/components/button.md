@@ -1,10 +1,10 @@
 ---
-render_with_liquid: false
 layout: page
 title: Button — Design System
 permalink: /design-system/components/button/
 ---
 
+{% raw %}
 # Button
 
 VibeUI has two button systems: **app-level buttons** (`btn-primary`, `btn-secondary`, `icon-button`) for the main shell UI, and **panel buttons** (`panel-btn` + modifiers) for use inside panels. Always use panel buttons inside `panel-container`.
@@ -231,3 +231,4 @@ Do not use `btn-primary` / `btn-secondary` inside panel bodies. They're too larg
 // Loading state without feedback
 <button onClick={run} disabled={loading}>Run</button>  // no label change
 ```
+{% endraw %}

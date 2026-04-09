@@ -1,10 +1,10 @@
 ---
-render_with_liquid: false
 layout: page
 title: Card — Design System
 permalink: /design-system/components/card/
 ---
 
+{% raw %}
 # Card
 
 Cards group related content into a visually distinct surface. In VibeUI, cards are the primary content container within `panel-body`.
@@ -232,3 +232,4 @@ For 2–3 column card grids (e.g. stat cards):
 // Hardcoded accent border
 <div style={{ borderLeft: "3px solid #4caf50" }}>   // use var(--success-color)
 ```
+{% endraw %}

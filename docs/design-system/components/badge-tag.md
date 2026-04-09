@@ -1,10 +1,10 @@
 ---
-render_with_liquid: false
 layout: page
 title: Badge & Tag — Design System
 permalink: /design-system/components/badge-tag/
 ---
 
+{% raw %}
 # Badge & Tag
 
 VibeUI has two label systems: **tags** (small, pill-like, inline) for status and intent, and **badges** (medium, filled or outlined) for counts and emphasis. Choose based on size and semantic weight.
@@ -212,3 +212,4 @@ const confTag = (c: number): string =>
 </span>
 // → use priorityTag() function + panel-tag classes
 ```
+{% endraw %}

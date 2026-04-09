@@ -80,6 +80,7 @@ When a command fails, VibeCody detects the error and suggests a fix:
 > # list docker containers sorted by memory usage
 ```
 
+{% raw %}
 ```
 Suggested command:
   docker stats --no-stream --format "table {{.Name}}\t{{.MemUsage}}" | sort -k2 -h
@@ -105,6 +106,7 @@ vibecody-ollama       2.14GiB
 postgres-dev          148.5MiB
 redis-cache           42.8MiB
 ```
+{% endraw %}
 
 ### Step 4: Typo and flag correction
 
