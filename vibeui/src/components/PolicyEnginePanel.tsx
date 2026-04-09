@@ -35,6 +35,20 @@ export default function PolicyEnginePanel() {
   const [conflicts, setConflicts] = useState<PolicyConflictDisplay[]>([]);
   const [yamlPolicy, setYamlPolicy] = useState("");
   const [loading, setLoading] = useState(false);
+  const [cliOutput, setCliOutput] = useState("");
+  const [cliError, setCliError] = useState("");
+
+  const runCli = useCallback(async (args: string) => {
+    setCliOutput(""); setCliError("");
+    try {
+      const res = await invoke<string>("handle_policy_command", { args });
+      setCliOutput(res);
+    } catch (e) { setCliError(String(e)); }
+  }, []);
+
+  const CliBtn = ({ args, label }: { args: string; label: string }) => (
+    <button className="panel-btn panel-btn-secondary panel-btn-sm" onClick={() => runCli(args)} title={`vibecli --cmd "/policy ${args}"`}>{label}</button>
+  );
 
   const doCheck = useCallback(async () => {
     setLoading(true);
@@ -107,24 +121,36 @@ export default function PolicyEnginePanel() {
         <div className="panel-card">
           <div style={{ fontWeight: 600, marginBottom: 8 }}>Add Policy (YAML)</div>
           <textarea value={yamlPolicy} onChange={e => setYamlPolicy(e.target.value)} rows={12} className="panel-input panel-textarea panel-input-full" style={{ fontFamily: "monospace", resize: "vertical", marginBottom: 8 }} placeholder={'resourcePolicy:\n  resource: "document"\n  rules:\n    - actions: ["read"]\n      effect: ALLOW\n      roles: ["viewer"]'} />
-          <button className="panel-btn panel-btn-secondary" disabled={!yamlPolicy || loading}>Add Policy</button>
-          <div className="panel-label" style={{ marginTop: 8 }}>Use <code>/policy template &lt;resource&gt;</code> in terminal to generate a starter policy.</div>
+          <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+            <button className="panel-btn panel-btn-secondary" disabled={!yamlPolicy || loading}>Add Policy</button>
+            <CliBtn args={`template ${resource.split(":")[0] || "document"}`} label="▶ Generate Template" />
+          </div>
         </div>
       )}
 
       {tab === "test" && (
         <div className="panel-card">
-          <div style={{ fontWeight: 600, marginBottom: 8 }}>Policy Test Suite</div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <span style={{ fontWeight: 600 }}>Policy Test Suite</span>
+            <CliBtn args="test suite.yaml" label="▶ Run Tests" />
+          </div>
           <div className="panel-label">Define test cases to verify your policies behave as expected.</div>
-          <div style={{ marginTop: 8 }}>Use <code>/policy test suite.yaml</code> in the terminal to run test suites.</div>
         </div>
       )}
 
       {tab === "audit" && (
         <div className="panel-card">
-          <div style={{ fontWeight: 600, marginBottom: 8 }}>Audit Trail</div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <span style={{ fontWeight: 600 }}>Audit Trail</span>
+            <CliBtn args="audit" label="▶ View Audit Log" />
+          </div>
           <div className="panel-label">All authorization decisions are logged with full request/result/policy chain.</div>
-          <div style={{ marginTop: 8 }}>Use <code>/policy audit</code> in the terminal to view the audit log.</div>
+        </div>
+      )}
+
+      {(cliOutput || cliError) && (
+        <div className={`panel-card ${cliError ? "panel-error" : ""}`} style={{ marginTop: 8 }}>
+          <pre style={{ whiteSpace: "pre-wrap", margin: 0, fontSize: 11 }}>{cliError || cliOutput}</pre>
         </div>
       )}
 

@@ -294,6 +294,15 @@ export function GatewaySandboxPanel({ provider: defaultProvider = "claude" }: Ga
   const [log, setLog] = useState<LogEntry[]>([]);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cliOutput, setCliOutput] = useState("");
+
+  const runGatewayCli = useCallback(async (p: string) => {
+    setCliOutput(""); setError(null);
+    try {
+      const res = await invoke<string>("handle_gateway_cli", { platform: p });
+      setCliOutput(res);
+    } catch (e) { setError(String(e)); }
+  }, []);
 
   const logEndRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -450,11 +459,13 @@ export function GatewaySandboxPanel({ provider: defaultProvider = "claude" }: Ga
 
           {/* CLI-only notice */}
           {def.mode === "cli" && (
-            <div style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(136,136,136,0.1)", border: "1px solid rgba(136,136,136,0.3)", borderRadius: 6, padding: "6px 10px", fontSize: 12, color: "var(--text-secondary)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(136,136,136,0.1)", border: "1px solid rgba(136,136,136,0.3)", borderRadius: 6, padding: "6px 10px", fontSize: 12, color: "var(--text-secondary)" }}>
               <AlertCircle size={13} />
-              Run <code style={{ background: "var(--bg-secondary)", padding: "1px 5px", borderRadius: 4 }}>vibecli --gateway {platform}</code> in your terminal instead.
+              <span>CLI-only platform.</span>
+              <button className="panel-btn panel-btn-secondary panel-btn-sm" onClick={() => runGatewayCli(platform)} title={`vibecli --gateway ${platform}`}>▶ Launch Gateway</button>
             </div>
           )}
+          {cliOutput && <pre style={{ whiteSpace: "pre-wrap", marginTop: 8, fontSize: 11, background: "var(--bg-secondary)", padding: 8, borderRadius: 4 }}>{cliOutput}</pre>}
 
           {/* Credential fields */}
           {def.fields.map((field) => (

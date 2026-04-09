@@ -25,6 +25,15 @@ export default function ReviewProtocolPanel() {
   const [stats, setStats] = useState<ReviewStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [cliOutput, setCliOutput] = useState("");
+
+  const runCreview = useCallback(async (args: string) => {
+    setCliOutput("");
+    try {
+      const res = await invoke<string>("handle_creview_command", { args });
+      setCliOutput(res);
+    } catch (e) { setCliOutput(`Error: ${e}`); }
+  }, []);
 
   const doStart = useCallback(async () => {
     setLoading(true);
@@ -119,9 +128,11 @@ export default function ReviewProtocolPanel() {
               <div className="panel-card" style={{ borderLeft: "3px solid var(--success-color)" }}>
                 <div style={{ fontWeight: "var(--font-semibold)", marginBottom: 4 }}>Review Started</div>
                 <div className="panel-label" style={{ marginBottom: 6 }}>Session: {sessionId}</div>
-                <div style={{ fontSize: "var(--font-size-base)" }}>
-                  Use <code className="panel-mono">/creview comment file:line msg</code> in the terminal to add comments.
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+                  <button className="panel-btn panel-btn-secondary panel-btn-sm" onClick={() => runCreview(`list ${sessionId}`)} title='vibecli --cmd "/creview list"'>▶ List Comments</button>
+                  <button className="panel-btn panel-btn-secondary panel-btn-sm" onClick={() => runCreview(`summary ${sessionId}`)} title='vibecli --cmd "/creview summary"'>▶ Summary</button>
                 </div>
+                {cliOutput && <pre style={{ whiteSpace: "pre-wrap", marginTop: 8, fontSize: 11 }}>{cliOutput}</pre>}
               </div>
             )}
 

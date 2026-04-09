@@ -1413,6 +1413,10 @@ pub fn run() {
             commands::handle_productivity_command,
             commands::handle_ha_command,
             commands::handle_archspec_command,
+            commands::handle_policy_command,
+            commands::handle_aireview_command,
+            commands::handle_creview_command,
+            commands::handle_gateway_cli,
             // Company Orchestration (Paperclip parity)
             commands::company_cmd,
             commands::company_create,

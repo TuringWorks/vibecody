@@ -39428,6 +39428,46 @@ pub async fn handle_archspec_command(args: String) -> Result<String, String> {
         .map_err(|e| e.to_string())?
 }
 
+#[tauri::command]
+pub async fn handle_policy_command(args: String) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || run_vibecli_cmd("policy", &args))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn handle_aireview_command(args: String) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || run_vibecli_cmd("aireview", &args))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn handle_creview_command(args: String) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || run_vibecli_cmd("creview", &args))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn handle_gateway_cli(platform: String) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || {
+        let output = std::process::Command::new("vibecli")
+            .args(["--gateway", &platform])
+            .output()
+            .map_err(|e| format!("vibecli not found on PATH: {}", e))?;
+        let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        if !output.status.success() && stdout.is_empty() {
+            Err(if stderr.is_empty() { format!("vibecli exited with status {}", output.status) } else { stderr })
+        } else {
+            Ok(if stdout.is_empty() { stderr } else { stdout })
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 // ── Company Orchestration Commands (Paperclip parity) ─────────────────────────
 
 /// Generic pass-through for /company <args> — returns text output.

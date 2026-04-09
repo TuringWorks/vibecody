@@ -51,6 +51,15 @@ export default function AiCodeReviewPanel() {
   const [analysis, setAnalysis] = useState<PrAnalysisResult | null>(null);
   const [gateResults, setGateResults] = useState<QualityGateResult[]>([]);
   const [loading, setLoading] = useState(false);
+  const [cliOutput, setCliOutput] = useState("");
+
+  const runAireview = useCallback(async (args: string) => {
+    setCliOutput("");
+    try {
+      const res = await invoke<string>("handle_aireview_command", { args });
+      setCliOutput(res);
+    } catch (e) { setCliOutput(`Error: ${e}`); }
+  }, []);
 
   const doReview = useCallback(async () => {
     setLoading(true);
@@ -146,10 +155,12 @@ export default function AiCodeReviewPanel() {
 
       {tab === "learning" && (
         <div className="panel-card">
-          <div className="panel-label">Learning statistics will appear after review feedback is recorded.</div>
-          <div style={{ marginTop: 8, fontSize: 12 }}>
-            Use <code>/aireview learn</code> in the terminal to view precision/recall/F1 metrics.
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <span style={{ fontWeight: 600 }}>Learning Metrics</span>
+            <button className="panel-btn panel-btn-secondary panel-btn-sm" onClick={() => runAireview("learn")} title='vibecli --cmd "/aireview learn"'>▶ View Metrics</button>
           </div>
+          <div className="panel-label">Precision / recall / F1 from review feedback.</div>
+          {cliOutput && <pre style={{ whiteSpace: "pre-wrap", marginTop: 8, fontSize: 11, margin: 0 }}>{cliOutput}</pre>}
         </div>
       )}
     </div>
