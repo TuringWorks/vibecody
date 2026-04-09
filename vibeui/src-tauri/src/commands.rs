@@ -8134,7 +8134,7 @@ use vibecli_cli::profile_store::ProfileStore as _ProfileStore;
 
 const _PROFILE_ID: &str = "default";
 
-/// Map a legacy `api_keys.json` field name → profile-store provider name.
+/// Map a legacy field name → profile-store provider name.
 fn _field_to_provider(field: &str) -> Option<&'static str> {
     match field {
         "anthropic_api_key"    => Some("anthropic"),
@@ -11999,7 +11999,7 @@ pub struct CompareResult {
 
 /// Build a temporary provider instance by type name.
 /// Checks environment variables first, then falls back to saved API keys
-/// from `~/.vibeui/api_keys.json`.
+/// from `~/.vibecli/profile_settings.db`.
 fn build_temp_provider(provider_type: &str, model: &str)
     -> Option<Arc<dyn vibe_ai::provider::AIProvider>>
 {

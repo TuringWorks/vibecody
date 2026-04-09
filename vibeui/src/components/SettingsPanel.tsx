@@ -2639,7 +2639,7 @@ function ApiKeysSection() {
     <div>
       <h3 style={{ margin: "0 0 6px", fontSize: 16, fontWeight: 600, color: "var(--text-primary)" }}>API Keys (BYOK)</h3>
       <p style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 18, lineHeight: 1.5 }}>
-        Keys stored at <code style={{ background: "var(--bg-tertiary)", padding: "1px 4px", borderRadius: 3 }}>~/.vibeui/api_keys.json</code>. Leave empty to disable.
+        Keys stored securely in <code style={{ background: "var(--bg-tertiary)", padding: "1px 4px", borderRadius: 3 }}>~/.vibecli/profile_settings.db</code>. Leave empty to disable.
       </p>
 
       <div style={{ marginBottom: 20 }}>
