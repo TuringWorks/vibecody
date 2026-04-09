@@ -1477,8 +1477,185 @@ async fn main() -> Result<()> {
                 let output = crate::company_cmd::handle_company_cmd_once(args).await;
                 print!("{}", output);
             }
+            "/archspec" => {
+                use crate::architecture_spec::ArchitectureSpec;
+                let sub = args.split_whitespace().next().unwrap_or("help");
+                let rest = args.trim().strip_prefix(sub).unwrap_or("").trim();
+                let mut spec = ArchitectureSpec::new("VibeCody");
+                match sub {
+                    "togaf" => {
+                        use crate::architecture_spec::TogafPhase;
+                        let togaf = spec.togaf();
+                        let progress = togaf.get_overall_progress();
+                        println!("TOGAF ADM — Overall Progress: {:.0}%\n", progress * 100.0);
+                        for (i, phase) in TogafPhase::all().iter().enumerate() {
+                            let pct = togaf.get_phase_completion(phase);
+                            let artifacts = togaf.get_artifacts_by_phase(phase).len();
+                            println!("  {}. {} — {:.0}% ({} artifacts)", i + 1, phase.label(), pct * 100.0, artifacts);
+                        }
+                        println!();
+                    }
+                    "zachman" => {
+                        let report = spec.zachman().generate_matrix_report();
+                        println!("{}\n", report);
+                    }
+                    "c4" => {
+                        let level = if rest.is_empty() { "context" } else { rest };
+                        match level {
+                            "context"   => println!("{}\n", spec.c4().generate_context_diagram()),
+                            "container" => println!("{}\n", spec.c4().generate_container_diagram()),
+                            _ => println!("Usage: /archspec c4 context|container\n"),
+                        }
+                    }
+                    "adr" => {
+                        let index = spec.adrs().generate_index();
+                        println!("{}\n", index);
+                    }
+                    "report" => {
+                        let report = spec.generate_report();
+                        println!("{}\n", report);
+                    }
+                    _ => {
+                        println!("VibeCody Architecture Specification\n");
+                        println!("  /archspec togaf    — TOGAF ADM phases");
+                        println!("  /archspec zachman  — Zachman framework matrix");
+                        println!("  /archspec c4       — C4 Model diagrams");
+                        println!("  /archspec adr      — Architecture decision records");
+                        println!("  /archspec report   — Full architecture report\n");
+                    }
+                }
+            }
+            "/policy" => {
+                use crate::policy_engine::{PolicyEngine, PolicySerializer};
+                let sub = args.split_whitespace().next().unwrap_or("help");
+                let rest = args.trim().strip_prefix(sub).unwrap_or("").trim();
+                let engine = PolicyEngine::new();
+                match sub {
+                    "list" => {
+                        let policies = engine.list_policies();
+                        if policies.is_empty() {
+                            println!("No policies loaded.\n");
+                        } else {
+                            println!("Policies ({}):", policies.len());
+                            for p in &policies {
+                                println!("  [{}] {} — {} ({})", p.id, p.name, p.resource, if p.disabled { "disabled" } else { "active" });
+                            }
+                            println!();
+                        }
+                    }
+                    "audit" => {
+                        let log = engine.get_audit_log();
+                        if log.is_empty() {
+                            println!("No audit entries.\n");
+                        } else {
+                            println!("Audit Log ({} entries):", log.len());
+                            for entry in log {
+                                println!("  {} {} {} -> {:?}", entry.request.principal.id, entry.request.action, entry.request.resource.kind, entry.result.effect);
+                            }
+                            println!();
+                        }
+                    }
+                    "template" => {
+                        let resource = if rest.is_empty() { "document" } else { rest };
+                        let template = PolicySerializer::generate_template(resource);
+                        println!("{}\n", template);
+                    }
+                    _ => {
+                        println!("VibeCody Policy Engine\n");
+                        println!("  /policy list               — List policies");
+                        println!("  /policy audit              — View audit trail");
+                        println!("  /policy template <resource> — Generate starter policy\n");
+                    }
+                }
+            }
+            "/aireview" => {
+                use crate::ai_code_review::{AiCodeReviewEngine, ReviewConfig};
+                let sub = args.split_whitespace().next().unwrap_or("help");
+                let rest = args.trim().strip_prefix(sub).unwrap_or("").trim();
+                let config = ReviewConfig::default();
+                let mut engine = AiCodeReviewEngine::new(config.clone());
+                match sub {
+                    "file" => {
+                        if rest.is_empty() {
+                            println!("Usage: /aireview file <path>\n");
+                        } else {
+                            let content = std::fs::read_to_string(rest).unwrap_or_default();
+                            let findings = engine.analyze_file(rest, &content, &config);
+                            if findings.is_empty() {
+                                println!("No issues found in {}.\n", rest);
+                            } else {
+                                println!("Review: {} ({} finding(s)):\n", rest, findings.len());
+                                for f in &findings {
+                                    println!("  [{:?}] {}:{} — {} ({:?})", f.severity, f.file, f.line_start, f.message, f.category);
+                                    if let Some(ref sug) = f.suggestion { println!("    Suggestion: {}", sug); }
+                                }
+                                println!();
+                            }
+                        }
+                    }
+                    "diff" => {
+                        if rest.is_empty() {
+                            println!("Usage: /aireview diff <unified_diff>\n");
+                        } else {
+                            let analysis = engine.analyze_diff(rest, &config);
+                            println!("{}", engine.generate_pr_summary(&analysis));
+                        }
+                    }
+                    "learn" => {
+                        let stats = engine.get_learning_stats();
+                        println!("Learning Stats");
+                        println!("  Precision: {:.1}%  Recall: {:.1}%  F1: {:.3}\n", stats.precision * 100.0, stats.recall * 100.0, stats.f1_score);
+                    }
+                    _ => {
+                        println!("VibeCody AI Code Review\n");
+                        println!("  /aireview file <path> — Review a file");
+                        println!("  /aireview diff <diff> — Review a unified diff");
+                        println!("  /aireview learn       — Learning statistics\n");
+                    }
+                }
+            }
+            "/creview" => {
+                use crate::review_protocol::{ReviewEngine, ReviewConfig};
+                let sub = args.split_whitespace().next().unwrap_or("help");
+                let rest = args.trim().strip_prefix(sub).unwrap_or("").trim();
+                let mut engine = ReviewEngine::new(ReviewConfig::default());
+                match sub {
+                    "start" => {
+                        if rest.is_empty() {
+                            println!("Usage: /creview start <title>\n");
+                        } else {
+                            let files: Vec<String> = vec![".".to_string()];
+                            let sid = engine.start_session(rest, files);
+                            println!("Review session started: '{}' (id: {})\n", rest, sid);
+                        }
+                    }
+                    "stats" => {
+                        let q = engine.get_quality();
+                        println!("Review Quality");
+                        println!("  Total: {}  Resolved: {}  Precision: {:.0}%\n",
+                            q.total_comments, q.resolved,
+                            if q.total_comments > 0 { q.precision * 100.0 } else { 0.0 });
+                    }
+                    "list" => {
+                        let sessions = engine.list_sessions();
+                        if sessions.is_empty() {
+                            println!("No active review sessions.\n");
+                        } else {
+                            println!("Review Sessions ({}):", sessions.len());
+                            for s in &sessions { println!("  [{}] {}", s.id, s.title); }
+                            println!();
+                        }
+                    }
+                    _ => {
+                        println!("VibeCody Code Review Protocol\n");
+                        println!("  /creview start <title> — Start review session");
+                        println!("  /creview list          — List sessions");
+                        println!("  /creview stats         — Review quality stats\n");
+                    }
+                }
+            }
             _ => {
-                eprintln!("Unknown --cmd command '{}'. Use /email, /cal, /ha, /todo, /notion, /jira, /linear, /company.", command);
+                eprintln!("Unknown --cmd command '{}'. Use /email, /cal, /ha, /todo, /notion, /jira, /linear, /company, /archspec, /policy, /aireview, /creview.", command);
                 std::process::exit(1);
             }
         }
