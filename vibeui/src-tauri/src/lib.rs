@@ -1416,6 +1416,8 @@ pub fn run() {
             commands::archspec_load,
             commands::archspec_set_artifact_status,
             commands::archspec_generate,
+            commands::archspec_set_adr_status,
+            commands::archspec_create_adr,
             commands::handle_policy_command,
             commands::handle_aireview_command,
             commands::handle_creview_command,

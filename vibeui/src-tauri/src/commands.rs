@@ -39776,6 +39776,395 @@ pub async fn archspec_generate(workspace_path: String) -> Result<serde_json::Val
             ).with_content("1. Open GitHub issue with 'architecture' label\n2. Create ADR in /archspec ADRs tab\n3. Review in Architecture panel\n4. Approve/Reject via governance workflow")
         );
 
+        // ── Zachman Framework ─────────────────────────────────────────────
+        {
+            use vibecli_cli::architecture_spec::{ZachmanPerspective, ZachmanAspect};
+            // Planner row (executive view)
+            spec.zachman.set_cell(ZachmanPerspective::Planner, ZachmanAspect::What,
+                &format!("Core entities: workspace, session, artifact, provider, rule"));
+            spec.zachman.set_cell(ZachmanPerspective::Planner, ZachmanAspect::How,
+                "Business processes: code generation, AI chat, architecture review, deployment");
+            spec.zachman.set_cell(ZachmanPerspective::Planner, ZachmanAspect::Where,
+                "Platforms: macOS/Windows/Linux desktop; local filesystem; cloud AI APIs");
+            spec.zachman.set_cell(ZachmanPerspective::Planner, ZachmanAspect::Who,
+                "Stakeholders: developers, architects, DevOps, open-source contributors");
+            spec.zachman.set_cell(ZachmanPerspective::Planner, ZachmanAspect::When,
+                "Events: user prompt, file save, git commit, CI run, architecture review cycle");
+            spec.zachman.set_cell(ZachmanPerspective::Planner, ZachmanAspect::Why,
+                &format!("Mission: empower developers with AI-assisted coding for {project_name}"));
+
+            // Owner row (business model)
+            spec.zachman.set_cell(ZachmanPerspective::Owner, ZachmanAspect::What,
+                "Business objects: Workspace, Project, ChatSession, AgentRun, Artifact, Policy");
+            spec.zachman.set_cell(ZachmanPerspective::Owner, ZachmanAspect::How,
+                "Workflows: chat → agent → tool call → file write → review → approve");
+            spec.zachman.set_cell(ZachmanPerspective::Owner, ZachmanAspect::Where,
+                "Locations: local workspace, ~/.vibecli profile, cloud provider endpoints");
+            spec.zachman.set_cell(ZachmanPerspective::Owner, ZachmanAspect::Who,
+                "Roles: Developer (primary), Reviewer (secondary), Admin (settings)");
+            spec.zachman.set_cell(ZachmanPerspective::Owner, ZachmanAspect::When,
+                "Cycles: interactive (real-time), CI/CD (batch), scheduled (background)");
+            spec.zachman.set_cell(ZachmanPerspective::Owner, ZachmanAspect::Why,
+                "Goals: reduce friction in code quality, architecture governance, AI productivity");
+
+            // Designer row (system design)
+            spec.zachman.set_cell(ZachmanPerspective::Designer, ZachmanAspect::What,
+                "Data model: WorkspaceStore (SQLite encrypted), ProfileStore, TraceWriter (JSONL)");
+            spec.zachman.set_cell(ZachmanPerspective::Designer, ZachmanAspect::How,
+                "Application logic: Tauri commands → vibecli crates → AIProvider trait → streaming");
+            spec.zachman.set_cell(ZachmanPerspective::Designer, ZachmanAspect::Where,
+                "Distributed architecture: React UI ↔ Tauri IPC ↔ Rust backend ↔ AI APIs");
+            spec.zachman.set_cell(ZachmanPerspective::Designer, ZachmanAspect::Who,
+                "Responsibility matrix: Tauri (lifecycle), vibe-ai (providers), vibe-core (fs/git)");
+            spec.zachman.set_cell(ZachmanPerspective::Designer, ZachmanAspect::When,
+                "State transitions: idle → user-input → streaming → tool-execution → complete");
+            spec.zachman.set_cell(ZachmanPerspective::Designer, ZachmanAspect::Why,
+                "Architecture rules: encrypted storage, zero-trust, open-source MIT license");
+
+            // Builder row (technical design)
+            spec.zachman.set_cell(ZachmanPerspective::Builder, ZachmanAspect::What,
+                &format!("DB schema: workspace.db (settings), profile.db (keys), traces/*.jsonl. Stack: {}", tech_stack.join(", ")));
+            spec.zachman.set_cell(ZachmanPerspective::Builder, ZachmanAspect::How,
+                "Impl: async Rust (tokio), XML tool calling, streaming SSE, Tauri invoke_handler");
+            spec.zachman.set_cell(ZachmanPerspective::Builder, ZachmanAspect::Where,
+                "Deployment: cargo build --release, Tauri bundler, GitHub Actions release.yml");
+            spec.zachman.set_cell(ZachmanPerspective::Builder, ZachmanAspect::Who,
+                "Components: 360+ Tauri commands, 196+ Rust modules, 196+ React panels");
+            spec.zachman.set_cell(ZachmanPerspective::Builder, ZachmanAspect::When,
+                "Triggers: tauri::command invocation, tokio::spawn, signal handlers");
+            spec.zachman.set_cell(ZachmanPerspective::Builder, ZachmanAspect::Why,
+                "Constraints: no plaintext secrets, zero panic in prod, clippy-clean, OWASP");
+
+            // Implementer row (code)
+            spec.zachman.set_cell(ZachmanPerspective::Implementer, ZachmanAspect::What,
+                &format!("{} Rust modules, {} React panels, ~10,535 tests", src_modules.len(), 196));
+            spec.zachman.set_cell(ZachmanPerspective::Implementer, ZachmanAspect::How,
+                "cargo build / npm run tauri:dev; PostToolUse hooks run cargo check + tsc");
+            spec.zachman.set_cell(ZachmanPerspective::Implementer, ZachmanAspect::Where,
+                "Repo: vibecli/ (Rust CLI) + vibeui/ (Tauri) + vibeui/crates/ (shared libs)");
+            spec.zachman.set_cell(ZachmanPerspective::Implementer, ZachmanAspect::Who,
+                "CI: GitHub Actions (pages.yml, release.yml, pr-bot.yml)");
+            spec.zachman.set_cell(ZachmanPerspective::Implementer, ZachmanAspect::When,
+                "Events: git push → CI → cargo test --workspace → clippy → release binary");
+            spec.zachman.set_cell(ZachmanPerspective::Implementer, ZachmanAspect::Why,
+                "Quality gates: 0 clippy warnings, 0 test failures, codesign on macOS");
+
+            // Worker row (operational)
+            spec.zachman.set_cell(ZachmanPerspective::Worker, ZachmanAspect::What,
+                "Runtime data: active sessions, file diffs, agent traces, streaming chunks");
+            spec.zachman.set_cell(ZachmanPerspective::Worker, ZachmanAspect::How,
+                "Operations: vibecli --agent, vibecli --exec, vibecli --cmd, tauri:dev");
+            spec.zachman.set_cell(ZachmanPerspective::Worker, ZachmanAspect::Where,
+                "Runtime: macOS arm64 / x86_64, Linux amd64, Windows x86_64");
+            spec.zachman.set_cell(ZachmanPerspective::Worker, ZachmanAspect::Who,
+                "End user: developer running VibeUI or vibecli from terminal");
+            spec.zachman.set_cell(ZachmanPerspective::Worker, ZachmanAspect::When,
+                "SLO: streaming response <200ms first token, context load <2s, file ops <50ms");
+            spec.zachman.set_cell(ZachmanPerspective::Worker, ZachmanAspect::Why,
+                "User value: faster code iteration, architecture compliance, AI-powered review");
+        }
+
+        // ── C4 Model ──────────────────────────────────────────────────────
+        {
+            use vibecli_cli::architecture_spec::{C4Element, C4ElementType, C4Relationship};
+            // Context level — people + external systems
+            let dev_id = spec.c4.add_element(
+                C4Element::new("Developer", C4ElementType::Person, "Primary user of the system")
+                    .with_id("person-developer")
+            );
+            let ai_apis_id = spec.c4.add_element(
+                C4Element::new("AI Providers", C4ElementType::SoftwareSystem,
+                    "External AI APIs: Claude, OpenAI, Gemini, Ollama, Groq and 13 more")
+                    .with_technology("HTTPS / SSE")
+                    .with_id("sys-ai-providers")
+            );
+            let git_id = spec.c4.add_element(
+                C4Element::new("Git / GitHub", C4ElementType::SoftwareSystem,
+                    "Source control and CI/CD platform")
+                    .with_technology("git, GitHub Actions")
+                    .with_id("sys-git")
+            );
+            let vibeui_id = spec.c4.add_element(
+                C4Element::new("VibeUI", C4ElementType::SoftwareSystem,
+                    &format!("{project_name} — desktop AI coding assistant"))
+                    .with_technology("Tauri 2, React, TypeScript, Rust")
+                    .with_id("sys-vibeui")
+            );
+            spec.c4.add_relationship(C4Relationship::new(&dev_id, &vibeui_id, "Uses"));
+            spec.c4.add_relationship(C4Relationship::new(&vibeui_id, &ai_apis_id, "Sends prompts, receives streamed responses").with_technology("HTTPS / SSE"));
+            spec.c4.add_relationship(C4Relationship::new(&vibeui_id, &git_id, "Reads commits, branches, diffs").with_technology("libgit2 / gh CLI"));
+
+            // Container level
+            let react_id = spec.c4.add_element(
+                C4Element::new("React Frontend", C4ElementType::Container,
+                    "196+ panels — chat, architecture, security, CI/CD, tooling")
+                    .with_technology("React 18, TypeScript, Vite")
+                    .with_parent(&vibeui_id)
+                    .with_id("container-react")
+            );
+            let tauri_id = spec.c4.add_element(
+                C4Element::new("Tauri Backend", C4ElementType::Container,
+                    "360+ Tauri commands; IPC bridge between React and Rust")
+                    .with_technology("Rust, Tauri 2, Tokio")
+                    .with_parent(&vibeui_id)
+                    .with_id("container-tauri")
+            );
+            let vibecli_id = spec.c4.add_element(
+                C4Element::new("vibecli-cli", C4ElementType::Container,
+                    &format!("{} Rust modules; REPL, agent, tools, providers", src_modules.len()))
+                    .with_technology("Rust, Tokio, Clap, Ratatui")
+                    .with_parent(&vibeui_id)
+                    .with_id("container-vibecli")
+            );
+            let vibe_ai_id = spec.c4.add_element(
+                C4Element::new("vibe-ai", C4ElementType::Container,
+                    "AIProvider trait + 18 provider implementations + failover")
+                    .with_technology("Rust, async-trait, reqwest")
+                    .with_parent(&vibeui_id)
+                    .with_id("container-vibe-ai")
+            );
+            let vibe_core_id = spec.c4.add_element(
+                C4Element::new("vibe-core", C4ElementType::Container,
+                    "File system, git, workspace, diff engine, search")
+                    .with_technology("Rust, libgit2, ignore")
+                    .with_parent(&vibeui_id)
+                    .with_id("container-vibe-core")
+            );
+            let db_id = spec.c4.add_element(
+                C4Element::new("WorkspaceStore", C4ElementType::Container,
+                    "Encrypted SQLite per workspace; stores settings, secrets, artifacts")
+                    .with_technology("SQLite + ChaCha20-Poly1305")
+                    .with_parent(&vibeui_id)
+                    .with_id("container-db")
+            );
+            spec.c4.add_relationship(C4Relationship::new(&react_id, &tauri_id, "Tauri IPC (invoke)").with_technology("JSON / binary"));
+            spec.c4.add_relationship(C4Relationship::new(&tauri_id, &vibecli_id, "Direct crate calls").with_technology("Rust"));
+            spec.c4.add_relationship(C4Relationship::new(&vibecli_id, &vibe_ai_id, "AIProvider trait").with_technology("Rust async"));
+            spec.c4.add_relationship(C4Relationship::new(&vibecli_id, &vibe_core_id, "File ops, git").with_technology("Rust"));
+            spec.c4.add_relationship(C4Relationship::new(&tauri_id, &db_id, "read/write encrypted settings").with_technology("rusqlite"));
+            spec.c4.add_relationship(C4Relationship::new(&vibe_ai_id, &ai_apis_id, "HTTP streaming").with_technology("HTTPS / SSE"));
+        }
+
+        // ── ADRs ──────────────────────────────────────────────────────────
+        {
+            use vibecli_cli::architecture_spec::Adr;
+            let today = "2026-04-08";
+
+            spec.adrs.add(
+                Adr::new(
+                    "Use Tauri 2 for Desktop Delivery",
+                    "We need a cross-platform desktop app that can call native Rust code and \
+                     ship as a single binary without requiring a Node.js runtime.",
+                    "Adopt Tauri 2 as the desktop shell. React/TypeScript for the UI layer, \
+                     Rust for all backend logic via tauri::command IPC.",
+                )
+                .with_consequences(vec![
+                    "Pro: ~10MB binary vs 150MB+ Electron".into(),
+                    "Pro: full Rust ecosystem access in backend".into(),
+                    "Con: Tauri-specific IPC patterns required for all backend calls".into(),
+                ])
+                .with_date(today)
+                .with_tags(vec!["desktop".into(), "rust".into(), "tauri".into()])
+            );
+
+            spec.adrs.add(
+                Adr::new(
+                    "Encrypted Workspace Storage via WorkspaceStore",
+                    "API keys and project secrets must not be stored in plaintext. \
+                     Config files (*.toml, *.json) are easily leaked via git.",
+                    "Use WorkspaceStore (SQLite + ChaCha20-Poly1305) for all project secrets. \
+                     ProfileStore for global API keys. Never write secrets to config files.",
+                )
+                .with_consequences(vec![
+                    "Pro: secrets encrypted at rest per-workspace".into(),
+                    "Pro: machine + workspace bound key derivation".into(),
+                    "Con: secrets not portable across machines without explicit export".into(),
+                ])
+                .with_date(today)
+                .with_tags(vec!["security".into(), "storage".into()])
+            );
+
+            spec.adrs.add(
+                Adr::new(
+                    "XML Tool Calling for All AI Providers",
+                    "Different AI providers have incompatible native tool-calling APIs. \
+                     Some providers (Ollama, local models) have no native tool calling.",
+                    "Implement tool calling as XML in the system prompt, parsed from model output. \
+                     Works uniformly across all 18 providers without provider-specific code.",
+                )
+                .with_consequences(vec![
+                    "Pro: works with any text-completion model including local Ollama".into(),
+                    "Pro: single tool execution path for all providers".into(),
+                    "Con: slightly higher token overhead vs native function calling".into(),
+                ])
+                .with_date(today)
+                .with_tags(vec!["ai".into(), "tools".into(), "providers".into()])
+            );
+
+            spec.adrs.add(
+                Adr::new(
+                    "Rust Workspace with Separate Crates per Concern",
+                    "A monolithic crate would couple CLI, UI backend, AI, and core utilities, \
+                     making independent testing and reuse impossible.",
+                    "Cargo workspace with vibecli-cli, vibe-ai, vibe-core, vibe-lsp, \
+                     vibe-extensions as separate crates. Each has its own tests and can be \
+                     published independently.",
+                )
+                .with_consequences(vec![
+                    "Pro: clean dependency boundaries, faster incremental builds".into(),
+                    "Pro: vibe-ai and vibe-core reusable without the full CLI".into(),
+                    "Con: module declarations required in both lib.rs and main.rs".into(),
+                ])
+                .with_date(today)
+                .with_tags(vec!["rust".into(), "architecture".into(), "crates".into()])
+            );
+
+            spec.adrs.add(
+                Adr::new(
+                    "Ad-hoc Codesign for macOS Sidecar Binaries",
+                    "macOS SIGKILL's cargo-built binaries with linker-signed flag when copied \
+                     to a new path (e.g. ~/.local/bin). Affects all vibecli installations.",
+                    "After installing vibecli: codesign --force --sign - <binary>. \
+                     Tauri backend auto-detects SIGKILL (signal 9) and re-signs, then retries.",
+                )
+                .with_consequences(vec![
+                    "Pro: transparent recovery — panels work after first auto-resign".into(),
+                    "Con: requires codesign tool (ships with Xcode CLI tools)".into(),
+                ])
+                .with_date(today)
+                .with_tags(vec!["macos".into(), "security".into(), "deployment".into()])
+            );
+        }
+
+        // ── Governance rules ──────────────────────────────────────────────
+        {
+            use vibecli_cli::architecture_spec::{GovernanceRule, GovernanceSeverity};
+            // Project-specific rules on top of with_standard_rules()
+            spec.governance.add_rule(
+                GovernanceRule::new(
+                    "No Plaintext Secrets",
+                    "API keys and tokens must use WorkspaceStore or ProfileStore. \
+                     Never write to *.toml, *.json, or any plaintext file.",
+                    GovernanceSeverity::Critical,
+                )
+                .with_check_description("Scan committed files for patterns matching API key formats")
+                .with_category("security")
+                .with_id("GOV-P01")
+            );
+            spec.governance.add_rule(
+                GovernanceRule::new(
+                    "Zero Clippy Warnings Policy",
+                    "All Rust code must pass cargo clippy with zero warnings. \
+                     CI blocks merge on any warning.",
+                    GovernanceSeverity::Error,
+                )
+                .with_check_description("Run cargo clippy --workspace -- -D warnings in CI")
+                .with_category("quality")
+                .with_id("GOV-P02")
+            );
+            spec.governance.add_rule(
+                GovernanceRule::new(
+                    "Tauri Commands Must Be Registered",
+                    "Every pub async fn in commands.rs annotated with #[tauri::command] \
+                     must have a matching entry in invoke_handler! in lib.rs.",
+                    GovernanceSeverity::Error,
+                )
+                .with_check_description("Cross-reference commands.rs exports with lib.rs invoke_handler")
+                .with_category("completeness")
+                .with_id("GOV-P03")
+            );
+            spec.governance.add_rule(
+                GovernanceRule::new(
+                    "macOS Binaries Must Be Codesigned",
+                    "Any binary installed to PATH on macOS must be codesigned (ad-hoc or \
+                     developer cert) to avoid SIGKILL from the OS.",
+                    GovernanceSeverity::Warning,
+                )
+                .with_check_description("Verify codesign -dv on installed binary after cargo install")
+                .with_category("deployment")
+                .with_id("GOV-P04")
+            );
+            spec.governance.add_rule(
+                GovernanceRule::new(
+                    "New Rust Modules Declared in Both Files",
+                    "When adding a .rs file to vibecli-cli/src/, pub mod must appear \
+                     in both main.rs AND lib.rs.",
+                    GovernanceSeverity::Warning,
+                )
+                .with_check_description("Check that all .rs files in src/ have declarations in both root files")
+                .with_category("consistency")
+                .with_id("GOV-P05")
+            );
+
+            // Scan for CI workflows and add a rule per detected workflow
+            if !workflows.is_empty() {
+                spec.governance.add_rule(
+                    GovernanceRule::new(
+                        "CI Workflows Must Pass Before Merge",
+                        &format!("All {} detected GitHub Actions workflows must succeed: {}",
+                            workflows.len(), workflows.join(", ")),
+                        GovernanceSeverity::Error,
+                    )
+                    .with_check_description("GitHub branch protection: require status checks")
+                    .with_category("process")
+                    .with_id("GOV-P06")
+                );
+            }
+        }
+
+        archspec_save_to_store(wp, &spec)?;
+        serde_json::to_value(&spec).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Accept or deprecate an ADR.
+#[tauri::command]
+pub async fn archspec_set_adr_status(
+    workspace_path: String,
+    adr_id: String,
+    status: String,
+) -> Result<serde_json::Value, String> {
+    tokio::task::spawn_blocking(move || {
+        let wp = std::path::Path::new(&workspace_path);
+        let mut spec = archspec_load_from_store(wp)?;
+        match status.as_str() {
+            "Accepted"   => { spec.adrs.accept(&adr_id); }
+            "Deprecated" => { spec.adrs.deprecate(&adr_id); }
+            "Proposed"   => {
+                if let Some(adr) = spec.adrs.get_mut(&adr_id) {
+                    adr.status = vibecli_cli::architecture_spec::AdrStatus::Proposed;
+                }
+            }
+            other => return Err(format!("Unknown ADR status: {other}")),
+        }
+        archspec_save_to_store(wp, &spec)?;
+        serde_json::to_value(&spec).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Create a new ADR and persist it.
+#[tauri::command]
+pub async fn archspec_create_adr(
+    workspace_path: String,
+    title: String,
+    context: String,
+    decision: String,
+    consequences: Vec<String>,
+    tags: Vec<String>,
+) -> Result<serde_json::Value, String> {
+    tokio::task::spawn_blocking(move || {
+        use vibecli_cli::architecture_spec::Adr;
+        let wp = std::path::Path::new(&workspace_path);
+        let mut spec = archspec_load_from_store(wp)?;
+        spec.adrs.add(
+            Adr::new(&title, &context, &decision)
+                .with_consequences(consequences)
+                .with_tags(tags)
+        );
         archspec_save_to_store(wp, &spec)?;
         serde_json::to_value(&spec).map_err(|e| e.to_string())
     })
