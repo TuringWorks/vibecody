@@ -187,13 +187,13 @@ const confTag = (c: number): string =>
 
 ## Rules
 
-### ✅ Do
+### <span class="docs-do" aria-hidden="true"></span>Do
 - Always use intent variants (`panel-tag-{intent}`) — never `panel-tag` alone
 - Use `panel-tag` inside panel rows and headers
 - Use `panel-badge` for navigation counts and prominent standalone labels
 - Use semantic functions (`statusTag()`, `priorityTag()`, `confTag()`) for dynamic values
 
-### ❌ Don't
+### <span class="docs-dont" aria-hidden="true"></span>Don't
 ```tsx
 // Missing intent variant
 <span className="panel-tag">pending</span>

@@ -284,7 +284,7 @@ For forms with logical groups:
 
 ## Rules
 
-### ✅ Do
+### <span class="docs-do" aria-hidden="true"></span>Do
 - Place all form fields in a `panel-card`
 - Use `panel-label` immediately above every field
 - Add `marginBottom: 8` between fields (after inputs)
@@ -293,7 +293,7 @@ For forms with logical groups:
 - Show success result below the form card (not replace it)
 - Show errors via `panel-error` above the form card
 
-### ❌ Don't
+### <span class="docs-dont" aria-hidden="true"></span>Don't
 ```tsx
 // Label without class
 <label style={{ fontSize: 11, color: "var(--text-secondary)" }}>Field</label>

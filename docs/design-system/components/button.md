@@ -209,7 +209,7 @@ Do not use `btn-primary` / `btn-secondary` inside panel bodies. They're too larg
 
 ## Rules
 
-### ✅ Do
+### <span class="docs-do" aria-hidden="true"></span>Do
 - Always pair `panel-btn` with a variant (`panel-btn-primary`, etc.)
 - Add `disabled={loading}` during async operations
 - Show loading progress in button text (`"Scanning…"`)
@@ -217,7 +217,7 @@ Do not use `btn-primary` / `btn-secondary` inside panel bodies. They're too larg
 - Use `panel-btn-xs` in dense table rows or prediction cards
 - Limit to one `panel-btn-primary` per visible section
 
-### ❌ Don't
+### <span class="docs-dont" aria-hidden="true"></span>Don't
 ```tsx
 // Missing variant — has no color
 <button className="panel-btn">Submit</button>

@@ -180,14 +180,14 @@ Body inherits `line-height: 1.5` from `body`. For compact panel rows (< 14px fon
 
 ## Rules
 
-### ✅ Do
+### <span class="docs-do" aria-hidden="true"></span>Do
 - Inherit font-family from body (no explicit `fontFamily` unless switching to mono)
 - Use `--font-size-*` tokens for all font sizes
 - Use `--font-*` weight tokens for all font weights
 - Use `.panel-label` class for input labels
 - Use `.panel-mono` class for paths, IDs, code
 
-### ❌ Don't
+### <span class="docs-dont" aria-hidden="true"></span>Don't
 ```tsx
 fontSize: 12           // use "var(--font-size-base)"
 fontWeight: 600        // use "var(--font-semibold)"

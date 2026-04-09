@@ -218,7 +218,7 @@ Use `.panel-section-title` for section headings inside `panel-body` instead of r
 
 ## Rules
 
-### ✅ Do
+### <span class="docs-do" aria-hidden="true"></span>Do
 - Use `panel-tab-bar panel-tab-bar--primary` for composite outer nav (`TabbedPanel`)
 - Use `panel-tab-bar` (no modifier) for within-panel sub-tabs
 - Add `.active` class dynamically based on state
@@ -227,7 +227,7 @@ Use `.panel-section-title` for section headings inside `panel-body` instead of r
 - Use `panel-btn` toggle pairs for 2-option choices in header
 - Use `panel-section-title` for `<h3>` headings inside `panel-body`
 
-### ❌ Don't
+### <span class="docs-dont" aria-hidden="true"></span>Don't
 ```tsx
 // Inline tab button styles
 <button style={{

@@ -186,14 +186,14 @@ Tables inside `panel-body` scroll horizontally if they overflow:
 
 ## Rules
 
-### ✅ Do
+### <span class="docs-do" aria-hidden="true"></span>Do
 - Use `className="panel-table"` — never build a table inline
 - Right-align numeric columns
 - Set fixed `width` on narrow columns (counts, percentages)
 - Use `panel-mono` on numeric columns
 - Add `title={fullValue}` on truncated cells
 
-### ❌ Don't
+### <span class="docs-dont" aria-hidden="true"></span>Don't
 ```tsx
 // Inline table styling
 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>

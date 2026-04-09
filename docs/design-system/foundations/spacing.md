@@ -155,9 +155,9 @@ panel-btn-lg:  padding 8px 18px   gap 8px
 
 ---
 
-## ✅ / ❌
+## Rules
 
-### ✅ Do
+### <span class="docs-do" aria-hidden="true"></span>Do
 ```tsx
 gap: 8          // 2×4 grid
 padding: 12     // 3×4 grid
@@ -165,7 +165,7 @@ marginBottom: 8
 style={{ gap: "var(--space-2)" }}  // explicit token
 ```
 
-### ❌ Don't
+### <span class="docs-dont" aria-hidden="true"></span>Don't
 ```tsx
 padding: 10     // not on the 4px grid
 marginBottom: 6  // ok sometimes but prefer 8

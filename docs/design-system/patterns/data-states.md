@@ -295,14 +295,14 @@ const handleAction = async (id: string) => {
 
 ## Rules
 
-### ✅ Always
+### <span class="docs-do" aria-hidden="true"></span>Always
 - Handle all three states: loading, error, empty
 - Dismiss errors with a `✕` button
 - Use `finally { setLoading(false) }` — never set loading in catch/try alone
 - Reset `error` to null at start of every fetch (`setError(null)`)
 - Write helpful empty state copy (what + why + action)
 
-### ❌ Never
+### <span class="docs-dont" aria-hidden="true"></span>Never
 - Leave loading state stuck (always use `finally`)
 - Show empty state while loading is true
 - Show content while error is present (show error above, then content below if applicable)

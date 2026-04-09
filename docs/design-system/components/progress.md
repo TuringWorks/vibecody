@@ -177,14 +177,14 @@ const barWidth = Math.max(4, Math.round((value / max) * 100));
 
 ## Rules
 
-### ✅ Do
+### <span class="docs-do" aria-hidden="true"></span>Do
 - Use `progress-bar` + `progress-bar-fill` always as a pair
 - Add a semantic fill class (`progress-bar-success` etc.) or inline `background`
 - Use `Math.max(4, ...)` for minimum visible width
 - Use `flex: 1` on the track when placing beside a label in a row
 - Keep bars in `panel-card` or below a `panel-row` — never standalone in a body
 
-### ❌ Don't
+### <span class="docs-dont" aria-hidden="true"></span>Don't
 ```tsx
 // Inline bar from scratch
 <div style={{ height: 6, background: "var(--bg-primary)", borderRadius: 2, overflow: "hidden" }}>

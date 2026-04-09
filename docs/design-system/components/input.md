@@ -204,7 +204,7 @@ Override `.panel-label`'s `margin-bottom: 4px` with `marginBottom: 0` when using
 
 ## Rules
 
-### ✅ Do
+### <span class="docs-do" aria-hidden="true"></span>Do
 - Use `panel-input` for all panel inputs (never raw `<input>` without class)
 - Add `panel-input-full` for full-width inputs
 - Use `panel-textarea` + `panel-input-full` for textareas
@@ -212,7 +212,7 @@ Override `.panel-label`'s `margin-bottom: 4px` with `marginBottom: 0` when using
 - Place `panel-label` immediately above inputs
 - Override `marginBottom: 0` on labels used inline
 
-### ❌ Don't
+### <span class="docs-dont" aria-hidden="true"></span>Don't
 ```tsx
 // Inline style for input
 <input style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", fontSize: 12 }} />

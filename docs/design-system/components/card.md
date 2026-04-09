@@ -213,14 +213,14 @@ For 2–3 column card grids (e.g. stat cards):
 
 ## Rules
 
-### ✅ Do
+### <span class="docs-do" aria-hidden="true"></span>Do
 - Use `panel-card` as the base — never replicate the border/bg/radius inline
 - Add `marginBottom: 8` between stacked cards
 - Use `--bg-primary` for nested sub-surfaces inside cards
 - Use accent `borderLeft` for semantic status cards (not color fills)
 - Keep padding at the card level — don't add extra padding inside the card's first child
 
-### ❌ Don't
+### <span class="docs-dont" aria-hidden="true"></span>Don't
 ```tsx
 // Replicating panel-card inline
 <div style={{ background: "var(--bg-secondary)", borderRadius: 6, padding: 12, border: "1px solid var(--border-color)" }}>
