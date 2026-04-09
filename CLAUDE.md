@@ -26,7 +26,7 @@ Both `lib.rs` and `main.rs` in `vibecli/vibecli-cli/src/` must declare new modul
 - Never read from `~/.vibeui/api_keys.json` — deleted and migrated
 
 ### Tauri commands
-360+ commands registered in `vibeui/src-tauri/src/lib.rs`. When adding a new Tauri command: implement in `commands.rs`, register in `invoke_handler!` in `lib.rs`.
+1,045+ commands registered via `tauri::generate_handler!` in `vibeui/src-tauri/src/lib.rs`. When adding a new Tauri command: implement in `commands.rs`, register in `tauri::generate_handler!` in `lib.rs`.
 
 ### Testing encrypted stores
 Use `open_with(path, key)` variants to avoid touching production DBs:
@@ -73,9 +73,11 @@ Then add the frontend entry in `useModelRegistry.ts` as above.
 
 ## Repo Layout
 ```
-vibecli/vibecli-cli/src/   ← Rust CLI (~196 modules)
+vibecli/vibecli-cli/src/   ← Rust CLI (~222 modules)
 vibeui/src/                ← React/TypeScript frontend
 vibeui/src-tauri/src/      ← Tauri backend + commands
-vibeui/crates/             ← vibe-core, vibe-ai, vibe-lsp, vibe-extensions
+vibeui/crates/             ← vibe-core, vibe-ai, vibe-lsp, vibe-extensions, vibe-collab
+vibeapp/src-tauri/         ← Alternate Tauri shell
+vibe-indexer/              ← Standalone indexing service
 docs/                      ← Jekyll GitHub Pages
 ```

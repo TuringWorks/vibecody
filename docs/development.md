@@ -31,7 +31,7 @@ rustup show && node --version && cargo tauri --version
 vibecody/
 ├── Cargo.toml                    # Workspace root (9 members)
 ├── vibecli/vibecli-cli/          # VibeCLI binary crate
-│   ├── src/main.rs               # CLI entry, REPL loop, 80+ commands
+│   ├── src/main.rs               # CLI entry, REPL loop, 126 slash commands
 │   ├── src/tool_executor.rs      # Agent tool execution (file I/O, bash, search)
 │   ├── src/project_init.rs       # Smart project auto-detection
 │   ├── src/gateway.rs            # 18-platform messaging gateway + channel daemon
@@ -39,17 +39,17 @@ vibecody/
 │   ├── src/branch_agent.rs       # Agent-per-branch workflow
 │   ├── src/spec_pipeline.rs      # EARS spec-driven development
 │   ├── src/vm_orchestrator.rs    # Parallel VM agent orchestration
-│   └── skills/                   # 500+ skill files
+│   └── skills/                   # 599 skill files
 ├── vibeui/
 │   ├── src/                      # React + TypeScript frontend
 │   │   ├── App.tsx               # Root component, keyboard shortcuts
-│   │   └── components/           # 187 panel components
+│   │   └── components/           # 235+ panel components (plus 39 composites)
 │   ├── src-tauri/src/
-│   │   ├── lib.rs                # Tauri command registration (200+ commands)
+│   │   ├── lib.rs                # Tauri command registration (1,045+ commands)
 │   │   ├── commands.rs           # All Tauri command implementations
 │   │   └── agent_executor.rs     # Agent tool execution for VibeUI
 │   └── crates/
-│       ├── vibe-ai/              # AIProvider trait, agent loop, 23 providers
+│       ├── vibe-ai/              # AIProvider trait, agent loop, 22 providers
 │       ├── vibe-core/            # Text buffer, filesystem, git, search
 │       ├── vibe-lsp/             # LSP client
 │       ├── vibe-extensions/      # WASM extension system
@@ -132,7 +132,7 @@ npm run typecheck    # TypeScript type checking
 ### Running Tests
 
 ```bash
-# Full workspace (9,570 tests)
+# Full workspace (~10,535 tests)
 cargo test --workspace --exclude vibe-collab
 
 # Single crate with output
@@ -180,7 +180,7 @@ mod tests {
 
 ### AI Provider Trait
 
-All 23 AI providers implement `AIProvider` (in `vibe-ai/src/provider.rs`):
+All 22 AI providers implement `AIProvider` (in `vibe-ai/src/provider.rs`):
 
 ```rust
 #[async_trait]
@@ -224,7 +224,7 @@ Two executor implementations:
 
 ### Tauri Commands
 
-VibeUI exposes 200+ Tauri commands. Each is a `#[tauri::command]` function in `commands.rs`:
+VibeUI exposes 1,045+ Tauri commands. Each is a `#[tauri::command]` function in `commands.rs`:
 
 ```rust
 #[tauri::command]
@@ -375,7 +375,7 @@ docker build -t vibecody/vibecli:latest .
 
 | Module | Lines | Tests | Purpose |
 |--------|-------|-------|---------|
-| `main.rs` | ~7,800 | — | CLI entry, REPL loop, 80+ command handlers |
+| `main.rs` | ~7,800 | — | CLI entry, REPL loop, 126 slash command handlers |
 | `tool_executor.rs` | ~1,800 | 28+ | Agent tool execution with sandbox |
 | `agent.rs` | ~1,500 | 40+ | Agent loop, circuit breaker, system prompt |
 | `tools.rs` | ~500 | 20+ | Tool definitions, XML parsing, think tool |

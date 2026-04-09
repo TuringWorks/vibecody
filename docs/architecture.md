@@ -17,9 +17,9 @@ VibeCody is a Rust workspace (monorepo) with 9 crate members: three binary appli
 vibecody/                          ← Cargo workspace root
 ├── vibecli/
 │   └── vibecli-cli/               ← Binary: terminal assistant
-│       └── skills/                ← 568 skill files (25+ categories)
+│       └── skills/                ← 599 skill files (25+ categories)
 ├── vibeui/
-│   ├── src/                       ← React + TypeScript frontend (187 panel components)
+│   ├── src/                       ← React + TypeScript frontend (235+ panel components, plus 39 composites)
 │   ├── src-tauri/                 ← Binary: Tauri desktop app
 │   └── crates/
 │       ├── vibe-core/             ← Library: editor primitives
@@ -212,7 +212,7 @@ let config = ProviderConfig::new("claude".into(), "claude-3-5-sonnet-20241022".i
 
 ### Provider Implementations
 
-All 23 providers follow the same pattern:
+All 22 providers follow the same pattern:
 
 1. Send HTTP request to provider API using `reqwest`
 2. For `chat()`: wait for full response
@@ -237,6 +237,11 @@ All 23 providers follow the same pattern:
 | DeepSeek | OpenAI-compatible | `https://api.deepseek.com` |
 | Zhipu | REST + SSE streaming | `https://open.bigmodel.cn` |
 | Vercel AI | REST + SSE streaming | User-configured endpoint |
+| Fireworks | OpenAI-compatible | `https://api.fireworks.ai` |
+| Minimax | REST + SSE streaming | `https://api.minimax.chat` |
+| Perplexity | OpenAI-compatible | `https://api.perplexity.ai` |
+| SambaNova | OpenAI-compatible | `https://api.sambanova.ai` |
+| Together | OpenAI-compatible | `https://api.together.xyz` |
 | Failover | Meta-provider | Wraps multiple providers with auto-fallback |
 
 ### `ChatEngine`
@@ -519,12 +524,12 @@ async fn ai_chat(
 
 ## Testing Strategy
 
-**9,570 unit tests** across the workspace (0 failures).
+**~10,535 unit tests** across the workspace (0 failures).
 
 | Crate | Tests | Key coverage areas |
 |-------|-------|--------------------|
 | `vibecli` | 5,262+ | session store, serve, config, review, workflow, REPL, redteam, gateway, channel daemon, branch agent, spec pipeline, VM orchestrator, transform, marketplace, background agents, TUI, security scan, automations, counsel, superbrain, web client, open memory, auto research, blue/purple team, IDP, all feature modules |
-| `vibe-ai` | 1,020+ | 23 providers, tools, trace, hooks, policy, skills, agent, multi-agent, MCP, agent teams |
+| `vibe-ai` | 1,020+ | 22 providers, tools, trace, hooks, policy, skills, agent, multi-agent, MCP, agent teams |
 | `vibe-core` | 370+ | buffer, git, diff, context, file system, workspace, search, terminal, index/embeddings, executor |
 | `vibe-ui` | 230+ | Tauri commands, coverage, cost, flow, agent executor, shadow workspace |
 | `vibe-lsp` | 74 | LSP client, features, manager |

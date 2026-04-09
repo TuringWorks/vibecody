@@ -21,7 +21,7 @@ permalink: /vibeui/
                            │ Tauri IPC (invoke / events)
 ┌──────────────────────────▼───────────────────────────────────────┐
 │                   Tauri Rust Backend                             │
-│  commands.rs    — 200+ Tauri commands (files, git, AI, agent …)  │
+│  commands.rs    — 1,045+ Tauri commands (files, git, AI, agent …) │
 │  agent_executor — ToolExecutorTrait for agent tool calls         │
 │  flow.rs        — Flow Awareness Engine (activity tracking)      │
 │  memory.rs      — Workspace + global AI rules (.vibeui.md)       │
