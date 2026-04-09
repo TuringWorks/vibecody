@@ -199,6 +199,7 @@ const STATUS_COLORS: Record<string, string> = {
   paused: "#ce93d8",
   completed: "#81c784",
   failed: "#ef5350",
+  partial: "#ffb74d",
   cancelled: "#757575",
   idle: "#90a4ae",
   working: "#4fc3f7",

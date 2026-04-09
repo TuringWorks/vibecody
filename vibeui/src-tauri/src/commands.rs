@@ -3998,14 +3998,43 @@ pub async fn start_agent_task(
     }
     let sub_agents_tracker = state.sub_agents.clone();
 
-    // Spawn the agent loop and store its abort handle for stop_agent_task
+    // ── Checkpoint infrastructure ────────────────────────────────────────
+    // Persist agent state after every step so we can resume partial runs.
+    let checkpoint_dir = workspace_root.join(".vibe").join("agent-runs");
+    let _ = std::fs::create_dir_all(&checkpoint_dir);
+    let checkpoint_path = checkpoint_dir.join(format!("{}.json", &agent_task_id));
+    let checkpoint = Arc::new(tokio::sync::Mutex::new(serde_json::json!({
+        "id": agent_task_id,
+        "task": task,
+        "provider": provider,
+        "approval_policy": approval_policy,
+        "status": "working",
+        "steps": [],
+        "plan": null,
+        "remaining_plan": [],
+        "created_at": chrono::Utc::now().to_rfc3339(),
+    })));
+    // Write initial checkpoint
+    {
+        let ck = checkpoint.lock().await;
+        let _ = std::fs::write(&checkpoint_path, serde_json::to_string_pretty(&*ck).unwrap_or_default());
+    }
+    let ck_arc = checkpoint.clone();
+    let ck_path = checkpoint_path.clone();
+
+    // Spawn the agent loop and store its abort handle for stop_agent_task.
+    // We capture the JoinHandle so the bridge can detect panics / aborts.
     let join = tokio::spawn(async move {
-        let _ = agent.run(&task, context, event_tx).await;
+        agent.run(&task, context, event_tx).await
     });
     *abort_handle_slot.lock().await = Some(join.abort_handle());
 
-    // Bridge agent events → Tauri events
+    // Bridge agent events → Tauri events.
+    // When the channel closes without having received Complete/Error/Partial
+    // (e.g. the agent task panicked or was aborted), we mark the sub-agent
+    // as "failed" instead of leaving it stuck in "working".
     tokio::spawn(async move {
+        let mut got_terminal = false;
         while let Some(event) = event_rx.recv().await {
             match event {
                 AgentEvent::StreamChunk(text) => {
@@ -4017,7 +4046,6 @@ pub async fn start_agent_task(
                         summary: call.summary(),
                         is_destructive: call.is_destructive(),
                     };
-                    // Store for respond_to_agent_approval
                     {
                         let mut slot = agent_pending.lock().await;
                         *slot = Some(PendingAgentCall { call, result_tx });
@@ -4034,10 +4062,36 @@ pub async fn start_agent_task(
                         approved: step.approved,
                     };
                     let _ = app_handle.emit("agent:step", payload);
+                    // Checkpoint: persist step
+                    {
+                        let mut ck = ck_arc.lock().await;
+                        if let Some(steps) = ck.get_mut("steps").and_then(|v| v.as_array_mut()) {
+                            steps.push(serde_json::json!({
+                                "step_num": step.step_num,
+                                "tool_name": step.tool_call.name(),
+                                "tool_summary": step.tool_call.summary(),
+                                "success": step.tool_result.success,
+                                "output_preview": &step.tool_result.output[..step.tool_result.output.len().min(500)],
+                            }));
+                        }
+                        // Track plan if this was a plan_task call
+                        if step.tool_call.name() == "plan_task" {
+                            let plan_lines: Vec<&str> = step.tool_result.output
+                                .lines().filter(|l| !l.trim().is_empty()).collect();
+                            ck["plan"] = serde_json::json!(plan_lines);
+                            ck["remaining_plan"] = serde_json::json!(plan_lines);
+                        } else if ck.get("remaining_plan").and_then(|v| v.as_array()).map(|a| !a.is_empty()).unwrap_or(false) {
+                            // Pop the first remaining plan item for each non-plan step
+                            if let Some(arr) = ck.get_mut("remaining_plan").and_then(|v| v.as_array_mut()) {
+                                if !arr.is_empty() { arr.remove(0); }
+                            }
+                        }
+                        let _ = std::fs::write(&ck_path, serde_json::to_string_pretty(&*ck).unwrap_or_default());
+                    }
                 }
                 AgentEvent::Complete(summary) => {
+                    got_terminal = true;
                     let _ = app_handle.emit("agent:complete", summary.clone());
-                    // Estimate tokens from summary length (4 chars ≈ 1 token)
                     let estimated_tokens = (summary.len() as u64 / 4).max(1);
                     record_agent_run_stats(&active_mode_for_stats, estimated_tokens);
                     {
@@ -4045,20 +4099,68 @@ pub async fn start_agent_task(
                         if let Some(a) = agents.iter_mut().find(|a| a.id == agent_task_id) {
                             a.status = "completed".to_string();
                             a.completed_at = Some(chrono::Utc::now().to_rfc3339());
-                            a.result_summary = Some(summary);
+                            a.result_summary = Some(summary.clone());
                             a.tokens_used = Some(estimated_tokens);
                         }
+                    }
+                    // Checkpoint: mark completed
+                    {
+                        let mut ck = ck_arc.lock().await;
+                        ck["status"] = serde_json::json!("completed");
+                        ck["result_summary"] = serde_json::json!(summary);
+                        ck["completed_at"] = serde_json::json!(chrono::Utc::now().to_rfc3339());
+                        let _ = std::fs::write(&ck_path, serde_json::to_string_pretty(&*ck).unwrap_or_default());
+                    }
+                    break;
+                }
+                AgentEvent::Partial { summary, steps_completed, steps_planned, remaining_plan } => {
+                    got_terminal = true;
+                    let payload = serde_json::json!({
+                        "summary": &summary,
+                        "steps_completed": steps_completed,
+                        "steps_planned": steps_planned,
+                        "remaining_plan": &remaining_plan,
+                    });
+                    let _ = app_handle.emit("agent:partial", payload);
+                    let estimated_tokens = (summary.len() as u64 / 4).max(1);
+                    record_agent_run_stats(&active_mode_for_stats, estimated_tokens);
+                    {
+                        let mut agents = sub_agents_tracker.lock().await;
+                        if let Some(a) = agents.iter_mut().find(|a| a.id == agent_task_id) {
+                            a.status = "partial".to_string();
+                            a.completed_at = Some(chrono::Utc::now().to_rfc3339());
+                            a.result_summary = Some(summary.clone());
+                            a.tokens_used = Some(estimated_tokens);
+                        }
+                    }
+                    // Checkpoint: mark partial with remaining plan
+                    {
+                        let mut ck = ck_arc.lock().await;
+                        ck["status"] = serde_json::json!("partial");
+                        ck["result_summary"] = serde_json::json!(summary);
+                        ck["remaining_plan"] = serde_json::json!(remaining_plan);
+                        ck["completed_at"] = serde_json::json!(chrono::Utc::now().to_rfc3339());
+                        let _ = std::fs::write(&ck_path, serde_json::to_string_pretty(&*ck).unwrap_or_default());
                     }
                     break;
                 }
                 AgentEvent::Error(msg) => {
+                    got_terminal = true;
                     let _ = app_handle.emit("agent:error", msg.clone());
                     {
                         let mut agents = sub_agents_tracker.lock().await;
                         if let Some(a) = agents.iter_mut().find(|a| a.id == agent_task_id) {
                             a.status = "failed".to_string();
-                            a.error = Some(msg);
+                            a.error = Some(msg.clone());
                         }
+                    }
+                    // Checkpoint: mark failed
+                    {
+                        let mut ck = ck_arc.lock().await;
+                        ck["status"] = serde_json::json!("failed");
+                        ck["error"] = serde_json::json!(msg);
+                        ck["completed_at"] = serde_json::json!(chrono::Utc::now().to_rfc3339());
+                        let _ = std::fs::write(&ck_path, serde_json::to_string_pretty(&*ck).unwrap_or_default());
                     }
                     break;
                 }
@@ -4078,10 +4180,24 @@ pub async fn start_agent_task(
                     });
                     let _ = app_handle.emit("agent:circuit_break", payload);
                     if state == vibe_ai::agent::AgentHealthState::Blocked {
+                        got_terminal = true;
                         let _ = app_handle.emit("agent:error", format!("Agent blocked: {}", reason));
                         break;
                     }
                 }
+            }
+        }
+
+        // Safety net: if the channel closed without a terminal event, the agent
+        // task panicked, was aborted, or dropped the sender.  Mark as failed so
+        // the sub-agent doesn't stay stuck in "working" forever.
+        if !got_terminal {
+            let msg = "Agent stream ended without completion signal (possible crash or abort)".to_string();
+            let _ = app_handle.emit("agent:error", msg.clone());
+            let mut agents = sub_agents_tracker.lock().await;
+            if let Some(a) = agents.iter_mut().find(|a| a.id == agent_task_id) {
+                a.status = "failed".to_string();
+                a.error = Some(msg);
             }
         }
     });
@@ -4119,6 +4235,312 @@ pub async fn stop_agent_task(
         }
     }
     let _ = app_handle.emit("agent:error", "Agent stopped by user");
+    Ok(())
+}
+
+/// List resumable agent checkpoints (partial or failed runs).
+#[tauri::command]
+pub async fn list_agent_checkpoints(
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let workspace_root = {
+        let ws = state.workspace.lock().await;
+        ws.folders().first().cloned().unwrap_or_else(|| PathBuf::from("."))
+    };
+    let dir = workspace_root.join(".vibe").join("agent-runs");
+    let mut runs: Vec<serde_json::Value> = Vec::new();
+    if dir.is_dir() {
+        if let Ok(entries) = std::fs::read_dir(&dir) {
+            for entry in entries.flatten() {
+                if entry.path().extension().and_then(|e| e.to_str()) == Some("json") {
+                    if let Ok(data) = std::fs::read_to_string(entry.path()) {
+                        if let Ok(val) = serde_json::from_str::<serde_json::Value>(&data) {
+                            let status = val.get("status").and_then(|v| v.as_str()).unwrap_or("");
+                            if status == "partial" || status == "failed" {
+                                runs.push(val);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Ok(serde_json::json!(runs))
+}
+
+/// Resume a partial/failed agent run from its checkpoint.
+/// Reads the checkpoint, constructs a continuation prompt with the
+/// remaining plan items and context from completed steps, then starts
+/// a new agent run.
+#[tauri::command]
+pub async fn resume_agent_task(
+    checkpoint_id: String,
+    app_handle: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    let workspace_root = {
+        let ws = state.workspace.lock().await;
+        ws.folders().first().cloned().unwrap_or_else(|| PathBuf::from("."))
+    };
+    let ck_path = workspace_root.join(".vibe").join("agent-runs").join(format!("{}.json", &checkpoint_id));
+    let ck_data = std::fs::read_to_string(&ck_path)
+        .map_err(|e| format!("Cannot read checkpoint {}: {}", checkpoint_id, e))?;
+    let ck: serde_json::Value = serde_json::from_str(&ck_data)
+        .map_err(|e| format!("Invalid checkpoint JSON: {}", e))?;
+
+    let original_task = ck.get("task").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let provider = ck.get("provider").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let approval_policy = ck.get("approval_policy").and_then(|v| v.as_str()).unwrap_or("auto-edit").to_string();
+
+    // Build continuation context from completed steps
+    let steps = ck.get("steps").and_then(|v| v.as_array()).cloned().unwrap_or_default();
+    let remaining = ck.get("remaining_plan").and_then(|v| v.as_array()).cloned().unwrap_or_default();
+
+    let mut context_parts = vec![
+        format!("RESUMING INCOMPLETE TASK. Original task: {}", original_task),
+        format!("\n{} steps were completed previously:", steps.len()),
+    ];
+    for s in &steps {
+        let name = s.get("tool_name").and_then(|v| v.as_str()).unwrap_or("?");
+        let summary = s.get("tool_summary").and_then(|v| v.as_str()).unwrap_or("");
+        let ok = s.get("success").and_then(|v| v.as_bool()).unwrap_or(false);
+        context_parts.push(format!("  - {} {} ({})", if ok { "✓" } else { "✗" }, name, summary));
+    }
+    if !remaining.is_empty() {
+        context_parts.push(format!("\nRemaining plan items to execute ({}):", remaining.len()));
+        for (i, item) in remaining.iter().enumerate() {
+            let text = item.as_str().unwrap_or("?");
+            context_parts.push(format!("  {}. {}", i + 1, text));
+        }
+    }
+    context_parts.push("\nContinue executing the remaining steps now. Do NOT re-do completed work.".to_string());
+
+    let continuation_task = context_parts.join("\n");
+
+    // Archive the old checkpoint
+    let archive_path = ck_path.with_extension("json.resumed");
+    let _ = std::fs::rename(&ck_path, &archive_path);
+
+    // Delegate to start_agent_task with the enriched task
+    start_agent_task(continuation_task, approval_policy, provider, app_handle, state).await
+}
+
+/// Decompose a task into independent chunks and run them in parallel.
+///
+/// Strategy: ask the LLM to split the task into N independent sub-tasks,
+/// then spawn each as a separate agent via the MultiAgentOrchestrator.
+/// Each chunk runs as its own sub-agent with full tool access.
+#[tauri::command]
+pub async fn start_parallel_agent_task(
+    task: String,
+    provider: String,
+    max_chunks: Option<usize>,
+    app_handle: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    use vibe_ai::{AgentLoop, AgentContext, ApprovalPolicy, AgentEvent};
+    use crate::agent_executor::TauriToolExecutor;
+
+    let max_chunks = max_chunks.unwrap_or(4).min(8);
+
+    // Get the AI provider
+    let provider_arc = {
+        let mut engine = state.chat_engine.lock().await;
+        engine.set_provider_by_name(&provider).map_err(|e| e.to_string())?;
+        engine.active_provider().ok_or("No active provider")?.clone()
+    };
+
+    let workspace_root = {
+        let ws = state.workspace.lock().await;
+        ws.folders().first().cloned().unwrap_or_else(|| PathBuf::from("."))
+    };
+
+    // Step 1: Ask the LLM to decompose the task into independent chunks.
+    let decompose_prompt = format!(
+        "You are a task decomposition assistant. Split the following task into {} or fewer \
+         independent sub-tasks that can be done IN PARALLEL (no dependencies between them). \
+         Each sub-task should be self-contained.\n\n\
+         Respond with ONLY a JSON array of strings, no markdown, no explanation:\n\
+         [\"sub-task 1 description\", \"sub-task 2 description\", ...]\n\n\
+         Task: {}",
+        max_chunks, task
+    );
+
+    let decompose_messages = vec![
+        vibe_ai::Message { role: vibe_ai::MessageRole::User, content: decompose_prompt },
+    ];
+    let decomposition = provider_arc.chat(&decompose_messages, None).await
+        .map_err(|e| format!("Failed to decompose task: {}", e))?;
+
+    // Parse the JSON array
+    let chunks: Vec<String> = serde_json::from_str(&decomposition.trim_matches(|c: char| c == '`' || c.is_whitespace()))
+        .or_else(|_| {
+            // Try stripping markdown code block
+            let cleaned = decomposition
+                .trim()
+                .strip_prefix("```json").unwrap_or(&decomposition)
+                .strip_prefix("```").unwrap_or(&decomposition)
+                .strip_suffix("```").unwrap_or(&decomposition)
+                .trim();
+            serde_json::from_str(cleaned)
+        })
+        .unwrap_or_else(|_| vec![task.clone()]);
+
+    let chunk_count = chunks.len();
+    let _ = app_handle.emit("agent:chunk", format!(
+        "Decomposed into {} parallel chunks:\n{}\n\nStarting parallel execution...\n",
+        chunk_count,
+        chunks.iter().enumerate()
+            .map(|(i, c)| format!("  {}. {}", i + 1, c))
+            .collect::<Vec<_>>()
+            .join("\n")
+    ));
+
+    // Step 2: Spawn each chunk as its own sub-agent, running concurrently.
+    let sub_agents_tracker = state.sub_agents.clone();
+    let app = app_handle.clone();
+
+    tokio::spawn(async move {
+        let mut handles = Vec::new();
+
+        for (i, chunk_task) in chunks.iter().enumerate() {
+            let chunk_id = format!("parallel-{}-{}", i, chrono::Utc::now().timestamp_millis());
+            let chunk_task = chunk_task.clone();
+            let provider_arc = provider_arc.clone();
+            let workspace_root = workspace_root.clone();
+            let app = app.clone();
+            let sub_agents = sub_agents_tracker.clone();
+
+            // Register in dashboard
+            {
+                let dto = SubAgentDto {
+                    id: chunk_id.clone(),
+                    role: format!("chunk-{}", i + 1),
+                    status: "working".to_string(),
+                    context_files: vec![],
+                    provider: provider.clone(),
+                    task_description: Some(chunk_task.clone()),
+                    result_summary: None,
+                    findings: vec![],
+                    files_modified: vec![],
+                    created_at: chrono::Utc::now().to_rfc3339(),
+                    completed_at: None,
+                    error: None,
+                    tokens_used: None,
+                };
+                let mut agents = sub_agents.lock().await;
+                agents.push(dto);
+            }
+
+            let chunk_id_inner = chunk_id.clone();
+            let sub_agents_inner = sub_agents_tracker.clone();
+
+            let handle = tokio::spawn(async move {
+                let git_branch = vibe_core::git::get_current_branch(&workspace_root).ok();
+                let context = AgentContext {
+                    workspace_root: workspace_root.clone(),
+                    open_files: vec![],
+                    git_branch,
+                    git_diff_summary: None,
+                    flow_context: None,
+                    approved_plan: None,
+                    extra_skill_dirs: vec![],
+                    parent_session_id: None,
+                    depth: 0,
+                    active_agent_counter: None,
+                    team_bus: None,
+                    team_agent_id: None,
+                    project_summary: None,
+                    task_context_files: vec![],
+                    memory_context: None,
+                    auto_commit: false,
+                };
+
+                let executor = Arc::new(
+                    TauriToolExecutor::with_app(workspace_root.clone(), app.clone())
+                        .with_provider(provider_arc.clone()),
+                );
+                let agent = AgentLoop::new(provider_arc, ApprovalPolicy::FullAuto, executor)
+                    .with_policy(&workspace_root);
+
+                let (tx, mut rx) = tokio::sync::mpsc::channel::<AgentEvent>(64);
+                let agent_task = chunk_task.clone();
+                tokio::spawn(async move {
+                    let _ = agent.run(&agent_task, context, tx).await;
+                });
+
+                let mut summary = String::new();
+                let mut tokens: u64 = 0;
+                let mut success = false;
+                while let Some(event) = rx.recv().await {
+                    match event {
+                        AgentEvent::StreamChunk(text) => {
+                            tokens += (text.len() as u64) / 4;
+                            let _ = app.emit("agent:chunk", format!("[chunk-{}] {}", chunk_id_inner.split('-').nth(1).unwrap_or("?"), text));
+                        }
+                        AgentEvent::ToolCallExecuted(step) => {
+                            let _ = app.emit("agent:step", AgentStepPayload {
+                                step_num: step.step_num,
+                                tool_name: step.tool_call.name().to_string(),
+                                tool_summary: format!("[chunk-{}] {}", chunk_id_inner.split('-').nth(1).unwrap_or("?"), step.tool_call.summary()),
+                                output: step.tool_result.output.clone(),
+                                success: step.tool_result.success,
+                                approved: step.approved,
+                            });
+                        }
+                        AgentEvent::Complete(s) => {
+                            summary = s;
+                            success = true;
+                            break;
+                        }
+                        AgentEvent::Partial { summary: s, .. } => {
+                            summary = s;
+                            break;
+                        }
+                        AgentEvent::Error(e) => {
+                            summary = format!("Error: {}", e);
+                            break;
+                        }
+                        _ => {}
+                    }
+                }
+
+                // Update sub-agent status
+                {
+                    let mut agents = sub_agents_inner.lock().await;
+                    if let Some(a) = agents.iter_mut().find(|a| a.id == chunk_id_inner) {
+                        a.status = if success { "completed" } else { "failed" }.to_string();
+                        a.completed_at = Some(chrono::Utc::now().to_rfc3339());
+                        a.result_summary = Some(summary.clone());
+                        a.tokens_used = Some(tokens.max(1));
+                    }
+                }
+                (chunk_id_inner, success, summary)
+            });
+            handles.push(handle);
+        }
+
+        // Wait for all chunks to complete
+        let mut results: Vec<(String, bool, String)> = Vec::new();
+        for handle in handles {
+            if let Ok(r) = handle.await {
+                results.push(r);
+            }
+        }
+
+        let succeeded = results.iter().filter(|(_, ok, _)| *ok).count();
+        let summary = format!(
+            "Parallel execution complete: {}/{} chunks succeeded\n\n{}",
+            succeeded,
+            results.len(),
+            results.iter().enumerate()
+                .map(|(i, (_, ok, s))| format!("Chunk {}: {} — {}", i + 1, if *ok { "OK" } else { "FAIL" }, s.chars().take(200).collect::<String>()))
+                .collect::<Vec<_>>()
+                .join("\n"),
+        );
+        let _ = app.emit("agent:complete", summary);
+    });
+
     Ok(())
 }
 

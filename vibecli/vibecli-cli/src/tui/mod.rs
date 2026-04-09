@@ -675,6 +675,12 @@ async fn handle_chat_input(
                                     AppEvent::AgentChunk(reason)
                                 }
                             }
+                            AgentEvent::Partial { summary, steps_completed, steps_planned, .. } => {
+                                AppEvent::AgentComplete(format!(
+                                    "⚠ Partial ({}/{}): {}",
+                                    steps_completed, steps_planned, summary
+                                ))
+                            }
                         };
                         if tx_clone.send(app_ev).await.is_err() {
                             break;

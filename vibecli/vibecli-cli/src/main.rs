@@ -11353,6 +11353,7 @@ async fn run_agent_repl_with_context(
                 AgentEvent::ToolCallPending { call, .. } => serde_json::json!({"type":"tool_pending","tool":call.name()}),
                 AgentEvent::RetryableError { ref error, attempt, max_attempts, backoff_ms } => serde_json::json!({"type":"retry","error":error,"attempt":attempt,"max_attempts":max_attempts,"backoff_ms":backoff_ms}),
                 AgentEvent::CircuitBreak { ref state, ref reason } => serde_json::json!({"type":"circuit_break","state":state.to_string(),"reason":reason}),
+                AgentEvent::Partial { ref summary, steps_completed, steps_planned, ref remaining_plan } => serde_json::json!({"type":"partial","summary":summary,"steps_completed":steps_completed,"steps_planned":steps_planned,"remaining_plan":remaining_plan}),
             };
             println!("{}", obj);
             io::stdout().flush()?;
@@ -11362,7 +11363,7 @@ async fn run_agent_repl_with_context(
                     let result = executor.execute(&call).await;
                     let _ = result_tx.send(Some(result));
                 }
-                AgentEvent::Complete(_) | AgentEvent::Error(_) => break,
+                AgentEvent::Complete(_) | AgentEvent::Error(_) | AgentEvent::Partial { .. } => break,
                 AgentEvent::CircuitBreak { ref state, .. } if *state == vibe_ai::agent::AgentHealthState::Blocked => break,
                 _ => {}
             }
@@ -11493,6 +11494,28 @@ async fn run_agent_repl_with_context(
                         let _ = store.save();
                     });
                 }
+                break;
+            }
+            AgentEvent::Partial { summary, steps_completed, steps_planned, remaining_plan } => {
+                eprintln!(
+                    "\n  ⚠ Partial completion ({}/{}): {}",
+                    steps_completed, steps_planned, summary
+                );
+                if !remaining_plan.is_empty() {
+                    eprintln!("   Remaining steps:");
+                    for step in &remaining_plan {
+                        eprintln!("     - {}", step);
+                    }
+                }
+                if !completed_steps.is_empty() {
+                    println!("{}", crate::syntax::format_change_summary(&completed_steps));
+                }
+                println!("   Trace saved: {}", trace.path().display());
+                println!("   Resume with: vibecli --resume {}", trace.session_id());
+                if let Some(ref store) = db {
+                    let _ = store.finish_session(&session_id, "partial", Some(&summary));
+                }
+                let _ = trace_for_save.save_context(&context);
                 break;
             }
             AgentEvent::Error(e) => {

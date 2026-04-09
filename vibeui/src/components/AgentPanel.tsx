@@ -7,7 +7,7 @@ import { useToast } from "../hooks/useToast";
 import { Toaster } from "./Toaster";
 import { AgentUIRenderer, parseVibeUIBlocks, stripVibeUIBlocks } from "./AgentUIRenderer";
 import type { VibeUIAction } from "./AgentUIRenderer";
-import { Bot, Loader2, Square, Zap } from "lucide-react";
+import { Bot, GitBranch, Loader2, Square, Zap } from "lucide-react";
 
 interface AgentStep {
  step_num: number;
@@ -24,7 +24,7 @@ interface PendingCall {
  is_destructive: boolean;
 }
 
-type AgentStatus = "idle" | "running" | "complete" | "error";
+type AgentStatus = "idle" | "running" | "complete" | "partial" | "error";
 
 interface AgentPanelProps {
  provider: string;
@@ -40,6 +40,7 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  const [status, setStatus] = useState<AgentStatus>("idle");
  const [approvalPolicy, setApprovalPolicy] = useState("auto-edit");
  const [turboMode, setTurboMode] = useState(false);
+ const [parallelMode, setParallelMode] = useState(false);
  const [expandedSteps, setExpandedSteps] = useState<Set<number>>(new Set());
  const [copiedStep, setCopiedStep] = useState<number | null>(null);
  const feedEndRef = useRef<HTMLDivElement>(null);
@@ -159,6 +160,23 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  if (cancelled) { u4(); return; }
  unlisteners.push(u4);
 
+ const uPartial = await listen<{ summary: string; steps_completed: number; steps_planned: number; remaining_plan: string[] }>("agent:partial", (e) => {
+ const { summary, steps_completed, steps_planned, remaining_plan } = e.payload;
+ setStreaming(
+   `⚠ Partial completion (${steps_completed}/${steps_planned} steps done)\n\n${summary}` +
+   (remaining_plan.length > 0 ? `\n\nRemaining:\n${remaining_plan.map((s, i) => `  ${steps_completed + i + 1}. ${s}`).join("\n")}` : "")
+ );
+ setPending(null);
+ setStatus("partial");
+ flowContext.add({
+   kind: "agent_partial",
+   summary: `Partial: ${steps_completed}/${steps_planned} steps`,
+   detail: remaining_plan.join(", "),
+ });
+ });
+ if (cancelled) { uPartial(); return; }
+ unlisteners.push(uPartial);
+
  const u5 = await listen<string>("agent:error", (e) => {
  setStreaming((prev) => (prev ? prev + "\n\n" : "") + "Error: " + e.payload);
  setPending(null);
@@ -196,11 +214,19 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  setStreamMetrics(null);
 
  try {
- await invoke("start_agent_task", {
- task: task.trim(),
- approvalPolicy,
- provider,
- });
+ if (parallelMode) {
+   await invoke("start_parallel_agent_task", {
+     task: task.trim(),
+     provider,
+     maxChunks: 4,
+   });
+ } else {
+   await invoke("start_agent_task", {
+     task: task.trim(),
+     approvalPolicy,
+     provider,
+   });
+ }
  } catch (e) {
  setStatus("error");
  setStreaming(String(e));
@@ -283,10 +309,45 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  setPending(null);
  }, [approvalPolicy, provider, toast]);
 
+ /** Resume a partial/failed run from its checkpoint. */
+ const [lastCheckpointId, setLastCheckpointId] = useState<string | null>(null);
+ const resumeAgent = async () => {
+   if (!lastCheckpointId) return;
+   setStreaming("");
+   setPending(null);
+   setStatus("running");
+   streamStartMsRef.current = Date.now();
+   streamCharsRef.current = 0;
+   setStreamMetrics(null);
+   try {
+     await invoke("resume_agent_task", { checkpointId: lastCheckpointId });
+   } catch (e) {
+     setStatus("error");
+     setStreaming(String(e));
+   }
+ };
+
+ // Track the latest checkpoint id from agent:partial events so Resume works
+ useEffect(() => {
+   let cancelled = false;
+   (async () => {
+     const u = await listen<{ summary: string; steps_completed: number; steps_planned: number; remaining_plan: string[] }>("agent:partial", () => {
+       // The checkpoint id is the agent task id — extract from sub-agents
+       invoke<{ id: string; status: string }[]>("list_sub_agents").then((agents) => {
+         const partial = agents?.find((a: { status: string }) => a.status === "partial");
+         if (partial) setLastCheckpointId(partial.id);
+       }).catch(() => {});
+     });
+     if (cancelled) { u(); return; }
+     return () => { cancelled = true; u(); };
+   })();
+ }, []);
+
  const isRunning = status === "running";
 
  const statusLabel = status === "running" ? "Agent is running"
  : status === "complete" ? "Agent task complete"
+ : status === "partial" ? "Agent partially complete — can resume"
  : status === "error" ? "Agent encountered an error"
  : "Agent idle";
 
@@ -351,6 +412,27 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Zap size={14} strokeWidth={1.5} />Turbo</span>
  </button>
 
+ {/* Parallel Mode toggle */}
+ <button
+ onClick={() => setParallelMode(!parallelMode)}
+ disabled={isRunning}
+ title={parallelMode ? "Parallel Mode ON — task will be split into chunks and run concurrently" : "Parallel Mode OFF — single agent executes sequentially"}
+ style={{
+ padding: "4px 8px",
+ fontSize: "13px",
+ background: parallelMode ? "var(--info-color, #6c8cff)" : "var(--bg-tertiary)",
+ color: parallelMode ? "var(--bg-primary)" : "var(--text-secondary)",
+ border: `1px solid ${parallelMode ? "var(--info-color, #6c8cff)" : "var(--border-color)"}`,
+ borderRadius: "4px",
+ cursor: isRunning ? "not-allowed" : "pointer",
+ fontWeight: parallelMode ? 700 : 400,
+ transition: "all 0.15s",
+ whiteSpace: "nowrap",
+ }}
+ >
+ <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><GitBranch size={14} strokeWidth={1.5} />Parallel</span>
+ </button>
+
  <button
  className="btn-primary"
  onClick={startAgent}
@@ -381,7 +463,17 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
    ⟳ Retry
  </button>
  )}
- {(status === "complete" || status === "error") && (
+ {status === "partial" && lastCheckpointId && (
+ <button
+   onClick={resumeAgent}
+   className="panel-btn panel-btn-primary panel-btn-sm"
+   style={{ whiteSpace: "nowrap" }}
+   title="Resume from last checkpoint — continues remaining plan steps"
+ >
+   ▶ Resume
+ </button>
+ )}
+ {(status === "complete" || status === "error" || status === "partial") && (
  <button className="btn-secondary" onClick={reset} style={{ whiteSpace: "nowrap" }}>
  ↺ Reset
  </button>

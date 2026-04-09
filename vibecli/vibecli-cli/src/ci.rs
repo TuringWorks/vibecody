@@ -443,6 +443,17 @@ pub async fn run_ci(
                     break;
                 }
             }
+            AgentEvent::Partial { summary: partial_summary, steps_completed, steps_planned, .. } => {
+                if verbose {
+                    eprintln!(
+                        "  ⚠ Partial completion ({}/{}): {}",
+                        steps_completed, steps_planned, partial_summary
+                    );
+                }
+                summary = partial_summary;
+                outcome = CiOutcome::Partial;
+                break;
+            }
         }
     }
 

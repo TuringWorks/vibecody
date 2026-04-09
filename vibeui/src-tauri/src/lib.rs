@@ -330,6 +330,9 @@ pub fn run() {
             // Phase 4 commands — Agent Mode
             commands::start_agent_task,
             commands::stop_agent_task,
+            commands::resume_agent_task,
+            commands::list_agent_checkpoints,
+            commands::start_parallel_agent_task,
             commands::respond_to_agent_approval,
             // Phase 4 commands — Memory / Rules
             commands::get_vibeui_rules,

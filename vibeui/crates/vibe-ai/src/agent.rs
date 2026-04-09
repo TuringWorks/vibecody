@@ -378,6 +378,14 @@ pub enum AgentEvent {
     ToolCallExecuted(AgentStep),
     /// The agent has completed the task.
     Complete(String),
+    /// The agent stopped before finishing all planned work.
+    /// Contains the partial summary and the remaining plan items.
+    Partial {
+        summary: String,
+        steps_completed: usize,
+        steps_planned: usize,
+        remaining_plan: Vec<String>,
+    },
     /// An unrecoverable error occurred.
     Error(String),
     /// A retryable error occurred — agent will retry after backoff.
@@ -688,6 +696,16 @@ impl AgentLoop {
         };
         messages.push(Message { role: MessageRole::User, content: user_content });
 
+        // ── Plan tracking ─────────────────────────────────────────────────
+        // When the model calls `plan_task`, we parse the step lines so we
+        // can detect premature termination (prose-only turn while the plan
+        // has outstanding items).  `consecutive_prose_turns` counts how many
+        // consecutive turns produced no tool call; after 2 we give up and
+        // emit Partial instead of Complete.
+        let mut plan_steps: Vec<String> = Vec::new();
+        let mut plan_steps_done: usize = 0;
+        let mut consecutive_prose_turns: usize = 0;
+
         for step in 0..self.max_steps {
             // ── 0. Context window safety ──────────────────────────────────────
             // Prune middle messages to keep within the provider's context limit.
@@ -792,8 +810,67 @@ impl AgentLoop {
                     });
                     continue;
                 }
-                // Model responded with prose on a later step — treat as final answer.
-                // Fire Stop hook
+
+                consecutive_prose_turns += 1;
+
+                // If there's an active plan with unfinished items, re-prompt
+                // the model to continue executing instead of exiting.
+                let plan_has_remaining = !plan_steps.is_empty() && plan_steps_done < plan_steps.len();
+                if plan_has_remaining && consecutive_prose_turns <= 2 {
+                    let remaining: Vec<String> = plan_steps.iter()
+                        .skip(plan_steps_done)
+                        .cloned()
+                        .collect();
+                    tracing::warn!(
+                        remaining_steps = remaining.len(),
+                        consecutive_prose = consecutive_prose_turns,
+                        "Model emitted prose with no tool call but plan has remaining steps — re-prompting",
+                    );
+                    messages.push(Message {
+                        role: MessageRole::Assistant,
+                        content: accumulated,
+                    });
+                    messages.push(Message {
+                        role: MessageRole::User,
+                        content: format!(
+                            "You still have {} unfinished plan steps. Do NOT summarize or stop — execute the next step now using a tool call:\n{}",
+                            remaining.len(),
+                            remaining.iter().enumerate()
+                                .map(|(i, s)| format!("  {}. {}", plan_steps_done + i + 1, s))
+                                .collect::<Vec<_>>()
+                                .join("\n"),
+                        ),
+                    });
+                    continue;
+                }
+
+                // Plan still has items but we exhausted re-prompt attempts → partial.
+                if plan_has_remaining {
+                    let remaining: Vec<String> = plan_steps.iter()
+                        .skip(plan_steps_done)
+                        .cloned()
+                        .collect();
+                    tracing::warn!(
+                        done = plan_steps_done,
+                        total = plan_steps.len(),
+                        "Agent stopped with unfinished plan steps — emitting Partial",
+                    );
+                    if let Some(hooks) = &self.hooks {
+                        hooks.run(&HookEvent::Stop {
+                            reason: "partial_plan".to_string(),
+                            session_id: session_id.clone(),
+                        }).await;
+                    }
+                    let _ = event_tx.send(AgentEvent::Partial {
+                        summary: accumulated,
+                        steps_completed: plan_steps_done,
+                        steps_planned: plan_steps.len(),
+                        remaining_plan: remaining,
+                    }).await;
+                    return Ok(());
+                }
+
+                // No active plan — prose is the genuine final answer.
                 if let Some(hooks) = &self.hooks {
                     let _hook_span = tracing::info_span!(
                         "agent.hook",
@@ -809,6 +886,9 @@ impl AgentLoop {
                 let _ = event_tx.send(AgentEvent::Complete(accumulated)).await;
                 return Ok(());
             }
+
+            // Reset consecutive prose counter on any successful tool call turn
+            consecutive_prose_turns = 0;
 
             messages.push(Message {
                 role: MessageRole::Assistant,
@@ -998,6 +1078,21 @@ impl AgentLoop {
                 }
             };
 
+            // ── Track plan progress ──────────────────────────────────────────
+            // When a plan_task call succeeds, parse the step list for progress
+            // tracking.  For all other non-plan/non-think calls, count them
+            // towards plan completion.
+            if let ToolCall::PlanTask { steps } = &call {
+                plan_steps = steps.lines()
+                    .map(|l| l.trim().to_string())
+                    .filter(|l| !l.is_empty())
+                    .collect();
+                plan_steps_done = 0;
+                tracing::info!(plan_items = plan_steps.len(), "Agent plan registered");
+            } else if !call.is_think() && !plan_steps.is_empty() {
+                plan_steps_done += 1;
+            }
+
             // ── 3c. PostToolUse hook ──────────────────────────────────────────
             if let Some(hooks) = &self.hooks {
                 let _hook_span = tracing::info_span!(
@@ -1101,12 +1196,32 @@ impl AgentLoop {
         }
 
         tracing::warn!(max_steps = self.max_steps, "Agent reached maximum step limit");
-        let _ = event_tx
-            .send(AgentEvent::Error(format!(
-                "Agent reached maximum step limit ({})",
-                self.max_steps
-            )))
-            .await;
+        // If there's an active plan with unfinished items, emit Partial so the
+        // frontend can offer a Resume button instead of showing a hard error.
+        if !plan_steps.is_empty() && plan_steps_done < plan_steps.len() {
+            let remaining: Vec<String> = plan_steps.iter()
+                .skip(plan_steps_done)
+                .cloned()
+                .collect();
+            let _ = event_tx
+                .send(AgentEvent::Partial {
+                    summary: format!(
+                        "Agent reached step limit ({}) with {}/{} plan items done",
+                        self.max_steps, plan_steps_done, plan_steps.len()
+                    ),
+                    steps_completed: plan_steps_done,
+                    steps_planned: plan_steps.len(),
+                    remaining_plan: remaining,
+                })
+                .await;
+        } else {
+            let _ = event_tx
+                .send(AgentEvent::Error(format!(
+                    "Agent reached maximum step limit ({})",
+                    self.max_steps
+                )))
+                .await;
+        }
         Ok(())
     }
 

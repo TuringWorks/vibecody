@@ -14,6 +14,7 @@ export type FlowEventKind =
   | "inline_generate" // Cmd+K code generation at cursor
   | "agent_step"    // agent executed a tool call
   | "agent_complete"// agent finished a task
+  | "agent_partial" // agent stopped with incomplete plan
   | "terminal_cmd"  // user ran a command in the terminal
   | "file_edit";    // user directly edited a file
 

@@ -1187,6 +1187,16 @@ async fn run_agent(
                     break;
                 }
             }
+            AgentEvent::Partial { summary, steps_completed, steps_planned, remaining_plan } => {
+                log.push(format!(
+                    "\n⚠ Partial ({}/{}): {}",
+                    steps_completed, steps_planned, summary
+                ));
+                if !remaining_plan.is_empty() {
+                    log.push(format!("   Remaining: {}", remaining_plan.join(", ")));
+                }
+                break;
+            }
         }
     }
 

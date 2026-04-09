@@ -17,6 +17,7 @@ const KIND_ICONS: Record<FlowEventKind, string> = {
  inline_generate: "",
  agent_step: "",
  agent_complete: "",
+ agent_partial: "",
  terminal_cmd: "",
  file_edit: "",
 };
@@ -27,6 +28,7 @@ const KIND_LABELS: Record<FlowEventKind, string> = {
  inline_generate: "Generate",
  agent_step: "Agent Step",
  agent_complete: "Agent Done",
+ agent_partial: "Agent Partial",
  terminal_cmd: "Terminal",
  file_edit: "File Edit",
 };

@@ -360,6 +360,16 @@ async fn run_single_agent(
                 }).await;
                 break;
             }
+            AgentEvent::Partial { summary, steps_completed, steps_planned, .. } => {
+                final_summary = format!("{} (completed {}/{} steps)", summary, steps_completed, steps_planned);
+                // Treat partial as a soft failure — work was done but not all of it
+                let _ = event_tx.send(OrchestratorEvent::AgentComplete {
+                    id,
+                    summary: final_summary.clone(),
+                    branch: branch.clone(),
+                }).await;
+                break;
+            }
             AgentEvent::Error(err) => {
                 final_summary = err.clone();
                 let _ = event_tx.send(OrchestratorEvent::AgentError { id, error: err }).await;
