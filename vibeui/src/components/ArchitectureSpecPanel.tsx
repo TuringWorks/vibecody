@@ -3,12 +3,13 @@
  *
  * Workflow:
  *  1. "Generate from Codebase" scans the workspace → draft artifacts for all 5 views.
- *  2. TOGAF: expand each phase → Approve / Request Review / Revoke per artifact.
- *  3. Zachman: 6×6 matrix with generated cell content, maturity colour coding.
- *  4. C4 Model: element list (Person / System / Container / Component) + relationships.
- *  5. ADRs: generated decision records + create-your-own form; Accept / Deprecate.
- *  6. Governance: rule list with severity badges; run compliance check via CLI.
- *  7. All data persisted to WorkspaceStore (<workspace>/.vibecli/workspace.db).
+ *  2. TOGAF: expand each phase → edit content inline → Approve / Review / Revoke.
+ *  3. Zachman: 6×6 scrollable matrix; click any cell to edit its content.
+ *  4. C4 Model: element list with inline description/technology editing.
+ *  5. ADRs: inline editing of context / decision / consequences + create form.
+ *  6. Governance: inline description editing; generate compliance report.
+ *  7. All report buttons generate content from loaded spec (no CLI required).
+ *  8. All data persisted to WorkspaceStore (<workspace>/.vibecli/workspace.db).
  */
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
@@ -103,52 +104,117 @@ interface Props { workspacePath?: string | null; }
 export default function ArchitectureSpecPanel({ workspacePath }: Props) {
   const [tab, setTab]               = useState<NavTab>("togaf");
   const [spec, setSpec]             = useState<ArchSpec | null>(null);
+  const [localSpec, setLocalSpec]   = useState<ArchSpec | null>(null); // editable copy
+  const [dirty, setDirty]           = useState(false);
   const [loading, setLoading]       = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [saving, setSaving]         = useState(false);
   const [error, setError]           = useState("");
-  const [expandedPhase, setExpandedPhase]   = useState<string | null>(null);
-  const [statusBusy, setStatusBusy]         = useState<string | null>(null);
-  const [expandedC4, setExpandedC4]         = useState<string | null>(null);
+  const [expandedPhase, setExpandedPhase] = useState<string | null>(null);
+  const [statusBusy, setStatusBusy]       = useState<string | null>(null);
+  const [expandedC4, setExpandedC4]       = useState<string | null>(null);
+  const [editingCell, setEditingCell]     = useState<string | null>(null); // "pi:ai"
 
   // ADR form state
-  const [adrTitle, setAdrTitle]         = useState("");
-  const [adrContext, setAdrContext]     = useState("");
-  const [adrDecision, setAdrDecision]   = useState("");
-  const [adrConseq, setAdrConseq]       = useState("");
-  const [adrBusy, setAdrBusy]           = useState(false);
+  const [adrTitle, setAdrTitle]       = useState("");
+  const [adrContext, setAdrContext]   = useState("");
+  const [adrDecision, setAdrDecision] = useState("");
+  const [adrConseq, setAdrConseq]     = useState("");
+  const [adrBusy, setAdrBusy]         = useState(false);
 
-  // CLI report state (Zachman / C4 / Governance tabs)
-  const [cliLoading, setCliLoading] = useState(false);
-  const [cliError, setCliError]     = useState("");
-  const [report, setReport]         = useState("");
+  // Report pane (editable text output)
+  const [report, setReport]       = useState("");
+  const [reportLabel, setReportLabel] = useState("");
 
   // ── Load ─────────────────────────────────────────────────────────────────
   const loadSpec = useCallback(async () => {
     if (!workspacePath) return;
     setLoading(true); setError("");
-    try { setSpec(await invoke<ArchSpec>("archspec_load", { workspacePath })); }
-    catch (e) { setError(String(e)); }
+    try {
+      const s = await invoke<ArchSpec>("archspec_load", { workspacePath });
+      setSpec(s); setLocalSpec(s); setDirty(false);
+    } catch (e) { setError(String(e)); }
     finally { setLoading(false); }
   }, [workspacePath]);
 
   useEffect(() => { loadSpec(); }, [loadSpec]);
+
+  // ── Apply remote spec update ──────────────────────────────────────────────
+  const applySpec = (s: ArchSpec) => { setSpec(s); setLocalSpec(s); setDirty(false); };
 
   // ── Generate ─────────────────────────────────────────────────────────────
   const handleGenerate = async () => {
     if (!workspacePath) { setError("No workspace open."); return; }
     setGenerating(true); setError("");
     try {
-      setSpec(await invoke<ArchSpec>("archspec_generate", { workspacePath }));
+      applySpec(await invoke<ArchSpec>("archspec_generate", { workspacePath }));
       setExpandedPhase(null);
     } catch (e) { setError(String(e)); }
     finally { setGenerating(false); }
   };
 
-  // ── TOGAF artifact status ─────────────────────────────────────────────────
+  // ── Local edits (mutate localSpec) ───────────────────────────────────────
+  const patchLocal = (updater: (s: ArchSpec) => ArchSpec) => {
+    setLocalSpec(prev => { if (!prev) return prev; const n = updater(prev); setDirty(true); return n; });
+  };
+
+  const patchArtifact = (id: string, field: "content" | "description", value: string) =>
+    patchLocal(s => ({
+      ...s,
+      togaf: {
+        ...s.togaf,
+        artifacts: s.togaf.artifacts.map(a => a.id === id ? { ...a, [field]: value } : a),
+      },
+    }));
+
+  const patchZachmanCell = (key: string, field: "content" | "maturity", value: string | number) =>
+    patchLocal(s => ({
+      ...s,
+      zachman: {
+        ...s.zachman,
+        cells: {
+          ...s.zachman.cells,
+          [key]: { ...(s.zachman.cells[key] ?? { perspective: "", aspect: "", content: "", artifacts: [], maturity: 0 }), [field]: value },
+        },
+      },
+    }));
+
+  const patchC4Element = (id: string, field: "description" | "technology", value: string) =>
+    patchLocal(s => ({
+      ...s,
+      c4: { ...s.c4, elements: s.c4.elements.map(e => e.id === id ? { ...e, [field]: value } : e) },
+    }));
+
+  const patchAdr = (id: string, field: "context" | "decision" | "consequences" | "title", value: string | string[]) =>
+    patchLocal(s => ({
+      ...s,
+      adrs: { ...s.adrs, records: s.adrs.records.map(a => a.id === id ? { ...a, [field]: value } : a) },
+    }));
+
+  const patchRule = (id: string, field: "description" | "check_fn_description", value: string) =>
+    patchLocal(s => ({
+      ...s,
+      governance: { ...s.governance, rules: s.governance.rules.map(r => r.id === id ? { ...r, [field]: value } : r) },
+    }));
+
+  // ── Save edits ────────────────────────────────────────────────────────────
+  const handleSave = async () => {
+    if (!workspacePath || !localSpec) return;
+    setSaving(true); setError("");
+    try {
+      applySpec(await invoke<ArchSpec>("archspec_save", {
+        workspacePath,
+        specJson: JSON.stringify(localSpec),
+      }));
+    } catch (e) { setError(String(e)); }
+    finally { setSaving(false); }
+  };
+
+  // ── TOGAF artifact status (server-side) ───────────────────────────────────
   const setArtifactStatus = async (artifactId: string, status: ArtifactStatus) => {
     if (!workspacePath) return;
     setStatusBusy(artifactId);
-    try { setSpec(await invoke<ArchSpec>("archspec_set_artifact_status", { workspacePath, artifactId, status })); }
+    try { applySpec(await invoke<ArchSpec>("archspec_set_artifact_status", { workspacePath, artifactId, status })); }
     catch (e) { setError(String(e)); }
     finally { setStatusBusy(null); }
   };
@@ -157,7 +223,7 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
   const setAdrStatus = async (adrId: string, status: string) => {
     if (!workspacePath) return;
     setStatusBusy(adrId);
-    try { setSpec(await invoke<ArchSpec>("archspec_set_adr_status", { workspacePath, adrId, status })); }
+    try { applySpec(await invoke<ArchSpec>("archspec_set_adr_status", { workspacePath, adrId, status })); }
     catch (e) { setError(String(e)); }
     finally { setStatusBusy(null); }
   };
@@ -168,7 +234,7 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
     setAdrBusy(true);
     try {
       const consequences = adrConseq.split("\n").map(s => s.trim()).filter(Boolean);
-      setSpec(await invoke<ArchSpec>("archspec_create_adr", {
+      applySpec(await invoke<ArchSpec>("archspec_create_adr", {
         workspacePath, title: adrTitle, context: adrContext,
         decision: adrDecision, consequences, tags: [],
       }));
@@ -177,22 +243,176 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
     finally { setAdrBusy(false); }
   };
 
-  // ── CLI run ───────────────────────────────────────────────────────────────
-  const runCli = useCallback(async (args: string) => {
-    setCliLoading(true); setCliError(""); setReport("");
-    try { setReport(await invoke<string>("handle_archspec_command", { args })); }
-    catch (e) { setCliError(String(e)); }
-    finally { setCliLoading(false); }
-  }, []);
+  // ── Report generation (frontend, from spec) ───────────────────────────────
+  const generateReport = (kind: "full" | "zachman" | "c4-context" | "c4-container" | "compliance") => {
+    const s = localSpec ?? spec;
+    if (!s) { setReport("No spec loaded. Run \"Generate from Codebase\" first."); setReportLabel("Report"); return; }
+
+    let out = "";
+    if (kind === "full") {
+      setReportLabel("Full Architecture Report");
+      const pct = s.togaf.artifacts.length
+        ? Math.round(s.togaf.artifacts.filter(a => a.status === "Approved").length / s.togaf.artifacts.length * 100) : 0;
+      out += `# Architecture Report: ${s.project_name}\n`;
+      out += `Generated: ${new Date().toISOString()}\n\n`;
+      out += `## TOGAF ADM (${pct}% approved, ${s.togaf.artifacts.length} artifacts)\n\n`;
+      for (const phase of TOGAF_PHASES) {
+        const arts = s.togaf.artifacts.filter(a => a.phase === phase.key);
+        if (!arts.length) continue;
+        out += `### Phase ${phase.index}: ${phase.label}\n`;
+        for (const a of arts) {
+          out += `#### [${a.status}] ${a.name} (${a.artifact_type})\n`;
+          if (a.description) out += `${a.description}\n\n`;
+          if (a.content)     out += `${a.content}\n\n`;
+        }
+      }
+      out += `---\n\n## Zachman Framework (${Object.keys(s.zachman.cells).length}/36 cells)\n\n`;
+      for (const p of ZACHMAN_PERSPECTIVES) {
+        const pi = ZACHMAN_PERSPECTIVES.indexOf(p);
+        out += `### ${p}\n`;
+        for (const a of ZACHMAN_ASPECTS) {
+          const ai = ZACHMAN_ASPECTS.indexOf(a);
+          const cell = s.zachman.cells[`${pi}:${ai}`];
+          if (cell?.content) out += `**${a}**: ${cell.content}\n`;
+        }
+        out += "\n";
+      }
+      out += `---\n\n## C4 Model (${s.c4.elements.length} elements, ${s.c4.relationships.length} relationships)\n\n`;
+      for (const type of ["Person", "SoftwareSystem", "Container", "Component"]) {
+        const els = s.c4.elements.filter(e => e.element_type === type);
+        if (!els.length) continue;
+        out += `### ${type === "SoftwareSystem" ? "Software Systems" : type + "s"}\n`;
+        for (const el of els) {
+          out += `- **${el.name}**${el.technology ? ` [${el.technology}]` : ""}: ${el.description}\n`;
+        }
+        out += "\n";
+      }
+      out += `---\n\n## ADRs (${s.adrs.records.length} records)\n\n`;
+      for (const adr of s.adrs.records) {
+        const st = typeof adr.status === "string" ? adr.status : Object.keys(adr.status)[0];
+        out += `### ADR: ${adr.title} [${st}]\n`;
+        out += `**Context:** ${adr.context}\n`;
+        out += `**Decision:** ${adr.decision}\n`;
+        if (adr.consequences.length) out += `**Consequences:**\n${adr.consequences.map(c => `- ${c}`).join("\n")}\n`;
+        out += "\n";
+      }
+      out += `---\n\n## Governance Rules (${s.governance.rules.length})\n\n`;
+      for (const rule of s.governance.rules) {
+        out += `[${rule.severity}] **${rule.name}** (${rule.category})\n${rule.description}\n\n`;
+      }
+    } else if (kind === "zachman") {
+      setReportLabel("Zachman Matrix Report");
+      out += `# Zachman Framework: ${s.project_name}\n\n`;
+      const filled = Object.keys(s.zachman.cells).length;
+      out += `${filled}/36 cells populated\n\n`;
+      const colWidths = [14, ...ZACHMAN_ASPECTS.map(() => 30)];
+      const row = (cols: string[]) => cols.map((c, i) => c.padEnd(colWidths[i]).slice(0, colWidths[i])).join(" | ");
+      out += row(["Perspective", ...ZACHMAN_ASPECTS]) + "\n";
+      out += row(colWidths.map(w => "-".repeat(w))) + "\n";
+      for (const p of ZACHMAN_PERSPECTIVES) {
+        const pi = ZACHMAN_PERSPECTIVES.indexOf(p);
+        const cols = ZACHMAN_ASPECTS.map(a => {
+          const ai = ZACHMAN_ASPECTS.indexOf(a);
+          const cell = s.zachman.cells[`${pi}:${ai}`];
+          return cell?.content ? cell.content.slice(0, 28) + (cell.content.length > 28 ? "…" : "") : "—";
+        });
+        out += row([p, ...cols]) + "\n";
+      }
+      out += "\n\n## Full Cell Contents\n\n";
+      for (const p of ZACHMAN_PERSPECTIVES) {
+        const pi = ZACHMAN_PERSPECTIVES.indexOf(p);
+        for (const a of ZACHMAN_ASPECTS) {
+          const ai = ZACHMAN_ASPECTS.indexOf(a);
+          const cell = s.zachman.cells[`${pi}:${ai}`];
+          if (cell?.content) {
+            out += `### ${p} / ${a} (maturity ${cell.maturity}/5)\n${cell.content}\n\n`;
+          }
+        }
+      }
+    } else if (kind === "c4-context") {
+      setReportLabel("C4 Context Diagram");
+      out += `# C4 Context Diagram: ${s.c4.system_name || s.project_name}\n\n`;
+      out += `\`\`\`mermaid\nC4Context\n`;
+      out += `  title System Context for ${s.c4.system_name || s.project_name}\n\n`;
+      for (const el of s.c4.elements.filter(e => e.element_type === "Person"))
+        out += `  Person(${el.id}, "${el.name}", "${el.description || ""}")\n`;
+      for (const el of s.c4.elements.filter(e => e.element_type === "SoftwareSystem"))
+        out += `  System(${el.id}, "${el.name}", "${el.description || ""}")\n`;
+      out += "\n";
+      for (const rel of s.c4.relationships) {
+        const src = s.c4.elements.find(e => e.id === rel.source_id);
+        const tgt = s.c4.elements.find(e => e.id === rel.target_id);
+        if (!src || !tgt) continue;
+        const st = src.element_type; const tt = tgt.element_type;
+        if ((st === "Person" || st === "SoftwareSystem") && (tt === "Person" || tt === "SoftwareSystem"))
+          out += `  Rel(${rel.source_id}, ${rel.target_id}, "${rel.description}"${rel.technology ? `, "${rel.technology}"` : ""})\n`;
+      }
+      out += `\`\`\`\n\n`;
+      out += `## People\n`;
+      for (const el of s.c4.elements.filter(e => e.element_type === "Person"))
+        out += `- **${el.name}**: ${el.description}\n`;
+      out += `\n## Systems\n`;
+      for (const el of s.c4.elements.filter(e => e.element_type === "SoftwareSystem"))
+        out += `- **${el.name}**: ${el.description}\n`;
+    } else if (kind === "c4-container") {
+      setReportLabel("C4 Container Diagram");
+      out += `# C4 Container Diagram: ${s.c4.system_name || s.project_name}\n\n`;
+      out += `\`\`\`mermaid\nC4Container\n`;
+      out += `  title Container Diagram for ${s.c4.system_name || s.project_name}\n\n`;
+      for (const el of s.c4.elements.filter(e => e.element_type === "Container"))
+        out += `  Container(${el.id}, "${el.name}", "${el.technology || ""}", "${el.description || ""}")\n`;
+      for (const el of s.c4.elements.filter(e => e.element_type === "Component"))
+        out += `  Component(${el.id}, "${el.name}", "${el.technology || ""}", "${el.description || ""}")\n`;
+      out += "\n";
+      for (const rel of s.c4.relationships) {
+        const src = s.c4.elements.find(e => e.id === rel.source_id);
+        const tgt = s.c4.elements.find(e => e.id === rel.target_id);
+        if (!src || !tgt) continue;
+        const st = src.element_type; const tt = tgt.element_type;
+        if ((st === "Container" || st === "Component") || (tt === "Container" || tt === "Component"))
+          out += `  Rel(${rel.source_id}, ${rel.target_id}, "${rel.description}"${rel.technology ? `, "${rel.technology}"` : ""})\n`;
+      }
+      out += `\`\`\`\n\n`;
+      out += `## Containers\n`;
+      for (const el of s.c4.elements.filter(e => e.element_type === "Container"))
+        out += `- **${el.name}** [${el.technology || ""}]: ${el.description}\n`;
+      out += `\n## Components\n`;
+      for (const el of s.c4.elements.filter(e => e.element_type === "Component"))
+        out += `- **${el.name}** [${el.technology || ""}]: ${el.description}\n`;
+    } else if (kind === "compliance") {
+      setReportLabel("Compliance Check Report");
+      out += `# Compliance Check: ${s.project_name}\n`;
+      out += `Date: ${new Date().toISOString()}\n\n`;
+      const byCategory = s.governance.rules.reduce<Record<string, GovernanceRule[]>>((acc, r) => {
+        (acc[r.category] ??= []).push(r); return acc;
+      }, {});
+      for (const [cat, rules] of Object.entries(byCategory)) {
+        out += `## ${cat}\n\n`;
+        for (const rule of rules) {
+          const icon = rule.severity === "Critical" ? "🔴" : rule.severity === "Error" ? "🔶" : rule.severity === "Warning" ? "⚠️" : "ℹ️";
+          out += `${icon} **[${rule.severity}] ${rule.name}** (${rule.id})\n`;
+          out += `${rule.description}\n`;
+          if (rule.check_fn_description) out += `*Check: ${rule.check_fn_description}*\n`;
+          out += "\n";
+        }
+      }
+      const critCount = s.governance.rules.filter(r => r.severity === "Critical").length;
+      const errCount  = s.governance.rules.filter(r => r.severity === "Error").length;
+      out += `---\nSummary: ${s.governance.rules.length} rules | ${critCount} Critical | ${errCount} Error\n`;
+    }
+
+    setReport(out || "(no content generated)");
+  };
 
   // ── Derived ───────────────────────────────────────────────────────────────
-  const artsFor = (phase: string) => spec?.togaf.artifacts.filter(a => a.phase === phase) ?? [];
+  const disp = localSpec ?? spec;
+  const artsFor = (phase: string) => disp?.togaf.artifacts.filter(a => a.phase === phase) ?? [];
   const phasePct = (phase: string) => {
     const a = artsFor(phase); if (!a.length) return 0;
     return Math.round(a.filter(x => x.status === "Approved").length / a.length * 100);
   };
   const totalPct = () => {
-    const all = spec?.togaf.artifacts ?? []; if (!all.length) return 0;
+    const all = disp?.togaf.artifacts ?? []; if (!all.length) return 0;
     return Math.round(all.filter(a => a.status === "Approved").length / all.length * 100);
   };
 
@@ -213,29 +433,55 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
   );
 
   const GenerateBar = () => (
-    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-      <button className="panel-btn panel-btn-primary panel-btn-sm" onClick={handleGenerate}
-        disabled={generating || !workspacePath} title={workspacePath ? "Scan codebase and generate draft artifacts" : "Open a workspace first"}>
-        {generating ? "Generating…" : "⟳ Generate from Codebase"}
-      </button>
-    </div>
+    <button className="panel-btn panel-btn-primary panel-btn-sm" onClick={handleGenerate}
+      disabled={generating || !workspacePath} title={workspacePath ? "Scan codebase and generate draft artifacts" : "Open a workspace first"}>
+      {generating ? "Generating…" : "⟳ Generate from Codebase"}
+    </button>
   );
+
+  const SaveBar = () => dirty ? (
+    <button className="panel-btn panel-btn-primary panel-btn-sm" onClick={handleSave} disabled={saving}>
+      {saving ? "Saving…" : "💾 Save Changes"}
+    </button>
+  ) : null;
+
+  // ── Report pane (editable) ────────────────────────────────────────────────
+  const ReportPane = () => report ? (
+    <div className="panel-card" style={{ marginTop: 10 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+        <span style={{ fontWeight: 600, fontSize: 12 }}>{reportLabel}</span>
+        <button className="panel-btn panel-btn-secondary panel-btn-sm" onClick={() => setReport("")}>✕ Close</button>
+      </div>
+      <textarea
+        value={report}
+        onChange={e => setReport(e.target.value)}
+        style={{
+          width: "100%", minHeight: 320, fontFamily: "monospace", fontSize: 11,
+          background: "var(--bg-tertiary)", color: "var(--text-primary)",
+          border: "1px solid var(--border-color)", borderRadius: 4,
+          padding: "8px", resize: "vertical", boxSizing: "border-box",
+        }}
+      />
+    </div>
+  ) : null;
 
   // ── TOGAF tab ─────────────────────────────────────────────────────────────
   const renderTogaf = () => (
     <>
       <div className="panel-card" style={{ marginBottom: 10 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
           <div>
             <span style={{ fontWeight: 600 }}>TOGAF ADM Phases</span>
-            {spec && <span className="panel-label" style={{ marginLeft: 10 }}>
-              {totalPct()}% · {spec.togaf.artifacts.length} artifacts
+            {disp && <span className="panel-label" style={{ marginLeft: 10 }}>
+              {totalPct()}% · {disp.togaf.artifacts.length} artifacts
             </span>}
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <GenerateBar />
-            <button className="panel-btn panel-btn-secondary panel-btn-sm" onClick={() => runCli("report")} disabled={cliLoading}>
-              {cliLoading ? "…" : "▶ Full Report"}
+            <SaveBar />
+            <button className="panel-btn panel-btn-secondary panel-btn-sm"
+              onClick={() => generateReport("full")} disabled={!disp}>
+              ▶ Full Report
             </button>
           </div>
         </div>
@@ -244,131 +490,187 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
       {!workspacePath && <div className="panel-card" style={{ color: "var(--text-secondary)", fontSize: 13 }}>Open a workspace folder to enable architecture tracking.</div>}
       {loading && <div className="panel-label" style={{ padding: 8 }}>Loading…</div>}
 
-      {TOGAF_PHASES.map(phase => {
-        const arts = artsFor(phase.key);
-        const pct  = phasePct(phase.key);
-        const open = expandedPhase === phase.key;
-        return (
-          <div key={phase.key} style={{ marginBottom: 4 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center",
-              padding: "6px 0", borderBottom: "1px solid var(--border-color)", cursor: arts.length ? "pointer" : "default" }}
-              onClick={() => arts.length && setExpandedPhase(open ? null : phase.key)}>
-              <span style={{ fontSize: 13 }}>
-                {arts.length > 0 && <span style={{ marginRight: 6, color: "var(--text-secondary)", fontSize: 10 }}>{open ? "▾" : "▸"}</span>}
-                {phase.index}. {phase.label}
-              </span>
-              <ProgBar pct={pct} total={arts.length} />
-            </div>
-            {open && (
-              <div style={{ background: "var(--bg-secondary)", borderRadius: 6, margin: "4px 0 8px", padding: "6px 10px" }}>
-                {arts.map(art => (
-                  <div key={art.id} style={{ padding: "8px 0", borderBottom: "1px solid var(--border-color)" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
-                          <span style={{ fontWeight: 600, fontSize: 12 }}>{art.name}</span>
-                          <Badge label={art.artifact_type} color="var(--text-secondary)" />
-                          <Badge label={art.status} color={ARTIFACT_STATUS_COLOR[art.status]} />
+      <div style={{ overflowY: "auto", maxHeight: "calc(100vh - 280px)" }}>
+        {TOGAF_PHASES.map(phase => {
+          const arts = artsFor(phase.key);
+          const pct  = phasePct(phase.key);
+          const open = expandedPhase === phase.key;
+          return (
+            <div key={phase.key} style={{ marginBottom: 4 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center",
+                padding: "6px 0", borderBottom: "1px solid var(--border-color)", cursor: arts.length ? "pointer" : "default" }}
+                onClick={() => arts.length && setExpandedPhase(open ? null : phase.key)}>
+                <span style={{ fontSize: 13 }}>
+                  {arts.length > 0 && <span style={{ marginRight: 6, color: "var(--text-secondary)", fontSize: 10 }}>{open ? "▾" : "▸"}</span>}
+                  {phase.index}. {phase.label}
+                </span>
+                <ProgBar pct={pct} total={arts.length} />
+              </div>
+              {open && (
+                <div style={{ background: "var(--bg-secondary)", borderRadius: 6, margin: "4px 0 8px", padding: "6px 10px" }}>
+                  {arts.map(art => (
+                    <div key={art.id} style={{ padding: "10px 0", borderBottom: "1px solid var(--border-color)" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                            <span style={{ fontWeight: 600, fontSize: 12 }}>{art.name}</span>
+                            <Badge label={art.artifact_type} color="var(--text-secondary)" />
+                            <Badge label={art.status} color={ARTIFACT_STATUS_COLOR[art.status]} />
+                          </div>
+                          <div className="panel-label" style={{ fontSize: 11, marginBottom: 6 }}>Description</div>
+                          <textarea
+                            value={art.description}
+                            onChange={e => patchArtifact(art.id, "description", e.target.value)}
+                            rows={2}
+                            style={{
+                              width: "100%", fontSize: 11, padding: "4px 8px", resize: "vertical",
+                              background: "var(--bg-tertiary)", color: "var(--text-primary)",
+                              border: "1px solid var(--border-color)", borderRadius: 4, boxSizing: "border-box",
+                              marginBottom: 6,
+                            }}
+                          />
+                          <div className="panel-label" style={{ fontSize: 11, marginBottom: 4 }}>Content</div>
+                          <textarea
+                            value={art.content}
+                            onChange={e => patchArtifact(art.id, "content", e.target.value)}
+                            rows={6}
+                            style={{
+                              width: "100%", fontFamily: "monospace", fontSize: 11, padding: "6px 8px",
+                              resize: "vertical", background: "var(--bg-tertiary)", color: "var(--text-primary)",
+                              border: "1px solid var(--border-color)", borderRadius: 4, boxSizing: "border-box",
+                            }}
+                            placeholder="Artifact content (generated or manually authored)…"
+                          />
                         </div>
-                        <div className="panel-label" style={{ fontSize: 11 }}>{art.description}</div>
-                        {art.content && (
-                          <pre style={{ margin: "6px 0 0", fontSize: 10, color: "var(--text-secondary)", whiteSpace: "pre-wrap",
-                            wordBreak: "break-word", background: "var(--bg-tertiary)", padding: "4px 8px", borderRadius: 4,
-                            maxHeight: 80, overflow: "hidden" }}>
-                            {art.content.slice(0, 300)}{art.content.length > 300 ? "…" : ""}
-                          </pre>
-                        )}
-                      </div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 4, flexShrink: 0 }}>
-                        {art.status !== "Approved" && (
-                          <button className="panel-btn panel-btn-sm" style={{ fontSize: 10, padding: "2px 8px", color: "var(--accent-green,#22c55e)", borderColor: "var(--accent-green,#22c55e)" }}
-                            disabled={statusBusy === art.id} onClick={() => setArtifactStatus(art.id, "Approved")}>✓ Approve</button>
-                        )}
-                        {art.status !== "Review" && art.status !== "Approved" && (
-                          <button className="panel-btn panel-btn-secondary panel-btn-sm" style={{ fontSize: 10, padding: "2px 8px" }}
-                            disabled={statusBusy === art.id} onClick={() => setArtifactStatus(art.id, "Review")}>⟲ Review</button>
-                        )}
-                        {art.status === "Approved" && (
-                          <button className="panel-btn panel-btn-sm" style={{ fontSize: 10, padding: "2px 8px", color: "#f87171", borderColor: "#f87171" }}
-                            disabled={statusBusy === art.id} onClick={() => setArtifactStatus(art.id, "Draft")}>✕ Revoke</button>
-                        )}
+                        <div style={{ display: "flex", flexDirection: "column", gap: 4, flexShrink: 0 }}>
+                          {art.status !== "Approved" && (
+                            <button className="panel-btn panel-btn-sm" style={{ fontSize: 10, padding: "2px 8px", color: "var(--accent-green,#22c55e)", borderColor: "var(--accent-green,#22c55e)" }}
+                              disabled={statusBusy === art.id} onClick={() => setArtifactStatus(art.id, "Approved")}>✓ Approve</button>
+                          )}
+                          {art.status !== "Review" && art.status !== "Approved" && (
+                            <button className="panel-btn panel-btn-secondary panel-btn-sm" style={{ fontSize: 10, padding: "2px 8px" }}
+                              disabled={statusBusy === art.id} onClick={() => setArtifactStatus(art.id, "Review")}>⟲ Review</button>
+                          )}
+                          {art.status === "Approved" && (
+                            <button className="panel-btn panel-btn-sm" style={{ fontSize: 10, padding: "2px 8px", color: "#f87171", borderColor: "#f87171" }}
+                              disabled={statusBusy === art.id} onClick={() => setArtifactStatus(art.id, "Draft")}>✕ Revoke</button>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        );
-      })}
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
       {error && <div className="panel-error" style={{ marginTop: 8 }}>{error}</div>}
-      {cliError && <div className="panel-error" style={{ marginTop: 8 }}>{cliError}</div>}
-      {report && <div className="panel-card" style={{ marginTop: 8 }}><pre style={{ whiteSpace: "pre-wrap", margin: 0, fontSize: 11 }}>{report}</pre></div>}
+      <ReportPane />
     </>
   );
 
   // ── Zachman tab ───────────────────────────────────────────────────────────
   const renderZachman = () => {
-    const cells = spec?.zachman.cells ?? {};
-    const getCell = (p: string, a: string): ZachmanCell | null => {
-      const pi = ZACHMAN_PERSPECTIVES.indexOf(p);
-      const ai = ZACHMAN_ASPECTS.indexOf(a);
-      return cells[`${pi}:${ai}`] ?? null;
-    };
+    const cells = disp?.zachman.cells ?? {};
     const hasData = Object.keys(cells).length > 0;
+
     return (
       <>
         <div className="panel-card" style={{ marginBottom: 10 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
             <span style={{ fontWeight: 600 }}>
               Zachman Framework 6×6
               {hasData && <span className="panel-label" style={{ marginLeft: 10, fontWeight: 400 }}>{Object.keys(cells).length}/36 cells filled</span>}
             </span>
-            <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {!hasData && <GenerateBar />}
-              <button className="panel-btn panel-btn-secondary panel-btn-sm" onClick={() => runCli("zachman")} disabled={cliLoading}>
-                {cliLoading ? "…" : "▶ CLI Report"}
+              <SaveBar />
+              <button className="panel-btn panel-btn-secondary panel-btn-sm"
+                onClick={() => generateReport("zachman")} disabled={!disp}>
+                ▶ Matrix Report
               </button>
             </div>
           </div>
         </div>
 
-        {!hasData && !spec && <div className="panel-label" style={{ padding: 8 }}>Run "Generate from Codebase" to populate the Zachman matrix.</div>}
+        {!hasData && !disp && <div className="panel-label" style={{ padding: 8 }}>Run "Generate from Codebase" to populate the Zachman matrix.</div>}
+
+        {/* Cell editor panel */}
+        {editingCell && (() => {
+          const [piStr, aiStr] = editingCell.split(":");
+          const pi = Number(piStr); const ai = Number(aiStr);
+          const p = ZACHMAN_PERSPECTIVES[pi]; const a = ZACHMAN_ASPECTS[ai];
+          const cell = cells[editingCell] ?? { perspective: p, aspect: a, content: "", artifacts: [], maturity: 0 };
+          return (
+            <div className="panel-card" style={{ marginBottom: 10, border: "1px solid var(--accent-color)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                <span style={{ fontWeight: 600, fontSize: 13 }}>Edit Cell: {p} / {a}</span>
+                <button className="panel-btn panel-btn-secondary panel-btn-sm" onClick={() => setEditingCell(null)}>✕ Close</button>
+              </div>
+              <div className="panel-label" style={{ marginBottom: 4 }}>Content</div>
+              <textarea
+                value={cell.content}
+                autoFocus
+                onChange={e => patchZachmanCell(editingCell, "content", e.target.value)}
+                rows={5}
+                style={{
+                  width: "100%", fontSize: 12, padding: "6px 8px", resize: "vertical",
+                  background: "var(--bg-tertiary)", color: "var(--text-primary)",
+                  border: "1px solid var(--border-color)", borderRadius: 4, boxSizing: "border-box", marginBottom: 8,
+                }}
+                placeholder={`Describe the ${a.toLowerCase()} dimension from the ${p.toLowerCase()} perspective…`}
+              />
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div className="panel-label" style={{ fontSize: 11 }}>Maturity: {cell.maturity}/5</div>
+                <input type="range" min={0} max={5} value={cell.maturity}
+                  onChange={e => patchZachmanCell(editingCell, "maturity", Number(e.target.value))}
+                  style={{ width: 120 }} />
+              </div>
+            </div>
+          );
+        })()}
 
         {hasData && (
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 11, tableLayout: "fixed" }}>
+          <div style={{ overflowX: "auto", overflowY: "auto", maxHeight: "calc(100vh - 320px)" }}>
+            <table style={{ borderCollapse: "collapse", fontSize: 11, tableLayout: "fixed", minWidth: 700 }}>
               <colgroup>
-                <col style={{ width: 90 }} />
-                {ZACHMAN_ASPECTS.map(a => <col key={a} />)}
+                <col style={{ width: 100 }} />
+                {ZACHMAN_ASPECTS.map(a => <col key={a} style={{ width: 140 }} />)}
               </colgroup>
               <thead>
                 <tr>
-                  <th style={{ padding: "6px 8px", border: "1px solid var(--border-color)", background: "var(--bg-secondary)", textAlign: "left" }} />
+                  <th style={{ padding: "6px 8px", border: "1px solid var(--border-color)", background: "var(--bg-secondary)", textAlign: "left", position: "sticky", top: 0, zIndex: 2 }} />
                   {ZACHMAN_ASPECTS.map(a => (
-                    <th key={a} style={{ padding: "6px 8px", border: "1px solid var(--border-color)", background: "var(--bg-secondary)", fontSize: 10, fontWeight: 600, textAlign: "center" }}>
+                    <th key={a} style={{ padding: "6px 8px", border: "1px solid var(--border-color)", background: "var(--bg-secondary)", fontSize: 10, fontWeight: 600, textAlign: "center", position: "sticky", top: 0, zIndex: 2 }}>
                       {a}
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {ZACHMAN_PERSPECTIVES.map(p => (
+                {ZACHMAN_PERSPECTIVES.map((p, pi) => (
                   <tr key={p}>
-                    <td style={{ padding: "6px 8px", border: "1px solid var(--border-color)", fontWeight: 600, background: "var(--bg-secondary)", whiteSpace: "nowrap" }}>{p}</td>
-                    {ZACHMAN_ASPECTS.map(a => {
-                      const cell = getCell(p, a);
+                    <td style={{ padding: "6px 8px", border: "1px solid var(--border-color)", fontWeight: 600, background: "var(--bg-secondary)", whiteSpace: "nowrap", position: "sticky", left: 0, zIndex: 1 }}>{p}</td>
+                    {ZACHMAN_ASPECTS.map((a, ai) => {
+                      const key = `${pi}:${ai}`;
+                      const cell = cells[key];
                       const maturity = cell?.maturity ?? 0;
+                      const isEditing = editingCell === key;
                       return (
-                        <td key={a} title={cell?.content ?? ""} style={{
+                        <td key={a} style={{
                           padding: "5px 7px", border: "1px solid var(--border-color)",
-                          background: cell?.content ? "var(--bg-secondary)" : "var(--bg-tertiary)",
-                          verticalAlign: "top", maxWidth: 0,
-                        }}>
+                          background: isEditing ? "var(--bg-tertiary)" : cell?.content ? "var(--bg-secondary)" : "var(--bg-tertiary)",
+                          verticalAlign: "top", cursor: "pointer", minHeight: 60,
+                          outline: isEditing ? "2px solid var(--accent-color)" : "none",
+                        }}
+                          onClick={() => setEditingCell(isEditing ? null : key)}
+                          title={cell?.content ? `${p} / ${a}: ${cell.content}` : `Click to add ${p} / ${a}`}>
                           {cell?.content ? (
                             <>
-                              <div style={{ fontSize: 10, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                {cell.content.slice(0, 60)}{cell.content.length > 60 ? "…" : ""}
+                              <div style={{ fontSize: 10, color: "var(--text-primary)", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical" }}>
+                                {cell.content}
                               </div>
                               {maturity > 0 && (
                                 <div style={{ marginTop: 3, display: "flex", gap: 2 }}>
@@ -378,7 +680,7 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
                                 </div>
                               )}
                             </>
-                          ) : <span style={{ color: "var(--text-secondary)", fontSize: 10 }}>—</span>}
+                          ) : <span style={{ color: "var(--text-secondary)", fontSize: 10 }}>+ Add</span>}
                         </td>
                       );
                     })}
@@ -387,21 +689,21 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
               </tbody>
             </table>
             <div className="panel-label" style={{ marginTop: 6, fontSize: 10 }}>
-              Hover cells for full content. Maturity dots: 1=Initial → 5=Optimised.
+              Click any cell to edit. Sticky header/perspective column. Maturity dots: 1=Initial → 5=Optimised.
             </div>
           </div>
         )}
 
-        {cliError && <div className="panel-error" style={{ marginTop: 8 }}>{cliError}</div>}
-        {report && <div className="panel-card" style={{ marginTop: 8 }}><pre style={{ whiteSpace: "pre-wrap", margin: 0, fontSize: 11 }}>{report}</pre></div>}
+        {error && <div className="panel-error" style={{ marginTop: 8 }}>{error}</div>}
+        <ReportPane />
       </>
     );
   };
 
   // ── C4 Model tab ──────────────────────────────────────────────────────────
   const renderC4 = () => {
-    const els  = spec?.c4.elements ?? [];
-    const rels = spec?.c4.relationships ?? [];
+    const els  = disp?.c4.elements ?? [];
+    const rels = disp?.c4.relationships ?? [];
     const hasData = els.length > 0;
     const byType = (t: string) => els.filter(e => e.element_type === t);
     const nameOf = (id: string) => els.find(e => e.id === id)?.name ?? id;
@@ -413,20 +715,40 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
         <div style={{ marginBottom: 12 }}>
           <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 6, color: "var(--text-secondary)" }}>{label}</div>
           {items.map(el => (
-            <div key={el.id} style={{ padding: "6px 0", borderBottom: "1px solid var(--border-color)" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", cursor: "pointer" }}
+            <div key={el.id} style={{ padding: "8px 0", borderBottom: "1px solid var(--border-color)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", cursor: "pointer", marginBottom: 4 }}
                 onClick={() => setExpandedC4(expandedC4 === el.id ? null : el.id)}>
-                <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ fontWeight: 600, fontSize: 12 }}>{el.name}</span>
-                  {el.technology && <span className="panel-label" style={{ marginLeft: 8, fontSize: 10 }}>{el.technology}</span>}
+                  <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>{expandedC4 === el.id ? "▾" : "▸"}</span>
                 </div>
-                <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>{expandedC4 === el.id ? "▾" : "▸"}</span>
+                {el.technology && <span className="panel-label" style={{ fontSize: 10 }}>{el.technology}</span>}
               </div>
               {expandedC4 === el.id && (
-                <div style={{ marginTop: 4, fontSize: 11, color: "var(--text-secondary)" }}>
-                  <div style={{ marginBottom: 4 }}>{el.description}</div>
+                <div style={{ marginTop: 6 }}>
+                  <div className="panel-label" style={{ fontSize: 11, marginBottom: 4 }}>Description</div>
+                  <textarea
+                    value={el.description}
+                    onChange={e => patchC4Element(el.id, "description", e.target.value)}
+                    rows={2}
+                    style={{
+                      width: "100%", fontSize: 11, padding: "4px 8px", resize: "vertical",
+                      background: "var(--bg-tertiary)", color: "var(--text-primary)",
+                      border: "1px solid var(--border-color)", borderRadius: 4, boxSizing: "border-box", marginBottom: 6,
+                    }}
+                  />
+                  <div className="panel-label" style={{ fontSize: 11, marginBottom: 4 }}>Technology</div>
+                  <input
+                    value={el.technology}
+                    onChange={e => patchC4Element(el.id, "technology", e.target.value)}
+                    style={{
+                      width: "100%", fontSize: 11, padding: "4px 8px",
+                      background: "var(--bg-tertiary)", color: "var(--text-primary)",
+                      border: "1px solid var(--border-color)", borderRadius: 4, boxSizing: "border-box", marginBottom: 6,
+                    }}
+                  />
                   {rels.filter(r => r.source_id === el.id || r.target_id === el.id).map((r, i) => (
-                    <div key={i} style={{ fontSize: 10, padding: "2px 0" }}>
+                    <div key={i} style={{ fontSize: 10, padding: "2px 0", color: "var(--text-secondary)" }}>
                       {r.source_id === el.id
                         ? <span>→ <b>{nameOf(r.target_id)}</b>: {r.description}{r.technology ? ` [${r.technology}]` : ""}</span>
                         : <span>← <b>{nameOf(r.source_id)}</b>: {r.description}</span>}
@@ -443,27 +765,30 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
     return (
       <>
         <div className="panel-card" style={{ marginBottom: 10 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
             <span style={{ fontWeight: 600 }}>
               C4 Model
               {hasData && <span className="panel-label" style={{ marginLeft: 10, fontWeight: 400 }}>{els.length} elements · {rels.length} relationships</span>}
             </span>
-            <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {!hasData && <GenerateBar />}
-              <button className="panel-btn panel-btn-secondary panel-btn-sm" onClick={() => runCli("c4 context")} disabled={cliLoading}>
-                {cliLoading ? "…" : "▶ Context Diagram"}
+              <SaveBar />
+              <button className="panel-btn panel-btn-secondary panel-btn-sm"
+                onClick={() => generateReport("c4-context")} disabled={!disp}>
+                ▶ Context Diagram
               </button>
-              <button className="panel-btn panel-btn-secondary panel-btn-sm" onClick={() => runCli("c4 container")} disabled={cliLoading}>
-                {cliLoading ? "…" : "▶ Container Diagram"}
+              <button className="panel-btn panel-btn-secondary panel-btn-sm"
+                onClick={() => generateReport("c4-container")} disabled={!disp}>
+                ▶ Container Diagram
               </button>
             </div>
           </div>
         </div>
 
-        {!hasData && !spec && <div className="panel-label" style={{ padding: 8 }}>Run "Generate from Codebase" to populate the C4 model.</div>}
+        {!hasData && !disp && <div className="panel-label" style={{ padding: 8 }}>Run "Generate from Codebase" to populate the C4 model.</div>}
 
         {hasData && (
-          <div className="panel-card">
+          <div className="panel-card" style={{ overflowY: "auto", maxHeight: "calc(100vh - 300px)" }}>
             <TypeSection type="Person"         label="People" />
             <TypeSection type="SoftwareSystem" label="Software Systems" />
             <TypeSection type="Container"      label="Containers" />
@@ -471,73 +796,107 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
           </div>
         )}
 
-        {report && <div className="panel-card" style={{ marginTop: 8 }}><pre style={{ whiteSpace: "pre-wrap", margin: 0, fontSize: 11 }}>{report}</pre></div>}
-        {cliError && <div className="panel-error" style={{ marginTop: 8 }}>{cliError}</div>}
+        <ReportPane />
+        {error && <div className="panel-error" style={{ marginTop: 8 }}>{error}</div>}
       </>
     );
   };
 
   // ── ADRs tab ──────────────────────────────────────────────────────────────
   const renderAdr = () => {
-    const adrs = spec?.adrs.records ?? [];
+    const adrs = disp?.adrs.records ?? [];
     const adrStatusLabel = (s: AdrStatusStr) =>
       typeof s === "string" ? s : Object.keys(s)[0];
 
     return (
       <>
-        {/* Generated ADR list */}
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8, gap: 8 }}>
+          <SaveBar />
+        </div>
         {adrs.length > 0 && (
-          <div className="panel-card" style={{ marginBottom: 10 }}>
-            <div style={{ fontWeight: 600, marginBottom: 8 }}>
-              Architecture Decision Records
-              <span className="panel-label" style={{ marginLeft: 10, fontWeight: 400 }}>{adrs.length} total</span>
-            </div>
-            {adrs.map(adr => {
-              const statusLabel = adrStatusLabel(adr.status);
-              return (
-                <div key={adr.id} style={{ padding: "10px 0", borderBottom: "1px solid var(--border-color)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                        <span style={{ fontWeight: 600, fontSize: 12 }}>{adr.title}</span>
-                        <Badge label={statusLabel} color={ADR_STATUS_COLOR[statusLabel] ?? "var(--text-secondary)"} />
-                        {adr.date && <span className="panel-label" style={{ fontSize: 10 }}>{adr.date}</span>}
-                      </div>
-                      <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>
-                        <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>Context: </span>{adr.context}
-                      </div>
-                      <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>
-                        <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>Decision: </span>{adr.decision}
-                      </div>
-                      {adr.consequences.length > 0 && (
-                        <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>
-                          {adr.consequences.map((c, i) => <div key={i}>• {c}</div>)}
+          <div style={{ overflowY: "auto", maxHeight: "calc(100vh - 360px)" }}>
+            <div className="panel-card" style={{ marginBottom: 10 }}>
+              <div style={{ fontWeight: 600, marginBottom: 8 }}>
+                Architecture Decision Records
+                <span className="panel-label" style={{ marginLeft: 10, fontWeight: 400 }}>{adrs.length} total</span>
+              </div>
+              {adrs.map(adr => {
+                const statusLabel = adrStatusLabel(adr.status);
+                return (
+                  <div key={adr.id} style={{ padding: "12px 0", borderBottom: "1px solid var(--border-color)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                          <input
+                            value={adr.title}
+                            onChange={e => patchAdr(adr.id, "title", e.target.value)}
+                            style={{
+                              fontSize: 12, fontWeight: 600, padding: "2px 6px", flex: 1,
+                              background: "var(--bg-tertiary)", color: "var(--text-primary)",
+                              border: "1px solid var(--border-color)", borderRadius: 4, boxSizing: "border-box",
+                            }}
+                          />
+                          <Badge label={statusLabel} color={ADR_STATUS_COLOR[statusLabel] ?? "var(--text-secondary)"} />
+                          {adr.date && <span className="panel-label" style={{ fontSize: 10 }}>{adr.date}</span>}
                         </div>
-                      )}
-                      {adr.tags.length > 0 && (
-                        <div style={{ marginTop: 4, display: "flex", gap: 4, flexWrap: "wrap" }}>
-                          {adr.tags.map(t => <span key={t} className="panel-label" style={{ fontSize: 9, padding: "1px 5px", border: "1px solid var(--border-color)", borderRadius: 8 }}>{t}</span>)}
-                        </div>
-                      )}
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 4, flexShrink: 0 }}>
-                      {statusLabel !== "Accepted" && (
-                        <button className="panel-btn panel-btn-sm" style={{ fontSize: 10, padding: "2px 8px", color: "var(--accent-green,#22c55e)", borderColor: "var(--accent-green,#22c55e)" }}
-                          disabled={statusBusy === adr.id} onClick={() => setAdrStatus(adr.id, "Accepted")}>✓ Accept</button>
-                      )}
-                      {statusLabel !== "Deprecated" && statusLabel !== "Accepted" && (
-                        <button className="panel-btn panel-btn-secondary panel-btn-sm" style={{ fontSize: 10, padding: "2px 8px" }}
-                          disabled={statusBusy === adr.id} onClick={() => setAdrStatus(adr.id, "Deprecated")}>✕ Deprecate</button>
-                      )}
-                      {statusLabel === "Accepted" && (
-                        <button className="panel-btn panel-btn-sm" style={{ fontSize: 10, padding: "2px 8px", color: "#f87171", borderColor: "#f87171" }}
-                          disabled={statusBusy === adr.id} onClick={() => setAdrStatus(adr.id, "Proposed")}>↩ Re-open</button>
-                      )}
+                        <div className="panel-label" style={{ fontSize: 11, marginBottom: 3 }}>Context</div>
+                        <textarea
+                          value={adr.context}
+                          onChange={e => patchAdr(adr.id, "context", e.target.value)}
+                          rows={2}
+                          style={{
+                            width: "100%", fontSize: 11, padding: "4px 8px", resize: "vertical", marginBottom: 6,
+                            background: "var(--bg-tertiary)", color: "var(--text-primary)",
+                            border: "1px solid var(--border-color)", borderRadius: 4, boxSizing: "border-box",
+                          }}
+                        />
+                        <div className="panel-label" style={{ fontSize: 11, marginBottom: 3 }}>Decision</div>
+                        <textarea
+                          value={adr.decision}
+                          onChange={e => patchAdr(adr.id, "decision", e.target.value)}
+                          rows={2}
+                          style={{
+                            width: "100%", fontSize: 11, padding: "4px 8px", resize: "vertical", marginBottom: 6,
+                            background: "var(--bg-tertiary)", color: "var(--text-primary)",
+                            border: "1px solid var(--border-color)", borderRadius: 4, boxSizing: "border-box",
+                          }}
+                        />
+                        <div className="panel-label" style={{ fontSize: 11, marginBottom: 3 }}>Consequences</div>
+                        <textarea
+                          value={adr.consequences.join("\n")}
+                          onChange={e => patchAdr(adr.id, "consequences", e.target.value.split("\n"))}
+                          rows={3}
+                          style={{
+                            width: "100%", fontSize: 11, padding: "4px 8px", resize: "vertical",
+                            background: "var(--bg-tertiary)", color: "var(--text-primary)",
+                            border: "1px solid var(--border-color)", borderRadius: 4, boxSizing: "border-box",
+                          }}
+                        />
+                        {adr.tags.length > 0 && (
+                          <div style={{ marginTop: 6, display: "flex", gap: 4, flexWrap: "wrap" }}>
+                            {adr.tags.map(t => <span key={t} className="panel-label" style={{ fontSize: 9, padding: "1px 5px", border: "1px solid var(--border-color)", borderRadius: 8 }}>{t}</span>)}
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 4, flexShrink: 0 }}>
+                        {statusLabel !== "Accepted" && (
+                          <button className="panel-btn panel-btn-sm" style={{ fontSize: 10, padding: "2px 8px", color: "var(--accent-green,#22c55e)", borderColor: "var(--accent-green,#22c55e)" }}
+                            disabled={statusBusy === adr.id} onClick={() => setAdrStatus(adr.id, "Accepted")}>✓ Accept</button>
+                        )}
+                        {statusLabel !== "Deprecated" && statusLabel !== "Accepted" && (
+                          <button className="panel-btn panel-btn-secondary panel-btn-sm" style={{ fontSize: 10, padding: "2px 8px" }}
+                            disabled={statusBusy === adr.id} onClick={() => setAdrStatus(adr.id, "Deprecated")}>✕ Deprecate</button>
+                        )}
+                        {statusLabel === "Accepted" && (
+                          <button className="panel-btn panel-btn-sm" style={{ fontSize: 10, padding: "2px 8px", color: "#f87171", borderColor: "#f87171" }}
+                            disabled={statusBusy === adr.id} onClick={() => setAdrStatus(adr.id, "Proposed")}>↩ Re-open</button>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         )}
 
@@ -551,7 +910,7 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
           <div className="panel-label">Decision</div>
           <textarea value={adrDecision} onChange={e => setAdrDecision(e.target.value)} rows={2} className="panel-input panel-input-full" style={{ marginBottom: 8, resize: "vertical" }} placeholder="What was decided?" />
           <div className="panel-label">Consequences (one per line)</div>
-          <textarea value={adrConseq} onChange={e => setAdrConseq(e.target.value)} rows={3} className="panel-input panel-input-full" style={{ marginBottom: 10, resize: "vertical" }} placeholder="Pro: …&#10;Con: …" />
+          <textarea value={adrConseq} onChange={e => setAdrConseq(e.target.value)} rows={3} className="panel-input panel-input-full" style={{ marginBottom: 10, resize: "vertical" }} placeholder={"Pro: …\nCon: …"} />
           <button className="panel-btn panel-btn-primary" disabled={!adrTitle || adrBusy || !workspacePath} onClick={createAdr}>
             {adrBusy ? "Saving…" : "Create ADR"}
           </button>
@@ -565,7 +924,7 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
 
   // ── Governance tab ────────────────────────────────────────────────────────
   const renderGovernance = () => {
-    const rules = spec?.governance.rules ?? [];
+    const rules = disp?.governance.rules ?? [];
     const hasData = rules.length > 0;
     const byCategory = rules.reduce<Record<string, GovernanceRule[]>>((acc, r) => {
       (acc[r.category] ??= []).push(r); return acc;
@@ -574,43 +933,70 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
     return (
       <>
         <div className="panel-card" style={{ marginBottom: 10 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
             <span style={{ fontWeight: 600 }}>
               Architecture Governance Rules
               {hasData && <span className="panel-label" style={{ marginLeft: 10, fontWeight: 400 }}>{rules.length} rules</span>}
             </span>
-            <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {!hasData && <GenerateBar />}
-              <button className="panel-btn panel-btn-secondary panel-btn-sm" onClick={() => runCli("report")} disabled={cliLoading}>
-                {cliLoading ? "…" : "▶ Compliance Check"}
+              <SaveBar />
+              <button className="panel-btn panel-btn-secondary panel-btn-sm"
+                onClick={() => generateReport("compliance")} disabled={!disp}>
+                ▶ Compliance Check
               </button>
             </div>
           </div>
         </div>
 
-        {!hasData && !spec && <div className="panel-label" style={{ padding: 8 }}>Run "Generate from Codebase" to populate governance rules.</div>}
+        {!hasData && !disp && <div className="panel-label" style={{ padding: 8 }}>Run "Generate from Codebase" to populate governance rules.</div>}
 
-        {hasData && Object.entries(byCategory).map(([cat, catRules]) => (
-          <div key={cat} style={{ marginBottom: 12 }}>
-            <div style={{ fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: 1, color: "var(--text-secondary)", marginBottom: 6 }}>{cat}</div>
-            {catRules.map(rule => (
-              <div key={rule.id} className="panel-card" style={{ marginBottom: 6, padding: "8px 10px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                  <Badge label={rule.severity} color={SEV_COLOR[rule.severity]} />
-                  <span style={{ fontWeight: 600, fontSize: 12 }}>{rule.name}</span>
-                  <span className="panel-label" style={{ fontSize: 10 }}>{rule.id}</span>
+        <div style={{ overflowY: "auto", maxHeight: "calc(100vh - 300px)" }}>
+          {hasData && Object.entries(byCategory).map(([cat, catRules]) => (
+            <div key={cat} style={{ marginBottom: 12 }}>
+              <div style={{ fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: 1, color: "var(--text-secondary)", marginBottom: 6 }}>{cat}</div>
+              {catRules.map(rule => (
+                <div key={rule.id} className="panel-card" style={{ marginBottom: 6, padding: "10px 10px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                    <Badge label={rule.severity} color={SEV_COLOR[rule.severity]} />
+                    <span style={{ fontWeight: 600, fontSize: 12 }}>{rule.name}</span>
+                    <span className="panel-label" style={{ fontSize: 10 }}>{rule.id}</span>
+                  </div>
+                  <div className="panel-label" style={{ fontSize: 11, marginBottom: 4 }}>Description</div>
+                  <textarea
+                    value={rule.description}
+                    onChange={e => patchRule(rule.id, "description", e.target.value)}
+                    rows={2}
+                    style={{
+                      width: "100%", fontSize: 11, padding: "4px 8px", resize: "vertical",
+                      background: "var(--bg-tertiary)", color: "var(--text-primary)",
+                      border: "1px solid var(--border-color)", borderRadius: 4, boxSizing: "border-box", marginBottom: 6,
+                    }}
+                  />
+                  {rule.check_fn_description && (
+                    <>
+                      <div className="panel-label" style={{ fontSize: 11, marginBottom: 4 }}>Check Condition</div>
+                      <textarea
+                        value={rule.check_fn_description}
+                        onChange={e => patchRule(rule.id, "check_fn_description", e.target.value)}
+                        rows={2}
+                        style={{
+                          width: "100%", fontSize: 11, padding: "4px 8px", resize: "vertical",
+                          background: "var(--bg-tertiary)", color: "var(--text-primary)",
+                          border: "1px solid var(--border-color)", borderRadius: 4, boxSizing: "border-box",
+                          fontStyle: "italic",
+                        }}
+                      />
+                    </>
+                  )}
                 </div>
-                <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: rule.check_fn_description ? 4 : 0 }}>{rule.description}</div>
-                {rule.check_fn_description && (
-                  <div style={{ fontSize: 10, color: "var(--text-secondary)", fontStyle: "italic" }}>Check: {rule.check_fn_description}</div>
-                )}
-              </div>
-            ))}
-          </div>
-        ))}
+              ))}
+            </div>
+          ))}
+        </div>
 
-        {cliError && <div className="panel-error" style={{ marginTop: 8 }}>{cliError}</div>}
-        {report && <div className="panel-card" style={{ marginTop: 8 }}><pre style={{ whiteSpace: "pre-wrap", margin: 0, fontSize: 11 }}>{report}</pre></div>}
+        {error && <div className="panel-error" style={{ marginTop: 8 }}>{error}</div>}
+        <ReportPane />
       </>
     );
   };
@@ -621,14 +1007,15 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
       <div className="panel-header">
         <h2 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>
           Architecture Specification
-          {spec && <span className="panel-label" style={{ marginLeft: 10, fontWeight: 400 }}>{spec.project_name}</span>}
+          {disp && <span className="panel-label" style={{ marginLeft: 10, fontWeight: 400 }}>{disp.project_name}</span>}
         </h2>
+        {dirty && <span style={{ fontSize: 11, color: "#f0a500", marginLeft: 8 }}>● unsaved changes</span>}
       </div>
 
       <div className="panel-tab-bar" style={{ marginBottom: 12 }}>
         {(["togaf", "zachman", "c4", "adr", "governance"] as NavTab[]).map(t => (
           <button key={t} className={`panel-tab ${tab === t ? "active" : ""}`}
-            onClick={() => { setTab(t); setReport(""); setCliError(""); }}>
+            onClick={() => { setTab(t); setReport(""); setEditingCell(null); }}>
             {t === "togaf" ? "TOGAF ADM" : t === "zachman" ? "Zachman" : t === "c4" ? "C4 Model" : t === "adr" ? "ADRs" : "Governance"}
           </button>
         ))}

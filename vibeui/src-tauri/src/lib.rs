@@ -210,6 +210,7 @@ pub fn run() {
             hosted_agents: Arc::new(Mutex::new(Vec::new())),
             host_output: Arc::new(Mutex::new(Vec::new())),
             host_processes: Arc::new(Mutex::new(std::collections::HashMap::new())),
+            host_clipboard: Arc::new(Mutex::new(Vec::new())),
             // Phase 25
             proactive_suggestions: Arc::new(Mutex::new(Vec::new())),
             proactive_metrics: Arc::new(Mutex::new(serde_json::json!({ "total_scans": 0, "total_suggestions": 0, "accepted": 0, "rejected": 0 }))),
@@ -1255,6 +1256,9 @@ pub fn run() {
             commands::host_start,
             commands::host_stop,
             commands::host_get_output,
+            commands::host_get_clipboard,
+            commands::host_set_clipboard,
+            commands::host_clear_clipboard,
             commands::proactive_scan,
             commands::proactive_get_suggestions,
             commands::proactive_accept,
@@ -1293,6 +1297,8 @@ pub fn run() {
             commands::docsync_status,
             commands::docsync_reconcile,
             commands::docsync_get_alerts,
+            commands::docsync_get_links,
+            commands::docsync_get_sections,
             commands::voice_list_models,
             commands::voice_start_recording,
             commands::voice_stop_recording,
@@ -1362,6 +1368,7 @@ pub fn run() {
             // MCTS Repair
             commands::mcts_list_sessions,
             commands::mcts_create_session,
+            commands::mcts_get_tree,
             // Browser Agent
             commands::browser_list_sessions,
             commands::browser_create_session,
@@ -1418,6 +1425,7 @@ pub fn run() {
             commands::archspec_generate,
             commands::archspec_set_adr_status,
             commands::archspec_create_adr,
+            commands::archspec_save,
             commands::handle_policy_command,
             commands::handle_aireview_command,
             commands::handle_creview_command,

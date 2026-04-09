@@ -41,7 +41,9 @@ export function AgentHostPanel() {
   const [tab, setTab] = useState("agents");
   const [agents, setAgents] = useState<HostedAgent[]>([]);
   const [output, setOutput] = useState<OutputLine[]>([]);
-  const [clipboard] = useState<ClipboardEntry[]>([]);
+  const [clipboard, setClipboard] = useState<ClipboardEntry[]>([]);
+  const [newKey, setNewKey] = useState("");
+  const [newValue, setNewValue] = useState("");
   const [maxAgents, setMaxAgents] = useState(5);
   const [interleave, setInterleave] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -61,26 +63,33 @@ export function AgentHostPanel() {
     } catch {/* silent */}
   }, []);
 
+  const loadClipboard = useCallback(async () => {
+    try {
+      const data = await invoke<ClipboardEntry[]>("host_get_clipboard");
+      setClipboard(Array.isArray(data) ? data : []);
+    } catch {/* silent */}
+  }, []);
+
   useEffect(() => {
     (async () => {
       setLoading(true);
-      await Promise.all([loadAgents(), loadOutput()]);
+      await Promise.all([loadAgents(), loadOutput(), loadClipboard()]);
       setLoading(false);
     })();
 
-    // Poll agents and output every 5 s
-    const poll = setInterval(() => { loadAgents(); loadOutput(); }, 5_000);
+    const poll = setInterval(() => { loadAgents(); loadOutput(); loadClipboard(); }, 5_000);
 
-    // Also refresh immediately on backend output events
     const unlisten = listen("host:output", () => loadOutput());
     const unlistenStatus = listen("host:status_changed", () => loadAgents());
+    const unlistenClip = listen("host:clipboard_changed", () => loadClipboard());
 
     return () => {
       clearInterval(poll);
       unlisten.then(fn => fn());
       unlistenStatus.then(fn => fn());
+      unlistenClip.then(fn => fn());
     };
-  }, [loadAgents, loadOutput]);
+  }, [loadAgents, loadOutput, loadClipboard]);
 
   const toggleAgent = useCallback(async (id: string) => {
     const agent = agents.find((a) => a.id === id);
@@ -100,6 +109,25 @@ export function AgentHostPanel() {
     setActionLoading(null);
   }, [agents]);
 
+  const handleSetClipboard = useCallback(async () => {
+    if (!newKey.trim() || !newValue.trim()) return;
+    try {
+      await invoke("host_set_clipboard", { key: newKey.trim(), value: newValue.trim(), agentId: "user" });
+      setNewKey("");
+      setNewValue("");
+      await loadClipboard();
+    } catch (e) {
+      console.error("host_set_clipboard failed:", e);
+    }
+  }, [newKey, newValue, loadClipboard]);
+
+  const handleClearClipboard = useCallback(async () => {
+    try {
+      await invoke("host_clear_clipboard");
+      setClipboard([]);
+    } catch {/* silent */}
+  }, []);
+
   const statusColor: Record<string, string> = { running: "var(--success-color)", stopped: "var(--text-secondary)", error: "var(--error-color)" };
 
   return (
@@ -108,7 +136,14 @@ export function AgentHostPanel() {
       <div className="panel-tab-bar" style={{ marginBottom: 16 }}>
         <button className={`panel-tab ${tab === "agents" ? "active" : ""}`} onClick={() => setTab("agents")}>Agents</button>
         <button className={`panel-tab ${tab === "output" ? "active" : ""}`} onClick={() => setTab("output")}>Output</button>
-        <button className={`panel-tab ${tab === "context" ? "active" : ""}`} onClick={() => setTab("context")}>Context</button>
+        <button className={`panel-tab ${tab === "context" ? "active" : ""}`} onClick={() => setTab("context")}>
+          Context
+          {clipboard.length > 0 && (
+            <span style={{ marginLeft: 4, background: "var(--accent-color)", color: "#fff", borderRadius: 8, padding: "0 5px", fontSize: 10 }}>
+              {clipboard.length}
+            </span>
+          )}
+        </button>
         <button className={`panel-tab ${tab === "config" ? "active" : ""}`} onClick={() => setTab("config")}>Config</button>
       </div>
 
@@ -150,7 +185,14 @@ export function AgentHostPanel() {
 
       {tab === "context" && (
         <div>
-          <div style={{ fontWeight: 600, marginBottom: 8 }}>Shared Clipboard</div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <span style={{ fontWeight: 600 }}>Shared Clipboard</span>
+            {clipboard.length > 0 && (
+              <button className="panel-btn panel-btn-secondary" style={{ fontSize: 12 }} onClick={handleClearClipboard}>
+                Clear All
+              </button>
+            )}
+          </div>
           {clipboard.length === 0 && <div className="panel-empty">Clipboard is empty.</div>}
           {clipboard.map((c) => (
             <div key={c.id} className="panel-card">
@@ -158,9 +200,21 @@ export function AgentHostPanel() {
                 <strong>{c.key}</strong>
                 <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>by {c.setBy}</span>
               </div>
-              <div style={{ fontSize: 12, fontFamily: "monospace", marginTop: 4, color: "var(--text-secondary)" }}>{c.value}</div>
+              <div style={{ fontSize: 12, fontFamily: "monospace", marginTop: 4, color: "var(--text-secondary)", wordBreak: "break-all" }}>{c.value}</div>
             </div>
           ))}
+          <div className="panel-card" style={{ marginTop: 8 }}>
+            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Set Clipboard Entry</div>
+            <input className="panel-input panel-input-full" placeholder="Key" style={{ marginBottom: 6 }}
+              value={newKey} onChange={(e) => setNewKey(e.target.value)} />
+            <input className="panel-input panel-input-full" placeholder="Value"
+              value={newValue} onChange={(e) => setNewValue(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleSetClipboard(); }} />
+            <button className="panel-btn panel-btn-primary" style={{ marginTop: 8 }}
+              disabled={!newKey.trim() || !newValue.trim()} onClick={handleSetClipboard}>
+              Set
+            </button>
+          </div>
         </div>
       )}
 

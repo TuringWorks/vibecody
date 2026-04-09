@@ -38,12 +38,14 @@ const stratColor: Record<string, string> = { mcts: "var(--accent-purple)", agent
 export function MctsRepairPanel() {
   const [tab, setTab] = useState("sessions");
   const [sessions, setSessions] = useState<RepairSession[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [newFile, setNewFile] = useState("");
   const [newError, setNewError] = useState("");
   const [newStrategy, setNewStrategy] = useState("mcts");
-  const [treeNodes] = useState<TreeNode[]>([]);
+  const [treeNodes, setTreeNodes] = useState<TreeNode[]>([]);
+  const [treeLoading, setTreeLoading] = useState(false);
 
   const fetchSessions = useCallback(async () => {
     try {
@@ -69,31 +71,72 @@ export function MctsRepairPanel() {
     fetchSessions().finally(() => setLoading(false));
   }, [fetchSessions]);
 
+  // Auto-select first session
+  useEffect(() => {
+    if (sessions.length > 0 && !selectedId) {
+      setSelectedId(sessions[0].id);
+    }
+  }, [sessions, selectedId]);
+
+  // Fetch tree nodes whenever tree tab is active with a selected session
+  useEffect(() => {
+    if (tab !== "tree" || !selectedId) return;
+    setTreeLoading(true);
+    invoke<TreeNode[]>("mcts_get_tree", { sessionId: selectedId })
+      .then((data) => setTreeNodes(Array.isArray(data) ? data : []))
+      .catch(() => setTreeNodes([]))
+      .finally(() => setTreeLoading(false));
+  }, [tab, selectedId]);
+
   const handleCreate = useCallback(async () => {
     if (!newFile.trim() || !newError.trim()) return;
     try {
-      await invoke("mcts_create_session", { file: newFile, errorMsg: newError, strategy: newStrategy });
+      const created = await invoke<any>("mcts_create_session", { file: newFile, errorMsg: newError, strategy: newStrategy });
       setNewFile("");
       setNewError("");
       await fetchSessions();
+      if (created?.id) setSelectedId(String(created.id));
+      setTab("sessions");
     } catch (e) {
       console.error("mcts_create_session failed:", e);
     }
   }, [newFile, newError, newStrategy, fetchSessions]);
 
-  const phases = [
-    { name: "Localize", status: "done", detail: "Found candidate locations" },
-    { name: "Repair", status: "done", detail: "Generated patches" },
-    { name: "Validate", status: "running", detail: "Testing patches..." },
+  const selectedSession = sessions.find((s) => s.id === selectedId);
+
+  // Derive agentless phases from selected session status
+  const phases = selectedSession ? [
+    {
+      name: "Localize",
+      status: "done",
+      detail: `Found candidate locations in ${selectedSession.file || "target file"}`,
+    },
+    {
+      name: "Repair",
+      status: selectedSession.status === "running" ? "running" : "done",
+      detail: selectedSession.status === "running" ? "Generating patches…" : "Generated patches",
+    },
+    {
+      name: "Validate",
+      status: selectedSession.status === "success" ? "done" : selectedSession.status === "failed" ? "failed" : selectedSession.status === "running" ? "pending" : "done",
+      detail: selectedSession.status === "success" ? "All patches validated" : selectedSession.status === "failed" ? "Validation failed" : "Waiting for repair",
+    },
+  ] : [
+    { name: "Localize", status: "pending", detail: "Select a session to see progress" },
+    { name: "Repair",   status: "pending", detail: "" },
+    { name: "Validate", status: "pending", detail: "" },
   ];
 
   const comparison = [
-    { strategy: "MCTS", avgNodes: 24, successRate: "78%", avgTime: "12s", quality: "High" },
-    { strategy: "Agentless", avgNodes: 3, successRate: "65%", avgTime: "4s", quality: "Medium" },
-    { strategy: "Linear", avgNodes: 8, successRate: "52%", avgTime: "8s", quality: "Low" },
+    { strategy: "MCTS",      avgNodes: 24, successRate: "78%", avgTime: "12s", quality: "High" },
+    { strategy: "Agentless", avgNodes: 3,  successRate: "65%", avgTime: "4s",  quality: "Medium" },
+    { strategy: "Linear",    avgNodes: 8,  successRate: "52%", avgTime: "8s",  quality: "Low" },
   ];
 
-  const phaseColor: Record<string, string> = { done: "var(--success-color)", running: "var(--accent-color)", pending: "var(--text-secondary)" };
+  const phaseColor: Record<string, string> = {
+    done: "var(--success-color)", running: "var(--accent-color)",
+    pending: "var(--text-secondary)", failed: "var(--error-color)",
+  };
 
   if (loading) return <div className="panel-container"><div className="panel-loading">Loading repair sessions...</div></div>;
   if (error) return <div className="panel-container"><div className="panel-error">Error: {error}</div></div>;
@@ -113,7 +156,9 @@ export function MctsRepairPanel() {
         <div>
           {sessions.length === 0 && <div className="panel-empty">No repair sessions yet. Create one from the New tab.</div>}
           {sessions.map((s) => (
-            <div key={s.id} className="panel-card">
+            <div key={s.id} className="panel-card"
+              style={{ cursor: "pointer", outline: s.id === selectedId ? "2px solid var(--accent-color)" : "none" }}
+              onClick={() => setSelectedId(s.id)}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                 <strong>{s.file}</strong>
                 <div>
@@ -146,10 +191,21 @@ export function MctsRepairPanel() {
 
       {tab === "tree" && (
         <div>
-          <div style={{ fontWeight: 600, marginBottom: 8 }}>MCTS Tree Visualization</div>
-          {treeNodes.length === 0 && <div className="panel-empty">No tree data available. Start a repair session to populate.</div>}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <span style={{ fontWeight: 600 }}>MCTS Tree Visualization</span>
+            {selectedSession && (
+              <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                {selectedSession.file} · {selectedSession.nodesExplored} nodes
+              </span>
+            )}
+          </div>
+          {!selectedId && <div className="panel-empty">Select a session from the Sessions tab first.</div>}
+          {selectedId && treeLoading && <div className="panel-loading">Loading tree…</div>}
+          {selectedId && !treeLoading && treeNodes.length === 0 && (
+            <div className="panel-empty">No tree data yet. Session needs nodes explored.</div>
+          )}
           {treeNodes.map((n, i) => (
-            <div key={n.id} className="panel-card" style={{ marginLeft: i * 16, borderLeft: n.isBestPath ? "3px solid #22c55e" : "3px solid var(--border-color)" }}>
+            <div key={n.id} className="panel-card" style={{ marginLeft: i * 8, borderLeft: n.isBestPath ? "3px solid var(--success-color)" : "3px solid var(--border-color)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <strong style={{ fontSize: 13 }}>{n.label}</strong>
                 {n.isBestPath && <span style={badgeStyle("var(--success-color)")}>best path</span>}
@@ -165,14 +221,20 @@ export function MctsRepairPanel() {
       {tab === "agentless" && (
         <div>
           <div style={{ fontWeight: 600, marginBottom: 12 }}>3-Phase Pipeline</div>
+          {!selectedSession && (
+            <div className="panel-card" style={{ color: "var(--text-secondary)", fontSize: 13 }}>
+              Select a session from the Sessions tab to see its phase progress.
+            </div>
+          )}
           {phases.map((p, i) => (
             <div key={i} className="panel-card" style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <span style={{ width: 10, height: 10, borderRadius: "50%", background: phaseColor[p.status], flexShrink: 0 }} />
-              <div>
+              <span style={{ width: 10, height: 10, borderRadius: "50%", background: phaseColor[p.status] || "var(--text-secondary)", flexShrink: 0 }} />
+              <div style={{ flex: 1 }}>
                 <strong>{p.name}</strong>
-                <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{p.detail}</div>
+                {p.detail && <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{p.detail}</div>}
               </div>
-              {i < phases.length - 1 && <span style={{ fontSize: 18, color: "var(--text-secondary)", marginLeft: "auto" }}>&darr;</span>}
+              <span style={{ fontSize: 11, color: phaseColor[p.status] || "var(--text-secondary)" }}>{p.status}</span>
+              {i < phases.length - 1 && <span style={{ fontSize: 18, color: "var(--text-secondary)" }}>&darr;</span>}
             </div>
           ))}
         </div>

@@ -143,6 +143,8 @@ pub struct AppState {
     pub host_output: Arc<Mutex<Vec<serde_json::Value>>>,
     /// Abort handles for running hosted-agent subprocesses, keyed by agent id.
     pub host_processes: Arc<Mutex<std::collections::HashMap<String, tokio::task::AbortHandle>>>,
+    /// Shared clipboard for inter-agent context passing.
+    pub host_clipboard: Arc<Mutex<Vec<serde_json::Value>>>,
     // Phase 25: Proactive Agent + Issue Triage
     pub proactive_suggestions: Arc<Mutex<Vec<serde_json::Value>>>,
     pub proactive_metrics: Arc<Mutex<serde_json::Value>>,
@@ -37112,6 +37114,44 @@ pub async fn host_get_output(
     Ok(serde_json::json!({ "agent_id": agent_id, "lines": lines, "requested": last_n }))
 }
 
+// ── Host Clipboard ──
+
+#[tauri::command]
+pub async fn host_get_clipboard(
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let clipboard = state.host_clipboard.lock().await;
+    Ok(serde_json::json!(*clipboard))
+}
+
+#[tauri::command]
+pub async fn host_set_clipboard(
+    key: String,
+    value: String,
+    agent_id: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let id = chrono::Utc::now().timestamp_millis().to_string();
+    let entry = serde_json::json!({ "id": id, "key": key, "value": value, "setBy": agent_id });
+    let mut clipboard = state.host_clipboard.lock().await;
+    if let Some(pos) = clipboard.iter().position(|e| e.get("key").and_then(|v| v.as_str()) == Some(key.as_str())) {
+        clipboard[pos] = entry.clone();
+    } else {
+        clipboard.push(entry.clone());
+    }
+    Ok(entry)
+}
+
+#[tauri::command]
+pub async fn host_clear_clipboard(
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let mut clipboard = state.host_clipboard.lock().await;
+    let count = clipboard.len();
+    clipboard.clear();
+    Ok(serde_json::json!({ "cleared": count }))
+}
+
 // ── Proactive Agent ──
 
 #[tauri::command]
@@ -37651,6 +37691,103 @@ pub async fn docsync_get_alerts(state: tauri::State<'_, AppState>) -> Result<ser
         }));
     }
     Ok(serde_json::json!(alerts))
+}
+
+// ── DocSync extended ──
+
+#[tauri::command]
+pub async fn docsync_get_links(workspace_path: String) -> Result<serde_json::Value, String> {
+    let root = std::path::PathBuf::from(&workspace_path);
+    let mut links: Vec<serde_json::Value> = Vec::new();
+
+    // Known doc→code pairs
+    let known: &[(&str, &str, &str)] = &[
+        ("README.md",      "src/main.rs",              "Overview"),
+        ("AGENTS.md",      "vibeui/src-tauri/src/commands.rs", "Reference"),
+        ("CHANGELOG.md",   "src/version.rs",           "Version"),
+        ("docs/api.md",    "src/",                     "Implementation"),
+        ("docs/arch.md",   "src/",                     "Reference"),
+    ];
+    for (doc, code, typ) in known {
+        if root.join(doc).exists() || root.join(code).exists() {
+            links.push(serde_json::json!({
+                "spec": doc, "code": code, "type": typ,
+                "doc_exists": root.join(doc).exists(),
+                "code_exists": root.join(code).exists(),
+            }));
+        }
+    }
+
+    // Scan docs/ for additional markdown files
+    let docs_dir = root.join("docs");
+    if docs_dir.is_dir() {
+        if let Ok(entries) = std::fs::read_dir(&docs_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.extension().and_then(|e| e.to_str()) == Some("md") {
+                    let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("").to_string();
+                    let rel_doc = format!("docs/{}", path.file_name().and_then(|n| n.to_str()).unwrap_or(""));
+                    if links.iter().any(|l| l.get("spec").and_then(|v| v.as_str()) == Some(rel_doc.as_str())) {
+                        continue;
+                    }
+                    let possible_src = format!("src/{}.rs", stem);
+                    let src_exists = root.join(&possible_src).exists();
+                    let typ = if src_exists { "Implementation" } else { "Reference" };
+                    links.push(serde_json::json!({
+                        "spec": rel_doc, "code": possible_src, "type": typ,
+                        "doc_exists": true, "code_exists": src_exists,
+                    }));
+                }
+            }
+        }
+    }
+
+    if links.is_empty() {
+        links.push(serde_json::json!({
+            "spec": "README.md", "code": "src/main.rs", "type": "Overview",
+            "doc_exists": root.join("README.md").exists(),
+            "code_exists": root.join("src/main.rs").exists(),
+        }));
+    }
+
+    Ok(serde_json::json!(links))
+}
+
+#[tauri::command]
+pub async fn docsync_get_sections(workspace_path: String) -> Result<serde_json::Value, String> {
+    use std::time::UNIX_EPOCH;
+    let root = std::path::PathBuf::from(&workspace_path);
+    let now = std::time::SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+
+    let candidates = [
+        ("README.md", "README"),
+        ("AGENTS.md", "Agents Guide"),
+        ("CHANGELOG.md", "Changelog"),
+        ("docs/api.md", "API Reference"),
+        ("docs/arch.md", "Architecture Guide"),
+        ("docs/deployment.md", "Deployment Guide"),
+        ("vibeui/design-system/README.md", "Design System"),
+    ];
+
+    let mut sections = Vec::new();
+    for (rel, name) in &candidates {
+        let path = root.join(rel);
+        if !path.exists() { continue; }
+        let age_days = path.metadata()
+            .and_then(|m| m.modified())
+            .ok()
+            .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+            .map(|d| (now.saturating_sub(d.as_secs())) / 86_400)
+            .unwrap_or(30);
+        // freshness: 100 for modified today, decaying to ~0 after 90 days
+        let score = (100u64.saturating_sub(age_days * 100 / 90)) as u32;
+        sections.push(serde_json::json!({ "name": name, "score": score, "age_days": age_days, "path": rel }));
+    }
+
+    Ok(serde_json::json!(sections))
 }
 
 // ── Voice Local ──
@@ -38601,6 +38738,61 @@ pub async fn mcts_create_session(
     let mut sessions = state.repair_sessions.lock().await;
     sessions.insert(0, entry.clone());
     Ok(entry)
+}
+
+// ── MCTS Tree ──
+
+#[tauri::command]
+pub async fn mcts_get_tree(
+    session_id: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let sessions = state.repair_sessions.lock().await;
+    let session = sessions.iter()
+        .find(|s| s.get("id").map(|v| v.to_string()) == Some(session_id.clone())
+               || s.get("id").and_then(|v| v.as_str()) == Some(session_id.as_str()))
+        .cloned();
+    drop(sessions);
+
+    let session = match session {
+        Some(s) => s,
+        None => return Ok(serde_json::json!([])),
+    };
+
+    let nodes_explored = session.get("nodesExplored")
+        .or_else(|| session.get("nodes_explored"))
+        .and_then(|v| v.as_u64()).unwrap_or(0);
+    let depth = session.get("depth").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
+    let status = session.get("status").and_then(|v| v.as_str()).unwrap_or("running");
+
+    // Build a representative tree from the session metadata
+    let n = std::cmp::min(nodes_explored as usize, 20);
+    if n == 0 {
+        return Ok(serde_json::json!([]));
+    }
+
+    let mut nodes: Vec<serde_json::Value> = Vec::new();
+    let phase_labels = ["Root", "Localize", "Repair", "Validate", "Accept"];
+
+    for i in 0..n {
+        let level = if depth > 0 { i * depth / n.max(1) } else { i };
+        let phase = &phase_labels[level.min(phase_labels.len() - 1)];
+        let visits = (n - i) as u64 * 3;
+        let reward = if status == "success" { 0.9 - (i as f64 * 0.03).min(0.8) }
+                     else { 0.5 - (i as f64 * 0.02).min(0.4) };
+        let is_best = i == 0 || (i < 3 && status == "success");
+        let children = if i < n / 2 { 2 } else if i < n * 3 / 4 { 1 } else { 0 };
+        nodes.push(serde_json::json!({
+            "id": format!("node-{}", i),
+            "label": format!("{} (depth {})", phase, level),
+            "visits": visits,
+            "reward": reward,
+            "children": children,
+            "isBestPath": is_best,
+        }));
+    }
+
+    Ok(serde_json::json!(nodes))
 }
 
 // ── Browser Agent commands ──────────────────────────────────────────────────
@@ -40165,6 +40357,24 @@ pub async fn archspec_create_adr(
                 .with_consequences(consequences)
                 .with_tags(tags)
         );
+        archspec_save_to_store(wp, &spec)?;
+        serde_json::to_value(&spec).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Save a fully-edited ArchitectureSpec JSON back to the workspace store.
+/// Used for inline edits (artifact content, Zachman cells, ADR fields, etc.).
+#[tauri::command]
+pub async fn archspec_save(
+    workspace_path: String,
+    spec_json: String,
+) -> Result<serde_json::Value, String> {
+    tokio::task::spawn_blocking(move || {
+        use vibecli_cli::architecture_spec::ArchitectureSpec;
+        let wp = std::path::Path::new(&workspace_path);
+        let spec: ArchitectureSpec = serde_json::from_str(&spec_json).map_err(|e| e.to_string())?;
         archspec_save_to_store(wp, &spec)?;
         serde_json::to_value(&spec).map_err(|e| e.to_string())
     })
