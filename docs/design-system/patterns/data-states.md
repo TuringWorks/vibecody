@@ -1,4 +1,5 @@
 ---
+render_with_liquid: false
 layout: page
 title: Data States — Design System
 permalink: /design-system/patterns/data-states/

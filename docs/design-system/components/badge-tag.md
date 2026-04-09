@@ -1,4 +1,5 @@
 ---
+render_with_liquid: false
 layout: page
 title: Badge & Tag — Design System
 permalink: /design-system/components/badge-tag/

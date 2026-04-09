@@ -1,4 +1,5 @@
 ---
+render_with_liquid: false
 layout: page
 title: Card — Design System
 permalink: /design-system/components/card/

@@ -1,4 +1,5 @@
 ---
+render_with_liquid: false
 layout: page
 title: Panel — Design System
 permalink: /design-system/components/panel/

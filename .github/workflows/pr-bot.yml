@@ -20,7 +20,7 @@ jobs:
 
     steps:
       - name: Checkout repository at PR head
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           # Check out the PR branch so the agent sees the PR's code
           ref: refs/pull/${{ github.event.issue.number }}/head

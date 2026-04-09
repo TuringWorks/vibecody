@@ -1,4 +1,5 @@
 ---
+render_with_liquid: false
 layout: page
 title: Forms — Design System
 permalink: /design-system/patterns/forms/

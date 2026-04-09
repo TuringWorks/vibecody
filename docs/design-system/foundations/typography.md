@@ -1,4 +1,5 @@
 ---
+render_with_liquid: false
 layout: page
 title: Typography — Design System
 permalink: /design-system/foundations/typography/

@@ -1,4 +1,5 @@
 ---
+render_with_liquid: false
 layout: page
 title: Design System
 permalink: /design-system/
