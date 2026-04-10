@@ -106,9 +106,9 @@ export function NotificationCenter({
             </div>
           </div>
 
-          <div className="notification-center__list">
+          <div className="notification-center__list" aria-live="polite" aria-relevant="additions removals">
             {notifications.length === 0 ? (
-              <div className="notification-center__empty">
+              <div className="notification-center__empty" role="status">
                 <Bell size={24} strokeWidth={1} style={{ opacity: 0.3 }} />
                 <span>No notifications</span>
               </div>
@@ -120,6 +120,8 @@ export function NotificationCenter({
                     key={n.id}
                     className={`notification-center__item ${n.read ? "" : "notification-center__item--unread"}`}
                     onClick={() => { if (!n.read) onMarkRead(n.id); }}
+                    role="article"
+                    aria-label={`${n.severity} notification: ${n.title}`}
                   >
                     <div className="notification-center__item-icon" style={{ color: SEVERITY_COLOR[n.severity] }}>
                       <Icon size={14} />

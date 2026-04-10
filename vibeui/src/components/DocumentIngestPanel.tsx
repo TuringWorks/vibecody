@@ -97,8 +97,9 @@ export function DocumentIngestPanel() {
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {/* File path input */}
             <div>
-              <label style={{ fontSize: 11, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>File or Directory Path</label>
+              <label htmlFor="doc-ingest-path" style={{ fontSize: 11, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>File or Directory Path</label>
               <input
+                id="doc-ingest-path"
                 value={filePath}
                 onChange={(e) => setFilePath(e.target.value)}
                 placeholder="/path/to/document.pdf or /path/to/directory"
@@ -168,7 +169,7 @@ export function DocumentIngestPanel() {
               </div>
             )}
             {results.length === 0 && !isLoading && (
-              <div className="panel-empty" style={{ marginTop: 32 }}>No documents ingested yet. Enter a path and click Ingest.</div>
+              <div className="panel-empty-state">No documents ingested yet. Enter a path and click Ingest.</div>
             )}
           </div>
         )}
@@ -238,6 +239,9 @@ export function DocumentIngestPanel() {
               </div>
               <button
                 onClick={() => setConfig((c) => ({ ...c, sentenceBoundary: !c.sentenceBoundary }))}
+                role="switch"
+                aria-checked={config.sentenceBoundary}
+                aria-label="Respect Sentence Boundaries"
                 style={{
                   width: 40,
                   height: 22,
@@ -269,6 +273,9 @@ export function DocumentIngestPanel() {
               </div>
               <button
                 onClick={() => setConfig((c) => ({ ...c, sectionTitle: !c.sectionTitle }))}
+                role="switch"
+                aria-checked={config.sectionTitle}
+                aria-label="Extract Section Titles"
                 style={{
                   width: 40,
                   height: 22,

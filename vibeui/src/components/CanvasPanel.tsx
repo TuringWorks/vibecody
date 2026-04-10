@@ -202,16 +202,18 @@ export default function CanvasPanel() {
  )}
 
  {/* Canvas */}
- <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+ <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
  {/* Toolbar */}
  <div style={{ display: "flex", gap: 8, padding: "8px 12px", borderBottom: "1px solid var(--border-color)", alignItems: "center" }}>
  <button onClick={() => setShowPalette(!showPalette)} style={{ background: "var(--bg-secondary)", border: "none", color: "var(--text-secondary)", padding: "4px 8px", borderRadius: 4, cursor: "pointer" }}>
  {showPalette ? "◀" : ""} Palette
  </button>
  <input
+ id="canvas-workflow-name"
  value={newName || currentWorkflow.name}
  onChange={e => setNewName(e.target.value)}
  placeholder="Workflow name"
+ aria-label="Workflow name"
  className="panel-input"
  style={{ flex: 1, maxWidth: 200 }}
  />
@@ -317,6 +319,8 @@ export default function CanvasPanel() {
  fontSize={12}
  style={{ cursor: "pointer" }}
  onClick={(e) => { e.stopPropagation(); deleteNode(node.id); }}
+ role="button"
+ aria-label={`Delete element ${node.label}`}
  >
  ×
  </text>
@@ -351,10 +355,10 @@ export default function CanvasPanel() {
   const fromNodes = currentWorkflow.edges.filter(e => e.to === selectedNode).map(e => currentWorkflow.nodes.find(n => n.id === e.from)?.label).filter(Boolean);
 
   return (
-   <div style={{ width: 220, borderLeft: "1px solid var(--border-color)", padding: 12, overflowY: "auto", fontSize: 12 }}>
+   <div style={{ width: 220, flexShrink: 0, borderLeft: "1px solid var(--border-color)", padding: 12, overflowY: "auto", fontSize: 12 }}>
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
      <span style={{ fontWeight: 600, fontSize: 13 }}>Properties</span>
-     <button onClick={() => setSelectedNode(null)} style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: 14 }}>x</button>
+     <button onClick={() => setSelectedNode(null)} aria-label="Close properties panel" style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: 14 }}>x</button>
     </div>
 
     <div style={{ padding: "4px 8px", borderRadius: 4, background: NODE_COLORS[node.type] + "22", color: NODE_COLORS[node.type], fontSize: 11, fontWeight: 600, marginBottom: 8 }}>

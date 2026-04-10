@@ -96,7 +96,10 @@ export function HistoryPanel() {
  sessions.map((s) => (
  <div
  key={s.session_id}
+ role="button"
+ tabIndex={0}
  onClick={() => loadTrace(s.session_id)}
+ onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); loadTrace(s.session_id); } }}
  style={{
  padding: "8px",
  marginBottom: "4px",
