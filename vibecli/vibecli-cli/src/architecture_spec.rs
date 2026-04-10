@@ -1901,6 +1901,12 @@ impl Default for GovernanceEngine {
 pub struct ArchitectureSpec {
     pub project_name: String,
     pub created_at: u64,
+    /// Timestamp of the most recent codebase scan (0 = never scanned).
+    #[serde(default)]
+    pub last_scanned_at: u64,
+    /// Number of times this spec has been (re)scanned.
+    #[serde(default)]
+    pub scan_count: u32,
     pub togaf: TogafAdm,
     pub zachman: ZachmanFramework,
     pub c4: C4Model,
@@ -1914,6 +1920,8 @@ impl ArchitectureSpec {
         Self {
             project_name: project_name.to_string(),
             created_at: current_timestamp(),
+            last_scanned_at: 0,
+            scan_count: 0,
             togaf: TogafAdm::new(),
             zachman: ZachmanFramework::new(),
             c4: C4Model::new(project_name),

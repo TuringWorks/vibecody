@@ -40823,8 +40823,100 @@ pub async fn archspec_generate(workspace_path: String) -> Result<serde_json::Val
             }
         }
 
+        // Stamp scan metadata and archive previous scan for history
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        // Archive previous spec if one exists (scan history)
+        if let Ok(prev) = archspec_load_from_store(wp) {
+            if prev.last_scanned_at > 0 {
+                let history_key = format!("archspec_history_{}", prev.last_scanned_at);
+                if let Ok(prev_json) = serde_json::to_string(&prev) {
+                    let _ = vibecli_cli::workspace_store::WorkspaceStore::open(wp)
+                        .and_then(|s| s.setting_set(&history_key, &prev_json));
+                }
+            }
+        }
+        spec.last_scanned_at = now;
+        spec.scan_count += 1;
+
         archspec_save_to_store(wp, &spec)?;
         serde_json::to_value(&spec).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// List all archived architecture spec scans for a workspace.
+#[tauri::command]
+pub async fn archspec_list_scans(workspace_path: String) -> Result<serde_json::Value, String> {
+    tokio::task::spawn_blocking(move || {
+        let wp = std::path::Path::new(&workspace_path);
+        let store = vibecli_cli::workspace_store::WorkspaceStore::open(wp)?;
+        let all_entries = store.setting_list().unwrap_or_default();
+        let mut scans: Vec<serde_json::Value> = Vec::new();
+        for entry in &all_entries {
+            let key = entry["key"].as_str().unwrap_or("");
+            if let Some(ts_str) = key.strip_prefix("archspec_history_") {
+                if let Ok(ts) = ts_str.parse::<u64>() {
+                    if let Ok(Some(json)) = store.setting_get(key) {
+                        // Extract just the metadata, not the full spec
+                        if let Ok(spec) = serde_json::from_str::<vibecli_cli::architecture_spec::ArchitectureSpec>(&json) {
+                            scans.push(serde_json::json!({
+                                "timestamp": ts,
+                                "project_name": spec.project_name,
+                                "scan_count": spec.scan_count,
+                                "togaf_artifacts": spec.togaf.artifacts.len(),
+                                "c4_elements": spec.c4.elements.len(),
+                                "adr_count": spec.adrs.records.len(),
+                                "governance_rules": spec.governance.rules.len(),
+                            }));
+                        }
+                    }
+                }
+            }
+        }
+        // Add current scan
+        if let Ok(current) = archspec_load_from_store(wp) {
+            if current.last_scanned_at > 0 {
+                scans.push(serde_json::json!({
+                    "timestamp": current.last_scanned_at,
+                    "project_name": current.project_name,
+                    "scan_count": current.scan_count,
+                    "togaf_artifacts": current.togaf.artifacts.len(),
+                    "c4_elements": current.c4.elements.len(),
+                    "adr_count": current.adrs.records.len(),
+                    "governance_rules": current.governance.rules.len(),
+                    "current": true,
+                }));
+            }
+        }
+        scans.sort_by(|a, b| {
+            let ta = a["timestamp"].as_u64().unwrap_or(0);
+            let tb = b["timestamp"].as_u64().unwrap_or(0);
+            tb.cmp(&ta) // newest first
+        });
+        serde_json::to_value(&scans).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Load a specific historical architecture spec scan.
+#[tauri::command]
+pub async fn archspec_load_scan(workspace_path: String, timestamp: u64) -> Result<serde_json::Value, String> {
+    tokio::task::spawn_blocking(move || {
+        let wp = std::path::Path::new(&workspace_path);
+        let history_key = format!("archspec_history_{}", timestamp);
+        let store = vibecli_cli::workspace_store::WorkspaceStore::open(wp)?;
+        match store.setting_get(&history_key)? {
+            Some(json) => {
+                let spec: serde_json::Value = serde_json::from_str(&json).map_err(|e| e.to_string())?;
+                Ok(spec)
+            }
+            None => Err(format!("No scan found for timestamp {}", timestamp)),
+        }
     })
     .await
     .map_err(|e| e.to_string())?

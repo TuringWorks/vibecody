@@ -54,11 +54,24 @@ interface GovernanceRule {
 
 interface ArchSpec {
   project_name: string;
+  last_scanned_at?: number;
+  scan_count?: number;
   togaf:      { artifacts: TogafArtifact[] };
   zachman:    { cells: Record<string, ZachmanCell> };
   c4:         { system_name: string; elements: C4Element[]; relationships: C4Relationship[] };
   adrs:       { records: Adr[] };
   governance: { rules: GovernanceRule[] };
+}
+
+interface ScanEntry {
+  timestamp: number;
+  project_name: string;
+  scan_count: number;
+  togaf_artifacts: number;
+  c4_elements: number;
+  adr_count: number;
+  governance_rules: number;
+  current?: boolean;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────
@@ -122,6 +135,10 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
   const [adrConseq, setAdrConseq]     = useState("");
   const [adrBusy, setAdrBusy]         = useState(false);
 
+  // Scan history
+  const [scanHistory, setScanHistory] = useState<ScanEntry[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+
   // Report pane (editable text output)
   const [report, setReport]       = useState("");
   const [reportLabel, setReportLabel] = useState("");
@@ -142,6 +159,26 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
   // ── Apply remote spec update ──────────────────────────────────────────────
   const applySpec = (s: ArchSpec) => { setSpec(s); setLocalSpec(s); setDirty(false); };
 
+  // ── Load scan history ─────────────────────────────────────────────────────
+  const loadScanHistory = useCallback(async () => {
+    if (!workspacePath) return;
+    try {
+      const scans = await invoke<ScanEntry[]>("archspec_list_scans", { workspacePath });
+      setScanHistory(scans);
+    } catch { /* ignore — history is optional */ }
+  }, [workspacePath]);
+
+  useEffect(() => { loadScanHistory(); }, [loadScanHistory]);
+
+  const loadHistoricalScan = async (timestamp: number) => {
+    if (!workspacePath) return;
+    try {
+      const s = await invoke<ArchSpec>("archspec_load_scan", { workspacePath, timestamp });
+      setSpec(s); setLocalSpec(s); setDirty(false);
+      setShowHistory(false);
+    } catch (e) { setError(String(e)); }
+  };
+
   // ── Generate ─────────────────────────────────────────────────────────────
   const handleGenerate = async () => {
     if (!workspacePath) { setError("No workspace open."); return; }
@@ -149,6 +186,7 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
     try {
       applySpec(await invoke<ArchSpec>("archspec_generate", { workspacePath }));
       setExpandedPhase(null);
+      loadScanHistory(); // refresh history after new scan
     } catch (e) { setError(String(e)); }
     finally { setGenerating(false); }
   };
@@ -432,12 +470,103 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
     </div>
   );
 
+  const formatScanTime = (ts?: number) => {
+    if (!ts || ts === 0) return null;
+    const d = new Date(ts * 1000);
+    const now = Date.now();
+    const diffMs = now - d.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+    let ago = "";
+    if (diffMins < 1) ago = "just now";
+    else if (diffMins < 60) ago = `${diffMins}m ago`;
+    else if (diffHours < 24) ago = `${diffHours}h ago`;
+    else ago = `${diffDays}d ago`;
+    return { date: d.toLocaleString(), ago };
+  };
+
+  const scanInfo = formatScanTime(disp?.last_scanned_at);
+
   const GenerateBar = () => (
-    <button className="panel-btn panel-btn-primary panel-btn-sm" onClick={handleGenerate}
-      disabled={generating || !workspacePath} title={workspacePath ? "Scan codebase and generate draft artifacts" : "Open a workspace first"}>
-      {generating ? "Generating…" : "⟳ Generate from Codebase"}
-    </button>
+    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <button className="panel-btn panel-btn-primary panel-btn-sm" onClick={handleGenerate}
+        disabled={generating || !workspacePath}
+        title={workspacePath
+          ? (scanInfo ? `Rescan codebase (last: ${scanInfo.date})` : "Scan codebase and generate draft artifacts")
+          : "Open a workspace first"}>
+        {generating ? "Scanning…" : (scanInfo ? "⟳ Rescan" : "⟳ Generate from Codebase")}
+      </button>
+      {scanHistory.length > 1 && (
+        <button className="panel-btn panel-btn-secondary panel-btn-sm"
+          onClick={() => setShowHistory(!showHistory)}
+          title="View scan history">
+          {showHistory ? "▴ History" : `▾ History (${scanHistory.length})`}
+        </button>
+      )}
+    </div>
   );
+
+  const ScanStatusBar = () => {
+    if (!scanInfo) return null;
+    return (
+      <div style={{
+        display: "flex", alignItems: "center", gap: 8, padding: "4px 8px",
+        fontSize: 11, color: "var(--text-secondary)", background: "var(--bg-tertiary)",
+        borderRadius: 4, marginBottom: 6,
+      }}>
+        <span>Last scanned: <strong style={{ color: "var(--text-primary)" }}>{scanInfo.ago}</strong></span>
+        <span title={scanInfo.date}>({scanInfo.date})</span>
+        {(disp?.scan_count ?? 0) > 1 && (
+          <span>· Scan #{disp?.scan_count}</span>
+        )}
+      </div>
+    );
+  };
+
+  const ScanHistoryPanel = () => {
+    if (!showHistory || scanHistory.length === 0) return null;
+    return (
+      <div className="panel-card" style={{ marginBottom: 8, maxHeight: 200, overflowY: "auto" }}>
+        <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 6 }}>Scan History</div>
+        <table style={{ width: "100%", fontSize: 11, borderCollapse: "collapse" }}>
+          <thead>
+            <tr style={{ borderBottom: "1px solid var(--border-color)", color: "var(--text-secondary)" }}>
+              <th style={{ textAlign: "left", padding: "3px 6px" }}>Date</th>
+              <th style={{ textAlign: "right", padding: "3px 6px" }}>Scan #</th>
+              <th style={{ textAlign: "right", padding: "3px 6px" }}>TOGAF</th>
+              <th style={{ textAlign: "right", padding: "3px 6px" }}>C4</th>
+              <th style={{ textAlign: "right", padding: "3px 6px" }}>ADRs</th>
+              <th style={{ textAlign: "right", padding: "3px 6px" }}>Rules</th>
+              <th style={{ padding: "3px 6px" }}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {scanHistory.map((s) => (
+              <tr key={s.timestamp} style={{
+                borderBottom: "1px solid var(--border-color)",
+                background: s.current ? "color-mix(in srgb, var(--accent-color) 8%, transparent)" : undefined,
+              }}>
+                <td style={{ padding: "3px 6px" }}>{new Date(s.timestamp * 1000).toLocaleString()}</td>
+                <td style={{ textAlign: "right", padding: "3px 6px" }}>{s.scan_count}</td>
+                <td style={{ textAlign: "right", padding: "3px 6px" }}>{s.togaf_artifacts}</td>
+                <td style={{ textAlign: "right", padding: "3px 6px" }}>{s.c4_elements}</td>
+                <td style={{ textAlign: "right", padding: "3px 6px" }}>{s.adr_count}</td>
+                <td style={{ textAlign: "right", padding: "3px 6px" }}>{s.governance_rules}</td>
+                <td style={{ padding: "3px 6px" }}>
+                  {s.current
+                    ? <span style={{ fontSize: 10, color: "var(--accent-green)" }}>current</span>
+                    : <button className="panel-btn panel-btn-secondary" style={{ fontSize: 10, padding: "1px 6px" }}
+                        onClick={() => loadHistoricalScan(s.timestamp)}>Load</button>
+                  }
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
 
   const SaveBar = () => dirty ? (
     <button className="panel-btn panel-btn-primary panel-btn-sm" onClick={handleSave} disabled={saving}>
@@ -486,6 +615,9 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
           </div>
         </div>
       </div>
+
+      <ScanStatusBar />
+      <ScanHistoryPanel />
 
       {!workspacePath && <div className="panel-card" style={{ color: "var(--text-secondary)", fontSize: 13 }}>Open a workspace folder to enable architecture tracking.</div>}
       {loading && <div className="panel-label" style={{ padding: 8 }}>Loading…</div>}
