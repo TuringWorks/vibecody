@@ -897,9 +897,17 @@ textarea::placeholder {
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .panel-container { display: flex; flex-direction: column; height: 100%; flex: 1; min-height: 0; overflow: hidden; color: var(--text-primary); font-size: 13px; }
-.panel-header { padding: 8px 12px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 8px; }
+.panel-header { padding: 8px 12px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .panel-header h3 { font-size: 14px; font-weight: 700; margin: 0; }
-.panel-body { flex: 1; overflow-y: auto; padding: 8px 12px; }
+/* Scrollable content area — vertical + horizontal */
+.panel-body { flex: 1; min-height: 0; overflow: auto; padding: 8px 12px; }
+/* Panels that don't use panel-body: auto-scroll the last direct div child that
+   isn't a fixed header/tab-bar/error banner. Covers ~78 panels without per-file edits. */
+.panel-container > div:last-child:not(.panel-header):not(.panel-tab-bar):not(.panel-error) {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
 .panel-card { background: var(--bg-secondary); border-radius: var(--radius-sm); padding: 12px; border: 1px solid var(--border-color); }
 .panel-input {
   background: var(--input-bg); color: var(--text-primary);
@@ -931,7 +939,7 @@ textarea::placeholder {
 }
 .panel-error button { background: none; border: none; color: var(--text-danger); cursor: pointer; font-size: 14px; padding: 0 4px; }
 .panel-empty { text-align: center; padding: 40px 20px; color: var(--text-muted); font-size: 13px; }
-.panel-tab-bar { display: flex; gap: 0; border-bottom: 1px solid var(--border-color); }
+.panel-tab-bar { display: flex; gap: 0; border-bottom: 1px solid var(--border-color); flex-shrink: 0; }
 .panel-tab {
   padding: 6px 14px; cursor: pointer; font-size: 12px; font-weight: 500;
   border: none; border-bottom: 2px solid transparent;
