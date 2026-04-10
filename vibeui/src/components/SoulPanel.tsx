@@ -26,6 +26,8 @@ export function SoulPanel({ workspacePath }: { workspacePath?: string | null }) 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState<string>("");
 
   const wp = workspacePath || "";
 
@@ -47,6 +49,33 @@ export function SoulPanel({ workspacePath }: { workspacePath?: string | null }) 
       const result = await invoke<SoulSignals>("soul_scan", { workspacePath: wp });
       setSignals(result);
       setTab("signals");
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const startEdit = () => {
+    setEditContent(content ?? "");
+    setIsEditing(true);
+  };
+
+  const cancelEdit = () => {
+    setIsEditing(false);
+    setEditContent("");
+  };
+
+  const handleSave = async () => {
+    setLoading(true);
+    setError("");
+    setSuccess("");
+    try {
+      await invoke("soul_save", { workspacePath: wp, content: editContent });
+      setContent(editContent);
+      setSuccess("SOUL.md saved.");
+      setIsEditing(false);
+      setEditContent("");
     } catch (e) {
       setError(String(e));
     } finally {
@@ -95,23 +124,43 @@ export function SoulPanel({ workspacePath }: { workspacePath?: string | null }) 
         {tab === "view" && (
           <>
             {content ? (
-              <div className="panel-card">
-                <pre style={{ fontFamily: "var(--font-mono)", fontSize: "13px", lineHeight: "1.6", whiteSpace: "pre-wrap", wordBreak: "break-word", color: "var(--text-primary)", margin: 0 }}>
-                  {content}
-                </pre>
-              </div>
+              isEditing ? (
+                <>
+                  <textarea
+                    value={editContent}
+                    onChange={(e) => setEditContent(e.target.value)}
+                    className="panel-input panel-textarea panel-input-full"
+                    style={{ minHeight: 360, fontFamily: "var(--font-mono)", fontSize: "13px", lineHeight: "1.6", resize: "vertical" }}
+                  />
+                  <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end", marginTop: 8 }}>
+                    <button className="panel-btn panel-btn-secondary" onClick={cancelEdit}>Cancel</button>
+                    <button className="panel-btn panel-btn-primary" onClick={handleSave} disabled={loading}>
+                      {loading ? "Saving…" : "Save"}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="panel-card">
+                    <pre style={{ fontFamily: "var(--font-mono)", fontSize: "13px", lineHeight: "1.6", whiteSpace: "pre-wrap", wordBreak: "break-word", color: "var(--text-primary)", margin: 0 }}>
+                      {content}
+                    </pre>
+                  </div>
+                  <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+                    <button className="panel-btn panel-btn-secondary" onClick={() => handleGenerate(true)} disabled={loading}>
+                      Regenerate
+                    </button>
+                    <button className="panel-btn panel-btn-primary" onClick={startEdit}>
+                      Edit
+                    </button>
+                  </div>
+                </>
+              )
             ) : (
               <div className="panel-empty">
                 <div style={{ fontSize: "14px", marginBottom: "12px" }}>No SOUL.md found in this project.</div>
                 <button className="panel-btn panel-btn-primary" onClick={() => setTab("generate")}>
                   Generate One
-                </button>
-              </div>
-            )}
-            {content && (
-              <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
-                <button className="panel-btn panel-btn-secondary" onClick={() => handleGenerate(true)} disabled={loading}>
-                  Regenerate
                 </button>
               </div>
             )}

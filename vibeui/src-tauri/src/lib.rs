@@ -710,6 +710,8 @@ pub fn run() {
             commands::soul_generate,
             commands::soul_regenerate,
             commands::soul_read,
+            commands::soul_save,
+            commands::generate_vibeui_rules,
             // Phase 10-14: Futureproofing
             commands::mcp_lazy_status,
             commands::mcp_lazy_list_tools,

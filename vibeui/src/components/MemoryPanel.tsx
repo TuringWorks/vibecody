@@ -539,6 +539,7 @@ export function MemoryPanel({ workspacePath }: MemoryPanelProps) {
  const [globalRules, setGlobalRules] = useState("");
  const [saving, setSaving] = useState(false);
  const [saved, setSaved] = useState(false);
+ const [generating, setGenerating] = useState(false);
 
  useEffect(() => {
  let cancelled = false;
@@ -569,6 +570,19 @@ export function MemoryPanel({ workspacePath }: MemoryPanelProps) {
  } finally {
  setSaving(false);
  }
+ };
+
+ const generateRules = async () => {
+  if (activeTab !== "workspace") return;
+  setGenerating(true);
+  try {
+   const generated = await invoke<string>("generate_vibeui_rules");
+   setWorkspaceRules(generated);
+  } catch (e) {
+   toast.error("Generate failed: " + e);
+  } finally {
+   setGenerating(false);
+  }
  };
 
  const placeholder =
@@ -657,18 +671,26 @@ export function MemoryPanel({ workspacePath }: MemoryPanelProps) {
  }}
  />
 
- <button
- className="btn-primary"
- onClick={save}
- disabled={saving || (activeTab === "workspace" && !workspacePath)}
- >
- {saving
- ? "Saving…"
- : saved
- ? "✓ Saved!"
- : ` Save ${activeTab === "workspace" ? "Project" : "Global"} Rules`}
- </button>
-
+ <div style={{ display: "flex", gap: "6px" }}>
+  {activeTab === "workspace" && (
+   <button
+    className="panel-btn panel-btn-secondary"
+    onClick={generateRules}
+    disabled={generating || !workspacePath}
+    title="Generate rules from project stack"
+   >
+    {generating ? "Generating…" : "Generate with AI"}
+   </button>
+  )}
+  <button
+   className="panel-btn panel-btn-primary"
+   onClick={save}
+   disabled={saving || (activeTab === "workspace" && !workspacePath)}
+   style={{ marginLeft: "auto" }}
+  >
+   {saving ? "Saving…" : saved ? "✓ Saved!" : `Save ${activeTab === "workspace" ? "Project" : "Global"} Rules`}
+  </button>
+ </div>
 
  <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>
  {activeTab === "workspace"
