@@ -40200,6 +40200,277 @@ pub async fn handle_archspec_command(args: String) -> Result<String, String> {
         .map_err(|e| e.to_string())?
 }
 
+// ── Architecture Spec: polyglot project detection ──────────────────────────
+
+/// Detected project info, extracted for testability.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ProjectStack {
+    pub project_name:    String,
+    pub primary_lang:    String,
+    pub app_type:        String,
+    pub tech_stack:      Vec<String>,
+    pub framework_hints: Vec<String>,
+    pub is_monorepo:     bool,
+    pub has_docker:      bool,
+    pub has_ci:          bool,
+    pub structure_dirs:  Vec<String>,
+    pub src_modules:     Vec<String>,
+}
+
+pub fn detect_project_stack(workspace: &std::path::Path) -> ProjectStack {
+    let read_file = |rel: &str| -> String {
+        std::fs::read_to_string(workspace.join(rel)).unwrap_or_default()
+    };
+    let dir_entries = |rel: &str| -> Vec<String> {
+        std::fs::read_dir(workspace.join(rel))
+            .into_iter().flatten().flatten()
+            .filter_map(|e| e.file_name().into_string().ok())
+            .collect()
+    };
+    let has_file = |rel: &str| -> bool { workspace.join(rel).exists() };
+    let has_dir  = |rel: &str| -> bool { workspace.join(rel).is_dir() };
+
+    let has_cargo     = has_file("Cargo.toml");
+    let has_package   = has_file("package.json");
+    let has_go_mod    = has_file("go.mod");
+    let has_pom       = has_file("pom.xml");
+    let has_gradle    = has_file("build.gradle") || has_file("build.gradle.kts");
+    let has_pyproject = has_file("pyproject.toml");
+    let has_setup_py  = has_file("setup.py");
+    let has_req_txt   = has_file("requirements.txt");
+    let has_pipfile   = has_file("Pipfile");
+    let has_gemfile   = has_file("Gemfile");
+    let has_composer  = has_file("composer.json");
+    let has_pubspec   = has_file("pubspec.yaml");
+    let has_mix_exs   = has_file("mix.exs");
+    let has_pkg_swift = has_file("Package.swift");
+    let has_csproj    = std::fs::read_dir(workspace).into_iter().flatten().flatten()
+        .any(|e| e.file_name().to_str()
+            .map(|s| s.ends_with(".csproj") || s.ends_with(".sln")).unwrap_or(false));
+
+    let lang_count = [has_cargo, has_package, has_go_mod, has_pom || has_gradle,
+        has_pyproject || has_setup_py || has_req_txt || has_pipfile,
+        has_gemfile, has_composer, has_pubspec, has_mix_exs, has_pkg_swift, has_csproj]
+        .iter().filter(|&&v| v).count();
+    let is_monorepo = lang_count > 1;
+
+    let cargo_toml   = if has_cargo   { read_file("Cargo.toml") } else { String::new() };
+    let package_json = if has_package { read_file("package.json") } else { String::new() };
+    let go_mod_src   = if has_go_mod  { read_file("go.mod") } else { String::new() };
+    let pom_src      = if has_pom     { read_file("pom.xml") } else { String::new() };
+
+    // Project name
+    let project_name: String = {
+        let mut name = String::new();
+        if name.is_empty() && has_cargo {
+            if let Some(n) = cargo_toml.lines()
+                .find(|l| l.trim_start().starts_with("name"))
+                .and_then(|l| l.split('"').nth(1)) { name = n.to_string(); }
+        }
+        if name.is_empty() && has_package {
+            if let Ok(v) = serde_json::from_str::<serde_json::Value>(&package_json) {
+                if let Some(n) = v["name"].as_str() { name = n.trim_matches('"').to_string(); }
+            }
+        }
+        if name.is_empty() && has_go_mod {
+            if let Some(line) = go_mod_src.lines().find(|l| l.starts_with("module")) {
+                name = line.split('/').last().unwrap_or("").trim().to_string();
+            }
+        }
+        if name.is_empty() && has_pubspec {
+            let ps = read_file("pubspec.yaml");
+            if let Some(line) = ps.lines().find(|l| l.starts_with("name:")) {
+                name = line.trim_start_matches("name:").trim().to_string();
+            }
+        }
+        if name.is_empty() {
+            name = workspace.file_name().and_then(|n| n.to_str()).unwrap_or("Project").to_string();
+        }
+        name
+    };
+
+    let mut primary_lang  = String::new();
+    let mut tech_stack: Vec<String> = Vec::new();
+    let mut framework_hints: Vec<String> = Vec::new();
+    let mut app_type = String::new();
+
+    if has_cargo {
+        primary_lang = "Rust".to_string();
+        tech_stack.push("Rust".to_string());
+        let ic = |s: &str| cargo_toml.contains(s);
+        if ic("tauri")   { tech_stack.push("Tauri (desktop)".into()); app_type = "desktop".into(); framework_hints.push("Tauri".into()); }
+        if ic("tokio")   { tech_stack.push("Tokio (async)".into()); }
+        if ic("axum")    { tech_stack.push("Axum (HTTP)".into());   if app_type.is_empty() { app_type = "api".into(); } framework_hints.push("Axum".into()); }
+        if ic("warp")    { tech_stack.push("Warp (HTTP)".into());   if app_type.is_empty() { app_type = "api".into(); } }
+        if ic("actix")   { tech_stack.push("Actix-web".into());     if app_type.is_empty() { app_type = "api".into(); } framework_hints.push("Actix".into()); }
+        if ic("rocket")  { tech_stack.push("Rocket (HTTP)".into()); if app_type.is_empty() { app_type = "api".into(); } framework_hints.push("Rocket".into()); }
+        if ic("sqlx") || ic("rusqlite") { tech_stack.push("SQLite/SQL".into()); }
+        if ic("diesel")  { tech_stack.push("Diesel (ORM)".into()); }
+        if ic("serde")   { tech_stack.push("Serde".into()); }
+        if ic("clap")    { tech_stack.push("Clap (CLI)".into());  if app_type.is_empty() { app_type = "cli".into(); } }
+        if ic("ratatui") { tech_stack.push("Ratatui (TUI)".into()); if app_type.is_empty() { app_type = "cli".into(); } }
+        if ic("wasm")    { tech_stack.push("WebAssembly".into()); }
+    }
+
+    if has_package {
+        if primary_lang.is_empty() { primary_lang = "JavaScript/TypeScript".to_string(); }
+        let pl = package_json.to_lowercase();
+        let ip = |s: &str| pl.contains(s);
+        if ip("typescript") { tech_stack.push("TypeScript".into()); } else if !has_cargo { tech_stack.push("JavaScript".into()); }
+        if ip("\"react\"")  { tech_stack.push("React".into()); framework_hints.push("React".into()); if app_type.is_empty() { app_type = "web".into(); } }
+        if ip("\"next\"") || ip("next.js") { tech_stack.push("Next.js".into()); framework_hints.push("Next.js".into()); if app_type.is_empty() { app_type = "web".into(); } }
+        if ip("\"vue\"")    { tech_stack.push("Vue.js".into());  framework_hints.push("Vue".into()); if app_type.is_empty() { app_type = "web".into(); } }
+        if ip("\"angular\"") { tech_stack.push("Angular".into()); framework_hints.push("Angular".into()); if app_type.is_empty() { app_type = "web".into(); } }
+        if ip("\"svelte\"") { tech_stack.push("Svelte".into());  framework_hints.push("Svelte".into()); if app_type.is_empty() { app_type = "web".into(); } }
+        if ip("\"express\"") { tech_stack.push("Express.js".into()); framework_hints.push("Express".into()); if app_type.is_empty() { app_type = "api".into(); } }
+        if ip("\"fastify\"") { tech_stack.push("Fastify".into()); if app_type.is_empty() { app_type = "api".into(); } }
+        if ip("\"vite\"")   { tech_stack.push("Vite (bundler)".into()); }
+        if ip("\"electron\"") { tech_stack.push("Electron (desktop)".into()); if app_type.is_empty() { app_type = "desktop".into(); } }
+        if ip("\"tauri\"")  { if app_type.is_empty() { app_type = "desktop".into(); } }
+        if ip("\"jest\"") || ip("\"vitest\"") { tech_stack.push("Testing (Jest/Vitest)".into()); }
+        if ip("\"prisma\"") { tech_stack.push("Prisma (ORM)".into()); }
+        if ip("\"graphql\"") { tech_stack.push("GraphQL".into()); }
+        if app_type.is_empty() && (ip("\"bin\"") || ip("commander")) { app_type = "cli".into(); }
+    }
+
+    if has_go_mod {
+        if primary_lang.is_empty() { primary_lang = "Go".to_string(); }
+        tech_stack.push("Go".to_string());
+        let gl = go_mod_src.to_lowercase();
+        if gl.contains("gin-gonic") { tech_stack.push("Gin (HTTP)".into()); framework_hints.push("Gin".into()); if app_type.is_empty() { app_type = "api".into(); } }
+        if gl.contains("echo")      { tech_stack.push("Echo (HTTP)".into()); if app_type.is_empty() { app_type = "api".into(); } }
+        if gl.contains("fiber")     { tech_stack.push("Fiber (HTTP)".into()); if app_type.is_empty() { app_type = "api".into(); } }
+        if gl.contains("gorm")      { tech_stack.push("GORM (ORM)".into()); }
+        if gl.contains("cobra")     { tech_stack.push("Cobra (CLI)".into()); if app_type.is_empty() { app_type = "cli".into(); } }
+        if gl.contains("grpc")      { tech_stack.push("gRPC".into()); }
+    }
+
+    if has_pom || has_gradle {
+        if primary_lang.is_empty() { primary_lang = "Java/Kotlin".to_string(); }
+        let bl = if has_pom { pom_src.clone() } else { read_file("build.gradle") }.to_lowercase();
+        tech_stack.push(if bl.contains("kotlin") { "Kotlin".to_string() } else { "Java".to_string() });
+        if bl.contains("spring")    { tech_stack.push("Spring Boot".into()); framework_hints.push("Spring".into()); if app_type.is_empty() { app_type = "api".into(); } }
+        if bl.contains("quarkus")   { tech_stack.push("Quarkus".into()); if app_type.is_empty() { app_type = "api".into(); } }
+        if bl.contains("android")   { tech_stack.push("Android".into()); if app_type.is_empty() { app_type = "mobile".into(); } }
+        if app_type.is_empty()      { app_type = "api".into(); }
+    }
+
+    if has_pyproject || has_setup_py || has_req_txt || has_pipfile {
+        if primary_lang.is_empty() { primary_lang = "Python".to_string(); }
+        tech_stack.push("Python".to_string());
+        let pc = (if has_pyproject { read_file("pyproject.toml") } else { String::new() }
+            + &if has_req_txt { read_file("requirements.txt") } else { String::new() }).to_lowercase();
+        if pc.contains("fastapi")   { tech_stack.push("FastAPI".into()); framework_hints.push("FastAPI".into()); if app_type.is_empty() { app_type = "api".into(); } }
+        if pc.contains("django")    { tech_stack.push("Django".into()); framework_hints.push("Django".into()); if app_type.is_empty() { app_type = "web".into(); } }
+        if pc.contains("flask")     { tech_stack.push("Flask".into()); framework_hints.push("Flask".into()); if app_type.is_empty() { app_type = "api".into(); } }
+        if pc.contains("pytorch") || pc.contains("tensorflow") || pc.contains("keras") {
+            tech_stack.push("ML/Deep Learning".into()); if app_type.is_empty() { app_type = "library".into(); }
+        }
+        if pc.contains("click") || pc.contains("typer") { tech_stack.push("CLI (Click/Typer)".into()); if app_type.is_empty() { app_type = "cli".into(); } }
+        if pc.contains("sqlalchemy") { tech_stack.push("SQLAlchemy (ORM)".into()); }
+        if pc.contains("pytest")    { tech_stack.push("pytest".into()); }
+    }
+
+    if has_pubspec {
+        if primary_lang.is_empty() { primary_lang = "Dart".to_string(); }
+        tech_stack.push("Dart".to_string());
+        if read_file("pubspec.yaml").to_lowercase().contains("flutter") {
+            tech_stack.push("Flutter".into()); framework_hints.push("Flutter".into()); if app_type.is_empty() { app_type = "mobile".into(); }
+        }
+    }
+
+    if has_mix_exs {
+        if primary_lang.is_empty() { primary_lang = "Elixir".to_string(); }
+        tech_stack.push("Elixir".to_string());
+        if read_file("mix.exs").to_lowercase().contains("phoenix") {
+            tech_stack.push("Phoenix".into()); framework_hints.push("Phoenix".into()); if app_type.is_empty() { app_type = "web".into(); }
+        }
+    }
+
+    if has_gemfile {
+        if primary_lang.is_empty() { primary_lang = "Ruby".to_string(); }
+        tech_stack.push("Ruby".to_string());
+        let gf = read_file("Gemfile").to_lowercase();
+        if gf.contains("rails") { tech_stack.push("Rails".into()); framework_hints.push("Rails".into()); if app_type.is_empty() { app_type = "web".into(); } }
+        if gf.contains("sinatra") { tech_stack.push("Sinatra".into()); if app_type.is_empty() { app_type = "api".into(); } }
+    }
+
+    if has_csproj {
+        if primary_lang.is_empty() { primary_lang = ".NET/C#".to_string(); }
+        tech_stack.push("C# / .NET".to_string()); if app_type.is_empty() { app_type = "api".into(); }
+    }
+
+    if has_pkg_swift {
+        if primary_lang.is_empty() { primary_lang = "Swift".to_string(); }
+        tech_stack.push("Swift".to_string()); if app_type.is_empty() { app_type = "library".into(); }
+    }
+
+    if has_composer {
+        if primary_lang.is_empty() { primary_lang = "PHP".to_string(); }
+        tech_stack.push("PHP".to_string());
+        let cf = read_file("composer.json").to_lowercase();
+        if cf.contains("laravel") { tech_stack.push("Laravel".into()); framework_hints.push("Laravel".into()); if app_type.is_empty() { app_type = "web".into(); } }
+        if cf.contains("symfony") { tech_stack.push("Symfony".into()); if app_type.is_empty() { app_type = "web".into(); } }
+    }
+
+    if is_monorepo && app_type.is_empty() { app_type = "monorepo".into(); }
+    if primary_lang.is_empty() { primary_lang = "Unknown".to_string(); }
+    if app_type.is_empty()     { app_type = "application".to_string(); }
+    if tech_stack.is_empty()   { tech_stack.push("Unknown".to_string()); }
+
+    let mut structure_dirs: Vec<String> = Vec::new();
+    for d in &["src", "lib", "app", "api", "web", "mobile", "cmd", "pkg", "internal",
+               "tests", "test", "spec", "docs", "scripts", "tools"] {
+        if has_dir(d) { structure_dirs.push(d.to_string()); }
+    }
+    let has_docker = has_file("Dockerfile") || has_dir("docker");
+    let has_ci     = has_dir(".github/workflows") || has_file(".travis.yml")
+        || has_file(".gitlab-ci.yml") || has_file("Jenkinsfile");
+
+    let src_modules: Vec<String> = {
+        let mut mods: Vec<String> = Vec::new();
+        if has_cargo {
+            let mut m = dir_entries("vibecli/vibecli-cli/src");
+            if m.is_empty() { m = dir_entries("src"); }
+            mods.extend(m.into_iter()
+                .filter(|f| f.ends_with(".rs") && f != "main.rs" && f != "lib.rs")
+                .map(|f| f.trim_end_matches(".rs").to_string()));
+        }
+        if has_go_mod && mods.is_empty() {
+            for d in &["cmd", "pkg", "internal", "api"] {
+                mods.extend(dir_entries(d).into_iter().filter(|f| !f.starts_with('.')).map(|f| format!("{d}/{f}")));
+            }
+        }
+        if (has_pyproject || has_setup_py) && mods.is_empty() {
+            for d in &["src", "app", "lib"] {
+                let entries = dir_entries(d);
+                if !entries.is_empty() {
+                    mods.extend(entries.into_iter()
+                        .filter(|f| f.ends_with(".py") && f != "__init__.py")
+                        .map(|f| f.trim_end_matches(".py").to_string()));
+                    break;
+                }
+            }
+        }
+        if has_package && mods.is_empty() {
+            for d in &["src", "lib", "app", "pages", "components"] {
+                let entries = dir_entries(d);
+                if !entries.is_empty() {
+                    mods.extend(entries.into_iter()
+                        .filter(|f| f.ends_with(".ts") || f.ends_with(".tsx") || f.ends_with(".js") || f.ends_with(".jsx"))
+                        .map(|f| f.split('.').next().unwrap_or(f.as_str()).to_string())
+                        .take(40));
+                    if !mods.is_empty() { break; }
+                }
+            }
+        }
+        mods
+    };
+
+    ProjectStack { project_name, primary_lang, app_type, tech_stack, framework_hints,
+                   is_monorepo, has_docker, has_ci, structure_dirs, src_modules }
+}
+
 // ── Architecture Spec persistence helpers ──────────────────────────────────
 
 const ARCHSPEC_KEY: &str = "archspec_v1";
@@ -40272,22 +40543,27 @@ pub async fn archspec_generate(workspace_path: String) -> Result<serde_json::Val
         use vibecli_cli::architecture_spec::{ArchitectureSpec, TogafArtifact, TogafPhase, ArtifactType};
         let wp = std::path::Path::new(&workspace_path);
 
-        // ── helpers ────────────────────────────────────────────────────────
+        // ── helpers (still needed for readme/roadmap/git-log reads below) ──
         let read_file = |rel: &str| -> String {
             std::fs::read_to_string(wp.join(rel)).unwrap_or_default()
-        };
-        let dir_entries = |rel: &str| -> Vec<String> {
-            std::fs::read_dir(wp.join(rel))
-                .into_iter()
-                .flatten()
-                .flatten()
-                .filter_map(|e| e.file_name().into_string().ok())
-                .collect()
         };
         let has_file = |rel: &str| -> bool { wp.join(rel).exists() };
         let has_dir  = |rel: &str| -> bool { wp.join(rel).is_dir() };
 
-        // ── polyglot manifest detection ────────────────────────────────────
+        // ── polyglot detection via extracted helper ─────────────────────────────
+        let ps = detect_project_stack(wp);
+        let project_name    = ps.project_name.clone();
+        let primary_lang    = ps.primary_lang.clone();
+        let app_type        = ps.app_type.clone();
+        let tech_stack      = ps.tech_stack.clone();
+        let framework_hints = ps.framework_hints.clone();
+        let is_monorepo     = ps.is_monorepo;
+        let has_docker      = ps.has_docker;
+        let has_ci          = ps.has_ci;
+        let structure_dirs  = ps.structure_dirs.clone();
+        let src_modules     = ps.src_modules.clone();
+
+        // Re-derive manifest booleans + content needed for artifact generation
         let has_cargo     = has_file("Cargo.toml");
         let has_package   = has_file("package.json");
         let has_go_mod    = has_file("go.mod");
@@ -40296,242 +40572,19 @@ pub async fn archspec_generate(workspace_path: String) -> Result<serde_json::Val
         let has_pyproject = has_file("pyproject.toml");
         let has_setup_py  = has_file("setup.py");
         let has_req_txt   = has_file("requirements.txt");
-        let has_pipfile   = has_file("Pipfile");
         let has_gemfile   = has_file("Gemfile");
-        let has_composer  = has_file("composer.json");
         let has_pubspec   = has_file("pubspec.yaml");
         let has_mix_exs   = has_file("mix.exs");
+        let has_composer  = has_file("composer.json");
         let has_pkg_swift = has_file("Package.swift");
-        let has_csproj    = std::fs::read_dir(wp).into_iter().flatten().flatten()
-            .any(|e| e.file_name().to_str()
-                .map(|s| s.ends_with(".csproj") || s.ends_with(".sln")).unwrap_or(false));
-
-        let lang_count = [has_cargo, has_package, has_go_mod, has_pom || has_gradle,
-            has_pyproject || has_setup_py || has_req_txt || has_pipfile,
-            has_gemfile, has_composer, has_pubspec, has_mix_exs, has_pkg_swift, has_csproj]
-            .iter().filter(|&&v| v).count();
-        let is_monorepo = lang_count > 1;
-
-        // ── read manifests ─────────────────────────────────────────────────
-        let cargo_toml   = if has_cargo   { read_file("Cargo.toml") } else { String::new() };
+        let cargo_toml   = if has_cargo   { read_file("Cargo.toml")   } else { String::new() };
         let package_json = if has_package { read_file("package.json") } else { String::new() };
-        let go_mod_src   = if has_go_mod  { read_file("go.mod") } else { String::new() };
-        let pom_src      = if has_pom     { read_file("pom.xml") } else { String::new() };
-
-        // ── project name (priority order) ──────────────────────────────────
-        let project_name: String = {
-            let mut name = String::new();
-            if name.is_empty() && has_cargo {
-                if let Some(n) = cargo_toml.lines()
-                    .find(|l| l.trim_start().starts_with("name"))
-                    .and_then(|l| l.split('"').nth(1)) { name = n.to_string(); }
-            }
-            if name.is_empty() && has_package {
-                if let Ok(v) = serde_json::from_str::<serde_json::Value>(&package_json) {
-                    if let Some(n) = v["name"].as_str() { name = n.trim_matches('"').to_string(); }
-                }
-            }
-            if name.is_empty() && has_go_mod {
-                if let Some(line) = go_mod_src.lines().find(|l| l.starts_with("module")) {
-                    name = line.split('/').last().unwrap_or("").trim().to_string();
-                }
-            }
-            if name.is_empty() && has_pubspec {
-                let ps = read_file("pubspec.yaml");
-                if let Some(line) = ps.lines().find(|l| l.starts_with("name:")) {
-                    name = line.trim_start_matches("name:").trim().to_string();
-                }
-            }
-            if name.is_empty() {
-                name = wp.file_name().and_then(|n| n.to_str()).unwrap_or("Project").to_string();
-            }
-            name
-        };
-
-        // ── tech stack + app type detection ───────────────────────────────
-        let mut primary_lang  = String::new();
-        let mut tech_stack: Vec<String> = Vec::new();
-        let mut framework_hints: Vec<String> = Vec::new();
-        let mut app_type = String::new();
-
-        if has_cargo {
-            primary_lang = "Rust".to_string();
-            tech_stack.push("Rust".to_string());
-            let ic = |s: &str| cargo_toml.contains(s);
-            if ic("tauri")   { tech_stack.push("Tauri (desktop)".into()); app_type = "desktop".into(); framework_hints.push("Tauri".into()); }
-            if ic("tokio")   { tech_stack.push("Tokio (async)".into()); }
-            if ic("axum")    { tech_stack.push("Axum (HTTP)".into());   if app_type.is_empty() { app_type = "api".into(); } framework_hints.push("Axum".into()); }
-            if ic("warp")    { tech_stack.push("Warp (HTTP)".into());   if app_type.is_empty() { app_type = "api".into(); } }
-            if ic("actix")   { tech_stack.push("Actix-web".into());     if app_type.is_empty() { app_type = "api".into(); } framework_hints.push("Actix".into()); }
-            if ic("rocket")  { tech_stack.push("Rocket (HTTP)".into()); if app_type.is_empty() { app_type = "api".into(); } framework_hints.push("Rocket".into()); }
-            if ic("sqlx") || ic("rusqlite") { tech_stack.push("SQLite/SQL".into()); }
-            if ic("diesel")  { tech_stack.push("Diesel (ORM)".into()); }
-            if ic("serde")   { tech_stack.push("Serde".into()); }
-            if ic("clap")    { tech_stack.push("Clap (CLI)".into());  if app_type.is_empty() { app_type = "cli".into(); } }
-            if ic("ratatui") { tech_stack.push("Ratatui (TUI)".into()); if app_type.is_empty() { app_type = "cli".into(); } }
-            if ic("wasm")    { tech_stack.push("WebAssembly".into()); }
-        }
-
-        if has_package {
-            if primary_lang.is_empty() { primary_lang = "JavaScript/TypeScript".to_string(); }
-            let pl = package_json.to_lowercase();
-            let ip = |s: &str| pl.contains(s);
-            if ip("typescript") { tech_stack.push("TypeScript".into()); } else { tech_stack.push("JavaScript".into()); }
-            if ip("\"react\"")  { tech_stack.push("React".into()); framework_hints.push("React".into()); if app_type.is_empty() { app_type = "web".into(); } }
-            if ip("\"next\"") || ip("next.js") { tech_stack.push("Next.js".into()); framework_hints.push("Next.js".into()); if app_type.is_empty() { app_type = "web".into(); } }
-            if ip("\"vue\"")    { tech_stack.push("Vue.js".into());  framework_hints.push("Vue".into()); if app_type.is_empty() { app_type = "web".into(); } }
-            if ip("\"angular\"") { tech_stack.push("Angular".into()); framework_hints.push("Angular".into()); if app_type.is_empty() { app_type = "web".into(); } }
-            if ip("\"svelte\"") { tech_stack.push("Svelte".into());  framework_hints.push("Svelte".into()); if app_type.is_empty() { app_type = "web".into(); } }
-            if ip("\"express\"") { tech_stack.push("Express.js".into()); framework_hints.push("Express".into()); if app_type.is_empty() { app_type = "api".into(); } }
-            if ip("\"fastify\"") { tech_stack.push("Fastify".into()); if app_type.is_empty() { app_type = "api".into(); } }
-            if ip("\"vite\"")   { tech_stack.push("Vite (bundler)".into()); }
-            if ip("\"electron\"") { tech_stack.push("Electron (desktop)".into()); if app_type.is_empty() { app_type = "desktop".into(); } }
-            if ip("\"tauri\"")  { if app_type.is_empty() { app_type = "desktop".into(); } }
-            if ip("\"jest\"") || ip("\"vitest\"") { tech_stack.push("Testing (Jest/Vitest)".into()); }
-            if ip("\"prisma\"") { tech_stack.push("Prisma (ORM)".into()); }
-            if ip("\"graphql\"") { tech_stack.push("GraphQL".into()); }
-            if app_type.is_empty() && (ip("\"bin\"") || ip("commander")) { app_type = "cli".into(); }
-        }
-
-        if has_go_mod {
-            if primary_lang.is_empty() { primary_lang = "Go".to_string(); }
-            tech_stack.push("Go".to_string());
-            let gl = go_mod_src.to_lowercase();
-            if gl.contains("gin-gonic") { tech_stack.push("Gin (HTTP)".into()); framework_hints.push("Gin".into()); if app_type.is_empty() { app_type = "api".into(); } }
-            if gl.contains("echo")      { tech_stack.push("Echo (HTTP)".into()); if app_type.is_empty() { app_type = "api".into(); } }
-            if gl.contains("fiber")     { tech_stack.push("Fiber (HTTP)".into()); if app_type.is_empty() { app_type = "api".into(); } }
-            if gl.contains("gorm")      { tech_stack.push("GORM (ORM)".into()); }
-            if gl.contains("cobra")     { tech_stack.push("Cobra (CLI)".into()); if app_type.is_empty() { app_type = "cli".into(); } }
-            if gl.contains("grpc")      { tech_stack.push("gRPC".into()); }
-        }
-
-        if has_pom || has_gradle {
-            if primary_lang.is_empty() { primary_lang = "Java/Kotlin".to_string(); }
-            let bl = if has_pom { pom_src.clone() } else { read_file("build.gradle") }.to_lowercase();
-            tech_stack.push(if bl.contains("kotlin") { "Kotlin".to_string() } else { "Java".to_string() });
-            if bl.contains("spring")    { tech_stack.push("Spring Boot".into()); framework_hints.push("Spring".into()); if app_type.is_empty() { app_type = "api".into(); } }
-            if bl.contains("quarkus")   { tech_stack.push("Quarkus".into()); if app_type.is_empty() { app_type = "api".into(); } }
-            if bl.contains("android")   { tech_stack.push("Android".into()); if app_type.is_empty() { app_type = "mobile".into(); } }
-            if app_type.is_empty()      { app_type = "api".into(); }
-        }
-
-        if has_pyproject || has_setup_py || has_req_txt || has_pipfile {
-            if primary_lang.is_empty() { primary_lang = "Python".to_string(); }
-            tech_stack.push("Python".to_string());
-            let pc = (if has_pyproject { read_file("pyproject.toml") } else { String::new() }
-                + &if has_req_txt { read_file("requirements.txt") } else { String::new() }).to_lowercase();
-            if pc.contains("fastapi")   { tech_stack.push("FastAPI".into()); framework_hints.push("FastAPI".into()); if app_type.is_empty() { app_type = "api".into(); } }
-            if pc.contains("django")    { tech_stack.push("Django".into()); framework_hints.push("Django".into()); if app_type.is_empty() { app_type = "web".into(); } }
-            if pc.contains("flask")     { tech_stack.push("Flask".into()); framework_hints.push("Flask".into()); if app_type.is_empty() { app_type = "api".into(); } }
-            if pc.contains("pytorch") || pc.contains("tensorflow") || pc.contains("keras") {
-                tech_stack.push("ML/Deep Learning".into()); if app_type.is_empty() { app_type = "library".into(); }
-            }
-            if pc.contains("click") || pc.contains("typer") { tech_stack.push("CLI (Click/Typer)".into()); if app_type.is_empty() { app_type = "cli".into(); } }
-            if pc.contains("sqlalchemy") { tech_stack.push("SQLAlchemy (ORM)".into()); }
-            if pc.contains("celery")    { tech_stack.push("Celery (tasks)".into()); }
-            if pc.contains("pytest")    { tech_stack.push("pytest".into()); }
-        }
-
-        if has_pubspec {
-            if primary_lang.is_empty() { primary_lang = "Dart".to_string(); }
-            tech_stack.push("Dart".to_string());
-            if read_file("pubspec.yaml").to_lowercase().contains("flutter") {
-                tech_stack.push("Flutter".into()); framework_hints.push("Flutter".into()); if app_type.is_empty() { app_type = "mobile".into(); }
-            }
-        }
-
-        if has_mix_exs {
-            if primary_lang.is_empty() { primary_lang = "Elixir".to_string(); }
-            tech_stack.push("Elixir".to_string());
-            if read_file("mix.exs").to_lowercase().contains("phoenix") {
-                tech_stack.push("Phoenix".into()); framework_hints.push("Phoenix".into()); if app_type.is_empty() { app_type = "web".into(); }
-            }
-        }
-
-        if has_gemfile {
-            if primary_lang.is_empty() { primary_lang = "Ruby".to_string(); }
-            tech_stack.push("Ruby".to_string());
-            let gf = read_file("Gemfile").to_lowercase();
-            if gf.contains("rails") { tech_stack.push("Rails".into()); framework_hints.push("Rails".into()); if app_type.is_empty() { app_type = "web".into(); } }
-            if gf.contains("sinatra") { tech_stack.push("Sinatra".into()); if app_type.is_empty() { app_type = "api".into(); } }
-        }
-
-        if has_csproj {
-            if primary_lang.is_empty() { primary_lang = ".NET/C#".to_string(); }
-            tech_stack.push("C# / .NET".to_string()); if app_type.is_empty() { app_type = "api".into(); }
-        }
-
-        if has_pkg_swift {
-            if primary_lang.is_empty() { primary_lang = "Swift".to_string(); }
-            tech_stack.push("Swift".to_string()); if app_type.is_empty() { app_type = "library".into(); }
-        }
-
-        if has_composer {
-            if primary_lang.is_empty() { primary_lang = "PHP".to_string(); }
-            tech_stack.push("PHP".to_string());
-            let cf = read_file("composer.json").to_lowercase();
-            if cf.contains("laravel") { tech_stack.push("Laravel".into()); framework_hints.push("Laravel".into()); if app_type.is_empty() { app_type = "web".into(); } }
-            if cf.contains("symfony") { tech_stack.push("Symfony".into()); if app_type.is_empty() { app_type = "web".into(); } }
-        }
-
-        if is_monorepo && app_type.is_empty() { app_type = "monorepo".into(); }
-        if primary_lang.is_empty() { primary_lang = "Unknown".to_string(); }
-        if app_type.is_empty()     { app_type = "application".to_string(); }
-        if tech_stack.is_empty()   { tech_stack.push("Unknown".to_string()); }
-
-        // ── directory structure ────────────────────────────────────────────
-        let mut structure_dirs: Vec<String> = Vec::new();
-        for d in &["src", "lib", "app", "api", "web", "mobile", "cmd", "pkg", "internal",
-                   "tests", "test", "spec", "docs", "scripts", "tools"] {
-            if has_dir(d) { structure_dirs.push(d.to_string()); }
-        }
-        let has_docker = has_file("Dockerfile") || has_dir("docker");
-        let has_ci     = has_dir(".github/workflows") || has_file(".travis.yml")
-            || has_file(".gitlab-ci.yml") || has_file("Jenkinsfile");
-
-        // ── source modules/files discovery (language-aware) ────────────────
-        let src_modules: Vec<String> = {
-            let mut mods: Vec<String> = Vec::new();
-            if has_cargo {
-                // Try known monorepo layout first
-                let mut m = dir_entries("vibecli/vibecli-cli/src");
-                if m.is_empty() { m = dir_entries("src"); }
-                mods.extend(m.into_iter()
-                    .filter(|f| f.ends_with(".rs") && f != "main.rs" && f != "lib.rs")
-                    .map(|f| f.trim_end_matches(".rs").to_string()));
-            }
-            if has_go_mod && mods.is_empty() {
-                for d in &["cmd", "pkg", "internal", "api"] {
-                    mods.extend(dir_entries(d).into_iter()
-                        .filter(|f| !f.starts_with('.'))
-                        .map(|f| format!("{d}/{f}")));
-                }
-            }
-            if (has_pyproject || has_setup_py) && mods.is_empty() {
-                for d in &["src", "app", "lib"] {
-                    let entries = dir_entries(d);
-                    if !entries.is_empty() {
-                        mods.extend(entries.into_iter()
-                            .filter(|f| f.ends_with(".py") && f != "__init__.py")
-                            .map(|f| f.trim_end_matches(".py").to_string()));
-                        break;
-                    }
-                }
-            }
-            if has_package && mods.is_empty() {
-                for d in &["src", "lib", "app", "pages", "components"] {
-                    let entries = dir_entries(d);
-                    if !entries.is_empty() {
-                        mods.extend(entries.into_iter()
-                            .filter(|f| f.ends_with(".ts") || f.ends_with(".tsx") || f.ends_with(".js") || f.ends_with(".jsx"))
-                            .map(|f| f.split('.').next().unwrap_or(f.as_str()).to_string())
-                            .take(40));
-                        if !mods.is_empty() { break; }
-                    }
-                }
-            }
-            mods
-        };
+        let workflows: Vec<String> = std::fs::read_dir(wp.join(".github/workflows"))
+            .into_iter().flatten().flatten()
+            .filter_map(|e| e.file_name().into_string().ok())
+            .collect();
+        let _ = (is_monorepo, has_gemfile, has_pubspec, has_mix_exs, has_composer,
+                 has_pkg_swift, has_req_txt); // suppress unused warnings
 
         let mut spec = ArchitectureSpec::new(&project_name);
 
@@ -40547,9 +40600,6 @@ pub async fn archspec_generate(workspace_path: String) -> Result<serde_json::Val
         let readme = read_file("README.md");
         let vision_summary: String = readme.lines().take(8)
             .collect::<Vec<_>>().join(" ").chars().take(400).collect();
-
-        // ── CI/CD ─────────────────────────────────────────────────────────
-        let workflows = dir_entries(".github/workflows");
 
         // ── Generate artifacts per phase ──────────────────────────────────
         let stack_str = tech_stack.join(", ");
@@ -42289,5 +42339,379 @@ mod daemon_tests {
         assert!(result.is_some(), "should find a vibecli binary");
         let p = result.unwrap();
         assert!(p.ends_with("vibecli"), "path should end with 'vibecli', got {}", p.display());
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TDD / BDD tests for detect_project_stack + archspec_clear_history
+// ─────────────────────────────────────────────────────────────────────────────
+#[cfg(test)]
+mod archspec_tests {
+    use super::*;
+
+    // ── helpers ───────────────────────────────────────────────────────────────
+
+    fn tmp_dir() -> std::path::PathBuf {
+        // Include thread-id + nanos to avoid collisions in parallel test runs
+        let thread_id = format!("{:?}", std::thread::current().id())
+            .replace(['(', ')', ' '], "_");
+        let p = std::env::temp_dir().join(format!(
+            "vibe_archspec_{}_{}_{}", std::process::id(), thread_id, rand_u32()
+        ));
+        std::fs::create_dir_all(&p).unwrap();
+        p
+    }
+
+    fn rand_u32() -> u32 {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .subsec_nanos()
+    }
+
+    fn write(root: &std::path::Path, rel: &str, content: &str) {
+        let path = root.join(rel);
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).unwrap();
+        }
+        std::fs::write(path, content).unwrap();
+    }
+
+    fn cleanup(p: &std::path::Path) {
+        let _ = std::fs::remove_dir_all(p);
+    }
+
+    // ── detect_project_stack — Rust / Cargo ──────────────────────────────────
+
+    /// Given: a directory containing only Cargo.toml with name = "my-crate"
+    /// When:  detect_project_stack is called
+    /// Then:  primary_lang = "Rust", project_name = "my-crate", app_type detected
+    #[test]
+    fn given_cargo_toml_detects_rust_project() {
+        let dir = tmp_dir();
+        write(&dir, "Cargo.toml", r#"[package]
+name = "my-crate"
+version = "0.1.0"
+"#);
+        let ps = detect_project_stack(&dir);
+        cleanup(&dir);
+        assert_eq!(ps.primary_lang, "Rust");
+        assert_eq!(ps.project_name, "my-crate");
+        assert!(ps.tech_stack.iter().any(|t| t.contains("Cargo") || t.contains("Rust")));
+    }
+
+    /// Given: Cargo.toml that lists axum as a dependency
+    /// When:  detect_project_stack is called
+    /// Then:  framework_hints contains "Axum" (web framework detected)
+    #[test]
+    fn given_cargo_toml_with_axum_dep_detects_axum_framework() {
+        let dir = tmp_dir();
+        write(&dir, "Cargo.toml", r#"[package]
+name = "web-svc"
+version = "0.1.0"
+
+[dependencies]
+axum = "0.7"
+"#);
+        let ps = detect_project_stack(&dir);
+        cleanup(&dir);
+        assert_eq!(ps.primary_lang, "Rust");
+        assert!(
+            ps.framework_hints.iter().any(|h| h.to_lowercase().contains("axum")),
+            "expected Axum in framework_hints, got {:?}",
+            ps.framework_hints
+        );
+    }
+
+    /// Given: Cargo.toml with tauri as a dependency
+    /// When:  detect_project_stack is called
+    /// Then:  framework_hints contains "Tauri" and app_type reflects desktop app
+    #[test]
+    fn given_cargo_toml_with_tauri_dep_detects_tauri_desktop_app() {
+        let dir = tmp_dir();
+        write(&dir, "Cargo.toml", r#"[package]
+name = "tauri-app"
+version = "0.1.0"
+
+[dependencies]
+tauri = "2"
+"#);
+        let ps = detect_project_stack(&dir);
+        cleanup(&dir);
+        assert_eq!(ps.primary_lang, "Rust");
+        assert!(
+            ps.framework_hints.iter().any(|h| h.to_lowercase().contains("tauri")),
+            "expected Tauri in framework_hints, got {:?}",
+            ps.framework_hints
+        );
+    }
+
+    // ── detect_project_stack — Node / package.json ───────────────────────────
+
+    /// Given: package.json with name "my-app" and no other manifests
+    /// When:  detect_project_stack is called
+    /// Then:  primary_lang contains "JavaScript" or "TypeScript", project_name = "my-app"
+    #[test]
+    fn given_package_json_detects_node_project() {
+        let dir = tmp_dir();
+        write(&dir, "package.json", r#"{"name":"my-app","version":"1.0.0"}"#);
+        let ps = detect_project_stack(&dir);
+        cleanup(&dir);
+        assert!(
+            ps.primary_lang.contains("JavaScript") || ps.primary_lang.contains("TypeScript"),
+            "expected JavaScript/TypeScript in primary_lang, got {}",
+            ps.primary_lang
+        );
+        assert_eq!(ps.project_name, "my-app");
+    }
+
+    /// Given: package.json whose dependencies include react
+    /// When:  detect_project_stack is called
+    /// Then:  framework_hints contains "React"
+    #[test]
+    fn given_package_json_with_react_dep_detects_react_framework() {
+        let dir = tmp_dir();
+        write(&dir, "package.json", r#"{
+  "name": "react-app",
+  "dependencies": { "react": "^18.0.0", "react-dom": "^18.0.0" }
+}"#);
+        let ps = detect_project_stack(&dir);
+        cleanup(&dir);
+        assert!(
+            ps.framework_hints.iter().any(|h| h.to_lowercase().contains("react")),
+            "expected React in framework_hints, got {:?}",
+            ps.framework_hints
+        );
+    }
+
+    // ── detect_project_stack — Go ─────────────────────────────────────────────
+
+    /// Given: go.mod with module path ending in "myapp"
+    /// When:  detect_project_stack is called
+    /// Then:  primary_lang = "Go", project_name = "myapp"
+    #[test]
+    fn given_go_mod_detects_go_project() {
+        let dir = tmp_dir();
+        write(&dir, "go.mod", "module github.com/org/myapp\n\ngo 1.21\n");
+        let ps = detect_project_stack(&dir);
+        cleanup(&dir);
+        assert_eq!(ps.primary_lang, "Go");
+        assert_eq!(ps.project_name, "myapp");
+    }
+
+    // ── detect_project_stack — Python ─────────────────────────────────────────
+
+    /// Given: pyproject.toml present in the workspace
+    /// When:  detect_project_stack is called
+    /// Then:  primary_lang = "Python"
+    #[test]
+    fn given_pyproject_toml_detects_python_project() {
+        let dir = tmp_dir();
+        write(&dir, "pyproject.toml", "[tool.poetry]\nname = \"my-pkg\"\nversion = \"0.1.0\"\n");
+        let ps = detect_project_stack(&dir);
+        cleanup(&dir);
+        assert_eq!(ps.primary_lang, "Python");
+    }
+
+    /// Given: requirements.txt and no other language manifests
+    /// When:  detect_project_stack is called
+    /// Then:  primary_lang = "Python"
+    #[test]
+    fn given_requirements_txt_detects_python_project() {
+        let dir = tmp_dir();
+        write(&dir, "requirements.txt", "requests==2.31.0\nfastapi==0.110.0\n");
+        let ps = detect_project_stack(&dir);
+        cleanup(&dir);
+        assert_eq!(ps.primary_lang, "Python");
+    }
+
+    // ── detect_project_stack — Java / Maven ──────────────────────────────────
+
+    /// Given: pom.xml present
+    /// When:  detect_project_stack is called
+    /// Then:  primary_lang contains "Java"
+    #[test]
+    fn given_pom_xml_detects_java_maven_project() {
+        let dir = tmp_dir();
+        write(&dir, "pom.xml", r#"<project>
+  <artifactId>my-service</artifactId>
+</project>"#);
+        let ps = detect_project_stack(&dir);
+        cleanup(&dir);
+        assert!(
+            ps.primary_lang.contains("Java"),
+            "expected Java in primary_lang, got {}",
+            ps.primary_lang
+        );
+    }
+
+    // ── detect_project_stack — monorepo detection ────────────────────────────
+
+    /// Given: both Cargo.toml and package.json are present
+    /// When:  detect_project_stack is called
+    /// Then:  is_monorepo = true
+    #[test]
+    fn given_multiple_manifests_detects_monorepo() {
+        let dir = tmp_dir();
+        write(&dir, "Cargo.toml", "[package]\nname = \"backend\"\nversion = \"0.1.0\"\n");
+        write(&dir, "package.json", r#"{"name":"frontend"}"#);
+        let ps = detect_project_stack(&dir);
+        cleanup(&dir);
+        assert!(ps.is_monorepo, "expected is_monorepo = true for Rust+Node workspace");
+    }
+
+    // ── detect_project_stack — Docker / CI detection ─────────────────────────
+
+    /// Given: a Dockerfile is present
+    /// When:  detect_project_stack is called
+    /// Then:  has_docker = true
+    #[test]
+    fn given_dockerfile_sets_has_docker_true() {
+        let dir = tmp_dir();
+        write(&dir, "Cargo.toml", "[package]\nname = \"svc\"\nversion = \"0.1.0\"\n");
+        write(&dir, "Dockerfile", "FROM rust:1.78\nCOPY . .\nRUN cargo build\n");
+        let ps = detect_project_stack(&dir);
+        cleanup(&dir);
+        assert!(ps.has_docker, "expected has_docker = true");
+    }
+
+    /// Given: .github/workflows/ directory with at least one YAML file
+    /// When:  detect_project_stack is called
+    /// Then:  has_ci = true
+    #[test]
+    fn given_github_workflows_sets_has_ci_true() {
+        let dir = tmp_dir();
+        write(&dir, "Cargo.toml", "[package]\nname = \"svc\"\nversion = \"0.1.0\"\n");
+        write(&dir, ".github/workflows/ci.yml", "on: push\njobs:\n  build:\n    runs-on: ubuntu-latest\n");
+        let ps = detect_project_stack(&dir);
+        cleanup(&dir);
+        assert!(ps.has_ci, "expected has_ci = true with .github/workflows present");
+    }
+
+    // ── detect_project_stack — empty / unknown project ───────────────────────
+
+    /// Given: an empty directory with no manifest files
+    /// When:  detect_project_stack is called
+    /// Then:  function returns without panic; primary_lang is some non-empty fallback
+    #[test]
+    fn given_empty_directory_returns_fallback_without_panicking() {
+        let dir = tmp_dir();
+        let ps = detect_project_stack(&dir);
+        cleanup(&dir);
+        assert!(!ps.primary_lang.is_empty(), "primary_lang should have a fallback value");
+        // project_name falls back to directory name or "Unknown"
+        assert!(!ps.project_name.is_empty(), "project_name should not be empty");
+    }
+
+    // ── detect_project_stack — structure_dirs populated ──────────────────────
+
+    /// Given: a Rust project with src/ directory
+    /// When:  detect_project_stack is called
+    /// Then:  structure_dirs contains "src"
+    #[test]
+    fn given_src_directory_included_in_structure_dirs() {
+        let dir = tmp_dir();
+        write(&dir, "Cargo.toml", "[package]\nname = \"lib\"\nversion = \"0.1.0\"\n");
+        std::fs::create_dir_all(dir.join("src")).unwrap();
+        write(&dir, "src/lib.rs", "pub fn hello() {}");
+        let ps = detect_project_stack(&dir);
+        cleanup(&dir);
+        assert!(
+            ps.structure_dirs.iter().any(|d| d == "src"),
+            "expected 'src' in structure_dirs, got {:?}",
+            ps.structure_dirs
+        );
+    }
+
+    // ── archspec_clear_history — BDD style ───────────────────────────────────
+
+    /// Given: a WorkspaceStore with 3 archspec_history_* keys and 1 other key
+    /// When:  archspec_clear_history logic is applied
+    /// Then:  all 3 history keys are deleted; the other key remains
+    #[test]
+    fn given_history_keys_when_clear_history_then_only_history_keys_deleted() {
+        let dir = tmp_dir();
+        {
+            let store = vibecli_cli::workspace_store::WorkspaceStore::open_with(
+                &dir.join("ws.db"),
+                [42u8; 32],
+            )
+            .expect("open test store");
+
+            store
+                .setting_set("archspec_history_2026-01-01", "scan1")
+                .expect("set key 1");
+            store
+                .setting_set("archspec_history_2026-01-15", "scan2")
+                .expect("set key 2");
+            store
+                .setting_set("archspec_history_2026-02-01", "scan3")
+                .expect("set key 3");
+            store
+                .setting_set("other_setting", "keep_me")
+                .expect("set other key");
+
+            // Simulate archspec_clear_history logic inline (no async needed)
+            let all_entries = store.setting_list().unwrap_or_default();
+            let mut deleted = 0usize;
+            for entry in &all_entries {
+                let key = entry["key"].as_str().unwrap_or("");
+                if key.starts_with("archspec_history_") {
+                    let _ = store.setting_delete(key);
+                    deleted += 1;
+                }
+            }
+
+            assert_eq!(deleted, 3, "expected 3 history entries deleted, got {deleted}");
+
+            // Other key must survive
+            let remaining = store.setting_get("other_setting").unwrap_or_default();
+            assert_eq!(
+                remaining.as_deref(),
+                Some("keep_me"),
+                "non-history key should be untouched"
+            );
+
+            // History keys must be gone
+            for key in &[
+                "archspec_history_2026-01-01",
+                "archspec_history_2026-01-15",
+                "archspec_history_2026-02-01",
+            ] {
+                let val = store.setting_get(key).unwrap_or_default();
+                assert!(
+                    val.is_none(),
+                    "key '{key}' should be deleted but still has value {:?}",
+                    val
+                );
+            }
+        }
+        cleanup(&dir);
+    }
+
+    /// Given: a WorkspaceStore with no archspec_history_* keys
+    /// When:  archspec_clear_history logic is applied
+    /// Then:  deleted = 0, no panic
+    #[test]
+    fn given_no_history_keys_clear_history_returns_zero_deleted() {
+        let dir = tmp_dir();
+        {
+            let store = vibecli_cli::workspace_store::WorkspaceStore::open_with(
+                &dir.join("ws2.db"),
+                [99u8; 32],
+            )
+            .expect("open test store");
+
+            store.setting_set("some_other_key", "value").expect("set");
+
+            let all_entries = store.setting_list().unwrap_or_default();
+            let deleted = all_entries
+                .iter()
+                .filter(|e| e["key"].as_str().unwrap_or("").starts_with("archspec_history_"))
+                .count();
+
+            assert_eq!(deleted, 0, "expected 0 history entries to delete");
+        }
+        cleanup(&dir);
     }
 }
