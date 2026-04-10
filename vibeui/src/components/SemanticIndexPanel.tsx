@@ -144,16 +144,16 @@ export function SemanticIndexPanel() {
 
   return (
     <div className="panel-container">
-      <div className="panel-tab-bar">
-        <button className={`panel-tab ${tab === "overview" ? "active" : ""}`} onClick={() => setTab("overview")}>Overview</button>
-        <button className={`panel-tab ${tab === "search" ? "active" : ""}`} onClick={() => setTab("search")}>Search</button>
-        <button className={`panel-tab ${tab === "callgraph" ? "active" : ""}`} onClick={() => setTab("callgraph")}>Call Graph</button>
-        <button className={`panel-tab ${tab === "types" ? "active" : ""}`} onClick={() => setTab("types")}>Types</button>
+      <div className="panel-tab-bar" role="tablist">
+        <button className={`panel-tab ${tab === "overview" ? "active" : ""}`} role="tab" aria-selected={tab === "overview"} aria-controls="semidx-panel-overview" id="semidx-tab-overview" onClick={() => setTab("overview")}>Overview</button>
+        <button className={`panel-tab ${tab === "search" ? "active" : ""}`} role="tab" aria-selected={tab === "search"} aria-controls="semidx-panel-search" id="semidx-tab-search" onClick={() => setTab("search")}>Search</button>
+        <button className={`panel-tab ${tab === "callgraph" ? "active" : ""}`} role="tab" aria-selected={tab === "callgraph"} aria-controls="semidx-panel-callgraph" id="semidx-tab-callgraph" onClick={() => setTab("callgraph")}>Call Graph</button>
+        <button className={`panel-tab ${tab === "types" ? "active" : ""}`} role="tab" aria-selected={tab === "types"} aria-controls="semidx-panel-types" id="semidx-tab-types" onClick={() => setTab("types")}>Types</button>
       </div>
 
       <div className="panel-body">
         {tab === "overview" && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+          <div id="semidx-panel-overview" role="tabpanel" aria-labelledby="semidx-tab-overview" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
             <div className="panel-card">
               <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Symbols</div>
               <div style={{ fontSize: 24, fontWeight: 700 }}>{loadingSymbols ? "..." : symbols.length}</div>
@@ -170,7 +170,7 @@ export function SemanticIndexPanel() {
         )}
 
         {tab === "search" && (
-          <div>
+          <div id="semidx-panel-search" role="tabpanel" aria-labelledby="semidx-tab-search">
             <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
               <input style={{ ...inputStyle, flex: 1 }} placeholder="Search symbols..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
               <select value={kindFilter} onChange={(e) => setKindFilter(e.target.value)} style={{ ...inputStyle, width: "auto" }}>
@@ -191,7 +191,7 @@ export function SemanticIndexPanel() {
         )}
 
         {tab === "callgraph" && (
-          <div>
+          <div id="semidx-panel-callgraph" role="tabpanel" aria-labelledby="semidx-tab-callgraph">
             <input style={{ ...inputStyle, marginBottom: 12 }} placeholder="Lookup function name..." value={callQuery} onChange={(e) => setCallQuery(e.target.value)} />
             {loadingEdges && <div className="panel-loading">Loading call graph...</div>}
             {!loadingEdges && matchedEdges.length === 0 && <div className="panel-empty">No call edges found.</div>}
@@ -209,7 +209,7 @@ export function SemanticIndexPanel() {
         )}
 
         {tab === "types" && (
-          <div>
+          <div id="semidx-panel-types" role="tabpanel" aria-labelledby="semidx-tab-types">
             {loadingTypes && <div className="panel-loading">Loading type hierarchy...</div>}
             {!loadingTypes && typeTree.length === 0 && <div className="panel-empty">No type hierarchies found.</div>}
             {!loadingTypes && renderTypeTree(typeTree, 0)}

@@ -136,13 +136,15 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
  return (
  <div className="panel-container" style={{ flexDirection: "row" }}>
  {/* Left: Tables list */}
- <div style={{ width: 200, borderRight: "1px solid var(--border-color)", display: "flex", flexDirection: "column" }}>
+ <div style={{ width: 200, flexShrink: 0, borderRight: "1px solid var(--border-color)", display: "flex", flexDirection: "column" }}>
  {/* Connection area */}
  <div style={{ padding: 12, borderBottom: "1px solid var(--border-color)" }}>
- <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
+ <div role="tablist" style={{ display: "flex", gap: 4, marginBottom: 8 }}>
  {(["sqlite", "postgres", "supabase"] as DbType[]).map((t) => (
  <button
  key={t}
+ role="tab"
+ aria-selected={dbType === t}
  onClick={() => { setDbType(t); setIsConnected(false); setTables([]); }}
  style={{
  flex: 1,
@@ -208,7 +210,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
  </div>
 
  {/* Right: Query + Results */}
- <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+ <div role="tabpanel" style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
  {/* Query toolbar */}
  <div style={{ padding: 12, borderBottom: "1px solid var(--border-color)", display: "flex", flexDirection: "column", gap: 8 }}>
  {/* NL query */}
