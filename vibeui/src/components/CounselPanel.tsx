@@ -51,11 +51,11 @@ const ROLES = ["Expert", "Devil's Advocate", "Skeptic", "Creative", "Pragmatist"
 
 const ROLE_COLORS: Record<string, string> = {
   Expert: "var(--accent-blue)",
-  "Devil's Advocate": "#ff4a4a",
-  Skeptic: "#ff9f43",
-  Creative: "#b94aff",
-  Pragmatist: "#4aff7f",
-  Researcher: "#4adcff",
+  "Devil's Advocate": "var(--error-color)",
+  Skeptic: "var(--warning-color)",
+  Creative: "var(--accent-indigo)",
+  Pragmatist: "var(--success-color)",
+  Researcher: "var(--accent-cyan)",
   Custom: "var(--text-secondary)",
 };
 
@@ -518,7 +518,7 @@ export function CounselPanel() {
                 </button>
                 {activeSession.rounds.length > 0 && (
                   <button
-                    style={{ ...S.btn, background: "#b94aff", opacity: synthesizing ? 0.5 : 1 }}
+                    style={{ ...S.btn, background: "var(--accent-indigo)", opacity: synthesizing ? 0.5 : 1 }}
                     disabled={synthesizing}
                     onClick={synthesize}
                   >

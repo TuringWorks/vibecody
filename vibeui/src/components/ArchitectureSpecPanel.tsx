@@ -98,18 +98,19 @@ const ZACHMAN_ASPECTS       = ["What", "How", "Where", "Who", "When", "Why"];
 type NavTab = "togaf" | "zachman" | "c4" | "adr" | "governance";
 
 const ARTIFACT_STATUS_COLOR: Record<ArtifactStatus, string> = {
-  Draft: "var(--text-secondary)", Review: "#f0a500",
+  Draft: "var(--text-secondary)", Review: "var(--warning-color)",
   Approved: "var(--accent-green,#22c55e)", Deprecated: "#555",
 };
 
 const ADR_STATUS_COLOR: Record<string, string> = {
-  Proposed: "#f0a500", Accepted: "var(--accent-green,#22c55e)", Deprecated: "#555",
+  Proposed: "var(--warning-color)", Accepted: "var(--accent-green,#22c55e)", Deprecated: "#555",
 };
 
 const SEV_COLOR: Record<GovernanceSev, string> = {
-  Info: "var(--text-secondary)", Warning: "#f0a500", Error: "#f87171", Critical: "#dc2626",
+  Info: "var(--text-secondary)", Warning: "var(--warning-color)", Error: "var(--error-color)", Critical: "var(--error-color)",
 };
 
+/* TODO: tokenize — data visualization gradient from empty to full maturity */
 const MATURITY_COLOR = ["#333", "#4f4","#3b3","#2a2","#1a1","#0f0"];
 
 // ── Props ─────────────────────────────────────────────────────────────────
@@ -709,7 +710,7 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
                               disabled={statusBusy === art.id} onClick={() => setArtifactStatus(art.id, "Review")}><RotateCcw size={11} strokeWidth={1.5} style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }} />Review</button>
                           )}
                           {art.status === "Approved" && (
-                            <button className="panel-btn panel-btn-sm" style={{ fontSize: 10, padding: "2px 8px", color: "#f87171", borderColor: "#f87171" }}
+                            <button className="panel-btn panel-btn-sm" style={{ fontSize: 10, padding: "2px 8px", color: "var(--error-color)", borderColor: "var(--error-color)" }}
                               disabled={statusBusy === art.id} onClick={() => setArtifactStatus(art.id, "Draft")}><X size={11} strokeWidth={2} style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }} />Revoke</button>
                           )}
                         </div>
@@ -1047,7 +1048,7 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
                             disabled={statusBusy === adr.id} onClick={() => setAdrStatus(adr.id, "Deprecated")}><X size={11} strokeWidth={2} style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }} />Deprecate</button>
                         )}
                         {statusLabel === "Accepted" && (
-                          <button className="panel-btn panel-btn-sm" style={{ fontSize: 10, padding: "2px 8px", color: "#f87171", borderColor: "#f87171" }}
+                          <button className="panel-btn panel-btn-sm" style={{ fontSize: 10, padding: "2px 8px", color: "var(--error-color)", borderColor: "var(--error-color)" }}
                             disabled={statusBusy === adr.id} onClick={() => setAdrStatus(adr.id, "Proposed")}><RotateCcw size={11} strokeWidth={1.5} style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }} />Re-open</button>
                         )}
                       </div>
@@ -1168,8 +1169,8 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
           Architecture Specification
           {disp && <span className="panel-label" style={{ marginLeft: 10, fontWeight: 400 }}>{disp.project_name}</span>}
         </h2>
-        {dirty && <span style={{ fontSize: 11, color: "#f0a500", marginLeft: 8, display: "inline-flex", alignItems: "center", gap: 4 }}>
-          <Circle size={7} strokeWidth={0} fill="#f0a500" />unsaved changes
+        {dirty && <span style={{ fontSize: 11, color: "var(--warning-color)", marginLeft: 8, display: "inline-flex", alignItems: "center", gap: 4 }}>
+          <Circle size={7} strokeWidth={0} fill="var(--warning-color)" />unsaved changes
         </span>}
       </div>
 

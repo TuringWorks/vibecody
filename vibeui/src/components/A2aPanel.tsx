@@ -63,14 +63,14 @@ const ALL_CAPABILITIES = [
 
 
 const capBadgeColors: Record<string, string> = {
-  CodeGeneration: "#6366f1",
+  CodeGeneration: "var(--accent-indigo)",
   CodeReview: "var(--accent-purple)",
   Testing: "var(--success-color)",
   Debugging: "var(--warning-color)",
-  Refactoring: "#06b6d4",
+  Refactoring: "var(--accent-cyan)",
   Documentation: "var(--accent-color)",
   Security: "var(--error-color)",
-  Deployment: "#f97316",
+  Deployment: "var(--warning-color)",
   DataAnalysis: "var(--error-color)",
 };
 
@@ -90,7 +90,7 @@ const statusBadgeColors: Record<string, string> = {
   online: "var(--success-color)",
   offline: "var(--text-secondary)",
   unknown: "var(--warning-color)",
-  submitted: "#6366f1",
+  submitted: "var(--accent-indigo)",
   working: "var(--warning-color)",
   completed: "var(--success-color)",
   failed: "var(--error-color)",
@@ -376,7 +376,7 @@ export function A2aPanel() {
                 {agent.capabilities.length > 0 && (
                   <div style={{ marginTop: 8 }}>
                     {agent.capabilities.map((cap) => (
-                      <span key={cap} style={badgeStyle(capBadgeColors[cap] || "#6366f1")}>
+                      <span key={cap} style={badgeStyle(capBadgeColors[cap] || "var(--accent-indigo)")}>
                         {cap}
                       </span>
                     ))}

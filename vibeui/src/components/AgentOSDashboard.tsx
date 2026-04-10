@@ -194,23 +194,23 @@ const S = {
 } as const;
 
 const STATUS_COLORS: Record<string, string> = {
-  running: "#4fc3f7",
-  queued: "#ffb74d",
+  running: "var(--accent-cyan)",
+  queued: "var(--warning-color)",
   paused: "#ce93d8",
-  completed: "#81c784",
-  failed: "#ef5350",
-  partial: "#ffb74d",
+  completed: "var(--success-color)",
+  failed: "var(--error-color)",
+  partial: "var(--warning-color)",
   cancelled: "#757575",
   idle: "#90a4ae",
-  working: "#4fc3f7",
+  working: "var(--accent-cyan)",
   stopped: "#757575",
-  crashed: "#ef5350",
-  starting: "#ffb74d",
-  done: "#81c784",
-  error: "#ef5350",
-  active: "#4fc3f7",
-  merged: "#81c784",
-  conflict: "#ef5350",
+  crashed: "var(--error-color)",
+  starting: "var(--warning-color)",
+  done: "var(--success-color)",
+  error: "var(--error-color)",
+  active: "var(--accent-cyan)",
+  merged: "var(--success-color)",
+  conflict: "var(--error-color)",
 };
 
 function statusColor(s: string): string {
@@ -324,23 +324,23 @@ export function AgentOSDashboard() {
       <div style={S.grid}>
         <div style={S.statCard}>
           <span style={S.statLabel}>Active</span>
-          <span style={{ ...S.statValue, color: "#4fc3f7" }}>{totalActive}</span>
+          <span style={{ ...S.statValue, color: "var(--accent-cyan)" }}>{totalActive}</span>
         </div>
         <div style={S.statCard}>
           <span style={S.statLabel}>Running</span>
-          <span style={{ ...S.statValue, color: "#4fc3f7" }}>{runningCount}</span>
+          <span style={{ ...S.statValue, color: "var(--accent-cyan)" }}>{runningCount}</span>
         </div>
         <div style={S.statCard}>
           <span style={S.statLabel}>Queued</span>
-          <span style={{ ...S.statValue, color: "#ffb74d" }}>{queuedCount}</span>
+          <span style={{ ...S.statValue, color: "var(--warning-color)" }}>{queuedCount}</span>
         </div>
         <div style={S.statCard}>
           <span style={S.statLabel}>Completed</span>
-          <span style={{ ...S.statValue, color: "#81c784" }}>{completedCount}</span>
+          <span style={{ ...S.statValue, color: "var(--success-color)" }}>{completedCount}</span>
         </div>
         <div style={S.statCard}>
           <span style={S.statLabel}>Failed</span>
-          <span style={{ ...S.statValue, color: "#ef5350" }}>{failedCount}</span>
+          <span style={{ ...S.statValue, color: "var(--error-color)" }}>{failedCount}</span>
         </div>
         <div style={S.statCard}>
           <span style={S.statLabel}>Tokens Used</span>

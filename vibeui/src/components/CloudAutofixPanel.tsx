@@ -106,8 +106,8 @@ const CloudAutofixPanel: React.FC = () => {
     backgroundColor: color, color: "var(--btn-primary-fg)",
   });
 
-  const typeColor = (t: string) => t === "typecheck" ? "#1f6feb" : t === "lint" ? "#8957e5" : t === "test" ? "#d29922" : t === "security" ? "#f85149" : "#6e7681";
-  const testStatusColor = (s: string) => s === "passed" ? "#2ea043" : s === "failed" ? "#f85149" : s === "running" ? "#d29922" : "#6e7681";
+  const typeColor = (t: string) => t === "typecheck" ? "var(--info-color)" : t === "lint" ? "var(--accent-indigo)" : t === "test" ? "var(--warning-color)" : t === "security" ? "var(--error-color)" : "var(--text-secondary)";
+  const testStatusColor = (s: string) => s === "passed" ? "var(--success-color)" : s === "failed" ? "var(--error-color)" : s === "running" ? "var(--warning-color)" : "var(--text-secondary)";
 
   const handleAnalyze = async () => {
     if (!prNumber.trim()) return;
@@ -218,7 +218,7 @@ const CloudAutofixPanel: React.FC = () => {
                 <span style={badge(typeColor(f.type))}>{f.type}</span>
                 <strong>{f.description}</strong>
                 {f.status !== "pending" && (
-                  <span style={badge(f.status === "merged" ? "#2ea043" : "#f85149")}>{f.status}</span>
+                  <span style={badge(f.status === "merged" ? "var(--success-color)" : "var(--error-color)")}>{f.status}</span>
                 )}
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "8px" }}>

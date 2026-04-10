@@ -122,7 +122,7 @@ export function CollabChatPanel({ provider = "claude", daemonPort = 7878 }: Coll
                 kind: "ai",
                 senderId: "ai",
                 senderName: "AI",
-                senderColor: "#4f9cf9",
+                senderColor: "var(--accent-color)",
                 content: msg.chunk,
                 timestamp: Date.now(),
                 streaming: true,
@@ -165,7 +165,7 @@ export function CollabChatPanel({ provider = "claude", daemonPort = 7878 }: Coll
       kind: "system",
       senderId: "system",
       senderName: "System",
-      senderColor: "#888",
+      senderColor: "var(--text-secondary)",
       content,
       timestamp: Date.now(),
     }]);
@@ -262,7 +262,7 @@ export function CollabChatPanel({ provider = "claude", daemonPort = 7878 }: Coll
       kind: "ai",
       senderId: "ai",
       senderName: "AI",
-      senderColor: "#4f9cf9",
+      senderColor: "var(--accent-color)",
       content: "",
       timestamp: Date.now(),
       streaming: true,
@@ -377,7 +377,7 @@ export function CollabChatPanel({ provider = "claude", daemonPort = 7878 }: Coll
         <button
           onClick={handleCreate}
           disabled={loading || !userName.trim()}
-          style={{ background: "var(--accent)", color: "#fff", border: "none", borderRadius: 6, padding: "8px 14px", cursor: "pointer", fontSize: 13, fontWeight: 500 }}
+          style={{ background: "var(--accent)", color: "var(--btn-primary-fg)", border: "none", borderRadius: 6, padding: "8px 14px", cursor: "pointer", fontSize: 13, fontWeight: 500 }}
         >
           {loading ? "Creating…" : "Create Room"}
         </button>
@@ -435,7 +435,7 @@ export function CollabChatPanel({ provider = "claude", daemonPort = 7878 }: Coll
         <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderBottom: "1px solid var(--border-color)", flexShrink: 0 }}>
           <Users size={12} style={{ color: "var(--text-muted)" }} />
           {[{ peerId: myPeerId || "me", name: userName, color: myColor }, ...peers].map((p) => (
-            <span key={p.peerId} title={p.name} style={{ width: 22, height: 22, borderRadius: "50%", background: p.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#fff", fontWeight: 700, flexShrink: 0 }}>
+            <span key={p.peerId} title={p.name} style={{ width: 22, height: 22, borderRadius: "50%", background: p.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "var(--btn-primary-fg)", fontWeight: 700, flexShrink: 0 }}>
               {p.name.charAt(0).toUpperCase()}
             </span>
           ))}
@@ -471,14 +471,14 @@ export function CollabChatPanel({ provider = "claude", daemonPort = 7878 }: Coll
           onClick={send}
           disabled={aiLoading || !input.trim()}
           title="Send"
-          style={{ background: "var(--accent)", border: "none", borderRadius: 8, padding: "0 12px", cursor: "pointer", color: "#fff", display: "flex", alignItems: "center" }}
+          style={{ background: "var(--accent)", border: "none", borderRadius: 8, padding: "0 12px", cursor: "pointer", color: "var(--btn-primary-fg)", display: "flex", alignItems: "center" }}
         >
           {aiLoading ? <Loader2 size={15} style={{ animation: "spin 1s linear infinite" }} /> : <Send size={15} />}
         </button>
       </div>
 
       {!connected && (
-        <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", fontSize: 11, color: "#f97b22", background: "rgba(249,123,34,0.1)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", fontSize: 11, color: "var(--warning-color)", background: "rgba(249,123,34,0.1)" /* TODO: tokenize background */}}>
           <WifiOff size={12} /> Disconnected
         </div>
       )}
@@ -503,9 +503,9 @@ function MessageBubble({ msg, myPeerId }: { msg: DisplayMsg; myPeerId: string | 
   return (
     <div style={{ marginBottom: 12, display: "flex", flexDirection: "column", alignItems: isMe ? "flex-end" : "flex-start" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-        {isAi && <Bot size={13} style={{ color: "#4f9cf9" }} />}
+        {isAi && <Bot size={13} style={{ color: "var(--accent-color)" }} />}
         {!isAi && (
-          <span style={{ width: 18, height: 18, borderRadius: "50%", background: msg.senderColor, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 9, color: "#fff", fontWeight: 700 }}>
+          <span style={{ width: 18, height: 18, borderRadius: "50%", background: msg.senderColor, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 9, color: "var(--btn-primary-fg)", fontWeight: 700 }}>
             {msg.senderName.charAt(0).toUpperCase()}
           </span>
         )}
@@ -513,12 +513,12 @@ function MessageBubble({ msg, myPeerId }: { msg: DisplayMsg; myPeerId: string | 
           {isAi ? "AI Assistant" : msg.senderName}
           {isMe && !isAi && " (you)"}
         </span>
-        {msg.streaming && <span style={{ fontSize: 10, color: "#4f9cf9" }}>●</span>}
+        {msg.streaming && <span style={{ fontSize: 10, color: "var(--accent-color)" }}>●</span>}
       </div>
       <div style={{
         maxWidth: "85%",
         background: isAi ? "var(--bg-secondary)" : isMe ? "var(--accent)" : "var(--bg-tertiary, var(--bg-secondary))",
-        color: isMe && !isAi ? "#fff" : "var(--text-primary)",
+        color: isMe && !isAi ? "var(--btn-primary-fg)" : "var(--text-primary)",
         borderRadius: isMe ? "12px 12px 4px 12px" : "12px 12px 12px 4px",
         padding: "8px 12px",
         fontSize: 13,
