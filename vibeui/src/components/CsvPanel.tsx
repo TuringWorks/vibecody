@@ -253,6 +253,7 @@ export function CsvPanel() {
  {/* Table */}
  {tab === "table" && (
  <div className="panel-body" style={{ padding: 8 }}>
+ <div style={{ overflowX: "auto" }}>
  <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 12 }}>
  {hasHeader && headers.length > 0 && (
  <thead>
@@ -274,7 +275,7 @@ export function CsvPanel() {
  <td style={{ padding: "3px 6px", color: "var(--text-secondary)", fontSize: 10 }}>{ri + 1}</td>
  {row.map((cell, ci) => (
  <td key={ci} onDoubleClick={() => { setEditCell({ r: ri, c: ci }); setEditVal(cell); }}
- style={{ padding: "3px 8px", borderBottom: "1px solid var(--border-color)", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "text" }}>
+ style={{ padding: "3px 8px", borderBottom: "1px solid var(--border-color)", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", wordBreak: "break-word", cursor: "text" }}>
  {editCell?.r === ri && editCell?.c === ci ? (
  <input autoFocus value={editVal} onChange={e => setEditVal(e.target.value)}
  onBlur={commitEdit} onKeyDown={e => { if (e.key === "Enter") commitEdit(); if (e.key === "Escape") setEditCell(null); }}
@@ -290,6 +291,7 @@ export function CsvPanel() {
  ))}
  </tbody>
  </table>
+ </div>
  <button onClick={addRow}
  style={{ marginTop: 8, padding: "4px 10px", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: 4, cursor: "pointer", fontSize: 11, color: "var(--text-primary)" }}>
  + Add Row
@@ -310,6 +312,7 @@ export function CsvPanel() {
  </select>
  <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{filteredRows.length} / {dataRows.length} rows</span>
  </div>
+ <div style={{ overflowX: "auto" }}>
  <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 12 }}>
  {hasHeader && headers.length > 0 && (
  <thead>
@@ -335,6 +338,7 @@ export function CsvPanel() {
  ))}
  </tbody>
  </table>
+ </div>
  {filteredRows.length > 200 && <div style={{ padding: 8, color: "var(--text-secondary)", fontSize: 11 }}>Showing first 200 of {filteredRows.length} matches</div>}
  </div>
  )}
@@ -355,6 +359,7 @@ export function CsvPanel() {
  </div>
  ))}
  </div>
+ <div style={{ overflowX: "auto" }}>
  <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 12 }}>
  <thead>
  <tr>
@@ -377,6 +382,7 @@ export function CsvPanel() {
  ))}
  </tbody>
  </table>
+ </div>
  </div>
  )}
 
@@ -404,19 +410,19 @@ export function CsvPanel() {
  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
  <div>
  <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>JSON</div>
- <pre style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, padding: 8, fontSize: 11, overflow: "auto", maxHeight: 200, margin: 0 }}>
+ <pre style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, padding: 8, fontSize: 11, overflow: "auto", maxHeight: "calc(60vh - 200px)", margin: 0 }}>
  {convertToJson().slice(0, 2000)}{convertToJson().length > 2000 ? "\n…" : ""}
  </pre>
  </div>
  <div>
  <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>SQL INSERT</div>
- <pre style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, padding: 8, fontSize: 11, overflow: "auto", maxHeight: 160, margin: 0 }}>
+ <pre style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, padding: 8, fontSize: 11, overflow: "auto", maxHeight: "calc(60vh - 200px)", margin: 0 }}>
  {convertToSql().slice(0, 2000)}{convertToSql().length > 2000 ? "\n…" : ""}
  </pre>
  </div>
  <div>
  <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>Markdown Table</div>
- <pre style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, padding: 8, fontSize: 11, overflow: "auto", maxHeight: 160, margin: 0 }}>
+ <pre style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, padding: 8, fontSize: 11, overflow: "auto", maxHeight: "calc(60vh - 200px)", margin: 0 }}>
  {(() => {
  const headerRow = hasHeader ? `| ${headers.join(" | ")} |\n| ${headers.map(() => "---").join(" | ")} |\n` : "";
  const body = sortedRows.slice(0, 20).map(r => `| ${r.join(" | ")} |`).join("\n");

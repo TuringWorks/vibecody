@@ -102,7 +102,7 @@ function BlindResponseCard({ content, side, error }: { content: string; side: "A
         {isError ? (
           <span style={{ color: "var(--error-color)" }}>{error}</span>
         ) : (
-          <pre style={{ margin: 0, whiteSpace: "pre-wrap", fontFamily: "inherit", fontSize: "13px" }}>
+          <pre style={{ margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-word", fontFamily: "inherit", fontSize: "13px" }}>
             {content || <span style={{ color: "var(--text-secondary)" }}>(empty response)</span>}
           </pre>
         )}
@@ -266,7 +266,7 @@ export function ArenaPanel() {
 
       {/* Side-by-side blind responses */}
       {result && (
-        <div style={{ display: "flex", gap: "10px", flex: 1, overflow: "hidden", minHeight: "150px" }}>
+        <div style={{ display: "flex", gap: "10px", flex: 1, overflow: "hidden", minHeight: "150px", flexGrow: 1 }}>
           <BlindResponseCard
             content={result.a.content}
             side="A"

@@ -141,7 +141,7 @@ export const CommandPalette = ({ isOpen, onClose, commands }: CommandPaletteProp
                         aria-autocomplete="list"
                     />
                 </div>
-                <div className="command-palette-list" ref={listRef} id="command-palette-listbox" role="listbox">
+                <div className="command-palette-list" ref={listRef} id="command-palette-listbox" role="listbox" style={{ maxHeight: "min(400px, 60vh)", overflowY: "auto" }}>
                     {Object.keys(groupedCommands).length === 0 ? (
                         <div className="command-palette-empty">No commands found</div>
                     ) : (
