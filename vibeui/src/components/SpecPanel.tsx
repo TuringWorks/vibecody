@@ -153,6 +153,7 @@ export function SpecPanel({ workspacePath, provider = "ollama" }: SpecPanelProps
  <button
  onClick={loadSpecs}
  className="panel-btn panel-btn-secondary panel-btn-sm"
+ aria-label="Refresh"
  >
  ↺
  </button>
@@ -203,20 +204,22 @@ export function SpecPanel({ workspacePath, provider = "ollama" }: SpecPanelProps
  )}
 
  {/* Sub-tabs */}
- <div className="panel-tab-bar" style={{ padding: "0 16px" }}>
+ <div className="panel-tab-bar" style={{ padding: "0 16px" }} role="tablist">
  {(["list", "editor"] as const).map(tab => (
  <button
  key={tab}
  onClick={() => setActiveTab(tab)}
  className={`panel-tab${activeTab === tab ? " active" : ""}`}
  style={{ flex: 1 }}
+ role="tab"
+ aria-selected={activeTab === tab}
  >
  {tab === "list" ? ` All Specs (${specs.length})` : ` ${selectedSpec?.name ?? "Select a spec"}`}
  </button>
  ))}
  </div>
 
- <div className="panel-body" style={{ overflow: "auto" }}>
+ <div className="panel-body" style={{ overflow: "auto" }} role="tabpanel">
  {/* Spec List */}
  {activeTab === "list" && (
  <div style={{ padding: "8px" }}>
@@ -236,6 +239,9 @@ export function SpecPanel({ workspacePath, provider = "ollama" }: SpecPanelProps
  style={{ marginBottom: "6px", cursor: "pointer", transition: "background 0.15s" }}
  onMouseEnter={e => (e.currentTarget.style.background = "var(--bg-hover)")}
  onMouseLeave={e => (e.currentTarget.style.background = "")}
+ role="button"
+ tabIndex={0}
+ onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openSpec(spec.name); } }}
  >
  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
  <span style={{ fontSize: "16px" }}>{STATUS_ICONS[spec.status] ?? ""}</span>
@@ -320,6 +326,9 @@ export function SpecPanel({ workspacePath, provider = "ollama" }: SpecPanelProps
  border: "1px solid var(--border-color)",
  cursor: "pointer", opacity: task.done ? 0.7 : 1,
  }}
+ role="button"
+ tabIndex={0}
+ onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleTask(task.id); } }}
  >
  <div style={{
  width: "16px", height: "16px", borderRadius: "3px", flexShrink: 0, marginTop: "1px",

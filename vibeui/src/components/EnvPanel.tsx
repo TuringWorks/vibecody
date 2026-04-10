@@ -252,8 +252,12 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
             );
           })}
           {/* Create new environment */}
-          <div style={{ display: "flex", gap: 4 }}>
+          <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+            <label htmlFor="new-env-name" style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap" }}>
+              New environment name
+            </label>
             <input
+              id="new-env-name"
               type="text"
               value={newEnvName}
               onChange={(e) => setNewEnvName(e.target.value)}
@@ -265,6 +269,7 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
             <button
               onClick={handleCreateEnv}
               disabled={!newEnvName.trim()}
+              aria-label="Create new environment"
               className="panel-btn panel-btn-secondary panel-btn-xs"
             >
               +
@@ -281,7 +286,11 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
 
       {/* Search + Save */}
       <div style={{ display: "flex", gap: 8 }}>
+        <label htmlFor="env-filter" style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap" }}>
+          Filter by key
+        </label>
         <input
+          id="env-filter"
           type="text"
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
@@ -333,6 +342,7 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
                 type={entry.is_secret && !revealedKeys.has(entry.key) ? "password" : "text"}
                 value={entry.value}
                 onChange={(e) => handleValueChange(entry.key, e.target.value)}
+                aria-label={`Value for ${entry.key}`}
                 className="panel-input panel-input-full"
                 style={{ flex: 1, fontFamily: "var(--font-mono)" }}
               />
@@ -341,6 +351,9 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
                 <button
                   onClick={() => handleRevealToggle(entry.key)}
                   title={revealedKeys.has(entry.key) ? "Hide value" : "Reveal value"}
+                  aria-label={revealedKeys.has(entry.key) ? "Hide secret value" : "Reveal secret value"}
+                  role="switch"
+                  aria-checked={revealedKeys.has(entry.key)}
                   style={{
                     background: "none", border: "none", cursor: "pointer", fontSize: 13,
                     color: "var(--text-primary)", padding: "2px 4px", flexShrink: 0,
@@ -353,6 +366,7 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
               <button
                 onClick={() => handleDeleteVar(entry.key)}
                 title="Delete variable"
+                aria-label="Delete environment variable"
                 style={{
                   background: "none", border: "none", cursor: "pointer", fontSize: 13,
                   color: "var(--text-danger)", padding: "2px 4px", flexShrink: 0,
@@ -369,7 +383,11 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
       <div style={{ borderTop: "1px solid var(--border-color)", paddingTop: 10 }}>
         <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>Add Variable</div>
         <div style={{ display: "flex", gap: 6 }}>
+          <label htmlFor="new-var-key" style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap" }}>
+            Variable key name
+          </label>
           <input
+            id="new-var-key"
             type="text"
             value={newKey}
             onChange={(e) => setNewKey(e.target.value)}
@@ -377,7 +395,11 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
             className="panel-input"
             style={{ width: 140, fontFamily: "var(--font-mono)", textTransform: "uppercase" }}
           />
+          <label htmlFor="new-var-value" style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap" }}>
+            Variable value
+          </label>
           <input
+            id="new-var-value"
             type="text"
             value={newValue}
             onChange={(e) => setNewValue(e.target.value)}
