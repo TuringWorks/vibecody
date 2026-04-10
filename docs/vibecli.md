@@ -225,6 +225,194 @@ In REPL mode, the following slash commands are available:
 | `/exit` or `/quit` | Exit VibeCLI |
 | `! <command>` | Execute a shell command directly (e.g. `!ls -la`) |
 
+### Session & Context
+
+| Command | Description |
+|---------|-------------|
+| `/status` | Show provider, model, and session info |
+| `/cost` | Show token usage and estimated cost for the current session |
+| `/context` | Show active context window size |
+| `/fork [session-name]` | Fork current session into a named branch |
+| `/rewind [list \| <timestamp>]` | Save or restore a conversation checkpoint |
+| `/share <session_id>` | Print shareable URL for a session (requires `vibecli serve`) |
+| `/jobs` | List background agent jobs |
+| `/model <provider> [model]` | Switch active AI provider and model |
+
+### Profiles & Memory
+
+| Command | Description |
+|---------|-------------|
+| `/profile list\|show\|create\|delete` | Manage user profiles |
+| `/memory show\|edit` | View or edit persistent agent memory |
+| `/openmemory <sub>` | Cognitive memory engine: `add`, `query`, `list`, `delete`, `pin`, `unpin`, `fact`, `facts`, `decay`, `consolidate`, `reflect`, `summary`, `health`, `at-risk`, `dedup`, `ingest`, `import`, `stats`, `export`, `encrypt`, `context` |
+
+### Code Intelligence
+
+| Command | Description |
+|---------|-------------|
+| `/qa <question>` | Ask a question about the codebase (uses embeddings) |
+| `/index [embedding-model]` | Build or rebuild codebase embeddings index |
+| `/semindex <sub>` | Deep semantic codebase index: `build`, `query`, `callers`, `callees`, `hierarchy`, `deps`, `stats` |
+| `/autofix [clippy\|eslint\|ruff\|gofmt\|prettier]` | Run linter auto-fix and show diff |
+| `/notebook <file.vibe>` | Run interactive notebook cells |
+| `/snippet list\|save\|use\|show\|delete` | Manage reusable code snippets |
+| `/markers scan\|list\|bookmarks` | Scan TODO/FIXME/HACK markers and manage bookmarks |
+| `/replay` | Code replay — step through agent changes |
+| `/speculate` | Speculative execution — preview agent actions without applying |
+| `/explain` | Explainable agent — show reasoning behind agent decisions |
+
+### Project & Workspace
+
+| Command | Description |
+|---------|-------------|
+| `/workspace-detect` | Detect workspace languages/frameworks and suggest skills |
+| `/spec list\|show\|new\|run\|done` | Spec-driven development — manage feature specifications |
+| `/recipe [list \| show <file>]` | List or inspect bundled/local recipes |
+| `/theme [dark\|light\|monokai\|solarized\|nord]` | Switch TUI color theme |
+| `/research <topic>` | Research a topic in the context of the codebase |
+| `/search web\|cache\|providers\|config` | Web search grounding |
+| `/websearch web\|search\|citations\|cache` | Integrated web search grounding with citations |
+
+### Agents & Teams
+
+| Command | Description |
+|---------|-------------|
+| `/agents list\|status\|new` | Manage background agent definitions |
+| `/team create\|status\|messages\|show\|knowledge\|sync` | Agent teams and peer communication |
+| `/worktree spawn\|list\|merge\|cleanup\|config` | Parallel worktree agent execution |
+| `/host add\|list\|route\|remove\|ask` | Multi-agent terminal hosting |
+| `/proactive scan\|config\|accept\|reject\|history\|digest` | Proactive agent intelligence |
+| `/triage run\|rules\|labels\|history\|batch` | Autonomous issue triage |
+| `/nexttask suggest\|accept\|reject\|learn\|stats` | Next-task prediction |
+| `/a2a card\|serve\|discover\|call\|tasks\|status` | A2A agent-to-agent protocol |
+| `/dispatch register\|unregister\|machines\|pair\|unpair\|devices\|send\|cancel\|status\|stats\|heartbeat` | Mobile gateway and dispatch |
+
+### DevOps & Deployment
+
+| Command | Description |
+|---------|-------------|
+| `/deploy <target>\|list` | Deploy to cloud platforms: `vercel`, `netlify`, `railway`, `github-pages`, `gcp`, `firebase`, `aws`, `aws-apprunner`, `aws-s3`, `aws-lambda`, `aws-ecs`, `azure`, `azure-appservice`, `azure-container`, `azure-static`, `digitalocean`, `kubernetes`, `helm`, `oci`, `ibm` |
+| `/env list\|get\|set\|delete\|switch\|files\|create` | Environment variable management |
+| `/profiler run\|top\|list-tools` | CPU/memory profiling |
+| `/logs tail\|sources\|errors\|analyze` | Log viewer and analyzer |
+| `/migration status\|migrate\|rollback\|generate` | Database migration management |
+| `/mock start\|stop\|add\|remove\|list\|log\|import` | API mock server management |
+
+### Security & Compliance
+
+| Command | Description |
+|---------|-------------|
+| `/compliance soc2\|fedramp` | Generate compliance reports (SOC2/FedRAMP) |
+| `/vulnscan <sub>` | Vulnerability scanner: `scan`, `deps`, `file`, `lockfile`, `sarif`, `report`, `summary`, `db-update`, `db-status`, `cache-clear` |
+| `/verify full\|quick\|security\|performance\|testing` | Structured verification checklist |
+| `/trust scores\|history\|config\|explain` | Agent trust scoring |
+| `/vverify screenshot\|diff\|baseline\|ci` | Visual verification via screenshots |
+
+### Git & Version Control
+
+| Command | Description |
+|---------|-------------|
+| `/bisect start\|good\|bad\|skip\|reset\|log\|analyze` | Git bisect workflow with AI analysis |
+| `/gitplatform add\|list\|remove\|default\|pr\|issue\|pipeline\|webhook` | Multi-platform Git management (GitHub, GitLab, Bitbucket, etc.) |
+
+### Plugins & Extensions
+
+| Command | Description |
+|---------|-------------|
+| `/plugin list\|install\|remove\|info` | Plugin management |
+| `/marketplace` | Browse the plugin marketplace |
+| `/skills import\|export\|search\|validate\|publish` | Cross-tool agent skills standard |
+| `/resources status\|export\|verify\|path` | Manage externalized resource files |
+
+### Scheduling & Reminders
+
+| Command | Description |
+|---------|-------------|
+| `/remind in <dur> "task" \| list \| cancel <id>` | Set timed reminders |
+| `/schedule every <dur> "task" \| list \| cancel <id>` | Schedule recurring tasks |
+
+### Issue Tracking
+
+| Command | Description |
+|---------|-------------|
+| `/linear list\|new\|open\|attach` | Linear issue tracker integration |
+
+### Handoffs & Collaboration
+
+| Command | Description |
+|---------|-------------|
+| `/handoff list\|show\|create` | Session handoff documents |
+
+### Batch & QA
+
+| Command | Description |
+|---------|-------------|
+| `/batch new\|start\|pause\|resume\|cancel\|status\|list\|estimate\|history` | Batch task processing |
+| `/qavalidate run\|status\|report\|findings\|resolve\|config\|history` | QA validation engine |
+
+### Legacy Migration
+
+| Command | Description |
+|---------|-------------|
+| `/legacymigrate analyze\|plan\|translate\|validate\|report\|rules\|pairs` | Legacy code migration (analyze, translate, validate) |
+
+### App Builder & Context
+
+| Command | Description |
+|---------|-------------|
+| `/appbuilder enhance\|template\|provision\|scaffold\|templates` | App scaffolding and template management |
+| `/icontext status\|expand\|compress\|refresh\|summary\|clear` | Intelligent context window management |
+
+### Quantum Computing
+
+| Command | Description |
+|---------|-------------|
+| `/quantum languages\|os\|hardware\|algorithms\|circuits\|projects\|create\|export\|compat\|status` | Quantum computing tools (circuits, algorithms, hardware info) |
+
+### Autonomous Research
+
+| Command | Description |
+|---------|-------------|
+| `/autoresearch new\|start\|stop\|pause\|status\|list\|analyze\|export\|suggest\|lessons\|config` | Autonomous iterative research agent |
+
+### AI/ML & Routing
+
+| Command | Description |
+|---------|-------------|
+| `/aiml` | AI/ML model training and evaluation tools |
+| `/repair mcts\|agentless\|compare\|config` | MCTS-based code repair |
+| `/route cost\|budget\|model\|stats\|compare` | Cost-optimized agent routing |
+| `/rlcef train\|eval\|mistakes\|patterns\|reset\|export` | RLCEF (reinforcement learning from code execution feedback) training loop |
+| `/langgraph serve\|connect\|status\|checkpoint` | LangGraph pipeline bridge |
+| `/smartdeps resolve\|compare\|patch\|audit\|graph` | Agentic package manager with dependency resolution |
+
+### Documentation & Integration
+
+| Command | Description |
+|---------|-------------|
+| `/docsync status\|reconcile\|watch\|freshness` | Living documentation sync (detect stale docs) |
+| `/connect list\|add\|test\|remove\|webhook` | Native integration connectors |
+| `/analytics dashboard\|export\|roi\|compare` | Enterprise agent analytics |
+| `/mcp-http serve\|oauth\|tokens\|remote` | MCP streamable HTTP transport with OAuth 2.1 |
+
+### Sketch & Design
+
+| Command | Description |
+|---------|-------------|
+| `/sketch new\|recognize\|generate\|export` | Sketch canvas to code (draw UI, generate components) |
+
+### Company Management
+
+| Command | Description |
+|---------|-------------|
+| `/company <sub>` | Company/org management: `create`, `list`, `switch`, `delete`, `status`, `agent`, `goal`, `task`, `approval`, `budget`, `secret`, `routine`, `doc`, `heartbeat`, `adapter`, `export`, `import` |
+
+### Wizards
+
+| Command | Description |
+|---------|-------------|
+| `/wizard` | Interactive guided setup wizards |
+
 > **Safety**: By default, all shell command execution requires user confirmation (`y/N`). Disable this with `require_approval_for_commands = false` in config.
 
 ## Workflow Examples
