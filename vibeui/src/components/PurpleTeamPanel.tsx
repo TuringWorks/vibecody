@@ -107,7 +107,7 @@ const formGroup: React.CSSProperties = {
   marginBottom: 10,
 };
 
-export function PurpleTeamPanel() {
+export function PurpleTeamPanel({ provider }: { provider?: string } = {}) {
   const [activeTab, setActiveTab] = useState<PurpleTeamTab>("Exercises");
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [matrix, setMatrix] = useState<MatrixCell[]>([]);
@@ -326,7 +326,7 @@ export function PurpleTeamPanel() {
                   setAiPlan(null);
                   setError(null);
                   try {
-                    const result = await invoke<{ exercise: Exercise; plan: any }>("purple_team_ai_generate_exercise", { prompt: aiPrompt.trim() });
+                    const result = await invoke<{ exercise: Exercise; plan: any }>("purple_team_ai_generate_exercise", { prompt: aiPrompt.trim(), provider });
                     setAiPlan(result.plan);
                     setExercises(prev => [result.exercise, ...prev]);
                     showSuccess(`Exercise "${result.exercise.name}" created with ${result.plan?.simulations?.length || 0} simulations`);

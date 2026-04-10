@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { ChevronDown } from "lucide-react";
 
 interface RepairSession {
   id: string;
@@ -234,7 +235,7 @@ export function MctsRepairPanel() {
                 {p.detail && <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{p.detail}</div>}
               </div>
               <span style={{ fontSize: 11, color: phaseColor[p.status] || "var(--text-secondary)" }}>{p.status}</span>
-              {i < phases.length - 1 && <span style={{ fontSize: 18, color: "var(--text-secondary)" }}>&darr;</span>}
+              {i < phases.length - 1 && <ChevronDown size={14} strokeWidth={1.5} style={{ color: "var(--text-secondary)", flexShrink: 0 }} />}
             </div>
           ))}
         </div>

@@ -17912,6 +17912,7 @@ pub async fn ai_notebook_assist(
     cell_code: String,
     cell_output: String,
     question: String,
+    provider: Option<String>,
 ) -> Result<String, String> {
     let prompt = format!(
         "Given this code:\n```\n{}\n```\n\nAnd its output:\n```\n{}\n```\n\n{}",
@@ -17920,7 +17921,8 @@ pub async fn ai_notebook_assist(
         if question.is_empty() { "Explain what this code does and suggest improvements." } else { &question },
     );
 
-    let engine = state.chat_engine.lock().await;
+    let mut engine = state.chat_engine.lock().await;
+    if let Some(p) = &provider { let _ = engine.set_provider_by_name(p); }
     let provider = engine.active_provider().ok_or("No AI provider configured")?;
     let messages = vec![vibe_ai::provider::Message {
         role: vibe_ai::provider::MessageRole::User,
@@ -18354,8 +18356,10 @@ pub async fn ai_bisect_analyze(
     state: tauri::State<'_, AppState>,
     _workspace: String,
     bisect_log: String,
+    provider: Option<String>,
 ) -> Result<String, String> {
-    let engine = state.chat_engine.lock().await;
+    let mut engine = state.chat_engine.lock().await;
+    if let Some(p) = &provider { let _ = engine.set_provider_by_name(p); }
     let provider = engine.active_provider().ok_or("No AI provider configured")?;
     let prompt = format!(
         "Analyze this git bisect session log and identify the root cause commit. \
@@ -25623,6 +25627,7 @@ pub async fn create_purple_team_exercise(name: String, lead: String, description
 pub async fn purple_team_ai_generate_exercise(
     prompt: String,
     state: tauri::State<'_, AppState>,
+    provider: Option<String>,
 ) -> Result<serde_json::Value, String> {
     let ai_prompt = format!(
         r#"You are an expert purple team security professional. Generate a detailed purple team exercise plan based on this scenario:
@@ -25656,7 +25661,8 @@ Respond with ONLY valid JSON:
     );
 
     let messages = vec![Message { role: vibe_ai::MessageRole::User, content: ai_prompt }];
-    let engine = state.chat_engine.lock().await;
+    let mut engine = state.chat_engine.lock().await;
+    if let Some(p) = &provider { let _ = engine.set_provider_by_name(p); }
     let raw = engine.chat(&messages, None).await.map_err(|e| e.to_string())?;
     drop(engine);
 
@@ -28009,6 +28015,7 @@ pub async fn agile_get_metrics() -> Result<serde_json::Value, String> {
 #[tauri::command]
 pub async fn agile_ai_analyze(
     sprint_id: String,
+    provider: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
     let sprints = agile_read_json("sprints.json");
@@ -28047,7 +28054,8 @@ Respond with ONLY valid JSON (no markdown):
     );
 
     let messages = vec![Message { role: vibe_ai::MessageRole::User, content: prompt }];
-    let engine = state.chat_engine.lock().await;
+    let mut engine = state.chat_engine.lock().await;
+    if let Some(p) = &provider { let _ = engine.set_provider_by_name(p); }
     let raw = engine.chat(&messages, None).await.map_err(|e| e.to_string())?;
     drop(engine);
 
@@ -28111,6 +28119,7 @@ pub async fn agile_save_safe(data: serde_json::Value) -> Result<(), String> {
 #[tauri::command]
 pub async fn agile_ai_split_story(
     story: serde_json::Value,
+    provider: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
     let title = story.get("title").and_then(|v| v.as_str()).unwrap_or("Untitled");
@@ -28135,7 +28144,8 @@ Respond with ONLY valid JSON:
     );
 
     let messages = vec![Message { role: vibe_ai::MessageRole::User, content: prompt }];
-    let engine = state.chat_engine.lock().await;
+    let mut engine = state.chat_engine.lock().await;
+    if let Some(p) = &provider { let _ = engine.set_provider_by_name(p); }
     let raw = engine.chat(&messages, None).await.map_err(|e| e.to_string())?;
     drop(engine);
 
@@ -28154,6 +28164,7 @@ Respond with ONLY valid JSON:
 #[tauri::command]
 pub async fn agile_ai_generate_subtasks(
     card: serde_json::Value,
+    provider: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
     let title = card.get("title").and_then(|v| v.as_str()).unwrap_or("Untitled");
@@ -28178,7 +28189,8 @@ Respond with ONLY valid JSON:
     );
 
     let messages = vec![Message { role: vibe_ai::MessageRole::User, content: prompt }];
-    let engine = state.chat_engine.lock().await;
+    let mut engine = state.chat_engine.lock().await;
+    if let Some(p) = &provider { let _ = engine.set_provider_by_name(p); }
     let raw = engine.chat(&messages, None).await.map_err(|e| e.to_string())?;
     drop(engine);
 
@@ -28198,6 +28210,7 @@ Respond with ONLY valid JSON:
 pub async fn agile_ai_generate_ac(
     title: String,
     description: String,
+    provider: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
     let prompt = format!(
@@ -28214,7 +28227,8 @@ Respond with ONLY valid JSON:
     );
 
     let messages = vec![Message { role: vibe_ai::MessageRole::User, content: prompt }];
-    let engine = state.chat_engine.lock().await;
+    let mut engine = state.chat_engine.lock().await;
+    if let Some(p) = &provider { let _ = engine.set_provider_by_name(p); }
     let raw = engine.chat(&messages, None).await.map_err(|e| e.to_string())?;
     drop(engine);
 
@@ -28233,6 +28247,7 @@ Respond with ONLY valid JSON:
 #[tauri::command]
 pub async fn agile_ai_estimate_points(
     stories: serde_json::Value,
+    provider: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
     let stories_str = serde_json::to_string_pretty(&stories).unwrap_or_default();
@@ -28250,7 +28265,8 @@ Respond with ONLY valid JSON:
     );
 
     let messages = vec![Message { role: vibe_ai::MessageRole::User, content: prompt }];
-    let engine = state.chat_engine.lock().await;
+    let mut engine = state.chat_engine.lock().await;
+    if let Some(p) = &provider { let _ = engine.set_provider_by_name(p); }
     let raw = engine.chat(&messages, None).await.map_err(|e| e.to_string())?;
     drop(engine);
 
@@ -28269,6 +28285,7 @@ Respond with ONLY valid JSON:
 #[tauri::command]
 pub async fn agile_ai_retro_generate(
     sprint_data: serde_json::Value,
+    provider: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
     let sprint_str = serde_json::to_string_pretty(&sprint_data).unwrap_or_default();
@@ -28288,7 +28305,8 @@ Respond with ONLY valid JSON:
     );
 
     let messages = vec![Message { role: vibe_ai::MessageRole::User, content: prompt }];
-    let engine = state.chat_engine.lock().await;
+    let mut engine = state.chat_engine.lock().await;
+    if let Some(p) = &provider { let _ = engine.set_provider_by_name(p); }
     let raw = engine.chat(&messages, None).await.map_err(|e| e.to_string())?;
     drop(engine);
 
@@ -28309,6 +28327,7 @@ Respond with ONLY valid JSON:
 #[tauri::command]
 pub async fn agile_ai_generate_backlog(
     prompt: String,
+    provider: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
     // Gather project context: file tree summary
@@ -28392,7 +28411,8 @@ Respond with ONLY valid JSON:
     );
 
     let messages = vec![Message { role: vibe_ai::MessageRole::User, content: ai_prompt }];
-    let engine = state.chat_engine.lock().await;
+    let mut engine = state.chat_engine.lock().await;
+    if let Some(p) = &provider { let _ = engine.set_provider_by_name(p); }
     let raw = engine.chat(&messages, None).await.map_err(|e| e.to_string())?;
     drop(engine);
 
@@ -28919,6 +28939,7 @@ pub async fn wm_get_dashboard(scope: serde_json::Value) -> Result<serde_json::Va
 pub async fn wm_ai_generate_item(
     prompt: String,
     item_type: Option<String>,
+    provider: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
     let type_hint = item_type.as_deref().unwrap_or("story");
@@ -28939,7 +28960,8 @@ Respond with ONLY valid JSON (no markdown, no explanation):
     );
     let full_prompt = format!("{system}\n\nUser request: {prompt}");
     let messages = vec![Message { role: vibe_ai::MessageRole::User, content: full_prompt }];
-    let engine = state.chat_engine.lock().await;
+    let mut engine = state.chat_engine.lock().await;
+    if let Some(p) = &provider { let _ = engine.set_provider_by_name(p); }
     let raw = engine.chat(&messages, None).await.map_err(|e| e.to_string())?;
     drop(engine);
 
@@ -28956,6 +28978,7 @@ Respond with ONLY valid JSON (no markdown, no explanation):
 #[tauri::command]
 pub async fn wm_ai_suggest_breakdown(
     item: serde_json::Value,
+    provider: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
     let title = item.get("title").and_then(|v| v.as_str()).unwrap_or("Untitled");
@@ -28993,7 +29016,8 @@ Generate 3-6 child items. Respond with ONLY valid JSON:
     );
 
     let messages = vec![Message { role: vibe_ai::MessageRole::User, content: prompt }];
-    let engine = state.chat_engine.lock().await;
+    let mut engine = state.chat_engine.lock().await;
+    if let Some(p) = &provider { let _ = engine.set_provider_by_name(p); }
     let raw = engine.chat(&messages, None).await.map_err(|e| e.to_string())?;
     drop(engine);
 
@@ -29010,6 +29034,7 @@ Generate 3-6 child items. Respond with ONLY valid JSON:
 #[tauri::command]
 pub async fn wm_ai_assess_risk(
     items: serde_json::Value,
+    provider: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
     let items_summary: Vec<String> = items.as_array()
@@ -29048,7 +29073,8 @@ Respond with ONLY valid JSON:
     );
 
     let messages = vec![Message { role: vibe_ai::MessageRole::User, content: prompt }];
-    let engine = state.chat_engine.lock().await;
+    let mut engine = state.chat_engine.lock().await;
+    if let Some(p) = &provider { let _ = engine.set_provider_by_name(p); }
     let raw = engine.chat(&messages, None).await.map_err(|e| e.to_string())?;
     drop(engine);
 
@@ -40258,45 +40284,256 @@ pub async fn archspec_generate(workspace_path: String) -> Result<serde_json::Val
                 .filter_map(|e| e.file_name().into_string().ok())
                 .collect()
         };
+        let has_file = |rel: &str| -> bool { wp.join(rel).exists() };
+        let has_dir  = |rel: &str| -> bool { wp.join(rel).is_dir() };
 
-        // ── project name ───────────────────────────────────────────────────
-        let cargo_toml = read_file("Cargo.toml");
-        let project_name = cargo_toml
-            .lines()
-            .find(|l| l.starts_with("name"))
-            .and_then(|l| l.split('"').nth(1))
-            .unwrap_or_else(|| {
-                wp.file_name().and_then(|n| n.to_str()).unwrap_or("Project")
-            })
-            .to_string();
+        // ── polyglot manifest detection ────────────────────────────────────
+        let has_cargo     = has_file("Cargo.toml");
+        let has_package   = has_file("package.json");
+        let has_go_mod    = has_file("go.mod");
+        let has_pom       = has_file("pom.xml");
+        let has_gradle    = has_file("build.gradle") || has_file("build.gradle.kts");
+        let has_pyproject = has_file("pyproject.toml");
+        let has_setup_py  = has_file("setup.py");
+        let has_req_txt   = has_file("requirements.txt");
+        let has_pipfile   = has_file("Pipfile");
+        let has_gemfile   = has_file("Gemfile");
+        let has_composer  = has_file("composer.json");
+        let has_pubspec   = has_file("pubspec.yaml");
+        let has_mix_exs   = has_file("mix.exs");
+        let has_pkg_swift = has_file("Package.swift");
+        let has_csproj    = std::fs::read_dir(wp).into_iter().flatten().flatten()
+            .any(|e| e.file_name().to_str()
+                .map(|s| s.ends_with(".csproj") || s.ends_with(".sln")).unwrap_or(false));
+
+        let lang_count = [has_cargo, has_package, has_go_mod, has_pom || has_gradle,
+            has_pyproject || has_setup_py || has_req_txt || has_pipfile,
+            has_gemfile, has_composer, has_pubspec, has_mix_exs, has_pkg_swift, has_csproj]
+            .iter().filter(|&&v| v).count();
+        let is_monorepo = lang_count > 1;
+
+        // ── read manifests ─────────────────────────────────────────────────
+        let cargo_toml   = if has_cargo   { read_file("Cargo.toml") } else { String::new() };
+        let package_json = if has_package { read_file("package.json") } else { String::new() };
+        let go_mod_src   = if has_go_mod  { read_file("go.mod") } else { String::new() };
+        let pom_src      = if has_pom     { read_file("pom.xml") } else { String::new() };
+
+        // ── project name (priority order) ──────────────────────────────────
+        let project_name: String = {
+            let mut name = String::new();
+            if name.is_empty() && has_cargo {
+                if let Some(n) = cargo_toml.lines()
+                    .find(|l| l.trim_start().starts_with("name"))
+                    .and_then(|l| l.split('"').nth(1)) { name = n.to_string(); }
+            }
+            if name.is_empty() && has_package {
+                if let Ok(v) = serde_json::from_str::<serde_json::Value>(&package_json) {
+                    if let Some(n) = v["name"].as_str() { name = n.trim_matches('"').to_string(); }
+                }
+            }
+            if name.is_empty() && has_go_mod {
+                if let Some(line) = go_mod_src.lines().find(|l| l.starts_with("module")) {
+                    name = line.split('/').last().unwrap_or("").trim().to_string();
+                }
+            }
+            if name.is_empty() && has_pubspec {
+                let ps = read_file("pubspec.yaml");
+                if let Some(line) = ps.lines().find(|l| l.starts_with("name:")) {
+                    name = line.trim_start_matches("name:").trim().to_string();
+                }
+            }
+            if name.is_empty() {
+                name = wp.file_name().and_then(|n| n.to_str()).unwrap_or("Project").to_string();
+            }
+            name
+        };
+
+        // ── tech stack + app type detection ───────────────────────────────
+        let mut primary_lang  = String::new();
+        let mut tech_stack: Vec<String> = Vec::new();
+        let mut framework_hints: Vec<String> = Vec::new();
+        let mut app_type = String::new();
+
+        if has_cargo {
+            primary_lang = "Rust".to_string();
+            tech_stack.push("Rust".to_string());
+            let ic = |s: &str| cargo_toml.contains(s);
+            if ic("tauri")   { tech_stack.push("Tauri (desktop)".into()); app_type = "desktop".into(); framework_hints.push("Tauri".into()); }
+            if ic("tokio")   { tech_stack.push("Tokio (async)".into()); }
+            if ic("axum")    { tech_stack.push("Axum (HTTP)".into());   if app_type.is_empty() { app_type = "api".into(); } framework_hints.push("Axum".into()); }
+            if ic("warp")    { tech_stack.push("Warp (HTTP)".into());   if app_type.is_empty() { app_type = "api".into(); } }
+            if ic("actix")   { tech_stack.push("Actix-web".into());     if app_type.is_empty() { app_type = "api".into(); } framework_hints.push("Actix".into()); }
+            if ic("rocket")  { tech_stack.push("Rocket (HTTP)".into()); if app_type.is_empty() { app_type = "api".into(); } framework_hints.push("Rocket".into()); }
+            if ic("sqlx") || ic("rusqlite") { tech_stack.push("SQLite/SQL".into()); }
+            if ic("diesel")  { tech_stack.push("Diesel (ORM)".into()); }
+            if ic("serde")   { tech_stack.push("Serde".into()); }
+            if ic("clap")    { tech_stack.push("Clap (CLI)".into());  if app_type.is_empty() { app_type = "cli".into(); } }
+            if ic("ratatui") { tech_stack.push("Ratatui (TUI)".into()); if app_type.is_empty() { app_type = "cli".into(); } }
+            if ic("wasm")    { tech_stack.push("WebAssembly".into()); }
+        }
+
+        if has_package {
+            if primary_lang.is_empty() { primary_lang = "JavaScript/TypeScript".to_string(); }
+            let pl = package_json.to_lowercase();
+            let ip = |s: &str| pl.contains(s);
+            if ip("typescript") { tech_stack.push("TypeScript".into()); } else { tech_stack.push("JavaScript".into()); }
+            if ip("\"react\"")  { tech_stack.push("React".into()); framework_hints.push("React".into()); if app_type.is_empty() { app_type = "web".into(); } }
+            if ip("\"next\"") || ip("next.js") { tech_stack.push("Next.js".into()); framework_hints.push("Next.js".into()); if app_type.is_empty() { app_type = "web".into(); } }
+            if ip("\"vue\"")    { tech_stack.push("Vue.js".into());  framework_hints.push("Vue".into()); if app_type.is_empty() { app_type = "web".into(); } }
+            if ip("\"angular\"") { tech_stack.push("Angular".into()); framework_hints.push("Angular".into()); if app_type.is_empty() { app_type = "web".into(); } }
+            if ip("\"svelte\"") { tech_stack.push("Svelte".into());  framework_hints.push("Svelte".into()); if app_type.is_empty() { app_type = "web".into(); } }
+            if ip("\"express\"") { tech_stack.push("Express.js".into()); framework_hints.push("Express".into()); if app_type.is_empty() { app_type = "api".into(); } }
+            if ip("\"fastify\"") { tech_stack.push("Fastify".into()); if app_type.is_empty() { app_type = "api".into(); } }
+            if ip("\"vite\"")   { tech_stack.push("Vite (bundler)".into()); }
+            if ip("\"electron\"") { tech_stack.push("Electron (desktop)".into()); if app_type.is_empty() { app_type = "desktop".into(); } }
+            if ip("\"tauri\"")  { if app_type.is_empty() { app_type = "desktop".into(); } }
+            if ip("\"jest\"") || ip("\"vitest\"") { tech_stack.push("Testing (Jest/Vitest)".into()); }
+            if ip("\"prisma\"") { tech_stack.push("Prisma (ORM)".into()); }
+            if ip("\"graphql\"") { tech_stack.push("GraphQL".into()); }
+            if app_type.is_empty() && (ip("\"bin\"") || ip("commander")) { app_type = "cli".into(); }
+        }
+
+        if has_go_mod {
+            if primary_lang.is_empty() { primary_lang = "Go".to_string(); }
+            tech_stack.push("Go".to_string());
+            let gl = go_mod_src.to_lowercase();
+            if gl.contains("gin-gonic") { tech_stack.push("Gin (HTTP)".into()); framework_hints.push("Gin".into()); if app_type.is_empty() { app_type = "api".into(); } }
+            if gl.contains("echo")      { tech_stack.push("Echo (HTTP)".into()); if app_type.is_empty() { app_type = "api".into(); } }
+            if gl.contains("fiber")     { tech_stack.push("Fiber (HTTP)".into()); if app_type.is_empty() { app_type = "api".into(); } }
+            if gl.contains("gorm")      { tech_stack.push("GORM (ORM)".into()); }
+            if gl.contains("cobra")     { tech_stack.push("Cobra (CLI)".into()); if app_type.is_empty() { app_type = "cli".into(); } }
+            if gl.contains("grpc")      { tech_stack.push("gRPC".into()); }
+        }
+
+        if has_pom || has_gradle {
+            if primary_lang.is_empty() { primary_lang = "Java/Kotlin".to_string(); }
+            let bl = if has_pom { pom_src.clone() } else { read_file("build.gradle") }.to_lowercase();
+            tech_stack.push(if bl.contains("kotlin") { "Kotlin".to_string() } else { "Java".to_string() });
+            if bl.contains("spring")    { tech_stack.push("Spring Boot".into()); framework_hints.push("Spring".into()); if app_type.is_empty() { app_type = "api".into(); } }
+            if bl.contains("quarkus")   { tech_stack.push("Quarkus".into()); if app_type.is_empty() { app_type = "api".into(); } }
+            if bl.contains("android")   { tech_stack.push("Android".into()); if app_type.is_empty() { app_type = "mobile".into(); } }
+            if app_type.is_empty()      { app_type = "api".into(); }
+        }
+
+        if has_pyproject || has_setup_py || has_req_txt || has_pipfile {
+            if primary_lang.is_empty() { primary_lang = "Python".to_string(); }
+            tech_stack.push("Python".to_string());
+            let pc = (if has_pyproject { read_file("pyproject.toml") } else { String::new() }
+                + &if has_req_txt { read_file("requirements.txt") } else { String::new() }).to_lowercase();
+            if pc.contains("fastapi")   { tech_stack.push("FastAPI".into()); framework_hints.push("FastAPI".into()); if app_type.is_empty() { app_type = "api".into(); } }
+            if pc.contains("django")    { tech_stack.push("Django".into()); framework_hints.push("Django".into()); if app_type.is_empty() { app_type = "web".into(); } }
+            if pc.contains("flask")     { tech_stack.push("Flask".into()); framework_hints.push("Flask".into()); if app_type.is_empty() { app_type = "api".into(); } }
+            if pc.contains("pytorch") || pc.contains("tensorflow") || pc.contains("keras") {
+                tech_stack.push("ML/Deep Learning".into()); if app_type.is_empty() { app_type = "library".into(); }
+            }
+            if pc.contains("click") || pc.contains("typer") { tech_stack.push("CLI (Click/Typer)".into()); if app_type.is_empty() { app_type = "cli".into(); } }
+            if pc.contains("sqlalchemy") { tech_stack.push("SQLAlchemy (ORM)".into()); }
+            if pc.contains("celery")    { tech_stack.push("Celery (tasks)".into()); }
+            if pc.contains("pytest")    { tech_stack.push("pytest".into()); }
+        }
+
+        if has_pubspec {
+            if primary_lang.is_empty() { primary_lang = "Dart".to_string(); }
+            tech_stack.push("Dart".to_string());
+            if read_file("pubspec.yaml").to_lowercase().contains("flutter") {
+                tech_stack.push("Flutter".into()); framework_hints.push("Flutter".into()); if app_type.is_empty() { app_type = "mobile".into(); }
+            }
+        }
+
+        if has_mix_exs {
+            if primary_lang.is_empty() { primary_lang = "Elixir".to_string(); }
+            tech_stack.push("Elixir".to_string());
+            if read_file("mix.exs").to_lowercase().contains("phoenix") {
+                tech_stack.push("Phoenix".into()); framework_hints.push("Phoenix".into()); if app_type.is_empty() { app_type = "web".into(); }
+            }
+        }
+
+        if has_gemfile {
+            if primary_lang.is_empty() { primary_lang = "Ruby".to_string(); }
+            tech_stack.push("Ruby".to_string());
+            let gf = read_file("Gemfile").to_lowercase();
+            if gf.contains("rails") { tech_stack.push("Rails".into()); framework_hints.push("Rails".into()); if app_type.is_empty() { app_type = "web".into(); } }
+            if gf.contains("sinatra") { tech_stack.push("Sinatra".into()); if app_type.is_empty() { app_type = "api".into(); } }
+        }
+
+        if has_csproj {
+            if primary_lang.is_empty() { primary_lang = ".NET/C#".to_string(); }
+            tech_stack.push("C# / .NET".to_string()); if app_type.is_empty() { app_type = "api".into(); }
+        }
+
+        if has_pkg_swift {
+            if primary_lang.is_empty() { primary_lang = "Swift".to_string(); }
+            tech_stack.push("Swift".to_string()); if app_type.is_empty() { app_type = "library".into(); }
+        }
+
+        if has_composer {
+            if primary_lang.is_empty() { primary_lang = "PHP".to_string(); }
+            tech_stack.push("PHP".to_string());
+            let cf = read_file("composer.json").to_lowercase();
+            if cf.contains("laravel") { tech_stack.push("Laravel".into()); framework_hints.push("Laravel".into()); if app_type.is_empty() { app_type = "web".into(); } }
+            if cf.contains("symfony") { tech_stack.push("Symfony".into()); if app_type.is_empty() { app_type = "web".into(); } }
+        }
+
+        if is_monorepo && app_type.is_empty() { app_type = "monorepo".into(); }
+        if primary_lang.is_empty() { primary_lang = "Unknown".to_string(); }
+        if app_type.is_empty()     { app_type = "application".to_string(); }
+        if tech_stack.is_empty()   { tech_stack.push("Unknown".to_string()); }
+
+        // ── directory structure ────────────────────────────────────────────
+        let mut structure_dirs: Vec<String> = Vec::new();
+        for d in &["src", "lib", "app", "api", "web", "mobile", "cmd", "pkg", "internal",
+                   "tests", "test", "spec", "docs", "scripts", "tools"] {
+            if has_dir(d) { structure_dirs.push(d.to_string()); }
+        }
+        let has_docker = has_file("Dockerfile") || has_dir("docker");
+        let has_ci     = has_dir(".github/workflows") || has_file(".travis.yml")
+            || has_file(".gitlab-ci.yml") || has_file("Jenkinsfile");
+
+        // ── source modules/files discovery (language-aware) ────────────────
+        let src_modules: Vec<String> = {
+            let mut mods: Vec<String> = Vec::new();
+            if has_cargo {
+                // Try known monorepo layout first
+                let mut m = dir_entries("vibecli/vibecli-cli/src");
+                if m.is_empty() { m = dir_entries("src"); }
+                mods.extend(m.into_iter()
+                    .filter(|f| f.ends_with(".rs") && f != "main.rs" && f != "lib.rs")
+                    .map(|f| f.trim_end_matches(".rs").to_string()));
+            }
+            if has_go_mod && mods.is_empty() {
+                for d in &["cmd", "pkg", "internal", "api"] {
+                    mods.extend(dir_entries(d).into_iter()
+                        .filter(|f| !f.starts_with('.'))
+                        .map(|f| format!("{d}/{f}")));
+                }
+            }
+            if (has_pyproject || has_setup_py) && mods.is_empty() {
+                for d in &["src", "app", "lib"] {
+                    let entries = dir_entries(d);
+                    if !entries.is_empty() {
+                        mods.extend(entries.into_iter()
+                            .filter(|f| f.ends_with(".py") && f != "__init__.py")
+                            .map(|f| f.trim_end_matches(".py").to_string()));
+                        break;
+                    }
+                }
+            }
+            if has_package && mods.is_empty() {
+                for d in &["src", "lib", "app", "pages", "components"] {
+                    let entries = dir_entries(d);
+                    if !entries.is_empty() {
+                        mods.extend(entries.into_iter()
+                            .filter(|f| f.ends_with(".ts") || f.ends_with(".tsx") || f.ends_with(".js") || f.ends_with(".jsx"))
+                            .map(|f| f.split('.').next().unwrap_or(f.as_str()).to_string())
+                            .take(40));
+                        if !mods.is_empty() { break; }
+                    }
+                }
+            }
+            mods
+        };
 
         let mut spec = ArchitectureSpec::new(&project_name);
-
-        // ── tech stack from Cargo.toml deps ───────────────────────────────
-        let in_deps = |s: &str| -> bool { cargo_toml.contains(s) };
-        let mut tech_stack = vec!["Rust".to_string()];
-        if in_deps("tauri")     { tech_stack.push("Tauri (desktop)".into()); }
-        if in_deps("tokio")     { tech_stack.push("Tokio (async)".into()); }
-        if in_deps("axum") || in_deps("warp") || in_deps("actix") {
-            tech_stack.push("HTTP server".into());
-        }
-        if in_deps("sqlx") || in_deps("rusqlite") { tech_stack.push("SQLite/SQL".into()); }
-        if in_deps("serde")     { tech_stack.push("Serde (serialization)".into()); }
-        if in_deps("clap")      { tech_stack.push("Clap (CLI)".into()); }
-        if in_deps("ratatui")   { tech_stack.push("Ratatui (TUI)".into()); }
-        if wp.join("vibeui").exists() || wp.join("package.json").exists() {
-            tech_stack.push("React/TypeScript (frontend)".into());
-        }
-
-        // ── src modules ───────────────────────────────────────────────────
-        let src_modules: Vec<String> = {
-            let mut mods = dir_entries("vibecli/vibecli-cli/src");
-            if mods.is_empty() { mods = dir_entries("src"); }
-            mods.into_iter()
-                .filter(|m| m.ends_with(".rs") && m != "main.rs" && m != "lib.rs")
-                .map(|m| m.trim_end_matches(".rs").to_string())
-                .collect()
-        };
 
         // ── git log ───────────────────────────────────────────────────────
         let git_log = std::process::Command::new("git")
@@ -40315,6 +40552,8 @@ pub async fn archspec_generate(workspace_path: String) -> Result<serde_json::Val
         let workflows = dir_entries(".github/workflows");
 
         // ── Generate artifacts per phase ──────────────────────────────────
+        let stack_str = tech_stack.join(", ");
+        let frame_str = if framework_hints.is_empty() { primary_lang.clone() } else { framework_hints.join(", ") };
 
         // 1. Preliminary — governance principles
         spec.togaf.add_artifact(
@@ -40322,10 +40561,10 @@ pub async fn archspec_generate(workspace_path: String) -> Result<serde_json::Val
                 "Architecture Principles",
                 TogafPhase::Preliminary,
                 ArtifactType::Catalog,
-                &format!("Core principles for {project_name}: security-first, open source (MIT), \
-                    modular Rust crates, Tauri for desktop cross-platform delivery, \
-                    workspace-bound encrypted storage for secrets."),
-            ).with_content(&format!("Project: {project_name}\nStack: {}", tech_stack.join(", ")))
+                &format!("Core principles for {project_name}: separation of concerns, \
+                    {primary_lang}-idiomatic patterns, modularity, testability, \
+                    and security-by-default for a {app_type} application."),
+            ).with_content(&format!("Project: {project_name}\nType: {app_type}\nStack: {stack_str}"))
         );
         spec.togaf.add_artifact(
             TogafArtifact::new(
@@ -40372,31 +40611,67 @@ pub async fn archspec_generate(workspace_path: String) -> Result<serde_json::Val
                 &format!("Capabilities derived from {} source modules.", src_modules.len()),
             ).with_content(&format!("Modules: {module_list}"))
         );
+        let org_map = {
+            let mut nodes: Vec<String> = Vec::new();
+            if has_dir("src") || has_cargo  { nodes.push(format!("{project_name} --> SourceCode[src/]")); }
+            if has_dir("api")               { nodes.push(format!("{project_name} --> API[api/]")); }
+            if has_dir("web") || (has_package && has_dir("src")) { nodes.push(format!("{project_name} --> Frontend[web/]")); }
+            if has_dir("mobile")            { nodes.push(format!("{project_name} --> Mobile[mobile/]")); }
+            if has_dir("docs")              { nodes.push(format!("{project_name} --> Docs[docs/]")); }
+            if has_docker                   { nodes.push(format!("{project_name} --> Docker[Dockerfile]")); }
+            if nodes.is_empty()             { nodes.push(format!("{project_name} --> Source")); }
+            format!("graph TD\n  {}", nodes.join("\n  "))
+        };
         spec.togaf.add_artifact(
             TogafArtifact::new(
                 "Organization Map",
                 TogafPhase::BusinessArchitecture,
                 ArtifactType::Diagram,
                 "High-level structural map of codebase components.",
-            ).with_content(&format!("graph TD\n  {project_name} --> CLI\n  {project_name} --> UI\n  {project_name} --> SharedCrates"))
+            ).with_content(&org_map)
         );
 
         // 4. Information Systems
+        let data_entities = {
+            let mut entities: Vec<String> = Vec::new();
+            entities.push(format!("{project_name} core data model"));
+            if has_cargo && (cargo_toml.contains("sqlx") || cargo_toml.contains("rusqlite")) {
+                entities.push("SQLite persistent store".into());
+            }
+            if has_dir("migrations") || has_dir("db") { entities.push("Database migrations".into()); }
+            if has_package && package_json.to_lowercase().contains("prisma") { entities.push("Prisma schema".into()); }
+            if has_dir("models") { entities.push("Domain models (models/)".into()); }
+            if has_dir("schemas") || has_dir("schema") { entities.push("Schema definitions".into()); }
+            if entities.len() == 1 { entities.push("Application state / in-memory data".into()); }
+            entities.join("\n")
+        };
         spec.togaf.add_artifact(
             TogafArtifact::new(
                 "Data Entity Catalog",
                 TogafPhase::InformationSystems,
                 ArtifactType::Catalog,
                 "Key data entities managed by the system.",
-            ).with_content("WorkspaceStore (encrypted SQLite)\nProfileStore (encrypted SQLite)\nArtifactStore (workspace.db)\nTraces (JSONL)\nSessions (SQLite)")
+            ).with_content(&data_entities)
         );
+        let app_portfolio = {
+            let mut comps: Vec<String> = Vec::new();
+            if has_dir("src") || has_cargo { comps.push(format!("Core ({primary_lang} source in src/)")); }
+            if has_dir("api")  { comps.push("API layer (api/)".into()); }
+            if has_dir("web")  { comps.push(format!("Frontend ({frame_str}, web/)")); }
+            if has_dir("mobile") { comps.push("Mobile app (mobile/)".into()); }
+            if has_dir("cmd")  { comps.push("Entry points (cmd/)".into()); }
+            if has_dir("lib") || has_dir("pkg") { comps.push("Shared libraries (lib/ or pkg/)".into()); }
+            if has_dir("tests") || has_dir("test") || has_dir("spec") { comps.push("Test suite".into()); }
+            if comps.is_empty() { comps.push(format!("{project_name}: {app_type} ({stack_str})")); }
+            comps.join("\n")
+        };
         spec.togaf.add_artifact(
             TogafArtifact::new(
                 "Application Portfolio",
                 TogafPhase::InformationSystems,
                 ArtifactType::Catalog,
                 "Software components and their responsibilities.",
-            ).with_content(&format!("vibecli-cli: Terminal AI assistant\nvibe-ai: Provider abstraction (18 providers)\nvibe-core: File/Git/Search\nvibe-lsp: Language Server client\nvibeui: Desktop editor (Tauri)"))
+            ).with_content(&app_portfolio)
         );
 
         // 5. Technology Architecture
@@ -40408,13 +40683,35 @@ pub async fn archspec_generate(workspace_path: String) -> Result<serde_json::Val
                 &format!("Technologies used by {project_name}."),
             ).with_content(&tech_stack.iter().map(|t| format!("- {t}")).collect::<Vec<_>>().join("\n"))
         );
+        let infra_diagram = {
+            let mut edges: Vec<String> = Vec::new();
+            edges.push(format!("User --> {project_name}"));
+            if has_dir("api") || app_type == "api" {
+                edges.push(format!("{project_name} --> APIServer[API Server]"));
+                edges.push("APIServer --> Database[(Database)]".into());
+            } else if app_type == "desktop" {
+                edges.push(format!("{project_name} --> Backend[Native Backend]"));
+                edges.push("Backend --> LocalFS[(Local Storage)]".into());
+            } else if app_type == "web" {
+                edges.push(format!("{project_name} --> Server[Web Server]"));
+                edges.push("Server --> DB[(Database)]".into());
+            } else if app_type == "mobile" {
+                edges.push(format!("{project_name} --> LocalStorage[(Device Storage)]"));
+                edges.push(format!("{project_name} --> RemoteAPI[Remote API]"));
+            } else {
+                edges.push(format!("{project_name} --> Runtime[{primary_lang} Runtime]"));
+            }
+            if has_docker { edges.push(format!("{project_name} -.-> Docker[Docker]")); }
+            if has_ci     { edges.push(format!("{project_name} -.-> CI[CI/CD Pipeline]")); }
+            format!("graph LR\n  {}", edges.join("\n  "))
+        };
         spec.togaf.add_artifact(
             TogafArtifact::new(
                 "Infrastructure Architecture",
                 TogafPhase::TechnologyArchitecture,
                 ArtifactType::Diagram,
                 "Deployment and runtime infrastructure.",
-            ).with_content("graph LR\n  User --> VibeUI\n  VibeUI --> TauriBackend\n  TauriBackend --> vibecli\n  vibecli --> AIProviders\n  vibecli --> WorkspaceDB")
+            ).with_content(&infra_diagram)
         );
 
         // 6. Opportunities & Solutions
@@ -40490,170 +40787,253 @@ pub async fn archspec_generate(workspace_path: String) -> Result<serde_json::Val
         // ── Zachman Framework ─────────────────────────────────────────────
         {
             use vibecli_cli::architecture_spec::{ZachmanPerspective, ZachmanAspect};
-            // Planner row (executive view)
+
+            let struct_summary = if structure_dirs.is_empty() {
+                "top-level source".to_string()
+            } else {
+                structure_dirs.iter().map(|d| format!("{d}/")).collect::<Vec<_>>().join(", ")
+            };
+            let build_cmd = if has_cargo { "cargo build --release" }
+                else if has_package { "npm run build" }
+                else if has_go_mod  { "go build ./..." }
+                else if has_pyproject || has_setup_py { "pip install -e . / python -m build" }
+                else if has_gradle  { "./gradlew build" }
+                else if has_pom     { "mvn package" }
+                else { "see README.md" };
+            let test_cmd = if has_cargo { "cargo test --workspace" }
+                else if has_package { "npm test" }
+                else if has_go_mod  { "go test ./..." }
+                else if has_pyproject || has_setup_py { "pytest" }
+                else if has_gradle  { "./gradlew test" }
+                else if has_pom     { "mvn test" }
+                else { "see README.md" };
+            let deploy_desc = if has_docker { "Docker container" }
+                else if app_type == "desktop" { "Native installer / binary bundle" }
+                else if app_type == "mobile" { "App store / APK / IPA" }
+                else if app_type == "web" { "Static host / serverless / PaaS" }
+                else if app_type == "api" { "Server / container / cloud function" }
+                else { "Self-contained binary / package" };
+            let module_count = src_modules.len();
+            let license = {
+                let lf = read_file("LICENSE").to_uppercase();
+                if lf.contains("MIT") { "MIT" }
+                else if lf.contains("APACHE") { "Apache 2.0" }
+                else if lf.contains("GPL") { "GPL" }
+                else if lf.contains("BSD") { "BSD" }
+                else if has_file("LICENSE") { "See LICENSE" }
+                else { "Not specified" }
+            };
+
+            // Planner row
             spec.zachman.set_cell(ZachmanPerspective::Planner, ZachmanAspect::What,
-                &format!("Core entities: workspace, session, artifact, provider, rule"));
+                &format!("Core system: {project_name} — a {app_type} built with {primary_lang}"));
             spec.zachman.set_cell(ZachmanPerspective::Planner, ZachmanAspect::How,
-                "Business processes: code generation, AI chat, architecture review, deployment");
+                &format!("Business processes: code delivery, testing, CI/CD, releases. Framework: {frame_str}"));
             spec.zachman.set_cell(ZachmanPerspective::Planner, ZachmanAspect::Where,
-                "Platforms: macOS/Windows/Linux desktop; local filesystem; cloud AI APIs");
+                &format!("Deployment target: {deploy_desc}. Directories: {struct_summary}"));
             spec.zachman.set_cell(ZachmanPerspective::Planner, ZachmanAspect::Who,
-                "Stakeholders: developers, architects, DevOps, open-source contributors");
+                "Stakeholders: developers, end users, maintainers, contributors");
             spec.zachman.set_cell(ZachmanPerspective::Planner, ZachmanAspect::When,
-                "Events: user prompt, file save, git commit, CI run, architecture review cycle");
+                "Events: code commit, CI trigger, release cut, dependency update");
             spec.zachman.set_cell(ZachmanPerspective::Planner, ZachmanAspect::Why,
-                &format!("Mission: empower developers with AI-assisted coding for {project_name}"));
+                &format!("Mission: deliver reliable {app_type} functionality via {primary_lang}. License: {license}"));
 
-            // Owner row (business model)
+            // Owner row
             spec.zachman.set_cell(ZachmanPerspective::Owner, ZachmanAspect::What,
-                "Business objects: Workspace, Project, ChatSession, AgentRun, Artifact, Policy");
+                &format!("Domain entities discovered in {project_name}: {}", if module_count > 0 {
+                    format!("{module_count} source modules")
+                } else { "entities derived from business domain".to_string() }));
             spec.zachman.set_cell(ZachmanPerspective::Owner, ZachmanAspect::How,
-                "Workflows: chat → agent → tool call → file write → review → approve");
+                &format!("Workflows: develop → test → review → merge → deploy ({build_cmd})"));
             spec.zachman.set_cell(ZachmanPerspective::Owner, ZachmanAspect::Where,
-                "Locations: local workspace, ~/.vibecli profile, cloud provider endpoints");
+                &format!("Code locations: {struct_summary}. Version control: git"));
             spec.zachman.set_cell(ZachmanPerspective::Owner, ZachmanAspect::Who,
-                "Roles: Developer (primary), Reviewer (secondary), Admin (settings)");
+                "Roles: Developer (primary), Reviewer (secondary), Operator (deploy)");
             spec.zachman.set_cell(ZachmanPerspective::Owner, ZachmanAspect::When,
-                "Cycles: interactive (real-time), CI/CD (batch), scheduled (background)");
+                "Cycles: feature branch → PR → merge → CI → release");
             spec.zachman.set_cell(ZachmanPerspective::Owner, ZachmanAspect::Why,
-                "Goals: reduce friction in code quality, architecture governance, AI productivity");
+                &format!("Goals: maintainability, test coverage, reliable {deploy_desc} delivery"));
 
-            // Designer row (system design)
+            // Designer row
             spec.zachman.set_cell(ZachmanPerspective::Designer, ZachmanAspect::What,
-                "Data model: WorkspaceStore (SQLite encrypted), ProfileStore, TraceWriter (JSONL)");
+                &format!("Data model: domain objects in {primary_lang}; persistence via {}", {
+                    let has_db = cargo_toml.contains("sqlx") || cargo_toml.contains("rusqlite")
+                        || package_json.to_lowercase().contains("prisma")
+                        || (has_pyproject && read_file("pyproject.toml").contains("sqlalchemy"));
+                    if has_db { "SQL/ORM" } else { "application state / files" }
+                }));
             spec.zachman.set_cell(ZachmanPerspective::Designer, ZachmanAspect::How,
-                "Application logic: Tauri commands → vibecli crates → AIProvider trait → streaming");
+                &format!("Application architecture: {app_type} pattern with {frame_str}"));
             spec.zachman.set_cell(ZachmanPerspective::Designer, ZachmanAspect::Where,
-                "Distributed architecture: React UI ↔ Tauri IPC ↔ Rust backend ↔ AI APIs");
+                &format!("Deployment: {deploy_desc}. Docker: {}. CI: {}", has_docker, has_ci));
             spec.zachman.set_cell(ZachmanPerspective::Designer, ZachmanAspect::Who,
-                "Responsibility matrix: Tauri (lifecycle), vibe-ai (providers), vibe-core (fs/git)");
+                &format!("Component ownership: {}", structure_dirs.iter().map(|d| d.as_str()).collect::<Vec<_>>().join(", ")));
             spec.zachman.set_cell(ZachmanPerspective::Designer, ZachmanAspect::When,
-                "State transitions: idle → user-input → streaming → tool-execution → complete");
+                "State transitions: init → load config → run → handle requests → shutdown");
             spec.zachman.set_cell(ZachmanPerspective::Designer, ZachmanAspect::Why,
-                "Architecture rules: encrypted storage, zero-trust, open-source MIT license");
+                "Architecture rules: separation of concerns, testability, security-by-default");
 
-            // Builder row (technical design)
+            // Builder row
             spec.zachman.set_cell(ZachmanPerspective::Builder, ZachmanAspect::What,
-                &format!("DB schema: workspace.db (settings), profile.db (keys), traces/*.jsonl. Stack: {}", tech_stack.join(", ")));
+                &format!("Tech stack: {stack_str}"));
             spec.zachman.set_cell(ZachmanPerspective::Builder, ZachmanAspect::How,
-                "Impl: async Rust (tokio), XML tool calling, streaming SSE, Tauri invoke_handler");
+                &format!("Build: {build_cmd} | Test: {test_cmd}"));
             spec.zachman.set_cell(ZachmanPerspective::Builder, ZachmanAspect::Where,
-                "Deployment: cargo build --release, Tauri bundler, GitHub Actions release.yml");
+                &format!("Deployment artifact: {deploy_desc}{}",
+                    if has_docker { " (Dockerfile present)" } else { "" }));
             spec.zachman.set_cell(ZachmanPerspective::Builder, ZachmanAspect::Who,
-                "Components: 360+ Tauri commands, 196+ Rust modules, 196+ React panels");
+                &format!("{} source modules detected", if module_count > 0 { module_count.to_string() } else { "Unknown number of".to_string() }));
             spec.zachman.set_cell(ZachmanPerspective::Builder, ZachmanAspect::When,
-                "Triggers: tauri::command invocation, tokio::spawn, signal handlers");
+                &format!("CI/CD: {}",
+                    if has_dir(".github/workflows") { "GitHub Actions" }
+                    else if has_file(".travis.yml") { "Travis CI" }
+                    else if has_file(".gitlab-ci.yml") { "GitLab CI" }
+                    else if has_file("Jenkinsfile") { "Jenkins" }
+                    else { "not detected" }));
             spec.zachman.set_cell(ZachmanPerspective::Builder, ZachmanAspect::Why,
-                "Constraints: no plaintext secrets, zero panic in prod, clippy-clean, OWASP");
+                &format!("Constraints: code quality, security, {primary_lang} best practices"));
 
-            // Implementer row (code)
+            // Implementer row
             spec.zachman.set_cell(ZachmanPerspective::Implementer, ZachmanAspect::What,
-                &format!("{} Rust modules, {} React panels, ~10,535 tests", src_modules.len(), 196));
+                &format!("{} source files. Primary language: {primary_lang}", module_count));
             spec.zachman.set_cell(ZachmanPerspective::Implementer, ZachmanAspect::How,
-                "cargo build / npm run tauri:dev; PostToolUse hooks run cargo check + tsc");
+                &format!("Build: {build_cmd} | Test: {test_cmd}"));
             spec.zachman.set_cell(ZachmanPerspective::Implementer, ZachmanAspect::Where,
-                "Repo: vibecli/ (Rust CLI) + vibeui/ (Tauri) + vibeui/crates/ (shared libs)");
+                &format!("Repo layout: {struct_summary}"));
             spec.zachman.set_cell(ZachmanPerspective::Implementer, ZachmanAspect::Who,
-                "CI: GitHub Actions (pages.yml, release.yml, pr-bot.yml)");
+                &format!("CI pipeline: {}", if has_ci { "detected" } else { "not configured" }));
             spec.zachman.set_cell(ZachmanPerspective::Implementer, ZachmanAspect::When,
-                "Events: git push → CI → cargo test --workspace → clippy → release binary");
+                &format!("Triggered by: git push → CI → {build_cmd} → deploy"));
             spec.zachman.set_cell(ZachmanPerspective::Implementer, ZachmanAspect::Why,
-                "Quality gates: 0 clippy warnings, 0 test failures, codesign on macOS");
+                "Quality gates: linting, tests, security scan before release");
 
-            // Worker row (operational)
+            // Worker row
             spec.zachman.set_cell(ZachmanPerspective::Worker, ZachmanAspect::What,
-                "Runtime data: active sessions, file diffs, agent traces, streaming chunks");
+                &format!("Runtime: {project_name} executing as a {app_type}"));
             spec.zachman.set_cell(ZachmanPerspective::Worker, ZachmanAspect::How,
-                "Operations: vibecli --agent, vibecli --exec, vibecli --cmd, tauri:dev");
+                &format!("Run: see README. Framework: {frame_str}"));
             spec.zachman.set_cell(ZachmanPerspective::Worker, ZachmanAspect::Where,
-                "Runtime: macOS arm64 / x86_64, Linux amd64, Windows x86_64");
+                &format!("Target environment: {deploy_desc}"));
             spec.zachman.set_cell(ZachmanPerspective::Worker, ZachmanAspect::Who,
-                "End user: developer running VibeUI or vibecli from terminal");
+                "End users: consumers of the application's functionality");
             spec.zachman.set_cell(ZachmanPerspective::Worker, ZachmanAspect::When,
-                "SLO: streaming response <200ms first token, context load <2s, file ops <50ms");
+                "SLOs defined by application requirements — see README or docs/");
             spec.zachman.set_cell(ZachmanPerspective::Worker, ZachmanAspect::Why,
-                "User value: faster code iteration, architecture compliance, AI-powered review");
+                &format!("Value: functional {app_type} delivering business capability"));
         }
 
         // ── C4 Model ──────────────────────────────────────────────────────
         {
             use vibecli_cli::architecture_spec::{C4Element, C4ElementType, C4Relationship};
-            // Context level — people + external systems
-            let dev_id = spec.c4.add_element(
-                C4Element::new("Developer", C4ElementType::Person, "Primary user of the system")
-                    .with_id("person-developer")
-            );
-            let ai_apis_id = spec.c4.add_element(
-                C4Element::new("AI Providers", C4ElementType::SoftwareSystem,
-                    "External AI APIs: Claude, OpenAI, Gemini, Ollama, Groq and 13 more")
-                    .with_technology("HTTPS / SSE")
-                    .with_id("sys-ai-providers")
-            );
-            let git_id = spec.c4.add_element(
-                C4Element::new("Git / GitHub", C4ElementType::SoftwareSystem,
-                    "Source control and CI/CD platform")
-                    .with_technology("git, GitHub Actions")
-                    .with_id("sys-git")
-            );
-            let vibeui_id = spec.c4.add_element(
-                C4Element::new("VibeUI", C4ElementType::SoftwareSystem,
-                    &format!("{project_name} — desktop AI coding assistant"))
-                    .with_technology("Tauri 2, React, TypeScript, Rust")
-                    .with_id("sys-vibeui")
-            );
-            spec.c4.add_relationship(C4Relationship::new(&dev_id, &vibeui_id, "Uses"));
-            spec.c4.add_relationship(C4Relationship::new(&vibeui_id, &ai_apis_id, "Sends prompts, receives streamed responses").with_technology("HTTPS / SSE"));
-            spec.c4.add_relationship(C4Relationship::new(&vibeui_id, &git_id, "Reads commits, branches, diffs").with_technology("libgit2 / gh CLI"));
 
-            // Container level
-            let react_id = spec.c4.add_element(
-                C4Element::new("React Frontend", C4ElementType::Container,
-                    "196+ panels — chat, architecture, security, CI/CD, tooling")
-                    .with_technology("React 18, TypeScript, Vite")
-                    .with_parent(&vibeui_id)
-                    .with_id("container-react")
+            // Context level — people + system
+            let user_id = spec.c4.add_element(
+                C4Element::new("User", C4ElementType::Person, "Primary user of the system")
+                    .with_id("person-user")
             );
-            let tauri_id = spec.c4.add_element(
-                C4Element::new("Tauri Backend", C4ElementType::Container,
-                    "360+ Tauri commands; IPC bridge between React and Rust")
-                    .with_technology("Rust, Tauri 2, Tokio")
-                    .with_parent(&vibeui_id)
-                    .with_id("container-tauri")
+            let system_id = spec.c4.add_element(
+                C4Element::new(&project_name, C4ElementType::SoftwareSystem,
+                    &format!("{project_name} — {app_type} application"))
+                    .with_technology(&stack_str)
+                    .with_id("sys-main")
             );
-            let vibecli_id = spec.c4.add_element(
-                C4Element::new("vibecli-cli", C4ElementType::Container,
-                    &format!("{} Rust modules; REPL, agent, tools, providers", src_modules.len()))
-                    .with_technology("Rust, Tokio, Clap, Ratatui")
-                    .with_parent(&vibeui_id)
-                    .with_id("container-vibecli")
-            );
-            let vibe_ai_id = spec.c4.add_element(
-                C4Element::new("vibe-ai", C4ElementType::Container,
-                    "AIProvider trait + 18 provider implementations + failover")
-                    .with_technology("Rust, async-trait, reqwest")
-                    .with_parent(&vibeui_id)
-                    .with_id("container-vibe-ai")
-            );
-            let vibe_core_id = spec.c4.add_element(
-                C4Element::new("vibe-core", C4ElementType::Container,
-                    "File system, git, workspace, diff engine, search")
-                    .with_technology("Rust, libgit2, ignore")
-                    .with_parent(&vibeui_id)
-                    .with_id("container-vibe-core")
-            );
-            let db_id = spec.c4.add_element(
-                C4Element::new("WorkspaceStore", C4ElementType::Container,
-                    "Encrypted SQLite per workspace; stores settings, secrets, artifacts")
-                    .with_technology("SQLite + ChaCha20-Poly1305")
-                    .with_parent(&vibeui_id)
-                    .with_id("container-db")
-            );
-            spec.c4.add_relationship(C4Relationship::new(&react_id, &tauri_id, "Tauri IPC (invoke)").with_technology("JSON / binary"));
-            spec.c4.add_relationship(C4Relationship::new(&tauri_id, &vibecli_id, "Direct crate calls").with_technology("Rust"));
-            spec.c4.add_relationship(C4Relationship::new(&vibecli_id, &vibe_ai_id, "AIProvider trait").with_technology("Rust async"));
-            spec.c4.add_relationship(C4Relationship::new(&vibecli_id, &vibe_core_id, "File ops, git").with_technology("Rust"));
-            spec.c4.add_relationship(C4Relationship::new(&tauri_id, &db_id, "read/write encrypted settings").with_technology("rusqlite"));
-            spec.c4.add_relationship(C4Relationship::new(&vibe_ai_id, &ai_apis_id, "HTTP streaming").with_technology("HTTPS / SSE"));
+            spec.c4.add_relationship(C4Relationship::new(&user_id, &system_id, "Uses"));
+
+            // External systems detected from structure
+            if has_dir(".git") || has_file(".gitignore") {
+                let git_id = spec.c4.add_element(
+                    C4Element::new("Git / Version Control", C4ElementType::SoftwareSystem,
+                        "Source control platform")
+                        .with_technology("git")
+                        .with_id("sys-git")
+                );
+                spec.c4.add_relationship(C4Relationship::new(&system_id, &git_id, "Pushes code, reads history").with_technology("git"));
+            }
+            if has_ci {
+                let ci_id = spec.c4.add_element(
+                    C4Element::new("CI/CD Pipeline", C4ElementType::SoftwareSystem,
+                        "Continuous integration and deployment")
+                        .with_technology(if has_dir(".github/workflows") { "GitHub Actions" }
+                            else if has_file(".gitlab-ci.yml") { "GitLab CI" }
+                            else { "CI/CD" })
+                        .with_id("sys-ci")
+                );
+                spec.c4.add_relationship(C4Relationship::new(&system_id, &ci_id, "Triggers on push").with_technology("webhook"));
+            }
+
+            // Container level — based on detected directory structure
+            if has_dir("api") || app_type == "api" {
+                let api_id = spec.c4.add_element(
+                    C4Element::new("API Server", C4ElementType::Container,
+                        &format!("Backend API ({frame_str})"))
+                        .with_technology(&stack_str)
+                        .with_parent(&system_id)
+                        .with_id("container-api")
+                );
+                spec.c4.add_relationship(C4Relationship::new(&user_id, &api_id, "HTTP requests").with_technology("HTTPS/REST"));
+            }
+            if has_dir("web") || (has_package && has_dir("src") && !has_dir("api")) {
+                let web_id = spec.c4.add_element(
+                    C4Element::new("Web Frontend", C4ElementType::Container,
+                        &format!("Browser UI ({frame_str})"))
+                        .with_technology(&stack_str)
+                        .with_parent(&system_id)
+                        .with_id("container-web")
+                );
+                spec.c4.add_relationship(C4Relationship::new(&user_id, &web_id, "Navigates").with_technology("HTTPS"));
+            }
+            if has_dir("mobile") || app_type == "mobile" {
+                let mob_id = spec.c4.add_element(
+                    C4Element::new("Mobile App", C4ElementType::Container,
+                        &format!("Mobile application ({frame_str})"))
+                        .with_technology(&stack_str)
+                        .with_parent(&system_id)
+                        .with_id("container-mobile")
+                );
+                spec.c4.add_relationship(C4Relationship::new(&user_id, &mob_id, "Interacts").with_technology("native"));
+            }
+            if has_dir("src") && !has_dir("api") && !has_dir("web") {
+                let src_id = spec.c4.add_element(
+                    C4Element::new(&format!("{project_name} Core"), C4ElementType::Container,
+                        &format!("{primary_lang} source ({})", if src_modules.is_empty() { "src/".to_string() } else { format!("{} modules", src_modules.len()) }))
+                        .with_technology(&stack_str)
+                        .with_parent(&system_id)
+                        .with_id("container-core")
+                );
+                spec.c4.add_relationship(C4Relationship::new(&system_id, &src_id, "Executes").with_technology(&primary_lang));
+            }
+            if has_dir("lib") || has_dir("pkg") || has_dir("internal") {
+                let lib_id = spec.c4.add_element(
+                    C4Element::new("Shared Libraries", C4ElementType::Container,
+                        "Reusable modules (lib/, pkg/, internal/)")
+                        .with_technology(&primary_lang)
+                        .with_parent(&system_id)
+                        .with_id("container-lib")
+                );
+                let _ = lib_id; // referenced by relations added conditionally above
+            }
+            if has_dir("migrations") || has_dir("db") || {
+                cargo_toml.contains("sqlx") || cargo_toml.contains("rusqlite") ||
+                package_json.to_lowercase().contains("prisma")
+            } {
+                let db_id = spec.c4.add_element(
+                    C4Element::new("Database", C4ElementType::Container,
+                        "Persistent data store")
+                        .with_technology("SQL / NoSQL")
+                        .with_parent(&system_id)
+                        .with_id("container-db")
+                );
+                spec.c4.add_relationship(C4Relationship::new(&system_id, &db_id, "Reads / writes").with_technology("ORM / driver"));
+            }
+            if has_docker {
+                spec.c4.add_element(
+                    C4Element::new("Container Runtime", C4ElementType::Container,
+                        "Docker image for deployment")
+                        .with_technology("Docker")
+                        .with_parent(&system_id)
+                        .with_id("container-docker")
+                );
+            }
         }
 
         // ── ADRs ──────────────────────────────────────────────────────────
@@ -40661,164 +41041,297 @@ pub async fn archspec_generate(workspace_path: String) -> Result<serde_json::Val
             use vibecli_cli::architecture_spec::Adr;
             let today = "2026-04-08";
 
+            // Generic ADR: language/framework choice
             spec.adrs.add(
                 Adr::new(
-                    "Use Tauri 2 for Desktop Delivery",
-                    "We need a cross-platform desktop app that can call native Rust code and \
-                     ship as a single binary without requiring a Node.js runtime.",
-                    "Adopt Tauri 2 as the desktop shell. React/TypeScript for the UI layer, \
-                     Rust for all backend logic via tauri::command IPC.",
+                    &format!("Primary Language: {primary_lang}"),
+                    &format!("The project requires a primary implementation language. \
+                        '{primary_lang}' was selected based on detected manifest files."),
+                    &format!("Use {primary_lang} as the primary implementation language. \
+                        Framework: {frame_str}. Build: {build_cmd}.", build_cmd = {
+                            if has_cargo { "cargo build --release" }
+                            else if has_package { "npm run build" }
+                            else if has_go_mod { "go build ./..." }
+                            else if has_pyproject || has_setup_py { "python -m build" }
+                            else if has_gradle { "./gradlew build" }
+                            else if has_pom { "mvn package" }
+                            else { "see README.md" }
+                        }),
                 )
                 .with_consequences(vec![
-                    "Pro: ~10MB binary vs 150MB+ Electron".into(),
-                    "Pro: full Rust ecosystem access in backend".into(),
-                    "Con: Tauri-specific IPC patterns required for all backend calls".into(),
+                    format!("Pro: strong ecosystem support for {app_type} applications"),
+                    format!("Pro: detected {frame_str} framework provides structure"),
+                    "Con: team must maintain language expertise".into(),
                 ])
                 .with_date(today)
-                .with_tags(vec!["desktop".into(), "rust".into(), "tauri".into()])
+                .with_tags(vec!["language".into(), "framework".into(), app_type.clone()])
             );
 
+            // Generic ADR: project structure
             spec.adrs.add(
                 Adr::new(
-                    "Encrypted Workspace Storage via WorkspaceStore",
-                    "API keys and project secrets must not be stored in plaintext. \
-                     Config files (*.toml, *.json) are easily leaked via git.",
-                    "Use WorkspaceStore (SQLite + ChaCha20-Poly1305) for all project secrets. \
-                     ProfileStore for global API keys. Never write secrets to config files.",
+                    "Directory Structure and Module Layout",
+                    &format!("The project needs a consistent source organization. \
+                        Detected structure: {}.",
+                        if structure_dirs.is_empty() { "top-level sources".to_string() }
+                        else { structure_dirs.iter().map(|d| format!("{d}/")).collect::<Vec<_>>().join(", ") }),
+                    &format!("Organize code into: {}. Maintain clear separation between \
+                        public API, internal implementation, and tests.",
+                        if structure_dirs.is_empty() { "src/ (source), tests/ (tests)".to_string() }
+                        else { structure_dirs.iter().map(|d| format!("{d}/")).collect::<Vec<_>>().join(", ") }),
                 )
                 .with_consequences(vec![
-                    "Pro: secrets encrypted at rest per-workspace".into(),
-                    "Pro: machine + workspace bound key derivation".into(),
-                    "Con: secrets not portable across machines without explicit export".into(),
+                    "Pro: clear navigation and discoverability".into(),
+                    "Pro: consistent with language conventions".into(),
+                    "Con: requires discipline to maintain over time".into(),
                 ])
                 .with_date(today)
-                .with_tags(vec!["security".into(), "storage".into()])
+                .with_tags(vec!["structure".into(), "organization".into()])
             );
 
+            // ADR: testing strategy
             spec.adrs.add(
                 Adr::new(
-                    "XML Tool Calling for All AI Providers",
-                    "Different AI providers have incompatible native tool-calling APIs. \
-                     Some providers (Ollama, local models) have no native tool calling.",
-                    "Implement tool calling as XML in the system prompt, parsed from model output. \
-                     Works uniformly across all 18 providers without provider-specific code.",
+                    "Testing Strategy and CI Integration",
+                    &format!("The project needs a reliable testing strategy for {app_type} code. \
+                        CI/CD detected: {}.",
+                        if has_ci { "yes" } else { "not configured" }),
+                    &format!("Write unit + integration tests using the {primary_lang} testing conventions. \
+                        Run on every PR. CI: {}.",
+                        if has_dir(".github/workflows") { "GitHub Actions" }
+                        else if has_file(".gitlab-ci.yml") { "GitLab CI" }
+                        else if has_file("Jenkinsfile") { "Jenkins" }
+                        else { "configure CI for automated testing" }),
                 )
                 .with_consequences(vec![
-                    "Pro: works with any text-completion model including local Ollama".into(),
-                    "Pro: single tool execution path for all providers".into(),
-                    "Con: slightly higher token overhead vs native function calling".into(),
+                    "Pro: catch regressions early before merge".into(),
+                    "Pro: enables confident refactoring".into(),
+                    "Con: requires investment in test infrastructure".into(),
                 ])
                 .with_date(today)
-                .with_tags(vec!["ai".into(), "tools".into(), "providers".into()])
+                .with_tags(vec!["testing".into(), "ci".into(), "quality".into()])
             );
 
-            spec.adrs.add(
-                Adr::new(
-                    "Rust Workspace with Separate Crates per Concern",
-                    "A monolithic crate would couple CLI, UI backend, AI, and core utilities, \
-                     making independent testing and reuse impossible.",
-                    "Cargo workspace with vibecli-cli, vibe-ai, vibe-core, vibe-lsp, \
-                     vibe-extensions as separate crates. Each has its own tests and can be \
-                     published independently.",
-                )
-                .with_consequences(vec![
-                    "Pro: clean dependency boundaries, faster incremental builds".into(),
-                    "Pro: vibe-ai and vibe-core reusable without the full CLI".into(),
-                    "Con: module declarations required in both lib.rs and main.rs".into(),
-                ])
-                .with_date(today)
-                .with_tags(vec!["rust".into(), "architecture".into(), "crates".into()])
-            );
+            // Rust-specific ADRs
+            if has_cargo {
+                spec.adrs.add(
+                    Adr::new(
+                        "Cargo Workspace for Multi-Crate Monorepo",
+                        "Multiple Cargo.toml files suggest a workspace layout. A monolithic \
+                         crate would couple concerns and slow incremental compilation.",
+                        "Use Cargo workspace with separate crates per concern. Each crate has \
+                         its own tests and can be published independently.",
+                    )
+                    .with_consequences(vec![
+                        "Pro: clean dependency boundaries, faster incremental builds".into(),
+                        "Pro: crates reusable without pulling in everything".into(),
+                        "Con: module declarations required in both lib.rs and main.rs".into(),
+                    ])
+                    .with_date(today)
+                    .with_tags(vec!["rust".into(), "architecture".into(), "crates".into()])
+                );
+                if cargo_toml.contains("tauri") {
+                    spec.adrs.add(
+                        Adr::new(
+                            "Tauri 2 for Cross-Platform Desktop Delivery",
+                            "Need a cross-platform desktop app that calls native Rust code \
+                             without a heavy runtime.",
+                            "Adopt Tauri 2 as the desktop shell with React/TypeScript UI. \
+                             All backend logic via tauri::command IPC.",
+                        )
+                        .with_consequences(vec![
+                            "Pro: ~10MB binary vs 150MB+ Electron".into(),
+                            "Pro: full Rust ecosystem in backend".into(),
+                            "Con: Tauri IPC patterns required for backend calls".into(),
+                        ])
+                        .with_date(today)
+                        .with_tags(vec!["desktop".into(), "rust".into(), "tauri".into()])
+                    );
+                }
+            }
 
-            spec.adrs.add(
-                Adr::new(
-                    "Ad-hoc Codesign for macOS Sidecar Binaries",
-                    "macOS SIGKILL's cargo-built binaries with linker-signed flag when copied \
-                     to a new path (e.g. ~/.local/bin). Affects all vibecli installations.",
-                    "After installing vibecli: codesign --force --sign - <binary>. \
-                     Tauri backend auto-detects SIGKILL (signal 9) and re-signs, then retries.",
-                )
-                .with_consequences(vec![
-                    "Pro: transparent recovery — panels work after first auto-resign".into(),
-                    "Con: requires codesign tool (ships with Xcode CLI tools)".into(),
-                ])
-                .with_date(today)
-                .with_tags(vec!["macos".into(), "security".into(), "deployment".into()])
-            );
+            // Node/TypeScript-specific ADR
+            if has_package && package_json.to_lowercase().contains("typescript") {
+                spec.adrs.add(
+                    Adr::new(
+                        "TypeScript for Type-Safe JavaScript",
+                        "JavaScript at scale requires type safety to prevent runtime errors \
+                         and improve IDE tooling.",
+                        "Adopt TypeScript across the project. Use strict mode. \
+                         Run tsc --noEmit in CI.",
+                    )
+                    .with_consequences(vec![
+                        "Pro: compile-time type checking".into(),
+                        "Pro: better IDE support and refactoring confidence".into(),
+                        "Con: build step required, tsconfig.json complexity".into(),
+                    ])
+                    .with_date(today)
+                    .with_tags(vec!["typescript".into(), "quality".into()])
+                );
+            }
+
+            // Docker ADR
+            if has_docker {
+                spec.adrs.add(
+                    Adr::new(
+                        "Docker Containerization",
+                        "The project needs reproducible builds and portable deployments \
+                         across environments.",
+                        "Use Docker for containerization. Dockerfile detected in repo root.",
+                    )
+                    .with_consequences(vec![
+                        "Pro: consistent runtime environment".into(),
+                        "Pro: simplifies CI/CD and deployment".into(),
+                        "Con: Docker daemon required in all environments".into(),
+                    ])
+                    .with_date(today)
+                    .with_tags(vec!["docker".into(), "deployment".into()])
+                );
+            }
         }
 
         // ── Governance rules ──────────────────────────────────────────────
         {
             use vibecli_cli::architecture_spec::{GovernanceRule, GovernanceSeverity};
-            // Project-specific rules on top of with_standard_rules()
+
+            // Universal rules
             spec.governance.add_rule(
                 GovernanceRule::new(
-                    "No Plaintext Secrets",
-                    "API keys and tokens must use WorkspaceStore or ProfileStore. \
-                     Never write to *.toml, *.json, or any plaintext file.",
+                    "No Plaintext Secrets in Repository",
+                    "API keys, tokens, and passwords must not be committed to version control. \
+                     Use environment variables, secret managers, or encrypted stores.",
                     GovernanceSeverity::Critical,
                 )
-                .with_check_description("Scan committed files for patterns matching API key formats")
+                .with_check_description("Scan commits for patterns matching API key formats; add .gitignore for .env files")
                 .with_category("security")
                 .with_id("GOV-P01")
             );
             spec.governance.add_rule(
                 GovernanceRule::new(
-                    "Zero Clippy Warnings Policy",
-                    "All Rust code must pass cargo clippy with zero warnings. \
-                     CI blocks merge on any warning.",
+                    "All Tests Must Pass Before Merge",
+                    &format!("Run {test_cmd} and verify zero failures before merging any PR.",
+                        test_cmd = if has_cargo { "cargo test --workspace" }
+                            else if has_package { "npm test" }
+                            else if has_go_mod { "go test ./..." }
+                            else if has_pyproject || has_setup_py { "pytest" }
+                            else { "the project test suite" }),
                     GovernanceSeverity::Error,
                 )
-                .with_check_description("Run cargo clippy --workspace -- -D warnings in CI")
+                .with_check_description("Configure CI to block merge on test failure")
                 .with_category("quality")
                 .with_id("GOV-P02")
             );
             spec.governance.add_rule(
                 GovernanceRule::new(
-                    "Tauri Commands Must Be Registered",
-                    "Every pub async fn in commands.rs annotated with #[tauri::command] \
-                     must have a matching entry in invoke_handler! in lib.rs.",
-                    GovernanceSeverity::Error,
+                    "Dependency Audit on Every Release",
+                    &format!("Audit dependencies for known CVEs before each release. \
+                        Use: {}",
+                        if has_cargo { "cargo audit" }
+                        else if has_package { "npm audit" }
+                        else if has_go_mod { "govulncheck ./..." }
+                        else if has_pyproject || has_setup_py { "pip-audit" }
+                        else { "an appropriate dependency auditing tool" }),
+                    GovernanceSeverity::Warning,
                 )
-                .with_check_description("Cross-reference commands.rs exports with lib.rs invoke_handler")
-                .with_category("completeness")
+                .with_check_description("Run dependency audit in CI release pipeline")
+                .with_category("security")
                 .with_id("GOV-P03")
             );
             spec.governance.add_rule(
                 GovernanceRule::new(
-                    "macOS Binaries Must Be Codesigned",
-                    "Any binary installed to PATH on macOS must be codesigned (ad-hoc or \
-                     developer cert) to avoid SIGKILL from the OS.",
-                    GovernanceSeverity::Warning,
+                    "Code Review Required for All Merges",
+                    "Every PR must have at least one approving review before merge. \
+                     Self-merges to main are prohibited.",
+                    GovernanceSeverity::Error,
                 )
-                .with_check_description("Verify codesign -dv on installed binary after cargo install")
-                .with_category("deployment")
+                .with_check_description("Enforce branch protection rules on main/master branch")
+                .with_category("process")
                 .with_id("GOV-P04")
             );
-            spec.governance.add_rule(
-                GovernanceRule::new(
-                    "New Rust Modules Declared in Both Files",
-                    "When adding a .rs file to vibecli-cli/src/, pub mod must appear \
-                     in both main.rs AND lib.rs.",
-                    GovernanceSeverity::Warning,
-                )
-                .with_check_description("Check that all .rs files in src/ have declarations in both root files")
-                .with_category("consistency")
-                .with_id("GOV-P05")
-            );
 
-            // Scan for CI workflows and add a rule per detected workflow
+            // Rust-specific rules
+            if has_cargo {
+                spec.governance.add_rule(
+                    GovernanceRule::new(
+                        "Zero Clippy Warnings Policy",
+                        "All Rust code must pass cargo clippy with zero warnings. \
+                         CI blocks merge on any warning.",
+                        GovernanceSeverity::Error,
+                    )
+                    .with_check_description("Run cargo clippy --workspace -- -D warnings in CI")
+                    .with_category("quality")
+                    .with_id("GOV-RUST-01")
+                );
+                if cargo_toml.contains("tauri") {
+                    spec.governance.add_rule(
+                        GovernanceRule::new(
+                            "Tauri Commands Must Be Registered",
+                            "Every #[tauri::command] function must have a matching entry \
+                             in invoke_handler! in lib.rs.",
+                            GovernanceSeverity::Error,
+                        )
+                        .with_check_description("Cross-reference commands.rs exports with lib.rs invoke_handler")
+                        .with_category("completeness")
+                        .with_id("GOV-RUST-02")
+                    );
+                }
+            }
+
+            // TypeScript-specific rules
+            if has_package && package_json.to_lowercase().contains("typescript") {
+                spec.governance.add_rule(
+                    GovernanceRule::new(
+                        "TypeScript Strict Mode: No Type Errors",
+                        "Run tsc --noEmit in CI. Type errors block merge.",
+                        GovernanceSeverity::Error,
+                    )
+                    .with_check_description("Run npx tsc --noEmit in CI pipeline")
+                    .with_category("quality")
+                    .with_id("GOV-TS-01")
+                );
+            }
+
+            // Go-specific rules
+            if has_go_mod {
+                spec.governance.add_rule(
+                    GovernanceRule::new(
+                        "Go vet Must Pass",
+                        "All Go code must pass go vet ./... with zero issues.",
+                        GovernanceSeverity::Error,
+                    )
+                    .with_check_description("Run go vet ./... in CI")
+                    .with_category("quality")
+                    .with_id("GOV-GO-01")
+                );
+            }
+
+            // Docker rules
+            if has_docker {
+                spec.governance.add_rule(
+                    GovernanceRule::new(
+                        "Docker Images Must Not Run as Root",
+                        "Container images must specify a non-root USER in Dockerfile \
+                         for production deployments.",
+                        GovernanceSeverity::Warning,
+                    )
+                    .with_check_description("Verify USER directive in Dockerfile; scan with hadolint")
+                    .with_category("security")
+                    .with_id("GOV-DOCKER-01")
+                );
+            }
+
+            // CI/CD rules
             if !workflows.is_empty() {
                 spec.governance.add_rule(
                     GovernanceRule::new(
                         "CI Workflows Must Pass Before Merge",
-                        &format!("All {} detected GitHub Actions workflows must succeed: {}",
+                        &format!("All {} detected workflows must succeed: {}",
                             workflows.len(), workflows.join(", ")),
                         GovernanceSeverity::Error,
                     )
-                    .with_check_description("GitHub branch protection: require status checks")
+                    .with_check_description("Configure branch protection to require CI status checks")
                     .with_category("process")
-                    .with_id("GOV-P06")
+                    .with_id("GOV-CI-01")
                 );
             }
         }
@@ -40917,6 +41430,27 @@ pub async fn archspec_load_scan(workspace_path: String, timestamp: u64) -> Resul
             }
             None => Err(format!("No scan found for timestamp {}", timestamp)),
         }
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Delete all archived architecture scan history for a workspace.
+#[tauri::command]
+pub async fn archspec_clear_history(workspace_path: String) -> Result<serde_json::Value, String> {
+    tokio::task::spawn_blocking(move || {
+        let wp = std::path::Path::new(&workspace_path);
+        let store = vibecli_cli::workspace_store::WorkspaceStore::open(wp)?;
+        let all_entries = store.setting_list().unwrap_or_default();
+        let mut deleted = 0usize;
+        for entry in &all_entries {
+            let key = entry["key"].as_str().unwrap_or("");
+            if key.starts_with("archspec_history_") {
+                let _ = store.setting_delete(key);
+                deleted += 1;
+            }
+        }
+        serde_json::to_value(serde_json::json!({ "deleted": deleted })).map_err(|e| e.to_string())
     })
     .await
     .map_err(|e| e.to_string())?

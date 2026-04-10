@@ -17,11 +17,12 @@ interface BisectStepResult {
 
 interface BisectPanelProps {
   workspacePath: string | null;
+  provider?: string;
 }
 
 type BisectView = "setup" | "running" | "done";
 
-export function BisectPanel({ workspacePath }: BisectPanelProps) {
+export function BisectPanel({ workspacePath, provider }: BisectPanelProps) {
   const [view, setView] = useState<BisectView>("setup");
   const [bad, setBad] = useState("");
   const [good, setGood] = useState("");
@@ -112,7 +113,7 @@ export function BisectPanel({ workspacePath }: BisectPanelProps) {
         log = await invoke<string>("git_bisect_log", { workspace: workspacePath });
         setBisectLog(log);
       }
-      const result = await invoke<string>("ai_bisect_analyze", { workspace: workspacePath, bisectLog: log });
+      const result = await invoke<string>("ai_bisect_analyze", { workspace: workspacePath, bisectLog: log, provider });
       setAnalysis(result);
     } catch (e: unknown) {
       setError(String(e));

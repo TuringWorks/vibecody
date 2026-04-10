@@ -299,7 +299,7 @@ function SubtaskProgress({ subtasks }: { subtasks?: Subtask[] }) {
   );
 }
 
-function BoardTab() {
+function BoardTab({ provider }: { provider?: string } = {}) {
   const [cards, setCards] = useState<Card[]>([]);
   const [wipLimits, setWipLimits] = useState<WipLimits>({ "Backlog": 20, "To Do": 10, "In Progress": 5, "In Review": 5, "Done": 50 });
   const [editingCard, setEditingCard] = useState<Card | null>(null);
@@ -442,7 +442,7 @@ function BoardTab() {
     if (!editingCard) return;
     setSubtaskLoading(true);
     try {
-      const result = await invoke<{ subtasks: { title: string }[] }>("agile_ai_generate_subtasks", { card: editingCard });
+      const result = await invoke<{ subtasks: { title: string }[] }>("agile_ai_generate_subtasks", { card: editingCard , provider});
       const newSubtasks = (result.subtasks || []).map(s => ({ id: genId(), title: s.title, done: false }));
       setEditingCard({ ...editingCard, subtasks: [...(editingCard.subtasks || []), ...newSubtasks] });
     } catch (e: any) {
@@ -665,7 +665,7 @@ function BoardTab() {
                 <label style={{ fontSize: 12, color: "var(--text-secondary)" }}>Acceptance Criteria</label>
                 <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 8px", fontSize: 11, color: "var(--accent-blue)" }} onClick={async () => {
                   try {
-                    const result = await invoke<{ criteria: string[] }>("agile_ai_generate_ac", { title: editingCard.title, description: editingCard.description });
+                    const result = await invoke<{ criteria: string[] }>("agile_ai_generate_ac", { title: editingCard.title, description: editingCard.description , provider});
                     if (result.criteria?.length) {
                       setEditingCard({ ...editingCard, acceptanceCriteria: [...editingCard.acceptanceCriteria, ...result.criteria] });
                     }
@@ -970,7 +970,7 @@ interface AiSuggestion {
   _accepted?: boolean;
 }
 
-function BacklogTab() {
+function BacklogTab({ provider }: { provider?: string } = {}) {
   const [items, setItems] = useState<Card[]>([]);
   const [filterPriority, setFilterPriority] = useState<Priority | "">("");
   const [filterLabel, setFilterLabel] = useState("");
@@ -1040,7 +1040,7 @@ function BacklogTab() {
     if (!item) return;
     setSplitLoading(id);
     try {
-      const result = await invoke<{ stories: { title: string; description: string; storyPoints: number; acceptanceCriteria: string[] }[]; rationale: string }>("agile_ai_split_story", { story: item });
+      const result = await invoke<{ stories: { title: string; description: string; storyPoints: number; acceptanceCriteria: string[] }[]; rationale: string }>("agile_ai_split_story", { story: item , provider});
       if (result.stories && result.stories.length > 0) {
         const newCards: Card[] = result.stories.map(s => ({
           ...item,
@@ -1075,7 +1075,7 @@ function BacklogTab() {
     setAiEpics([]);
     setError("");
     try {
-      const result = await invoke<{ epics?: string[]; stories?: AiSuggestion[] }>("agile_ai_generate_backlog", { prompt: aiPrompt.trim() });
+      const result = await invoke<{ epics?: string[]; stories?: AiSuggestion[] }>("agile_ai_generate_backlog", { prompt: aiPrompt.trim() , provider});
       const stories = (result.stories || []).map(s => ({
         ...s,
         priority: (["P0","P1","P2","P3"].includes(s.priority) ? s.priority : "P2") as Priority,
@@ -1299,7 +1299,7 @@ function BacklogTab() {
           const unestimated = items.filter(c => c.storyPoints === 0);
           if (unestimated.length === 0) { setError("All stories already have estimates."); setTimeout(() => setError(""), 3000); return; }
           try {
-            const result = await invoke<{ estimates: { id: string; points: number; confidence: string; reasoning: string }[] }>("agile_ai_estimate_points", { stories: unestimated });
+            const result = await invoke<{ estimates: { id: string; points: number; confidence: string; reasoning: string }[] }>("agile_ai_estimate_points", { stories: unestimated , provider});
             if (result.estimates?.length) {
               const updates = new Map(result.estimates.map(e => [e.id, e]));
               const next = items.map(c => {
@@ -1359,7 +1359,7 @@ function BacklogTab() {
    Ceremonies Tab
    ═══════════════════════════════════════════════════════════════════════ */
 
-function CeremoniesTab() {
+function CeremoniesTab({ provider }: { provider?: string } = {}) {
   const [subTab, setSubTab] = useState<"standup" | "planning" | "review" | "retro">("standup");
   const [standups, setStandups] = useState<StandupEntry[]>([]);
   const [capacity, setCapacity] = useState({ members: 5, days: 10, focusFactor: 0.7 });
@@ -1520,7 +1520,7 @@ function CeremoniesTab() {
             <button className="panel-btn panel-btn-primary" style={{ whiteSpace: "nowrap", fontSize: 12 }} onClick={async () => {
               try {
                 const sprintData = await invoke("agile_get_sprints");
-                const result = await invoke<{ well: string[]; didnt: string[]; actions: string[] }>("agile_ai_retro_generate", { sprintData });
+                const result = await invoke<{ well: string[]; didnt: string[]; actions: string[] }>("agile_ai_retro_generate", { sprintData , provider});
                 const newCards: RetroCard[] = [
                   ...(result.well || []).map(t => ({ id: genId(), text: t, category: "well" as const })),
                   ...(result.didnt || []).map(t => ({ id: genId(), text: t, category: "didnt" as const })),
@@ -1867,7 +1867,7 @@ function MethodologyTab() {
    AI Coach Tab
    ═══════════════════════════════════════════════════════════════════════ */
 
-function AiCoachTab() {
+function AiCoachTab({ provider }: { provider?: string } = {}) {
   const [sprintId, setSprintId] = useState("");
   const [sprints, setSprints] = useState<Sprint[]>([]);
   const [analysis, setAnalysis] = useState<AiAnalysis | null>(null);
@@ -1897,7 +1897,7 @@ function AiCoachTab() {
     cancelRef.current = false;
 
     try {
-      const result = await invoke<AiAnalysis>("agile_ai_analyze", { sprintId: sprintId.trim() });
+      const result = await invoke<AiAnalysis>("agile_ai_analyze", { sprintId: sprintId.trim() , provider});
       if (cancelRef.current) return;
       taskIdRef.current = result.taskId;
       setAnalysis(result);
@@ -2034,7 +2034,7 @@ function AiCoachTab() {
    SAFe Tab — Full operational SAFe support
    ═══════════════════════════════════════════════════════════════════════ */
 
-function SAFeTab() {
+function SAFeTab({ provider }: { provider?: string } = {}) {
   const [safeData, setSafeData] = useState<SAFeData>({ programIncrements: [], teams: [], epics: [] });
   const [subView, setSubView] = useState<"pi" | "art" | "portfolio" | "board">("pi");
   const [loading, setLoading] = useState(true);
@@ -2102,7 +2102,7 @@ function SAFeTab() {
       setFeatureLoading(true);
       try {
         const objectives = pi.objectives.map(o => o.description).join("; ");
-        const result = await invoke<{ features: { title: string; description: string; businessValue: number; timeCriticality: number; riskReduction: number; jobSize: number }[] }>("agile_ai_enhance_safe", { piId, objectiveText: objectives || pi.name });
+        const result = await invoke<{ features: { title: string; description: string; businessValue: number; timeCriticality: number; riskReduction: number; jobSize: number }[] }>("agile_ai_enhance_safe", { piId, objectiveText: objectives || pi.name , provider});
         if (result.features?.length) {
           const teamId = safeData.teams.length > 0 ? safeData.teams[0].id : "unassigned";
           const newFeatures: Feature[] = result.features.map((f, i) => ({
@@ -2402,7 +2402,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "coach", label: "AI Coach" },
 ];
 
-function AgilePanel() {
+function AgilePanel({ provider }: { provider?: string }) {
   const [activeTab, setActiveTab] = useState<TabKey>("board");
 
   return (
@@ -2421,14 +2421,14 @@ function AgilePanel() {
       </div>
 
       {/* Tab content */}
-      {activeTab === "board" && <BoardTab />}
+      {activeTab === "board" && <BoardTab provider={provider} />}
       {activeTab === "sprint" && <SprintTab />}
-      {activeTab === "backlog" && <BacklogTab />}
-      {activeTab === "ceremonies" && <CeremoniesTab />}
+      {activeTab === "backlog" && <BacklogTab provider={provider} />}
+      {activeTab === "ceremonies" && <CeremoniesTab provider={provider} />}
       {activeTab === "metrics" && <MetricsTab />}
       {activeTab === "methodology" && <MethodologyTab />}
-      {activeTab === "safe" && <SAFeTab />}
-      {activeTab === "coach" && <AiCoachTab />}
+      {activeTab === "safe" && <SAFeTab provider={provider} />}
+      {activeTab === "coach" && <AiCoachTab provider={provider} />}
     </div>
   );
 }

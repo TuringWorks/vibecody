@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { Check, X, RefreshCw } from "lucide-react";
 
 const scoreColor = (score: number) => score > 80 ? "var(--success-color)" : score >= 50 ? "var(--warning-color)" : "var(--error-color)";
 
@@ -61,11 +62,9 @@ export function DocSyncPanel({ workspacePath }: Props) {
     color: type === "Implementation" ? "var(--accent-color)" : type === "Reference" ? "var(--accent-purple)" : "var(--warning-color)",
   });
 
-  const existsBadge = (exists: boolean) => (
-    <span style={{ fontSize: 10, color: exists ? "var(--success-color)" : "var(--error-color)", marginLeft: 4 }}>
-      {exists ? "✓" : "✗"}
-    </span>
-  );
+  const existsBadge = (exists: boolean) => exists
+    ? <Check size={10} strokeWidth={2} style={{ display: "inline", verticalAlign: "middle", marginLeft: 4, color: "var(--success-color)" }} />
+    : <X size={10} strokeWidth={2} style={{ display: "inline", verticalAlign: "middle", marginLeft: 4, color: "var(--error-color)" }} />;
 
   return (
     <div className="panel-container">
@@ -87,7 +86,9 @@ export function DocSyncPanel({ workspacePath }: Props) {
         <div>
           <div className="panel-card" style={{ fontWeight: 600, marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span>Freshness Report</span>
-            <button className="panel-btn panel-btn-primary" onClick={handleReconcile}>Reconcile</button>
+            <button className="panel-btn panel-btn-primary" onClick={handleReconcile}>
+              <RefreshCw size={13} strokeWidth={1.5} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />Reconcile
+            </button>
           </div>
           {!workspacePath && (
             <div className="panel-card" style={{ color: "var(--text-secondary)", fontSize: 13 }}>
@@ -185,7 +186,7 @@ export function DocSyncPanel({ workspacePath }: Props) {
               <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "2px 0" }}>
                 <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>{p}</span>
                 <button className="panel-btn panel-btn-secondary" style={{ fontSize: 11, padding: "1px 6px" }}
-                  onClick={() => setWatchPatterns((prev) => prev.filter((_, j) => j !== i))}>×</button>
+                  onClick={() => setWatchPatterns((prev) => prev.filter((_, j) => j !== i))}><X size={11} strokeWidth={1.5} style={{ display: "block" }} /></button>
               </div>
             ))}
             <div style={{ display: "flex", gap: 6, marginTop: 8 }}>

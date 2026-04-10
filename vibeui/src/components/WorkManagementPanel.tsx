@@ -86,7 +86,7 @@ const genId = () => Math.random().toString(36).slice(2, 10);
 
 /* ── Main Panel ────────────────────────────────────────────── */
 
-export default function WorkManagementPanel() {
+export default function WorkManagementPanel({ provider }: { provider?: string } = {}) {
   const [tab, setTab] = useState<TabKey>("hierarchy");
   const [scope, setScope] = useState<Scope>({});
   const [orgs, setOrgs] = useState<Org[]>([]);
@@ -176,10 +176,10 @@ export default function WorkManagementPanel() {
         {tab === "hierarchy" && <HierarchyTab orgs={orgs} groups={groups} teams={teams} workspaces={workspaces} scope={scope} setScope={setScope} onRefresh={refreshAll} setError={setError} />}
         {tab === "agile" && (
           <Suspense fallback={<div style={{ padding: 16, color: "var(--text-secondary)" }}>Loading Agile...</div>}>
-            <AgilePanel />
+            <AgilePanel provider={provider} />
           </Suspense>
         )}
-        {tab === "items" && <ItemsTab items={items} scope={scope} onRefresh={loadItems} setError={setError} />}
+        {tab === "items" && <ItemsTab items={items} scope={scope} onRefresh={loadItems} setError={setError} provider={provider} />}
         {tab === "board" && <BoardTab items={items} onRefresh={loadItems} setError={setError} />}
         {tab === "relationships" && <RelationshipsTab items={items} onRefresh={loadItems} setError={setError} />}
         {tab === "okrs" && <OkrTab items={items} />}
@@ -393,8 +393,8 @@ function HierarchyTab({ orgs, groups, teams, workspaces, scope, setScope, onRefr
 
 /* ── Items Tab ─────────────────────────────────────────────── */
 
-function ItemsTab({ items, scope, onRefresh, setError }: {
-  items: WorkItem[]; scope: Scope; onRefresh: () => void; setError: (e: string) => void;
+function ItemsTab({ items, scope, onRefresh, setError, provider }: {
+  items: WorkItem[]; scope: Scope; onRefresh: () => void; setError: (e: string) => void; provider?: string;
 }) {
   const [filterType, setFilterType] = useState<WorkItemType | "">("");
   const [filterStatus, setFilterStatus] = useState("");
@@ -442,7 +442,7 @@ function ItemsTab({ items, scope, onRefresh, setError }: {
   const handleAiBreakdown = async (item: WorkItem) => {
     setAiBreaking(item.displayId);
     try {
-      const result = await invoke<{ items: any[] }>("wm_ai_suggest_breakdown", { item });
+      const result = await invoke<{ items: any[] }>("wm_ai_suggest_breakdown", { item, provider });
       if (result.items?.length) {
         for (const child of result.items) {
           await invoke("wm_create_item", {
@@ -462,6 +462,7 @@ function ItemsTab({ items, scope, onRefresh, setError }: {
       const result = await invoke<any>("wm_ai_generate_item", {
         prompt: aiPrompt,
         itemType: newItem.type,
+        provider,
       });
       setNewItem(prev => ({
         ...prev,

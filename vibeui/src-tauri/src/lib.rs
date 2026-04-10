@@ -1431,6 +1431,7 @@ pub fn run() {
             commands::archspec_save,
             commands::archspec_list_scans,
             commands::archspec_load_scan,
+            commands::archspec_clear_history,
             commands::handle_policy_command,
             commands::handle_aireview_command,
             commands::handle_creview_command,

@@ -27,6 +27,7 @@ interface Cell {
 
 interface NotebookPanelProps {
  workspacePath: string | null;
+ provider?: string;
 }
 
 const LANGUAGES = ["bash", "python", "javascript", "ruby", "rust", "go"];
@@ -45,7 +46,7 @@ function newId(): string {
  return `cell-${++cellCounter}-${Date.now()}`;
 }
 
-export function NotebookPanel({ workspacePath }: NotebookPanelProps) {
+export function NotebookPanel({ workspacePath, provider }: NotebookPanelProps) {
  const [cells, setCells] = useState<Cell[]>([
  { id: newId(), type: "code", language: "bash", content: "", output: null, running: false, editing: true },
  ]);
@@ -143,6 +144,7 @@ export function NotebookPanel({ workspacePath }: NotebookPanelProps) {
  cellCode: cell.content,
  cellOutput: cell.output ? `${cell.output.stdout}\n${cell.output.stderr}` : "",
  question: "",
+ provider,
  });
  updateCell(id, {
  running: false,

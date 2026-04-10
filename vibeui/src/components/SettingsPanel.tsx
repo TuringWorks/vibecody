@@ -1430,9 +1430,9 @@ export const THEMES: ThemeDef[] = [
     },
   },
 
-  // ── Pair: Robinhood (Fintech Green) ──
+  // ── Pair: Sherwood (Fintech Green) ──
   {
-    id: "dark-robinhood", name: "Robinhood", category: "standard", mode: "dark", pairId: "robinhood",
+    id: "dark-sherwood", name: "Sherwood", category: "standard", mode: "dark", pairId: "sherwood",
     preview: { bg: "#0a0a0a", fg: "#f0f0f0", accent: "#00c805", secondary: "#141414" },
     vars: {
       "--bg-primary": "#0a0a0a", "--bg-secondary": "#141414", "--bg-tertiary": "#1c1c1c", "--bg-elevated": "#242424",
@@ -1443,7 +1443,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-robinhood", name: "Robinhood", category: "standard", mode: "light", pairId: "robinhood",
+    id: "light-sherwood", name: "Sherwood", category: "standard", mode: "light", pairId: "sherwood",
     preview: { bg: "#ffffff", fg: "#1a1a1a", accent: "#00c805", secondary: "#f5f5f5" },
     vars: {
       "--bg-primary": "#ffffff", "--bg-secondary": "#f5f5f5", "--bg-tertiary": "#ebebeb", "--bg-elevated": "#ffffff",
@@ -1451,6 +1451,30 @@ export const THEMES: ThemeDef[] = [
       "--accent-purple": "#6c5ce7", "--accent-gold": "#c8960a", "--accent-rose": "#e03030",
       "--border-color": "rgba(0, 0, 0, 0.09)", "--error-color": "#e03030",
       "--success-color": "#00a804", "--warning-color": "#c8960a",
+    },
+  },
+
+  // ── Pair: Sport (Stadium Green) ──
+  {
+    id: "dark-sport", name: "Sport", category: "standard", mode: "dark", pairId: "sport",
+    preview: { bg: "#0a0a0a", fg: "#f0f0f0", accent: "rgb(75,158,83)", secondary: "#141414" },
+    vars: {
+      "--bg-primary": "#0a0a0a", "--bg-secondary": "#141414", "--bg-tertiary": "#1c1c1c", "--bg-elevated": "#242424",
+      "--text-primary": "#f0f0f0", "--text-secondary": "#8a8a8a", "--accent-blue": "rgb(75,158,83)", "--accent-green": "rgb(75,158,83)",
+      "--accent-purple": "#9c88ff", "--accent-gold": "#f0c040", "--accent-rose": "#ff4d4d",
+      "--border-color": "rgba(255, 255, 255, 0.07)", "--error-color": "#ff4d4d",
+      "--success-color": "rgb(75,158,83)", "--warning-color": "#f0c040",
+    },
+  },
+  {
+    id: "light-sport", name: "Sport", category: "standard", mode: "light", pairId: "sport",
+    preview: { bg: "#ffffff", fg: "#1a1a1a", accent: "rgb(75,158,83)", secondary: "#f5f5f5" },
+    vars: {
+      "--bg-primary": "#ffffff", "--bg-secondary": "#f5f5f5", "--bg-tertiary": "#ebebeb", "--bg-elevated": "#ffffff",
+      "--text-primary": "#1a1a1a", "--text-secondary": "#6e6e6e", "--accent-blue": "rgb(75,158,83)", "--accent-green": "rgb(75,158,83)",
+      "--accent-purple": "#6c5ce7", "--accent-gold": "#c8960a", "--accent-rose": "#e03030",
+      "--border-color": "rgba(0, 0, 0, 0.09)", "--error-color": "#e03030",
+      "--success-color": "rgb(75,158,83)", "--warning-color": "#c8960a",
     },
   },
 
@@ -1976,13 +2000,13 @@ function ProfileSection() {
 }
 
 function AppearanceSection() {
-  const [activeThemeId, setActiveThemeId] = useState("dark-robinhood");
+  const [activeThemeId, setActiveThemeId] = useState("dark-sherwood");
   const [fontSize, setFontSize] = useState(13);
   const [density, setDensity] = useState<"compact" | "normal" | "spacious">("normal");
   const [filterCategory, setFilterCategory] = useState<"all" | "standard" | "high-contrast" | "color-blind" | "supercar">("all");
 
   useEffect(() => {
-    const storedTheme = localStorage.getItem(STORAGE_KEYS.theme) || "dark-robinhood";
+    const storedTheme = localStorage.getItem(STORAGE_KEYS.theme) || "dark-sherwood";
     const storedSize = localStorage.getItem(STORAGE_KEYS.fontSize);
     const storedDensity = localStorage.getItem("vibeui-density");
     setActiveThemeId(storedTheme);
@@ -2361,7 +2385,7 @@ function CustomizationsSection() {
       id: Date.now().toString(36),
       name: name.trim(),
       createdAt: new Date().toISOString(),
-      theme: localStorage.getItem(STORAGE_KEYS.theme) || "dark-robinhood",
+      theme: localStorage.getItem(STORAGE_KEYS.theme) || "dark-sherwood",
       fontSize: parseInt(localStorage.getItem(STORAGE_KEYS.fontSize) || "13", 10),
       density: localStorage.getItem("vibeui-density") || "normal",
     };

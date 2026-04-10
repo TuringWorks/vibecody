@@ -13,6 +13,10 @@
  */
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import {
+  RefreshCw, Save, FileText, Table2, Network, Layers, ShieldCheck,
+  Check, RotateCcw, X, ChevronDown, ChevronRight, Circle, Trash2,
+} from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -175,6 +179,16 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
     try {
       const s = await invoke<ArchSpec>("archspec_load_scan", { workspacePath, timestamp });
       setSpec(s); setLocalSpec(s); setDirty(false);
+      setShowHistory(false);
+    } catch (e) { setError(String(e)); }
+  };
+
+  const handleClearHistory = async () => {
+    if (!workspacePath) return;
+    if (!confirm("Delete all scan history? This cannot be undone.")) return;
+    try {
+      await invoke("archspec_clear_history", { workspacePath });
+      setScanHistory([]);
       setShowHistory(false);
     } catch (e) { setError(String(e)); }
   };
@@ -427,8 +441,8 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
       for (const [cat, rules] of Object.entries(byCategory)) {
         out += `## ${cat}\n\n`;
         for (const rule of rules) {
-          const icon = rule.severity === "Critical" ? "🔴" : rule.severity === "Error" ? "🔶" : rule.severity === "Warning" ? "⚠️" : "ℹ️";
-          out += `${icon} **[${rule.severity}] ${rule.name}** (${rule.id})\n`;
+          const sevMark = rule.severity === "Critical" ? "[CRITICAL]" : rule.severity === "Error" ? "[ERROR]" : rule.severity === "Warning" ? "[WARN]" : "[INFO]";
+          out += `${sevMark} **${rule.name}** (${rule.id})\n`;
           out += `${rule.description}\n`;
           if (rule.check_fn_description) out += `*Check: ${rule.check_fn_description}*\n`;
           out += "\n";
@@ -495,13 +509,15 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
         title={workspacePath
           ? (scanInfo ? `Rescan codebase (last: ${scanInfo.date})` : "Scan codebase and generate draft artifacts")
           : "Open a workspace first"}>
-        {generating ? "Scanning…" : (scanInfo ? "⟳ Rescan" : "⟳ Generate from Codebase")}
+        {generating
+          ? <><RefreshCw size={13} strokeWidth={1.5} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />Scanning…</>
+          : <><RefreshCw size={13} strokeWidth={1.5} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />{scanInfo ? "Rescan" : "Generate from Codebase"}</>}
       </button>
       {scanHistory.length > 1 && (
         <button className="panel-btn panel-btn-secondary panel-btn-sm"
           onClick={() => setShowHistory(!showHistory)}
           title="View scan history">
-          {showHistory ? "▴ History" : `▾ History (${scanHistory.length})`}
+          <ChevronDown size={12} strokeWidth={1.5} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />History ({scanHistory.length})
         </button>
       )}
     </div>
@@ -528,7 +544,13 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
     if (!showHistory || scanHistory.length === 0) return null;
     return (
       <div className="panel-card" style={{ marginBottom: 8, maxHeight: 200, overflowY: "auto" }}>
-        <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 6 }}>Scan History</div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+          <span style={{ fontWeight: 600, fontSize: 12 }}>Scan History</span>
+          <button className="panel-btn panel-btn-secondary panel-btn-sm" onClick={handleClearHistory}
+            title="Delete all scan history" style={{ color: "var(--error-color)" }}>
+            <Trash2 size={11} strokeWidth={1.5} style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }} />Clear All
+          </button>
+        </div>
         <table style={{ width: "100%", fontSize: 11, borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ borderBottom: "1px solid var(--border-color)", color: "var(--text-secondary)" }}>
@@ -570,7 +592,7 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
 
   const SaveBar = () => dirty ? (
     <button className="panel-btn panel-btn-primary panel-btn-sm" onClick={handleSave} disabled={saving}>
-      {saving ? "Saving…" : "💾 Save Changes"}
+      <Save size={13} strokeWidth={1.5} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />{saving ? "Saving…" : "Save Changes"}
     </button>
   ) : null;
 
@@ -579,7 +601,7 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
     <div className="panel-card" style={{ marginTop: 10 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
         <span style={{ fontWeight: 600, fontSize: 12 }}>{reportLabel}</span>
-        <button className="panel-btn panel-btn-secondary panel-btn-sm" onClick={() => setReport("")}>✕ Close</button>
+        <button className="panel-btn panel-btn-secondary panel-btn-sm" onClick={() => setReport("")}><X size={12} strokeWidth={1.5} style={{ display: "inline", verticalAlign: "middle" }} /></button>
       </div>
       <textarea
         value={report}
@@ -610,7 +632,7 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
             <SaveBar />
             <button className="panel-btn panel-btn-secondary panel-btn-sm"
               onClick={() => generateReport("full")} disabled={!disp}>
-              ▶ Full Report
+              <FileText size={13} strokeWidth={1.5} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />Full Report
             </button>
           </div>
         </div>
@@ -633,7 +655,10 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
                 padding: "6px 0", borderBottom: "1px solid var(--border-color)", cursor: arts.length ? "pointer" : "default" }}
                 onClick={() => arts.length && setExpandedPhase(open ? null : phase.key)}>
                 <span style={{ fontSize: 13 }}>
-                  {arts.length > 0 && <span style={{ marginRight: 6, color: "var(--text-secondary)", fontSize: 10 }}>{open ? "▾" : "▸"}</span>}
+                  {arts.length > 0 && (open
+                    ? <ChevronDown size={12} strokeWidth={1.5} style={{ display: "inline", verticalAlign: "middle", marginRight: 4, color: "var(--text-secondary)" }} />
+                    : <ChevronRight size={12} strokeWidth={1.5} style={{ display: "inline", verticalAlign: "middle", marginRight: 4, color: "var(--text-secondary)" }} />
+                  )}
                   {phase.index}. {phase.label}
                 </span>
                 <ProgBar pct={pct} total={arts.length} />
@@ -677,15 +702,15 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
                         <div style={{ display: "flex", flexDirection: "column", gap: 4, flexShrink: 0 }}>
                           {art.status !== "Approved" && (
                             <button className="panel-btn panel-btn-sm" style={{ fontSize: 10, padding: "2px 8px", color: "var(--accent-green,#22c55e)", borderColor: "var(--accent-green,#22c55e)" }}
-                              disabled={statusBusy === art.id} onClick={() => setArtifactStatus(art.id, "Approved")}>✓ Approve</button>
+                              disabled={statusBusy === art.id} onClick={() => setArtifactStatus(art.id, "Approved")}><Check size={11} strokeWidth={2} style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }} />Approve</button>
                           )}
                           {art.status !== "Review" && art.status !== "Approved" && (
                             <button className="panel-btn panel-btn-secondary panel-btn-sm" style={{ fontSize: 10, padding: "2px 8px" }}
-                              disabled={statusBusy === art.id} onClick={() => setArtifactStatus(art.id, "Review")}>⟲ Review</button>
+                              disabled={statusBusy === art.id} onClick={() => setArtifactStatus(art.id, "Review")}><RotateCcw size={11} strokeWidth={1.5} style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }} />Review</button>
                           )}
                           {art.status === "Approved" && (
                             <button className="panel-btn panel-btn-sm" style={{ fontSize: 10, padding: "2px 8px", color: "#f87171", borderColor: "#f87171" }}
-                              disabled={statusBusy === art.id} onClick={() => setArtifactStatus(art.id, "Draft")}>✕ Revoke</button>
+                              disabled={statusBusy === art.id} onClick={() => setArtifactStatus(art.id, "Draft")}><X size={11} strokeWidth={2} style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }} />Revoke</button>
                           )}
                         </div>
                       </div>
@@ -721,7 +746,7 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
               <SaveBar />
               <button className="panel-btn panel-btn-secondary panel-btn-sm"
                 onClick={() => generateReport("zachman")} disabled={!disp}>
-                ▶ Matrix Report
+                <Table2 size={13} strokeWidth={1.5} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />Matrix Report
               </button>
             </div>
           </div>
@@ -739,7 +764,7 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
             <div className="panel-card" style={{ marginBottom: 10, border: "1px solid var(--accent-color)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                 <span style={{ fontWeight: 600, fontSize: 13 }}>Edit Cell: {p} / {a}</span>
-                <button className="panel-btn panel-btn-secondary panel-btn-sm" onClick={() => setEditingCell(null)}>✕ Close</button>
+                <button className="panel-btn panel-btn-secondary panel-btn-sm" onClick={() => setEditingCell(null)}><X size={12} strokeWidth={1.5} style={{ display: "inline", verticalAlign: "middle" }} /></button>
               </div>
               <div className="panel-label" style={{ marginBottom: 4 }}>Content</div>
               <textarea
@@ -852,7 +877,9 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
                 onClick={() => setExpandedC4(expandedC4 === el.id ? null : el.id)}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ fontWeight: 600, fontSize: 12 }}>{el.name}</span>
-                  <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>{expandedC4 === el.id ? "▾" : "▸"}</span>
+                  {expandedC4 === el.id
+                    ? <ChevronDown size={12} strokeWidth={1.5} style={{ color: "var(--text-secondary)" }} />
+                    : <ChevronRight size={12} strokeWidth={1.5} style={{ color: "var(--text-secondary)" }} />}
                 </div>
                 {el.technology && <span className="panel-label" style={{ fontSize: 10 }}>{el.technology}</span>}
               </div>
@@ -907,11 +934,11 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
               <SaveBar />
               <button className="panel-btn panel-btn-secondary panel-btn-sm"
                 onClick={() => generateReport("c4-context")} disabled={!disp}>
-                ▶ Context Diagram
+                <Network size={13} strokeWidth={1.5} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />Context Diagram
               </button>
               <button className="panel-btn panel-btn-secondary panel-btn-sm"
                 onClick={() => generateReport("c4-container")} disabled={!disp}>
-                ▶ Container Diagram
+                <Layers size={13} strokeWidth={1.5} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />Container Diagram
               </button>
             </div>
           </div>
@@ -1013,15 +1040,15 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
                       <div style={{ display: "flex", flexDirection: "column", gap: 4, flexShrink: 0 }}>
                         {statusLabel !== "Accepted" && (
                           <button className="panel-btn panel-btn-sm" style={{ fontSize: 10, padding: "2px 8px", color: "var(--accent-green,#22c55e)", borderColor: "var(--accent-green,#22c55e)" }}
-                            disabled={statusBusy === adr.id} onClick={() => setAdrStatus(adr.id, "Accepted")}>✓ Accept</button>
+                            disabled={statusBusy === adr.id} onClick={() => setAdrStatus(adr.id, "Accepted")}><Check size={11} strokeWidth={2} style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }} />Accept</button>
                         )}
                         {statusLabel !== "Deprecated" && statusLabel !== "Accepted" && (
                           <button className="panel-btn panel-btn-secondary panel-btn-sm" style={{ fontSize: 10, padding: "2px 8px" }}
-                            disabled={statusBusy === adr.id} onClick={() => setAdrStatus(adr.id, "Deprecated")}>✕ Deprecate</button>
+                            disabled={statusBusy === adr.id} onClick={() => setAdrStatus(adr.id, "Deprecated")}><X size={11} strokeWidth={2} style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }} />Deprecate</button>
                         )}
                         {statusLabel === "Accepted" && (
                           <button className="panel-btn panel-btn-sm" style={{ fontSize: 10, padding: "2px 8px", color: "#f87171", borderColor: "#f87171" }}
-                            disabled={statusBusy === adr.id} onClick={() => setAdrStatus(adr.id, "Proposed")}>↩ Re-open</button>
+                            disabled={statusBusy === adr.id} onClick={() => setAdrStatus(adr.id, "Proposed")}><RotateCcw size={11} strokeWidth={1.5} style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }} />Re-open</button>
                         )}
                       </div>
                     </div>
@@ -1075,7 +1102,7 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
               <SaveBar />
               <button className="panel-btn panel-btn-secondary panel-btn-sm"
                 onClick={() => generateReport("compliance")} disabled={!disp}>
-                ▶ Compliance Check
+                <ShieldCheck size={13} strokeWidth={1.5} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />Compliance Check
               </button>
             </div>
           </div>
@@ -1141,7 +1168,9 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
           Architecture Specification
           {disp && <span className="panel-label" style={{ marginLeft: 10, fontWeight: 400 }}>{disp.project_name}</span>}
         </h2>
-        {dirty && <span style={{ fontSize: 11, color: "#f0a500", marginLeft: 8 }}>● unsaved changes</span>}
+        {dirty && <span style={{ fontSize: 11, color: "#f0a500", marginLeft: 8, display: "inline-flex", alignItems: "center", gap: 4 }}>
+          <Circle size={7} strokeWidth={0} fill="#f0a500" />unsaved changes
+        </span>}
       </div>
 
       <div className="panel-tab-bar" style={{ marginBottom: 12 }}>
