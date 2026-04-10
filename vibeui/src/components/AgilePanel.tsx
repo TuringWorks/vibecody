@@ -270,6 +270,23 @@ function StoryDetailModal({ story, onSave, onDelete, onClose, title }: StoryDeta
     onSave({ ...draft, labels });
   };
 
+  // Detect if title follows "As a ... I want ... so that ..." format
+  const titleLower = draft.title.toLowerCase();
+  const followsFormat = titleLower.startsWith("as a") && titleLower.includes("i want") && titleLower.includes("so that");
+
+  // Parse the three parts for display when format is valid
+  const parsedStory = (() => {
+    if (!followsFormat) return null;
+    const t = draft.title;
+    const iWant = t.toLowerCase().indexOf("i want");
+    const soThat = t.toLowerCase().indexOf("so that");
+    return {
+      who: t.slice(0, iWant).replace(/^[Aa]s [Aa] /, "").trim().replace(/,$/, ""),
+      action: t.slice(iWant + 6, soThat).trim().replace(/,$/, ""),
+      benefit: t.slice(soThat + 7).trim(),
+    };
+  })();
+
   // Close on Escape
   React.useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -318,13 +335,46 @@ function StoryDetailModal({ story, onSave, onDelete, onClose, title }: StoryDeta
 
           {/* Title */}
           <div>
-            <label style={fieldLabel}>Title</label>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+              <label style={{ ...fieldLabel, margin: 0 }}>User Story</label>
+              <span style={{
+                fontSize: 10, padding: "1px 7px", borderRadius: 10, fontWeight: 600,
+                background: followsFormat ? "color-mix(in srgb, var(--accent-green) 15%, transparent)" : "color-mix(in srgb, var(--accent-gold) 15%, transparent)",
+                color: followsFormat ? "var(--text-success)" : "var(--text-warning)",
+                border: `1px solid ${followsFormat ? "var(--success-color)" : "var(--warning-color)"}`,
+              }}>
+                {followsFormat ? "✓ Standard format" : "⚠ Use: As a … I want … so that …"}
+              </span>
+            </div>
             <input
               className="panel-input panel-input-full"
-              style={{ fontSize: 15, fontWeight: 600 }}
+              style={{ fontSize: 14, fontWeight: 600 }}
+              placeholder='As a [type of user], I want [an action] so that [value/benefit]'
               value={draft.title}
               onChange={e => set("title", e.target.value)}
             />
+            {/* Parsed story card — shown when format is valid */}
+            {parsedStory && (
+              <div style={{
+                marginTop: 8, padding: "10px 14px", borderRadius: "var(--radius-sm)",
+                background: "color-mix(in srgb, var(--accent-blue) 6%, transparent)",
+                border: "1px solid color-mix(in srgb, var(--accent-blue) 25%, transparent)",
+                display: "flex", flexDirection: "column", gap: 4,
+              }}>
+                <div style={{ fontSize: 11, display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  <span style={{ color: "var(--text-secondary)", fontWeight: 600, minWidth: 50 }}>As a</span>
+                  <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>{parsedStory.who}</span>
+                </div>
+                <div style={{ fontSize: 11, display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  <span style={{ color: "var(--text-secondary)", fontWeight: 600, minWidth: 50 }}>I want</span>
+                  <span style={{ color: "var(--text-primary)" }}>{parsedStory.action}</span>
+                </div>
+                <div style={{ fontSize: 11, display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  <span style={{ color: "var(--text-secondary)", fontWeight: 600, minWidth: 50 }}>So that</span>
+                  <span style={{ color: "var(--accent-color)" }}>{parsedStory.benefit}</span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Description */}
@@ -1522,9 +1572,24 @@ function BacklogTab({ provider }: { provider?: string } = {}) {
       {/* Manual create form */}
       {showCreate && !showAiGenerate && (
         <div style={{ ...cardBaseStyle, marginBottom: 12 }}>
-          <h4 style={{ margin: "0 0 8px", color: "var(--text-primary)" }}>Create Story</h4>
-          <input className="panel-input panel-input-full" style={{ marginBottom: 6 }} placeholder="Title" value={newStory.title} onChange={e => setNewStory({ ...newStory, title: e.target.value })} />
-          <textarea className="panel-input panel-input-full" style={{ marginBottom: 6, minHeight: 50, resize: "vertical" }} placeholder="Description" value={newStory.description} onChange={e => setNewStory({ ...newStory, description: e.target.value })} />
+          <h4 style={{ margin: "0 0 4px", color: "var(--text-primary)" }}>Create Story</h4>
+          <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 8, lineHeight: 1.5 }}>
+            Use the standard format: <em style={{ color: "var(--accent-color)" }}>"As a [user], I want [action] so that [benefit]"</em>
+          </div>
+          <input
+            className="panel-input panel-input-full"
+            style={{ marginBottom: 6 }}
+            placeholder='As a [type of user], I want [an action] so that [value/benefit]'
+            value={newStory.title}
+            onChange={e => setNewStory({ ...newStory, title: e.target.value })}
+          />
+          <textarea
+            className="panel-input panel-input-full"
+            style={{ marginBottom: 6, minHeight: 50, resize: "vertical" }}
+            placeholder="Describe the user value and business context. Focus on WHY, not HOW."
+            value={newStory.description}
+            onChange={e => setNewStory({ ...newStory, description: e.target.value })}
+          />
           <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
             <select className="panel-select" style={{ width: "auto" }} value={newStory.priority} onChange={e => setNewStory({ ...newStory, priority: e.target.value as Priority })}>
               {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}

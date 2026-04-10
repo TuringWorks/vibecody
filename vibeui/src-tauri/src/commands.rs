@@ -28131,13 +28131,26 @@ pub async fn agile_ai_split_story(
         .unwrap_or_default();
 
     let prompt = format!(
-        r#"You are an expert Agile coach. Split this user story into 2-3 smaller, independently deliverable stories. Each sub-story should be small enough to complete in 1-3 days.
+        r#"You are an expert Agile coach. Split this user story into 2-3 smaller, independently deliverable stories. Each sub-story should be completable in 1-3 days.
 
-Story: {}, {}, Points: {}, Acceptance Criteria: {}
+Original story:
+  Title: {}
+  Description: {}
+  Points: {}
+  Acceptance Criteria: {}
+
+IMPORTANT — Each split story MUST follow the standard Agile user story format:
+  Title: "As a [type of user], I want [an action] so that [value/benefit]"
+  Description: Expand on user value and context. Focus on WHY, not HOW.
 
 Respond with ONLY valid JSON:
 {{
-  "stories": [{{ "title": "...", "description": "...", "storyPoints": 0, "acceptanceCriteria": ["..."] }}],
+  "stories": [{{
+    "title": "As a [user], I want [action] so that [benefit]",
+    "description": "User-centred description.",
+    "storyPoints": 0,
+    "acceptanceCriteria": ["Given...", "When...", "Then..."]
+  }}],
   "rationale": "why this split makes sense"
 }}"#,
         title, description, story_points, acceptance_criteria,
@@ -28370,7 +28383,7 @@ pub async fn agile_ai_generate_backlog(
     };
 
     let ai_prompt = format!(
-        r#"You are an expert Agile product owner and software architect. Analyze this project and the user's request, then generate a comprehensive set of backlog stories.
+        r#"You are an expert Agile product owner and software architect. Analyze this project and the user's request, then generate a comprehensive set of backlog user stories.
 
 PROJECT FILE TREE:
 {project_tree}
@@ -28380,15 +28393,21 @@ PROJECT FILE TREE:
 USER REQUEST:
 {prompt}
 
-Generate user stories, technical tasks, and epics. For each item include:
-- A clear title
-- Description with context
+IMPORTANT — User Story Format:
+Every story MUST follow the standard Agile format:
+  Title:       "As a [type of user], I want [an action] so that [value/benefit]"
+  Description: Expand on the story with business context, constraints, and user value.
+                Focus on WHY the user needs this, not HOW it will be implemented.
+
+This format ensures stories are user-centred, spark conversation, and keep development focused on delivering value.
+
+For each story also include:
 - Story points estimate (Fibonacci: 1, 2, 3, 5, 8, 13)
 - Priority (P0=critical, P1=high, P2=medium, P3=low)
 - Labels/tags
-- Acceptance criteria (2-4 per story)
+- Acceptance criteria (2-4, written as "Given/When/Then" or plain English)
 - Epic grouping
-- Dependencies on other generated stories (by index number, 0-based)
+- Dependencies on other generated stories (by index, 0-based)
 - Suggested ordering (lower = higher priority to implement first)
 
 Respond with ONLY valid JSON:
@@ -28396,8 +28415,8 @@ Respond with ONLY valid JSON:
   "epics": ["Epic Name 1", "Epic Name 2"],
   "stories": [
     {{
-      "title": "Story title",
-      "description": "Detailed description",
+      "title": "As a [user], I want [action] so that [benefit]",
+      "description": "User-centred description with business context and value.",
       "storyPoints": 3,
       "priority": "P1",
       "labels": ["backend", "api"],
