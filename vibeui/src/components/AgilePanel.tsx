@@ -2420,15 +2420,17 @@ function AgilePanel({ provider }: { provider?: string }) {
         ))}
       </div>
 
-      {/* Tab content */}
-      {activeTab === "board" && <BoardTab provider={provider} />}
-      {activeTab === "sprint" && <SprintTab />}
-      {activeTab === "backlog" && <BacklogTab provider={provider} />}
-      {activeTab === "ceremonies" && <CeremoniesTab provider={provider} />}
-      {activeTab === "metrics" && <MetricsTab />}
-      {activeTab === "methodology" && <MethodologyTab />}
-      {activeTab === "safe" && <SAFeTab provider={provider} />}
-      {activeTab === "coach" && <AiCoachTab provider={provider} />}
+      {/* Tab content — scrollable in both axes */}
+      <div style={{ flex: 1, minHeight: 0, overflow: "auto", padding: "12px 0 0" }}>
+        {activeTab === "board" && <BoardTab provider={provider} />}
+        {activeTab === "sprint" && <SprintTab />}
+        {activeTab === "backlog" && <BacklogTab provider={provider} />}
+        {activeTab === "ceremonies" && <CeremoniesTab provider={provider} />}
+        {activeTab === "metrics" && <MetricsTab />}
+        {activeTab === "methodology" && <MethodologyTab />}
+        {activeTab === "safe" && <SAFeTab provider={provider} />}
+        {activeTab === "coach" && <AiCoachTab provider={provider} />}
+      </div>
     </div>
   );
 }
