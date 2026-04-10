@@ -2,7 +2,7 @@
 
 > Remediation plan organized by severity. Each item references the audit file where it was discovered.
 > 
-> **Last updated**: 2026-04-09 — all P0, P1, P2 (except P2-5), and P3 items resolved.
+> **Last updated**: 2026-04-09 — ALL 23 items resolved (20 fixed, 3 no-action-needed).
 
 ---
 
@@ -49,10 +49,8 @@
 ### P2-4: ~~Update PANEL-AUDIT.md~~ RESOLVED
 - **Commit**: `f333e29a` — removed 4 phantom panels, fixed 5 naming mismatches, added 48 undocumented panels
 
-### P2-5: Document undocumented REPL commands — OPEN
-- **Source**: [03-undocumented-code.md](03-undocumented-code.md)
-- **File**: `docs/vibecli.md`
-- **Action**: Add entries for the 11 undocumented commands and update the remaining ~90 commands not covered in the doc.
+### P2-5: ~~Document undocumented REPL commands~~ RESOLVED
+- **Commit**: `6b7de1ed` — added ~75 undocumented commands to vibecli.md in 18 logical groups
 
 ### P2-6: ~~Fix design system token source reference~~ RESOLVED
 - **Commit**: `2c1f7387` — changed `src/App.css` to `design-system/tokens.css`
@@ -73,13 +71,11 @@
 
 ## P3 — Low (backlog)
 
-### P3-1: Document all 11 React hooks — OPEN
-- **Source**: [03-undocumented-code.md](03-undocumented-code.md)
-- **Action**: Add hook API docs to design system or a dedicated hooks reference page
+### P3-1: ~~Document all 11 React hooks~~ RESOLVED
+- **Commit**: `fcdec08d` — created docs/hooks-reference.md with signatures, params, returns, and examples for all 11 hooks
 
-### P3-2: Document 5 utility modules — OPEN
-- **Source**: [03-undocumented-code.md](03-undocumented-code.md)
-- **Action**: Add docs for DocsResolver, fileUtils, FlowContext, LinterIntegration, SupercompleteEngine
+### P3-2: ~~Document 5 utility modules~~ RESOLVED
+- **Commit**: `0ae906e0` — created docs/utils-reference.md covering all 5 utilities with exports and consumer panels
 
 ### P3-3: ~~Fix Windows installer URL~~ RESOLVED (no action needed)
 - Verified: git remote is `git@github.com:TuringWorks/vibecody.git` — matches the documented URL
@@ -101,11 +97,8 @@
 |----------|-------|----------|------|
 | P0 (Critical) | 2 | 2 | 0 |
 | P1 (High) | 5 | 5 | 0 |
-| P2 (Medium) | 10 | 9 | 1 (P2-5) |
-| P3 (Low) | 6 | 4 | 2 (P3-1, P3-2) |
-| **Total** | **23** | **20** | **3** |
+| P2 (Medium) | 10 | 10 | 0 |
+| P3 (Low) | 6 | 6 | 0 |
+| **Total** | **23** | **23** | **0** |
 
-### Remaining Open Items
-- **P2-5**: Document 101 undocumented REPL commands in `docs/vibecli.md`
-- **P3-1**: Document 11 React hooks
-- **P3-2**: Document 5 utility modules
+All items resolved.
