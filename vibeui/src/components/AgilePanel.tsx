@@ -230,6 +230,214 @@ const sectionTitle: React.CSSProperties = {
   marginBottom: 10,
 };
 
+/* ── StoryDetailModal — Jira-like expandable story editor ─────────────── */
+
+interface StoryDetailModalProps {
+  story: Card;
+  onSave: (updated: Card) => void;
+  onDelete?: () => void;
+  onClose: () => void;
+  title?: string; // override for AI suggestions ("Review Story")
+}
+
+function StoryDetailModal({ story, onSave, onDelete, onClose, title }: StoryDetailModalProps) {
+  const [draft, setDraft] = useState<Card>({ ...story });
+  const [acInput, setAcInput] = useState("");
+  const [labelInput, setLabelInput] = useState(story.labels.join(", "));
+
+  const set = (field: keyof Card, value: unknown) =>
+    setDraft(prev => ({ ...prev, [field]: value }));
+
+  const addAC = () => {
+    const t = acInput.trim();
+    if (!t) return;
+    setDraft(prev => ({ ...prev, acceptanceCriteria: [...prev.acceptanceCriteria, t] }));
+    setAcInput("");
+  };
+
+  const removeAC = (i: number) =>
+    setDraft(prev => ({ ...prev, acceptanceCriteria: prev.acceptanceCriteria.filter((_, idx) => idx !== i) }));
+
+  const updateAC = (i: number, val: string) =>
+    setDraft(prev => {
+      const next = [...prev.acceptanceCriteria];
+      next[i] = val;
+      return { ...prev, acceptanceCriteria: next };
+    });
+
+  const handleSave = () => {
+    const labels = labelInput.split(",").map(s => s.trim()).filter(Boolean);
+    onSave({ ...draft, labels });
+  };
+
+  // Close on Escape
+  React.useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  return (
+    <div
+      style={{
+        position: "fixed", inset: 0, zIndex: 9999,
+        background: "rgba(0,0,0,0.55)", backdropFilter: "blur(2px)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: 24,
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          background: "var(--bg-elevated)", borderRadius: "var(--radius-lg)",
+          border: "1px solid var(--border-color)", boxShadow: "var(--elevation-3, 0 8px 32px rgba(0,0,0,0.4))",
+          width: "min(720px, 96vw)", maxHeight: "88vh",
+          display: "flex", flexDirection: "column", overflow: "hidden",
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* ── Modal header ── */}
+        <div style={{
+          display: "flex", alignItems: "center", gap: 10, padding: "14px 18px",
+          borderBottom: "1px solid var(--border-color)", flexShrink: 0,
+        }}>
+          <span style={badgeStyle(PRIORITY_COLORS[draft.priority])}>{draft.priority}</span>
+          {draft.epic && <span style={badgeStyle("var(--accent-bg)", "var(--accent-color)")}>{draft.epic}</span>}
+          <span style={{ fontSize: 11, color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
+            {title ?? "Story"}
+          </span>
+          <div style={{ flex: 1 }} />
+          <button
+            onClick={onClose}
+            style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "var(--text-secondary)", lineHeight: 1, padding: "0 4px" }}
+          >×</button>
+        </div>
+
+        {/* ── Scrollable body ── */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "18px 20px", display: "flex", flexDirection: "column", gap: 16 }}>
+
+          {/* Title */}
+          <div>
+            <label style={fieldLabel}>Title</label>
+            <input
+              className="panel-input panel-input-full"
+              style={{ fontSize: 15, fontWeight: 600 }}
+              value={draft.title}
+              onChange={e => set("title", e.target.value)}
+            />
+          </div>
+
+          {/* Description */}
+          <div>
+            <label style={fieldLabel}>Description</label>
+            <textarea
+              className="panel-input panel-input-full"
+              style={{ minHeight: 80, resize: "vertical", lineHeight: 1.5 }}
+              value={draft.description}
+              onChange={e => set("description", e.target.value)}
+            />
+          </div>
+
+          {/* Priority + Points + Column */}
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <div style={{ flex: 1, minWidth: 120 }}>
+              <label style={fieldLabel}>Priority</label>
+              <select className="panel-select" style={{ width: "100%" }} value={draft.priority} onChange={e => set("priority", e.target.value as Priority)}>
+                {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
+            <div style={{ flex: 1, minWidth: 100 }}>
+              <label style={fieldLabel}>Story Points</label>
+              <input className="panel-input" style={{ width: "100%" }} type="number" min={0} value={draft.storyPoints} onChange={e => set("storyPoints", Number(e.target.value))} />
+            </div>
+            <div style={{ flex: 1, minWidth: 140 }}>
+              <label style={fieldLabel}>Status</label>
+              <select className="panel-select" style={{ width: "100%" }} value={draft.column} onChange={e => set("column", e.target.value as Column)}>
+                {COLUMNS.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div style={{ flex: 1, minWidth: 140 }}>
+              <label style={fieldLabel}>Assignee</label>
+              <input className="panel-input" style={{ width: "100%" }} placeholder="Unassigned" value={draft.assignee} onChange={e => set("assignee", e.target.value)} />
+            </div>
+          </div>
+
+          {/* Epic */}
+          <div>
+            <label style={fieldLabel}>Epic</label>
+            <input
+              className="panel-input panel-input-full"
+              placeholder="Epic name"
+              value={draft.epic ?? ""}
+              onChange={e => set("epic", e.target.value)}
+            />
+          </div>
+
+          {/* Labels */}
+          <div>
+            <label style={fieldLabel}>Labels <span style={{ fontWeight: 400, opacity: 0.6 }}>(comma-separated)</span></label>
+            <input
+              className="panel-input panel-input-full"
+              value={labelInput}
+              onChange={e => setLabelInput(e.target.value)}
+              placeholder="backend, api, security"
+            />
+          </div>
+
+          {/* Acceptance Criteria */}
+          <div>
+            <label style={fieldLabel}>Acceptance Criteria</label>
+            {draft.acceptanceCriteria.map((ac, i) => (
+              <div key={i} style={{ display: "flex", gap: 6, marginBottom: 6, alignItems: "flex-start" }}>
+                <span style={{ marginTop: 7, fontSize: 11, color: "var(--text-secondary)", fontFamily: "var(--font-mono)", minWidth: 20 }}>{i + 1}.</span>
+                <textarea
+                  className="panel-input"
+                  style={{ flex: 1, minHeight: 36, resize: "vertical", fontSize: 12, lineHeight: 1.4 }}
+                  value={ac}
+                  onChange={e => updateAC(i, e.target.value)}
+                />
+                <button
+                  onClick={() => removeAC(i)}
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-danger)", fontSize: 16, padding: "4px", lineHeight: 1, marginTop: 2 }}
+                >×</button>
+              </div>
+            ))}
+            <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+              <input
+                className="panel-input"
+                style={{ flex: 1, fontSize: 12 }}
+                placeholder="Add acceptance criterion..."
+                value={acInput}
+                onChange={e => setAcInput(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addAC(); } }}
+              />
+              <button className="panel-btn panel-btn-secondary" onClick={addAC} style={{ fontSize: 11 }}>Add</button>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Footer actions ── */}
+        <div style={{
+          display: "flex", gap: 8, padding: "12px 20px",
+          borderTop: "1px solid var(--border-color)", flexShrink: 0,
+        }}>
+          <button className="panel-btn panel-btn-primary" onClick={handleSave}>Save</button>
+          <button className="panel-btn panel-btn-secondary" onClick={onClose}>Cancel</button>
+          <div style={{ flex: 1 }} />
+          {onDelete && (
+            <button className="panel-btn panel-btn-danger" onClick={onDelete} style={{ fontSize: 11 }}>Delete Story</button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const fieldLabel: React.CSSProperties = {
+  display: "block", fontSize: 11, fontWeight: 600,
+  color: "var(--text-secondary)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em",
+};
+
 /* ── Helpers ─────────────────────────────────────────────────────────── */
 
 const genId = () => Math.random().toString(36).slice(2, 10);
@@ -986,6 +1194,10 @@ function BacklogTab({ provider }: { provider?: string } = {}) {
   const [aiEpics, setAiEpics] = useState<string[]>([]);
   const [showAiGenerate, setShowAiGenerate] = useState(false);
 
+  // Story detail modal
+  const [detailCard, setDetailCard] = useState<Card | null>(null);
+  const [detailSuggIdx, setDetailSuggIdx] = useState<number | null>(null);
+
   useEffect(() => {
     (async () => {
       try {
@@ -1032,6 +1244,41 @@ function BacklogTab({ provider }: { provider?: string } = {}) {
       setError(typeof e === "string" ? e : e?.message || "Failed to update story");
     }
   }, [items]);
+
+  const saveDetailCard = useCallback(async (updated: Card) => {
+    try {
+      await invoke("agile_update_story", { story: updated });
+      setItems(prev => prev.map(c => c.id === updated.id ? updated : c));
+    } catch (e: any) {
+      setError(typeof e === "string" ? e : e?.message || "Failed to save story");
+    }
+    setDetailCard(null);
+  }, []);
+
+  const deleteDetailCard = useCallback(async () => {
+    if (!detailCard) return;
+    try {
+      await invoke("agile_delete_story", { storyId: detailCard.id });
+      setItems(prev => prev.filter(c => c.id !== detailCard.id));
+    } catch (e: any) {
+      setError(typeof e === "string" ? e : e?.message || "Failed to delete story");
+    }
+    setDetailCard(null);
+  }, [detailCard]);
+
+  const saveDetailSuggestion = useCallback((idx: number, updated: Card) => {
+    setAiSuggestions(prev => prev.map((s, i) => i !== idx ? s : {
+      ...s,
+      title: updated.title,
+      description: updated.description,
+      priority: updated.priority,
+      storyPoints: updated.storyPoints,
+      labels: updated.labels,
+      acceptanceCriteria: updated.acceptanceCriteria,
+      epic: updated.epic ?? s.epic,
+    }));
+    setDetailSuggIdx(null);
+  }, []);
 
   const [splitLoading, setSplitLoading] = useState<string | null>(null);
 
@@ -1201,48 +1448,55 @@ function BacklogTab({ provider }: { provider?: string } = {}) {
                         ...cardBaseStyle,
                         opacity: s._accepted ? 1 : 0.45,
                         borderLeft: `3px solid ${s._accepted ? "var(--accent-color)" : "var(--border-color)"}`,
-                        cursor: "pointer",
                       }}
-                      onClick={() => toggleSuggestion(idx)}
                     >
                       <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-                        <div style={{
-                          width: 20, height: 20, borderRadius: 4, flexShrink: 0, marginTop: 1,
-                          background: s._accepted ? "var(--accent-color)" : "var(--bg-tertiary)",
-                          border: `1px solid ${s._accepted ? "var(--accent-color)" : "var(--border-color)"}`,
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          color: "var(--btn-primary-fg)", fontSize: 12, fontWeight: 700,
-                        }}>
+                        {/* Accept checkbox */}
+                        <div
+                          style={{
+                            width: 20, height: 20, borderRadius: 4, flexShrink: 0, marginTop: 2, cursor: "pointer",
+                            background: s._accepted ? "var(--accent-color)" : "var(--bg-tertiary)",
+                            border: `1px solid ${s._accepted ? "var(--accent-color)" : "var(--border-color)"}`,
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            color: "var(--btn-primary-fg)", fontSize: 12, fontWeight: 700,
+                          }}
+                          onClick={() => toggleSuggestion(idx)}
+                        >
                           {s._accepted ? "\u2713" : ""}
                         </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
+                        {/* Main content — click opens detail */}
+                        <div
+                          style={{ flex: 1, minWidth: 0, cursor: "pointer" }}
+                          onClick={() => setDetailSuggIdx(idx)}
+                        >
                           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
                             <span style={{ fontSize: 10, color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>#{idx + 1}</span>
                             <span style={{ fontWeight: 600, fontSize: 13, color: "var(--text-primary)" }}>{s.title}</span>
                           </div>
-                          <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 4, lineHeight: 1.4 }}>{s.description}</div>
+                          <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 4, lineHeight: 1.4 }}>
+                            {s.description.length > 120 ? s.description.slice(0, 120) + "…" : s.description}
+                          </div>
                           <div style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
                             <span style={badgeStyle("var(--bg-tertiary)", "var(--text-secondary)")}>{s.priority}</span>
                             <span style={badgeStyle("var(--bg-tertiary)", "var(--text-secondary)")}>{s.storyPoints} pts</span>
                             {s.epic && <span style={badgeStyle("var(--accent-bg)", "var(--accent-color)")}>{s.epic}</span>}
                             {s.labels.map(l => <span key={l} style={badgeStyle("var(--bg-tertiary)", "var(--text-secondary)")}>{l}</span>)}
+                            {s.acceptanceCriteria.length > 0 && (
+                              <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>AC: {s.acceptanceCriteria.length}</span>
+                            )}
                             {deps.length > 0 && (
                               <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>
-                                depends on: {deps.join(", ")}
+                                ↳ {deps.join(", ")}
                               </span>
                             )}
                           </div>
-                          {s.acceptanceCriteria.length > 0 && (
-                            <details style={{ marginTop: 4 }}>
-                              <summary style={{ fontSize: 11, color: "var(--text-secondary)", cursor: "pointer" }}>
-                                {s.acceptanceCriteria.length} acceptance criteria
-                              </summary>
-                              <ul style={{ margin: "4px 0 0 16px", fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.6 }}>
-                                {s.acceptanceCriteria.map((ac, i) => <li key={i}>{ac}</li>)}
-                              </ul>
-                            </details>
-                          )}
                         </div>
+                        <button
+                          className="panel-btn panel-btn-secondary"
+                          style={{ fontSize: 10, padding: "2px 8px", flexShrink: 0 }}
+                          onClick={() => setDetailSuggIdx(idx)}
+                          title="Edit story"
+                        >Edit</button>
                       </div>
                     </div>
                   );
@@ -1320,37 +1574,99 @@ function BacklogTab({ provider }: { provider?: string } = {}) {
 
       {/* Backlog list */}
       {filtered.map(item => (
-        <div key={item.id} style={{ ...cardBaseStyle, display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 500, fontSize: 13, color: "var(--text-primary)" }}>{item.title}</div>
-            {item.description && <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 2 }}>{item.description.slice(0, 100)}{item.description.length > 100 ? "..." : ""}</div>}
-            <div style={{ display: "flex", gap: 4, marginTop: 4, flexWrap: "wrap" }}>
-              {item.labels.map(l => <span key={l} style={badgeStyle("var(--bg-tertiary)", "var(--text-secondary)")}>{l}</span>)}
-              {item.acceptanceCriteria.length > 0 && <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>AC: {item.acceptanceCriteria.length}</span>}
+        <div
+          key={item.id}
+          style={{ ...cardBaseStyle, cursor: "pointer" }}
+          onClick={() => setDetailCard(item)}
+        >
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 600, fontSize: 13, color: "var(--text-primary)", marginBottom: 2 }}>{item.title}</div>
+              {item.description && (
+                <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 4, lineHeight: 1.4 }}>
+                  {item.description.length > 120 ? item.description.slice(0, 120) + "…" : item.description}
+                </div>
+              )}
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
+                <span style={badgeStyle(PRIORITY_COLORS[item.priority])}>{item.priority}</span>
+                <span style={badgeStyle("var(--accent-purple)")}>{item.storyPoints} pts</span>
+                {item.epic && <span style={badgeStyle("var(--accent-bg)", "var(--accent-color)")}>{item.epic}</span>}
+                {item.labels.map(l => <span key={l} style={badgeStyle("var(--bg-tertiary)", "var(--text-secondary)")}>{l}</span>)}
+                {item.acceptanceCriteria.length > 0 && (
+                  <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>AC: {item.acceptanceCriteria.length}</span>
+                )}
+              </div>
+            </div>
+            {/* Quick inline controls */}
+            <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+              <select
+                className="panel-input" style={{ width: 60, fontSize: 11 }}
+                value={item.priority}
+                onChange={e => updateInline(item.id, "priority", e.target.value)}
+              >
+                {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+              <input
+                className="panel-input" style={{ width: 50, textAlign: "center", fontSize: 11 }}
+                type="number" min={0}
+                value={item.storyPoints}
+                onChange={e => updateInline(item.id, "storyPoints", Number(e.target.value))}
+              />
+              <button
+                className="panel-btn panel-btn-primary"
+                style={{ fontSize: 11, padding: "4px 8px" }}
+                title="AI-powered story decomposition"
+                onClick={() => suggestSplit(item.id)}
+                disabled={splitLoading === item.id}
+              >
+                {splitLoading === item.id ? "…" : "AI Split"}
+              </button>
             </div>
           </div>
-          <select
-            className="panel-input" style={{ width: 60 }}
-            value={item.priority}
-            onChange={e => updateInline(item.id, "priority", e.target.value)}
-            onClick={e => e.stopPropagation()}
-          >
-            {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
-          </select>
-          <input
-            className="panel-input" style={{ width: 55, textAlign: "center" }}
-            type="number"
-            min={0}
-            value={item.storyPoints}
-            onChange={e => updateInline(item.id, "storyPoints", Number(e.target.value))}
-            onClick={e => e.stopPropagation()}
-          />
-          <button className="panel-btn panel-btn-primary" style={{ fontSize: 11, padding: "4px 8px" }} title="AI-powered story decomposition" onClick={() => suggestSplit(item.id)} disabled={splitLoading === item.id}>
-            {splitLoading === item.id ? "Splitting..." : "AI Split"}
-          </button>
         </div>
       ))}
-      {filtered.length === 0 && !showAiGenerate && <div style={{ textAlign: "center", color: "var(--text-secondary)", padding: 24 }}>No backlog items found. Use "AI Generate Backlog" to get started.</div>}
+      {filtered.length === 0 && !showAiGenerate && (
+        <div style={{ textAlign: "center", color: "var(--text-secondary)", padding: 24 }}>
+          No backlog items found. Use "AI Generate Backlog" to get started.
+        </div>
+      )}
+
+      {/* Story detail modal for committed backlog items */}
+      {detailCard && (
+        <StoryDetailModal
+          story={detailCard}
+          onSave={saveDetailCard}
+          onDelete={deleteDetailCard}
+          onClose={() => setDetailCard(null)}
+          title={`Story · ${detailCard.column}`}
+        />
+      )}
+
+      {/* Story detail modal for AI suggestion items */}
+      {detailSuggIdx !== null && aiSuggestions[detailSuggIdx] && (() => {
+        const s = aiSuggestions[detailSuggIdx];
+        const asCard: Card = {
+          id: `sugg-${detailSuggIdx}`,
+          title: s.title,
+          description: s.description,
+          priority: s.priority,
+          storyPoints: s.storyPoints,
+          labels: s.labels,
+          acceptanceCriteria: s.acceptanceCriteria,
+          epic: s.epic,
+          column: "Backlog",
+          assignee: "",
+          createdAt: "",
+        };
+        return (
+          <StoryDetailModal
+            story={asCard}
+            onSave={updated => saveDetailSuggestion(detailSuggIdx, updated)}
+            onClose={() => setDetailSuggIdx(null)}
+            title={`AI Suggestion #${detailSuggIdx + 1}`}
+          />
+        );
+      })()}
     </div>
   );
 }
