@@ -657,12 +657,20 @@ function ItemsTab({ items, scope, onRefresh, setError, provider }: {
 function BoardTab({ items, onRefresh, setError }: {
   items: WorkItem[]; onRefresh: () => void; setError: (e: string) => void;
 }) {
-  // Derive columns from most common workflow
-  const statusCounts = new Map<string, number>();
-  items.forEach(i => statusCounts.set(i.status, (statusCounts.get(i.status) || 0) + 1));
-  const columns = statusCounts.size > 0
-    ? [...statusCounts.entries()].sort((a, b) => b[1] - a[1]).map(([s]) => s)
-    : ["Backlog", "To Do", "In Progress", "In Review", "Done"];
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragOverCol, setDragOverCol] = useState<string | null>(null);
+  const [hoveredCard, setHoveredCard] = useState<string | null>(null);
+  const [filterText, setFilterText] = useState("");
+
+  // Derive ordered columns: prefer standard order, fall back to observed statuses
+  const STANDARD_COLS = ["Backlog", "To Do", "In Progress", "In Review", "Done"];
+  const observedStatuses = Array.from(new Set(items.map(i => i.status)));
+  const columns = STANDARD_COLS.some(c => observedStatuses.includes(c))
+    ? STANDARD_COLS.filter(c => observedStatuses.includes(c) || items.length === 0)
+        .concat(observedStatuses.filter(s => !STANDARD_COLS.includes(s)))
+    : observedStatuses.length > 0
+      ? observedStatuses
+      : STANDARD_COLS;
 
   const moveItem = async (displayId: string, newStatus: string) => {
     try {
@@ -671,30 +679,131 @@ function BoardTab({ items, onRefresh, setError }: {
     } catch (e: any) { setError(String(e)); }
   };
 
+  const onDragStart = (e: React.DragEvent, id: string) => {
+    setDragId(id);
+    e.dataTransfer.effectAllowed = "move";
+  };
+  const onDragOver = (e: React.DragEvent, col: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOverCol(col);
+  };
+  const onDragLeave = () => setDragOverCol(null);
+  const onDrop = async (e: React.DragEvent, col: string) => {
+    e.preventDefault();
+    setDragOverCol(null);
+    if (!dragId) return;
+    const item = items.find(i => i.id === dragId);
+    if (item && item.status !== col) await moveItem(item.displayId, col);
+    setDragId(null);
+  };
+  const onDragEnd = () => { setDragId(null); setDragOverCol(null); };
+
+  const filtered = filterText
+    ? items.filter(i => i.title.toLowerCase().includes(filterText.toLowerCase()) || i.displayId.toLowerCase().includes(filterText.toLowerCase()))
+    : items;
+
+  const colIdx = (col: string) => columns.indexOf(col);
+
   return (
-    <div style={{ display: "flex", gap: 8, overflowX: "auto", minHeight: 300 }}>
-      {columns.map(col => {
-        const colItems = items.filter(i => i.status === col);
-        return (
-          <div key={col} style={{ minWidth: 200, flex: 1, background: "var(--bg-secondary)", borderRadius: 8, padding: 8, border: "1px solid var(--border-color)" }}>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "var(--text-secondary)", marginBottom: 8, letterSpacing: "0.05em" }}>
-              {col} ({colItems.length})
-            </div>
-            {colItems.map(item => (
-              <div key={item.id} style={{ ...cardS, padding: 8, marginBottom: 6, fontSize: 12 }}>
-                <div style={{ display: "flex", gap: 4, marginBottom: 4 }}>
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--accent-color)" }}>{item.displayId}</span>
-                  <span style={badge(PRIORITY_COLORS[item.priority] || "var(--bg-tertiary)", "var(--btn-primary-fg)")}>{item.priority}</span>
-                </div>
-                <div style={{ fontWeight: 500, marginBottom: 4 }}>{item.title}</div>
-                <select style={{ ...inpS, fontSize: 10, padding: "2px 4px" }} value={item.status} onChange={e => moveItem(item.displayId, e.target.value)}>
-                  {columns.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
+    <div>
+      {/* Toolbar */}
+      <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10, padding: "6px 0", borderBottom: "1px solid var(--border-color)", flexWrap: "wrap" }}>
+        <input
+          className="panel-input"
+          style={{ width: 160, fontSize: 11, padding: "4px 8px" }}
+          placeholder="Search items…"
+          value={filterText}
+          onChange={e => setFilterText(e.target.value)}
+        />
+        {filterText && (
+          <button className="panel-btn panel-btn-secondary" style={{ padding: "3px 8px", fontSize: 11, color: "var(--error-color)" }} onClick={() => setFilterText("")}>Clear</button>
+        )}
+        <span style={{ fontSize: 11, color: "var(--text-secondary)", marginLeft: "auto" }}>{filtered.length} item{filtered.length !== 1 ? "s" : ""}</span>
+      </div>
+
+      {/* Kanban columns */}
+      <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 8 }}>
+        {columns.map(col => {
+          const colItems = filtered.filter(i => i.status === col);
+          const isDragTarget = dragOverCol === col;
+          return (
+            <div
+              key={col}
+              onDragOver={e => onDragOver(e, col)}
+              onDragLeave={onDragLeave}
+              onDrop={e => onDrop(e, col)}
+              style={{
+                minWidth: 220, flex: 1, borderRadius: "var(--radius-md)", padding: 10,
+                transition: "background 0.15s, border 0.15s",
+                background: isDragTarget ? "color-mix(in srgb, var(--accent-blue) 8%, transparent)" : "var(--bg-secondary)",
+                border: isDragTarget ? "2px dashed var(--accent-blue)" : "1px solid var(--border-color)",
+              }}
+            >
+              {/* Column header */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                <span style={{ fontWeight: 600, fontSize: 13, color: "var(--text-primary)" }}>{col}</span>
+                <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{colItems.length}</span>
               </div>
-            ))}
-          </div>
-        );
-      })}
+
+              {/* Cards */}
+              {colItems.map(item => {
+                const isDragging = dragId === item.id;
+                return (
+                  <div
+                    key={item.id}
+                    draggable
+                    onDragStart={e => onDragStart(e, item.id)}
+                    onDragEnd={onDragEnd}
+                    onMouseEnter={() => setHoveredCard(item.id)}
+                    onMouseLeave={() => setHoveredCard(null)}
+                    style={{
+                      background: "var(--bg-elevated)", border: "1px solid var(--border-color)",
+                      borderRadius: "var(--radius-md)", padding: 10, marginBottom: 8,
+                      cursor: "grab", opacity: isDragging ? 0.4 : 1,
+                      transition: "var(--transition-fast)",
+                      transform: hoveredCard === item.id && !isDragging ? "translateY(-2px)" : "none",
+                      boxShadow: hoveredCard === item.id ? "var(--elevation-2)" : "var(--card-shadow)",
+                    }}
+                  >
+                    {/* Type + ID row */}
+                    <div style={{ display: "flex", gap: 4, marginBottom: 4, alignItems: "center" }}>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--accent-color)" }}>{item.displayId}</span>
+                      <span style={badge(PRIORITY_COLORS[item.priority] || "var(--bg-tertiary)", "var(--btn-primary-fg)")}>{item.priority}</span>
+                      <span style={{ fontSize: 10, color: "var(--text-secondary)", background: "var(--bg-tertiary)", padding: "1px 5px", borderRadius: 3 }}>{item.type}</span>
+                    </div>
+                    <div style={{ fontWeight: 500, fontSize: 13, color: "var(--text-primary)", marginBottom: 6 }}>{item.title}</div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 3, marginBottom: item.assignee ? 4 : 0 }}>
+                      {item.storyPoints != null && item.storyPoints > 0 && (
+                        <span style={badge("var(--accent-purple)", "white")}>{item.storyPoints} pts</span>
+                      )}
+                      {item.labels.slice(0, 3).map(l => (
+                        <span key={l} style={badge("var(--bg-tertiary)", "var(--text-secondary)")}>{l}</span>
+                      ))}
+                    </div>
+                    {item.assignee && (
+                      <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>{item.assignee}</div>
+                    )}
+                    {/* ← → move buttons */}
+                    <div style={{ display: "flex", gap: 4, marginTop: 6 }}>
+                      {colIdx(col) > 0 && (
+                        <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 8px", fontSize: 11 }} onClick={() => moveItem(item.displayId, columns[colIdx(col) - 1])}>&larr;</button>
+                      )}
+                      {colIdx(col) < columns.length - 1 && (
+                        <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 8px", fontSize: 11 }} onClick={() => moveItem(item.displayId, columns[colIdx(col) + 1])}>&rarr;</button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {colItems.length === 0 && (
+                <div style={{ textAlign: "center", padding: "20px 8px", color: "var(--text-muted)", fontSize: 11, opacity: 0.5 }}>Drop here</div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

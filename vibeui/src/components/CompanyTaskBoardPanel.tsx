@@ -46,6 +46,11 @@ function programBadge(_program: TaskProgram): React.CSSProperties {
   };
 }
 
+const STATUS_LABELS: Record<string, string> = {
+  backlog: "Backlog", todo: "To Do", in_progress: "In Progress",
+  in_review: "In Review", done: "Done", blocked: "Blocked",
+};
+
 export function CompanyTaskBoardPanel({ workspacePath: _wp }: CompanyTaskBoardPanelProps) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [rawOutput, setRawOutput] = useState<string>("");
@@ -55,19 +60,21 @@ export function CompanyTaskBoardPanel({ workspacePath: _wp }: CompanyTaskBoardPa
   const [newProgram, setNewProgram] = useState<TaskProgram>("Other");
   const [newRecurrence, setNewRecurrence] = useState("");
   const [cmdResult, setCmdResult] = useState<string | null>(null);
-  const [filterStatus, setFilterStatus] = useState<string>("");
   const [useStructured, setUseStructured] = useState(false);
+  // Board drag state
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragOverCol, setDragOverCol] = useState<string | null>(null);
+  const [hoveredCard, setHoveredCard] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
     try {
       // Try structured first, fallback to text
       const result = await invoke<Task[]>("company_task_list_json", {
-        status: filterStatus || null,
+        status: null,
       }).catch(async () => {
         setUseStructured(false);
-        const args = filterStatus ? `task list --status ${filterStatus}` : "task list";
-        const out = await invoke<string>("company_cmd", { args });
+        const out = await invoke<string>("company_cmd", { args: "task list" });
         setRawOutput(out);
         return null;
       });
@@ -82,7 +89,33 @@ export function CompanyTaskBoardPanel({ workspacePath: _wp }: CompanyTaskBoardPa
     }
   };
 
-  useEffect(() => { load(); }, [filterStatus]);
+  useEffect(() => { load(); }, []);
+
+  const moveTask = async (id: string, newStatus: string) => {
+    try {
+      await invoke("company_task_move", { id, status: newStatus });
+      load();
+    } catch (_e) {
+      // fallback: just update local state optimistically
+      setTasks(prev => prev.map(t => t.id === id ? { ...t, status: newStatus } : t));
+    }
+  };
+
+  const onDragStart = (e: React.DragEvent, id: string) => {
+    setDragId(id); e.dataTransfer.effectAllowed = "move";
+  };
+  const onDragOver = (e: React.DragEvent, col: string) => {
+    e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDragOverCol(col);
+  };
+  const onDragLeave = () => setDragOverCol(null);
+  const onDrop = async (e: React.DragEvent, col: string) => {
+    e.preventDefault(); setDragOverCol(null);
+    if (!dragId) return;
+    const task = tasks.find(t => t.id === dragId);
+    if (task && task.status !== col) await moveTask(task.id, col);
+    setDragId(null);
+  };
+  const onDragEnd = () => { setDragId(null); setDragOverCol(null); };
 
   const createTask = async () => {
     if (!newTitle.trim()) return;
@@ -121,39 +154,9 @@ export function CompanyTaskBoardPanel({ workspacePath: _wp }: CompanyTaskBoardPa
       </div>
 
       <div className="panel-body">
-        {/* Filter by status */}
-        <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
-          <button
-            onClick={() => setFilterStatus("")}
-            style={{
-              fontSize: 11, padding: "2px 8px", cursor: "pointer",
-              background: filterStatus === "" ? "var(--accent-blue)" : "var(--bg-tertiary)",
-              color: filterStatus === "" ? "#fff" : "var(--text-primary)",
-              border: `1px solid ${filterStatus === "" ? "var(--accent-blue)" : "var(--border-color)"}`,
-              borderRadius: 12,
-            }}
-          >
-            All
-          </button>
-          {STATUSES.map((s) => (
-            <button
-              key={s}
-              onClick={() => setFilterStatus(s)}
-              style={{
-                fontSize: 11, padding: "2px 8px", cursor: "pointer", borderRadius: 12,
-                background: filterStatus === s ? "var(--accent-blue)" : "var(--bg-tertiary)",
-                color: filterStatus === s ? "#fff" : "var(--text-primary)",
-                border: `1px solid ${filterStatus === s ? "var(--accent-blue)" : "var(--border-color)"}`,
-              }}
-            >
-              {s.replace("_", " ")}
-            </button>
-          ))}
-        </div>
-
         {/* Create task form */}
-        <div className="panel-card" style={{ marginBottom: 16 }}>
-          <div className="panel-label" style={{ marginBottom: 8, fontWeight: 600 }}>NEW TASK</div>
+        <div className="panel-card" style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-secondary)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>New Task</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <input
               value={newTitle}
@@ -162,96 +165,116 @@ export function CompanyTaskBoardPanel({ workspacePath: _wp }: CompanyTaskBoardPa
               placeholder="Task title…"
               className="panel-input panel-input-full"
             />
-            <div style={{ display: "flex", gap: 6 }}>
-              <select
-                value={newOwner}
-                onChange={(e) => setNewOwner(e.target.value as TaskOwner)}
-                className="panel-select"
-                style={{ flex: 1 }}
-              >
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              <select value={newOwner} onChange={(e) => setNewOwner(e.target.value as TaskOwner)} className="panel-select" style={{ flex: 1 }}>
                 {OWNERS.map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
-              <select
-                value={newProgram}
-                onChange={(e) => setNewProgram(e.target.value as TaskProgram)}
-                className="panel-select"
-                style={{ flex: 1 }}
-              >
+              <select value={newProgram} onChange={(e) => setNewProgram(e.target.value as TaskProgram)} className="panel-select" style={{ flex: 1 }}>
                 {PROGRAMS.map((p) => <option key={p} value={p}>{p}</option>)}
               </select>
-              <input
-                value={newRecurrence}
-                onChange={(e) => setNewRecurrence(e.target.value)}
-                placeholder="Recurrence (optional)"
-                className="panel-input"
-                style={{ flex: 1 }}
-                title="e.g. daily, weekdays, weekly, or cron expression"
-              />
-              <button onClick={createTask} className="panel-btn panel-btn-primary">
-                + Task
-              </button>
+              <input value={newRecurrence} onChange={(e) => setNewRecurrence(e.target.value)} placeholder="Recurrence (optional)" className="panel-input" style={{ flex: 1 }} title="e.g. daily, weekdays, weekly" />
+              <button onClick={createTask} className="panel-btn panel-btn-primary">+ Task</button>
             </div>
           </div>
         </div>
 
-        {cmdResult && (
-          <div className="panel-card" style={{ marginBottom: 12, fontSize: 12 }}>
-            {cmdResult}
-          </div>
-        )}
+        {cmdResult && <div className="panel-card" style={{ marginBottom: 10, fontSize: 12 }}>{cmdResult}</div>}
 
-        {/* Task display */}
-        {useStructured ? (
-          tasks.length === 0 && !loading ? (
+        {/* Kanban board */}
+        {loading ? (
+          <div className="panel-loading">Loading…</div>
+        ) : useStructured ? (
+          tasks.length === 0 ? (
             <div className="panel-empty">
               <div style={{ marginBottom: 8, display: "flex", justifyContent: "center", color: "var(--accent-blue)" }}><ClipboardList size={32} strokeWidth={1.5} /></div>
               <div style={{ fontWeight: 600, marginBottom: 4 }}>No tasks yet</div>
               <div style={{ color: "var(--text-secondary)", fontSize: 12 }}>Use the form above to create your first task</div>
             </div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {loading ? (
-                <div className="panel-loading">Loading…</div>
-              ) : (
-                tasks.map((task) => (
-                  <div key={task.id} className="panel-card" style={{ padding: "8px 12px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontSize: 12, flex: 1 }}>{task.title}</span>
-                      <span style={ownerBadge(task.owner)}>{task.owner}</span>
-                      <span style={programBadge(task.program)}>{task.program}</span>
-                      {task.recurrence && (
-                        <span style={{ fontSize: 10, color: "var(--text-secondary)", padding: "1px 5px", background: "rgba(0,0,0,0.1)", borderRadius: 6 }}>
-                          {task.recurrence}
-                        </span>
-                      )}
-                      <span style={{ fontSize: 10, color: "var(--text-secondary)", minWidth: 70 }}>{task.status.replace("_", " ")}</span>
+            <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 8 }}>
+              {STATUSES.map(status => {
+                const colTasks = tasks.filter(t => t.status === status);
+                const isDragTarget = dragOverCol === status;
+                return (
+                  <div
+                    key={status}
+                    onDragOver={e => onDragOver(e, status)}
+                    onDragLeave={onDragLeave}
+                    onDrop={e => onDrop(e, status)}
+                    style={{
+                      minWidth: 200, flex: 1, borderRadius: "var(--radius-md)", padding: 10,
+                      transition: "background 0.15s, border 0.15s",
+                      background: isDragTarget ? "color-mix(in srgb, var(--accent-blue) 8%, transparent)" : "var(--bg-secondary)",
+                      border: isDragTarget ? "2px dashed var(--accent-blue)" : "1px solid var(--border-color)",
+                    }}
+                  >
+                    {/* Column header */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                      <span style={{ fontWeight: 600, fontSize: 13, color: "var(--text-primary)" }}>{STATUS_LABELS[status] ?? status.replace("_", " ")}</span>
+                      <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{colTasks.length}</span>
                     </div>
+
+                    {/* Cards */}
+                    {colTasks.map(task => {
+                      const isDragging = dragId === task.id;
+                      return (
+                        <div
+                          key={task.id}
+                          draggable
+                          onDragStart={e => onDragStart(e, task.id)}
+                          onDragEnd={onDragEnd}
+                          onMouseEnter={() => setHoveredCard(task.id)}
+                          onMouseLeave={() => setHoveredCard(null)}
+                          style={{
+                            background: "var(--bg-elevated)", border: "1px solid var(--border-color)",
+                            borderRadius: "var(--radius-md)", padding: 10, marginBottom: 8,
+                            cursor: "grab", opacity: isDragging ? 0.4 : 1,
+                            transition: "var(--transition-fast)",
+                            transform: hoveredCard === task.id && !isDragging ? "translateY(-2px)" : "none",
+                            boxShadow: hoveredCard === task.id ? "var(--elevation-2)" : "var(--card-shadow)",
+                          }}
+                        >
+                          <div style={{ fontWeight: 500, fontSize: 13, color: "var(--text-primary)", marginBottom: 6 }}>{task.title}</div>
+                          <div style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
+                            <span style={ownerBadge(task.owner)}>{task.owner}</span>
+                            <span style={programBadge(task.program)}>{task.program}</span>
+                            {task.recurrence && (
+                              <span style={{ fontSize: 10, color: "var(--text-secondary)", padding: "1px 5px", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: 6 }}>
+                                {task.recurrence}
+                              </span>
+                            )}
+                          </div>
+                          {/* ← → move buttons */}
+                          <div style={{ display: "flex", gap: 4, marginTop: 8 }}>
+                            {STATUSES.indexOf(status) > 0 && (
+                              <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 8px", fontSize: 11 }} onClick={() => moveTask(task.id, STATUSES[STATUSES.indexOf(status) - 1])}>&larr;</button>
+                            )}
+                            {STATUSES.indexOf(status) < STATUSES.length - 1 && (
+                              <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 8px", fontSize: 11 }} onClick={() => moveTask(task.id, STATUSES[STATUSES.indexOf(status) + 1])}>&rarr;</button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {colTasks.length === 0 && (
+                      <div style={{ textAlign: "center", padding: "20px 8px", color: "var(--text-muted)", fontSize: 11, opacity: 0.5 }}>Drop here</div>
+                    )}
                   </div>
-                ))
-              )}
+                );
+              })}
             </div>
           )
         ) : (
-          !loading && (!rawOutput || rawOutput.includes("No tasks")) ? (
+          !rawOutput || rawOutput.includes("No tasks") ? (
             <div className="panel-empty">
               <div style={{ marginBottom: 8, display: "flex", justifyContent: "center", color: "var(--accent-blue)" }}><ClipboardList size={32} strokeWidth={1.5} /></div>
               <div style={{ fontWeight: 600, marginBottom: 4 }}>No tasks yet</div>
-              <div style={{ color: "var(--text-secondary)", fontSize: 12, marginBottom: 4 }}>
-                Use the form above to create your first task
-              </div>
-              <div style={{ color: "var(--text-secondary)", fontSize: 11 }}>
-                Workflow: backlog → todo → in_progress → in_review → done
-              </div>
+              <div style={{ color: "var(--text-secondary)", fontSize: 12 }}>Use the form above to create your first task</div>
             </div>
           ) : (
             <div className="panel-card" style={{ minHeight: 120 }}>
-              {loading ? (
-                <div className="panel-loading">Loading…</div>
-              ) : (
-                <pre style={{ margin: 0, fontSize: 12, whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
-                  {rawOutput}
-                </pre>
-              )}
+              <pre style={{ margin: 0, fontSize: 12, whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{rawOutput}</pre>
             </div>
           )
         )}
