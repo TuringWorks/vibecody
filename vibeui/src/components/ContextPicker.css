@@ -6,7 +6,7 @@
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
     border-radius: 6px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    box-shadow: var(--elevation-2);
     z-index: 1000;
     max-height: 280px;
     overflow-y: auto;

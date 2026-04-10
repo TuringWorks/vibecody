@@ -1025,3 +1025,52 @@ textarea::placeholder {
 .progress-bar-danger  { background: var(--error-color); }
 .progress-bar-info    { background: var(--info-color); }
 .progress-bar-accent  { background: var(--accent-color); }
+
+/* ── Usability: Focus rings (WCAG 2.4.7) ── */
+*:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
+}
+
+/* ── Usability: Disabled button standard (WCAG 2.1) ── */
+button:disabled,
+.panel-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* ── Usability: Minimum click target sizes (WCAG 2.5.8) ── */
+.panel-btn {
+  min-height: 28px;
+}
+
+.panel-btn.panel-btn--primary {
+  min-height: 32px;
+}
+
+/* ── Usability: Clickable cards standard ── */
+.panel-card--clickable {
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.panel-card--clickable:hover {
+  background: var(--bg-hover);
+}
+
+.panel-card--clickable:active {
+  background: var(--bg-active, var(--bg-hover));
+}
+
+/* ── Usability: Empty state standard ── */
+.panel-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-6) var(--space-4);
+  color: var(--text-secondary);
+  text-align: center;
+}

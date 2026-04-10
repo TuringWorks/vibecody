@@ -23,7 +23,7 @@
   font-size: 0.85rem;
   line-height: 1.4;
   pointer-events: all;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--elevation-2);
   animation: toast-in 0.18s ease-out;
   background: var(--bg-elevated);
   color: var(--text-primary);
