@@ -204,7 +204,7 @@ export function AcpPanel() {
             </button>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
             <div className="panel-card">
               <div className="panel-label">Tools</div>
               <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{toolCount}</div>
@@ -234,7 +234,7 @@ export function AcpPanel() {
           {/* Register new capability form */}
           <div className="panel-card" style={{ marginTop: 12 }}>
             <div className="panel-label" style={{ fontWeight: 600, marginBottom: 8 }}>Register New Capability</div>
-            <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+            <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
               <input className="panel-input" style={{ flex: 2 }} placeholder="Name" value={newCapName} onChange={(e) => setNewCapName(e.target.value)} />
               <select
                 className="panel-select" style={{ flex: 1 }}
@@ -247,7 +247,7 @@ export function AcpPanel() {
               </select>
               <input className="panel-input" style={{ flex: 1 }} placeholder="Version" value={newCapVersion} onChange={(e) => setNewCapVersion(e.target.value)} />
             </div>
-            <div style={{ display: "flex", gap: 6 }}>
+            <div style={{ display: "flex", gap: 8 }}>
               <input className="panel-input" style={{ flex: 1 }} placeholder="Description" value={newCapDesc} onChange={(e) => setNewCapDesc(e.target.value)} />
               <button className="panel-btn panel-btn-primary" onClick={handleRegisterCapability}>Register</button>
             </div>
@@ -306,7 +306,7 @@ export function AcpPanel() {
           </div>
 
           {/* Quick-send message controls */}
-          <div className="panel-card" style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <div className="panel-card" style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <span className="panel-label">Quick Send:</span>
             <button className="panel-btn panel-btn-secondary" onClick={() => handleSendMessage("initialize", "{}")}>initialize</button>
             <button className="panel-btn panel-btn-secondary" onClick={() => handleSendMessage("tools/list", "{}")}>tools/list</button>
