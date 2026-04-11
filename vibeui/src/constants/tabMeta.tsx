@@ -54,7 +54,7 @@ export const TAB_META: Record<string, TabMeta> = {
   "rl-os":           { icon: Brain,        label: "RL-OS",             aliases: ["reinforcement learning", "rl", "rlos", "training", "ppo", "sac", "dqn", "rlhf", "dpo", "distillation", "quantization", "environment", "evaluation", "deployment", "multi-agent", "marl", "reward", "policy", "gymnasium"] },
 
   // --- Data & APIs ---
-  database:          { icon: Database,     label: "Database",          aliases: ["vibesql", "supabase", "migrations", "vectordb", "vector db"] },
+  database:          { icon: Database,     label: "Database",          aliases: ["supabase", "migrations", "vectordb", "vector db"] },
   "api-tools":       { icon: Globe,        label: "API Tools",         aliases: ["http", "graphql", "mock", "websocket", "apidocs", "api docs"] },
   "data-pipeline":   { icon: Radio,        label: "Data Pipeline",     aliases: ["streaming", "ingest", "crawler"] },
 

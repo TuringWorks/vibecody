@@ -435,6 +435,14 @@ pub fn run() {
             commands::generate_migration,
             commands::get_migration_status,
             commands::run_migration_action,
+            // Multi-database DataGrip-parity
+            commands::db_test_connection,
+            commands::db_schema,
+            commands::db_query,
+            commands::db_save_profile,
+            commands::db_list_profiles,
+            commands::db_delete_profile,
+            commands::db_find_local_files,
             // Phase 26: Supabase
             commands::get_supabase_config,
             commands::save_supabase_config,

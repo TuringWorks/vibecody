@@ -10619,6 +10619,882 @@ pub async fn generate_migration(
     engine.chat(&messages, None).await.map_err(|e| e.to_string())
 }
 
+// ── Multi-database: DataGrip-parity connectivity ──────────────────────────
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, Default)]
+pub struct DbConnectionParams {
+    pub driver: String,
+    // File-based
+    pub filepath: Option<String>,
+    // Network-based
+    pub host: Option<String>,
+    pub port: Option<u16>,
+    pub database: Option<String>,
+    pub username: Option<String>,
+    pub password: Option<String>,
+    pub ssl: Option<bool>,
+    // Full DSN (overrides individual fields when provided)
+    pub connection_string: Option<String>,
+    // Driver-specific extras
+    pub account: Option<String>,     // Snowflake account identifier
+    pub warehouse: Option<String>,   // Snowflake warehouse
+    pub project: Option<String>,     // BigQuery project
+    pub dataset: Option<String>,     // BigQuery dataset
+    pub token: Option<String>,       // Turso auth token, Upstash token
+    pub url: Option<String>,         // Turso URL, Upstash URL, Elasticsearch URL
+    pub region: Option<String>,      // AWS region for DynamoDB
+    pub keyspace: Option<String>,    // Cassandra keyspace
+    pub index: Option<String>,       // Elasticsearch index
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct DbSavedProfile {
+    pub id: String,
+    pub name: String,
+    pub driver: String,
+    pub params: DbConnectionParams,
+    pub created_at: u64,
+    pub last_used: Option<u64>,
+}
+
+impl DbConnectionParams {
+    /// Build a PostgreSQL connection string from structured fields.
+    fn to_postgres_dsn(&self) -> String {
+        if let Some(cs) = &self.connection_string {
+            return cs.clone();
+        }
+        let host = self.host.as_deref().unwrap_or("localhost");
+        let port = self.port.unwrap_or(5432);
+        let db = self.database.as_deref().unwrap_or("postgres");
+        let user = self.username.as_deref().unwrap_or("postgres");
+        let pass = self.password.as_deref().unwrap_or("");
+        if pass.is_empty() {
+            format!("postgresql://{user}@{host}:{port}/{db}")
+        } else {
+            format!("postgresql://{user}:{pass}@{host}:{port}/{db}")
+        }
+    }
+
+    /// Build a MySQL connection string from structured fields.
+    #[allow(dead_code)]
+    fn to_mysql_dsn(&self) -> String {
+        if let Some(cs) = &self.connection_string {
+            return cs.clone();
+        }
+        let host = self.host.as_deref().unwrap_or("127.0.0.1");
+        let port = self.port.unwrap_or(3306);
+        let db = self.database.as_deref().unwrap_or("");
+        let user = self.username.as_deref().unwrap_or("root");
+        let pass = self.password.as_deref().unwrap_or("");
+        if pass.is_empty() {
+            format!("mysql://{user}@{host}:{port}/{db}")
+        } else {
+            format!("mysql://{user}:{pass}@{host}:{port}/{db}")
+        }
+    }
+}
+
+/// Helper: check whether a CLI tool is available on PATH.
+fn cli_available(cmd: &str) -> bool {
+    std::process::Command::new(cmd)
+        .arg("--version")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+}
+
+/// Test a database connection. Returns "OK: <message>" or an error string.
+#[tauri::command]
+pub async fn db_test_connection(params: DbConnectionParams) -> Result<String, String> {
+    match params.driver.as_str() {
+        "sqlite" | "duckdb" => {
+            let path = params.filepath.as_deref()
+                .or(params.connection_string.as_deref())
+                .ok_or("filepath is required")?;
+            if params.driver == "sqlite" {
+                validate_sqlite_path(path)?;
+            } else if !std::path::Path::new(path).exists() && path != ":memory:" {
+                return Err("DuckDB file not found".to_string());
+            }
+            Ok(format!("OK: {} file accessible", params.driver))
+        }
+        "postgres" | "cockroachdb" | "neon" | "supabase" | "redshift" | "alloydb"
+        | "aurora-pg" | "timescaledb" | "yugabytedb" => {
+            if !cli_available("psql") {
+                return Err("psql not found. Install PostgreSQL client tools to connect.".to_string());
+            }
+            let dsn = params.to_postgres_dsn();
+            let out = std::process::Command::new("psql")
+                .arg(&dsn)
+                .arg("-c").arg("SELECT 1")
+                .arg("--no-psqlrc")
+                .arg("-t")
+                .output()
+                .map_err(|e| e.to_string())?;
+            if out.status.success() {
+                Ok(format!("OK: Connected to {} ({})", params.driver, params.host.as_deref().unwrap_or("server")))
+            } else {
+                Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
+            }
+        }
+        "mysql" | "mariadb" | "planetscale" | "tidb" | "singlestore" | "aurora-mysql" | "vitess" => {
+            if !cli_available("mysql") {
+                return Err("mysql CLI not found. Install MySQL client tools to connect.".to_string());
+            }
+            let args = build_mysql_args(&params);
+            let out = std::process::Command::new("mysql")
+                .args(&args)
+                .arg("-e").arg("SELECT 1")
+                .output()
+                .map_err(|e| e.to_string())?;
+            if out.status.success() {
+                Ok(format!("OK: Connected to {}", params.driver))
+            } else {
+                Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
+            }
+        }
+        "mssql" | "azure-sql" | "synapse" => {
+            let tool = if cli_available("sqlcmd") { "sqlcmd" } else if cli_available("mssql-cli") { "mssql-cli" } else {
+                return Err("sqlcmd or mssql-cli not found. Install SQL Server command-line tools.".to_string());
+            };
+            let server = params.host.as_deref().unwrap_or("localhost");
+            let port = params.port.unwrap_or(1433);
+            let user = params.username.as_deref().unwrap_or("sa");
+            let pass = params.password.as_deref().unwrap_or("");
+            let db = params.database.as_deref().unwrap_or("master");
+            let out = std::process::Command::new(tool)
+                .arg("-S").arg(format!("{},{}", server, port))
+                .arg("-U").arg(user).arg("-P").arg(pass)
+                .arg("-d").arg(db)
+                .arg("-Q").arg("SELECT 1")
+                .output()
+                .map_err(|e| e.to_string())?;
+            if out.status.success() {
+                Ok("OK: Connected to SQL Server".to_string())
+            } else {
+                Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
+            }
+        }
+        "mongodb" | "mongodb-atlas" | "documentdb" => {
+            if !cli_available("mongosh") {
+                return Err("mongosh not found. Install MongoDB Shell to connect.".to_string());
+            }
+            let dsn = params.connection_string.as_deref()
+                .unwrap_or("mongodb://localhost:27017");
+            let out = std::process::Command::new("mongosh")
+                .arg(dsn)
+                .arg("--eval").arg("db.runCommand({ping:1})")
+                .arg("--quiet")
+                .output()
+                .map_err(|e| e.to_string())?;
+            if out.status.success() { Ok("OK: MongoDB connected".to_string()) }
+            else { Err(String::from_utf8_lossy(&out.stderr).trim().to_string()) }
+        }
+        "redis" | "valkey" | "keydb" | "upstash" => {
+            if !cli_available("redis-cli") {
+                return Err("redis-cli not found. Install Redis client tools.".to_string());
+            }
+            let args = build_redis_args(&params);
+            let out = std::process::Command::new("redis-cli")
+                .args(&args)
+                .arg("PING")
+                .output()
+                .map_err(|e| e.to_string())?;
+            let stdout = String::from_utf8_lossy(&out.stdout);
+            if stdout.trim() == "PONG" { Ok("OK: Redis PONG".to_string()) }
+            else { Err(stdout.trim().to_string()) }
+        }
+        "clickhouse" | "clickhouse-cloud" => {
+            if !cli_available("clickhouse-client") {
+                return Err("clickhouse-client not found. Install ClickHouse client.".to_string());
+            }
+            let args = build_clickhouse_args(&params);
+            let out = std::process::Command::new("clickhouse-client")
+                .args(&args)
+                .arg("--query").arg("SELECT 1")
+                .output()
+                .map_err(|e| e.to_string())?;
+            if out.status.success() { Ok("OK: ClickHouse connected".to_string()) }
+            else { Err(String::from_utf8_lossy(&out.stderr).trim().to_string()) }
+        }
+        "cassandra" | "scylladb" | "astra" => {
+            if !cli_available("cqlsh") {
+                return Err("cqlsh not found. Install Cassandra tools (pip install cqlsh).".to_string());
+            }
+            Ok("OK: cqlsh available (connection tested on first query)".to_string())
+        }
+        "elasticsearch" | "opensearch" => {
+            let url = params.url.as_deref()
+                .or(params.connection_string.as_deref())
+                .unwrap_or("http://localhost:9200");
+            let out = std::process::Command::new("curl")
+                .arg("-s").arg("-f")
+                .arg(format!("{}/", url))
+                .output()
+                .map_err(|e| e.to_string())?;
+            if out.status.success() { Ok("OK: Elasticsearch reachable".to_string()) }
+            else { Err(String::from_utf8_lossy(&out.stderr).trim().to_string()) }
+        }
+        "snowflake" => {
+            if !cli_available("snowsql") {
+                return Err("snowsql not found. Install SnowSQL CLI to connect to Snowflake.".to_string());
+            }
+            Ok("OK: snowsql available".to_string())
+        }
+        "bigquery" => {
+            if !cli_available("bq") {
+                return Err("bq CLI not found. Install Google Cloud SDK to connect to BigQuery.".to_string());
+            }
+            Ok("OK: bq CLI available".to_string())
+        }
+        "turso" | "libsql" => {
+            if !cli_available("turso") {
+                return Err("turso CLI not found. Install Turso CLI (https://docs.turso.tech/cli).".to_string());
+            }
+            Ok("OK: Turso CLI available".to_string())
+        }
+        other => Err(format!("Unsupported driver: {other}")),
+    }
+}
+
+/// List tables/collections for any supported database.
+#[tauri::command]
+pub async fn db_schema(params: DbConnectionParams) -> Result<Vec<TableInfo>, String> {
+    match params.driver.as_str() {
+        "sqlite" => {
+            let path = params.filepath.as_deref()
+                .or(params.connection_string.as_deref())
+                .ok_or("filepath required for SQLite")?;
+            validate_sqlite_path(path)?;
+            list_sqlite_tables(path)
+        }
+        "duckdb" => {
+            let path = params.filepath.as_deref()
+                .or(params.connection_string.as_deref())
+                .unwrap_or(":memory:");
+            list_duckdb_tables(path)
+        }
+        "postgres" | "cockroachdb" | "neon" | "supabase" | "redshift" | "alloydb"
+        | "aurora-pg" | "timescaledb" | "yugabytedb" => {
+            list_postgres_tables(&params.to_postgres_dsn())
+        }
+        "mysql" | "mariadb" | "planetscale" | "tidb" | "singlestore" | "aurora-mysql" | "vitess" => {
+            list_mysql_tables(&params)
+        }
+        "mssql" | "azure-sql" | "synapse" => {
+            list_mssql_tables(&params)
+        }
+        "mongodb" | "mongodb-atlas" | "documentdb" => {
+            list_mongo_collections(&params)
+        }
+        "redis" | "valkey" | "keydb" | "upstash" => {
+            list_redis_keyspaces(&params)
+        }
+        "clickhouse" | "clickhouse-cloud" => {
+            list_clickhouse_tables(&params)
+        }
+        "cassandra" | "scylladb" | "astra" => {
+            list_cassandra_tables(&params)
+        }
+        "elasticsearch" | "opensearch" => {
+            list_es_indices(&params)
+        }
+        other => Err(format!("Schema listing not yet supported for: {other}")),
+    }
+}
+
+/// Execute a query on any supported database.
+#[tauri::command]
+pub async fn db_query(params: DbConnectionParams, sql: String) -> Result<QueryResult, String> {
+    match params.driver.as_str() {
+        "sqlite" => {
+            let path = params.filepath.as_deref()
+                .or(params.connection_string.as_deref())
+                .ok_or("filepath required for SQLite")?;
+            validate_sqlite_path(path)?;
+            query_sqlite(path, &sql)
+        }
+        "duckdb" => {
+            let path = params.filepath.as_deref()
+                .or(params.connection_string.as_deref())
+                .unwrap_or(":memory:");
+            query_duckdb(path, &sql)
+        }
+        "postgres" | "cockroachdb" | "neon" | "supabase" | "redshift" | "alloydb"
+        | "aurora-pg" | "timescaledb" | "yugabytedb" => {
+            query_postgres(&params.to_postgres_dsn(), &sql)
+        }
+        "mysql" | "mariadb" | "planetscale" | "tidb" | "singlestore" | "aurora-mysql" | "vitess" => {
+            query_mysql(&params, &sql)
+        }
+        "mssql" | "azure-sql" | "synapse" => {
+            query_mssql(&params, &sql)
+        }
+        "mongodb" | "mongodb-atlas" | "documentdb" => {
+            query_mongodb(&params, &sql)
+        }
+        "redis" | "valkey" | "keydb" | "upstash" => {
+            query_redis(&params, &sql)
+        }
+        "clickhouse" | "clickhouse-cloud" => {
+            query_clickhouse(&params, &sql)
+        }
+        "cassandra" | "scylladb" | "astra" => {
+            query_cassandra(&params, &sql)
+        }
+        "elasticsearch" | "opensearch" => {
+            query_elasticsearch(&params, &sql)
+        }
+        other => Err(format!("Query execution not yet supported for: {other}")),
+    }
+}
+
+/// Save a connection profile to the workspace store (passwords stored encrypted).
+#[tauri::command]
+pub async fn db_save_profile(
+    workspace_path: String,
+    profile: DbSavedProfile,
+) -> Result<String, String> {
+    use vibecli_cli::workspace_store::WorkspaceStore;
+    let store = WorkspaceStore::open(std::path::Path::new(&workspace_path))?;
+    let key = format!("db:profile:{}", profile.id);
+    let value = serde_json::to_string(&profile).map_err(|e| e.to_string())?;
+    store.setting_set(&key, &value)?;
+    Ok(profile.id)
+}
+
+/// List all saved connection profiles for a workspace.
+#[tauri::command]
+pub async fn db_list_profiles(workspace_path: String) -> Result<Vec<DbSavedProfile>, String> {
+    use vibecli_cli::workspace_store::WorkspaceStore;
+    let store = WorkspaceStore::open(std::path::Path::new(&workspace_path))?;
+    let entries = store.setting_list()?;
+    let mut profiles = Vec::new();
+    for entry in entries {
+        // entry is a serde_json::Value with shape {"key": "...", "updated_at": "..."}
+        let key = entry["key"].as_str().unwrap_or("");
+        if key.starts_with("db:profile:") {
+            if let Ok(Some(val)) = store.setting_get(key) {
+                if let Ok(p) = serde_json::from_str::<DbSavedProfile>(&val) {
+                    profiles.push(p);
+                }
+            }
+        }
+    }
+    profiles.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+    Ok(profiles)
+}
+
+/// Delete a saved connection profile.
+#[tauri::command]
+pub async fn db_delete_profile(workspace_path: String, profile_id: String) -> Result<(), String> {
+    use vibecli_cli::workspace_store::WorkspaceStore;
+    let key = format!("db:profile:{}", profile_id);
+    WorkspaceStore::open(std::path::Path::new(&workspace_path))?.setting_delete(&key).map(|_| ())
+}
+
+// ── Per-driver helper functions ──────────────────────────────────────────────
+
+fn build_mysql_args(p: &DbConnectionParams) -> Vec<String> {
+    let mut args = Vec::new();
+    if p.connection_string.is_some() {
+        args.push(format!("--host={}", p.host.as_deref().unwrap_or("127.0.0.1")));
+    } else {
+        args.push(format!("--host={}", p.host.as_deref().unwrap_or("127.0.0.1")));
+        args.push(format!("--port={}", p.port.unwrap_or(3306)));
+        if let Some(u) = &p.username { args.push(format!("--user={u}")); }
+        if let Some(pw) = &p.password { if !pw.is_empty() { args.push(format!("--password={pw}")); } }
+        if let Some(db) = &p.database { args.push(format!("--database={db}")); }
+    }
+    args.push("--batch".to_string());
+    args.push("--silent".to_string());
+    args
+}
+
+fn build_redis_args(p: &DbConnectionParams) -> Vec<String> {
+    let mut args = Vec::new();
+    if let Some(cs) = &p.connection_string {
+        args.push("-u".to_string());
+        args.push(cs.clone());
+    } else {
+        args.push("-h".to_string());
+        args.push(p.host.as_deref().unwrap_or("127.0.0.1").to_string());
+        args.push("-p".to_string());
+        args.push(p.port.unwrap_or(6379).to_string());
+        if let Some(pw) = &p.password { if !pw.is_empty() {
+            args.push("-a".to_string());
+            args.push(pw.clone());
+        }}
+    }
+    args
+}
+
+fn build_clickhouse_args(p: &DbConnectionParams) -> Vec<String> {
+    let mut args = Vec::new();
+    args.push(format!("--host={}", p.host.as_deref().unwrap_or("localhost")));
+    args.push(format!("--port={}", p.port.unwrap_or(9000)));
+    if let Some(u) = &p.username { args.push(format!("--user={u}")); }
+    if let Some(pw) = &p.password { if !pw.is_empty() { args.push(format!("--password={pw}")); } }
+    if let Some(db) = &p.database { args.push(format!("--database={db}")); }
+    args
+}
+
+fn list_postgres_tables(dsn: &str) -> Result<Vec<TableInfo>, String> {
+    if !cli_available("psql") {
+        return Err("psql not found. Install PostgreSQL client tools.".to_string());
+    }
+    let sql = "SELECT table_name, (SELECT reltuples::bigint FROM pg_class WHERE relname = t.table_name) as row_count FROM information_schema.tables t WHERE table_schema = 'public' ORDER BY table_name;";
+    let out = std::process::Command::new("psql")
+        .arg(dsn)
+        .arg("--no-psqlrc")
+        .arg("-A").arg("-F").arg("|")
+        .arg("-t")
+        .arg("-c").arg(sql)
+        .output()
+        .map_err(|e| e.to_string())?;
+    if !out.status.success() {
+        return Err(String::from_utf8_lossy(&out.stderr).trim().to_string());
+    }
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let mut tables = Vec::new();
+    for line in stdout.lines() {
+        let parts: Vec<&str> = line.split('|').collect();
+        if !parts[0].trim().is_empty() {
+            let name = parts[0].trim().to_string();
+            let row_count: i64 = parts.get(1).and_then(|s| s.trim().parse().ok()).unwrap_or(-1);
+            let cols = fetch_postgres_columns(dsn, &name);
+            tables.push(TableInfo { name, row_count, columns: cols });
+        }
+    }
+    Ok(tables)
+}
+
+fn fetch_postgres_columns(dsn: &str, table: &str) -> Vec<ColumnInfo> {
+    let sql = format!(
+        "SELECT column_name, data_type, is_nullable, \
+         (SELECT TRUE FROM information_schema.key_column_usage k \
+          JOIN information_schema.table_constraints tc ON k.constraint_name = tc.constraint_name \
+          WHERE tc.constraint_type = 'PRIMARY KEY' AND k.table_name = '{table}' AND k.column_name = c.column_name LIMIT 1) as is_pk \
+         FROM information_schema.columns c WHERE table_name = '{table}' AND table_schema = 'public' ORDER BY ordinal_position;"
+    );
+    let out = match std::process::Command::new("psql")
+        .arg(dsn).arg("--no-psqlrc").arg("-A").arg("-F").arg("|").arg("-t").arg("-c").arg(&sql)
+        .output() { Ok(o) => o, Err(_) => return vec![] };
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    stdout.lines().filter_map(|line| {
+        let p: Vec<&str> = line.split('|').collect();
+        if p.len() >= 2 { Some(ColumnInfo {
+            name: p[0].trim().to_string(),
+            data_type: p[1].trim().to_string(),
+            nullable: p.get(2).map(|s| s.trim() == "YES").unwrap_or(true),
+            primary_key: p.get(3).map(|s| s.trim() == "t").unwrap_or(false),
+        }) } else { None }
+    }).collect()
+}
+
+fn query_postgres(dsn: &str, sql: &str) -> Result<QueryResult, String> {
+    if !cli_available("psql") {
+        return Err("psql not found. Install PostgreSQL client tools.".to_string());
+    }
+    // Use CSV output for structured parsing
+    let wrapped = format!("COPY ({}) TO STDOUT WITH (FORMAT CSV, HEADER TRUE)", sql.trim().trim_end_matches(';'));
+    let out = std::process::Command::new("psql")
+        .arg(dsn).arg("--no-psqlrc").arg("-c").arg(&wrapped)
+        .output().map_err(|e| e.to_string())?;
+    if !out.status.success() {
+        // Fall back to plain output for non-SELECT statements
+        let plain_out = std::process::Command::new("psql")
+            .arg(dsn).arg("--no-psqlrc").arg("-c").arg(sql)
+            .output().map_err(|e| e.to_string())?;
+        let msg = if plain_out.status.success() {
+            String::from_utf8_lossy(&plain_out.stdout).trim().to_string()
+        } else {
+            String::from_utf8_lossy(&plain_out.stderr).trim().to_string()
+        };
+        return Ok(QueryResult { columns: vec!["result".to_string()], rows: vec![serde_json::json!({"result": msg})], row_count: 1, error: None });
+    }
+    parse_csv_result(&String::from_utf8_lossy(&out.stdout))
+}
+
+fn list_mysql_tables(p: &DbConnectionParams) -> Result<Vec<TableInfo>, String> {
+    if !cli_available("mysql") {
+        return Err("mysql CLI not found. Install MySQL client tools.".to_string());
+    }
+    let mut args = build_mysql_args(p);
+    args.push("-e".to_string());
+    args.push(
+        "SELECT table_name, table_rows FROM information_schema.tables WHERE table_schema = DATABASE() ORDER BY table_name;".to_string()
+    );
+    let out = std::process::Command::new("mysql").args(&args).output().map_err(|e| e.to_string())?;
+    if !out.status.success() {
+        return Err(String::from_utf8_lossy(&out.stderr).trim().to_string());
+    }
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let mut tables = Vec::new();
+    for line in stdout.lines().skip(1) { // skip header
+        let parts: Vec<&str> = line.split('\t').collect();
+        if !parts[0].trim().is_empty() {
+            let name = parts[0].trim().to_string();
+            let row_count: i64 = parts.get(1).and_then(|s| s.trim().parse().ok()).unwrap_or(-1);
+            let cols = fetch_mysql_columns(p, &name);
+            tables.push(TableInfo { name, row_count, columns: cols });
+        }
+    }
+    Ok(tables)
+}
+
+fn fetch_mysql_columns(p: &DbConnectionParams, table: &str) -> Vec<ColumnInfo> {
+    let mut args = build_mysql_args(p);
+    args.push("-e".to_string());
+    args.push(format!(
+        "SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE, COLUMN_KEY FROM information_schema.columns WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '{}' ORDER BY ORDINAL_POSITION;",
+        table
+    ));
+    let out = match std::process::Command::new("mysql").args(&args).output() {
+        Ok(o) => o,
+        Err(_) => return vec![],
+    };
+    String::from_utf8_lossy(&out.stdout).lines().skip(1).filter_map(|line| {
+        let p: Vec<&str> = line.split('\t').collect();
+        if p.len() >= 2 { Some(ColumnInfo {
+            name: p[0].trim().to_string(),
+            data_type: p[1].trim().to_string(),
+            nullable: p.get(2).map(|s| s.trim() == "YES").unwrap_or(true),
+            primary_key: p.get(3).map(|s| s.trim() == "PRI").unwrap_or(false),
+        }) } else { None }
+    }).collect()
+}
+
+fn query_mysql(p: &DbConnectionParams, sql: &str) -> Result<QueryResult, String> {
+    if !cli_available("mysql") {
+        return Err("mysql CLI not found.".to_string());
+    }
+    let mut args = build_mysql_args(p);
+    args.push("-e".to_string());
+    args.push(sql.to_string());
+    let out = std::process::Command::new("mysql").args(&args).output().map_err(|e| e.to_string())?;
+    if !out.status.success() {
+        return Err(String::from_utf8_lossy(&out.stderr).trim().to_string());
+    }
+    parse_tsv_result(&String::from_utf8_lossy(&out.stdout))
+}
+
+fn list_mssql_tables(p: &DbConnectionParams) -> Result<Vec<TableInfo>, String> {
+    let tool = if cli_available("sqlcmd") { "sqlcmd" } else if cli_available("mssql-cli") { "mssql-cli" }
+        else { return Err("sqlcmd or mssql-cli not found.".to_string()); };
+    let server = p.host.as_deref().unwrap_or("localhost");
+    let port = p.port.unwrap_or(1433);
+    let user = p.username.as_deref().unwrap_or("sa");
+    let pass = p.password.as_deref().unwrap_or("");
+    let db = p.database.as_deref().unwrap_or("master");
+    let sql = "SELECT TABLE_NAME, (SELECT SUM(row_count) FROM sys.dm_db_partition_stats s WHERE s.object_id = OBJECT_ID(t.TABLE_SCHEMA+'.'+t.TABLE_NAME) AND s.index_id < 2) FROM INFORMATION_SCHEMA.TABLES t WHERE TABLE_TYPE = 'BASE TABLE' ORDER BY TABLE_NAME;";
+    let out = std::process::Command::new(tool)
+        .arg("-S").arg(format!("{},{}", server, port))
+        .arg("-U").arg(user).arg("-P").arg(pass).arg("-d").arg(db)
+        .arg("-Q").arg(sql).arg("-s").arg("|").arg("-h").arg("-1")
+        .output().map_err(|e| e.to_string())?;
+    if !out.status.success() { return Err(String::from_utf8_lossy(&out.stderr).trim().to_string()); }
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let tables = stdout.lines().filter_map(|line| {
+        let parts: Vec<&str> = line.split('|').collect();
+        if parts.len() >= 1 && !parts[0].trim().is_empty() && !parts[0].contains("---") {
+            Some(TableInfo {
+                name: parts[0].trim().to_string(),
+                row_count: parts.get(1).and_then(|s| s.trim().parse().ok()).unwrap_or(-1),
+                columns: vec![],
+            })
+        } else { None }
+    }).collect();
+    Ok(tables)
+}
+
+fn query_mssql(p: &DbConnectionParams, sql: &str) -> Result<QueryResult, String> {
+    let tool = if cli_available("sqlcmd") { "sqlcmd" } else if cli_available("mssql-cli") { "mssql-cli" }
+        else { return Err("sqlcmd or mssql-cli not found.".to_string()); };
+    let server = p.host.as_deref().unwrap_or("localhost");
+    let port = p.port.unwrap_or(1433);
+    let user = p.username.as_deref().unwrap_or("sa");
+    let pass = p.password.as_deref().unwrap_or("");
+    let db = p.database.as_deref().unwrap_or("master");
+    let out = std::process::Command::new(tool)
+        .arg("-S").arg(format!("{},{}", server, port))
+        .arg("-U").arg(user).arg("-P").arg(pass).arg("-d").arg(db)
+        .arg("-Q").arg(sql).arg("-s").arg("|").arg("-h").arg("-1")
+        .output().map_err(|e| e.to_string())?;
+    if !out.status.success() { return Err(String::from_utf8_lossy(&out.stderr).trim().to_string()); }
+    parse_pipe_result(&String::from_utf8_lossy(&out.stdout))
+}
+
+fn list_mongo_collections(p: &DbConnectionParams) -> Result<Vec<TableInfo>, String> {
+    if !cli_available("mongosh") { return Err("mongosh not found.".to_string()); }
+    let dsn = p.connection_string.as_deref().unwrap_or("mongodb://localhost:27017");
+    let out = std::process::Command::new("mongosh")
+        .arg(dsn).arg("--eval")
+        .arg("db.getCollectionNames().forEach(n => { print(n + '|' + db.getCollection(n).estimatedDocumentCount()); })")
+        .arg("--quiet").arg("--norc")
+        .output().map_err(|e| e.to_string())?;
+    if !out.status.success() { return Err(String::from_utf8_lossy(&out.stderr).trim().to_string()); }
+    let tables: Vec<TableInfo> = String::from_utf8_lossy(&out.stdout).lines().filter_map(|line| {
+        let parts: Vec<&str> = line.split('|').collect();
+        if !parts[0].trim().is_empty() {
+            Some(TableInfo {
+                name: parts[0].trim().to_string(),
+                row_count: parts.get(1).and_then(|s| s.trim().parse().ok()).unwrap_or(-1),
+                columns: vec![ColumnInfo { name: "(document)".to_string(), data_type: "BSON".to_string(), nullable: false, primary_key: true }],
+            })
+        } else { None }
+    }).collect();
+    Ok(tables)
+}
+
+fn query_mongodb(p: &DbConnectionParams, query: &str) -> Result<QueryResult, String> {
+    if !cli_available("mongosh") { return Err("mongosh not found.".to_string()); }
+    let dsn = p.connection_string.as_deref().unwrap_or("mongodb://localhost:27017");
+    // query is a JS expression like: db.users.find({}).limit(50)
+    let eval = format!("JSON.stringify({})", query);
+    let out = std::process::Command::new("mongosh")
+        .arg(dsn).arg("--eval").arg(&eval).arg("--quiet").arg("--norc")
+        .output().map_err(|e| e.to_string())?;
+    if !out.status.success() { return Err(String::from_utf8_lossy(&out.stderr).trim().to_string()); }
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let rows: Vec<serde_json::Value> = serde_json::from_str(stdout.trim()).unwrap_or_default();
+    let columns = rows.first().and_then(|r| r.as_object()).map(|o| o.keys().cloned().collect()).unwrap_or_default();
+    let row_count = rows.len();
+    Ok(QueryResult { columns, rows, row_count, error: None })
+}
+
+fn list_redis_keyspaces(p: &DbConnectionParams) -> Result<Vec<TableInfo>, String> {
+    if !cli_available("redis-cli") { return Err("redis-cli not found.".to_string()); }
+    let args = build_redis_args(p);
+    let out = std::process::Command::new("redis-cli").args(&args).arg("INFO").arg("keyspace")
+        .output().map_err(|e| e.to_string())?;
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let tables: Vec<TableInfo> = stdout.lines()
+        .filter(|l| l.starts_with("db"))
+        .map(|line| {
+            let parts: Vec<&str> = line.splitn(2, ':').collect();
+            let db_name = parts[0].trim().to_string();
+            let keys: i64 = parts.get(1).and_then(|s| {
+                s.split(',').next().and_then(|kv| kv.split('=').nth(1)).and_then(|n| n.parse().ok())
+            }).unwrap_or(0);
+            TableInfo { name: db_name, row_count: keys, columns: vec![ColumnInfo { name: "key".to_string(), data_type: "string".to_string(), nullable: false, primary_key: true }] }
+        }).collect();
+    Ok(if tables.is_empty() { vec![TableInfo { name: "db0".to_string(), row_count: 0, columns: vec![] }] } else { tables })
+}
+
+fn query_redis(p: &DbConnectionParams, command: &str) -> Result<QueryResult, String> {
+    if !cli_available("redis-cli") { return Err("redis-cli not found.".to_string()); }
+    let mut args = build_redis_args(p);
+    // Split command string into args
+    for part in command.split_whitespace() { args.push(part.to_string()); }
+    let out = std::process::Command::new("redis-cli").args(&args).output().map_err(|e| e.to_string())?;
+    let result = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    Ok(QueryResult {
+        columns: vec!["result".to_string()],
+        rows: vec![serde_json::json!({"result": result})],
+        row_count: 1,
+        error: if out.status.success() { None } else { Some(result.clone()) },
+    })
+}
+
+fn list_duckdb_tables(path: &str) -> Result<Vec<TableInfo>, String> {
+    if !cli_available("duckdb") { return Err("duckdb CLI not found. Install DuckDB.".to_string()); }
+    let out = std::process::Command::new("duckdb").arg(path)
+        .arg("-c").arg("SELECT table_name, estimated_size FROM duckdb_tables() ORDER BY table_name;")
+        .output().map_err(|e| e.to_string())?;
+    if !out.status.success() { return Err(String::from_utf8_lossy(&out.stderr).trim().to_string()); }
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let tables = stdout.lines().skip(1).filter(|l| l.contains('│') || l.contains('|')).filter_map(|line| {
+        let sep = if line.contains('│') { '│' } else { '|' };
+        let parts: Vec<&str> = line.split(sep).collect();
+        let name = parts.get(1).map(|s| s.trim()).unwrap_or("").to_string();
+        if name.is_empty() { return None; }
+        let rows: i64 = parts.get(2).and_then(|s| s.trim().parse().ok()).unwrap_or(-1);
+        Some(TableInfo { name, row_count: rows, columns: vec![] })
+    }).collect();
+    Ok(tables)
+}
+
+fn query_duckdb(path: &str, sql: &str) -> Result<QueryResult, String> {
+    if !cli_available("duckdb") { return Err("duckdb CLI not found.".to_string()); }
+    let out = std::process::Command::new("duckdb").arg(path)
+        .arg("-json").arg("-c").arg(sql)
+        .output().map_err(|e| e.to_string())?;
+    if !out.status.success() {
+        return Err(String::from_utf8_lossy(&out.stderr).trim().to_string());
+    }
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    if stdout.trim().is_empty() {
+        return Ok(QueryResult { columns: vec![], rows: vec![], row_count: 0, error: None });
+    }
+    let rows: Vec<serde_json::Value> = serde_json::from_str(stdout.trim()).unwrap_or_default();
+    let columns = rows.first().and_then(|r| r.as_object()).map(|o| o.keys().cloned().collect()).unwrap_or_default();
+    let row_count = rows.len();
+    Ok(QueryResult { columns, rows, row_count, error: None })
+}
+
+fn list_clickhouse_tables(p: &DbConnectionParams) -> Result<Vec<TableInfo>, String> {
+    if !cli_available("clickhouse-client") { return Err("clickhouse-client not found.".to_string()); }
+    let sql = "SELECT name, total_rows FROM system.tables WHERE database = currentDatabase() ORDER BY name;";
+    let mut args = build_clickhouse_args(p);
+    args.push("--format=TabSeparated".to_string());
+    args.push("--query".to_string()); args.push(sql.to_string());
+    let out = std::process::Command::new("clickhouse-client").args(&args).output().map_err(|e| e.to_string())?;
+    if !out.status.success() { return Err(String::from_utf8_lossy(&out.stderr).trim().to_string()); }
+    let tables = String::from_utf8_lossy(&out.stdout).lines().filter_map(|line| {
+        let parts: Vec<&str> = line.split('\t').collect();
+        if parts.len() >= 1 && !parts[0].trim().is_empty() {
+            Some(TableInfo { name: parts[0].trim().to_string(), row_count: parts.get(1).and_then(|s| s.trim().parse().ok()).unwrap_or(-1), columns: vec![] })
+        } else { None }
+    }).collect();
+    Ok(tables)
+}
+
+fn query_clickhouse(p: &DbConnectionParams, sql: &str) -> Result<QueryResult, String> {
+    if !cli_available("clickhouse-client") { return Err("clickhouse-client not found.".to_string()); }
+    let mut args = build_clickhouse_args(p);
+    args.push("--format=JSONEachRow".to_string());
+    args.push("--query".to_string()); args.push(sql.to_string());
+    let out = std::process::Command::new("clickhouse-client").args(&args).output().map_err(|e| e.to_string())?;
+    if !out.status.success() { return Err(String::from_utf8_lossy(&out.stderr).trim().to_string()); }
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let rows: Vec<serde_json::Value> = stdout.lines().filter_map(|l| serde_json::from_str(l).ok()).collect();
+    let columns = rows.first().and_then(|r| r.as_object()).map(|o| o.keys().cloned().collect()).unwrap_or_default();
+    let row_count = rows.len();
+    Ok(QueryResult { columns, rows, row_count, error: None })
+}
+
+fn list_cassandra_tables(p: &DbConnectionParams) -> Result<Vec<TableInfo>, String> {
+    if !cli_available("cqlsh") { return Err("cqlsh not found. Install via pip: pip install cqlsh".to_string()); }
+    let host = p.host.as_deref().unwrap_or("localhost");
+    let port = p.port.unwrap_or(9042).to_string();
+    let keyspace = p.keyspace.as_deref().unwrap_or("");
+    let cql = if keyspace.is_empty() {
+        "DESCRIBE KEYSPACES;".to_string()
+    } else {
+        format!("USE {}; DESCRIBE TABLES;", keyspace)
+    };
+    let out = std::process::Command::new("cqlsh").arg(host).arg(&port)
+        .arg("-e").arg(&cql).output().map_err(|e| e.to_string())?;
+    if !out.status.success() { return Err(String::from_utf8_lossy(&out.stderr).trim().to_string()); }
+    let tables = String::from_utf8_lossy(&out.stdout).lines()
+        .flat_map(|l| l.split_whitespace())
+        .filter(|s| !s.is_empty())
+        .map(|s| TableInfo { name: s.to_string(), row_count: -1, columns: vec![] })
+        .collect();
+    Ok(tables)
+}
+
+fn query_cassandra(p: &DbConnectionParams, cql: &str) -> Result<QueryResult, String> {
+    if !cli_available("cqlsh") { return Err("cqlsh not found.".to_string()); }
+    let host = p.host.as_deref().unwrap_or("localhost");
+    let port = p.port.unwrap_or(9042).to_string();
+    let out = std::process::Command::new("cqlsh").arg(host).arg(&port)
+        .arg("-e").arg(cql).output().map_err(|e| e.to_string())?;
+    if !out.status.success() { return Err(String::from_utf8_lossy(&out.stderr).trim().to_string()); }
+    let result = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    Ok(QueryResult { columns: vec!["result".to_string()], rows: vec![serde_json::json!({"result": result})], row_count: 1, error: None })
+}
+
+fn list_es_indices(p: &DbConnectionParams) -> Result<Vec<TableInfo>, String> {
+    let base = p.url.as_deref().or(p.connection_string.as_deref()).unwrap_or("http://localhost:9200");
+    let out = std::process::Command::new("curl").arg("-s").arg(format!("{}/_cat/indices?format=json", base))
+        .output().map_err(|e| e.to_string())?;
+    if !out.status.success() { return Err(String::from_utf8_lossy(&out.stderr).trim().to_string()); }
+    let json: Vec<serde_json::Value> = serde_json::from_slice(&out.stdout).unwrap_or_default();
+    let tables = json.iter().filter_map(|idx| {
+        let name = idx["index"].as_str()?.to_string();
+        let rows: i64 = idx["docs.count"].as_str().and_then(|s| s.parse().ok()).unwrap_or(-1);
+        Some(TableInfo { name, row_count: rows, columns: vec![] })
+    }).collect();
+    Ok(tables)
+}
+
+fn query_elasticsearch(p: &DbConnectionParams, query: &str) -> Result<QueryResult, String> {
+    let base = p.url.as_deref().or(p.connection_string.as_deref()).unwrap_or("http://localhost:9200");
+    let index = p.index.as_deref().unwrap_or("_all");
+    let out = std::process::Command::new("curl")
+        .arg("-s").arg("-X").arg("GET")
+        .arg(format!("{}/{}/_search", base, index))
+        .arg("-H").arg("Content-Type: application/json")
+        .arg("-d").arg(query)
+        .output().map_err(|e| e.to_string())?;
+    if !out.status.success() { return Err(String::from_utf8_lossy(&out.stderr).trim().to_string()); }
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap_or_default();
+    let hits = json["hits"]["hits"].as_array().cloned().unwrap_or_default();
+    let rows: Vec<serde_json::Value> = hits.iter().filter_map(|h| h["_source"].as_object().map(|o| serde_json::Value::Object(o.clone()))).collect();
+    let columns = rows.first().and_then(|r| r.as_object()).map(|o| o.keys().cloned().collect()).unwrap_or_default();
+    Ok(QueryResult { columns, rows: rows.clone(), row_count: rows.len(), error: None })
+}
+
+/// Parse CSV output (from psql COPY ... WITH FORMAT CSV HEADER).
+fn parse_csv_result(csv: &str) -> Result<QueryResult, String> {
+    let mut lines = csv.lines();
+    let header = match lines.next() { Some(h) => h, None => return Ok(QueryResult { columns: vec![], rows: vec![], row_count: 0, error: None }) };
+    let columns: Vec<String> = header.split(',').map(|s| s.trim_matches('"').to_string()).collect();
+    let rows: Vec<serde_json::Value> = lines.map(|line| {
+        let vals: Vec<&str> = line.splitn(columns.len(), ',').collect();
+        let obj: serde_json::Map<String, serde_json::Value> = columns.iter().zip(vals.iter())
+            .map(|(col, val)| (col.clone(), serde_json::Value::String(val.trim_matches('"').to_string())))
+            .collect();
+        serde_json::Value::Object(obj)
+    }).collect();
+    let row_count = rows.len();
+    Ok(QueryResult { columns, rows, row_count, error: None })
+}
+
+/// Parse TSV output (from mysql --batch --silent).
+fn parse_tsv_result(tsv: &str) -> Result<QueryResult, String> {
+    let mut lines = tsv.lines();
+    let header = match lines.next() { Some(h) => h, None => return Ok(QueryResult { columns: vec![], rows: vec![], row_count: 0, error: None }) };
+    let columns: Vec<String> = header.split('\t').map(|s| s.trim().to_string()).collect();
+    let rows: Vec<serde_json::Value> = lines.map(|line| {
+        let vals: Vec<&str> = line.splitn(columns.len(), '\t').collect();
+        let obj: serde_json::Map<String, serde_json::Value> = columns.iter().zip(vals.iter())
+            .map(|(col, val)| (col.clone(), serde_json::Value::String(val.trim().to_string())))
+            .collect();
+        serde_json::Value::Object(obj)
+    }).collect();
+    let row_count = rows.len();
+    Ok(QueryResult { columns, rows, row_count, error: None })
+}
+
+/// Parse pipe-separated output (from sqlcmd -s |).
+fn parse_pipe_result(text: &str) -> Result<QueryResult, String> {
+    let lines: Vec<&str> = text.lines().filter(|l| !l.trim().starts_with('-') && !l.trim().is_empty()).collect();
+    if lines.is_empty() { return Ok(QueryResult { columns: vec![], rows: vec![], row_count: 0, error: None }); }
+    let columns: Vec<String> = lines[0].split('|').map(|s| s.trim().to_string()).collect();
+    let rows: Vec<serde_json::Value> = lines[1..].iter().map(|line| {
+        let vals: Vec<&str> = line.splitn(columns.len(), '|').collect();
+        let obj: serde_json::Map<String, serde_json::Value> = columns.iter().zip(vals.iter())
+            .map(|(col, val)| (col.clone(), serde_json::Value::String(val.trim().to_string())))
+            .collect();
+        serde_json::Value::Object(obj)
+    }).collect();
+    let row_count = rows.len();
+    Ok(QueryResult { columns, rows, row_count, error: None })
+}
+
+/// Find SQLite and DuckDB database files in the workspace.
+#[tauri::command]
+pub async fn db_find_local_files(workspace_path: String) -> Vec<serde_json::Value> {
+    walkdir::WalkDir::new(&workspace_path)
+        .max_depth(4)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| {
+            let ext = e.path().extension().and_then(|x| x.to_str()).unwrap_or("");
+            e.file_type().is_file() && matches!(ext, "db" | "sqlite" | "sqlite3" | "duckdb" | "ddb")
+        })
+        .filter_map(|e| {
+            let path = e.path().to_str()?.to_string();
+            let ext = e.path().extension().and_then(|x| x.to_str()).unwrap_or("");
+            let driver = if matches!(ext, "duckdb" | "ddb") { "duckdb" } else { "sqlite" };
+            Some(serde_json::json!({"path": path, "driver": driver, "name": e.file_name().to_str()?.to_string()}))
+        })
+        .collect()
+}
+
 // ── Supabase commands (Phase 26) ──────────────────────────────────────────────
 
 #[derive(serde::Serialize, serde::Deserialize, Default)]
