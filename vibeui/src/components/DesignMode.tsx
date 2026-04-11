@@ -19,6 +19,20 @@ interface GeneratedFile {
 
 type DesignTab = "preview" | "generate" | "components" | "inspector" | "figma";
 
+// Ports and hostnames that serve the VibeUI app itself — never load in the preview iframe.
+const BLOCKED_PATTERNS = [
+  /^https?:\/\/localhost:1420/i,   // Tauri dev server
+  /^https?:\/\/127\.0\.0\.1:1420/i,
+  /^tauri:\/\//i,                  // Tauri internal protocol
+  /^https?:\/\/localhost:5173/i,   // Vite default (VibeUI dev)
+  /^https?:\/\/127\.0\.0\.1:5173/i,
+];
+
+function isBlockedUrl(url: string): boolean {
+  if (!url.trim()) return false;
+  return BLOCKED_PATTERNS.some((p) => p.test(url.trim()));
+}
+
 const tabDefs: { id: DesignTab; label: string }[] = [
   { id: "preview", label: "Preview" },
   { id: "generate", label: "Generate" },
@@ -48,7 +62,8 @@ const panelStyle: React.CSSProperties = {
 
 export function DesignMode({ workspacePath, provider }: DesignModeProps) {
   const [activeTab, setActiveTab] = useState<DesignTab>("preview");
-  const [previewUrl, setPreviewUrl] = useState("http://localhost:5173");
+  const [previewUrl, setPreviewUrl] = useState("");
+  const [blockedError, setBlockedError] = useState(false);
   const [visualEditEnabled, setVisualEditEnabled] = useState(false);
   const [selectedElement, setSelectedElement] = useState<SelectedElement | null>(null);
   const [aiInstruction, setAiInstruction] = useState("");
@@ -224,13 +239,25 @@ try {
       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", flexShrink: 0 }}>
         <input
           value={previewUrl}
-          onChange={(e) => setPreviewUrl(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") { setPreviewSrcdoc(null); iframeRef.current?.setAttribute("src", previewUrl); } }}
-          style={{ flex: 1, background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "inherit", padding: "4px 8px", fontSize: 12 }}
-          placeholder={previewSrcdoc ? "Showing generated preview — enter URL to load external" : "http://localhost:5173"}
+          onChange={(e) => { setPreviewUrl(e.target.value); setBlockedError(false); }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              if (isBlockedUrl(previewUrl)) { setBlockedError(true); return; }
+              setBlockedError(false);
+              setPreviewSrcdoc(null);
+              iframeRef.current?.setAttribute("src", previewUrl);
+            }
+          }}
+          style={{ flex: 1, background: "var(--bg-tertiary)", border: `1px solid ${blockedError ? "var(--error-color, #e53e3e)" : "var(--border-color)"}`, borderRadius: 4, color: "inherit", padding: "4px 8px", fontSize: 12 }}
+          placeholder={previewSrcdoc ? "Showing generated preview — enter URL to load external" : "https://example.com"}
         />
         <button
-          onClick={() => { setPreviewSrcdoc(null); iframeRef.current?.setAttribute("src", previewUrl); }}
+          onClick={() => {
+            if (isBlockedUrl(previewUrl)) { setBlockedError(true); return; }
+            setBlockedError(false);
+            setPreviewSrcdoc(null);
+            iframeRef.current?.setAttribute("src", previewUrl);
+          }}
           style={{ background: "none", border: "none", cursor: "pointer", color: "inherit", fontSize: 16 }}
           title="Reload"
         >
@@ -256,13 +283,23 @@ try {
 
       {/* Iframe */}
       <div ref={iframeContainerRef} style={{ flex: 1, position: "relative", overflow: "auto" }}>
-        <iframe
-          ref={iframeRef}
-          {...(previewSrcdoc ? { srcDoc: previewSrcdoc } : { src: previewUrl })}
-          title="Live Preview"
-          sandbox="allow-scripts allow-same-origin allow-forms allow-modals"
-          style={{ width: "100%", height: "100%", border: "none", background: "var(--bg-elevated)" }}
-        />
+        {blockedError ? (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 8, color: "var(--text-secondary)", padding: 32, textAlign: "center" }}>
+            <div style={{ fontSize: 32 }}>⚠</div>
+            <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text-primary)" }}>URL blocked</div>
+            <div style={{ fontSize: 13, maxWidth: 360, lineHeight: 1.6 }}>
+              This URL serves the VibeUI editor and cannot be loaded in the preview pane. Enter an external URL to preview.
+            </div>
+          </div>
+        ) : (
+          <iframe
+            ref={iframeRef}
+            {...(previewSrcdoc ? { srcDoc: previewSrcdoc } : { src: previewUrl || "about:blank" })}
+            title="Live Preview"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-modals"
+            style={{ width: "100%", height: "100%", border: "none", background: "var(--bg-elevated)" }}
+          />
+        )}
         {visualEditEnabled && (
           <div style={{ position: "absolute", top: 0, left: 0, pointerEvents: "none", width: "100%", height: "100%" }}>
             <VisualEditor
