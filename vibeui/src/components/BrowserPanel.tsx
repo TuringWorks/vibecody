@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { RefreshCw } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
 import { Toaster } from './Toaster';
 import { VisualEditOverlay } from './VisualEditOverlay';
@@ -198,7 +199,7 @@ export function BrowserPanel() {
  title="Forward"
  style={navBtnStyle}
  >→</button>
- <button onClick={refresh} disabled={!iframeSrc} title="Refresh" style={navBtnStyle}>↻</button>
+ <button onClick={refresh} disabled={!iframeSrc} title="Refresh" style={navBtnStyle}><RefreshCw size={14} /></button>
 
  <div style={{ width: '1px', height: '16px', background: 'var(--border-color)', margin: '0 4px' }} />
 
