@@ -159,7 +159,7 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
 
  <div className="panel-body">
  {!daemonOnline && (
- <div className="panel-error">
+ <div className="panel-error" role="alert">
  Daemon not running. Start it with: <code>vibecli --serve --port 7878</code>
  </div>
  )}
@@ -174,7 +174,7 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
  className="panel-input panel-input-full"
  style={{ resize: 'vertical', marginBottom: '6px' }}
  />
- <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+ <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
  <select
  value={provider}
  onChange={(e) => setProvider(e.target.value)}
@@ -215,7 +215,7 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
  {/* Job row */}
  <div
  onClick={() => setExpandedId(expandedId === job.session_id ? null : job.session_id)}
- style={{ padding: '8px 10px', cursor: 'pointer', display: 'flex', alignItems: 'flex-start', gap: '8px' }}
+ style={{ padding: '8px 12px', cursor: 'pointer', display: 'flex', alignItems: 'flex-start', gap: '8px' }}
  >
  <span style={{ fontSize: '14px', flexShrink: 0 }}>{STATUS_ICONS[job.status] ?? '?'}</span>
  <div style={{ flex: 1, minWidth: 0 }}>
@@ -238,7 +238,7 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
 
  {/* Expanded detail */}
  {expandedId === job.session_id && (
- <div style={{ borderTop: '1px solid var(--border-color)', padding: '8px 10px' }}>
+ <div style={{ borderTop: '1px solid var(--border-color)', padding: '8px 12px' }}>
  {job.summary && (
  <div style={{ fontSize: '11px', marginBottom: '6px', whiteSpace: 'pre-wrap' }}>
  <strong>Summary:</strong> {job.summary}

@@ -316,7 +316,7 @@ export function A2aPanel() {
 
       <div className="panel-body">
         {error && (
-          <div className="panel-error" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div className="panel-error" role="alert" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span>{error}</span>
             <button
               style={{ marginLeft: 8, background: "transparent", border: "none", color: "inherit", cursor: "pointer", fontWeight: 600 }}

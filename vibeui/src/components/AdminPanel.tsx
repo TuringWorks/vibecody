@@ -140,7 +140,7 @@ export function AdminPanel() {
         </div>
       </div>
 
-      {error && <div className="panel-error"><span>{error}</span><button onClick={() => setError(null)}>✕</button></div>}
+      {error && <div className="panel-error" role="alert"><span>{error}</span><button onClick={() => setError(null)}>✕</button></div>}
 
       {/* ── Team Members ── */}
       {tab === 'team' && !editingMember && (
@@ -149,7 +149,7 @@ export function AdminPanel() {
 
           <div style={{ display: 'grid', gap: 8 }}>
             {members.map(m => (
-              <div key={m.id} className="panel-card" style={{ padding: '10px 12px' }}>
+              <div key={m.id} className="panel-card" style={{ padding: '8px 12px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
                     <span style={{ fontWeight: 600 }}>{m.name}</span>
@@ -197,7 +197,7 @@ export function AdminPanel() {
             <div style={{ display: 'flex', gap: 8 }}>
               {(Object.keys(ROLE_COLORS) as Role[]).map(role => (
                 <button key={role} onClick={() => setEditingMember({ ...editingMember, role })} style={{
-                  padding: '6px 14px', fontSize: 12, borderRadius: 4, cursor: 'pointer', flex: 1,
+                  padding: '6px 16px', fontSize: 12, borderRadius: 4, cursor: 'pointer', flex: 1,
                   background: editingMember.role === role ? `${ROLE_COLORS[role]}22` : 'var(--bg-tertiary)',
                   color: editingMember.role === role ? ROLE_COLORS[role] : 'var(--text-secondary)',
                   border: `1px solid ${editingMember.role === role ? ROLE_COLORS[role] : 'var(--border-color)'}`,
@@ -224,7 +224,7 @@ export function AdminPanel() {
           </div>
           <div style={{ display: 'grid', gap: 4 }}>
             {filteredAudit.map(entry => (
-              <div key={entry.id} className="panel-card" style={{ padding: '6px 10px', fontSize: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
+              <div key={entry.id} className="panel-card" style={{ padding: '6px 8px', fontSize: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
                 <span style={{ color: 'var(--text-secondary)', fontSize: 10, minWidth: 70 }}>
                   {new Date(entry.timestamp).toLocaleTimeString()}
                 </span>
@@ -256,7 +256,7 @@ export function AdminPanel() {
             id: crypto.randomUUID(), resource: '*', roles: ['admin'], action: 'allow',
           })} className="panel-btn panel-btn-primary" style={{ marginBottom: 12 }}>+ Add Policy</button>
 
-          <div style={{ display: 'grid', gap: 6 }}>
+          <div style={{ display: 'grid', gap: 8 }}>
             {policies.map(p => (
               <div key={p.id} className="panel-card" style={{ padding: '8px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -266,7 +266,7 @@ export function AdminPanel() {
                     color: p.action === 'allow' ? 'var(--success-color)' : 'var(--error-color)',
                   }}>{p.action.toUpperCase()}</span>
                   <span className="panel-mono" style={{ fontSize: 12 }}>{p.resource}</span>
-                  <div style={{ display: 'flex', gap: 3 }}>
+                  <div style={{ display: 'flex', gap: 4 }}>
                     {p.roles.map(r => (
                       <span key={r} style={{
                         padding: '1px 5px', borderRadius: 3, fontSize: 10,
@@ -293,7 +293,7 @@ export function AdminPanel() {
           </div>
           <div style={{ display: 'grid', gap: 8 }}>
             {members.filter(m => m.api_keys.length > 0).map(m => (
-              <div key={m.id} className="panel-card" style={{ padding: '10px 12px' }}>
+              <div key={m.id} className="panel-card" style={{ padding: '8px 12px' }}>
                 <div style={{ fontWeight: 600, marginBottom: 4 }}>{m.name}</div>
                 {m.api_keys.map((k, i) => (
                   <div key={i} className="panel-mono" style={{ fontSize: 11, color: 'var(--text-secondary)' }}>

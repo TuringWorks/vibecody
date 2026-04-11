@@ -246,7 +246,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
  <div style={{ flex: 1, overflow: "auto", padding: 12 }}>
  {isLoading && <div className="panel-loading">Loading…</div>}
  {queryResult?.error && (
- <div className="panel-error" style={{ fontFamily: "var(--font-mono)", fontSize: 12, padding: 8 }}>
+ <div className="panel-error" role="alert" style={{ fontFamily: "var(--font-mono)", fontSize: 12, padding: 8 }}>
  {queryResult.error}
  </div>
  )}
@@ -258,7 +258,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
  <thead>
  <tr style={{ background: "var(--bg-secondary)" }}>
  {queryResult.columns.map((col) => (
- <th key={col} style={{ padding: "4px 8px", textAlign: "left", borderBottom: "1px solid var(--border-color)", fontWeight: 600, whiteSpace: "nowrap" }}>{col}</th>
+ <th key={col} scope="col" style={{ padding: "4px 8px", textAlign: "left", borderBottom: "1px solid var(--border-color)", fontWeight: 600, whiteSpace: "nowrap" }}>{col}</th>
  ))}
  </tr>
  </thead>
