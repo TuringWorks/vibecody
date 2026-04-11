@@ -40,7 +40,7 @@ permalink: /whitepapers/openclaw-comparison/
 | <img src="{{ '/whitepapers/diagrams/protocol-stack.svg' | relative_url }}" alt="Protocol Stack" style="max-width:100%;height:auto" /> | Protocol support: VibeCody (MCP+ACP+A2A) vs competitors |
 | <img src="{{ '/whitepapers/diagrams/setup-complexity.svg' | relative_url }}" alt="Setup Complexity" style="max-width:100%;height:auto" /> | Time-to-first-chat: 2 min (VibeCody) vs 30 min (OpenClaw) |
 
-> All diagrams are available as [draw.io source files](diagrams/) for editing. Export as SVG after modifications.
+> All diagrams are available as [draw.io source files](https://github.com/TuringWorks/vibecody/tree/main/docs/whitepapers/diagrams) for editing. Export as SVG after modifications.
 
 ---
 
