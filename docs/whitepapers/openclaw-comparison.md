@@ -72,6 +72,7 @@ This whitepaper compares **VibeCody** against OpenClaw and 14 alternatives acros
 | | Goose | Apache 2 | Rust + Python | Terminal |
 | | Cline | MIT | TypeScript | VS Code extension |
 | | OpenCode | MIT | Go | Terminal |
+| | **Hermes Agent** | MIT | Python | Terminal + multi-platform messaging |
 | **Desktop IDE Agent** | **VibeCody (VibeUI)** | MIT | Tauri 2 + React | Desktop app (Monaco) |
 | | Cursor | Proprietary | Electron + VS Code | Desktop IDE |
 | | Windsurf | Proprietary | Electron + VS Code | Desktop IDE |
@@ -124,68 +125,77 @@ Both forks share the TypeScript codebase and have not addressed CVE-2026-25253 o
 
 ### 4.1 Core Agent Capabilities
 
-| Capability | VibeCody | OpenClaw | PicoClaw | NemoClaw | Claude Code | Taskade | Goose | CrewAI |
-|-----------|----------|----------|----------|----------|-------------|---------|-------|--------|
-| Autonomous agent loop | **Yes** | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| File read/write tools | **Yes** | Yes | Yes | Yes | Yes | No | Yes | Via tools |
-| Shell command execution | **Yes** | Via Docker | Via Docker | Via Docker | Yes | No | Yes | Via tools |
-| Browser automation | **Yes** (CDP) | **Yes** (Chromium) | No | Partial | No | No | No | No |
-| Computer Use (GUI) | Yes | **Yes** | No | Yes | Yes (Anthropic) | No | No | No |
-| Code review agent | **Yes** | No | No | No | Partial | No | No | No |
-| Multi-file batch edits | **Yes** | Yes | Yes | Yes | Yes | No | Yes | No |
-| Plan/architect mode | **Yes** | No | No | No | Yes | Yes | No | No |
-| Session persistence | **Yes** (SQLite) | File-based | File-based | File-based | Yes | Cloud | No | No |
-| Session resume/fork | **Yes** | No | No | No | Yes | No | No | No |
-| Diff preview + partial accept | **Yes** | No | No | No | Yes | No | No | No |
-| Extended thinking | **Yes** | No | No | No | Yes | No | No | No |
+| Capability | VibeCody | OpenClaw | PicoClaw | NemoClaw | Claude Code | Taskade | Goose | CrewAI | Hermes |
+|-----------|----------|----------|----------|----------|-------------|---------|-------|--------|--------|
+| Autonomous agent loop | **Yes** | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| File read/write tools | **Yes** | Yes | Yes | Yes | Yes | No | Yes | Via tools | Yes |
+| Shell command execution | **Yes** | Via Docker | Via Docker | Via Docker | Yes | No | Yes | Via tools | Yes (6 backends) |
+| Browser automation | **Yes** (CDP) | **Yes** (Chromium) | No | Partial | No | No | No | No | No |
+| Computer Use (GUI) | Yes | **Yes** | No | Yes | Yes (Anthropic) | No | No | No | No |
+| Code review agent | **Yes** | No | No | No | Partial | No | No | No | No |
+| Multi-file batch edits | **Yes** | Yes | Yes | Yes | Yes | No | Yes | No | Partial |
+| Plan/architect mode | **Yes** | No | No | No | Yes | Yes | No | No | No |
+| Session persistence | **Yes** (SQLite) | File-based | File-based | File-based | Yes | Cloud | No | No | **Yes** (SQLite + FTS5) |
+| Session resume/fork | **Yes** | No | No | No | Yes | No | No | No | Yes |
+| Diff preview + partial accept | **Yes** | No | No | No | Yes | No | No | No | No |
+| Extended thinking | **Yes** | No | No | No | Yes | No | No | No | No |
+| Self-improving skills | No | No | No | No | No | No | No | No | **Yes** (closed-loop learning) |
+| Subagent isolation | **Yes** | No | No | No | No | No | No | Yes | Yes |
 
 ### 4.2 AI Provider Support
 
-| Provider | VibeCody | OpenClaw | PicoClaw | NemoClaw | Claude Code | Goose | Jan.ai |
-|----------|----------|----------|----------|----------|-------------|-------|--------|
-| Ollama (local) | **Yes** | Via API | Via API | Via API | No | Yes | **Yes** |
-| Anthropic Claude | **Yes** | Yes | Yes | Yes | **Yes** (only) | Yes | Yes |
-| OpenAI GPT | **Yes** | Yes | Yes | Yes | No | Yes | Yes |
-| Google Gemini | **Yes** (native) | Via OpenRouter | No | No | No | Partial | Yes |
-| xAI Grok | **Yes** | No | No | No | No | No | No |
-| Groq | **Yes** | No | No | No | No | Yes | No |
-| DeepSeek | **Yes** | Via API | No | No | No | No | Yes |
-| Mistral | **Yes** | No | No | No | No | No | Yes |
-| AWS Bedrock | **Yes** | No | No | No | No | No | No |
-| Azure OpenAI | **Yes** | No | No | No | No | No | No |
-| NVIDIA NIM | No | No | No | **Yes** | No | No | No |
-| **Total native providers** | **23** | 3-4 | 2-3 | 4-5 | 1 | 5-6 | 8-10 |
-| OpenRouter gateway (300+) | **Yes** | Partial | No | No | No | No | No |
-| Mid-session model switch | **Yes** | No | No | No | No | No | Yes |
-| Automatic failover | **Yes** | No | No | No | No | No | No |
-| Cost-optimized routing | **Yes** | No | No | No | No | No | No |
+| Provider | VibeCody | OpenClaw | PicoClaw | NemoClaw | Claude Code | Goose | Jan.ai | Hermes |
+|----------|----------|----------|----------|----------|-------------|-------|--------|--------|
+| Ollama (local) | **Yes** | Via API | Via API | Via API | No | Yes | **Yes** | Via API |
+| Anthropic Claude | **Yes** | Yes | Yes | Yes | **Yes** (only) | Yes | Yes | Yes |
+| OpenAI GPT | **Yes** | Yes | Yes | Yes | No | Yes | Yes | Yes |
+| Google Gemini | **Yes** (native) | Via OpenRouter | No | No | No | Partial | Yes | Via OpenRouter |
+| xAI Grok | **Yes** | No | No | No | No | No | No | Via OpenRouter |
+| Groq | **Yes** | No | No | No | No | Yes | No | Via OpenRouter |
+| DeepSeek | **Yes** | Via API | No | No | No | No | Yes | Via OpenRouter |
+| Mistral | **Yes** | No | No | No | No | No | Yes | Via OpenRouter |
+| AWS Bedrock | **Yes** | No | No | No | No | No | No | No |
+| Azure OpenAI | **Yes** | No | No | No | No | No | No | No |
+| NVIDIA NIM | No | No | No | **Yes** | No | No | No | No |
+| Nous Portal | No | No | No | No | No | No | No | **Yes** (native) |
+| **Total native providers** | **23** | 3-4 | 2-3 | 4-5 | 1 | 5-6 | 8-10 | **200+** (via OpenRouter) |
+| OpenRouter gateway (300+) | **Yes** | Partial | No | No | No | No | No | **Yes** (primary) |
+| Mid-session model switch | **Yes** | No | No | No | No | No | Yes | Yes |
+| Automatic failover | **Yes** | No | No | No | No | No | No | No |
+| Cost-optimized routing | **Yes** | No | No | No | No | No | No | No |
 
 ### 4.3 Protocol & Interoperability
 
-| Protocol | VibeCody | OpenClaw | PicoClaw | NemoClaw | Claude Code | Taskade | Goose |
-|----------|----------|----------|----------|----------|-------------|---------|-------|
-| MCP (Model Context Protocol) | **Yes** (client + server) | Partial | No | No | **Yes** | No | Yes |
-| MCP Streamable HTTP + OAuth 2.1 | **Yes** | No | No | No | Partial | No | No |
-| A2A (Agent-to-Agent) | **Yes** | No | No | No | No | No | No |
-| ACP (Agent Client Protocol) | **Yes** | No | No | No | No | No | No |
-| LSP integration | **Yes** | No | No | No | No | No | No |
-| CRDT collaboration | **Yes** | No | No | No | No | No | No |
-| OpenTelemetry tracing | **Yes** | No | No | No | No | No | No |
-| **Triple-protocol (MCP+ACP+A2A)** | **Yes** | No | No | No | No | No | No |
+| Protocol | VibeCody | OpenClaw | PicoClaw | NemoClaw | Claude Code | Taskade | Goose | Hermes |
+|----------|----------|----------|----------|----------|-------------|---------|-------|--------|
+| MCP (Model Context Protocol) | **Yes** (client + server) | Partial | No | No | **Yes** | No | Yes | No |
+| MCP Streamable HTTP + OAuth 2.1 | **Yes** | No | No | No | Partial | No | No | No |
+| A2A (Agent-to-Agent) | **Yes** | No | No | No | No | No | No | No |
+| ACP (Agent Client Protocol) | **Yes** | No | No | No | No | No | No | No |
+| LSP integration | **Yes** | No | No | No | No | No | No | No |
+| CRDT collaboration | **Yes** | No | No | No | No | No | No | No |
+| OpenTelemetry tracing | **Yes** | No | No | No | No | No | No | No |
+| Tool RPC calls (Python) | No | No | No | No | No | No | No | **Yes** |
+| agentskills.io standard | No | No | No | No | No | No | No | **Yes** |
+| **Triple-protocol (MCP+ACP+A2A)** | **Yes** | No | No | No | No | No | No | No |
 
 ### 4.4 IDE & Interface
 
-| Surface | VibeCody | OpenClaw | PicoClaw | NemoClaw | Claude Code | Cline | Cursor |
-|---------|----------|----------|----------|----------|-------------|-------|--------|
-| Terminal REPL | **Yes** (100+ commands) | Partial | Yes | Partial | Yes | No | No |
-| Full TUI (Ratatui) | **Yes** | No | No | No | No | No | No |
-| Desktop IDE | **Yes** (Tauri + Monaco) | No | No | No | No | No | **Yes** |
-| Browser web client | **Yes** (zero-CDN SPA) | **Yes** | No | No | No | No | No |
-| VS Code extension | **Yes** | No | No | No | **Yes** | **Yes** | N/A |
-| JetBrains plugin | **Yes** | No | No | No | **Yes** | No | No |
-| Neovim plugin | **Yes** | No | No | No | No | No | No |
-| Mobile companion app | **Yes** (Flutter) | No | No | No | No | No | No |
-| **Total surfaces** | **8** | 2 | 1 | 1-2 | 3 | 1 | 1 |
+| Surface | VibeCody | OpenClaw | PicoClaw | NemoClaw | Claude Code | Cline | Cursor | Hermes |
+|---------|----------|----------|----------|----------|-------------|-------|--------|--------|
+| Terminal REPL | **Yes** (100+ commands) | Partial | Yes | Partial | Yes | No | No | **Yes** (slash-command autocomplete) |
+| Full TUI (Ratatui) | **Yes** | No | No | No | No | No | No | No |
+| Desktop IDE | **Yes** (Tauri + Monaco) | No | No | No | No | No | **Yes** | No |
+| Browser web client | **Yes** (zero-CDN SPA) | **Yes** | No | No | No | No | No | No |
+| VS Code extension | **Yes** | No | No | No | **Yes** | **Yes** | N/A | No |
+| JetBrains plugin | **Yes** | No | No | No | **Yes** | No | No | No |
+| Neovim plugin | **Yes** | No | No | No | No | No | No | No |
+| Mobile companion app | **Yes** (Flutter) | No | No | No | No | No | No | No |
+| Telegram | No | No | No | No | No | No | No | **Yes** |
+| Discord | No | No | No | No | No | No | No | **Yes** |
+| Slack | No | No | No | No | No | No | No | **Yes** |
+| WhatsApp / Signal | No | No | No | No | No | No | No | **Yes** |
+| **Total surfaces** | **8** | 2 | 1 | 1-2 | 3 | 1 | 1 | **5** (CLI + 4 chat platforms) |
 
 ### 4.5 DevOps & Infrastructure Tools
 
@@ -227,7 +237,7 @@ Both forks share the TypeScript codebase and have not addressed CVE-2026-25253 o
 | Agent host (external agents) | **Yes** | No | No | No |
 | Max concurrent agents | **4-8 local** | 1 | Sequential | Unlimited (cloud) |
 
-**VibeCody advantage:** Only platform with A2A protocol support, allowing VibeCody agents to discover and collaborate with agents from other platforms. CrewAI offers role-based specialization but lacks real-time parallel execution. Taskade offers unlimited cloud agents but requires their managed platform.
+**VibeCody advantage:** Only platform with A2A protocol support, allowing VibeCody agents to discover and collaborate with agents from other platforms. CrewAI offers role-based specialization but lacks real-time parallel execution. Taskade offers unlimited cloud agents but requires their managed platform. Hermes Agent supports isolated subagents but lacks the orchestration bus and inter-agent messaging protocol that VibeCody provides.
 
 ### 5.3 Context & Knowledge Management
 
@@ -278,15 +288,17 @@ Both forks share the TypeScript codebase and have not addressed CVE-2026-25253 o
 
 ### 5.6 Workflow Automation
 
-| Feature | VibeCody | OpenClaw | n8n | Taskade |
-|---------|----------|----------|-----|---------|
-| Workflow orchestration | **Yes** (8-stage pipeline) | No | **Yes** (visual) | Yes (managed) |
-| Next-task prediction | **Yes** (Q-learning) | No | No | No |
-| Watch mode (file-change trigger) | **Yes** | No | Yes (webhook) | Yes (webhook) |
-| Scheduled tasks (cron) | **Yes** | No | **Yes** | Yes |
-| Issue triage automation | **Yes** | No | Via integration | No |
-| 18-platform messaging gateway | **Yes** | No | Partial (webhooks) | Partial |
-| Living documentation sync | **Yes** | No | No | No |
+| Feature | VibeCody | OpenClaw | n8n | Taskade | Hermes |
+|---------|----------|----------|-----|---------|--------|
+| Workflow orchestration | **Yes** (8-stage pipeline) | No | **Yes** (visual) | Yes (managed) | Partial |
+| Next-task prediction | **Yes** (Q-learning) | No | No | No | No |
+| Watch mode (file-change trigger) | **Yes** | No | Yes (webhook) | Yes (webhook) | No |
+| Scheduled tasks (cron) | **Yes** | No | **Yes** | Yes | **Yes** (built-in cron) |
+| Issue triage automation | **Yes** | No | Via integration | No | No |
+| 18-platform messaging gateway | **Yes** | No | Partial (webhooks) | Partial | **Yes** (Telegram, Discord, Slack, WhatsApp, Signal) |
+| Living documentation sync | **Yes** | No | No | No | No |
+| Self-improving skill creation | No | No | No | No | **Yes** (autonomous, from experience) |
+| RL training data generation | No | No | No | No | **Yes** (batch trajectories, tinker-atropos) |
 
 ### 5.7 Skills & Extensibility
 
@@ -425,6 +437,7 @@ VibeCody's static Rust binary is 50 MB with zero runtime dependencies. OpenClaw'
 | PicoClaw | Apache 2 | Yes | Free | BYOK | $0 |
 | NemoClaw | Apache 2 | Yes | Free | BYOK + GPU | $0 |
 | NanoClaw | MIT | Yes | Free | BYOK | $0 |
+| Hermes Agent | MIT | Yes | Free | BYOK (OpenRouter/custom) | $0 |
 | Claude Code | Proprietary | No | $20/mo (Pro) | Included | Bundled |
 | Cursor | Proprietary | No | $20/mo (Pro) | Included | Bundled |
 | Taskade | Proprietary | No | $8-19/mo/user | Included | Bundled |
@@ -487,21 +500,22 @@ These gaps are primarily **infrastructure, business, and ecosystem** concerns --
 
 Ratings are relative to the competitive set (1 = weakest, 10 = strongest).
 
-| Dimension | VibeCody | OpenClaw | Claude Code | Cursor | Taskade | Devin | Jan.ai | CrewAI |
-|-----------|----------|----------|-------------|--------|---------|-------|--------|--------|
-| Feature breadth | **10** | 5 | 6 | 8 | 6 | 7 | 4 | 4 |
-| AI provider flexibility | **10** | 4 | 2 | 5 | 3 | 3 | 7 | 5 |
-| Security posture | **9** | 3 | 8 | 7 | 8 | 8 | 7 | 5 |
-| Setup simplicity | **8** | 3 | 9 | 8 | **10** | 9 | 7 | 6 |
-| Team collaboration | 7 | 2 | 5 | 7 | **10** | 6 | 2 | 5 |
-| Code repair quality | **9** | 5 | 8 | 8 | 3 | 8 | 3 | 4 |
-| DevOps integration | **10** | 2 | 3 | 4 | 3 | 5 | 1 | 2 |
-| Protocol support | **10** | 3 | 6 | 5 | 2 | 3 | 2 | 2 |
-| Offline capability | **10** | 4 | 1 | 1 | 1 | 1 | **10** | 3 |
-| Enterprise readiness | 6 | 2 | 7 | 8 | **9** | 8 | 2 | 3 |
-| Ecosystem maturity | 3 | 5 | 8 | **9** | 7 | 6 | 5 | 6 |
-| Cost efficiency | **10** | 8 | 5 | 4 | 3 | 2 | **10** | 8 |
-| **Average** | **8.5** | 3.8 | 5.7 | 6.2 | 5.4 | 5.5 | 5.0 | 4.4 |
+| Dimension | VibeCody | OpenClaw | Claude Code | Cursor | Taskade | Devin | Jan.ai | CrewAI | Hermes |
+|-----------|----------|----------|-------------|--------|---------|-------|--------|--------|--------|
+| Feature breadth | **10** | 5 | 6 | 8 | 6 | 7 | 4 | 4 | 5 |
+| AI provider flexibility | **10** | 4 | 2 | 5 | 3 | 3 | 7 | 5 | **9** (OpenRouter 200+) |
+| Security posture | **9** | 3 | 8 | 7 | 8 | 8 | 7 | 5 | 5 |
+| Setup simplicity | **8** | 3 | 9 | 8 | **10** | 9 | 7 | 6 | 8 |
+| Team collaboration | 7 | 2 | 5 | 7 | **10** | 6 | 2 | 5 | 6 (messaging platforms) |
+| Code repair quality | **9** | 5 | 8 | 8 | 3 | 8 | 3 | 4 | 4 |
+| DevOps integration | **10** | 2 | 3 | 4 | 3 | 5 | 1 | 2 | 4 (6 terminal backends) |
+| Protocol support | **10** | 3 | 6 | 5 | 2 | 3 | 2 | 2 | 3 |
+| Offline capability | **10** | 4 | 1 | 1 | 1 | 1 | **10** | 3 | 4 |
+| Enterprise readiness | 6 | 2 | 7 | 8 | **9** | 8 | 2 | 3 | 3 |
+| Ecosystem maturity | 3 | 5 | 8 | **9** | 7 | 6 | 5 | 6 | 4 |
+| Cost efficiency | **10** | 8 | 5 | 4 | 3 | 2 | **10** | 8 | **10** |
+| Self-improvement / learning | 4 | 1 | 3 | 3 | 2 | 4 | 1 | 3 | **10** |
+| **Average** | **8.2** | 3.6 | 5.5 | 5.9 | 5.2 | 5.5 | 4.8 | 4.3 | **5.8** |
 
 ---
 
@@ -552,6 +566,15 @@ Ratings are relative to the competitive set (1 = weakest, 10 = strongest).
 - **Multi-agent Python framework** for custom workflows
 - Role-based agent specialization (researcher, writer, coder)
 - Integration into existing Python codebases
+
+### Choose Hermes Agent if you need:
+
+- **Self-improving AI** — closed-loop skill creation from experience is unique; Hermes learns and persists knowledge autonomously across sessions
+- **Multi-platform messaging** — the only agent that lives natively in Telegram, Discord, Slack, WhatsApp, and Signal simultaneously
+- **Broadest model access** — 200+ models via OpenRouter, Nous Portal, and custom endpoints without configuration overhead
+- **Serverless agent execution** — Daytona and Modal backends allow agent sessions to hibernate between tasks with zero idle cost
+- **RL training pipelines** — batch trajectory generation for fine-tuning models using your own agent interactions (tinker-atropos integration)
+- Python-fluent team comfortable extending the agent with custom tools and RPC integrations
 
 ---
 
