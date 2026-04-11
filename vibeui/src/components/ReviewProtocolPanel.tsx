@@ -6,6 +6,7 @@
  */
 import { useState, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { X, Play } from "lucide-react";
 
 interface ReviewStats {
   totalComments: number;
@@ -92,7 +93,7 @@ export default function ReviewProtocolPanel() {
         {error && (
           <div className="panel-error" style={{ marginBottom: 10 }}>
             {error}
-            <button onClick={() => setError("")}>✕</button>
+            <button onClick={() => setError("")}><X size={12} /></button>
           </div>
         )}
 
@@ -129,8 +130,8 @@ export default function ReviewProtocolPanel() {
                 <div style={{ fontWeight: "var(--font-semibold)", marginBottom: 4 }}>Review Started</div>
                 <div className="panel-label" style={{ marginBottom: 6 }}>Session: {sessionId}</div>
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
-                  <button className="panel-btn panel-btn-secondary panel-btn-sm" onClick={() => runCreview(`list ${sessionId}`)} title='vibecli --cmd "/creview list"'>▶ List Comments</button>
-                  <button className="panel-btn panel-btn-secondary panel-btn-sm" onClick={() => runCreview(`summary ${sessionId}`)} title='vibecli --cmd "/creview summary"'>▶ Summary</button>
+                  <button className="panel-btn panel-btn-secondary panel-btn-sm" onClick={() => runCreview(`list ${sessionId}`)} title='vibecli --cmd "/creview list"' style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Play size={12} /> List Comments</button>
+                  <button className="panel-btn panel-btn-secondary panel-btn-sm" onClick={() => runCreview(`summary ${sessionId}`)} title='vibecli --cmd "/creview summary"' style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Play size={12} /> Summary</button>
                 </div>
                 {cliOutput && <pre style={{ whiteSpace: "pre-wrap", marginTop: 8, fontSize: 11 }}>{cliOutput}</pre>}
               </div>
