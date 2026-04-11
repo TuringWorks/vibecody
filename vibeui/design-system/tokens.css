@@ -47,6 +47,9 @@
   --gradient-surface: linear-gradient(180deg, var(--bg-secondary), var(--bg-primary));
 
   /* ── Radii ────────────────────────────────────────────────────────────── */
+  --radius-2xs: 2px;      /* for very tight badges */
+  --radius-xs-plus: 4px;  /* common 4px value */
+  --radius-sm-alt: 8px;   /* common 8px value */
   --radius-xs: 3px;
   --radius-sm: 6px;
   --radius-md: 10px;
@@ -195,6 +198,11 @@
   --btn-primary-fg: #ffffff;
   --btn-error-fg:   #ffffff;
   --icon-stroke:    1.25;
+
+  /* ── Radii ────────────────────────────────────────────────────────────── */
+  --radius-2xs: 2px;      /* for very tight badges */
+  --radius-xs-plus: 4px;  /* common 4px value */
+  --radius-sm-alt: 8px;   /* common 8px value */
 }
 
 /* ── Semantic utility classes ─────────────────────────────────────────────── */
