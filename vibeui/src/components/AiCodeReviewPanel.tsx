@@ -6,6 +6,7 @@
  */
 import { useState, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { Play } from "lucide-react";
 
 interface ReviewFinding {
   id: string;
@@ -157,7 +158,7 @@ export default function AiCodeReviewPanel() {
         <div className="panel-card">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <span style={{ fontWeight: 600 }}>Learning Metrics</span>
-            <button className="panel-btn panel-btn-secondary panel-btn-sm" onClick={() => runAireview("learn")} title='vibecli --cmd "/aireview learn"'>▶ View Metrics</button>
+            <button className="panel-btn panel-btn-secondary panel-btn-sm" onClick={() => runAireview("learn")} title='vibecli --cmd "/aireview learn"' style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Play size={12} /> View Metrics</button>
           </div>
           <div className="panel-label">Precision / recall / F1 from review feedback.</div>
           {cliOutput && <pre style={{ whiteSpace: "pre-wrap", marginTop: 8, fontSize: 11, margin: 0 }}>{cliOutput}</pre>}

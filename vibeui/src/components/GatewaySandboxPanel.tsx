@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import {
   Send, Square, FolderOpen, RefreshCw, Bot, User,
-  MessageSquare, AlertCircle, CheckCircle, ChevronDown,
+  MessageSquare, AlertCircle, CheckCircle, ChevronDown, Play,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -462,7 +462,7 @@ export function GatewaySandboxPanel({ provider: defaultProvider = "claude" }: Ga
             <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(136,136,136,0.1)", border: "1px solid rgba(136,136,136,0.3)", borderRadius: 6, padding: "6px 10px", fontSize: 12, color: "var(--text-secondary)" }}>
               <AlertCircle size={13} />
               <span>CLI-only platform.</span>
-              <button className="panel-btn panel-btn-secondary panel-btn-sm" onClick={() => runGatewayCli(platform)} title={`vibecli --gateway ${platform}`}>▶ Launch Gateway</button>
+              <button className="panel-btn panel-btn-secondary panel-btn-sm" onClick={() => runGatewayCli(platform)} title={`vibecli --gateway ${platform}`} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Play size={12} /> Launch Gateway</button>
             </div>
           )}
           {cliOutput && <pre style={{ whiteSpace: "pre-wrap", marginTop: 8, fontSize: 11, background: "var(--bg-secondary)", padding: 8, borderRadius: 4 }}>{cliOutput}</pre>}

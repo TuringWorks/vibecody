@@ -362,22 +362,24 @@ impl SelfImprovingSkillsEngine {
 
     pub fn apply_evolution(&self, evolution_id: &str) -> Result<String, String> {
         let mut store = self.load();
-        let ev = store
-            .evolutions
-            .iter_mut()
-            .find(|e| e.id == evolution_id)
-            .ok_or_else(|| format!("Evolution {evolution_id} not found"))?;
 
-        if ev.applied {
-            return Err("Already applied".to_string());
-        }
+        // Scope the mutable borrow so it is released before store is read via save()
+        let (kind, skill_name, proposed_content) = {
+            let ev = store
+                .evolutions
+                .iter_mut()
+                .find(|e| e.id == evolution_id)
+                .ok_or_else(|| format!("Evolution {evolution_id} not found"))?;
 
-        // Clone what we need before releasing the mutable borrow
-        let kind = ev.kind.clone();
-        let skill_name = ev.skill_name.clone();
-        let proposed_content = ev.proposed_content.clone();
-        ev.applied = true;
-        let _ = ev; // release mutable borrow
+            if ev.applied {
+                return Err("Already applied".to_string());
+            }
+
+            let data = (ev.kind.clone(), ev.skill_name.clone(), ev.proposed_content.clone());
+            ev.applied = true;
+            data
+            // ev drops here, releasing the mutable borrow on store
+        };
 
         match kind {
             EvolutionKind::Prune => {

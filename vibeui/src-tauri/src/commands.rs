@@ -18087,7 +18087,30 @@ fn detect_migration_tool(ws: &std::path::Path) -> &'static str {
     if ws.join("alembic.ini").exists() || ws.join("alembic").is_dir() {
         return "alembic";
     }
-    if ws.join("flyway.conf").exists() || ws.join("src").join("main").join("resources").join("db").join("migration").is_dir() {
+    if ws.join("flyway.conf").exists()
+        || ws.join(".flyway.conf").exists()
+        || ws.join("flyway.toml").exists()
+        || ws.join("src").join("main").join("resources").join("db").join("migration").is_dir()
+        || ws.join("src").join("db").join("migration").is_dir()
+        || ws.join("src").join("main").join("db").join("migration").is_dir()
+        || ws.join("db").join("migration").is_dir()
+        || {
+            // Detect by V{n}__*.sql files in any first-level subdirectory
+            ws.read_dir().ok().map_or(false, |mut d| {
+                d.any(|e| e.ok().map_or(false, |e| {
+                    e.file_name().to_string_lossy().starts_with("V")
+                        && e.file_name().to_string_lossy().contains("__")
+                        && e.path().extension().map_or(false, |x| x == "sql")
+                }))
+            }) || ws.join("src").read_dir().ok().map_or(false, |mut d| {
+                d.any(|e| e.ok().map_or(false, |e| {
+                    e.file_name().to_string_lossy().starts_with("V")
+                        && e.file_name().to_string_lossy().contains("__")
+                        && e.path().extension().map_or(false, |x| x == "sql")
+                }))
+            })
+        }
+    {
         return "flyway";
     }
     if ws.join("go.mod").exists() {

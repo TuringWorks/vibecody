@@ -7,7 +7,7 @@
  * - Compose: up/down/ps/logs/build/restart per service
  */
 import React, { useState, useEffect, useRef } from "react";
-import { CheckCircle2, XCircle, PauseCircle, MinusCircle, Package } from "lucide-react";
+import { CheckCircle2, XCircle, PauseCircle, MinusCircle, Package, RefreshCw, X, Loader2 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { EmptyState } from "./EmptyState";
 import { StatusMessage } from "./StatusMessage";
@@ -219,7 +219,7 @@ export function DockerPanel({ workspacePath }: DockerPanelProps) {
  {containers.length} container{containers.length !== 1 ? "s" : ""}
  </span>
  <button onClick={loadContainers} disabled={containersLoading} className="panel-btn panel-btn-secondary">
- {containersLoading ? "" : "↻ Refresh"}
+ {containersLoading ? <Loader2 size={13} className="spin" /> : <><RefreshCw size={13} /> Refresh</>}
  </button>
  </div>
 
@@ -263,14 +263,14 @@ export function DockerPanel({ workspacePath }: DockerPanelProps) {
  ) : (
  <button onClick={() => runAction(c.id, "stop")} disabled={actionLoading} className="panel-btn panel-btn-secondary">Stop</button>
  )}
- <button onClick={() => runAction(c.id, "restart")} disabled={actionLoading} className="panel-btn panel-btn-secondary">↻ Restart</button>
+ <button onClick={() => runAction(c.id, "restart")} disabled={actionLoading} className="panel-btn panel-btn-secondary" style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><RefreshCw size={13} /> Restart</button>
  <button onClick={() => runAction(c.id, "logs")} disabled={actionLoading} className="panel-btn panel-btn-secondary">Logs</button>
  <button
  onClick={() => { if (confirm(`Remove container ${c.name}?`)) runAction(c.id, "remove"); }}
  disabled={actionLoading}
  className="panel-btn panel-btn-danger"
  >
- ✕ Remove
+ <><X size={13} /> Remove</>
  </button>
  </div>
  )}
@@ -299,10 +299,10 @@ export function DockerPanel({ workspacePath }: DockerPanelProps) {
  placeholder="Pull image: nginx:latest, node:20-alpine, ..."
  />
  <button onClick={handlePull} disabled={pulling || !pullImage.trim()} className="panel-btn panel-btn-primary">
- {pulling ? "" : "Pull"}
+ {pulling ? <Loader2 size={13} className="spin" /> : "Pull"}
  </button>
  <button onClick={loadImages} disabled={imagesLoading} className="panel-btn panel-btn-secondary">
- {imagesLoading ? "" : "↻"}
+ {imagesLoading ? <Loader2 size={13} className="spin" /> : <RefreshCw size={13} />}
  </button>
  </div>
 
@@ -360,7 +360,7 @@ export function DockerPanel({ workspacePath }: DockerPanelProps) {
  { action: "ps", label: " ps", variant: "secondary" },
  { action: "logs", label: "Logs", variant: "secondary" },
  { action: "build", label: "Build", variant: "secondary" },
- { action: "restart", label: "↻ Restart", variant: "secondary" },
+ { action: "restart", label: "Restart", variant: "secondary" },
  { action: "pull", label: "Pull", variant: "secondary" },
  ].map(({ action, label, variant }) => (
  <button
@@ -369,7 +369,7 @@ export function DockerPanel({ workspacePath }: DockerPanelProps) {
  disabled={composeLoading || !workspacePath}
  className={`panel-btn panel-btn-${variant === "primary" ? "primary" : "secondary"}`}
  >
- {composeLoading ? "" : label}
+ {composeLoading ? <Loader2 size={13} className="spin" /> : label}
  </button>
  ))}
  </div>
