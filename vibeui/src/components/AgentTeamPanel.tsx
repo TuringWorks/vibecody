@@ -113,7 +113,7 @@ export function AgentTeamPanel() {
           <>
             <span style={{
               fontSize: 10, padding: "2px 8px", borderRadius: 10, fontWeight: 600,
-              background: team.status === "working" ? "rgba(137,180,250,0.15)" : team.status === "complete" ? "rgba(52,211,153,0.15)" : "color-mix(in srgb, var(--text-secondary) 15%, transparent)",
+              background: team.status === "working" ? "color-mix(in srgb, var(--accent-blue) 15%, transparent)" /* TODO: tokenize info-bg */ : team.status === "complete" ? "var(--success-bg)" : "color-mix(in srgb, var(--text-secondary) 15%, transparent)",
               color: team.status === "working" ? "var(--info-color)" : team.status === "complete" ? "var(--success-color)" : "var(--text-secondary)",
             }}>
               {team.status}
@@ -127,7 +127,7 @@ export function AgentTeamPanel() {
 
       {!team ? (
         /* Team creation form */
-        <div style={{ padding: "16px 12px", display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ padding: "16px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
           <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
             Create a team of AI agents that collaborate on a shared goal.
             The lead agent decomposes the task and coordinates members.
@@ -180,13 +180,13 @@ export function AgentTeamPanel() {
           <div className="panel-body" style={{ padding: "8px 12px" }}>
             {/* Overview tab */}
             {tab === "overview" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <div style={{ fontSize: 12, fontWeight: 600 }}>Goal</div>
                 <div style={{ fontSize: 11, padding: "6px 8px", background: "var(--bg-primary)", borderRadius: 4 }}>
                   {team.goal}
                 </div>
                 <div style={{ fontSize: 12, fontWeight: 600 }}>Members ({team.member_ids.length})</div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                   {team.member_ids.map((id) => (
                     <div key={id} style={{
                       padding: "4px 8px", fontSize: 10, borderRadius: 4,
@@ -199,7 +199,7 @@ export function AgentTeamPanel() {
                 </div>
                 <div style={{ fontSize: 12, fontWeight: 600 }}>Progress</div>
                 {team.tasks.length > 0 ? (
-                  <div style={{ display: "flex", gap: 2, height: 8, borderRadius: 4, overflow: "hidden" }}>
+                  <div style={{ display: "flex", gap: 4, height: 8, borderRadius: 4, overflow: "hidden" }}>
                     {team.tasks.map((t) => (
                       <div key={t.id} style={{
                         flex: 1, background: statusColor[t.status] || "var(--text-secondary)",
@@ -215,14 +215,14 @@ export function AgentTeamPanel() {
 
             {/* Tasks tab */}
             {tab === "tasks" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {team.tasks.map((t) => (
                   <div key={t.id} style={{
                     padding: "6px 8px", borderRadius: 4,
                     border: "1px solid var(--border-color)",
                     background: "var(--bg-primary)",
                   }}>
-                    <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4 }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}>
                       <span style={{
                         fontSize: 9, padding: "1px 6px", borderRadius: 3, fontWeight: 700,
                         background: statusColor[t.status] || "var(--text-secondary)", color: "var(--bg-tertiary)",
@@ -256,7 +256,7 @@ export function AgentTeamPanel() {
                     borderLeft: `3px solid ${msgTypeColor[m.msg_type] || "var(--text-secondary)"}`,
                     background: "var(--bg-primary)",
                   }}>
-                    <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 2 }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 2 }}>
                       <span style={{ fontSize: 9, fontWeight: 700, color: msgTypeColor[m.msg_type] || "var(--text-secondary)" }}>
                         {m.msg_type}
                       </span>

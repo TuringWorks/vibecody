@@ -214,7 +214,7 @@ export function CloudAgentPanel() {
           style={{
             padding: "8px 12px",
             marginBottom: 12,
-            background: "rgba(244, 67, 54, 0.15)",
+            background: "var(--error-bg)",
             border: "1px solid var(--error-color)",
             borderRadius: 4,
             fontSize: 12,
@@ -265,7 +265,7 @@ export function CloudAgentPanel() {
           </label>
           <pre
             style={{
-              padding: "8px 10px",
+              padding: "8px 12px",
               background: "var(--bg-primary)",
               color: "var(--text-primary)",
               border: "1px solid var(--border-color)",
