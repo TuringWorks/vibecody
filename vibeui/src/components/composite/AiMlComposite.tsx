@@ -8,4 +8,5 @@ export const AiMlComposite = createComposite([
   { id: "quantum", label: "Quantum", importFn: () => import("../QuantumComputingPanel"), exportName: "QuantumComputingPanel" },
   { id: "rlcef", label: "RLCEF", importFn: () => import("../RlcefPanel"), exportName: "RlcefPanel" },
   { id: "skilldistill", label: "Distillation", importFn: () => import("../SkillDistillationPanel") },
+  { id: "selfimproving", label: "Self-Improving", importFn: () => import("../SelfImprovingSkillsPanel"), exportName: "SelfImprovingSkillsPanel" },
 ]);

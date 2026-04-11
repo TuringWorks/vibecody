@@ -321,6 +321,7 @@ mod speculative_exec;
 mod explainable_agent;
 // Phase 32 P1
 mod skill_distillation;
+mod self_improving_skills;
 mod review_protocol;
 mod health_score;
 mod ai_code_review;

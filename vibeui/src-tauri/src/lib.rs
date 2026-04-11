@@ -1398,6 +1398,16 @@ pub fn run() {
             commands::distill_status,
             commands::distill_patterns,
             commands::distill_export,
+            // Self-Improving Skills
+            commands::sis_record_activation,
+            commands::sis_record_outcome,
+            commands::sis_record_session_outcome,
+            commands::sis_get_metrics,
+            commands::sis_propose_evolutions,
+            commands::sis_apply_evolution,
+            commands::sis_extract_new_skill,
+            commands::sis_prune_candidates,
+            commands::sis_status,
             // RL-OS
             commands::rl_create_training_run,
             commands::rl_list_training_runs,

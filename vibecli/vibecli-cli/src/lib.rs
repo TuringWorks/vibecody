@@ -34,6 +34,7 @@ pub mod ai_code_review;
 pub mod intent_refactor;
 pub mod review_protocol;
 pub mod skill_distillation;
+pub mod self_improving_skills;
 pub mod architecture_spec;
 pub mod policy_engine;
 pub mod company_store;

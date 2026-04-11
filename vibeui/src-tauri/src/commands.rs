@@ -39874,6 +39874,131 @@ pub async fn distill_export() -> Result<String, String> {
     Ok(engine.export_skills())
 }
 
+// ─── Self-Improving Skills Commands ───────────────────────────────────────────
+
+use vibecli_cli::self_improving_skills::{
+    ActivationOutcome, SelfImprovingSkillsEngine,
+};
+
+fn sis_engine(state: &tauri::State<'_, AppState>) -> SelfImprovingSkillsEngine {
+    let ws = futures::executor::block_on(state.workspace.lock());
+    let root = ws.folders().first().cloned().unwrap_or_else(|| {
+        std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."))
+    });
+    SelfImprovingSkillsEngine::new(&root)
+}
+
+/// Record that a skill was activated for a given task.
+#[tauri::command]
+pub async fn sis_record_activation(
+    skill_name: String,
+    task_text: String,
+    triggered_by: String,
+    session_id: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<String, String> {
+    let engine = sis_engine(&state);
+    Ok(engine.record_activation(&skill_name, &task_text, &triggered_by, &session_id))
+}
+
+/// Record the outcome of a skill activation by its ID.
+#[tauri::command]
+pub async fn sis_record_outcome(
+    activation_id: String,
+    accepted: bool,
+    correction: Option<String>,
+    state: tauri::State<'_, AppState>,
+) -> Result<bool, String> {
+    let engine = sis_engine(&state);
+    let outcome = if accepted {
+        ActivationOutcome::Accepted
+    } else if let Some(c) = correction {
+        ActivationOutcome::Corrected { correction_summary: c }
+    } else {
+        ActivationOutcome::Rejected
+    };
+    Ok(engine.record_outcome(&activation_id, outcome))
+}
+
+/// Record accept/reject for all pending activations of a session at once.
+#[tauri::command]
+pub async fn sis_record_session_outcome(
+    session_id: String,
+    accepted: bool,
+    correction: Option<String>,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    let engine = sis_engine(&state);
+    engine.record_session_outcome(&session_id, accepted, correction);
+    Ok(())
+}
+
+/// Return per-skill metrics.
+#[tauri::command]
+pub async fn sis_get_metrics(
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<serde_json::Value>, String> {
+    let engine = sis_engine(&state);
+    let metrics = engine.compute_metrics();
+    let values: Vec<serde_json::Value> = metrics
+        .iter()
+        .map(|m| serde_json::to_value(m).unwrap_or_default())
+        .collect();
+    Ok(values)
+}
+
+/// Compute and persist proposed evolutions; return pending ones.
+#[tauri::command]
+pub async fn sis_propose_evolutions(
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<serde_json::Value>, String> {
+    let engine = sis_engine(&state);
+    let evs = engine.propose_evolutions();
+    Ok(evs.iter().map(|e| serde_json::to_value(e).unwrap_or_default()).collect())
+}
+
+/// Apply an evolution by ID (writes to skill file).
+#[tauri::command]
+pub async fn sis_apply_evolution(
+    evolution_id: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<String, String> {
+    let engine = sis_engine(&state);
+    engine.apply_evolution(&evolution_id)
+}
+
+/// Extract a new skill draft from a successful session interaction.
+#[tauri::command]
+pub async fn sis_extract_new_skill(
+    task_text: String,
+    response_text: String,
+    session_id: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<Option<serde_json::Value>, String> {
+    let engine = sis_engine(&state);
+    let ev = engine.extract_new_skill(&task_text, &response_text, &session_id);
+    Ok(ev.map(|e| serde_json::to_value(e).unwrap_or_default()))
+}
+
+/// Return skills that are candidates for pruning.
+#[tauri::command]
+pub async fn sis_prune_candidates(
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<serde_json::Value>, String> {
+    let engine = sis_engine(&state);
+    let candidates = engine.prune_candidates();
+    Ok(candidates.iter().map(|m| serde_json::to_value(m).unwrap_or_default()).collect())
+}
+
+/// Overall self-improving skills status summary.
+#[tauri::command]
+pub async fn sis_status(
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let engine = sis_engine(&state);
+    serde_json::to_value(engine.status()).map_err(|e| e.to_string())
+}
+
 // ── RL-OS: Reinforcement Learning Lifecycle Platform ──────────────────
 
 use std::sync::Mutex as StdMutex;
