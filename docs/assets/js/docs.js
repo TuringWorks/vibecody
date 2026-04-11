@@ -150,11 +150,70 @@
     });
   }
 
+  // ── Image Lightbox ─────────────────────────────────────────────────
+  function initLightbox() {
+    // Build overlay DOM once
+    var overlay = document.createElement('div');
+    overlay.id = 'lightbox-overlay';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', 'Image preview');
+
+    var img = document.createElement('img');
+    img.id = 'lightbox-img';
+    img.alt = '';
+
+    var caption = document.createElement('div');
+    caption.id = 'lightbox-caption';
+
+    var close = document.createElement('button');
+    close.id = 'lightbox-close';
+    close.setAttribute('aria-label', 'Close');
+    close.textContent = '\u00d7'; // ×
+
+    overlay.appendChild(close);
+    overlay.appendChild(img);
+    overlay.appendChild(caption);
+    document.body.appendChild(overlay);
+
+    function openLightbox(src, alt) {
+      img.src = src;
+      img.alt = alt || '';
+      caption.textContent = alt || '';
+      overlay.classList.add('is-open');
+      document.body.style.overflow = 'hidden';
+      close.focus();
+    }
+
+    function closeLightbox() {
+      overlay.classList.remove('is-open');
+      document.body.style.overflow = '';
+      img.src = '';
+    }
+
+    // Wire up all content images (skip tiny icons)
+    document.querySelectorAll('.page-content img, .post-content img').forEach(function (el) {
+      el.style.cursor = 'zoom-in';
+      el.addEventListener('click', function () {
+        openLightbox(el.src, el.alt);
+      });
+    });
+
+    close.addEventListener('click', closeLightbox);
+    overlay.addEventListener('click', function (e) {
+      if (e.target === overlay) closeLightbox();
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && overlay.classList.contains('is-open')) closeLightbox();
+    });
+  }
+
   // ── Init ───────────────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', function () {
     initTheme();
     generateTOC();
     initSearch();
     initSmoothScroll();
+    initLightbox();
   });
 })();
