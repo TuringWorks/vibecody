@@ -6,6 +6,7 @@
  * Pure TypeScript — no Tauri commands required.
  */
 import { useState, useMemo } from "react";
+import { Check, X } from "lucide-react";
 
 // ── Myers diff (line-level) ────────────────────────────────────────────────────
 
@@ -125,7 +126,7 @@ export function DiffToolPanel() {
  {/* Stats */}
  <div style={{ display: "flex", gap: 6 }}>
  {identical
- ? <span style={{ fontSize: 10, color: "var(--text-success)", padding: "2px 8px", background: "color-mix(in srgb, var(--accent-green) 10%, transparent)", border: "1px solid var(--success-color)", borderRadius: 10 }}>✓ Identical</span>
+ ? <span style={{ fontSize: 10, color: "var(--text-success)", padding: "2px 8px", background: "color-mix(in srgb, var(--accent-green) 10%, transparent)", border: "1px solid var(--success-color)", borderRadius: 10, display: "inline-flex", alignItems: "center", gap: 3 }}><Check size={10} /> Identical</span>
  : <>
  {stats.added > 0 && <span style={{ fontSize: 10, color: "var(--text-success)", padding: "2px 8px", background: "color-mix(in srgb, var(--accent-green) 10%, transparent)", border: "1px solid var(--success-color)", borderRadius: 10 }}>+{stats.added}</span>}
  {stats.removed > 0 && <span style={{ fontSize: 10, color: "var(--text-danger)", padding: "2px 8px", background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", border: "1px solid var(--error-color)", borderRadius: 10 }}>−{stats.removed}</span>}
@@ -144,10 +145,10 @@ export function DiffToolPanel() {
  ))}
 
  <button onClick={swap} style={{ fontSize: 10, padding: "3px 10px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-secondary)", cursor: "pointer" }}>⇄ Swap</button>
- <button onClick={clear} style={{ fontSize: 10, padding: "3px 10px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-secondary)", cursor: "pointer" }}>✕ Clear</button>
+ <button onClick={clear} style={{ fontSize: 10, padding: "3px 10px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-secondary)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 3 }}><X size={10} /> Clear</button>
  {mode === "unified" && (
  <button onClick={copyUnified} style={{ fontSize: 10, padding: "3px 10px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-secondary)", cursor: "pointer" }}>
- {copied ? "✓ Copied" : "Copy patch"}
+ {copied ? <><Check size={10} /> Copied</> : "Copy patch"}
  </button>
  )}
  </div>

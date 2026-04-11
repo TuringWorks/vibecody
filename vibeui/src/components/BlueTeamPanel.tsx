@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { X } from "lucide-react";
 
 type BlueTeamTab = "Incidents" | "IOCs" | "Detection Rules" | "Forensics" | "SIEM" | "Playbooks" | "Threat Hunt";
 
@@ -791,7 +792,7 @@ export function BlueTeamPanel() {
         {error && (
           <div className="panel-error" style={{ marginBottom: 12, display: "flex", justifyContent: "space-between" }}>
             <span>{error}</span>
-            <button aria-label="Dismiss error" style={{ background: "none", border: "none", color: "var(--error-color)", cursor: "pointer", fontSize: 14 }} onClick={() => setError(null)}>×</button>
+            <button aria-label="Dismiss error" style={{ background: "none", border: "none", color: "var(--error-color)", cursor: "pointer", display: "flex", alignItems: "center" }} onClick={() => setError(null)}><X size={14} /></button>
           </div>
         )}
         {loading && <div className="panel-loading">Loading...</div>}

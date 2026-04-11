@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { X, Loader2 } from "lucide-react";
 
 interface Checkpoint {
   index: number;
@@ -215,7 +216,7 @@ export function CheckpointPanel({ workspacePath }: CheckpointPanelProps) {
               className="panel-btn panel-btn-danger"
               style={{ flexShrink: 0, lineHeight: 1, padding: "3px 7px" }}
             >
-              {deleting === cp.index ? "…" : "✕"}
+              {deleting === cp.index ? <Loader2 size={12} className="spin" /> : <X size={12} />}
             </button>
           </div>
         ))}

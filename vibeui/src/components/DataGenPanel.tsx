@@ -13,6 +13,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { CopyButton as CopyBtn } from "./shared/CopyButton";
+import { X } from "lucide-react";
 
 // ── Lorem Ipsum word bank ──────────────────────────────────────────────────────
 
@@ -308,7 +309,7 @@ export function DataGenPanel() {
  style={{ flex: 1, padding: "2px 4px", fontSize: 10, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 3, color: "var(--text-primary)", outline: "none" }}>
  {FAKE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
  </select>
- <button onClick={() => removeField(f.id)} style={{ fontSize: 10, background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", padding: "0 2px" }}>✕</button>
+ <button onClick={() => removeField(f.id)} style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", padding: "0 2px", display: "flex", alignItems: "center" }}><X size={10} /></button>
  </div>
  ))}
  </div>

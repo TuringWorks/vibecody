@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useMemo } from "react";
-import { Table } from "lucide-react";
+import { Table, X } from "lucide-react";
 
 type Row = string[];
 type SortDir = "asc" | "desc" | null;
@@ -285,7 +285,7 @@ export function CsvPanel() {
  ))}
  <td style={{ padding: "2px 4px" }}>
  <button onClick={() => deleteRow(ri)} title="Delete row"
- style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: 11, padding: "0 2px" }}>✕</button>
+ style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", padding: "0 2px", display: "flex", alignItems: "center" }}><X size={11} /></button>
  </td>
  </tr>
  ))}

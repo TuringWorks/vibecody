@@ -7,7 +7,12 @@
  */
 import { useState, useEffect, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Loader2 } from "lucide-react";
+import {
+  Loader2, HardDrive, Database, Server, Layers, Zap, Search,
+  BarChart2, BarChart3, Cloud, Snowflake, Globe, Archive,
+  ChevronRight, ChevronDown, Play,
+  Check, X, Download, Clock, LucideIcon,
+} from "lucide-react";
 import { useToast } from "../hooks/useToast";
 import { Toaster } from "./Toaster";
 
@@ -94,49 +99,49 @@ interface CatalogEntry {
   category: string;
   requiresCli?: string;
   defaultPort?: number;
-  icon: string;
+  icon: LucideIcon;
 }
 
 const DB_CATALOG: CatalogEntry[] = [
-  { driver: "sqlite",           label: "SQLite",           category: "File-based",  icon: "🗄️" },
-  { driver: "duckdb",           label: "DuckDB",           category: "File-based",  icon: "🦆" },
-  { driver: "postgres",         label: "PostgreSQL",       category: "Relational",  icon: "🐘", defaultPort: 5432 },
-  { driver: "cockroachdb",      label: "CockroachDB",      category: "Relational",  icon: "🪳", defaultPort: 26257 },
-  { driver: "timescaledb",      label: "TimescaleDB",      category: "Relational",  icon: "⏱️", defaultPort: 5432 },
-  { driver: "yugabytedb",       label: "YugabyteDB",       category: "Relational",  icon: "🌍", defaultPort: 5433 },
-  { driver: "mysql",            label: "MySQL",            category: "Relational",  icon: "🐬", defaultPort: 3306 },
-  { driver: "mariadb",          label: "MariaDB",          category: "Relational",  icon: "🦭", defaultPort: 3306 },
-  { driver: "tidb",             label: "TiDB",             category: "Relational",  icon: "🔶", defaultPort: 4000 },
-  { driver: "singlestore",      label: "SingleStore",      category: "Relational",  icon: "💎", defaultPort: 3306 },
-  { driver: "mssql",            label: "SQL Server",       category: "Relational",  icon: "🪟", defaultPort: 1433 },
-  { driver: "neon",             label: "Neon",             category: "Cloud SQL",   icon: "✨", defaultPort: 5432 },
-  { driver: "supabase",         label: "Supabase",         category: "Cloud SQL",   icon: "⚡", defaultPort: 5432 },
-  { driver: "alloydb",          label: "AlloyDB",          category: "Cloud SQL",   icon: "🔷", defaultPort: 5432 },
-  { driver: "aurora-pg",        label: "Aurora (PG)",      category: "Cloud SQL",   icon: "🔷", defaultPort: 5432 },
-  { driver: "aurora-mysql",     label: "Aurora (MySQL)",   category: "Cloud SQL",   icon: "🟠", defaultPort: 3306 },
-  { driver: "planetscale",      label: "PlanetScale",      category: "Cloud SQL",   icon: "🪐", defaultPort: 3306 },
-  { driver: "azure-sql",        label: "Azure SQL",        category: "Cloud SQL",   icon: "🔵", defaultPort: 1433 },
-  { driver: "redshift",         label: "Amazon Redshift",  category: "Analytics",   icon: "🔴", defaultPort: 5439 },
-  { driver: "clickhouse",       label: "ClickHouse",       category: "Analytics",   icon: "🖱️", defaultPort: 9000 },
-  { driver: "clickhouse-cloud", label: "ClickHouse Cloud", category: "Analytics",   icon: "☁️", defaultPort: 9440 },
-  { driver: "snowflake",        label: "Snowflake",        category: "Analytics",   icon: "❄️" },
-  { driver: "bigquery",         label: "BigQuery",         category: "Analytics",   icon: "📊" },
-  { driver: "mongodb",          label: "MongoDB",          category: "NoSQL",       icon: "🍃", defaultPort: 27017 },
-  { driver: "mongodb-atlas",    label: "MongoDB Atlas",    category: "NoSQL",       icon: "🌿" },
-  { driver: "redis",            label: "Redis",            category: "NoSQL",       icon: "🔴", defaultPort: 6379 },
-  { driver: "valkey",           label: "Valkey",           category: "NoSQL",       icon: "🔑", defaultPort: 6379 },
-  { driver: "upstash",          label: "Upstash Redis",    category: "Cloud NoSQL", icon: "⬆️" },
-  { driver: "cassandra",        label: "Cassandra",        category: "NoSQL",       icon: "💠", defaultPort: 9042 },
-  { driver: "scylladb",         label: "ScyllaDB",         category: "NoSQL",       icon: "🪸", defaultPort: 9042 },
-  { driver: "elasticsearch",    label: "Elasticsearch",    category: "Search",      icon: "🔍", defaultPort: 9200 },
-  { driver: "opensearch",       label: "OpenSearch",       category: "Search",      icon: "🔎", defaultPort: 9200 },
+  { driver: "sqlite",           label: "SQLite",           category: "File-based",  icon: HardDrive },
+  { driver: "duckdb",           label: "DuckDB",           category: "File-based",  icon: HardDrive },
+  { driver: "postgres",         label: "PostgreSQL",       category: "Relational",  icon: Database, defaultPort: 5432 },
+  { driver: "cockroachdb",      label: "CockroachDB",      category: "Relational",  icon: Database, defaultPort: 26257 },
+  { driver: "timescaledb",      label: "TimescaleDB",      category: "Relational",  icon: Database, defaultPort: 5432 },
+  { driver: "yugabytedb",       label: "YugabyteDB",       category: "Relational",  icon: Globe, defaultPort: 5433 },
+  { driver: "mysql",            label: "MySQL",            category: "Relational",  icon: Database, defaultPort: 3306 },
+  { driver: "mariadb",          label: "MariaDB",          category: "Relational",  icon: Database, defaultPort: 3306 },
+  { driver: "tidb",             label: "TiDB",             category: "Relational",  icon: Database, defaultPort: 4000 },
+  { driver: "singlestore",      label: "SingleStore",      category: "Relational",  icon: Database, defaultPort: 3306 },
+  { driver: "mssql",            label: "SQL Server",       category: "Relational",  icon: Database, defaultPort: 1433 },
+  { driver: "neon",             label: "Neon",             category: "Cloud SQL",   icon: Cloud, defaultPort: 5432 },
+  { driver: "supabase",         label: "Supabase",         category: "Cloud SQL",   icon: Cloud, defaultPort: 5432 },
+  { driver: "alloydb",          label: "AlloyDB",          category: "Cloud SQL",   icon: Cloud, defaultPort: 5432 },
+  { driver: "aurora-pg",        label: "Aurora (PG)",      category: "Cloud SQL",   icon: Cloud, defaultPort: 5432 },
+  { driver: "aurora-mysql",     label: "Aurora (MySQL)",   category: "Cloud SQL",   icon: Cloud, defaultPort: 3306 },
+  { driver: "planetscale",      label: "PlanetScale",      category: "Cloud SQL",   icon: Cloud, defaultPort: 3306 },
+  { driver: "azure-sql",        label: "Azure SQL",        category: "Cloud SQL",   icon: Cloud, defaultPort: 1433 },
+  { driver: "redshift",         label: "Amazon Redshift",  category: "Analytics",   icon: BarChart2, defaultPort: 5439 },
+  { driver: "clickhouse",       label: "ClickHouse",       category: "Analytics",   icon: BarChart2, defaultPort: 9000 },
+  { driver: "clickhouse-cloud", label: "ClickHouse Cloud", category: "Analytics",   icon: BarChart2, defaultPort: 9440 },
+  { driver: "snowflake",        label: "Snowflake",        category: "Analytics",   icon: Snowflake },
+  { driver: "bigquery",         label: "BigQuery",         category: "Analytics",   icon: BarChart3 },
+  { driver: "mongodb",          label: "MongoDB",          category: "NoSQL",       icon: Layers, defaultPort: 27017 },
+  { driver: "mongodb-atlas",    label: "MongoDB Atlas",    category: "NoSQL",       icon: Layers },
+  { driver: "redis",            label: "Redis",            category: "NoSQL",       icon: Zap, defaultPort: 6379 },
+  { driver: "valkey",           label: "Valkey",           category: "NoSQL",       icon: Zap, defaultPort: 6379 },
+  { driver: "upstash",          label: "Upstash Redis",    category: "Cloud NoSQL", icon: Zap },
+  { driver: "cassandra",        label: "Cassandra",        category: "NoSQL",       icon: Server, defaultPort: 9042 },
+  { driver: "scylladb",         label: "ScyllaDB",         category: "NoSQL",       icon: Server, defaultPort: 9042 },
+  { driver: "elasticsearch",    label: "Elasticsearch",    category: "Search",      icon: Search, defaultPort: 9200 },
+  { driver: "opensearch",       label: "OpenSearch",       category: "Search",      icon: Search, defaultPort: 9200 },
 ];
 
 const CATEGORIES = Array.from(new Set(DB_CATALOG.map((d) => d.category)));
 
 function catalogEntry(driver: DbDriver): CatalogEntry {
   return DB_CATALOG.find((e) => e.driver === driver) ?? {
-    driver, label: driver, category: "Other", icon: "🗃️",
+    driver, label: driver, category: "Other", icon: Archive,
   };
 }
 
@@ -355,11 +360,12 @@ function ConnectionWizard({ workspacePath, onClose, onSaved, toast }: WizardProp
               border: "none",
               color: "var(--text-muted)",
               cursor: "pointer",
-              fontSize: 18,
               lineHeight: 1,
+              display: "flex",
+              alignItems: "center",
             }}
           >
-            ×
+            <X size={16} />
           </button>
         </div>
 
@@ -411,7 +417,7 @@ function ConnectionWizard({ workspacePath, onClose, onSaved, toast }: WizardProp
                         onMouseEnter={(ev) => { (ev.currentTarget as HTMLButtonElement).style.borderColor = "var(--accent-color, #7c3aed)"; }}
                         onMouseLeave={(ev) => { (ev.currentTarget as HTMLButtonElement).style.borderColor = "var(--border-color, #3a3a5c)"; }}
                       >
-                        <span style={{ fontSize: 16 }}>{e.icon}</span>
+                        <e.icon size={16} style={{ color: "var(--text-secondary)" }} />
                         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.label}</span>
                       </button>
                     ))}
@@ -617,7 +623,7 @@ function ConnectionWizard({ workspacePath, onClose, onSaved, toast }: WizardProp
             {/* Test result banner */}
             {testStatus === "ok" && (
               <div style={{ background: "rgba(34,197,94,0.15)", border: "1px solid #22c55e", borderRadius: 6, padding: "8px 12px", fontSize: 12, color: "#22c55e" }}>
-                ✓ {testMessage}
+                <Check size={12} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} /> {testMessage}
               </div>
             )}
             {testStatus === "fail" && (
@@ -730,13 +736,13 @@ function SchemaTree({ tables, selectedTable, onTableClick }: SchemaTreeProps) {
               onDoubleClick={() => toggle(tbl.name)}
             >
               <span
-                style={{ fontSize: 9, opacity: 0.6, width: 10, flexShrink: 0 }}
+                style={{ opacity: 0.6, width: 10, flexShrink: 0, display: "flex" }}
                 onClick={(ev) => { ev.stopPropagation(); toggle(tbl.name); }}
               >
-                {isExpanded ? "▼" : "▶"}
+                {isExpanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
               </span>
               <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
-                📋 {tbl.name}
+                {tbl.name}
               </span>
               <span style={{ fontSize: 9, opacity: 0.4, flexShrink: 0 }}>
                 {tbl.row_count.toLocaleString()}
@@ -953,7 +959,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
     return (
       <div className="panel-container" style={{ alignItems: "center", justifyContent: "center" }}>
         <div style={{ textAlign: "center", opacity: 0.6, fontSize: 13 }}>
-          <div style={{ fontSize: 32, marginBottom: 12 }}>🗄️</div>
+          <div style={{ marginBottom: 12, display: "flex", justifyContent: "center" }}><Database size={32} /></div>
           <p>Open a workspace folder to use the database browser.</p>
         </div>
       </div>
@@ -1021,7 +1027,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
                 onClick={() => connectToProfile(p)}
                 title={p.name}
               >
-                <span style={{ fontSize: 14, flexShrink: 0 }}>{entry.icon}</span>
+                <entry.icon size={14} style={{ color: "var(--text-secondary)", flexShrink: 0 }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div
                     style={{
@@ -1046,16 +1052,17 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
                     border: "none",
                     color: "var(--text-muted)",
                     cursor: "pointer",
-                    fontSize: 14,
                     padding: 0,
                     lineHeight: 1,
                     opacity: 0,
                     transition: "opacity 0.15s",
+                    display: "flex",
+                    alignItems: "center",
                   }}
                   onMouseEnter={(ev) => { (ev.currentTarget as HTMLButtonElement).style.opacity = "1"; }}
                   onMouseLeave={(ev) => { (ev.currentTarget as HTMLButtonElement).style.opacity = "0"; }}
                 >
-                  ×
+                  <X size={12} />
                 </button>
               </div>
             );
@@ -1094,7 +1101,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
             gap: 6,
           }}
         >
-          {connEntry && <span style={{ fontSize: 13 }}>{connEntry.icon}</span>}
+          {connEntry && <connEntry.icon size={13} style={{ color: "var(--text-secondary)" }} />}
           <span
             style={{
               fontSize: 11,
@@ -1172,7 +1179,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
                 <Loader2 size={11} style={{ animation: "spin 1s linear infinite" }} /> Thinking…
               </span>
             ) : (
-              "✨ Ask AI"
+              "Ask AI"
             )}
           </button>
         </div>
@@ -1214,7 +1221,8 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
                   <Loader2 size={11} style={{ animation: "spin 1s linear infinite" }} /> Running…
                 </span>
               ) : (
-                "▶ Run"
+                <><Play size={11} /> Run</>
+
               )}
             </button>
 
@@ -1227,7 +1235,8 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
                 disabled={queryHistory.length === 0}
                 title="Query history"
               >
-                🕐 History
+                <><Clock size={12} /> History</>
+
               </button>
               {showHistory && queryHistory.length > 0 && (
                 <div
@@ -1284,7 +1293,8 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
                 style={{ fontSize: 12 }}
                 title="Export as CSV"
               >
-                ⬇ CSV
+                <><Download size={12} /> CSV</>
+
               </button>
               <button
                 onClick={handleExportJSON}
@@ -1293,7 +1303,8 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
                 style={{ fontSize: 12 }}
                 title="Export as JSON"
               >
-                ⬇ JSON
+                <><Download size={12} /> JSON</>
+
               </button>
               <button
                 onClick={handleGenerateMigration}
@@ -1323,7 +1334,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
                 gap: 12,
               }}
             >
-              <div style={{ fontSize: 40 }}>🗄️</div>
+              <div style={{ display: "flex", justifyContent: "center" }}><Database size={40} style={{ opacity: 0.5 }} /></div>
               <div style={{ fontSize: 13 }}>Select a connection or create a new one to get started.</div>
               <button
                 onClick={() => setShowWizard(true)}

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FolderOpen, AlertTriangle } from 'lucide-react';
+import { FolderOpen, AlertTriangle, X, ChevronDown, ChevronRight } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { ReviewPanel } from './ReviewPanel';
 import { useToast } from '../hooks/useToast';
@@ -419,7 +419,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  <div>
  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
  <h3 style={{ fontSize: '13px' }}>Commit History</h3>
- <button aria-label="Close history" onClick={() => setShowHistory(false)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '16px' }}>×</button>
+ <button aria-label="Close history" onClick={() => setShowHistory(false)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}><X size={16} /></button>
  </div>
  {selectedCommit ? (
  <div>
@@ -534,10 +534,10 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  ) : (
  <button
  onClick={() => setConfirmDiscard(file)}
- style={{ background: 'none', border: 'none', color: 'var(--text-danger)', cursor: 'pointer', fontSize: '10px', padding: '2px 4px' }}
+ style={{ background: 'none', border: 'none', color: 'var(--text-danger)', cursor: 'pointer', padding: '2px 4px', display: 'flex', alignItems: 'center' }}
  title="Discard changes"
  >
- ✕
+ <X size={10} />
  </button>
  )}
  </div>
@@ -754,7 +754,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  display: 'flex', alignItems: 'center', gap: 6,
  }}
  >
- <span>{showGitSettings ? '▼' : '▶'}</span>
+ {showGitSettings ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
  <span>Git Settings</span>
  {sshAvailable && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: 'var(--success-bg)', color: 'var(--success-color)' }}>SSH</span>}
  </button>

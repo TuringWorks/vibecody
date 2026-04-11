@@ -8,7 +8,7 @@
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { Loader2 } from "lucide-react";
+import { Loader2, Package, Box, Wrench, Code, Zap, Terminal, RefreshCw, LucideIcon } from "lucide-react";
 
 interface ProjectScript {
  category: string;
@@ -34,13 +34,13 @@ interface ScriptPanelProps {
  workspacePath: string | null;
 }
 
-const CATEGORY_ICONS: Record<string, string> = {
- npm: "",
- cargo: "",
- make: "",
- python: "",
- go: "",
- just: "",
+const CATEGORY_ICONS: Record<string, LucideIcon> = {
+ npm: Package,
+ cargo: Box,
+ make: Wrench,
+ python: Code,
+ go: Zap,
+ just: Terminal,
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -148,7 +148,7 @@ export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
  <div className="panel-container">
  {/* Header */}
  <div className="panel-header">
- <span style={{ fontSize: 16 }}></span>
+ <Terminal size={16} style={{ color: "var(--text-secondary)" }} />
  <div style={{ flex: 1 }}>
  <h3>Script Runner</h3>
  {data && (
@@ -162,7 +162,7 @@ export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
  disabled={loading}
  className="panel-btn panel-btn-secondary panel-btn-sm"
  >
- {loading ? <Loader2 size={13} className="spin" /> : "↻ Refresh"}
+ {loading ? <Loader2 size={13} className="spin" /> : <><RefreshCw size={13} /> Refresh</>}
  </button>
  </div>
 
@@ -185,7 +185,7 @@ export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
  cursor: "pointer", fontWeight: filter === cat ? 600 : 400,
  }}
  >
- {cat === "all" ? "All" : `${CATEGORY_ICONS[cat] ?? "•"} ${cat}`}
+ {cat === "all" ? "All" : (() => { const CatIcon = CATEGORY_ICONS[cat]; return <>{CatIcon ? <CatIcon size={11} /> : null} {cat}</>; })()}
  </button>
  ))}
  <input
@@ -232,10 +232,10 @@ export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
  <span
  title={script.category}
  style={{
- fontSize: 13, flexShrink: 0, width: 22, textAlign: "center",
+ flexShrink: 0, width: 22, display: "flex", justifyContent: "center", alignItems: "center",
  }}
  >
- {CATEGORY_ICONS[script.category] ?? ""}
+ {(() => { const Icon = CATEGORY_ICONS[script.category]; return Icon ? <Icon size={13} /> : null; })()}
  </span>
 
  {/* Script info */}
@@ -293,7 +293,7 @@ export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
  disabled={!!running || !customCmd.trim()}
  className="panel-btn panel-btn-secondary panel-btn-sm"
  >
- {running ? "" : "Run"}
+ {running ? <Loader2 size={13} className="spin" /> : "Run"}
  </button>
  </div>
 

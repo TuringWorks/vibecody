@@ -13,6 +13,7 @@
  */
 import { useState, useEffect, useCallback } from "react";
 import { CopyButton } from "./shared/CopyButton";
+import { X } from "lucide-react";
 
 // ── Base64 ─────────────────────────────────────────────────────────────────────
 
@@ -184,7 +185,7 @@ export function EncodingPanel() {
  <div style={{ padding: "4px 12px", fontSize: 10, fontWeight: 700, color: "var(--text-secondary)", background: "var(--bg-secondary)", display: "flex", gap: 8, alignItems: "center" }}>
  <span>INPUT</span>
  <button onClick={pasteClipboard} style={{ fontSize: 9, background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}>Paste</button>
- <button onClick={() => setInput("")} style={{ fontSize: 9, background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}>✕ Clear</button>
+ <button onClick={() => setInput("")} style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 3, fontSize: 9 }}><X size={9} /> Clear</button>
  <span style={{ marginLeft: "auto", fontSize: 9, color: "var(--text-secondary)" }}>{input.length} chars</span>
  </div>
  <textarea value={input} onChange={e => setInput(e.target.value)} rows={4} spellCheck={false}

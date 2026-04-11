@@ -8,6 +8,7 @@
  */
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { X, Loader2, RefreshCw } from "lucide-react";
 
 type Tab = "predictions" | "patterns" | "model";
 type PredictionState = "pending" | "accepted" | "rejected";
@@ -127,7 +128,7 @@ export default function EditPredictionPanel() {
           {(model.acceptanceRate * 100).toFixed(0)}% accept rate
         </span>
         <button className="panel-btn panel-btn-secondary panel-btn-sm" onClick={loadData} disabled={loading}>
-          {loading ? "…" : "↻"}
+          {loading ? <Loader2 size={13} className="spin" /> : <RefreshCw size={13} />}
         </button>
       </div>
 
@@ -137,7 +138,7 @@ export default function EditPredictionPanel() {
         {error && (
           <div className="panel-error">
             {error}
-            <button onClick={() => setError(null)}>✕</button>
+            <button onClick={() => setError(null)}><X size={12} /></button>
           </div>
         )}
 

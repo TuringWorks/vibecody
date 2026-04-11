@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { X } from "lucide-react";
 
 interface GitHubSyncStatus {
  repo_url: string | null;
@@ -159,7 +160,7 @@ export function GitHubSyncPanel({ workspacePath }: { workspacePath: string | nul
  {(error || success) && (
  <div className={error ? "panel-error" : "panel-section"} style={{ color: error ? "var(--error-color)" : "var(--success-color)", background: error ? "var(--error-bg)" : "var(--success-bg)" }}>
  {error || success}
- <button aria-label="Dismiss" style={{ float: "right", background: "none", border: "none", cursor: "pointer", color: "inherit" }} onClick={() => { setError(null); setSuccess(null); }}>×</button>
+ <button aria-label="Dismiss" style={{ float: "right", background: "none", border: "none", cursor: "pointer", color: "inherit", display: "inline-flex", alignItems: "center" }} onClick={() => { setError(null); setSuccess(null); }}><X size={14} /></button>
  </div>
  )}
 

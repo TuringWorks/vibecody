@@ -6,6 +6,7 @@
  */
 import { useState, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { X } from "lucide-react";
 
 interface DimensionResult {
   dimension: string;
@@ -113,7 +114,7 @@ export default function HealthScorePanel() {
         {error && (
           <div className="panel-error" style={{ marginBottom: 10 }}>
             {error}
-            <button onClick={() => setError("")}>✕</button>
+            <button onClick={() => setError("")}><X size={12} /></button>
           </div>
         )}
 

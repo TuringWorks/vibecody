@@ -7,6 +7,7 @@
  */
 import { useState, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { X, RefreshCw } from "lucide-react";
 
 interface LanguageStat {
   language: string;
@@ -129,7 +130,7 @@ export function CodeMetricsPanel({ workspacePath }: CodeMetricsPanelProps) {
           </button>
         ) : (
           <button className="panel-btn panel-btn-primary" onClick={scan}>
-            {metrics ? "↻ Re-scan" : "Scan"}
+            {metrics ? <><RefreshCw size={13} /> Re-scan</> : "Scan"}
           </button>
         )}
       </div>
@@ -137,7 +138,7 @@ export function CodeMetricsPanel({ workspacePath }: CodeMetricsPanelProps) {
       {error && (
         <div className="panel-error" style={{ margin: "8px 12px" }}>
           {error}
-          <button onClick={() => setError(null)}>✕</button>
+          <button onClick={() => setError(null)}><X size={12} /></button>
         </div>
       )}
 

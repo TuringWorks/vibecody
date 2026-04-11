@@ -7,6 +7,7 @@
  */
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { X, Check } from "lucide-react";
 
 interface ColorToken {
  name: string;
@@ -100,7 +101,7 @@ function Swatch({ token, onEdit, onRemove }: {
  <div style={{ borderRadius: 8, overflow: "hidden", border: "1px solid var(--border-color)", cursor: "pointer" }} onClick={copy}>
  <div style={{ background: token.value, height: 56, display: "flex", alignItems: "flex-end", justifyContent: "flex-end", padding: "4px 6px", gap: 4 }}>
  <button onClick={e => { e.stopPropagation(); onEdit(token); }} style={{ background: "rgba(0,0,0,0.4)", border: "none", borderRadius: 3, color: "var(--text-primary)", fontSize: 9, padding: "1px 5px", cursor: "pointer" }}></button>
- <button onClick={e => { e.stopPropagation(); onRemove(); }} style={{ background: "rgba(0,0,0,0.4)", border: "none", borderRadius: 3, color: "var(--accent-rose)", fontSize: 9, padding: "1px 5px", cursor: "pointer" }}>✕</button>
+ <button onClick={e => { e.stopPropagation(); onRemove(); }} style={{ background: "rgba(0,0,0,0.4)", border: "none", borderRadius: 3, color: "var(--accent-rose)", padding: "1px 5px", cursor: "pointer", display: "flex", alignItems: "center" }}><X size={9} /></button>
  </div>
  <div style={{ padding: "5px 7px", background: "var(--bg-secondary)" }}>
  <div style={{ fontSize: 9, fontWeight: 700, fontFamily: "var(--font-mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{copied ? "Copied!" : token.value}</div>
@@ -231,7 +232,7 @@ export function ColorPalettePanel({ workspacePath }: { workspacePath: string | n
  ))}
  </div>
  <div style={{ fontSize: 10, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{p.name}</div>
- <button onClick={e => { e.stopPropagation(); removePalette(p.id); }} style={{ fontSize: 9, background: "none", border: "none", color: "var(--accent-rose)", cursor: "pointer", flexShrink: 0 }}>✕</button>
+ <button onClick={e => { e.stopPropagation(); removePalette(p.id); }} style={{ background: "none", border: "none", color: "var(--accent-rose)", cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center" }}><X size={9} /></button>
  </div>
  ))}
  </div>
@@ -287,7 +288,7 @@ export function ColorPalettePanel({ workspacePath }: { workspacePath: string | n
  <input value={editToken.value} onChange={e => setEditToken({ ...editToken, value: e.target.value })} style={{ padding: "3px 8px", fontSize: 11, fontFamily: "var(--font-mono)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none", width: 100 }} />
  </div>
  <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>{hexToRgb(editToken.value)}</div>
- <button onClick={commitEdit} style={{ padding: "4px 14px", fontSize: 11, fontWeight: 700, background: "var(--accent-primary, #6366f1)", border: "none", borderRadius: 4, color: "var(--text-primary)", cursor: "pointer", marginLeft: "auto" }}>✓ Done</button>
+ <button onClick={commitEdit} style={{ padding: "4px 14px", fontSize: 11, fontWeight: 700, background: "var(--accent-primary, #6366f1)", border: "none", borderRadius: 4, color: "var(--text-primary)", cursor: "pointer", marginLeft: "auto", display: "flex", alignItems: "center", gap: 4 }}><Check size={11} /> Done</button>
  </div>
  )}
 
@@ -313,7 +314,7 @@ export function ColorPalettePanel({ workspacePath }: { workspacePath: string | n
  <span style={{ fontSize: 11, fontWeight: 600 }}>{EXPORT_FORMATS.find(f => f.value === exportFmt)?.label} output</span>
  <div style={{ display: "flex", gap: 6 }}>
  <button onClick={copyExport} style={{ fontSize: 10, padding: "2px 10px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-secondary)", cursor: "pointer" }}>Copy</button>
- <button onClick={() => setShowExport(false)} style={{ fontSize: 10, padding: "2px 8px", background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}>✕</button>
+ <button onClick={() => setShowExport(false)} style={{ padding: "2px 8px", background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", display: "flex", alignItems: "center" }}><X size={10} /></button>
  </div>
  </div>
  <pre style={{ flex: 1, overflowY: "auto", margin: 0, padding: "10px 14px", fontSize: 11, fontFamily: "var(--font-mono)", lineHeight: 1.6, color: "var(--text-primary)", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>

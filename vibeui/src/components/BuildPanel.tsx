@@ -11,6 +11,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { X } from "lucide-react";
 
 interface BuildPanelProps {
   workspacePath: string | null;
@@ -266,9 +267,9 @@ export function BuildPanel({ workspacePath, currentFile, onOpenFile }: BuildPane
           <button
             onClick={() => setBuildDir("")}
             aria-label="Reset to workspace root"
-            style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: 12, padding: "0 4px" }}
+            style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", padding: "0 4px", display: "flex", alignItems: "center" }}
             title="Reset to workspace root"
-          >×</button>
+          ><X size={12} /></button>
         )}
       </div>
 

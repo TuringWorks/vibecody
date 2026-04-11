@@ -8,6 +8,7 @@
  */
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { X } from "lucide-react";
 
 /* ── Types ───────────────────────────────────────────────────────────── */
 
@@ -326,8 +327,8 @@ function StoryDetailModal({ story, onSave, onDelete, onClose, title }: StoryDeta
           <div style={{ flex: 1 }} />
           <button
             onClick={onClose}
-            style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "var(--text-secondary)", lineHeight: 1, padding: "0 4px" }}
-          >×</button>
+            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", lineHeight: 1, padding: "0 4px", display: "flex", alignItems: "center" }}
+          ><X size={16} /></button>
         </div>
 
         {/* ── Scrollable body ── */}
@@ -448,8 +449,8 @@ function StoryDetailModal({ story, onSave, onDelete, onClose, title }: StoryDeta
                 />
                 <button
                   onClick={() => removeAC(i)}
-                  style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-danger)", fontSize: 16, padding: "4px", lineHeight: 1, marginTop: 2 }}
-                >×</button>
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-danger)", padding: "4px", lineHeight: 1, marginTop: 2, display: "flex", alignItems: "center" }}
+                ><X size={14} /></button>
               </div>
             ))}
             <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
@@ -2683,7 +2684,7 @@ function SAFeTab({ provider }: { provider?: string } = {}) {
                     {EPIC_COLUMNS.filter(c => c !== col).map(c => (
                       <button key={c} className="panel-btn panel-btn-secondary" style={{ padding: "1px 6px", fontSize: 10 }} onClick={() => moveEpic(epic.id, c)}>→ {c}</button>
                     ))}
-                    <button className="panel-btn panel-btn-danger" style={{ padding: "1px 6px", fontSize: 10 }} onClick={() => removeEpic(epic.id)}>×</button>
+                    <button className="panel-btn panel-btn-danger" style={{ padding: "1px 6px", fontSize: 10 }} onClick={() => removeEpic(epic.id)}><X size={10} /></button>
                   </div>
                 </div>
               ))}

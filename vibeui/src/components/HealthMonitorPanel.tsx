@@ -6,6 +6,7 @@
  */
 import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { X } from "lucide-react";
 
 interface HealthMonitor {
  id: string;
@@ -292,7 +293,7 @@ export function HealthMonitorPanel() {
  <button
  onClick={() => removeMonitor(m.id)}
  style={{ padding: "3px 8px", fontSize: 10, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-danger)", cursor: "pointer" }}
- >✕</button>
+ ><X size={12} /></button>
  </div>
  </div>
  );

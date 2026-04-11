@@ -13,9 +13,22 @@ import type { editor } from "monaco-editor";
 /** Monaco theme name prefix */
 const THEME_PREFIX = "vibeui-";
 
-/** Convert a CSS hex color to Monaco-compatible hex (strip leading #) */
+/** Convert any CSS color to a Monaco-compatible #rrggbb hex string.
+ *  Monaco requires hex — it rejects rgb(), hsl(), named colors, etc.
+ */
 function toHex(color: string): string {
-  return color.startsWith("#") ? color : color;
+  if (!color) return "#808080";
+  const s = color.trim();
+  if (s.startsWith("#")) return s;
+  // Parse rgb(r, g, b) or rgb(r g b)
+  const rgbMatch = s.match(/^rgba?\(\s*([\d.]+)[,\s]\s*([\d.]+)[,\s]\s*([\d.]+)/);
+  if (rgbMatch) {
+    const r = Math.round(Number(rgbMatch[1])).toString(16).padStart(2, "0");
+    const g = Math.round(Number(rgbMatch[2])).toString(16).padStart(2, "0");
+    const b = Math.round(Number(rgbMatch[3])).toString(16).padStart(2, "0");
+    return `#${r}${g}${b}`;
+  }
+  return s;
 }
 
 /** Slightly lighten a hex color for highlights */

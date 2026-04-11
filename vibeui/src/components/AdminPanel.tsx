@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { X } from 'lucide-react';
 
 type Role = 'admin' | 'developer' | 'viewer';
 
@@ -140,7 +141,7 @@ export function AdminPanel() {
         </div>
       </div>
 
-      {error && <div className="panel-error" role="alert"><span>{error}</span><button onClick={() => setError(null)}>✕</button></div>}
+      {error && <div className="panel-error" role="alert"><span>{error}</span><button onClick={() => setError(null)}><X size={12} /></button></div>}
 
       {/* ── Team Members ── */}
       {tab === 'team' && !editingMember && (
