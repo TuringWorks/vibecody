@@ -8,6 +8,7 @@
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { Loader2 } from "lucide-react";
 
 interface ProjectScript {
  category: string;
@@ -161,7 +162,7 @@ export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
  disabled={loading}
  className="panel-btn panel-btn-secondary panel-btn-sm"
  >
- {loading ? "" : "↻ Refresh"}
+ {loading ? <Loader2 size={13} className="spin" /> : "↻ Refresh"}
  </button>
  </div>
 
@@ -259,7 +260,7 @@ export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
  className="panel-btn panel-btn-primary panel-btn-sm"
  style={{ flexShrink: 0 }}
  >
- {isRunning ? "Running…" : "Run"}
+ {isRunning ? <><Loader2 size={13} className="spin" /> Running…</> : "Run"}
  </button>
  </div>
  );

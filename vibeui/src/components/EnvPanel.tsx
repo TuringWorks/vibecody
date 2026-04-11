@@ -6,6 +6,7 @@
  */
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { Loader2 } from "lucide-react";
 
 interface EnvFileInfo {
   filename: string;
@@ -303,7 +304,7 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
           disabled={!dirty || saving}
           className="panel-btn panel-btn-primary panel-btn-sm"
         >
-          {saving ? "Saving..." : "Save"}
+          {saving ? <><Loader2 size={13} className="spin" /> Saving...</> : "Save"}
         </button>
       </div>
 

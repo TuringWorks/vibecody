@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { Loader2 } from "lucide-react";
 
 interface SpecTask {
  id: number;
@@ -183,7 +184,7 @@ export function SpecPanel({ workspacePath, provider = "ollama" }: SpecPanelProps
  className="panel-btn panel-btn-primary"
  style={{ flex: 1 }}
  >
- {generating ? "Generating..." : "Generate Spec"}
+ {generating ? <><Loader2 size={13} className="spin" /> Generating...</> : "Generate Spec"}
  </button>
  <button
  onClick={() => setShowNewForm(false)}
@@ -292,7 +293,7 @@ export function SpecPanel({ workspacePath, provider = "ollama" }: SpecPanelProps
  }}
  title={pendingCount === 0 ? "All tasks complete" : `Run agent on ${pendingCount} pending tasks`}
  >
- {loading ? "Running..." : ` Run Agent (${pendingCount} pending)`}
+ {loading ? <><Loader2 size={13} className="spin" /> Running...</> : ` Run Agent (${pendingCount} pending)`}
  </button>
  </div>
 
