@@ -39880,6 +39880,7 @@ use vibecli_cli::self_improving_skills::{
     ActivationOutcome, SelfImprovingSkillsEngine,
 };
 
+#[allow(dead_code)] // private helper; Tauri command wrappers below are registered in generate_handler!
 fn sis_engine(state: &tauri::State<'_, AppState>) -> SelfImprovingSkillsEngine {
     let ws = futures::executor::block_on(state.workspace.lock());
     let root = ws.folders().first().cloned().unwrap_or_else(|| {
@@ -39889,6 +39890,7 @@ fn sis_engine(state: &tauri::State<'_, AppState>) -> SelfImprovingSkillsEngine {
 }
 
 /// Record that a skill was activated for a given task.
+#[allow(dead_code)]
 #[tauri::command]
 pub async fn sis_record_activation(
     skill_name: String,
@@ -39902,6 +39904,7 @@ pub async fn sis_record_activation(
 }
 
 /// Record the outcome of a skill activation by its ID.
+#[allow(dead_code)]
 #[tauri::command]
 pub async fn sis_record_outcome(
     activation_id: String,
@@ -39921,6 +39924,7 @@ pub async fn sis_record_outcome(
 }
 
 /// Record accept/reject for all pending activations of a session at once.
+#[allow(dead_code)]
 #[tauri::command]
 pub async fn sis_record_session_outcome(
     session_id: String,
@@ -39934,6 +39938,7 @@ pub async fn sis_record_session_outcome(
 }
 
 /// Return per-skill metrics.
+#[allow(dead_code)]
 #[tauri::command]
 pub async fn sis_get_metrics(
     state: tauri::State<'_, AppState>,
@@ -39948,6 +39953,7 @@ pub async fn sis_get_metrics(
 }
 
 /// Compute and persist proposed evolutions; return pending ones.
+#[allow(dead_code)]
 #[tauri::command]
 pub async fn sis_propose_evolutions(
     state: tauri::State<'_, AppState>,
@@ -39958,6 +39964,7 @@ pub async fn sis_propose_evolutions(
 }
 
 /// Apply an evolution by ID (writes to skill file).
+#[allow(dead_code)]
 #[tauri::command]
 pub async fn sis_apply_evolution(
     evolution_id: String,
@@ -39968,6 +39975,7 @@ pub async fn sis_apply_evolution(
 }
 
 /// Extract a new skill draft from a successful session interaction.
+#[allow(dead_code)]
 #[tauri::command]
 pub async fn sis_extract_new_skill(
     task_text: String,
@@ -39981,6 +39989,7 @@ pub async fn sis_extract_new_skill(
 }
 
 /// Return skills that are candidates for pruning.
+#[allow(dead_code)]
 #[tauri::command]
 pub async fn sis_prune_candidates(
     state: tauri::State<'_, AppState>,
@@ -39991,6 +40000,7 @@ pub async fn sis_prune_candidates(
 }
 
 /// Overall self-improving skills status summary.
+#[allow(dead_code)]
 #[tauri::command]
 pub async fn sis_status(
     state: tauri::State<'_, AppState>,
