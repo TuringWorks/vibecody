@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import { CircleCheck, FlaskConical, Loader2, Play } from "lucide-react";
+import { CircleCheck, FlaskConical, Loader2, Play, ChevronDown, ChevronRight } from "lucide-react";
 import { usePersistentState } from "../hooks/usePersistentState";
 
 interface FileCoverage {
@@ -270,7 +270,7 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  onClick={() => toggleExpand(file.path)}
  style={{ padding: "6px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: "8px" }}
  >
- <span style={{ color: "var(--text-secondary)", fontSize: "10px" }}>{isExpanded ? "▼" : ""}</span>
+ <span style={{ color: "var(--text-secondary)", fontSize: "10px" }}>{isExpanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />}</span>
  <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--text-secondary)" }} title={file.path}>
  {shortPath}
  </span>

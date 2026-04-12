@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Webhook } from "lucide-react";
+import { Webhook, ChevronDown } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -105,7 +105,7 @@ function HookRow({
  >
  ✕
  </button>
- <span style={{ fontSize: "10px", color: "var(--text-secondary)" }}>{expanded ? "" : "▼"}</span>
+ <span style={{ fontSize: "10px", color: "var(--text-secondary)" }}>{expanded ? "" : <ChevronDown size={10} />}</span>
  </div>
 
  {/* Expanded editor */}

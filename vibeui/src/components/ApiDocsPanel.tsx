@@ -10,6 +10,7 @@
  */
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { ChevronDown } from "lucide-react";
 
 // ── Minimal OpenAPI types ──────────────────────────────────────────────────
 interface OApiInfo { title: string; version: string; description?: string }
@@ -197,7 +198,7 @@ function EndpointRow({ endpoint, serverUrl }: { endpoint: Endpoint; serverUrl: s
  <span style={methodStyle(endpoint.method)}>{endpoint.method.toUpperCase()}</span>
  <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, flex: 1 }}>{endpoint.path}</span>
  {op.summary && <span style={{ fontSize: 11, color: "var(--text-secondary)", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{op.summary}</span>}
- <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>{open ? "" : "▼"}</span>
+ <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>{open ? "" : <ChevronDown size={12} />}</span>
  </div>
 
  {open && (

@@ -10,6 +10,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { flowContext, FlowEvent, FlowEventKind } from "../utils/FlowContext";
+import { ChevronDown } from "lucide-react";
 
 const KIND_ICONS: Record<FlowEventKind, string> = {
  chat: "",
@@ -266,7 +267,7 @@ function FlowEventRow({
  )}
  {hasDetail && (
  <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>
- {expanded ? "" : "▼"}
+ {expanded ? "" : <ChevronDown size={10} />}
  </span>
  )}
  </div>

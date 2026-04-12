@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ChevronDown } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -287,7 +288,7 @@ function ArtifactCard({
  )}
  </div>
  </div>
- <span style={{ fontSize: "10px", color: "var(--text-secondary)" }}>{expanded ? "" : "▼"}</span>
+ <span style={{ fontSize: "10px", color: "var(--text-secondary)" }}>{expanded ? "" : <ChevronDown size={10} />}</span>
  </div>
 
  {/* Body */}

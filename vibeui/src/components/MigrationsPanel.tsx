@@ -6,6 +6,7 @@
  */
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { ChevronDown } from "lucide-react";
 
 interface MigrationStatus {
  tool: string;
@@ -264,7 +265,7 @@ export function MigrationsPanel({ workspacePath }: MigrationsPanelProps) {
  onClick={() => setShowRaw((p) => !p)}
  style={{ fontSize: 11, background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", padding: 0, marginBottom: 4 }}
  >
- {showRaw ? "Hide raw output" : "▼ Show raw output"}
+ {showRaw ? "Hide raw output" : <><ChevronDown size={10} /> Show raw output</>}
  </button>
  {showRaw && (
  <pre style={{

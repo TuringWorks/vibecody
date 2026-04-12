@@ -13,6 +13,7 @@
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
+import { ChevronDown } from "lucide-react";
 
 export interface TestResult {
  name: string;
@@ -247,7 +248,7 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
  )}
  {t.output && (
  <span style={{ fontSize: 10, color: "var(--text-secondary)", flexShrink: 0 }}>
- {expanded.has(t.name) ? "" : "▼"}
+ {expanded.has(t.name) ? "" : <ChevronDown size={10} />}
  </span>
  )}
  </div>

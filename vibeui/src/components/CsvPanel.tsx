@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useMemo } from "react";
-import { Table, X } from "lucide-react";
+import { Table, X, ChevronDown, ChevronUp } from "lucide-react";
 
 type Row = string[];
 type SortDir = "asc" | "desc" | null;
@@ -262,7 +262,7 @@ export function CsvPanel() {
  {headers.map((h, ci) => (
  <th key={ci} onClick={() => handleSort(ci)}
  style={{ padding: "4px 8px", borderBottom: "2px solid var(--accent-blue)", color: "var(--text-primary)", textAlign: "left", cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}>
- {h} {sortCol === ci ? (sortDir === "asc" ? "" : "▼") : ""}
+ {h} {sortCol === ci ? (sortDir === "asc" ? <ChevronUp size={10} /> : <ChevronDown size={10} />) : ""}
  </th>
  ))}
  <th style={{ width: 32 }} />

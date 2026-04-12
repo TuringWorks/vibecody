@@ -6,7 +6,7 @@
  */
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-// lucide-react icons not needed
+import { ChevronDown, ChevronRight } from "lucide-react";
 
 interface TraceSession {
  session_id: string;
@@ -230,7 +230,7 @@ export function TraceDashboard() {
  <span style={{ fontSize: 9, opacity: 0.3, fontFamily: "var(--font-mono)" }}>
  {formatTimestamp(s.timestamp)}
  </span>
- <span style={{ fontSize: 10, opacity: 0.4 }}>{isExpanded ? "▼" : ""}</span>
+ <span style={{ fontSize: 10, opacity: 0.4 }}>{isExpanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />}</span>
  </button>
 
  {isExpanded && (

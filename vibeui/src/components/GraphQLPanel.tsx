@@ -7,6 +7,7 @@
  */
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { ChevronDown } from "lucide-react";
 
 interface GraphQLResult {
  data: unknown;
@@ -445,7 +446,7 @@ export function GraphQLPanel() {
  </span>
  <span style={{ fontSize: 12, fontFamily: "var(--font-mono)", fontWeight: 600 }}>{t.name}</span>
  {t.description && <span style={{ fontSize: 10, color: "var(--text-secondary)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.description}</span>}
- <span style={{ fontSize: 10, color: "var(--text-secondary)", marginLeft: "auto" }}>{t.fields.length} fields {expandedType === t.name ? "" : "▼"}</span>
+ <span style={{ fontSize: 10, color: "var(--text-secondary)", marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 3 }}>{t.fields.length} fields {expandedType === t.name ? "" : <ChevronDown size={10} />}</span>
  </div>
  {expandedType === t.name && t.fields.length > 0 && (
  <div style={{ padding: "4px 0", background: "var(--bg-primary)" }}>

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import { Check, X } from "lucide-react";
+import { Check, X, ChevronDown } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -159,7 +159,7 @@ function AgentCard({
  )}
 
  <span style={{ fontSize: "10px", color: "var(--text-secondary)" }}>
- {expanded ? "" : "▼"}
+ {expanded ? "" : <ChevronDown size={10} />}
  </span>
  </div>
 

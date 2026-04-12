@@ -8,6 +8,7 @@
  */
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { ChevronDown } from "lucide-react";
 
 interface OpenPort {
  port: number;
@@ -365,7 +366,7 @@ export function NetworkPanel() {
  {/* Raw output toggle */}
  <div>
  <button onClick={() => setShowRawCert((p) => !p)} style={{ fontSize: 11, background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", padding: 0 }}>
- {showRawCert ? "Hide raw output" : "▼ Show raw openssl output"}
+ {showRawCert ? "Hide raw output" : <><ChevronDown size={10} /> Show raw openssl output</>}
  </button>
  {showRawCert && (
  <pre style={{ margin: "6px 0 0", padding: 8, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, fontSize: 10, lineHeight: 1.4, overflow: "auto", maxHeight: 200, whiteSpace: "pre-wrap", wordBreak: "break-word", color: "var(--text-secondary)" }}>

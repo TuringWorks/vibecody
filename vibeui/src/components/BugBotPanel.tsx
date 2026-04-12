@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import { AlertCircle, AlertTriangle, Info } from "lucide-react";
+import { AlertCircle, AlertTriangle, Info, ChevronDown } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { PROVIDER_DEFAULT_MODEL } from "../hooks/useModelRegistry";
 
@@ -271,7 +271,7 @@ export function BugBotPanel({ workspacePath, provider, onOpenFile }: BugBotPanel
  </div>
  </div>
  <span style={{ fontSize: 12, color: "var(--text-secondary)", flexShrink: 0 }}>
- {expanded === report.id ? "" : "▼"}
+ {expanded === report.id ? "" : <ChevronDown size={12} />}
  </span>
  </div>
 

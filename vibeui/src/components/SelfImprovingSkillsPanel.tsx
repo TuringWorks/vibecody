@@ -7,7 +7,7 @@
  */
 import { useState, useCallback, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Brain, TrendingUp, AlertTriangle, Plus, RefreshCw } from "lucide-react";
+import { Brain, TrendingUp, AlertTriangle, Plus, RefreshCw, ChevronDown, ChevronUp } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -181,7 +181,7 @@ function EvolutionCard({
           onClick={() => setExpanded(v => !v)}
           style={{ fontSize: 11, background: "none", border: "none", color: "var(--accent-blue, #6c8cff)", cursor: "pointer", padding: 0, marginBottom: 6 }}
         >
-          {expanded ? "▲ Hide proposed content" : "▼ View proposed content"}
+          {expanded ? <><ChevronUp size={10} /> Hide proposed content</> : <><ChevronDown size={10} /> View proposed content</>}
         </button>
       )}
       {expanded && ev.proposed_content && (

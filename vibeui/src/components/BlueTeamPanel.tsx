@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { X } from "lucide-react";
+import { X, ChevronDown, ChevronUp } from "lucide-react";
 
 type BlueTeamTab = "Incidents" | "IOCs" | "Detection Rules" | "Forensics" | "SIEM" | "Playbooks" | "Threat Hunt";
 
@@ -679,7 +679,7 @@ export function BlueTeamPanel() {
                 <span style={{ ...badgeStyle("var(--info-color)"), marginLeft: 8 }}>{pb.category}</span>
                 <span style={{ marginLeft: 8, fontSize: 11, color: "var(--text-secondary)" }}>{pb.steps.length} steps</span>
               </div>
-              <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>{expandedPlaybook === pb.id ? "▲" : "▼"}</span>
+              <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>{expandedPlaybook === pb.id ? <ChevronUp size={12} /> : <ChevronDown size={12} />}</span>
             </div>
             {expandedPlaybook === pb.id && (
               <div style={{ marginTop: 12 }}>
