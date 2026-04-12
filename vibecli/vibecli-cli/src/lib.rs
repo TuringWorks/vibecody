@@ -87,3 +87,8 @@ pub mod perf_profiler;
 pub mod temporal_debug;
 pub mod symbolic_exec;
 pub mod schema_migration;
+// FIT-GAP v9 — P3 modules
+pub mod federated_orchestrator;
+pub mod incident_response;
+pub mod local_embed_refresh;
+pub mod workload_model_sel;

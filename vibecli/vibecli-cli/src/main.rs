@@ -394,6 +394,15 @@ mod temporal_debug;
 mod symbolic_exec;
 #[allow(dead_code)]
 mod schema_migration;
+// FIT-GAP v9 — P3 modules
+#[allow(dead_code)]
+mod federated_orchestrator;
+#[allow(dead_code)]
+mod incident_response;
+#[allow(dead_code)]
+mod local_embed_refresh;
+#[allow(dead_code)]
+mod workload_model_sel;
 // RL-OS: Unified Reinforcement Learning Lifecycle Platform
 #[allow(dead_code)]
 mod rl_env_os;
