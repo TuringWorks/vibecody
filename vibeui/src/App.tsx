@@ -1780,7 +1780,7 @@ function App() {
                   borderBottom: "1px solid var(--border-color)",
                   fontSize: 12,
                 }}>
-                  <span style={{ color: "var(--success-color, #4ade80)" }}>✓</span>
+                  <Icon name="check" size={14} style={{ color: "var(--success-color, #4ade80)", flexShrink: 0 }} />
                   <span style={{ color: "var(--text-secondary)" }}>
                     Applied <strong style={{ color: "var(--text-primary)" }}>{lastApply.filename}</strong>
                   </span>

@@ -16,7 +16,7 @@
  */
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { FileText } from "lucide-react";
+import { FileText, ChevronRight, ChevronLeft, AlertTriangle } from "lucide-react";
 import "./DocumentViewer.css";
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -76,7 +76,7 @@ function PdfViewer({ filePath, base64Data }: DocumentViewerProps) {
     return (
       <div className="document-viewer">
         <div className="document-viewer-error">
-          <span className="error-icon">⚠</span>
+          <AlertTriangle size={16} className="error-icon" />
           <span className="error-message">{error}</span>
         </div>
       </div>
@@ -218,7 +218,7 @@ function EpubViewer({ filePath, base64Data }: DocumentViewerProps) {
     return (
       <div className="document-viewer">
         <div className="document-viewer-error">
-          <span className="error-icon">⚠</span>
+          <AlertTriangle size={16} className="error-icon" />
           <span className="error-message">{error}</span>
         </div>
       </div>
@@ -248,7 +248,7 @@ function EpubViewer({ filePath, base64Data }: DocumentViewerProps) {
             disabled={currentChapter === 0}
             title="Previous Chapter"
           >
-            ◀
+            <ChevronLeft size={14} />
           </button>
           <span className="zoom-label chapter-label">
             {currentChapter + 1} / {chapters.length}
@@ -258,7 +258,7 @@ function EpubViewer({ filePath, base64Data }: DocumentViewerProps) {
             disabled={currentChapter >= chapters.length - 1}
             title="Next Chapter"
           >
-            ▶
+            <ChevronRight size={14} />
           </button>
         </div>
         <div className="toolbar-separator" />

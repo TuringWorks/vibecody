@@ -3,6 +3,7 @@
  */
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { ChevronDown, ChevronRight } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -601,7 +602,7 @@ export function McpPanel() {
                           >
                             <div style={{ flex: 1 }}>
                               <div style={{ fontWeight: 600 }}>
-                                <span style={{ marginRight: 6, fontSize: 10 }}>{isExpanded ? "▼" : "▶"}</span>
+                                {isExpanded ? <ChevronDown size={10} style={{ marginRight: 4 }} /> : <ChevronRight size={10} style={{ marginRight: 4 }} />}
                                 {p.name} <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>v{p.version}</span>
                                 {tools.length > 0 && <span style={{ fontSize: 10, color: "var(--text-secondary)", marginLeft: 8 }}>({tools.length} tools)</span>}
                               </div>

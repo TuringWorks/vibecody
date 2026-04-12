@@ -10,7 +10,7 @@ import { invoke } from "@tauri-apps/api/core";
 import {
   Loader2, HardDrive, Database, Server, Layers, Zap, Search,
   BarChart2, BarChart3, Cloud, Snowflake, Globe, Archive,
-  ChevronRight, ChevronDown, Play,
+  ChevronRight, ChevronDown, Play, ArrowLeft,
   Check, X, Download, Clock, LucideIcon,
 } from "lucide-react";
 import { useToast } from "../hooks/useToast";
@@ -647,7 +647,7 @@ function ConnectionWizard({ workspacePath, onClose, onSaved, toast }: WizardProp
             }}
           >
             <button onClick={() => setStep(1)} className="panel-btn panel-btn-secondary">
-              ← Back
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><ArrowLeft size={12} /> Back</span>
             </button>
             <div style={{ display: "flex", gap: 8 }}>
               <button

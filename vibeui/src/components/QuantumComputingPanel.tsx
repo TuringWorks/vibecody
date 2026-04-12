@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { ChevronDown, ChevronRight } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -2611,7 +2612,7 @@ export function QuantumComputingPanel() {
                       <span style={{ fontSize: 11, color: "var(--text-secondary)", marginLeft: 8 }}>{a.category}</span>
                       <span style={{ fontSize: 11, color: "var(--text-tertiary)", marginLeft: 8 }}>{a.scaling}</span>
                     </div>
-                    <span style={{ fontSize: 11, color: "var(--accent-primary)" }}>{isExpanded ? "▼" : "▶"} Code</span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, color: "var(--accent-primary)" }}>{isExpanded ? <ChevronDown size={11} /> : <ChevronRight size={11} />} Code</span>
                   </div>
                   {isExpanded && examples && (
                     <div style={{ marginTop: 10 }}>

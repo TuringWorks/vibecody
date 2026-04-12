@@ -7,7 +7,7 @@ import { useToast } from "../hooks/useToast";
 import { Toaster } from "./Toaster";
 import { AgentUIRenderer, parseVibeUIBlocks, stripVibeUIBlocks } from "./AgentUIRenderer";
 import type { VibeUIAction } from "./AgentUIRenderer";
-import { Bot, GitBranch, Loader2, Square, Zap, ShieldCheck, ListOrdered } from "lucide-react";
+import { Bot, GitBranch, Loader2, Square, Zap, ShieldCheck, ListOrdered, Play, RotateCcw, Check, X, Copy, ChevronDown, ChevronUp } from "lucide-react";
 
 interface AgentStep {
  step_num: number;
@@ -479,12 +479,12 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
    style={{ whiteSpace: "nowrap" }}
    title="Resume from last checkpoint — continues remaining plan steps"
  >
-   ▶ Resume
+   <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Play size={11} /> Resume</span>
  </button>
  )}
  {(status === "complete" || status === "error" || status === "partial") && (
  <button className="btn-secondary" onClick={reset} style={{ whiteSpace: "nowrap" }}>
- ↺ Reset
+ <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><RotateCcw size={11} /> Reset</span>
  </button>
  )}
  </div>
@@ -593,7 +593,7 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  title="Copy step output"
  style={{ flexShrink: 0, background: "none", border: "none", cursor: "pointer", fontSize: "10px", color: copiedStep === i ? "var(--success-color)" : "var(--text-secondary)", padding: "0 2px" }}
  >
- {copiedStep === i ? "✓" : "⎘"}
+ {copiedStep === i ? <Check size={10} /> : <Copy size={10} />}
  </button>
  )}
  </div>
@@ -611,7 +611,7 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  })}
  style={{ marginLeft: "16px", fontSize: "10px", background: "none", border: "none", cursor: "pointer", color: "var(--accent-color)", padding: "2px 0" }}
  >
- {isExpanded ? "Collapse" : "▼ Show all"}
+ <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>{isExpanded ? <><ChevronUp size={10} /> Collapse</> : <><ChevronDown size={10} /> Show all</>}</span>
  </button>
  )}
  </>
@@ -712,14 +712,14 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  onClick={approve}
  style={{ background: "var(--success-color)" }}
  >
- ✓ Approve
+ <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Check size={12} /> Approve</span>
  </button>
  <button
  className="btn-secondary"
  onClick={reject}
  style={{ background: "var(--error-color)", color: "var(--text-primary)" }}
  >
- ✗ Reject
+ <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><X size={12} /> Reject</span>
  </button>
  </div>
  </div>
