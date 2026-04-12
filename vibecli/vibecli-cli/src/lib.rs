@@ -113,6 +113,14 @@ pub mod hook_abort;
 pub mod parallel_tool_scheduler;
 pub mod context_budget;
 pub mod smart_diff;
+// FIT-GAP v10 — Phase 41: Agent Intelligence (P1)
+pub mod agent_state_machine;
+pub mod file_watcher;
+pub mod cost_estimator;
+// FIT-GAP v10 — Phase 42: Reliability (P1)
+pub mod rate_limit_backoff;
+pub mod stream_patcher;
+pub mod test_impact;
 // MemPalace techniques — LongMemEval benchmark
 pub mod open_memory;
 pub mod mem_benchmark;

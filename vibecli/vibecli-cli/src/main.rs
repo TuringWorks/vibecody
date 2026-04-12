@@ -432,6 +432,14 @@ mod hook_abort;
 mod parallel_tool_scheduler;
 mod context_budget;
 mod smart_diff;
+// FIT-GAP v10 — Phase 41: Agent Intelligence (P1)
+mod agent_state_machine;
+mod file_watcher;
+mod cost_estimator;
+// FIT-GAP v10 — Phase 42: Reliability (P1)
+mod rate_limit_backoff;
+mod stream_patcher;
+mod test_impact;
 // MemPalace techniques — LongMemEval benchmark
 mod mem_benchmark;
 // RL-OS: Unified Reinforcement Learning Lifecycle Platform
