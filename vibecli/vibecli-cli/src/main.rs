@@ -381,6 +381,15 @@ mod threat_model;
 mod collab_session;
 #[allow(dead_code)]
 mod reasoning_video;
+// FIT-GAP v9 — P2 modules
+#[allow(dead_code)]
+mod api_sketch;
+#[allow(dead_code)]
+mod a11y_agent;
+#[allow(dead_code)]
+mod perf_profiler;
+#[allow(dead_code)]
+mod temporal_debug;
 // RL-OS: Unified Reinforcement Learning Lifecycle Platform
 #[allow(dead_code)]
 mod rl_env_os;

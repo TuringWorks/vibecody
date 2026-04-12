@@ -80,3 +80,8 @@ pub mod hybrid_search;
 pub mod threat_model;
 pub mod collab_session;
 pub mod reasoning_video;
+// FIT-GAP v9 — P2 modules
+pub mod api_sketch;
+pub mod a11y_agent;
+pub mod perf_profiler;
+pub mod temporal_debug;
