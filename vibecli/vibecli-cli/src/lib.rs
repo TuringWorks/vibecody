@@ -72,3 +72,7 @@ pub mod auto_deploy;
 pub mod clawcode_compat;
 pub mod team_onboarding;
 pub mod repro_agent;
+pub mod test_gen;
+pub mod polyglot_refactor;
+pub mod supply_chain;
+pub mod cost_predictor;

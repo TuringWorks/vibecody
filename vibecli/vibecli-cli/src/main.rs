@@ -363,6 +363,15 @@ mod clawcode_compat;
 mod team_onboarding;
 #[allow(dead_code)]
 mod repro_agent;
+// FIT-GAP v9 — P0 modules
+#[allow(dead_code)]
+mod test_gen;
+#[allow(dead_code)]
+mod polyglot_refactor;
+#[allow(dead_code)]
+mod supply_chain;
+#[allow(dead_code)]
+mod cost_predictor;
 // RL-OS: Unified Reinforcement Learning Lifecycle Platform
 #[allow(dead_code)]
 mod rl_env_os;
