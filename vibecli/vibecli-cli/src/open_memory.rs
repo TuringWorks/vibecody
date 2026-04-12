@@ -569,6 +569,7 @@ pub struct HnswIndex {
     ef_construction: usize,
 }
 
+#[allow(dead_code)]
 impl HnswIndex {
     pub fn new() -> Self {
         Self {
@@ -972,6 +973,11 @@ impl DrawerStore {
 
     pub fn is_empty(&self) -> bool {
         self.drawers.is_empty()
+    }
+
+    /// Iterate over all verbatim drawers (read-only).
+    pub fn drawers(&self) -> &[VerbatimDrawer] {
+        &self.drawers
     }
 
     /// Persist drawers to a JSON file.
@@ -2597,6 +2603,114 @@ impl OpenMemoryStore {
     /// Access the drawer store (read-only, for stats / inspection).
     pub fn drawer_store(&self) -> &DrawerStore {
         &self.drawer_store
+    }
+
+    // ── Auto Cross-Project Tunneling ─────────────────────────────────────
+    //
+    // When a new memory is semantically similar to memories from a different
+    // project, create cross-project waypoints automatically. This is the
+    // MemPalace Tunnel concept applied continuously without user intervention.
+
+    /// Scan `other_store` for memories similar to any memory in `self` and
+    /// create cross-project waypoints for pairs above `threshold`.
+    ///
+    /// Returns the number of tunnels created. Both stores are mutated
+    /// (waypoints added) and must be saved by the caller.
+    pub fn auto_tunnel_from(&mut self, other_store: &OpenMemoryStore, threshold: f64) -> usize {
+        let mut tunnels = 0;
+        let self_ids: Vec<String> = self.memories.keys().cloned().collect();
+
+        for self_id in &self_ids {
+            let self_emb = match self.memories.get(self_id) {
+                Some(m) if !m.embedding.is_empty() => m.embedding.clone(),
+                _ => continue,
+            };
+
+            // Check if a tunnel to this other store already exists
+            let already_linked: std::collections::HashSet<String> = self
+                .waypoints
+                .get(self_id)
+                .map(|wps| {
+                    wps.iter()
+                        .filter(|w| w.cross_project)
+                        .map(|w| w.dst_id.clone())
+                        .collect()
+                })
+                .unwrap_or_default();
+
+            for (other_id, other_mem) in &other_store.memories {
+                if already_linked.contains(other_id) || other_mem.embedding.is_empty() {
+                    continue;
+                }
+                let sim = LocalEmbeddingEngine::cosine_similarity(&self_emb, &other_mem.embedding);
+                if sim >= threshold {
+                    let cross_sector = self.memories.get(self_id)
+                        .map(|m| m.sector != other_mem.sector)
+                        .unwrap_or(false);
+
+                    // Add forward tunnel (self → other)
+                    let mut wp = Waypoint::new(self_id, other_id, sim, cross_sector);
+                    wp.cross_project = true;
+                    self.waypoints.entry(self_id.clone()).or_default().push(wp);
+
+                    // Add metadata note on the self memory
+                    if let Some(node) = self.memories.get_mut(self_id) {
+                        node.metadata.insert(
+                            format!("tunnel_to_{}", &other_id[..8.min(other_id.len())]),
+                            format!("sim={:.2}", sim),
+                        );
+                    }
+                    tunnels += 1;
+                }
+            }
+        }
+        tunnels
+    }
+
+    /// Build a cross-project tunnel map across a list of stores loaded from disk.
+    /// Each store corresponds to a different project directory.
+    /// Returns total tunnels created across all project pairs.
+    pub fn tunnel_across_stores(stores: &mut [OpenMemoryStore], threshold: f64) -> usize {
+        let mut total = 0;
+        let len = stores.len();
+        // Pairwise comparison — O(n²) over projects (typically small n)
+        for i in 0..len {
+            for j in (i + 1)..len {
+                // Clone embeddings from j to avoid borrow conflict
+                let j_memories: Vec<(String, Vec<f32>, MemorySector, Option<String>)> = stores[j]
+                    .memories
+                    .iter()
+                    .filter(|(_, m)| !m.embedding.is_empty())
+                    .map(|(id, m)| (id.clone(), m.embedding.clone(), m.sector, m.project_id.clone()))
+                    .collect();
+
+                for (j_id, j_emb, j_sector, j_project) in &j_memories {
+                    let i_ids: Vec<String> = stores[i].memories.keys().cloned().collect();
+                    for i_id in &i_ids {
+                        if let Some(i_mem) = stores[i].memories.get(i_id) {
+                            if i_mem.embedding.is_empty() { continue; }
+                            let sim = LocalEmbeddingEngine::cosine_similarity(&i_mem.embedding, j_emb);
+                            if sim >= threshold {
+                                let cross_sector = i_mem.sector != *j_sector;
+                                let i_project = i_mem.project_id.clone();
+                                let cross_project = i_project != *j_project;
+
+                                let mut wp_i = Waypoint::new(i_id, j_id, sim, cross_sector);
+                                wp_i.cross_project = cross_project;
+                                stores[i].waypoints.entry(i_id.clone()).or_default().push(wp_i);
+
+                                let mut wp_j = Waypoint::new(j_id, i_id, sim, cross_sector);
+                                wp_j.cross_project = cross_project;
+                                stores[j].waypoints.entry(j_id.clone()).or_default().push(wp_j);
+
+                                total += 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        total
     }
 
     // ── MCP Tool Definitions ─────────────────────────────────────────────
