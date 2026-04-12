@@ -2655,8 +2655,62 @@ impl OpenMemoryStore {
             }),
             serde_json::json!({
                 "name": "memory_stats",
-                "description": "Get cognitive memory statistics: sector breakdown, total memories, waypoints, facts.",
+                "description": "Get cognitive memory statistics: sector breakdown, total memories, waypoints, facts, and verbatim drawer count.",
                 "inputSchema": { "type": "object", "properties": {} }
+            }),
+            // ── MemPalace-derived tools ──────────────────────────────────
+            serde_json::json!({
+                "name": "memory_layered_context",
+                "description": "Build a MemPalace-style layered context string for a query: L1 essential story (high-salience preload) + L2 Wing/Room scoped semantic search + L3 verbatim drawer recall. Returns <open-memory> block ready for agent injection.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "query": { "type": "string", "description": "The query or task to retrieve context for" },
+                        "l1_tokens": { "type": "integer", "description": "Token budget for L1 essential story (default 700)" },
+                        "l2_limit": { "type": "integer", "description": "Max L2 scoped results (default 8)" },
+                        "l3_threshold": { "type": "integer", "description": "Min L2 results before L3 fallback triggers (default 3)" }
+                    },
+                    "required": ["query"]
+                }
+            }),
+            serde_json::json!({
+                "name": "memory_ingest_chunks",
+                "description": "Ingest raw text as verbatim 800-char overlapping drawers (MemPalace miner technique). Stores without LLM summarization for high-fidelity retrieval. Use alongside memory_add for complementary lossy+lossless storage.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "text": { "type": "string", "description": "Raw text to chunk and store" },
+                        "source": { "type": "string", "description": "Source identifier (session ID, file path, URL)" }
+                    },
+                    "required": ["text", "source"]
+                }
+            }),
+            serde_json::json!({
+                "name": "memory_query_drawers",
+                "description": "Search verbatim drawers by semantic similarity with optional Wing (project) / Room (sector) pre-filtering. Returns raw text chunks — no summarization loss.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "query": { "type": "string", "description": "Search query" },
+                        "limit": { "type": "integer", "description": "Max results (default 5)" },
+                        "wing": { "type": "string", "description": "Optional project_id filter (MemPalace Wing)" },
+                        "room": { "type": "string", "enum": ["episodic", "semantic", "procedural", "emotional", "reflective"], "description": "Optional sector filter (MemPalace Room)" }
+                    },
+                    "required": ["query"]
+                }
+            }),
+            serde_json::json!({
+                "name": "memory_tunnel",
+                "description": "Add a cross-project waypoint (MemPalace Tunnel) between two memories from different projects. Enables topic-relevant memories from past projects to surface in current-project queries.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "src_id": { "type": "string", "description": "Source memory ID" },
+                        "dst_id": { "type": "string", "description": "Destination memory ID (may be from a different project)" },
+                        "weight": { "type": "number", "description": "Link strength 0.0–1.0 (default 0.7)" }
+                    },
+                    "required": ["src_id", "dst_id"]
+                }
             }),
         ]
     }
@@ -4063,7 +4117,7 @@ mod tests {
     #[test]
     fn mcp_tool_definitions_count() {
         let tools = OpenMemoryStore::mcp_tool_definitions();
-        assert_eq!(tools.len(), 5);
+        assert_eq!(tools.len(), 9); // 5 original + 4 MemPalace tools
     }
 
     #[test]

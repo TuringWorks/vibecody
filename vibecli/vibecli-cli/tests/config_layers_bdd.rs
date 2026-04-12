@@ -77,13 +77,10 @@ fn check_model(world: &mut ClWorld, expected: String) {
 #[then(expr = "{string} should be {int}")]
 fn check_nested_int(world: &mut ClWorld, path: String, expected: i64) {
     let merged = world.merged.as_ref().unwrap();
-    eprintln!("DEBUG merged = {}", merged);
     let mut current = merged;
     for key in path.split('.') {
-        eprintln!("DEBUG traversing key='{}' in {:?}", key, current);
         current = &current[key];
     }
-    eprintln!("DEBUG current = {:?}", current);
     // JSON integers may be stored as u64 when positive; accept both.
     let actual = current
         .as_i64()
