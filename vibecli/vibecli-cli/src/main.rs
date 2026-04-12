@@ -403,6 +403,36 @@ mod incident_response;
 mod local_embed_refresh;
 #[allow(dead_code)]
 mod workload_model_sel;
+// Claw-code parity — Wave 1: correctness/reliability
+#[allow(dead_code)]
+mod workspace_fingerprint;
+#[allow(dead_code)]
+mod tool_pair_compaction;
+#[allow(dead_code)]
+mod session_health_probe;
+// Claw-code parity — Wave 2: agent coordination
+#[allow(dead_code)]
+mod bash_classifier;
+#[allow(dead_code)]
+mod branch_lock;
+#[allow(dead_code)]
+mod worker_bootstrap;
+#[allow(dead_code)]
+mod recovery_recipe;
+// Claw-code parity — Wave 3: governance
+#[allow(dead_code)]
+mod lane_events;
+#[allow(dead_code)]
+mod quality_gates;
+#[allow(dead_code)]
+mod stale_branch;
+// Claw-code parity — Wave 4: config/hooks
+#[allow(dead_code)]
+mod trust_resolution;
+#[allow(dead_code)]
+mod config_layers;
+#[allow(dead_code)]
+mod hook_abort;
 // RL-OS: Unified Reinforcement Learning Lifecycle Platform
 #[allow(dead_code)]
 mod rl_env_os;

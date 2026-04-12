@@ -92,3 +92,20 @@ pub mod federated_orchestrator;
 pub mod incident_response;
 pub mod local_embed_refresh;
 pub mod workload_model_sel;
+// Claw-code parity — Wave 1: correctness/reliability
+pub mod workspace_fingerprint;
+pub mod tool_pair_compaction;
+pub mod session_health_probe;
+// Claw-code parity — Wave 2: agent coordination
+pub mod bash_classifier;
+pub mod branch_lock;
+pub mod worker_bootstrap;
+pub mod recovery_recipe;
+// Claw-code parity — Wave 3: governance
+pub mod lane_events;
+pub mod quality_gates;
+pub mod stale_branch;
+// Claw-code parity — Wave 4: config/hooks
+pub mod trust_resolution;
+pub mod config_layers;
+pub mod hook_abort;
