@@ -79,6 +79,9 @@ const ToolsSettingsComposite = lazy(() => import("./composite/ToolsSettingsCompo
 const ProductivityComposite = lazy(() => import("./composite/ProductivityComposite").then(m => ({ default: m.ProductivityComposite })));
 const ArchitectureComposite = lazy(() => import("./composite/ArchitectureComposite").then(m => ({ default: m.ArchitectureComposite })));
 const CompanyComposite = lazy(() => import("./composite/CompanyComposite").then(m => ({ default: m.CompanyComposite })));
+// FIT-GAP v8
+const AgentIntelligenceComposite = lazy(() => import("./composite/AgentIntelligenceComposite").then(m => ({ default: m.AgentIntelligenceComposite })));
+const EnterpriseGovernanceComposite = lazy(() => import("./composite/EnterpriseGovernanceComposite").then(m => ({ default: m.EnterpriseGovernanceComposite })));
 
 // --- Props interfaces ---
 
@@ -144,6 +147,7 @@ export function PanelHost(props: PanelHostProps) {
     "converters", "formatters", "editors",
     "config", "integrations", "administration", "billing", "tools-settings", "productivity",
     "architecture", "company",
+    "agent-intelligence", "enterprise-governance",
   ];
 
   return (
@@ -209,6 +213,10 @@ export function PanelHost(props: PanelHostProps) {
 
       {/* --- Company Orchestration (Paperclip parity) --- */}
       {panel("company", <LazyPanel Component={CompanyComposite} props={{ workspacePath: wp, provider: selectedProvider, onOpenFile }} />)}
+
+      {/* --- FIT-GAP v8 --- */}
+      {panel("agent-intelligence", <LazyPanel Component={AgentIntelligenceComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}
+      {panel("enterprise-governance", <LazyPanel Component={EnterpriseGovernanceComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}
 
       {/* Fallback for unknown tabs */}
       {!visited.has(tab) || !KNOWN_TABS.includes(tab) ? (

@@ -9,6 +9,7 @@ import {
   Cog, TerminalSquare, Wrench,
   Binary, Regex, PenTool,
   Settings, Plug, UserCog, DollarSign, Package, Building2,
+  Zap, ShieldCheck,
 } from "lucide-react";
 
 export interface TabMeta {
@@ -76,6 +77,10 @@ export const TAB_META: Record<string, TabMeta> = {
   billing:           { icon: DollarSign,   label: "Billing",           aliases: ["cost", "usagemetering", "usage"] },
   "tools-settings":  { icon: Package,      label: "Tools",             aliases: ["automations", "self-review", "selfreview"] },
   company:           { icon: Building2,    label: "Company",           aliases: ["paperclip", "org chart", "orgchart", "zero human", "autonomous company", "company dashboard", "approvals", "routines", "heartbeat", "agents org", "company orchestration", "agent tasks", "agent goals", "agent docs", "hire", "fire agent", "budget", "secrets vault"] },
+
+  // --- FIT-GAP v8 ---
+  "agent-intelligence":      { icon: Zap,          label: "Agent Intelligence",   aliases: ["env dispatch", "nested agents", "thought stream", "hard problem", "repro agent", "recursive agents", "agent tree", "cross-env"] },
+  "enterprise-governance":   { icon: ShieldCheck,  label: "Enterprise Governance", aliases: ["mcp governance", "msaf", "team onboarding", "audit", "sso", "oidc", "saml", "enterprise", "governance"] },
 };
 
 export const DEFAULT_TAB_META: TabMeta = { icon: Workflow, label: "Panel" };

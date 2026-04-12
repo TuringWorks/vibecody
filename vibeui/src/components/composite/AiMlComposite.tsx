@@ -9,4 +9,6 @@ export const AiMlComposite = createComposite([
   { id: "rlcef", label: "RLCEF", importFn: () => import("../RlcefPanel"), exportName: "RlcefPanel" },
   { id: "skilldistill", label: "Distillation", importFn: () => import("../SkillDistillationPanel") },
   { id: "selfimproving", label: "Self-Improving", importFn: () => import("../SelfImprovingSkillsPanel"), exportName: "SelfImprovingSkillsPanel" },
+  { id: "on-device", label: "On-Device", importFn: () => import("../OnDevicePanel"), exportName: "OnDevicePanel" },
+  { id: "voice-vocab", label: "Voice Vocab", importFn: () => import("../VoiceVocabPanel"), exportName: "VoiceVocabPanel" },
 ]);

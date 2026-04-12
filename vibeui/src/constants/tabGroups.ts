@@ -46,6 +46,10 @@ export const TAB_GROUPS: TabGroup[] = [
     label: "Company",
     tabs: ["company"],
   },
+  {
+    label: "Agent Intelligence",
+    tabs: ["agent-intelligence", "enterprise-governance"],
+  },
 ];
 
 /** Flat lookup: tab id -> group label */

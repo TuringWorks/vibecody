@@ -9,4 +9,5 @@ export const AiContextComposite = createComposite([
   { id: "webgrounding", label: "Web Search", importFn: () => import("../WebGroundingPanel"), exportName: "WebGroundingPanel" },
   { id: "sessionmemory", label: "Session Memory", importFn: () => import("../SessionMemoryPanel"), exportName: "SessionMemoryPanel" },
   { id: "artifacts", label: "Artifacts", importFn: () => import("../ArtifactsPanel"), exportName: "ArtifactsPanel" },
+  { id: "long-context", label: "Long Context", importFn: () => import("../LongContextPanel"), exportName: "LongContextPanel" },
 ]);
