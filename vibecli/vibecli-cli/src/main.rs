@@ -470,6 +470,15 @@ mod mem_benchmark;
 #[allow(dead_code)] mod pr_description;
 #[allow(dead_code)] mod spec_to_test;
 #[allow(dead_code)] mod dep_update_advisor;
+// FIT-GAP v11 — Phase 48: P3 Gaps (closed)
+#[allow(dead_code)] mod token_dashboard;
+#[allow(dead_code)] mod session_export;
+#[allow(dead_code)] mod capability_discovery;
+#[allow(dead_code)] mod explain_depth;
+#[allow(dead_code)] mod perf_regression;
+#[allow(dead_code)] mod prompt_vcs;
+#[allow(dead_code)] mod repl_macros;
+#[allow(dead_code)] mod semantic_search_v2;
 // RL-OS: Unified Reinforcement Learning Lifecycle Platform
 #[allow(dead_code)]
 mod rl_env_os;

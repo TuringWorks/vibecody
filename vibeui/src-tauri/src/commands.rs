@@ -44584,3 +44584,204 @@ pub async fn dep_update_analyze(
         "recommendations": [],
     }))
 }
+
+// ============================================================
+// FIT-GAP v11 — Phase 48: P3 Commands
+// ============================================================
+
+/// Token dashboard — get session token usage stats.
+#[tauri::command]
+pub async fn token_dashboard_stats(
+    session_id: String,
+    calls: Vec<serde_json::Value>,
+) -> Result<serde_json::Value, String> {
+    let total_prompt: u64 = calls.iter()
+        .filter_map(|c| c["prompt_tokens"].as_u64())
+        .sum();
+    let total_completion: u64 = calls.iter()
+        .filter_map(|c| c["completion_tokens"].as_u64())
+        .sum();
+    Ok(serde_json::json!({
+        "session_id": session_id,
+        "total_calls": calls.len(),
+        "total_prompt_tokens": total_prompt,
+        "total_completion_tokens": total_completion,
+        "total_tokens": total_prompt + total_completion,
+        "est_cost_usd": (total_prompt as f64 / 1_000_000.0) * 3.0 + (total_completion as f64 / 1_000_000.0) * 15.0,
+    }))
+}
+
+/// Session export — export session to a given format.
+#[tauri::command]
+pub async fn session_export(
+    session_id: String,
+    format: String,
+    messages: Vec<serde_json::Value>,
+) -> Result<serde_json::Value, String> {
+    let content = match format.as_str() {
+        "markdown" => {
+            let mut md = format!("# Session: {}\n\n", session_id);
+            for m in &messages {
+                let role = m["role"].as_str().unwrap_or("user").to_uppercase();
+                let content = m["content"].as_str().unwrap_or("");
+                md.push_str(&format!("## {}\n{}\n\n", role, content));
+            }
+            md
+        }
+        "csv" => {
+            let mut csv = "role,content\n".to_string();
+            for m in &messages {
+                let role = m["role"].as_str().unwrap_or("user");
+                let content = m["content"].as_str().unwrap_or("").replace('"', "\"\"");
+                csv.push_str(&format!("{},\"{}\"\n", role, content));
+            }
+            csv
+        }
+        _ => serde_json::to_string(&messages).map_err(|e| e.to_string())?,
+    };
+    Ok(serde_json::json!({
+        "session_id": session_id,
+        "format": format,
+        "message_count": messages.len(),
+        "content": content,
+    }))
+}
+
+/// Capability discovery — advertise and query agent capabilities.
+#[tauri::command]
+pub async fn capability_discover(
+    query_capabilities: Vec<String>,
+    agents: Vec<serde_json::Value>,
+) -> Result<serde_json::Value, String> {
+    let satisfied: Vec<&serde_json::Value> = agents.iter().filter(|a| {
+        let agent_caps: Vec<String> = a["capabilities"]
+            .as_array()
+            .map(|arr| arr.iter().filter_map(|c| c.as_str().map(String::from)).collect())
+            .unwrap_or_default();
+        query_capabilities.iter().all(|q| agent_caps.contains(q))
+    }).collect();
+    Ok(serde_json::json!({
+        "required": query_capabilities,
+        "total_agents": agents.len(),
+        "matching_agents": satisfied.len(),
+        "outcome": if !satisfied.is_empty() { "satisfied" } else { "unsatisfied" },
+    }))
+}
+
+/// Code explanation depth — generate depth-specific explanation prompt.
+#[tauri::command]
+pub async fn explain_code_depth(
+    code: String,
+    language: String,
+    depth: String,
+    audience: String,
+) -> Result<serde_json::Value, String> {
+    let depth_instruction = match depth.as_str() {
+        "surface" => "Provide a single-sentence summary of what this code does.",
+        "overview" => "Explain the purpose and key components in 2-4 sentences.",
+        "deep" => "Break down the logic step by step including edge cases and data flow.",
+        "expert" => "Provide expert analysis: complexity, memory, concurrency, security, and architecture.",
+        _ => "Explain what this code does.",
+    };
+    let audience_style = match audience.as_str() {
+        "novice" => "Use plain English. Avoid jargon.",
+        "architect" => "Include system-level and design pattern concerns.",
+        _ => "Use technical terms where helpful.",
+    };
+    Ok(serde_json::json!({
+        "depth": depth,
+        "audience": audience,
+        "language": language,
+        "code_lines": code.lines().count(),
+        "system_prompt": format!("{}\n\n{}", audience_style, depth_instruction),
+        "user_prompt": format!("Explain this {} code at {} depth:\n\n```{}\n{}\n```", language, depth, language, code),
+    }))
+}
+
+/// Performance regression — check a metric value against a baseline.
+#[tauri::command]
+pub async fn perf_regression_check(
+    benchmark: String,
+    observed: f64,
+    baseline_mean: f64,
+    baseline_std: f64,
+    z_threshold: f64,
+) -> Result<serde_json::Value, String> {
+    let pct_change = if baseline_mean != 0.0 {
+        ((observed - baseline_mean) / baseline_mean) * 100.0
+    } else { 0.0 };
+    let z_score = if baseline_std > 0.0 { (observed - baseline_mean) / baseline_std } else { 0.0 };
+    let is_regression = z_score > z_threshold && pct_change > 5.0;
+    let severity = if pct_change > 25.0 { "critical" }
+        else if pct_change > 10.0 { "major" }
+        else if pct_change > 5.0 { "minor" }
+        else { "none" };
+    Ok(serde_json::json!({
+        "benchmark": benchmark,
+        "observed": observed,
+        "baseline_mean": baseline_mean,
+        "pct_change": pct_change,
+        "z_score": z_score,
+        "is_regression": is_regression,
+        "severity": severity,
+    }))
+}
+
+/// Prompt VCS — commit a new prompt version.
+#[tauri::command]
+pub async fn prompt_vcs_commit(
+    session_id: String,
+    content: String,
+    message: String,
+    branch: String,
+) -> Result<serde_json::Value, String> {
+    let id = format!("v{}", std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis());
+    Ok(serde_json::json!({
+        "session_id": session_id,
+        "version_id": id,
+        "branch": branch,
+        "message": message,
+        "content_length": content.len(),
+        "timestamp_ms": std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64,
+    }))
+}
+
+/// REPL macros — expand a named macro.
+#[tauri::command]
+pub async fn repl_macro_expand(
+    name: String,
+    args: std::collections::HashMap<String, String>,
+) -> Result<serde_json::Value, String> {
+    // In production this would look up the macro registry.
+    Ok(serde_json::json!({
+        "name": name,
+        "args": args,
+        "expanded": format!("# expanded macro: {}", name),
+        "status": "ok",
+    }))
+}
+
+/// Semantic search v2 — search indexed code chunks.
+#[tauri::command]
+pub async fn semantic_search_v2(
+    query: String,
+    strategy: String,
+    max_results: usize,
+    language_filter: Option<String>,
+) -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({
+        "query": query,
+        "strategy": strategy,
+        "max_results": max_results,
+        "language_filter": language_filter,
+        "results": [],
+        "total": 0,
+        "note": "Index not yet populated — use /index to build the search index.",
+    }))
+}

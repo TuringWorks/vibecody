@@ -1252,6 +1252,15 @@ pub fn run() {
             commands::changelog_generate,
             commands::pr_description_generate,
             commands::dep_update_analyze,
+            // FIT-GAP v11 — Phase 48: P3 Commands
+            commands::token_dashboard_stats,
+            commands::session_export,
+            commands::capability_discover,
+            commands::explain_code_depth,
+            commands::perf_regression_check,
+            commands::prompt_vcs_commit,
+            commands::repl_macro_expand,
+            commands::semantic_search_v2,
             // MCP Plugin Tools
             commands::get_mcp_plugin_tools,
             // Vulnerability Scanner

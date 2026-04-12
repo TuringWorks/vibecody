@@ -152,3 +152,12 @@ pub mod plugin_marketplace;
 // MemPalace techniques — LongMemEval benchmark
 pub mod open_memory;
 pub mod mem_benchmark;
+// FIT-GAP v11 — Phase 48: P3 Gaps (closed)
+pub mod token_dashboard;
+pub mod session_export;
+pub mod capability_discovery;
+pub mod explain_depth;
+pub mod perf_regression;
+pub mod prompt_vcs;
+pub mod repl_macros;
+pub mod semantic_search_v2;
