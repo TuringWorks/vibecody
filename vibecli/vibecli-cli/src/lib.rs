@@ -76,3 +76,7 @@ pub mod test_gen;
 pub mod polyglot_refactor;
 pub mod supply_chain;
 pub mod cost_predictor;
+pub mod hybrid_search;
+pub mod threat_model;
+pub mod collab_session;
+pub mod reasoning_video;

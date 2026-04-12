@@ -372,6 +372,15 @@ mod polyglot_refactor;
 mod supply_chain;
 #[allow(dead_code)]
 mod cost_predictor;
+// FIT-GAP v9 — P1 modules
+#[allow(dead_code)]
+mod hybrid_search;
+#[allow(dead_code)]
+mod threat_model;
+#[allow(dead_code)]
+mod collab_session;
+#[allow(dead_code)]
+mod reasoning_video;
 // RL-OS: Unified Reinforcement Learning Lifecycle Platform
 #[allow(dead_code)]
 mod rl_env_os;
