@@ -455,6 +455,21 @@ mod cursor_overlay;
 mod plugin_marketplace;
 // MemPalace techniques — LongMemEval benchmark
 mod mem_benchmark;
+// FIT-GAP v11 — Phase 45: Agent-OS (P0)
+#[allow(dead_code)] mod agent_registry;
+#[allow(dead_code)] mod agent_recruiter;
+#[allow(dead_code)] mod agent_quota;
+#[allow(dead_code)] mod agent_autoscale;
+// FIT-GAP v11 — Phase 46: Context & Workspace (P1)
+#[allow(dead_code)] mod agent_persistence;
+#[allow(dead_code)] mod workspace_snapshot;
+#[allow(dead_code)] mod multi_repo_context;
+#[allow(dead_code)] mod inline_diff;
+// FIT-GAP v11 — Phase 47: Developer Workflow (P2)
+#[allow(dead_code)] mod changelog_gen;
+#[allow(dead_code)] mod pr_description;
+#[allow(dead_code)] mod spec_to_test;
+#[allow(dead_code)] mod dep_update_advisor;
 // RL-OS: Unified Reinforcement Learning Lifecycle Platform
 #[allow(dead_code)]
 mod rl_env_os;

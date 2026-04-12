@@ -1241,6 +1241,17 @@ pub fn run() {
             commands::voice_history_record,
             commands::plugin_marketplace_list,
             commands::plugin_marketplace_install,
+            // FIT-GAP v11 — Phase 45-47 commands
+            commands::agent_registry_list,
+            commands::agent_registry_register,
+            commands::agent_quota_usage,
+            commands::agent_autoscale_status,
+            commands::agent_checkpoint_save,
+            commands::workspace_snapshot_capture,
+            commands::inline_diff_hunks,
+            commands::changelog_generate,
+            commands::pr_description_generate,
+            commands::dep_update_analyze,
             // MCP Plugin Tools
             commands::get_mcp_plugin_tools,
             // Vulnerability Scanner

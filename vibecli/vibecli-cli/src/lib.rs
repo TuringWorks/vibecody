@@ -125,6 +125,21 @@ pub mod test_impact;
 pub mod conversation_branch;
 pub mod dep_visualizer;
 pub mod auto_stub;
+// FIT-GAP v11 — Phase 45: Agent-OS (P0)
+pub mod agent_registry;
+pub mod agent_recruiter;
+pub mod agent_quota;
+pub mod agent_autoscale;
+// FIT-GAP v11 — Phase 46: Context & Workspace (P1)
+pub mod agent_persistence;
+pub mod workspace_snapshot;
+pub mod multi_repo_context;
+pub mod inline_diff;
+// FIT-GAP v11 — Phase 47: Developer Workflow (P2)
+pub mod changelog_gen;
+pub mod pr_description;
+pub mod spec_to_test;
+pub mod dep_update_advisor;
 // FIT-GAP v10 — Phase 44: P3 Gaps (closed)
 pub mod ai_merge;
 pub mod symbol_rename;
