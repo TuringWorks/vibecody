@@ -1222,6 +1222,16 @@ pub fn run() {
             commands::openmemory_enable_encryption,
             commands::openmemory_layered_context,
             commands::openmemory_drawer_stats,
+            commands::openmemory_benchmark,
+            // FIT-GAP v10 — Phase 40-43 commands
+            commands::parallel_tool_scheduler_status,
+            commands::context_budget_status,
+            commands::smart_diff_render,
+            commands::agent_state_get,
+            commands::file_watcher_status,
+            commands::cost_estimate,
+            commands::rate_limit_status,
+            commands::test_impact_analyse,
             // MCP Plugin Tools
             commands::get_mcp_plugin_tools,
             // Vulnerability Scanner

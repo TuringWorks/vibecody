@@ -121,6 +121,10 @@ pub mod cost_estimator;
 pub mod rate_limit_backoff;
 pub mod stream_patcher;
 pub mod test_impact;
+// FIT-GAP v10 — Phase 43: Developer Experience (P2)
+pub mod conversation_branch;
+pub mod dep_visualizer;
+pub mod auto_stub;
 // MemPalace techniques — LongMemEval benchmark
 pub mod open_memory;
 pub mod mem_benchmark;

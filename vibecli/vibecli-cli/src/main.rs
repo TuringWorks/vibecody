@@ -440,6 +440,10 @@ mod cost_estimator;
 mod rate_limit_backoff;
 mod stream_patcher;
 mod test_impact;
+// FIT-GAP v10 — Phase 43: Developer Experience (P2)
+mod conversation_branch;
+mod dep_visualizer;
+mod auto_stub;
 // MemPalace techniques — LongMemEval benchmark
 mod mem_benchmark;
 // RL-OS: Unified Reinforcement Learning Lifecycle Platform
