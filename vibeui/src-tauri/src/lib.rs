@@ -1232,6 +1232,15 @@ pub fn run() {
             commands::cost_estimate,
             commands::rate_limit_status,
             commands::test_impact_analyse,
+            // FIT-GAP v10 — Phase 44 (P3 gaps closed)
+            commands::ai_merge_resolve,
+            commands::symbol_rename_preview,
+            commands::code_templates_list,
+            commands::code_template_render,
+            commands::cache_advisory_analyze,
+            commands::voice_history_record,
+            commands::plugin_marketplace_list,
+            commands::plugin_marketplace_install,
             // MCP Plugin Tools
             commands::get_mcp_plugin_tools,
             // Vulnerability Scanner

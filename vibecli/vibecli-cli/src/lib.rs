@@ -125,6 +125,15 @@ pub mod test_impact;
 pub mod conversation_branch;
 pub mod dep_visualizer;
 pub mod auto_stub;
+// FIT-GAP v10 — Phase 44: P3 Gaps (closed)
+pub mod ai_merge;
+pub mod symbol_rename;
+pub mod code_templates;
+pub mod cache_advisor;
+pub mod voice_history;
+pub mod agent_replay;
+pub mod cursor_overlay;
+pub mod plugin_marketplace;
 // MemPalace techniques — LongMemEval benchmark
 pub mod open_memory;
 pub mod mem_benchmark;

@@ -444,6 +444,15 @@ mod test_impact;
 mod conversation_branch;
 mod dep_visualizer;
 mod auto_stub;
+// FIT-GAP v10 — Phase 44: P3 Gaps (closed)
+mod ai_merge;
+mod symbol_rename;
+mod code_templates;
+mod cache_advisor;
+mod voice_history;
+mod agent_replay;
+mod cursor_overlay;
+mod plugin_marketplace;
 // MemPalace techniques — LongMemEval benchmark
 mod mem_benchmark;
 // RL-OS: Unified Reinforcement Learning Lifecycle Platform
