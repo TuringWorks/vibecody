@@ -385,9 +385,22 @@ impl LayeredConfig {
     }
 
     /// Merge all three layers in priority order: user → project → local.
+    ///
+    /// `Null` layers are treated as empty objects so that an absent/default
+    /// layer never wipes out data contributed by a lower-priority layer.
     pub fn merge(&self) -> Value {
-        let after_project = Self::deep_merge(&self.user, &self.project);
-        Self::deep_merge(&after_project, &self.local)
+        let null_to_empty = |v: &Value| -> Value {
+            if v.is_null() {
+                Value::Object(serde_json::Map::new())
+            } else {
+                v.clone()
+            }
+        };
+        let user    = null_to_empty(&self.user);
+        let project = null_to_empty(&self.project);
+        let local   = null_to_empty(&self.local);
+        let after_project = Self::deep_merge(&user, &project);
+        Self::deep_merge(&after_project, &local)
     }
 
     /// Validate that `value` is a JSON object (or null).

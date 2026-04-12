@@ -37305,11 +37305,121 @@ pub async fn openmemory_stats() -> Result<serde_json::Value, String> {
 
     let sector_list: Vec<serde_json::Value> = sectors.into_iter().map(|(_, v)| v).collect();
 
+    let drawers = openmemory_read_json("drawers.json");
+    let drawer_count = drawers.as_array().map(|a| a.len()).unwrap_or(0);
+
     Ok(serde_json::json!({
         "total_memories": mem_arr,
         "total_waypoints": wp_count,
         "total_facts": fact_count,
+        "total_drawers": drawer_count,
         "sectors": sector_list,
+    }))
+}
+
+/// Return layered context (L1 essential story + L2 scoped search + L3 verbatim drawers)
+/// for a query. MemPalace-style 4-layer pattern.
+#[tauri::command]
+pub async fn openmemory_layered_context(query: String, l1_tokens: Option<usize>, l2_limit: Option<usize>) -> Result<serde_json::Value, String> {
+    let memories = openmemory_read_json("memories.json");
+    let drawers = openmemory_read_json("drawers.json");
+
+    // Build L1 essential story from top-salience memories
+    let mut l1_lines: Vec<String> = Vec::new();
+    let token_budget = l1_tokens.unwrap_or(700) * 4; // chars
+    let mut used = 0usize;
+    if let Some(arr) = memories.as_array() {
+        let mut ranked: Vec<&serde_json::Value> = arr.iter().collect();
+        // Sort: pinned first, then by salience desc
+        ranked.sort_by(|a, b| {
+            let a_pin = a.get("pinned").and_then(|v| v.as_bool()).unwrap_or(false);
+            let b_pin = b.get("pinned").and_then(|v| v.as_bool()).unwrap_or(false);
+            match (a_pin, b_pin) {
+                (true, false) => std::cmp::Ordering::Less,
+                (false, true) => std::cmp::Ordering::Greater,
+                _ => {
+                    let a_sal = a.get("salience").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                    let b_sal = b.get("salience").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                    b_sal.partial_cmp(&a_sal).unwrap_or(std::cmp::Ordering::Equal)
+                }
+            }
+        });
+        for m in ranked {
+            if used >= token_budget { break; }
+            let content = m.get("content").and_then(|v| v.as_str()).unwrap_or("");
+            let sector = m.get("sector").and_then(|v| v.as_str()).unwrap_or("?");
+            let sal = m.get("salience").and_then(|v| v.as_f64()).unwrap_or(0.0);
+            let pin = if m.get("pinned").and_then(|v| v.as_bool()).unwrap_or(false) { " ★" } else { "" };
+            let snippet = if content.len() > 200 { &content[..200] } else { content };
+            let line = format!("[{}{} | {:.0}%] {}", sector, pin, sal * 100.0, snippet);
+            used += line.len();
+            l1_lines.push(line);
+        }
+    }
+
+    // L2: simple keyword-filtered memories (approximation of scoped search without full engine)
+    let query_lower = query.to_lowercase();
+    let limit = l2_limit.unwrap_or(8);
+    let mut l2_results: Vec<serde_json::Value> = Vec::new();
+    if let Some(arr) = memories.as_array() {
+        for m in arr {
+            if l2_results.len() >= limit { break; }
+            let content = m.get("content").and_then(|v| v.as_str()).unwrap_or("").to_lowercase();
+            if content.split_whitespace().any(|w| query_lower.split_whitespace().any(|qw| w.contains(qw))) {
+                l2_results.push(m.clone());
+            }
+        }
+    }
+
+    // L3: verbatim drawer results
+    let drawer_results: Vec<serde_json::Value> = drawers.as_array()
+        .map(|arr| arr.iter()
+            .filter(|d| {
+                let content = d.get("content").and_then(|v| v.as_str()).unwrap_or("").to_lowercase();
+                content.split_whitespace().any(|w| query_lower.split_whitespace().any(|qw| w.contains(qw)))
+            })
+            .take(4)
+            .cloned()
+            .collect()
+        ).unwrap_or_default();
+
+    Ok(serde_json::json!({
+        "l1_essential_story": l1_lines,
+        "l2_scoped": l2_results,
+        "l3_drawers": drawer_results,
+        "total_drawers": drawers.as_array().map(|a| a.len()).unwrap_or(0),
+    }))
+}
+
+/// Get verbatim drawer statistics.
+#[tauri::command]
+pub async fn openmemory_drawer_stats() -> Result<serde_json::Value, String> {
+    let drawers = openmemory_read_json("drawers.json");
+    let arr = drawers.as_array();
+    let total = arr.map(|a| a.len()).unwrap_or(0);
+
+    // Wing distribution
+    let mut wings: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    let mut rooms: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    if let Some(arr) = drawers.as_array() {
+        for d in arr {
+            let wing = d.get("wing").and_then(|v| v.as_str()).unwrap_or("global").to_string();
+            let room = d.get("room").and_then(|v| v.as_str()).unwrap_or("unknown").to_string();
+            *wings.entry(wing).or_default() += 1;
+            *rooms.entry(room).or_default() += 1;
+        }
+    }
+    let wing_list: Vec<serde_json::Value> = wings.into_iter()
+        .map(|(w, c)| serde_json::json!({"wing": w, "count": c}))
+        .collect();
+    let room_list: Vec<serde_json::Value> = rooms.into_iter()
+        .map(|(r, c)| serde_json::json!({"room": r, "count": c}))
+        .collect();
+
+    Ok(serde_json::json!({
+        "total_drawers": total,
+        "wings": wing_list,
+        "rooms": room_list,
     }))
 }
 

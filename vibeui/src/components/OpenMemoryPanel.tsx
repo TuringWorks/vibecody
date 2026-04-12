@@ -26,6 +26,19 @@ interface SectorStats {
   pinned_count: number;
 }
 
+interface DrawerStats {
+  total_drawers: number;
+  wings: Array<{ wing: string; count: number }>;
+  rooms: Array<{ room: string; count: number }>;
+}
+
+interface LayeredContext {
+  l1_essential_story: string[];
+  l2_scoped: Array<{ content: string; sector: string; salience: number }>;
+  l3_drawers: Array<{ content: string; wing: string; room: string; source: string }>;
+  total_drawers: number;
+}
+
 interface TemporalFact {
   id: string;
   subject: string;
@@ -46,7 +59,7 @@ interface QueryResult {
   sector_match_score: number;
 }
 
-type Tab = 'overview' | 'memories' | 'query' | 'facts' | 'graph' | 'settings';
+type Tab = 'overview' | 'memories' | 'query' | 'facts' | 'graph' | 'drawers' | 'settings';
 type SectorName = 'episodic' | 'semantic' | 'procedural' | 'emotional' | 'reflective';
 
 const SECTOR_COLORS: Record<SectorName, string> = {
@@ -84,8 +97,8 @@ function salienceColor(sal: number): string {
 
 const OpenMemoryPanel: React.FC = () => {
   const [tab, setTab] = useState<Tab>('overview');
-  const [stats, setStats] = useState<{ total_memories: number; total_waypoints: number; total_facts: number; sectors: SectorStats[] }>({
-    total_memories: 0, total_waypoints: 0, total_facts: 0, sectors: [],
+  const [stats, setStats] = useState<{ total_memories: number; total_waypoints: number; total_facts: number; total_drawers: number; sectors: SectorStats[] }>({
+    total_memories: 0, total_waypoints: 0, total_facts: 0, total_drawers: 0, sectors: [],
   });
   const [memories, setMemories] = useState<MemoryNode[]>([]);
   const [queryText, setQueryText] = useState('');
@@ -99,6 +112,9 @@ const OpenMemoryPanel: React.FC = () => {
   const [encryptionKey, setEncryptionKey] = useState('');
   const [encryptionEnabled, setEncryptionEnabled] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [drawerStats, setDrawerStats] = useState<DrawerStats>({ total_drawers: 0, wings: [], rooms: [] });
+  const [layeredCtx, setLayeredCtx] = useState<LayeredContext | null>(null);
+  const [layeredQuery, setLayeredQuery] = useState('');
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -159,6 +175,28 @@ const OpenMemoryPanel: React.FC = () => {
       return () => clearInterval(dataInterval);
     }
   }, [tab, loadMemories, loadFacts]);
+
+  const loadDrawerStats = useCallback(async () => {
+    try {
+      const s = await invoke<DrawerStats>('openmemory_drawer_stats');
+      if (s) setDrawerStats(s);
+    } catch { /* drawer stats optional */ }
+  }, []);
+
+  const handleLayeredContext = useCallback(async (q: string) => {
+    if (!q.trim()) return;
+    try {
+      const ctx = await invoke<LayeredContext>('openmemory_layered_context', { query: q });
+      if (ctx) setLayeredCtx(ctx);
+    } catch (err) { setError(String(err)); }
+  }, []);
+
+  useEffect(() => {
+    if (tab === 'drawers') {
+      loadDrawerStats();
+      setLayeredCtx(null);
+    }
+  }, [tab, loadDrawerStats]);
 
   const handleAdd = async () => {
     if (!newContent.trim()) return;
@@ -237,6 +275,7 @@ const OpenMemoryPanel: React.FC = () => {
     { key: 'overview', label: 'Overview' },
     { key: 'memories', label: 'Memories' },
     { key: 'query', label: 'Query' },
+    { key: 'drawers', label: 'Drawers' },
     { key: 'facts', label: 'Facts' },
     { key: 'graph', label: 'Graph' },
     { key: 'settings', label: 'Settings' },
@@ -279,11 +318,12 @@ const OpenMemoryPanel: React.FC = () => {
             </p>
 
             {/* Summary Cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
               {[
                 { label: 'Memories', value: stats.total_memories },
                 { label: 'Waypoints', value: stats.total_waypoints },
                 { label: 'Facts', value: stats.total_facts },
+                { label: 'Drawers', value: stats.total_drawers },
               ].map(c => (
                 <div key={c.label} style={{
                   background: 'var(--bg-tertiary)', borderRadius: 8, padding: 16, textAlign: 'center',
@@ -476,6 +516,152 @@ const OpenMemoryPanel: React.FC = () => {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ─── Drawers (MemPalace verbatim layer) ─────────────────── */}
+        {tab === 'drawers' && (
+          <div>
+            <h3 style={{ margin: '0 0 4px', color: 'var(--text-primary)' }}>Verbatim Drawer Store</h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: 12, marginBottom: 16 }}>
+              MemPalace-style raw chunk storage — no LLM summarization, 96.6% LongMemEval recall.
+              Drawers are 800-char overlapping chunks from conversation turns and documents.
+            </p>
+
+            {/* Stats row */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
+              {[
+                { label: 'Drawers', value: drawerStats.total_drawers, color: 'var(--accent-blue)' },
+                { label: 'Wings', value: drawerStats.wings.length, color: 'var(--accent-green)' },
+                { label: 'Rooms', value: drawerStats.rooms.length, color: 'var(--accent-gold, #eab308)' },
+              ].map(c => (
+                <div key={c.label} style={{ background: 'var(--bg-tertiary)', borderRadius: 8, padding: 16, textAlign: 'center' }}>
+                  <div style={{ fontSize: 28, fontWeight: 700, color: c.color }}>{c.value}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>{c.label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Wing distribution */}
+            {drawerStats.wings.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <h4 style={{ color: 'var(--text-primary)', marginBottom: 8 }}>Wing Distribution (Projects)</h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {drawerStats.wings.sort((a, b) => b.count - a.count).map(w => (
+                    <div key={w.wing} style={{ display: 'flex', justifyContent: 'space-between', background: 'var(--bg-tertiary)', borderRadius: 6, padding: '6px 12px' }}>
+                      <span style={{ fontSize: 13, color: 'var(--text-primary)', fontFamily: 'monospace' }}>{w.wing}</span>
+                      <span style={{ fontSize: 12, color: 'var(--accent-blue)' }}>{w.count} drawers</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Room distribution */}
+            {drawerStats.rooms.length > 0 && (
+              <div style={{ marginBottom: 20 }}>
+                <h4 style={{ color: 'var(--text-primary)', marginBottom: 8 }}>Room Distribution (Sectors)</h4>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {drawerStats.rooms.map(r => (
+                    <div key={r.room} style={{
+                      background: 'var(--bg-tertiary)', borderRadius: 6, padding: '6px 12px',
+                      borderLeft: `3px solid ${SECTOR_COLORS[r.room as SectorName] || '#666'}`,
+                    }}>
+                      <span style={{ fontSize: 12, color: SECTOR_COLORS[r.room as SectorName] || '#666', textTransform: 'uppercase' }}>{r.room}</span>
+                      <span style={{ fontSize: 12, color: 'var(--text-secondary)', marginLeft: 8 }}>{r.count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Layered context preview */}
+            <h4 style={{ color: 'var(--text-primary)', marginBottom: 8 }}>Layered Context Preview (L1 + L2 + L3)</h4>
+            <p style={{ color: 'var(--text-secondary)', fontSize: 12, marginBottom: 8 }}>
+              Preview how the MemPalace 4-layer context loads for a given query.
+            </p>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+              <input
+                value={layeredQuery}
+                onChange={e => setLayeredQuery(e.target.value)}
+                placeholder="Enter query to preview layered context..."
+                onKeyDown={e => e.key === 'Enter' && handleLayeredContext(layeredQuery)}
+                style={{
+                  flex: 1, padding: '8px 12px', borderRadius: 6, border: '1px solid var(--border-color)',
+                  background: 'var(--bg-tertiary)', color: 'var(--text-primary)', fontSize: 13,
+                }}
+              />
+              <button
+                onClick={() => handleLayeredContext(layeredQuery)}
+                style={{ padding: '8px 16px', borderRadius: 6, border: 'none', cursor: 'pointer', background: 'var(--accent-blue)', color: 'var(--btn-primary-fg)', fontSize: 13, fontWeight: 600 }}
+              >Preview</button>
+            </div>
+
+            {layeredCtx && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {/* L1 Essential Story */}
+                {layeredCtx.l1_essential_story.length > 0 && (
+                  <div style={{ background: 'var(--bg-tertiary)', borderRadius: 8, padding: 12, borderLeft: '3px solid var(--accent-blue)' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent-blue)', marginBottom: 8, textTransform: 'uppercase' }}>
+                      L1 — Essential Story ({layeredCtx.l1_essential_story.length} entries)
+                    </div>
+                    {layeredCtx.l1_essential_story.map((line, i) => (
+                      <div key={i} style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4, fontFamily: 'monospace' }}>{line}</div>
+                    ))}
+                  </div>
+                )}
+
+                {/* L2 Scoped */}
+                {layeredCtx.l2_scoped.length > 0 && (
+                  <div style={{ background: 'var(--bg-tertiary)', borderRadius: 8, padding: 12, borderLeft: '3px solid var(--accent-green)' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent-green)', marginBottom: 8, textTransform: 'uppercase' }}>
+                      L2 — Scoped Semantic Search ({layeredCtx.l2_scoped.length} results)
+                    </div>
+                    {layeredCtx.l2_scoped.map((m, i) => (
+                      <div key={i} style={{ fontSize: 12, color: 'var(--text-primary)', marginBottom: 4 }}>
+                        <span style={{ color: SECTOR_COLORS[m.sector as SectorName] || '#666', marginRight: 8 }}>[{m.sector}]</span>
+                        {m.content.length > 150 ? m.content.slice(0, 150) + '…' : m.content}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* L3 Verbatim Drawers */}
+                {layeredCtx.l3_drawers.length > 0 && (
+                  <div style={{ background: 'var(--bg-tertiary)', borderRadius: 8, padding: 12, borderLeft: '3px solid var(--accent-gold, #eab308)' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent-gold, #eab308)', marginBottom: 8, textTransform: 'uppercase' }}>
+                      L3 — Verbatim Drawers ({layeredCtx.l3_drawers.length} raw chunks)
+                    </div>
+                    {layeredCtx.l3_drawers.map((d, i) => (
+                      <div key={i} style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8, paddingBottom: 8, borderBottom: '1px solid var(--border-color)' }}>
+                        <div style={{ display: 'flex', gap: 8, marginBottom: 4, fontSize: 10, color: 'var(--text-muted, #666)' }}>
+                          <span>wing: {d.wing}</span>
+                          <span>room: {d.room}</span>
+                          <span>src: {d.source}</span>
+                        </div>
+                        <div style={{ fontFamily: 'monospace' }}>
+                          {d.content.length > 200 ? d.content.slice(0, 200) + '…' : d.content}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {layeredCtx.l1_essential_story.length === 0 && layeredCtx.l2_scoped.length === 0 && layeredCtx.l3_drawers.length === 0 && (
+                  <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>No context found for this query. Add memories or ingest conversation chunks first.</p>
+                )}
+              </div>
+            )}
+
+            {drawerStats.total_drawers === 0 && !layeredCtx && (
+              <div style={{ marginTop: 16, background: 'var(--bg-tertiary)', borderRadius: 8, padding: 16, fontSize: 13, color: 'var(--text-secondary)' }}>
+                No verbatim drawers yet. Drawers are automatically created when the agent completes tasks
+                (session summaries are ingested as raw chunks). You can also use the REPL command:
+                <code style={{ display: 'block', marginTop: 8, padding: '6px 10px', background: 'var(--bg-primary)', borderRadius: 4, fontFamily: 'monospace', fontSize: 12 }}>
+                  /openmemory chunk "raw text to store" session-123
+                </code>
               </div>
             )}
           </div>
