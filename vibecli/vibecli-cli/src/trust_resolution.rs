@@ -1,9 +1,18 @@
+#![allow(dead_code)]
 //! Trust resolution for agent tool permissions and content sources.
 //!
-//! Claw-code parity Wave 4: resolves whether a file/URL/command can be
-//! trusted based on provenance (local, git-tracked, remote, generated).
+//! This module provides two complementary trust systems:
+//!
+//! 1. **Content-source trust** (`ContentTrustResolver`) — resolves whether a
+//!    file/URL/command can be trusted based on provenance (local, git-tracked,
+//!    remote, generated). Claw-code parity Wave 4.
+//!
+//! 2. **Workspace-directory policy trust** (`TrustResolver`) — formal policy
+//!    engine (AutoTrust / RequireApproval / Deny) for workspace directories with
+//!    allowlists, denylists, and a persisted audit trail.
 
 use serde::{Deserialize, Serialize};
+use std::path::{Path, PathBuf};
 
 // ─── Trust Level ──────────────────────────────────────────────────────────────
 
@@ -62,9 +71,9 @@ impl TrustDecision {
     pub fn is_trusted(&self) -> bool { self.level <= TrustLevel::Project }
 }
 
-// ─── Trust Resolver ───────────────────────────────────────────────────────────
+// ─── Content Trust Resolver ───────────────────────────────────────────────────
 
-pub struct TrustResolver {
+pub struct ContentTrustResolver {
     /// Workspace root directory.
     pub workspace_root: String,
     /// Explicitly granted paths/prefixes.
@@ -73,7 +82,7 @@ pub struct TrustResolver {
     pub denied_paths: Vec<String>,
 }
 
-impl TrustResolver {
+impl ContentTrustResolver {
     pub fn new(workspace_root: impl Into<String>) -> Self {
         Self { workspace_root: workspace_root.into(), granted_paths: Vec::new(), denied_paths: Vec::new() }
     }
@@ -150,24 +159,195 @@ impl TrustResolver {
     }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// Workspace-directory policy trust system
+// ═══════════════════════════════════════════════════════════════════════════════
+
+fn now_millis() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64
+}
+
+// ── TrustPolicy ───────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum TrustPolicy {
+    AutoTrust,
+    #[default]
+    RequireApproval,
+    Deny,
+}
+
+impl std::fmt::Display for TrustPolicy {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::AutoTrust => write!(f, "auto_trust"),
+            Self::RequireApproval => write!(f, "require_approval"),
+            Self::Deny => write!(f, "deny"),
+        }
+    }
+}
+
+// ── TrustEvent ────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TrustEvent {
+    pub path: String,
+    pub policy: TrustPolicy,
+    pub timestamp: u64,
+    pub reason: String,
+}
+
+impl TrustEvent {
+    pub fn new(path: &str, policy: TrustPolicy, reason: &str) -> Self {
+        Self {
+            path: path.to_string(),
+            policy,
+            timestamp: now_millis(),
+            reason: reason.to_string(),
+        }
+    }
+}
+
+// ── Trust prompt phrases ──────────────────────────────────────────────────────
+
+pub const TRUST_PHRASES: &[&str] = &[
+    "do you trust",
+    "allow access",
+    "grant permission",
+    "approve tool",
+    "enable access",
+    "trust this",
+    "permit this",
+];
+
+// ── TrustResolver ─────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct TrustResolver {
+    pub allowed_paths: Vec<String>,
+    pub denied_paths: Vec<String>,
+    pub default_policy: TrustPolicy,
+    pub events: Vec<TrustEvent>,
+    #[serde(skip)]
+    pub persist_path: PathBuf,
+}
+
+impl TrustResolver {
+    pub fn new(persist_path: PathBuf) -> Self {
+        Self {
+            allowed_paths: Vec::new(),
+            denied_paths: Vec::new(),
+            default_policy: TrustPolicy::RequireApproval,
+            events: Vec::new(),
+            persist_path,
+        }
+    }
+
+    /// Detect if `text` contains a trust-request phrase (case-insensitive).
+    pub fn is_trust_prompt(text: &str) -> bool {
+        let lower = text.to_lowercase();
+        TRUST_PHRASES.iter().any(|p| lower.contains(p))
+    }
+
+    /// Normalize a path by stripping trailing slashes.
+    pub fn canonicalize_path(path: &str) -> String {
+        path.trim_end_matches('/').to_string()
+    }
+
+    pub fn add_allowed(&mut self, path: &str) {
+        let p = Self::canonicalize_path(path);
+        if !self.allowed_paths.contains(&p) {
+            self.allowed_paths.push(p);
+        }
+    }
+
+    pub fn add_denied(&mut self, path: &str) {
+        let p = Self::canonicalize_path(path);
+        if !self.denied_paths.contains(&p) {
+            self.denied_paths.push(p);
+        }
+    }
+
+    pub fn record_event(&mut self, event: TrustEvent) {
+        self.events.push(event);
+    }
+
+    /// Resolve the trust policy for `path`.
+    /// Precedence: Denied > Allowed > Default.
+    /// Sibling paths are NOT trusted (e.g., "/safe" does not trust "/safe-other").
+    pub fn resolve(&self, path: &str) -> TrustPolicy {
+        let canonical = Self::canonicalize_path(path);
+
+        // Check denied first (highest precedence)
+        for denied in &self.denied_paths {
+            if Self::is_exact_or_child(&canonical, denied) {
+                return TrustPolicy::Deny;
+            }
+        }
+
+        // Check allowed
+        for allowed in &self.allowed_paths {
+            if Self::is_exact_or_child(&canonical, allowed) {
+                return TrustPolicy::AutoTrust;
+            }
+        }
+
+        self.default_policy.clone()
+    }
+
+    /// Returns true if `path` equals `base` or starts with `base/` (NOT just `base`-prefix).
+    fn is_exact_or_child(path: &str, base: &str) -> bool {
+        let base = base.trim_end_matches('/');
+        path == base || path.starts_with(&format!("{base}/"))
+    }
+
+    /// Persist trust state to disk as JSON.
+    pub fn persist(&self) -> Result<(), String> {
+        let json = serde_json::to_string_pretty(self)
+            .map_err(|e| format!("serialize error: {e}"))?;
+        if let Some(parent) = self.persist_path.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| format!("mkdir error: {e}"))?;
+        }
+        std::fs::write(&self.persist_path, json)
+            .map_err(|e| format!("write error: {e}"))
+    }
+
+    /// Load trust state from disk.
+    pub fn load(path: &Path) -> Result<Self, String> {
+        let data = std::fs::read_to_string(path)
+            .map_err(|e| format!("read error: {e}"))?;
+        let mut resolver: Self = serde_json::from_str(&data)
+            .map_err(|e| format!("parse error: {e}"))?;
+        resolver.persist_path = path.to_path_buf();
+        Ok(resolver)
+    }
+}
+
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
 
-    fn resolver() -> TrustResolver { TrustResolver::new("/workspace") }
+    // ── ContentTrustResolver tests ────────────────────────────────────────────
+
+    fn content_resolver() -> ContentTrustResolver { ContentTrustResolver::new("/workspace") }
 
     #[test]
     fn test_system_injected_trusted() {
-        let r = resolver().resolve(ContentSource::SystemInjected);
+        let r = content_resolver().resolve(ContentSource::SystemInjected);
         assert_eq!(r.level, TrustLevel::System);
         assert!(r.allow_execution);
     }
 
     #[test]
     fn test_workspace_file_project_trust() {
-        let r = resolver().resolve(ContentSource::LocalFile { path: "/workspace/src/main.rs".into() });
+        let r = content_resolver().resolve(ContentSource::LocalFile { path: "/workspace/src/main.rs".into() });
         assert_eq!(r.level, TrustLevel::Project);
         assert!(r.allow_read);
         assert!(r.allow_write);
@@ -176,14 +356,14 @@ mod tests {
 
     #[test]
     fn test_claude_md_system_trust() {
-        let r = resolver().resolve(ContentSource::LocalFile { path: "/workspace/CLAUDE.md".into() });
+        let r = content_resolver().resolve(ContentSource::LocalFile { path: "/workspace/CLAUDE.md".into() });
         assert_eq!(r.level, TrustLevel::System);
         assert!(!r.allow_write);
     }
 
     #[test]
     fn test_outside_workspace_untrusted() {
-        let r = resolver().resolve(ContentSource::LocalFile { path: "/tmp/malicious.sh".into() });
+        let r = content_resolver().resolve(ContentSource::LocalFile { path: "/tmp/malicious.sh".into() });
         assert_eq!(r.level, TrustLevel::Untrusted);
         assert!(!r.allow_execution);
         assert!(!r.allow_write);
@@ -191,27 +371,27 @@ mod tests {
 
     #[test]
     fn test_remote_url_untrusted() {
-        let r = resolver().resolve(ContentSource::RemoteUrl { url: "https://example.com/script.sh".into() });
+        let r = content_resolver().resolve(ContentSource::RemoteUrl { url: "https://example.com/script.sh".into() });
         assert_eq!(r.level, TrustLevel::Untrusted);
         assert!(!r.allow_execution);
     }
 
     #[test]
     fn test_command_output_untrusted() {
-        let r = resolver().resolve(ContentSource::CommandOutput { command: "curl evil.sh".into() });
+        let r = content_resolver().resolve(ContentSource::CommandOutput { command: "curl evil.sh".into() });
         assert_eq!(r.level, TrustLevel::Untrusted);
         assert!(!r.allow_execution);
     }
 
     #[test]
     fn test_agent_generated_untrusted() {
-        let r = resolver().resolve(ContentSource::AgentGenerated);
+        let r = content_resolver().resolve(ContentSource::AgentGenerated);
         assert_eq!(r.level, TrustLevel::Untrusted);
     }
 
     #[test]
     fn test_granted_path_user_trust() {
-        let mut res = resolver();
+        let mut res = content_resolver();
         res.grant_path("/tmp/approved");
         let r = res.resolve(ContentSource::LocalFile { path: "/tmp/approved/file.rs".into() });
         assert_eq!(r.level, TrustLevel::UserGranted);
@@ -219,7 +399,7 @@ mod tests {
 
     #[test]
     fn test_denied_path_overrides_workspace() {
-        let mut res = resolver();
+        let mut res = content_resolver();
         res.deny_path("/workspace/dist");
         let r = res.resolve(ContentSource::LocalFile { path: "/workspace/dist/bundle.js".into() });
         assert_eq!(r.level, TrustLevel::Untrusted);
@@ -227,7 +407,7 @@ mod tests {
 
     #[test]
     fn test_denied_overrides_grant() {
-        let mut res = resolver();
+        let mut res = content_resolver();
         res.grant_path("/workspace/dist");
         res.deny_path("/workspace/dist");
         let r = res.resolve(ContentSource::LocalFile { path: "/workspace/dist/x.js".into() });
@@ -254,7 +434,7 @@ mod tests {
 
     #[test]
     fn test_min_trust_of_returns_least_trusted() {
-        let res = resolver();
+        let res = content_resolver();
         let t = res.min_trust_of(&["/workspace/src/lib.rs", "/tmp/outside.rs"]);
         assert_eq!(t, TrustLevel::Untrusted);
     }
@@ -269,5 +449,74 @@ mod tests {
     fn test_trust_level_display() {
         assert_eq!(TrustLevel::System.to_string(), "system");
         assert_eq!(TrustLevel::Untrusted.to_string(), "untrusted");
+    }
+
+    // ── TrustResolver (policy) tests ──────────────────────────────────────────
+
+    fn resolver() -> TrustResolver {
+        TrustResolver::new(PathBuf::from("/tmp/trust.json"))
+    }
+
+    #[test]
+    fn is_trust_prompt_detects_phrase() {
+        assert!(TrustResolver::is_trust_prompt("Do you trust this tool?"));
+    }
+
+    #[test]
+    fn is_trust_prompt_case_insensitive() {
+        assert!(TrustResolver::is_trust_prompt("DO YOU TRUST the files?"));
+    }
+
+    #[test]
+    fn is_trust_prompt_rejects_normal_text() {
+        assert!(!TrustResolver::is_trust_prompt("implement the feature now"));
+    }
+
+    #[test]
+    fn resolve_denied_overrides_allowed() {
+        let mut r = resolver();
+        r.add_allowed("/home/user/project");
+        r.add_denied("/home/user/project");
+        assert_eq!(r.resolve("/home/user/project"), TrustPolicy::Deny);
+    }
+
+    #[test]
+    fn resolve_allowed_path_returns_auto_trust() {
+        let mut r = resolver();
+        r.add_allowed("/home/user/project");
+        assert_eq!(r.resolve("/home/user/project"), TrustPolicy::AutoTrust);
+    }
+
+    #[test]
+    fn resolve_unknown_uses_default_policy() {
+        let r = resolver(); // default = RequireApproval
+        assert_eq!(r.resolve("/home/user/unknown"), TrustPolicy::RequireApproval);
+    }
+
+    #[test]
+    fn canonicalize_strips_trailing_slash() {
+        assert_eq!(TrustResolver::canonicalize_path("/home/user/"), "/home/user");
+        assert_eq!(TrustResolver::canonicalize_path("/home/user"), "/home/user");
+    }
+
+    #[test]
+    fn sibling_path_not_trusted() {
+        let mut r = resolver();
+        r.add_allowed("/home/user/safe");
+        // "/home/user/safe-imposter" must NOT match "/home/user/safe"
+        assert_ne!(r.resolve("/home/user/safe-imposter"), TrustPolicy::AutoTrust);
+    }
+
+    #[test]
+    fn persist_and_load_round_trip() {
+        let tmp = tempfile::NamedTempFile::new().unwrap();
+        let path = tmp.path().to_path_buf();
+        let mut r = TrustResolver::new(path.clone());
+        r.add_allowed("/home/user/project");
+        r.record_event(TrustEvent::new("/home/user/project", TrustPolicy::AutoTrust, "user confirmed"));
+        r.persist().unwrap();
+        let loaded = TrustResolver::load(&path).unwrap();
+        assert_eq!(loaded.allowed_paths, vec!["/home/user/project".to_string()]);
+        assert_eq!(loaded.events.len(), 1);
     }
 }

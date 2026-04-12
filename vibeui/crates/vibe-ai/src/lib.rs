@@ -53,6 +53,10 @@ pub use skills::{Skill, SkillLoader, SkillWatcher, SkillInstaller};
 pub use artifacts::{Artifact, AgentArtifact, ArtifactStore, Annotation, TaskItem, ReviewIssueRef};
 pub use policy::{AdminPolicy, PolicyDecision};
 pub use rules::{Rule, RulesLoader};
+// Claw-code parity: reusable mock provider for deterministic CI testing
+#[cfg(any(test, feature = "testing"))]
+pub mod mock_provider;
+
 pub use agent_team::{
     AgentTeam, TeamMessage, TeamMessageBus, TeamMessageType,
     TeamSubTask, TeamTaskStatus, TeamInfo,

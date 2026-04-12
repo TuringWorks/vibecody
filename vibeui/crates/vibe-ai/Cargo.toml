@@ -37,9 +37,13 @@ sha2.workspace = true
 hmac.workspace = true
 hex.workspace = true
 
+[features]
+testing = []
+
 [dev-dependencies]
 tempfile = "3"
 cucumber = { version = "0.20", features = ["macros"] }
+tokio = { version = "1", features = ["macros", "rt", "rt-multi-thread"] }
 
 [[test]]
 name = "rules_matching_bdd"
@@ -59,4 +63,9 @@ harness = false
 [[test]]
 name = "failover_bdd"
 path = "tests/failover_bdd.rs"
+harness = false
+
+[[test]]
+name = "mock_provider_bdd"
+path = "tests/mock_provider_bdd.rs"
 harness = false

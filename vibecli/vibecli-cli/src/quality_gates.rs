@@ -328,3 +328,206 @@ mod tests {
         assert!(gate.allows_completion(&passing_evidence()));
     }
 }
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Green Contract — hierarchical merge preconditions
+// ═════════════════════════════════════════════════════════════════════════════
+//
+// Quality levels form a strict order:
+// `TargetedTests < Package < Workspace < MergeReady`
+//
+// Higher levels cumulatively satisfy all lower levels. A contract is
+// evaluated against a set of `CheckResults` and returns a `GreenOutcome`.
+//
+// Integration: wire `GreenContract::evaluate()` into `agentic_cicd.rs` merge gates.
+
+// ── QualityLevel ──────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum QualityLevel {
+    TargetedTests,
+    Package,
+    Workspace,
+    MergeReady,
+}
+
+impl std::fmt::Display for QualityLevel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::TargetedTests => write!(f, "targeted_tests"),
+            Self::Package => write!(f, "package"),
+            Self::Workspace => write!(f, "workspace"),
+            Self::MergeReady => write!(f, "merge_ready"),
+        }
+    }
+}
+
+impl QualityLevel {
+    /// Returns true if this level satisfies `lower` (i.e., this >= lower).
+    pub fn satisfies(&self, lower: &QualityLevel) -> bool {
+        self >= lower
+    }
+}
+
+// ── GreenOutcome ──────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum GreenOutcome {
+    Pass,
+    Fail(String),
+}
+
+impl GreenOutcome {
+    pub fn is_pass(&self) -> bool { matches!(self, Self::Pass) }
+    pub fn reason(&self) -> Option<&str> {
+        match self { Self::Fail(r) => Some(r), _ => None }
+    }
+}
+
+impl std::fmt::Display for GreenOutcome {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Pass => write!(f, "pass"),
+            Self::Fail(r) => write!(f, "fail: {r}"),
+        }
+    }
+}
+
+// ── CheckResults ──────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Default)]
+pub struct CheckResults {
+    pub tests_passed: bool,
+    pub package_build: bool,
+    pub workspace_build: bool,
+    pub lint_clean: bool,
+    pub merge_checks: bool,
+}
+
+impl CheckResults {
+    pub fn all_passing() -> Self {
+        Self {
+            tests_passed: true,
+            package_build: true,
+            workspace_build: true,
+            lint_clean: true,
+            merge_checks: true,
+        }
+    }
+}
+
+// ── GreenContract ─────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone)]
+pub struct GreenContract {
+    pub level: QualityLevel,
+    pub description: String,
+}
+
+impl GreenContract {
+    pub fn new(level: QualityLevel) -> Self {
+        let description = format!("Green contract at level: {level}");
+        Self { level, description }
+    }
+
+    /// Evaluate the contract against actual check results.
+    /// Higher levels cumulatively require all lower-level checks.
+    pub fn evaluate(&self, results: &CheckResults) -> GreenOutcome {
+        // TargetedTests: requires tests_passed
+        if !results.tests_passed {
+            return GreenOutcome::Fail("tests did not pass".to_string());
+        }
+        if self.level == QualityLevel::TargetedTests {
+            return GreenOutcome::Pass;
+        }
+
+        // Package: additionally requires package_build
+        if !results.package_build {
+            return GreenOutcome::Fail("package build failed".to_string());
+        }
+        if self.level == QualityLevel::Package {
+            return GreenOutcome::Pass;
+        }
+
+        // Workspace: additionally requires workspace_build + lint_clean
+        if !results.workspace_build {
+            return GreenOutcome::Fail("workspace build failed".to_string());
+        }
+        if !results.lint_clean {
+            return GreenOutcome::Fail("lint checks failed".to_string());
+        }
+        if self.level == QualityLevel::Workspace {
+            return GreenOutcome::Pass;
+        }
+
+        // MergeReady: additionally requires merge_checks
+        if !results.merge_checks {
+            return GreenOutcome::Fail("merge checks failed".to_string());
+        }
+        GreenOutcome::Pass
+    }
+}
+
+// ── Green Contract Tests ───────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod green_contract_tests {
+    use super::*;
+
+    #[test]
+    fn quality_level_ordering() {
+        assert!(QualityLevel::TargetedTests < QualityLevel::Package);
+        assert!(QualityLevel::Package < QualityLevel::Workspace);
+        assert!(QualityLevel::Workspace < QualityLevel::MergeReady);
+    }
+
+    #[test]
+    fn higher_level_satisfies_lower() {
+        assert!(QualityLevel::MergeReady.satisfies(&QualityLevel::TargetedTests));
+        assert!(QualityLevel::MergeReady.satisfies(&QualityLevel::Package));
+        assert!(QualityLevel::MergeReady.satisfies(&QualityLevel::Workspace));
+        assert!(QualityLevel::Workspace.satisfies(&QualityLevel::Package));
+    }
+
+    #[test]
+    fn same_level_satisfies_self() {
+        assert!(QualityLevel::Package.satisfies(&QualityLevel::Package));
+        assert!(QualityLevel::MergeReady.satisfies(&QualityLevel::MergeReady));
+    }
+
+    #[test]
+    fn lower_does_not_satisfy_higher() {
+        assert!(!QualityLevel::TargetedTests.satisfies(&QualityLevel::MergeReady));
+        assert!(!QualityLevel::Package.satisfies(&QualityLevel::Workspace));
+    }
+
+    #[test]
+    fn evaluate_pass_when_all_checks_met() {
+        let contract = GreenContract::new(QualityLevel::MergeReady);
+        let results = CheckResults::all_passing();
+        assert_eq!(contract.evaluate(&results), GreenOutcome::Pass);
+    }
+
+    #[test]
+    fn evaluate_fail_with_reason_when_tests_fail() {
+        let contract = GreenContract::new(QualityLevel::TargetedTests);
+        let results = CheckResults { tests_passed: false, ..Default::default() };
+        let outcome = contract.evaluate(&results);
+        assert!(matches!(outcome, GreenOutcome::Fail(_)));
+        assert!(outcome.reason().unwrap().contains("tests"));
+    }
+
+    #[test]
+    fn evaluate_merge_ready_requires_all_checks() {
+        let contract = GreenContract::new(QualityLevel::MergeReady);
+        // All passing except merge_checks
+        let results = CheckResults {
+            tests_passed: true, package_build: true, workspace_build: true,
+            lint_clean: true, merge_checks: false,
+        };
+        let outcome = contract.evaluate(&results);
+        assert!(matches!(outcome, GreenOutcome::Fail(_)));
+        assert!(outcome.reason().unwrap().contains("merge"));
+    }
+}

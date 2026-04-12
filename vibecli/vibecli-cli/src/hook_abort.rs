@@ -160,6 +160,132 @@ impl HookContext {
     }
 }
 
+// ── AbortSignal ───────────────────────────────────────────────────────────────
+
+#[allow(dead_code)]
+/// Async-safe hook abort signal. All clones share the same underlying atomic.
+#[derive(Debug, Clone, Default)]
+pub struct AbortSignal {
+    aborted: std::sync::Arc<std::sync::atomic::AtomicBool>,
+}
+
+impl AbortSignal {
+    pub fn new() -> Self {
+        Self { aborted: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)) }
+    }
+
+    /// Signal abort. All clones will immediately see this.
+    pub fn abort(&self) {
+        self.aborted.store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+
+    /// Returns true if the signal has been aborted.
+    pub fn is_aborted(&self) -> bool {
+        self.aborted.load(std::sync::atomic::Ordering::SeqCst)
+    }
+
+    /// Clone the signal — the clone shares the same underlying atomic.
+    pub fn clone_signal(&self) -> AbortSignal {
+        AbortSignal { aborted: std::sync::Arc::clone(&self.aborted) }
+    }
+}
+
+// ── HookProgressEvent ─────────────────────────────────────────────────────────
+
+/// Lifecycle events emitted during hook execution.
+#[allow(dead_code)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum HookProgressEvent {
+    Started { hook_name: String },
+    Running { hook_name: String, elapsed_ms: u64 },
+    Completed { hook_name: String, success: bool },
+    Aborted { hook_name: String },
+}
+
+impl HookProgressEvent {
+    pub fn hook_name(&self) -> &str {
+        match self {
+            Self::Started { hook_name } => hook_name,
+            Self::Running { hook_name, .. } => hook_name,
+            Self::Completed { hook_name, .. } => hook_name,
+            Self::Aborted { hook_name } => hook_name,
+        }
+    }
+
+    pub fn is_terminal(&self) -> bool {
+        matches!(self, Self::Completed { .. } | Self::Aborted { .. })
+    }
+}
+
+impl std::fmt::Display for HookProgressEvent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Started { hook_name } => write!(f, "started:{hook_name}"),
+            Self::Running { hook_name, elapsed_ms } => write!(f, "running:{hook_name}:{elapsed_ms}ms"),
+            Self::Completed { hook_name, success } => write!(f, "completed:{hook_name}:{success}"),
+            Self::Aborted { hook_name } => write!(f, "aborted:{hook_name}"),
+        }
+    }
+}
+
+// ── HookAbortController ───────────────────────────────────────────────────────
+
+/// Bundles an abort signal with a progress event channel.
+/// Use `signal()` to obtain a cloneable abort handle.
+/// Use `emit()` to send progress events.
+/// Use `take_receiver()` to receive events (can only be called once).
+#[allow(dead_code)]
+pub struct HookAbortController {
+    signal: AbortSignal,
+    tx: std::sync::mpsc::SyncSender<HookProgressEvent>,
+    rx: Option<std::sync::mpsc::Receiver<HookProgressEvent>>,
+}
+
+impl HookAbortController {
+    pub fn new() -> Self {
+        let (tx, rx) = std::sync::mpsc::sync_channel(64);
+        Self { signal: AbortSignal::new(), tx, rx: Some(rx) }
+    }
+
+    /// Get a cloneable abort signal.
+    pub fn signal(&self) -> AbortSignal {
+        self.signal.clone_signal()
+    }
+
+    /// Abort all in-flight hooks.
+    pub fn abort(&self) {
+        self.signal.abort();
+    }
+
+    /// Take the event receiver (can only be called once).
+    pub fn take_receiver(&mut self) -> Option<std::sync::mpsc::Receiver<HookProgressEvent>> {
+        self.rx.take()
+    }
+
+    /// Emit a progress event to the channel (best-effort).
+    pub fn emit(&self, event: HookProgressEvent) {
+        let _ = self.tx.send(event);
+    }
+
+    pub fn is_aborted(&self) -> bool {
+        self.signal.is_aborted()
+    }
+}
+
+impl Default for HookAbortController {
+    fn default() -> Self { Self::new() }
+}
+
+impl std::fmt::Debug for HookAbortController {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("HookAbortController")
+            .field("signal", &self.signal)
+            .field("has_receiver", &self.rx.is_some())
+            .finish()
+    }
+}
+
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -283,5 +409,60 @@ mod tests {
     fn test_empty_stdout_no_message() {
         let out = HookParser::parse(0, "   ");
         assert!(out.message.is_none());
+    }
+
+    // ── AbortSignal / HookProgressEvent / HookAbortController ────────────────
+
+    #[test]
+    fn abort_signal_initially_false() {
+        let s = AbortSignal::new();
+        assert!(!s.is_aborted());
+    }
+
+    #[test]
+    fn abort_signal_becomes_true_after_abort() {
+        let s = AbortSignal::new();
+        s.abort();
+        assert!(s.is_aborted());
+    }
+
+    #[test]
+    fn cloned_signal_shares_state() {
+        let original = AbortSignal::new();
+        let clone = original.clone_signal();
+        original.abort();
+        assert!(clone.is_aborted());
+    }
+
+    #[test]
+    fn progress_event_hook_name() {
+        let e = HookProgressEvent::Started { hook_name: "pre-tool".into() };
+        assert_eq!(e.hook_name(), "pre-tool");
+    }
+
+    #[test]
+    fn progress_event_aborted_is_terminal() {
+        let e = HookProgressEvent::Aborted { hook_name: "h".into() };
+        assert!(e.is_terminal());
+    }
+
+    #[test]
+    fn hook_abort_controller_creates_signal() {
+        let ctrl = HookAbortController::new();
+        let sig = ctrl.signal();
+        assert!(!sig.is_aborted());
+        ctrl.abort();
+        assert!(sig.is_aborted());
+    }
+
+    #[test]
+    fn emit_sends_events_to_channel() {
+        let mut ctrl = HookAbortController::new();
+        let rx = ctrl.take_receiver().unwrap();
+        ctrl.emit(HookProgressEvent::Started { hook_name: "h1".into() });
+        ctrl.emit(HookProgressEvent::Running { hook_name: "h1".into(), elapsed_ms: 100 });
+        ctrl.emit(HookProgressEvent::Completed { hook_name: "h1".into(), success: true });
+        let events: Vec<HookProgressEvent> = rx.try_iter().collect();
+        assert_eq!(events.len(), 3);
     }
 }

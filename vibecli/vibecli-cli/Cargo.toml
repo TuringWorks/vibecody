@@ -66,3 +66,75 @@ tracing-opentelemetry = "0.28"
 
 [dev-dependencies]
 tower.workspace = true
+cucumber = { version = "0.20", features = ["macros"] }
+tempfile = "3"
+tokio = { version = "1", features = ["macros", "rt", "rt-multi-thread"] }
+
+# Claw-code parity BDD test harnesses — Wave 1
+[[test]]
+name = "workspace_fingerprint_bdd"
+path = "tests/workspace_fingerprint_bdd.rs"
+harness = false
+
+[[test]]
+name = "tool_pair_compaction_bdd"
+path = "tests/tool_pair_compaction_bdd.rs"
+harness = false
+
+[[test]]
+name = "session_health_probe_bdd"
+path = "tests/session_health_probe_bdd.rs"
+harness = false
+
+# Claw-code parity BDD test harnesses — Wave 2
+[[test]]
+name = "bash_classifier_bdd"
+path = "tests/bash_classifier_bdd.rs"
+harness = false
+
+[[test]]
+name = "branch_lock_bdd"
+path = "tests/branch_lock_bdd.rs"
+harness = false
+
+[[test]]
+name = "worker_bootstrap_bdd"
+path = "tests/worker_bootstrap_bdd.rs"
+harness = false
+
+[[test]]
+name = "recovery_recipe_bdd"
+path = "tests/recovery_recipe_bdd.rs"
+harness = false
+
+# Claw-code parity BDD test harnesses — Wave 3
+[[test]]
+name = "lane_events_bdd"
+path = "tests/lane_events_bdd.rs"
+harness = false
+
+[[test]]
+name = "quality_gates_bdd"
+path = "tests/quality_gates_bdd.rs"
+harness = false
+
+[[test]]
+name = "stale_branch_bdd"
+path = "tests/stale_branch_bdd.rs"
+harness = false
+
+# Claw-code parity BDD test harnesses — Wave 4
+[[test]]
+name = "trust_resolution_bdd"
+path = "tests/trust_resolution_bdd.rs"
+harness = false
+
+[[test]]
+name = "config_layers_bdd"
+path = "tests/config_layers_bdd.rs"
+harness = false
+
+[[test]]
+name = "hook_abort_bdd"
+path = "tests/hook_abort_bdd.rs"
+harness = false

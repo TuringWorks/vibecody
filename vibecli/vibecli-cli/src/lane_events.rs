@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Structured agent event lanes for observability and audit.
 //!
 //! Claw-code parity Wave 3: emits typed events into named lanes (tool, plan,
@@ -218,6 +219,7 @@ mod tests {
         assert_eq!(Lane::Cost.to_string(), "cost");
     }
 
+
     #[test]
     fn test_tool_call_payload() {
         let mut b = bus();
@@ -232,5 +234,339 @@ mod tests {
         b.emit(S, 0, Lane::Memory, EventPayload::MemoryWrite { key: "ctx".into(), bytes: 512 });
         let mem_events = b.events_in_lane(&Lane::Memory);
         assert_eq!(mem_events.len(), 1);
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Workflow Lane Event System — 18 structured event types
+// ══════════════════════════════════════════════════════════════════════════════
+//
+// Lanes represent concurrent agent workflows.  Events are emitted as agents
+// progress through commits, branches, quality gates, and failure states.
+//
+// # Event categories
+// - **Lifecycle** (3):  LaneStarted, LaneStopped, LaneResumed
+// - **Commits**   (2):  CommitCreated, CommitSuperseded
+// - **Branches**  (2):  BranchLocked, BranchUnlocked
+// - **Quality**   (2):  QualityGreen, QualityRed
+// - **Failures**  (9):  Build, Test, Lint, Merge, Timeout, Permission,
+//                       Provider, Compaction, Unknown
+
+fn now_millis() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64
+}
+
+static EVENT_COUNTER: std::sync::atomic::AtomicU64 =
+    std::sync::atomic::AtomicU64::new(0);
+
+fn next_event_id() -> String {
+    let n = EVENT_COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    format!("evt-{:08x}-{}", now_millis(), n)
+}
+
+// ── LaneEventType ─────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LaneEventType {
+    // Lifecycle
+    LaneStarted,
+    LaneStopped,
+    LaneResumed,
+    // Commits
+    CommitCreated,
+    CommitSuperseded,
+    // Branches
+    BranchLocked,
+    BranchUnlocked,
+    // Quality
+    QualityGreen,
+    QualityRed,
+    // Failures (9)
+    FailureBuild,
+    FailureTest,
+    FailureLint,
+    FailureMerge,
+    FailureTimeout,
+    FailurePermission,
+    FailureProvider,
+    FailureCompaction,
+    FailureUnknown,
+}
+
+impl LaneEventType {
+    pub fn all_variants() -> &'static [LaneEventType] {
+        &[
+            LaneEventType::LaneStarted,
+            LaneEventType::LaneStopped,
+            LaneEventType::LaneResumed,
+            LaneEventType::CommitCreated,
+            LaneEventType::CommitSuperseded,
+            LaneEventType::BranchLocked,
+            LaneEventType::BranchUnlocked,
+            LaneEventType::QualityGreen,
+            LaneEventType::QualityRed,
+            LaneEventType::FailureBuild,
+            LaneEventType::FailureTest,
+            LaneEventType::FailureLint,
+            LaneEventType::FailureMerge,
+            LaneEventType::FailureTimeout,
+            LaneEventType::FailurePermission,
+            LaneEventType::FailureProvider,
+            LaneEventType::FailureCompaction,
+            LaneEventType::FailureUnknown,
+        ]
+    }
+
+    pub fn is_failure(&self) -> bool {
+        matches!(
+            self,
+            Self::FailureBuild
+                | Self::FailureTest
+                | Self::FailureLint
+                | Self::FailureMerge
+                | Self::FailureTimeout
+                | Self::FailurePermission
+                | Self::FailureProvider
+                | Self::FailureCompaction
+                | Self::FailureUnknown
+        )
+    }
+}
+
+impl std::fmt::Display for LaneEventType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            Self::LaneStarted       => "lane_started",
+            Self::LaneStopped       => "lane_stopped",
+            Self::LaneResumed       => "lane_resumed",
+            Self::CommitCreated     => "commit_created",
+            Self::CommitSuperseded  => "commit_superseded",
+            Self::BranchLocked      => "branch_locked",
+            Self::BranchUnlocked    => "branch_unlocked",
+            Self::QualityGreen      => "quality_green",
+            Self::QualityRed        => "quality_red",
+            Self::FailureBuild      => "failure_build",
+            Self::FailureTest       => "failure_test",
+            Self::FailureLint       => "failure_lint",
+            Self::FailureMerge      => "failure_merge",
+            Self::FailureTimeout    => "failure_timeout",
+            Self::FailurePermission => "failure_permission",
+            Self::FailureProvider   => "failure_provider",
+            Self::FailureCompaction => "failure_compaction",
+            Self::FailureUnknown    => "failure_unknown",
+        };
+        write!(f, "{s}")
+    }
+}
+
+// ── WorkflowLaneEvent ─────────────────────────────────────────────────────────
+
+/// A typed event emitted within a workflow lane.
+///
+/// Use [`LaneEventBuilder`] to construct instances — direct struct init is
+/// intentionally omitted to guarantee a valid `id` and `timestamp`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorkflowLaneEvent {
+    pub id: String,
+    pub event_type: LaneEventType,
+    pub lane_id: String,
+    pub timestamp: u64,
+    pub metadata: HashMap<String, String>,
+}
+
+// ── CommitProvenance ──────────────────────────────────────────────────────────
+
+/// Tracks the origin and supersession state of a commit within a lane.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CommitProvenance {
+    pub commit_sha: String,
+    pub canonical_ref: String,
+    pub lane_id: String,
+    pub superseded_by: Option<String>,
+}
+
+impl CommitProvenance {
+    pub fn is_superseded(&self) -> bool {
+        self.superseded_by.is_some()
+    }
+}
+
+// ── LaneEventBuilder ──────────────────────────────────────────────────────────
+
+#[derive(Debug, Default)]
+pub struct LaneEventBuilder {
+    event_type: Option<LaneEventType>,
+    lane_id: Option<String>,
+    metadata: HashMap<String, String>,
+}
+
+impl LaneEventBuilder {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn event_type(mut self, t: LaneEventType) -> Self {
+        self.event_type = Some(t);
+        self
+    }
+
+    pub fn lane_id(mut self, id: &str) -> Self {
+        self.lane_id = Some(id.to_string());
+        self
+    }
+
+    pub fn meta(mut self, key: &str, value: &str) -> Self {
+        self.metadata.insert(key.to_string(), value.to_string());
+        self
+    }
+
+    pub fn build(self) -> Result<WorkflowLaneEvent, String> {
+        let event_type = self.event_type.ok_or("event_type is required")?;
+        let lane_id = self.lane_id.ok_or("lane_id is required")?;
+        Ok(WorkflowLaneEvent {
+            id: next_event_id(),
+            event_type,
+            lane_id,
+            timestamp: now_millis(),
+            metadata: self.metadata,
+        })
+    }
+}
+
+// ── Deduplication ─────────────────────────────────────────────────────────────
+
+/// Remove `CommitCreated` events whose SHA has been superseded by a later
+/// `CommitSuperseded` event.  Both event types must carry a `"sha"` metadata
+/// key for the match to fire.
+pub fn deduplicate_superseded(events: &[WorkflowLaneEvent]) -> Vec<&WorkflowLaneEvent> {
+    let superseded_shas: std::collections::HashSet<&str> = events
+        .iter()
+        .filter(|e| e.event_type == LaneEventType::CommitSuperseded)
+        .filter_map(|e| e.metadata.get("sha").map(|s| s.as_str()))
+        .collect();
+
+    events
+        .iter()
+        .filter(|e| {
+            if e.event_type == LaneEventType::CommitCreated {
+                !e.metadata
+                    .get("sha")
+                    .map(|s| superseded_shas.contains(s.as_str()))
+                    .unwrap_or(false)
+            } else {
+                true
+            }
+        })
+        .collect()
+}
+
+// ── Workflow Lane Event Tests ──────────────────────────────────────────────────
+
+#[cfg(test)]
+mod workflow_tests {
+    use super::*;
+
+    #[test]
+    fn event_type_count_is_18() {
+        // 3 lifecycle + 2 commit + 2 branch + 2 quality + 9 failure = 18
+        assert_eq!(LaneEventType::all_variants().len(), 18);
+    }
+
+    #[test]
+    fn builder_produces_valid_event() {
+        let evt = LaneEventBuilder::new()
+            .event_type(LaneEventType::LaneStarted)
+            .lane_id("lane-1")
+            .build()
+            .unwrap();
+        assert!(!evt.id.is_empty());
+        assert_eq!(evt.event_type, LaneEventType::LaneStarted);
+        assert_eq!(evt.lane_id, "lane-1");
+    }
+
+    #[test]
+    fn builder_fails_without_event_type() {
+        let result = LaneEventBuilder::new().lane_id("lane-1").build();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn builder_fails_without_lane_id() {
+        let result = LaneEventBuilder::new()
+            .event_type(LaneEventType::LaneStarted)
+            .build();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn event_ids_are_unique() {
+        let e1 = LaneEventBuilder::new()
+            .event_type(LaneEventType::LaneStarted)
+            .lane_id("l")
+            .build()
+            .unwrap();
+        let e2 = LaneEventBuilder::new()
+            .event_type(LaneEventType::LaneStopped)
+            .lane_id("l")
+            .build()
+            .unwrap();
+        assert_ne!(e1.id, e2.id);
+    }
+
+    #[test]
+    fn deduplicate_removes_superseded_commits() {
+        let create = LaneEventBuilder::new()
+            .event_type(LaneEventType::CommitCreated)
+            .lane_id("l")
+            .meta("sha", "abc123")
+            .build()
+            .unwrap();
+        let supersede = LaneEventBuilder::new()
+            .event_type(LaneEventType::CommitSuperseded)
+            .lane_id("l")
+            .meta("sha", "abc123")
+            .build()
+            .unwrap();
+        let keep = LaneEventBuilder::new()
+            .event_type(LaneEventType::CommitCreated)
+            .lane_id("l")
+            .meta("sha", "def456")
+            .build()
+            .unwrap();
+        let events = vec![create, supersede, keep];
+        let deduped = deduplicate_superseded(&events);
+        assert!(!deduped.iter().any(|e| {
+            e.event_type == LaneEventType::CommitCreated
+                && e.metadata.get("sha").map(|s| s == "abc123").unwrap_or(false)
+        }));
+        assert!(deduped
+            .iter()
+            .any(|e| e.metadata.get("sha").map(|s| s == "def456").unwrap_or(false)));
+    }
+
+    #[test]
+    fn commit_provenance_tracks_supersession() {
+        let p = CommitProvenance {
+            commit_sha: "abc".into(),
+            canonical_ref: "refs/heads/main".into(),
+            lane_id: "l1".into(),
+            superseded_by: Some("def".into()),
+        };
+        assert!(p.is_superseded());
+    }
+
+    #[test]
+    fn metadata_preserved_through_builder() {
+        let evt = LaneEventBuilder::new()
+            .event_type(LaneEventType::LaneStarted)
+            .lane_id("l")
+            .meta("key", "value")
+            .build()
+            .unwrap();
+        assert_eq!(evt.metadata.get("key").unwrap(), "value");
     }
 }

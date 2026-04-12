@@ -239,6 +239,10 @@ pub struct Waypoint {
     pub updated_at: u64,
     /// Whether this is a cross-sector link.
     pub cross_sector: bool,
+    /// Whether this link crosses project boundaries (MemPalace Tunnel equivalent).
+    /// Enables cross-project associative recall — same topic surfaces from past projects.
+    #[serde(default)]
+    pub cross_project: bool,
 }
 
 impl Waypoint {
@@ -251,6 +255,7 @@ impl Waypoint {
             created_at: now,
             updated_at: now,
             cross_sector,
+            cross_project: false,
         }
     }
 }
@@ -808,6 +813,195 @@ impl Default for HnswIndex {
     }
 }
 
+// ─── Verbatim Drawer Store (MemPalace technique) ─────────────────────────────
+//
+// MemPalace's headline insight: skipping LLM summarization at ingest time
+// achieves 96.6% recall on LongMemEval vs ~84% for compressed approaches.
+// We add this verbatim layer alongside VibeCody's cognitive store so that
+// high-precision L3 retrieval can always fall back to raw source text.
+
+/// A verbatim text chunk stored without LLM summarization.
+/// Named after MemPalace's "drawer" — the verbatim source unit within a room.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VerbatimDrawer {
+    pub id: String,
+    /// The raw verbatim content chunk (800 chars default, no summarization).
+    pub content: String,
+    /// Wing: project/namespace scope (MemPalace Wing equivalent).
+    /// Maps to VibeCody's `project_id`.
+    pub wing: String,
+    /// Room: topic/sector scope within the wing (MemPalace Room equivalent).
+    /// Maps to VibeCody's `MemorySector`.
+    pub room: String,
+    /// Source identifier (session ID, file path, URL, etc.)
+    pub source: String,
+    /// FNV-1a hash of content for O(1) exact-duplicate detection.
+    pub content_hash: u64,
+    /// TF-IDF embedding (shared engine with the cognitive store).
+    #[serde(default)]
+    pub embedding: Vec<f32>,
+    pub created_at: u64,
+}
+
+impl VerbatimDrawer {
+    pub fn new(
+        content: impl Into<String>,
+        wing: impl Into<String>,
+        room: impl Into<String>,
+        source: impl Into<String>,
+    ) -> Self {
+        let content = content.into();
+        let content_hash = fnv1a_hash(content.as_bytes());
+        Self {
+            id: generate_id(),
+            content,
+            wing: wing.into(),
+            room: room.into(),
+            source: source.into(),
+            content_hash,
+            embedding: Vec::new(),
+            created_at: epoch_secs(),
+        }
+    }
+}
+
+/// Storage for verbatim drawers — raw conversation/document chunks.
+///
+/// Complements the cognitive `OpenMemoryStore` by preserving original text
+/// without summarization loss. Indexed by Wing (project) + Room (sector) for
+/// MemPalace-style metadata pre-filtering before cosine search.
+pub struct DrawerStore {
+    drawers: Vec<VerbatimDrawer>,
+    /// FNV hashes seen — O(1) exact-duplicate detection.
+    seen_hashes: std::collections::HashSet<u64>,
+    /// Chunk size (chars) for conversation ingestion (MemPalace default: 800).
+    pub chunk_size: usize,
+    /// Overlap (chars) between consecutive chunks (MemPalace default: 100).
+    pub overlap: usize,
+    /// Cosine similarity threshold above which near-duplicate chunks are skipped.
+    pub dedup_threshold: f64,
+}
+
+impl DrawerStore {
+    pub fn new() -> Self {
+        Self {
+            drawers: Vec::new(),
+            seen_hashes: std::collections::HashSet::new(),
+            chunk_size: 800,
+            overlap: 100,
+            dedup_threshold: 0.85,
+        }
+    }
+
+    /// Ingest text as overlapping verbatim drawers.
+    /// Applies exact-hash dedup first, then near-duplicate cosine dedup
+    /// on a trailing window of 20 drawers (same as MemPalace dedup.py).
+    /// Returns the number of drawers added.
+    pub fn ingest(
+        &mut self,
+        text: &str,
+        wing: &str,
+        room: &str,
+        source: &str,
+        engine: &mut LocalEmbeddingEngine,
+    ) -> usize {
+        let chunks = chunk_text(text, self.chunk_size, self.overlap);
+        let mut added = 0;
+        for chunk in chunks {
+            let hash = fnv1a_hash(chunk.as_bytes());
+            if self.seen_hashes.contains(&hash) {
+                continue; // Exact duplicate — skip
+            }
+            engine.add_document(&chunk);
+            let embedding = engine.embed(&chunk);
+            // Near-duplicate check against trailing window
+            if !embedding.is_empty() {
+                let is_near_dup = self.drawers.iter().rev().take(20).any(|d| {
+                    !d.embedding.is_empty()
+                        && LocalEmbeddingEngine::cosine_similarity(&embedding, &d.embedding)
+                            >= self.dedup_threshold
+                });
+                if is_near_dup {
+                    continue;
+                }
+            }
+            self.seen_hashes.insert(hash);
+            let mut drawer = VerbatimDrawer::new(&chunk, wing, room, source);
+            drawer.embedding = embedding;
+            self.drawers.push(drawer);
+            added += 1;
+        }
+        added
+    }
+
+    /// Semantic search over drawers with Wing/Room pre-filtering.
+    ///
+    /// Wing/Room metadata filters narrow the search space before cosine
+    /// ranking — this is the core MemPalace retrieval precision technique.
+    pub fn search(
+        &self,
+        query_embedding: &[f32],
+        limit: usize,
+        wing_filter: Option<&str>,
+        room_filter: Option<&str>,
+    ) -> Vec<&VerbatimDrawer> {
+        let mut candidates: Vec<(&VerbatimDrawer, f64)> = self
+            .drawers
+            .iter()
+            .filter(|d| {
+                wing_filter.is_none_or(|w| d.wing == w)
+                    && room_filter.is_none_or(|r| d.room == r)
+            })
+            .filter(|d| !d.embedding.is_empty())
+            .map(|d| {
+                let sim =
+                    LocalEmbeddingEngine::cosine_similarity(query_embedding, &d.embedding);
+                (d, sim)
+            })
+            .collect();
+
+        candidates
+            .sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+        candidates.into_iter().take(limit).map(|(d, _)| d).collect()
+    }
+
+    /// Total drawers stored.
+    pub fn len(&self) -> usize {
+        self.drawers.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.drawers.is_empty()
+    }
+
+    /// Persist drawers to a JSON file.
+    pub fn save(&self, path: &std::path::Path) -> Result<()> {
+        let json = serde_json::to_string_pretty(&self.drawers)?;
+        std::fs::write(path, json)?;
+        Ok(())
+    }
+
+    /// Load drawers from a JSON file.
+    pub fn load(path: &std::path::Path) -> Result<Self> {
+        let mut store = Self::new();
+        if path.exists() {
+            let json = std::fs::read_to_string(path)?;
+            let drawers: Vec<VerbatimDrawer> = serde_json::from_str(&json)?;
+            for d in drawers {
+                store.seen_hashes.insert(d.content_hash);
+                store.drawers.push(d);
+            }
+        }
+        Ok(store)
+    }
+}
+
+impl Default for DrawerStore {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 // ─── Encryption ──────────────────────────────────────────────────────────────
 
 /// AES-256-GCM encryption for memory content at rest.
@@ -991,6 +1185,9 @@ pub struct OpenMemoryStore {
     consolidation_threshold: f64,
     /// Minimum salience before a memory is eligible for purge.
     purge_threshold: f64,
+    /// Verbatim drawer store (MemPalace technique — raw storage, no summarization loss).
+    /// Provides high-fidelity L3 retrieval to complement the cognitive store.
+    drawer_store: DrawerStore,
 }
 
 impl OpenMemoryStore {
@@ -1012,6 +1209,7 @@ impl OpenMemoryStore {
             waypoint_threshold: 0.65,
             consolidation_threshold: 0.80,
             purge_threshold: 0.05,
+            drawer_store: DrawerStore::new(),
         }
     }
 
@@ -1589,6 +1787,8 @@ impl OpenMemoryStore {
         let json = serde_json::to_string_pretty(&self.temporal_facts)?;
         std::fs::write(&facts_path, json)?;
 
+        self.drawer_store.save(&self.data_dir.join("drawers.json"))?;
+
         Ok(())
     }
 
@@ -1632,6 +1832,10 @@ impl OpenMemoryStore {
             let json = std::fs::read_to_string(&facts_path)?;
             store.temporal_facts = serde_json::from_str(&json)?;
         }
+
+        // Load verbatim drawers (MemPalace verbatim layer)
+        store.drawer_store = DrawerStore::load(&data_dir.join("drawers.json"))
+            .unwrap_or_default();
 
         Ok(store)
     }
@@ -2129,6 +2333,272 @@ impl OpenMemoryStore {
         results
     }
 
+    // ── MemPalace Integration: Spatial Scoping ───────────────────────────
+    //
+    // Adopts MemPalace's Wing→Room metadata pre-filtering pattern.
+    // Filters by (project_id=Wing, sector=Room) BEFORE vector search,
+    // reducing the candidate set and improving retrieval precision.
+
+    /// Wing/Room scoped query — MemPalace metadata pre-filtering.
+    ///
+    /// `wing` maps to `project_id` (namespace). `room` maps to `MemorySector` (topic).
+    /// Pre-filters the store before cosine ranking, improving precision on large stores.
+    pub fn query_scoped(
+        &self,
+        text: &str,
+        limit: usize,
+        wing: Option<&str>,
+        room: Option<MemorySector>,
+    ) -> Vec<QueryResult> {
+        self.query_with_filters(text, limit, room, wing)
+    }
+
+    /// Add a cross-project waypoint (MemPalace Tunnel equivalent).
+    ///
+    /// Links two memories from different projects so that topic-relevant
+    /// memories from past projects surface in current-project queries.
+    /// Both direction links are created (bidirectional tunnel).
+    pub fn add_cross_project_waypoint(&mut self, src_id: &str, dst_id: &str, weight: f64) -> bool {
+        if !self.memories.contains_key(src_id) || !self.memories.contains_key(dst_id) {
+            return false;
+        }
+        let cross_sector = self
+            .memories
+            .get(src_id)
+            .zip(self.memories.get(dst_id))
+            .map(|(s, d)| s.sector != d.sector)
+            .unwrap_or(false);
+        let src_proj = self.memories.get(src_id).and_then(|m| m.project_id.clone());
+        let dst_proj = self.memories.get(dst_id).and_then(|m| m.project_id.clone());
+        let cross_project = src_proj != dst_proj;
+
+        let mut wp = Waypoint::new(src_id, dst_id, weight, cross_sector);
+        wp.cross_project = cross_project;
+        self.waypoints
+            .entry(src_id.to_string())
+            .or_default()
+            .push(wp);
+
+        let mut wp_rev = Waypoint::new(dst_id, src_id, weight, cross_sector);
+        wp_rev.cross_project = cross_project;
+        self.waypoints
+            .entry(dst_id.to_string())
+            .or_default()
+            .push(wp_rev);
+
+        true
+    }
+
+    // ── MemPalace Integration: L1 Essential Story ────────────────────────
+    //
+    // MemPalace loads ~600-900 tokens on every wake-up (L0 identity + L1 story).
+    // VibeCody's equivalent: a token-budgeted snapshot of the highest-salience
+    // memories, injected at session start without any semantic query.
+
+    /// Build the L1 "Essential Story" — always-on preload of highest-salience memories.
+    ///
+    /// Sorted by `effective_salience()` descending (pinned memories ranked first).
+    /// Budget-capped at `max_tokens` (4 chars ≈ 1 token). Returns a markdown block
+    /// suitable for injection into the agent system prompt before any user query.
+    pub fn build_essential_story(&self, max_tokens: usize) -> String {
+        if self.memories.is_empty() {
+            return String::new();
+        }
+
+        let char_budget = max_tokens * 4; // ~4 chars per token
+        let header = "## Essential Context\n";
+        let mut used = header.len();
+
+        // Pinned first, then by effective salience descending
+        let mut ranked: Vec<&MemoryNode> = self.memories.values().collect();
+        ranked.sort_by(|a, b| match (a.pinned, b.pinned) {
+            (true, false) => std::cmp::Ordering::Less,
+            (false, true) => std::cmp::Ordering::Greater,
+            _ => b
+                .effective_salience()
+                .partial_cmp(&a.effective_salience())
+                .unwrap_or(std::cmp::Ordering::Equal),
+        });
+
+        let mut lines: Vec<String> = Vec::new();
+        for node in ranked {
+            if used >= char_budget {
+                break;
+            }
+            let snippet = if node.content.len() > 300 {
+                format!("{}…", &node.content[..297])
+            } else {
+                node.content.clone()
+            };
+            let pin = if node.pinned { " ★" } else { "" };
+            let line = format!(
+                "[{}{} | {:.0}%] {}\n",
+                node.sector,
+                pin,
+                node.effective_salience() * 100.0,
+                snippet
+            );
+            if used + line.len() > char_budget {
+                break;
+            }
+            used += line.len();
+            lines.push(line);
+        }
+
+        if lines.is_empty() {
+            return String::new();
+        }
+
+        let mut out = String::with_capacity(used + 4);
+        out.push_str(header);
+        for line in lines {
+            out.push_str(&line);
+        }
+        out
+    }
+
+    // ── MemPalace Integration: Layered Context (4-Layer Pattern) ─────────
+    //
+    // MemPalace loads context in 4 layers with strict token budgets:
+    //   L0 (~100t, always): identity / system instructions  — handled externally
+    //   L1 (~700t, always): essential story — build_essential_story()
+    //   L2 (~400t, on-demand): scoped semantic search — query_scoped()
+    //   L3 (unlimited, fallback): deep search + verbatim drawers — query() + DrawerStore
+    //
+    // This replaces get_agent_context() for callers that want layered precision.
+
+    /// Build a layered context string following MemPalace's 4-layer strategy.
+    ///
+    /// - **L1** (`l1_tokens`): Essential story — high-salience nodes, always included
+    /// - **L2** (`l2_limit`): Scoped semantic search — Wing/Room pre-filtered by
+    ///   current project_id and the query's inferred sector
+    /// - **L3**: Full semantic search fallback when L2 returns fewer than
+    ///   `l3_threshold` results, plus verbatim drawer recall (no summarization loss)
+    ///
+    /// Returns an `<open-memory>` block ready for injection into agent prompts.
+    pub fn get_layered_context(
+        &self,
+        query: &str,
+        l1_tokens: usize,
+        l2_limit: usize,
+        l3_threshold: usize,
+    ) -> String {
+        let mut ctx = String::from("<open-memory>\n");
+
+        // L1: Essential story (budget-capped always-on preload)
+        let essential = self.build_essential_story(l1_tokens);
+        if !essential.is_empty() {
+            ctx.push_str(&essential);
+            ctx.push('\n');
+        }
+
+        // L2: Wing/Room scoped semantic search
+        let query_sector = self.classifier.primary_sector(query);
+        let scoped =
+            self.query_scoped(query, l2_limit, self.project_id.as_deref(), Some(query_sector));
+        let scoped_ids: std::collections::HashSet<&str> =
+            scoped.iter().map(|r| r.memory.id.as_str()).collect();
+
+        if !scoped.is_empty() {
+            ctx.push_str("### Scoped Memories\n");
+            for r in &scoped {
+                ctx.push_str(&format!(
+                    "[{} | sal:{:.0}% | score:{:.2}] {}\n",
+                    r.memory.sector,
+                    r.effective_salience * 100.0,
+                    r.score,
+                    &r.memory.content[..r.memory.content.len().min(300)]
+                ));
+            }
+            ctx.push('\n');
+        }
+
+        // L3: Deep search fallback when L2 is sparse
+        if scoped.len() < l3_threshold {
+            let deep = self.query(query, l2_limit);
+            let new_deep: Vec<&QueryResult> = deep
+                .iter()
+                .filter(|r| !scoped_ids.contains(r.memory.id.as_str()))
+                .collect();
+            if !new_deep.is_empty() {
+                ctx.push_str("### Deep Search\n");
+                for r in new_deep {
+                    ctx.push_str(&format!(
+                        "[{} | sal:{:.0}% | score:{:.2}] {}\n",
+                        r.memory.sector,
+                        r.effective_salience * 100.0,
+                        r.score,
+                        &r.memory.content[..r.memory.content.len().min(300)]
+                    ));
+                }
+                ctx.push('\n');
+            }
+        }
+
+        // L3-verbatim: Drawer search — raw text, no summarization loss
+        let query_embedding = self.embedding_engine.embed(query);
+        if !query_embedding.is_empty() && !self.drawer_store.is_empty() {
+            let drawers = self.drawer_store.search(
+                &query_embedding,
+                4,
+                self.project_id.as_deref(),
+                None,
+            );
+            if !drawers.is_empty() {
+                ctx.push_str("### Verbatim Drawers\n");
+                for d in drawers {
+                    ctx.push_str(&format!(
+                        "[drawer | {}] {}\n",
+                        d.source,
+                        &d.content[..d.content.len().min(400)]
+                    ));
+                }
+                ctx.push('\n');
+            }
+        }
+
+        // Temporal facts
+        let facts = self.query_current_facts();
+        if !facts.is_empty() {
+            ctx.push_str("--- temporal facts ---\n");
+            for f in facts.iter().take(10) {
+                ctx.push_str(&format!("{} {} {}\n", f.subject, f.predicate, f.object));
+            }
+        }
+
+        ctx.push_str("</open-memory>\n");
+        ctx
+    }
+
+    /// Convenience wrapper: `get_layered_context` with MemPalace default budgets.
+    /// L1=700 tokens, L2=8 results, L3 fallback when L2 < 3.
+    pub fn get_layered_context_default(&self, query: &str) -> String {
+        self.get_layered_context(query, 700, 8, 3)
+    }
+
+    // ── MemPalace Integration: Verbatim Ingestion ────────────────────────
+
+    /// Ingest conversation text as verbatim drawers (MemPalace miner equivalent).
+    ///
+    /// Stores raw 800-char overlapping chunks without LLM summarization.
+    /// Wing is inferred from the current `project_id`; Room from the text's
+    /// primary sector. Use alongside `add()` / `memory_auto` extraction for
+    /// complementary lossy+lossless storage.
+    pub fn ingest_conversation_chunks(&mut self, text: &str, source: &str) -> usize {
+        let wing = self
+            .project_id
+            .clone()
+            .unwrap_or_else(|| "global".to_string());
+        let room = self.classifier.primary_sector(text).to_string();
+        self.drawer_store
+            .ingest(text, &wing, &room, source, &mut self.embedding_engine)
+    }
+
+    /// Access the drawer store (read-only, for stats / inspection).
+    pub fn drawer_store(&self) -> &DrawerStore {
+        &self.drawer_store
+    }
+
     // ── MCP Tool Definitions ─────────────────────────────────────────────
 
     /// Return MCP tool definitions for this memory engine.
@@ -2587,6 +3057,11 @@ fn epoch_secs() -> u64 {
         .as_secs()
 }
 
+/// Public wrapper for use by callers that need a session timestamp (e.g. session ID generation).
+pub fn epoch_secs_now() -> u64 {
+    epoch_secs()
+}
+
 fn generate_id() -> String {
     let ms = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -2605,6 +3080,19 @@ fn generate_nonce() -> [u8; 12] {
         *byte = ((ns >> (i * 8)) & 0xFF) as u8;
     }
     nonce
+}
+
+/// FNV-1a hash for fast O(1) content deduplication in DrawerStore.
+/// Same algorithm used by MemPalace's dedup.py for exact-match detection.
+fn fnv1a_hash(data: &[u8]) -> u64 {
+    const FNV_PRIME: u64 = 1_099_511_628_211;
+    const FNV_OFFSET: u64 = 14_695_981_039_346_656_037;
+    let mut hash = FNV_OFFSET;
+    for &byte in data {
+        hash ^= byte as u64;
+        hash = hash.wrapping_mul(FNV_PRIME);
+    }
+    hash
 }
 
 /// Simple pseudo-random u16 (not cryptographically secure).
@@ -4351,5 +4839,219 @@ mod tests {
         };
         let json = serde_json::to_string(&h).expect("serialize");
         assert!(json.contains("sector_diversity"));
+    }
+
+    // ── MemPalace integration tests ──────────────────────────────────────
+
+    #[test]
+    fn fnv1a_hash_deterministic() {
+        let h1 = fnv1a_hash(b"hello world");
+        let h2 = fnv1a_hash(b"hello world");
+        assert_eq!(h1, h2);
+    }
+
+    #[test]
+    fn fnv1a_hash_different_inputs_differ() {
+        let h1 = fnv1a_hash(b"alpha");
+        let h2 = fnv1a_hash(b"beta");
+        assert_ne!(h1, h2);
+    }
+
+    #[test]
+    fn drawer_store_ingest_basic() {
+        let mut engine = LocalEmbeddingEngine::new();
+        let mut ds = DrawerStore::new();
+        let added = ds.ingest("Rust ownership model prevents data races", "myproject", "semantic", "session-1", &mut engine);
+        assert!(added >= 1);
+        assert_eq!(ds.len(), added);
+    }
+
+    #[test]
+    fn drawer_store_exact_dedup() {
+        let mut engine = LocalEmbeddingEngine::new();
+        let mut ds = DrawerStore::new();
+        ds.ingest("same exact text", "p1", "semantic", "s1", &mut engine);
+        let second = ds.ingest("same exact text", "p1", "semantic", "s1", &mut engine);
+        assert_eq!(second, 0); // Exact duplicate skipped
+        assert_eq!(ds.len(), 1);
+    }
+
+    #[test]
+    fn drawer_store_wing_filter() {
+        let mut engine = LocalEmbeddingEngine::new();
+        let mut ds = DrawerStore::new();
+        ds.ingest("alpha project fact about Rust programming", "alpha", "semantic", "s1", &mut engine);
+        ds.ingest("beta project fact about Python scripting", "beta", "semantic", "s2", &mut engine);
+
+        let q_embedding = engine.embed("Rust programming");
+        let alpha_results = ds.search(&q_embedding, 5, Some("alpha"), None);
+        // All returned drawers must be from wing "alpha"
+        for d in &alpha_results {
+            assert_eq!(d.wing, "alpha");
+        }
+    }
+
+    #[test]
+    fn drawer_store_search_empty_returns_empty() {
+        let ds = DrawerStore::new();
+        let results = ds.search(&[0.1, 0.2, 0.3], 5, None, None);
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn build_essential_story_empty_store() {
+        let store = test_store();
+        let story = store.build_essential_story(700);
+        assert!(story.is_empty());
+    }
+
+    #[test]
+    fn build_essential_story_includes_memories() {
+        let mut store = test_store();
+        store.add("Rust ownership model is fundamental");
+        store.add("Use cargo build to compile");
+        let story = store.build_essential_story(700);
+        assert!(!story.is_empty());
+        assert!(story.contains("Essential Context"));
+    }
+
+    #[test]
+    fn build_essential_story_respects_token_budget() {
+        let mut store = test_store();
+        for i in 0..50 {
+            store.add(&format!("Memory content item number {} with lots of details about topic", i));
+        }
+        // Budget of 100 tokens ≈ 400 chars — should truncate
+        let story_small = store.build_essential_story(100);
+        let story_large = store.build_essential_story(10_000);
+        assert!(story_small.len() <= story_large.len());
+    }
+
+    #[test]
+    fn build_essential_story_pinned_first() {
+        let mut store = test_store();
+        let _regular = store.add("Regular memory with normal salience");
+        let pinned_id = store.add("Pinned memory very important");
+        store.pin(&pinned_id);
+
+        let story = store.build_essential_story(700);
+        // Pinned memory content should appear before regular
+        let pinned_pos = story.find("Pinned memory");
+        let regular_pos = story.find("Regular memory");
+        if let (Some(p), Some(r)) = (pinned_pos, regular_pos) {
+            assert!(p < r, "pinned memory should appear before regular");
+        }
+    }
+
+    #[test]
+    fn query_scoped_wing_filter() {
+        let mut store = test_store();
+        store.set_project("proj-a");
+        store.add("Rust ownership model");
+
+        // Project-scoped query should work
+        let results = store.query_scoped("ownership", 5, Some("proj-a"), None);
+        // All results should belong to proj-a
+        for r in &results {
+            assert_eq!(r.memory.project_id.as_deref(), Some("proj-a"));
+        }
+    }
+
+    #[test]
+    fn query_scoped_room_filter() {
+        let mut store = test_store();
+        store.add_with_sector("Step 1: cargo build", MemorySector::Procedural, vec![]);
+        store.add_with_sector("Rust is a systems language fact", MemorySector::Semantic, vec![]);
+
+        let results = store.query_scoped("build", 5, None, Some(MemorySector::Procedural));
+        // All results should be procedural sector
+        for r in &results {
+            assert_eq!(r.memory.sector, MemorySector::Procedural);
+        }
+    }
+
+    #[test]
+    fn add_cross_project_waypoint_valid() {
+        let mut store = test_store();
+        store.set_project("proj-a");
+        let id1 = store.add("Auth service implementation");
+
+        store.set_project("proj-b");
+        let id2 = store.add("Authentication module design");
+
+        let linked = store.add_cross_project_waypoint(&id1, &id2, 0.8);
+        assert!(linked);
+
+        let wps = store.get_waypoints(&id1);
+        assert!(wps.iter().any(|w| w.dst_id == id2));
+        assert!(wps.iter().any(|w| w.cross_project));
+    }
+
+    #[test]
+    fn add_cross_project_waypoint_missing_src() {
+        let mut store = test_store();
+        let id2 = store.add("Valid memory");
+        let result = store.add_cross_project_waypoint("nonexistent", &id2, 0.7);
+        assert!(!result);
+    }
+
+    #[test]
+    fn waypoint_cross_project_default_false() {
+        let wp = Waypoint::new("src", "dst", 0.9, false);
+        assert!(!wp.cross_project);
+    }
+
+    #[test]
+    fn ingest_conversation_chunks_basic() {
+        let mut store = test_store();
+        store.set_project("myproject");
+        let count = store.ingest_conversation_chunks(
+            "The user asked about Rust ownership and we discussed how it prevents data races at compile time",
+            "session-abc",
+        );
+        assert!(count >= 1);
+        assert_eq!(store.drawer_store().len(), count);
+    }
+
+    #[test]
+    fn get_layered_context_empty_store() {
+        let store = test_store();
+        let ctx = store.get_layered_context("Rust ownership", 700, 8, 3);
+        assert!(ctx.contains("<open-memory>"));
+        assert!(ctx.contains("</open-memory>"));
+    }
+
+    #[test]
+    fn get_layered_context_includes_l1() {
+        let mut store = test_store();
+        store.add("Rust ownership prevents data races");
+        let ctx = store.get_layered_context("ownership", 700, 8, 3);
+        assert!(ctx.contains("Essential Context"));
+    }
+
+    #[test]
+    fn get_layered_context_default_equivalent() {
+        let mut store = test_store();
+        store.add("Rust ownership model");
+        let ctx1 = store.get_layered_context("Rust", 700, 8, 3);
+        let ctx2 = store.get_layered_context_default("Rust");
+        assert_eq!(ctx1, ctx2);
+    }
+
+    #[test]
+    fn drawer_store_save_load_roundtrip() {
+        let dir = std::env::temp_dir().join("vibecody-drawer-test");
+        let _ = std::fs::create_dir_all(&dir);
+        let path = dir.join("drawers.json");
+
+        let mut engine = LocalEmbeddingEngine::new();
+        let mut ds = DrawerStore::new();
+        ds.ingest("Rust ownership prevents data races at compile time", "proj", "semantic", "s1", &mut engine);
+        ds.save(&path).expect("save");
+
+        let loaded = DrawerStore::load(&path).expect("load");
+        assert_eq!(loaded.len(), ds.len());
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

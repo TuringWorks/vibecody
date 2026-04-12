@@ -406,30 +406,25 @@ mod workload_model_sel;
 // Claw-code parity — Wave 1: correctness/reliability
 #[allow(dead_code)]
 mod workspace_fingerprint;
-#[allow(dead_code)]
 mod tool_pair_compaction;
 #[allow(dead_code)]
 mod session_health_probe;
 // Claw-code parity — Wave 2: agent coordination
 #[allow(dead_code)]
 mod bash_classifier;
-#[allow(dead_code)]
 mod branch_lock;
 #[allow(dead_code)]
 mod worker_bootstrap;
 #[allow(dead_code)]
 mod recovery_recipe;
 // Claw-code parity — Wave 3: governance
-#[allow(dead_code)]
 mod lane_events;
 #[allow(dead_code)]
 mod quality_gates;
 #[allow(dead_code)]
 mod stale_branch;
 // Claw-code parity — Wave 4: config/hooks
-#[allow(dead_code)]
 mod trust_resolution;
-#[allow(dead_code)]
 mod config_layers;
 #[allow(dead_code)]
 mod hook_abort;
@@ -8540,7 +8535,8 @@ async fn main() -> Result<()> {
                                         dirs::data_dir().unwrap_or_else(|| std::path::PathBuf::from(".")).join("vibecli").join("openmemory"),
                                         "default",
                                     ));
-                                    let ctx = store.get_agent_context(if rest.is_empty() { "general" } else { rest }, 10);
+                                    // MemPalace-style: L1 essential story + L2 scoped + L3 verbatim drawers
+                                    let ctx = store.get_layered_context_default(if rest.is_empty() { "general" } else { rest });
                                     if ctx.is_empty() {
                                         println!("No relevant memories for agent context.\n");
                                     } else {
@@ -11363,10 +11359,11 @@ async fn run_agent_repl_with_context(
         .take(5) // Max 5 files to avoid bloating context
         .collect();
 
-    // OpenMemory: inject relevant memories into agent system prompt (config-gated)
+    // OpenMemory: inject relevant memories into agent system prompt (config-gated).
+    // Uses MemPalace-style layered loading: L1 essential story + L2 scoped search + L3 verbatim drawers.
     let memory_context = if config.memory.openmemory.enabled && config.memory.openmemory.auto_inject {
         let store = open_memory::project_scoped_store(&workspace);
-        let ctx = store.get_agent_context(task, config.memory.openmemory.max_memories_in_context);
+        let ctx = store.get_layered_context_default(task);
         if ctx.is_empty() { None } else { Some(ctx) }
     } else {
         None
@@ -11566,9 +11563,13 @@ async fn run_agent_repl_with_context(
                     let dedup_threshold = config.memory.openmemory.dedup_threshold;
                     tokio::spawn(async move {
                         let mut store = open_memory::project_scoped_store(&workspace_for_mem);
-                        // Store session as episodic memory (dedup-safe)
+                        // Store session as episodic memory (dedup-safe, lossy LLM extraction path)
                         let content = format!("Session: {} — {}", task_for_mem, summary_for_mem);
-                        store.add_dedup(content, dedup_threshold);
+                        store.add_dedup(content.clone(), dedup_threshold);
+                        // MemPalace verbatim path: also ingest raw summary as drawer chunks
+                        // (no summarization loss — complements the dedup'd extracted memory above)
+                        let session_id = format!("session-{}", open_memory::epoch_secs_now());
+                        store.ingest_conversation_chunks(&content, &session_id);
                         // Trigger auto-reflection at configured interval
                         if reflect_interval > 0 && store.total_memories().is_multiple_of(reflect_interval) {
                             store.auto_reflect();
