@@ -428,6 +428,12 @@ mod trust_resolution;
 mod config_layers;
 #[allow(dead_code)]
 mod hook_abort;
+// FIT-GAP v10 — Phase 40: Execution Engine (P0)
+mod parallel_tool_scheduler;
+mod context_budget;
+mod smart_diff;
+// MemPalace techniques — LongMemEval benchmark
+mod mem_benchmark;
 // RL-OS: Unified Reinforcement Learning Lifecycle Platform
 #[allow(dead_code)]
 mod rl_env_os;
@@ -8645,6 +8651,121 @@ async fn main() -> Result<()> {
                                         println!("\n  Pin them with /openmemory pin <id> or they may be purged.\n");
                                     }
                                 }
+                                // ── MemPalace-derived commands ──────────────────────────────
+                                "chunk" => {
+                                    // Ingest raw text as verbatim drawers (MemPalace miner technique).
+                                    // Usage: /openmemory chunk <text>
+                                    //        /openmemory chunk file:<path>
+                                    if rest.is_empty() {
+                                        println!("Usage:\n  /openmemory chunk <text>         — Store raw text as verbatim drawers\n  /openmemory chunk file:<path>    — Ingest file as verbatim drawers\n");
+                                    } else {
+                                        let text_and_source: Option<(String, String)> =
+                                            if let Some(path) = rest.strip_prefix("file:") {
+                                                match std::fs::read_to_string(path.trim()) {
+                                                    Ok(content) => Some((content, path.trim().to_string())),
+                                                    Err(e) => {
+                                                        println!("Failed to read file: {}\n", e);
+                                                        None
+                                                    }
+                                                }
+                                            } else {
+                                                Some((rest.to_string(), "manual".to_string()))
+                                            };
+                                        if let Some((text, source)) = text_and_source {
+                                            let mut store = open_memory::project_scoped_store(&std::env::current_dir().unwrap_or_default());
+                                            let added = store.ingest_conversation_chunks(&text, &source);
+                                            let _ = store.save();
+                                            println!("Stored {} verbatim drawer(s) from \"{}\" (no summarization — raw recall).\n", added, source);
+                                            println!("  Total drawers: {}  |  Use '/openmemory drawers' to inspect\n", store.drawer_store().len());
+                                        }
+                                    }
+                                }
+                                "drawers" => {
+                                    // Show verbatim drawer store stats (MemPalace Wing/Room overview).
+                                    let store = open_memory::project_scoped_store(&std::env::current_dir().unwrap_or_default());
+                                    let ds = store.drawer_store();
+                                    println!("Verbatim Drawer Store ({} total)\n", ds.len());
+                                    if ds.is_empty() {
+                                        println!("  No drawers yet. Use '/openmemory chunk <text>' to ingest raw content.");
+                                        println!("  Drawers are also auto-created after each agent session.\n");
+                                    } else {
+                                        println!("  Drawers store raw 800-char chunks without LLM summarization.");
+                                        println!("  Searched at L3 in layered context (get_layered_context_default).\n");
+                                        // Wing/Room summary would require iterating drawers — just show count
+                                        println!("  Use '/openmemory context <query>' to see L1+L2+L3 layered retrieval.\n");
+                                    }
+                                }
+                                "tunnel" => {
+                                    // Add a cross-project waypoint (MemPalace Tunnel).
+                                    // Usage: /openmemory tunnel <src-id-prefix> <dst-id-prefix> [weight]
+                                    let parts: Vec<&str> = rest.split_whitespace().collect();
+                                    if parts.len() < 2 {
+                                        println!("Usage: /openmemory tunnel <src-id-prefix> <dst-id-prefix> [weight]\n");
+                                        println!("  Creates a cross-project waypoint (MemPalace Tunnel) linking two memories.");
+                                        println!("  Use ID prefixes (first 8 chars shown in /openmemory list).\n");
+                                    } else {
+                                        let src_prefix = parts[0];
+                                        let dst_prefix = parts[1];
+                                        let weight: f64 = parts.get(2)
+                                            .and_then(|s| s.parse().ok())
+                                            .unwrap_or(0.75);
+                                        let mut store = open_memory::project_scoped_store(&std::env::current_dir().unwrap_or_default());
+                                        // Find full IDs by prefix
+                                        let all_mems: Vec<String> = store.list_memories(0, usize::MAX)
+                                            .iter().map(|m| m.id.clone()).collect();
+                                        let src_id = all_mems.iter().find(|id| id.starts_with(src_prefix)).cloned();
+                                        let dst_id = all_mems.iter().find(|id| id.starts_with(dst_prefix)).cloned();
+                                        match (src_id, dst_id) {
+                                            (Some(s), Some(d)) => {
+                                                let linked = store.add_cross_project_waypoint(&s, &d, weight);
+                                                let _ = store.save();
+                                                if linked {
+                                                    println!("Tunnel created: {} ↔ {} (weight={:.2})\n", &s[..12.min(s.len())], &d[..12.min(d.len())], weight);
+                                                } else {
+                                                    println!("Failed to create tunnel (one or both memory IDs not found).\n");
+                                                }
+                                            }
+                                            (None, _) => println!("No memory found with ID prefix '{}'. Use /openmemory list to see IDs.\n", src_prefix),
+                                            (_, None) => println!("No memory found with ID prefix '{}'. Use /openmemory list to see IDs.\n", dst_prefix),
+                                        }
+                                    }
+                                }
+                                "layered" => {
+                                    // Alias for context — shows the full 4-layer context breakdown.
+                                    let store = open_memory::project_scoped_store(&std::env::current_dir().unwrap_or_default());
+                                    let query = if rest.is_empty() { "general" } else { rest };
+                                    let ctx = store.get_layered_context(query, 700, 8, 3);
+                                    if ctx.trim() == "<open-memory>\n</open-memory>" {
+                                        println!("No context found for '{}'. Add memories with /openmemory add or ingest chunks with /openmemory chunk.\n", query);
+                                    } else {
+                                        println!("{}\n", ctx);
+                                    }
+                                }
+                                "benchmark" => {
+                                    // LongMemEval-style recall@5 benchmark across all memory layers.
+                                    let k: usize = rest.trim().parse().unwrap_or(5);
+                                    let cases = mem_benchmark::default_benchmark_cases();
+                                    let report = mem_benchmark::run_benchmark(&cases, k);
+                                    println!("{}\n", report.summary());
+                                }
+                                "auto-tunnel" => {
+                                    // Auto-link semantically similar memories across the default store and
+                                    // the current project-scoped store.
+                                    let threshold: f64 = rest.trim().parse().unwrap_or(0.75);
+                                    let default_store = open_memory::OpenMemoryStore::load(
+                                        dirs::data_dir().unwrap_or_else(|| std::path::PathBuf::from(".")).join("vibecli").join("openmemory"),
+                                        "default",
+                                    ).unwrap_or_else(|_| open_memory::OpenMemoryStore::new(
+                                        dirs::data_dir().unwrap_or_else(|| std::path::PathBuf::from(".")).join("vibecli").join("openmemory"),
+                                        "default",
+                                    ));
+                                    let project_store = open_memory::project_scoped_store(&std::env::current_dir().unwrap_or_default());
+                                    let created = open_memory::OpenMemoryStore::tunnel_across_stores(
+                                        &mut [default_store, project_store],
+                                        threshold,
+                                    );
+                                    println!("Auto-tunnel complete: {} cross-project waypoints created (threshold {:.2}).\n", created, threshold);
+                                }
                                 _ => {
                                     println!("VibeCody OpenMemory — Cognitive Memory Engine\n");
                                     println!("  /openmemory add <content>                    — Store a memory (auto-classified)");
@@ -8659,13 +8780,21 @@ async fn main() -> Result<()> {
                                     println!("  /openmemory health                           — Health dashboard (metrics, diversity)");
                                     println!("  /openmemory at-risk                          — Show memories near purge threshold");
                                     println!("  /openmemory dedup                            — Remove duplicate memories");
-                                    println!("  /openmemory ingest <file>                    — Chunk & ingest a document");
+                                    println!("  /openmemory ingest <file>                    — Chunk & ingest a document (cognitive)");
                                     println!("  /openmemory import [mem0|zep|openmemory|auto] — Import/migrate memories");
                                     println!("  /openmemory stats                            — Show sector statistics");
                                     println!("  /openmemory export                           — Export as markdown");
-                                    println!("  /openmemory context [query]                  — Get agent context string");
-                                    println!("  /openmemory encrypt                          — Encryption setup info\n");
-                                    // Show stats
+                                    println!("  /openmemory context [query]                  — Get layered agent context (L1+L2+L3)");
+                                    println!("  /openmemory layered [query]                  — Same as context (explicit name)");
+                                    println!("  /openmemory encrypt                          — Encryption setup info");
+                                    println!("");
+                                    println!("  MemPalace techniques:");
+                                    println!("  /openmemory chunk <text|file:<path>>         — Verbatim drawer ingest (no summarization)");
+                                    println!("  /openmemory drawers                          — Show verbatim drawer store stats");
+                                    println!("  /openmemory tunnel <src-id> <dst-id> [w]    — Cross-project waypoint (Tunnel link)");
+                                    println!("  /openmemory benchmark [k]                    — LongMemEval recall@K benchmark (default k=5)");
+                                    println!("  /openmemory auto-tunnel [threshold]          — Auto-link semantically similar cross-project memories\n");
+                                    // Show quick stats
                                     let store = open_memory::OpenMemoryStore::load(
                                         dirs::data_dir().unwrap_or_else(|| std::path::PathBuf::from(".")).join("vibecli").join("openmemory"),
                                         "default",
@@ -8673,8 +8802,9 @@ async fn main() -> Result<()> {
                                         dirs::data_dir().unwrap_or_else(|| std::path::PathBuf::from(".")).join("vibecli").join("openmemory"),
                                         "default",
                                     ));
-                                    println!("  Memories: {}  |  Waypoints: {}  |  Facts: {}",
-                                        store.total_memories(), store.total_waypoints(), store.total_facts());
+                                    println!("  Memories: {}  |  Waypoints: {}  |  Facts: {}  |  Drawers: {}",
+                                        store.total_memories(), store.total_waypoints(), store.total_facts(),
+                                        store.drawer_store().len());
                                     for s in store.sector_stats() {
                                         if s.count > 0 {
                                             println!("    {} — {} memories, avg salience {:.0}%, {} pinned",

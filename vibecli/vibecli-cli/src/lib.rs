@@ -109,3 +109,10 @@ pub mod stale_branch;
 pub mod trust_resolution;
 pub mod config_layers;
 pub mod hook_abort;
+// FIT-GAP v10 — Phase 40: Execution Engine (P0)
+pub mod parallel_tool_scheduler;
+pub mod context_budget;
+pub mod smart_diff;
+// MemPalace techniques — LongMemEval benchmark
+pub mod open_memory;
+pub mod mem_benchmark;
