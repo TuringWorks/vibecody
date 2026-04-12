@@ -85,3 +85,5 @@ pub mod api_sketch;
 pub mod a11y_agent;
 pub mod perf_profiler;
 pub mod temporal_debug;
+pub mod symbolic_exec;
+pub mod schema_migration;

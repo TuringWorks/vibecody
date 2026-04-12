@@ -390,6 +390,10 @@ mod a11y_agent;
 mod perf_profiler;
 #[allow(dead_code)]
 mod temporal_debug;
+#[allow(dead_code)]
+mod symbolic_exec;
+#[allow(dead_code)]
+mod schema_migration;
 // RL-OS: Unified Reinforcement Learning Lifecycle Platform
 #[allow(dead_code)]
 mod rl_env_os;
