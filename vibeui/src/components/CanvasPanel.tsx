@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-// lucide-react icons not needed
+import { ChevronLeft } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -206,7 +206,7 @@ export default function CanvasPanel() {
  {/* Toolbar */}
  <div style={{ display: "flex", gap: 8, padding: "8px 12px", borderBottom: "1px solid var(--border-color)", alignItems: "center" }}>
  <button onClick={() => setShowPalette(!showPalette)} style={{ background: "var(--bg-secondary)", border: "none", color: "var(--text-secondary)", padding: "4px 8px", borderRadius: 4, cursor: "pointer" }}>
- {showPalette ? "◀" : ""} Palette
+ <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>{showPalette && <ChevronLeft size={12} />} Palette</span>
  </button>
  <input
  id="canvas-workflow-name"
