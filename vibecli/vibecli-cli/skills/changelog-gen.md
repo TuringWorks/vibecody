@@ -1,30 +1,30 @@
-# Changelog Generator
+# Automated Changelog Generator
 
-Parses conventional commits and produces structured Markdown changelogs.
-Matches Copilot Workspace v2's changelog generation.
+Git history → conventional changelog. Matches Copilot Workspace v2.
 
-## Conventional Commit Types
-`feat` | `fix` | `docs` | `style` | `refactor` | `perf` | `test` | `chore` | `ci` | `build`
-
-Notable (in changelog): feat, fix, perf, refactor
-
-## Format
-```
-type[(scope)][!]: description
-```
-`!` or `BREAKING CHANGE:` in footer marks breaking changes.
+## When to Use
+- Generating a CHANGELOG.md before a release
+- Producing a release summary from commit history
+- Grouping commits by type (feat, fix, perf, etc.)
+- Identifying breaking changes across a version range
 
 ## Commands
-- `/changelog generate <version>` — generate from recent commits
-- `/changelog preview` — preview without writing
-- `/changelog since <tag>` — changelog since a git tag
+- `/changelog generate [--from <tag>] [--to <tag>]` — Generate changelog
+- `/changelog preview` — Preview from last tag to HEAD
+- `/changelog write` — Write CHANGELOG.md
+- `/changelog types` — Show commit type groupings
 
-## Examples
+## Output Format
+```markdown
+## [1.2.0] — 2026-04-12
+### Features
+- feat(auth): add OAuth2 support (abc1234)
+### Bug Fixes
+- fix: resolve token expiry race (def5678)
+### Performance
+- perf(cache): reduce lookup latency (ghi9012)
 ```
-/changelog generate 2.0.0
-# ## [2.0.0] — 2026-04-12
-# ### ⚠ BREAKING CHANGES
-# - drop old API (abc1234)
-# ### Features
-# - **ui**: add dark mode (def5678)
-```
+
+## Commit Convention
+Follows [Conventional Commits](https://www.conventionalcommits.org/):
+`<type>(<scope>): <description>` — types: feat, fix, perf, refactor, docs, test, chore
