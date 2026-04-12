@@ -346,6 +346,23 @@ mod company_portability;
 mod company_orchestrator;
 mod profile_store;
 mod workspace_store;
+// Phase 33-39: FIT-GAP v8
+#[allow(dead_code)]
+mod design_mode;
+#[allow(dead_code)]
+mod ide_bridge;
+#[allow(dead_code)]
+mod on_device;
+#[allow(dead_code)]
+mod hard_problem;
+#[allow(dead_code)]
+mod auto_deploy;
+#[allow(dead_code)]
+mod clawcode_compat;
+#[allow(dead_code)]
+mod team_onboarding;
+#[allow(dead_code)]
+mod repro_agent;
 // RL-OS: Unified Reinforcement Learning Lifecycle Platform
 #[allow(dead_code)]
 mod rl_env_os;

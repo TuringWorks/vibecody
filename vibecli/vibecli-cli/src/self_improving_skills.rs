@@ -20,7 +20,7 @@ const AUTO_EVOLVE_MIN_SUCCESS_RATE: f32 = 0.80; // promote triggers at ≥80 %
 const PROPOSE_EVOLVE_MAX_SUCCESS_RATE: f32 = 0.55; // flag for review at ≤55 %
 const PRUNE_MAX_SUCCESS_RATE: f32 = 0.25; // prune candidate at ≤25 %
 const PRUNE_MIN_ACTIVATIONS: u64 = 10;
-const NEW_SKILL_MIN_PATTERN_FREQ: usize = 3;
+const NEW_SKILL_MIN_PATTERN_FREQ: usize = 2;
 
 // ─── Storage types ────────────────────────────────────────────────────────────
 

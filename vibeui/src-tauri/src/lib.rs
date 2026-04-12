@@ -1506,6 +1506,12 @@ pub fn run() {
             commands::get_daemon_status,
             commands::start_daemon,
             commands::stop_daemon,
+            // FIT-GAP v8: Phase 33-39
+            commands::nested_agents_tree,
+            commands::nested_agents_spawn,
+            commands::nested_agents_cancel,
+            commands::on_device_list,
+            commands::on_device_enforce,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

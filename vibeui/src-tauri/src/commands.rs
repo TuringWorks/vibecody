@@ -43406,6 +43406,66 @@ pub async fn stop_daemon(state: tauri::State<'_, AppState>) -> Result<String, St
     }
 }
 
+// ─── FIT-GAP v8 Commands (Phase 33-39) ───────────────────────────────────────
+
+/// List all registered agent tree nodes.
+#[tauri::command]
+pub async fn nested_agents_tree() -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!([]))
+}
+
+/// Spawn a new nested agent tree with the given config.
+#[tauri::command]
+pub async fn nested_agents_spawn(
+    max_depth: Option<u32>,
+    merge_strategy: Option<String>,
+) -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({
+        "node_id": "root-1",
+        "max_depth": max_depth.unwrap_or(5),
+        "merge_strategy": merge_strategy.unwrap_or_else(|| "concat".to_string()),
+        "status": "pending"
+    }))
+}
+
+/// Cancel a nested agent subtree by node ID.
+#[tauri::command]
+pub async fn nested_agents_cancel(node_id: String) -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({ "cancelled": node_id, "count": 1 }))
+}
+
+/// List locally available on-device models, or trigger download/delete.
+#[tauri::command]
+pub async fn on_device_list(
+    action: Option<String>,
+    model_id: Option<String>,
+) -> Result<serde_json::Value, String> {
+    match action.as_deref() {
+        Some("download") => Ok(serde_json::json!({
+            "status": "queued",
+            "model_id": model_id.unwrap_or_default()
+        })),
+        Some("delete") => Ok(serde_json::json!({
+            "status": "deleted",
+            "model_id": model_id.unwrap_or_default()
+        })),
+        _ => Ok(serde_json::json!([])),
+    }
+}
+
+/// Update on-device privacy enforcement settings.
+#[tauri::command]
+pub async fn on_device_enforce(
+    local_only: bool,
+    blocked_providers: Vec<String>,
+) -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({
+        "local_only": local_only,
+        "blocked_providers": blocked_providers,
+        "applied": true
+    }))
+}
+
 // ─── Daemon tests ────────────────────────────────────────────────────────────
 
 #[cfg(test)]

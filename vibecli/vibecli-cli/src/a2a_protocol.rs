@@ -141,6 +141,13 @@ pub struct AgentCard {
     pub supported_output_types: Vec<String>,
     pub authentication: AgentAuth,
     pub skills: Vec<AgentSkill>,
+    /// v0.3: transport modes supported by this agent (defaults to [Http]).
+    #[serde(default = "default_transport_modes")]
+    pub transport_modes: Vec<TransportMode>,
+}
+
+fn default_transport_modes() -> Vec<TransportMode> {
+    vec![TransportMode::Http]
 }
 
 impl AgentCard {
@@ -155,6 +162,7 @@ impl AgentCard {
             supported_output_types: vec!["text".to_string()],
             authentication: AgentAuth::none(),
             skills: Vec::new(),
+            transport_modes: default_transport_modes(),
         }
     }
 
@@ -170,6 +178,12 @@ impl AgentCard {
 
     pub fn with_skills(mut self, skills: Vec<AgentSkill>) -> Self {
         self.skills = skills;
+        self
+    }
+
+    /// v0.3: set the transport modes supported by this agent.
+    pub fn with_transport_modes(mut self, modes: Vec<TransportMode>) -> Self {
+        self.transport_modes = modes;
         self
     }
 
@@ -992,6 +1006,176 @@ impl A2aClient {
 
     pub fn task_count(&self) -> usize {
         self.task_history.len()
+    }
+}
+
+// ---------------------------------------------------------------------------
+// v0.3: Transport modes
+// ---------------------------------------------------------------------------
+
+/// Transport mode supported by an A2A agent endpoint.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum TransportMode {
+    Http,
+    Sse,
+    Grpc,
+}
+
+impl TransportMode {
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::Http => "http",
+            Self::Sse => "sse",
+            Self::Grpc => "grpc",
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// v0.3: Security card signing
+// ---------------------------------------------------------------------------
+
+/// A signed security card proving an agent's identity.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SecurityCard {
+    pub agent_id: String,
+    pub public_key_hex: String,
+    pub signature_hex: String,
+    pub signed_at_ms: u64,
+    pub algorithm: String,
+}
+
+/// Signs and verifies [`SecurityCard`] values.
+///
+/// For test purposes the "signature" is the XOR of the private-key bytes
+/// (cycling) with the agent-id bytes, hex-encoded.
+/// Real cryptography is deferred to an FFI layer.
+pub struct CardSigner {
+    private_key_hex: String,
+}
+
+impl CardSigner {
+    pub fn new(private_key_hex: &str) -> Self {
+        Self {
+            private_key_hex: private_key_hex.to_string(),
+        }
+    }
+
+    fn public_key_hex(&self) -> String {
+        let bytes = hex_decode(&self.private_key_hex);
+        let pub_bytes: Vec<u8> = bytes.iter().map(|b| b ^ 0xFF).collect();
+        hex_encode(&pub_bytes)
+    }
+
+    pub fn sign_card(&self, agent_id: &str) -> SecurityCard {
+        let priv_bytes = hex_decode(&self.private_key_hex);
+        let id_bytes = agent_id.as_bytes();
+        let sig_bytes: Vec<u8> = id_bytes
+            .iter()
+            .enumerate()
+            .map(|(i, b)| b ^ priv_bytes[i % priv_bytes.len()])
+            .collect();
+        SecurityCard {
+            agent_id: agent_id.to_string(),
+            public_key_hex: self.public_key_hex(),
+            signature_hex: hex_encode(&sig_bytes),
+            signed_at_ms: 0,
+            algorithm: "xor-test-v1".to_string(),
+        }
+    }
+
+    pub fn verify_card(card: &SecurityCard) -> bool {
+        let pub_bytes = hex_decode(&card.public_key_hex);
+        let priv_bytes: Vec<u8> = pub_bytes.iter().map(|b| b ^ 0xFF).collect();
+        if priv_bytes.is_empty() {
+            return false;
+        }
+        let id_bytes = card.agent_id.as_bytes();
+        let expected: Vec<u8> = id_bytes
+            .iter()
+            .enumerate()
+            .map(|(i, b)| b ^ priv_bytes[i % priv_bytes.len()])
+            .collect();
+        hex_encode(&expected) == card.signature_hex
+    }
+}
+
+fn hex_encode(bytes: &[u8]) -> String {
+    bytes.iter().map(|b| format!("{b:02x}")).collect()
+}
+
+fn hex_decode(hex: &str) -> Vec<u8> {
+    (0..hex.len())
+        .step_by(2)
+        .filter_map(|i| u8::from_str_radix(&hex[i..i + 2], 16).ok())
+        .collect()
+}
+
+// ---------------------------------------------------------------------------
+// v0.3: Backward-compat alias and migration
+// ---------------------------------------------------------------------------
+
+/// Backward-compat type alias: `AgentCardV2` is the same struct as `AgentCard`.
+pub type AgentCardV2 = AgentCard;
+
+/// Parse a v0.2 JSON agent card (no `transport_modes` field) and upgrade it
+/// to v0.3 by defaulting to `[TransportMode::Http]`.
+pub fn migrate_v2_to_v3(card_json: &str) -> Result<AgentCard, String> {
+    let mut value: serde_json::Value =
+        serde_json::from_str(card_json).map_err(|e| format!("Parse error: {e}"))?;
+    if value.get("transport_modes").is_none() {
+        if let Some(obj) = value.as_object_mut() {
+            obj.insert(
+                "transport_modes".to_string(),
+                serde_json::json!(["Http"]),
+            );
+        }
+    }
+    serde_json::from_value(value).map_err(|e| format!("Upgrade error: {e}"))
+}
+
+// ---------------------------------------------------------------------------
+// v0.3: gRPC config and client
+// ---------------------------------------------------------------------------
+
+/// Configuration for connecting to an A2A agent over gRPC.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GrpcConfig {
+    pub endpoint: String,
+    pub tls: bool,
+    pub max_message_size_mb: u32,
+}
+
+impl GrpcConfig {
+    pub fn new(endpoint: &str, tls: bool, max_message_size_mb: u32) -> Self {
+        Self {
+            endpoint: endpoint.to_string(),
+            tls,
+            max_message_size_mb,
+        }
+    }
+}
+
+/// A stub A2A gRPC client (real I/O deferred to FFI / tonic layer).
+pub struct A2aGrpcClient {
+    config: GrpcConfig,
+}
+
+impl A2aGrpcClient {
+    pub fn new(config: GrpcConfig) -> Self {
+        Self { config }
+    }
+
+    pub fn endpoint(&self) -> &str {
+        &self.config.endpoint
+    }
+
+    pub fn is_tls(&self) -> bool {
+        self.config.tls
+    }
+
+    pub fn max_message_size_mb(&self) -> u32 {
+        self.config.max_message_size_mb
     }
 }
 
