@@ -31,7 +31,8 @@ fn set_exit(world: &mut HaWorld, code: i32) {
 
 #[given(expr = "hook stdout {string}")]
 fn set_stdout(world: &mut HaWorld, stdout: String) {
-    world.stdout = stdout;
+    // Cucumber 0.20 passes `\"` as literal backslash+quote; unescape to proper JSON.
+    world.stdout = stdout.replace("\\\"", "\"");
 }
 
 #[given("an allow output")]
