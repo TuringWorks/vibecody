@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Team onboarding — usage tracking, gap detection, learning paths, and guide generation.
 
 use serde::{Deserialize, Serialize};

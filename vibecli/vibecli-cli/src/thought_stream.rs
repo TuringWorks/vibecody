@@ -279,15 +279,12 @@ impl ThoughtExtractor {
             if trimmed.is_empty() {
                 continue;
             }
-            let result = if let Some(rest) = trimmed.strip_prefix("Planning:") {
-                Some((ThoughtCategory::Planning, 70u8, rest.trim()))
-            } else if let Some(rest) = trimmed.strip_prefix("Decision:") {
-                Some((ThoughtCategory::Decision, 90u8, rest.trim()))
-            } else if let Some(rest) = trimmed.strip_prefix("Observation:") {
-                Some((ThoughtCategory::Observation, 75u8, rest.trim()))
-            } else {
-                None
-            };
+            let result = trimmed.strip_prefix("Planning:")
+                .map(|rest| (ThoughtCategory::Planning, 70u8, rest.trim()))
+                .or_else(|| trimmed.strip_prefix("Decision:")
+                    .map(|rest| (ThoughtCategory::Decision, 90u8, rest.trim())))
+                .or_else(|| trimmed.strip_prefix("Observation:")
+                    .map(|rest| (ThoughtCategory::Observation, 75u8, rest.trim())));
             if let Some((cat, conf, content)) = result {
                 if !content.is_empty() {
                     units.push(self.make_unit_with_category(content, cat, conf));

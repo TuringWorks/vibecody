@@ -149,11 +149,9 @@ pub fn camel_to_words(name: &str) -> String {
     let mut current = String::new();
 
     for (i, ch) in name.chars().enumerate() {
-        if i > 0 && ch.is_uppercase() {
-            if !current.is_empty() {
-                words.push(current.to_lowercase());
-                current = String::new();
-            }
+        if i > 0 && ch.is_uppercase() && !current.is_empty() {
+            words.push(current.to_lowercase());
+            current = String::new();
         }
         current.push(ch);
     }
@@ -241,7 +239,7 @@ impl VocabExtractor {
     /// symbol.
     pub fn extract_from_path_components(&mut self, path: &str) {
         let components: Vec<&str> = path
-            .split(|c| c == '/' || c == '-' || c == '_')
+            .split(['/', '-', '_'])
             .filter(|p| !p.is_empty() && !p.contains('.'))
             .collect();
         for component in components {
@@ -271,8 +269,7 @@ impl VocabExtractor {
     /// the identifier that follows (up to whitespace, `<`, `(`, `:`, `{`).
     fn try_extract(line: &str, prefixes: &[&str], _file_path: &str) -> Option<String> {
         for prefix in prefixes {
-            if line.starts_with(prefix) {
-                let rest = &line[prefix.len()..];
+            if let Some(rest) = line.strip_prefix(prefix) {
                 let name: String = rest
                     .chars()
                     .take_while(|c| c.is_alphanumeric() || *c == '_')

@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Design mode — visual annotation, change spec, and design token extraction.
 
 use serde::{Deserialize, Serialize};
@@ -107,7 +106,7 @@ impl ChangeSpec {
     pub fn to_instructions(&self) -> Vec<String> {
         let mut sorted = self.annotations.clone();
         sorted.sort_by_key(|a| a.priority);
-        sorted.iter().map(|a| annotation_to_instruction(a)).collect()
+        sorted.iter().map(annotation_to_instruction).collect()
     }
 
     /// Renders a markdown change spec document.

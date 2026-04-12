@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! ClawCode compatibility layer — worker registry, task lifecycle, and REPL command mapping.
 
 use serde::{Deserialize, Serialize};

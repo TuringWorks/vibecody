@@ -278,13 +278,11 @@ impl DocumentChunker {
                 ));
                 overlap_tail = self.tail_chars(&current, self.overlap_tokens);
                 current = format!("{}{}", overlap_tail, para);
+            } else if current.is_empty() {
+                current = format!("{}{}", overlap_tail, para);
             } else {
-                if current.is_empty() {
-                    current = format!("{}{}", overlap_tail, para);
-                } else {
-                    current.push_str("\n\n");
-                    current.push_str(para);
-                }
+                current.push_str("\n\n");
+                current.push_str(para);
             }
             byte_cursor += para.len() as u64 + 2;
         }

@@ -4370,7 +4370,7 @@ pub async fn start_parallel_agent_task(
         .map_err(|e| format!("Failed to decompose task: {}", e))?;
 
     // Parse the JSON array
-    let chunks: Vec<String> = serde_json::from_str(&decomposition.trim_matches(|c: char| c == '`' || c.is_whitespace()))
+    let chunks: Vec<String> = serde_json::from_str(decomposition.trim_matches(|c: char| c == '`' || c.is_whitespace()))
         .or_else(|_| {
             // Try stripping markdown code block
             let cleaned = decomposition
@@ -11197,7 +11197,7 @@ fn list_mssql_tables(p: &DbConnectionParams) -> Result<Vec<TableInfo>, String> {
     let stdout = String::from_utf8_lossy(&out.stdout);
     let tables = stdout.lines().filter_map(|line| {
         let parts: Vec<&str> = line.split('|').collect();
-        if parts.len() >= 1 && !parts[0].trim().is_empty() && !parts[0].contains("---") {
+        if !parts.is_empty() && !parts[0].trim().is_empty() && !parts[0].contains("---") {
             Some(TableInfo {
                 name: parts[0].trim().to_string(),
                 row_count: parts.get(1).and_then(|s| s.trim().parse().ok()).unwrap_or(-1),
@@ -11343,7 +11343,7 @@ fn list_clickhouse_tables(p: &DbConnectionParams) -> Result<Vec<TableInfo>, Stri
     if !out.status.success() { return Err(String::from_utf8_lossy(&out.stderr).trim().to_string()); }
     let tables = String::from_utf8_lossy(&out.stdout).lines().filter_map(|line| {
         let parts: Vec<&str> = line.split('\t').collect();
-        if parts.len() >= 1 && !parts[0].trim().is_empty() {
+        if !parts.is_empty() && !parts[0].trim().is_empty() {
             Some(TableInfo { name: parts[0].trim().to_string(), row_count: parts.get(1).and_then(|s| s.trim().parse().ok()).unwrap_or(-1), columns: vec![] })
         } else { None }
     }).collect();
@@ -18096,17 +18096,17 @@ fn detect_migration_tool(ws: &std::path::Path) -> &'static str {
         || ws.join("db").join("migration").is_dir()
         || {
             // Detect by V{n}__*.sql files in any first-level subdirectory
-            ws.read_dir().ok().map_or(false, |mut d| {
-                d.any(|e| e.ok().map_or(false, |e| {
+            ws.read_dir().ok().is_some_and(|mut d| {
+                d.any(|e| e.ok().is_some_and(|e| {
                     e.file_name().to_string_lossy().starts_with("V")
                         && e.file_name().to_string_lossy().contains("__")
-                        && e.path().extension().map_or(false, |x| x == "sql")
+                        && e.path().extension().is_some_and(|x| x == "sql")
                 }))
-            }) || ws.join("src").read_dir().ok().map_or(false, |mut d| {
-                d.any(|e| e.ok().map_or(false, |e| {
+            }) || ws.join("src").read_dir().ok().is_some_and(|mut d| {
+                d.any(|e| e.ok().is_some_and(|e| {
                     e.file_name().to_string_lossy().starts_with("V")
                         && e.file_name().to_string_lossy().contains("__")
-                        && e.path().extension().map_or(false, |x| x == "sql")
+                        && e.path().extension().is_some_and(|x| x == "sql")
                 }))
             })
         }
@@ -41449,7 +41449,7 @@ pub fn detect_project_stack(workspace: &std::path::Path) -> ProjectStack {
         }
         if name.is_empty() && has_go_mod {
             if let Some(line) = go_mod_src.lines().find(|l| l.starts_with("module")) {
-                name = line.split('/').last().unwrap_or("").trim().to_string();
+                name = line.split('/').next_back().unwrap_or("").trim().to_string();
             }
         }
         if name.is_empty() && has_pubspec {
@@ -41501,7 +41501,7 @@ pub fn detect_project_stack(workspace: &std::path::Path) -> ProjectStack {
         if ip("\"fastify\"") { tech_stack.push("Fastify".into()); if app_type.is_empty() { app_type = "api".into(); } }
         if ip("\"vite\"")   { tech_stack.push("Vite (bundler)".into()); }
         if ip("\"electron\"") { tech_stack.push("Electron (desktop)".into()); if app_type.is_empty() { app_type = "desktop".into(); } }
-        if ip("\"tauri\"")  { if app_type.is_empty() { app_type = "desktop".into(); } }
+        if ip("\"tauri\"") && app_type.is_empty() { app_type = "desktop".into(); }
         if ip("\"jest\"") || ip("\"vitest\"") { tech_stack.push("Testing (Jest/Vitest)".into()); }
         if ip("\"prisma\"") { tech_stack.push("Prisma (ORM)".into()); }
         if ip("\"graphql\"") { tech_stack.push("GraphQL".into()); }

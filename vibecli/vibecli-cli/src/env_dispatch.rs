@@ -266,7 +266,7 @@ impl DispatchRouter {
                 .environments
                 .iter()
                 .find(|e| e.env_id == pref)
-                .map(|e| Self::is_available(e))
+                .map(Self::is_available)
                 .unwrap_or(false);
 
             if pref_avail {

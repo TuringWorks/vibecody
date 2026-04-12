@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Hard problem decomposer — complexity estimation, assumption tracking, and hypothesis management.
 
 use serde::{Deserialize, Serialize};

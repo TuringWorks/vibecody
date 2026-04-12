@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! IDE bridge — editor state synchronisation and context building for agent use.
 
 use serde::{Deserialize, Serialize};

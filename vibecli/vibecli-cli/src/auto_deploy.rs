@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Auto-deploy — pipeline, plan, stage lifecycle, health gates, and rollback.
 
 use serde::{Deserialize, Serialize};

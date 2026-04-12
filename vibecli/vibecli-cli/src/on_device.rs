@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! On-device model registry, hardware capability, and local-only policy guard.
 
 use serde::{Deserialize, Serialize};

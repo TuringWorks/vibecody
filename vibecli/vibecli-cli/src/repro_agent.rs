@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Reproduction agent — snapshot, trace, diff, and reproducibility verification.
 
 use serde::{Deserialize, Serialize};
