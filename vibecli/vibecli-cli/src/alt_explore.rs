@@ -119,3 +119,82 @@ impl TournamentResult {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn cand(id: &str, pass_rate: f32, diff: usize, compiles: bool) -> ExploreCandidate {
+        ExploreCandidate::new(id, "patch", pass_rate, diff, compiles)
+    }
+
+    #[test]
+    fn test_score_perfect_candidate() {
+        let t = Tournament::new(TournamentConfig::default());
+        let mut c = cand("c1", 1.0, 0, true);
+        t.score(&mut c);
+        assert!((c.score - 1.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_score_compile_failure_penalized() {
+        let t = Tournament::new(TournamentConfig::default());
+        let mut c_ok = cand("c1", 1.0, 0, true);
+        let mut c_fail = cand("c2", 1.0, 0, false);
+        t.score(&mut c_ok);
+        t.score(&mut c_fail);
+        assert!(c_ok.score > c_fail.score);
+    }
+
+    #[test]
+    fn test_score_large_diff_penalized() {
+        let t = Tournament::new(TournamentConfig::default());
+        let mut c_small = cand("c1", 1.0, 10, true);
+        let mut c_large = cand("c2", 1.0, 500, true);
+        t.score(&mut c_small);
+        t.score(&mut c_large);
+        assert!(c_small.score > c_large.score);
+    }
+
+    #[test]
+    fn test_rank_orders_by_score() {
+        let t = Tournament::new(TournamentConfig::default());
+        let candidates = vec![cand("a", 0.5, 0, true), cand("b", 1.0, 0, true), cand("c", 0.2, 0, true)];
+        let ranked = t.rank(candidates);
+        assert_eq!(ranked[0].id, "b");
+    }
+
+    #[test]
+    fn test_disqualify_non_compiling_enabled() {
+        let t = Tournament::new(TournamentConfig { min_compile_required: true, ..Default::default() });
+        let candidates = vec![cand("a", 1.0, 0, true), cand("b", 1.0, 0, false)];
+        let filtered = t.disqualify_non_compiling(candidates);
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].id, "a");
+    }
+
+    #[test]
+    fn test_disqualify_non_compiling_disabled() {
+        let t = Tournament::new(TournamentConfig::default());
+        let candidates = vec![cand("a", 1.0, 0, true), cand("b", 1.0, 0, false)];
+        let filtered = t.disqualify_non_compiling(candidates);
+        assert_eq!(filtered.len(), 2);
+    }
+
+    #[test]
+    fn test_tournament_result_winner() {
+        let t = Tournament::new(TournamentConfig::default());
+        let candidates = vec![cand("a", 0.8, 0, true), cand("b", 1.0, 0, true)];
+        let ranked = t.rank(candidates);
+        let result = TournamentResult::from_ranked(ranked);
+        assert_eq!(result.winner.unwrap().id, "b");
+        assert_eq!(result.total_candidates, 2);
+    }
+
+    #[test]
+    fn test_tournament_result_empty() {
+        let result = TournamentResult::from_ranked(vec![]);
+        assert!(result.winner.is_none());
+        assert_eq!(result.total_candidates, 0);
+    }
+}

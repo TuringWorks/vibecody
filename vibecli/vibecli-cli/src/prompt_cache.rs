@@ -66,3 +66,70 @@ impl PromptCache {
         if total == 0 { 0.0 } else { self.stats.hits as f64 / total as f64 }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_cache_key_deterministic() {
+        let k1 = CacheKey::from_parts("sys", "tools", "cfg");
+        let k2 = CacheKey::from_parts("sys", "tools", "cfg");
+        assert_eq!(k1, k2);
+    }
+
+    #[test]
+    fn test_cache_key_different_parts() {
+        let k1 = CacheKey::from_parts("sys", "tools", "cfg1");
+        let k2 = CacheKey::from_parts("sys", "tools", "cfg2");
+        assert_ne!(k1, k2);
+    }
+
+    #[test]
+    fn test_miss_on_first_lookup() {
+        let mut c = PromptCache::new();
+        let entry = c.get_or_insert("sys", "tools", "cfg");
+        assert!(!entry.hit);
+        assert_eq!(c.stats().misses, 1);
+    }
+
+    #[test]
+    fn test_hit_on_second_lookup() {
+        let mut c = PromptCache::new();
+        c.get_or_insert("sys", "tools", "cfg");
+        let entry = c.get_or_insert("sys", "tools", "cfg");
+        assert!(entry.hit);
+        assert_eq!(c.stats().hits, 1);
+    }
+
+    #[test]
+    fn test_hit_rate_zero_when_empty() {
+        let c = PromptCache::new();
+        assert_eq!(c.hit_rate(), 0.0);
+    }
+
+    #[test]
+    fn test_hit_rate_correct() {
+        let mut c = PromptCache::new();
+        c.get_or_insert("s", "t", "c"); // miss
+        c.get_or_insert("s", "t", "c"); // hit
+        assert!((c.hit_rate() - 0.5).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_invalidate_removes_entry() {
+        let mut c = PromptCache::new();
+        let key = CacheKey::from_parts("s", "t", "c");
+        c.get_or_insert("s", "t", "c");
+        c.invalidate(key);
+        assert_eq!(c.stats().entries, 0);
+    }
+
+    #[test]
+    fn test_entry_count_grows() {
+        let mut c = PromptCache::new();
+        c.get_or_insert("s1", "t", "c");
+        c.get_or_insert("s2", "t", "c");
+        assert_eq!(c.stats().entries, 2);
+    }
+}

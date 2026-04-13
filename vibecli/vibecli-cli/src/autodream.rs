@@ -87,3 +87,76 @@ impl AutoDream {
         entries
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn now_secs() -> u64 {
+        use std::time::{SystemTime, UNIX_EPOCH};
+        SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
+    }
+
+    fn entry(key: &str, value: &str, age_secs: u64, access: u32) -> MemoryEntry {
+        let created_at = now_secs().saturating_sub(age_secs);
+        let mut e = MemoryEntry::new(key, value, created_at);
+        e.access_count = access;
+        e
+    }
+
+    #[test]
+    fn test_consolidate_keeps_fresh() {
+        let ad = AutoDream::new(ConsolidationPolicy { max_age_secs: 1_000_000, ..Default::default() });
+        let entries = vec![entry("k1", "v1", 100, 0)];
+        let result = ad.consolidate(entries);
+        assert_eq!(result.kept, 1);
+    }
+
+    #[test]
+    fn test_consolidate_prunes_old() {
+        let ad = AutoDream::new(ConsolidationPolicy { max_age_secs: 50, ..Default::default() });
+        // created_at = 1_000_000 - 200 = 999_800; cutoff = now - 50 ≈ current_time - 50
+        // This entry is certainly older than 50s from now (now >> 1_000_000)
+        let e = MemoryEntry::new("k", "v", 0); // created_at = 0, very old
+        let result = ad.consolidate(vec![e]);
+        assert_eq!(result.kept, 0);
+    }
+
+    #[test]
+    fn test_consolidate_deduplicates() {
+        let ad = AutoDream::new(ConsolidationPolicy::default());
+        let entries = vec![
+            entry("key", "v1", 0, 5),
+            entry("key", "v2", 0, 10),
+        ];
+        let result = ad.consolidate(entries);
+        assert_eq!(result.kept, 1);
+        assert_eq!(result.entries[0].access_count, 10);
+    }
+
+    #[test]
+    fn test_consolidate_max_entries() {
+        let ad = AutoDream::new(ConsolidationPolicy { max_entries: 2, deduplicate_keys: false, ..Default::default() });
+        let entries = vec![
+            entry("a", "1", 0, 1), entry("b", "2", 0, 5), entry("c", "3", 0, 3),
+        ];
+        let result = ad.consolidate(entries);
+        assert_eq!(result.kept, 2);
+    }
+
+    #[test]
+    fn test_rank_by_relevance_sorted() {
+        let ad = AutoDream::new(ConsolidationPolicy::default());
+        let entries = vec![entry("a", "1", 0, 1), entry("b", "2", 0, 10), entry("c", "3", 0, 5)];
+        let ranked = ad.rank_by_relevance(entries);
+        assert_eq!(ranked[0].access_count, 10);
+        assert_eq!(ranked[1].access_count, 5);
+    }
+
+    #[test]
+    fn test_memory_entry_new() {
+        let e = MemoryEntry::new("key", "val", 42);
+        assert_eq!(e.key, "key");
+        assert_eq!(e.access_count, 0);
+    }
+}
