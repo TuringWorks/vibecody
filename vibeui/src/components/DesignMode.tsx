@@ -37,6 +37,16 @@ function isBlockedUrl(url: string): boolean {
   return BLOCKED_PATTERNS.some((p) => p.test(url.trim()));
 }
 
+/** Ensure URL has a protocol — bare "example.com" → "https://example.com" */
+function normalizeUrl(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return trimmed;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  // Relative paths (no dots at start, no slash) are not external URLs — reject
+  if (!/[./]/.test(trimmed.split("/")[0])) return trimmed;
+  return "https://" + trimmed;
+}
+
 const tabDefs: { id: DesignTab; label: string }[] = [
   { id: "preview", label: "Preview" },
   { id: "generate", label: "Generate" },
@@ -256,21 +266,28 @@ try {
           onChange={(e) => { setPreviewUrl(e.target.value); setBlockedError(false); }}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
-              if (isBlockedUrl(previewUrl)) { setBlockedError(true); return; }
+              const url = normalizeUrl(previewUrl);
+              setPreviewUrl(url);
+              if (isBlockedUrl(url)) { setBlockedError(true); return; }
               setBlockedError(false);
               setPreviewSrcdoc(null);
-              iframeRef.current?.setAttribute("src", previewUrl);
+              iframeRef.current?.setAttribute("src", url);
             }
+          }}
+          onBlur={() => {
+            if (previewUrl.trim()) setPreviewUrl(normalizeUrl(previewUrl));
           }}
           style={{ flex: 1, background: "var(--bg-tertiary)", border: `1px solid ${blockedError ? "var(--error-color, #e53e3e)" : "var(--border-color)"}`, borderRadius: 4, color: "inherit", padding: "4px 8px", fontSize: 12 }}
           placeholder={previewSrcdoc ? "Showing generated preview — enter URL to load external" : "https://example.com"}
         />
         <button
           onClick={() => {
-            if (isBlockedUrl(previewUrl)) { setBlockedError(true); return; }
+            const url = normalizeUrl(previewUrl);
+            setPreviewUrl(url);
+            if (isBlockedUrl(url)) { setBlockedError(true); return; }
             setBlockedError(false);
             setPreviewSrcdoc(null);
-            iframeRef.current?.setAttribute("src", previewUrl);
+            iframeRef.current?.setAttribute("src", url);
           }}
           style={{ background: "none", border: "none", cursor: "pointer", color: "inherit", fontSize: 16 }}
           title="Reload"
