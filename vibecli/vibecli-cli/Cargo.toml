@@ -229,3 +229,28 @@ harness = false
 name = "focus_view_bdd"
 path = "tests/focus_view_bdd.rs"
 harness = false
+
+[[test]]
+name = "auto_approve_bdd"
+path = "tests/auto_approve_bdd.rs"
+harness = false
+
+[[test]]
+name = "sandbox_bwrap_bdd"
+path = "tests/sandbox_bwrap_bdd.rs"
+harness = false
+
+[[test]]
+name = "github_action_bdd"
+path = "tests/github_action_bdd.rs"
+harness = false
+
+[[test]]
+name = "mcp_tool_search_bdd"
+path = "tests/mcp_tool_search_bdd.rs"
+harness = false
+
+[[test]]
+name = "zdr_mode_bdd"
+path = "tests/zdr_mode_bdd.rs"
+harness = false

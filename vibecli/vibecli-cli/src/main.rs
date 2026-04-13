@@ -486,6 +486,12 @@ mod mem_benchmark;
 #[allow(dead_code)] mod prompt_vcs;
 #[allow(dead_code)] mod repl_macros;
 #[allow(dead_code)] mod semantic_search_v2;
+// FIT-GAP v12 — P0
+#[allow(dead_code)] mod auto_approve;
+#[allow(dead_code)] mod sandbox_bwrap;
+#[allow(dead_code)] mod github_action;
+#[allow(dead_code)] mod mcp_tool_search;
+#[allow(dead_code)] mod zdr_mode;
 // FIT-GAP v12 — P1
 #[allow(dead_code)] mod reasoning_provider;
 #[allow(dead_code)] mod autodream;

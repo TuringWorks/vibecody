@@ -1,0 +1,12 @@
+name: VibeCLI Action
+description: Run VibeCLI in GitHub Actions
+inputs:
+  prompt:
+    description: Prompt to run
+    required: true
+  api_key:
+    description: AI provider API key
+    required: true
+runs:
+  using: docker
+  image: Dockerfile
