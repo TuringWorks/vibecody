@@ -2001,7 +2001,7 @@ function App() {
         {/* AI Panel — grouped sidebar + lazy-loaded panels */}
         {showAIChat && (
           <>
-            {!panelsMaximized && (
+            {!panelsMaximized && showEditorArea && (
               <div
                 className="resizer-vertical"
                 onMouseDown={(e) => { e.preventDefault(); startResizing('aipanel'); }}
@@ -2011,7 +2011,9 @@ function App() {
               className={`ai-chat-panel${panelsMaximized ? " ai-chat-panel--maximized" : ""}`}
               style={panelsMaximized
                 ? undefined
-                : { display: "flex", flexDirection: "row", width: `${aiPanelWidth}px` }
+                : !showEditorArea
+                  ? { display: "flex", flexDirection: "row", flex: 1, maxWidth: "none", minWidth: 0 }
+                  : { display: "flex", flexDirection: "row", width: `${aiPanelWidth}px` }
               }
             >
               {showFilterBar && (
