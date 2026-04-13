@@ -31,7 +31,7 @@ pub struct VisualTestStep {
     pub assertion: Option<VisualAssertion>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct VisualTestSession {
     pub id: String,
     pub url: String,
