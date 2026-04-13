@@ -550,6 +550,20 @@ body,
   background: var(--bg-secondary);
 }
 
+.ai-chat-panel--maximized {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 200 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  border-left: none !important;
+  background: var(--bg-primary) !important;
+  display: flex !important;
+  flex-direction: row !important;
+}
+
 /* ── Tab Bar ──────────────────────────────────────────────────────────── */
 
 .tab-bar {

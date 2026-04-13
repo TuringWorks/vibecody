@@ -2008,9 +2008,9 @@ function App() {
               />
             )}
             <aside
-              className="ai-chat-panel"
+              className={`ai-chat-panel${panelsMaximized ? " ai-chat-panel--maximized" : ""}`}
               style={panelsMaximized
-                ? { display: "flex", flexDirection: "row", position: "fixed", inset: 0, zIndex: 200, width: "100vw", height: "100vh", maxWidth: "none", minWidth: 0, background: "var(--bg-primary)", borderLeft: "none" }
+                ? undefined
                 : { display: "flex", flexDirection: "row", width: `${aiPanelWidth}px` }
               }
             >
