@@ -87,3 +87,91 @@ impl TaskScheduler {
     pub fn len(&self) -> usize { self.heap.len() }
     pub fn is_empty(&self) -> bool { self.heap.is_empty() }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn task(id: &str, priority: TaskPriority, run_after: u64) -> ScheduledTask {
+        ScheduledTask::new(id, id, priority).with_run_after(run_after)
+    }
+
+    #[test]
+    fn test_push_and_len() {
+        let mut s = TaskScheduler::new();
+        s.push(task("t1", TaskPriority::Normal, 0));
+        assert_eq!(s.len(), 1);
+        assert!(!s.is_empty());
+    }
+
+    #[test]
+    fn test_pop_ready_returns_none_when_not_ready() {
+        let mut s = TaskScheduler::new();
+        s.push(task("future", TaskPriority::High, 1000));
+        assert!(s.pop_ready(500).is_none());
+        assert_eq!(s.len(), 1);
+    }
+
+    #[test]
+    fn test_pop_ready_returns_task_when_ready() {
+        let mut s = TaskScheduler::new();
+        s.push(task("t1", TaskPriority::Normal, 100));
+        let t = s.pop_ready(100);
+        assert!(t.is_some());
+        assert_eq!(t.unwrap().id, "t1");
+    }
+
+    #[test]
+    fn test_priority_order_high_before_low() {
+        let mut s = TaskScheduler::new();
+        s.push(task("low", TaskPriority::Low, 0));
+        s.push(task("high", TaskPriority::High, 0));
+        s.push(task("normal", TaskPriority::Normal, 0));
+        let first = s.pop_ready(u64::MAX).unwrap();
+        assert_eq!(first.id, "high");
+    }
+
+    #[test]
+    fn test_critical_before_all() {
+        let mut s = TaskScheduler::new();
+        s.push(task("normal", TaskPriority::Normal, 0));
+        s.push(task("critical", TaskPriority::Critical, 0));
+        s.push(task("high", TaskPriority::High, 0));
+        assert_eq!(s.pop_ready(u64::MAX).unwrap().id, "critical");
+    }
+
+    #[test]
+    fn test_same_priority_earlier_run_after_wins() {
+        let mut s = TaskScheduler::new();
+        s.push(task("late", TaskPriority::Normal, 200));
+        s.push(task("early", TaskPriority::Normal, 50));
+        let first = s.pop_ready(u64::MAX).unwrap();
+        assert_eq!(first.id, "early");
+    }
+
+    #[test]
+    fn test_empty_scheduler() {
+        let mut s = TaskScheduler::new();
+        assert!(s.is_empty());
+        assert!(s.pop_ready(0).is_none());
+    }
+
+    #[test]
+    fn test_task_priority_ord() {
+        assert!(TaskPriority::Critical > TaskPriority::High);
+        assert!(TaskPriority::High > TaskPriority::Normal);
+        assert!(TaskPriority::Normal > TaskPriority::Low);
+    }
+
+    #[test]
+    fn test_drain_all_ready() {
+        let mut s = TaskScheduler::new();
+        for i in 0..5u64 {
+            s.push(task(&format!("t{i}"), TaskPriority::Normal, i * 10));
+        }
+        let mut count = 0;
+        while s.pop_ready(u64::MAX).is_some() { count += 1; }
+        assert_eq!(count, 5);
+        assert!(s.is_empty());
+    }
+}

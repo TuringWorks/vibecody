@@ -682,4 +682,63 @@ The Reinforcement Learning Operating System provides end-to-end ML training infr
 
 ---
 
+## 21. Advanced Runtime Capabilities (FIT-GAP v12)
+
+Modules added in the v12 gap-closure wave, targeting Devin 2.0, Claude Code 1.x, and Cursor 4.x parity.
+
+### Reasoning & Intelligence
+
+| Module | REPL | Description |
+|--------|------|-------------|
+| `reasoning_provider` | `/reasoning` | Extended chain-of-thought with thinking-token budgets and scratchpad visibility |
+| `autodream` | `/autodream` | Autonomous goal decomposition — breaks high-level intents into sub-tasks, consolidates memory |
+| `prompt_cache` | `/cache` | FNV-1a prefix cache with TTL management; cache-hit rate reported in `/cache stats` |
+| `alt_explore` | `/explore` | Tournament-style agent candidate scoring: pass_rate × diff_penalty × compile_success → winner |
+
+### Desktop Automation
+
+| Module | REPL | Description |
+|--------|------|-------------|
+| `computer_use` | `/computer-use` | GUI visual self-testing — launch app, screenshot, LLM visual assertions, step recording |
+
+### Session & Lifecycle Management
+
+| Module | REPL | Description |
+|--------|------|-------------|
+| `long_session` | `/session budget` | 7+ hour autonomous sessions: 2M-token hard limit, compact at 75%, halt at 100% |
+| `focus_view` | `/focus` | Deep-focus gating — enter/exit sessions, distraction counting, auto-exit after configurable duration |
+| `task_scheduler` | `/tasks` | BinaryHeap priority queue (Low/Normal/High/Critical) with per-task `run_after` timestamps |
+
+### Plugin & Deployment Infrastructure
+
+| Module | REPL | Description |
+|--------|------|-------------|
+| `plugin_bundle` | `/plugins` | Manifest-driven plugin packaging: dependency resolution, duplicate-ID detection, bundle validation |
+| `app_server` | `/appserver` | Embedded HTTP application server for serving generated web apps on a local port |
+| `dispatch_remote` | `/dispatch` | Priority job queue with remote worker dispatch, status polling, and retry back-off |
+| `sandbox_windows` | `/sandbox` | Windows-style ACL sandbox: deny-over-allow path rules + per-host network policy |
+
+### Usage Examples
+
+```
+# Score two agent patches and pick the winner
+> /explore rank --pass-rate 0.95 --diff-lines 42 --compiles true
+
+# Start a deep-focus session (auto-exit after 90 min)
+> /focus enter --auto-exit 5400
+
+# Check autonomous session budget
+> /session budget
+  Tokens used: 1,487,233 / 2,000,000  (74%)  → Continue
+
+# Schedule a high-priority task for 09:00
+> /tasks add --id deploy-prod --priority high --run-after 1744970400
+
+# Validate a plugin bundle
+> /plugins validate ./my-plugin-bundle.json
+  ✓ Bundle valid: 3 plugins, 0 missing deps, 0 duplicate IDs
+```
+
+---
+
 *For the quick matrix view see [FEATURE-MATRIX.md](FEATURE-MATRIX.md). For competitive analysis see [FIT-GAP-ANALYSIS-v7.md](FIT-GAP-ANALYSIS-v7.md).*

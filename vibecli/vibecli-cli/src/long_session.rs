@@ -127,3 +127,88 @@ impl SessionManager {
         SessionBudget { max_tokens: remaining_tokens, wall_secs: 0 }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn mgr_with_limit(max_tokens: u64) -> SessionManager {
+        SessionManager::new(SessionConfig { max_tokens, ..Default::default() })
+    }
+
+    #[test]
+    fn test_continue_when_under_threshold() {
+        let mgr = mgr_with_limit(1_000_000);
+        let mut s = SessionState::new("s1", 0);
+        s.record_turn(100_000, 5); // 10% usage
+        assert_eq!(mgr.decide(&s, 1), ContinuationDecision::Continue);
+    }
+
+    #[test]
+    fn test_compact_when_over_threshold() {
+        let mgr = mgr_with_limit(1_000_000);
+        let mut s = SessionState::new("s1", 0);
+        s.record_turn(800_000, 5); // 80% usage → > 0.75
+        assert_eq!(mgr.decide(&s, 1), ContinuationDecision::CompactAndContinue);
+    }
+
+    #[test]
+    fn test_halt_when_token_limit_reached() {
+        let mgr = mgr_with_limit(1_000);
+        let mut s = SessionState::new("s1", 0);
+        s.record_turn(1_000, 1);
+        let d = mgr.decide(&s, 1);
+        assert!(matches!(d, ContinuationDecision::Halt(_)));
+    }
+
+    #[test]
+    fn test_halt_when_wall_time_exceeded() {
+        let mgr = SessionManager::new(SessionConfig {
+            max_tokens: 1_000_000,
+            max_wall_secs: 60,
+            ..Default::default()
+        });
+        let s = SessionState::new("s1", 0); // started at t=0
+        let d = mgr.decide(&s, 120); // now = 120 > 60
+        assert!(matches!(d, ContinuationDecision::Halt(_)));
+    }
+
+    #[test]
+    fn test_no_halt_wall_time_not_reached() {
+        let mgr = SessionManager::new(SessionConfig {
+            max_tokens: 1_000_000,
+            max_wall_secs: 60,
+            ..Default::default()
+        });
+        let s = SessionState::new("s1", 0);
+        let d = mgr.decide(&s, 30); // still within limit
+        assert_eq!(d, ContinuationDecision::Continue);
+    }
+
+    #[test]
+    fn test_record_turn_accumulates_tokens() {
+        let mut s = SessionState::new("s1", 0);
+        s.record_turn(500, 2);
+        s.record_turn(300, 1);
+        assert_eq!(s.total_tokens, 800);
+        assert_eq!(s.turn_count(), 2);
+    }
+
+    #[test]
+    fn test_budget_remaining_calculates_correctly() {
+        let mgr = mgr_with_limit(1_000);
+        let mut s = SessionState::new("s1", 0);
+        s.record_turn(400, 0);
+        let budget = mgr.budget_remaining(&s, 0);
+        assert_eq!(budget.max_tokens, 600);
+    }
+
+    #[test]
+    fn test_zero_wall_secs_means_unlimited() {
+        let mgr = SessionManager::with_defaults(); // max_wall_secs = 0
+        let s = SessionState::new("s1", 0);
+        // even at a very large now, should not halt on wall time
+        let d = mgr.decide(&s, u64::MAX);
+        assert_eq!(d, ContinuationDecision::Continue);
+    }
+}

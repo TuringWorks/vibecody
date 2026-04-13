@@ -70,3 +70,77 @@ impl PluginBundle {
         BundleReport { valid, missing_deps, duplicate_ids }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_empty_bundle_is_valid() {
+        let b = PluginBundle::new();
+        let r = b.validate();
+        assert!(r.valid);
+        assert!(r.missing_deps.is_empty());
+        assert!(r.duplicate_ids.is_empty());
+    }
+
+    #[test]
+    fn test_single_plugin_no_deps_valid() {
+        let mut b = PluginBundle::new();
+        b.add(PluginMeta::new("core", "1.0"));
+        assert!(b.validate().valid);
+    }
+
+    #[test]
+    fn test_satisfied_dependency_valid() {
+        let mut b = PluginBundle::new();
+        b.add(PluginMeta::new("core", "1.0"));
+        b.add(PluginMeta::new("ext", "1.0").require("core"));
+        assert!(b.validate().valid);
+    }
+
+    #[test]
+    fn test_missing_dependency_invalid() {
+        let mut b = PluginBundle::new();
+        b.add(PluginMeta::new("ext", "1.0").require("missing-dep"));
+        let r = b.validate();
+        assert!(!r.valid);
+        assert_eq!(r.missing_deps.len(), 1);
+        assert!(r.missing_deps[0].contains("missing-dep"));
+    }
+
+    #[test]
+    fn test_duplicate_id_invalid() {
+        let mut b = PluginBundle::new();
+        b.add(PluginMeta::new("core", "1.0"));
+        b.add(PluginMeta::new("core", "2.0"));
+        let r = b.validate();
+        assert!(!r.valid);
+        assert!(r.duplicate_ids.contains(&"core".to_string()));
+    }
+
+    #[test]
+    fn test_multiple_missing_deps() {
+        let mut b = PluginBundle::new();
+        b.add(PluginMeta::new("p", "1.0").require("a").require("b"));
+        let r = b.validate();
+        assert_eq!(r.missing_deps.len(), 2);
+    }
+
+    #[test]
+    fn test_plugin_meta_require_chaining() {
+        let p = PluginMeta::new("p", "1.0").require("a").require("b");
+        assert_eq!(p.requires.len(), 2);
+    }
+
+    #[test]
+    fn test_both_duplicate_and_missing() {
+        let mut b = PluginBundle::new();
+        b.add(PluginMeta::new("x", "1.0").require("missing"));
+        b.add(PluginMeta::new("x", "2.0"));
+        let r = b.validate();
+        assert!(!r.valid);
+        assert!(!r.missing_deps.is_empty());
+        assert!(!r.duplicate_ids.is_empty());
+    }
+}

@@ -69,3 +69,4 @@ harness = false
 name = "mock_provider_bdd"
 path = "tests/mock_provider_bdd.rs"
 harness = false
+required-features = ["testing"]

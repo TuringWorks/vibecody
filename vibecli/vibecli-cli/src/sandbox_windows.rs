@@ -64,3 +64,76 @@ impl WindowsSandbox {
         SandboxVerdict { allowed: false, reason: "internet disabled and host not in allowlist".to_string() }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_path_allowed_by_rule() {
+        let cfg = WindowsSandboxConfig::default_restricted().allow_path("/allowed");
+        let sb = WindowsSandbox::new(cfg);
+        let v = sb.check_path("/allowed/file.txt");
+        assert!(v.allowed);
+    }
+
+    #[test]
+    fn test_path_denied_no_rule() {
+        let cfg = WindowsSandboxConfig::default_restricted();
+        let sb = WindowsSandbox::new(cfg);
+        let v = sb.check_path("/some/path");
+        assert!(!v.allowed);
+        assert!(v.reason.contains("no matching allow rule"));
+    }
+
+    #[test]
+    fn test_deny_takes_precedence_over_allow() {
+        let cfg = WindowsSandboxConfig::default_restricted()
+            .allow_path("/data")
+            .deny_path("/data/secret");
+        let sb = WindowsSandbox::new(cfg);
+        let v = sb.check_path("/data/secret/file.txt");
+        assert!(!v.allowed);
+        assert!(v.reason.contains("denied"));
+    }
+
+    #[test]
+    fn test_network_blocked_by_default() {
+        let cfg = WindowsSandboxConfig::default_restricted();
+        let sb = WindowsSandbox::new(cfg);
+        let v = sb.check_network("example.com");
+        assert!(!v.allowed);
+    }
+
+    #[test]
+    fn test_network_allowed_when_internet_open() {
+        let cfg = WindowsSandboxConfig {
+            network: NetworkPolicy { allow_internet: true, allowed_hosts: vec![] },
+            ..Default::default()
+        };
+        let sb = WindowsSandbox::new(cfg);
+        assert!(sb.check_network("anything.com").allowed);
+    }
+
+    #[test]
+    fn test_explicit_host_allowed() {
+        let cfg = WindowsSandboxConfig {
+            network: NetworkPolicy {
+                allow_internet: false,
+                allowed_hosts: vec!["api.example.com".to_string()],
+            },
+            ..Default::default()
+        };
+        let sb = WindowsSandbox::new(cfg);
+        assert!(sb.check_network("api.example.com").allowed);
+        assert!(!sb.check_network("other.example.com").allowed);
+    }
+
+    #[test]
+    fn test_allow_path_builder_chain() {
+        let cfg = WindowsSandboxConfig::default_restricted()
+            .allow_path("/a")
+            .allow_path("/b");
+        assert_eq!(cfg.allowed_paths.len(), 2);
+    }
+}
