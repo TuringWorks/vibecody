@@ -91,6 +91,7 @@ function App() {
   const [showAIChat, setShowAIChat] = useState(false);
   const [aiPanelTab, setAiPanelTab] = useState("chat");
   const [panelsMaximized, setPanelsMaximized] = useState(false);
+  const [showEditorArea, setShowEditorArea] = useState(true);
   const [showFilterBar, setShowFilterBar] = useState(true);
   const [showTerminal, setShowTerminal] = useState(false);
   const [bottomTab, setBottomTab] = useState<"terminal" | "browser">("terminal");
@@ -1697,8 +1698,8 @@ function App() {
           </aside>
         )}
 
-        {/* Vertical Resizer */}
-        {showSidebar && (
+        {/* Vertical Resizer — sidebar ↔ editor */}
+        {showSidebar && showEditorArea && (
           <div
             className="resizer-vertical"
             onMouseDown={(e) => {
@@ -1709,7 +1710,7 @@ function App() {
         )}
 
         {/* Editor Area */}
-        <main id="main-editor" className="editor-container">
+        <main id="main-editor" className="editor-container" style={{ display: showEditorArea ? undefined : "none" }}>
           {/* Tab Bar */}
           {openFiles.length > 0 && (
             <div className="tab-bar">
@@ -2032,6 +2033,20 @@ function App() {
                     </>
                   )}
                   <span style={{ color: "var(--text-primary)", fontWeight: 500, flex: 1, paddingLeft: 4 }}>{(TAB_META[aiPanelTab] || DEFAULT_TAB_META).label}</span>
+                  {/* Hide/show editor — show only sidebar + panels */}
+                  {!panelsMaximized && (
+                    <button
+                      onClick={() => setShowEditorArea(prev => !prev)}
+                      title={showEditorArea ? "Hide editor — explorer + panels only" : "Show editor"}
+                      style={{
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        background: "none", border: "none", cursor: "pointer", padding: "4px 8px", borderRadius: 4,
+                        color: !showEditorArea ? "var(--accent-color)" : "var(--text-secondary)",
+                      }}
+                    >
+                      <Icon name="panel-right" size={14} />
+                    </button>
+                  )}
                   <button
                     onClick={() => setPanelsMaximized(prev => !prev)}
                     title={panelsMaximized ? "Restore panel (Ctrl+Shift+M)" : "Maximize panel (Ctrl+Shift+M)"}
