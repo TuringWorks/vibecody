@@ -62,8 +62,10 @@ export function DesignHubPanel({ workspacePath, provider }: DesignHubPanelProps)
   const [tokenExportFormat, setTokenExportFormat] = useState("css");
   const [tokenExportResult, setTokenExportResult] = useState("");
   const [figmaUrl, setFigmaUrl] = useState("");
-  const [figmaToken, setFigmaToken] = useState("");
+  const [figmaToken, setFigmaToken] = useState(() => localStorage.getItem("figma_token") ?? "");
+  const [figmaSaveToken, setFigmaSaveToken] = useState(() => !!localStorage.getItem("figma_token"));
   const [figmaResult, setFigmaResult] = useState<Array<{ path: string; content: string }>>([]);
+  const [figmaExpandedFile, setFigmaExpandedFile] = useState<string | null>(null);
   const [statusMsg, setStatusMsg] = useState("");
 
   const showStatus = (msg: string) => {
@@ -123,13 +125,17 @@ export function DesignHubPanel({ workspacePath, provider }: DesignHubPanelProps)
 
   const handleFigmaImport = async () => {
     if (!figmaUrl.trim() || !figmaToken.trim()) return;
+    if (figmaSaveToken) localStorage.setItem("figma_token", figmaToken);
+    else localStorage.removeItem("figma_token");
     setIsLoading(true);
+    setFigmaResult([]);
+    setFigmaExpandedFile(null);
     try {
       const files = await invoke<Array<{ path: string; content: string }>>("import_figma", {
         url: figmaUrl, token: figmaToken, workspacePath, provider,
       }).catch(() => []);
       setFigmaResult(files);
-      showStatus(`Imported ${files.length} file(s) from Figma`);
+      showStatus(`${files.length} component(s) generated`);
     } finally {
       setIsLoading(false);
     }
@@ -286,27 +292,119 @@ export function DesignHubPanel({ workspacePath, provider }: DesignHubPanelProps)
     </div>
   );
 
-  const renderFigma = () => (
-    <div style={{ flex: 1, overflow: "auto", padding: 20, maxWidth: 500, margin: "0 auto" }}>
-      <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 4 }}>Import from Figma</div>
-      <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 16, lineHeight: 1.6 }}>
-        Import Figma designs and generate component code. Get your token from <em>Figma → Account → Personal Access Tokens</em>.
-      </div>
-      <label style={{ display: "block", fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>Figma File URL</label>
-      <input value={figmaUrl} onChange={(e) => setFigmaUrl(e.target.value)} placeholder="https://www.figma.com/file/..." style={{ width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 6, color: "inherit", padding: "8px 10px", fontSize: 13, marginBottom: 12, boxSizing: "border-box" as const }} />
-      <label style={{ display: "block", fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>Figma API Token</label>
-      <input type="password" value={figmaToken} onChange={(e) => setFigmaToken(e.target.value)} placeholder="figd_..." style={{ width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 6, color: "inherit", padding: "8px 10px", fontSize: 13, marginBottom: 16, boxSizing: "border-box" as const }} />
-      <button onClick={handleFigmaImport} disabled={isLoading || !figmaUrl.trim() || !figmaToken.trim()}
-        style={{ width: "100%", background: "var(--accent-blue)", color: "#fff", border: "none", borderRadius: 6, padding: "10px 0", cursor: "pointer", fontWeight: 600, fontSize: 14, opacity: isLoading || !figmaUrl.trim() || !figmaToken.trim() ? 0.5 : 1 }}
-      >{isLoading ? "Importing…" : "Import"}</button>
-      {figmaResult.length > 0 && (
-        <div style={{ marginTop: 16, padding: 12, background: "var(--bg-secondary)", borderRadius: 8, border: "1px solid var(--border-color)" }}>
-          <div style={{ fontSize: 13, color: "var(--text-success)", fontWeight: 600, marginBottom: 6 }}>✓ {figmaResult.length} file(s) generated</div>
-          {figmaResult.map((f) => <div key={f.path} style={{ fontSize: 12, fontFamily: "var(--font-mono)", color: "var(--text-secondary)", padding: "2px 0" }}>{f.path}</div>)}
+  const renderFigma = () => {
+    const steps = ["Connect", "Generate", "Review"];
+    const currentStep = figmaResult.length > 0 ? 2 : isLoading ? 1 : 0;
+    const btnDisabled = isLoading || !figmaUrl.trim() || !figmaToken.trim();
+    return (
+      <div style={{ flex: 1, overflow: "auto", padding: "14px 16px" }}>
+        {/* Workflow steps */}
+        <div style={{ display: "flex", alignItems: "center", marginBottom: 14 }}>
+          {steps.map((s, i) => (
+            <div key={s} style={{ display: "flex", alignItems: "center", flex: i < steps.length - 1 ? 1 : undefined }}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+                <div style={{
+                  width: 20, height: 20, borderRadius: "50%", fontSize: 10, fontWeight: 700,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  background: i <= currentStep ? "var(--accent-blue)" : "var(--bg-secondary)",
+                  color: i <= currentStep ? "#fff" : "var(--text-secondary)",
+                  border: `1px solid ${i <= currentStep ? "var(--accent-blue)" : "var(--border-color)"}`,
+                }}>{i + 1}</div>
+                <div style={{ fontSize: 9, color: i <= currentStep ? "var(--text-primary)" : "var(--text-secondary)", whiteSpace: "nowrap" }}>{s}</div>
+              </div>
+              {i < steps.length - 1 && (
+                <div style={{ flex: 1, height: 1, background: i < currentStep ? "var(--accent-blue)" : "var(--border-color)", margin: "0 4px", marginBottom: 12 }} />
+              )}
+            </div>
+          ))}
         </div>
-      )}
-    </div>
-  );
+
+        {/* Form card */}
+        <div style={{ background: "var(--bg-secondary)", borderRadius: 8, border: "1px solid var(--border-color)", padding: "12px 14px", marginBottom: 10 }}>
+          <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 10, lineHeight: 1.5 }}>
+            Get your token from <em>Figma → Settings → Personal access tokens</em>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div>
+              <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 3 }}>Figma File URL</div>
+              <input
+                value={figmaUrl}
+                onChange={(e) => setFigmaUrl(e.target.value)}
+                placeholder="https://www.figma.com/file/…"
+                style={{ width: "100%", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: 5, color: "inherit", padding: "5px 8px", fontSize: 12, boxSizing: "border-box" as const }}
+              />
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 3 }}>Personal Access Token</div>
+              <input
+                type="password"
+                value={figmaToken}
+                onChange={(e) => setFigmaToken(e.target.value)}
+                placeholder="figd_…"
+                style={{ width: "100%", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: 5, color: "inherit", padding: "5px 8px", fontSize: 12, boxSizing: "border-box" as const }}
+              />
+            </div>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--text-secondary)", cursor: "pointer" }}>
+              <input
+                type="checkbox"
+                checked={figmaSaveToken}
+                onChange={(e) => setFigmaSaveToken(e.target.checked)}
+              />
+              Remember token on this device
+            </label>
+          </div>
+        </div>
+
+        <button
+          onClick={handleFigmaImport}
+          disabled={btnDisabled}
+          style={{ width: "100%", background: "var(--accent-blue)", color: "#fff", border: "none", borderRadius: 6, padding: "8px 0", cursor: btnDisabled ? "not-allowed" : "pointer", fontWeight: 600, fontSize: 13, opacity: btnDisabled ? 0.5 : 1, marginBottom: 14 }}
+        >
+          {isLoading ? "Importing…" : "Import & Generate Components"}
+        </button>
+
+        {/* Results */}
+        {figmaResult.length > 0 && (
+          <div>
+            <div style={{ fontSize: 12, color: "var(--text-success)", fontWeight: 600, marginBottom: 8 }}>
+              <Icon name="check" size={12} style={{ verticalAlign: "middle", marginRight: 4 }} />
+              {figmaResult.length} component{figmaResult.length > 1 ? "s" : ""} generated — click a file to preview
+            </div>
+            {figmaResult.map((f) => (
+              <div key={f.path} style={{ marginBottom: 6, borderRadius: 6, border: "1px solid var(--border-color)", overflow: "hidden" }}>
+                <div
+                  onClick={() => setFigmaExpandedFile(figmaExpandedFile === f.path ? null : f.path)}
+                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "var(--bg-secondary)", cursor: "pointer" }}
+                >
+                  <Icon name="file-code" size={12} style={{ flexShrink: 0, color: "var(--text-secondary)" }} />
+                  <span style={{ flex: 1, fontSize: 11, fontFamily: "var(--font-mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.path}</span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(f.content); showStatus("Copied!"); }}
+                    title="Copy code"
+                    style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: 10, padding: "2px 6px", borderRadius: 3 }}
+                  >
+                    Copy
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); copyToClipboard(f.content); }}
+                    title="Preview component"
+                    style={{ background: "none", border: "1px solid var(--accent-blue)", color: "var(--accent-blue)", cursor: "pointer", fontSize: 10, padding: "2px 6px", borderRadius: 3 }}
+                  >
+                    Open
+                  </button>
+                </div>
+                {figmaExpandedFile === f.path && (
+                  <pre style={{ margin: 0, padding: "10px 12px", fontSize: 10, lineHeight: 1.5, overflow: "auto", maxHeight: 220, background: "var(--bg-tertiary)", color: "var(--text-primary)" }}>
+                    <code>{f.content}</code>
+                  </pre>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const renderSettings = () => (
     <div style={{ flex: 1, overflow: "auto", padding: 16 }}>
