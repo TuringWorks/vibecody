@@ -200,6 +200,47 @@ vibeui/src/constants/
 
 ---
 
+## Icons
+
+All icons across VibeUI **must** be thin, themable SVGs. No emoji, Unicode symbols (▶ ▼ ◀ ×), or raster images as icons.
+
+### Use the `<Icon>` component
+
+```tsx
+import { Icon } from "./Icon";
+
+<Icon name="chevron-right" size={14} />
+<Icon name="maximize" size={16} style={{ color: "var(--accent-color)" }} />
+```
+
+All available names are declared in the `IconName` union type in `vibeui/src/components/Icon.tsx`. TypeScript will error on unknown names — check that file before using a name.
+
+### Rules
+
+| Rule | Detail |
+|---|---|
+| **Thin strokes only** | Use `strokeWidth={1.5}` (Lucide default). Never fill-only icons. |
+| **Themable via `currentColor`** | All icon paths must use `stroke="currentColor"` or `fill="currentColor"` — never hard-coded hex colors. Set color on the parent element or via the `style` prop. |
+| **Size from prop** | Pass explicit `size` (px). Do not hard-code `width`/`height` attributes inside SVG definitions. |
+| **No text symbols** | Never use `▶`, `▼`, `▲`, `◀`, `▸`, `▾`, `×`, `⊘`, `📌` or other Unicode/emoji as icons. Replace with the equivalent Lucide icon name. |
+| **Add missing icons to Icon.tsx** | If the Lucide set lacks a needed icon, add a custom SVG path entry to the `ICONS` map in `Icon.tsx` following the existing pattern (24×24 viewBox, `strokeWidth` 1.5, `currentColor`). |
+
+### Common replacements
+
+| Symbol | Icon name |
+|---|---|
+| `▶` / `▸` | `chevron-right` or `play` |
+| `▼` / `▾` | `chevron-down` |
+| `▲` | `chevron-up` |
+| `◀` | `chevron-left` |
+| `×` (close) | `x` |
+| `📌` | `pin` |
+| `⊘` | `pin-off` |
+| `+` (add) | `plus` |
+| `≡` (menu) | `menu` |
+
+---
+
 ## Testing
 
 Use `ProfileStore::open_with(path, key)` and `WorkspaceStore::open_with(db_path, key)` for unit tests — these accept an explicit path and key, avoiding production DB and machine-specific key derivation.
