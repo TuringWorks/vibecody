@@ -6,6 +6,10 @@
 import { useState, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { VisualEditor, SelectedElement } from "./VisualEditor";
+import { DrawioEditorPanel } from "./DrawioEditorPanel";
+import { PencilPanel } from "./PencilPanel";
+import { PenpotPanel } from "./PenpotPanel";
+import { DiagramGeneratorPanel } from "./DiagramGeneratorPanel";
 
 interface DesignModeProps {
   workspacePath: string | null;
@@ -17,7 +21,7 @@ interface GeneratedFile {
   content: string;
 }
 
-type DesignTab = "preview" | "generate" | "components" | "inspector" | "figma";
+type DesignTab = "preview" | "generate" | "components" | "inspector" | "figma" | "drawio" | "pencil" | "penpot" | "diagrams";
 
 // Ports and hostnames that serve the VibeUI app itself — never load in the preview iframe.
 const BLOCKED_PATTERNS = [
@@ -38,6 +42,10 @@ const tabDefs: { id: DesignTab; label: string }[] = [
   { id: "generate", label: "Generate" },
   { id: "components", label: "Components" },
   { id: "inspector", label: "Inspector" },
+  { id: "drawio", label: "Draw.io" },
+  { id: "pencil", label: "Pencil" },
+  { id: "penpot", label: "Penpot" },
+  { id: "diagrams", label: "Diagrams" },
   { id: "figma", label: "Figma" },
 ];
 
@@ -490,6 +498,10 @@ try {
       {tabPane("generate", renderGenerate())}
       {tabPane("components", renderComponents())}
       {tabPane("inspector", renderInspector())}
+      {tabPane("drawio", <DrawioEditorPanel workspacePath={workspacePath} provider={provider} />)}
+      {tabPane("pencil", <PencilPanel workspacePath={workspacePath} provider={provider} />)}
+      {tabPane("penpot", <PenpotPanel workspacePath={workspacePath} provider={provider} />)}
+      {tabPane("diagrams", <DiagramGeneratorPanel workspacePath={workspacePath} provider={provider} />)}
       {tabPane("figma", renderFigma())}
     </div>
   );
