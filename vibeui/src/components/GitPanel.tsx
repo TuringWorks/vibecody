@@ -594,7 +594,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  display: 'flex', alignItems: 'center', gap: 6,
  }}
  >
- <span>{showReview ? '▼' : ''}</span>
+ {showReview && <ChevronDown size={12} />}
  <span>Code Review</span>
  </button>
  {showReview && (
@@ -650,7 +650,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  onClick={() => setShowChangelog(c => !c)}
  style={{ width: '100%', textAlign: 'left', padding: '5px 0', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-primary)', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}
  >
- <span>{showChangelog ? '▼' : ''}</span>
+ {showChangelog && <ChevronDown size={12} />}
  <span>Generate Changelog</span>
  </button>
  {showChangelog && (
@@ -696,7 +696,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  onClick={() => setShowConflictModal(c => !c)}
  style={{ width: '100%', textAlign: 'left', padding: '5px 0', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-primary)', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}
  >
- <span>{showConflictModal ? '▼' : ''}</span>
+ {showConflictModal && <ChevronDown size={12} />}
  <span>Resolve Merge Conflict</span>
  </button>
  {showConflictModal && (
@@ -793,7 +793,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  {remoteUrl || 'No remote configured'}
  </div>
  <div style={{ marginTop: 4, fontSize: 10, color: sshAvailable ? 'var(--success-color)' : 'var(--text-secondary)' }}>
- {remoteUrl.startsWith('git@') ? '● Using SSH' : sshAvailable ? '● SSH keys detected — switch remote to SSH for passwordless auth' : '○ No SSH keys found — use HTTPS with credentials below'}
+ {remoteUrl.startsWith('git@') ? 'Using SSH' : sshAvailable ? 'SSH keys detected — switch remote to SSH for passwordless auth' : 'No SSH keys found — use HTTPS with credentials below'}
  </div>
  </div>
 

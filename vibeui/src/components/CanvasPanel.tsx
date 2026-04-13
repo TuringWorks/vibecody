@@ -312,18 +312,16 @@ export default function CanvasPanel() {
  {node.label.length > 14 ? node.label.slice(0, 14) + "…" : node.label}
  </text>
  {/* Delete button */}
- <text
- x={node.x + NODE_WIDTH - 16}
- y={node.y + 14}
- fill="var(--text-secondary)"
- fontSize={12}
+ <g
+ transform={`translate(${node.x + NODE_WIDTH - 14}, ${node.y + 10})`}
  style={{ cursor: "pointer" }}
  onClick={(e) => { e.stopPropagation(); deleteNode(node.id); }}
  role="button"
  aria-label={`Delete element ${node.label}`}
  >
- ×
- </text>
+ <line x1="-4" y1="-4" x2="4" y2="4" stroke="var(--text-secondary)" strokeWidth="1.5" strokeLinecap="round" />
+ <line x1="4" y1="-4" x2="-4" y2="4" stroke="var(--text-secondary)" strokeWidth="1.5" strokeLinecap="round" />
+ </g>
  </g>
  ))}
  </svg>

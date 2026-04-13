@@ -22,7 +22,7 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 const STATUS_BADGE: Record<string, string> = {
-  idle: "○", active: "●", paused: "‖", terminated: "×",
+  idle: "idle", active: "active", paused: "paused", terminated: "stopped",
 };
 
 

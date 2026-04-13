@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { Lightbulb } from 'lucide-react';
+import { Lightbulb, ChevronDown } from 'lucide-react';
 
 // ── Types (mirrors review.rs) ──────────────────────────────────────────────
 
@@ -263,7 +263,7 @@ export function ReviewPanel({ workspacePath, onOpenFile }: ReviewPanelProps) {
  </button>
  )}
  </div>
- <span style={{ color: 'var(--text-secondary)', fontSize: 11, flexShrink: 0 }}>{isOpen ? '' : '▼'}</span>
+ {!isOpen && <ChevronDown size={12} style={{ color: 'var(--text-secondary)', flexShrink: 0 }} />}
  </div>
 
  {isOpen && issue.suggested_fix && (

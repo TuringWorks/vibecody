@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { Icon } from "./Icon";
 
 interface ComplianceControl {
  id: string;
@@ -97,7 +98,7 @@ export function CompliancePanel() {
 
  {!report && !loading && !error && (
   <div style={{ textAlign: "center", padding: "40px 16px", color: "var(--text-secondary)", lineHeight: 1.7 }}>
-   <div style={{ fontSize: 28, marginBottom: 8 }}>🛡️</div>
+   <Icon name="shield" size={40} style={{ opacity: 0.3, marginBottom: 8 }} />
    <div style={{ fontSize: 13 }}>No compliance report yet</div>
    <div style={{ fontSize: 11, marginTop: 4 }}>
     Select a framework above and click <strong>Generate Report</strong> to audit your codebase.

@@ -1738,12 +1738,13 @@ function App() {
                   <span className="tab-name">
                     {file.path.split('/').pop() || file.path.split('\\').pop()}
                   </span>
-                  {file.isDirty && <span className="tab-dirty">●</span>}
+                  {file.isDirty && <span className="tab-dirty" style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--accent-color)", flexShrink: 0 }} />}
                   <button
                     className="tab-close"
                     onClick={(e) => closeFile(file.path, e)}
+                    style={{ display: "flex", alignItems: "center", justifyContent: "center" }}
                   >
-                    ×
+                    <Icon name="x" size={12} />
                   </button>
                 </div>
               ))}
@@ -1818,7 +1819,7 @@ function App() {
                     }}
                     title="Dismiss"
                   >
-                    ×
+                    <Icon name="x" size={12} />
                   </button>
                 </div>
               )}

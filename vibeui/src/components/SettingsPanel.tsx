@@ -2275,7 +2275,7 @@ function OAuthSection() {
       {error && (
         <div className="panel-error" style={{ marginBottom: 12 }}>
           <span>{error}</span>
-          <button aria-label="Dismiss error" style={{ float: "right", background: "none", border: "none", cursor: "pointer", color: "inherit" }} onClick={() => setError(null)}>×</button>
+          <button aria-label="Dismiss error" style={{ float: "right", background: "none", border: "none", cursor: "pointer", color: "inherit", display: "flex", alignItems: "center" }} onClick={() => setError(null)}><X size={14} /></button>
         </div>
       )}
 

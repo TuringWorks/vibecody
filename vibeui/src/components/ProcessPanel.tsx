@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Play, Moon, AlertOctagon, Square, MinusCircle } from "lucide-react";
+import { Play, Moon, AlertOctagon, Square, MinusCircle, X } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -122,10 +122,10 @@ const ProcessPanel: React.FC = () => {
  {killFeedback.ok ? "" : ""} {killFeedback.msg}
  <button
  onClick={() => setKillFeedback(null)}
- style={{ marginLeft: 12, background: "none", border: "none", cursor: "pointer", color: "inherit" }}
+ style={{ marginLeft: 12, background: "none", border: "none", cursor: "pointer", color: "inherit", display: "flex", alignItems: "center" }}
  aria-label="Dismiss"
  >
- ×
+ <X size={14} />
  </button>
  </div>
  )}

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { Icon } from "./Icon";
 import { invoke } from "@tauri-apps/api/core";
 import { AIChat, Message } from "./AIChat";
 import { ChatMemoryPanel } from "./ChatMemoryPanel";
@@ -390,12 +391,12 @@ export function ChatTabManager({
                                     onClick={(e) => closeTab(tab.id, e)}
                                     style={{
                                         background: "none", border: "none", color: "inherit",
-                                        cursor: "pointer", padding: "0 2px", fontSize: "14px",
-                                        lineHeight: 1,
+                                        cursor: "pointer", padding: "0 2px",
+                                        display: "flex", alignItems: "center",
                                     }}
                                     title="Close tab"
                                 >
-                                    ×
+                                    <Icon name="x" size={12} />
                                 </button>
                             )}
                         </div>
@@ -586,10 +587,11 @@ export function ChatTabManager({
                                                 style={{
                                                     background: "none", border: "1px solid var(--border-color)",
                                                     color: "var(--text-secondary)", cursor: "pointer",
-                                                    padding: "2px 6px", fontSize: "11px", borderRadius: 3,
+                                                    padding: "2px 6px", borderRadius: 3,
+                                                    display: "flex", alignItems: "center",
                                                 }}
                                             >
-                                                ×
+                                                <Icon name="x" size={11} />
                                             </button>
                                         </div>
                                     </div>

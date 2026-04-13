@@ -12,7 +12,7 @@
  */
 import { useState, useEffect, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Key } from "lucide-react";
+import { Key, X } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -266,7 +266,7 @@ export function VibeSqlPanel({ provider }: { workspacePath: string | null; provi
                 </div>
               </div>
               <button aria-label="Remove connection" onClick={() => handleDeleteConnection(c.id)}
-                style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: 16 }}>×</button>
+                style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", display: "flex", alignItems: "center" }}><X size={14} /></button>
             </div>
           ))}
         </div>

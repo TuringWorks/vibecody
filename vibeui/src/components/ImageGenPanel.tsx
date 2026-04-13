@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { Icon } from "./Icon";
 
 interface GeneratedImage {
   id: string;
@@ -197,7 +198,7 @@ const ImageGenPanel: React.FC = () => {
                   border: `1px solid ${model === p.model ? "var(--accent-color)" : "var(--border-color)"}`,
                   opacity: p.available ? 1 : 0.5,
                 }}>
-                {p.model}{!p.available && " 🔒"}
+                {p.model}{!p.available && <Icon name="lock" size={11} style={{ marginLeft: 4, verticalAlign: "middle" }} />}
               </button>
             ))}
           </div>

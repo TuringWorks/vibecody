@@ -8,6 +8,7 @@
  * - Export: Download EP XML, SVG, or generate React components
  */
 import { useState } from "react";
+import { Icon } from "./Icon";
 import { invoke } from "@tauri-apps/api/core";
 
 interface PencilPanelProps {
@@ -25,13 +26,13 @@ const TAB_DEFS: { id: PencilTab; label: string }[] = [
 ];
 
 const WIREFRAME_TEMPLATES = [
-  { id: "landing_page", label: "Landing Page", icon: "🖥️", description: "Hero section, nav, features, footer" },
-  { id: "dashboard", label: "Dashboard", icon: "📊", description: "Sidebar, stats, chart, activity" },
-  { id: "mobile_app", label: "Mobile App", icon: "📱", description: "Status bar, nav, tab bar screens" },
-  { id: "login_form", label: "Login Form", icon: "🔐", description: "Email/password login with social auth" },
-  { id: "settings_page", label: "Settings Page", icon: "⚙️", description: "Grouped settings with toggle switches" },
-  { id: "data_table", label: "Data Table", icon: "📋", description: "Filterable sortable data table view" },
-];
+  { id: "landing_page", label: "Landing Page", icon: "layout-grid", description: "Hero section, nav, features, footer" },
+  { id: "dashboard", label: "Dashboard", icon: "chart-bar", description: "Sidebar, stats, chart, activity" },
+  { id: "mobile_app", label: "Mobile App", icon: "monitor-play", description: "Status bar, nav, tab bar screens" },
+  { id: "login_form", label: "Login Form", icon: "lock", description: "Email/password login with social auth" },
+  { id: "settings_page", label: "Settings Page", icon: "settings", description: "Grouped settings with toggle switches" },
+  { id: "data_table", label: "Data Table", icon: "clipboard-list", description: "Filterable sortable data table view" },
+] as const;
 
 const tabStyle = (active: boolean): React.CSSProperties => ({
   padding: "7px 14px",
@@ -168,7 +169,7 @@ export function PencilPanel({ workspacePath, provider }: PencilPanelProps) {
               opacity: isLoading && selectedTemplate === t.id ? 0.5 : 1,
             }}
           >
-            <div style={{ fontSize: 20, marginBottom: 6 }}>{t.icon}</div>
+            <Icon name={t.icon} size={20} style={{ marginBottom: 6 }} />
             <div style={{ fontWeight: 600, fontSize: 13 }}>{t.label}</div>
             <div style={{ fontSize: 11, opacity: 0.75, marginTop: 2 }}>{t.description}</div>
           </button>

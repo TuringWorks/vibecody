@@ -36,8 +36,9 @@ export function Toaster({ toasts, onDismiss }: ToasterProps) {
             className="toast__close"
             onClick={() => onDismiss(t.id)}
             aria-label="Dismiss"
+            style={{ display: "flex", alignItems: "center", justifyContent: "center" }}
           >
-            ×
+            <X size={14} />
           </button>
         </div>
       ))}

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { X } from 'lucide-react';
 import { Terminal as XTerm } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import { invoke } from '@tauri-apps/api/core';
@@ -129,19 +130,13 @@ export function Terminal({ onClose }: TerminalProps) {
             <button
                 onClick={onClose}
                 style={{
-                    position: 'absolute',
-                    top: '5px',
-                    right: '15px',
-                    zIndex: 10,
-                    background: 'transparent',
-                    border: 'none',
-                    color: 'var(--text-secondary)',
-                    cursor: 'pointer',
-                    fontSize: '16px'
+                    position: 'absolute', top: '5px', right: '15px', zIndex: 10,
+                    background: 'transparent', border: 'none', color: 'var(--text-secondary)',
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}
                 title="Close Terminal"
             >
-                ×
+                <X size={14} />
             </button>
             <div ref={terminalRef} style={{ height: '100%', width: '100%' }} />
         </div>

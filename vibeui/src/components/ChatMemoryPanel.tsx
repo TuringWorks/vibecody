@@ -6,6 +6,7 @@
  */
 
 import { useState, useRef } from "react";
+import { Icon } from "./Icon";
 import type { MemoryFact } from "../hooks/useSessionMemory";
 
 interface ChatMemoryPanelProps {
@@ -116,7 +117,7 @@ export function ChatMemoryPanel({
           }}
         >
           <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-            <span style={{ opacity: 0.6, fontSize: 10 }}>{open ? "▾" : "▸"}</span>
+            <Icon name={open ? "chevron-down" : "chevron-right"} size={10} />
             <span>Memory</span>
             {total > 0 && (
               <span style={{
@@ -263,7 +264,9 @@ function FactRow({
       background: isPinned ? "rgba(59,130,246,0.06)" : "transparent",
     }}>
       {isPinned && (
-        <span style={{ fontSize: 10, marginTop: 2, color: "var(--accent-blue, #3b82f6)", flexShrink: 0 }}>📌</span>
+        <span style={{ marginTop: 2, color: "var(--accent-blue, #3b82f6)", flexShrink: 0, display: "flex" }}>
+          <Icon name="map-pin" size={10} />
+        </span>
       )}
 
       {isEditing ? (
@@ -301,16 +304,16 @@ function FactRow({
           <button
             onClick={() => isPinned ? onUnpin(fact.id) : onPin(fact.id)}
             title={isPinned ? "Unpin" : "Pin to every message"}
-            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", fontSize: 12, padding: "0 2px", lineHeight: 1 }}
+            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", padding: "0 2px", display: "flex", alignItems: "center" }}
           >
-            {isPinned ? "⊘" : "📌"}
+            <Icon name={isPinned ? "unlock" : "map-pin"} size={12} />
           </button>
           <button
             onClick={() => onDelete(fact.id)}
             title="Delete"
-            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", fontSize: 12, padding: "0 2px", lineHeight: 1 }}
+            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", padding: "0 2px", display: "flex", alignItems: "center" }}
           >
-            ×
+            <Icon name="x" size={12} />
           </button>
         </div>
       )}

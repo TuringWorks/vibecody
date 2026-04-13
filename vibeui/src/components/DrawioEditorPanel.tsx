@@ -10,6 +10,7 @@
  */
 import { useState, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { Icon } from "./Icon";
 
 interface DrawioEditorPanelProps {
   workspacePath: string | null;
@@ -233,7 +234,7 @@ export function DrawioEditorPanel({ workspacePath, provider }: DrawioEditorPanel
         />
       ) : (
         <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, color: "var(--text-secondary)" }}>
-          <div style={{ fontSize: 32 }}>📊</div>
+          <Icon name="chart-bar" size={48} style={{ opacity: 0.3 }} />
           <div style={{ fontSize: 14 }}>No diagram to preview</div>
           <div style={{ fontSize: 12, maxWidth: 300, textAlign: "center", lineHeight: 1.6 }}>
             Create a diagram in the Editor tab, generate one with AI, or load a template.

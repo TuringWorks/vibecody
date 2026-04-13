@@ -11,6 +11,7 @@
  */
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { Icon } from "./Icon";
 
 interface DesignHubPanelProps {
   workspacePath: string | null;
@@ -28,13 +29,13 @@ const TAB_DEFS: { id: HubTab; label: string }[] = [
 ];
 
 const PROVIDERS = [
-  { id: "penpot", label: "Penpot", icon: "🎨", desc: "Open-source Figma alternative", status: "active" },
-  { id: "figma", label: "Figma", icon: "✏️", desc: "Figma design import (API token required)", status: "active" },
-  { id: "pencil", label: "Pencil", icon: "📐", desc: "Evolus Pencil .ep wireframes", status: "active" },
-  { id: "drawio", label: "Draw.io", icon: "📊", desc: "Draw.io / diagrams.net editor", status: "active" },
-  { id: "mermaid", label: "Mermaid", icon: "🧜", desc: "AI-generated Mermaid diagrams", status: "active" },
-  { id: "inhouse", label: "Built-in", icon: "⚡", desc: "VibeCody built-in design system", status: "active" },
-];
+  { id: "penpot", label: "Penpot", icon: "palette", desc: "Open-source Figma alternative", status: "active" },
+  { id: "figma", label: "Figma", icon: "pen-tool", desc: "Figma design import (API token required)", status: "active" },
+  { id: "pencil", label: "Pencil", icon: "edit", desc: "Evolus Pencil .ep wireframes", status: "active" },
+  { id: "drawio", label: "Draw.io", icon: "chart-bar", desc: "Draw.io / diagrams.net editor", status: "active" },
+  { id: "mermaid", label: "Mermaid", icon: "git-graph", desc: "AI-generated Mermaid diagrams", status: "active" },
+  { id: "inhouse", label: "Built-in", icon: "zap", desc: "VibeCody built-in design system", status: "active" },
+] as const;
 
 const tabStyle = (active: boolean): React.CSSProperties => ({
   padding: "7px 14px",
@@ -165,7 +166,7 @@ export function DesignHubPanel({ workspacePath, provider }: DesignHubPanelProps)
                 transition: "all 0.15s",
               }}
             >
-              <span style={{ fontSize: 24, flexShrink: 0 }}>{p.icon}</span>
+              <Icon name={p.icon} size={20} style={{ flexShrink: 0, marginTop: 2 }} />
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 2 }}>{p.label}</div>
                 <div style={{ fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.4 }}>{p.desc}</div>
@@ -312,7 +313,7 @@ export function DesignHubPanel({ workspacePath, provider }: DesignHubPanelProps)
       <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>Provider Settings</div>
       {PROVIDERS.map((p) => (
         <div key={p.id} style={{ marginBottom: 12, padding: "12px 14px", background: "var(--bg-secondary)", borderRadius: 8, border: "1px solid var(--border-color)" }}>
-          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>{p.icon} {p.label}</div>
+          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}><Icon name={p.icon} size={14} /> {p.label}</div>
           <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8 }}>{p.desc}</div>
           {p.id === "penpot" && <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Configure via the Penpot tab</div>}
           {p.id === "figma" && <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Configure via the Figma tab (API token per-import)</div>}
