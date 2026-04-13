@@ -69,6 +69,9 @@ sidebar:
   - title: Configuration
     icon: settings
     url: /configuration/
+  - title: Memory Guide
+    icon: database
+    url: /memory-guide/
   - title: API Reference
     icon: code
     url: /api-reference/
@@ -164,6 +167,7 @@ header_pages:
   - vibemobile.md
   - providers/index.md
   - configuration.md
+  - memory-guide.md
   - api-reference.md
   - architecture.md
   - PLUGIN-DEVELOPMENT.md

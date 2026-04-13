@@ -39,6 +39,19 @@ interface LayeredContext {
   total_drawers: number;
 }
 
+interface BenchmarkResult {
+  k: number;
+  total_memories: number;
+  total_drawers: number;
+  probes: number;
+  hits_cognitive: number;
+  hits_verbatim: number;
+  recall_cognitive: number;
+  recall_verbatim: number;
+  recall_combined: number;
+  cases: Array<{ sector: string; query: string; found_cognitive: boolean; found_verbatim: boolean }>;
+}
+
 interface TemporalFact {
   id: string;
   subject: string;
@@ -115,6 +128,9 @@ const OpenMemoryPanel: React.FC = () => {
   const [drawerStats, setDrawerStats] = useState<DrawerStats>({ total_drawers: 0, wings: [], rooms: [] });
   const [layeredCtx, setLayeredCtx] = useState<LayeredContext | null>(null);
   const [layeredQuery, setLayeredQuery] = useState('');
+  const [benchResult, setBenchResult] = useState<BenchmarkResult | null>(null);
+  const [benchRunning, setBenchRunning] = useState(false);
+  const [benchK, setBenchK] = useState(5);
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -191,10 +207,21 @@ const OpenMemoryPanel: React.FC = () => {
     } catch (err) { setError(String(err)); }
   }, []);
 
+  const handleRunBenchmark = useCallback(async () => {
+    setBenchRunning(true);
+    setBenchResult(null);
+    try {
+      const result = await invoke<BenchmarkResult>('openmemory_benchmark', { k: benchK });
+      if (result) setBenchResult(result);
+    } catch (err) { setError(String(err)); }
+    finally { setBenchRunning(false); }
+  }, [benchK]);
+
   useEffect(() => {
     if (tab === 'drawers') {
       loadDrawerStats();
       setLayeredCtx(null);
+      setBenchResult(null);
     }
   }, [tab, loadDrawerStats]);
 
@@ -664,6 +691,76 @@ const OpenMemoryPanel: React.FC = () => {
                 </code>
               </div>
             )}
+
+            {/* ── LongMemEval Benchmark ─────────────────────────────────── */}
+            <div style={{ marginTop: 24, borderTop: '1px solid var(--border-subtle)', paddingTop: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <div>
+                  <h5 style={{ color: 'var(--text-primary)', margin: 0, fontSize: 14 }}>LongMemEval Benchmark</h5>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: 12, margin: '4px 0 0' }}>
+                    Recall@K across cognitive (L2) + verbatim drawer (L3) layers
+                  </p>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>k =</span>
+                  <input
+                    type="number" min={1} max={20} value={benchK}
+                    onChange={e => setBenchK(Math.max(1, parseInt(e.target.value) || 5))}
+                    style={{ width: 48, padding: '3px 6px', borderRadius: 4, border: '1px solid var(--border-subtle)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: 12, textAlign: 'center' }}
+                  />
+                  <button
+                    onClick={handleRunBenchmark}
+                    disabled={benchRunning}
+                    style={{ padding: '5px 14px', borderRadius: 6, border: 'none', background: 'var(--accent-blue)', color: '#fff', fontSize: 12, cursor: benchRunning ? 'not-allowed' : 'pointer', opacity: benchRunning ? 0.6 : 1 }}
+                  >
+                    {benchRunning ? 'Running…' : 'Run'}
+                  </button>
+                </div>
+              </div>
+
+              {benchResult && (
+                <div>
+                  {/* Recall gauges */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 16 }}>
+                    {[
+                      { label: 'Cognitive (L2)', value: benchResult.recall_cognitive, color: 'var(--accent-blue)' },
+                      { label: 'Verbatim (L3)', value: benchResult.recall_verbatim, color: 'var(--accent-green)' },
+                      { label: 'Combined', value: benchResult.recall_combined, color: 'var(--accent-purple, #a855f7)' },
+                    ].map(({ label, value, color }) => (
+                      <div key={label} style={{ background: 'var(--bg-tertiary)', borderRadius: 8, padding: '12px 14px', textAlign: 'center' }}>
+                        <div style={{ fontSize: 22, fontWeight: 700, color }}>{(value * 100).toFixed(0)}%</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>Recall@{benchResult.k} — {label}</div>
+                        <div style={{ marginTop: 6, height: 4, borderRadius: 2, background: 'var(--bg-secondary)' }}>
+                          <div style={{ height: '100%', borderRadius: 2, background: color, width: `${value * 100}%`, transition: 'width 0.4s ease' }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Summary line */}
+                  <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 12 }}>
+                    {benchResult.hits_cognitive}/{benchResult.probes} cognitive hits · {benchResult.hits_verbatim}/{benchResult.probes} verbatim hits
+                    · {benchResult.total_memories} memories · {benchResult.total_drawers} drawers
+                  </div>
+
+                  {/* Per-case table */}
+                  <div style={{ fontSize: 12 }}>
+                    {benchResult.cases.map((c, i) => (
+                      <div key={i} style={{ display: 'grid', gridTemplateColumns: '80px 1fr 90px 90px', gap: 8, padding: '6px 0', borderBottom: '1px solid var(--border-subtle)', alignItems: 'center' }}>
+                        <span style={{ color: 'var(--accent-blue)', fontFamily: 'monospace', fontSize: 11 }}>{c.sector}</span>
+                        <span style={{ color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={c.query}>{c.query}</span>
+                        <span style={{ textAlign: 'center', color: c.found_cognitive ? 'var(--accent-green)' : 'var(--text-muted, #6b7280)', fontSize: 11 }}>
+                          {c.found_cognitive ? '✓ cognitive' : '✗ cognitive'}
+                        </span>
+                        <span style={{ textAlign: 'center', color: c.found_verbatim ? 'var(--accent-green)' : 'var(--text-muted, #6b7280)', fontSize: 11 }}>
+                          {c.found_verbatim ? '✓ verbatim' : '✗ verbatim'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
 

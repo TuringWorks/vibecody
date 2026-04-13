@@ -28,6 +28,7 @@ Hands-on guides to get the most out of VibeCody. Each tutorial is self-contained
 | Creating Custom Skills | 20 min | Write skill files that trigger on keywords and inject context |
 | Setting Up MCP Servers | 15 min | Connect external tools via Model Context Protocol |
 | Configuring Hooks for CI/CD | 15 min | Run pre/post hooks on agent actions for validation and logging |
+| [Building a Long-Term Memory Store](./memory/) | 20 min | Memories, facts, verbatim drawers, recall benchmarking, cross-project tunnels |
 
 | [Always-On Channel Daemon](./channel-daemon/) | 20 min | Run a persistent bot on Slack/Discord/GitHub with automation rules |
 

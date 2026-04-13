@@ -103,9 +103,13 @@ Interactive walkthroughs covering VibeCody's 60 major capabilities across CLI, D
 | Demo | Surface | Description |
 |------|---------|-------------|
 | [40 — Web Search Grounding](40-web-grounding/) | CLI + UI | Agent searches the web mid-task with citations |
-| [48 — OpenMemory Engine](48-open-memory/) | CLI + UI | 5-sector cognitive memory with encryption and decay |
+| [48 — OpenMemory Engine](48-open-memory/) | CLI + UI | 5-sector cognitive memory, knowledge graph, encryption, consolidation |
 | [49 — Autonomous Research](49-auto-research/) | CLI + UI | Multi-strategy research with cross-run learning |
 | [58 — Living Doc Sync](58-doc-sync/) | CLI + UI | Bidirectional spec-code synchronization |
+| [61 — Verbatim Drawers & MemPalace](61-memory-drawers/) | CLI + UI | Lossless 800-char chunk ingestion, Wing/Room scoping, cross-project Tunnels |
+| [62 — Memory Benchmarking](62-memory-benchmark/) | CLI + UI | LongMemEval recall@K benchmark across cognitive and verbatim layers |
+
+> **Full reference:** [Memory Guide](../memory-guide/) — all three memory layers (auto-recording, cognitive store, verbatim drawers), every REPL command, and VibeUI panel tour.
 
 ## Voice & Access
 

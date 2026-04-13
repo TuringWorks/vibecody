@@ -1553,6 +1553,25 @@ pub fn run() {
             commands::nested_agents_cancel,
             commands::on_device_list,
             commands::on_device_enforce,
+            // Design platform — Draw.io, Pencil, Penpot, AI diagram generator, design system hub
+            commands::parse_drawio_xml,
+            commands::generate_drawio_xml,
+            commands::get_drawio_template,
+            commands::save_drawio_file,
+            commands::execute_drawio_mcp,
+            commands::parse_pencil_ep,
+            commands::generate_pencil_wireframe,
+            commands::execute_pencil_mcp,
+            commands::connect_penpot,
+            commands::list_penpot_files,
+            commands::import_penpot_file,
+            commands::export_penpot_component,
+            commands::export_penpot_tokens,
+            commands::generate_diagram,
+            commands::save_diagram_file,
+            commands::load_design_system_tokens,
+            commands::export_design_tokens,
+            commands::audit_design_system_tokens,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

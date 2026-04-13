@@ -1149,6 +1149,77 @@ After a session completes, the LLM generates 1–3 concise bullet points and app
 
 The memory file is automatically injected into future agent system prompts.
 
+> **Tip:** Keep `memory.md` under ~2 000 tokens. For long-lived or large knowledge sets, use the OpenMemory cognitive store (see below) — it retrieves only what is relevant rather than injecting everything.
+
+
+## OpenMemory Cognitive Engine
+
+OpenMemory is a persistent, structured memory store with five cognitive sectors, a temporal knowledge graph, and an optional verbatim drawer layer (MemPalace techniques). It is the recommended memory system for anything beyond short-term session notes.
+
+### Configuration
+
+```toml
+[openmemory]
+enabled = true              # Enable the cognitive memory engine (default: true)
+auto_inject = true          # Inject context into every agent turn (default: true)
+max_context_tokens = 1200   # Hard cap on injected context tokens (default: 1200)
+decay_enabled = true        # Run salience decay each session (default: true)
+consolidate_on_exit = false # Run sleep-cycle consolidation when the REPL exits
+encryption = false          # AES-256-GCM at rest — run /openmemory encrypt to enable
+
+# Verbatim drawer layer (MemPalace techniques)
+drawer_chunk_size = 800     # Characters per verbatim chunk (default: 800)
+drawer_overlap = 100        # Overlap between adjacent chunks (default: 100)
+drawer_dedup_threshold = 0.85   # Cosine near-dedup threshold (default: 0.85)
+
+# 4-layer context tuning
+l1_tokens = 700             # Token budget for Essential Story (L1) layer
+l2_limit = 8                # Max results from scoped semantic search (L2)
+l3_threshold = 3            # Trigger L3 (verbatim drawers) when L2 < this many results
+```
+
+### Storage paths
+
+| Surface | Default path |
+|---------|-------------|
+| VibeCLI global | `~/.local/share/vibecli/openmemory/` |
+| VibeCLI project-scoped | `<workspace>/.vibecli/openmemory/` |
+| VibeUI | `~/.local/share/vibeui/openmemory/` |
+
+Each store contains four files: `memories.json`, `waypoints.json`, `facts.json`, `drawers.json`.
+
+### Encryption
+
+To enable AES-256-GCM encryption at rest, run `/openmemory encrypt` in the REPL or set `encryption = true` in `config.toml`. The key is stored at `<store>/.key` (mode 0600).
+
+To use a passphrase instead of a stored key:
+
+```bash
+VIBECLI_MEMORY_KEY="$(pass show vibecli/memory)" vibecli
+```
+
+### Tuning decay rates
+
+Each sector has an independent decay rate (fraction of salience lost per day when a memory is not accessed):
+
+```toml
+[openmemory.decay]
+episodic   = 0.015   # ~67 days to half-salience
+semantic   = 0.005   # ~200 days to half-salience
+procedural = 0.008   # ~125 days to half-salience
+emotional  = 0.020   # ~50 days to half-salience
+reflective = 0.001   # ~1000 days to half-salience (very persistent)
+purge_threshold = 0.05  # Remove memories below 5% salience
+```
+
+### Disabling memory injection for a session
+
+```bash
+vibecli --no-memory                    # Skip injection entirely
+vibecli --memory-scope ./my-project    # Use project-scoped store only
+vibecli --dry-run-memory "query"       # Print what would be injected, then exit
+```
+
 
 ## Rules Directory
 

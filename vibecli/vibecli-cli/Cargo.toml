@@ -138,3 +138,94 @@ harness = false
 name = "hook_abort_bdd"
 path = "tests/hook_abort_bdd.rs"
 harness = false
+
+# Design platform BDD test harnesses — Pencil, Draw.io, Penpot, Diagram Gen, Design Hub
+[[test]]
+name = "design_providers_bdd"
+path = "tests/design_providers_bdd.rs"
+harness = false
+
+[[test]]
+name = "drawio_integration_bdd"
+path = "tests/drawio_integration_bdd.rs"
+harness = false
+
+[[test]]
+name = "pencil_integration_bdd"
+path = "tests/pencil_integration_bdd.rs"
+harness = false
+
+[[test]]
+name = "penpot_integration_bdd"
+path = "tests/penpot_integration_bdd.rs"
+harness = false
+
+[[test]]
+name = "diagram_generator_bdd"
+path = "tests/diagram_generator_bdd.rs"
+harness = false
+
+[[test]]
+name = "design_system_hub_bdd"
+path = "tests/design_system_hub_bdd.rs"
+harness = false
+
+[[test]]
+name = "reasoning_provider_bdd"
+path = "tests/reasoning_provider_bdd.rs"
+harness = false
+
+[[test]]
+name = "autodream_bdd"
+path = "tests/autodream_bdd.rs"
+harness = false
+
+[[test]]
+name = "prompt_cache_bdd"
+path = "tests/prompt_cache_bdd.rs"
+harness = false
+
+[[test]]
+name = "alt_explore_bdd"
+path = "tests/alt_explore_bdd.rs"
+harness = false
+
+[[test]]
+name = "app_server_bdd"
+path = "tests/app_server_bdd.rs"
+harness = false
+
+[[test]]
+name = "computer_use_bdd"
+path = "tests/computer_use_bdd.rs"
+harness = false
+
+[[test]]
+name = "task_scheduler_bdd"
+path = "tests/task_scheduler_bdd.rs"
+harness = false
+
+[[test]]
+name = "plugin_bundle_bdd"
+path = "tests/plugin_bundle_bdd.rs"
+harness = false
+
+[[test]]
+name = "long_session_bdd"
+path = "tests/long_session_bdd.rs"
+harness = false
+
+[[test]]
+name = "sandbox_windows_bdd"
+path = "tests/sandbox_windows_bdd.rs"
+harness = false
+
+[[test]]
+name = "dispatch_remote_bdd"
+path = "tests/dispatch_remote_bdd.rs"
+harness = false
+
+[[test]]
+name = "focus_view_bdd"
+path = "tests/focus_view_bdd.rs"
+harness = false

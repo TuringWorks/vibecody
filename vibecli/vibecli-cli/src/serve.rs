@@ -18,6 +18,25 @@
 //! | GET    | `/sessions.json`          | JSON list of all sessions            |
 //! | GET    | `/view/:id`               | HTML page for a specific session     |
 //! | GET    | `/share/:id`              | Shareable readonly session view (adds "Shared" banner) |
+//! | POST   | `/memory/add`             | Add a cognitive memory               |
+//! | POST   | `/memory/query`           | Semantic query with composite scoring |
+//! | GET    | `/memory/list`            | List all memories                    |
+//! | GET    | `/memory/stats`           | Sector counts + total_drawers        |
+//! | POST   | `/memory/fact`            | Add a temporal fact                  |
+//! | GET    | `/memory/facts`           | List active facts                    |
+//! | POST   | `/memory/decay`           | Run salience decay                   |
+//! | POST   | `/memory/consolidate`     | Sleep-cycle consolidation            |
+//! | GET    | `/memory/export`          | Export memories as markdown          |
+//! | POST   | `/memory/import`          | Import from mem0 / Zep / native JSON |
+//! | POST   | `/memory/pin`             | Pin a memory (exempt from decay)     |
+//! | POST   | `/memory/unpin`           | Unpin a memory (resume decay)        |
+//! | POST   | `/memory/delete`          | Delete a memory permanently          |
+//! | POST   | `/memory/chunk`           | Ingest text as verbatim 800-char chunks |
+//! | GET    | `/memory/drawers/stats`   | Drawer count + Wing/Room distribution |
+//! | POST   | `/memory/tunnel`          | Create a cross-project waypoint      |
+//! | POST   | `/memory/auto-tunnel`     | Auto-detect and create tunnel waypoints |
+//! | POST   | `/memory/context`         | Get 4-layer agent context block      |
+//! | GET    | `/memory/benchmark`       | LongMemEval recall@K (default k=5)   |
 //!
 //! # Usage
 //!
@@ -1351,6 +1370,17 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/memory/decay", post(memory_decay))
         .route("/memory/consolidate", post(memory_consolidate))
         .route("/memory/export", get(memory_export))
+        .route("/memory/import", post(memory_import))
+        .route("/memory/pin", post(memory_pin))
+        .route("/memory/unpin", post(memory_unpin))
+        .route("/memory/delete", post(memory_delete))
+        // MemPalace verbatim drawer + benchmark endpoints
+        .route("/memory/chunk", post(memory_chunk))
+        .route("/memory/drawers/stats", get(memory_drawers_stats))
+        .route("/memory/tunnel", post(memory_tunnel))
+        .route("/memory/auto-tunnel", post(memory_auto_tunnel))
+        .route("/memory/context", post(memory_context))
+        .route("/memory/benchmark", get(memory_benchmark))
         // Vulnerability Scanner — industry-grade SCA + SAST
         .route("/vulnscan/scan", post(vulnscan_scan))
         .route("/vulnscan/file", post(vulnscan_file))
@@ -1994,6 +2024,8 @@ async fn memory_stats(_state: State<ServeState>) -> Json<serde_json::Value> {
         "total_memories": store.total_memories(),
         "total_waypoints": store.total_waypoints(),
         "total_facts": store.total_facts(),
+        "total_drawers": store.drawer_store().len(),
+        "encryption": false,
         "sectors": sectors,
     }))
 }
@@ -2043,6 +2075,263 @@ async fn memory_consolidate(_state: State<ServeState>) -> Json<serde_json::Value
 async fn memory_export(_state: State<ServeState>) -> (StatusCode, String) {
     let store = load_memory_store();
     (StatusCode::OK, store.export_markdown())
+}
+
+#[derive(Deserialize)]
+struct MemoryIdRequest {
+    id: String,
+}
+
+async fn memory_pin(
+    _state: State<ServeState>,
+    Json(req): Json<MemoryIdRequest>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let mut store = load_memory_store();
+    if store.pin(&req.id) {
+        let _ = store.save();
+        (StatusCode::OK, Json(serde_json::json!({ "pinned": true, "id": req.id })))
+    } else {
+        json_error(StatusCode::NOT_FOUND, format!("memory '{}' not found or already pinned", req.id))
+    }
+}
+
+async fn memory_unpin(
+    _state: State<ServeState>,
+    Json(req): Json<MemoryIdRequest>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let mut store = load_memory_store();
+    if store.unpin(&req.id) {
+        let _ = store.save();
+        (StatusCode::OK, Json(serde_json::json!({ "pinned": false, "id": req.id })))
+    } else {
+        json_error(StatusCode::NOT_FOUND, format!("memory '{}' not found or not pinned", req.id))
+    }
+}
+
+async fn memory_delete(
+    _state: State<ServeState>,
+    Json(req): Json<MemoryIdRequest>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let mut store = load_memory_store();
+    if store.delete(&req.id) {
+        let _ = store.save();
+        (StatusCode::OK, Json(serde_json::json!({ "deleted": true, "id": req.id })))
+    } else {
+        json_error(StatusCode::NOT_FOUND, format!("memory '{}' not found", req.id))
+    }
+}
+
+#[derive(Deserialize)]
+struct MemoryImportRequest {
+    /// JSON content to import.
+    content: String,
+    /// Format hint: "mem0", "zep", "openmemory", or "auto" (default).
+    #[serde(default = "default_import_format")]
+    format: String,
+}
+
+fn default_import_format() -> String { "auto".to_string() }
+
+async fn memory_import(
+    _state: State<ServeState>,
+    Json(req): Json<MemoryImportRequest>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let mut store = load_memory_store();
+    let result = match req.format.as_str() {
+        "mem0" => crate::open_memory::import_from_mem0(&mut store, &req.content),
+        "zep"  => crate::open_memory::import_from_zep(&mut store, &req.content),
+        "openmemory" => store.import_openmemory_json(&req.content),
+        _ => {
+            // auto-detect: try each format in order
+            crate::open_memory::import_from_auto_memory(&mut store, &req.content)
+        }
+    };
+    match result {
+        Ok(imported) => {
+            let _ = store.save();
+            (StatusCode::OK, Json(serde_json::json!({
+                "imported": imported,
+                "total_memories": store.total_memories(),
+                "format_used": req.format,
+            })))
+        }
+        Err(e) => json_error(StatusCode::BAD_REQUEST, format!("import failed: {e}")),
+    }
+}
+
+// ── MemPalace verbatim drawer endpoints ───────────────────────────────────────
+
+#[derive(Deserialize)]
+struct MemoryChunkRequest {
+    /// Raw text to ingest as verbatim 800-char chunks.
+    content: String,
+    /// Optional source label (e.g. filename or session ID).
+    #[serde(default)]
+    source: String,
+}
+
+async fn memory_chunk(
+    _state: State<ServeState>,
+    Json(req): Json<MemoryChunkRequest>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let mut store = load_memory_store();
+    let source = if req.source.is_empty() { "api".to_string() } else { req.source };
+    let created = store.ingest_conversation_chunks(&req.content, &source);
+    match store.save() {
+        Ok(_) => (StatusCode::CREATED, Json(serde_json::json!({
+            "chunks_created": created,
+            "total_drawers": store.drawer_store().len(),
+        }))),
+        Err(e) => json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("save failed: {e}")),
+    }
+}
+
+async fn memory_drawers_stats(_state: State<ServeState>) -> Json<serde_json::Value> {
+    let store = load_memory_store();
+    let ds = store.drawer_store();
+    let total = ds.len();
+
+    // Wing and Room distributions from the raw drawers
+    let mut wings: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    let mut rooms: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    for d in ds.drawers() {
+        *wings.entry(d.wing.clone()).or_default() += 1;
+        *rooms.entry(d.room.clone()).or_default() += 1;
+    }
+    let wing_list: Vec<serde_json::Value> = wings.into_iter()
+        .map(|(w, c)| serde_json::json!({"wing": w, "count": c}))
+        .collect();
+    let room_list: Vec<serde_json::Value> = rooms.into_iter()
+        .map(|(r, c)| serde_json::json!({"room": r, "count": c}))
+        .collect();
+
+    Json(serde_json::json!({
+        "total_drawers": total,
+        "wings": wing_list,
+        "rooms": room_list,
+    }))
+}
+
+#[derive(Deserialize)]
+struct MemoryTunnelRequest {
+    src_id: String,
+    dst_id: String,
+    #[serde(default = "default_tunnel_weight")]
+    weight: f64,
+}
+
+fn default_tunnel_weight() -> f64 { 0.8 }
+
+async fn memory_tunnel(
+    _state: State<ServeState>,
+    Json(req): Json<MemoryTunnelRequest>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let mut store = load_memory_store();
+    let created = store.add_cross_project_waypoint(&req.src_id, &req.dst_id, req.weight);
+    match store.save() {
+        Ok(_) => {
+            let status = if created { StatusCode::CREATED } else { StatusCode::OK };
+            (status, Json(serde_json::json!({
+                "created": created,
+                "src_id": req.src_id,
+                "dst_id": req.dst_id,
+                "weight": req.weight,
+            })))
+        }
+        Err(e) => json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("save failed: {e}")),
+    }
+}
+
+#[derive(Deserialize)]
+struct MemoryAutoTunnelRequest {
+    #[serde(default = "default_auto_tunnel_threshold")]
+    threshold: f64,
+}
+
+fn default_auto_tunnel_threshold() -> f64 { 0.75 }
+
+async fn memory_auto_tunnel(
+    _state: State<ServeState>,
+    Json(req): Json<MemoryAutoTunnelRequest>,
+) -> Json<serde_json::Value> {
+    // Auto-tunnel between the global default store and the project-scoped store
+    let global = load_memory_store();
+    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    let project = crate::open_memory::project_scoped_store(&cwd);
+    let created = crate::open_memory::OpenMemoryStore::tunnel_across_stores(
+        &mut [global, project],
+        req.threshold,
+    );
+    Json(serde_json::json!({
+        "tunnels_created": created,
+        "threshold": req.threshold,
+    }))
+}
+
+#[derive(Deserialize)]
+struct MemoryContextRequest {
+    query: String,
+    #[serde(default = "default_l1_tokens")]
+    l1_tokens: usize,
+    #[serde(default = "default_l2_limit")]
+    l2_limit: usize,
+    #[serde(default = "default_l3_threshold")]
+    l3_threshold: usize,
+}
+
+fn default_l1_tokens() -> usize { 700 }
+fn default_l2_limit() -> usize { 8 }
+fn default_l3_threshold() -> usize { 3 }
+
+async fn memory_context(
+    _state: State<ServeState>,
+    Json(req): Json<MemoryContextRequest>,
+) -> Json<serde_json::Value> {
+    let store = load_memory_store();
+    let ctx = store.get_layered_context(&req.query, req.l1_tokens, req.l2_limit, req.l3_threshold);
+    Json(serde_json::json!({
+        "query": req.query,
+        "context": ctx,
+        "total_memories": store.total_memories(),
+        "total_drawers": store.drawer_store().len(),
+    }))
+}
+
+#[derive(Deserialize)]
+struct MemoryBenchmarkQuery {
+    #[serde(default = "default_bench_k")]
+    k: usize,
+}
+
+fn default_bench_k() -> usize { 5 }
+
+async fn memory_benchmark(
+    _state: State<ServeState>,
+    Query(params): Query<MemoryBenchmarkQuery>,
+) -> Json<serde_json::Value> {
+    let cases = crate::mem_benchmark::default_benchmark_cases();
+    let report = crate::mem_benchmark::run_benchmark(&cases, params.k);
+
+    let cases_out: Vec<serde_json::Value> = report.cases.iter().map(|c| {
+        serde_json::json!({
+            "query": c.query,
+            "expected_answer": c.expected_answer,
+            "found_cognitive": c.found_cognitive,
+            "found_verbatim": c.found_verbatim,
+            "found_any": c.found_any,
+        })
+    }).collect();
+
+    Json(serde_json::json!({
+        "k": report.k,
+        "total_cases": report.total_cases,
+        "hits_cognitive": (report.recall_cognitive * report.total_cases as f64).round() as usize,
+        "hits_verbatim":  (report.recall_verbatim  * report.total_cases as f64).round() as usize,
+        "recall_cognitive": report.recall_cognitive,
+        "recall_verbatim":  report.recall_verbatim,
+        "recall_combined":  report.recall_combined,
+        "cases": cases_out,
+    }))
 }
 
 // ── Vulnerability Scanner REST API ────────────────────────────────────────────
@@ -3957,5 +4246,120 @@ mod tests {
         let json = r#"{"approval":"full-auto"}"#;
         let result = serde_json::from_str::<AgentRequest>(json);
         assert!(result.is_err(), "AgentRequest without 'task' should fail to parse");
+    }
+
+    // ── MemPalace endpoint request structs ────────────────────────────────
+
+    #[test]
+    fn memory_chunk_request_defaults_source_to_empty() {
+        let json = r#"{"content":"hello world"}"#;
+        let req: MemoryChunkRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.content, "hello world");
+        assert_eq!(req.source, "");
+    }
+
+    #[test]
+    fn memory_chunk_request_accepts_explicit_source() {
+        let json = r#"{"content":"some text","source":"runbook.txt"}"#;
+        let req: MemoryChunkRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.source, "runbook.txt");
+    }
+
+    #[test]
+    fn memory_tunnel_request_defaults_weight() {
+        let json = r#"{"src_id":"mem_aaa","dst_id":"mem_bbb"}"#;
+        let req: MemoryTunnelRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.src_id, "mem_aaa");
+        assert_eq!(req.dst_id, "mem_bbb");
+        assert!((req.weight - 0.8).abs() < 1e-9, "default weight should be 0.8");
+    }
+
+    #[test]
+    fn memory_tunnel_request_accepts_custom_weight() {
+        let json = r#"{"src_id":"a","dst_id":"b","weight":0.95}"#;
+        let req: MemoryTunnelRequest = serde_json::from_str(json).unwrap();
+        assert!((req.weight - 0.95).abs() < 1e-9);
+    }
+
+    #[test]
+    fn memory_auto_tunnel_request_defaults_threshold() {
+        let json = r#"{}"#;
+        let req: MemoryAutoTunnelRequest = serde_json::from_str(json).unwrap();
+        assert!((req.threshold - 0.75).abs() < 1e-9, "default threshold should be 0.75");
+    }
+
+    #[test]
+    fn memory_context_request_defaults() {
+        let json = r#"{"query":"deploy process"}"#;
+        let req: MemoryContextRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.query, "deploy process");
+        assert_eq!(req.l1_tokens, 700);
+        assert_eq!(req.l2_limit, 8);
+        assert_eq!(req.l3_threshold, 3);
+    }
+
+    #[test]
+    fn memory_benchmark_query_defaults_k_to_5() {
+        let query: MemoryBenchmarkQuery = serde_json::from_str(r#"{"k":5}"#).unwrap();
+        assert_eq!(query.k, 5);
+        let default_query: MemoryBenchmarkQuery = serde_json::from_str(r#"{}"#).unwrap();
+        assert_eq!(default_query.k, 5);
+    }
+
+    #[test]
+    fn memory_benchmark_query_accepts_custom_k() {
+        let query: MemoryBenchmarkQuery = serde_json::from_str(r#"{"k":10}"#).unwrap();
+        assert_eq!(query.k, 10);
+    }
+
+    #[test]
+    fn default_helpers_return_expected_values() {
+        assert_eq!(default_tunnel_weight(), 0.8);
+        assert_eq!(default_auto_tunnel_threshold(), 0.75);
+        assert_eq!(default_l1_tokens(), 700);
+        assert_eq!(default_l2_limit(), 8);
+        assert_eq!(default_l3_threshold(), 3);
+        assert_eq!(default_bench_k(), 5);
+        assert_eq!(default_import_format(), "auto");
+    }
+
+    #[test]
+    fn memory_import_request_defaults_format_to_auto() {
+        let json = r#"{"content":"{\"memories\":[]}"}"#;
+        let req: MemoryImportRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.format, "auto");
+    }
+
+    #[test]
+    fn memory_import_request_accepts_explicit_format() {
+        for fmt in &["mem0", "zep", "openmemory", "auto"] {
+            let json = format!(r#"{{"content":"[]","format":"{}"}}"#, fmt);
+            let req: MemoryImportRequest = serde_json::from_str(&json).unwrap();
+            assert_eq!(&req.format, fmt);
+        }
+    }
+
+    #[test]
+    fn memory_id_request_roundtrip() {
+        let json = r#"{"id":"mem_abc123"}"#;
+        let req: MemoryIdRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.id, "mem_abc123");
+    }
+
+    #[test]
+    fn memory_id_request_accepts_prefix_ids() {
+        // Confirm short prefix IDs (as typed in the REPL) deserialize correctly
+        for id in &["mem_a3f8", "mem_b7e4", "abc", "mem_00000000"] {
+            let json = format!(r#"{{"id":"{}"}}"#, id);
+            let req: MemoryIdRequest = serde_json::from_str(&json).unwrap();
+            assert_eq!(&req.id, id);
+        }
+    }
+
+    #[test]
+    fn memory_id_request_requires_id_field() {
+        // Missing "id" field must fail deserialization
+        let result: Result<MemoryIdRequest, _> = serde_json::from_str(r#"{}"#);
+        assert!(result.is_err(), "MemoryIdRequest with no id should fail");
     }
 }

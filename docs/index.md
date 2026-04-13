@@ -28,6 +28,7 @@ Both tools are backed by a shared set of Rust library crates for AI provider int
 | [VibeUI Reference](./vibeui/) | Desktop editor features and setup |
 | [Design System](./design-system/) | Token-based UI system — colors, spacing, typography, components |
 | [Configuration Guide](./configuration/) | All configuration options for providers and UI |
+| [Memory Guide](./memory-guide/) | All memory layers — auto-recording, cognitive store, verbatim drawers, benchmarking |
 | [Architecture](./architecture/) | Crate structure, data flow, and design decisions |
 | [Roadmap v5](./ROADMAP-v5/) | Current roadmap and planned features |
 | [Plugin Development](./plugin-development/) | Build plugins, skills, hooks, WASM extensions, and MCP integrations |

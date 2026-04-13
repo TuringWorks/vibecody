@@ -161,3 +161,25 @@ pub mod perf_regression;
 pub mod prompt_vcs;
 pub mod repl_macros;
 pub mod semantic_search_v2;
+// Design platform — multi-provider (Pencil, Penpot, Draw.io, Figma, in-house)
+pub mod design_providers;
+pub mod drawio_connector;
+pub mod pencil_connector;
+pub mod penpot_connector;
+pub mod diagram_generator;
+pub mod design_system_hub;
+// FIT-GAP v12 — P1: reasoning, memory, caching, exploration, RPC
+pub mod reasoning_provider;
+pub mod autodream;
+pub mod prompt_cache;
+pub mod alt_explore;
+pub mod app_server;
+// FIT-GAP v12 — P2: desktop automation, scheduling, plugins
+pub mod computer_use;
+pub mod task_scheduler;
+pub mod plugin_bundle;
+// FIT-GAP v12 — P3: long sessions, Windows sandbox, dispatch, focus
+pub mod long_session;
+pub mod sandbox_windows;
+pub mod dispatch_remote;
+pub mod focus_view;

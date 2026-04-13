@@ -243,8 +243,32 @@ In REPL mode, the following slash commands are available:
 | Command | Description |
 |---------|-------------|
 | `/profile list\|show\|create\|delete` | Manage user profiles |
-| `/memory show\|edit` | View or edit persistent agent memory |
-| `/openmemory <sub>` | Cognitive memory engine: `add`, `query`, `list`, `delete`, `pin`, `unpin`, `fact`, `facts`, `decay`, `consolidate`, `reflect`, `summary`, `health`, `at-risk`, `dedup`, `ingest`, `import`, `stats`, `export`, `encrypt`, `context` |
+| `/memory show\|edit` | View or edit the auto-recording `memory.md` file |
+| `/openmemory` | Cognitive memory engine (shows help + live stats) |
+| `/openmemory add <text>` | Store a memory (sector auto-classified) |
+| `/openmemory query <text>` | Semantic search with 5-signal composite scoring |
+| `/openmemory list` | List all memories with sector, salience, tags |
+| `/openmemory stats` | Counts by sector, storage size, encryption status |
+| `/openmemory health` | Full health dashboard — diversity, at-risk, staleness |
+| `/openmemory at-risk` | Memories near the purge threshold (salience ≤ 0.15) |
+| `/openmemory dedup [thresh]` | Remove near-duplicate memories (default cosine: 0.92) |
+| `/openmemory fact <s> <p> <o>` | Add a temporal fact; auto-closes previous same-key fact |
+| `/openmemory facts` | Browse active and closed bi-temporal facts |
+| `/openmemory decay` | Run exponential salience decay manually |
+| `/openmemory consolidate` | Sleep-cycle: merge weak memories + generate reflections |
+| `/openmemory reflect` | One-off reflective memory generation |
+| `/openmemory summary` | User memory profile — top sectors, dominant tags |
+| `/openmemory export` | Dump all memories as markdown |
+| `/openmemory import [fmt] <file>` | Import from mem0 / Zep / native JSON (`auto` detects format) |
+| `/openmemory ingest <file>` | Chunk & store document as cognitive memories (400-char chunks) |
+| `/openmemory encrypt` | Enable AES-256-GCM encryption at rest |
+| `/openmemory context [query]` | Preview the 4-layer context block the agent receives |
+| `/openmemory layered [query]` | Alias for `context` with explicit layer labels |
+| `/openmemory chunk <text\|file:path>` | Ingest text as verbatim 800-char chunks (MemPalace — no LLM summarisation) |
+| `/openmemory drawers` | Verbatim drawer stats: total, Wing/Room distribution, dedup rate |
+| `/openmemory tunnel <id1> <id2> [w]` | Create a bidirectional cross-project waypoint (weight 0–1) |
+| `/openmemory auto-tunnel [thresh]` | Auto-detect similar memories across stores and create Tunnels |
+| `/openmemory benchmark [k]` | LongMemEval recall@K benchmark (default k=5) |
 
 ### Code Intelligence
 

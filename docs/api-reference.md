@@ -525,34 +525,180 @@ curl -X POST http://localhost:7878/webhook/skill/deploy-prod \
 
 ### Memory Endpoints
 
-The OpenMemory cognitive memory engine provides persistent, queryable memory.
+The OpenMemory cognitive memory engine provides persistent, queryable memory across two storage layers: the cognitive store (5-sector vector graph) and the verbatim drawer store (lossless 800-char chunks).
+
+All memory endpoints require authentication (`Authorization: Bearer $VIBECLI_TOKEN`).
+
+#### Cognitive store
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `POST` | `/memory/add` | Add a memory entry |
-| `POST` | `/memory/query` | Semantic memory query |
-| `GET` | `/memory/list` | List all memories |
-| `GET` | `/memory/stats` | Memory statistics |
-| `POST` | `/memory/fact` | Add a structured fact |
-| `GET` | `/memory/facts` | List all facts |
-| `POST` | `/memory/decay` | Run memory decay (forget old entries) |
-| `POST` | `/memory/consolidate` | Consolidate similar memories |
-| `GET` | `/memory/export` | Export all memory data |
+| `POST` | `/memory/add` | Add a memory entry (sector auto-classified) |
+| `POST` | `/memory/query` | Semantic search with composite scoring |
+| `GET` | `/memory/list` | List all memories (supports `?sector=` and `?limit=` params) |
+| `GET` | `/memory/stats` | Counts by sector, storage size, encryption status, drawer count |
+| `POST` | `/memory/fact` | Add a temporal fact (auto-closes previous same-key fact) |
+| `GET` | `/memory/facts` | List active and closed facts |
+| `POST` | `/memory/decay` | Run exponential salience decay |
+| `POST` | `/memory/consolidate` | Sleep-cycle consolidation — merge weak memories, generate reflections |
+| `GET` | `/memory/export` | Export all memories as JSON |
+| `POST` | `/memory/import` | Import memories from mem0 / Zep / native JSON |
+| `POST` | `/memory/pin` | Pin a memory by ID (exempt from decay and purge) |
+| `POST` | `/memory/unpin` | Remove the pin flag from a memory |
+| `POST` | `/memory/delete` | Delete a memory permanently by ID |
 
-All memory endpoints require authentication.
+#### Verbatim drawer layer (MemPalace)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/memory/chunk` | Ingest text as verbatim 800-char chunks |
+| `GET`  | `/memory/drawers/stats` | Drawer count, Wing/Room distribution, dedup hit rate |
+| `POST` | `/memory/tunnel` | Create a cross-project waypoint between two memories |
+| `POST` | `/memory/auto-tunnel` | Auto-detect and create tunnel waypoints across stores |
+| `GET`  | `/memory/benchmark` | Run LongMemEval recall@K (supports `?k=` param, default 5) |
+
+#### 4-layer context
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/memory/context` | Get the full 4-layer context block the agent would receive |
 
 ```bash
-# Add a memory
+# Add a cognitive memory
 curl -X POST http://localhost:7878/memory/add \
   -H "Authorization: Bearer $VIBECLI_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"content": "The auth module uses JWT with RS256 signing"}'
 
-# Query memories
+# Semantic query
 curl -X POST http://localhost:7878/memory/query \
   -H "Authorization: Bearer $VIBECLI_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"query": "How does authentication work?"}'
+  -d '{"query": "How does authentication work?", "limit": 5}'
+
+# Ingest raw text as verbatim chunks
+curl -X POST http://localhost:7878/memory/chunk \
+  -H "Authorization: Bearer $VIBECLI_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"content": "Runbook step 3: restart payment-worker pods after migration 0047..."}'
+
+# Get 4-layer agent context
+curl -X POST http://localhost:7878/memory/context \
+  -H "Authorization: Bearer $VIBECLI_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "deployment process", "l1_tokens": 700, "l2_limit": 8}'
+
+# Run recall benchmark at k=5
+curl "http://localhost:7878/memory/benchmark?k=5" \
+  -H "Authorization: Bearer $VIBECLI_TOKEN"
+
+# Pin a memory (survives decay and consolidation purge)
+curl -X POST http://localhost:7878/memory/pin \
+  -H "Authorization: Bearer $VIBECLI_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"id": "mem_c2a9"}'
+
+# Remove a pin
+curl -X POST http://localhost:7878/memory/unpin \
+  -H "Authorization: Bearer $VIBECLI_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"id": "mem_c2a9"}'
+
+# Delete a memory permanently
+curl -X POST http://localhost:7878/memory/delete \
+  -H "Authorization: Bearer $VIBECLI_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"id": "mem_d1f6"}'
+```
+
+**`/memory/pin`, `/memory/unpin`, `/memory/delete` responses:**
+
+```json
+{ "ok": true }
+```
+
+All three endpoints return `{"ok": false, "error": "memory not found"}` when the `id` does not match any stored memory.
+
+**`/memory/stats` response:**
+
+```json
+{
+  "total_memories": 47,
+  "total_waypoints": 12,
+  "total_facts": 9,
+  "total_drawers": 132,
+  "encryption": false,
+  "sectors": [
+    { "sector": "Semantic",   "count": 18, "avg_salience": 0.82, "pinned_count": 3 },
+    { "sector": "Episodic",   "count": 14, "avg_salience": 0.61, "pinned_count": 1 },
+    { "sector": "Procedural", "count": 11, "avg_salience": 0.75, "pinned_count": 2 },
+    { "sector": "Reflective", "count":  3, "avg_salience": 0.90, "pinned_count": 3 },
+    { "sector": "Emotional",  "count":  1, "avg_salience": 0.45, "pinned_count": 0 }
+  ]
+}
+```
+
+**`/memory/benchmark` response:**
+
+```json
+{
+  "k": 5,
+  "total_memories": 47,
+  "total_drawers": 132,
+  "probes": 20,
+  "hits_cognitive": 15,
+  "hits_verbatim": 18,
+  "recall_cognitive": 0.75,
+  "recall_verbatim": 0.90,
+  "recall_combined": 0.975,
+  "cases": [
+    { "sector": "episodic",   "query": "What was the last project I worked on?", "found_cognitive": true,  "found_verbatim": true  },
+    { "sector": "preference", "query": "What coding style does the user prefer?", "found_cognitive": false, "found_verbatim": true  }
+  ]
+}
+```
+
+### Tauri Commands (VibeUI)
+
+The following Tauri commands are available for the VibeUI frontend via `invoke()`. All commands are registered in `vibeui/src-tauri/src/lib.rs`.
+
+#### Memory commands
+
+| Command | Arguments | Returns |
+|---------|-----------|---------|
+| `openmemory_stats` | — | `{ total_memories, total_waypoints, total_facts, total_drawers, sectors[] }` |
+| `openmemory_add` | `content: string, tags?: string[]` | `{ id, sector, tags, weight, created_at }` |
+| `openmemory_query` | `query: string, limit?: number, sector?: string` | `QueryResult[]` |
+| `openmemory_list` | `offset?: number, limit?: number, sector?: string` | `Memory[]` |
+| `openmemory_facts` | — | `TemporalFact[]` |
+| `openmemory_add_fact` | `subject, predicate, object: string` | `TemporalFact` |
+| `openmemory_decay` | — | `{ decayed: number, remaining: number }` |
+| `openmemory_consolidate` | — | `{ merged: number, reflections_created: number }` |
+| `openmemory_export` | — | `string` (markdown) |
+| `openmemory_enable_encryption` | `key?: string` | `{ enabled: boolean }` |
+| `openmemory_pin` | `id: string` | `{ ok: boolean }` |
+| `openmemory_unpin` | `id: string` | `{ ok: boolean }` |
+| `openmemory_delete` | `id: string` | `{ ok: boolean }` |
+
+#### Verbatim drawer commands
+
+| Command | Arguments | Returns |
+|---------|-----------|---------|
+| `openmemory_drawer_stats` | — | `{ total_drawers, wings[], rooms[] }` |
+| `openmemory_layered_context` | `query: string, l1_tokens?: number, l2_limit?: number` | `{ l1_essential_story, l2_scoped[], l3_drawers[], total_drawers }` |
+| `openmemory_benchmark` | `k?: number` | `{ k, recall_cognitive, recall_verbatim, recall_combined, cases[], … }` |
+
+```typescript
+// Example: run benchmark and display results
+const result = await invoke<BenchmarkResult>('openmemory_benchmark', { k: 5 });
+console.log(`Combined Recall@5: ${(result.recall_combined * 100).toFixed(1)}%`);
+
+// Example: get layered context for a query
+const ctx = await invoke('openmemory_layered_context', {
+  query: 'deployment process',
+  l1Tokens: 700,
+  l2Limit: 8,
+});
 ```
 
 

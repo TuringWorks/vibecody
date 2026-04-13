@@ -160,6 +160,73 @@ LCS guard: files > 800,000 character-product fall back to a whole-file replace/d
 
 ## 5. Context & Memory Management
 
+### Three Memory Layers
+
+VibeCody provides three complementary memory systems, all injected into agent context automatically:
+
+| Layer | Storage | Best for |
+|-------|---------|----------|
+| **Auto-recording** | `~/.vibecli/memory.md` | Short-term session learnings |
+| **OpenMemory cognitive store** | `~/.local/share/vibecli/openmemory/` | Structured long-term memory, semantic search |
+| **Verbatim drawers** (MemPalace) | `drawers.json` inside the same store | Lossless recall of runbooks, specs, logs |
+
+### Auto-Recording (`memory.md`)
+
+When `[memory] auto_record = true`, session learnings are appended automatically after sessions with ≥ `min_session_steps` tool calls. The file is injected verbatim into every future system prompt.
+
+```toml
+[memory]
+auto_record = true
+min_session_steps = 3
+```
+
+### OpenMemory Cognitive Engine (`open_memory.rs`)
+
+**5 cognitive sectors** (each with independent decay rate):
+
+| Sector | Decay/day | Purpose |
+|--------|-----------|---------|
+| Episodic | 0.015 | Events and experiences |
+| Semantic | 0.005 | Facts and knowledge |
+| Procedural | 0.008 | How-to and workflows |
+| Emotional | 0.020 | Sentiment and reactions |
+| Reflective | 0.001 | Auto-generated meta-patterns |
+
+**Retrieval scoring** (composite of 5 signals):
+```
+score = 0.45 × semantic_similarity (HNSW + TF-IDF)
+      + 0.20 × salience             (post-decay)
+      + 0.15 × recency
+      + 0.10 × waypoint_graph_score
+      + 0.10 × sector_match_bonus
+```
+
+**4-layer context injection** — assembled before each agent turn:
+
+| Layer | Always? | Content |
+|-------|---------|---------|
+| L0 | Yes | User identity header (~100 tokens) |
+| L1 | Yes | Essential story — highest-salience memories (~700 tokens) |
+| L2 | When relevant | Wing/Room-scoped semantic search, top-8 results |
+| L3 | L2 fallback | Full semantic search + verbatim drawer chunks |
+
+**Temporal knowledge graph** — subject/predicate/object facts with `valid_from`/`valid_to` windows. Adding a new fact for the same key auto-closes the previous one. Bi-temporal design supports point-in-time queries.
+
+### Verbatim Drawers — MemPalace Technique (`open_memory.rs` DrawerStore)
+
+Lossless 800-char chunk storage. No LLM summarisation. Achieves 96.6% Recall@5 on LongMemEval vs ~74% for cognitive-only stores.
+
+Key parameters:
+- **Chunk size**: 800 chars
+- **Overlap**: 100 chars
+- **Exact dedup**: FNV-1a hash (O(1))
+- **Near-dedup**: cosine ≥ 0.85 within trailing 20-chunk window
+- **Wing** (project namespace) + **Room** (sector) — spatial pre-filter before vector search
+
+**Cross-project Tunnels** — bidirectional weighted waypoints between memories in different project stores. Created manually (`/openmemory tunnel`) or automatically (`/openmemory auto-tunnel [threshold]`).
+
+**LongMemEval benchmark** — built-in recall@K evaluation across 20 probe cases spanning all 5 sectors. Available as `/openmemory benchmark [k]` (REPL), `GET /memory/benchmark?k=5` (HTTP daemon), and in the VibeUI **Drawers** tab.
+
 ### Workspace Rules
 Rules are loaded in priority order:
 1. **System rules** (built-in)

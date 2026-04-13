@@ -263,6 +263,13 @@ pub mod model_marketplace;
 #[allow(dead_code)]
 mod issue_triage;
 pub mod warp_features;
+// Design platform — multi-provider (Pencil, Penpot, Draw.io, Figma, in-house)
+pub mod design_providers;
+pub mod drawio_connector;
+pub mod pencil_connector;
+pub mod penpot_connector;
+pub mod diagram_generator;
+pub mod design_system_hub;
 #[allow(dead_code)]
 mod observe_act;
 #[allow(dead_code)]
@@ -479,6 +486,20 @@ mod mem_benchmark;
 #[allow(dead_code)] mod prompt_vcs;
 #[allow(dead_code)] mod repl_macros;
 #[allow(dead_code)] mod semantic_search_v2;
+// FIT-GAP v12 — P1
+#[allow(dead_code)] mod reasoning_provider;
+#[allow(dead_code)] mod autodream;
+#[allow(dead_code)] mod prompt_cache;
+#[allow(dead_code)] mod alt_explore;
+#[allow(dead_code)] mod app_server;
+// FIT-GAP v12 — P2
+#[allow(dead_code)] mod task_scheduler;
+#[allow(dead_code)] mod plugin_bundle;
+// FIT-GAP v12 — P3
+#[allow(dead_code)] mod long_session;
+#[allow(dead_code)] mod sandbox_windows;
+#[allow(dead_code)] mod dispatch_remote;
+#[allow(dead_code)] mod focus_view;
 // RL-OS: Unified Reinforcement Learning Lifecycle Platform
 #[allow(dead_code)]
 mod rl_env_os;
@@ -8691,9 +8712,83 @@ async fn main() -> Result<()> {
                                         println!("At-risk memories ({} found, salience < 30%):\n", at_risk.len());
                                         for m in &at_risk {
                                             let snippet = &m.content[..m.content.len().min(60)];
-                                            println!("  [{}] sal={:.0}% \"{}\"", m.sector, m.effective_salience() * 100.0, snippet);
+                                            println!("  [{}] sal={:.0}% id={} \"{}\"",
+                                                m.sector, m.effective_salience() * 100.0,
+                                                &m.id[..8.min(m.id.len())], snippet);
                                         }
-                                        println!("\n  Pin them with /openmemory pin <id> or they may be purged.\n");
+                                        println!("\n  Pin them with /openmemory pin <id-prefix> or they may be purged.\n");
+                                    }
+                                }
+                                "pin" => {
+                                    if rest.is_empty() {
+                                        println!("Usage: /openmemory pin <id-prefix>\n");
+                                    } else {
+                                        let mut store = open_memory::project_scoped_store(&std::env::current_dir().unwrap_or_default());
+                                        let id = store.list_memories(0, usize::MAX)
+                                            .iter().find(|m| m.id.starts_with(rest)).map(|m| m.id.clone());
+                                        match id {
+                                            Some(ref full_id) if store.pin(full_id) => {
+                                                let _ = store.save();
+                                                println!("Pinned memory {} — exempt from decay and purge.\n", &full_id[..8.min(full_id.len())]);
+                                            }
+                                            Some(ref full_id) => println!("Memory {} is already pinned.\n", &full_id[..8.min(full_id.len())]),
+                                            None => println!("No memory found with prefix '{}'. Use /openmemory list to see IDs.\n", rest),
+                                        }
+                                    }
+                                }
+                                "unpin" => {
+                                    if rest.is_empty() {
+                                        println!("Usage: /openmemory unpin <id-prefix>\n");
+                                    } else {
+                                        let mut store = open_memory::project_scoped_store(&std::env::current_dir().unwrap_or_default());
+                                        let id = store.list_memories(0, usize::MAX)
+                                            .iter().find(|m| m.id.starts_with(rest)).map(|m| m.id.clone());
+                                        match id {
+                                            Some(ref full_id) if store.unpin(full_id) => {
+                                                let _ = store.save();
+                                                println!("Unpinned memory {} — now subject to salience decay.\n", &full_id[..8.min(full_id.len())]);
+                                            }
+                                            Some(ref full_id) => println!("Memory {} is not pinned.\n", &full_id[..8.min(full_id.len())]),
+                                            None => println!("No memory found with prefix '{}'. Use /openmemory list to see IDs.\n", rest),
+                                        }
+                                    }
+                                }
+                                "delete" | "remove" => {
+                                    if rest.is_empty() {
+                                        println!("Usage: /openmemory delete <id-prefix>\n");
+                                    } else {
+                                        let mut store = open_memory::project_scoped_store(&std::env::current_dir().unwrap_or_default());
+                                        let id = store.list_memories(0, usize::MAX)
+                                            .iter().find(|m| m.id.starts_with(rest)).map(|m| m.id.clone());
+                                        match id {
+                                            Some(ref full_id) if store.delete(full_id) => {
+                                                let _ = store.save();
+                                                println!("Deleted memory {}.\n", &full_id[..8.min(full_id.len())]);
+                                            }
+                                            Some(ref full_id) => println!("Could not delete memory {} (may be pinned).\n", &full_id[..8.min(full_id.len())]),
+                                            None => println!("No memory found with prefix '{}'. Use /openmemory list to see IDs.\n", rest),
+                                        }
+                                    }
+                                }
+                                "show" | "get" => {
+                                    if rest.is_empty() {
+                                        println!("Usage: /openmemory show <id-prefix>\n");
+                                    } else {
+                                        let store = open_memory::project_scoped_store(&std::env::current_dir().unwrap_or_default());
+                                        let mem = store.list_memories(0, usize::MAX)
+                                            .into_iter().find(|m| m.id.starts_with(rest));
+                                        match mem {
+                                            Some(m) => {
+                                                println!("Memory {}", &m.id[..8.min(m.id.len())]);
+                                                println!("  Sector:   {}", m.sector);
+                                                println!("  Salience: {:.0}%{}", m.effective_salience() * 100.0,
+                                                    if m.pinned { " [PINNED]" } else { "" });
+                                                println!("  Tags:     {}", if m.tags.is_empty() { "none".to_string() } else { m.tags.join(", ") });
+                                                println!("  Created:  {} secs ago", open_memory::epoch_secs_now().saturating_sub(m.created_at));
+                                                println!("\n  {}\n", m.content);
+                                            }
+                                            None => println!("No memory found with prefix '{}'. Use /openmemory list to see IDs.\n", rest),
+                                        }
                                     }
                                 }
                                 // ── MemPalace-derived commands ──────────────────────────────
@@ -8734,10 +8829,28 @@ async fn main() -> Result<()> {
                                         println!("  No drawers yet. Use '/openmemory chunk <text>' to ingest raw content.");
                                         println!("  Drawers are also auto-created after each agent session.\n");
                                     } else {
-                                        println!("  Drawers store raw 800-char chunks without LLM summarization.");
-                                        println!("  Searched at L3 in layered context (get_layered_context_default).\n");
-                                        // Wing/Room summary would require iterating drawers — just show count
-                                        println!("  Use '/openmemory context <query>' to see L1+L2+L3 layered retrieval.\n");
+                                        println!("  Chunk size: {} chars / {} overlap  |  Near-dedup threshold: {:.0}%\n",
+                                            ds.chunk_size, ds.overlap, ds.dedup_threshold * 100.0);
+                                        // Wing distribution
+                                        let mut wings: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
+                                        let mut rooms: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
+                                        for d in ds.drawers() {
+                                            *wings.entry(d.wing.as_str()).or_default() += 1;
+                                            *rooms.entry(d.room.as_str()).or_default() += 1;
+                                        }
+                                        let mut wing_vec: Vec<(&&str, &usize)> = wings.iter().collect();
+                                        wing_vec.sort_by(|a, b| b.1.cmp(a.1));
+                                        println!("  Wings (projects):");
+                                        for (w, c) in &wing_vec {
+                                            println!("    {:20} {:3} drawers", w, c);
+                                        }
+                                        let mut room_vec: Vec<(&&str, &usize)> = rooms.iter().collect();
+                                        room_vec.sort_by(|a, b| b.1.cmp(a.1));
+                                        println!("\n  Rooms (sectors):");
+                                        for (r, c) in &room_vec {
+                                            println!("    {:20} {:3} drawers", r, c);
+                                        }
+                                        println!("\n  Use '/openmemory context <query>' to see L1+L2+L3 layered retrieval.\n");
                                     }
                                 }
                                 "tunnel" => {
@@ -8813,9 +8926,13 @@ async fn main() -> Result<()> {
                                 }
                                 _ => {
                                     println!("VibeCody OpenMemory — Cognitive Memory Engine\n");
-                                    println!("  /openmemory add <content>                    — Store a memory (auto-classified)");
+                                    println!("  /openmemory add <content>                    — Store a memory (sector auto-classified)");
                                     println!("  /openmemory query <text>                     — Semantic search with composite scoring");
-                                    println!("  /openmemory list                             — List all memories");
+                                    println!("  /openmemory list                             — List all memories with salience + IDs");
+                                    println!("  /openmemory show <id-prefix>                 — Show a single memory in full");
+                                    println!("  /openmemory pin <id-prefix>                  — Pin memory (exempt from decay/purge)");
+                                    println!("  /openmemory unpin <id-prefix>                — Unpin memory (resume decay)");
+                                    println!("  /openmemory delete <id-prefix>               — Delete a memory permanently");
                                     println!("  /openmemory fact <subject> <pred> <object>   — Add temporal fact");
                                     println!("  /openmemory facts                            — Show current facts");
                                     println!("  /openmemory decay                            — Run exponential decay cycle");
@@ -8835,10 +8952,10 @@ async fn main() -> Result<()> {
                                     println!("");
                                     println!("  MemPalace techniques:");
                                     println!("  /openmemory chunk <text|file:<path>>         — Verbatim drawer ingest (no summarization)");
-                                    println!("  /openmemory drawers                          — Show verbatim drawer store stats");
+                                    println!("  /openmemory drawers                          — Show drawer store: Wing/Room breakdown");
                                     println!("  /openmemory tunnel <src-id> <dst-id> [w]    — Cross-project waypoint (Tunnel link)");
-                                    println!("  /openmemory benchmark [k]                    — LongMemEval recall@K benchmark (default k=5)");
-                                    println!("  /openmemory auto-tunnel [threshold]          — Auto-link semantically similar cross-project memories\n");
+                                    println!("  /openmemory auto-tunnel [threshold]          — Auto-link semantically similar cross-project memories");
+                                    println!("  /openmemory benchmark [k]                    — LongMemEval recall@K benchmark (default k=5)\n");
                                     // Show quick stats
                                     let store = open_memory::OpenMemoryStore::load(
                                         dirs::data_dir().unwrap_or_else(|| std::path::PathBuf::from(".")).join("vibecli").join("openmemory"),
