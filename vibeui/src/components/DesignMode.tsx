@@ -345,7 +345,7 @@ try {
   );
 
   const renderGenerate = () => (
-    <div style={{ ...panelStyle, maxWidth: 600, margin: "0 auto" }}>
+    <div style={panelStyle}>
       <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 12 }}>Generate Component</div>
       <textarea
         value={aiInstruction}
@@ -449,7 +449,7 @@ try {
     const currentStep = figmaResult.length > 0 ? 2 : isGenerating ? 1 : 0;
     const btnDisabled = isGenerating || !figmaUrl.trim() || !figmaToken.trim();
     return (
-      <div style={{ ...panelStyle, maxWidth: 480 }}>
+      <div style={panelStyle}>
         {/* Workflow steps */}
         <div style={{ display: "flex", alignItems: "center", gap: 0, marginBottom: 14 }}>
           {steps.map((s, i) => (
