@@ -1,24 +1,24 @@
-Feature: Priority-queue task scheduler
-  The TaskScheduler enqueues tasks with priorities and optional run-after
-  timestamps, then dequeues them in priority order when they become eligible.
+Feature: Cron/interval task scheduler
+  The Scheduler manages ScheduledTask entries. Tasks fire when is_due()
+  returns true. tick() marks due tasks as run and advances their next_run_secs.
+  Once tasks complete after a single run.
 
-  Scenario: High-priority task is dequeued before low-priority
-    Given a scheduler with a Low task "low-task" and a High task "high-task"
-    When I pop a ready task at time 0
-    Then the task id should be "high-task"
+  Scenario: Interval task is due after its period has elapsed
+    Given a scheduler with an interval task "heartbeat" every 60 seconds starting at time 0
+    When I tick the scheduler at time 60
+    Then the ticked ids should include "heartbeat"
 
-  Scenario: Future-scheduled task is not returned before its time
-    Given a scheduler with a Normal task "future" scheduled at time 1000
-    When I pop a ready task at time 0
-    Then no task should be ready
+  Scenario: Task is not due before its period
+    Given a scheduler with an interval task "heartbeat" every 60 seconds starting at time 0
+    When I check due tasks at time 30
+    Then no tasks should be due
 
-  Scenario: Future task becomes ready after its scheduled time
-    Given a scheduler with a Normal task "future" scheduled at time 1000
-    When I pop a ready task at time 1000
-    Then the task id should be "future"
+  Scenario: Once task fires exactly at its scheduled time
+    Given a scheduler with a one-time task "deploy" at time 1000 created at time 0
+    When I check due tasks at time 1000
+    Then the due task should be "deploy"
 
-  Scenario: Scheduler is empty after all tasks are dequeued
-    Given a scheduler with a Normal task "only-task" and no delay
-    When I pop a ready task at time 0
-    Then the task id should be "only-task"
-    And the scheduler should be empty
+  Scenario: Task is removed by id
+    Given a scheduler with an interval task "cleanup" every 300 seconds starting at time 0
+    When I remove task "cleanup"
+    Then the scheduler should have 0 tasks

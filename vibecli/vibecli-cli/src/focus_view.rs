@@ -62,3 +62,75 @@ impl FocusManager {
         false
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_enter_focus_sets_active() {
+        let mut mgr = FocusManager::new();
+        assert!(!mgr.is_in_focus());
+        mgr.enter_focus(FocusConfig::default_deep(), 0);
+        assert!(mgr.is_in_focus());
+    }
+
+    #[test]
+    fn test_exit_focus_archives_session() {
+        let mut mgr = FocusManager::new();
+        mgr.enter_focus(FocusConfig::default_deep(), 0);
+        mgr.exit_focus(100);
+        assert!(!mgr.is_in_focus());
+        assert_eq!(mgr.session_count(), 1);
+    }
+
+    #[test]
+    fn test_record_distraction_increments_count() {
+        let mut mgr = FocusManager::new();
+        mgr.enter_focus(FocusConfig::default_deep(), 0);
+        mgr.record_distraction();
+        mgr.record_distraction();
+        assert_eq!(mgr.active.as_ref().unwrap().distraction_count, 2);
+    }
+
+    #[test]
+    fn test_record_distraction_no_session_is_noop() {
+        let mut mgr = FocusManager::new();
+        mgr.record_distraction(); // should not panic
+        assert!(mgr.active.is_none());
+    }
+
+    #[test]
+    fn test_auto_exit_triggers_after_limit() {
+        let mut mgr = FocusManager::new();
+        let cfg = FocusConfig { auto_exit_after_secs: Some(60), ..Default::default() };
+        mgr.enter_focus(cfg, 0);
+        assert!(mgr.should_auto_exit(60));
+        assert!(!mgr.should_auto_exit(59));
+    }
+
+    #[test]
+    fn test_no_auto_exit_when_limit_not_set() {
+        let mut mgr = FocusManager::new();
+        mgr.enter_focus(FocusConfig::default_deep(), 0);
+        assert!(!mgr.should_auto_exit(u64::MAX));
+    }
+
+    #[test]
+    fn test_notification_level_ordering() {
+        assert!(NotificationLevel::Verbose > NotificationLevel::Normal);
+        assert!(NotificationLevel::Normal > NotificationLevel::Minimal);
+        assert!(NotificationLevel::Minimal > NotificationLevel::Silent);
+    }
+
+    #[test]
+    fn test_multiple_sessions_accumulated() {
+        let mut mgr = FocusManager::new();
+        for i in 0..3u64 {
+            mgr.enter_focus(FocusConfig::default_deep(), i * 100);
+            mgr.exit_focus(i * 100 + 50);
+        }
+        assert_eq!(mgr.session_count(), 3);
+        assert!(!mgr.is_in_focus());
+    }
+}

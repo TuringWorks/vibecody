@@ -12,7 +12,7 @@
 //! 4. Renders the summary into a synthetic assistant continuation message.
 //!
 //! # Usage
-//! ```rust
+//! ```rust,ignore
 //! let engine = CompactionEngine::new(CompactionConfig::default());
 //! let compacted = engine.compact(&messages);
 //! ```
