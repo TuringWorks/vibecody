@@ -138,6 +138,31 @@ function FmtRow({ label, value }: { label: string; value: string }) {
  );
 }
 
+interface ContrastBadgeProps { ratio: number; bg: RGB; hexNorm: string }
+
+function ContrastBadge({ ratio, bg, hexNorm }: ContrastBadgeProps) {
+ const { aa, aaa, aaLg, aaaLg } = wcagGrade(ratio);
+ const isLightBg = luminance(bg) > 0.5;
+ return (
+ <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "10px 12px", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 6 }}>
+ <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+ <div style={{ width: 48, height: 28, background: rgbToHex(bg), border: "1px solid var(--border-color)", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center" }}>
+ <span style={{ fontSize: 12, fontWeight: 700, color: hexNorm }}>Aa</span>
+ </div>
+ <div>
+ <div style={{ fontSize: 15, fontWeight: 700, fontFamily: "var(--font-mono)", color: ratio >= 7 ? "var(--success-color, #a6e3a1)" : ratio >= 4.5 ? "var(--warning-color, #f9e2af)" : "var(--accent-rose)" }}>{ratio.toFixed(2)}:1</div>
+ <div style={{ fontSize: 9, color: "var(--text-secondary)" }}>on {isLightBg ? "light" : "dark"} bg</div>
+ </div>
+ <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+ {([["AA", aa],["AAA", aaa],["AA-lg", aaLg],["AAA-lg", aaaLg]] as [string,boolean][]).map(([label, pass]) => (
+ <span key={label} style={{ fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 4, background: pass ? "color-mix(in srgb, var(--accent-green) 15%, transparent)" : "color-mix(in srgb, var(--accent-rose) 10%, transparent)", border: `1px solid ${pass ? "var(--success-color, #a6e3a1)" : "var(--accent-rose)"}`, color: pass ? "var(--success-color, #a6e3a1)" : "var(--accent-rose)" }}>{pass ? "✓" : "✕"} {label}</span>
+ ))}
+ </div>
+ </div>
+ </div>
+ );
+}
+
 export function ColorConverterPanel() {
  const [hex, setHex] = useState("#89B4FA");
  const [alpha, setAlpha] = useState(100);
@@ -187,31 +212,6 @@ export function ColorConverterPanel() {
  { label: "Android color", value: `android:color="${hexNorm}"` },
  { label: "Swift UIColor", value: `UIColor(red: ${(rgb.r/255).toFixed(3)}, green: ${(rgb.g/255).toFixed(3)}, blue: ${(rgb.b/255).toFixed(3)}, alpha: ${a.toFixed(2)})` },
  ], [hexNorm, rgb, hsl, a, shades]);
-
- // ── Contrast badge ────────────────────────────────────────────────────────
-
- const ContrastBadge = ({ ratio, bg }: { ratio: number; bg: RGB }) => {
- const { aa, aaa, aaLg, aaaLg } = wcagGrade(ratio);
- const isLightBg = luminance(bg) > 0.5;
- return (
- <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "10px 12px", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 6 }}>
- <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
- <div style={{ width: 48, height: 28, background: rgbToHex(bg), border: "1px solid var(--border-color)", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center" }}>
- <span style={{ fontSize: 12, fontWeight: 700, color: hexNorm }}>Aa</span>
- </div>
- <div>
- <div style={{ fontSize: 15, fontWeight: 700, fontFamily: "var(--font-mono)", color: ratio >= 7 ? "var(--success-color, #a6e3a1)" : ratio >= 4.5 ? "var(--warning-color, #f9e2af)" : "var(--accent-rose)" }}>{ratio.toFixed(2)}:1</div>
- <div style={{ fontSize: 9, color: "var(--text-secondary)" }}>on {isLightBg ? "light" : "dark"} bg</div>
- </div>
- <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
- {([["AA", aa],["AAA", aaa],["AA-lg", aaLg],["AAA-lg", aaaLg]] as [string,boolean][]).map(([label, pass]) => (
- <span key={label} style={{ fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 4, background: pass ? "color-mix(in srgb, var(--accent-green) 15%, transparent)" : "color-mix(in srgb, var(--accent-rose) 10%, transparent)", border: `1px solid ${pass ? "var(--success-color, #a6e3a1)" : "var(--accent-rose)"}`, color: pass ? "var(--success-color, #a6e3a1)" : "var(--accent-rose)" }}>{pass ? "✓" : "✕"} {label}</span>
- ))}
- </div>
- </div>
- </div>
- );
- };
 
  const TABS: { id: SubTab; label: string }[] = [
  { id: "convert", label: "Convert" },
@@ -313,8 +313,8 @@ export function ColorConverterPanel() {
  {/* ── CONTRAST ── */}
  {subTab === "contrast" && (
  <div style={{ padding: "12px", display: "flex", flexDirection: "column", gap: 12 }}>
- <ContrastBadge ratio={contrastWhite} bg={WHITE} />
- <ContrastBadge ratio={contrastBlack} bg={BLACK} />
+ <ContrastBadge ratio={contrastWhite} bg={WHITE} hexNorm={hexNorm} />
+ <ContrastBadge ratio={contrastBlack} bg={BLACK} hexNorm={hexNorm} />
 
  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
  <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>Custom background:</span>
@@ -326,7 +326,7 @@ export function ColorConverterPanel() {
  <input value={bgHex} onChange={e => setBgHex(e.target.value)} maxLength={7}
  style={{ width: 90, padding: "3px 6px", fontSize: 11, fontFamily: "var(--font-mono)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none" }} />
  </div>
- <ContrastBadge ratio={contrastCustom} bg={bgRgb} />
+ <ContrastBadge ratio={contrastCustom} bg={bgRgb} hexNorm={hexNorm} />
 
  <div style={{ padding: "10px 12px", background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)", fontSize: 11, lineHeight: 1.8, color: "var(--text-secondary)" }}>
  <strong style={{ color: "var(--text-info, #89b4fa)" }}>WCAG 2.1 thresholds:</strong><br/>

@@ -87,7 +87,7 @@ export default function SteeringPanel({ workspaceRoot }: SteeringPanelProps) {
  setShowTemplates(false);
  }
 
- function useTemplate(tpl: (typeof TEMPLATES)[number]) {
+ function applyTemplate(tpl: (typeof TEMPLATES)[number]) {
  setEditFilename(tpl.filename);
  setEditContent(tpl.content);
  setIsNew(true);
@@ -169,7 +169,7 @@ export default function SteeringPanel({ workspaceRoot }: SteeringPanelProps) {
  <div style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: 6, padding: 8, display: "flex", gap: 6, flexWrap: "wrap" }}>
  <span style={{ color: "var(--text-secondary)", fontSize: 11, width: "100%" }}>Choose a template to get started:</span>
  {TEMPLATES.map((tpl) => (
- <button key={tpl.label} onClick={() => useTemplate(tpl)} className="panel-btn panel-btn-secondary" style={{ padding: "4px 10px" }}>
+ <button key={tpl.label} onClick={() => applyTemplate(tpl)} className="panel-btn panel-btn-secondary" style={{ padding: "4px 10px" }}>
  {tpl.label}
  </button>
  ))}

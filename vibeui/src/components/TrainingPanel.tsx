@@ -434,7 +434,7 @@ export function TrainingPanel() {
                 checked={loraTargets.has(mod)}
                 onChange={(e) => {
                   const next = new Set(loraTargets);
-                  e.target.checked ? next.add(mod) : next.delete(mod);
+                  if (e.target.checked) next.add(mod); else next.delete(mod);
                   setLoraTargets(next);
                 }}
               />

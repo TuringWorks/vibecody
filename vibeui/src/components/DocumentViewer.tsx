@@ -511,9 +511,9 @@ function parseZipEntries(data: Uint8Array): ZipEntry[] {
         entries.push({
           filename,
           data: rawDeflated, // Will be inflated in post-processing
-          // @ts-ignore  — mark for decompression
+          // @ts-expect-error  — mark for decompression
           _compressed: true,
-          // @ts-ignore
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           _uncompressedSize: uncompressedSize,
         });
       } catch {
@@ -535,7 +535,7 @@ function inflateEntries(entries: ZipEntry[]): ZipEntry[] {
   const result: ZipEntry[] = [];
 
   for (const entry of entries) {
-    // @ts-ignore
+    // @ts-expect-error — _compressed is a dynamic marker not in the ZipEntry type
     if (entry._compressed) {
       // Try using DecompressionStream
       if (typeof DecompressionStream !== "undefined") {

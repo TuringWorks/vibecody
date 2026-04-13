@@ -126,9 +126,9 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
 <html>
 <head>
 <meta charset="utf-8"/>
-<script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin><\/script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin><\/script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"><\/script>
+<script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; }
   body { margin: 0; padding: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #fff; color: #111; }
@@ -142,7 +142,7 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
 window.onerror = function(msg, src, line, col, err) {
   document.getElementById('error-display').textContent = 'Error: ' + msg + '\\nLine: ' + line;
 };
-<\/script>
+</script>
 <script type="text/babel">
 const { useState, useEffect, useRef, useCallback, useMemo, useReducer, useContext, createContext, Fragment } = React;
 ${clean}
@@ -153,7 +153,7 @@ try {
 } catch (e) {
   document.getElementById('error-display').textContent = 'Render error: ' + e.message;
 }
-<\/script>
+</script>
 </body>
 </html>`;
   }, []);

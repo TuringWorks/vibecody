@@ -97,6 +97,76 @@ function charName(cp: number): string {
   return `U+${cpToHex(cp)}`;
 }
 
+interface CharGridProps {
+  chars: CharInfo[];
+  selected: CharInfo | null;
+  onSelect: (info: CharInfo) => void;
+}
+
+function CharGrid({ chars, selected, onSelect }: CharGridProps) {
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 3, padding: 8 }}>
+      {chars.map((info) => (
+        <button key={info.cp} onClick={() => onSelect(info)} title={`${info.name} U+${cpToHex(info.cp)}`}
+          style={{
+            width: 38, height: 38, display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 18, background: selected?.cp === info.cp ? "var(--accent-color)" : "var(--bg-secondary)",
+            border: `1px solid ${selected?.cp === info.cp ? "var(--accent-color)" : "var(--border-color)"}`,
+            borderRadius: 4, cursor: "pointer", color: "var(--text-primary)",
+            transition: "background 0.1s",
+          }}>
+          {info.char}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+interface InfoPanelProps {
+  info: CharInfo;
+  toggleFavorite: (info: CharInfo) => void;
+  isFav: (cp: number) => boolean;
+}
+
+function InfoPanel({ info, toggleFavorite, isFav }: InfoPanelProps) {
+  return (
+    <div style={{ padding: "12px 16px", borderTop: "1px solid var(--border-color)", background: "var(--bg-secondary)", flexShrink: 0 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+        <div style={{ fontSize: 40, lineHeight: 1, width: 52, height: 52, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 6 }}>
+          {info.char}
+        </div>
+        <div>
+          <div style={{ fontWeight: 600, fontSize: 14 }}>{info.name}</div>
+          <div style={{ color: "var(--text-secondary)", fontSize: 12, fontFamily: "var(--font-mono)" }}>U+{cpToHex(info.cp)} · dec {info.cp}</div>
+        </div>
+        <button onClick={() => toggleFavorite(info)}
+          style={{ marginLeft: "auto", background: "none", border: "1px solid var(--border-color)", borderRadius: 4, padding: "4px 8px", cursor: "pointer", color: isFav(info.cp) ? "#f5a623" : "var(--text-secondary)", fontSize: 16 }}>
+          {isFav(info.cp) ? "★" : "☆"}
+        </button>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 6 }}>
+        {[
+          { label: "Character", value: info.char },
+          { label: "HTML entity", value: htmlEntity(info.cp) },
+          { label: "CSS escape", value: cssEscape(info.cp) },
+          { label: "JS escape", value: jsEscape(info.cp) },
+          { label: "UTF-8 hex", value: Array.from(new TextEncoder().encode(info.char)).map(b => b.toString(16).toUpperCase().padStart(2, "0")).join(" ") },
+          { label: "Percent-encoded", value: encodeURIComponent(info.char) },
+        ].map(({ label, value }) => (
+          <div key={label} style={{ background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, padding: "5px 8px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>
+            <div>
+              <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>{label}</div>
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>{value}</div>
+            </div>
+            <button onClick={() => navigator.clipboard.writeText(value)}
+              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", fontSize: 11, flexShrink: 0 }}>⎘</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function UnicodePanel() {
   const [blockIdx, setBlockIdx] = useState(0);
   const [selected, setSelected] = useState<CharInfo | null>(null);
@@ -161,60 +231,6 @@ export function UnicodePanel() {
     return out;
   }, [inputText]);
 
-  const CharGrid = ({ chars }: { chars: CharInfo[] }) => (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 3, padding: 8 }}>
-      {chars.map((info) => (
-        <button key={info.cp} onClick={() => setSelected(info)} title={`${info.name} U+${cpToHex(info.cp)}`}
-          style={{
-            width: 38, height: 38, display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 18, background: selected?.cp === info.cp ? "var(--accent-color)" : "var(--bg-secondary)",
-            border: `1px solid ${selected?.cp === info.cp ? "var(--accent-color)" : "var(--border-color)"}`,
-            borderRadius: 4, cursor: "pointer", color: "var(--text-primary)",
-            transition: "background 0.1s",
-          }}>
-          {info.char}
-        </button>
-      ))}
-    </div>
-  );
-
-  const InfoPanel = ({ info }: { info: CharInfo }) => (
-    <div style={{ padding: "12px 16px", borderTop: "1px solid var(--border-color)", background: "var(--bg-secondary)", flexShrink: 0 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
-        <div style={{ fontSize: 40, lineHeight: 1, width: 52, height: 52, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 6 }}>
-          {info.char}
-        </div>
-        <div>
-          <div style={{ fontWeight: 600, fontSize: 14 }}>{info.name}</div>
-          <div style={{ color: "var(--text-secondary)", fontSize: 12, fontFamily: "var(--font-mono)" }}>U+{cpToHex(info.cp)} · dec {info.cp}</div>
-        </div>
-        <button onClick={() => toggleFavorite(info)}
-          style={{ marginLeft: "auto", background: "none", border: "1px solid var(--border-color)", borderRadius: 4, padding: "4px 8px", cursor: "pointer", color: isFav(info.cp) ? "#f5a623" : "var(--text-secondary)", fontSize: 16 }}>
-          {isFav(info.cp) ? "★" : "☆"}
-        </button>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 6 }}>
-        {[
-          { label: "Character", value: info.char },
-          { label: "HTML entity", value: htmlEntity(info.cp) },
-          { label: "CSS escape", value: cssEscape(info.cp) },
-          { label: "JS escape", value: jsEscape(info.cp) },
-          { label: "UTF-8 hex", value: Array.from(new TextEncoder().encode(info.char)).map(b => b.toString(16).toUpperCase().padStart(2, "0")).join(" ") },
-          { label: "Percent-encoded", value: encodeURIComponent(info.char) },
-        ].map(({ label, value }) => (
-          <div key={label} style={{ background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, padding: "5px 8px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>
-            <div>
-              <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>{label}</div>
-              <div style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>{value}</div>
-            </div>
-            <button onClick={() => navigator.clipboard.writeText(value)}
-              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", fontSize: 11, flexShrink: 0 }}>⎘</button>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-
   const TABS = [
     { id: "browse" as const, label: "Browse" },
     { id: "search" as const, label: "Search" },
@@ -248,9 +264,9 @@ export function UnicodePanel() {
           {/* Grid + info */}
           <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
             <div style={{ flex: 1, overflowY: "auto" }}>
-              <CharGrid chars={blockChars} />
+              <CharGrid chars={blockChars} selected={selected} onSelect={setSelected} />
             </div>
-            {selected && <InfoPanel info={selected} />}
+            {selected && <InfoPanel info={selected} toggleFavorite={toggleFavorite} isFav={isFav} />}
           </div>
         </div>
       )}
@@ -267,14 +283,14 @@ export function UnicodePanel() {
           <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
             <div style={{ flex: 1, overflowY: "auto" }}>
               {searchResults.length > 0 ? (
-                <CharGrid chars={searchResults} />
+                <CharGrid chars={searchResults} selected={selected} onSelect={setSelected} />
               ) : search ? (
                 <div style={{ padding: 24, color: "var(--text-secondary)", textAlign: "center" }}>No characters found</div>
               ) : (
                 <div style={{ padding: 24, color: "var(--text-secondary)", textAlign: "center" }}>Type a character name or code point above</div>
               )}
             </div>
-            {selected && <InfoPanel info={selected} />}
+            {selected && <InfoPanel info={selected} toggleFavorite={toggleFavorite} isFav={isFav} />}
           </div>
         </div>
       )}
@@ -297,11 +313,11 @@ export function UnicodePanel() {
                     Copy all
                   </button>
                 </div>
-                <CharGrid chars={favorites} />
+                <CharGrid chars={favorites} selected={selected} onSelect={setSelected} />
               </>
             )}
           </div>
-          {selected && <InfoPanel info={selected} />}
+          {selected && <InfoPanel info={selected} toggleFavorite={toggleFavorite} isFav={isFav} />}
         </div>
       )}
 
@@ -337,7 +353,7 @@ export function UnicodePanel() {
               </table>
             )}
           </div>
-          {selected && <InfoPanel info={selected} />}
+          {selected && <InfoPanel info={selected} toggleFavorite={toggleFavorite} isFav={isFav} />}
         </div>
       )}
     </div>

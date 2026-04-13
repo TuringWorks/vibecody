@@ -39,7 +39,7 @@ function toYaml(val: unknown, indent = 0): string {
  if (typeof val === "boolean" || typeof val === "number") return String(val);
  if (typeof val === "string") {
  // Needs quoting?
- if (/[:#\[\]{},|>&*!'"?@`]/.test(val) || val.includes("\n") || val.trim() !== val) {
+ if (/[:#[\]{},|>&*!'"?@`]/.test(val) || val.includes("\n") || val.trim() !== val) {
  return JSON.stringify(val);
  }
  return val || '""';

@@ -313,7 +313,7 @@ export function ApiDocsPanel({ workspacePath }: ApiDocsPanelProps) {
  try {
  const cleaned = text
  .replace(/^(\s*)(\w[\w-]*):\s*$/gm, '$1"$2": {}')
- .replace(/^(\s*)(\w[\w-]*):\s*"?([^"\n{}\[\]]+)"?\s*$/gm, '$1"$2": "$3"');
+ .replace(/^(\s*)(\w[\w-]*):\s*"?([^"\n{}[\]]+)"?\s*$/gm, '$1"$2": "$3"');
  return JSON.parse(cleaned) as OApiSpec;
  } catch {
  return null;

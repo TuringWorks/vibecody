@@ -34,6 +34,7 @@ const pctColor = (pct: number) => {
 // Strip ANSI escape codes and handle \r (carriage return) terminal overwrite semantics.
 // cargo uses \r to update progress lines in place; we keep only the final visible state.
 const processLogLine = (raw: string): string => {
+  // eslint-disable-next-line no-control-regex
   const s = raw.replace(/\x1B\[[0-9;]*[mGKHFJSTDCBAHfhu]/g, "");
   const parts = s.split("\r");
   for (let i = parts.length - 1; i >= 0; i--) {

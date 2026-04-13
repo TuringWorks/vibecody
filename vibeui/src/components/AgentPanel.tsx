@@ -606,7 +606,7 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  <button
  onClick={() => setExpandedSteps(prev => {
  const next = new Set(prev);
- next.has(i) ? next.delete(i) : next.add(i);
+ if (next.has(i)) next.delete(i); else next.add(i);
  return next;
  })}
  style={{ marginLeft: "16px", fontSize: "10px", background: "none", border: "none", cursor: "pointer", color: "var(--accent-color)", padding: "2px 0" }}

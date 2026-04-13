@@ -151,10 +151,6 @@ export function AuthPanel({ workspacePath, provider }: { workspacePath: string |
   const [fwSearch, setFwSearch] = useState("");
   const [langFilter, setLangFilter] = useState("All");
 
-  if (!workspacePath) {
-    return <div style={{ padding: 24, color: "var(--text-secondary)", textAlign: "center" }}>Open a workspace folder to generate auth scaffolding.</div>;
-  }
-
   const filteredFrameworks = useMemo(() => {
     let list = FRAMEWORKS;
     if (langFilter !== "All") list = list.filter(f => f.lang === langFilter);
@@ -164,6 +160,10 @@ export function AuthPanel({ workspacePath, provider }: { workspacePath: string |
     }
     return list;
   }, [fwSearch, langFilter]);
+
+  if (!workspacePath) {
+    return <div style={{ padding: 24, color: "var(--text-secondary)", textAlign: "center" }}>Open a workspace folder to generate auth scaffolding.</div>;
+  }
 
   const selectedFw = FRAMEWORKS.find(f => f.value === config.framework);
 

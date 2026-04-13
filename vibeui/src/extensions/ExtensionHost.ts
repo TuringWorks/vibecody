@@ -4,6 +4,7 @@
 type Thenable<T> = PromiseLike<T>;
 
 class Commands {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
     private commands = new Map<string, Function>();
     private postMessage: (message: any) => void;
 

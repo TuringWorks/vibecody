@@ -96,7 +96,7 @@ export function DiagramGeneratorPanel({ workspacePath, provider }: DiagramGenera
 <script type="module">
 import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
 mermaid.initialize({ startOnLoad: true, theme: 'dark' });
-<\/script>
+</script>
 </head>
 <body>
 <pre class="mermaid">${code.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</pre>
@@ -159,7 +159,7 @@ mermaid.initialize({ startOnLoad: true, theme: 'dark' });
     }
   };
 
-  const useSamplePrompt = (p: typeof SAMPLE_PROMPTS[0]) => {
+  const applySamplePrompt = (p: typeof SAMPLE_PROMPTS[0]) => {
     setDescription(p.text);
     setKind(p.kind);
     // Auto-pick best format
@@ -242,7 +242,7 @@ mermaid.initialize({ startOnLoad: true, theme: 'dark' });
             <div style={{ marginTop: 16 }}>
               <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 6, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>Examples</div>
               {SAMPLE_PROMPTS.map((p, i) => (
-                <button key={i} onClick={() => useSamplePrompt(p)}
+                <button key={i} onClick={() => applySamplePrompt(p)}
                   style={{ display: "block", width: "100%", textAlign: "left", background: "none", border: "none", borderBottom: "1px solid var(--border-color)", padding: "6px 0", cursor: "pointer", color: "var(--text-secondary)", fontSize: 12, lineHeight: 1.5 }}
                 >
                   <span style={{ color: "var(--accent-blue)", marginRight: 6 }}>[{KIND_LABELS[p.kind]}]</span>

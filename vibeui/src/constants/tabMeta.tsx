@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  MessageSquare, Brain, UsersRound, Swords, Infinity, Factory, Store,
+  MessageSquare, Brain, UsersRound, Swords, Layers, Factory, Store,
   ClipboardList, Ruler, Activity, Palette,
   Shield, TestTube, TrendingUp, Network,
   GitBranch, GitPullRequest, Users,
@@ -25,7 +25,7 @@ export const TAB_META: Record<string, TabMeta> = {
   "agent-os":      { icon: Cpu,             label: "Agent-OS",          aliases: ["agent os", "agentos", "agent dashboard", "agent host", "branch agent", "browser agent", "orchestration", "agent modes", "agent pool"] },
   "ai-teams":      { icon: UsersRound,     label: "AI Teams",          aliases: ["teams", "agentteams", "subagents", "spawn", "cloud agent", "cibot", "agent modes", "hierarchy", "multi-agent"] },
   "ai-playground": { icon: Swords,         label: "AI Council",        aliases: ["counsel", "superbrain", "compare", "arena", "playground", "debate", "ensemble", "multi-model"] },
-  "ai-context":    { icon: Infinity,       label: "Context & Memory",  aliases: ["icontext", "bundles", "openmemory", "fastcontext", "infinite context", "artifacts"] },
+  "ai-context":    { icon: Layers,         label: "Context & Memory",  aliases: ["icontext", "bundles", "openmemory", "fastcontext", "infinite context", "artifacts"] },
   "ai-generation": { icon: Factory,        label: "Generation",        aliases: ["batchbuilder", "imagegen", "autoresearch", "batch", "image", "research", "transform"] },
   marketplace:     { icon: Store,          label: "Marketplace" },
 

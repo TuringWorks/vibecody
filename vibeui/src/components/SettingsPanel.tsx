@@ -2446,7 +2446,7 @@ function CustomizationsSection() {
     document.documentElement.setAttribute("data-theme", "dark");
     // Clear inline styles
     const root = document.documentElement;
-    THEMES[0].vars && Object.keys(THEMES[0].vars).forEach(k => root.style.removeProperty(k));
+    if (THEMES[0].vars) Object.keys(THEMES[0].vars).forEach(k => root.style.removeProperty(k));
     root.style.removeProperty("--editor-font-size");
     root.style.removeProperty("--density-spacing");
     setCustoms([]);

@@ -26,6 +26,10 @@ const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: 15, fo
 
 type Tab = "check" | "policies" | "test" | "audit" | "conflicts";
 
+const CliBtn = ({ args, label, runCli }: { args: string; label: React.ReactNode; runCli: (args: string) => void }) => (
+  <button className="panel-btn panel-btn-secondary panel-btn-sm" onClick={() => runCli(args)} title={`vibecli --cmd "/policy ${args}"`} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>{label}</button>
+);
+
 export default function PolicyEnginePanel() {
   const [tab, setTab] = useState<Tab>("check");
   const [principal, setPrincipal] = useState("user:alice");
@@ -46,10 +50,6 @@ export default function PolicyEnginePanel() {
       setCliOutput(res);
     } catch (e) { setCliError(String(e)); }
   }, []);
-
-  const CliBtn = ({ args, label }: { args: string; label: React.ReactNode }) => (
-    <button className="panel-btn panel-btn-secondary panel-btn-sm" onClick={() => runCli(args)} title={`vibecli --cmd "/policy ${args}"`} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>{label}</button>
-  );
 
   const doCheck = useCallback(async () => {
     setLoading(true);
@@ -124,7 +124,7 @@ export default function PolicyEnginePanel() {
           <textarea value={yamlPolicy} onChange={e => setYamlPolicy(e.target.value)} rows={12} className="panel-input panel-textarea panel-input-full" style={{ fontFamily: "monospace", resize: "vertical", marginBottom: 8 }} placeholder={'resourcePolicy:\n  resource: "document"\n  rules:\n    - actions: ["read"]\n      effect: ALLOW\n      roles: ["viewer"]'} />
           <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
             <button className="panel-btn panel-btn-secondary" disabled={!yamlPolicy || loading}>Add Policy</button>
-            <CliBtn args={`template ${resource.split(":")[0] || "document"}`} label={<><Play size={12} /> Generate Template</>} />
+            <CliBtn args={`template ${resource.split(":")[0] || "document"}`} label={<><Play size={12} /> Generate Template</>} runCli={runCli} />
           </div>
         </div>
       )}
@@ -133,7 +133,7 @@ export default function PolicyEnginePanel() {
         <div className="panel-card">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <span style={{ fontWeight: 600 }}>Policy Test Suite</span>
-            <CliBtn args="test suite.yaml" label={<><Play size={12} /> Run Tests</>} />
+            <CliBtn args="test suite.yaml" label={<><Play size={12} /> Run Tests</>} runCli={runCli} />
           </div>
           <div className="panel-label">Define test cases to verify your policies behave as expected.</div>
         </div>
@@ -143,7 +143,7 @@ export default function PolicyEnginePanel() {
         <div className="panel-card">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <span style={{ fontWeight: 600 }}>Audit Trail</span>
-            <CliBtn args="audit" label={<><Play size={12} /> View Audit Log</>} />
+            <CliBtn args="audit" label={<><Play size={12} /> View Audit Log</>} runCli={runCli} />
           </div>
           <div className="panel-label">All authorization decisions are logged with full request/result/policy chain.</div>
         </div>

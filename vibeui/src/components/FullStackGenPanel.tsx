@@ -115,7 +115,7 @@ const FullStackGenPanel: React.FC = () => {
   const toggleLayer = (layer: string) => {
     setExpandedLayers(prev => {
       const next = new Set(prev);
-      next.has(layer) ? next.delete(layer) : next.add(layer);
+      if (next.has(layer)) next.delete(layer); else next.add(layer);
       return next;
     });
   };

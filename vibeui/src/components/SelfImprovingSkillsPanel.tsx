@@ -225,7 +225,7 @@ export function SelfImprovingSkillsPanel() {
     try {
       const s = await invoke<SisStatus>("sis_status");
       setStatus(s);
-    } catch (_) {}
+    } catch (_) { /* ignore */ }
   }, []);
 
   const loadMetrics = useCallback(async () => {
@@ -233,7 +233,7 @@ export function SelfImprovingSkillsPanel() {
     try {
       const m = await invoke<SkillMetrics[]>("sis_get_metrics");
       setMetrics(m);
-    } catch (_) {}
+    } catch (_) { /* ignore */ }
     setLoading(false);
   }, []);
 
@@ -242,7 +242,7 @@ export function SelfImprovingSkillsPanel() {
     try {
       const evs = await invoke<SkillEvolution[]>("sis_propose_evolutions");
       setEvolutions(evs);
-    } catch (_) {}
+    } catch (_) { /* ignore */ }
     setLoading(false);
   }, []);
 
