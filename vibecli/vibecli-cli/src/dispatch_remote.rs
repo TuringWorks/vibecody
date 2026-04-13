@@ -62,3 +62,76 @@ impl DispatchQueue {
         self.jobs.values().filter(|j| j.status == JobStatus::Queued).count()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_enqueue_returns_id() {
+        let mut q = DispatchQueue::new();
+        let id = q.enqueue("do something", 0);
+        assert!(!id.is_empty());
+    }
+
+    #[test]
+    fn test_pending_count_increases() {
+        let mut q = DispatchQueue::new();
+        q.enqueue("job1", 0);
+        q.enqueue("job2", 0);
+        assert_eq!(q.pending_count(), 2);
+    }
+
+    #[test]
+    fn test_dequeue_next_returns_highest_priority() {
+        let mut q = DispatchQueue::new();
+        q.enqueue_with_priority("low", 10, 0);
+        q.enqueue_with_priority("high", 200, 1);
+        let job = q.dequeue_next().unwrap();
+        assert_eq!(job.prompt, "high");
+        assert_eq!(job.status, JobStatus::Running);
+    }
+
+    #[test]
+    fn test_dequeue_same_priority_earlier_first() {
+        let mut q = DispatchQueue::new();
+        q.enqueue_with_priority("first", 100, 0);  // enqueued_at = 0
+        q.enqueue_with_priority("second", 100, 10); // enqueued_at = 10 (later)
+        let job = q.dequeue_next().unwrap();
+        // earlier enqueued (lower enqueued_at) wins
+        assert_eq!(job.prompt, "first");
+    }
+
+    #[test]
+    fn test_dequeue_empty_returns_none() {
+        let mut q = DispatchQueue::new();
+        assert!(q.dequeue_next().is_none());
+    }
+
+    #[test]
+    fn test_mark_running_and_poll() {
+        let mut q = DispatchQueue::new();
+        let id = q.enqueue("task", 0);
+        q.mark_running(&id);
+        let job = q.poll(&id).unwrap();
+        assert_eq!(job.status, JobStatus::Running);
+    }
+
+    #[test]
+    fn test_mark_completed() {
+        let mut q = DispatchQueue::new();
+        let id = q.enqueue("task", 0);
+        q.mark_completed(&id, "result");
+        let job = q.poll(&id).unwrap();
+        assert_eq!(job.status, JobStatus::Completed("result".to_string()));
+    }
+
+    #[test]
+    fn test_running_jobs_not_in_pending_count() {
+        let mut q = DispatchQueue::new();
+        q.enqueue("a", 0);
+        q.enqueue("b", 0);
+        let _ = q.dequeue_next(); // marks one as running and removes from queue
+        assert_eq!(q.pending_count(), 1);
+    }
+}

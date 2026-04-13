@@ -98,6 +98,12 @@ Interactive walkthroughs covering VibeCody's 60 major capabilities across CLI, D
 | [52 — Watch Mode & Sandbox](52-watch-sandbox/) | CLI | File-watching agent and OS-level isolation |
 | [53 — Workflow Orchestration](53-workflow-orchestration/) | CLI + UI | Lessons, todo tracking, complexity estimation |
 
+## Design & Diagrams
+
+| Demo | Surface | Description |
+|------|---------|-------------|
+| [63 — Multi-Provider Design Platform](63-design-platform/) | UI | Draw.io editor, Penpot integration, Pencil wireframes, AI diagram generator, Design System Hub |
+
 ## Memory & Research
 
 | Demo | Surface | Description |
