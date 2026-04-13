@@ -16,6 +16,8 @@ interface ChatMemoryPanelProps {
   onDelete: (id: string) => void;
   onEdit: (id: string, newText: string) => void;
   onAddManual: (text: string) => void;
+  /** When provided, renders in dialog mode: no toggle, always expanded, shows close button */
+  onClose?: () => void;
 }
 
 export function ChatMemoryPanel({
@@ -26,8 +28,10 @@ export function ChatMemoryPanel({
   onDelete,
   onEdit,
   onAddManual,
+  onClose,
 }: ChatMemoryPanelProps) {
   const [open, setOpen] = useState(false);
+  const isDialog = onClose !== undefined;
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
   const [newText, setNewText] = useState("");
@@ -57,43 +61,84 @@ export function ChatMemoryPanel({
 
   return (
     <div style={{
-      borderTop: "1px solid var(--border-color)",
+      borderTop: isDialog ? "none" : "1px solid var(--border-color)",
       flexShrink: 0,
       background: "var(--bg-secondary)",
-    }}>{/* ChatMemoryPanel: embedded widget, no panel-container wrapper */}
-      {/* Toggle header */}
-      <button
-        onClick={() => setOpen((p) => !p)}
-        style={{
-          width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "5px 10px", background: "none", border: "none",
-          color: total > 0 ? "var(--text-primary)" : "var(--text-secondary)",
-          cursor: "pointer", fontSize: 11, textAlign: "left",
-        }}
-      >
-        <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <span style={{ opacity: 0.6, fontSize: 10 }}>{open ? "▾" : "▸"}</span>
-          <span>Memory</span>
-          {total > 0 && (
-            <span style={{
-              background: pinnedFacts.length > 0 ? "var(--accent-blue, #3b82f6)" : "var(--bg-tertiary)",
-              color: pinnedFacts.length > 0 ? "#fff" : "var(--text-secondary)",
-              borderRadius: 10, padding: "0 5px", fontSize: 10, lineHeight: "16px",
-            }}>
-              {total}
+      display: "flex", flexDirection: "column",
+    }}>
+      {/* Dialog header (when opened as a dialog) */}
+      {isDialog ? (
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "8px 12px", borderBottom: "1px solid var(--border-color)",
+          flexShrink: 0,
+        }}>
+          <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>
+            Memory
+            {total > 0 && (
+              <span style={{
+                background: pinnedFacts.length > 0 ? "var(--accent-blue, #3b82f6)" : "var(--bg-tertiary)",
+                color: pinnedFacts.length > 0 ? "#fff" : "var(--text-secondary)",
+                borderRadius: 10, padding: "0 5px", fontSize: 10, lineHeight: "16px",
+              }}>
+                {total}
+              </span>
+            )}
+          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {pinnedFacts.length > 0 && (
+              <span style={{ fontSize: 10, color: "var(--accent-blue, #3b82f6)" }}>
+                {pinnedFacts.length} pinned · in every message
+              </span>
+            )}
+            <button
+              onClick={onClose}
+              title="Close"
+              style={{
+                background: "none", border: "none", cursor: "pointer",
+                color: "var(--text-secondary)", fontSize: 16, lineHeight: 1,
+                padding: "0 2px",
+              }}
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      ) : (
+        /* Inline toggle header */
+        <button
+          onClick={() => setOpen((p) => !p)}
+          style={{
+            width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "5px 10px", background: "none", border: "none",
+            color: total > 0 ? "var(--text-primary)" : "var(--text-secondary)",
+            cursor: "pointer", fontSize: 11, textAlign: "left",
+          }}
+        >
+          <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <span style={{ opacity: 0.6, fontSize: 10 }}>{open ? "▾" : "▸"}</span>
+            <span>Memory</span>
+            {total > 0 && (
+              <span style={{
+                background: pinnedFacts.length > 0 ? "var(--accent-blue, #3b82f6)" : "var(--bg-tertiary)",
+                color: pinnedFacts.length > 0 ? "#fff" : "var(--text-secondary)",
+                borderRadius: 10, padding: "0 5px", fontSize: 10, lineHeight: "16px",
+              }}>
+                {total}
+              </span>
+            )}
+          </span>
+          {pinnedFacts.length > 0 && (
+            <span style={{ fontSize: 10, color: "var(--accent-blue, #3b82f6)" }}>
+              {pinnedFacts.length} pinned · in every message
             </span>
           )}
-        </span>
-        {pinnedFacts.length > 0 && (
-          <span style={{ fontSize: 10, color: "var(--accent-blue, #3b82f6)" }}>
-            {pinnedFacts.length} pinned · in every message
-          </span>
-        )}
-      </button>
+        </button>
+      )}
 
-      {/* Panel body */}
-      {open && (
-        <div style={{ maxHeight: 220, overflowY: "auto", padding: "0 8px 8px" }}>
+      {/* Panel body — always shown in dialog mode, toggled in inline mode */}
+      {(isDialog || open) && (
+        <div style={{ maxHeight: isDialog ? "calc(100vh - 120px)" : 220, overflowY: "auto", padding: "0 8px 8px" }}>
 
           {/* Pinned facts */}
           {pinnedFacts.length > 0 && (

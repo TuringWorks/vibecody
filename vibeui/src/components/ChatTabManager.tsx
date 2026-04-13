@@ -108,6 +108,7 @@ export function ChatTabManager({
     ]);
     const [activeTabId, setActiveTabId] = useState("tab-1");
     const [showHistory, setShowHistory] = useState(false);
+    const [showMemoryDialog, setShowMemoryDialog] = useState(false);
     const [history, setHistory] = useState<ChatSession[]>(loadHistory);
 
     // Per-tab message storage (lifted from AIChat)
@@ -427,6 +428,38 @@ export function ChatTabManager({
                     History{history.length > 0 ? ` (${history.length})` : ""}
                 </button>
 
+                {/* Memory button */}
+                {!showHistory && (() => {
+                    const memFacts = memory.factsForTab(activeTabId);
+                    const pinned = memFacts.filter((f) => f.pinned).length;
+                    const total = memFacts.length;
+                    return (
+                        <button
+                            onClick={() => setShowMemoryDialog(true)}
+                            title="Chat memory"
+                            style={{
+                                background: showMemoryDialog ? "var(--bg-primary)" : "none",
+                                border: "none",
+                                color: pinned > 0 ? "var(--accent-blue, #3b82f6)" : "var(--text-secondary)",
+                                cursor: "pointer", padding: "4px 8px", fontSize: "12px",
+                                lineHeight: 1, flexShrink: 0, display: "flex", alignItems: "center", gap: 4,
+                                borderBottom: showMemoryDialog ? "2px solid var(--accent-blue, #3b82f6)" : "2px solid transparent",
+                            }}
+                        >
+                            Memory
+                            {total > 0 && (
+                                <span style={{
+                                    background: pinned > 0 ? "var(--accent-blue, #3b82f6)" : "var(--bg-tertiary)",
+                                    color: pinned > 0 ? "#fff" : "var(--text-secondary)",
+                                    borderRadius: 10, padding: "0 5px", fontSize: 10, lineHeight: "16px",
+                                }}>
+                                    {total}
+                                </span>
+                            )}
+                        </button>
+                    );
+                })()}
+
                 {/* Save current session button */}
                 {!showHistory && (tabMessages[activeTabId] ?? []).length > 0 && (
                     <button
@@ -598,17 +631,40 @@ export function ChatTabManager({
                 ))}
             </div>
 
-            {/* Memory panel — shown below chat content, hidden while history panel is open */}
-            {!showHistory && (
-                <ChatMemoryPanel
-                    facts={memory.factsForTab(activeTabId)}
-                    tabId={activeTabId}
-                    onPin={memory.pinFact}
-                    onUnpin={memory.unpinFact}
-                    onDelete={memory.deleteFact}
-                    onEdit={memory.editFact}
-                    onAddManual={(text) => memory.addManual(text, activeTabId)}
-                />
+            {/* Memory dialog — floats over chat content */}
+            {showMemoryDialog && (
+                <div
+                    onClick={() => setShowMemoryDialog(false)}
+                    style={{
+                        position: "fixed", inset: 0, zIndex: 1000,
+                        background: "rgba(0,0,0,0.4)",
+                        display: "flex", alignItems: "flex-start", justifyContent: "flex-end",
+                    }}
+                >
+                    <div
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                            marginTop: 40, marginRight: 12,
+                            width: 340, maxHeight: "calc(100vh - 60px)",
+                            background: "var(--bg-secondary)",
+                            border: "1px solid var(--border-color)",
+                            borderRadius: 6, overflow: "hidden",
+                            boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+                            display: "flex", flexDirection: "column",
+                        }}
+                    >
+                        <ChatMemoryPanel
+                            facts={memory.factsForTab(activeTabId)}
+                            tabId={activeTabId}
+                            onPin={memory.pinFact}
+                            onUnpin={memory.unpinFact}
+                            onDelete={memory.deleteFact}
+                            onEdit={memory.editFact}
+                            onAddManual={(text) => memory.addManual(text, activeTabId)}
+                            onClose={() => setShowMemoryDialog(false)}
+                        />
+                    </div>
+                </div>
             )}
         </div>
     );
