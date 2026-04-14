@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'auth_service.dart';
+import 'discovery_service.dart';
 
 /// Beacon data returned by the daemon's /mobile/beacon endpoint.
 class BeaconResponse {
@@ -104,6 +105,10 @@ class HandoffService extends ChangeNotifier {
   /// machineId -> most recent beacon
   final Map<String, BeaconResponse> _beacons = {};
 
+  /// mDNS-discovered daemons, keyed by machineId (from TXT record).
+  /// Used to enrich the candidate URL set even for machines not yet paired.
+  final Map<String, DiscoveredDaemon> _mdnsDaemons = {};
+
   List<HandoffCandidate> _candidates = [];
   bool _probing = false;
   Timer? _timer;
@@ -122,6 +127,20 @@ class HandoffService extends ChangeNotifier {
     _auth.addListener(_onMachinesChanged);
     _timer = Timer.periodic(const Duration(seconds: 60), (_) => probe());
     if (_auth.isInitialized) probe();
+    // Run a one-shot mDNS scan in the background; refreshes every 90 s.
+    _refreshMdns();
+    Timer.periodic(const Duration(seconds: 90), (_) => _refreshMdns());
+  }
+
+  Future<void> _refreshMdns() async {
+    try {
+      final discovered = await DiscoveryService.discover();
+      for (final d in discovered) {
+        if (d.machineId != null) {
+          _mdnsDaemons[d.machineId!] = d;
+        }
+      }
+    } catch (_) {}
   }
 
   void _onMachinesChanged() {
@@ -156,6 +175,11 @@ class HandoffService extends ChangeNotifier {
         if (storedBeacon.publicUrl != null) {
           candidates.add(storedBeacon.publicUrl!);
         }
+      }
+      // mDNS-discovered address for this machine (works on any IP range)
+      final mdns = _mdnsDaemons[cred.machineId];
+      if (mdns != null) {
+        candidates.add(mdns.baseUrl);
       }
 
       // Step 3 — race all URLs, pick the fastest.
