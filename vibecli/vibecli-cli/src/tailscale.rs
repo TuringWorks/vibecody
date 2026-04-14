@@ -75,6 +75,47 @@ pub async fn serve_via_funnel(port: u16) -> Result<tokio::process::Child> {
     Ok(child)
 }
 
+/// Returns the public HTTPS Funnel URL for this machine if Tailscale Funnel
+/// is active on the given port, e.g. `https://my-mac.tailnet-abc.ts.net`.
+///
+/// Parses `tailscale status --json`:
+///   - `Self.DNSName`    → `<machine>.<tailnet>.ts.net.`
+///   - `Self.FunnelPorts` → `[443]` when funnel is active
+///
+/// The daemon port is NOT appended because Tailscale Funnel reverse-proxies
+/// port 443 to the local daemon port automatically.
+pub fn tailscale_funnel_url(_port: u16) -> Option<String> {
+    let output = std::process::Command::new("tailscale")
+        .args(["status", "--json"])
+        .output()
+        .ok()?;
+
+    if !output.status.success() {
+        return None;
+    }
+
+    let status: serde_json::Value = serde_json::from_slice(&output.stdout).ok()?;
+
+    // Check that the funnel is active (FunnelPorts contains 443).
+    let funnel_ports = status["Self"]["FunnelPorts"].as_array();
+    let funnel_active = funnel_ports
+        .map(|ports| ports.iter().any(|p| p.as_u64() == Some(443)))
+        .unwrap_or(false);
+
+    if !funnel_active {
+        return None;
+    }
+
+    // DNSName is e.g. "my-machine.tailnet-abc.ts.net." (trailing dot)
+    let dns_name = status["Self"]["DNSName"].as_str()?;
+    let host = dns_name.trim_end_matches('.');
+    if host.is_empty() {
+        return None;
+    }
+
+    Some(format!("https://{host}"))
+}
+
 /// Serve the VibeCLI daemon via Tailscale Serve (accessible only within tailnet).
 pub async fn serve_via_tailscale(port: u16) -> Result<tokio::process::Child> {
     let child = tokio::process::Command::new("tailscale")

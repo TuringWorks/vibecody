@@ -283,6 +283,17 @@ pub struct Config {
     #[serde(default)]
     pub voice: VoiceConfig,
 
+    /// Tunnel configuration for remote access (Tailscale Funnel, ngrok).
+    ///
+    /// ```toml
+    /// [tunnel]
+    /// tailscale_funnel = false   # start tailscale funnel on --serve
+    /// ngrok_auto_start = false   # auto-start ngrok on --serve
+    /// ngrok_auth_token = ""      # or NGROK_AUTHTOKEN env var
+    /// ```
+    #[serde(default)]
+    pub tunnel: TunnelConfig,
+
     /// Container sandbox configuration (Docker, Podman, OpenSandbox).
     ///
     /// ```toml
@@ -306,6 +317,23 @@ pub struct Config {
     /// ```
     #[serde(default)]
     pub sandbox_config: SandboxConfig,
+}
+
+/// Tunnel configuration for remote access via Tailscale Funnel or ngrok.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct TunnelConfig {
+    /// Start Tailscale Funnel on `--serve` (exposes daemon at
+    /// `https://<machine>.ts.net`).
+    #[serde(default)]
+    pub tailscale_funnel: bool,
+    /// Auto-start an `ngrok http` tunnel on `--serve` if the ngrok binary is
+    /// found on PATH.
+    #[serde(default)]
+    pub ngrok_auto_start: bool,
+    /// ngrok auth token.  Also read from the `NGROK_AUTHTOKEN` environment
+    /// variable; the env var takes precedence when both are set.
+    #[serde(default)]
+    pub ngrok_auth_token: Option<String>,
 }
 
 /// Container sandbox configuration.

@@ -79,6 +79,7 @@ mod feature_demo;
 mod voice;
 mod discovery;
 mod tailscale;
+mod ngrok;
 mod pairing;
 mod setup;
 #[allow(dead_code)]

@@ -336,3 +336,19 @@ harness = false
 name = "pod_manager_bdd"
 path = "tests/pod_manager_bdd.rs"
 harness = false
+
+# Apple Watch + Wear OS integration BDD harnesses
+[[test]]
+name = "watch_auth_bdd"
+path = "tests/watch_auth_bdd.rs"
+harness = false
+
+[[test]]
+name = "watch_session_relay_bdd"
+path = "tests/watch_session_relay_bdd.rs"
+harness = false
+
+[[test]]
+name = "watch_bridge_bdd"
+path = "tests/watch_bridge_bdd.rs"
+harness = false

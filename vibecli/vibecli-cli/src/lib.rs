@@ -209,3 +209,5 @@ pub mod event_bus;
 pub mod pod_manager;
 // Zero-config LAN discovery
 pub mod mdns_announce;
+// ngrok tunnel auto-detection and startup
+pub mod ngrok;

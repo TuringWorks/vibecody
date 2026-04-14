@@ -158,6 +158,10 @@ pub struct ServeState {
     pub github_app_config: crate::github_app::GithubAppConfig,
     /// Daemon startup time — used to compute uptime_secs in the beacon endpoint.
     pub started_at: std::time::Instant,
+    /// Cached public URL (ngrok / Tailscale Funnel) — populated in the
+    /// background shortly after daemon startup.  The beacon endpoint reads
+    /// from here instead of blocking per-request.
+    pub public_url_cache: Arc<std::sync::Mutex<Option<String>>>,
 }
 
 // ── Request / Response types ──────────────────────────────────────────────────
@@ -1513,6 +1517,9 @@ pub async fn serve(
         }
     };
 
+    let public_url_cache: Arc<std::sync::Mutex<Option<String>>> =
+        Arc::new(std::sync::Mutex::new(None));
+
     let state = ServeState {
         provider,
         approval,
@@ -1524,7 +1531,87 @@ pub async fn serve(
         collab_server,
         github_app_config: gh_app_config,
         started_at: std::time::Instant::now(),
+        public_url_cache: Arc::clone(&public_url_cache),
     };
+
+    // Background task: detect or start an ngrok / Tailscale Funnel tunnel and
+    // cache the resulting public URL so the beacon can serve it instantly.
+    {
+        let cache = Arc::clone(&public_url_cache);
+        let port_copy = port;
+        let config_path = dirs::home_dir()
+            .unwrap_or_else(|| PathBuf::from("."))
+            .join(".vibecli")
+            .join("config.toml");
+        tokio::spawn(async move {
+            // 1. Check for an already-running ngrok agent (fast, no side-effects).
+            let detected = tokio::task::spawn_blocking(move || {
+                crate::ngrok::detect_tunnel(port_copy)
+            })
+            .await
+            .unwrap_or(None);
+
+            if let Some(url) = detected {
+                eprintln!("[tunnel] ngrok tunnel detected: {url}");
+                if let Ok(mut guard) = cache.lock() {
+                    *guard = Some(url);
+                }
+                return;
+            }
+
+            // 2. Load [tunnel] config.
+            let tunnel_cfg = std::fs::read_to_string(&config_path)
+                .ok()
+                .and_then(|s| toml::from_str::<crate::config::Config>(&s).ok())
+                .map(|c| c.tunnel)
+                .unwrap_or_default();
+
+            // 3. Tailscale Funnel (opt-in).
+            if tunnel_cfg.tailscale_funnel {
+                match crate::tailscale::serve_via_funnel(port_copy).await {
+                    Ok(_child) => {
+                        // Poll until tailscale reports a DNS name with an active funnel
+                        // (up to 20 s).  `tailscale status --json` exposes:
+                        //   Self.DNSName  → "<machine>.<tailnet>.ts.net."
+                        //   Self.FunnelPorts → [443, ...]  when funnel is active
+                        // Tailscale Funnel always uses HTTPS on port 443; the daemon
+                        // port is accessible via the funnel URL path (no port in URL).
+                        for _ in 0..10u32 {
+                            tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+                            let funnel_url =
+                                crate::tailscale::tailscale_funnel_url(port_copy);
+                            if let Some(url) = funnel_url {
+                                eprintln!("[tunnel] Tailscale Funnel active: {url}");
+                                if let Ok(mut guard) = cache.lock() {
+                                    *guard = Some(url);
+                                }
+                                return;
+                            }
+                        }
+                        eprintln!("[tunnel] Tailscale Funnel started but URL not yet available");
+                    }
+                    Err(e) => eprintln!("[tunnel] tailscale funnel failed to start: {e}"),
+                }
+            }
+
+            // 4. ngrok auto-start (opt-in).
+            if tunnel_cfg.ngrok_auto_start {
+                // Prefer env var; fall back to config file value.
+                let token_str = std::env::var("NGROK_AUTHTOKEN")
+                    .ok()
+                    .or_else(|| tunnel_cfg.ngrok_auth_token.clone());
+                match crate::ngrok::start_tunnel(port_copy, token_str.as_deref()).await {
+                    Ok(url) => {
+                        eprintln!("[tunnel] ngrok tunnel started: {url}");
+                        if let Ok(mut guard) = cache.lock() {
+                            *guard = Some(url);
+                        }
+                    }
+                    Err(e) => eprintln!("[tunnel] ngrok start failed: {e}"),
+                }
+            }
+        });
+    }
 
     let app = build_router(state, port);
 
@@ -2983,11 +3070,17 @@ async fn mobile_beacon(State(state): State<ServeState>) -> Json<serde_json::Valu
         .ok()
         .and_then(|s| s.tailscale_ip);
 
-    // Public URL from the mobile gateway (if any machine registered one).
-    let public_url = {
-        let gw = mobile_gateway().lock().unwrap_or_else(|e| e.into_inner());
-        gw.machines.values().find_map(|m| m.public_url.clone())
-    };
+    // Public URL: prefer ngrok/Tailscale Funnel (cached at startup), fall back
+    // to the pairing registry populated by the mobile gateway endpoint.
+    let public_url = state
+        .public_url_cache
+        .lock()
+        .ok()
+        .and_then(|g| g.clone())
+        .or_else(|| {
+            let gw = mobile_gateway().lock().unwrap_or_else(|e| e.into_inner());
+            gw.machines.values().find_map(|m| m.public_url.clone())
+        });
 
     // machine_id: stable identifier based on hostname + jobs_dir path hash.
     let machine_id = {
@@ -3770,6 +3863,7 @@ mod tests {
                 collab_server: Arc::new(CollabServer::new(5)),
                 github_app_config: crate::github_app::GithubAppConfig::default(),
                 started_at: std::time::Instant::now(),
+                public_url_cache: Arc::new(std::sync::Mutex::new(None)),
             };
             (build_router(state, 7878), tmp_dir)
         }
