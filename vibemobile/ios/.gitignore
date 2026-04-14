@@ -1,3 +1,6 @@
+# Local signing config — contains your Team ID, never commit
+Signing.xcconfig
+
 **/dgph
 *.mode1v3
 *.mode2v3
