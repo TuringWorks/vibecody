@@ -54,6 +54,9 @@ sidebar:
   - title: VibeMobile
     icon: smartphone
     url: /vibemobile/
+  - title: Connectivity
+    icon: wifi
+    url: /connectivity/
   - title: Providers
     icon: cloud
     children:
@@ -171,6 +174,7 @@ header_pages:
   - vibecli.md
   - vibeui.md
   - vibemobile.md
+  - connectivity.md
   - providers/index.md
   - configuration.md
   - memory-guide.md

@@ -44,6 +44,15 @@ Get notified when:
 - Security alerts fire
 - Machine goes offline/online
 
+### Handoff & Zero-Config Discovery
+Continue a running VibeCLI session on your phone the moment you pick it up — similar to Apple Handoff. Three connectivity paths work automatically:
+
+- **Same network (LAN)** — mDNS/DNS-SD discovery, no setup, works on any IP range
+- **Tailscale** — stable 100.x.x.x address detected automatically; Funnel opt-in for public HTTPS
+- **ngrok** — auto-detected if already running; opt-in auto-start with auth token
+
+See the [Connectivity & Remote Access guide](/connectivity/) for full details and configuration.
+
 ## Architecture
 
 VibeMobile uses Provider for state management and communicates with VibeCody's HTTP serve API.
