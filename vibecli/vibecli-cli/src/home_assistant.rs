@@ -103,6 +103,14 @@ impl HomeAssistantClient {
 
     /// Try to resolve URL and token from env or config.
     pub fn from_env_or_config() -> Option<Self> {
+        // 0. ProfileStore (encrypted SQLite)
+        if let Ok(store) = crate::profile_store::ProfileStore::new() {
+            let url = store.get_api_key("default", "integration.smarthome.home_assistant_url").ok().flatten();
+            let token = store.get_api_key("default", "integration.smarthome.home_assistant_token").ok().flatten();
+            if let (Some(u), Some(t)) = (url, token) {
+                if !u.is_empty() && !t.is_empty() { return Some(Self::new(u, t)); }
+            }
+        }
         let url = std::env::var("HOME_ASSISTANT_URL").ok().filter(|s| !s.is_empty()).or_else(|| {
             crate::config::Config::load().ok().and_then(|c| c.home_assistant.and_then(|ha| ha.url))
         });

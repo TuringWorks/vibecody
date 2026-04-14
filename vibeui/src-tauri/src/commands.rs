@@ -45112,3 +45112,55 @@ pub async fn audit_design_system_tokens(tokens: serde_json::Value, system_name: 
         "issues": issues,
     }))
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Integration Tokens — Email, Calendar, Messaging, Project Tools, Search, etc.
+// All stored encrypted in ProfileStore under provider key
+// "integration.<category>.<field>"
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// Retrieve all integration tokens for a given category.
+/// Returns a JSON object: { "field_name": "value_or_empty", ... }
+#[tauri::command]
+pub async fn integration_tokens_get(
+    category: String,
+    fields: Vec<String>,
+) -> Result<serde_json::Value, String> {
+    let store = PanelStore::new()?;
+    let mut out = serde_json::Map::new();
+    for field in &fields {
+        let provider = format!("integration.{}.{}", category, field);
+        let val = store.get_api_key("default", &provider)?.unwrap_or_default();
+        out.insert(field.clone(), serde_json::Value::String(val));
+    }
+    Ok(serde_json::Value::Object(out))
+}
+
+/// Save a single integration token (encrypted).
+#[tauri::command]
+pub async fn integration_token_set(
+    category: String,
+    field: String,
+    value: String,
+) -> Result<(), String> {
+    let store = PanelStore::new()?;
+    let provider = format!("integration.{}.{}", category, field);
+    if value.is_empty() {
+        // Treat empty string as delete
+        let _ = store.delete_api_key("default", &provider);
+        Ok(())
+    } else {
+        store.set_api_key("default", &provider, &value)
+    }
+}
+
+/// Delete a single integration token.
+#[tauri::command]
+pub async fn integration_token_delete(
+    category: String,
+    field: String,
+) -> Result<(), String> {
+    let store = PanelStore::new()?;
+    let provider = format!("integration.{}.{}", category, field);
+    store.delete_api_key("default", &provider)
+}

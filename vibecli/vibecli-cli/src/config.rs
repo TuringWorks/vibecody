@@ -807,213 +807,221 @@ pub struct GatewayConfig {
     pub tlon_ship_code: Option<String>,
 }
 
+/// Read a single integration token from the encrypted ProfileStore.
+/// Returns None on any error (store unavailable, key not set).
+fn integration_store_get(category: &str, field: &str) -> Option<String> {
+    let store = crate::profile_store::ProfileStore::new().ok()?;
+    let key = format!("integration.{}.{}", category, field);
+    store.get_api_key("default", &key).ok().flatten().filter(|v| !v.is_empty())
+}
+
 #[allow(dead_code)]
 impl GatewayConfig {
     fn default_max_len() -> usize { 4000 }
 
     pub fn resolve_telegram_token(&self) -> Option<String> {
-        self.telegram_token.clone().or_else(|| std::env::var("TELEGRAM_BOT_TOKEN").ok())
+        self.telegram_token.clone().or_else(|| integration_store_get("messaging", "telegram_token")).or_else(|| std::env::var("TELEGRAM_BOT_TOKEN").ok())
     }
     pub fn resolve_discord_token(&self) -> Option<String> {
-        self.discord_token.clone().or_else(|| std::env::var("DISCORD_BOT_TOKEN").ok())
+        self.discord_token.clone().or_else(|| integration_store_get("messaging", "discord_token")).or_else(|| std::env::var("DISCORD_BOT_TOKEN").ok())
     }
     pub fn resolve_slack_bot_token(&self) -> Option<String> {
-        self.slack_bot_token.clone().or_else(|| std::env::var("SLACK_BOT_TOKEN").ok())
+        self.slack_bot_token.clone().or_else(|| integration_store_get("messaging", "slack_bot_token")).or_else(|| std::env::var("SLACK_BOT_TOKEN").ok())
     }
 
     // ── Signal ──
     pub fn resolve_signal_api_url(&self) -> Option<String> {
-        self.signal_api_url.clone().or_else(|| std::env::var("SIGNAL_API_URL").ok())
+        self.signal_api_url.clone().or_else(|| integration_store_get("messaging", "signal_api_url")).or_else(|| std::env::var("SIGNAL_API_URL").ok())
     }
     pub fn resolve_signal_phone_number(&self) -> Option<String> {
-        self.signal_phone_number.clone().or_else(|| std::env::var("SIGNAL_PHONE_NUMBER").ok())
+        self.signal_phone_number.clone().or_else(|| integration_store_get("messaging", "signal_phone_number")).or_else(|| std::env::var("SIGNAL_PHONE_NUMBER").ok())
     }
 
     // ── Matrix ──
     pub fn resolve_matrix_homeserver_url(&self) -> Option<String> {
-        self.matrix_homeserver_url.clone().or_else(|| std::env::var("MATRIX_HOMESERVER_URL").ok())
+        self.matrix_homeserver_url.clone().or_else(|| integration_store_get("messaging", "matrix_homeserver_url")).or_else(|| std::env::var("MATRIX_HOMESERVER_URL").ok())
     }
     pub fn resolve_matrix_access_token(&self) -> Option<String> {
-        self.matrix_access_token.clone().or_else(|| std::env::var("MATRIX_ACCESS_TOKEN").ok())
+        self.matrix_access_token.clone().or_else(|| integration_store_get("messaging", "matrix_access_token")).or_else(|| std::env::var("MATRIX_ACCESS_TOKEN").ok())
     }
     pub fn resolve_matrix_room_id(&self) -> Option<String> {
-        self.matrix_room_id.clone().or_else(|| std::env::var("MATRIX_ROOM_ID").ok())
+        self.matrix_room_id.clone().or_else(|| integration_store_get("messaging", "matrix_room_id")).or_else(|| std::env::var("MATRIX_ROOM_ID").ok())
     }
     pub fn resolve_matrix_user_id(&self) -> Option<String> {
-        self.matrix_user_id.clone().or_else(|| std::env::var("MATRIX_USER_ID").ok())
+        self.matrix_user_id.clone().or_else(|| integration_store_get("messaging", "matrix_user_id")).or_else(|| std::env::var("MATRIX_USER_ID").ok())
     }
 
     // ── Twilio SMS ──
     pub fn resolve_twilio_account_sid(&self) -> Option<String> {
-        self.twilio_account_sid.clone().or_else(|| std::env::var("TWILIO_ACCOUNT_SID").ok())
+        self.twilio_account_sid.clone().or_else(|| integration_store_get("messaging", "twilio_account_sid")).or_else(|| std::env::var("TWILIO_ACCOUNT_SID").ok())
     }
     pub fn resolve_twilio_auth_token(&self) -> Option<String> {
-        self.twilio_auth_token.clone().or_else(|| std::env::var("TWILIO_AUTH_TOKEN").ok())
+        self.twilio_auth_token.clone().or_else(|| integration_store_get("messaging", "twilio_auth_token")).or_else(|| std::env::var("TWILIO_AUTH_TOKEN").ok())
     }
     pub fn resolve_twilio_from_number(&self) -> Option<String> {
-        self.twilio_from_number.clone().or_else(|| std::env::var("TWILIO_FROM_NUMBER").ok())
+        self.twilio_from_number.clone().or_else(|| integration_store_get("messaging", "twilio_from_number")).or_else(|| std::env::var("TWILIO_FROM_NUMBER").ok())
     }
 
     // ── WhatsApp ──
     pub fn resolve_whatsapp_access_token(&self) -> Option<String> {
-        self.whatsapp_access_token.clone().or_else(|| std::env::var("WHATSAPP_ACCESS_TOKEN").ok())
+        self.whatsapp_access_token.clone().or_else(|| integration_store_get("messaging", "whatsapp_access_token")).or_else(|| std::env::var("WHATSAPP_ACCESS_TOKEN").ok())
     }
     pub fn resolve_whatsapp_phone_number_id(&self) -> Option<String> {
-        self.whatsapp_phone_number_id.clone().or_else(|| std::env::var("WHATSAPP_PHONE_NUMBER_ID").ok())
+        self.whatsapp_phone_number_id.clone().or_else(|| integration_store_get("messaging", "whatsapp_phone_number_id")).or_else(|| std::env::var("WHATSAPP_PHONE_NUMBER_ID").ok())
     }
     pub fn resolve_whatsapp_verify_token(&self) -> Option<String> {
-        self.whatsapp_verify_token.clone().or_else(|| std::env::var("WHATSAPP_VERIFY_TOKEN").ok())
+        self.whatsapp_verify_token.clone().or_else(|| integration_store_get("messaging", "whatsapp_verify_token")).or_else(|| std::env::var("WHATSAPP_VERIFY_TOKEN").ok())
     }
 
     // ── iMessage ──
     pub fn resolve_imessage_db_path(&self) -> Option<String> {
-        self.imessage_db_path.clone().or_else(|| std::env::var("IMESSAGE_DB_PATH").ok())
+        self.imessage_db_path.clone().or_else(|| integration_store_get("messaging", "imessage_db_path")).or_else(|| std::env::var("IMESSAGE_DB_PATH").ok())
     }
 
     // ── Teams ──
     pub fn resolve_teams_tenant_id(&self) -> Option<String> {
-        self.teams_tenant_id.clone().or_else(|| std::env::var("TEAMS_TENANT_ID").ok())
+        self.teams_tenant_id.clone().or_else(|| integration_store_get("messaging", "teams_tenant_id")).or_else(|| std::env::var("TEAMS_TENANT_ID").ok())
     }
     pub fn resolve_teams_client_id(&self) -> Option<String> {
-        self.teams_client_id.clone().or_else(|| std::env::var("TEAMS_CLIENT_ID").ok())
+        self.teams_client_id.clone().or_else(|| integration_store_get("messaging", "teams_client_id")).or_else(|| std::env::var("TEAMS_CLIENT_ID").ok())
     }
     pub fn resolve_teams_client_secret(&self) -> Option<String> {
-        self.teams_client_secret.clone().or_else(|| std::env::var("TEAMS_CLIENT_SECRET").ok())
+        self.teams_client_secret.clone().or_else(|| integration_store_get("messaging", "teams_client_secret")).or_else(|| std::env::var("TEAMS_CLIENT_SECRET").ok())
     }
 
     // ── Google Chat ──
     pub fn resolve_googlechat_service_account_json(&self) -> Option<String> {
-        self.googlechat_service_account_json.clone().or_else(|| std::env::var("GOOGLE_CHAT_SERVICE_ACCOUNT_JSON").ok())
+        self.googlechat_service_account_json.clone().or_else(|| integration_store_get("messaging", "googlechat_service_account_json")).or_else(|| std::env::var("GOOGLE_CHAT_SERVICE_ACCOUNT_JSON").ok())
     }
     pub fn resolve_googlechat_space_id(&self) -> Option<String> {
-        self.googlechat_space_id.clone().or_else(|| std::env::var("GOOGLE_CHAT_SPACE_ID").ok())
+        self.googlechat_space_id.clone().or_else(|| integration_store_get("messaging", "googlechat_space_id")).or_else(|| std::env::var("GOOGLE_CHAT_SPACE_ID").ok())
     }
 
     // ── Mattermost ──
     pub fn resolve_mattermost_url(&self) -> Option<String> {
-        self.mattermost_url.clone().or_else(|| std::env::var("MATTERMOST_URL").ok())
+        self.mattermost_url.clone().or_else(|| integration_store_get("messaging", "mattermost_url")).or_else(|| std::env::var("MATTERMOST_URL").ok())
     }
     pub fn resolve_mattermost_token(&self) -> Option<String> {
-        self.mattermost_token.clone().or_else(|| std::env::var("MATTERMOST_TOKEN").ok())
+        self.mattermost_token.clone().or_else(|| integration_store_get("messaging", "mattermost_token")).or_else(|| std::env::var("MATTERMOST_TOKEN").ok())
     }
     pub fn resolve_mattermost_channel_id(&self) -> Option<String> {
-        self.mattermost_channel_id.clone().or_else(|| std::env::var("MATTERMOST_CHANNEL_ID").ok())
+        self.mattermost_channel_id.clone().or_else(|| integration_store_get("messaging", "mattermost_channel_id")).or_else(|| std::env::var("MATTERMOST_CHANNEL_ID").ok())
     }
 
     // ── IRC ──
     pub fn resolve_irc_server(&self) -> Option<String> {
-        self.irc_server.clone().or_else(|| std::env::var("IRC_SERVER").ok())
+        self.irc_server.clone().or_else(|| integration_store_get("messaging", "irc_server")).or_else(|| std::env::var("IRC_SERVER").ok())
     }
     pub fn resolve_irc_nick(&self) -> Option<String> {
-        self.irc_nick.clone().or_else(|| std::env::var("IRC_NICK").ok())
+        self.irc_nick.clone().or_else(|| integration_store_get("messaging", "irc_nick")).or_else(|| std::env::var("IRC_NICK").ok())
     }
     pub fn resolve_irc_channel(&self) -> Option<String> {
-        self.irc_channel.clone().or_else(|| std::env::var("IRC_CHANNEL").ok())
+        self.irc_channel.clone().or_else(|| integration_store_get("messaging", "irc_channel")).or_else(|| std::env::var("IRC_CHANNEL").ok())
     }
 
     // ── LINE ──
     pub fn resolve_line_channel_access_token(&self) -> Option<String> {
-        self.line_channel_access_token.clone().or_else(|| std::env::var("LINE_CHANNEL_ACCESS_TOKEN").ok())
+        self.line_channel_access_token.clone().or_else(|| integration_store_get("messaging", "line_channel_access_token")).or_else(|| std::env::var("LINE_CHANNEL_ACCESS_TOKEN").ok())
     }
     pub fn resolve_line_channel_secret(&self) -> Option<String> {
-        self.line_channel_secret.clone().or_else(|| std::env::var("LINE_CHANNEL_SECRET").ok())
+        self.line_channel_secret.clone().or_else(|| integration_store_get("messaging", "line_channel_secret")).or_else(|| std::env::var("LINE_CHANNEL_SECRET").ok())
     }
 
     // ── Twitch ──
     pub fn resolve_twitch_oauth_token(&self) -> Option<String> {
-        self.twitch_oauth_token.clone().or_else(|| std::env::var("TWITCH_OAUTH_TOKEN").ok())
+        self.twitch_oauth_token.clone().or_else(|| integration_store_get("messaging", "twitch_oauth_token")).or_else(|| std::env::var("TWITCH_OAUTH_TOKEN").ok())
     }
     pub fn resolve_twitch_channel(&self) -> Option<String> {
-        self.twitch_channel.clone().or_else(|| std::env::var("TWITCH_CHANNEL").ok())
+        self.twitch_channel.clone().or_else(|| integration_store_get("messaging", "twitch_channel")).or_else(|| std::env::var("TWITCH_CHANNEL").ok())
     }
     pub fn resolve_twitch_nick(&self) -> Option<String> {
-        self.twitch_nick.clone().or_else(|| std::env::var("TWITCH_NICK").ok())
+        self.twitch_nick.clone().or_else(|| integration_store_get("messaging", "twitch_nick")).or_else(|| std::env::var("TWITCH_NICK").ok())
     }
 
     // ── Nextcloud Talk ──
     pub fn resolve_nextcloud_url(&self) -> Option<String> {
-        self.nextcloud_url.clone().or_else(|| std::env::var("NEXTCLOUD_URL").ok())
+        self.nextcloud_url.clone().or_else(|| integration_store_get("messaging", "nextcloud_url")).or_else(|| std::env::var("NEXTCLOUD_URL").ok())
     }
     pub fn resolve_nextcloud_user(&self) -> Option<String> {
-        self.nextcloud_user.clone().or_else(|| std::env::var("NEXTCLOUD_USER").ok())
+        self.nextcloud_user.clone().or_else(|| integration_store_get("messaging", "nextcloud_user")).or_else(|| std::env::var("NEXTCLOUD_USER").ok())
     }
     pub fn resolve_nextcloud_password(&self) -> Option<String> {
-        self.nextcloud_password.clone().or_else(|| std::env::var("NEXTCLOUD_PASSWORD").ok())
+        self.nextcloud_password.clone().or_else(|| integration_store_get("messaging", "nextcloud_password")).or_else(|| std::env::var("NEXTCLOUD_PASSWORD").ok())
     }
     pub fn resolve_nextcloud_room_token(&self) -> Option<String> {
-        self.nextcloud_room_token.clone().or_else(|| std::env::var("NEXTCLOUD_ROOM_TOKEN").ok())
+        self.nextcloud_room_token.clone().or_else(|| integration_store_get("messaging", "nextcloud_room_token")).or_else(|| std::env::var("NEXTCLOUD_ROOM_TOKEN").ok())
     }
 
     // ── Nostr ──
     pub fn resolve_nostr_private_key(&self) -> Option<String> {
-        self.nostr_private_key.clone().or_else(|| std::env::var("NOSTR_PRIVATE_KEY").ok())
+        self.nostr_private_key.clone().or_else(|| integration_store_get("messaging", "nostr_private_key")).or_else(|| std::env::var("NOSTR_PRIVATE_KEY").ok())
     }
 
     // ── Feishu (Lark) ──
     pub fn resolve_feishu_app_id(&self) -> Option<String> {
-        self.feishu_app_id.clone().or_else(|| std::env::var("FEISHU_APP_ID").ok())
+        self.feishu_app_id.clone().or_else(|| integration_store_get("messaging", "feishu_app_id")).or_else(|| std::env::var("FEISHU_APP_ID").ok())
     }
     pub fn resolve_feishu_app_secret(&self) -> Option<String> {
-        self.feishu_app_secret.clone().or_else(|| std::env::var("FEISHU_APP_SECRET").ok())
+        self.feishu_app_secret.clone().or_else(|| integration_store_get("messaging", "feishu_app_secret")).or_else(|| std::env::var("FEISHU_APP_SECRET").ok())
     }
 
     // ── DingTalk ──
     pub fn resolve_dingtalk_access_token(&self) -> Option<String> {
-        self.dingtalk_access_token.clone().or_else(|| std::env::var("DINGTALK_ACCESS_TOKEN").ok())
+        self.dingtalk_access_token.clone().or_else(|| integration_store_get("messaging", "dingtalk_access_token")).or_else(|| std::env::var("DINGTALK_ACCESS_TOKEN").ok())
     }
     pub fn resolve_dingtalk_webhook_secret(&self) -> Option<String> {
-        self.dingtalk_webhook_secret.clone().or_else(|| std::env::var("DINGTALK_WEBHOOK_SECRET").ok())
+        self.dingtalk_webhook_secret.clone().or_else(|| integration_store_get("messaging", "dingtalk_webhook_secret")).or_else(|| std::env::var("DINGTALK_WEBHOOK_SECRET").ok())
     }
 
     // ── QQ ──
     pub fn resolve_qq_app_id(&self) -> Option<String> {
-        self.qq_app_id.clone().or_else(|| std::env::var("QQ_APP_ID").ok())
+        self.qq_app_id.clone().or_else(|| integration_store_get("messaging", "qq_app_id")).or_else(|| std::env::var("QQ_APP_ID").ok())
     }
     pub fn resolve_qq_token(&self) -> Option<String> {
-        self.qq_token.clone().or_else(|| std::env::var("QQ_TOKEN").ok())
+        self.qq_token.clone().or_else(|| integration_store_get("messaging", "qq_token")).or_else(|| std::env::var("QQ_TOKEN").ok())
     }
 
     // ── WeCom ──
     pub fn resolve_wecom_corp_id(&self) -> Option<String> {
-        self.wecom_corp_id.clone().or_else(|| std::env::var("WECOM_CORP_ID").ok())
+        self.wecom_corp_id.clone().or_else(|| integration_store_get("messaging", "wecom_corp_id")).or_else(|| std::env::var("WECOM_CORP_ID").ok())
     }
     pub fn resolve_wecom_agent_id(&self) -> Option<String> {
-        self.wecom_agent_id.clone().or_else(|| std::env::var("WECOM_AGENT_ID").ok())
+        self.wecom_agent_id.clone().or_else(|| integration_store_get("messaging", "wecom_agent_id")).or_else(|| std::env::var("WECOM_AGENT_ID").ok())
     }
     pub fn resolve_wecom_secret(&self) -> Option<String> {
-        self.wecom_secret.clone().or_else(|| std::env::var("WECOM_SECRET").ok())
+        self.wecom_secret.clone().or_else(|| integration_store_get("messaging", "wecom_secret")).or_else(|| std::env::var("WECOM_SECRET").ok())
     }
 
     // ── Zalo ──
     pub fn resolve_zalo_access_token(&self) -> Option<String> {
-        self.zalo_access_token.clone().or_else(|| std::env::var("ZALO_ACCESS_TOKEN").ok())
+        self.zalo_access_token.clone().or_else(|| integration_store_get("messaging", "zalo_access_token")).or_else(|| std::env::var("ZALO_ACCESS_TOKEN").ok())
     }
 
     // ── BlueBubbles ──
     pub fn resolve_bluebubbles_url(&self) -> Option<String> {
-        self.bluebubbles_url.clone().or_else(|| std::env::var("BLUEBUBBLES_URL").ok())
+        self.bluebubbles_url.clone().or_else(|| integration_store_get("messaging", "bluebubbles_url")).or_else(|| std::env::var("BLUEBUBBLES_URL").ok())
     }
     pub fn resolve_bluebubbles_password(&self) -> Option<String> {
-        self.bluebubbles_password.clone().or_else(|| std::env::var("BLUEBUBBLES_PASSWORD").ok())
+        self.bluebubbles_password.clone().or_else(|| integration_store_get("messaging", "bluebubbles_password")).or_else(|| std::env::var("BLUEBUBBLES_PASSWORD").ok())
     }
 
     // ── Synology Chat ──
     pub fn resolve_synology_url(&self) -> Option<String> {
-        self.synology_url.clone().or_else(|| std::env::var("SYNOLOGY_URL").ok())
+        self.synology_url.clone().or_else(|| integration_store_get("messaging", "synology_url")).or_else(|| std::env::var("SYNOLOGY_URL").ok())
     }
     pub fn resolve_synology_incoming_url(&self) -> Option<String> {
-        self.synology_incoming_url.clone().or_else(|| std::env::var("SYNOLOGY_INCOMING_URL").ok())
+        self.synology_incoming_url.clone().or_else(|| integration_store_get("messaging", "synology_incoming_url")).or_else(|| std::env::var("SYNOLOGY_INCOMING_URL").ok())
     }
     pub fn resolve_synology_token(&self) -> Option<String> {
-        self.synology_token.clone().or_else(|| std::env::var("SYNOLOGY_TOKEN").ok())
+        self.synology_token.clone().or_else(|| integration_store_get("messaging", "synology_token")).or_else(|| std::env::var("SYNOLOGY_TOKEN").ok())
     }
 
     // ── Tlon (Urbit) ──
     pub fn resolve_tlon_ship_url(&self) -> Option<String> {
-        self.tlon_ship_url.clone().or_else(|| std::env::var("TLON_SHIP_URL").ok())
+        self.tlon_ship_url.clone().or_else(|| integration_store_get("messaging", "tlon_ship_url")).or_else(|| std::env::var("TLON_SHIP_URL").ok())
     }
     pub fn resolve_tlon_ship_code(&self) -> Option<String> {
-        self.tlon_ship_code.clone().or_else(|| std::env::var("TLON_SHIP_CODE").ok())
+        self.tlon_ship_code.clone().or_else(|| integration_store_get("messaging", "tlon_ship_code")).or_else(|| std::env::var("TLON_SHIP_CODE").ok())
     }
 }
 
@@ -1135,11 +1143,11 @@ pub struct WebSearchConfig {
 impl WebSearchConfig {
     /// Resolve Tavily API key: config field first, then TAVILY_API_KEY env var.
     pub fn resolve_tavily_key(&self) -> Option<String> {
-        self.tavily_api_key.clone().or_else(|| std::env::var("TAVILY_API_KEY").ok())
+        self.tavily_api_key.clone().or_else(|| integration_store_get("search", "tavily_api_key")).or_else(|| std::env::var("TAVILY_API_KEY").ok())
     }
     /// Resolve Brave API key: config field first, then BRAVE_API_KEY env var.
     pub fn resolve_brave_key(&self) -> Option<String> {
-        self.brave_api_key.clone().or_else(|| std::env::var("BRAVE_API_KEY").ok())
+        self.brave_api_key.clone().or_else(|| integration_store_get("search", "brave_api_key")).or_else(|| std::env::var("BRAVE_API_KEY").ok())
     }
 }
 

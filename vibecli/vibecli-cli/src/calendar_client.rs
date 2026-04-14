@@ -151,6 +151,15 @@ impl CalendarClient {
 
     /// Try to resolve credentials from env or config; returns the first available provider.
     pub fn from_env_or_config() -> Option<Self> {
+        // 0. ProfileStore (encrypted SQLite) — highest priority
+        if let Ok(store) = crate::profile_store::ProfileStore::new() {
+            if let Ok(Some(tok)) = store.get_api_key("default", "integration.calendar.google_access_token") {
+                if !tok.is_empty() { return Some(Self::new(CalendarProvider::Google, tok)); }
+            }
+            if let Ok(Some(tok)) = store.get_api_key("default", "integration.calendar.outlook_access_token") {
+                if !tok.is_empty() { return Some(Self::new(CalendarProvider::Outlook, tok)); }
+            }
+        }
         // 1. Google Calendar — env
         if let Ok(token) = std::env::var("GOOGLE_CALENDAR_TOKEN") {
             if !token.is_empty() {

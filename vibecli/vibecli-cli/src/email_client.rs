@@ -77,15 +77,23 @@ impl EmailClient {
     }
 
     pub fn from_env_or_config() -> Option<Self> {
-        // Gmail
+        // 1. ProfileStore (encrypted SQLite) — takes precedence over env/config
+        if let Ok(store) = crate::profile_store::ProfileStore::new() {
+            if let Ok(Some(tok)) = store.get_api_key("default", "integration.email.gmail_access_token") {
+                if !tok.is_empty() { return Some(Self::new(EmailProvider::Gmail, tok)); }
+            }
+            if let Ok(Some(tok)) = store.get_api_key("default", "integration.email.outlook_access_token") {
+                if !tok.is_empty() { return Some(Self::new(EmailProvider::Outlook, tok)); }
+            }
+        }
+        // 2. Environment variables
         if let Ok(token) = std::env::var("GMAIL_ACCESS_TOKEN") {
             if !token.is_empty() { return Some(Self::new(EmailProvider::Gmail, token)); }
         }
-        // Outlook
         if let Ok(token) = std::env::var("OUTLOOK_ACCESS_TOKEN") {
             if !token.is_empty() { return Some(Self::new(EmailProvider::Outlook, token)); }
         }
-        // Config file
+        // 3. Config file (~/.vibecli/config.toml)
         if let Ok(cfg) = crate::config::Config::load() {
             if let Some(email_cfg) = cfg.email {
                 if let Some(token) = email_cfg.gmail_access_token {

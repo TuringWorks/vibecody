@@ -66,6 +66,12 @@ impl LinearClient {
 
     /// Try to resolve the API key from env or config.
     pub fn from_env_or_config() -> Option<Self> {
+        // 0. ProfileStore (encrypted SQLite)
+        if let Ok(store) = crate::profile_store::ProfileStore::new() {
+            if let Ok(Some(key)) = store.get_api_key("default", "integration.projecttools.linear_api_key") {
+                if !key.is_empty() { return Some(Self::new(key)); }
+            }
+        }
         // 1. Environment variable
         if let Ok(key) = std::env::var("LINEAR_API_KEY") {
             if !key.is_empty() {

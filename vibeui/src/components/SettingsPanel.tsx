@@ -14,12 +14,12 @@ import { listen } from "@tauri-apps/api/event";
 import {
   User, Palette, LogIn, Save, Key, X, Check, Upload, Download, RotateCcw,
   Sun, Moon, Eye, EyeOff, ChevronRight, CheckCircle, MinusCircle, AlertCircle,
-  Loader2, Zap,
+  Loader2, Zap, Plug,
 } from "lucide-react";
 
 /* ── Types ──────────────────────────────────────────────────────────── */
 
-type SettingsSection = "profile" | "appearance" | "oauth" | "customizations" | "apikeys";
+type SettingsSection = "profile" | "appearance" | "oauth" | "customizations" | "apikeys" | "integrations";
 
 interface UserProfile {
   displayName: string;
@@ -2841,6 +2841,260 @@ function ApiKeysSection() {
   );
 }
 
+/* ── Integrations Section ──────────────────────────────────────────── */
+
+type IntegrationCategory = "email" | "calendar" | "projecttools" | "messaging" | "search" | "voice" | "smarthome" | "infra";
+
+interface IntegrationField { key: string; label: string; placeholder: string; url?: boolean }
+
+const INTEGRATION_CATEGORIES: {
+  id: IntegrationCategory; label: string; icon: string;
+  description: string; fields: IntegrationField[];
+}[] = [
+  {
+    id: "email", label: "Email", icon: "✉️",
+    description: "Gmail or Outlook access tokens for inbox, compose, and triage commands.",
+    fields: [
+      { key: "gmail_access_token", label: "Gmail Access Token", placeholder: "ya29.a0A..." },
+      { key: "outlook_access_token", label: "Outlook Access Token", placeholder: "eyJ0eXAi..." },
+    ],
+  },
+  {
+    id: "calendar", label: "Calendar", icon: "📅",
+    description: "Google Calendar or Outlook Calendar tokens for event management.",
+    fields: [
+      { key: "google_access_token", label: "Google Calendar Token", placeholder: "ya29.a0A..." },
+      { key: "outlook_access_token", label: "Outlook Calendar Token", placeholder: "eyJ0eXAi..." },
+    ],
+  },
+  {
+    id: "projecttools", label: "Project Tools", icon: "📋",
+    description: "Linear, Jira, Notion, Todoist API keys for issue tracking and task management.",
+    fields: [
+      { key: "linear_api_key", label: "Linear API Key", placeholder: "lin_api_..." },
+      { key: "notion_api_key", label: "Notion API Key", placeholder: "secret_..." },
+      { key: "todoist_api_key", label: "Todoist API Token", placeholder: "..." },
+      { key: "jira_url", label: "Jira Instance URL", placeholder: "https://yourorg.atlassian.net", url: true },
+      { key: "jira_email", label: "Jira Email", placeholder: "you@example.com" },
+      { key: "jira_api_token", label: "Jira API Token", placeholder: "ATATT3x..." },
+    ],
+  },
+  {
+    id: "messaging", label: "Messaging", icon: "💬",
+    description: "Tokens for Telegram, Slack, Discord, WhatsApp, Teams, and 20+ more messaging platforms.",
+    fields: [
+      { key: "telegram_token", label: "Telegram Bot Token", placeholder: "123456:ABC-DEF..." },
+      { key: "slack_bot_token", label: "Slack Bot Token", placeholder: "xoxb-..." },
+      { key: "slack_app_token", label: "Slack App Token (Socket Mode)", placeholder: "xapp-..." },
+      { key: "discord_token", label: "Discord Bot Token", placeholder: "MTI..." },
+      { key: "whatsapp_access_token", label: "WhatsApp Access Token", placeholder: "EAAGm..." },
+      { key: "whatsapp_phone_number_id", label: "WhatsApp Phone Number ID", placeholder: "12345..." },
+      { key: "teams_tenant_id", label: "MS Teams Tenant ID", placeholder: "xxxxxxxx-xxxx-..." },
+      { key: "teams_client_id", label: "MS Teams Client ID", placeholder: "xxxxxxxx-xxxx-..." },
+      { key: "teams_client_secret", label: "MS Teams Client Secret", placeholder: "..." },
+      { key: "matrix_homeserver_url", label: "Matrix Homeserver URL", placeholder: "https://matrix.org", url: true },
+      { key: "matrix_access_token", label: "Matrix Access Token", placeholder: "syt_..." },
+      { key: "matrix_room_id", label: "Matrix Room ID", placeholder: "!roomid:server" },
+      { key: "twilio_account_sid", label: "Twilio Account SID", placeholder: "ACxxxxxxxx..." },
+      { key: "twilio_auth_token", label: "Twilio Auth Token", placeholder: "..." },
+      { key: "twilio_from_number", label: "Twilio From Number", placeholder: "+1234567890" },
+      { key: "signal_api_url", label: "Signal API URL", placeholder: "http://localhost:8080", url: true },
+      { key: "signal_phone_number", label: "Signal Phone Number", placeholder: "+1234567890" },
+    ],
+  },
+  {
+    id: "search", label: "Search & Web", icon: "🔍",
+    description: "Tavily and Brave Search API keys for web-grounded AI responses.",
+    fields: [
+      { key: "tavily_api_key", label: "Tavily API Key", placeholder: "tvly-..." },
+      { key: "brave_api_key", label: "Brave Search API Key", placeholder: "BSA..." },
+    ],
+  },
+  {
+    id: "voice", label: "Voice & Audio", icon: "🎙️",
+    description: "ElevenLabs API key for text-to-speech voice synthesis.",
+    fields: [
+      { key: "elevenlabs_api_key", label: "ElevenLabs API Key", placeholder: "sk_..." },
+      { key: "elevenlabs_voice_id", label: "ElevenLabs Voice ID", placeholder: "21m00Tcm4TlvDq8i..." },
+    ],
+  },
+  {
+    id: "smarthome", label: "Smart Home", icon: "🏠",
+    description: "Home Assistant long-lived access token and instance URL.",
+    fields: [
+      { key: "home_assistant_url", label: "Home Assistant URL", placeholder: "http://homeassistant.local:8123", url: true },
+      { key: "home_assistant_token", label: "Long-Lived Access Token", placeholder: "eyJhbGci..." },
+    ],
+  },
+  {
+    id: "infra", label: "Infrastructure", icon: "⚙️",
+    description: "Container registry and OpenSandbox credentials.",
+    fields: [
+      { key: "github_token", label: "GitHub Token", placeholder: "ghp_..." },
+      { key: "open_sandbox_api_key", label: "OpenSandbox API Key", placeholder: "..." },
+      { key: "open_sandbox_api_url", label: "OpenSandbox API URL", placeholder: "https://api.opensandbox.dev", url: true },
+      { key: "registry_url", label: "Container Registry URL", placeholder: "registry.example.com", url: true },
+      { key: "registry_username", label: "Registry Username", placeholder: "..." },
+      { key: "registry_password", label: "Registry Password", placeholder: "..." },
+    ],
+  },
+];
+
+function IntegrationsSection() {
+  const [activeCat, setActiveCat] = useState<IntegrationCategory>("email");
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [showField, setShowField] = useState<Record<string, boolean>>({});
+  const [saving, setSaving] = useState<Record<string, boolean>>({});
+  const [saved, setSaved] = useState<Record<string, boolean>>({});
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const cat = INTEGRATION_CATEGORIES.find(c => c.id === activeCat)!;
+
+  // Load tokens for the active category
+  useEffect(() => {
+    const fields = cat.fields.map(f => f.key);
+    invoke<Record<string, string>>("integration_tokens_get", { category: activeCat, fields })
+      .then(data => setValues(prev => ({ ...prev, ...data })))
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCat]);
+
+  const saveField = async (field: string) => {
+    setSaving(prev => ({ ...prev, [field]: true }));
+    setMessage(null);
+    try {
+      await invoke("integration_token_set", { category: activeCat, field, value: values[field] ?? "" });
+      setSaved(prev => ({ ...prev, [field]: true }));
+      setMessage({ type: "success", text: `${field} saved encrypted.` });
+      setTimeout(() => setSaved(prev => ({ ...prev, [field]: false })), 2000);
+    } catch (_e) {
+      setMessage({ type: "error", text: String(_e) });
+    } finally {
+      setSaving(prev => ({ ...prev, [field]: false })); }
+  };
+
+  const clearField = async (field: string) => {
+    try {
+      await invoke("integration_token_delete", { category: activeCat, field });
+      setValues(prev => ({ ...prev, [field]: "" }));
+      setMessage({ type: "success", text: `${field} cleared.` });
+    } catch (_e) {
+      setMessage({ type: "error", text: String(_e) });
+    }
+  };
+
+  return (
+    <div>
+      <h3 style={{ margin: "0 0 4px", fontSize: "var(--font-size-xl)", fontWeight: 700 }}>Integrations</h3>
+      <p style={{ margin: "0 0 16px", fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
+        Tokens saved here are encrypted in the local SQLite profile database — never stored in plaintext.
+      </p>
+
+      {/* Category tabs */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 20 }}>
+        {INTEGRATION_CATEGORIES.map(c => (
+          <button
+            key={c.id}
+            className={`panel-btn ${activeCat === c.id ? "panel-btn-primary" : "panel-btn-secondary"}`}
+            style={{ fontSize: "var(--font-size-sm)", gap: 6 }}
+            onClick={() => { setActiveCat(c.id); setMessage(null); }}
+          >
+            <span>{c.icon}</span> {c.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Active category */}
+      <div className="panel-card" style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 16 }}>
+          {cat.description}
+        </div>
+        {cat.fields.map(field => {
+          const val = values[field.key] ?? "";
+          const isVisible = showField[field.key];
+          const isSaving = saving[field.key];
+          const isSaved = saved[field.key];
+          const hasValue = val.length > 0;
+          return (
+            <div key={field.key} style={{ marginBottom: 14 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                <label className="panel-label">{field.label}</label>
+                <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                  {hasValue && (
+                    <span style={{ fontSize: "var(--font-size-xs)", color: "var(--success-color)", display: "flex", alignItems: "center", gap: 2 }}>
+                      <CheckCircle size={10} /> set
+                    </span>
+                  )}
+                  {!hasValue && (
+                    <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-tertiary, var(--text-secondary))" }}>
+                      <MinusCircle size={10} style={{ verticalAlign: "middle" }} /> not configured
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 6 }}>
+                <input
+                  type={isVisible || field.url ? "text" : "password"}
+                  value={val}
+                  placeholder={field.placeholder}
+                  className="panel-input panel-input-full"
+                  style={{ flex: 1, fontFamily: field.url ? "inherit" : "monospace", fontSize: "var(--font-size-sm)" }}
+                  onChange={e => setValues(prev => ({ ...prev, [field.key]: e.target.value }))}
+                  onKeyDown={e => { if (e.key === "Enter") saveField(field.key); }}
+                />
+                {!field.url && (
+                  <button
+                    className="panel-btn panel-btn-secondary panel-btn-sm"
+                    onClick={() => setShowField(prev => ({ ...prev, [field.key]: !isVisible }))}
+                    title={isVisible ? "Hide" : "Show"}
+                  >
+                    {isVisible ? <EyeOff size={13} /> : <Eye size={13} />}
+                  </button>
+                )}
+                <button
+                  className="panel-btn panel-btn-secondary panel-btn-sm"
+                  onClick={() => saveField(field.key)}
+                  disabled={isSaving}
+                  title="Save encrypted"
+                >
+                  {isSaving ? <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> : isSaved ? <Check size={13} /> : <Save size={13} />}
+                </button>
+                {hasValue && (
+                  <button
+                    className="panel-btn panel-btn-secondary panel-btn-sm"
+                    onClick={() => clearField(field.key)}
+                    title="Clear token"
+                    style={{ color: "var(--error-color)" }}
+                  >
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {message && (
+        <div className={`panel-card ${message.type === "error" ? "panel-error" : ""}`}
+          style={{ fontSize: "var(--font-size-sm)", color: message.type === "error" ? "var(--error-color)" : "var(--success-color)", display: "flex", alignItems: "center", gap: 6 }}>
+          {message.type === "success" ? <CheckCircle size={14} /> : <AlertCircle size={14} />}
+          {message.text}
+        </div>
+      )}
+
+      <div className="panel-card" style={{ marginTop: 8, fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>
+        <strong>Storage:</strong> All tokens are encrypted with ChaCha20-Poly1305 in{" "}
+        <code style={{ background: "var(--bg-tertiary, var(--bg-secondary))", padding: "1px 4px", borderRadius: "var(--radius-xs-plus)" }}>
+          ~/.vibecli/profile_settings.db
+        </code>
+        {" "}— never in plaintext files or environment variables.
+        The CLI resolution order is: <strong>Settings → config.toml → env var</strong>.
+      </div>
+    </div>
+  );
+}
+
 /* ── Main Settings Panel ───────────────────────────────────────────── */
 
 const SECTIONS: { key: SettingsSection; label: string; icon: React.ReactNode }[] = [
@@ -2849,6 +3103,7 @@ const SECTIONS: { key: SettingsSection; label: string; icon: React.ReactNode }[]
   { key: "oauth", label: "OAuth Login", icon: <LogIn size={16} /> },
   { key: "customizations", label: "Customizations", icon: <Save size={16} /> },
   { key: "apikeys", label: "API Keys", icon: <Key size={16} /> },
+  { key: "integrations", label: "Integrations", icon: <Plug size={16} /> },
 ];
 
 export function SettingsPanel({ onClose }: { onClose?: () => void }) {
@@ -2885,6 +3140,7 @@ export function SettingsPanel({ onClose }: { onClose?: () => void }) {
         {section === "oauth" && <OAuthSection />}
         {section === "customizations" && <CustomizationsSection />}
         {section === "apikeys" && <ApiKeysSection />}
+        {section === "integrations" && <IntegrationsSection />}
       </div>
     </div>
   );
