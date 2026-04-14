@@ -184,6 +184,7 @@ header_pages:
   - CHANGELOG.md
   - ROADMAP-v5.md
   - FIT-GAP-ANALYSIS-v7.md
+  - FIT-GAP-PI-MONO.md
   - contributing.md
   - demos/index.md
   - whitepapers/index.md
