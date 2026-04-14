@@ -58,6 +58,7 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  useEffect(() => {
  loadProfiles();
  return () => { unlistenRef.current?.(); };
+ // eslint-disable-next-line react-hooks/exhaustive-deps
  }, []);
 
  useEffect(() => {

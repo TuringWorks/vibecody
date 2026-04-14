@@ -37,6 +37,7 @@ export function SupabasePanel({ workspacePath, provider }: { workspacePath: stri
  .then(cfg => { if (!cancelled && cfg.url) { setConfig(cfg); setConnected(true); fetchTables(cfg); } })
  .catch((e: unknown) => { if (!cancelled) console.error("Failed to load Supabase config:", e); });
  return () => { cancelled = true; };
+ // eslint-disable-next-line react-hooks/exhaustive-deps
  }, [workspacePath]);
 
  if (!workspacePath) {

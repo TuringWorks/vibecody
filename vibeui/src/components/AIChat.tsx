@@ -1430,7 +1430,7 @@ export function AIChat({
           name, mime_type, data, size, text_content: text_content ?? null,
         })),
       };
-      console.log("[AIChat] invoke stream_chat_message:", {
+      console.warn("[AIChat] invoke stream_chat_message:", {
         provider,
         messageCount: backendMessages.length,
         contextLen: (context ?? "").length,
@@ -1441,7 +1441,7 @@ export function AIChat({
       // Verify IPC works at all before the main call
       try {
         await invoke("get_workspace_folders");
-        console.log("[AIChat] IPC health check OK");
+        console.warn("[AIChat] IPC health check OK");
       } catch (ipcErr) {
         console.error("[AIChat] IPC health check FAILED:", ipcErr);
       }

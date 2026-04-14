@@ -25,6 +25,40 @@ pub enum Language {
     Swift,
     Ruby,
     Cpp,
+    C,
+    PHP,
+    Perl,
+    SQL,
+    Lua,
+    Scala,
+    Dart,
+    Haskell,
+    OCaml,
+    Erlang,
+    Julia,
+    R,
+    Shell,
+    PowerShell,
+    VisualBasic,
+    Fortran,
+    Assembly,
+    COBOL,
+    Ada,
+    Solidity,
+    ObjectiveC,
+    Prolog,
+    // Additional TIOBE top-50 entries
+    JavaScript,
+    Delphi,
+    MATLAB,
+    PLSQL,
+    SAS,
+    Lisp,
+    ML,
+    ABAP,
+    GML,
+    Zig,
+    FoxPro,
 }
 
 impl Language {
@@ -40,6 +74,39 @@ impl Language {
             "swift" => Some(Self::Swift),
             "rb" => Some(Self::Ruby),
             "cpp" | "cc" | "cxx" => Some(Self::Cpp),
+            "c" | "h" => Some(Self::C),
+            "php" | "php3" | "php4" | "php5" => Some(Self::PHP),
+            "pl" | "pm" => Some(Self::Perl),
+            "sql" | "ddl" | "dml" | "tsql" => Some(Self::SQL),
+            "lua" => Some(Self::Lua),
+            "scala" | "sc" => Some(Self::Scala),
+            "dart" => Some(Self::Dart),
+            "hs" | "lhs" => Some(Self::Haskell),
+            "ml" | "mli" => Some(Self::OCaml),
+            "erl" | "hrl" => Some(Self::Erlang),
+            "jl" => Some(Self::Julia),
+            "r" | "R" => Some(Self::R),
+            "sh" | "bash" | "zsh" => Some(Self::Shell),
+            "ps1" | "psm1" | "psd1" => Some(Self::PowerShell),
+            "vb" | "vbs" | "bas" => Some(Self::VisualBasic),
+            "f" | "f90" | "f95" | "f03" | "f08" | "for" | "ftn" => Some(Self::Fortran),
+            "asm" | "s" | "nasm" => Some(Self::Assembly),
+            "cob" | "cbl" | "cpy" => Some(Self::COBOL),
+            "adb" | "ads" | "ada" => Some(Self::Ada),
+            "sol" => Some(Self::Solidity),
+            "m" | "mm" => Some(Self::ObjectiveC),
+            "pro" | "prolog" => Some(Self::Prolog),
+            "js" | "jsx" | "mjs" | "cjs" => Some(Self::JavaScript),
+            "pas" | "pp" | "dpr" | "dfm" => Some(Self::Delphi),
+            "mat" | "mlx" | "mlapp" => Some(Self::MATLAB),
+            "pls" | "plsql" | "pkb" | "pks" | "pck" => Some(Self::PLSQL),
+            "sas" => Some(Self::SAS),
+            "lisp" | "lsp" | "cl" | "el" | "fasl" => Some(Self::Lisp),
+            "sml" | "sig" | "fun" => Some(Self::ML),
+            "abap" | "prog" | "clas" | "fugr" => Some(Self::ABAP),
+            "gml" | "yy" | "yyp" => Some(Self::GML),
+            "zig" | "zon" => Some(Self::Zig),
+            "prg" | "dbc" | "vcx" | "scx" => Some(Self::FoxPro),
             _ => None,
         }
     }
@@ -56,24 +123,113 @@ impl Language {
             Self::Swift => "Swift",
             Self::Ruby => "Ruby",
             Self::Cpp => "C++",
+            Self::C => "C",
+            Self::PHP => "PHP",
+            Self::Perl => "Perl",
+            Self::SQL => "SQL",
+            Self::Lua => "Lua",
+            Self::Scala => "Scala",
+            Self::Dart => "Dart",
+            Self::Haskell => "Haskell",
+            Self::OCaml => "OCaml",
+            Self::Erlang => "Erlang",
+            Self::Julia => "Julia",
+            Self::R => "R",
+            Self::Shell => "Shell",
+            Self::PowerShell => "PowerShell",
+            Self::VisualBasic => "Visual Basic",
+            Self::Fortran => "Fortran",
+            Self::Assembly => "Assembly",
+            Self::COBOL => "COBOL",
+            Self::Ada => "Ada",
+            Self::Solidity => "Solidity",
+            Self::ObjectiveC => "Objective-C",
+            Self::Prolog => "Prolog",
+            Self::JavaScript => "JavaScript",
+            Self::Delphi => "Delphi/Object Pascal",
+            Self::MATLAB => "MATLAB",
+            Self::PLSQL => "PL/SQL",
+            Self::SAS => "SAS",
+            Self::Lisp => "Lisp",
+            Self::ML => "ML",
+            Self::ABAP => "ABAP",
+            Self::GML => "GML",
+            Self::Zig => "Zig",
+            Self::FoxPro => "(Visual) FoxPro",
         }
     }
 
     pub fn comment_prefix(&self) -> &'static str {
         match self {
-            Self::Python | Self::Ruby => "#",
+            Self::Python | Self::Ruby | Self::Perl | Self::Shell | Self::R | Self::Julia | Self::PHP => "#",
+            Self::Haskell | Self::Lua | Self::SQL | Self::Ada => "--",
+            Self::Fortran => "!",
+            Self::COBOL => "*",
+            Self::Assembly | Self::Prolog | Self::Erlang => "%",
+            Self::VisualBasic | Self::PowerShell => "'",
             _ => "//",
         }
     }
 
     /// Whether the language has native iterator methods.
     pub fn has_iterators(&self) -> bool {
-        matches!(self, Self::Rust | Self::TypeScript | Self::Python | Self::Kotlin | Self::Swift)
+        matches!(self, Self::Rust | Self::TypeScript | Self::Python | Self::Kotlin | Self::Swift
+            | Self::Scala | Self::Haskell | Self::OCaml | Self::Erlang | Self::Dart | Self::Ruby | Self::Java | Self::CSharp)
     }
 
     /// Whether the language supports type inference.
     pub fn has_type_inference(&self) -> bool {
-        matches!(self, Self::Rust | Self::TypeScript | Self::Go | Self::Kotlin | Self::Swift)
+        matches!(self, Self::Rust | Self::TypeScript | Self::Go | Self::Kotlin | Self::Swift
+            | Self::Scala | Self::Haskell | Self::OCaml | Self::Dart | Self::CSharp | Self::Julia)
+    }
+
+    /// Returns the approximate TIOBE index rank (April 2026) for this language.
+    pub fn tiobe_rank(&self) -> Option<u32> {
+        match self {
+            Self::Python => Some(1),
+            Self::C => Some(2),
+            Self::Cpp => Some(3),
+            Self::Java => Some(4),
+            Self::CSharp => Some(5),
+            Self::TypeScript => Some(34),
+            Self::VisualBasic => Some(7),
+            Self::SQL => Some(8),
+            Self::R => Some(9),
+            Self::Perl => Some(12),
+            Self::Fortran => Some(13),
+            Self::PHP => Some(14),
+            Self::Go => Some(15),
+            Self::Rust => Some(16),
+            Self::Assembly => Some(18),
+            Self::Swift => Some(19),
+            Self::Ada => Some(20),
+            Self::COBOL => Some(23),
+            Self::Kotlin => Some(24),
+            Self::ObjectiveC => Some(27),
+            Self::Dart => Some(28),
+            Self::Ruby => Some(29),
+            Self::Lua => Some(30),
+            Self::Julia => Some(32),
+            Self::Haskell => Some(35),
+            Self::PowerShell => Some(45),
+            Self::Solidity => Some(49),
+            Self::OCaml => Some(38),
+            Self::Erlang => Some(41),
+            Self::Scala => Some(43),
+            Self::Prolog => Some(22),
+            Self::Shell => None,
+            Self::JavaScript => Some(6),
+            Self::Delphi => Some(10),
+            Self::MATLAB => Some(17),
+            Self::PLSQL => Some(21),
+            Self::SAS => Some(25),
+            Self::Lisp => Some(31),
+            Self::ML => Some(33),
+            Self::ABAP => Some(37),
+            Self::GML => Some(46),
+            Self::Zig => Some(39),
+            Self::FoxPro => Some(50),
+        }
     }
 }
 
@@ -175,12 +331,18 @@ impl NamingConvention {
     /// Preferred convention for identifiers in each language.
     pub fn preferred_for(lang: &Language) -> Self {
         match lang {
-            Language::Rust => Self::SnakeCase,
-            Language::TypeScript | Language::Java | Language::CSharp | Language::Kotlin => Self::CamelCase,
-            Language::Python | Language::Ruby => Self::SnakeCase,
-            Language::Go => Self::CamelCase,
-            Language::Swift => Self::CamelCase,
-            Language::Cpp => Self::SnakeCase,
+            Language::Rust | Language::Python | Language::Ruby | Language::Perl | Language::Shell
+            | Language::Cpp | Language::C | Language::PHP | Language::Lua | Language::R
+            | Language::Julia | Language::Erlang | Language::Ada | Language::Prolog => Self::SnakeCase,
+            Language::TypeScript | Language::Java | Language::CSharp | Language::Kotlin
+            | Language::Go | Language::Swift | Language::Dart | Language::Scala
+            | Language::Haskell | Language::OCaml | Language::Solidity | Language::ObjectiveC => Self::CamelCase,
+            Language::SQL | Language::COBOL | Language::Fortran | Language::Assembly
+            | Language::PLSQL | Language::SAS | Language::ABAP => Self::ScreamingSnake,
+            Language::VisualBasic | Language::PowerShell | Language::Delphi => Self::PascalCase,
+            Language::JavaScript | Language::GML => Self::CamelCase,
+            Language::MATLAB | Language::Lisp | Language::ML
+            | Language::Zig | Language::FoxPro => Self::SnakeCase,
         }
     }
 

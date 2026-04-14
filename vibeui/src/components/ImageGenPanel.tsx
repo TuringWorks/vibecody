@@ -115,6 +115,7 @@ const ImageGenPanel: React.FC = () => {
     const handler = () => loadProviders();
     window.addEventListener("vibeui:providers-updated", handler);
     return () => window.removeEventListener("vibeui:providers-updated", handler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const costEstimate = model === "DALL-E 3" || model === "GPT Image"

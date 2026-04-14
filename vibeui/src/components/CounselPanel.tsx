@@ -124,6 +124,7 @@ export function CounselPanel() {
   // Load sessions on mount
   useEffect(() => {
     loadSessions();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Listen for counsel events

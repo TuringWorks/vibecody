@@ -46,6 +46,7 @@ export function ScreenshotToApp({ workspacePath, provider }: { workspacePath: st
       setImageBase64(base64);
     };
     reader.readAsDataURL(file);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleDrop = useCallback((e: React.DragEvent) => {

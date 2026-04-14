@@ -142,7 +142,6 @@ export function NumberBasePanel() {
  if (src !== "hex") setHexInput(u.toString(16).toUpperCase());
  if (src !== "oct") setOctInput(u.toString(8));
  if (src !== "bin") setBinInput(u.toString(2).padStart(bits, "0").replace(/(.{4})/g, "$1 ").trim());
- // eslint-disable-next-line react-hooks/exhaustive-deps
  }, [bits, signed, mask]);
 
  const handleDec = (s: string) => { setDecInput(s); setSource("dec"); const v = parseBigInt(s, 10); syncFrom(v, "dec"); };

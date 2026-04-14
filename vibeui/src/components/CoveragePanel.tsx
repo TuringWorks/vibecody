@@ -70,6 +70,7 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  invoke<string>("detect_coverage_tool", { workspace: workspacePath })
  .then(setTool)
  .catch(() => setTool(null));
+ // eslint-disable-next-line react-hooks/exhaustive-deps
  }, [workspacePath]);
 
  // Auto-scroll log to bottom when new lines arrive

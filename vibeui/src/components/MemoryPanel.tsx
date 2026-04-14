@@ -46,6 +46,7 @@ function DirRulesTab({ workspacePath }: { workspacePath?: string | null }) {
  setSelected(null);
  setContent("");
  setError(null);
+ // eslint-disable-next-line react-hooks/exhaustive-deps
  }, [scope, workspacePath]);
 
  async function loadFiles() {

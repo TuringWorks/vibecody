@@ -65,6 +65,7 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
  if (ctxs.length > 0 && !selectedContext) setSelectedContext(ctxs[0]);
  })
  .catch(() => setContexts([]));
+ // eslint-disable-next-line react-hooks/exhaustive-deps
  }, []);
 
  // Auto-scroll kubectl output

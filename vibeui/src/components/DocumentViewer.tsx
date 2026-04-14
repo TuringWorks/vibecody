@@ -513,7 +513,6 @@ function parseZipEntries(data: Uint8Array): ZipEntry[] {
           data: rawDeflated, // Will be inflated in post-processing
           // @ts-expect-error  — mark for decompression
           _compressed: true,
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           _uncompressedSize: uncompressedSize,
         });
       } catch {

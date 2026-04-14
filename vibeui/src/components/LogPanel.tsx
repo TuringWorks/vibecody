@@ -85,6 +85,7 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
         if (s.length > 0 && !selectedSource) setSelectedSource(s[0].path);
       })
       .catch(() => setSources([]));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspacePath]);
 
   // Auto-refresh
@@ -96,6 +97,7 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
       if (intervalRef.current) clearInterval(intervalRef.current);
       intervalRef.current = null;
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoRefresh, selectedSource, lineCount, levelFilter]);
 
   if (!workspacePath) {

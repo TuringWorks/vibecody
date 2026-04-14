@@ -174,6 +174,7 @@ export function BlueTeamPanel() {
     if (activeTab === "SIEM" && siemConns.length === 0) loadSIEM();
     if (activeTab === "Playbooks" && playbooks.length === 0) loadPlaybooks();
     if (activeTab === "Threat Hunt") loadHunts();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
   async function loadIncidents() {

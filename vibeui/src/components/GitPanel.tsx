@@ -64,6 +64,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  loadBranches();
  loadGitConfig();
  }
+ // eslint-disable-next-line react-hooks/exhaustive-deps
  }, [workspacePath]);
 
  // Auto-refresh git status every 30 seconds

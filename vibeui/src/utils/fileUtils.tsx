@@ -37,14 +37,14 @@ export function detectLanguage(filename: string): string {
         // PHP
         'php': 'php',
 
-        // Swift / Objective-C
-        'swift': 'swift', 'm': 'objective-c', 'mm': 'objective-c',
+        // Swift / Objective-C (.mm is unambiguously ObjC; bare .m goes to MATLAB below)
+        'swift': 'swift', 'mm': 'objective-c',
 
         // Dart
         'dart': 'dart',
 
-        // Elixir / Erlang
-        'ex': 'elixir', 'exs': 'elixir', 'erl': 'elixir', 'hrl': 'elixir',
+        // Elixir / Erlang (distinct languages sharing BEAM VM — use separate Monaco IDs)
+        'ex': 'elixir', 'exs': 'elixir', 'erl': 'erlang', 'hrl': 'erlang',
 
         // Haskell
         'hs': 'haskell',            // Monaco doesn't have Haskell; map to plaintext with custom later
@@ -78,13 +78,49 @@ export function detectLanguage(filename: string): string {
 
         // Fortran
         'f': 'fortran', 'f90': 'fortran', 'f95': 'fortran', 'f03': 'fortran', 'f08': 'fortran',
+        'ftn': 'fortran', 'for': 'fortran',
 
         // Pascal
         'pas': 'pascal', 'pp': 'pascal',
 
         // Ada
-        'adb': 'pascal',            // Ada → Pascal syntax (similar)
-        'ads': 'pascal',
+        'adb': 'ada', 'ads': 'ada', 'ada': 'ada',
+
+        // MATLAB (.m wins over Objective-C for bare .m files)
+        'm': 'matlab', 'mat': 'matlab', 'mlx': 'matlab', 'mlapp': 'matlab',
+
+        // Assembly
+        'asm': 'asm', 's': 'asm', 'nasm': 'asm', 'S': 'asm',
+
+        // COBOL
+        'cob': 'cobol', 'cbl': 'cobol', 'cpy': 'cobol',
+
+        // SAS
+        'sas': 'sas',
+
+        // VBScript
+        'vbs': 'vb', 'wsf': 'vb',
+
+        // ABAP
+        'abap': 'abap',
+
+        // Solidity
+        'sol': 'sol',
+
+        // Transact-SQL
+        'tsql': 'sql',
+
+        // PL/SQL
+        'pls': 'sql', 'plsql': 'sql', 'pkb': 'sql', 'pks': 'sql',
+
+        // FoxPro
+        'prg': 'foxpro',
+
+        // GML (GameMaker Language — JS-like syntax)
+        'gml': 'javascript',
+
+        // X++
+        'xpp': 'csharp', 'axpp': 'csharp',
 
         // Prolog
         'pro': 'prolog',

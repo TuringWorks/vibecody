@@ -4,7 +4,7 @@
  * Scans codebase for cloud service usage, generates IAM policies,
  * produces IaC templates, and estimates costs via Tauri backend commands.
  */
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -122,7 +122,7 @@ export function CloudProviderPanel() {
   const connectedProviders = ["AWS", "GCP", "Azure"].filter(isCloudConnected);
 
   // Detected services as simple JSON objects for passing to backend
-  const detectedServices = scanResult?.detected_services ?? [];
+  const detectedServices = useMemo(() => scanResult?.detected_services ?? [], [scanResult]);
 
   // Unique providers from scan results
   const detectedProviders = Array.from(new Set(detectedServices.map(s => s.provider)));

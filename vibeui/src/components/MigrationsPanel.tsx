@@ -74,6 +74,7 @@ export function MigrationsPanel({ workspacePath }: MigrationsPanelProps) {
 
  useEffect(() => {
  load();
+ // eslint-disable-next-line react-hooks/exhaustive-deps
  }, [workspacePath]);
 
  const runAction = async (action: string, extra?: string) => {

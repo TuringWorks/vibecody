@@ -42,12 +42,22 @@ interface CodeMetricsPanelProps {
 }
 
 const LANG_COLORS: Record<string, string> = {
+  // Original entries
   Rust: "#dea584", TypeScript: "#3178c6", JavaScript: "#f7df1e",
   Python: "#4584b6", Go: "#00add8", "C++": "#f34b7d", C: "#555555",
   Java: "#b07219", "C#": "#178600", Ruby: "#701516", Kotlin: "#a97bff",
   Swift: "#fa7343", Shell: "#89e051", SQL: "#e38c00", HTML: "#e34c26",
   CSS: "#563d7c", JSON: "var(--accent-gold)", YAML: "#cb171e", TOML: "#9c4121",
   Markdown: "#083fa1", Dart: "#00b4ab", Zig: "#ec915c", Lua: "#000080",
+  // TIOBE top-50 additions
+  PHP: "#777bb3", Perl: "#39457e", Fortran: "#4d41b1", MATLAB: "#e16737",
+  Assembly: "#6e4c13", Ada: "#02f88c",
+  "Objective-C": "#438eff", Haskell: "#5e5086", Scala: "#dc322f",
+  Erlang: "#b83998", Julia: "#a270ba",
+  "Visual Basic": "#945db7", R: "#276dc3",
+  COBOL: "#005ca5", PowerShell: "#012456", Solidity: "#363636",
+  Lisp: "#3fb68b", "PL/SQL": "#da2b2b", "Transact-SQL": "#e38c00",
+  OCaml: "#ef7a08", Prolog: "#74283c", ABAP: "#e8274b", SAS: "#1e90ff",
 };
 
 function pct(part: number, total: number) {

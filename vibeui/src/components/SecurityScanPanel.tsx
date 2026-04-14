@@ -336,6 +336,7 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
   useEffect(() => {
     loadScanResults();
     loadScanHistory();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspacePath]);
 
   async function loadScanResults() {

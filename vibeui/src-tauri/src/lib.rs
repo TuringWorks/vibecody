@@ -7,6 +7,7 @@ mod agent_executor;
 mod memory;
 mod panel_store;
 pub mod shadow_workspace;
+pub mod sonar_rules;
 
 use commands::AppState;
 use std::sync::Arc;
@@ -1494,6 +1495,9 @@ pub fn run() {
             commands::archspec_load_scan,
             commands::archspec_clear_history,
             commands::handle_policy_command,
+            commands::sonar_load_rules,
+            commands::sonar_get_rules,
+            commands::sonar_scan_file,
             commands::handle_aireview_command,
             commands::handle_creview_command,
             commands::handle_gateway_cli,

@@ -43,7 +43,7 @@ export function DrawioPreview({ content, filePath }: DrawioPreviewProps) {
             '*'
           );
         }
-      } catch (err) {
+      } catch (_err) {
         // Ignore unrelated postMessage parsing errors
       }
     };

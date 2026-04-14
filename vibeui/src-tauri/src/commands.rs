@@ -42981,6 +42981,36 @@ pub async fn handle_policy_command(args: String) -> Result<String, String> {
         .map_err(|e| e.to_string())?
 }
 
+/// Load all built-in SonarQube-compatible rules into the local SQLite DB.
+/// Returns the number of rules loaded.
+#[tauri::command]
+pub async fn sonar_load_rules() -> Result<u32, String> {
+    tokio::task::spawn_blocking(|| crate::sonar_rules::load_rules_to_db())
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+/// Return all rules from the local DB (optionally filtered by language).
+#[tauri::command]
+pub async fn sonar_get_rules(language: Option<String>) -> Result<Vec<crate::sonar_rules::SonarRule>, String> {
+    let lang = language.clone();
+    Ok(tokio::task::spawn_blocking(move || {
+        crate::sonar_rules::get_rules(lang.as_deref())
+    })
+    .await
+    .map_err(|e| e.to_string())?)
+}
+
+/// Scan the given file content against all applicable SonarQube rules and return line-level issues.
+#[tauri::command]
+pub async fn sonar_scan_file(file_path: String, content: String) -> Result<crate::sonar_rules::SonarScanResult, String> {
+    Ok(tokio::task::spawn_blocking(move || {
+        crate::sonar_rules::scan_content(&file_path, &content)
+    })
+    .await
+    .map_err(|e| e.to_string())?)
+}
+
 #[tauri::command]
 pub async fn handle_aireview_command(args: String) -> Result<String, String> {
     tokio::task::spawn_blocking(move || run_vibecli_cmd("aireview", &args))

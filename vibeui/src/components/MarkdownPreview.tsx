@@ -42,7 +42,7 @@ const sharedComponents: any = {
                     if (targetUrl.startsWith('http') || targetUrl.startsWith('mailto:')) {
                         openUrl(targetUrl).catch(console.error);
                     } else {
-                        console.log('Local markdown link clicked internally, navigation deferred:', targetUrl);
+                        console.warn('Local markdown link clicked internally, navigation deferred:', targetUrl);
                     }
                 }}
             >
@@ -173,7 +173,7 @@ export function MarkdownPreview({ content }: MarkdownPreviewProps) {
                 components={{
                     ...sharedComponents,
                     p: 'p', // Restore standard paragraph wrapping for the main document body!
-                    code({ node, inline, className, children, ...props }: any) {
+                    code({ node: _node, inline, className, children, ...props }: any) {
                         const match = /language-(\w+)/.exec(className || '');
                         if (!inline && match && match[1] === '__markdown_table__') {
                             return renderTable(String(children).replace(/\n$/, ''));

@@ -158,6 +158,7 @@ export function PurpleTeamPanel({ provider }: { provider?: string } = {}) {
     if (activeTab === "ATT&CK Matrix" && matrix.length === 0) loadMatrix();
     if (activeTab === "Simulations" && simulations.length === 0) loadSimulations();
     if (activeTab === "Coverage Gaps" && gaps.length === 0) loadGaps();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
   async function loadExercises() {

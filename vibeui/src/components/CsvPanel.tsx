@@ -80,8 +80,8 @@ export function CsvPanel() {
  reader.readAsText(file);
  }, [loadText]);
 
- const headers = hasHeader && rows.length > 0 ? rows[0] : [];
- const dataRows = hasHeader ? rows.slice(1) : rows;
+ const headers = useMemo(() => hasHeader && rows.length > 0 ? rows[0] : [], [hasHeader, rows]);
+ const dataRows = useMemo(() => hasHeader ? rows.slice(1) : rows, [hasHeader, rows]);
 
  const filteredRows = useMemo(() => {
  if (!filterText) return dataRows;

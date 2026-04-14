@@ -64,13 +64,14 @@ export function CompanyHeartbeatPanel({ workspacePath: _wp }: CompanyHeartbeatPa
         limit: 50,
       });
       setRuns(result);
-    } catch (e) {
+    } catch (_e) {
       setRuns([]);
     } finally {
       setLoading(false);
     }
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, []);
 
   const trigger = async () => {
@@ -80,8 +81,8 @@ export function CompanyHeartbeatPanel({ workspacePath: _wp }: CompanyHeartbeatPa
       const out = await invoke<string>("company_heartbeat_trigger", { agentId: agent });
       setTriggerResult(out);
       load();
-    } catch (e) {
-      setTriggerResult(`Error: ${e}`);
+    } catch (_e) {
+      setTriggerResult(`Error: ${_e}`);
     }
   };
 

@@ -1708,8 +1708,8 @@ function ProfileSection() {
             setGoogleConnected(true);
             setSaved(true);
             setTimeout(() => setSaved(false), 2000);
-          } catch (e) {
-            setGoogleError(String(e));
+          } catch (_e) {
+            setGoogleError(String(_e));
           } finally {
             setGoogleLoading(false);
           }
@@ -1783,8 +1783,8 @@ function ProfileSection() {
       });
       setGAwaitingCode(true);
       setGAuthCode("");
-    } catch (e) {
-      setGoogleError(String(e));
+    } catch (_e) {
+      setGoogleError(String(_e));
     } finally {
       setGoogleLoading(false);
     }
@@ -1801,8 +1801,8 @@ function ProfileSection() {
       });
       setGoogleConfiguring(false);
       await startGoogleOAuth(gClientId.trim());
-    } catch (e) {
-      setGoogleError(String(e));
+    } catch (_e) {
+      setGoogleError(String(_e));
     } finally {
       setGoogleLoading(false);
     }
@@ -1837,8 +1837,8 @@ function ProfileSection() {
       setGoogleConnected(true);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
-    } catch (e) {
-      setGoogleError(String(e));
+    } catch (_e) {
+      setGoogleError(String(_e));
     } finally {
       setGoogleLoading(false);
     }
@@ -1848,8 +1848,8 @@ function ProfileSection() {
     try {
       await invoke("cloud_oauth_disconnect", { provider: "google" });
       setGoogleConnected(false);
-    } catch (e) {
-      setGoogleError(String(e));
+    } catch (_e) {
+      setGoogleError(String(_e));
     }
   };
 
@@ -2158,7 +2158,7 @@ function OAuthSection() {
       }
       // Start OAuth flow
       await startOAuthFlow(id, config.client_id);
-    } catch (e) {
+    } catch (_e) {
       setConfiguring(id);
       setClientId("");
       setClientSecret("");
@@ -2178,8 +2178,8 @@ function OAuthSection() {
       // Browser opened — now wait for auth code
       setAwaitingCode(id);
       setAuthCode("");
-    } catch (e) {
-      setError(String(e));
+    } catch (_e) {
+      setError(String(_e));
     } finally {
       setLoading(null);
     }
@@ -2203,8 +2203,8 @@ function OAuthSection() {
       ));
       setAwaitingCode(null);
       setAuthCode("");
-    } catch (e) {
-      setError(String(e));
+    } catch (_e) {
+      setError(String(_e));
     } finally {
       setLoading(null);
     }
@@ -2222,8 +2222,8 @@ function OAuthSection() {
       setConfiguring(null);
       // Now start the OAuth flow
       await startOAuthFlow(id, clientId.trim());
-    } catch (e) {
-      setError(String(e));
+    } catch (_e) {
+      setError(String(_e));
     } finally {
       setLoading(null);
     }
@@ -2234,8 +2234,8 @@ function OAuthSection() {
     try {
       await invoke("cloud_oauth_disconnect", { provider: id });
       setProviders(prev => prev.map(p => p.id === id ? { ...p, connected: false, email: undefined, displayName: undefined, expired: undefined } : p));
-    } catch (e) {
-      setError(String(e));
+    } catch (_e) {
+      setError(String(_e));
     } finally {
       setLoading(null);
     }
@@ -2252,8 +2252,8 @@ function OAuthSection() {
         clientSecret: config.client_secret || "",
       });
       await loadStatuses();
-    } catch (e) {
-      setError(String(e));
+    } catch (_e) {
+      setError(String(_e));
     } finally {
       setLoading(null);
     }
@@ -2547,8 +2547,8 @@ function ApiKeysSection() {
         const providers = await invoke<string[]>("save_provider_api_keys", { settings });
         window.dispatchEvent(new CustomEvent("vibeui:providers-updated", { detail: providers }));
         setMessage({ type: "success", text: `Auto-saved. ${providers.length} model(s) available.` });
-      } catch (e) {
-        setMessage({ type: "error", text: String(e) });
+      } catch (_e) {
+        setMessage({ type: "error", text: String(_e) });
       }
     }, 1000);
     return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current); };
@@ -2598,8 +2598,8 @@ function ApiKeysSection() {
       // Emit a custom event so App.tsx can refresh its provider dropdown
       window.dispatchEvent(new CustomEvent("vibeui:providers-updated", { detail: providers }));
       setMessage({ type: "success", text: `Saved. ${providers.length} model(s) available.` });
-    } catch (e) {
-      setMessage({ type: "error", text: String(e) });
+    } catch (_e) {
+      setMessage({ type: "error", text: String(_e) });
     } finally { setSaving(false); }
   };
 

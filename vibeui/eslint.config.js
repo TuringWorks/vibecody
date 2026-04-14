@@ -18,7 +18,7 @@ export default tseslint.config(
       // Allow unused vars prefixed with _ (common React pattern)
       "@typescript-eslint/no-unused-vars": [
         "warn",
-        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" },
       ],
       // Allow explicit any in specific cases (Tauri interop, third-party libs)
       "@typescript-eslint/no-explicit-any": "warn",

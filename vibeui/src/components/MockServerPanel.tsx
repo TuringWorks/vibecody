@@ -111,7 +111,7 @@ export function MockServerPanel() {
       const msg = await invoke<string>("start_mock_server", { port: parseInt(port, 10) });
       setRunning(true);
       setError(null);
-      console.log(msg);
+      console.warn(msg);
     } catch (e: unknown) {
       setError(String(e));
     }

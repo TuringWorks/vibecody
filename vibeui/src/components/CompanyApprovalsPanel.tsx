@@ -41,6 +41,7 @@ export function CompanyApprovalsPanel({ workspacePath: _wp }: CompanyApprovalsPa
     }
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [showAll]);
 
   const decide = async (decision: "approve" | "reject") => {

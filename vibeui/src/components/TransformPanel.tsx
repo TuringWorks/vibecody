@@ -186,6 +186,7 @@ export function TransformPanel({ provider }: TransformPanelProps) {
     } finally {
       if (mountedRef.current) setPlanning(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleExecute = useCallback(async () => {
@@ -207,6 +208,7 @@ export function TransformPanel({ provider }: TransformPanelProps) {
     } finally {
       if (mountedRef.current) setExecuting(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTransform, selectedFiles]);
 
   const handlePasteTransform = useCallback(async () => {
@@ -234,6 +236,7 @@ export function TransformPanel({ provider }: TransformPanelProps) {
     } finally {
       if (mountedRef.current) setPasteTransforming(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTransform, sourceCode, provider]);
 
   const toggleFile = (file: string) => {

@@ -78,7 +78,7 @@ export function ProjectContextPanel({ workspacePath }: { workspacePath?: string 
       try {
         const scanned = await invoke<ProjectProfile>("scan_project_profile", { workspacePath: wp });
         setProfile(scanned);
-      } catch (e) {
+      } catch (_e) {
         setError("No project profile found. Open a project folder and run /init in the CLI.");
       }
     }
@@ -92,8 +92,8 @@ export function ProjectContextPanel({ workspacePath }: { workspacePath?: string 
     try {
       const result = await invoke<string>("run_terminal_command", { command: cmd, workspacePath: wp });
       setRunOutput(result);
-    } catch (e) {
-      setRunOutput(`Error: ${e}`);
+    } catch (_e) {
+      setRunOutput(`Error: ${_e}`);
     }
   };
 
@@ -103,8 +103,8 @@ export function ProjectContextPanel({ workspacePath }: { workspacePath?: string 
     try {
       const scanned = await invoke<ProjectProfile>("scan_project_profile", { workspacePath: wp });
       setProfile(scanned);
-    } catch (e) {
-      setError(`Scan failed: ${e}`);
+    } catch (_e) {
+      setError(`Scan failed: ${_e}`);
     }
     setLoading(false);
   };

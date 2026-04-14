@@ -1083,6 +1083,7 @@ export function QuantumComputingPanel() {
     if (tab === "templates" && templateList.length === 0) {
       loadTemplates();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
 
   // ── Languages helpers ────────────────────────────────────────────────────

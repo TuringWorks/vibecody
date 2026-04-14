@@ -58,7 +58,7 @@ export default function PolicyEnginePanel() {
         principalId: principal, roles: roles.split(",").map(r => r.trim()), resourceKind: resource.split(":")[0], resourceId: resource.split(":")[1] || "", action
       });
       setResult(res);
-    } catch (e) { setResult({ action, effect: "DENY (error)", matchedRule: null, policyId: "none" }); }
+    } catch (_e) { setResult({ action, effect: "DENY (error)", matchedRule: null, policyId: "none" }); }
     setLoading(false);
   }, [principal, roles, resource, action]);
 

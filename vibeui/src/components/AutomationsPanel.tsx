@@ -146,6 +146,7 @@ const AutomationsPanel: React.FC = () => {
   const [newPrompt, setNewPrompt] = useState('');
   const [newResolutionMode, setNewResolutionMode] = useState<ResolutionMode>('auto');
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadAll(); }, []);
 
   async function loadAll() {

@@ -36,6 +36,7 @@ export function GitHubSyncPanel({ workspacePath }: { workspacePath: string | nul
  if (!workspacePath) return;
  loadStatus();
  checkToken();
+ // eslint-disable-next-line react-hooks/exhaustive-deps
  }, [workspacePath]);
 
  if (!workspacePath) {

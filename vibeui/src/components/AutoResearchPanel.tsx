@@ -187,7 +187,7 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
       ]);
       setSuccessPatterns(["increased learning rate", "added RoPE", "Muon optimizer"]);
       setFailPatterns(["removed dropout", "doubled batch size"]);
-    } catch (e) {
+    } catch (_e) {
       // Fallback: Tauri not available (dev mode), use demo data directly
       setSessionId("demo_session");
       setSessionActive(true);

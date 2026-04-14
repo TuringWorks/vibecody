@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import "./ContextPicker.css";
 
@@ -62,66 +62,37 @@ export function ContextPicker({ query, onSelect, onClose }: ContextPickerProps) 
     }, [query]);
 
     // Build the combined list: specials first, then files
-    let specials: { label: string; description?: string }[];
-    if (query.startsWith("web:")) {
-        // Show a single dynamic item for the URL being typed
-        const urlPart = query.slice(4);
-        specials = [{
-            label: `@web:${urlPart}`,
-            description: urlPart ? `Fetch ${urlPart}` : "Type a URL...",
-        }];
-    } else if (query.startsWith("docs:")) {
-        const docsPart = query.slice(5);
-        specials = [{
-            label: `@docs:${docsPart}`,
-            description: docsPart
-                ? `Fetch docs for "${docsPart}" (prefix rs:, py:, or npm:)`
-                : "Type a package name (e.g. tokio, py:requests, npm:react)...",
-        }];
-    } else if (query.startsWith("folder:")) {
-        // Show a single dynamic item for the folder path being typed
-        const folderPart = query.slice(7);
-        specials = [{
-            label: `@folder:${folderPart}`,
-            description: folderPart ? `Inject all files in ${folderPart}` : "Type a folder path...",
-        }];
-    } else if (query.startsWith("symbol:")) {
-        const symPart = query.slice(7);
-        specials = [{
-            label: `@symbol:${symPart}`,
-            description: symPart ? `Inject source of symbol "${symPart}"` : "Type a symbol name...",
-        }];
-    } else if (query.startsWith("codebase:")) {
-        const cbPart = query.slice(9);
-        specials = [{
-            label: `@codebase:${cbPart}`,
-            description: cbPart ? `Search codebase for "${cbPart}"` : "Type a search query...",
-        }];
-    } else if (query.startsWith("github:")) {
-        const ghPart = query.slice(7);
-        specials = [{
-            label: `@github:${ghPart}`,
-            description: ghPart
-                ? `Fetch GitHub issue/PR: @github:${ghPart}`
-                : "Type owner/repo#N (e.g. torvalds/linux#1234)...",
-        }];
-    } else if (query.startsWith("jira:")) {
-        const jiraPart = query.slice(5);
-        specials = [{
-            label: `@jira:${jiraPart}`,
-            description: jiraPart
-                ? `Fetch Jira issue: ${jiraPart}`
-                : "Type issue key (e.g. PROJ-123)...",
-        }];
-    } else {
-        specials = SPECIAL_ITEMS.filter(
-            (s) => query === "" || s.label.toLowerCase().includes(query.toLowerCase())
-        );
-    }
-    const allItems: { label: string; description?: string }[] = [
-        ...specials,
-        ...files.map((f) => ({ label: `@file:${f.path}`, description: f.name })),
-    ];
+    const allItems = useMemo(() => {
+        let specials: { label: string; description?: string }[];
+        if (query.startsWith("web:")) {
+            const urlPart = query.slice(4);
+            specials = [{ label: `@web:${urlPart}`, description: urlPart ? `Fetch ${urlPart}` : "Type a URL..." }];
+        } else if (query.startsWith("docs:")) {
+            const docsPart = query.slice(5);
+            specials = [{ label: `@docs:${docsPart}`, description: docsPart ? `Fetch docs for "${docsPart}" (prefix rs:, py:, or npm:)` : "Type a package name (e.g. tokio, py:requests, npm:react)..." }];
+        } else if (query.startsWith("folder:")) {
+            const folderPart = query.slice(7);
+            specials = [{ label: `@folder:${folderPart}`, description: folderPart ? `Inject all files in ${folderPart}` : "Type a folder path..." }];
+        } else if (query.startsWith("symbol:")) {
+            const symPart = query.slice(7);
+            specials = [{ label: `@symbol:${symPart}`, description: symPart ? `Inject source of symbol "${symPart}"` : "Type a symbol name..." }];
+        } else if (query.startsWith("codebase:")) {
+            const cbPart = query.slice(9);
+            specials = [{ label: `@codebase:${cbPart}`, description: cbPart ? `Search codebase for "${cbPart}"` : "Type a search query..." }];
+        } else if (query.startsWith("github:")) {
+            const ghPart = query.slice(7);
+            specials = [{ label: `@github:${ghPart}`, description: ghPart ? `Fetch GitHub issue/PR: @github:${ghPart}` : "Type owner/repo#N (e.g. torvalds/linux#1234)..." }];
+        } else if (query.startsWith("jira:")) {
+            const jiraPart = query.slice(5);
+            specials = [{ label: `@jira:${jiraPart}`, description: jiraPart ? `Fetch Jira issue: ${jiraPart}` : "Type issue key (e.g. PROJ-123)..." }];
+        } else {
+            specials = SPECIAL_ITEMS.filter((s) => query === "" || s.label.toLowerCase().includes(query.toLowerCase()));
+        }
+        return [
+            ...specials,
+            ...files.map((f) => ({ label: `@file:${f.path}`, description: f.name })),
+        ] as { label: string; description?: string }[];
+    }, [query, files]);
 
     // Keyboard navigation
     useEffect(() => {
