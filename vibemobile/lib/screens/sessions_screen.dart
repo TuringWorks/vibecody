@@ -30,14 +30,25 @@ class _SessionsScreenState extends State<SessionsScreen> {
 
     for (final cred in auth.machines) {
       try {
-        final jobs = await api.listJobs(cred.baseUrl, cred.token);
-        for (final job in jobs) {
-          job['_machine_name'] = cred.machineName;
-          job['_base_url'] = cred.baseUrl;
-          job['_token'] = cred.token;
+        final sessions = await api.listSessions(cred.baseUrl, cred.token);
+        for (final session in sessions) {
+          session['_machine_name'] = cred.machineName;
+          session['_base_url'] = cred.baseUrl;
+          session['_token'] = cred.token;
         }
-        allJobs.addAll(jobs);
-      } catch (_) {}
+        allJobs.addAll(sessions);
+      } catch (_) {
+        // Fall back to listJobs if /mobile/sessions not available.
+        try {
+          final jobs = await api.listJobs(cred.baseUrl, cred.token);
+          for (final job in jobs) {
+            job['_machine_name'] = cred.machineName;
+            job['_base_url'] = cred.baseUrl;
+            job['_token'] = cred.token;
+          }
+          allJobs.addAll(jobs);
+        } catch (_) {}
+      }
     }
 
     allJobs.sort((a, b) => (b['started_at'] ?? 0).compareTo(a['started_at'] ?? 0));
@@ -165,10 +176,10 @@ class _JobCard extends StatelessWidget {
                 ),
               ],
             ),
-            if (job['summary'] != null) ...[
+            if ((job['last_message_preview'] ?? job['summary']) != null) ...[
               const SizedBox(height: 8),
               Text(
-                job['summary'],
+                job['last_message_preview'] ?? job['summary'],
                 style: TextStyle(fontSize: 12, color: c.textSecondary),
                 maxLines: 2, overflow: TextOverflow.ellipsis,
               ),

@@ -5,8 +5,19 @@ import '../services/api_client.dart';
 import '../theme/app_theme.dart';
 
 /// Chat/dispatch screen — send messages or tasks to a selected machine.
+/// Pass [resumeMachineId], [resumeSessionId], and [resumeTask] to continue
+/// an existing session from a Handoff candidate.
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({super.key});
+  final String? resumeMachineId;
+  final String? resumeSessionId;
+  final String? resumeTask;
+
+  const ChatScreen({
+    super.key,
+    this.resumeMachineId,
+    this.resumeSessionId,
+    this.resumeTask,
+  });
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -18,6 +29,56 @@ class _ChatScreenState extends State<ChatScreen> {
   final List<_ChatMessage> _messages = [];
   String? _selectedMachineId;
   bool _sending = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.resumeMachineId != null) {
+      _selectedMachineId = widget.resumeMachineId;
+    }
+    // Load history after first frame so context is available.
+    if (widget.resumeSessionId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _loadSessionHistory());
+    }
+  }
+
+  Future<void> _loadSessionHistory() async {
+    if (widget.resumeSessionId == null) return;
+    final auth = context.read<AuthService>();
+    final api = context.read<ApiClient>();
+    final cred = auth.getCredential(widget.resumeMachineId ?? '');
+    if (cred == null) return;
+
+    try {
+      final contextData = await api.sessionContext(
+          cred.baseUrl, cred.token, widget.resumeSessionId!);
+      final ctx = contextData['context'];
+      if (ctx == null) return;
+
+      final messages = ctx['messages'] as List? ?? [];
+      if (!mounted) return;
+      setState(() {
+        _messages.clear();
+        for (final m in messages) {
+          final role = m['role'] ?? 'user';
+          final parts = m['parts'] as List? ?? [];
+          final text = parts
+              .where((p) => p['text'] != null)
+              .map((p) => p['text'] as String)
+              .join('\n');
+          if (text.isNotEmpty) {
+            _messages.add(_ChatMessage(
+              role: role == 'assistant' ? 'assistant' : 'user',
+              content: text,
+            ));
+          }
+        }
+      });
+      _scrollToBottom();
+    } catch (_) {
+      // Silently fail — user can still send new messages.
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

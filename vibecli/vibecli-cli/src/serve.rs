@@ -156,6 +156,8 @@ pub struct ServeState {
     pub collab_server: Arc<CollabServer>,
     /// GitHub App webhook config for CI/CD review bot.
     pub github_app_config: crate::github_app::GithubAppConfig,
+    /// Daemon startup time — used to compute uptime_secs in the beacon endpoint.
+    pub started_at: std::time::Instant,
 }
 
 // ── Request / Response types ──────────────────────────────────────────────────
@@ -1416,6 +1418,8 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/mobile/dispatches/device/:id", get(mobile_device_dispatches))
         .route("/mobile/notifications/:device_id", get(mobile_notifications))
         .route("/mobile/stats", get(mobile_stats))
+        .route("/mobile/sessions", get(mobile_sessions))
+        .route("/mobile/sessions/:id/context", get(mobile_session_context))
         .route_layer(middleware::from_fn_with_state(limiter, rate_limit))
         .route_layer(middleware::from_fn_with_state(state.clone(), require_auth));
 
@@ -1432,6 +1436,7 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/acp/v1/capabilities", get(acp_capabilities))
         .route("/v1/capabilities", get(v1_capabilities))
         .route("/ws/collab/:room_id", get(ws_collab_handler))
+        .route("/mobile/beacon", get(mobile_beacon))
         .route_layer(middleware::from_fn_with_state(public_limiter, rate_limit));
 
     // Public routes (health check, GitHub webhook with HMAC, pairing, collab WS, ACP discovery)
@@ -1518,6 +1523,7 @@ pub async fn serve(
         api_token: api_token.clone(),
         collab_server,
         github_app_config: gh_app_config,
+        started_at: std::time::Instant::now(),
     };
 
     let app = build_router(state, port);
@@ -2905,6 +2911,267 @@ async fn mobile_stats(
     }))
 }
 
+// ── Mobile Handoff Endpoints ──────────────────────────────────────────────────
+
+/// Info about the currently active (or most recently finished) session.
+#[derive(Debug, Serialize)]
+struct ActiveSessionInfo {
+    session_id: String,
+    task: String,
+    provider: String,
+    status: String,
+    started_at: u64,
+    message_count: usize,
+    summary: Option<String>,
+}
+
+/// Response for `GET /mobile/beacon` (no auth required).
+#[derive(Debug, Serialize)]
+struct BeaconResponse {
+    machine_id: String,
+    hostname: String,
+    daemon_version: &'static str,
+    port: u16,
+    lan_ips: Vec<String>,
+    tailscale_ip: Option<String>,
+    public_url: Option<String>,
+    uptime_secs: u64,
+    active_session: Option<ActiveSessionInfo>,
+}
+
+/// `GET /mobile/beacon` — no auth required.
+///
+/// Fast probe endpoint used by the mobile app to discover the best URL,
+/// detect machine presence, and check for an active session to hand off.
+async fn mobile_beacon(State(state): State<ServeState>) -> Json<serde_json::Value> {
+    // Hostname via process invocation (no extra dep).
+    let hostname = std::process::Command::new("hostname")
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .map(|s| s.trim().to_string())
+        .unwrap_or_else(|| "unknown".to_string());
+
+    // Derive primary LAN IP by binding a UDP socket and connecting to a public
+    // address — no packet is actually sent; we just read the OS-chosen source IP.
+    let lan_ips: Vec<String> = {
+        let mut ips = Vec::new();
+        if let Ok(sock) = std::net::UdpSocket::bind("0.0.0.0:0") {
+            if sock.connect("8.8.8.8:80").is_ok() {
+                if let Ok(addr) = sock.local_addr() {
+                    ips.push(addr.ip().to_string());
+                }
+            }
+        }
+        if ips.is_empty() {
+            ips.push("127.0.0.1".to_string());
+        }
+        ips
+    };
+
+    // Tailscale IP (best-effort; silently ignored if tailscale is not installed).
+    let tailscale_ip = crate::tailscale::tailscale_status()
+        .ok()
+        .and_then(|s| s.tailscale_ip);
+
+    // Public URL from the mobile gateway (if any machine registered one).
+    let public_url = {
+        let gw = mobile_gateway().lock().unwrap_or_else(|e| e.into_inner());
+        gw.machines.values().find_map(|m| m.public_url.clone())
+    };
+
+    // machine_id: stable identifier based on hostname + jobs_dir path hash.
+    let machine_id = {
+        let raw = format!("{}:{}", hostname, state.jobs_dir.display());
+        format!("{:x}", {
+            let mut h: u64 = 0xcbf29ce484222325;
+            for b in raw.bytes() {
+                h ^= b as u64;
+                h = h.wrapping_mul(0x100000001b3);
+            }
+            h
+        })
+    };
+
+    let uptime_secs = state.started_at.elapsed().as_secs();
+
+    // Find active session: prefer "running", fall back to a recently finished
+    // job (within the last 15 minutes = 900_000 ms).
+    let active_session: Option<ActiveSessionInfo> = {
+        let jobs = load_all_jobs(&state.jobs_dir);
+        let now = now_ms();
+        let fifteen_min_ms: u64 = 15 * 60 * 1_000;
+
+        let chosen = jobs.iter().find(|j| j.status == "running").or_else(|| {
+            jobs.iter().find(|j| {
+                j.finished_at
+                    .map(|fa| now.saturating_sub(fa) <= fifteen_min_ms)
+                    .unwrap_or(false)
+            })
+        });
+
+        chosen.map(|job| {
+            // Try to get message count from SessionStore.
+            let message_count = SessionStore::open_default()
+                .ok()
+                .and_then(|store| store.get_session_detail(&job.session_id).ok().flatten())
+                .map(|d| d.messages.len())
+                .unwrap_or(0);
+
+            ActiveSessionInfo {
+                session_id: job.session_id.clone(),
+                task: job.task.clone(),
+                provider: job.provider.clone(),
+                status: job.status.clone(),
+                started_at: job.started_at,
+                message_count,
+                summary: job.summary.clone(),
+            }
+        })
+    };
+
+    Json(serde_json::to_value(BeaconResponse {
+        machine_id,
+        hostname,
+        daemon_version: env!("CARGO_PKG_VERSION"),
+        port: 0, // port is not stored in state; 0 means "use the URL you connected to"
+        lan_ips,
+        tailscale_ip,
+        public_url,
+        uptime_secs,
+        active_session,
+    })
+    .unwrap_or_else(|_| serde_json::json!({"error": "serialization failed"})))
+}
+
+/// Per-session record returned by `GET /mobile/sessions`.
+#[derive(Debug, Serialize)]
+struct MobileSessionRecord {
+    session_id: String,
+    task: String,
+    provider: String,
+    status: String,
+    started_at: u64,
+    finished_at: Option<u64>,
+    summary: Option<String>,
+    message_count: usize,
+    last_message_preview: Option<String>,
+}
+
+/// `GET /mobile/sessions` — auth required.
+///
+/// Returns up to 50 sessions (most-recent first) with message previews,
+/// suitable for rendering a "pick up where you left off" list in the mobile app.
+async fn mobile_sessions(State(state): State<ServeState>) -> Json<serde_json::Value> {
+    let jobs = load_all_jobs(&state.jobs_dir);
+    let limited: Vec<&JobRecord> = jobs.iter().take(50).collect();
+
+    // Open the session store once for all lookups (best-effort).
+    let store = SessionStore::open_default().ok();
+
+    let sessions: Vec<MobileSessionRecord> = limited
+        .into_iter()
+        .map(|job| {
+            let (message_count, last_message_preview) = store
+                .as_ref()
+                .and_then(|s| s.get_session_detail(&job.session_id).ok().flatten())
+                .map(|d| {
+                    let count = d.messages.len();
+                    let preview = d.messages.last().map(|m| {
+                        let s = m.content.chars().take(120).collect::<String>();
+                        s
+                    });
+                    (count, preview)
+                })
+                .unwrap_or((0, None));
+
+            MobileSessionRecord {
+                session_id: job.session_id.clone(),
+                task: job.task.clone(),
+                provider: job.provider.clone(),
+                status: job.status.clone(),
+                started_at: job.started_at,
+                finished_at: job.finished_at,
+                summary: job.summary.clone(),
+                message_count,
+                last_message_preview,
+            }
+        })
+        .collect();
+
+    Json(serde_json::json!({ "sessions": sessions }))
+}
+
+/// `GET /mobile/sessions/:id/context` — auth required.
+///
+/// Returns a HandoffContext JSON bundle for the requested session so the
+/// mobile app can "continue" it with full conversation history.
+async fn mobile_session_context(
+    Path(id): Path<String>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let store = match SessionStore::open_default() {
+        Ok(s) => s,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": format!("session store unavailable: {e}") })),
+            );
+        }
+    };
+
+    let detail = match store.get_session_detail(&id) {
+        Ok(Some(d)) => d,
+        Ok(None) => {
+            return (
+                StatusCode::NOT_FOUND,
+                Json(serde_json::json!({ "error": "session not found" })),
+            );
+        }
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": format!("failed to load session: {e}") })),
+            );
+        }
+    };
+
+    // Build a HandoffContext from the session.
+    let mut ctx = crate::context_handoff::HandoffContext::new(&detail.session.provider);
+    if let Some(ref sys) = detail.session.summary {
+        ctx = ctx.with_system(sys.clone());
+    }
+    for msg in &detail.messages {
+        let handoff_msg = match msg.role.as_str() {
+            "user" => crate::context_handoff::HandoffMessage::user(&msg.content),
+            "assistant" => crate::context_handoff::HandoffMessage::assistant(&msg.content),
+            "system" => crate::context_handoff::HandoffMessage::system(&msg.content),
+            _ => crate::context_handoff::HandoffMessage::user(&msg.content),
+        };
+        ctx.push_message(handoff_msg);
+    }
+
+    // Serialize via the hand-rolled encoder in context_handoff.rs.
+    match ctx.serialize() {
+        Ok(json_str) => {
+            // Parse back to Value so Axum can re-serialize with proper envelope.
+            let inner: serde_json::Value =
+                serde_json::from_str(&json_str).unwrap_or(serde_json::Value::Null);
+            (
+                StatusCode::OK,
+                Json(serde_json::json!({
+                    "context_type": "vibecody_session",
+                    "session_id": id,
+                    "context": inner,
+                })),
+            )
+        }
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({ "error": format!("serialization failed: {e}") })),
+        ),
+    }
+}
+
 // ── Tests ──────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -3493,6 +3760,7 @@ mod tests {
                 api_token: token.to_string(),
                 collab_server: Arc::new(CollabServer::new(5)),
                 github_app_config: crate::github_app::GithubAppConfig::default(),
+                started_at: std::time::Instant::now(),
             };
             (build_router(state, 7878), tmp_dir)
         }

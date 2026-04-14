@@ -232,6 +232,9 @@ class VibePalette {
   final Color accentRose;
   final Color successColor;
   final Color errorColor;
+  // Convenience aliases used across screens.
+  Color get accentRed    => errorColor;
+  Color get accentOrange => warningColor;
   final Color warningColor;
   final Color infoColor;
   final Color successBg;

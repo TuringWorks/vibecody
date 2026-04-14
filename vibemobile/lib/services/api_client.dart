@@ -263,6 +263,39 @@ class ApiClient {
     return GatewayStats.fromJson(jsonDecode(resp.body));
   }
 
+  // ── Handoff / Sessions ─────────────────────────────────────
+
+  /// Fetch beacon (no auth required).
+  Future<Map<String, dynamic>> beacon(String baseUrl) async {
+    final resp = await _client
+        .get(Uri.parse('$baseUrl/mobile/beacon'))
+        .timeout(const Duration(seconds: 5));
+    if (resp.statusCode != 200) throw ApiException(resp.statusCode, resp.body);
+    return jsonDecode(resp.body);
+  }
+
+  /// List sessions for handoff — uses /mobile/sessions endpoint.
+  Future<List<Map<String, dynamic>>> listSessions(String baseUrl, String token) async {
+    final resp = await _client.get(
+      Uri.parse(_url(baseUrl, '/mobile/sessions')),
+      headers: _headers(token),
+    );
+    if (resp.statusCode != 200) throw ApiException(resp.statusCode, resp.body);
+    final data = jsonDecode(resp.body);
+    return List<Map<String, dynamic>>.from(data['sessions'] ?? []);
+  }
+
+  /// Fetch handoff context for a specific session.
+  Future<Map<String, dynamic>> sessionContext(
+      String baseUrl, String token, String sessionId) async {
+    final resp = await _client.get(
+      Uri.parse(_url(baseUrl, '/mobile/sessions/$sessionId/context')),
+      headers: _headers(token),
+    );
+    if (resp.statusCode != 200) throw ApiException(resp.statusCode, resp.body);
+    return jsonDecode(resp.body);
+  }
+
   // ── Health Check ───────────────────────────────────────────
 
   /// Check if a daemon is reachable.

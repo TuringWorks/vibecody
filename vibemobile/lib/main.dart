@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'services/api_client.dart';
 import 'services/auth_service.dart';
+import 'services/handoff_service.dart';
 import 'services/notification_service.dart';
 import 'screens/home_screen.dart';
 import 'screens/onboarding_screen.dart';
@@ -18,6 +19,10 @@ void main() async {
         ChangeNotifierProvider.value(value: authService),
         ProxyProvider<AuthService, ApiClient>(
           update: (_, auth, __) => ApiClient(auth: auth),
+        ),
+        ChangeNotifierProxyProvider<AuthService, HandoffService>(
+          create: (ctx) => HandoffService(ctx.read<AuthService>()),
+          update: (_, auth, previous) => previous ?? HandoffService(auth),
         ),
         ChangeNotifierProvider(create: (_) => NotificationService()),
       ],
