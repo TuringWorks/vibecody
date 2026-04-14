@@ -130,6 +130,7 @@ pub struct WristEvent {
 
 // ── WatchAuthManager ─────────────────────────────────────────────────────────
 
+#[derive(Debug)]
 pub struct WatchAuthManager {
     machine_id: String,
     jwt_secret: Vec<u8>, // 32-byte HMAC-SHA256 key
@@ -141,12 +142,14 @@ impl WatchAuthManager {
     /// Load or generate the JWT signing secret from ProfileStore.
     pub fn new(machine_id: impl Into<String>) -> Result<Self> {
         let machine_id = machine_id.into();
-        let store = crate::profile_store::ProfileStore::new()?;
+        let store = crate::profile_store::ProfileStore::new()
+            .map_err(|e| anyhow::anyhow!("{}", e))?;
         let secret = match store.get_api_key("default", "watch.jwt_secret").ok().flatten() {
             Some(s) if !s.is_empty() => hex::decode(&s)?,
             _ => {
                 let bytes: Vec<u8> = rand::thread_rng().gen::<[u8; 32]>().to_vec();
-                store.set_api_key("default", "watch.jwt_secret", &hex::encode(&bytes))?;
+                store.set_api_key("default", "watch.jwt_secret", &hex::encode(&bytes))
+                    .map_err(|e| anyhow::anyhow!("{}", e))?;
                 bytes
             }
         };
@@ -162,7 +165,7 @@ impl WatchAuthManager {
         let expires_at = now + NONCE_TTL_SECS;
         self.pending_nonces.insert(nonce.clone(), (now, String::new()));
         // Prune expired nonces
-        self.pending_nonces.retain(|_, (iat, _)| now - iat < NONCE_TTL_SECS + 10);
+        self.pending_nonces.retain(|_, (iat, _)| now - *iat < NONCE_TTL_SECS + 10);
         Ok(RegistrationChallenge {
             nonce,
             machine_id: self.machine_id.clone(),
@@ -338,7 +341,8 @@ impl WatchAuthManager {
     // ── Device management ─────────────────────────────────────────────────
 
     pub fn list_devices(&self) -> Result<Vec<WatchDevice>> {
-        let store = crate::profile_store::ProfileStore::new()?;
+        let store = crate::profile_store::ProfileStore::new()
+            .map_err(|e| anyhow::anyhow!("{}", e))?;
         let prefix = "watch.device.";
         // We store device JSON under "watch.device.{id}.record"
         // Enumerate by loading the index key
@@ -365,18 +369,22 @@ impl WatchAuthManager {
     }
 
     pub fn load_device(&self, device_id: &str) -> Result<WatchDevice> {
-        let store = crate::profile_store::ProfileStore::new()?;
+        let store = crate::profile_store::ProfileStore::new()
+            .map_err(|e| anyhow::anyhow!("{}", e))?;
         let key = format!("watch.device.{}.record", device_id);
         let raw = store
-            .get_api_key("default", &key)?
+            .get_api_key("default", &key)
+            .map_err(|e| anyhow::anyhow!("{}", e))?
             .ok_or_else(|| anyhow::anyhow!("Watch device {} not registered", device_id))?;
         Ok(serde_json::from_str(&raw)?)
     }
 
     pub fn save_device(&self, device: &WatchDevice) -> Result<()> {
-        let store = crate::profile_store::ProfileStore::new()?;
+        let store = crate::profile_store::ProfileStore::new()
+            .map_err(|e| anyhow::anyhow!("{}", e))?;
         let key = format!("watch.device.{}.record", device.device_id);
-        store.set_api_key("default", &key, &serde_json::to_string(device)?)?;
+        store.set_api_key("default", &key, &serde_json::to_string(device)?)
+            .map_err(|e| anyhow::anyhow!("{}", e))?;
         // Update index
         let mut ids = self
             .list_devices()
@@ -387,7 +395,8 @@ impl WatchAuthManager {
         if !ids.contains(&device.device_id) {
             ids.push(device.device_id.clone());
         }
-        store.set_api_key("default", "watch.device_index", &serde_json::to_string(&ids)?)?;
+        store.set_api_key("default", "watch.device_index", &serde_json::to_string(&ids)?)
+            .map_err(|e| anyhow::anyhow!("{}", e))?;
         Ok(())
     }
 
@@ -431,6 +440,32 @@ impl WatchAuthManager {
         }
         Ok(claims)
     }
+
+    // ── Test helpers (public, doc-hidden) ────────────────────────────────────
+
+    /// Construct a `WatchAuthManager` directly for testing, bypassing ProfileStore.
+    #[doc(hidden)]
+    pub fn for_testing(machine_id: impl Into<String>, jwt_secret: Vec<u8>) -> Self {
+        Self { machine_id: machine_id.into(), jwt_secret, pending_nonces: Default::default() }
+    }
+
+    /// Decode a JWT for testing — exposes the private `decode_jwt` method.
+    #[doc(hidden)]
+    pub fn decode_jwt_pub(&self, token: &str) -> Result<WatchClaims> {
+        self.decode_jwt(token)
+    }
+
+    /// Sign a JWT for testing — exposes the private `sign_jwt` method.
+    #[doc(hidden)]
+    pub fn sign_jwt_pub(&self, claims: &WatchClaims) -> Result<String> {
+        self.sign_jwt(claims)
+    }
+
+    /// Check whether a nonce is still pending (for single-use tests).
+    #[doc(hidden)]
+    pub fn has_pending_nonce(&self, nonce: &str) -> bool {
+        self.pending_nonces.contains_key(nonce)
+    }
 }
 
 // ── Crypto helpers ────────────────────────────────────────────────────────────
@@ -443,6 +478,12 @@ fn sha256(data: &[u8]) -> Vec<u8> {
 /// Verify Ed25519 signature using the `ed25519-dalek`-compatible byte layout.
 /// The Watch Secure Enclave produces standard Ed25519 signatures (RFC 8032).
 /// We use a pure-Rust verifier (no hardware required on the server side).
+/// Public wrapper for testing — exposes signature length validation.
+#[doc(hidden)]
+pub fn verify_ed25519_signature_pub(pk: &[u8], msg: &[u8], sig: &[u8]) -> Result<()> {
+    verify_ed25519_signature(pk, msg, sig)
+}
+
 fn verify_ed25519_signature(pk: &[u8], msg: &[u8], sig: &[u8]) -> Result<()> {
     // We avoid adding a heavy ed25519 crate dependency by using the existing
     // ring/dalek if present, or falling back to a lightweight check.
@@ -597,5 +638,180 @@ mod tests {
         assert_eq!(back.device_id, "abc");
         assert_eq!(back.model, "Watch7,1");
         assert!(!back.wrist_suspended);
+    }
+
+    // ── RED → GREEN: additional coverage ─────────────────────────────────────
+
+    #[test]
+    fn challenge_nonce_is_32_hex_chars() {
+        let (mut mgr, _tmp) = make_manager();
+        let ch = mgr.issue_challenge().unwrap();
+        assert_eq!(ch.nonce.len(), 32);
+        assert!(ch.nonce.chars().all(|c| c.is_ascii_hexdigit()),
+            "nonce should be lowercase hex");
+    }
+
+    #[test]
+    fn access_token_ttl_matches_constant() {
+        let (mgr, _tmp) = make_manager();
+        let (token, exp) = mgr.issue_access_token("dev-ttl").unwrap();
+        let claims = mgr.decode_jwt(&token).unwrap();
+        assert_eq!(exp, claims.exp);
+        // exp - iat should equal ACCESS_TOKEN_TTL_SECS (allow 1s drift)
+        assert!((claims.exp - claims.iat).abs_diff(ACCESS_TOKEN_TTL_SECS) <= 1);
+    }
+
+    #[test]
+    fn refresh_token_kind_differs_from_access() {
+        let (mgr, _tmp) = make_manager();
+        let (access, _) = mgr.issue_access_token("dev-kind").unwrap();
+        let refresh = mgr.issue_refresh_token("dev-kind").unwrap();
+        let ac = mgr.decode_jwt(&access).unwrap();
+        let rc = mgr.decode_jwt(&refresh).unwrap();
+        assert_eq!(ac.kind, "access");
+        assert_eq!(rc.kind, "refresh");
+        assert_ne!(ac.kind, rc.kind);
+    }
+
+    #[test]
+    fn token_machine_id_is_embedded() {
+        let (mgr, _tmp) = make_manager();
+        let (token, _) = mgr.issue_access_token("dev-machine").unwrap();
+        let claims = mgr.decode_jwt(&token).unwrap();
+        assert_eq!(claims.machine_id, "test-machine-001");
+    }
+
+    #[test]
+    fn token_from_different_secret_is_rejected() {
+        let (mgr_a, _tmp_a) = make_manager();
+        let (token, _) = mgr_a.issue_access_token("dev-x").unwrap();
+        // Manager with different secret
+        let mgr_b = WatchAuthManager {
+            machine_id: "test-machine-001".into(),
+            jwt_secret: b"different-secret-32-bytes-hmac!!".to_vec(),
+            pending_nonces: Default::default(),
+        };
+        let err = mgr_b.decode_jwt(&token).unwrap_err();
+        assert!(err.to_string().contains("signature") || err.to_string().contains("Invalid"));
+    }
+
+    #[test]
+    fn challenge_window_is_nonce_ttl() {
+        let (mut mgr, _tmp) = make_manager();
+        let ch = mgr.issue_challenge().unwrap();
+        assert_eq!(ch.expires_at - ch.issued_at, NONCE_TTL_SECS);
+    }
+
+    #[test]
+    fn watch_register_request_serde_roundtrip() {
+        let req = WatchRegisterRequest {
+            device_id: "did-001".into(),
+            name: "Test Watch".into(),
+            os_version: "11.0".into(),
+            model: "Watch7,1".into(),
+            public_key_b64: "AAABBBCCC".into(),
+            signature_b64: "SIGSIGSIG".into(),
+            nonce: "abc123".into(),
+            device_check_token: None,
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        let back: WatchRegisterRequest = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.device_id, "did-001");
+        assert_eq!(back.model, "Watch7,1");
+        assert!(back.device_check_token.is_none());
+    }
+
+    #[test]
+    fn watch_device_wrist_suspended_serializes() {
+        let dev = WatchDevice {
+            device_id: "wd".into(),
+            name: "W".into(),
+            public_key_b64: "A".into(),
+            os_version: "11".into(),
+            model: "M".into(),
+            registered_at: 0,
+            last_seen: 0,
+            revoked_at: None,
+            wrist_suspended: true,
+        };
+        let json = serde_json::to_string(&dev).unwrap();
+        assert!(json.contains("\"wrist_suspended\":true"));
+        let back: WatchDevice = serde_json::from_str(&json).unwrap();
+        assert!(back.wrist_suspended);
+    }
+
+    #[test]
+    fn watch_device_revoked_at_serializes() {
+        let dev = WatchDevice {
+            device_id: "r".into(), name: "R".into(),
+            public_key_b64: "K".into(), os_version: "11".into(), model: "M".into(),
+            registered_at: 1_700_000_000, last_seen: 1_700_000_001,
+            revoked_at: Some(1_700_000_002),
+            wrist_suspended: false,
+        };
+        let json = serde_json::to_string(&dev).unwrap();
+        let back: WatchDevice = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.revoked_at, Some(1_700_000_002));
+    }
+
+    #[test]
+    fn verify_ed25519_rejects_short_signature() {
+        let pk = vec![0u8; 32];
+        let msg = b"test";
+        let short_sig = vec![0u8; 63]; // one byte short
+        let result = verify_ed25519_signature(&pk, msg, &short_sig);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn verify_ed25519_rejects_short_key() {
+        let pk = vec![0u8; 31]; // one byte short
+        let msg = b"test";
+        let sig = vec![0u8; 64];
+        let result = verify_ed25519_signature(&pk, msg, &sig);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn constant_time_eq_different_lengths_returns_false() {
+        assert!(!constant_time_eq(b"abc", b"abcd"));
+        assert!(!constant_time_eq(b"", b"a"));
+        assert!(constant_time_eq(b"", b""));
+    }
+
+    #[test]
+    fn wrist_event_stale_timestamp_rejected() {
+        let (mut mgr, _tmp) = make_manager();
+        // Timestamp 60s in the past — exceeds 30s window
+        let stale_ts = now_unix() - 60;
+        let ev = WristEvent {
+            device_id: "dev-001".into(),
+            on_wrist: false,
+            timestamp: stale_ts,
+            signature_b64: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".into(),
+        };
+        let err = mgr.handle_wrist_event(&ev).unwrap_err();
+        assert!(err.to_string().contains("stale"));
+    }
+
+    #[test]
+    fn max_devices_constant_is_five() {
+        assert_eq!(MAX_WATCH_DEVICES, 5);
+    }
+
+    #[test]
+    fn watch_claims_serde_roundtrip() {
+        let claims = WatchClaims {
+            sub: "dev-99".into(),
+            iat: 1_700_000_000,
+            exp: 1_700_000_900,
+            jti: "abc123".into(),
+            machine_id: "m1".into(),
+            kind: "access".into(),
+        };
+        let json = serde_json::to_string(&claims).unwrap();
+        let back: WatchClaims = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.sub, "dev-99");
+        assert_eq!(back.kind, "access");
     }
 }

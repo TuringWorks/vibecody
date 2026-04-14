@@ -234,7 +234,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 pub struct NonceRegistry(Arc<Mutex<HashMap<String, u64>>>);
 
 impl NonceRegistry {
@@ -253,7 +253,7 @@ impl NonceRegistry {
         }
         let mut map = self.0.lock().unwrap_or_else(|e| e.into_inner());
         // Prune entries older than 60s
-        map.retain(|_, ts| now - ts < 60);
+        map.retain(|_, ts| now - *ts < 60);
         if map.contains_key(nonce) {
             anyhow::bail!("Nonce already used (replay detected)");
         }
@@ -374,5 +374,192 @@ mod tests {
         let json = serde_json::to_string(&req).unwrap();
         let back: WatchDispatchRequest = serde_json::from_str(&json).unwrap();
         assert_eq!(back.content, "What's the weather?");
+    }
+
+    // ── RED → GREEN: event translation coverage ───────────────────────────────
+
+    #[test]
+    fn to_watch_event_tool_start_extracts_name_and_step() {
+        let payload = serde_json::json!({
+            "type": "tool_start",
+            "name": "bash",
+            "step": 3
+        });
+        let ev = to_watch_event_json(&payload);
+        assert_eq!(ev.kind, "tool_start");
+        assert_eq!(ev.tool.as_deref(), Some("bash"));
+        assert_eq!(ev.step, Some(3));
+        assert!(ev.delta.is_none());
+    }
+
+    #[test]
+    fn to_watch_event_tool_end_success_maps_to_ok() {
+        let payload = serde_json::json!({
+            "type": "tool_end",
+            "name": "read_file",
+            "success": true,
+            "step": 5
+        });
+        let ev = to_watch_event_json(&payload);
+        assert_eq!(ev.kind, "tool_end");
+        assert_eq!(ev.status.as_deref(), Some("ok"));
+        assert_eq!(ev.tool.as_deref(), Some("read_file"));
+        assert_eq!(ev.step, Some(5));
+    }
+
+    #[test]
+    fn to_watch_event_tool_end_failure_maps_to_err() {
+        let payload = serde_json::json!({
+            "type": "tool_end",
+            "name": "write_file",
+            "success": false
+        });
+        let ev = to_watch_event_json(&payload);
+        assert_eq!(ev.kind, "tool_end");
+        assert_eq!(ev.status.as_deref(), Some("err"));
+    }
+
+    #[test]
+    fn to_watch_event_done_captures_status() {
+        let payload = serde_json::json!({
+            "type": "done",
+            "status": "complete"
+        });
+        let ev = to_watch_event_json(&payload);
+        assert_eq!(ev.kind, "done");
+        assert_eq!(ev.status.as_deref(), Some("complete"));
+        assert!(ev.delta.is_none());
+        assert!(ev.tool.is_none());
+    }
+
+    #[test]
+    fn to_watch_event_error_truncated_to_200_chars() {
+        let long_msg = "e".repeat(300);
+        let payload = serde_json::json!({
+            "type": "error",
+            "message": long_msg
+        });
+        let ev = to_watch_event_json(&payload);
+        assert_eq!(ev.kind, "error");
+        let err = ev.error.unwrap();
+        assert!(err.chars().count() <= 200);
+        assert!(err.ends_with('…'));
+    }
+
+    #[test]
+    fn to_watch_event_unknown_type_defaults_to_info() {
+        let payload = serde_json::json!({ "type": "something_new" });
+        let ev = to_watch_event_json(&payload);
+        assert_eq!(ev.kind, "info");
+        assert!(ev.delta.is_none() && ev.tool.is_none() && ev.status.is_none());
+    }
+
+    #[test]
+    fn to_watch_event_uses_kind_field_as_fallback() {
+        let payload = serde_json::json!({ "kind": "delta", "text": "hi" });
+        let ev = to_watch_event_json(&payload);
+        assert_eq!(ev.kind, "delta");
+        assert_eq!(ev.delta.as_deref(), Some("hi"));
+    }
+
+    #[test]
+    fn to_watch_summary_message_count_is_correct() {
+        let session = SessionRowView {
+            id: "s1",
+            task: "Fix the bug",
+            status: "running",
+            provider: "claude",
+            model: "claude-opus-4-6",
+            step_count: 2,
+            started_at: 1_700_000_000,
+        };
+        let messages = vec![
+            MessageRowView { id: 1, role: "user", content: "hello", created_at: 1_700_000_001 },
+            MessageRowView { id: 2, role: "assistant", content: "hi there", created_at: 1_700_000_002 },
+            MessageRowView { id: 3, role: "user", content: "do it", created_at: 1_700_000_003 },
+        ];
+        let summary = to_watch_summary(&session, &messages);
+        assert_eq!(summary.message_count, 3);
+        assert_eq!(summary.step_count, 2);
+        assert_eq!(summary.last_message_preview, "hi there");
+    }
+
+    #[test]
+    fn to_watch_summary_last_activity_is_last_message_ts() {
+        let session = SessionRowView {
+            id: "s2", task: "Task", status: "complete",
+            provider: "ollama", model: "llama3", step_count: 1,
+            started_at: 1_700_000_000,
+        };
+        let messages = vec![
+            MessageRowView { id: 1, role: "user", content: "go", created_at: 1_700_000_100 },
+        ];
+        let summary = to_watch_summary(&session, &messages);
+        assert_eq!(summary.last_activity, 1_700_000_100);
+    }
+
+    #[test]
+    fn to_watch_summary_no_messages_uses_started_at() {
+        let session = SessionRowView {
+            id: "s3", task: "Empty", status: "failed",
+            provider: "p", model: "m", step_count: 0,
+            started_at: 1_700_000_042,
+        };
+        let summary = to_watch_summary(&session, &[]);
+        assert_eq!(summary.last_activity, 1_700_000_042);
+        assert_eq!(summary.message_count, 0);
+        assert_eq!(summary.last_message_preview, "");
+    }
+
+    #[test]
+    fn nonce_registry_allows_different_nonces_at_same_time() {
+        let reg = NonceRegistry::new();
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        assert!(reg.check_and_record("n1", now).is_ok());
+        assert!(reg.check_and_record("n2", now).is_ok());
+        assert!(reg.check_and_record("n3", now).is_ok());
+        // But each still rejects its own replay
+        assert!(reg.check_and_record("n1", now).is_err());
+    }
+
+    #[test]
+    fn watch_sandbox_status_serde_roundtrip() {
+        let s = WatchSandboxStatus {
+            container_id: "c1".into(),
+            session_id: Some("sess-1".into()),
+            state: "running".into(),
+            uptime_secs: 300,
+            cpu_pct: 45.5,
+            mem_mb: 128,
+            mem_limit_mb: 512,
+            last_output_lines: vec!["line1".into(), "line2".into()],
+            exit_code: None,
+        };
+        let json = serde_json::to_string(&s).unwrap();
+        let back: WatchSandboxStatus = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.container_id, "c1");
+        assert_eq!(back.cpu_pct, 45.5);
+        assert_eq!(back.last_output_lines.len(), 2);
+        assert!(back.exit_code.is_none());
+    }
+
+    #[test]
+    fn watch_agent_event_serde_roundtrip() {
+        let ev = WatchAgentEvent {
+            kind: "delta".into(),
+            delta: Some("Hello world".into()),
+            tool: None,
+            status: None,
+            error: None,
+            step: Some(1),
+        };
+        let json = serde_json::to_string(&ev).unwrap();
+        let back: WatchAgentEvent = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.kind, "delta");
+        assert_eq!(back.delta.as_deref(), Some("Hello world"));
+        assert_eq!(back.step, Some(1));
     }
 }

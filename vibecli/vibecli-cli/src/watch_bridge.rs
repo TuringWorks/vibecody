@@ -466,4 +466,107 @@ mod tests {
         assert!(json.contains("sess-abc"));
         assert!(json.contains("42"));
     }
+
+    // ── RED → GREEN: bridge state and router coverage ─────────────────────────
+
+    #[test]
+    fn watch_dispatch_response_streaming_url_contains_session_id() {
+        let session_id = "my-session-xyz";
+        let resp = WatchDispatchResponse {
+            session_id: session_id.into(),
+            message_id: 1,
+            streaming_url: format!("/watch/stream/{}", session_id),
+        };
+        assert!(resp.streaming_url.contains(session_id));
+        assert!(resp.streaming_url.starts_with("/watch/stream/"));
+    }
+
+    #[test]
+    fn watch_event_streams_new_is_empty() {
+        let streams: WatchEventStreams =
+            std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashMap::new()));
+        let map = streams.lock().unwrap();
+        assert!(map.is_empty());
+    }
+
+    #[test]
+    fn watch_event_streams_accepts_broadcaster() {
+        let streams: WatchEventStreams =
+            std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashMap::new()));
+        let (tx, _rx) = tokio::sync::broadcast::channel::<serde_json::Value>(16);
+        {
+            let mut map = streams.lock().unwrap();
+            map.insert("session-1".into(), tx);
+        }
+        assert_eq!(streams.lock().unwrap().len(), 1);
+        assert!(streams.lock().unwrap().contains_key("session-1"));
+    }
+
+    #[test]
+    fn watch_sandbox_control_request_serde() {
+        use crate::watch_session_relay::WatchSandboxControlRequest;
+        let req = WatchSandboxControlRequest {
+            action: "pause".into(),
+            nonce: "nonce-xyz".into(),
+            timestamp: 1_700_000_000,
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        assert!(json.contains("pause"));
+        let back: WatchSandboxControlRequest = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.action, "pause");
+        assert_eq!(back.nonce, "nonce-xyz");
+    }
+
+    #[test]
+    fn watch_bridge_state_size_of_does_not_panic() {
+        // Ensures WatchBridgeState is a valid, sized type
+        assert!(std::mem::size_of::<WatchBridgeState>() > 0);
+    }
+
+    #[test]
+    fn nonce_replay_rejected_in_bridge_context() {
+        let reg = NonceRegistry::new();
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        // Simulate Watch sending dispatch request with nonce
+        let nonce = "watch-dispatch-nonce-001";
+        assert!(reg.check_and_record(nonce, now).is_ok());
+        // Identical request replayed → rejected
+        let err = reg.check_and_record(nonce, now).unwrap_err();
+        assert!(err.to_string().contains("replay") || err.to_string().contains("Nonce"));
+    }
+
+    #[test]
+    fn watch_dispatch_request_without_session_id() {
+        use crate::watch_session_relay::WatchDispatchRequest;
+        let req = WatchDispatchRequest {
+            session_id: None,  // new session
+            content: "Start a new task".into(),
+            provider: Some("claude".into()),
+            nonce: "fresh-nonce-001".into(),
+            timestamp: 1_700_000_000,
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        let back: WatchDispatchRequest = serde_json::from_str(&json).unwrap();
+        assert!(back.session_id.is_none());
+        assert_eq!(back.provider.as_deref(), Some("claude"));
+    }
+
+    #[test]
+    fn watch_dispatch_request_with_session_id() {
+        use crate::watch_session_relay::WatchDispatchRequest;
+        let req = WatchDispatchRequest {
+            session_id: Some("existing-session-abc".into()),
+            content: "Continue the task".into(),
+            provider: None,
+            nonce: "fresh-nonce-002".into(),
+            timestamp: 1_700_000_001,
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        let back: WatchDispatchRequest = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.session_id.as_deref(), Some("existing-session-abc"));
+        assert!(back.provider.is_none());
+    }
 }
