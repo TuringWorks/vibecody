@@ -3,6 +3,30 @@ import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { ChevronRight, Watch, Plus, Trash2, RefreshCw, QrCode, Shield, Wifi } from "lucide-react";
 
+/** Detect device platform from the model string recorded at registration. */
+function detectPlatform(model: string): "apple" | "wear" | "unknown" {
+  const m = model.toLowerCase();
+  if (m.includes("apple watch") || m.includes("watch series") || m.includes("watch ultra") || m.includes("watch se")) return "apple";
+  if (m.includes("pixel watch") || m.includes("galaxy watch") || m.includes("fossil") || m.includes("wear os")) return "wear";
+  // Wear OS devices register with manufacturer + model (e.g. "Google Pixel Watch 3")
+  if (m.startsWith("samsung") || m.startsWith("google") || m.startsWith("fossil") || m.startsWith("mobvoi")) return "wear";
+  return "unknown";
+}
+
+function PlatformBadge({ model }: { model: string }) {
+  const platform = detectPlatform(model);
+  const label = platform === "apple" ? "watchOS" : platform === "wear" ? "Wear OS" : "Watch";
+  const color = platform === "apple" ? "var(--accent-color)" : platform === "wear" ? "#4CAF50" : "var(--text-secondary)";
+  return (
+    <span style={{
+      fontSize: 10, fontWeight: 600, color, background: `${color}20`,
+      borderRadius: 4, padding: "1px 5px", letterSpacing: "0.03em",
+    }}>
+      {label}
+    </span>
+  );
+}
+
 interface WatchDevice {
   device_id: string;
   name: string;
@@ -88,7 +112,7 @@ export function WatchManagementPanel() {
       <div style={{ display: "flex", alignItems: "center", gap: "var(--spacing-sm)", marginBottom: "var(--spacing-lg)" }}>
         <Watch size={20} style={{ color: "var(--accent-color)" }} />
         <h2 style={{ margin: 0, fontSize: "var(--font-size-lg)", fontWeight: 600 }}>
-          Apple Watch
+          Watches
         </h2>
         <div style={{ flex: 1 }} />
         <button
@@ -131,7 +155,8 @@ export function WatchManagementPanel() {
         <Shield size={16} style={{ color: "var(--accent-color)", flexShrink: 0, marginTop: 2 }} />
         <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", lineHeight: 1.5 }}>
           <strong style={{ color: "var(--text-primary)" }}>End-to-end secure.</strong>{" "}
-          Private keys live in the Watch Secure Enclave and never leave the device.
+          Private keys live in the device's secure hardware (Secure Enclave on Apple Watch,
+          StrongBox / TEE on Wear OS) and never leave the device.
           Sessions auto-lock when the watch is removed from your wrist.
           Tokens expire after 15 minutes and are renewed with cryptographic proof.
         </div>
@@ -153,7 +178,7 @@ export function WatchManagementPanel() {
         <span>
           Transport: <strong>LAN</strong> when on same network →{" "}
           <strong>Tailscale</strong> when remote →{" "}
-          <strong>iPhone relay</strong> when offline (WatchConnectivity)
+          <strong>Phone relay</strong> when offline (WatchConnectivity on iOS, Data Layer on Android)
         </span>
       </div>
 
@@ -215,7 +240,7 @@ export function WatchManagementPanel() {
           <Watch size={32} style={{ opacity: 0.3, marginBottom: "var(--spacing-sm)", display: "block", margin: "0 auto var(--spacing-sm)" }} />
           No watches paired yet.
           <br />
-          Click <strong>Pair New Watch</strong> above to get started.
+          Click <strong>Pair New Watch</strong> above to pair an Apple Watch or Wear OS device.
         </div>
       )}
 
@@ -252,8 +277,9 @@ function DeviceCard({
           <div style={{ fontWeight: 600, fontSize: "var(--font-size-sm)" }}>
             {device.name}
           </div>
-          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginTop: 2 }}>
-            {device.model} · watchOS {device.os_version}
+          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginTop: 2, display: "flex", alignItems: "center", gap: 6 }}>
+            <PlatformBadge model={device.model} />
+            <span>{device.model} · {device.os_version}</span>
           </div>
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginTop: 4, display: "flex", gap: "var(--spacing-md)", flexWrap: "wrap" }}>
             <span>Paired {formatDate(device.registered_at)}</span>
@@ -389,7 +415,7 @@ function QRModal({ pairing, onClose }: { pairing: PairingInfo; onClose: () => vo
           Scan with Watch App
         </h3>
         <p style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", margin: "0 0 var(--spacing-md)" }}>
-          Open VibeCody on your Apple Watch and scan this QR code.
+          Open VibeCody on your Apple Watch or Wear OS watch and scan this QR code.
           Valid for {Math.floor(expiresIn / 60)}:{String(expiresIn % 60).padStart(2, "0")}.
         </p>
         <div style={{
@@ -401,8 +427,8 @@ function QRModal({ pairing, onClose }: { pairing: PairingInfo; onClose: () => vo
           <img src={qrUrl} alt="Pairing QR" width={180} height={180} />
         </div>
         <p style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", margin: "0 0 var(--spacing-md)" }}>
-          The Watch uses its <strong>Secure Enclave</strong> to generate a key pair during pairing.
-          Your private key never leaves the watch.
+          The watch uses its <strong>Secure Enclave</strong> (Apple) or <strong>StrongBox / TEE</strong> (Wear OS)
+          to generate a key pair during pairing. Your private key never leaves the device.
         </p>
         <button
           onClick={onClose}
