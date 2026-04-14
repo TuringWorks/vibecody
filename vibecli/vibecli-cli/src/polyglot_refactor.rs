@@ -174,7 +174,7 @@ impl Language {
     /// Whether the language has native iterator methods.
     pub fn has_iterators(&self) -> bool {
         matches!(self, Self::Rust | Self::TypeScript | Self::Python | Self::Kotlin | Self::Swift
-            | Self::Scala | Self::Haskell | Self::OCaml | Self::Erlang | Self::Dart | Self::Ruby | Self::Java | Self::CSharp)
+            | Self::Scala | Self::Haskell | Self::OCaml | Self::Erlang | Self::Dart | Self::Ruby | Self::CSharp)
     }
 
     /// Whether the language supports type inference.

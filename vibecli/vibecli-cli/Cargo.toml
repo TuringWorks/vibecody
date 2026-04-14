@@ -254,3 +254,84 @@ harness = false
 name = "zdr_mode_bdd"
 path = "tests/zdr_mode_bdd.rs"
 harness = false
+
+[[test]]
+name = "tool_operations_bdd"
+path = "tests/tool_operations_bdd.rs"
+harness = false
+
+# Pi-mono gap bridge BDD harnesses — Phases A1-D1
+[[test]]
+name = "session_tree_bdd"
+path = "tests/session_tree_bdd.rs"
+harness = false
+
+[[test]]
+name = "parallel_tools_bdd"
+path = "tests/parallel_tools_bdd.rs"
+harness = false
+
+[[test]]
+name = "oauth_login_bdd"
+path = "tests/oauth_login_bdd.rs"
+harness = false
+
+[[test]]
+name = "message_queue_bdd"
+path = "tests/message_queue_bdd.rs"
+harness = false
+
+[[test]]
+name = "context_handoff_bdd"
+path = "tests/context_handoff_bdd.rs"
+harness = false
+
+[[test]]
+name = "stream_tool_args_bdd"
+path = "tests/stream_tool_args_bdd.rs"
+harness = false
+
+[[test]]
+name = "dual_log_bdd"
+path = "tests/dual_log_bdd.rs"
+harness = false
+
+[[test]]
+name = "thinking_levels_bdd"
+path = "tests/thinking_levels_bdd.rs"
+harness = false
+
+[[test]]
+name = "tui_images_bdd"
+path = "tests/tui_images_bdd.rs"
+harness = false
+
+[[test]]
+name = "tui_ime_bdd"
+path = "tests/tui_ime_bdd.rs"
+harness = false
+
+[[test]]
+name = "session_share_bdd"
+path = "tests/session_share_bdd.rs"
+harness = false
+
+[[test]]
+name = "rpc_mode_bdd"
+path = "tests/rpc_mode_bdd.rs"
+harness = false
+
+[[test]]
+name = "paste_guard_bdd"
+path = "tests/paste_guard_bdd.rs"
+harness = false
+
+[[test]]
+name = "event_bus_bdd"
+path = "tests/event_bus_bdd.rs"
+harness = false
+
+[[test]]
+name = "pod_manager_bdd"
+path = "tests/pod_manager_bdd.rs"
+harness = false

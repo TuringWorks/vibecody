@@ -492,11 +492,13 @@ mod mem_benchmark;
 #[allow(dead_code)] mod github_action;
 #[allow(dead_code)] mod mcp_tool_search;
 #[allow(dead_code)] mod zdr_mode;
+#[allow(dead_code)] mod tool_operations;
 // FIT-GAP v12 — P1
 #[allow(dead_code)] mod reasoning_provider;
 #[allow(dead_code)] mod autodream;
 #[allow(dead_code)] mod prompt_cache;
 #[allow(dead_code)] mod alt_explore;
+#[allow(dead_code)] mod context_handoff;
 #[allow(dead_code)] mod app_server;
 // FIT-GAP v12 — P2
 #[allow(dead_code)] mod task_scheduler;
@@ -14220,3 +14222,19 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 }
+
+// Pi-mono gap bridge — Phases A1-D1
+#[allow(dead_code)] mod session_tree;
+#[allow(dead_code)] mod parallel_tools;
+#[allow(dead_code)] mod oauth_login;
+#[allow(dead_code)] mod message_queue;
+#[allow(dead_code)] mod stream_tool_args;
+#[allow(dead_code)] mod dual_log;
+#[allow(dead_code)] mod thinking_levels;
+#[allow(dead_code)] mod tui_images;
+#[allow(dead_code)] mod tui_ime;
+#[allow(dead_code)] mod session_share;
+#[allow(dead_code)] mod rpc_mode;
+#[allow(dead_code)] mod paste_guard;
+#[allow(dead_code)] mod event_bus;
+#[allow(dead_code)] mod pod_manager;

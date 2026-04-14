@@ -173,6 +173,7 @@ pub mod reasoning_provider;
 pub mod autodream;
 pub mod prompt_cache;
 pub mod alt_explore;
+pub mod context_handoff;
 pub mod app_server;
 // FIT-GAP v12 — P2: desktop automation, scheduling, plugins
 pub mod computer_use;
@@ -189,3 +190,20 @@ pub mod sandbox_bwrap;
 pub mod github_action;
 pub mod mcp_tool_search;
 pub mod zdr_mode;
+// Phase B2: Pluggable tool I/O (SSH, Docker, local, dry-run backends)
+pub mod tool_operations;
+// Pi-mono gap bridge — Phases A1-D1
+pub mod session_tree;
+pub mod parallel_tools;
+pub mod oauth_login;
+pub mod message_queue;
+pub mod stream_tool_args;
+pub mod dual_log;
+pub mod thinking_levels;
+pub mod tui_images;
+pub mod tui_ime;
+pub mod session_share;
+pub mod rpc_mode;
+pub mod paste_guard;
+pub mod event_bus;
+pub mod pod_manager;
