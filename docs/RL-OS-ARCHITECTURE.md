@@ -13,6 +13,7 @@
 Build the **"Kubernetes + Databricks + HuggingFace for Reinforcement Learning"** — integrated natively into VibeCody.
 
 A single platform that:
+
 - Eliminates fragmentation between environment, training, evaluation, optimization, and deployment
 - Supports multi-agent, multi-environment, distributed RL at production scale
 - Bridges the research-to-production gap that plagues every existing RL tool
@@ -43,7 +44,7 @@ A single platform that:
 
 ### 3.1 System Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────────┐
 │                        VibeCody RL-OS                               │
 │                     (Rust Core + Python Bindings)                   │
@@ -83,7 +84,7 @@ A single platform that:
 
 ### 3.2 Module Dependency Graph
 
-```
+```text
 EnvOS ───────-──────────┐
   │                     │
   ▼                     ▼
@@ -192,6 +193,7 @@ vibeui/crates/
 ### 4.1 EnvOS — Environment Manager
 
 #### Design Principles
+
 - Environments are **versioned artifacts**, not throwaway code
 - **Declarative-first**: YAML/DSL defines the environment; Python/Rust for escape hatches
 - **Backend-agnostic**: One definition, multiple physics engines
@@ -321,7 +323,7 @@ spec:
 
 #### Versioning System
 
-```
+```text
 rlos env init trading-env
 rlos env commit -m "Add slippage domain randomization"
 rlos env diff v2.3.0..v2.3.1
@@ -464,7 +466,7 @@ spec:
 
 #### Distributed Architecture
 
-```
+```text
 ┌──────────────────────────────────────────────────────────┐
 │                   TrainOS Coordinator                    │
 │              (Rust async, single binary)                 │
@@ -718,7 +720,7 @@ ModelHub Entry: trading-agent-v3
 
 #### Stateful Serving Architecture
 
-```
+```text
 ┌──────────────────────────────────────────────────────┐
 │                    ServeOS                           │
 ├──────────────────────────────────────────────────────┤
@@ -870,7 +872,7 @@ spec:
 
 ## 5. RL Lifecycle Pipeline (End-to-End)
 
-```
+```text
    ┌──────────────────────────────────────────────────────────────┐
    │                    RL-OS Lifecycle Pipeline                  │
    └──────────────────────────────────────────────────────────────┘
@@ -903,7 +905,7 @@ spec:
 
 ### 6.1 REPL Commands
 
-```
+```text
 # Environment management
 /rlos env init <name>              # Create new environment
 /rlos env deploy <file.yaml>       # Deploy environment definition
@@ -1000,6 +1002,7 @@ spec:
 ## 8. Roadmap (Integrated with VibeCody Phases)
 
 ### Phase RL-1: Foundation (EnvOS + TrainOS Core)
+
 - Environment YAML parser + versioning
 - PPO/SAC/DQN training with PyTorch backend
 - Basic distributed training (2-4 GPUs)
@@ -1007,6 +1010,7 @@ spec:
 - VibeUI: RLTrainingDashboard panel
 
 ### Phase RL-2: Evaluation + Offline RL
+
 - EvalOS scenario-based evaluation engine
 - Off-Policy Evaluation (FQE, IS, DR)
 - Offline RL algorithms (CQL, IQL, BCQ)
@@ -1014,6 +1018,7 @@ spec:
 - VibeUI: RLEvalResults, RLPolicyComparison panels
 
 ### Phase RL-3: Optimization + Distillation
+
 - OptiOS distillation pipeline (teacher→student)
 - RL-aware quantization (INT8/INT4 with sensitivity analysis)
 - Structured pruning with action-sensitivity criterion
@@ -1021,6 +1026,7 @@ spec:
 - VibeUI: RLOptimizationReport panel
 
 ### Phase RL-4: Serving + Deployment
+
 - ServeOS Rust-native inference runtime
 - Stateful policy serving with session management
 - A/B testing + canary rollout
@@ -1029,6 +1035,7 @@ spec:
 - VibeUI: RLDeploymentMonitor panel
 
 ### Phase RL-5: Multi-Agent + A2A
+
 - MARL algorithms (MAPPO, QMIX, VDN, MADDPG)
 - A2A communication protocol for agents
 - League training (AlphaStar-style)
@@ -1036,6 +1043,7 @@ spec:
 - VibeUI: RLMultiAgentView panel
 
 ### Phase RL-6: RLHF + LLM Alignment
+
 - PPO/DPO/KTO/ORPO/GRPO for LLM alignment
 - Reward model training + ensemble
 - RLEF (code execution as reward, via VibeCody sandbox)
@@ -1043,6 +1051,7 @@ spec:
 - VibeUI: RLHFAlignmentDashboard panel
 
 ### Phase RL-7: AutoRL + Advanced
+
 - Bayesian hyperparameter optimization
 - Neural architecture search for policies
 - Reward function search
@@ -1050,6 +1059,7 @@ spec:
 - Domain-specific templates (finance, robotics, game AI)
 
 ### Phase RL-8: Production Hardening
+
 - Multi-cloud deployment (AWS/GCP/Azure)
 - Air-gapped / on-prem with Ollama
 - SOC 2 compliance controls
@@ -1080,6 +1090,7 @@ RL-OS positions VibeCody as:
 > **"The default operating system for reinforcement learning in production"**
 
 Analogous to:
+
 - **Kubernetes** standardized container orchestration
 - **Databricks** standardized data/ML pipelines
 - **HuggingFace** standardized LLM lifecycle

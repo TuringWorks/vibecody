@@ -9,6 +9,7 @@ See **[vibeui/design-system/README.md](./vibeui/design-system/README.md)** for t
 ## Quick Reference
 
 ### Build
+
 ```bash
 cargo build --release -p vibecli          # CLI binary
 cargo test --workspace                    # all tests (~10,535)
@@ -17,19 +18,24 @@ cd vibeui && npm install && npm run tauri:dev   # VibeUI dev
 ```
 
 ### Module declaration pattern
+
 Both `lib.rs` and `main.rs` in `vibecli/vibecli-cli/src/` must declare new modules. When adding a new `.rs` file, add `pub mod foo;` to **both** files.
 
 ### Key storage rules (summary — see AGENTS.md for full details)
+
 - API keys → `ProfileStore` (`~/.vibecli/profile_settings.db`)
 - Project secrets → `WorkspaceStore` (`<workspace>/.vibecli/workspace.db`)
 - Never write keys to `*.toml`, `*.json`, or any plaintext file
 - Never read from `~/.vibeui/api_keys.json` — deleted and migrated
 
 ### Tauri commands
+
 1,045+ commands registered via `tauri::generate_handler!` in `vibeui/src-tauri/src/lib.rs`. When adding a new Tauri command: implement in `commands.rs`, register in `tauri::generate_handler!` in `lib.rs`.
 
 ### Testing encrypted stores
+
 Use `open_with(path, key)` variants to avoid touching production DBs:
+
 ```rust
 let store = ProfileStore::open_with(&tmp_dir.join("test.db"), [42u8; 32]).unwrap();
 let store = WorkspaceStore::open_with(&tmp_dir.join("ws.db"), [42u8; 32]).unwrap();
@@ -49,6 +55,7 @@ let store = WorkspaceStore::open_with(&tmp_dir.join("ws.db"), [42u8; 32]).unwrap
 All panels (Arena, MultiModel, BackgroundJobs, SuperBrain, Counsel, …) consume `useModelRegistry()` — no other frontend file needs changing.
 
 **Full backend provider** (new Rust implementation) — touch 6 files in order:
+
 1. `vibeui/crates/vibe-ai/src/providers/{name}.rs` — implement `AIProvider` trait (copy `groq.rs` for OpenAI-compat APIs)
 2. `vibeui/crates/vibe-ai/src/providers.rs` — `pub mod {name}; pub use {name}::MyProvider`
 3. `vibecli/vibecli-cli/src/config.rs` — add `pub {name}: Option<ProviderConfig>` to `Config`
@@ -72,6 +79,7 @@ Then add the frontend entry in `useModelRegistry.ts` as above.
 ---
 
 ## Repo Layout
+
 ```
 vibecli/vibecli-cli/src/   ← Rust CLI (~222 modules)
 vibeui/src/                ← React/TypeScript frontend

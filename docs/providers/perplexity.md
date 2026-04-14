@@ -8,13 +8,11 @@ permalink: /providers/perplexity/
 
 [Perplexity](https://www.perplexity.ai) combines LLM reasoning with real-time web search, producing responses grounded in current information. Their Sonar models are uniquely suited for research-heavy coding tasks.
 
-
 ## Get an API Key
 
 1. Go to [perplexity.ai/settings/api](https://www.perplexity.ai/settings/api)
 2. Create an account or sign in
 3. Generate an API key and copy it
-
 
 ## Configure VibeCody
 
@@ -34,7 +32,6 @@ api_key = "pplx-..."
 model = "sonar-pro"
 ```
 
-
 ## Model Selection
 
 | Model | Strengths | Best for |
@@ -50,7 +47,6 @@ Override from the CLI:
 vibecli --provider perplexity --model sonar
 ```
 
-
 ## Best For
 
 - **Research-heavy tasks** -- find current documentation, API references, library versions
@@ -58,13 +54,11 @@ vibecli --provider perplexity --model sonar
 - **Technology comparison** -- evaluate libraries and tools with up-to-date information
 - **Learning new APIs** -- get current examples and best practices
 
-
 ## Verify Connection
 
 ```bash
 vibecli --provider perplexity -c "What are the latest changes in React 19?"
 ```
-
 
 ## Troubleshooting
 

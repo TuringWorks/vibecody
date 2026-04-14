@@ -8,14 +8,12 @@ permalink: /providers/minimax/
 
 [MiniMax](https://www.minimaxi.com) is a Chinese AI company offering large language models through their API platform.
 
-
 ## Get an API Key
 
 1. Go to [api.minimax.chat](https://api.minimax.chat)
 2. Create an account or sign in
 3. Navigate to **API Keys**
 4. Create a new key and copy it
-
 
 ## Configure VibeCody
 
@@ -35,7 +33,6 @@ api_key = "..."
 model = "abab6.5s-chat"
 ```
 
-
 ## Model Selection
 
 | Model | Strengths | Best for |
@@ -45,19 +42,16 @@ model = "abab6.5s-chat"
 
 **Default:** `abab6.5s-chat`
 
-
 ## Best For
 
 - **Chinese language tasks** -- strong Chinese language understanding
 - **Alternative provider** -- diversify across model families
-
 
 ## Verify Connection
 
 ```bash
 vibecli --provider minimax -c "Write a Python function to validate email addresses"
 ```
-
 
 ## Troubleshooting
 

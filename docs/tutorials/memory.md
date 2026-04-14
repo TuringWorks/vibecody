@@ -21,7 +21,7 @@ vibecli
 
 Add a handful of memories spanning different sectors:
 
-```
+```bash
 > /openmemory add "I prefer Rust for all backend services — safety + performance"
 Added memory [mem_a3f8] sector=Semantic salience=100%
 
@@ -37,7 +37,7 @@ Added memory [mem_d1f6] sector=Emotional salience=100%
 
 OpenMemory classifies sector automatically by analysing vocabulary. Check what landed:
 
-```
+```bash
 > /openmemory list
 Memories (4 total):
 
@@ -57,7 +57,7 @@ Memories (4 total):
 
 Show a memory in full:
 
-```
+```bash
 > /openmemory show mem_b7e4
 Memory mem_b7e4
   Sector:   Episodic
@@ -70,14 +70,14 @@ Memory mem_b7e4
 
 Pin important procedural knowledge so it survives decay:
 
-```
+```bash
 > /openmemory pin mem_c2a9
 Pinned memory mem_c2a9 — exempt from decay and purge.
 ```
 
 Verify the pin flag appears in the list:
 
-```
+```bash
 > /openmemory list
   [Procedural] sal=100% [pinned] "Deploy pipeline: cargo build --release..."
     id=mem_c2a9
@@ -85,7 +85,7 @@ Verify the pin flag appears in the list:
 
 If you added a memory by mistake, delete it:
 
-```
+```bash
 > /openmemory delete mem_d1f6
 Deleted memory mem_d1f6.
 ```
@@ -96,7 +96,7 @@ Deleted memory mem_d1f6.
 
 Facts are structured subject/predicate/object triples with validity windows. They're good for things that change over time — tech stack decisions, library versions, team assignments.
 
-```
+```bash
 > /openmemory fact project language Rust
 > /openmemory fact project database PostgreSQL-16
 > /openmemory fact project ci_tool GitHub-Actions
@@ -105,7 +105,7 @@ Facts are structured subject/predicate/object triples with validity windows. The
 
 View all active facts:
 
-```
+```bash
 > /openmemory facts
 Current temporal facts (4):
 
@@ -117,11 +117,11 @@ Current temporal facts (4):
 
 When the team migrates the database, update the fact — the previous entry auto-closes:
 
-```
+```bash
 > /openmemory fact project database CockroachDB
 ```
 
-```
+```bash
 > /openmemory facts
   project language Rust                (conf: 100%)  ← active
   project database CockroachDB         (conf: 100%)  ← active  (PostgreSQL-16 auto-closed)
@@ -135,7 +135,7 @@ When the team migrates the database, update the fact — the previous entry auto
 
 Search uses the composite 5-signal score (similarity + salience + recency + graph + sector):
 
-```
+```bash
 > /openmemory query "how do I deploy?"
 Found 2 memories:
 
@@ -153,7 +153,7 @@ The cognitive store compresses information for relevance. For text where exact w
 
 Ingest a runbook:
 
-```
+```bash
 > /openmemory chunk file:docs/deploy-runbook.txt
 Stored 14 verbatim drawer(s) from "docs/deploy-runbook.txt" (no summarization — raw recall).
   Total drawers: 14  |  Use '/openmemory drawers' to inspect
@@ -161,7 +161,7 @@ Stored 14 verbatim drawer(s) from "docs/deploy-runbook.txt" (no summarization �
 
 Inspect Wing/Room organisation:
 
-```
+```bash
 > /openmemory drawers
 Verbatim Drawer Store (14 total)
 
@@ -179,7 +179,7 @@ Verbatim Drawer Store (14 total)
 
 Also ingest the architecture document:
 
-```
+```bash
 > /openmemory chunk file:docs/architecture.md
 Stored 31 verbatim drawer(s) from "docs/architecture.md" (no summarization — raw recall).
   Total drawers: 45  |  Use '/openmemory drawers' to inspect
@@ -191,7 +191,7 @@ Stored 31 verbatim drawer(s) from "docs/architecture.md" (no summarization — r
 
 Before trusting the agent, preview exactly what context it will receive for a query:
 
-```
+```bash
 > /openmemory layered "deploy to production"
 ```
 

@@ -10,38 +10,38 @@ VibeCody extends its AI coding assistant to wrist-worn devices, giving developer
 
 ## Architecture Overview
 
-```
+```txt
 ┌─────────────────────────────────────────────────────────────────┐
 │  vibecli daemon  (vibecli --serve --port 7878)                  │
 │                                                                 │
-│  ┌─────────────────┐  ┌──────────────────┐  ┌───────────────┐  │
-│  │  watch_auth.rs  │  │ watch_session_   │  │ watch_bridge  │  │
-│  │  HMAC-SHA256    │  │ relay.rs         │  │ .rs           │  │
-│  │  JWT lifecycle  │  │ Compact payloads │  │ Axum /watch/* │  │
-│  │  Ed25519 reg    │  │ OLED-optimised   │  │ SSE streaming │  │
-│  └────────┬────────┘  └────────┬─────────┘  └──────┬────────┘  │
-│           │                    │                    │           │
-└───────────┼────────────────────┼────────────────────┼───────────┘
-            │                    │                    │
+│  ┌─────────────────┐  ┌──────────────────┐  ┌───────────────┐   │
+│  │  watch_auth.rs  │  │ watch_session_   │  │ watch_bridge  │   │
+│  │  HMAC-SHA256    │  │ relay.rs         │  │ .rs           │   │
+│  │  JWT lifecycle  │  │ Compact payloads │  │ Axum /watch/* │   │
+│  │  Ed25519 reg    │  │ OLED-optimised   │  │ SSE streaming │   │
+│  └────────┬────────┘  └────────┬─────────┘  └──────┬────────┘   │
+│           │                    │                   │            │
+└───────────┼────────────────────┼───────────────────┼─-──────────┘
+            │                    │                   │
      ┌──────▼──────┐      ┌──────▼──────┐      ┌─────▼──────┐
      │  LAN / TLS  │      │  LAN / TLS  │      │  SSE feed  │
      └──────┬──────┘      └──────┬──────┘      └─────┬──────┘
-            │                    │                    │
-   ┌────────▼──────────────────────────────────────────▼──────┐
+            │                    │                   │
+   ┌────────▼────────────────────▼───────────────────▼──---────┐
    │          Transport fallback chain                         │
    │  1. Direct LAN (Wi-Fi, same subnet)                       │
    │  2. Tailscale mesh (cross-network)                        │
    │  3. Phone relay (WatchConnectivity on iOS /               │
    │     Wearable Data Layer on Android)                       │
-   └──────────┬──────────────────────────────┬────────────────┘
+   └──────────┬──────────────────────────────┬─────────────-───┘
               │                              │
-   ┌──────────▼──────────┐      ┌────────────▼──────────────┐
+   ┌──────────▼──────────┐      ┌────────────▼─────────────-─┐
    │  Apple Watch        │      │  Android Wear OS           │
    │  WatchOS 9+         │      │  Wear OS 3+                │
    │  VibeCody watchApp  │      │  VibeCodyWear app          │
    │  WatchConnectivity  │      │  Wearable Data Layer API   │
    │  Secure Enclave key │      │  Android Keystore P-256    │
-   └─────────────────────┘      └───────────────────────────┘
+   └─────────────────────┘      └──────────────────────────-─┘
 ```
 
 ---
@@ -66,7 +66,7 @@ Provides challenge-response registration and JWT-based session security.
 
 **Token lifecycle:**
 
-```
+```text
   [Watch] → GET /watch/challenge
   [Daemon] ← { nonce, machine_id, issued_at, expires_at }
 

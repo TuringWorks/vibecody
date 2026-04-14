@@ -10,7 +10,6 @@ Connect VibeCody to an AI model so you can start chatting, generating code, and 
 
 **Prerequisites:** VibeCody installed and on your PATH. See the [Quickstart](../../quickstart/) if you need to install it first.
 
-
 ## Choose a Provider
 
 VibeCody supports 23 AI providers. Here are the most common starting points:
@@ -25,7 +24,6 @@ VibeCody supports 23 AI providers. Here are the most common starting points:
 | **DeepSeek** | Cloud | Paid | Yes | Cost-effective coding model |
 
 **Recommendation:** Start with Ollama if you want free and local. Start with Claude if you want the best coding results.
-
 
 ## Option 1: Ollama (Free, Local)
 
@@ -99,7 +97,6 @@ enabled = true
 model = "codellama:13b"
 ```
 
-
 ## Option 2: Claude (Cloud, API Key)
 
 Anthropic's Claude models are among the strongest for code generation, reasoning, and agentic tasks.
@@ -158,7 +155,6 @@ enabled = true
 thinking_budget_tokens = 10000
 ```
 
-
 ## Option 3: OpenAI (Cloud, API Key)
 
 ### Step 1: Get an API Key
@@ -194,7 +190,6 @@ vibecli>
 vibecli> What model are you?
 ```
 
-
 ## Switch Between Providers
 
 You do not have to commit to one provider. Switch at any time:
@@ -217,7 +212,6 @@ vibecli> /arena compare claude openai "Write a binary search in Rust"
 ```
 
 This shows both responses side by side with hidden identities so you can vote on quality without bias.
-
 
 ## Store Provider Config Permanently
 
@@ -245,7 +239,6 @@ vibecli --provider claude
 ```
 
 See the full [Configuration Guide](../../configuration/) for all provider options.
-
 
 ## Troubleshooting
 
@@ -288,7 +281,6 @@ Local inference speed depends on your hardware. Options:
 - Use a smaller model: `ollama pull codellama:7b`
 - Ensure you have enough RAM (13B models need ~8GB, 70B needs ~40GB)
 - On macOS with Apple Silicon, Ollama uses the GPU automatically
-
 
 ## Next Steps
 

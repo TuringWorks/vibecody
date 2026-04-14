@@ -53,7 +53,6 @@ vibe-ui (Tauri) ───────-───────┤
                          vibe-extensions ── wasmtime, wasmtime-wasi
 ```
 
-
 ## `vibe-core` — Editor Primitives
 
 The foundation crate — no AI dependencies, no UI dependencies.
@@ -163,7 +162,6 @@ impl EmbeddingIndex {
     pub async fn search(&self, query: &str, k: usize) -> Result<Vec<SearchHit>>;
 }
 ```
-
 
 ## `vibe-ai` — AI Provider Abstraction
 
@@ -364,7 +362,6 @@ Model Context Protocol integration:
 - Discovers and invokes tools from external MCP servers
 - `/mcp list` and `/mcp tools <server>` in REPL
 
-
 ## `vibe-lsp` — Language Server Protocol
 
 LSP client infrastructure for editor intelligence features.
@@ -392,7 +389,6 @@ Editor ──→ LspClient ──→ ChildProcess (language server)
 - Code actions (quick fixes)
 - Rename symbol
 
-
 ## `vibe-extensions` — WASM Extension System
 
 Provides a sandbox for third-party extensions via WebAssembly.
@@ -412,7 +408,6 @@ extension.on_file_save(|path| { /* ... */ });
 extension.on_key_press(|key| { /* ... */ });
 extension.register_command("my-command", |args| { /* ... */ });
 ```
-
 
 ## VibeCLI TUI Architecture
 
@@ -478,7 +473,6 @@ OTLP pipeline initialization:
 - Exports spans via OTLP/HTTP to any collector (Jaeger, Grafana, etc.)
 - `OtelGuard` ensures flush on shutdown
 
-
 ## VibeUI Tauri Architecture
 
 Tauri bridges the React frontend and Rust backend via IPC.
@@ -521,7 +515,6 @@ async fn ai_chat(
 }
 ```
 
-
 ## Testing Strategy
 
 **~10,535 unit tests** across the workspace (0 failures).
@@ -537,7 +530,6 @@ async fn ai_chat(
 | `vibe-extensions` | 46 | loader, manifest, permissions |
 | TypeScript | — | `tsc --noEmit` type checking |
 
-
 ## VS Code Extension
 
 The `vscode-extension/` directory contains a full VS Code extension:
@@ -546,7 +538,6 @@ The `vscode-extension/` directory contains a full VS Code extension:
 - **Inline completions** — `VibeCLIInlineCompletionProvider` with debouncing
 - **Agent mode** — start agent tasks directly from VS Code
 - **API client** — REST calls to `vibecli serve`
-
 
 ## Agent SDK
 

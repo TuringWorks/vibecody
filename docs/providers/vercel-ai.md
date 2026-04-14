@@ -8,13 +8,11 @@ permalink: /providers/vercel-ai/
 
 [Vercel AI](https://vercel.com/ai) is a gateway that provides unified access to multiple AI providers. Use it when you have an existing Vercel AI setup or want to route through Vercel's infrastructure.
 
-
 ## Prerequisites
 
 1. A Vercel account with AI access
 2. Your Vercel AI gateway URL
 3. An API key for the underlying provider
-
 
 ## Configure VibeCody
 
@@ -30,7 +28,6 @@ model = "gpt-4o"
 
 Both `api_key` and `api_url` are required. The API URL points to your Vercel AI gateway endpoint.
 
-
 ## Model Selection
 
 Available models depend on what your Vercel AI gateway is configured to serve.
@@ -43,20 +40,17 @@ Override from the CLI:
 vibecli --provider vercel_ai --model gpt-4o-mini
 ```
 
-
 ## Best For
 
 - **Existing Vercel infrastructure** -- route AI through your Vercel deployment
 - **Custom middleware** -- add logging, caching, or rate limiting via Vercel functions
 - **Multi-provider gateway** -- use Vercel AI as a proxy to multiple backends
 
-
 ## Verify Connection
 
 ```bash
 vibecli --provider vercel_ai -c "Hello, which model are you?"
 ```
-
 
 ## Troubleshooting
 

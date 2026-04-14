@@ -8,14 +8,12 @@ permalink: /providers/grok/
 
 [Grok](https://x.ai) by xAI is a frontier AI model with strong reasoning and coding abilities, available through the xAI API.
 
-
 ## Get an API Key
 
 1. Go to [console.x.ai](https://console.x.ai)
 2. Create an account or sign in
 3. Navigate to **API Keys**
 4. Create a new key and copy it
-
 
 ## Configure VibeCody
 
@@ -35,7 +33,6 @@ api_key = "xai-..."
 model = "grok-3-mini"
 ```
 
-
 ## Model Selection
 
 | Model | Strengths | Best for |
@@ -51,13 +48,11 @@ Override from the CLI:
 vibecli --provider grok --model grok-3-mini
 ```
 
-
 ## Verify Connection
 
 ```bash
 vibecli --provider grok -c "Write a Python function to check if a string is a palindrome"
 ```
-
 
 ## Troubleshooting
 

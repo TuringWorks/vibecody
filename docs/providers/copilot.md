@@ -8,12 +8,10 @@ permalink: /providers/copilot/
 
 [GitHub Copilot](https://github.com/features/copilot) provides AI-powered coding assistance through GitHub's infrastructure. VibeCody can use your existing Copilot subscription as an AI provider.
 
-
 ## Prerequisites
 
 1. A GitHub account with an active Copilot subscription (Individual, Business, or Enterprise)
 2. A GitHub personal access token (PAT) with the `copilot` scope
-
 
 ## Get a Token
 
@@ -23,7 +21,6 @@ permalink: /providers/copilot/
 4. Copy the token
 
 VibeCody exchanges this GitHub token for a short-lived Copilot API token automatically (refreshed every ~30 minutes).
-
 
 ## Configure VibeCody
 
@@ -43,7 +40,6 @@ api_key = "ghp_..."
 model = "gpt-4o"
 ```
 
-
 ## Model Selection
 
 GitHub Copilot provides access to models through its API:
@@ -54,20 +50,17 @@ GitHub Copilot provides access to models through its API:
 
 **Default:** `gpt-4o`
 
-
 ## Best For
 
 - **Existing Copilot subscribers** -- use your subscription for VibeCody without additional API costs
 - **GitHub-integrated workflows** -- works with your existing GitHub authentication
 - **No separate billing** -- included in your Copilot subscription
 
-
 ## Verify Connection
 
 ```bash
 vibecli --provider copilot -c "Write a JavaScript function to debounce events"
 ```
-
 
 ## Troubleshooting
 

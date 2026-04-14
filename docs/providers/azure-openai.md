@@ -8,13 +8,11 @@ permalink: /providers/azure-openai/
 
 [Azure OpenAI Service](https://azure.microsoft.com/en-us/products/ai-services/openai-service) provides OpenAI models through Microsoft Azure, with enterprise security, compliance, and regional data residency.
 
-
 ## Prerequisites
 
 1. An Azure subscription
 2. Access granted to Azure OpenAI Service (request via [Azure portal](https://portal.azure.com))
 3. A deployed model in your Azure OpenAI resource
-
 
 ## Set Up a Deployment
 
@@ -25,7 +23,6 @@ permalink: /providers/azure-openai/
    - **Resource name** (e.g., `my-company-openai`)
    - **Deployment name** (e.g., `gpt-4o`)
    - **API key** (found under **Keys and Endpoint**)
-
 
 ## Configure VibeCody
 
@@ -48,7 +45,6 @@ model = "gpt-4o"
 
 The `model` field should match your Azure deployment name. The `api_url` is your resource endpoint.
 
-
 ## Model Selection
 
 Available models depend on what you have deployed in your Azure resource:
@@ -61,7 +57,6 @@ Available models depend on what you have deployed in your Azure resource:
 
 **Default:** `gpt-4o`
 
-
 ## Best For
 
 - **Enterprise compliance** -- data stays within your Azure tenant and chosen region
@@ -69,13 +64,11 @@ Available models depend on what you have deployed in your Azure resource:
 - **Existing Azure infrastructure** -- integrates with Azure AD, RBAC, and monitoring
 - **Data residency** -- choose specific Azure regions for data locality requirements
 
-
 ## Verify Connection
 
 ```bash
 vibecli --provider azure_openai -c "List 3 advantages of using Azure for AI workloads"
 ```
-
 
 ## Troubleshooting
 

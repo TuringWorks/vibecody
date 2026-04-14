@@ -10,10 +10,10 @@ Run VibeCody as a persistent bot that listens on Slack, Discord, or GitHub webho
 
 **Prerequisites:** VibeCody installed, a provider configured, and a platform bot token.
 
-
 ## What Is the Channel Daemon?
 
 The channel daemon is an always-on process that:
+
 1. **Listens** on messaging platforms (Slack, Discord, Telegram, GitHub webhooks)
 2. **Routes** incoming messages through automation rules
 3. **Spawns** agent tasks for matching messages
@@ -22,22 +22,24 @@ The channel daemon is an always-on process that:
 
 Unlike the basic `--gateway` mode (which does simple chat), the channel daemon supports concurrent agent execution, automation rules, and session management.
 
-
 ## Quick Start
 
 ### Step 1: Get a Bot Token
 
 **Slack:**
+
 1. Go to [api.slack.com/apps](https://api.slack.com/apps) → Create New App
 2. Under "OAuth & Permissions", add scopes: `chat:write`, `app_mentions:read`, `channels:history`
 3. Install to workspace → copy Bot User OAuth Token
 
 **Discord:**
+
 1. Go to [discord.com/developers](https://discord.com/developers/applications) → New Application
 2. Under "Bot", click "Add Bot" → copy token
 3. Under "OAuth2", generate invite URL with `bot` scope
 
 **Telegram:**
+
 1. Message [@BotFather](https://t.me/BotFather) on Telegram
 2. Send `/newbot`, follow prompts → copy token
 
@@ -74,7 +76,6 @@ Output:
 ```
 
 The daemon runs indefinitely, polling for messages every 2 seconds.
-
 
 ## Automation Rules
 
@@ -146,7 +147,6 @@ approval_policy = "suggest"
 max_steps = 30
 ```
 
-
 ## Session Management
 
 The daemon maintains per-user sessions with conversation history:
@@ -155,7 +155,6 @@ The daemon maintains per-user sessions with conversation history:
 - Sessions persist across multiple messages (multi-turn)
 - Sessions timeout after 30 minutes of inactivity (configurable)
 - History is capped at 50 messages to prevent unbounded growth
-
 
 ## Managing the Daemon from REPL
 
@@ -169,7 +168,6 @@ vibecli
 > /daemon channels        # List supported platforms
 > /daemon logs            # Show recent event log
 ```
-
 
 ## Configuration
 
@@ -190,7 +188,6 @@ max_concurrent = 3               # Per-channel concurrency limit
 approval_policy = "auto-edit"    # Agent approval mode
 session_timeout_secs = 1800      # 30 minute session timeout
 ```
-
 
 ## Security
 

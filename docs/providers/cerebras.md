@@ -8,7 +8,6 @@ permalink: /providers/cerebras/
 
 [Cerebras](https://cerebras.ai) runs AI models on wafer-scale custom chips, delivering extremely fast inference for open-source models. Their hardware is purpose-built for AI workloads.
 
-
 ## Get an API Key
 
 1. Go to [cloud.cerebras.ai](https://cloud.cerebras.ai)
@@ -17,7 +16,6 @@ permalink: /providers/cerebras/
 4. Create a new key and copy it
 
 Cerebras offers a free tier with limited usage.
-
 
 ## Configure VibeCody
 
@@ -37,7 +35,6 @@ api_key = "..."
 model = "llama3.1-70b"
 ```
 
-
 ## Model Selection
 
 | Model | Strengths | Best for |
@@ -53,20 +50,17 @@ Override from the CLI:
 vibecli --provider cerebras --model llama3.1-8b
 ```
 
-
 ## Best For
 
 - **Ultra-fast inference** -- custom hardware delivers very low latency
 - **Open-source models** -- access Llama models with blazing speed
 - **Free tier** -- test fast inference without upfront costs
 
-
 ## Verify Connection
 
 ```bash
 vibecli --provider cerebras -c "Write a Python class for a binary search tree"
 ```
-
 
 ## Troubleshooting
 

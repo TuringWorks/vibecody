@@ -81,7 +81,7 @@ Two rate limit tiers apply:
 
 When the limit is exceeded:
 
-```
+```text
 HTTP/1.1 429 Too Many Requests
 Retry-After: 5
 

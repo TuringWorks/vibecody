@@ -6,7 +6,6 @@ permalink: /faq/
 
 # Frequently Asked Questions
 
-
 ## General
 
 ### What is VibeCody?
@@ -42,7 +41,6 @@ Yes. Set up Ollama as your provider and use Docker for sandboxing. The `docker-c
 ```bash
 docker-compose up  # Starts VibeCLI + Ollama, no external calls
 ```
-
 
 ## Providers
 
@@ -90,7 +88,6 @@ In VibeUI, use the Keys panel to configure and switch providers.
 
 [OpenRouter](https://openrouter.ai/) is a unified API gateway that provides access to hundreds of AI models from different providers through a single API key. VibeCody supports OpenRouter as a first-class provider, letting you access models from Anthropic, OpenAI, Meta, Mistral, and others without managing separate API keys for each.
 
-
 ## Privacy & Security
 
 ### Does VibeCody send my code to the cloud?
@@ -118,7 +115,6 @@ Approval policies control how much autonomy the agent has:
 - **suggest** — The agent proposes changes; you approve or reject each one.
 - **auto-edit** — The agent can edit files automatically but must ask before running commands.
 - **full-auto** — The agent can edit files and run commands without asking. Use with sandbox enabled.
-
 
 ## Extensibility
 
@@ -151,7 +147,6 @@ VibeCody supports WebAssembly (WASM) extensions through the `vibe-extensions` cr
 
 MCP (Model Context Protocol) is an open standard for connecting AI models to external data sources and tools. VibeCody supports MCP both as a client (consuming MCP servers) and as a server (exposing VibeCody tools to other MCP clients). The MCP Directory panel in VibeUI lets you browse and install verified MCP plugins.
 
-
 ## Enterprise
 
 ### Can I self-host VibeCody?
@@ -179,7 +174,6 @@ The `compliance_controls.rs` module provides technical controls aligned with SOC
 ### How does usage metering work?
 
 The usage metering system tracks token consumption and API costs across users, projects, and teams. You can set budgets, configure alerts at threshold percentages, and generate chargeback reports. Manage it via the `/metering` REPL command or the UsageMetering panel in VibeUI.
-
 
 ## More Questions?
 

@@ -49,7 +49,7 @@ min_session_steps = 3       # Minimum tool-use steps before a session is recorde
 - User prefers short commit messages with a verb prefix (fix:, feat:, chore:).
 ```
 
-4. Next session, the entire file loads into the system prompt before the first message.
+1. Next session, the entire file loads into the system prompt before the first message.
 
 ### Manual management
 
@@ -88,7 +88,7 @@ Classification is automatic — the engine reads content and picks the best-fit 
 
 Every memory is ranked by five weighted factors:
 
-```
+```text
 score = 0.45 × semantic_similarity
       + 0.20 × salience
       + 0.15 × recency
@@ -126,12 +126,13 @@ All memory commands are under the `/openmemory` prefix. Run `/openmemory` with n
 
 #### Core memory operations
 
-```
+```bash
 /openmemory add <content>
 ```
+
 Store a memory. The engine auto-classifies the sector and builds TF-IDF embeddings.
 
-```
+```bash
 /openmemory add "User prefers snake_case for Rust identifiers"
 /openmemory add "Refactored auth middleware to remove JWT storage in cookies — compliance requirement"
 /openmemory add "Always run cargo clippy --all-targets before committing"
@@ -139,53 +140,59 @@ Store a memory. The engine auto-classifies the sector and builds TF-IDF embeddin
 
 ---
 
-```
+```bash
 /openmemory query <text>
 /openmemory search <text>
 ```
+
 Semantic search. Returns up to 10 results ranked by composite score.
 
-```
+```bash
 /openmemory query "deployment workflow"
 /openmemory query "what does the user prefer for error handling?"
 ```
 
 ---
 
-```
+```bash
 /openmemory list
 ```
+
 List all memories with sector labels, salience, and tag cloud.
 
 ---
 
-```
+```bash
 /openmemory stats
 ```
+
 Show count by sector, storage size, encryption status, association graph density.
 
 ---
 
-```
+```bash
 /openmemory health
 ```
+
 Full health dashboard: diversity index, at-risk counts, staleness percentages, decay schedule.
 
 ---
 
-```
+```bash
 /openmemory at-risk
 ```
+
 List memories whose salience is near the purge threshold (≤ 0.15). Pin them to save or let them decay.
 
 ---
 
-```
+```bash
 /openmemory dedup [threshold]
 ```
+
 Remove near-duplicate memories. Default cosine threshold: 0.92. Prefer the higher-salience copy.
 
-```
+```bash
 /openmemory dedup         # use default 0.92
 /openmemory dedup 0.85    # broader dedup
 ```
@@ -196,65 +203,73 @@ Remove near-duplicate memories. Default cosine threshold: 0.92. Prefer the highe
 
 Facts are explicit subject-predicate-object triples with validity windows. Adding a new fact for the same subject+predicate automatically closes the previous one.
 
-```
+```bash
 /openmemory fact <subject> <predicate> <object>
 /openmemory fact user prefers_language Rust
 /openmemory fact deploy uses_tool "docker + kubectl"
 /openmemory fact payment_service last_debugged "2026-04-12 race condition"
 ```
 
-```
+```bash
 /openmemory facts
 ```
+
 Browse all active and closed facts. Closed facts show `[CLOSED yyyy-mm-dd]` and the superseding fact ID.
 
 ---
 
 #### Memory lifecycle
 
-```
+```bash
 /openmemory decay
 ```
+
 Manually trigger the exponential decay cycle. Memories not accessed since last decay lose salience. Pinned memories are exempt.
 
-```
+```bash
 /openmemory consolidate
 ```
+
 Run the sleep-cycle consolidation pass:
+
 - Merges near-duplicate memories (cosine ≥ 0.92).
 - Reinforces frequently accessed memories.
 - Generates a new Reflective memory summarising patterns.
 
-```
+```bash
 /openmemory reflect
 ```
+
 Immediately generate a one-off Reflective summary of current memory contents.
 
-```
+```bash
 /openmemory summary
 ```
+
 Show the user memory profile: top sectors, most-accessed memories, dominant tags, inferred preferences.
 
 ---
 
 #### Import / Export / Migration
 
-```
+```bash
 /openmemory export
 ```
+
 Export all memories as a markdown file to stdout (redirectable to a file).
 
-```
+```bash
 /openmemory export > my-memories.md
 ```
 
-```
+```bash
 /openmemory import <file>
 /openmemory import [mem0|zep|openmemory|auto] <file>
 ```
+
 Import from a JSON file. The `auto` format detector recognises mem0, Zep, and native OpenMemory exports. Duplicates are skipped via FNV-1a hash comparison.
 
-```
+```bash
 /openmemory import mem0 exported-memories.json
 /openmemory import auto ~/backup/memories-2026-04-01.json
 ```
@@ -263,12 +278,13 @@ Import from a JSON file. The `auto` format detector recognises mem0, Zep, and na
 
 #### Document ingestion
 
-```
+```bash
 /openmemory ingest <file>
 ```
+
 Chunk a document into 400-character overlapping segments and store each chunk as a Semantic memory. Use this for long documents like architecture specs, runbooks, or design docs.
 
-```
+```bash
 /openmemory ingest docs/architecture.md
 /openmemory ingest ~/runbooks/incident-response.txt
 ```
@@ -277,12 +293,13 @@ Chunk a document into 400-character overlapping segments and store each chunk as
 
 #### Encryption
 
-```
+```bash
 /openmemory encrypt
 ```
+
 Enable AES-256-GCM encryption at rest. All existing memories are re-encrypted in place. The key is stored at `~/.local/share/vibecli/openmemory/.key` (mode 0600). To use a passphrase instead:
 
-```
+```bash
 VIBECLI_MEMORY_KEY="$(pass show vibecli/memory)" vibecli
 ```
 
@@ -299,13 +316,14 @@ When the agent runs, OpenMemory assembles context in four layers — from cheape
 | **L2** | Scoped semantic | Query-dependent. Wing/Room-filtered semantic search, top-8 matches. |
 | **L3** | Deep fallback + verbatim drawers | Triggered only when L2 returns < 3 matches. Full search + verbatim raw chunks. |
 
-```
+```bash
 /openmemory context [query]
 /openmemory layered [query]
 ```
+
 Preview the exact context block the agent would receive for a given query.
 
-```
+```bash
 /openmemory context "what is our deploy process?"
 /openmemory layered "async rust patterns"
 ```
@@ -336,7 +354,7 @@ Verbatim drawers store raw text in 800-character chunks with 100-character overl
 
 Drawers are organised by **Wing** (project namespace) and **Room** (memory sector). Before running a vector search, the engine filters by Wing+Room, dramatically reducing search space on large stores:
 
-```
+```text
 Wing: "payment-service"   →  project namespace
 Room: "procedural"        →  sector within the project
 ```
@@ -345,13 +363,14 @@ This maps directly to VibeCLI's concept of a project-scoped store.
 
 ### Commands
 
-```
+```bash
 /openmemory chunk <text>
 /openmemory chunk file:<path>
 ```
+
 Ingest text as verbatim 800-char chunks. Exact duplicates (FNV-1a hash) are silently dropped. Near-duplicates (cosine ≥ 0.85) within a 20-item sliding window are also skipped.
 
-```
+```bash
 /openmemory chunk "The incident on 2026-04-01 was caused by a missing index on payments.amount..."
 /openmemory chunk file:docs/architecture.md
 /openmemory chunk file:~/runbooks/deploy-runbook.txt
@@ -359,30 +378,33 @@ Ingest text as verbatim 800-char chunks. Exact duplicates (FNV-1a hash) are sile
 
 ---
 
-```
+```bash
 /openmemory drawers
 ```
+
 Show drawer store statistics: total chunks, Wing distribution, Room distribution, dedup hit rate.
 
 ---
 
-```
+```bash
 /openmemory tunnel <src-memory-id> <dst-memory-id> [weight]
 ```
+
 Create a cross-project waypoint (Tunnel) between two memories. Tunnels are bidirectional and survive across store reloads. Weight defaults to 0.8.
 
-```
+```bash
 /openmemory tunnel mem_a3f8c1d2 mem_b7e4f091 0.9
 ```
 
 ---
 
-```
+```bash
 /openmemory auto-tunnel [threshold]
 ```
+
 Automatically detect semantically similar memories across the default store and the current project-scoped store, and create Tunnel waypoints for pairs above the similarity threshold (default: 0.75).
 
-```
+```bash
 /openmemory auto-tunnel
 /openmemory auto-tunnel 0.80
 ```
@@ -393,19 +415,20 @@ Automatically detect semantically similar memories across the default store and 
 
 Measure the recall quality of your current memory store across both cognitive and verbatim layers:
 
-```
+```bash
 /openmemory benchmark [k]
 ```
+
 Runs 20 built-in probe cases across all 5 sectors, reports Recall@K for cognitive (L2), verbatim (L3), and combined layers.
 
-```
+```bash
 /openmemory benchmark        # k=5 (default)
 /openmemory benchmark 10     # k=10
 ```
 
 Example output:
 
-```
+```text
 LongMemEval Benchmark Results (k=5)
   Total memories: 47   Verbatim drawers: 132   Probe cases: 20
 
@@ -483,16 +506,17 @@ vibecli --dry-run-memory "what is our testing strategy?"
 
 ### In the REPL
 
-```
+```bash
 /openmemory context <your question>
 ```
+
 Preview exactly what the agent will see before you ask.
 
 ---
 
 ## Quick-Reference Cheat Sheet
 
-```
+```bash
 # ── Core ──────────────────────────────────────────────────────────────
 /openmemory add <text>              Store a memory (auto-classifies sector)
 /openmemory query <text>            Semantic search

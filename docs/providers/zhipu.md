@@ -8,7 +8,6 @@ permalink: /providers/zhipu/
 
 [Zhipu AI](https://www.zhipuai.cn) develops the GLM (General Language Model) series, a family of Chinese AI models with strong multilingual and coding abilities.
 
-
 ## Get an API Key
 
 1. Go to [open.bigmodel.cn](https://open.bigmodel.cn)
@@ -17,7 +16,6 @@ permalink: /providers/zhipu/
 4. Create a new key and copy it
 
 Your key will be in the format `id.secret` (two parts separated by a dot).
-
 
 ## Configure VibeCody
 
@@ -37,7 +35,6 @@ api_key = "your-id.your-secret"
 model = "glm-4"
 ```
 
-
 ## Model Selection
 
 | Model | Strengths | Best for |
@@ -54,11 +51,9 @@ Override from the CLI:
 vibecli --provider zhipu --model glm-4-flash
 ```
 
-
 ## Authentication
 
 Zhipu uses JWT-based authentication. VibeCody generates a JWT from the secret portion of your API key (using HMAC-SHA256) with a 1-hour expiry. This is handled automatically -- just provide the full `id.secret` key.
-
 
 ## Best For
 
@@ -66,13 +61,11 @@ Zhipu uses JWT-based authentication. VibeCody generates a JWT from the secret po
 - **Multilingual coding** -- handles code with Chinese comments and documentation
 - **Alternative to Western models** -- independent model family
 
-
 ## Verify Connection
 
 ```bash
 vibecli --provider zhipu -c "Write a Python function to sort a list of dictionaries by key"
 ```
-
 
 ## Troubleshooting
 

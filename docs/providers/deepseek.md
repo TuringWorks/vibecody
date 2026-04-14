@@ -8,14 +8,12 @@ permalink: /providers/deepseek/
 
 [DeepSeek](https://www.deepseek.com) is a Chinese AI lab producing high-quality open-weight models with strong coding performance at very affordable prices. DeepSeek V3 and R1 consistently rank among the top models on coding benchmarks.
 
-
 ## Get an API Key
 
 1. Go to [platform.deepseek.com](https://platform.deepseek.com)
 2. Create an account or sign in
 3. Navigate to **API Keys**
 4. Create a new key and copy it
-
 
 ## Configure VibeCody
 
@@ -35,7 +33,6 @@ api_key = "sk-..."
 model = "deepseek-chat"
 ```
 
-
 ## Model Selection
 
 | Model | API Name | Strengths | Best for |
@@ -54,13 +51,13 @@ vibecli --provider deepseek --model deepseek-reasoner
 ### When to use R1 (Reasoner)
 
 DeepSeek R1 uses chain-of-thought reasoning similar to OpenAI's o-series. Use it when you need:
+
 - Multi-step debugging of complex issues
 - Algorithm design and optimization
 - System architecture planning
 - Mathematical or logical reasoning in code
 
 For everyday coding tasks, `deepseek-chat` (V3) is faster and more cost-effective.
-
 
 ## Pricing
 
@@ -75,7 +72,6 @@ This makes DeepSeek roughly 5-10x cheaper than GPT-4o and 10-50x cheaper than Cl
 
 **Cache hits** are even cheaper -- DeepSeek caches common prefixes automatically.
 
-
 ## Best For
 
 DeepSeek excels at:
@@ -86,13 +82,11 @@ DeepSeek excels at:
 - **Refactoring** -- understands complex codebases and suggests clean improvements
 - **Batch workloads** -- very affordable for high-volume agent tasks
 
-
 ## Verify Connection
 
 ```bash
 vibecli --provider deepseek -c "Write a Rust function to merge two sorted arrays"
 ```
-
 
 ## Running DeepSeek Locally
 
@@ -104,7 +98,6 @@ vibecli --provider ollama --model deepseek-coder-v2:16b
 ```
 
 This gives you the DeepSeek model quality with zero API costs and full privacy.
-
 
 ## Troubleshooting
 

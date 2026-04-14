@@ -7,7 +7,6 @@ permalink: /development/
 
 Internal guide for engineers contributing to VibeCody. Covers build procedures, testing, debugging, code organization, and common development workflows.
 
-
 ## Prerequisites
 
 | Tool | Version | Purpose |
@@ -23,7 +22,6 @@ Internal guide for engineers contributing to VibeCody. Covers build procedures, 
 # Verify toolchain
 rustup show && node --version && cargo tauri --version
 ```
-
 
 ## Repository Structure
 
@@ -58,7 +56,6 @@ vibecody/
 ├── jetbrains-plugin/             # IntelliJ/WebStorm plugin
 └── neovim-plugin/                # Neovim integration
 ```
-
 
 ## Build Commands
 
@@ -114,7 +111,6 @@ npm run tauri:dev    # Start Tauri dev server (use tauri:dev not tauri dev on Li
 npm run lint         # ESLint
 npm run typecheck    # TypeScript type checking
 ```
-
 
 ## Testing
 
@@ -175,7 +171,6 @@ mod tests {
 }
 ```
 
-
 ## Architecture Patterns
 
 ### AI Provider Trait
@@ -195,6 +190,7 @@ pub trait AIProvider: Send + Sync {
 ```
 
 To add a new provider:
+
 1. Create `vibeui/crates/vibe-ai/src/providers/my_provider.rs`
 2. Register in `providers.rs`: `pub mod my_provider;` + `pub use my_provider::MyProvider;`
 3. Add config handling in `vibecli/vibecli-cli/src/main.rs` `create_provider()` function
@@ -211,6 +207,7 @@ User task → System prompt (tools + context) → LLM stream
 ```
 
 Key components:
+
 - **CircuitBreaker** — Detects stalls, spins, degradation (4 health states)
 - **Hooks** — Pre/post tool execution interception (JSON stdin/stdout)
 - **Context pruning** — Keeps within 80K token budget
@@ -219,6 +216,7 @@ Key components:
 ### Tool Execution
 
 Two executor implementations:
+
 - **`vibecli/src/tool_executor.rs`** — CLI executor with sandbox support, SSRF validation, command blocklist
 - **`vibeui/src-tauri/src/agent_executor.rs`** — Tauri executor with workspace-boundary path validation, command blocklist, 120s timeout
 
@@ -234,6 +232,7 @@ pub async fn my_command(param: String) -> Result<ResponseType, String> {
 ```
 
 Register in `lib.rs`:
+
 ```rust
 tauri::generate_handler![
     commands::my_command,
@@ -241,42 +240,46 @@ tauri::generate_handler![
 ]
 ```
 
-
 ## Security Checklist
 
 Before submitting code that touches these areas, verify:
 
 ### File I/O
+
 - [ ] All user-supplied paths go through `safe_resolve_path()` or `TauriToolExecutor::resolve()`
 - [ ] No absolute paths outside workspace are allowed
 - [ ] Symlink resolution via `canonicalize()` prevents traversal
 
 ### Shell Execution
+
 - [ ] Commands pass through the blocklist (`is_blocked_command` / `is_safe_command`)
 - [ ] Timeout applied (120s default for agent bash, 300s for scripts)
 - [ ] User-visible commands from AI responses are filtered before execution
 
 ### Network Requests
+
 - [ ] URLs validated with `validate_url_for_ssrf()` — blocks loopback, RFC 1918, link-local, metadata
 - [ ] Only `http://` and `https://` schemes allowed
 - [ ] No `file:///` access
 
 ### Secrets
+
 - [ ] API keys stored with `chmod 0o600` file permissions
 - [ ] Trace files run through `redact_secrets()` before writing
 - [ ] Error messages don't expose API keys or internal paths
 - [ ] Test fixtures use clearly fake keys (e.g., `sk-abcdefghij1234567890`)
 
 ### SQL
+
 - [ ] SQLite dot-commands blocked (`.shell`, `.system`, `.import`, `.load`)
 - [ ] `ATTACH DATABASE` blocked
 - [ ] Path validation before opening database files
 
 ### Dependencies
+
 - [ ] No `unsafe` blocks (none in the codebase currently)
 - [ ] No `danger_accept_invalid_certs(true)`
 - [ ] Cryptographic operations use `hmac`/`sha2` crates, not hand-rolled implementations
-
 
 ## Adding a REPL Command
 
@@ -285,6 +288,7 @@ Before submitting code that touches these areas, verify:
 3. Implement the handler (typically calling into a dedicated module)
 
 Example:
+
 ```rust
 // In repl.rs COMMANDS array:
 "/mycommand",
@@ -299,7 +303,6 @@ Example:
 }
 ```
 
-
 ## Adding a VibeUI Panel
 
 1. Create `vibeui/src/components/MyPanel.tsx`
@@ -312,13 +315,13 @@ export function MyPanel({ workspacePath }: { workspacePath?: string | null }) {
 }
 ```
 
-3. Import and add to the AI panel tab list in `App.tsx`
-4. If the panel needs Rust data, add a `#[tauri::command]` and register it
-
+1. Import and add to the AI panel tab list in `App.tsx`
+2. If the panel needs Rust data, add a `#[tauri::command]` and register it
 
 ## Debugging
 
 ### VibeCLI
+
 ```bash
 # Verbose logging
 RUST_LOG=debug vibecli --provider ollama
@@ -332,6 +335,7 @@ cat ~/.vibecli/traces/<session-id>.jsonl | jq .
 ```
 
 ### VibeUI
+
 ```bash
 # Open with DevTools
 cd vibeui && npm run tauri:dev
@@ -351,7 +355,6 @@ RUST_LOG=debug npm run tauri:dev
 | Tests fail with "provider not available" | These are integration tests needing API keys — unit tests should all pass |
 | npm `rustup` shadows cargo | Use `~/.cargo/bin/cargo` directly or uninstall the npm rustup package |
 
-
 ## Release Process
 
 ```bash
@@ -370,7 +373,6 @@ docker build -t vibecody/vibecli:latest .
 ./install.sh  # SHA-256 verified download
 ```
 
-
 ## Key Module Reference
 
 | Module | Lines | Tests | Purpose |
@@ -387,7 +389,6 @@ docker build -t vibecody/vibecli:latest .
 | `vm_orchestrator.rs` | ~1,300 | 59 | Parallel VM agent execution |
 | `commands.rs` | ~30,000 | 227+ | All Tauri command implementations |
 | `agent_executor.rs` | ~350 | 12 | VibeUI agent tool executor |
-
 
 ## Performance Notes
 

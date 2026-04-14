@@ -102,6 +102,7 @@ VibeCody v6 gaps are **all closed** (19/19, Phases 15-22 complete). This v7 iden
 ### P0 — Critical (5 gaps)
 
 #### Gap 1: A2A Protocol Support
+
 | Dimension | Detail |
 |-----------|--------|
 | **What** | Google's Agent-to-Agent protocol enables agents from different vendors to discover, negotiate capabilities, and collaborate as peers (not just tools) |
@@ -113,6 +114,7 @@ VibeCody v6 gaps are **all closed** (19/19, Phases 15-22 complete). This v7 iden
 > **Status**: Data model and type system implemented (agent cards, task lifecycle structs, capability negotiation types). HTTP/SSE I/O integration layer pending.
 
 #### Gap 2: Parallel Worktree Agent Execution
+
 | Dimension | Detail |
 |-----------|--------|
 | **What** | Run N agents in parallel, each in an isolated git worktree with its own branch, full file system isolation |
@@ -124,6 +126,7 @@ VibeCody v6 gaps are **all closed** (19/19, Phases 15-22 complete). This v7 iden
 > **Status**: Data model and type system implemented (pool configuration, worktree agent structs, merge orchestration types). Git worktree I/O integration layer pending.
 
 #### Gap 3: Proactive Agent Intelligence
+
 | Dimension | Detail |
 |-----------|--------|
 | **What** | Agent scans codebase and proactively suggests improvements, identifies bugs, tech debt, performance issues — without being asked |
@@ -135,6 +138,7 @@ VibeCody v6 gaps are **all closed** (19/19, Phases 15-22 complete). This v7 iden
 > **Status**: Data model and type system implemented (scan configuration, issue categorization, confidence scoring structs). Async background scanning and file system I/O integration layer pending.
 
 #### Gap 4: Web Search Grounding in Agent Loop
+
 | Dimension | Detail |
 |-----------|--------|
 | **What** | Agent can natively search the web during code generation to find API docs, library usage, error solutions |
@@ -146,6 +150,7 @@ VibeCody v6 gaps are **all closed** (19/19, Phases 15-22 complete). This v7 iden
 > **Status**: Data model and type system implemented (search provider abstraction, result ranking structs, citation types). HTTP search provider I/O integration layer pending — results are currently hardcoded.
 
 #### Gap 5: Deep Semantic Codebase Index
+
 | Dimension | Detail |
 |-----------|--------|
 | **What** | Full semantic understanding of codebase: function signatures, class hierarchies, import chains, API contracts, call graphs — not just embeddings |
@@ -161,6 +166,7 @@ VibeCody v6 gaps are **all closed** (19/19, Phases 15-22 complete). This v7 iden
 ### P1 — High Priority (6 gaps)
 
 #### Gap 6: Cross-Tool Agent Skills Standard
+
 | Dimension | Detail |
 |-----------|--------|
 | **What** | Open standard for agent skills interoperable across Claude Code, Cursor, Gemini CLI, Junie — 1,234+ community skills |
@@ -170,6 +176,7 @@ VibeCody v6 gaps are **all closed** (19/19, Phases 15-22 complete). This v7 iden
 | **Deliverable** | `agent_skills_compat.rs` + `/skills import|export|search|validate` — **SHIPPED** |
 
 #### Gap 7: MCP Streamable HTTP + OAuth 2.1
+
 | Dimension | Detail |
 |-----------|--------|
 | **What** | Next-gen MCP transport: Streamable HTTP for remote servers (replacing SSE), OAuth 2.1 for enterprise authentication |
@@ -181,6 +188,7 @@ VibeCody v6 gaps are **all closed** (19/19, Phases 15-22 complete). This v7 iden
 > **Status**: Data model and type system implemented (Streamable HTTP transport types, OAuth 2.1 token structs, PKCE flow types). HTTP server/client and OAuth I/O integration layer pending.
 
 #### Gap 8: MCTS Code Repair Strategy
+
 | Dimension | Detail |
 |-----------|--------|
 | **What** | Monte Carlo Tree Search applied to code repair: explore multiple fix paths, evaluate with test execution, backtrack on failures |
@@ -192,6 +200,7 @@ VibeCody v6 gaps are **all closed** (19/19, Phases 15-22 complete). This v7 iden
 > **Status**: Data model and type system implemented (MCTS tree structures, UCB1 selection, reward function types). Test execution during rollout is not yet wired — rollout evaluates using in-memory heuristics only.
 
 #### Gap 9: Multi-Agent Terminal Hosting
+
 | Dimension | Detail |
 |-----------|--------|
 | **What** | Single terminal/REPL hosting multiple AI agents simultaneously, each with independent context |
@@ -201,6 +210,7 @@ VibeCody v6 gaps are **all closed** (19/19, Phases 15-22 complete). This v7 iden
 | **Deliverable** | `agent_host.rs` + `AgentHostPanel.tsx` + `/host` REPL command — **SHIPPED** |
 
 #### Gap 10: Autonomous Issue Triage
+
 | Dimension | Detail |
 |-----------|--------|
 | **What** | Agent autonomously triages incoming GitHub/Linear issues: classifies, labels, assigns, drafts initial response, links to related code |
@@ -212,6 +222,7 @@ VibeCody v6 gaps are **all closed** (19/19, Phases 15-22 complete). This v7 iden
 > **Status**: Data model and type system implemented (issue classification, severity estimation, auto-labeling structs). GitHub/Linear API I/O integration layer pending — operates on in-memory issue structs only.
 
 #### Gap 11: Visual Verification via Computer Use
+
 | Dimension | Detail |
 |-----------|--------|
 | **What** | Agent takes screenshots of running application and compares against expected design to verify UI correctness |
@@ -225,6 +236,7 @@ VibeCody v6 gaps are **all closed** (19/19, Phases 15-22 complete). This v7 iden
 ### P2 — Medium Priority (6 gaps)
 
 #### Gap 12: Cost-Optimized Agent Routing
+
 | Dimension | Detail |
 |-----------|--------|
 | **What** | Smart routing of tasks to the cheapest model/strategy that meets quality threshold |
@@ -234,6 +246,7 @@ VibeCody v6 gaps are **all closed** (19/19, Phases 15-22 complete). This v7 iden
 | **Deliverable** | `cost_router.rs` + `CostRouterPanel.tsx` + `/route` REPL command — **SHIPPED** |
 
 #### Gap 13: Next-Task Prediction
+
 | Dimension | Detail |
 |-----------|--------|
 | **What** | Predict developer's next action at workflow level (not just next edit) and pre-compute suggestions |
@@ -243,6 +256,7 @@ VibeCody v6 gaps are **all closed** (19/19, Phases 15-22 complete). This v7 iden
 | **Deliverable** | `next_task.rs` + `NextTaskPanel.tsx` + `/nexttask` REPL command — **SHIPPED** |
 
 #### Gap 14: Native Integration Connectors
+
 | Dimension | Detail |
 |-----------|--------|
 | **What** | Pre-built connectors for 30+ services (Stripe, Figma, Notion, Salesforce, Jira, etc.) that go beyond MCP |
@@ -254,6 +268,7 @@ VibeCody v6 gaps are **all closed** (19/19, Phases 15-22 complete). This v7 iden
 > **Status**: Data model and type system implemented (connector trait, service configuration structs, OAuth flow types). HTTP/OAuth I/O integration layer pending — no live API calls to external services.
 
 #### Gap 15: Offline Voice Coding
+
 | Dimension | Detail |
 |-----------|--------|
 | **What** | Voice-to-code without internet dependency; runs speech recognition locally on device |
@@ -265,6 +280,7 @@ VibeCody v6 gaps are **all closed** (19/19, Phases 15-22 complete). This v7 iden
 > **Status**: Data model and type system implemented (model configuration, transcription result structs, voice activity detection types). whisper.cpp FFI/audio capture integration layer pending — no actual speech recognition.
 
 #### Gap 16: Living Documentation Sync
+
 | Dimension | Detail |
 |-----------|--------|
 | **What** | Bidirectional sync between specs/docs and code — code changes update docs, doc changes generate tasks |
@@ -274,6 +290,7 @@ VibeCody v6 gaps are **all closed** (19/19, Phases 15-22 complete). This v7 iden
 | **Deliverable** | `doc_sync.rs` + `DocSyncPanel.tsx` + `/docsync` REPL command — **SHIPPED** |
 
 #### Gap 17: Enterprise Agent Analytics
+
 | Dimension | Detail |
 |-----------|--------|
 | **What** | Admin dashboards showing per-user/team agent usage, acceptance rates, cost, productivity impact |
@@ -287,6 +304,7 @@ VibeCody v6 gaps are **all closed** (19/19, Phases 15-22 complete). This v7 iden
 ### P3 — Strategic (5 gaps)
 
 #### Gap 18: RLCEF Training Loop
+
 | Dimension | Detail |
 |-----------|--------|
 | **What** | Reinforcement Learning from Code Execution Feedback — use test results and runtime signals to improve agent behavior |
@@ -296,6 +314,7 @@ VibeCody v6 gaps are **all closed** (19/19, Phases 15-22 complete). This v7 iden
 | **Deliverable** | `rlcef_loop.rs` + `RlcefPanel.tsx` + `/rlcef` REPL command — **SHIPPED** |
 
 #### Gap 19: LangGraph/Deep Agent Pipeline Compatibility
+
 | Dimension | Detail |
 |-----------|--------|
 | **What** | Compatibility with LangChain/LangGraph agent pipelines for building custom async coding agents |
@@ -307,6 +326,7 @@ VibeCody v6 gaps are **all closed** (19/19, Phases 15-22 complete). This v7 iden
 > **Status**: Data model and type system implemented (LangGraph state serialization, checkpoint format, event stream adapter types). REST API server integration layer pending.
 
 #### Gap 20: Sketch-to-3D / Design Canvas
+
 | Dimension | Detail |
 |-----------|--------|
 | **What** | Sketch or wireframe on a canvas and generate 3D/interactive UI from the sketch |
@@ -318,6 +338,7 @@ VibeCody v6 gaps are **all closed** (19/19, Phases 15-22 complete). This v7 iden
 > **Status**: Data model and type system implemented (drawing primitives, shape recognition types, wireframe-to-component mapping structs). 3D/WebGL rendering and actual canvas input handling integration layer pending.
 
 #### Gap 21: Agent Reputation & Trust Scoring
+
 | Dimension | Detail |
 |-----------|--------|
 | **What** | Trust scoring for agent outputs based on historical accuracy, test pass rates, review acceptance |
@@ -327,6 +348,7 @@ VibeCody v6 gaps are **all closed** (19/19, Phases 15-22 complete). This v7 iden
 | **Deliverable** | `agent_trust.rs` + `TrustPanel.tsx` + `/trust` REPL command — **SHIPPED** |
 
 #### Gap 22: Agentic Package Manager
+
 | Dimension | Detail |
 |-----------|--------|
 | **What** | Agent-native package/dependency management: auto-detect needed packages, resolve conflicts, generate lockfiles, handle security advisories |
@@ -467,6 +489,7 @@ Legend: **Bold** = industry-leading, Partial = some implementation, No = competi
 | **Total** | **22 + 6 bonus** | **28** | **1,110+** | **22** | | **ALL DONE** |
 
 **Actual totals (2026-03-29):**
+
 - **9,570 unit tests** (0 failures)
 - **185 Rust modules** (vibecli-cli/src/)
 - **187 VibeUI panels**

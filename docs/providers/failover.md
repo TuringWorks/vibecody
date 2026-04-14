@@ -8,7 +8,6 @@ permalink: /providers/failover/
 
 The Failover provider wraps multiple providers and automatically falls back to the next one in the chain if a request fails. Use it for high-reliability setups where uptime is critical.
 
-
 ## Configure VibeCody
 
 **Config file** (`~/.vibecli/config.toml`)
@@ -49,7 +48,6 @@ Use from the CLI:
 vibecli --provider failover
 ```
 
-
 ## How It Works
 
 1. VibeCody sends the request to the first provider in the chain
@@ -57,14 +55,12 @@ vibecli --provider failover
 3. This continues until a provider succeeds or the chain is exhausted
 4. If all providers fail, the error from the last provider is returned
 
-
 ## Best For
 
 - **Production reliability** -- ensure AI is always available even if one provider has an outage
 - **Rate limit mitigation** -- overflow to another provider when rate-limited
 - **Cost optimization** -- try a cheaper provider first, fall back to a more expensive one
 - **Air-gapped fallback** -- chain a cloud provider with a local Ollama instance
-
 
 ## Troubleshooting
 

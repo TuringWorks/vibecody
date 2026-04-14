@@ -9,9 +9,9 @@ permalink: /tutorials/agent-workflow/
 The VibeCody agent is an autonomous loop that reads your codebase, plans changes, writes code, and runs commands -- all guided by a natural language task description. This tutorial walks you through three real-world scenarios.
 
 **Prerequisites:**
+
 - VibeCody installed with a working provider (see [First Provider Tutorial](/vibecody/tutorials/first-provider/))
 - A Git repository to work in
-
 
 ## What Is the Agent Loop?
 
@@ -27,7 +27,6 @@ When you give VibeCody an agent task, it enters a loop:
 
 The agent has access to your filesystem and shell within the project directory. It can read any file, write changes, and execute commands like `cargo build` or `npm test`.
 
-
 ## Approval Policies
 
 Before diving in, understand the three approval modes:
@@ -39,7 +38,6 @@ Before diving in, understand the three approval modes:
 | **Full-auto** | `--full-auto` | Auto-apply | Auto-execute | CI/CD, sandboxed environments |
 
 Start with the default (suggest) until you are comfortable with how the agent works. You can always combine `--full-auto` with `--sandbox` for safe autonomous execution.
-
 
 ## Example 1: Fix a Bug
 
@@ -110,7 +108,6 @@ The diff shows exactly what changed:
 
 In `suggest` mode, the agent asks before each destructive action (`y` to approve, `n` to reject, `a` to approve all remaining steps).
 
-
 ## Example 2: Add a Feature
 
 You want to add rate limiting to your API server.
@@ -148,7 +145,6 @@ Agent complete: Added token bucket rate limiter with per-IP tracking.
    Steps: 8/8 succeeded
 ```
 
-
 ## Example 3: Refactor Code
 
 Refactoring is one of the agent's strongest use cases because it can read the entire context, plan coordinated changes across files, and verify the result compiles.
@@ -184,7 +180,6 @@ Agent complete: Extracted connection pool into src/pool.rs, updated 4 callers.
    Steps: 12/12 succeeded
 ```
 
-
 ## Understanding Tool Calls
 
 The agent works by making "tool calls" -- structured actions that read or modify your project:
@@ -205,7 +200,6 @@ The agent works by making "tool calls" -- structured actions that read or modify
 
 In `suggest` mode, you see each tool call before it executes and can approve (`y`), deny (`n`), or approve all remaining (`a`). In `auto-edit` mode, file operations run automatically but shell commands still require approval.
 
-
 ## Reviewing Changes
 
 After each step, the agent shows what it did with a checkmark (success) or cross (failure). At completion, you get a summary:
@@ -223,7 +217,6 @@ You can resume any previous session with `/resume <id>` to continue where you le
 | `diff` | Show the full diff of all changes |
 
 If you are using Git (recommended), you can also accept and then review with `git diff` afterward. If anything looks wrong, `git checkout .` reverts everything.
-
 
 ## Session Resume
 
@@ -255,7 +248,6 @@ vibecli --resume a1b2c3d4
 
 The agent picks up with full context of what it already did, what files it read, and what changes it made.
 
-
 ## Tips for Better Agent Results
 
 1. **Be specific.** "Fix the bug" is vague. "Fix the unwrap panic on line 34 of auth.rs" is actionable.
@@ -269,7 +261,6 @@ The agent picks up with full context of what it already did, what files it read,
 5. **Use Git.** Always work in a Git repo so you can easily review and revert changes.
 
 6. **Scope the task.** One focused task per agent run works better than "refactor everything". Break large tasks into steps.
-
 
 ## Next Steps
 

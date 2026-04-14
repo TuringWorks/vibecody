@@ -9,9 +9,9 @@ permalink: /tutorials/code-review/
 Use VibeCody to get instant, AI-powered feedback on code changes -- uncommitted work, branches, or GitHub pull requests.
 
 **Prerequisites:**
+
 - VibeCody installed with a working provider (see [First Provider Tutorial](/vibecody/tutorials/first-provider/))
 - A Git repository with some changes to review
-
 
 ## Review Uncommitted Changes
 
@@ -29,7 +29,7 @@ vibecli --review
 vibecli
 ```
 
-```
+```bash
 vibecli> /review
 ```
 
@@ -62,29 +62,27 @@ vibecli> /review
 4 issues found (1 high, 2 medium, 1 low).
 ```
 
-
 ## Review a Specific Branch
 
 Compare a feature branch against your main branch:
 
-```
+```bash
 vibecli> /review --branch feature/auth-refactor
 ```
 
 This diffs `feature/auth-refactor` against `main` (or your default branch) and reviews all the changes.
 
-
 ## Review a GitHub Pull Request
 
 VibeCody can review a PR directly and optionally post comments on GitHub:
 
-```
+```bash
 vibecli> /review --pr 42
 ```
 
 ### Expected Output
 
-```
+```text
 [review] Fetching PR #42: "Add OAuth2 support"
 [review] Analyzing diff (8 files, +312 -45 lines)...
 
@@ -120,7 +118,6 @@ Post comments to GitHub? [y/n]:
 
 Type `y` to post inline comments directly on the PR.
 
-
 ## Understanding the Review Report
 
 ### Severity Levels
@@ -142,25 +139,23 @@ The AI reviewer analyzes changes for:
 - **Maintainability:** Code clarity, naming, documentation, test coverage
 - **Best practices:** Language idioms, library usage, API design
 
-
 ## Customizing Review Focus
 
 You can guide the review with additional context:
 
-```
+```bash
 vibecli> /review Focus on security and error handling only
 ```
 
-```
+```bash
 vibecli> /review This is a performance-critical path -- check for allocations
 ```
 
-```
+```bash
 vibecli> /review We are migrating from sync to async -- check for blocking calls
 ```
 
 The AI incorporates your guidance into its analysis and adjusts severity accordingly.
-
 
 ## Integrating with CI
 
@@ -230,7 +225,6 @@ code_review:
       - review.json
 ```
 
-
 ## Tips for Better Reviews
 
 1. **Commit often, review often.** Smaller diffs get more focused, actionable feedback.
@@ -242,7 +236,6 @@ code_review:
 4. **Combine with tests.** Run `/review` first, then `/agent fix the issues found in the review` to auto-fix.
 
 5. **Review your own code.** AI review is not just for PRs -- run it on your uncommitted changes as a pre-commit habit.
-
 
 ## Next Steps
 

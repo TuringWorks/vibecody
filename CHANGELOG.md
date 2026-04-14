@@ -147,6 +147,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [0.4.0] — 2026-03-21
 
 ### Added
+
 - 5 new AI providers: MiniMax, Perplexity, Together AI, Fireworks AI, SambaNova (22 total)
 - Smart project init (`/init`) with auto-context injection into every agent conversation
 - `think` tool for chain-of-thought reasoning (free, no side effects)
@@ -166,6 +167,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - 16 McpPanel unit tests (Vitest + React Testing Library)
 
 ### Fixed
+
 - 4 broken tests in context_streaming (eviction window sizing, query search mode)
 - 2 broken tests: mcp_server tool count, open_memory project scope
 - TauriToolExecutor: path traversal via workspace-boundary canonicalization
@@ -181,6 +183,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - run_project_script blocklist strengthened from 8 to 16 patterns
 
 ### Changed
+
 - Agent output: structured banners, human-readable step descriptions, change summaries
 - Auth tab renamed to "Authorization"
 - Provider count in all docs: 17 → 22
@@ -191,12 +194,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Workspace members: 6 → 9
 
 ### Removed
+
 - Hand-rolled HMAC-SHA256 in zhipu.rs (replaced by crate)
 - Redundant Default impls in data_analysis.rs, session_sharing.rs (replaced by derive)
 
 ## [Unreleased]
 
 ### Features (Phases 7.26–7.34)
+
 - **Phase 7.26**: API Documentation Viewer (`ApiDocsPanel.tsx`) — load OpenAPI 3.x/Swagger 2.x, endpoint list grouped by tag, "Try It" sub-panel.
 - **Phase 7.27**: Log Viewer (`LogPanel.tsx`) — tail logs, search, AI-powered analysis. `ErrorBoundary` component wrapping all AI panel tabs.
 - **Phase 7.28**: Script Runner (`ScriptPanel.tsx`) — auto-detects npm/cargo/make/python/go/just scripts, live output. Notebook Panel (`NotebookPanel.tsx`) — executable code cells with inline output.
@@ -209,6 +214,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **64 AI panel tabs** total across all features.
 
 ### Testing
+
 - **735 new unit tests** across 50+ files, bringing the workspace total from 344 → **1074 tests** (1046 main + 28 vibe-collab).
 - **Round 4 (155 tests)** across 12 files:
   - `serve.rs` (25): now_ms, persist/load jobs, JobRecord serde, AgentEventPayload constructors,
@@ -291,6 +297,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     ProviderConfigFile serde, AIConfig serde, empty TOML loads as default.
 
 ### Tech Debt & Code Quality
+
 - **vibe-indexer HTTP handlers**: Replaced 3 `.unwrap()` panics on `serde_json::to_value()` with match blocks returning HTTP 500.
 - **OnceLock regex**: Converted 10 `Regex::new().unwrap()` calls in `expand_at_refs()` to `static OnceLock<Regex>` pattern (compiled once, reused).
 - **tracing over eprintln**: Replaced 7 `eprintln!` in `policy.rs` with `tracing::warn!/debug!` and 3 in `client.rs` with `tracing::error!`.
@@ -298,6 +305,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Debug log cleanup**: Removed ~20 `console.log`/`console.error` calls from `App.tsx` (all DEBUG-prefixed + informational logs; kept legitimate error handlers).
 
 ### Performance Benchmarks
+
 - **Criterion benchmark suite** for vibe-core hot paths (`vibeui/crates/vibe-core/benches/index_bench.rs`):
   - `cosine_similarity` (384d ~363ns, 1536d ~1.2µs, 1000-vector batch ~311µs)
   - `extract_symbols` (50 fns ~1.7ms, 500 fns ~2.4ms)
@@ -306,14 +314,16 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Made `cosine_similarity` public API for benchmarking and external use.
 
 ### Documentation
+
 - **Serve endpoint table**: Expanded from 9 → 16 routes with auth requirements.
 - **Jekyll navigation**: Added ROADMAP-v2, FIT-GAP-ANALYSIS-v2, SHANNON-COMPARISON, CHANGELOG to header pages.
 - **Test counts**: Updated across all docs to reflect 1074 total tests.
 
 ### Accessibility (WCAG 2.1 AA)
+
 - **Keyboard shortcuts**: 8 new shortcuts — `Cmd+J` toggle AI panel, `Cmd+`` toggle terminal,
   `Cmd+Shift+P` command palette (VS Code alias), `Cmd+1`–`Cmd+9` switch AI tab, `Cmd+Shift+E`
-  focus explorer, `Cmd+Shift+G` focus git panel (`App.tsx`).
+  focus explorer, `Cmd+Shift+G`focus git panel (`App.tsx`).
 - **Focus-visible outlines**: All interactive elements show 2px blue outline on keyboard focus
   (`:focus-visible`), suppressed on mouse (`:focus`) — meets WCAG 2.4.7 (`App.css`).
 - **Command palette ARIA**: `role="dialog"`, `role="combobox"` on input, `role="listbox"` on list,
@@ -331,6 +341,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   loading states across panels (`EmptyState.tsx`, `LoadingSpinner.tsx`).
 
 ### Provider Hardening
+
 - **HTTP client timeouts (all providers)**: Every AI provider now uses `reqwest::Client::builder()`
   with 90s request + 10s connect timeouts — Ollama, OpenAI, Claude, Gemini, Groq, OpenRouter,
   Azure OpenAI, Bedrock, Copilot (`*.rs` in `providers/`).
@@ -341,6 +352,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   per token, eliminating one heap allocation per LLM token streamed (`agent.rs`).
 
 ### Performance
+
 - **Agent loop**: Pre-allocate `accumulated` response buffer (`String::with_capacity(8192)`)
   and move stream chunks into the event channel instead of cloning — eliminates one heap
   allocation per LLM token streamed (`agent.rs`).
@@ -366,6 +378,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   test. Total: **829 tests** passing across the workspace (490 new in this release).
 
 ### Phase 7.21: Real-time Chat Streaming in AIChat
+
 - **`stream_chat_message` Tauri command** (`commands.rs`): Immediately returns `Ok(())` and
   spawns a background tokio task that calls `provider.stream_chat()` and emits three event types:
   `chat:chunk` (each token as it arrives), `chat:complete` (full `ChatResponse` with tool-call
@@ -388,6 +401,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     final assistant message. The ⏹ Stop button now calls this instead of just flipping `isLoading`.
 
 ### Phase 7.20: Streaming Metrics + REPL Session Commands
+
 - **`/sessions` REPL command** (`repl.rs` + `main.rs`): Lists last 15 root sessions from SQLite
   (`SessionStore::list_root_sessions(15)`) with ID, status icon (✅/🟡/❌), step count, task
   preview (45 chars), model name, elapsed age ("Xm ago"), and an inline `/resume` hint for each
@@ -404,6 +418,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   agent is running; disappears on completion or error. Metrics reset on each new agent start.
 
 ### Phase 7.19: Context Window Safety + Process Manager
+
 - **Context window safety (`agent.rs`)**: Added `estimate_tokens()` (1 token ≈ 4 chars) and
   `prune_messages()` to the agent loop. Before each LLM call the conversation history is checked
   against a configurable token budget (default 80 000 tokens). If over budget, middle messages
@@ -423,6 +438,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Total tests: 513** (508 + 5 new context pruning tests), all passing.
 
 ### Added
+
 - **Phase 45**: Frontend panels — `CostPanel.tsx` (💰 Cost tab): per-provider cost breakdown
   chart, total spend summary, budget limit input, cost history table with provider/model/tokens/
   cost columns, clear history button. `AutofixPanel.tsx` (🔧 Autofix tab): auto-detect linter
@@ -655,6 +671,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Phase 32**: Monaco `revealLineInCenter` + `setPosition` scroll-to-line in `App.tsx`.
 
 ### Security
+
 - **P0**: SHA-256 checksum verification in `install.sh` — downloaded binaries are verified
   against `SHA256SUMS.txt` before installation; hard-fails on mismatch.
 - **P0**: Path traversal prevention — `resolve_safe()` in `tool_executor.rs`, `safe_join()`
@@ -708,6 +725,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   TOCTOU pre-creation race by local attackers.
 
 ### Changed
+
 - **Phase 33**: Removed 4 `println!("DEBUG: ...")` calls from `commands.rs`.
 - **Phase 33**: `estimate_confidence()` heuristic replaces hardcoded `0.8` in `completion.rs`.
 - **Phase 33**: LSP `features.rs` fully implemented (completions, hover, goto-def, symbols,
@@ -744,6 +762,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [0.9.0] — Phases 24–26
 
 ### Added
+
 - Vim TUI mode (`--vim` flag), AWS Bedrock provider, GitHub Copilot provider.
 - Notebook runner (`--notebook` flag), Supabase integration, OAuth PKCE auth.
 - GitHub sync (`git_sync` Tauri command with fork/clone/PR).
@@ -753,6 +772,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [0.8.0] — Phases 20–23
 
 ### Added
+
 - Admin Policy (`policy.rs`, glob-based tool allow/deny).
 - Hooks Config UI (`HooksPanel.tsx`, `get/save_hooks_config` Tauri commands).
 - Turbo Mode toggle (`⚡ Turbo` button in `AgentPanel.tsx`).
@@ -766,6 +786,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [0.7.0] — Phases 14–19
 
 ### Added
+
 - Inline Chat Cmd+K (`InlineChat.tsx`, `inline_edit` Tauri command).
 - Next-edit prediction with Tab key (`predict_next_edit`, Monaco completion provider).
 - SupercompleteEngine (cross-file semantic completion via embedding index).
@@ -780,6 +801,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [0.6.0] — Phases 12–13
 
 ### Added
+
 - GitHub PR Code Review (`review.rs`, `--review`/`--base`/`--branch`/`--pr` flags).
 - Phase 11: Named profiles (`~/.vibecli/profiles/`), `--doctor` health check.
 - Phase 11: REPL tab-completion (19 commands, sub-commands, cyan highlighting).
@@ -791,6 +813,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [0.5.0] — Phases 9–10
 
 ### Added
+
 - Manager View (`ManagerView.tsx`, parallel agent branches).
 - VibeCLI Daemon (`serve.rs`, `--serve`/`--port` flags) + VS Code extension.
 - Agent SDK (`packages/agent-sdk/`, streaming async generator API).
@@ -802,6 +825,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [0.4.0] — Phases 7–8
 
 ### Added
+
 - Multi-agent orchestration (`MultiAgentOrchestrator`, `--parallel N`).
 - Embedding index (`EmbeddingIndex`, Ollama + OpenAI providers, cosine search).
 - Skills system (`skills.rs`, auto-activation in system prompt).
@@ -816,6 +840,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [0.3.0] — Phases 5–6
 
 ### Added
+
 - MCP server mode (`--mcp-server`).
 - `/index` + `/qa` codebase Q&A commands.
 - Auto-commit after agent.
@@ -829,6 +854,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [0.2.0] — Phases 3–4
 
 ### Added
+
 - Streaming responses for all providers.
 - 5 AI providers: Ollama, Claude, OpenAI, Gemini, Grok.
 - Hooks system (JSON stdin/stdout, `exit 0` allow / `exit 2` block).
@@ -839,6 +865,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [0.1.0] — Phases 1–2
 
 ### Added
+
 - Initial VibeCLI terminal agent (Ratatui TUI + Rustyline REPL).
 - Initial VibeUI desktop editor (Tauri 2 + Monaco Editor + React).
 - Agent loop with XML tool calling (ReadFile, WriteFile, RunBash, WebSearch, etc.).

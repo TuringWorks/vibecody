@@ -22,6 +22,7 @@ Encrypted with ChaCha20-Poly1305 (per-value random nonces). Key derived from mac
 | `master_keys` | Company encryption master keys |
 
 **Rust API (vibecli_cli::profile_store::ProfileStore):**
+
 ```rust
 let store = ProfileStore::new()?;
 store.set_api_key("default", "anthropic", "sk-ant-...")?;
@@ -32,6 +33,7 @@ store.set_master_key(company_id, &key_bytes)?;
 ```
 
 **Tauri commands (invoke from frontend):**
+
 ```ts
 invoke("profile_api_key_set",         { profileId, provider, apiKey })
 invoke("profile_api_key_get",         { profileId, provider })       // → string | null
@@ -60,6 +62,7 @@ Encrypted with ChaCha20-Poly1305. Key derived from machine identity + workspace 
 | `workspace_secrets` | Versioned project secrets (DB URLs, project API keys, `.env` values) |
 
 **Rust API (vibecli_cli::workspace_store::WorkspaceStore):**
+
 ```rust
 let store = WorkspaceStore::open(Path::new("/path/to/project"))?;
 store.setting_set("provider", "claude")?;
@@ -70,6 +73,7 @@ store.secret_list()?;                                  // → Vec<WorkspaceSecre
 ```
 
 **Tauri commands:**
+
 ```ts
 invoke("workspace_setting_get",    { workspacePath, key })
 invoke("workspace_setting_set",    { workspacePath, key, value })
@@ -152,17 +156,20 @@ Touch these files in order:
    For OpenAI-compatible APIs, copy `groq.rs` — it's the thinnest implementation.
 
 2. **`vibeui/crates/vibe-ai/src/providers.rs`** — export the new module:
+
    ```rust
    pub mod {name};
    pub use {name}::MyProvider;
    ```
 
 3. **`vibecli/vibecli-cli/src/config.rs`** — add a field to `Config`:
+
    ```rust
    pub {name}: Option<ProviderConfig>,
    ```
 
 4. **`vibecli/vibecli-cli/src/main.rs`** — add a match arm in `create_raw_provider()`:
+
    ```rust
    "{name}" => Ok(Arc::new(MyProvider::new(config))),
    ```

@@ -8,13 +8,11 @@ permalink: /providers/openrouter/
 
 [OpenRouter](https://openrouter.ai) is a unified API gateway that provides access to 300+ models from multiple providers (OpenAI, Anthropic, Google, Meta, Mistral, and more) through a single API key and billing account.
 
-
 ## Get an API Key
 
 1. Go to [openrouter.ai/keys](https://openrouter.ai/keys)
 2. Create an account or sign in
 3. Create a new key and copy it
-
 
 ## Configure VibeCody
 
@@ -33,7 +31,6 @@ enabled = true
 api_key = "sk-or-v1-..."
 model = "anthropic/claude-3.5-sonnet"
 ```
-
 
 ## Model Selection
 
@@ -58,11 +55,9 @@ vibecli --provider openrouter --model openai/gpt-4o
 
 Browse all available models at [openrouter.ai/models](https://openrouter.ai/models).
 
-
 ## Pricing
 
 OpenRouter uses pay-per-token pricing that varies by model. Prices are transparently listed on each model's page. OpenRouter adds a small markup over the provider's native price for the convenience of unified billing.
-
 
 ## Best For
 
@@ -71,13 +66,11 @@ OpenRouter uses pay-per-token pricing that varies by model. Prices are transpare
 - **Access to restricted models** -- some models are easier to access through OpenRouter
 - **Fallback routing** -- OpenRouter can automatically route to alternative models
 
-
 ## Verify Connection
 
 ```bash
 vibecli --provider openrouter -c "Explain the difference between async and threads in Rust"
 ```
-
 
 ## Troubleshooting
 

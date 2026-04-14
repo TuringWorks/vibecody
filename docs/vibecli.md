@@ -811,6 +811,7 @@ vibecli --serve --port 7878
 ```
 
 Features:
+
 - Chat and Agent modes with SSE streaming
 - Markdown rendering with syntax highlighting
 - Dark/light theme toggle

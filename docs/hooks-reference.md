@@ -19,6 +19,7 @@ useApiKeyMonitor({ toast, addNotification, osNotifications? })
 **Purpose:** Periodically validates all configured API keys and notifies on status changes (valid to invalid, or recovery).
 
 **Parameters:**
+
 - `toast` (`ToastApi`) -- toast instance from `useToast`
 - `addNotification` (`(opts: AddNotificationOpts) => void`) -- from `useNotifications`
 - `osNotifications?` (`boolean`) -- also send OS-level notifications for failures
@@ -26,6 +27,7 @@ useApiKeyMonitor({ toast, addNotification, osNotifications? })
 **Returns:** `{ validations, lastChecked, revalidate }` -- current validation map, timestamp of last check, and a function to force re-check.
 
 **Example:**
+
 ```ts
 const { validations, revalidate } = useApiKeyMonitor({ toast, addNotification });
 ```
@@ -50,6 +52,7 @@ useCollab()
 - `peers` -- array of `CollabPeer` with name, color, and cursor info
 
 **Example:**
+
 ```ts
 const { connect, peers, sendAwareness } = useCollab();
 connect("ws://localhost:4444?room=abc", "Alice");
@@ -66,6 +69,7 @@ useDaemonMonitor({ toast, addNotification, daemonUrl? })
 **Purpose:** Polls the VibeCLI daemon health endpoint and auto-starts it via Tauri if offline, notifying on status transitions.
 
 **Parameters:**
+
 - `toast` (`ToastApi`) -- toast instance
 - `addNotification` (`(opts: AddNotificationOpts) => void`)
 - `daemonUrl?` (`string`) -- defaults to `"http://localhost:7878"`
@@ -73,6 +77,7 @@ useDaemonMonitor({ toast, addNotification, daemonUrl? })
 **Returns:** `{ online, lastChecked, recheck }` -- daemon online status, timestamp, and manual re-check function.
 
 **Example:**
+
 ```ts
 const { online } = useDaemonMonitor({ toast, addNotification });
 ```
@@ -95,6 +100,7 @@ useEditorTheme()
 - `defineTheme(monaco)` -- call from `onMount` to capture the monaco instance and apply the initial theme
 
 **Example:**
+
 ```tsx
 const { themeName, defineTheme } = useEditorTheme();
 <Editor theme={themeName} onMount={(_, monaco) => defineTheme(monaco)} />
@@ -119,6 +125,7 @@ useModelRegistry()
 - `refresh()` -- force-refresh from the backend (e.g., re-fetch Ollama models)
 
 **Example:**
+
 ```ts
 const { providers, modelsForProvider } = useModelRegistry();
 const models = modelsForProvider("openai"); // ["gpt-4o", "gpt-4o-mini", ...]
@@ -143,6 +150,7 @@ useNotifications()
 - `clearCategory(category)` -- remove all notifications in a category
 
 **Example:**
+
 ```ts
 const { add, unreadCount } = useNotifications();
 add({ title: "Build failed", body: "Exit code 1", severity: "error", category: "build" });
@@ -159,6 +167,7 @@ usePanelSettings(panelName: string)
 **Purpose:** Reads and writes per-panel settings from the encrypted SQLite backend, scoped by profile and panel name.
 
 **Parameters:**
+
 - `panelName` (`string`) -- identifies which panel's settings to load
 
 **Returns:** `{ settings, loading, profileId, setSetting, deleteSetting, resetPanel, reload, switchProfile, error }`
@@ -168,6 +177,7 @@ usePanelSettings(panelName: string)
 - `resetPanel()` -- delete all settings for this panel
 
 **Example:**
+
 ```ts
 const { settings, setSetting } = usePanelSettings("terminal");
 await setSetting("fontSize", 14);
@@ -184,12 +194,14 @@ usePersistentState<T>(key: string, initialValue: T)
 **Purpose:** Drop-in replacement for `useState` that persists values to localStorage, surviving tab switches and app restarts.
 
 **Parameters:**
+
 - `key` (`string`) -- storage key (auto-prefixed with `"vibeui-panel:"`)
 - `initialValue` (`T`) -- fallback when no stored value exists
 
 **Returns:** `[value, setValue]` -- same API as `useState`.
 
 **Example:**
+
 ```ts
 const [filter, setFilter] = usePersistentState<string>("search.filter", "");
 ```
@@ -213,6 +225,7 @@ useSessionMemory()
 - `getPinnedSystemPromptText()` -- formatted string of pinned facts for prompt injection
 
 **Example:**
+
 ```ts
 const { extractFromMessages, getPinnedSystemPromptText } = useSessionMemory();
 extractFromMessages(chatMessages, "tab-1");
@@ -237,6 +250,7 @@ useToast()
 - `toasts` (`Toast[]`) -- current list for rendering
 
 **Example:**
+
 ```ts
 const { toast } = useToast();
 toast.success("File saved!");
@@ -253,6 +267,7 @@ useVoiceInput(onTranscript: (text: string) => void)
 **Purpose:** Provides voice-to-text input using the Web Speech API, with a fallback to MediaRecorder + Groq Whisper transcription via Tauri.
 
 **Parameters:**
+
 - `onTranscript` (`(text: string) => void`) -- callback invoked with transcribed text
 
 **Returns:** `{ isListening, isTranscribing, interimText, toggle }`
@@ -263,6 +278,7 @@ useVoiceInput(onTranscript: (text: string) => void)
 - `interimText` -- partial transcript while speaking (Speech API only)
 
 **Example:**
+
 ```ts
 const { toggle, isListening } = useVoiceInput((text) => setInput(prev => prev + text));
 <button onClick={toggle}>{isListening ? "Stop" : "Speak"}</button>

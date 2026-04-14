@@ -85,30 +85,35 @@ Comparative analysis against the latest competitor releases as of April 2026.
 ## Implementation Plan
 
 ### Phase 45: Agent-OS (P0)
+
 - `agent_registry.rs` — Agent discovery and capability advertisement
 - `agent_recruiter.rs` — Dynamic recruitment with skill matching
 - `agent_quota.rs` — Per-agent token/time/cost quotas with enforcement
 - `agent_autoscale.rs` — Pool size management based on queue depth
 
 ### Phase 46: Context & Workspace (P1)
+
 - `agent_persistence.rs` — Serialize/restore running agent state
 - `workspace_snapshot.rs` — Point-in-time workspace snapshot/restore
 - `multi_repo_context.rs` — Cross-repo import graph and context aggregation
 - `inline_diff.rs` — Hunk-level accept/reject with partial application
 
 ### Phase 47: Developer Workflow (P2)
+
 - `changelog_gen.rs` — Git history → conventional changelog
 - `pr_description.rs` — Diff-aware PR title/body generation
 - `spec_to_test.rs` — BDD spec → test stub generator
 - `dep_update_advisor.rs` — SemVer constraint analysis + update safety
 
 ### Phase 48: P3 (deferred)
+
 - session_export, perf_regression, token_dashboard, capability_discovery,
   prompt_vcs, explain_depth, repl_macros, semantic_search_v2
 
 ---
 
 ## Success Criteria
+
 - [ ] All P0 gaps: Rust modules + tests (≥12 each) + skill files + Tauri commands
 - [ ] All P1 gaps: same requirements
 - [ ] All P2 gaps: same requirements

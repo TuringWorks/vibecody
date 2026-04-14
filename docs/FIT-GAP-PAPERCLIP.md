@@ -26,66 +26,79 @@ features against VibeCody's Paperclip parity implementation (Rust/Tauri2).
 ## Detailed Comparison
 
 ### Company Management
+
 - **Paperclip**: Multi-company with status (active/paused/archived), settings JSON
 - **VibeCody**: `CompanyStore` with SQLite WAL, active_company file, same status enum
 - **Gaps**: None — full parity
 
 ### Org Chart
+
 - **Paperclip**: `reports_to` hierarchy, recursive CTE for subtree queries
 - **VibeCody**: `get_agent_subtree()` with recursive CTE, `build_org_chart()` DFS, ASCII tree
 - **Gaps**: None
 
 ### Goal Alignment
+
 - **Paperclip**: Hierarchical goals with `parent_goal_id`, progress % rollup
 - **VibeCody**: `GoalStore` with `roll_up_progress()` recursively averaging children
 - **Gaps**: None
 
 ### Task Lifecycle
+
 - **Paperclip**: Kanban (backlog→todo→in_progress→in_review→done), atomic checkout
 - **VibeCody**: Full state machine with `allowed_transitions()`, atomic `checkout()` with branch naming
 - **Gaps**: None
 
 ### Approval Workflows
+
 - **Paperclip**: hire/strategy/budget/task/deploy request types, pending→decided flow
 - **VibeCody**: `ApprovalStore` with same request types, policy_engine resource constants
 - **Gaps**: Auto-gating of operations via policy_engine (groundwork laid, not auto-enforced)
 
 ### Budget System
+
 - **Paperclip**: Per-agent monthly budgets, cost event log, hard-stop enforcement
 - **VibeCody**: `BudgetStore` with YYYY-MM month key, `ingest_cost()`, hard-stop flag
 - **Gaps**: Auto-pause via AgentPool (hard_stop flag set correctly, AgentPool.pause() wiring left as async integration point)
 
 ### Agent Heartbeats
+
 - **Paperclip**: Scheduled + event + manual triggers, run history, session links
 - **VibeCody**: `HeartbeatStore` with all three trigger types, start/complete/fail lifecycle
 - **Gaps**: Tokio tick loop (routine tick via `tick_routines()` in orchestrator; async drive loop separate concern)
 
 ### Secrets Vault
+
 - **Paperclip**: AES-256-GCM + OS keychain (keyring crate)
 - **VibeCody**: HMAC-SHA256 keystream XOR cipher (equivalent security), key stored in `~/.vibecli/keys/`
 - **Gaps**: OS keychain integration (uses file-based key instead of keyring crate — adds optional `keyring` dep)
 
 ### Company Portability
+
 - **Paperclip**: Export/import blueprints with ID remapping, secrets scrubbing
 - **VibeCody**: `export_company()` / `import_company()` with full ID remapping HashMap
 - **Gaps**: None
 
 ### Recurring Routines
+
 - **Paperclip**: Routine CRUD, interval-based, `max_concurrent` limit
 - **VibeCody**: `RoutineStore` with `due_routines()` + `mark_ran()`, `tick_routines()` in orchestrator
 - **Gaps**: None
 
 ### BYOA Adapters
+
 - **Paperclip**: Claude/Codex/Cursor/HTTP/process adapters
 - **VibeCody**: `AgentAdapter` async trait, `HttpAdapter`, `ProcessAdapter`, `InternalAdapter`
 - **Gaps**: Claude/Codex/Cursor adapters (HTTP-based versions cover these use cases)
 
 ### Documents
+
 - **Paperclip**: Markdown docs linked to tasks/goals, revision history
 - **VibeCody**: `DocumentStore` with `update()` auto-incrementing revision, `list_revisions()`
 - **Gaps**: None
 
 ### Dashboard
+
 - **Paperclip**: Real-time SSE dashboard with agent status, budget burn, activity feed
 - **VibeCody**: `build_dashboard()` aggregating task counts, pending approvals, active routines
 - **Gaps**: SSE push (HTTP serve integration for SSE channel is Phase 7+ extension point)

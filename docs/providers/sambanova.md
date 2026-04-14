@@ -8,7 +8,6 @@ permalink: /providers/sambanova/
 
 [SambaNova](https://sambanova.ai) runs AI models on custom RDU (Reconfigurable Dataflow Unit) hardware, delivering fast inference for open-source models.
 
-
 ## Get an API Key
 
 1. Go to [cloud.sambanova.ai](https://cloud.sambanova.ai)
@@ -17,7 +16,6 @@ permalink: /providers/sambanova/
 4. Create a new key and copy it
 
 SambaNova offers a free tier with limited usage.
-
 
 ## Configure VibeCody
 
@@ -37,7 +35,6 @@ api_key = "..."
 model = "Meta-Llama-3.1-70B-Instruct"
 ```
 
-
 ## Model Selection
 
 | Model | Strengths | Best for |
@@ -53,20 +50,17 @@ Override from the CLI:
 vibecli --provider sambanova --model Meta-Llama-3.1-8B-Instruct
 ```
 
-
 ## Best For
 
 - **Fast inference** -- custom RDU hardware optimized for AI workloads
 - **Open-source models** -- access Llama models with high throughput
 - **Free tier** -- test fast inference without upfront costs
 
-
 ## Verify Connection
 
 ```bash
 vibecli --provider sambanova -c "Write a Python async web scraper"
 ```
-
 
 ## Troubleshooting
 

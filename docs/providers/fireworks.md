@@ -8,7 +8,6 @@ permalink: /providers/fireworks/
 
 [Fireworks AI](https://fireworks.ai) provides fast inference for open-source models with optimized serving infrastructure and competitive pricing.
 
-
 ## Get an API Key
 
 1. Go to [fireworks.ai](https://fireworks.ai)
@@ -17,7 +16,6 @@ permalink: /providers/fireworks/
 4. Create a new key and copy it
 
 Fireworks AI offers a free tier with limited usage.
-
 
 ## Configure VibeCody
 
@@ -37,7 +35,6 @@ api_key = "..."
 model = "accounts/fireworks/models/llama-v3p1-70b-instruct"
 ```
 
-
 ## Model Selection
 
 | Model | Strengths | Best for |
@@ -54,20 +51,17 @@ Override from the CLI:
 vibecli --provider fireworks --model "accounts/fireworks/models/llama-v3p1-8b-instruct"
 ```
 
-
 ## Best For
 
 - **Fast inference** -- optimized serving for low-latency responses
 - **Open-source models** -- access Llama, Mixtral, and other open models
 - **Free tier** -- experiment before committing
 
-
 ## Verify Connection
 
 ```bash
 vibecli --provider fireworks -c "Write a Go HTTP handler with middleware"
 ```
-
 
 ## Troubleshooting
 

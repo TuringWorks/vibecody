@@ -45,6 +45,7 @@ VibeCody already contains **60+ agent-related modules** totaling **~45,000 lines
 ## 3. Feature-by-Feature Fit-Gap Matrix
 
 ### Legend
+
 - **HAVE** = Fully implemented in VibeCody
 - **PARTIAL** = Implementation exists but incomplete
 - **GAP** = Not yet implemented
@@ -240,18 +241,21 @@ AgentOS (new tab group in tabGroups.ts)
 ## 6. Implementation Roadmap
 
 ### Phase 1: Aggregation & Tab Group (Week 1)
+
 - Create `AgentOS` tab group in `tabGroups.ts`
 - Create `AgentOsComposite` with existing panels reorganized
 - Unify AgentPanel, AgentTeamsPanel, AgentModesPanel, SpawnAgentPanel under one composite
 - Add MCP, A2A, ACP panels to Protocols sub-tab
 
 ### Phase 2: Agent Registry (Weeks 2-3)
+
 - `agent_registry.rs` — Agent Card schema (name, capabilities, version, provider requirements)
 - `AgentRegistryPanel.tsx` — Browse, search, install agent templates
 - Built-in templates: Code Reviewer, Bug Fixer, Test Writer, PR Agent, Refactorer, Security Auditor
 - Import/export agent definitions as JSON/YAML
 
 ### Phase 3: Visual Workflow Builder (Weeks 3-5)
+
 - Extend `CanvasPanel.tsx` into a full DAG editor
 - Node types: Agent, Tool, Condition, Loop, Human Approval, Parallel Fork/Join
 - Drag-and-drop from agent registry
@@ -259,6 +263,7 @@ AgentOS (new tab group in tabGroups.ts)
 - Save/load workflow definitions
 
 ### Phase 4: Observability Dashboard (Weeks 4-5)
+
 - Unified `AgentObservabilityPanel.tsx`
 - Timeline view of all agent executions
 - Cost breakdown per agent/session/provider
@@ -266,6 +271,7 @@ AgentOS (new tab group in tabGroups.ts)
 - Error rate tracking with drill-down
 
 ### Phase 5: Auto-Scaling & Versioning (Weeks 5-7)
+
 - Agent versioning with rollback support
 - Resource limits (max tokens, max duration, max cost per agent)
 - Concurrent agent pool management

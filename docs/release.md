@@ -21,6 +21,7 @@ curl -fsSL https://raw.githubusercontent.com/TuringWorks/vibecody/main/install.s
 Claude Code prompt integration, Apply crash fix, GLM/Qwen tool call support, incremental streaming saves.
 
 ### Highlights
+
 - **254 Claude Code system prompts** integrated as reference skills — core behavioral guidelines baked into TOOL_SYSTEM_PROMPT
 - **Apply crash resolved** — DiffReviewPanel overlays editor with deferred unmount; React.StrictMode removed
 - **GLM/Qwen tool calls** — `<|tag|>` delimiters normalized so XML tool calls execute correctly

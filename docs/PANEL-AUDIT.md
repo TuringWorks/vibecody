@@ -37,6 +37,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 ## Detailed Panel Audit (A-Z)
 
 ### A2aPanel — Agent-to-Agent Protocol
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Agents | Agent list with status badges, capabilities | `a2a_list_agents` | Registered | 100% |
@@ -45,6 +46,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Metrics | Dashboard: total tasks, completed, failed, rate | `a2a_get_metrics` | Registered | 100% |
 
 ### AcpPanel — Agent Client Protocol
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Server | Toggle on/off, capabilities, register form | `toggle_acp_server`, `register_acp_capability` | Registered | 100% |
@@ -52,6 +54,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Protocol | Quick-send messages, message log | `send_acp_message`, `get_acp_messages` | Registered | 100% |
 
 ### AdminPanel — Admin Console
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Team | Add/edit/remove members, role badges | `save_team_member`, `remove_team_member` | Registered | 100% |
@@ -60,6 +63,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | API Keys | Encrypted key viewer | `get_provider_api_keys` | Registered | 100% |
 
 ### AgentHostPanel — Multi-Agent Terminal Host
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Agents | List hosted agents, start/stop | `host_list_agents`, `host_start`, `host_stop` | Registered | 100% |
@@ -68,6 +72,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Config | Max agents slider, interleaved output | `host_register` | Registered | 100% |
 
 ### AgentModesPanel — Smart/Rush/Deep Modes
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Mode Select | Mode cards (smart/rush/deep), activate | `get_agent_modes`, `set_active_agent_mode` | Registered | 100% |
@@ -75,6 +80,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Profiles | View/create mode profiles | `get_agent_mode_profiles`, `create_agent_mode_profile` | Registered | 100% |
 
 ### AgentPanel — Agent Task Execution
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Task input, approval policy, turbo mode | `start_agent_task`, `stop_agent_task` | Registered | 100% |
@@ -82,6 +88,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | — | Approval prompt for destructive actions | `respond_to_agent_approval` | Registered | 100% |
 
 ### AgentTeamPanel — Peer Communication
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Overview | Goal, members, task progress | `get_team_status` | Registered | 100% |
@@ -89,6 +96,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Messages | Inter-agent message feed | `send_team_message`, Event: `team:updated` | Registered | 100% |
 
 ### AgentTeamsPanel — Team Management
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Team | Goal/members/progress, creation | `start_agent_team`, `dismiss_team` | Registered | 100% |
@@ -97,6 +105,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | History | Past team runs, artifacts | `get_team_history` | Registered | 100% |
 
 ### AgilePanel — Project Management
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Board | Kanban/Sprint, swimlanes, WIP limits, drag-drop | `agile_get_board`, `agile_move_card`, `agile_update_card` | Registered | 100% |
@@ -108,6 +117,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Coach | AI recommendations | `agile_ai_analyze` | Registered | 100% |
 
 ### AiMlWorkflowPanel — AI/ML Pipeline Builder
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Pipeline | 10-stage workflow with toggles/configs | — | Reference only | 60% |
@@ -118,6 +128,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 **Work remaining:** No backend integration; informational/reference panel only.
 
 ### AnalyticsPanel — Enterprise Agent Analytics
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Dashboard | 4 KPI cards with change indicators | `analytics_dashboard` | Registered | 100% |
@@ -126,6 +137,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Export | CSV/JSON, date range | `analytics_export` | Registered | 100% |
 
 ### ApiDocsPanel — OpenAPI Viewer
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Load spec from file or URL | `read_file`, `fetch_url_for_context` | Registered | 100% |
@@ -133,6 +145,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | — | "Try it" panel with request/response | `send_http_request` | Registered | 100% |
 
 ### AppBuilderPanel — App Scaffolding
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Quick Start | Template selection, project creation | `get_app_templates`, `create_app_project` | Registered | 100% |
@@ -141,6 +154,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Backend | Managed backend setup | `get_app_builder_history` | Registered | 100% |
 
 ### ArenaPanel — Blind A/B Model Comparison
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Provider/model selection (6 providers) | `compare_models` | Registered | 100% |
@@ -148,6 +162,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | — | Leaderboard table, vote history | `get_arena_history` | Registered | 100% |
 
 ### ArtifactsPanel — Agent Artifacts
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Artifact cards, 7 types, annotations | — | Props-driven | 90% |
@@ -155,18 +170,21 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 **Work remaining:** No direct backend call; depends on parent providing data.
 
 ### AstEditPanel — AST-Based Edits
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | AST edit proposals, accept/dismiss | `get_ast_edits`, `apply_ast_edit`, `dismiss_ast_edit` | Registered | 100% |
 | — | File-grouped edit view | `get_ast_files` | Registered | 100% |
 
 ### AuthPanel — Auth Scaffolding
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | 21 auth providers, 134+ frameworks | `generate_auth_scaffold` | Registered | 100% |
 | — | Middleware/test gen, save to workspace | `write_auth_scaffold` | Registered | 100% |
 
 ### AutofixPanel — Codemod & Auto-Fix
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Framework detection (clippy/eslint/ruff/etc) | `detect_coverage_tool` | Registered | 100% |
@@ -174,6 +192,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | — | Apply & stage, revert | `apply_autofix` | Registered | 100% |
 
 ### AutomationsPanel — Event-Driven Automations
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Rules | Rule CRUD, enable/disable toggle, delete | `get_automation_rules`, `create_automation_rule`, `toggle_automation_rule`, `delete_automation_rule` | Registered | 100% |
@@ -182,6 +201,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Stats | Aggregate stats bar | `get_automation_stats` | Registered | 100% |
 
 ### AutoResearchPanel — Autonomous Research
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Setup | Session creation, domain/strategy selection | `autoresearch_create_session` | Registered | 100% |
@@ -191,6 +211,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Export | TSV export | `autoresearch_export_tsv` | Registered | 100% |
 
 ### BatchBuilderPanel — Large-Scale Code Generation
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | New Run | Batch spec, architecture plan | `batch_create_run` | Registered | 100% |
@@ -200,6 +221,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | History | Past batch runs | `batch_list_runs` | Registered | 100% |
 
 ### BisectPanel — Git Bisect
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Start bisect, good/bad marking | `git_bisect_start`, `git_bisect_step` | Registered | 100% |
@@ -207,6 +229,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | — | History log, reset | `git_bisect_log`, `git_bisect_reset` | Registered | 100% |
 
 ### BlueTeamPanel — Defensive Security
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Incidents | Incident CRUD (P1-P4, 7 statuses) | `get_blue_team_incidents`, `create_blue_team_incident` | Registered | 100% |
@@ -218,45 +241,53 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Reports | Generate reports | `generate_blue_team_report` | Registered | 100% |
 
 ### BookmarkPanel — Code Bookmarks
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Bookmark list, add/remove, navigate | `list_bookmarks`, `add_bookmark`, `remove_bookmark` | Registered | 100% |
 
 ### BrowserPanel — Chrome DevTools Protocol
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | CDP targets, tab management | `cdp_list_targets`, `cdp_open_tab` | Registered | 100% |
 | — | Screenshots, page capture | `cdp_screenshot`, `cdp_capture_page` | Registered | 100% |
 
 ### CanvasPanel — Visual Workflow Editor
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Node-based flow editor | `list_canvas_workflows`, `load_canvas_workflow` | Registered | 100% |
 | — | Run workflows | `run_canvas_workflow` | Registered | 100% |
 
 ### AIChat — AI Chat
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Message streaming, model selection | `send_chat_message`, `stream_chat_message` | Registered | 100% |
 | — | Stop generation | `stop_chat_stream` | Registered | 100% |
 
 ### CheckpointPanel — Conversation Checkpoints
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Create/restore/delete checkpoints | `list_checkpoints`, `create_checkpoint`, `delete_checkpoint` | Registered | 100% |
 
 ### CiCdPanel — CI/CD Pipeline
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Pipeline config, build/test/lint/deploy | `get_ci_config`, `generate_cicd_config` | Registered | 100% |
 | — | CI status monitoring | `get_ci_status`, `get_ci_checks` | Registered | 100% |
 
 ### CiGatesPanel — CI Quality Gates
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | CI review config, history | `get_ci_review_config`, `get_ci_review_history` | Registered | 100% |
 
 ### ClarifyingQuestionsPanel — Megaplan Mode
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Questions | Task input, question list, answer/skip | `get_clarify_questions`, `save_clarify_questions` | Registered | 100% |
@@ -264,140 +295,166 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Summary | Answered/unanswered/skipped stats, risk assessment | `get_clarify_risks` | Registered | 100% |
 
 ### CloudAgentPanel — Docker Execution
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Cloud agent status, start/stop | `get_cloud_agent_status`, `start_cloud_agent` | Registered | 100% |
 
 ### CloudAutofixPanel — BugBot Cloud
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Autofix attempts, stats | `list_autofix_attempts`, `create_autofix_attempt` | Registered | 100% |
 | — | Config management | `get_autofix_config`, `save_autofix_config` | Registered | 100% |
 
 ### CloudProviderPanel — AWS/GCP/Azure
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Service scan, IAM gen, IaC templates | `cloud_provider_scan`, `cloud_provider_iam`, `cloud_provider_iac` | Registered | 100% |
 | — | Cost estimation | `cloud_provider_cost` | Registered | 100% |
 
 ### CloudSandboxPanel — Cloud Sandbox
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Template gallery, sandbox management | `get_cloud_sandbox_templates`, `list_cloud_sandboxes` | Registered | 100% |
 | — | Logs viewer | `get_cloud_sandbox_logs`, `stop_cloud_sandbox` | Registered | 100% |
 
 ### CollabPanel — CRDT Collaboration
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Session create/join, peer list | `create_collab_session`, `join_collab_session` | Registered | 100% |
 | — | Cursor tracking | `update_cursors`, `list_collab_peers` | Registered | 100% |
 
 ### ColorPalettePanel — Design Tokens
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Palette CRUD, export (CSS/SCSS/Tailwind/JSON) | `get_color_palettes`, `save_color_palettes`, `export_color_palette` | Registered | 100% |
 
 ### CompliancePanel — SOC 2 / GDPR
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Compliance report generation | `generate_compliance_report` | Registered | 100% |
 
 ### ConnectorsPanel — Data Source Connectors
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Available/installed connectors, add/test | `connectors_available`, `connectors_list`, `connectors_add`, `connectors_test` | Registered | 100% |
 | — | Auto-discovery | `connectors_discover` | Registered | 100% |
 
 ### ContextBundlePanel — Context Spaces
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Bundle CRUD, activate, import/export | `context_bundle_list`, `context_bundle_create`, `context_bundle_delete` | Registered | 100% |
 | — | Import/export | `context_bundle_import`, `context_bundle_export` | Registered | 100% |
 
 ### ConversationalSearchPanel — Devin Search
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Conversational code search | `conversational_search` | Registered | 100% |
 
 ### CostPanel — Cost Observatory
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Cost metrics, history, limits | `get_cost_metrics`, `record_cost_entry`, `set_cost_limit` | Registered | 100% |
 | — | Clear history | `clear_cost_history` | Registered | 100% |
 
 ### CounselPanel — Multi-Agent Debate
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Session CRUD, rounds, voting, synthesis | `counsel_create_session`, `counsel_run_round`, `counsel_vote`, `counsel_synthesize` | Registered | 100% |
 
 ### CoveragePanel — Code Coverage
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Tool detection, coverage run, results | `detect_coverage_tool`, `run_coverage` | Registered | 100% |
 
 ### CronPanel — Cron Expression Builder
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Visual builder, preview, preset library | — | Utility | 100% |
 
 ### CsvPanel — CSV Viewer
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Sortable table, filter, stats, export | — | Utility | 100% |
 
 ### DashboardPanel — Project Dashboard
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Summary cards (files, LOC, commits, TODOs) | `get_project_dashboard` | Registered | 100% |
 
 ### DataGenPanel — Test Data Generator
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Schema-driven data generation | — | Utility | 100% |
 
 ### DebugModePanel — Cursor Debug Mode
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Debug sessions, breakpoints, analysis | `list_debug_sessions`, `create_debug_session`, `add_debug_breakpoint` | Registered | 100% |
 | — | AI-powered analysis | `run_debug_analysis` | Registered | 100% |
 
 ### DemoPanel — Feature Demo Runner
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Demo listing, step generation, run | `demo_list`, `demo_get`, `demo_generate_steps`, `demo_run` | Registered | 100% |
 
 ### DeployPanel — Deployment
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Deploy target detection, run deploy | `detect_deploy_target`, `run_deploy` | Registered | 100% |
 | — | Deploy history | `get_deploy_history` | Registered | 100% |
 
 ### DesignImportPanel — Figma Import
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Figma file import, component extraction | `import_figma` | Registered | 100% |
 
 ### DiffToolPanel — File Diff Viewer
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Side-by-side diff, unified diff | `git_diff` | Registered | 100% |
 
 ### DiscussionModePanel — Threaded Discussions
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Thread CRUD, messages | `list_discussion_threads`, `create_discussion_thread`, `add_discussion_message` | Registered | 100% |
 
 ### DocSyncPanel — Documentation Sync
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Drift detection, alerts, reconciliation | `docsync_status`, `docsync_get_alerts`, `docsync_reconcile` | Registered | 100% |
 
 ### DockerPanel — Container Management
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Container/image list, actions, compose | `list_docker_containers`, `list_docker_images`, `docker_container_action`, `docker_compose_action` | Registered | 100% |
 
 ### EditPredictionPanel — ML Edit Predictor
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Predictions | Recent predictions, accept/reject | `get_edit_predictions`, `accept_prediction`, `dismiss_prediction` | Registered | 100% |
@@ -405,6 +462,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Model | Q-Table stats, hyperparameters | `get_edit_model_stats` | Registered | 100% |
 
 ### EncodingPanel — Encode/Decode Utility
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Base64 | Encode/decode, URL-safe toggle | — | Utility (Web Crypto) | 100% |
@@ -415,11 +473,13 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Stats | Char/byte/word/line counts | — | Utility | 100% |
 
 ### EnvPanel — Environment Manager
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Multi-env .env editor, secrets masking | `get_env_files`, `read_env_file`, `save_env_file`, `delete_env_var` | Registered | 100% |
 
 ### FastContextPanel — SWE-grep
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Search | Query, 5 match types, results | `fast_context_search` | Registered | 100% |
@@ -427,6 +487,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Cache | Hit rate, hits/misses, clear | `fast_context_cache_stats` | Registered | 100% |
 
 ### FineTuningPanel — Model Fine-Tuning
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Dataset | Source selector, stats, language dist | `get_fine_tuning_stats` | Registered | 100% |
@@ -436,6 +497,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | LoRA | Adapter management, merge/delete | `list_fine_tuning_adapters`, `create_fine_tuning_adapter` | Registered | 100% |
 
 ### FullStackGenPanel — Full-Stack Generation
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Configure | Frontend/backend/DB/auth dropdowns | — | Client-side | 100% |
@@ -444,6 +506,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Editor | File viewer/editor, save | `fullstack_write_file` | Registered | 100% |
 
 ### GhActionsPanel — GitHub Actions Generator
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Workflows | YAML editor, triggers, jobs | `save_gh_workflow` | Registered | 100% |
@@ -452,6 +515,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | History | Generated workflow history | `get_gh_actions_history` | Registered | 100% |
 
 ### GitPanel — Source Control
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Status, commit, push, pull, branch switch | `git_commit`, `git_push`, `git_pull`, `git_switch_branch` | Registered | 100% |
@@ -459,6 +523,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | — | Credential storage, branch listing | `store_git_credentials`, `git_list_branches` | Registered | 100% |
 
 ### GitHubSyncPanel — GitHub Integration
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Sync | Commit & push, pull, ahead/behind | `github_sync_push`, `github_sync_pull` | Registered | 100% |
@@ -466,6 +531,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Create | New repo creation | `github_create_repo` | Registered | 100% |
 
 ### GpuTerminalPanel — GPU Renderer
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Monitor | FPS, frame time, GPU mem, dirty cells | `get_gpu_terminal_stats`, `get_gpu_fps_history` | Registered | 100% |
@@ -474,6 +540,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Benchmark | 100-frame perf test | `run_gpu_terminal_benchmark` | Registered | 100% |
 
 ### GraphQLPanel — GraphQL Client
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Query | URL, query editor, variables, run | `run_graphql_query` | Registered | 100% |
@@ -481,27 +548,32 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | History | Query history (localStorage) | — | Client-side | 100% |
 
 ### HealthMonitorPanel — Service Health
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Service list, sparklines, auto-refresh | `check_all_services`, `check_service_health` | Registered | 100% |
 | — | Add/remove monitors, persist | `get_health_monitors`, `save_health_monitors` | Registered | 100% |
 
 ### HistoryPanel — Agent Trace Viewer
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Session list, trace detail | `list_trace_sessions`, `load_trace_session` | Registered | 100% |
 
 ### HooksPanel — Event Hooks Editor
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Hook CRUD (command/LLM/HTTP handlers) | `get_hooks_config`, `save_hooks_config` | Registered | 100% |
 
 ### HttpPlayground — HTTP Playground
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Request builder, response viewer | `send_http_request` | Registered | 100% |
 
 ### IdpPanel — Internal Developer Platform
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Catalog | Service catalog browser | `get_idp_catalog`, `register_idp_service` | Registered | 100% |
@@ -513,6 +585,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Checklists | Onboarding checklists | `toggle_idp_checklist` | Registered | 100% |
 
 ### ImageGenPanel — AI Image Generation
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Generate | Prompt, model, style, size, cost estimate | `generate_image`, `get_available_image_providers` | Registered | 100% |
@@ -520,6 +593,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Stats | Totals, recent generations | `get_image_gen_stats` | Registered | 100% |
 
 ### InferencePanel — Inference Server Config
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Deploy | vLLM/TGI/Triton config, CLI/Docker gen | — | Utility | 80% |
@@ -529,6 +603,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 **Work remaining:** Pure config generator — no backend execution. Consider adding `run_inference_server`.
 
 ### InfiniteContextPanel — Context Window Manager
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Context | Token usage, chunk list, evict/pin | `get_context_chunks`, `evict_context_chunk`, `pin_context_chunk` | Registered | 100% |
@@ -536,6 +611,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Settings | Token limit, scoring weights, cache | `get_context_window_stats` | Registered | 100% |
 
 ### JsonToolsPanel — JSON Utilities
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Format | Prettify/minify/sort-keys | — | Utility | 100% |
@@ -544,6 +620,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Query | Dot-path queries with suggestions | — | Utility | 100% |
 
 ### JwtPanel — JWT Decoder/Signer
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Decode | Paste JWT, header/payload/expiry | — | Utility (Web Crypto) | 100% |
@@ -551,6 +628,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Claims | Standard claims reference table | — | Reference | 100% |
 
 ### K8sPanel — Kubernetes Management
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Manifests | YAML generation, copy/save | `generate_k8s_manifests` | Registered | 100% |
@@ -559,6 +637,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Contexts | Kubeconfig context switcher | `list_k8s_contexts` | Registered | 100% |
 
 ### KnowledgeGraphPanel — Code Graph
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Graph | SVG visualization, query modes | `get_knowledge_graph`, `search_knowledge_graph` | Registered | 100% |
@@ -566,6 +645,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Export | DOT format for GraphViz | `refresh_knowledge_graph` | Registered | 100% |
 
 ### LangGraphPanel — LangGraph Pipelines
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Pipelines | Pipeline listing | `langgraph_list_pipelines` | Registered | 100% |
@@ -574,33 +654,39 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Events | Event log stream | `langgraph_get_events` | Registered | 100% |
 
 ### LoadTestPanel — HTTP Load Testing
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Config, run, streaming progress | `run_load_test`, Event: `loadtest:progress` | Registered | 100% |
 
 ### LogPanel — Log Viewer
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Log discovery, tail, AI analysis | `discover_log_sources`, `tail_log_file`, `analyze_logs` | Registered | 100% |
 
 ### MarkdownPanel — Markdown Editor
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | File browser, split editor/preview | `list_markdown_files`, `read_file`, `write_file` | Registered | 100% |
 
 ### MarketplacePanel — Plugin Store
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Browse, search, install plugins | `get_marketplace_plugins`, `search_marketplace`, `install_marketplace_plugin` | Registered | 100% |
 | — | Installed plugins list | `list_installed_plugins` | Registered | 100% |
 
 ### McpPanel — MCP Server Manager
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Server CRUD, OAuth, tool listing | `get_mcp_servers`, `save_mcp_servers`, `test_mcp_server` | Registered | 100% |
 | — | OAuth flow | `initiate_mcp_oauth`, `complete_mcp_oauth` | Registered | 100% |
 
 ### McpDirectoryPanel — MCP Plugin Directory
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Browse | Plugin directory | `mcp_directory_search` | Registered | 100% |
@@ -608,6 +694,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Search | Plugin search | `mcp_directory_search` | Registered | 100% |
 
 ### McpLazyPanel — MCP Lazy Loading
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Tool Registry | Lazy-loaded tools, load/unload | `mcp_lazy_list_tools`, `mcp_lazy_load_tool`, `mcp_lazy_unload_tool` | Registered | 100% |
@@ -615,6 +702,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Metrics | Usage metrics | `mcp_lazy_metrics` | Registered | 100% |
 
 ### MctsRepairPanel — MCTS Bug Repair
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Sessions | Repair sessions | `repair_list_sessions`, `repair_new_session` | Registered | 100% |
@@ -625,6 +713,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 **Work remaining:** Agentless tab uses demo data.
 
 ### MemoryPanel — Rules & Auto-Facts
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Workspace | Workspace rules editor | `list_rule_files`, `get_rule_file`, `save_rule_file`, `delete_rule_file` | Registered | 100% |
@@ -633,16 +722,19 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Auto-Facts | Auto-generated facts, pin/delete/add | `get_auto_memories`, `pin_auto_memory`, `delete_auto_memory`, `add_auto_memory` | Registered | 100% |
 
 ### CodeMetricsPanel — Code Metrics
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Complexity, dependencies, quality scores | `analyze_code_metrics` | Registered | 100% |
 
 ### MigrationsPanel — Database Migrations
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Migration status, run up/down/create | `get_migration_status`, `run_migration_action` | Registered | 100% |
 
 ### MobileDispatchPanel — Mobile Gateway
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Machines | Machine registry | `dispatch_list_machines`, `dispatch_register_machine` | Registered | 100% |
@@ -652,6 +744,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Stats | Gateway statistics | `dispatch_stats` | Registered | 100% |
 
 ### MockServerPanel — HTTP Mock Server
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Routes | Route CRUD | `list_mock_routes`, `add_mock_route`, `remove_mock_route` | Registered | 100% |
@@ -659,11 +752,13 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Import | OpenAPI import | `generate_mocks_from_spec` | Registered | 100% |
 
 ### MultiModelPanel — Side-by-Side Comparison
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Prompt input, model comparison | `compare_models` | Registered | 100% |
 
 ### NetworkPanel — Network Tools
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Port Scanner | TCP port scanning | `scan_open_ports` | Registered | 100% |
@@ -671,6 +766,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | TLS Inspector | Certificate inspection | `check_tls_cert` | Registered | 100% |
 
 ### NextTaskPanel — ML Task Prediction
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Suggestions | ML-scored next task predictions | — | Demo data | 40% |
@@ -681,11 +777,13 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 **Work remaining:** Entirely demo — no backend calls despite Tauri commands existing in `next_task.rs`.
 
 ### NotebookPanel — Code Notebook
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Cell-based code/markdown, execution | `execute_notebook_cell`, `ai_notebook_assist` | Registered | 100% |
 
 ### NumberBasePanel — Number Conversion
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Convert | Binary/hex/octal/decimal conversion | — | Utility | 100% |
@@ -693,6 +791,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Float32 | IEEE 754 visualization | — | Utility | 100% |
 
 ### ObserveActPanel — Visual Grounding
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Setup | Visual grounding configuration | — | Demo data | 30% |
@@ -703,6 +802,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 **Work remaining:** Entirely demo — needs backend integration.
 
 ### OpenMemoryPanel — Cognitive Memory Engine
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Overview | Memory stats, sector breakdown | `openmemory_stats` | Registered | 100% |
@@ -713,6 +813,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Settings | Encryption, export | `openmemory_enable_encryption`, `openmemory_export` | Registered | 100% |
 
 ### OrchestrationPanel — Workflow Orchestration
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Tasks | Task goal, todos, progress, verify/plan | `get_orch_state`, `save_orch_state` | Registered | 100% |
@@ -720,6 +821,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Rules | Static orchestration rules reference | — | Reference | 100% |
 
 ### OrgContextPanel — Organization Context
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Repositories | Org-wide repo list | — | Demo data | 30% |
@@ -730,6 +832,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 **Work remaining:** Entirely demo — needs backend integration with `org_context.rs`.
 
 ### PlanDocumentPanel — Plan Documents
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Plans | Plan listing with status | `list_plan_documents` | Registered | 100% |
@@ -737,6 +840,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Comments | Collaborative comments | `add_plan_comment`, `resolve_plan_comment` | Registered | 100% |
 
 ### ProactivePanel — Proactive Intelligence
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Suggestions | AI suggestions | `proactive_get_suggestions`, `proactive_accept`, `proactive_reject` | Registered | 100% |
@@ -745,16 +849,19 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Config | Intelligence configuration | — | Client-side | 80% |
 
 ### ProcessPanel — System Processes
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Process list, kill, 5s auto-refresh | `list_processes`, `kill_process` | Registered | 100% |
 
 ### ProfilerPanel — CPU/Memory Profiler
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Tool detection, profiling run | `detect_profiler_tool`, `run_profiler` | Registered | 100% |
 
 ### ProjectContextPanel — Project Profile
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Overview | Project metadata | `scan_project_profile` | Registered | 100% |
@@ -763,6 +870,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | AI Context | AI context info | `scan_project_profile` | Registered | 100% |
 
 ### PurpleTeamPanel — ATT&CK Exercises
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Exercises | Exercise CRUD (14 tactics, 20 techniques) | `list_purple_team_exercises`, `create_purple_team_exercise` | Registered | 100% |
@@ -772,6 +880,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Reports | Report generation | `generate_purple_team_report` | Registered | 100% |
 
 ### QaValidationPanel — QA Pipeline
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Validate | Validation test execution | — | Demo (Math.random) | 40% |
@@ -780,6 +889,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 **Work remaining:** Uses setTimeout simulation — needs real `qa_validation.rs` integration.
 
 ### QuantumComputingPanel — Quantum Circuits
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Projects | Quantum project management | `quantum_get_projects`, `quantum_create_project` | Registered | 100% |
@@ -790,17 +900,20 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Export | Qiskit/Cirq/QASM export | `quantum_export_circuit` | Registered | 100% |
 
 ### RedTeamPanel — Automated Security Testing
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Multi-stage pipeline, findings | `start_redteam_scan`, `get_redteam_findings` | Registered | 100% |
 | — | Session history, reports | `get_redteam_sessions`, `generate_redteam_report` | Registered | 100% |
 
 ### RegexPanel — Regex Tester
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Pattern library (15 presets), tester | — | Utility | 100% |
 
 ### RemoteControlPanel — Remote Control Server
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Server | Start/stop server | `start_remote_server`, `stop_remote_server` | Registered | 100% |
@@ -808,6 +921,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Events | Event stream | `get_remote_events` | Registered | 100% |
 
 ### RenderOptimizePanel — Re-Render Reduction
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Stats | Render statistics | `get_render_stats`, `reset_render_stats` | Registered | 100% |
@@ -815,6 +929,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Config | Optimization config | `run_render_optimization` | Registered | 100% |
 
 ### ResiliencePanel — Provider Resilience
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Health | Provider health scores table | `get_provider_health` | Registered | 100% |
@@ -823,11 +938,13 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Config | Editable config with save | `get_resilience_config`, `save_resilience_config` | Registered | 100% |
 
 ### ReviewPanel — AI Code Review
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Code review, quality scores, suggestions | `run_code_review` | Registered | 100% |
 
 ### RlcefPanel — RL from Code Execution Feedback
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Dashboard | Reward histogram, pass/fail | `rlcef_get_outcomes` | Registered | 100% |
@@ -836,22 +953,26 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Export | JSONL/Parquet/CSV export | `rlcef_export` | Registered | 100% |
 
 ### SandboxPanel — Container Sandbox
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Runtime detection, create/stop/pause/resume | `detect_sandbox_runtime`, `create_sandbox`, `stop_sandbox`, `pause_sandbox`, `resume_sandbox` | Registered | 100% |
 | — | Command execution in sandbox | `sandbox_exec` | Registered | 100% |
 
 ### ScaffoldPanel — Project Templates
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Template browser, preview, write | `list_scaffold_templates`, `generate_scaffold` | Registered | 100% |
 
 ### ScriptPanel — Script Runner
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Script detection, execution, streaming log | `detect_project_scripts`, `run_project_script`, Event: `script:log` | Registered | 100% |
 
 ### SecurityScanPanel — Vulnerability Scanner
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Findings | CWE-grouped findings, suppress/restore | `run_security_scan`, `suppress_security_finding`, `suppress_security_cwe` | Registered | 100% |
@@ -860,6 +981,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | History | Scan run history | `get_security_scan_history` | Registered | 100% |
 
 ### SelfReviewPanel — Agent Self-Review
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Results | Self-review iteration display | — | Demo data | 30% |
@@ -869,6 +991,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 **Work remaining:** Entirely demo — needs `self_review.rs` backend wiring.
 
 ### SemanticIndexPanel — Code Intelligence
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Overview | Symbol index stats | `semindex_stats`, `semindex_build` | Registered | 100% |
@@ -879,6 +1002,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 **Work remaining:** Types tab uses hardcoded hierarchy data.
 
 ### SessionBrowserPanel — Session Management
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Sessions | Session list, filtering | `list_sessions` | Registered | 100% |
@@ -886,6 +1010,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Stats | Size statistics | `delete_session` | Registered | 100% |
 
 ### SessionMemoryPanel — Memory Profiling
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Health | Memory usage, GC stats | `get_session_memory_health` | Registered | 100% |
@@ -893,6 +1018,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Alerts | Alert management, dismiss | `get_session_memory_alerts`, `dismiss_session_memory_alert` | Registered | 100% |
 
 ### SessionSharingPanel — Session Export
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Shared Sessions | Session sharing, visibility | — | Demo data | 30% |
@@ -902,6 +1028,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 **Work remaining:** Entirely demo — needs `session_sharing.rs` backend wiring.
 
 ### SettingsPanel — App Settings
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Profile | User profile management | Backend invokes | Registered | 100% |
@@ -911,6 +1038,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | API Keys | 20+ provider key management | `save_provider_api_keys` | Registered | 100% |
 
 ### SketchCanvasPanel — Drawing & Code Gen
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Canvas | Drawing tools (rect/circle/line/text) | `sketch_recognize` | Registered | 80% |
@@ -919,6 +1047,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Export | Export drawings | `sketch_export` | Registered | 80% |
 
 ### SmartDepsPanel — Dependency Analysis
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Dependencies | Dependency listing | `smartdeps_analyze` | Registered | 100% |
@@ -927,11 +1056,13 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Licenses | License compliance | `smartdeps_check_licenses` | Registered | 100% |
 
 ### SnippetPanel — Code Snippets
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Snippet CRUD, language filter, AI gen | `list_snippets`, `save_snippet`, `delete_snippet`, `generate_snippet` | Registered | 100% |
 
 ### SoulPanel — SOUL.md Generator
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | View | Current SOUL.md | `soul_read` | Registered | 100% |
@@ -939,6 +1070,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Signals | Workspace scanning for signals | `soul_scan` | Registered | 100% |
 
 ### SpawnAgentPanel — Parallel Agent Execution
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Active | Running agents | `spawn_agent_list` | Registered | 100% |
@@ -947,12 +1079,14 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | History | Past runs | `spawn_agent_stats` | Registered | 100% |
 
 ### SpecPanel — Specification Editor
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | List | Spec listing | `list_specs` | Registered | 100% |
 | Editor | Spec editor, run, task tracking | `get_spec`, `generate_spec`, `run_spec` | Registered | 100% |
 
 ### SpecPipelinePanel — Requirements Pipeline
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Requirements | EARS format requirements | — | Demo data | 30% |
@@ -962,17 +1096,20 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 **Work remaining:** Entirely demo — needs `spec_pipeline.rs` backend wiring.
 
 ### SshPanel — SSH Management
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Profiles | SSH profile CRUD | `list_ssh_profiles`, `save_ssh_profile`, `delete_ssh_profile` | Registered | 100% |
 | Run | Command execution, live streaming | `run_ssh_command` | Registered | 100% |
 
 ### SteeringPanel — Steering Files
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | File CRUD (workspace/global), templates | `get_steering_files`, `save_steering_file`, `delete_steering_file` | Registered | 100% |
 
 ### StreamingPanel — Kafka/NATS Config
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Topics | Kafka topic management | — | Demo data | 30% |
@@ -982,6 +1119,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 **Work remaining:** Entirely demo — needs `streaming_client.rs` backend wiring.
 
 ### SubAgentPanel — Sub-Agent Spawning
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Agents | Agent list with 10 roles | `list_sub_agents` | Registered | 100% |
@@ -989,6 +1127,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Spawn | Sub-agent creation | `dismiss_sub_agent` | Registered | 100% |
 
 ### SupabasePanel — Supabase Integration
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Tables | Table browser | `list_supabase_tables` | Registered | 100% |
@@ -996,11 +1135,13 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | AI | Natural language query | `translate_nl_to_sql` | Registered | 100% |
 
 ### SuperBrainPanel — Multi-Model Routing
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | 5 modes (router/consensus/chain/bestofn/specialist) | `superbrain_query`, `superbrain_route` | Registered | 100% |
 
 ### SweBenchPanel — SWE-bench Benchmarking
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Run | Benchmark execution | `swe_bench_start_run` | Registered | 100% |
@@ -1008,41 +1149,49 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Compare | Run comparison | `swe_bench_list_runs` | Registered | 100% |
 
 ### TestPanel — Test Runner
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Framework detection, test execution | `detect_test_framework`, `run_tests` | Registered | 100% |
 
 ### TimestampPanel — Epoch Converter
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Epoch/ISO/UTC conversion, diff calculator | — | Utility | 100% |
 
 ### TraceDashboard — Agent Execution Traces
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Trace session list, detail viewer | `list_trace_sessions`, `load_trace_session` | Registered | 100% |
 
 ### TransformPanel — Code Transforms
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Transform detection, execution, preview | `detect_transform`, `plan_transform`, `execute_transform` | Registered | 100% |
 
 ### TriagePanel — Issue Triage
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Issue triage, rules, history, metrics | `triage_issue`, `triage_get_rules`, `triage_get_history`, `triage_get_metrics` | Registered | 100% |
 
 ### TrustPanel — Agent Trust Scores
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Trust scores, events, explanations | `trust_get_scores`, `trust_get_events`, `trust_explain` | Registered | 100% |
 
 ### UsageMeteringPanel — Credit System
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Usage tracking, budget management | `dismiss_usage_alert` | Registered | 80% |
 
 ### VectorDbPanel — Vector Database
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Collections | Collection management | — | Demo (setTimeout) | 40% |
@@ -1052,6 +1201,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 **Work remaining:** Uses setTimeout simulation — needs `vector_db.rs` integration.
 
 ### VibeSqlPanel — SQL Client
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Connection manager, schema browser | `vibesql_connect`, `vibesql_list_connections`, `vibesql_list_tables` | Registered | 100% |
@@ -1059,11 +1209,13 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | — | History | `vibesql_save_connection`, `vibesql_delete_connection` | Registered | 100% |
 
 ### VisualTestPanel — Visual Regression
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Screenshot assertions | `take_screenshot`, `get_visual_test_results` | Registered | 100% |
 
 ### VisualVerifyPanel — Pixel Diff
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Baseline management, pixel diff, scoring | — | Demo data | 30% |
@@ -1071,6 +1223,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 **Work remaining:** Entirely demo — needs backend integration.
 
 ### VmOrchestratorPanel — VM Environments
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Environments | VM environment management | — | Demo data | 30% |
@@ -1081,12 +1234,14 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 **Work remaining:** Entirely demo — needs `vm_orchestrator.rs` backend wiring.
 
 ### VoiceLocalPanel — Local Voice Transcription
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Record | Voice recording, transcription | `voice_start_recording`, `voice_stop_recording` | Registered | 80% |
 | Models | Model management | `voice_list_models` | Registered | 80% |
 
 ### WebCrawlerPanel — Web Crawling
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Crawl | URL crawling | — | Demo (setTimeout) | 30% |
@@ -1095,6 +1250,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 **Work remaining:** Uses setTimeout simulation — needs `web_crawler.rs` integration.
 
 ### WebGroundingPanel — Web Search
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Search | Web search results | `web_search` | Registered | 100% |
@@ -1102,22 +1258,26 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Citations | Citation tracking | `web_get_citations` | Registered | 100% |
 
 ### WebhookPanel — Webhook Management
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Config | Webhook CRUD, event subscription | `get_webhooks`, `save_webhook`, `delete_webhook` | Registered | 100% |
 | Logs | Delivery log, test trigger | `get_webhook_logs`, `test_webhook` | Registered | 100% |
 
 ### WebSocketPanel — WebSocket Tester
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Connect, send/receive, latency | `get_ws_configs` | Registered | 100% |
 
 ### WorkflowPanel — Workflow Manager
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | — | Workflow list/detail, stage progression | `list_workflows`, `get_workflow`, `create_workflow`, `advance_workflow_stage` | Registered | 100% |
 
 ### WorkManagementPanel — Enterprise Work Items
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Hierarchy | Org/team/workspace hierarchy | `wm_list_orgs`, `wm_list_teams`, `wm_list_workspaces` | Registered | 100% |
@@ -1131,6 +1291,7 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 | Discussions | Threaded discussions | `wm_get_config`, `wm_save_config` | Registered | 100% |
 
 ### WorktreePoolPanel — Git Worktree Pool
+
 | Tab | Feature | Backend | Status | % |
 |-----|---------|---------|--------|--:|
 | Active | Active worktrees | `worktree_list` | Registered | 80% |
@@ -1142,62 +1303,77 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 ## Company/Enterprise Panels (15)
 
 ### CompanyAdapterPanel
+
 - **Category**: Enterprise
 - **Status**: Wired
 
 ### CompanyAgentDetailPanel
+
 - **Category**: Enterprise
 - **Status**: Wired
 
 ### CompanyApprovalsPanel
+
 - **Category**: Enterprise
 - **Status**: Wired
 
 ### CompanyBudgetPanel
+
 - **Category**: Enterprise
 - **Status**: Wired
 
 ### CompanyDashboardPanel
+
 - **Category**: Enterprise
 - **Status**: Wired
 
 ### CompanyDocumentsPanel
+
 - **Category**: Enterprise
 - **Status**: Wired
 
 ### CompanyGoalsPanel
+
 - **Category**: Enterprise
 - **Status**: Wired
 
 ### CompanyHeartbeatPanel
+
 - **Category**: Enterprise
 - **Status**: Wired
 
 ### CompanyOrgChartPanel
+
 - **Category**: Enterprise
 - **Status**: Wired
 
 ### CompanyPortabilityPanel
+
 - **Category**: Enterprise
 - **Status**: Wired
 
 ### CompanyPriorityMapPanel
+
 - **Category**: Enterprise
 - **Status**: Wired
 
 ### CompanyRoutinesPanel
+
 - **Category**: Enterprise
 - **Status**: Wired
 
 ### CompanySecretsPanel
+
 - **Category**: Enterprise
 - **Status**: Wired
 
 ### CompanyTaskBoardPanel
+
 - **Category**: Enterprise
 - **Status**: Wired
 
 ### CompanyWorkspaceConfigPanel
+
 - **Category**: Enterprise
 - **Status**: Wired
 
@@ -1206,42 +1382,52 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 ## RL-OS Panels (10)
 
 ### RLDeploymentMonitor
+
 - **Category**: RL-OS
 - **Status**: Wired
 
 ### RLEnvironmentViewer
+
 - **Category**: RL-OS
 - **Status**: Wired
 
 ### RLEvalResults
+
 - **Category**: RL-OS
 - **Status**: Wired
 
 ### RLHFAlignmentDashboard
+
 - **Category**: RL-OS
 - **Status**: Wired
 
 ### RLModelLineage
+
 - **Category**: RL-OS
 - **Status**: Wired
 
 ### RLMultiAgentView
+
 - **Category**: RL-OS
 - **Status**: Wired
 
 ### RLOptimizationReport
+
 - **Category**: RL-OS
 - **Status**: Wired
 
 ### RLPolicyComparison
+
 - **Category**: RL-OS
 - **Status**: Wired
 
 ### RLRewardDecomposition
+
 - **Category**: RL-OS
 - **Status**: Wired
 
 ### RLTrainingDashboard
+
 - **Category**: RL-OS
 - **Status**: Wired
 
@@ -1250,30 +1436,37 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 ## Phase 32 Panels (7)
 
 ### AiCodeReviewPanel
+
 - **Category**: Code Analysis
 - **Status**: Wired
 
 ### ArchitectureSpecPanel
+
 - **Category**: Code Analysis
 - **Status**: Wired
 
 ### PolicyEnginePanel
+
 - **Category**: Code Analysis
 - **Status**: Wired
 
 ### HealthScorePanel
+
 - **Category**: Code Analysis
 - **Status**: Wired
 
 ### IntentRefactorPanel
+
 - **Category**: Code Analysis
 - **Status**: Wired
 
 ### ReviewProtocolPanel
+
 - **Category**: Code Analysis
 - **Status**: Wired
 
 ### SkillDistillationPanel
+
 - **Category**: Code Analysis
 - **Status**: Wired
 
@@ -1282,66 +1475,82 @@ CicdPanel, AnalyticsPanel, TrustPanel.
 ## Other Panels (16)
 
 ### AgentOSDashboard
+
 - **Category**: Agent Infrastructure
 - **Status**: Wired
 
 ### AgentRecordingPanel
+
 - **Category**: Agent Infrastructure
 - **Status**: Wired
 
 ### BugBotPanel
+
 - **Category**: DevOps
 - **Status**: Wired
 
 ### CidrPanel
+
 - **Category**: Networking
 - **Status**: Wired
 
 ### CIReviewPanel
+
 - **Category**: CI/CD
 - **Status**: Wired
 
 ### CiStatusPanel
+
 - **Category**: CI/CD
 - **Status**: Wired
 
 ### CollabChatPanel
+
 - **Category**: Collaboration
 - **Status**: Wired
 
 ### ColorConverterPanel
+
 - **Category**: Utility
 - **Status**: Wired
 
 ### DatabasePanel
+
 - **Category**: Data
 - **Status**: Wired
 
 ### DataAnalysisPanel
+
 - **Category**: Data
 - **Status**: Wired
 
 ### DesignCanvasPanel
+
 - **Category**: Design
 - **Status**: Wired
 
 ### DocumentIngestPanel
+
 - **Category**: Data
 - **Status**: Wired
 
 ### GatewaySandboxPanel
+
 - **Category**: Sandbox
 - **Status**: Wired
 
 ### SandboxChatPanel
+
 - **Category**: Sandbox
 - **Status**: Wired
 
 ### ScreenshotToApp
+
 - **Category**: Design
 - **Status**: Wired
 
 ### TeamGovernancePanel
+
 - **Category**: Enterprise
 - **Status**: Wired
 

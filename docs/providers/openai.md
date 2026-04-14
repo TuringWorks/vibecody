@@ -8,7 +8,6 @@ permalink: /providers/openai/
 
 [OpenAI](https://openai.com) provides GPT-4o and the o-series reasoning models. Widely used, well-documented, and available in most regions.
 
-
 ## Get an API Key
 
 1. Go to [platform.openai.com](https://platform.openai.com)
@@ -17,7 +16,6 @@ permalink: /providers/openai/
 4. Click **Create new secret key** and copy it
 
 Your key will look like: `sk-proj-...` or `sk-...`
-
 
 ## Configure VibeCody
 
@@ -46,7 +44,6 @@ api_key_helper = "~/.vibecli/get-key.sh openai"
 model = "gpt-4o"
 ```
 
-
 ## Model Selection
 
 | Model | Strengths | Context | Best for |
@@ -65,7 +62,6 @@ Override from the CLI:
 vibecli --provider openai --model o3
 ```
 
-
 ## Pricing
 
 Pricing as of early 2026 (check [openai.com/pricing](https://openai.com/pricing) for current rates):
@@ -78,7 +74,6 @@ Pricing as of early 2026 (check [openai.com/pricing](https://openai.com/pricing)
 | o3-mini | $1.10 | $4.40 |
 
 **Tip:** Use GPT-4o mini for quick questions and simple tasks. Use GPT-4o for complex coding. Reserve o3 for hard reasoning problems.
-
 
 ## Custom API URL
 
@@ -101,13 +96,11 @@ api_url = "https://<resource>.openai.azure.com"
 model = "gpt-4o"
 ```
 
-
 ## Verify Connection
 
 ```bash
 vibecli --provider openai -c "Say hello and identify yourself"
 ```
-
 
 ## Troubleshooting
 

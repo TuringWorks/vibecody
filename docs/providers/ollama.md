@@ -8,14 +8,12 @@ permalink: /providers/ollama/
 
 Run AI models locally on your machine with [Ollama](https://ollama.ai). No API key required. Completely free. Your code never leaves your machine.
 
-
 ## Why Ollama?
 
 - **Free** -- no API costs, no rate limits, no usage tracking
 - **Private** -- all inference happens locally; ideal for proprietary code
 - **Offline** -- works without an internet connection (air-gapped deployments)
 - **Fast startup** -- models load in seconds on modern hardware
-
 
 ## Installation
 
@@ -43,7 +41,6 @@ docker run -d -v ollama:/root/.ollama -p 11434:11434 --name ollama ollama/ollama
 ollama --version
 ```
 
-
 ## Pull a Model
 
 ```bash
@@ -55,7 +52,6 @@ ollama pull llama3.2
 ollama pull codellama:34b
 ollama pull deepseek-coder-v2:16b
 ```
-
 
 ## Recommended Models for Coding
 
@@ -71,7 +67,6 @@ ollama pull deepseek-coder-v2:16b
 | `starcoder2:15b` | 9 GB | Good | Fast | Code completion |
 
 **Minimum RAM:** 8 GB for 7B models, 16 GB for 13-16B models, 64 GB for 70B models.
-
 
 ## Configure VibeCody
 
@@ -97,7 +92,6 @@ model = "qwen3-coder:480b-cloud"
 vibecli --provider ollama --model llama3.2:8b
 ```
 
-
 ## Verify Connection
 
 ```bash
@@ -107,7 +101,6 @@ curl http://localhost:11434/api/tags
 # Test with VibeCody
 vibecli --provider ollama -c "Say hello"
 ```
-
 
 ## GPU Acceleration
 
@@ -124,12 +117,12 @@ ollama run llama3.2:8b "hello"
 # Watch the logs: ollama will print which GPU layers are loaded
 ```
 
-
 ## Air-Gapped Deployment
 
 For environments without internet access:
 
 1. On a machine with internet, pull the model:
+
    ```bash
    ollama pull llama3.2:8b
    ```
@@ -137,11 +130,12 @@ For environments without internet access:
 2. Copy the model directory (`~/.ollama/models/`) to the air-gapped machine.
 
 3. Use the provided Docker Compose for a self-contained deployment:
+
    ```bash
    docker-compose up -d
    ```
-   This starts VibeCLI + Ollama as a sidecar with no external network dependencies.
 
+   This starts VibeCLI + Ollama as a sidecar with no external network dependencies.
 
 ## Troubleshooting
 

@@ -8,7 +8,6 @@ permalink: /providers/claude/
 
 [Claude](https://www.anthropic.com/claude) by Anthropic is one of the most capable AI models for code generation, reasoning, and long-context tasks.
 
-
 ## Get an API Key
 
 1. Go to [console.anthropic.com](https://console.anthropic.com)
@@ -17,7 +16,6 @@ permalink: /providers/claude/
 4. Click **Create Key** and copy it
 
 Your key will look like: `sk-ant-api03-...`
-
 
 ## Configure VibeCody
 
@@ -48,7 +46,6 @@ model = "claude-sonnet-4-6"
 
 The helper script must print the key to stdout and exit 0.
 
-
 ## Model Selection
 
 | Model | Strengths | Context | Best for |
@@ -65,7 +62,6 @@ Override from the CLI:
 vibecli --provider claude --model claude-opus-4-6
 ```
 
-
 ## Extended Thinking
 
 Enable Claude's extended thinking mode for complex reasoning tasks. The model will "think" internally before responding, producing higher-quality outputs for difficult problems.
@@ -78,11 +74,11 @@ thinking_budget_tokens = 10000
 ```
 
 Extended thinking uses additional tokens (and cost), but significantly improves performance on:
+
 - Multi-step debugging
 - Architecture design
 - Complex refactoring
 - Security analysis
-
 
 ## Pricing
 
@@ -96,7 +92,6 @@ Pricing as of early 2026 (check [anthropic.com/pricing](https://www.anthropic.co
 
 **Tip:** Use Haiku for quick questions and Sonnet for coding tasks to manage costs. Reserve Opus for complex problems.
 
-
 ## Custom API URL
 
 For proxies or enterprise endpoints:
@@ -108,7 +103,6 @@ api_url = "https://my-proxy.example.com/v1"
 model = "claude-sonnet-4-6"
 ```
 
-
 ## Verify Connection
 
 ```bash
@@ -116,7 +110,6 @@ vibecli --provider claude -c "Say hello and identify yourself"
 ```
 
 Expected output should mention Claude by name.
-
 
 ## Troubleshooting
 

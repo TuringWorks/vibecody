@@ -59,16 +59,19 @@ Pick a foundation model to fine-tune. Smaller models train faster and cheaper:
 Four ways to create training data:
 
 **From your codebase** (extracts function docs + implementations):
+
 ```bash
 > /train dataset from-codebase --format chatml --output data.jsonl
 ```
 
 **From git history** (commit messages + diffs):
+
 ```bash
 > /train dataset from-git --max-commits 5000 --format chatml --output data.jsonl
 ```
 
 **From documents** (PDF, Markdown, HTML — uses MinerU for complex PDFs):
+
 ```bash
 # For simple docs:
 > /ingest ./docs --output data.jsonl
@@ -80,6 +83,7 @@ magic-pdf -p ./papers/ -o ./parsed/ -m auto
 ```
 
 **Existing dataset** (use a pre-prepared JSONL file):
+
 ```bash
 > /train dataset validate --file my-data.jsonl
 ```
@@ -100,6 +104,7 @@ Six open-source libraries, each with different strengths:
 **QLoRA with Unsloth** is the fastest path — trains an 8B model on a free T4 in about 30 minutes.
 
 Alignment methods:
+
 - **SFT** (Supervised Fine-Tuning) — learn from examples
 - **DPO** (Direct Preference Optimization) — learn from preference pairs
 - **PPO** (Proximal Policy Optimization) — learn from reward signals

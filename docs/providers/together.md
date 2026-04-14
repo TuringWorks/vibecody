@@ -8,7 +8,6 @@ permalink: /providers/together/
 
 [Together AI](https://www.together.ai) hosts open-source models with competitive pricing and a free tier. They offer a wide catalog of Llama, Mixtral, Qwen, and other open models.
 
-
 ## Get an API Key
 
 1. Go to [api.together.ai](https://api.together.ai)
@@ -17,7 +16,6 @@ permalink: /providers/together/
 4. Create a new key and copy it
 
 Together AI offers a free tier with limited usage.
-
 
 ## Configure VibeCody
 
@@ -36,7 +34,6 @@ enabled = true
 api_key = "..."
 model = "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo"
 ```
-
 
 ## Model Selection
 
@@ -57,11 +54,9 @@ vibecli --provider together --model "Qwen/Qwen2.5-Coder-32B-Instruct"
 
 Browse all models at [api.together.ai/models](https://api.together.ai/models).
 
-
 ## Pricing
 
 Together AI offers competitive pricing for open models. Free tier includes limited tokens per day. Check [together.ai/pricing](https://www.together.ai/pricing) for current rates.
-
 
 ## Best For
 
@@ -70,13 +65,11 @@ Together AI offers competitive pricing for open models. Free tier includes limit
 - **Free tier** -- experiment with models before committing
 - **Model variety** -- large catalog of open models
 
-
 ## Verify Connection
 
 ```bash
 vibecli --provider together -c "Write a Rust function to parse command-line arguments"
 ```
-
 
 ## Troubleshooting
 

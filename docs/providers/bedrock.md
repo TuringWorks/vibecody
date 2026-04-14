@@ -8,13 +8,11 @@ permalink: /providers/bedrock/
 
 [Amazon Bedrock](https://aws.amazon.com/bedrock/) provides managed access to foundation models from Anthropic, Meta, Mistral, and Amazon through the AWS ecosystem, with IAM-based authentication and SigV4 request signing.
 
-
 ## Prerequisites
 
 1. An AWS account with Bedrock access enabled
 2. Model access granted in the Bedrock console (must request access per model)
 3. IAM credentials with `bedrock:InvokeModel` and `bedrock:InvokeModelWithResponseStream` permissions
-
 
 ## Enable Model Access
 
@@ -22,7 +20,6 @@ permalink: /providers/bedrock/
 2. Navigate to **Model access** in the left sidebar
 3. Request access to the models you want (e.g., Claude, Llama)
 4. Wait for approval (usually instant for most models)
-
 
 ## Configure VibeCody
 
@@ -47,7 +44,6 @@ region = "us-east-1"
 
 The `api_key` field holds the AWS access key ID. The secret access key is read from `AWS_SECRET_ACCESS_KEY`.
 
-
 ## Model Selection
 
 | Model | Provider | Best for |
@@ -66,7 +62,6 @@ Override from the CLI:
 vibecli --provider bedrock --model anthropic.claude-3-haiku-20240307-v1:0
 ```
 
-
 ## Authentication
 
 Bedrock uses AWS SigV4 request signing. VibeCody reads credentials from:
@@ -76,7 +71,6 @@ Bedrock uses AWS SigV4 request signing. VibeCody reads credentials from:
 
 The `AWS_REGION` environment variable or `region` config field determines the Bedrock endpoint.
 
-
 ## Best For
 
 - **AWS-native infrastructure** -- integrates with IAM, CloudWatch, VPC, and CloudTrail
@@ -84,13 +78,11 @@ The `AWS_REGION` environment variable or `region` config field determines the Be
 - **Multi-model access** -- use Claude, Llama, Mistral through one service
 - **No API key management** -- uses existing AWS IAM credentials
 
-
 ## Verify Connection
 
 ```bash
 vibecli --provider bedrock -c "Write a TypeScript function to parse CSV files"
 ```
-
 
 ## Troubleshooting
 

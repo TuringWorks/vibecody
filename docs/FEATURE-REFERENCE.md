@@ -32,6 +32,7 @@
 ## 1. AI Providers
 
 ### Configuration
+
 Providers are configured in `~/.vibecli/config.toml`. Each provider section accepts `api_key`, `model`, and `api_url` (for local/custom endpoints).
 
 ```toml
@@ -45,16 +46,21 @@ model = "llama3"
 ```
 
 ### Provider Failover
+
 Chain multiple providers so VibeCLI automatically retries on the next if one fails:
+
 ```toml
 failover_chain = ["claude", "openai", "ollama"]
 ```
 
 ### Per-Tab Override (VibeUI)
+
 Each chat tab in VibeUI has its own provider selector. Changing it marks the tab as "manually overridden" (shown in gold). Resetting follows the top-bar selection.
 
 ### Resilient Provider
+
 All providers are wrapped with `ResilientProvider` which adds:
+
 - Exponential backoff on transient errors
 - Rate-limit detection and waiting
 - Health score tracking (exposed in VibeUI status bar)
@@ -64,10 +70,13 @@ All providers are wrapped with `ResilientProvider` which adds:
 ## 2. Chat & Conversation
 
 ### Streaming
+
 All chat uses token-by-token Server-Sent Events from the Tauri backend. Tokens/sec is displayed live. Stop button cancels in-flight requests via `stop_chat_stream`.
 
 ### Auto-Compaction
+
 When conversation history exceeds **80,000 characters**, VibeCLI/VibeUI:
+
 1. Waits for the current response to complete
 2. Calls `summarise_messages` Tauri command on messages before the last 20
 3. Replaces them with a single summary message (marked with a "Conversation compacted" divider)
@@ -76,7 +85,9 @@ When conversation history exceeds **80,000 characters**, VibeCLI/VibeUI:
 Threshold is defined as `COMPACTION_THRESHOLD = 80_000` in `AIChat.tsx`.
 
 ### Chat Memory Panel (VibeUI)
+
 The collapsible **Memory** strip below each chat tab:
+
 - Extracts facts automatically from assistant messages matching bullet-point or "Note:"/"Remember:" patterns
 - **Pin** a fact → injected into every subsequent AI message as a system-prompt prefix
 - **Edit** (click text inline), **delete** (×), **add manual note**
@@ -84,12 +95,14 @@ The collapsible **Memory** strip below each chat tab:
 - Max 50 pinned facts, max 100 session facts per tab
 
 ### Session History
+
 - Auto-saved to `localStorage` when a tab is closed (if it has messages)
 - Browse via **History** tab in the tab strip
 - Restore into a new tab via **Restore** button
 - Manually save at any time with the **Save** button
 
 ### Slash Commands (VibeUI)
+
 | Command | Behaviour |
 |---|---|
 | `/fix` | Prepends "Fix the following errors:" |
@@ -105,6 +118,7 @@ The collapsible **Memory** strip below each chat tab:
 ## 3. Agent System
 
 ### Approval Policies
+
 | Policy | Behaviour | CLI Flag |
 |---|---|---|
 | `chat-only` | No tool calls; conversational only | `--approval chat-only` |
@@ -113,21 +127,26 @@ The collapsible **Memory** strip below each chat tab:
 | `full-auto` | Execute all tools without prompting | `--approval full-auto` |
 
 ### Agent Modes
+
 - **`/plan`** — generates a numbered execution plan, then waits for approval before acting
 - **`/agent`** — full autonomous loop: plan → act → observe → repeat until done
 - **`--exec`** — non-interactive CI mode; exits with code 1 on error
 
 ### Tool Execution
+
 Tools are declared as XML in the system prompt and parsed from assistant responses. Supported tools: `read_file`, `write_file`, `apply_patch`, `list_directory`, `bash`, `search_files`, `web_search`, `fetch_url`, `spawn_agent`, `think`, `task_complete`.
 
 ### Multi-Agent Teams
+
 ```
 /team create --role planner,executor,reviewer
 /team run "Implement OAuth login with tests"
 ```
+
 Teams share a knowledge graph and communicate via the A2A protocol. Roles are configurable; each sub-agent runs its own agent loop.
 
 ### Sub-Agent Spawning
+
 The `spawn_agent` tool creates child agents. Results are returned to the parent. Children inherit the parent's provider config but can override it. Session depth is tracked (`parent_session_id`, `depth` in SQLite).
 
 ---
@@ -135,13 +154,17 @@ The `spawn_agent` tool creates child agents. Results are returned to the parent.
 ## 4. Code Editing (VibeUI)
 
 ### Monaco Integration
+
 VibeUI uses Monaco Editor with `automaticLayout: true`. File writes from AI are split across two `requestAnimationFrame` callbacks to avoid ResizeObserver / React state race conditions:
+
 - **Frame 0**: close diff overlay, invoke `write_file`
 - **Frame 1**: show 30-second undo strip (`setLastApply`)
 - **Frame 2**: sync Monaco model content (`setOpenFiles`, `setActiveFilePath`)
 
 ### Diff Review Panel
+
 When the AI proposes a file write:
+
 1. The diff is shown hunk-by-hunk with Myers LCS diff
 2. Each hunk has **✓ Accept** / **✗ Reject** toggle buttons
 3. **Accept All** / **Reject All** header buttons apply to all hunks
@@ -151,6 +174,7 @@ When the AI proposes a file write:
 LCS guard: files > 800,000 character-product fall back to a whole-file replace/delete diff.
 
 ### File Operations
+
 - Create, rename, delete files and directories from the file tree
 - Right-click context menu
 - Drag-and-drop reordering
@@ -193,6 +217,7 @@ min_session_steps = 3
 | Reflective | 0.001 | Auto-generated meta-patterns |
 
 **Retrieval scoring** (composite of 5 signals):
+
 ```
 score = 0.45 × semantic_similarity (HNSW + TF-IDF)
       + 0.20 × salience             (post-decay)
@@ -217,6 +242,7 @@ score = 0.45 × semantic_similarity (HNSW + TF-IDF)
 Lossless 800-char chunk storage. No LLM summarisation. Achieves 96.6% Recall@5 on LongMemEval vs ~74% for cognitive-only stores.
 
 Key parameters:
+
 - **Chunk size**: 800 chars
 - **Overlap**: 100 chars
 - **Exact dedup**: FNV-1a hash (O(1))
@@ -228,13 +254,16 @@ Key parameters:
 **LongMemEval benchmark** — built-in recall@K evaluation across 20 probe cases spanning all 5 sectors. Available as `/openmemory benchmark [k]` (REPL), `GET /memory/benchmark?k=5` (HTTP daemon), and in the VibeUI **Drawers** tab.
 
 ### Workspace Rules
+
 Rules are loaded in priority order:
+
 1. **System rules** (built-in)
 2. **User rules** (`~/.vibecli/rules/`)
 3. **Project rules** (`.vibecli/rules/*.md`)
 4. **Directory rules** (subdirectory `.vibehints` files)
 
 Each `.md` file can include YAML front-matter:
+
 ```yaml
 ---
 name: rust-safety
@@ -246,16 +275,21 @@ When editing Rust files, always check for unwrap() calls...
 Rules without `path_pattern` always inject. Rules with a pattern only inject when the open file matches.
 
 ### `.vibeui.md` (VibeUI-specific)
+
 Place a `.vibeui.md` file in the workspace root. It is injected as `## Project AI Rules` into every AI system prompt, guiding AI-generated code to follow project conventions (e.g., "use the custom Icon system, not lucide-react").
 
 ### Context Bundles
+
 Named, shareable context packages stored as `.vibebundle.toml`:
+
 - Pinned files, custom instructions, excluded paths, model preferences
 - Up to 10 active bundles per session
 - Priority ordering (lower = higher priority)
 
 ### Infinite Context Mode
+
 For very large codebases, `infinite_context.rs` provides 5-level hierarchical compression:
+
 | Level | Content |
 |---|---|
 | 0 | Full file content |
@@ -271,7 +305,9 @@ Eviction uses a hybrid strategy combining recency decay, keyword match, file pro
 ## 6. Code Review & Analysis
 
 ### AI Code Review (`ai_code_review.rs`)
+
 7 built-in detectors:
+
 1. **Security** — OWASP Top 10 patterns
 2. **Complexity** — cyclomatic complexity thresholds
 3. **Style** — language-specific conventions
@@ -283,12 +319,14 @@ Eviction uses a hybrid strategy combining recency decay, keyword match, file pro
 Output: quality gate score (0–100), per-issue severity, Mermaid diagrams for PR summaries.
 
 ### Architecture Spec (`architecture_spec.rs`)
+
 - **TOGAF ADM** — 9-phase architecture development
 - **Zachman Framework** — 6×6 matrix
 - **C4 Model** — Context → Container → Component → Code with Mermaid export
 - **ADRs** — Architecture Decision Records with lifecycle management
 
 ### `/review` CLI Command
+
 ```bash
 vibecli --review --base main --branch feature/auth
 vibecli --review --pr 42 --post-github
@@ -299,14 +337,18 @@ vibecli --review --pr 42 --post-github
 ## 7. Testing & Quality
 
 ### Auto-Detection
+
 VibeCLI detects the test framework from the project structure:
+
 - `Cargo.toml` → `cargo test`
 - `package.json` (jest/vitest) → `npm test`
 - `pytest.ini` / `pyproject.toml` → `pytest`
 - `go.mod` → `go test ./...`
 
 ### Coverage
+
 Coverage data is collected per-run and displayed in the VibeUI CoveragePanel as:
+
 - File-level line coverage percentages
 - Branch coverage
 - Trend over time (session-scoped)
@@ -317,10 +359,13 @@ Coverage data is collected per-run and displayed in the VibeUI CoveragePanel as:
 ## 8. Git Integration
 
 ### Branch Agent
+
 `/branch-agent` creates a branch, implements a feature, runs tests, and opens a PR — all autonomously. It uses `--worktree` isolation by default.
 
 ### Git Bisect (`/bisect`)
+
 Interactive bisect workflow:
+
 ```
 /bisect start --good v1.2.0 --bad HEAD
 # VibeCLI runs tests at each midpoint, marks good/bad automatically
@@ -328,6 +373,7 @@ Interactive bisect workflow:
 ```
 
 ### Commit Generation
+
 AI generates commit messages from the staged diff. Templates in `.vibecli/commit-template.txt` customize the format.
 
 ---
@@ -335,18 +381,23 @@ AI generates commit messages from the staged diff. Templates in `.vibecli/commit
 ## 9. Session Management
 
 ### Storage
+
 Sessions are stored in `~/.vibecli/sessions.db` (SQLite). Schema:
+
 - `sessions` — id, task, provider, model, status, summary, step_count, parent_session_id, depth
 - `messages` — role, content, created_at
 - `steps` — step_num, tool_name, input_summary, output, success
 
 ### Forking
+
 ```bash
 vibecli --fork <session-id>
 ```
+
 Creates a child session copying all messages and steps. The child's task is prefixed with `[fork of <id>]`.
 
 ### Export
+
 ```bash
 vibecli --export-session <id> --output session.md    # Markdown
 vibecli --export-session <id> --output session.json  # JSON
@@ -354,7 +405,9 @@ vibecli --export-session <id> --output session.html  # HTML
 ```
 
 ### Trace Files
+
 Every session writes:
+
 - `~/.vibecli/traces/<id>.jsonl` — streaming event log
 - `~/.vibecli/traces/<id>-messages.json` — full message history
 - `~/.vibecli/traces/<id>-context.json` — context snapshot
@@ -364,7 +417,9 @@ Every session writes:
 ## 10. Security & Sandbox
 
 ### OS-Level Sandbox
+
 On macOS, the `sandbox-exec` profile restricts:
+
 - File system access (read-only except workspace)
 - Network access (configurable)
 - Process spawning
@@ -372,10 +427,13 @@ On macOS, the `sandbox-exec` profile restricts:
 On Linux, `bwrap` (Bubblewrap) provides similar isolation. Both are activated via `[sandbox] enabled = true` in config.
 
 ### Container Runtime (`ContainerRuntime` trait)
+
 Unified interface over Docker, Podman, and OpenSandbox with 16 async methods: `create_container`, `start`, `exec`, `copy_in/out`, `logs`, `stats`, `kill`, `remove`, etc.
 
 ### Policy Engine (`policy_engine.rs`)
+
 Cerbos-style RBAC/ABAC:
+
 - 14 condition operators (eq, neq, in, startsWith, regex, etc.)
 - Derived role computation from principal attributes
 - Policy testing framework
@@ -387,12 +445,15 @@ Cerbos-style RBAC/ABAC:
 ## 11. MCP (Model Context Protocol)
 
 ### Server Mode
+
 ```bash
 vibecli --mcp-server
 ```
+
 Starts a stdio-based MCP server. Compatible with any MCP client (Claude Desktop, Cursor, etc.). Implements JSON-RPC 2.0.
 
 ### Available Tools
+
 | Tool | Description |
 |---|---|
 | `read_file` | Read file contents |
@@ -403,7 +464,9 @@ Starts a stdio-based MCP server. Compatible with any MCP client (Claude Desktop,
 | `agent_run` | Spawn autonomous agent task |
 
 ### Multi-Server Support
+
 Configure multiple MCP servers in `~/.vibecli/config.toml`:
+
 ```toml
 [[mcp_servers]]
 name = "github"
@@ -419,6 +482,7 @@ command = "npx @linear/mcp-server"
 ## 12. Recipes & Automation
 
 ### Recipe Format
+
 ```yaml
 name: add-feature
 description: "Scaffold a new feature with tests"
@@ -438,6 +502,7 @@ steps:
 ```
 
 ### Running Recipes
+
 ```bash
 vibecli --recipe features/add-auth.yaml --param feature_name=OAuth
 vibecli --recipe add-auth.yaml --dry-run          # preview without executing
@@ -445,6 +510,7 @@ vibecli --recipe add-auth.yaml --param key=value --param key2=value2
 ```
 
 ### Scheduling
+
 ```
 /schedule --cron "0 9 * * 1" --recipe weekly-review.yaml
 /remind "run tests" --in 30m
@@ -455,15 +521,19 @@ vibecli --recipe add-auth.yaml --param key=value --param key2=value2
 ## 13. Observability & Cost
 
 ### Token Usage
+
 Token counts are estimated at ~4 chars/token and tracked per:
+
 - Individual messages
 - Session totals
 - Daily/weekly aggregates
 
 ### Cost Estimation
+
 Provider-specific pricing tables map (input_tokens, output_tokens) → USD cost. Displayed in the `/cost` command and CostPanel in VibeUI.
 
 ### Budget Alerts
+
 ```toml
 [cost]
 monthly_budget_usd = 50.0
@@ -471,13 +541,17 @@ alert_threshold = 0.8   # alert at 80% of budget
 ```
 
 ### OpenTelemetry
+
 ```bash
 vibecli --otel-endpoint http://localhost:4318 agent "task"
 ```
+
 Exports spans for: tool calls, API requests, agent steps, session lifecycle.
 
 ### Session Memory Profiling
+
 `session_memory.rs` samples every 60 seconds and:
+
 - Detects sustained growth (linear regression)
 - Alerts at > 50% growth
 - Triggers auto-compaction at 512 MB
@@ -487,7 +561,9 @@ Exports spans for: tool calls, API requests, agent steps, session lifecycle.
 ## 14. LSP & Language Support
 
 ### Configuration
+
 LSP servers are auto-detected or configured in `.vibecli/lsp.toml`:
+
 ```toml
 [[servers]]
 language = "rust"
@@ -499,6 +575,7 @@ command = "pyright-langserver --stdio"
 ```
 
 ### Features
+
 All LSP features are surfaced in Monaco (VibeUI) and as structured output in VibeCLI review mode: go-to-definition, find-references, hover, rename, code actions, diagnostics, call hierarchy, workspace symbols.
 
 ---
@@ -506,13 +583,16 @@ All LSP features are surfaced in Monaco (VibeUI) and as structured output in Vib
 ## 15. Plugins & Extensions
 
 ### WASM Plugin System
+
 Plugins are compiled to WASM and loaded at startup. Plugin API surface:
+
 - Register custom REPL commands
 - Hook into tool execution (pre/post)
 - Add custom LSP capabilities
 - Integrate external services
 
 ### Development
+
 ```bash
 vibecli /plugin dev ./my-plugin     # hot-reload mode
 vibecli /plugin install my-plugin   # from registry
@@ -520,6 +600,7 @@ vibecli /plugin list                # show loaded plugins
 ```
 
 ### Built-in Integrations
+
 - **GitHub** — PR review bot, issue triage
 - **Linear** — issue creation, status updates
 - **Jira** — ticket management
@@ -531,21 +612,26 @@ vibecli /plugin list                # show loaded plugins
 ## 16. Collaboration
 
 ### CRDT Multiplayer
+
 VibeUI uses CRDTs (Conflict-free Replicated Data Types) for real-time collaborative editing. Multiple users can edit the same file simultaneously with automatic conflict resolution. Presence indicators show remote cursors and selections.
 
 ### Session Sharing
+
 ```
 /share                           # share current session
 /share --format json             # export as JSON
 /share --visibility team         # team-visible URL
 ```
+
 Sessions can be shared as Markdown, JSON, or HTML exports. The `SessionSharingManager` supports annotations, secret redaction, visibility controls, and import/export.
 
 ### Agent Teams
+
 ```
 /team create researcher,coder,reviewer
 /team task "Implement rate limiting middleware with tests"
 ```
+
 Team agents communicate via the A2A protocol. The knowledge graph is shared across agents. Team governance policies control which agents can take which actions.
 
 ---
@@ -553,7 +639,9 @@ Team agents communicate via the A2A protocol. The knowledge graph is shared acro
 ## 17. Deployment & Infrastructure
 
 ### Cloud Providers
+
 VibeCLI's `/deploy` command supports:
+
 - **AWS**: EC2, Lambda, ECS, Fargate
 - **Azure**: VM, ACI, Container Apps, Functions
 - **GCP**: Compute Engine, Cloud Run, Cloud Functions
@@ -561,6 +649,7 @@ VibeCLI's `/deploy` command supports:
 - **Vercel**: Serverless functions, static sites
 
 ### Container Workflow
+
 ```bash
 vibecli /docker build --tag myapp:latest
 vibecli /container run --image myapp:latest --sandbox
@@ -568,6 +657,7 @@ vibecli /cloud deploy --provider aws --service ecs
 ```
 
 ### Kubernetes
+
 ```bash
 vibecli /k8s apply --file deployment.yaml
 vibecli /k8s logs --deployment myapp
@@ -579,12 +669,14 @@ vibecli /k8s scale --deployment myapp --replicas 3
 ## 18. Daemon & API Mode
 
 ### Starting the Daemon
+
 ```bash
 vibecli --serve --port 7878 --provider claude
 vibecli --serve --tailscale          # public HTTPS via Tailscale Funnel
 ```
 
 ### REST Endpoints
+
 | Method | Endpoint | Description |
 |---|---|---|
 | `POST` | `/api/chat` | Send message, stream response |
@@ -595,6 +687,7 @@ vibecli --serve --tailscale          # public HTTPS via Tailscale Funnel
 | `GET` | `/sse` | Server-Sent Events stream |
 
 ### Diagnostics
+
 ```bash
 vibecli --diagnostics              # print env, config, DB status
 vibecli --diagnostics --resume <id>  # include session context
@@ -616,6 +709,7 @@ The Reinforcement Learning Operating System provides end-to-end ML training infr
 | **RLHF** | Reward model training from human feedback |
 
 ### Usage
+
 ```
 /aiml train --algorithm ppo --env my-env
 /aiml eval --benchmark swe-bench
@@ -627,6 +721,7 @@ The Reinforcement Learning Operating System provides end-to-end ML training infr
 ## 20. UI Panels (VibeUI)
 
 ### Core Panels
+
 | Panel | Description |
 |---|---|
 | `AIChat` | Inline AI assistant with tabs, memory, history |
@@ -636,6 +731,7 @@ The Reinforcement Learning Operating System provides end-to-end ML training infr
 | `FileExplorer` | Directory tree with context menu |
 
 ### Analysis & Review
+
 | Panel | Description |
 |---|---|
 | `DiffReviewPanel` | Per-hunk AI diff accept/reject |
@@ -644,6 +740,7 @@ The Reinforcement Learning Operating System provides end-to-end ML training infr
 | `ReviewProtocolPanel` | Policy-driven review enforcement |
 
 ### Development Tools
+
 | Panel | Description |
 |---|---|
 | `AppBuilderPanel` | Full-stack app generation |
@@ -653,6 +750,7 @@ The Reinforcement Learning Operating System provides end-to-end ML training infr
 | `APIDocsPanel` | Auto-generated API docs |
 
 ### Security
+
 | Panel | Description |
 |---|---|
 | `SecurityScanPanel` | Vulnerability scanning |
@@ -663,6 +761,7 @@ The Reinforcement Learning Operating System provides end-to-end ML training infr
 | `CompliancePanel` | SOC2/FedRAMP reports |
 
 ### Agent & Automation
+
 | Panel | Description |
 |---|---|
 | `AgentPanel` | Agent task runner |
@@ -671,6 +770,7 @@ The Reinforcement Learning Operating System provides end-to-end ML training infr
 | `SchedulerPanel` | Cron/reminder management |
 
 ### Observability
+
 | Panel | Description |
 |---|---|
 | `CostPanel` | Token usage + cost budget |

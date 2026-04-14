@@ -8,7 +8,6 @@ permalink: /providers/groq/
 
 [Groq](https://groq.com) runs open-source models on custom LPU (Language Processing Unit) hardware, delivering extremely low latency inference -- often 10-20x faster than cloud GPU providers.
 
-
 ## Get an API Key
 
 1. Go to [console.groq.com](https://console.groq.com)
@@ -17,7 +16,6 @@ permalink: /providers/groq/
 4. Create a new key and copy it
 
 Groq offers a free tier with rate limits.
-
 
 ## Configure VibeCody
 
@@ -37,7 +35,6 @@ api_key = "gsk_..."
 model = "llama-3.3-70b-versatile"
 ```
 
-
 ## Model Selection
 
 | Model | Strengths | Best for |
@@ -54,11 +51,9 @@ Override from the CLI:
 vibecli --provider groq --model llama-3.1-8b-instant
 ```
 
-
 ## Pricing
 
 Groq offers a generous free tier with rate limits. Paid plans remove rate limits and add priority access.
-
 
 ## Best For
 
@@ -66,13 +61,11 @@ Groq offers a generous free tier with rate limits. Paid plans remove rate limits
 - **Interactive coding sessions** -- low latency makes back-and-forth feel instant
 - **Running open-source models** -- access Llama, Mixtral without hosting them yourself
 
-
 ## Verify Connection
 
 ```bash
 vibecli --provider groq -c "Write a Go function to reverse a linked list"
 ```
-
 
 ## Troubleshooting
 
