@@ -46,8 +46,8 @@ const FullStackGenPanel: React.FC = () => {
     Infra: "#e65100", Testing: "#c62828", Docs: "#757575",
   };
   const badgeStyle = (color: string): React.CSSProperties => ({
-    display: "inline-block", padding: "2px 8px", borderRadius: "10px",
-    fontSize: "11px", fontWeight: 600, backgroundColor: color, color: "var(--btn-primary-fg)",
+    display: "inline-block", padding: "2px 8px", borderRadius: "var(--radius-md)",
+    fontSize: "var(--font-size-sm)", fontWeight: 600, backgroundColor: color, color: "var(--btn-primary-fg)",
   });
 
   const handleGenerate = async () => {
@@ -128,24 +128,24 @@ const FullStackGenPanel: React.FC = () => {
   const renderConfigure = () => (
     <div>
       <div style={{ marginBottom: "12px" }}>
-        <label style={{ display: "block", marginBottom: "4px", fontWeight: 600, fontSize: "12px" }}>Project Name</label>
+        <label style={{ display: "block", marginBottom: "4px", fontWeight: 600, fontSize: "var(--font-size-base)" }}>Project Name</label>
         <input className="panel-input panel-input-full" value={projectName} onChange={e => setProjectName(e.target.value)}
           placeholder="my-fullstack-app" />
       </div>
       <div style={{ marginBottom: "12px" }}>
-        <label style={{ display: "block", marginBottom: "4px", fontWeight: 600, fontSize: "12px" }}>Output Directory</label>
+        <label style={{ display: "block", marginBottom: "4px", fontWeight: 600, fontSize: "var(--font-size-base)" }}>Output Directory</label>
         <input className="panel-input panel-input-full" value={outputDir} onChange={e => setOutputDir(e.target.value)}
           placeholder="~/projects" />
       </div>
       <div style={{ display: "flex", gap: "12px", marginBottom: "12px" }}>
         <div style={{ flex: 1 }}>
-          <label style={{ display: "block", marginBottom: "4px", fontWeight: 600, fontSize: "12px" }}>Frontend</label>
+          <label style={{ display: "block", marginBottom: "4px", fontWeight: 600, fontSize: "var(--font-size-base)" }}>Frontend</label>
           <select className="panel-select" value={frontend} onChange={e => setFrontend(e.target.value)}>
             {frontendOptions.map(o => <option key={o} value={o}>{o}</option>)}
           </select>
         </div>
         <div style={{ flex: 1 }}>
-          <label style={{ display: "block", marginBottom: "4px", fontWeight: 600, fontSize: "12px" }}>Backend</label>
+          <label style={{ display: "block", marginBottom: "4px", fontWeight: 600, fontSize: "var(--font-size-base)" }}>Backend</label>
           <select className="panel-select" value={backend} onChange={e => setBackend(e.target.value)}>
             {backendOptions.map(o => <option key={o} value={o}>{o}</option>)}
           </select>
@@ -153,20 +153,20 @@ const FullStackGenPanel: React.FC = () => {
       </div>
       <div style={{ display: "flex", gap: "12px", marginBottom: "12px" }}>
         <div style={{ flex: 1 }}>
-          <label style={{ display: "block", marginBottom: "4px", fontWeight: 600, fontSize: "12px" }}>Database</label>
+          <label style={{ display: "block", marginBottom: "4px", fontWeight: 600, fontSize: "var(--font-size-base)" }}>Database</label>
           <select className="panel-select" value={database} onChange={e => setDatabase(e.target.value)}>
             {dbOptions.map(o => <option key={o} value={o}>{o}</option>)}
           </select>
         </div>
         <div style={{ flex: 1 }}>
-          <label style={{ display: "block", marginBottom: "4px", fontWeight: 600, fontSize: "12px" }}>Auth</label>
+          <label style={{ display: "block", marginBottom: "4px", fontWeight: 600, fontSize: "var(--font-size-base)" }}>Auth</label>
           <select className="panel-select" value={auth} onChange={e => setAuth(e.target.value)}>
             {authOptions.map(o => <option key={o} value={o}>{o}</option>)}
           </select>
         </div>
       </div>
       <div style={{ marginBottom: "12px" }}>
-        <label style={{ display: "block", marginBottom: "4px", fontWeight: 600, fontSize: "12px" }}>Features / Requirements</label>
+        <label style={{ display: "block", marginBottom: "4px", fontWeight: 600, fontSize: "var(--font-size-base)" }}>Features / Requirements</label>
         <textarea className="panel-textarea panel-input-full" style={{ minHeight: "80px", resize: "vertical" }} value={features}
           onChange={e => setFeatures(e.target.value)}
           placeholder="Describe additional features (e.g., real-time chat, file uploads, admin dashboard)..." />
@@ -191,7 +191,7 @@ const FullStackGenPanel: React.FC = () => {
           <span>Auth</span><strong>{auth}</strong>
         </div>
         <div style={{ display: "flex", justifyContent: "space-between" }}>
-          <span>Output</span><strong style={{ fontSize: 11, wordBreak: "break-all" }}>{outputDir}/{projectName || "project"}</strong>
+          <span>Output</span><strong style={{ fontSize: "var(--font-size-sm)", wordBreak: "break-all" }}>{outputDir}/{projectName || "project"}</strong>
         </div>
       </div>
       {error && <div className="panel-error" style={{ marginBottom: 8 }}>{error}</div>}
@@ -205,7 +205,7 @@ const FullStackGenPanel: React.FC = () => {
   const renderFiles = () => (
     <div>
       {generatedDir && (
-        <div className="panel-card" style={{ fontSize: 11, wordBreak: "break-all", marginBottom: "8px" }}>
+        <div className="panel-card" style={{ fontSize: "var(--font-size-sm)", wordBreak: "break-all", marginBottom: "8px" }}>
           Output: <strong>{generatedDir}</strong>
         </div>
       )}
@@ -219,11 +219,11 @@ const FullStackGenPanel: React.FC = () => {
             padding: "6px 0", fontWeight: 600 }} onClick={() => toggleLayer(layer)}>
             <span>{expandedLayers.has(layer) ? "\u25BC" : "\u25B6"}</span>
             <span style={badgeStyle(layerColors[layer] || "var(--border-color)")}>{layer}</span>
-            <span style={{ opacity: 0.6, fontSize: "12px" }}>({layerFiles.length} files)</span>
+            <span style={{ opacity: 0.6, fontSize: "var(--font-size-base)" }}>({layerFiles.length} files)</span>
           </div>
           {expandedLayers.has(layer) && layerFiles.map(f => (
             <div key={f.path} style={{ display: "flex", justifyContent: "space-between", alignItems: "center",
-              padding: "4px 0 4px 24px", fontSize: "12px", borderBottom: "1px solid var(--border-color)",
+              padding: "4px 0 4px 24px", fontSize: "var(--font-size-base)", borderBottom: "1px solid var(--border-color)",
               cursor: "pointer" }}
               onClick={() => openFile(f)}>
               <code style={{ color: "var(--accent-blue)" }}>{f.path}</code>
@@ -244,11 +244,11 @@ const FullStackGenPanel: React.FC = () => {
         <>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
             <div>
-              <code style={{ fontSize: 12 }}>{selectedFile.path}</code>
+              <code style={{ fontSize: "var(--font-size-base)" }}>{selectedFile.path}</code>
               <span style={{ ...badgeStyle(layerColors[selectedFile.layer] || "var(--border-color)"), marginLeft: 8 }}>{selectedFile.layer}</span>
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              {saveMsg && <span style={{ fontSize: 11, color: saveMsg === "Saved" ? "var(--success-color)" : "var(--error-color)" }}>{saveMsg}</span>}
+              {saveMsg && <span style={{ fontSize: "var(--font-size-sm)", color: saveMsg === "Saved" ? "var(--success-color)" : "var(--error-color)" }}>{saveMsg}</span>}
               <button className="panel-btn panel-btn-primary" style={{ opacity: saving ? 0.6 : 1 }} onClick={saveFile} disabled={saving}>
                 {saving ? "Saving..." : "Save"}
               </button>
@@ -262,8 +262,8 @@ const FullStackGenPanel: React.FC = () => {
             style={{
               flex: 1, width: "100%", boxSizing: "border-box",
               backgroundColor: "var(--bg-tertiary)", color: "var(--text-primary)",
-              border: "1px solid var(--border-color)", borderRadius: "4px",
-              fontFamily: "var(--font-mono)", fontSize: 12, padding: "10px",
+              border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)",
+              fontFamily: "var(--font-mono)", fontSize: "var(--font-size-base)", padding: "10px",
               resize: "none", lineHeight: 1.5,
             }}
             value={editContent}

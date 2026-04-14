@@ -22,7 +22,7 @@ interface PolicyConflictDisplay {
   description: string;
 }
 
-const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" };
+const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: "var(--font-size-xl)", fontWeight: 600, color: "var(--text-primary)" };
 
 type Tab = "check" | "policies" | "test" | "audit" | "conflicts";
 
@@ -151,7 +151,7 @@ export default function PolicyEnginePanel() {
 
       {(cliOutput || cliError) && (
         <div className={`panel-card ${cliError ? "panel-error" : ""}`} style={{ marginTop: 8 }}>
-          <pre style={{ whiteSpace: "pre-wrap", margin: 0, fontSize: 11 }}>{cliError || cliOutput}</pre>
+          <pre style={{ whiteSpace: "pre-wrap", margin: 0, fontSize: "var(--font-size-sm)" }}>{cliError || cliOutput}</pre>
         </div>
       )}
 

@@ -79,7 +79,7 @@ const CloudAutofixPanel: React.FC = () => {
   const containerStyle: React.CSSProperties = {
     padding: "16px", color: "var(--text-primary)",
     backgroundColor: "var(--bg-primary)",
-    fontFamily: "inherit", fontSize: "13px",
+    fontFamily: "inherit", fontSize: "var(--font-size-md)",
     height: "100%", overflow: "auto",
   };
   const tabBar: React.CSSProperties = { display: "flex", gap: 2, borderBottom: "1px solid var(--border-color)", padding: "0 16px", flexShrink: 0 };
@@ -90,19 +90,19 @@ const CloudAutofixPanel: React.FC = () => {
     borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent",
   });
   const btn: React.CSSProperties = {
-    padding: "6px 14px", border: "none", borderRadius: "4px", cursor: "pointer",
+    padding: "6px 14px", border: "none", borderRadius: "var(--radius-xs-plus)", cursor: "pointer",
     backgroundColor: "var(--accent-color)", color: "var(--btn-primary-fg)",
   };
   const input: React.CSSProperties = {
-    padding: "6px 10px", borderRadius: "4px", border: "1px solid var(--border-color)",
+    padding: "6px 10px", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)",
     backgroundColor: "var(--bg-secondary)", color: "var(--text-primary)", boxSizing: "border-box",
   };
   const card: React.CSSProperties = {
-    padding: "12px", marginBottom: "8px", borderRadius: "6px",
+    padding: "12px", marginBottom: "8px", borderRadius: "var(--radius-sm)",
     backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border-color)",
   };
   const badge = (color: string): React.CSSProperties => ({
-    padding: "2px 8px", borderRadius: "10px", fontSize: "11px", fontWeight: 600,
+    padding: "2px 8px", borderRadius: "var(--radius-md)", fontSize: "var(--font-size-sm)", fontWeight: 600,
     backgroundColor: color, color: "var(--btn-primary-fg)",
   });
 
@@ -249,8 +249,8 @@ const CloudAutofixPanel: React.FC = () => {
           <div style={card}>
             <h4 style={{ margin: "0 0 12px" }}>Merge Rate</h4>
             <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "8px" }}>
-              <div style={{ flex: 1, height: "20px", borderRadius: "10px", backgroundColor: "var(--border-color)" }}>
-                <div style={{ height: "100%", borderRadius: "10px", width: `${Math.round(stats.mergeRate)}%`, backgroundColor: "var(--success-color)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: 700, color: "var(--btn-primary-fg)" }}>
+              <div style={{ flex: 1, height: "20px", borderRadius: "var(--radius-md)", backgroundColor: "var(--border-color)" }}>
+                <div style={{ height: "100%", borderRadius: "var(--radius-md)", width: `${Math.round(stats.mergeRate)}%`, backgroundColor: "var(--success-color)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "var(--font-size-sm)", fontWeight: 700, color: "var(--btn-primary-fg)" }}>
                   {Math.round(stats.mergeRate)}%
                 </div>
               </div>
@@ -265,7 +265,7 @@ const CloudAutofixPanel: React.FC = () => {
             ].map(s => (
               <div key={s.label} style={{ ...card, textAlign: "center" as const }}>
                 <div style={{ fontSize: "24px", fontWeight: 700, color: s.color }}>{s.value}</div>
-                <div style={{ opacity: 0.7, fontSize: "12px" }}>{s.label}</div>
+                <div style={{ opacity: 0.7, fontSize: "var(--font-size-base)" }}>{s.label}</div>
               </div>
             ))}
           </div>

@@ -86,7 +86,7 @@ export function CascadePanel({ onInjectContext }: CascadePanelProps) {
 
  {/* ── Header ────────────────────────────────────────────────────────── */}
  <div className="panel-header" style={{ justifyContent: "space-between" }}>
- <span style={{ fontWeight: 600, fontSize: 13, color: "var(--text-primary)" }}>
+ <span style={{ fontWeight: 600, fontSize: "var(--font-size-md)", color: "var(--text-primary)" }}>
  Cascade Flow
  </span>
  <div style={{ display: "flex", gap: 6 }}>
@@ -131,7 +131,7 @@ export function CascadePanel({ onInjectContext }: CascadePanelProps) {
  padding: 24,
  textAlign: "center",
  color: "var(--text-secondary)",
- fontSize: 13,
+ fontSize: "var(--font-size-md)",
  }}>
  <div style={{ fontSize: 32, marginBottom: 8 }}></div>
  <div style={{ fontWeight: 600, marginBottom: 4 }}>No activity yet</div>
@@ -156,7 +156,7 @@ export function CascadePanel({ onInjectContext }: CascadePanelProps) {
  <div style={{
  padding: "4px 12px",
  borderTop: "1px solid var(--border-color)",
- fontSize: 11,
+ fontSize: "var(--font-size-sm)",
  color: "var(--text-secondary)",
  background: "var(--bg-secondary)",
  flexShrink: 0,
@@ -194,13 +194,13 @@ function FlowEventRow({
  >
  {/* Kind icon + connector line */}
  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 2 }}>
- <span style={{ fontSize: 14 }}>{KIND_ICONS[event.kind]}</span>
+ <span style={{ fontSize: "var(--font-size-lg)" }}>{KIND_ICONS[event.kind]}</span>
  </div>
 
  <div style={{ flex: 1, minWidth: 0 }}>
  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
  <span style={{
- fontSize: 10,
+ fontSize: "var(--font-size-xs)",
  fontWeight: 600,
  color: "var(--accent-color)",
  textTransform: "uppercase",
@@ -208,12 +208,12 @@ function FlowEventRow({
  }}>
  {KIND_LABELS[event.kind]}
  </span>
- <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>
+ <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>
  {timeAgo(event.timestamp)}
  </span>
  {event.filePath && (
  <span style={{
- fontSize: 10,
+ fontSize: "var(--font-size-xs)",
  color: "var(--text-secondary)",
  overflow: "hidden",
  textOverflow: "ellipsis",
@@ -226,7 +226,7 @@ function FlowEventRow({
  </div>
 
  <div style={{
- fontSize: 12,
+ fontSize: "var(--font-size-base)",
  color: "var(--text-primary)",
  overflow: "hidden",
  textOverflow: "ellipsis",
@@ -241,8 +241,8 @@ function FlowEventRow({
  marginTop: 6,
  padding: "6px 8px",
  background: "var(--bg-tertiary)",
- borderRadius: 4,
- fontSize: 11,
+ borderRadius: "var(--radius-xs-plus)",
+ fontSize: "var(--font-size-sm)",
  color: "var(--text-secondary)",
  whiteSpace: "pre-wrap",
  wordBreak: "break-word",
@@ -259,14 +259,14 @@ function FlowEventRow({
  <button
  onClick={(e) => { e.stopPropagation(); onInject(); }}
  className="panel-btn panel-btn-secondary"
- style={{ fontSize: 10 }}
+ style={{ fontSize: "var(--font-size-xs)" }}
  title="Inject this event's content into chat"
  >
  Inject
  </button>
  )}
  {hasDetail && (
- <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+ <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
  {expanded ? "" : <ChevronDown size={10} />}
  </span>
  )}

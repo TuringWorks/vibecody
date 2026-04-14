@@ -50,8 +50,8 @@ const fmtBytes = (n: number) =>
 const fmtRatio = (r: number) => r > 0 ? `${r.toFixed(1)}×` : "—";
 
 const statBox = (label: string, value: string, color = "var(--text-secondary)") => (
-  <div style={{ textAlign: "center", padding: "12px 16px", background: "var(--bg-secondary)", borderRadius: 8, minWidth: 100 }}>
-    <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4 }}>{label}</div>
+  <div style={{ textAlign: "center", padding: "12px 16px", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", minWidth: 100 }}>
+    <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-tertiary)", marginBottom: 4 }}>{label}</div>
     <div style={{ fontSize: 18, fontWeight: 600, color }}>{value}</div>
   </div>
 );
@@ -62,13 +62,13 @@ const btn = (label: string, onClick: () => void, disabled = false, accent = fals
     disabled={disabled}
     style={{
       padding: "6px 14px",
-      borderRadius: 6,
+      borderRadius: "var(--radius-sm)",
       border: accent ? "none" : "1px solid var(--border-color)",
       background: accent ? "var(--accent-color)" : "var(--bg-secondary)",
       color: accent ? "#fff" : "var(--text-primary)",
       cursor: disabled ? "not-allowed" : "pointer",
       opacity: disabled ? 0.5 : 1,
-      fontSize: 12,
+      fontSize: "var(--font-size-base)",
       fontFamily: "inherit",
     }}
   >
@@ -168,10 +168,10 @@ export function TurboQuantPanel() {
   );
 
   return (
-    <div className="panel-container" style={{ fontFamily: "var(--font-mono, monospace)", fontSize: 13 }}>
+    <div className="panel-container" style={{ fontFamily: "var(--font-mono, monospace)", fontSize: "var(--font-size-md)" }}>
       <div className="panel-header">
         <h3>TurboQuant</h3>
-        <span style={{ fontSize: 11, color: "var(--text-tertiary)" }}>PolarQuant + QJL ~3 bits/dim</span>
+        <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-tertiary)" }}>PolarQuant + QJL ~3 bits/dim</span>
       </div>
 
       {/* Tab bar */}
@@ -201,13 +201,13 @@ export function TurboQuantPanel() {
               {/* Visual bar */}
               {stats.num_vectors > 0 && (
                 <div style={{ marginBottom: 16 }}>
-                  <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4 }}>Storage comparison</div>
-                  <div style={{ display: "flex", height: 20, borderRadius: 4, overflow: "hidden", background: "var(--bg-tertiary)" }}>
+                  <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-tertiary)", marginBottom: 4 }}>Storage comparison</div>
+                  <div style={{ display: "flex", height: 20, borderRadius: "var(--radius-xs-plus)", overflow: "hidden", background: "var(--bg-tertiary)" }}>
                     <div style={{
                       width: `${Math.min(100 / stats.compression_ratio, 100)}%`,
                       background: "var(--success-color)",
                       display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 10, color: "#fff", fontWeight: 600,
+                      fontSize: "var(--font-size-xs)", color: "var(--btn-primary-fg, #fff)", fontWeight: 600,
                     }}>
                       TQ
                     </div>
@@ -215,7 +215,7 @@ export function TurboQuantPanel() {
                       flex: 1,
                       background: "var(--warning-color)",
                       display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 10, color: "#fff", fontWeight: 600, opacity: 0.6,
+                      fontSize: "var(--font-size-xs)", color: "var(--btn-primary-fg, #fff)", fontWeight: 600, opacity: 0.6,
                     }}>
                       f32
                     </div>
@@ -235,24 +235,24 @@ export function TurboQuantPanel() {
       {/* ── Compress ──────────────────────────────────────────────────── */}
       {tab === "compress" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <label style={{ fontSize: 11, color: "var(--text-tertiary)" }}>ID (optional)</label>
+          <label style={{ fontSize: "var(--font-size-sm)", color: "var(--text-tertiary)" }}>ID (optional)</label>
           <input
             value={compressId}
             onChange={e => setCompressId(e.target.value)}
             placeholder="auto-generated if empty"
-            style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontFamily: "inherit", fontSize: 12 }}
+            style={{ padding: "6px 10px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontFamily: "inherit", fontSize: "var(--font-size-base)" }}
           />
-          <label style={{ fontSize: 11, color: "var(--text-tertiary)" }}>Vector (comma-separated floats)</label>
+          <label style={{ fontSize: "var(--font-size-sm)", color: "var(--text-tertiary)" }}>Vector (comma-separated floats)</label>
           <textarea
             value={compressVector}
             onChange={e => setCompressVector(e.target.value)}
             rows={4}
             placeholder="0.12, -0.45, 0.78, ..."
-            style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontFamily: "inherit", fontSize: 12, resize: "vertical" }}
+            style={{ padding: "6px 10px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontFamily: "inherit", fontSize: "var(--font-size-base)", resize: "vertical" }}
           />
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             {btn("Compress & Insert", handleCompress, !compressVector.trim(), true)}
-            {compressStatus && <span style={{ fontSize: 11, color: compressStatus.startsWith("Error") ? "var(--error-color)" : "var(--success-color)" }}>{compressStatus}</span>}
+            {compressStatus && <span style={{ fontSize: "var(--font-size-sm)", color: compressStatus.startsWith("Error") ? "var(--error-color)" : "var(--success-color)" }}>{compressStatus}</span>}
           </div>
         </div>
       )}
@@ -260,24 +260,24 @@ export function TurboQuantPanel() {
       {/* ── Search ────────────────────────────────────────────────────── */}
       {tab === "search" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <label style={{ fontSize: 11, color: "var(--text-tertiary)" }}>Query vector (comma-separated)</label>
+          <label style={{ fontSize: "var(--font-size-sm)", color: "var(--text-tertiary)" }}>Query vector (comma-separated)</label>
           <textarea
             value={searchVector}
             onChange={e => setSearchVector(e.target.value)}
             rows={3}
             placeholder="query: 0.12, -0.45, 0.78, ..."
-            style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontFamily: "inherit", fontSize: 12, resize: "vertical" }}
+            style={{ padding: "6px 10px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontFamily: "inherit", fontSize: "var(--font-size-base)", resize: "vertical" }}
           />
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <label style={{ fontSize: 11, color: "var(--text-tertiary)" }}>Top-K:</label>
+            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--text-tertiary)" }}>Top-K:</label>
             <input type="number" value={searchK} onChange={e => setSearchK(Number(e.target.value))} min={1} max={100}
-              style={{ width: 60, padding: "4px 8px", borderRadius: 6, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontFamily: "inherit", fontSize: 12 }}
+              style={{ width: 60, padding: "4px 8px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontFamily: "inherit", fontSize: "var(--font-size-base)" }}
             />
             {btn("Search", handleSearch, !searchVector.trim() || searching, true)}
           </div>
 
           {searchResults.length > 0 && (
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border-color)", color: "var(--text-tertiary)" }}>
                   <th style={{ textAlign: "left", padding: "6px 8px" }}>Rank</th>
@@ -304,17 +304,17 @@ export function TurboQuantPanel() {
       {/* ── Benchmark ─────────────────────────────────────────────────── */}
       {tab === "benchmark" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <div style={{ fontSize: 11, color: "var(--text-tertiary)" }}>
+          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-tertiary)" }}>
             Generate random vectors, compress with TurboQuant, and measure recall + compression.
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <label style={{ fontSize: 11 }}>Vectors:</label>
+            <label style={{ fontSize: "var(--font-size-sm)" }}>Vectors:</label>
             <input type="number" value={benchN} onChange={e => setBenchN(Number(e.target.value))} min={10} max={10000}
-              style={{ width: 80, padding: "4px 8px", borderRadius: 6, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontFamily: "inherit", fontSize: 12 }}
+              style={{ width: 80, padding: "4px 8px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontFamily: "inherit", fontSize: "var(--font-size-base)" }}
             />
-            <label style={{ fontSize: 11 }}>Dimension:</label>
+            <label style={{ fontSize: "var(--font-size-sm)" }}>Dimension:</label>
             <input type="number" value={benchDim} onChange={e => setBenchDim(Number(e.target.value))} min={8} max={4096}
-              style={{ width: 80, padding: "4px 8px", borderRadius: 6, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontFamily: "inherit", fontSize: 12 }}
+              style={{ width: 80, padding: "4px 8px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontFamily: "inherit", fontSize: "var(--font-size-base)" }}
             />
             {btn("Run Benchmark", handleBenchmark, benchRunning, true)}
           </div>

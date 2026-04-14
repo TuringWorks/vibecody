@@ -41,21 +41,21 @@ const methodColor: Record<string, string> = {
 };
 
 const inputStyle: React.CSSProperties = {
-  padding: "4px 8px", fontSize: 11, borderRadius: 4,
+  padding: "4px 8px", fontSize: "var(--font-size-sm)", borderRadius: "var(--radius-xs-plus)",
   border: "1px solid var(--border-color)",
   background: "var(--bg-primary)", color: "var(--text-primary)",
   outline: "none",
 };
 
 const selectStyle: React.CSSProperties = {
-  padding: "4px 6px", fontSize: 11, borderRadius: 4,
+  padding: "4px 6px", fontSize: "var(--font-size-sm)", borderRadius: "var(--radius-xs-plus)",
   border: "1px solid var(--border-color)",
   background: "var(--bg-primary)", color: "var(--text-primary)",
 };
 
 const cellBtn: React.CSSProperties = {
   background: "none", border: "none", cursor: "pointer",
-  fontSize: 12, padding: "0 3px", color: "var(--text-primary)", opacity: 0.7,
+  fontSize: "var(--font-size-base)", padding: "0 3px", color: "var(--text-primary)", opacity: 0.7,
 };
 
 export function MockServerPanel() {
@@ -173,7 +173,7 @@ export function MockServerPanel() {
     <div className="panel-container">
       {/* Server controls */}
       <div className="panel-header">
-        <span style={{ fontSize: 11, fontWeight: 600 }}>Port:</span>
+        <span style={{ fontSize: "var(--font-size-sm)", fontWeight: 600 }}>Port:</span>
         <input
           value={port}
           onChange={(e) => setPort(e.target.value)}
@@ -190,14 +190,14 @@ export function MockServerPanel() {
           </button>
         )}
         <span style={{
-          fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 10,
+          fontSize: "var(--font-size-xs)", fontWeight: 600, padding: "2px 8px", borderRadius: "var(--radius-md)",
           background: running ? "color-mix(in srgb, var(--accent-green) 15%, transparent)" : "color-mix(in srgb, var(--text-secondary) 15%, transparent)",
           color: running ? "var(--success-color)" : "var(--text-secondary)",
         }}>
           {running ? `Running :${port}` : "Stopped"}
         </span>
         <div style={{ flex: 1 }} />
-        <span style={{ fontSize: 10, opacity: 0.5 }}>{routes.length} routes</span>
+        <span style={{ fontSize: "var(--font-size-xs)", opacity: 0.5 }}>{routes.length} routes</span>
       </div>
 
       {/* Sub-tabs */}
@@ -224,7 +224,7 @@ export function MockServerPanel() {
             {/* Add route form */}
             <div style={{
               display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap",
-              padding: "6px 8px", borderRadius: 4, background: "var(--bg-primary)",
+              padding: "6px 8px", borderRadius: "var(--radius-xs-plus)", background: "var(--bg-primary)",
             }}>
               <select value={addMethod} onChange={(e) => setAddMethod(e.target.value)} style={selectStyle}>
                 {METHOD_OPTIONS.map((m) => <option key={m} value={m}>{m}</option>)}
@@ -237,25 +237,25 @@ export function MockServerPanel() {
               placeholder='Response body JSON...'
               value={addBody}
               onChange={(e) => setAddBody(e.target.value)}
-              style={{ ...inputStyle, fontFamily: "var(--font-mono)", fontSize: 10 }}
+              style={{ ...inputStyle, fontFamily: "var(--font-mono)", fontSize: "var(--font-size-xs)" }}
             />
 
             {/* Route list */}
             {routes.map((r) => (
               <div key={r.id} style={{
                 display: "flex", gap: 8, alignItems: "center", padding: "4px 6px",
-                borderBottom: "1px solid var(--border-color)", fontSize: 11,
+                borderBottom: "1px solid var(--border-color)", fontSize: "var(--font-size-sm)",
               }}>
                 <span style={{
-                  padding: "1px 6px", borderRadius: 3, fontWeight: 700, fontSize: 10,
+                  padding: "1px 6px", borderRadius: 3, fontWeight: 700, fontSize: "var(--font-size-xs)",
                   color: "var(--bg-tertiary)", background: methodColor[r.method] || "var(--text-secondary)",
                 }}>
                   {r.method}
                 </span>
                 <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-info)" }}>{r.path}</span>
-                <span style={{ fontSize: 10, opacity: 0.5 }}>{r.status}</span>
+                <span style={{ fontSize: "var(--font-size-xs)", opacity: 0.5 }}>{r.status}</span>
                 <div style={{ flex: 1 }} />
-                <span style={{ fontSize: 10, opacity: 0.5, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <span style={{ fontSize: "var(--font-size-xs)", opacity: 0.5, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {r.body.substring(0, 60)}
                 </span>
                 <button onClick={() => handleRemoveRoute(r.id)} style={{ ...cellBtn, color: "var(--text-danger)" }}>✕</button>
@@ -285,7 +285,7 @@ export function MockServerPanel() {
             {requestLog.map((r, i) => (
               <div key={i} style={{
                 display: "flex", gap: 8, alignItems: "center", padding: "4px 6px",
-                borderBottom: "1px solid var(--border-color)", fontSize: 11,
+                borderBottom: "1px solid var(--border-color)", fontSize: "var(--font-size-sm)",
               }}>
                 <span style={{ fontSize: 9, opacity: 0.4, fontFamily: "var(--font-mono)" }}>
                   {new Date(r.timestamp).toLocaleTimeString()}
@@ -313,7 +313,7 @@ export function MockServerPanel() {
         {/* Import tab */}
         {tab === "import" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <div style={{ fontSize: 11, opacity: 0.7 }}>
+            <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.7 }}>
               Import mock routes from an OpenAPI/Swagger spec file. AI will parse the spec and generate routes.
             </div>
             <div style={{ display: "flex", gap: 6 }}>
@@ -329,11 +329,11 @@ export function MockServerPanel() {
             </div>
             {importResult.length > 0 && (
               <div>
-                <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 4 }}>
+                <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, marginBottom: 4 }}>
                   Generated {importResult.length} routes:
                 </div>
                 {importResult.map((r) => (
-                  <div key={r.id} style={{ fontSize: 10, padding: "2px 0", fontFamily: "var(--font-mono)" }}>
+                  <div key={r.id} style={{ fontSize: "var(--font-size-xs)", padding: "2px 0", fontFamily: "var(--font-mono)" }}>
                     <span style={{ color: methodColor[r.method] || "var(--text-secondary)" }}>{r.method}</span>{" "}
                     <span style={{ color: "var(--text-info)" }}>{r.path}</span>{" "}
                     <span style={{ opacity: 0.5 }}>{r.status}</span>

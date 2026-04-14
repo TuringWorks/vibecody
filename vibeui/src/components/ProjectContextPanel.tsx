@@ -115,7 +115,7 @@ export function ProjectContextPanel({ workspacePath }: { workspacePath?: string 
     borderRadius: "12px",
     background: "var(--badge-bg, #264f78)",
     color: "var(--badge-fg, #fff)",
-    fontSize: "12px",
+    fontSize: "var(--font-size-base)",
     marginRight: "6px",
     marginBottom: "4px",
   };
@@ -191,7 +191,7 @@ export function ProjectContextPanel({ workspacePath }: { workspacePath?: string 
               <div style={{ marginBottom: "12px" }}>
                 <strong>Entry points:</strong>{" "}
                 {profile.entry_points.map((e) => (
-                  <code key={e} style={{ marginRight: "8px", fontSize: "12px", color: "var(--link-color, #4ec9b0)" }}>{e}</code>
+                  <code key={e} style={{ marginRight: "8px", fontSize: "var(--font-size-base)", color: "var(--link-color, #4ec9b0)" }}>{e}</code>
                 ))}
               </div>
             )}
@@ -199,11 +199,11 @@ export function ProjectContextPanel({ workspacePath }: { workspacePath?: string 
             {profile.env_vars.length > 0 && (
               <div style={{ marginBottom: "12px" }}>
                 <strong>Environment variables:</strong>{" "}
-                {profile.env_vars.map((v) => <code key={v} style={{ marginRight: "8px", fontSize: "12px" }}>{v}</code>)}
+                {profile.env_vars.map((v) => <code key={v} style={{ marginRight: "8px", fontSize: "var(--font-size-base)" }}>{v}</code>)}
               </div>
             )}
 
-            <div style={{ color: "var(--text-secondary)", fontSize: "11px", marginTop: "16px" }}>
+            <div style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-sm)", marginTop: "16px" }}>
               Last scanned: {scannedDate}
             </div>
           </div>
@@ -216,7 +216,7 @@ export function ProjectContextPanel({ workspacePath }: { workspacePath?: string 
                 <h4 style={{ margin: "0 0 8px 0" }}>Build</h4>
                 {profile.build_commands.map((cmd, i) => (
                   <div key={i} style={{ display: "flex", alignItems: "center", marginBottom: "6px" }}>
-                    <code style={{ flex: 1, fontSize: "12px" }}>{cmd.command}</code>
+                    <code style={{ flex: 1, fontSize: "var(--font-size-base)" }}>{cmd.command}</code>
                     <button className="panel-btn panel-btn-primary" style={{ marginLeft: "8px" }} onClick={() => runCommand(cmd.command)}>Run</button>
                   </div>
                 ))}
@@ -228,7 +228,7 @@ export function ProjectContextPanel({ workspacePath }: { workspacePath?: string 
                 <h4 style={{ margin: "0 0 8px 0" }}>Test</h4>
                 {profile.test_commands.map((cmd, i) => (
                   <div key={i} style={{ display: "flex", alignItems: "center", marginBottom: "6px" }}>
-                    <code style={{ flex: 1, fontSize: "12px" }}>{cmd.command}</code>
+                    <code style={{ flex: 1, fontSize: "var(--font-size-base)" }}>{cmd.command}</code>
                     <span style={{ ...badgeStyle, marginLeft: "8px" }}>{cmd.framework}</span>
                     <button className="panel-btn panel-btn-primary" style={{ marginLeft: "8px" }} onClick={() => runCommand(cmd.command)}>Run</button>
                   </div>
@@ -241,7 +241,7 @@ export function ProjectContextPanel({ workspacePath }: { workspacePath?: string 
                 <h4 style={{ margin: "0 0 8px 0" }}>Lint / Format</h4>
                 {profile.lint_commands.map((cmd, i) => (
                   <div key={i} style={{ display: "flex", alignItems: "center", marginBottom: "6px" }}>
-                    <code style={{ flex: 1, fontSize: "12px" }}>{cmd.command}</code>
+                    <code style={{ flex: 1, fontSize: "var(--font-size-base)" }}>{cmd.command}</code>
                     <button className="panel-btn panel-btn-primary" style={{ marginLeft: "8px" }} onClick={() => runCommand(cmd.command)}>Run</button>
                   </div>
                 ))}
@@ -254,8 +254,8 @@ export function ProjectContextPanel({ workspacePath }: { workspacePath?: string 
                 <pre style={{
                   background: "var(--bg-primary)",
                   padding: "8px",
-                  borderRadius: "4px",
-                  fontSize: "12px",
+                  borderRadius: "var(--radius-xs-plus)",
+                  fontSize: "var(--font-size-base)",
                   maxHeight: "200px",
                   overflow: "auto",
                   whiteSpace: "pre-wrap",
@@ -273,14 +273,14 @@ export function ProjectContextPanel({ workspacePath }: { workspacePath?: string 
               profile.key_files.map((kf, i) => (
                 <div key={i} style={{ marginBottom: "16px" }}>
                   <div style={{ display: "flex", alignItems: "center", marginBottom: "4px" }}>
-                    <strong style={{ fontSize: "13px" }}>{kf.path}</strong>
+                    <strong style={{ fontSize: "var(--font-size-md)" }}>{kf.path}</strong>
                     <span style={{ ...badgeStyle, marginLeft: "8px" }}>{kf.role}</span>
                   </div>
                   <pre style={{
                     background: "var(--bg-primary)",
                     padding: "8px",
-                    borderRadius: "4px",
-                    fontSize: "11px",
+                    borderRadius: "var(--radius-xs-plus)",
+                    fontSize: "var(--font-size-sm)",
                     maxHeight: "150px",
                     overflow: "auto",
                     whiteSpace: "pre-wrap",
@@ -295,15 +295,15 @@ export function ProjectContextPanel({ workspacePath }: { workspacePath?: string 
         {tab === "context" && (
           <div>
             <h4 style={{ margin: "0 0 8px 0" }}>AI System Prompt Context</h4>
-            <p style={{ color: "var(--text-secondary)", fontSize: "12px", marginBottom: "12px" }}>
+            <p style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-base)", marginBottom: "12px" }}>
               This context is automatically injected into every AI agent conversation.
               It gives the AI deep understanding of your project without manual @-mentions.
             </p>
             <pre style={{
               background: "var(--bg-primary)",
               padding: "12px",
-              borderRadius: "4px",
-              fontSize: "12px",
+              borderRadius: "var(--radius-xs-plus)",
+              fontSize: "var(--font-size-base)",
               maxHeight: "400px",
               overflow: "auto",
               whiteSpace: "pre-wrap",

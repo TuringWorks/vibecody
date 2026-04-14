@@ -141,8 +141,8 @@ function DirRulesTab({ workspacePath }: { workspacePath?: string | null }) {
  onClick={() => setScope(s)}
  style={{
  padding: "3px 8px",
- fontSize: "11px",
- borderRadius: "4px",
+ fontSize: "var(--font-size-sm)",
+ borderRadius: "var(--radius-xs-plus)",
  background: scope === s ? "var(--accent-color)" : "var(--bg-tertiary)",
  color: scope === s ? "white" : "var(--text-primary)",
  border: "1px solid var(--border-color)",
@@ -157,10 +157,10 @@ function DirRulesTab({ workspacePath }: { workspacePath?: string | null }) {
  style={{
  marginLeft: "auto",
  padding: "3px 8px",
- fontSize: "11px",
+ fontSize: "var(--font-size-sm)",
  background: "var(--bg-tertiary)",
  border: "1px solid var(--border-color)",
- borderRadius: "4px",
+ borderRadius: "var(--radius-xs-plus)",
  color: "var(--text-primary)",
  cursor: "pointer",
  }}
@@ -170,21 +170,21 @@ function DirRulesTab({ workspacePath }: { workspacePath?: string | null }) {
  </div>
 
  {scope === "workspace" && !workspacePath && (
- <div style={{ fontSize: "12px", color: "var(--warning-color)", padding: "6px", background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", borderRadius: "4px" }}>
+ <div style={{ fontSize: "var(--font-size-base)", color: "var(--warning-color)", padding: "6px", background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", borderRadius: "var(--radius-xs-plus)" }}>
  Open a folder to manage project rules.
  </div>
  )}
 
  {error && (
- <div style={{ fontSize: "12px", color: "var(--error-color)", padding: "6px 8px", background: "color-mix(in srgb, var(--accent-rose) 15%, transparent)", borderRadius: "4px" }}>
+ <div style={{ fontSize: "var(--font-size-base)", color: "var(--error-color)", padding: "6px 8px", background: "color-mix(in srgb, var(--accent-rose) 15%, transparent)", borderRadius: "var(--radius-xs-plus)" }}>
  {error}
  </div>
  )}
 
  {/* New rule form */}
  {creating && (
- <div style={{ padding: "8px", background: "var(--bg-tertiary)", borderRadius: "4px", border: "1px solid var(--border-color)", display: "flex", flexDirection: "column", gap: "6px" }}>
- <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)" }}>New Rule File</div>
+ <div style={{ padding: "8px", background: "var(--bg-tertiary)", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", display: "flex", flexDirection: "column", gap: "6px" }}>
+ <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, color: "var(--text-secondary)" }}>New Rule File</div>
  <input
  autoFocus
  type="text"
@@ -192,22 +192,22 @@ function DirRulesTab({ workspacePath }: { workspacePath?: string | null }) {
  onChange={(e) => setNewName(e.target.value)}
  onKeyDown={(e) => { if (e.key === "Enter") createFile(); if (e.key === "Escape") setCreating(false); }}
  placeholder="filename (e.g. rust-safety)"
- style={{ padding: "4px 8px", fontSize: "12px", background: "var(--bg-input, var(--bg-primary))", border: "1px solid var(--border-color)", borderRadius: "4px", color: "var(--text-primary)", outline: "none" }}
+ style={{ padding: "4px 8px", fontSize: "var(--font-size-base)", background: "var(--bg-input, var(--bg-primary))", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none" }}
  />
  <input
  type="text"
  value={newPattern}
  onChange={(e) => setNewPattern(e.target.value)}
  placeholder="path_pattern (optional, e.g. **/*.rs)"
- style={{ padding: "4px 8px", fontSize: "12px", background: "var(--bg-input, var(--bg-primary))", border: "1px solid var(--border-color)", borderRadius: "4px", color: "var(--text-primary)", outline: "none" }}
+ style={{ padding: "4px 8px", fontSize: "var(--font-size-base)", background: "var(--bg-input, var(--bg-primary))", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none" }}
  />
  <div style={{ display: "flex", gap: "6px" }}>
  <button onClick={createFile} disabled={!newName.trim() || saving}
- style={{ padding: "4px 10px", fontSize: "12px", background: "var(--accent-color)", color: "var(--btn-primary-fg)", border: "none", borderRadius: "4px", cursor: "pointer" }}>
+ style={{ padding: "4px 10px", fontSize: "var(--font-size-base)", background: "var(--accent-color)", color: "var(--btn-primary-fg)", border: "none", borderRadius: "var(--radius-xs-plus)", cursor: "pointer" }}>
  Create
  </button>
  <button onClick={() => setCreating(false)}
- style={{ padding: "4px 10px", fontSize: "12px", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "4px", color: "var(--text-primary)", cursor: "pointer" }}>
+ style={{ padding: "4px 10px", fontSize: "var(--font-size-base)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", cursor: "pointer" }}>
  Cancel
  </button>
  </div>
@@ -217,12 +217,12 @@ function DirRulesTab({ workspacePath }: { workspacePath?: string | null }) {
  {/* Main two-column layout */}
  <div style={{ display: "flex", gap: "8px", flex: 1, minHeight: 0 }}>
  {/* File list */}
- <div style={{ width: "140px", flexShrink: 0, overflowY: "auto", border: "1px solid var(--border-color)", borderRadius: "4px", background: "var(--bg-tertiary)" }}>
+ <div style={{ width: "140px", flexShrink: 0, overflowY: "auto", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", background: "var(--bg-tertiary)" }}>
  {loading && (
- <div style={{ padding: "8px", fontSize: "12px", color: "var(--text-secondary)", textAlign: "center" }}>…</div>
+ <div style={{ padding: "8px", fontSize: "var(--font-size-base)", color: "var(--text-secondary)", textAlign: "center" }}>…</div>
  )}
  {!loading && files.length === 0 && (
- <div style={{ padding: "8px", fontSize: "11px", color: "var(--text-secondary)", textAlign: "center", lineHeight: 1.4 }}>
+ <div style={{ padding: "8px", fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", textAlign: "center", lineHeight: 1.4 }}>
  No rules yet.<br />Click + New Rule.
  </div>
  )}
@@ -241,16 +241,16 @@ function DirRulesTab({ workspacePath }: { workspacePath?: string | null }) {
  gap: "2px",
  }}
  >
- <div style={{ fontSize: "12px", fontWeight: selected === f.filename ? 600 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+ <div style={{ fontSize: "var(--font-size-base)", fontWeight: selected === f.filename ? 600 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
  {f.name}
  </div>
  {f.path_pattern && (
- <div style={{ fontSize: "10px", opacity: 0.7, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+ <div style={{ fontSize: "var(--font-size-xs)", opacity: 0.7, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
  {f.path_pattern}
  </div>
  )}
  {!f.path_pattern && (
- <div style={{ fontSize: "10px", opacity: 0.5 }}>always</div>
+ <div style={{ fontSize: "var(--font-size-xs)", opacity: 0.5 }}>always</div>
  )}
  </div>
  ))}
@@ -259,7 +259,7 @@ function DirRulesTab({ workspacePath }: { workspacePath?: string | null }) {
  {/* Editor */}
  {selected ? (
  <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "6px", minWidth: 0 }}>
- <div style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
+ <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
  {dirLabel}{selected}
  </div>
  <textarea
@@ -270,9 +270,9 @@ function DirRulesTab({ workspacePath }: { workspacePath?: string | null }) {
  background: "var(--bg-tertiary)",
  border: "1px solid var(--border-color)",
  color: "var(--text-primary)",
- borderRadius: "4px",
+ borderRadius: "var(--radius-xs-plus)",
  padding: "8px",
- fontSize: "12px",
+ fontSize: "var(--font-size-base)",
  fontFamily: "var(--font-mono)",
  resize: "none",
  outline: "none",
@@ -283,45 +283,45 @@ function DirRulesTab({ workspacePath }: { workspacePath?: string | null }) {
  <button
  onClick={saveFile}
  disabled={saving}
- style={{ padding: "5px 12px", fontSize: "12px", background: "var(--accent-color)", color: "var(--btn-primary-fg)", border: "none", borderRadius: "4px", cursor: "pointer" }}
+ style={{ padding: "5px 12px", fontSize: "var(--font-size-base)", background: "var(--accent-color)", color: "var(--btn-primary-fg)", border: "none", borderRadius: "var(--radius-xs-plus)", cursor: "pointer" }}
  >
  {saving ? "Saving…" : saved ? "✓ Saved" : "Save"}
  </button>
  <button
  onClick={() => setConfirmDelete(selected)}
- style={{ padding: "5px 12px", fontSize: "12px", background: "transparent", border: "1px solid var(--error-color)", borderRadius: "4px", color: "var(--error-color)", cursor: "pointer", marginLeft: "auto" }}
+ style={{ padding: "5px 12px", fontSize: "var(--font-size-base)", background: "transparent", border: "1px solid var(--error-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--error-color)", cursor: "pointer", marginLeft: "auto" }}
  >
  Delete
  </button>
  </div>
  </div>
  ) : (
- <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", color: "var(--text-secondary)" }}>
+ <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>
  Select a rule to edit
  </div>
  )}
  </div>
 
  {/* Dir label */}
- <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>
- Files in <code style={{ fontSize: "10px" }}>{dirLabel}</code>
+ <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
+ Files in <code style={{ fontSize: "var(--font-size-xs)" }}>{dirLabel}</code>
  </div>
 
  {/* Confirm delete modal */}
  {confirmDelete && (
  <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
- <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "8px", padding: "20px", maxWidth: "300px", width: "90%" }}>
- <div style={{ fontSize: "13px", fontWeight: 600, marginBottom: "10px" }}>Delete Rule?</div>
- <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "16px" }}>
+ <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm-alt)", padding: "20px", maxWidth: "300px", width: "90%" }}>
+ <div style={{ fontSize: "var(--font-size-md)", fontWeight: 600, marginBottom: "10px" }}>Delete Rule?</div>
+ <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: "16px" }}>
  Permanently delete <strong>{confirmDelete}</strong>?
  </div>
  <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
  <button onClick={() => setConfirmDelete(null)}
- style={{ padding: "6px 14px", fontSize: "12px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "4px", color: "var(--text-primary)", cursor: "pointer" }}>
+ style={{ padding: "6px 14px", fontSize: "var(--font-size-base)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", cursor: "pointer" }}>
  Cancel
  </button>
  <button onClick={() => deleteFile(confirmDelete)}
- style={{ padding: "6px 14px", fontSize: "12px", background: "var(--error-color)", border: "none", borderRadius: "4px", color: "var(--btn-primary-fg)", cursor: "pointer" }}>
+ style={{ padding: "6px 14px", fontSize: "var(--font-size-base)", background: "var(--error-color)", border: "none", borderRadius: "var(--radius-xs-plus)", color: "var(--btn-primary-fg)", cursor: "pointer" }}>
  Delete
  </button>
  </div>
@@ -407,51 +407,51 @@ function AutoFactsTab() {
  return (
  <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, gap: 8 }}>
  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
- <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+ <span style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>
  {facts.length} fact{facts.length !== 1 ? "s" : ""} extracted from sessions
  </span>
  <button
  onClick={() => setShowAdd((v) => !v)}
- style={{ marginLeft: "auto", padding: "3px 8px", fontSize: 11, borderRadius: 4, background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", color: "var(--text-primary)", cursor: "pointer" }}
+ style={{ marginLeft: "auto", padding: "3px 8px", fontSize: "var(--font-size-sm)", borderRadius: "var(--radius-xs-plus)", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", color: "var(--text-primary)", cursor: "pointer" }}
  >
  + Add Fact
  </button>
  <button
  onClick={load}
- style={{ padding: "3px 8px", fontSize: 11, borderRadius: 4, background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", color: "var(--text-primary)", cursor: "pointer" }}
+ style={{ padding: "3px 8px", fontSize: "var(--font-size-sm)", borderRadius: "var(--radius-xs-plus)", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", color: "var(--text-primary)", cursor: "pointer" }}
  >
  ↻
  </button>
  </div>
 
  {showAdd && (
- <div style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: 6, padding: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+ <div style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", padding: 10, display: "flex", flexDirection: "column", gap: 6 }}>
  <textarea
  autoFocus
  placeholder="Enter a fact to remember across sessions…"
  value={newFact}
  onChange={(e) => setNewFact(e.target.value)}
  rows={2}
- style={{ resize: "none", padding: "4px 8px", fontSize: 12, borderRadius: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontFamily: "inherit" }}
+ style={{ resize: "none", padding: "4px 8px", fontSize: "var(--font-size-base)", borderRadius: "var(--radius-xs-plus)", background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontFamily: "inherit" }}
  />
  <input
  type="text"
  placeholder="Tags (comma-separated, e.g. rust, testing)"
  value={newTags}
  onChange={(e) => setNewTags(e.target.value)}
- style={{ padding: "4px 8px", fontSize: 12, borderRadius: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)" }}
+ style={{ padding: "4px 8px", fontSize: "var(--font-size-base)", borderRadius: "var(--radius-xs-plus)", background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)" }}
  />
  <div style={{ display: "flex", gap: 6 }}>
  <button
  onClick={addFact}
  disabled={adding || !newFact.trim()}
- style={{ padding: "4px 12px", fontSize: 12, borderRadius: 4, background: "var(--accent-color)", color: "var(--btn-primary-fg)", border: "none", cursor: "pointer" }}
+ style={{ padding: "4px 12px", fontSize: "var(--font-size-base)", borderRadius: "var(--radius-xs-plus)", background: "var(--accent-color)", color: "var(--btn-primary-fg)", border: "none", cursor: "pointer" }}
  >
  {adding ? "Saving…" : "Save"}
  </button>
  <button
  onClick={() => setShowAdd(false)}
- style={{ padding: "4px 12px", fontSize: 12, borderRadius: 4, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", color: "var(--text-primary)", cursor: "pointer" }}
+ style={{ padding: "4px 12px", fontSize: "var(--font-size-base)", borderRadius: "var(--radius-xs-plus)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", color: "var(--text-primary)", cursor: "pointer" }}
  >
  Cancel
  </button>
@@ -460,15 +460,15 @@ function AutoFactsTab() {
  )}
 
  {error && (
- <div style={{ fontSize: 12, color: "var(--error-color)", padding: "4px 8px", background: "color-mix(in srgb, var(--accent-rose) 15%, transparent)", borderRadius: 4 }}>
+ <div style={{ fontSize: "var(--font-size-base)", color: "var(--error-color)", padding: "4px 8px", background: "color-mix(in srgb, var(--accent-rose) 15%, transparent)", borderRadius: "var(--radius-xs-plus)" }}>
  {error}
  </div>
  )}
 
  <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 4 }}>
- {loading && <div style={{ fontSize: 12, color: "var(--text-secondary)", padding: 8, textAlign: "center" }}>Loading…</div>}
+ {loading && <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", padding: 8, textAlign: "center" }}>Loading…</div>}
  {!loading && facts.length === 0 && (
- <div style={{ fontSize: 12, color: "var(--text-secondary)", padding: 16, textAlign: "center", lineHeight: 1.6 }}>
+ <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", padding: 16, textAlign: "center", lineHeight: 1.6 }}>
  No auto-extracted memories yet.<br />
  Facts are extracted automatically after agent sessions complete.<br />
  You can also click "+ Add Fact" to add manually.
@@ -482,7 +482,7 @@ function AutoFactsTab() {
  alignItems: "flex-start",
  gap: 8,
  padding: "8px 10px",
- borderRadius: 6,
+ borderRadius: "var(--radius-sm)",
  background: f.pinned ? "rgba(137,180,250,0.08)" : "var(--bg-tertiary)",
  border: f.pinned ? "1px solid rgba(137,180,250,0.3)" : "1px solid var(--border-color)",
  }}
@@ -490,23 +490,23 @@ function AutoFactsTab() {
  <button
  onClick={() => togglePin(f.id, f.pinned)}
  title={f.pinned ? "Unpin" : "Pin"}
- style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, opacity: f.pinned ? 1 : 0.4, flexShrink: 0, padding: 0, lineHeight: 1, color: "var(--info-color)" }}
+ style={{ background: "none", border: "none", cursor: "pointer", fontSize: "var(--font-size-lg)", opacity: f.pinned ? 1 : 0.4, flexShrink: 0, padding: 0, lineHeight: 1, color: "var(--info-color)" }}
  >
  <Pin size={14} strokeWidth={1.5} />
  </button>
  <div style={{ flex: 1, minWidth: 0 }}>
- <div style={{ fontSize: 12, lineHeight: 1.5 }}>{f.fact}</div>
+ <div style={{ fontSize: "var(--font-size-base)", lineHeight: 1.5 }}>{f.fact}</div>
  <div style={{ display: "flex", gap: 6, marginTop: 4, flexWrap: "wrap", alignItems: "center" }}>
- <span style={{ fontSize: 10, color: confidenceColor(f.confidence), fontWeight: 600 }}>
+ <span style={{ fontSize: "var(--font-size-xs)", color: confidenceColor(f.confidence), fontWeight: 600 }}>
  {Math.round(f.confidence * 100)}% conf
  </span>
  {f.tags.map((t) => (
- <span key={t} style={{ fontSize: 10, padding: "1px 5px", borderRadius: 3, background: "rgba(255,255,255,0.08)", color: "var(--text-secondary)" }}>
+ <span key={t} style={{ fontSize: "var(--font-size-xs)", padding: "1px 5px", borderRadius: 3, background: "rgba(255,255,255,0.08)", color: "var(--text-secondary)" }}>
  {t}
  </span>
  ))}
  {f.session_id && (
- <span style={{ fontSize: 10, color: "var(--text-secondary)", opacity: 0.6 }}>
+ <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", opacity: 0.6 }}>
  from session {f.session_id.slice(0, 8)}
  </span>
  )}
@@ -515,7 +515,7 @@ function AutoFactsTab() {
  <button
  onClick={() => deleteFact(f.id)}
  title="Delete"
- style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: "var(--text-secondary)", flexShrink: 0, padding: "0 2px", lineHeight: 1 }}
+ style={{ background: "none", border: "none", cursor: "pointer", fontSize: "var(--font-size-base)", color: "var(--text-secondary)", flexShrink: 0, padding: "0 2px", lineHeight: 1 }}
  >
  ✕
  </button>
@@ -523,8 +523,8 @@ function AutoFactsTab() {
  ))}
  </div>
 
- <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
- Stored at <code style={{ fontSize: 10 }}>~/.vibeui/auto-memory.json</code>
+ <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
+ Stored at <code style={{ fontSize: "var(--font-size-xs)" }}>~/.vibeui/auto-memory.json</code>
  </div>
  </div>
  );
@@ -599,8 +599,8 @@ export function MemoryPanel({ workspacePath }: MemoryPanelProps) {
 
  return (
  <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, padding: "12px", gap: "8px" }}>
- <div style={{ fontWeight: 600, fontSize: "14px" }}>AI Rules / Memory</div>
- <p style={{ fontSize: "12px", color: "var(--text-secondary)", margin: 0 }}>
+ <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)" }}>AI Rules / Memory</div>
+ <p style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", margin: 0 }}>
  Persistent instructions injected into every AI request.
  </p>
 
@@ -612,8 +612,8 @@ export function MemoryPanel({ workspacePath }: MemoryPanelProps) {
  onClick={() => setActiveTab(t.id)}
  style={{
  padding: "4px 10px",
- fontSize: "12px",
- borderRadius: "4px",
+ fontSize: "var(--font-size-base)",
+ borderRadius: "var(--radius-xs-plus)",
  background: activeTab === t.id ? "var(--accent-color)" : "var(--bg-tertiary)",
  color: activeTab === t.id ? "white" : "var(--text-primary)",
  border: "1px solid var(--border-color)",
@@ -643,7 +643,7 @@ export function MemoryPanel({ workspacePath }: MemoryPanelProps) {
  {activeTab !== "directory" && activeTab !== "auto" && (
  <>
  {activeTab === "workspace" && !workspacePath && (
- <div style={{ fontSize: "12px", color: "var(--warning-color)", padding: "6px", background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", borderRadius: "4px" }}>
+ <div style={{ fontSize: "var(--font-size-base)", color: "var(--warning-color)", padding: "6px", background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", borderRadius: "var(--radius-xs-plus)" }}>
  Open a folder to manage project rules.
  </div>
  )}
@@ -662,9 +662,9 @@ export function MemoryPanel({ workspacePath }: MemoryPanelProps) {
  background: "var(--bg-tertiary)",
  border: "1px solid var(--border-color)",
  color: "var(--text-primary)",
- borderRadius: "4px",
+ borderRadius: "var(--radius-xs-plus)",
  padding: "8px",
- fontSize: "13px",
+ fontSize: "var(--font-size-md)",
  fontFamily: "var(--font-mono)",
  resize: "none",
  opacity: activeTab === "workspace" && !workspacePath ? 0.5 : 1,
@@ -692,7 +692,7 @@ export function MemoryPanel({ workspacePath }: MemoryPanelProps) {
   </button>
  </div>
 
- <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>
+ <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
  {activeTab === "workspace"
  ? "Saved to <workspace>/.vibeui.md — commit it with your project."
  : "Saved to ~/.vibeui/rules.md — applies to all projects."}

@@ -36,7 +36,7 @@ const WIREFRAME_TEMPLATES = [
 
 const tabStyle = (active: boolean): React.CSSProperties => ({
   padding: "7px 14px",
-  fontSize: 12,
+  fontSize: "var(--font-size-base)",
   fontWeight: active ? 600 : 400,
   cursor: "pointer",
   border: "none",
@@ -148,8 +148,8 @@ export function PencilPanel({ workspacePath, provider }: PencilPanelProps) {
 
   const renderTemplates = () => (
     <div style={{ flex: 1, overflow: "auto", padding: 16 }}>
-      <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>Wireframe Templates</div>
-      <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 16, lineHeight: 1.6 }}>
+      <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)", marginBottom: 4 }}>Wireframe Templates</div>
+      <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 16, lineHeight: 1.6 }}>
         Generate Evolus Pencil (.ep) wireframes from pre-built templates.
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 10, marginBottom: 20 }}>
@@ -161,7 +161,7 @@ export function PencilPanel({ workspacePath, provider }: PencilPanelProps) {
             style={{
               background: selectedTemplate === t.id && generatedWireframe ? "var(--accent-blue)" : "var(--bg-secondary)",
               border: `1px solid ${selectedTemplate === t.id && generatedWireframe ? "var(--accent-blue)" : "var(--border-color)"}`,
-              borderRadius: 8,
+              borderRadius: "var(--radius-sm-alt)",
               padding: "14px 16px",
               cursor: "pointer",
               textAlign: "left",
@@ -170,43 +170,43 @@ export function PencilPanel({ workspacePath, provider }: PencilPanelProps) {
             }}
           >
             <Icon name={t.icon} size={20} style={{ marginBottom: 6 }} />
-            <div style={{ fontWeight: 600, fontSize: 13 }}>{t.label}</div>
-            <div style={{ fontSize: 11, opacity: 0.75, marginTop: 2 }}>{t.description}</div>
+            <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)" }}>{t.label}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.75, marginTop: 2 }}>{t.description}</div>
           </button>
         ))}
       </div>
-      <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 8, padding: 16, marginBottom: 16 }}>
-        <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 10 }}>Customize</div>
-        <label style={{ display: "block", fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>Title</label>
+      <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm-alt)", padding: 16, marginBottom: 16 }}>
+        <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", marginBottom: 10 }}>Customize</div>
+        <label style={{ display: "block", fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 4 }}>Title</label>
         <input
           value={customTitle}
           onChange={(e) => setCustomTitle(e.target.value)}
           placeholder="Leave blank to use template name"
-          style={{ width: "100%", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: 6, color: "inherit", padding: "6px 10px", fontSize: 12, marginBottom: 10, boxSizing: "border-box" as const }}
+          style={{ width: "100%", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", color: "inherit", padding: "6px 10px", fontSize: "var(--font-size-base)", marginBottom: 10, boxSizing: "border-box" as const }}
         />
-        <label style={{ display: "block", fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>Dashboard Sections (comma-separated)</label>
+        <label style={{ display: "block", fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 4 }}>Dashboard Sections (comma-separated)</label>
         <input
           value={customSections}
           onChange={(e) => setCustomSections(e.target.value)}
-          style={{ width: "100%", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: 6, color: "inherit", padding: "6px 10px", fontSize: 12, boxSizing: "border-box" as const }}
+          style={{ width: "100%", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", color: "inherit", padding: "6px 10px", fontSize: "var(--font-size-base)", boxSizing: "border-box" as const }}
         />
       </div>
       {generatedWireframe && (
-        <div style={{ background: "var(--bg-secondary)", borderRadius: 8, border: "1px solid var(--border-color)", padding: 16 }}>
-          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8, color: "var(--text-success)" }}>✓ Generated: {generatedWireframe.title}</div>
+        <div style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", border: "1px solid var(--border-color)", padding: 16 }}>
+          <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", marginBottom: 8, color: "var(--text-success)" }}>✓ Generated: {generatedWireframe.title}</div>
           {generatedWireframe.pages.map((p, i) => (
-            <div key={i} style={{ fontSize: 12, padding: "4px 0", borderBottom: "1px solid var(--border-color)" }}>
+            <div key={i} style={{ fontSize: "var(--font-size-base)", padding: "4px 0", borderBottom: "1px solid var(--border-color)" }}>
               <span style={{ fontFamily: "var(--font-mono)" }}>{p.name}</span>
               <span style={{ marginLeft: 8, color: "var(--text-secondary)" }}>{p.shapes} shapes</span>
             </div>
           ))}
           <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
             <button onClick={copyEpXml}
-              style={{ flex: 1, background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: 6, padding: "8px 0", cursor: "pointer", color: "inherit", fontSize: 12 }}>
+              style={{ flex: 1, background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", padding: "8px 0", cursor: "pointer", color: "inherit", fontSize: "var(--font-size-base)" }}>
               Copy EP XML
             </button>
             <button onClick={() => setActiveTab("export")}
-              style={{ flex: 1, background: "var(--accent-blue)", border: "none", borderRadius: 6, padding: "8px 0", cursor: "pointer", color: "#fff", fontSize: 12, fontWeight: 600 }}>
+              style={{ flex: 1, background: "var(--accent-blue)", border: "none", borderRadius: "var(--radius-sm)", padding: "8px 0", cursor: "pointer", color: "var(--btn-primary-fg, #fff)", fontSize: "var(--font-size-base)", fontWeight: 600 }}>
               Export
             </button>
           </div>
@@ -217,8 +217,8 @@ export function PencilPanel({ workspacePath, provider }: PencilPanelProps) {
 
   const renderImport = () => (
     <div style={{ flex: 1, overflow: "auto", padding: 16 }}>
-      <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>Import Pencil EP XML</div>
-      <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 12, lineHeight: 1.6 }}>
+      <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)", marginBottom: 4 }}>Import Pencil EP XML</div>
+      <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 12, lineHeight: 1.6 }}>
         Paste the inner content.xml from a .ep file (open .ep as ZIP to extract it).
       </div>
       <textarea
@@ -226,17 +226,17 @@ export function PencilPanel({ workspacePath, provider }: PencilPanelProps) {
         onChange={(e) => setImportXml(e.target.value)}
         placeholder="<?xml version='1.0'?><Document name='...'>"
         rows={12}
-        style={{ width: "100%", resize: "vertical", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 6, color: "inherit", padding: 10, fontSize: 12, boxSizing: "border-box" as const, fontFamily: "var(--font-mono)" }}
+        style={{ width: "100%", resize: "vertical", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", color: "inherit", padding: 10, fontSize: "var(--font-size-base)", boxSizing: "border-box" as const, fontFamily: "var(--font-mono)" }}
       />
       <button
         onClick={parseEpXml}
         disabled={isLoading || !importXml.trim()}
-        style={{ width: "100%", marginTop: 8, background: "var(--accent-blue)", color: "#fff", border: "none", borderRadius: 6, padding: "10px 0", cursor: "pointer", fontWeight: 600, fontSize: 14, opacity: isLoading || !importXml.trim() ? 0.5 : 1 }}
+        style={{ width: "100%", marginTop: 8, background: "var(--accent-blue)", color: "var(--btn-primary-fg, #fff)", border: "none", borderRadius: "var(--radius-sm)", padding: "10px 0", cursor: "pointer", fontWeight: 600, fontSize: "var(--font-size-lg)", opacity: isLoading || !importXml.trim() ? 0.5 : 1 }}
       >
         {isLoading ? "Parsing…" : "Parse EP XML"}
       </button>
       {parseResult && (
-        <pre style={{ marginTop: 12, fontSize: 12, overflow: "auto", maxHeight: 400, background: "var(--bg-secondary)", borderRadius: 6, padding: 12, border: "1px solid var(--border-color)", whiteSpace: "pre-wrap" }}>
+        <pre style={{ marginTop: 12, fontSize: "var(--font-size-base)", overflow: "auto", maxHeight: 400, background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: 12, border: "1px solid var(--border-color)", whiteSpace: "pre-wrap" }}>
           {parseResult}
         </pre>
       )}
@@ -245,39 +245,39 @@ export function PencilPanel({ workspacePath, provider }: PencilPanelProps) {
 
   const renderMcp = () => (
     <div style={{ flex: 1, overflow: "auto", padding: 16 }}>
-      <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>TuringWorks Pencil MCP</div>
-      <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 16, lineHeight: 1.6 }}>
+      <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)", marginBottom: 4 }}>TuringWorks Pencil MCP</div>
+      <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 16, lineHeight: 1.6 }}>
         Interact with .pen files via the Pencil MCP server (TuringWorks/pencil).
       </div>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
         {["get_editor_state", "open_document", "batch_get", "get_guidelines", "get_screenshot"].map((op) => (
           <button key={op} onClick={() => setMcpOp(op)}
-            style={{ background: mcpOp === op ? "var(--accent-blue)" : "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: 4, padding: "4px 10px", cursor: "pointer", color: mcpOp === op ? "#fff" : "inherit", fontSize: 11, fontWeight: mcpOp === op ? 600 : 400 }}
+            style={{ background: mcpOp === op ? "var(--accent-blue)" : "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: "4px 10px", cursor: "pointer", color: mcpOp === op ? "#fff" : "inherit", fontSize: "var(--font-size-sm)", fontWeight: mcpOp === op ? 600 : 400 }}
           >{op}</button>
         ))}
       </div>
       {(mcpOp === "open_document" || mcpOp === "batch_get") && (
         <>
-          <label style={{ display: "block", fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>
+          <label style={{ display: "block", fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 4 }}>
             {mcpOp === "open_document" ? "File Path (.pen)" : "Search Pattern"}
           </label>
           <input
             value={mcpPath}
             onChange={(e) => setMcpPath(e.target.value)}
             placeholder={mcpOp === "open_document" ? "/path/to/design.pen" : "**"}
-            style={{ width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 6, color: "inherit", padding: "8px 10px", fontSize: 13, marginBottom: 12, boxSizing: "border-box" as const }}
+            style={{ width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", color: "inherit", padding: "8px 10px", fontSize: "var(--font-size-md)", marginBottom: 12, boxSizing: "border-box" as const }}
           />
         </>
       )}
       <button
         onClick={executeMcpOp}
         disabled={isLoading}
-        style={{ width: "100%", background: "var(--accent-blue)", color: "#fff", border: "none", borderRadius: 6, padding: "10px 0", cursor: "pointer", fontWeight: 600, fontSize: 14, opacity: isLoading ? 0.5 : 1 }}
+        style={{ width: "100%", background: "var(--accent-blue)", color: "var(--btn-primary-fg, #fff)", border: "none", borderRadius: "var(--radius-sm)", padding: "10px 0", cursor: "pointer", fontWeight: 600, fontSize: "var(--font-size-lg)", opacity: isLoading ? 0.5 : 1 }}
       >
         {isLoading ? "Executing…" : `Execute ${mcpOp}`}
       </button>
       {mcpResult && (
-        <pre style={{ marginTop: 12, fontSize: 12, overflow: "auto", maxHeight: 500, background: "var(--bg-secondary)", borderRadius: 6, padding: 12, border: "1px solid var(--border-color)", whiteSpace: "pre-wrap" }}>
+        <pre style={{ marginTop: 12, fontSize: "var(--font-size-base)", overflow: "auto", maxHeight: 500, background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: 12, border: "1px solid var(--border-color)", whiteSpace: "pre-wrap" }}>
           {mcpResult}
         </pre>
       )}
@@ -286,18 +286,18 @@ export function PencilPanel({ workspacePath, provider }: PencilPanelProps) {
 
   const renderExport = () => (
     <div style={{ flex: 1, overflow: "auto", padding: 16 }}>
-      <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>Export Wireframe</div>
+      <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)", marginBottom: 12 }}>Export Wireframe</div>
       {!generatedWireframe ? (
-        <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>
+        <div style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-md)" }}>
           Generate a wireframe from the Templates tab first.
         </div>
       ) : (
         <>
-          <div style={{ marginBottom: 16, padding: 12, background: "var(--bg-secondary)", borderRadius: 8, border: "1px solid var(--border-color)" }}>
-            <div style={{ fontWeight: 600, fontSize: 13 }}>{generatedWireframe.title}</div>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 2 }}>{generatedWireframe.pages.length} page(s)</div>
+          <div style={{ marginBottom: 16, padding: 12, background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", border: "1px solid var(--border-color)" }}>
+            <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)" }}>{generatedWireframe.title}</div>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginTop: 2 }}>{generatedWireframe.pages.length} page(s)</div>
           </div>
-          <label style={{ display: "block", fontSize: 12, color: "var(--text-secondary)", marginBottom: 6 }}>Export Format</label>
+          <label style={{ display: "block", fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 6 }}>Export Format</label>
           <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
             {[
               { id: "ep_xml", label: "Pencil EP (.ep)" },
@@ -305,14 +305,14 @@ export function PencilPanel({ workspacePath, provider }: PencilPanelProps) {
               { id: "html", label: "HTML/CSS" },
             ].map((f) => (
               <button key={f.id} onClick={() => setExportFormat(f.id)}
-                style={{ background: exportFormat === f.id ? "var(--accent-blue)" : "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: 4, padding: "6px 12px", cursor: "pointer", color: exportFormat === f.id ? "#fff" : "inherit", fontSize: 12, fontWeight: exportFormat === f.id ? 600 : 400 }}
+                style={{ background: exportFormat === f.id ? "var(--accent-blue)" : "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: "6px 12px", cursor: "pointer", color: exportFormat === f.id ? "#fff" : "inherit", fontSize: "var(--font-size-base)", fontWeight: exportFormat === f.id ? 600 : 400 }}
               >{f.label}</button>
             ))}
           </div>
           <button
             onClick={exportWireframe}
             disabled={isLoading}
-            style={{ width: "100%", background: "var(--accent-blue)", color: "#fff", border: "none", borderRadius: 6, padding: "10px 0", cursor: "pointer", fontWeight: 600, fontSize: 14 }}
+            style={{ width: "100%", background: "var(--accent-blue)", color: "var(--btn-primary-fg, #fff)", border: "none", borderRadius: "var(--radius-sm)", padding: "10px 0", cursor: "pointer", fontWeight: 600, fontSize: "var(--font-size-lg)" }}
           >
             {isLoading ? "Exporting…" : "Download Export"}
           </button>
@@ -327,7 +327,7 @@ export function PencilPanel({ workspacePath, provider }: PencilPanelProps) {
         {TAB_DEFS.map(({ id, label }) => (
           <button key={id} onClick={() => setActiveTab(id)} style={tabStyle(activeTab === id)}>{label}</button>
         ))}
-        {statusMsg && <span style={{ marginLeft: "auto", marginRight: 12, fontSize: 11, color: "var(--text-success)", lineHeight: "30px" }}>✓ {statusMsg}</span>}
+        {statusMsg && <span style={{ marginLeft: "auto", marginRight: 12, fontSize: "var(--font-size-sm)", color: "var(--text-success)", lineHeight: "30px" }}>✓ {statusMsg}</span>}
       </div>
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         {activeTab === "templates" && renderTemplates()}

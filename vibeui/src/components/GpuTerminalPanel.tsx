@@ -145,7 +145,7 @@ export default function GpuTerminalPanel() {
      <div style={{ display: "flex", gap: 6, padding: "8px 12px", flexShrink: 0 }}>
        {BACKENDS.map(b => (
          <button key={b} onClick={() => setConfig({ ...config, preferred_backend: b })} style={{
-           padding: "4px 12px", border: "1px solid var(--border-color)", borderRadius: 4, cursor: "pointer",
+           padding: "4px 12px", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", cursor: "pointer",
            background: config.preferred_backend === b ? "var(--accent-color)" : "transparent",
            color: config.preferred_backend === b ? "white" : "var(--text-primary)",
          }}>{b.charAt(0).toUpperCase() + b.slice(1)}</button>
@@ -164,37 +164,37 @@ export default function GpuTerminalPanel() {
        <>
          {/* Stats cards */}
          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 12 }}>
-           <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: 6, textAlign: "center" }}>
+           <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", textAlign: "center" }}>
              <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--success-color)" }}>
                {stats ? (1_000_000 / stats.frame_time_us).toFixed(0) : "--"}
              </div>
-             <div style={{ fontSize: 11 }}>FPS</div>
+             <div style={{ fontSize: "var(--font-size-sm)" }}>FPS</div>
            </div>
-           <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: 6, textAlign: "center" }}>
+           <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", textAlign: "center" }}>
              <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--accent-color)" }}>
                {stats ? stats.frame_time_us : "--"}
              </div>
-             <div style={{ fontSize: 11 }}>Frame Time (us)</div>
+             <div style={{ fontSize: "var(--font-size-sm)" }}>Frame Time (us)</div>
            </div>
-           <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: 6, textAlign: "center" }}>
+           <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", textAlign: "center" }}>
              <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--warning-color)" }}>
                {stats ? formatBytes(stats.gpu_memory_bytes) : "--"}
              </div>
-             <div style={{ fontSize: 11 }}>Memory</div>
+             <div style={{ fontSize: "var(--font-size-sm)" }}>Memory</div>
            </div>
-           <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: 6, textAlign: "center" }}>
+           <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", textAlign: "center" }}>
              <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--error-color)" }}>
                {stats ? stats.dirty_cells : "--"}
              </div>
-             <div style={{ fontSize: 11 }}>Dirty Cells</div>
+             <div style={{ fontSize: "var(--font-size-sm)" }}>Dirty Cells</div>
            </div>
          </div>
 
          {/* FPS graph */}
          <div style={{ marginBottom: 12 }}>
-           <strong style={{ fontSize: 12 }}>FPS History{fpsHistory.length === 0 ? " (no data yet — run a benchmark)" : ""}</strong>
+           <strong style={{ fontSize: "var(--font-size-base)" }}>FPS History{fpsHistory.length === 0 ? " (no data yet — run a benchmark)" : ""}</strong>
            {fpsHistory.length > 0 && (
-             <svg width="100%" height={80} style={{ border: "1px solid var(--border-color)", borderRadius: 6, background: "var(--bg-primary)", marginTop: 4 }}>
+             <svg width="100%" height={80} style={{ border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", background: "var(--bg-primary)", marginTop: 4 }}>
                {fpsHistory.map((fps, i) => {
                  const x = (i / (fpsHistory.length - 1)) * 100;
                  const y = 75 - (fps / maxFps) * 70;
@@ -211,7 +211,7 @@ export default function GpuTerminalPanel() {
          </div>
 
          {/* Grid inspector */}
-         <strong style={{ fontSize: 12 }}>Grid Inspector (120x40)</strong>
+         <strong style={{ fontSize: "var(--font-size-base)" }}>Grid Inspector (120x40)</strong>
          <div style={{ marginTop: 4, overflow: "auto", maxHeight: 120 }}>
            <div style={{ display: "grid", gridTemplateColumns: "repeat(40, 12px)", gap: 0 }}>
              {Array.from({ length: 200 }, (_, i) => {
@@ -233,7 +233,7 @@ export default function GpuTerminalPanel() {
            </div>
          </div>
          {hoveredCell && (
-           <div style={{ fontSize: 11, marginTop: 4, color: "var(--border-color)" }}>
+           <div style={{ fontSize: "var(--font-size-sm)", marginTop: 4, color: "var(--border-color)" }}>
              Cell [{hoveredCell.row}, {hoveredCell.col}] | fg: #cdd6f4 | bg: #1e1e2e | bold: false
            </div>
          )}
@@ -242,24 +242,24 @@ export default function GpuTerminalPanel() {
 
      {tab === "atlas" && (
        <>
-         <strong style={{ fontSize: 12 }}>
+         <strong style={{ fontSize: "var(--font-size-base)" }}>
            Glyph Atlas ({glyphAtlas ? `${glyphAtlas.atlas_width}x${glyphAtlas.atlas_height}` : "..."}, {glyphAtlas ? `${glyphAtlas.cached_count} glyphs cached` : "loading..."})
          </strong>
          <div style={{
            marginTop: 8, padding: 8, background: "var(--bg-primary)", border: "1px solid var(--border-color)",
-           borderRadius: 6, display: "flex", flexWrap: "wrap", gap: 2,
+           borderRadius: "var(--radius-sm)", display: "flex", flexWrap: "wrap", gap: 2,
          }}>
            {glyphs.split("").map((ch, i) => (
              <div key={i} onClick={() => setSelectedGlyph(ch)} style={{
                width: 22, height: 24, display: "flex", alignItems: "center", justifyContent: "center",
-               fontFamily: "var(--font-mono)", fontSize: 13, cursor: "pointer", borderRadius: 2,
+               fontFamily: "var(--font-mono)", fontSize: "var(--font-size-md)", cursor: "pointer", borderRadius: 2,
                background: selectedGlyph === ch ? "var(--accent-color)" : "var(--bg-secondary)",
                color: selectedGlyph === ch ? "white" : "var(--text-primary)",
              }}>{ch}</div>
            ))}
          </div>
          {selectedGlyph && glyphAtlas && (
-           <div style={{ marginTop: 8, padding: 8, border: "1px solid var(--border-color)", borderRadius: 6, fontSize: 12 }}>
+           <div style={{ marginTop: 8, padding: 8, border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", fontSize: "var(--font-size-base)" }}>
              <strong style={{ fontSize: 24, fontFamily: "var(--font-mono)" }}>{selectedGlyph}</strong>
              <div style={{ marginTop: 4 }}>
                Codepoint: U+{selectedGlyph.charCodeAt(0).toString(16).toUpperCase().padStart(4, "0")} |
@@ -268,7 +268,7 @@ export default function GpuTerminalPanel() {
            </div>
          )}
          {glyphAtlas && (
-           <div style={{ marginTop: 8, fontSize: 12 }}>
+           <div style={{ marginTop: 8, fontSize: "var(--font-size-base)" }}>
              Atlas utilization: <strong>{glyphAtlas.utilization_pct.toFixed(2)}%</strong>
            </div>
          )}
@@ -281,19 +281,19 @@ export default function GpuTerminalPanel() {
            <span>Font Size</span>
            <input type="number" value={config.font_size} min={8} max={32}
              onChange={e => setConfig({ ...config, font_size: parseFloat(e.target.value) })}
-             style={{ width: 70, padding: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4 }} />
+             style={{ width: 70, padding: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)" }} />
          </label>
          <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
            <span>Max FPS</span>
            <input type="number" value={config.max_fps} min={30} max={240}
              onChange={e => setConfig({ ...config, max_fps: parseFloat(e.target.value) })}
-             style={{ width: 70, padding: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4 }} />
+             style={{ width: 70, padding: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)" }} />
          </label>
          <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
            <span>Cell Padding</span>
            <input type="number" value={config.cell_padding} min={0} max={4} step={0.5}
              onChange={e => setConfig({ ...config, cell_padding: parseFloat(e.target.value) })}
-             style={{ width: 70, padding: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4 }} />
+             style={{ width: 70, padding: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)" }} />
          </label>
          <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
            <span>VSync</span>
@@ -314,34 +314,34 @@ export default function GpuTerminalPanel() {
        <>
          <button onClick={runBenchmark} disabled={benchmarkRunning} style={{
            padding: "8px 16px", background: benchmarkRunning ? "var(--border-color)" : "var(--accent-color)", color: "var(--btn-primary-fg)", border: "none",
-           borderRadius: 4, cursor: benchmarkRunning ? "not-allowed" : "pointer", marginBottom: 12,
+           borderRadius: "var(--radius-xs-plus)", cursor: benchmarkRunning ? "not-allowed" : "pointer", marginBottom: 12,
          }}>{benchmarkRunning ? "Running..." : "Run Benchmark (100 frames)"}</button>
 
          {benchmarkResult && (
            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
-             <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: 6, textAlign: "center" }}>
+             <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", textAlign: "center" }}>
                <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--success-color)" }}>{benchmarkResult.avg_fps.toFixed(1)}</div>
-               <div style={{ fontSize: 11 }}>Avg FPS</div>
+               <div style={{ fontSize: "var(--font-size-sm)" }}>Avg FPS</div>
              </div>
-             <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: 6, textAlign: "center" }}>
+             <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", textAlign: "center" }}>
                <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--accent-color)" }}>{benchmarkResult.min_frame_us}</div>
-               <div style={{ fontSize: 11 }}>Min Frame (us)</div>
+               <div style={{ fontSize: "var(--font-size-sm)" }}>Min Frame (us)</div>
              </div>
-             <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: 6, textAlign: "center" }}>
+             <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", textAlign: "center" }}>
                <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--warning-color)" }}>{benchmarkResult.max_frame_us}</div>
-               <div style={{ fontSize: 11 }}>Max Frame (us)</div>
+               <div style={{ fontSize: "var(--font-size-sm)" }}>Max Frame (us)</div>
              </div>
-             <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: 6, textAlign: "center" }}>
+             <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", textAlign: "center" }}>
                <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--error-color)" }}>{benchmarkResult.p99_frame_us}</div>
-               <div style={{ fontSize: 11 }}>P99 Frame (us)</div>
+               <div style={{ fontSize: "var(--font-size-sm)" }}>P99 Frame (us)</div>
              </div>
-             <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: 6, textAlign: "center" }}>
+             <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", textAlign: "center" }}>
                <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{benchmarkResult.frames_rendered}</div>
-               <div style={{ fontSize: 11 }}>Frames</div>
+               <div style={{ fontSize: "var(--font-size-sm)" }}>Frames</div>
              </div>
-             <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: 6, textAlign: "center" }}>
+             <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", textAlign: "center" }}>
                <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{benchmarkResult.backend_name}</div>
-               <div style={{ fontSize: 11 }}>Backend</div>
+               <div style={{ fontSize: "var(--font-size-sm)" }}>Backend</div>
              </div>
            </div>
          )}

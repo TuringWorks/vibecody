@@ -22,8 +22,8 @@ interface DiffResult {
 const badgeStyle = (color: string): React.CSSProperties => ({
   display: "inline-block",
   padding: "2px 8px",
-  borderRadius: 10,
-  fontSize: 11,
+  borderRadius: "var(--radius-md)",
+  fontSize: "var(--font-size-sm)",
   fontWeight: 600,
   background: color,
   color: "var(--btn-primary-fg, #fff)",
@@ -33,11 +33,11 @@ const badgeStyle = (color: string): React.CSSProperties => ({
 const inputStyle: React.CSSProperties = {
   width: "100%",
   padding: 8,
-  borderRadius: 6,
+  borderRadius: "var(--radius-sm)",
   border: "1px solid var(--border-color)",
   background: "var(--bg-primary)",
   color: "var(--text-primary)",
-  fontSize: 13,
+  fontSize: "var(--font-size-md)",
 };
 
 const viewports = ["1920x1080", "1440x900", "1024x768", "768x1024", "375x812"];
@@ -114,7 +114,7 @@ export function VisualVerifyPanel() {
               <div style={{ fontWeight: 600, marginBottom: 8 }}>Capture Page</div>
               <input style={{ ...inputStyle, marginBottom: 8 }} placeholder="https://example.com" value={url} onChange={(e) => setUrl(e.target.value)} />
               <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
-                <span style={{ fontSize: 13, fontWeight: 600 }}>Viewport:</span>
+                <span style={{ fontSize: "var(--font-size-md)", fontWeight: 600 }}>Viewport:</span>
                 <select value={viewport} onChange={(e) => setViewport(e.target.value)} style={{ ...inputStyle, width: "auto" }}>
                   {viewports.map((v) => <option key={v} value={v}>{v}</option>)}
                 </select>
@@ -139,16 +139,16 @@ export function VisualVerifyPanel() {
                       <span style={badgeStyle("#6366f1")}>{b.viewport}</span>
                       <button
                         onClick={() => handleDeleteBaseline(b.id)}
-                        style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: 14 }}
+                        style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: "var(--font-size-lg)" }}
                         title="Delete baseline"
                       >
                         x
                       </button>
                     </div>
                   </div>
-                  <div style={{ fontSize: 12, color: "var(--accent-color)", marginTop: 2 }}>{b.url}</div>
-                  <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 2 }}>Captured: {b.capturedAt}</div>
-                  <div style={{ marginTop: 6, background: "var(--bg-primary)", borderRadius: 4, height: 60, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "var(--text-secondary)" }}>
+                  <div style={{ fontSize: "var(--font-size-base)", color: "var(--accent-color)", marginTop: 2 }}>{b.url}</div>
+                  <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginTop: 2 }}>Captured: {b.capturedAt}</div>
+                  <div style={{ marginTop: 6, background: "var(--bg-primary)", borderRadius: "var(--radius-xs-plus)", height: 60, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>
                     [{b.viewport} thumbnail]
                   </div>
                 </div>
@@ -173,7 +173,7 @@ export function VisualVerifyPanel() {
                       <span style={badgeStyle(statusColor[d.status])}>{d.status}</span>
                     </div>
                   </div>
-                  <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Viewport: {d.viewport} | Pixel diff: {d.pixelDiff}%</div>
+                  <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>Viewport: {d.viewport} | Pixel diff: {d.pixelDiff}%</div>
                 </div>
               ))
             )}
@@ -195,7 +195,7 @@ export function VisualVerifyPanel() {
             </div>
             <div className="panel-card">
               <div style={{ fontWeight: 600, marginBottom: 8 }}>Summary</div>
-              <div style={{ fontSize: 13 }}>
+              <div style={{ fontSize: "var(--font-size-md)" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0" }}><span>Total baselines</span><strong>{baselines.length}</strong></div>
                 <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0" }}><span>Passing</span><strong style={{ color: "var(--success-color)" }}>{diffs.filter((d) => d.status === "pass").length}</strong></div>
                 <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0" }}><span>Warnings</span><strong style={{ color: "var(--warning-color)" }}>{diffs.filter((d) => d.status === "warning").length}</strong></div>

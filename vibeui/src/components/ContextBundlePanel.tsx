@@ -131,7 +131,7 @@ export function ContextBundlePanel() {
 
   return (
     <div className="panel-container">
-      <h2 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>Context Bundles</h2>
+      <h2 style={{ margin: "0 0 12px", fontSize: "var(--font-size-xl)", fontWeight: 600, color: "var(--text-primary)" }}>Context Bundles</h2>
 
       {error && <div className="panel-error" style={{ marginBottom: 12 }}>{error}</div>}
 
@@ -153,18 +153,18 @@ export function ContextBundlePanel() {
                   <div role="switch" aria-checked={b.active} tabIndex={0} style={toggleStyle(b.active)} onClick={() => toggleActive(b.id)} onKeyDown={e => e.key === "Enter" && toggleActive(b.id)}>
                     <div style={toggleDot(b.active)} />
                   </div>
-                  <span style={{ fontSize: 10, color: b.active ? "var(--success-color)" : "var(--text-secondary)" }}>{b.active ? "Active" : "Inactive"}</span>
+                  <span style={{ fontSize: "var(--font-size-xs)", color: b.active ? "var(--success-color)" : "var(--text-secondary)" }}>{b.active ? "Active" : "Inactive"}</span>
                 </div>
               </div>
               <div className="panel-label">{b.description}</div>
-              <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 4 }}>
                 Model: {b.modelPreference} | Files: {b.pinnedFiles.length} pinned
               </div>
-              <div style={{ fontSize: 10, color: "var(--text-secondary)", marginBottom: 6 }}>
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginBottom: 6 }}>
                 {b.pinnedFiles.join(", ")}
               </div>
               {b.instructions && (
-                <div style={{ fontSize: 11, color: "var(--text-secondary)", fontStyle: "italic", marginBottom: 6 }}>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", fontStyle: "italic", marginBottom: 6 }}>
                   &quot;{b.instructions.slice(0, 100)}{b.instructions.length > 100 ? "..." : ""}&quot;
                 </div>
               )}
@@ -215,7 +215,7 @@ export function ContextBundlePanel() {
               <button className="panel-btn panel-btn-secondary" onClick={exportBundles}>Export Current Bundles</button>
               <button className="panel-btn panel-btn-primary" onClick={importBundles}>Import from JSON</button>
             </div>
-            {importMsg && <div style={{ marginTop: 8, fontSize: 11, color: importMsg.startsWith("Error") ? "var(--error-color)" : "var(--success-color)" }}>{importMsg}</div>}
+            {importMsg && <div style={{ marginTop: 8, fontSize: "var(--font-size-sm)", color: importMsg.startsWith("Error") ? "var(--error-color)" : "var(--success-color)" }}>{importMsg}</div>}
           </div>
         </div>
       )}

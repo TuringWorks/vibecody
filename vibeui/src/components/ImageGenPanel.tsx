@@ -41,19 +41,19 @@ const card: React.CSSProperties = {
   padding: 10, marginBottom: 8, borderRadius: "var(--radius-sm)",
   background: "var(--bg-secondary)", border: "1px solid var(--border-color)",
 };
-const label: React.CSSProperties = { display: "block", marginBottom: 4, fontWeight: 600, fontSize: 11, color: "var(--text-secondary)" };
+const label: React.CSSProperties = { display: "block", marginBottom: 4, fontWeight: 600, fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" };
 const input: React.CSSProperties = {
-  width: "100%", boxSizing: "border-box", padding: "7px 10px", fontSize: 13,
+  width: "100%", boxSizing: "border-box", padding: "7px 10px", fontSize: "var(--font-size-md)",
   background: "var(--bg-tertiary)", border: "1px solid var(--border-color)",
   color: "var(--text-primary)", borderRadius: "var(--radius-sm)",
 };
 const btnPrimary: React.CSSProperties = {
   padding: "8px 16px", cursor: "pointer", border: "none", borderRadius: "var(--radius-sm)",
-  background: "var(--accent-color)", color: "var(--btn-primary-fg)", fontSize: 13, fontWeight: 600,
+  background: "var(--accent-color)", color: "var(--btn-primary-fg)", fontSize: "var(--font-size-md)", fontWeight: 600,
 };
 const badge = (bg: string): React.CSSProperties => ({
-  display: "inline-block", padding: "2px 8px", borderRadius: 10,
-  fontSize: 10, fontWeight: 600, background: bg, color: "var(--btn-primary-fg)",
+  display: "inline-block", padding: "2px 8px", borderRadius: "var(--radius-md)",
+  fontSize: "var(--font-size-xs)", fontWeight: 600, background: bg, color: "var(--btn-primary-fg)",
 });
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -185,14 +185,14 @@ const ImageGenPanel: React.FC = () => {
       <div style={{ marginBottom: 12 }}>
         <label style={label}>Model</label>
         {providers.length === 0 ? (
-          <div style={{ ...card, color: "var(--text-secondary)", fontSize: 12 }}>Loading providers...</div>
+          <div style={{ ...card, color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>Loading providers...</div>
         ) : (
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {providers.map(p => (
               <button key={p.model} disabled={!p.available} title={p.available ? p.description : `${p.description} — API key not configured`}
                 onClick={() => p.available && setModel(p.model)}
                 style={{
-                  padding: "5px 12px", fontSize: 11, borderRadius: "var(--radius-sm)", cursor: p.available ? "pointer" : "not-allowed",
+                  padding: "5px 12px", fontSize: "var(--font-size-sm)", borderRadius: "var(--radius-sm)", cursor: p.available ? "pointer" : "not-allowed",
                   background: model === p.model ? "var(--accent-color)" : p.available ? "var(--bg-tertiary)" : "var(--bg-secondary)",
                   color: model === p.model ? "var(--btn-primary-fg, #fff)" : p.available ? "var(--text-primary)" : "var(--text-secondary)",
                   border: `1px solid ${model === p.model ? "var(--accent-color)" : "var(--border-color)"}`,
@@ -250,14 +250,14 @@ const ImageGenPanel: React.FC = () => {
         </div>
       )}
       {sizePreset !== "custom" ? null : (
-        <div style={{ fontSize: 10, color: "var(--text-secondary)", marginBottom: 10 }}>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginBottom: 10 }}>
           DALL-E 3 maps to nearest supported size: 1024x1024, 1792x1024, or 1024x1792
         </div>
       )}
 
       <div style={{ ...card, display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-        <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>Estimated cost ({model})</span>
-        <span style={{ fontSize: 13, fontWeight: 700, fontFamily: "var(--font-mono, monospace)" }}>${costEstimate.toFixed(2)}</span>
+        <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Estimated cost ({model})</span>
+        <span style={{ fontSize: "var(--font-size-md)", fontWeight: 700, fontFamily: "var(--font-mono, monospace)" }}>${costEstimate.toFixed(2)}</span>
       </div>
 
       <button style={{ ...btnPrimary, width: "100%", opacity: loading ? 0.6 : 1 }}
@@ -271,7 +271,7 @@ const ImageGenPanel: React.FC = () => {
 
   const renderGallery = () => (
     <div>
-      <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 8 }}>{gallery.length} image{gallery.length !== 1 ? "s" : ""}</div>
+      <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 8 }}>{gallery.length} image{gallery.length !== 1 ? "s" : ""}</div>
       {gallery.length === 0 && (
         <div style={{ ...card, textAlign: "center", color: "var(--text-secondary)", padding: 24 }}>No images yet. Generate one to get started.</div>
       )}
@@ -285,15 +285,15 @@ const ImageGenPanel: React.FC = () => {
               <div style={{
                 width: "100%", aspectRatio: `${img.width}/${img.height}`, background: "var(--bg-tertiary)",
                 borderRadius: "var(--radius-sm)", marginBottom: 8, display: "flex", alignItems: "center",
-                justifyContent: "center", fontSize: 11, color: "var(--text-secondary)",
+                justifyContent: "center", fontSize: "var(--font-size-sm)", color: "var(--text-secondary)",
               }}>
                 {img.status === "failed" ? "Failed" : img.status === "completed" ? "Loading..." : `${img.width} x ${img.height}`}
               </div>
             )}
-            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={img.prompt}>
+            <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={img.prompt}>
               {img.prompt}
             </div>
-            <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 6, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 6, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
               <span>{img.model}</span>
               <span>&middot;</span>
               <span>{img.style}</span>
@@ -308,11 +308,11 @@ const ImageGenPanel: React.FC = () => {
             <div style={{ display: "flex", gap: 6 }}>
               {imageDataCache[img.id] && (
                 <a href={imageDataCache[img.id]} download={`${img.id}.png`}
-                  style={{ ...btnPrimary, padding: "3px 10px", fontSize: 11, textDecoration: "none", background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-color)" }}>
+                  style={{ ...btnPrimary, padding: "3px 10px", fontSize: "var(--font-size-sm)", textDecoration: "none", background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-color)" }}>
                   Save
                 </a>
               )}
-              <button style={{ ...btnPrimary, padding: "3px 10px", fontSize: 11, background: "var(--error-color)" }}
+              <button style={{ ...btnPrimary, padding: "3px 10px", fontSize: "var(--font-size-sm)", background: "var(--error-color)" }}
                 onClick={() => handleDelete(img.id)}>Delete</button>
             </div>
           </div>
@@ -325,7 +325,7 @@ const ImageGenPanel: React.FC = () => {
 
   const statCell = (lbl: string, val: string | number, color?: string) => (
     <div style={card}>
-      <div style={{ fontSize: 10, color: "var(--text-secondary)", marginBottom: 2, textTransform: "uppercase", letterSpacing: "0.04em" }}>{lbl}</div>
+      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginBottom: 2, textTransform: "uppercase", letterSpacing: "0.04em" }}>{lbl}</div>
       <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "var(--font-mono, monospace)", color }}>{val}</div>
     </div>
   );
@@ -344,8 +344,8 @@ const ImageGenPanel: React.FC = () => {
           {/* Per-image cost breakdown */}
           {gallery.length > 0 && (
             <div style={{ ...card, marginBottom: 8 }}>
-              <div style={{ fontSize: 10, color: "var(--text-secondary)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>Recent Generations</div>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>Recent Generations</div>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-sm)" }}>
                 <thead>
                   <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
                     <th style={{ textAlign: "left", padding: "4px 6px", color: "var(--text-secondary)", fontWeight: 600 }}>Prompt</th>
@@ -370,7 +370,7 @@ const ImageGenPanel: React.FC = () => {
 
           {stats.models_used.length > 0 && (
             <div style={{ ...card, marginBottom: 8 }}>
-              <div style={{ fontSize: 10, color: "var(--text-secondary)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>Models</div>
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>Models</div>
               <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                 {stats.models_used.map(m => <span key={m} style={badge("var(--accent-color)")}>{m}</span>)}
               </div>
@@ -378,7 +378,7 @@ const ImageGenPanel: React.FC = () => {
           )}
           {stats.styles_used.length > 0 && (
             <div style={card}>
-              <div style={{ fontSize: 10, color: "var(--text-secondary)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>Styles</div>
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>Styles</div>
               <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                 {stats.styles_used.map(s => <span key={s} style={badge("var(--info-color)")}>{s}</span>)}
               </div>
@@ -396,7 +396,7 @@ const ImageGenPanel: React.FC = () => {
   return (
     <div className="panel-container">
       <div className="panel-header">
-        <span style={{ fontSize: 14, fontWeight: 700 }}>Image Generation</span>
+        <span style={{ fontSize: "var(--font-size-lg)", fontWeight: 700 }}>Image Generation</span>
         <div className="panel-tab-bar" style={{ border: "none", padding: 0, marginLeft: "auto" }}>
           {tabBtn("generate", "Generate")}
           {tabBtn("gallery", "Gallery")}

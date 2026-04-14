@@ -221,7 +221,7 @@ function TabContent({ tab }: { tab: Tab }) {
         </button>
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, padding: 10, whiteSpace: "pre-wrap", lineHeight: 1.6, fontSize: 12 }} ref={outputRef}>
+      <div style={{ flex: 1, overflowY: "auto", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: 10, whiteSpace: "pre-wrap", lineHeight: 1.6, fontSize: "var(--font-size-base)" }} ref={outputRef}>
         {lines.length === 0 ? (
           <span style={{ color: "var(--text-secondary)" }}>
             Use the quick buttons or type a command above.
@@ -229,7 +229,7 @@ function TabContent({ tab }: { tab: Tab }) {
         ) : (
           lines.map((l) => (
             <div key={l.id}>
-              <span style={{ color: "var(--text-muted, var(--text-secondary))", marginRight: 8, fontSize: 11 }}>{l.ts}</span>
+              <span style={{ color: "var(--text-muted, var(--text-secondary))", marginRight: 8, fontSize: "var(--font-size-sm)" }}>{l.ts}</span>
               {l.text}
             </div>
           ))

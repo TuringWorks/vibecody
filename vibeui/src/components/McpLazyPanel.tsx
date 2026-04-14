@@ -42,10 +42,10 @@ interface LazyMetrics {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
-const badgeStyle = (variant: string): React.CSSProperties => ({ display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600, color: "var(--btn-primary-fg)", background: variant === "loaded" ? "var(--success-color)" : variant === "loading" ? "var(--warning-color)" : "var(--text-secondary)" });
-const barBg: React.CSSProperties = { height: 8, borderRadius: 4, background: "var(--bg-tertiary)", overflow: "hidden" };
-const barFill = (pct: number, color: string): React.CSSProperties => ({ height: "100%", width: `${Math.min(pct, 100)}%`, borderRadius: 4, background: color });
+const labelStyle: React.CSSProperties = { fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 4 };
+const badgeStyle = (variant: string): React.CSSProperties => ({ display: "inline-block", padding: "2px 8px", borderRadius: "var(--radius-md)", fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--btn-primary-fg)", background: variant === "loaded" ? "var(--success-color)" : variant === "loading" ? "var(--warning-color)" : "var(--text-secondary)" });
+const barBg: React.CSSProperties = { height: 8, borderRadius: "var(--radius-xs-plus)", background: "var(--bg-tertiary)", overflow: "hidden" };
+const barFill = (pct: number, color: string): React.CSSProperties => ({ height: "100%", width: `${Math.min(pct, 100)}%`, borderRadius: "var(--radius-xs-plus)", background: color });
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -155,7 +155,7 @@ export function McpLazyPanel() {
     return (
       <div className="panel-container">
         <div className="panel-header">
-          <h2 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>MCP Lazy Loading</h2>
+          <h2 style={{ margin: 0, fontSize: "var(--font-size-xl)", fontWeight: 600 }}>MCP Lazy Loading</h2>
         </div>
         <div className="panel-body">
           <div className="panel-loading">Loading registry...</div>
@@ -167,7 +167,7 @@ export function McpLazyPanel() {
   return (
     <div className="panel-container">
       <div className="panel-header">
-        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>MCP Lazy Loading</h2>
+        <h2 style={{ margin: 0, fontSize: "var(--font-size-xl)", fontWeight: 600 }}>MCP Lazy Loading</h2>
       </div>
 
       <div className="panel-body">
@@ -195,9 +195,9 @@ export function McpLazyPanel() {
             {manifests.map((m) => (
               <div key={m.id} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600 }}>{m.name} <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>v{m.version}</span></div>
+                  <div style={{ fontWeight: 600 }}>{m.name} <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>v{m.version}</span></div>
                   <div style={labelStyle}>{m.description}</div>
-                  <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>
+                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>
                     {m.size_kb} KB
                     {m.server_name ? ` | Server: ${m.server_name}` : ""}
                     {m.last_used ? ` | Last used: ${new Date(m.last_used).toLocaleTimeString()}` : ""}
@@ -233,10 +233,10 @@ export function McpLazyPanel() {
                 <div>
                   <div style={{ fontWeight: 600 }}>{r.name}</div>
                   <div style={labelStyle}>{r.description}</div>
-                  {r.server_name && <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>Server: {r.server_name}</div>}
+                  {r.server_name && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>Server: {r.server_name}</div>}
                 </div>
                 <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Relevance</div>
+                  <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Relevance</div>
                   <div style={{ fontWeight: 600, color: "var(--accent-primary)" }}>{(r.relevance * 100).toFixed(0)}%</div>
                 </div>
               </div>
@@ -269,7 +269,7 @@ export function McpLazyPanel() {
               <div style={barBg}>
                 <div style={barFill(metrics.cache_hit_rate, "var(--success-color)")} />
               </div>
-              <div style={{ fontSize: 10, color: "var(--text-secondary)", marginTop: 4 }}>
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginTop: 4 }}>
                 {metrics.cache_hit_rate.toFixed(1)}%
               </div>
             </div>
@@ -279,15 +279,15 @@ export function McpLazyPanel() {
               <div style={{ marginTop: 8 }}>
                 {metrics.load_times.map((lt) => (
                   <div key={lt.label} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                    <div style={{ width: 90, fontSize: 11 }}>{lt.label}</div>
+                    <div style={{ width: 90, fontSize: "var(--font-size-sm)" }}>{lt.label}</div>
                     <div style={{ ...barBg, flex: 1 }}>
                       <div style={barFill((lt.ms / 60) * 100, "var(--info-color)")} />
                     </div>
-                    <div style={{ width: 40, fontSize: 10, textAlign: "right" }}>{lt.ms}ms</div>
+                    <div style={{ width: 40, fontSize: "var(--font-size-xs)", textAlign: "right" }}>{lt.ms}ms</div>
                   </div>
                 ))}
                 {metrics.load_times.length === 0 && (
-                  <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>No load times recorded yet.</div>
+                  <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>No load times recorded yet.</div>
                 )}
               </div>
             </div>

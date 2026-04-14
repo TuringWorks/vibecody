@@ -165,7 +165,7 @@ export default function CanvasPanel() {
  border: `1px solid ${NODE_COLORS[type]}`,
  color: NODE_COLORS[type],
  padding: "6px 12px",
- borderRadius: 4,
+ borderRadius: "var(--radius-xs-plus)",
  cursor: "pointer",
  textAlign: "left",
  }}
@@ -174,7 +174,7 @@ export default function CanvasPanel() {
  </button>
  ))}
  <hr style={{ borderColor: "var(--border-color)", margin: "8px 0" }} />
- <div style={{ fontSize: 11, opacity: 0.7 }}>
+ <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.7 }}>
  Click a node type to add it to the canvas. Drag nodes to position. Right-click to connect.
  </div>
 
@@ -189,10 +189,10 @@ export default function CanvasPanel() {
  border: "1px solid var(--border-color)",
  color: "var(--text-secondary)",
  padding: "4px 8px",
- borderRadius: 4,
+ borderRadius: "var(--radius-xs-plus)",
  cursor: "pointer",
  textAlign: "left",
- fontSize: 12,
+ fontSize: "var(--font-size-base)",
  }}
  >
  {w.name} ({w.nodes.length} nodes)
@@ -205,7 +205,7 @@ export default function CanvasPanel() {
  <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
  {/* Toolbar */}
  <div style={{ display: "flex", gap: 8, padding: "8px 12px", borderBottom: "1px solid var(--border-color)", alignItems: "center" }}>
- <button onClick={() => setShowPalette(!showPalette)} style={{ background: "var(--bg-secondary)", border: "none", color: "var(--text-secondary)", padding: "4px 8px", borderRadius: 4, cursor: "pointer" }}>
+ <button onClick={() => setShowPalette(!showPalette)} style={{ background: "var(--bg-secondary)", border: "none", color: "var(--text-secondary)", padding: "4px 8px", borderRadius: "var(--radius-xs-plus)", cursor: "pointer" }}>
  <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>{showPalette && <ChevronLeft size={12} />} Palette</span>
  </button>
  <input
@@ -224,9 +224,9 @@ export default function CanvasPanel() {
  Run
  </button>
  {connecting && (
- <span style={{ color: "var(--warning-color)", fontSize: 12 }}>Click a target node to connect...</span>
+ <span style={{ color: "var(--warning-color)", fontSize: "var(--font-size-base)" }}>Click a target node to connect...</span>
  )}
- <span style={{ marginLeft: "auto", fontSize: 12, opacity: 0.5 }}>
+ <span style={{ marginLeft: "auto", fontSize: "var(--font-size-base)", opacity: 0.5 }}>
  {currentWorkflow.nodes.length} nodes, {currentWorkflow.edges.length} edges
  </span>
  </div>
@@ -346,20 +346,20 @@ export default function CanvasPanel() {
    }));
   };
 
-  const pInput: React.CSSProperties = { width: "100%", padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-secondary)", fontSize: 11, boxSizing: "border-box" as const };
-  const pLabel: React.CSSProperties = { fontSize: 10, color: "var(--text-secondary)", marginBottom: 2, display: "block", marginTop: 8 };
+  const pInput: React.CSSProperties = { width: "100%", padding: "4px 8px", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-secondary)", fontSize: "var(--font-size-sm)", boxSizing: "border-box" as const };
+  const pLabel: React.CSSProperties = { fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginBottom: 2, display: "block", marginTop: 8 };
 
   const toNodes = currentWorkflow.edges.filter(e => e.from === selectedNode).map(e => currentWorkflow.nodes.find(n => n.id === e.to)?.label).filter(Boolean);
   const fromNodes = currentWorkflow.edges.filter(e => e.to === selectedNode).map(e => currentWorkflow.nodes.find(n => n.id === e.from)?.label).filter(Boolean);
 
   return (
-   <div style={{ width: 220, flexShrink: 0, borderLeft: "1px solid var(--border-color)", padding: 12, overflowY: "auto", fontSize: 12 }}>
+   <div style={{ width: 220, flexShrink: 0, borderLeft: "1px solid var(--border-color)", padding: 12, overflowY: "auto", fontSize: "var(--font-size-base)" }}>
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-     <span style={{ fontWeight: 600, fontSize: 13 }}>Properties</span>
-     <button onClick={() => setSelectedNode(null)} aria-label="Close properties panel" style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: 14 }}>x</button>
+     <span style={{ fontWeight: 600, fontSize: "var(--font-size-md)" }}>Properties</span>
+     <button onClick={() => setSelectedNode(null)} aria-label="Close properties panel" style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: "var(--font-size-lg)" }}>x</button>
     </div>
 
-    <div style={{ padding: "4px 8px", borderRadius: 4, background: NODE_COLORS[node.type] + "22", color: NODE_COLORS[node.type], fontSize: 11, fontWeight: 600, marginBottom: 8 }}>
+    <div style={{ padding: "4px 8px", borderRadius: "var(--radius-xs-plus)", background: NODE_COLORS[node.type] + "22", color: NODE_COLORS[node.type], fontSize: "var(--font-size-sm)", fontWeight: 600, marginBottom: 8 }}>
      {node.type.toUpperCase()}
     </div>
 
@@ -427,18 +427,18 @@ export default function CanvasPanel() {
     </>)}
 
     {(fromNodes.length > 0 || toNodes.length > 0) && (
-     <div style={{ marginTop: 12, padding: 8, background: "var(--bg-secondary)", borderRadius: 4 }}>
-      <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 4 }}>CONNECTIONS</div>
-      {fromNodes.length > 0 && <div style={{ fontSize: 11 }}>From: {fromNodes.join(", ")}</div>}
-      {toNodes.length > 0 && <div style={{ fontSize: 11 }}>To: {toNodes.join(", ")}</div>}
+     <div style={{ marginTop: 12, padding: 8, background: "var(--bg-secondary)", borderRadius: "var(--radius-xs-plus)" }}>
+      <div style={{ fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-secondary)", marginBottom: 4 }}>CONNECTIONS</div>
+      {fromNodes.length > 0 && <div style={{ fontSize: "var(--font-size-sm)" }}>From: {fromNodes.join(", ")}</div>}
+      {toNodes.length > 0 && <div style={{ fontSize: "var(--font-size-sm)" }}>To: {toNodes.join(", ")}</div>}
      </div>
     )}
 
     <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 4 }}>
-     <button onClick={() => setConnecting(selectedNode)} style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-secondary)", cursor: "pointer", fontSize: 11 }}>
+     <button onClick={() => setConnecting(selectedNode)} style={{ padding: "4px 8px", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-secondary)", cursor: "pointer", fontSize: "var(--font-size-sm)" }}>
       Connect to another node
      </button>
-     <button onClick={() => deleteNode(selectedNode)} style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid var(--error-color)", background: "transparent", color: "var(--error-color)", cursor: "pointer", fontSize: 11 }}>
+     <button onClick={() => deleteNode(selectedNode)} style={{ padding: "4px 8px", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--error-color)", background: "transparent", color: "var(--error-color)", cursor: "pointer", fontSize: "var(--font-size-sm)" }}>
       Delete node
      </button>
     </div>

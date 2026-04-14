@@ -282,8 +282,8 @@ const genId = () => ++nextId;
 const badge = (_: string, color: string): React.CSSProperties => ({
   display: "inline-block",
   padding: "2px 8px",
-  borderRadius: 4,
-  fontSize: 11,
+  borderRadius: "var(--radius-xs-plus)",
+  fontSize: "var(--font-size-sm)",
   fontWeight: 600,
   color: "var(--btn-primary-fg)",
   background: color,
@@ -293,7 +293,7 @@ const badge = (_: string, color: string): React.CSSProperties => ({
 
 
 const sectionTitle: React.CSSProperties = {
-  fontSize: 14,
+  fontSize: "var(--font-size-lg)",
   fontWeight: 600,
   marginBottom: 8,
   marginTop: 16,
@@ -682,7 +682,7 @@ const BatchBuilderPanel: React.FC = () => {
       {/* Tech Stack & Priority */}
       <div style={{ display: "flex", gap: 12, marginTop: 12 }}>
         <div style={{ flex: 1 }}>
-          <label style={{ fontSize: 12, color: "var(--text-primary)", display: "block", marginBottom: 4 }}>Tech Stack</label>
+          <label style={{ fontSize: "var(--font-size-base)", color: "var(--text-primary)", display: "block", marginBottom: 4 }}>Tech Stack</label>
           <select
             className="panel-input panel-input-full"
             value={techStack}
@@ -694,7 +694,7 @@ const BatchBuilderPanel: React.FC = () => {
           </select>
         </div>
         <div style={{ flex: 1 }}>
-          <label style={{ fontSize: 12, color: "var(--text-primary)", display: "block", marginBottom: 4 }}>Priority</label>
+          <label style={{ fontSize: "var(--font-size-base)", color: "var(--text-primary)", display: "block", marginBottom: 4 }}>Priority</label>
           <div style={{ display: "flex", gap: 4 }}>
             {(["low", "normal", "high", "critical"] as Priority[]).map((p) => (
               <button
@@ -707,7 +707,7 @@ const BatchBuilderPanel: React.FC = () => {
                   color: priority === p ? "white" : "var(--text-primary)",
                   border: `1px solid ${priority === p ? PRIORITY_COLORS[p] : "var(--border-color)"}`,
                   textTransform: "capitalize",
-                  fontSize: 11,
+                  fontSize: "var(--font-size-sm)",
                   padding: "4px 6px",
                 }}
               >
@@ -732,8 +732,8 @@ const BatchBuilderPanel: React.FC = () => {
       </div>
       {requirements.map((r) => (
         <div key={r.id} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 12px" }}>
-          <span style={{ fontSize: 13 }}>{r.text}</span>
-          <button className="panel-btn panel-btn-danger" style={{ padding: "2px 8px", fontSize: 11 }} onClick={() => removeRequirement(r.id)}>Remove</button>
+          <span style={{ fontSize: "var(--font-size-md)" }}>{r.text}</span>
+          <button className="panel-btn panel-btn-danger" style={{ padding: "2px 8px", fontSize: "var(--font-size-sm)" }} onClick={() => removeRequirement(r.id)}>Remove</button>
         </div>
       ))}
 
@@ -747,10 +747,10 @@ const BatchBuilderPanel: React.FC = () => {
         <button className="panel-btn panel-btn-primary" style={{ gridColumn: "span 2" }} onClick={addUserStory}>Add User Story</button>
       </div>
       {userStories.map((s) => (
-        <div key={s.id} className="panel-card" style={{ fontSize: 12 }}>
+        <div key={s.id} className="panel-card" style={{ fontSize: "var(--font-size-base)" }}>
           <div><strong>As a</strong> {s.persona}, <strong>I want to</strong> {s.action}, <strong>so that</strong> {s.benefit}</div>
           {s.acceptanceCriteria && <div style={{ marginTop: 4, color: "var(--text-secondary)" }}>Criteria: {s.acceptanceCriteria}</div>}
-          <button className="panel-btn panel-btn-danger" style={{ padding: "2px 8px", fontSize: 11, marginTop: 4 }} onClick={() => removeUserStory(s.id)}>Remove</button>
+          <button className="panel-btn panel-btn-danger" style={{ padding: "2px 8px", fontSize: "var(--font-size-sm)", marginTop: 4 }} onClick={() => removeUserStory(s.id)}>Remove</button>
         </div>
       ))}
 
@@ -762,7 +762,7 @@ const BatchBuilderPanel: React.FC = () => {
         </select>
         <input className="panel-input" style={{ flex: 1, minWidth: 140 }} placeholder="/api/resource" value={epForm.path} onChange={(e) => setEpForm({ ...epForm, path: e.target.value })} />
         <input className="panel-input" style={{ flex: 1, minWidth: 140 }} placeholder="Description" value={epForm.desc} onChange={(e) => setEpForm({ ...epForm, desc: e.target.value })} />
-        <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 4, cursor: "pointer", color: "var(--text-primary)" }}>
+        <label style={{ fontSize: "var(--font-size-base)", display: "flex", alignItems: "center", gap: 4, cursor: "pointer", color: "var(--text-primary)" }}>
           <input type="checkbox" checked={epForm.auth} onChange={(e) => setEpForm({ ...epForm, auth: e.target.checked })} /> Auth
         </label>
         <button className="panel-btn panel-btn-primary" onClick={addEndpoint}>Add</button>
@@ -779,7 +779,7 @@ const BatchBuilderPanel: React.FC = () => {
                 <td style={{ fontFamily: "var(--font-mono)" }}>{ep.path}</td>
                 <td>{ep.description}</td>
                 <td>{ep.auth ? "Yes" : "No"}</td>
-                <td><button className="panel-btn panel-btn-danger" style={{ padding: "2px 8px", fontSize: 11 }} onClick={() => removeEndpoint(ep.id)}>Remove</button></td>
+                <td><button className="panel-btn panel-btn-danger" style={{ padding: "2px 8px", fontSize: "var(--font-size-sm)" }} onClick={() => removeEndpoint(ep.id)}>Remove</button></td>
               </tr>
             ))}
           </tbody>
@@ -795,7 +795,7 @@ const BatchBuilderPanel: React.FC = () => {
           <select className="panel-select" style={{ width: 100 }} value={fieldForm.type} onChange={(e) => setFieldForm({ ...fieldForm, type: e.target.value as FieldType })}>
             {(["string", "number", "boolean", "date", "uuid", "json", "array", "enum"] as FieldType[]).map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
-          <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 4, cursor: "pointer", color: "var(--text-primary)" }}>
+          <label style={{ fontSize: "var(--font-size-base)", display: "flex", alignItems: "center", gap: 4, cursor: "pointer", color: "var(--text-primary)" }}>
             <input type="checkbox" checked={fieldForm.required} onChange={(e) => setFieldForm({ ...fieldForm, required: e.target.checked })} /> Req
           </label>
           <button className="panel-btn panel-btn-primary" onClick={addField}>+ Field</button>
@@ -809,7 +809,7 @@ const BatchBuilderPanel: React.FC = () => {
                   <td>{f.name}</td>
                   <td>{f.type}</td>
                   <td>{f.required ? "Yes" : "No"}</td>
-                  <td><button className="panel-btn panel-btn-danger" style={{ padding: "2px 6px", fontSize: 11 }} onClick={() => removeField(f.id)}>X</button></td>
+                  <td><button className="panel-btn panel-btn-danger" style={{ padding: "2px 6px", fontSize: "var(--font-size-sm)" }} onClick={() => removeField(f.id)}>X</button></td>
                 </tr>
               ))}
             </tbody>
@@ -818,10 +818,10 @@ const BatchBuilderPanel: React.FC = () => {
         <button className="panel-btn panel-btn-primary" onClick={addModel}>Add Model</button>
       </div>
       {dataModels.map((dm) => (
-        <div key={dm.id} className="panel-card" style={{ fontSize: 12 }}>
+        <div key={dm.id} className="panel-card" style={{ fontSize: "var(--font-size-base)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <strong>{dm.name}</strong> ({dm.fields.length} fields)
-            <button className="panel-btn panel-btn-danger" style={{ padding: "2px 8px", fontSize: 11 }} onClick={() => removeModel(dm.id)}>Remove</button>
+            <button className="panel-btn panel-btn-danger" style={{ padding: "2px 8px", fontSize: "var(--font-size-sm)" }} onClick={() => removeModel(dm.id)}>Remove</button>
           </div>
           <div style={{ marginTop: 4, color: "var(--text-secondary)" }}>
             {dm.fields.map((f) => `${f.name}: ${f.type}${f.required ? "*" : ""}`).join(", ")}
@@ -838,12 +838,12 @@ const BatchBuilderPanel: React.FC = () => {
       </div>
       {estimate && (
         <div className="panel-card" style={{ marginTop: 12, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 12 }}>
-          <div><div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Est. Files</div><div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{estimate.files}</div></div>
-          <div><div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Est. Lines</div><div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{estimate.lines.toLocaleString()}</div></div>
-          <div><div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Duration</div><div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{estimate.duration}</div></div>
-          <div><div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Complexity</div><div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)", color: scoreColor(100 - estimate.complexity) }}>{estimate.complexity}/100</div></div>
+          <div><div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Est. Files</div><div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{estimate.files}</div></div>
+          <div><div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Est. Lines</div><div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{estimate.lines.toLocaleString()}</div></div>
+          <div><div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Duration</div><div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{estimate.duration}</div></div>
+          <div><div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Complexity</div><div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)", color: scoreColor(100 - estimate.complexity) }}>{estimate.complexity}/100</div></div>
           <div style={{ gridColumn: "span 2" }}>
-            <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>Recommended Agents</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 4 }}>Recommended Agents</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
               {estimate.agents.map((a) => <span key={a} style={badge(a, "var(--bg-tertiary)")}>{a}</span>)}
             </div>
@@ -860,25 +860,25 @@ const BatchBuilderPanel: React.FC = () => {
       {/* Status bar */}
       <div className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          <span style={{ fontSize: 12, fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{runId}</span>
+          <span style={{ fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{runId}</span>
           <span style={badge(runStatus, STATUS_COLORS[runStatus])}>{runStatus}</span>
         </div>
-        <span style={{ fontSize: 12, color: "var(--text-primary)" }}>Elapsed: {elapsed}</span>
+        <span style={{ fontSize: "var(--font-size-base)", color: "var(--text-primary)" }}>Elapsed: {elapsed}</span>
       </div>
 
       {/* Progress bar */}
       <div style={{ marginTop: 12 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--font-size-base)", marginBottom: 4 }}>
           <span>{phaseLabel}</span>
           <span>{progress}%</span>
         </div>
-        <div style={{ height: 8, borderRadius: 4, background: "var(--bg-secondary)" }}>
-          <div style={{ height: 8, borderRadius: 4, background: "var(--accent-color)", width: `${progress}%`, transition: "width 0.3s" }} />
+        <div style={{ height: 8, borderRadius: "var(--radius-xs-plus)", background: "var(--bg-secondary)" }}>
+          <div style={{ height: 8, borderRadius: "var(--radius-xs-plus)", background: "var(--accent-color)", width: `${progress}%`, transition: "width 0.3s" }} />
         </div>
       </div>
 
       {/* Token budget */}
-      <div style={{ marginTop: 12, fontSize: 12, color: "var(--text-primary)" }}>
+      <div style={{ marginTop: 12, fontSize: "var(--font-size-base)", color: "var(--text-primary)" }}>
         Tokens: {tokenUsed.toLocaleString()} / {tokenTotal.toLocaleString()} ({Math.round((tokenUsed / tokenTotal) * 100)}%)
         <div style={{ height: 4, borderRadius: 2, background: "var(--bg-secondary)", marginTop: 4 }}>
           <div style={{ height: 4, borderRadius: 2, background: tokenUsed / tokenTotal > 0.9 ? "var(--error-color)" : "var(--success-color)", width: `${(tokenUsed / tokenTotal) * 100}%` }} />
@@ -895,11 +895,11 @@ const BatchBuilderPanel: React.FC = () => {
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
               <span style={{
                 width: 24, height: 24, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 11, fontWeight: 700, background: "var(--bg-tertiary)", color: "var(--btn-primary-fg)",
+                fontSize: "var(--font-size-sm)", fontWeight: 700, background: "var(--bg-tertiary)", color: "var(--btn-primary-fg)",
               }}>{a.icon}</span>
-              <span style={{ fontSize: 12, fontWeight: 600 }}>{a.role}</span>
+              <span style={{ fontSize: "var(--font-size-base)", fontWeight: 600 }}>{a.role}</span>
             </div>
-            <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
               <div>Files: {a.filesCreated} | Lines: {a.linesGenerated}</div>
               {a.assignedModules.length > 0 && <div>Modules: {a.assignedModules.join(", ")}</div>}
             </div>
@@ -911,8 +911,8 @@ const BatchBuilderPanel: React.FC = () => {
       <div style={sectionTitle}>Phase Timeline</div>
       <div style={{ marginLeft: 8 }}>
         {phases.map((p, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, fontSize: 13 }}>
-            <span style={{ width: 16, textAlign: "center", fontSize: 14 }}>
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, fontSize: "var(--font-size-md)" }}>
+            <span style={{ width: 16, textAlign: "center", fontSize: "var(--font-size-lg)" }}>
               {p.status === "completed" ? "\u2713" : p.status === "active" ? "\u25CF" : "\u25CB"}
             </span>
             <span style={{
@@ -935,7 +935,7 @@ const BatchBuilderPanel: React.FC = () => {
           { label: "Test Pass", value: `${metrics.testPass}%` },
         ].map((m) => (
           <div key={m.label} className="panel-card">
-            <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{m.label}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{m.label}</div>
             <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{m.value}</div>
           </div>
         ))}
@@ -953,12 +953,12 @@ const BatchBuilderPanel: React.FC = () => {
       <div style={{
         background: "var(--bg-secondary)",
         border: "1px solid var(--border-color)",
-        borderRadius: 6,
+        borderRadius: "var(--radius-sm)",
         maxHeight: 240,
         overflowY: "auto",
         padding: 8,
         fontFamily: "var(--font-mono)",
-        fontSize: 11,
+        fontSize: "var(--font-size-sm)",
       }}>
         {logs.length === 0 && <div style={{ color: "var(--text-secondary)" }}>No log entries yet. Start a batch run to see logs.</div>}
         {logs.map((entry) => (
@@ -982,7 +982,7 @@ const BatchBuilderPanel: React.FC = () => {
         {/* Round selector & Overall score */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <label style={{ fontSize: 12, color: "var(--text-primary)" }}>QA Round:</label>
+            <label style={{ fontSize: "var(--font-size-base)", color: "var(--text-primary)" }}>QA Round:</label>
             <select className="panel-select" style={{ width: 100 }} value={qaRound} onChange={(e) => setQaRound(Number(e.target.value))}>
               {Array.from({ length: qaRound }, (_, i) => (
                 <option key={i + 1} value={i + 1}>Round {i + 1}</option>
@@ -992,7 +992,7 @@ const BatchBuilderPanel: React.FC = () => {
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div style={{ textAlign: "center" }}>
               <div style={{ fontSize: 32, fontWeight: 700, fontFamily: "var(--font-mono)", color: scoreColor(overallScore) }}>{overallScore}</div>
-              <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Overall Score</div>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Overall Score</div>
             </div>
             <span style={badge(rec.text, rec.color)}>{rec.text}</span>
           </div>
@@ -1005,14 +1005,14 @@ const BatchBuilderPanel: React.FC = () => {
             <div key={qa.name} className="panel-card" style={{
               borderLeft: `3px solid ${qa.status === "pass" ? "var(--success-color)" : qa.status === "fail" ? "var(--error-color)" : "var(--warning-color)"}`,
             }}>
-              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>{qa.name}</div>
+              <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", marginBottom: 6 }}>{qa.name}</div>
               <div style={{ display: "flex", gap: 4, marginBottom: 6, flexWrap: "wrap" }}>
                 {qa.critical > 0 && <span style={badge(`C:${qa.critical}`, SEVERITY_COLORS.Critical)}>{`C:${qa.critical}`}</span>}
                 {qa.high > 0 && <span style={badge(`H:${qa.high}`, SEVERITY_COLORS.High)}>{`H:${qa.high}`}</span>}
                 {qa.medium > 0 && <span style={badge(`M:${qa.medium}`, SEVERITY_COLORS.Medium)}>{`M:${qa.medium}`}</span>}
                 {qa.low > 0 && <span style={badge(`L:${qa.low}`, SEVERITY_COLORS.Low)}>{`L:${qa.low}`}</span>}
               </div>
-              <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>Pass rate: {qa.passRate}%</div>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 4 }}>Pass rate: {qa.passRate}%</div>
               <div style={{ height: 4, borderRadius: 2, background: "var(--bg-secondary)" }}>
                 <div style={{ height: 4, borderRadius: 2, background: scoreColor(qa.passRate), width: `${qa.passRate}%` }} />
               </div>
@@ -1030,7 +1030,7 @@ const BatchBuilderPanel: React.FC = () => {
                 onClick={() => setFindingSortKey(key)}
                 className="panel-btn panel-btn-secondary"
                 style={{
-                  fontSize: 11,
+                  fontSize: "var(--font-size-sm)",
                   padding: "2px 8px",
                   background: findingSortKey === key ? "var(--accent-color)" : "var(--bg-secondary)",
                   color: findingSortKey === key ? "white" : "var(--text-primary)",
@@ -1058,10 +1058,10 @@ const BatchBuilderPanel: React.FC = () => {
               {sortedFindings.map((f) => (
                 <tr key={f.id} style={{ opacity: f.resolved ? 0.5 : 1 }}>
                   <td><span style={badge(f.severity, SEVERITY_COLORS[f.severity])}>{f.severity}</span></td>
-                  <td style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>{f.file}</td>
+                  <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--font-size-sm)" }}>{f.file}</td>
                   <td>{f.line}</td>
                   <td>{f.message}</td>
-                  <td style={{ fontSize: 11, color: "var(--text-secondary)" }}>{f.suggestion}</td>
+                  <td style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{f.suggestion}</td>
                   <td>{f.autoFixable ? "Yes" : "No"}</td>
                   <td>
                     <input type="checkbox" checked={f.resolved} onChange={() => toggleResolved(f.id)} />
@@ -1121,25 +1121,25 @@ const BatchBuilderPanel: React.FC = () => {
         {/* Source / Target / Strategy */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
           <div>
-            <label style={{ fontSize: 12, color: "var(--text-primary)", display: "block", marginBottom: 4 }}>Source Language</label>
+            <label style={{ fontSize: "var(--font-size-base)", color: "var(--text-primary)", display: "block", marginBottom: 4 }}>Source Language</label>
             <select className="panel-input panel-input-full" value={sourceLang} onChange={(e) => setSourceLang(e.target.value)}>
               {SOURCE_LANGS.map((l) => <option key={l} value={l}>{l}</option>)}
             </select>
           </div>
           <div>
-            <label style={{ fontSize: 12, color: "var(--text-primary)", display: "block", marginBottom: 4 }}>Target Language</label>
+            <label style={{ fontSize: "var(--font-size-base)", color: "var(--text-primary)", display: "block", marginBottom: 4 }}>Target Language</label>
             <select className="panel-input panel-input-full" value={targetLang} onChange={(e) => setTargetLang(e.target.value)}>
               {TARGET_LANGS.map((l) => <option key={l} value={l}>{l}</option>)}
             </select>
           </div>
           <div>
-            <label style={{ fontSize: 12, color: "var(--text-primary)", display: "block", marginBottom: 4 }}>Strategy</label>
+            <label style={{ fontSize: "var(--font-size-base)", color: "var(--text-primary)", display: "block", marginBottom: 4 }}>Strategy</label>
             <select className="panel-input panel-input-full" value={strategy} onChange={(e) => setStrategy(e.target.value as MigrationStrategy)}>
               {(Object.keys(STRATEGY_DESCRIPTIONS) as MigrationStrategy[]).map((s) => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
             </select>
           </div>
         </div>
-        <div className="panel-card" style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+        <div className="panel-card" style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>
           {STRATEGY_DESCRIPTIONS[strategy]}
         </div>
 
@@ -1177,17 +1177,17 @@ const BatchBuilderPanel: React.FC = () => {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 8 }}>
           {["Core Services", "Data Access", "API Gateway"].map((group) => (
             <div key={group} className="panel-card" style={{ borderTop: "3px solid var(--accent-color)" }}>
-              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>{group}</div>
-              <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+              <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", marginBottom: 6 }}>{group}</div>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
                 {migComponents
                   .filter((_, i) => (group === "Core Services" ? i < 2 : group === "Data Access" ? i >= 2 && i < 4 : i >= 4))
                   .map((c) => c.name)
                   .join(", ") || "N/A"}
               </div>
-              <div style={{ fontSize: 11, marginTop: 4 }}>
+              <div style={{ fontSize: "var(--font-size-sm)", marginTop: 4 }}>
                 API Surface: {group === "API Gateway" ? "REST + gRPC" : "Internal"}
               </div>
-              <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
                 Data Store: {group === "Data Access" ? "PostgreSQL" : group === "Core Services" ? "Redis Cache" : "N/A"}
               </div>
             </div>
@@ -1208,10 +1208,10 @@ const BatchBuilderPanel: React.FC = () => {
           <tbody>
             {translationRules.map((rule) => (
               <tr key={rule.id}>
-                <td style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>{rule.sourcePattern}</td>
-                <td style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>{rule.targetPattern}</td>
+                <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--font-size-sm)" }}>{rule.sourcePattern}</td>
+                <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--font-size-sm)" }}>{rule.targetPattern}</td>
                 <td><span style={{ color: scoreColor(rule.confidence), fontWeight: 600 }}>{rule.confidence}%</span></td>
-                <td style={{ fontSize: 11, color: "var(--text-secondary)" }}>{rule.example}</td>
+                <td style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{rule.example}</td>
               </tr>
             ))}
           </tbody>
@@ -1221,7 +1221,7 @@ const BatchBuilderPanel: React.FC = () => {
         <div style={sectionTitle}>Risk Assessment</div>
         <div className="panel-card">
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-            <span style={{ fontSize: 13, fontWeight: 600 }}>Overall Risk:</span>
+            <span style={{ fontSize: "var(--font-size-md)", fontWeight: 600 }}>Overall Risk:</span>
             <span style={badge(
               manualReviews > 2 ? "High" : manualReviews > 0 ? "Medium" : "Low",
               manualReviews > 2 ? "var(--error-color)" : manualReviews > 0 ? "var(--warning-color)" : "var(--success-color)",
@@ -1229,7 +1229,7 @@ const BatchBuilderPanel: React.FC = () => {
               {manualReviews > 2 ? "High" : manualReviews > 0 ? "Medium" : "Low"}
             </span>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: "var(--font-size-base)" }}>
             <div>High complexity modules: {migComponents.filter((c) => c.complexity === "High").length}</div>
             <div>Critical risk components: {migComponents.filter((c) => c.risk === "Critical").length}</div>
             <div>Manual review needed: {manualReviews} components</div>
@@ -1244,8 +1244,8 @@ const BatchBuilderPanel: React.FC = () => {
             <React.Fragment key={phase}>
               <div style={{
                 padding: "6px 12px",
-                borderRadius: 4,
-                fontSize: 11,
+                borderRadius: "var(--radius-xs-plus)",
+                fontSize: "var(--font-size-sm)",
                 fontWeight: i <= migPhaseIndex ? 600 : 400,
                 background: i < migPhaseIndex ? "var(--success-color)" : i === migPhaseIndex ? "var(--accent-color)" : "var(--bg-secondary)",
                 color: i <= migPhaseIndex ? "white" : "var(--text-primary)",
@@ -1261,23 +1261,23 @@ const BatchBuilderPanel: React.FC = () => {
         <div style={sectionTitle}>Report Summary</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 8 }}>
           <div className="panel-card">
-            <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Components Migrated</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Components Migrated</div>
             <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{completedCount} / {migComponents.length}</div>
           </div>
           <div className="panel-card">
-            <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Lines (Source → Target)</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Lines (Source → Target)</div>
             <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{completedLines.toLocaleString()} → {Math.round(completedLines * 0.6).toLocaleString()}</div>
           </div>
           <div className="panel-card">
-            <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Total Source Lines</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Total Source Lines</div>
             <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{totalSourceLines.toLocaleString()}</div>
           </div>
           <div className="panel-card">
-            <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Overall Confidence</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Overall Confidence</div>
             <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "var(--font-mono)", color: scoreColor(overallConfidence) }}>{overallConfidence}%</div>
           </div>
           <div className="panel-card">
-            <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Manual Reviews Needed</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Manual Reviews Needed</div>
             <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{manualReviews}</div>
           </div>
         </div>
@@ -1292,15 +1292,15 @@ const BatchBuilderPanel: React.FC = () => {
       {/* Total statistics */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 8, marginBottom: 16 }}>
         <div className="panel-card">
-          <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>All-Time Lines Generated</div>
+          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>All-Time Lines Generated</div>
           <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{allTimeLines.toLocaleString()}</div>
         </div>
         <div className="panel-card">
-          <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>All-Time Files Created</div>
+          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>All-Time Files Created</div>
           <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{allTimeFiles}</div>
         </div>
         <div className="panel-card">
-          <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Average Run Duration</div>
+          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Average Run Duration</div>
           <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>1h 16m</div>
         </div>
       </div>
@@ -1313,7 +1313,7 @@ const BatchBuilderPanel: React.FC = () => {
             onClick={() => setHistoryFilter(f)}
             className="panel-btn panel-btn-secondary"
             style={{
-              fontSize: 11,
+              fontSize: "var(--font-size-sm)",
               padding: "4px 10px",
               background: historyFilter === f ? "var(--accent-color)" : "var(--bg-secondary)",
               color: historyFilter === f ? "white" : "var(--text-primary)",
@@ -1348,7 +1348,7 @@ const BatchBuilderPanel: React.FC = () => {
                 onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-secondary)"; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
               >
-                <td style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>{run.id}</td>
+                <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--font-size-sm)" }}>{run.id}</td>
                 <td>{run.title}</td>
                 <td>
                   <span style={badge(run.status, run.status === "Completed" ? "var(--success-color)" : run.status === "Failed" ? "var(--error-color)" : "var(--text-secondary)")}>
@@ -1366,16 +1366,16 @@ const BatchBuilderPanel: React.FC = () => {
                   <td colSpan={8} style={{ padding: 16, background: "var(--bg-secondary)" }}>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                       <div>
-                        <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 13 }}>Detailed Metrics</div>
-                        <div style={{ fontSize: 12 }}>
+                        <div style={{ fontWeight: 600, marginBottom: 8, fontSize: "var(--font-size-md)" }}>Detailed Metrics</div>
+                        <div style={{ fontSize: "var(--font-size-base)" }}>
                           <div>QA Score: <span style={{ color: scoreColor(run.qaScore), fontWeight: 600 }}>{run.qaScore}/100</span></div>
                           <div>Avg Lines/File: {run.files > 0 ? Math.round(run.lines / run.files) : 0}</div>
                           <div>Status: {run.status}</div>
                         </div>
                       </div>
                       <div>
-                        <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 13 }}>Generated File Tree</div>
-                        <div style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>
+                        <div style={{ fontWeight: 600, marginBottom: 8, fontSize: "var(--font-size-md)" }}>Generated File Tree</div>
+                        <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--font-size-sm)" }}>
                           {run.fileTree.map((f, i) => (
                             <div key={i} style={{ color: "var(--text-secondary)" }}>{f}</div>
                           ))}

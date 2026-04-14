@@ -363,8 +363,8 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  return (
  <div className="panel-container" style={{ padding: "12px", gap: "8px" }}>
  <div className="sr-only" aria-live="polite">{statusLabel}</div>
- <div style={{ fontWeight: 600, fontSize: "14px", display: "flex", alignItems: "center", gap: 6 }}><Bot size={16} strokeWidth={1.5} />Agent Mode</div>
- <p style={{ fontSize: "12px", color: "var(--text-secondary)", margin: 0 }}>
+ <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)", display: "flex", alignItems: "center", gap: 6 }}><Bot size={16} strokeWidth={1.5} />Agent Mode</div>
+ <p style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", margin: 0 }}>
  Describe a task — the agent plans and executes it autonomously using file, search, and bash tools.
  </p>
 
@@ -407,11 +407,11 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  title={turboMode ? "Turbo Mode ON — click to disable full-auto" : "Turbo Mode OFF — click to enable full-auto (no approval prompts)"}
  style={{
  padding: "4px 8px",
- fontSize: "13px",
+ fontSize: "var(--font-size-md)",
  background: turboMode ? "var(--warning-color)" : "var(--bg-tertiary)",
  color: turboMode ? "var(--bg-primary)" : "var(--text-secondary)",
  border: `1px solid ${turboMode ? "var(--warning-color)" : "var(--border-color)"}`,
- borderRadius: "4px",
+ borderRadius: "var(--radius-xs-plus)",
  cursor: isRunning ? "not-allowed" : "pointer",
  fontWeight: turboMode ? 700 : 400,
  transition: "all 0.15s",
@@ -428,11 +428,11 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  title={parallelMode ? "Parallel Mode ON — task will be split into chunks and run concurrently" : "Parallel Mode OFF — single agent executes sequentially"}
  style={{
  padding: "4px 8px",
- fontSize: "13px",
+ fontSize: "var(--font-size-md)",
  background: parallelMode ? "var(--info-color, #6c8cff)" : "var(--bg-tertiary)",
  color: parallelMode ? "var(--bg-primary)" : "var(--text-secondary)",
  border: `1px solid ${parallelMode ? "var(--info-color, #6c8cff)" : "var(--border-color)"}`,
- borderRadius: "4px",
+ borderRadius: "var(--radius-xs-plus)",
  cursor: isRunning ? "not-allowed" : "pointer",
  fontWeight: parallelMode ? 700 : 400,
  transition: "all 0.15s",
@@ -448,7 +448,7 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  disabled={!task.trim() || !provider || isRunning}
  style={{ whiteSpace: "nowrap" }}
  >
- {isRunning ? <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Loader2 size={14} strokeWidth={1.5} className="spin" />Running...</span> : <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><span style={{ fontSize: "12px" }}>&#9654;</span>Run</span>}
+ {isRunning ? <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Loader2 size={14} strokeWidth={1.5} className="spin" />Running...</span> : <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><span style={{ fontSize: "var(--font-size-base)" }}>&#9654;</span>Run</span>}
  </button>
 
  {isRunning && (
@@ -496,8 +496,8 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
    alignItems: "center",
    gap: 6,
    padding: "4px 8px",
-   borderRadius: 4,
-   fontSize: 11,
+   borderRadius: "var(--radius-xs-plus)",
+   fontSize: "var(--font-size-sm)",
    fontWeight: 600,
    background: worktreeIsolation === "worktree"
      ? "color-mix(in srgb, var(--accent-green) 12%, transparent)"
@@ -522,8 +522,8 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
    alignItems: "center",
    gap: 6,
    padding: "4px 8px",
-   borderRadius: 4,
-   fontSize: 11,
+   borderRadius: "var(--radius-xs-plus)",
+   fontSize: "var(--font-size-sm)",
    fontWeight: 500,
    background: "var(--bg-tertiary)",
    color: "var(--text-secondary)",
@@ -537,7 +537,7 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  )}
 
  {!provider && (
- <div style={{ fontSize: "12px", color: "var(--warning-color)", padding: "6px", background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", borderRadius: "4px" }}>
+ <div style={{ fontSize: "var(--font-size-base)", color: "var(--warning-color)", padding: "6px", background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", borderRadius: "var(--radius-xs-plus)" }}>
  Select an AI provider in the header first.
  </div>
  )}
@@ -548,10 +548,10 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  flex: 1,
  overflowY: "auto",
  background: "var(--bg-tertiary)",
- borderRadius: "6px",
+ borderRadius: "var(--radius-sm)",
  padding: "8px",
  fontFamily: "var(--font-mono)",
- fontSize: "12px",
+ fontSize: "var(--font-size-base)",
  display: "flex",
  flexDirection: "column",
  gap: "6px",
@@ -591,7 +591,7 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  }).catch(() => {});
  }}
  title="Copy step output"
- style={{ flexShrink: 0, background: "none", border: "none", cursor: "pointer", fontSize: "10px", color: copiedStep === i ? "var(--success-color)" : "var(--text-secondary)", padding: "0 2px" }}
+ style={{ flexShrink: 0, background: "none", border: "none", cursor: "pointer", fontSize: "var(--font-size-xs)", color: copiedStep === i ? "var(--success-color)" : "var(--text-secondary)", padding: "0 2px" }}
  >
  {copiedStep === i ? <Check size={10} /> : <Copy size={10} />}
  </button>
@@ -599,7 +599,7 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  </div>
  {textOutput && (
  <>
- <pre style={{ margin: "4px 0 0 16px", color: "var(--text-secondary)", whiteSpace: "pre-wrap", maxHeight: isExpanded ? "none" : "160px", overflowY: "auto", fontSize: "11px" }}>
+ <pre style={{ margin: "4px 0 0 16px", color: "var(--text-secondary)", whiteSpace: "pre-wrap", maxHeight: isExpanded ? "none" : "160px", overflowY: "auto", fontSize: "var(--font-size-sm)" }}>
  {displayOutput}
  </pre>
  {isTruncated && (
@@ -609,7 +609,7 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  if (next.has(i)) next.delete(i); else next.add(i);
  return next;
  })}
- style={{ marginLeft: "16px", fontSize: "10px", background: "none", border: "none", cursor: "pointer", color: "var(--accent-color)", padding: "2px 0" }}
+ style={{ marginLeft: "16px", fontSize: "var(--font-size-xs)", background: "none", border: "none", cursor: "pointer", color: "var(--accent-color)", padding: "2px 0" }}
  >
  <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>{isExpanded ? <><ChevronUp size={10} /> Collapse</> : <><ChevronDown size={10} /> Show all</>}</span>
  </button>
@@ -637,7 +637,7 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  {/* Metrics header row */}
  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
  <Loader2 size={12} style={{ animation: "spin 1s linear infinite", flexShrink: 0 }} />
- <span style={{ fontSize: 11, color: "var(--text-secondary)", fontVariantNumeric: "tabular-nums" }}>
+ <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", fontVariantNumeric: "tabular-nums" }}>
  Thinking…{streamMetrics
  ? ` ${streamMetrics.tokensPerSec} tok/s · ${streamMetrics.totalTokens} tokens${streamMetrics.ttftMs !== null ? ` · ${streamMetrics.ttftMs}ms TTFT` : ""}`
  : ""}
@@ -648,7 +648,7 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  {streamText && (
  <div
  style={{
- fontSize: 12,
+ fontSize: "var(--font-size-base)",
  color: "var(--text-primary)",
  fontFamily: "var(--font-mono)",
  whiteSpace: "pre-wrap",
@@ -686,7 +686,7 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  style={{
  background: "var(--bg-secondary)",
  border: "1px solid var(--accent-color)",
- borderRadius: "6px",
+ borderRadius: "var(--radius-sm)",
  padding: "10px",
  }}
  >
@@ -698,9 +698,9 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  display: "block",
  background: "var(--bg-tertiary)",
  padding: "6px",
- borderRadius: "4px",
+ borderRadius: "var(--radius-xs-plus)",
  marginBottom: "8px",
- fontSize: "12px",
+ fontSize: "var(--font-size-base)",
  whiteSpace: "pre-wrap",
  }}
  >
@@ -728,7 +728,7 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  <div ref={feedEndRef} />
  </div>
 
- <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>
+ <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
  {steps.length > 0 && `${steps.length} step${steps.length !== 1 ? "s" : ""} completed`}
  {workspacePath && ` · ${workspacePath.split("/").pop()}`}
  </div>

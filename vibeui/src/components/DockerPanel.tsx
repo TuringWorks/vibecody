@@ -174,16 +174,16 @@ export function DockerPanel({ workspacePath }: DockerPanelProps) {
  };
 
  const inputStyle: React.CSSProperties = {
- padding: "5px 8px", fontSize: 12,
+ padding: "5px 8px", fontSize: "var(--font-size-base)",
  background: "var(--bg-secondary)", border: "1px solid var(--border-color)",
- borderRadius: 4, color: "var(--text-primary)", outline: "none",
+ borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none",
  };
 
 
  const terminal: React.CSSProperties = {
  background: "var(--bg-primary)", color: "var(--text-primary)",
- border: "1px solid var(--border-color)", borderRadius: 6,
- padding: 10, fontSize: 11, lineHeight: 1.5,
+ border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)",
+ padding: 10, fontSize: "var(--font-size-sm)", lineHeight: 1.5,
  minHeight: 60, maxHeight: 260,
  overflow: "auto", whiteSpace: "pre-wrap", wordBreak: "break-all",
  fontFamily: "var(--font-mono)",
@@ -215,7 +215,7 @@ export function DockerPanel({ workspacePath }: DockerPanelProps) {
  {subTab === "containers" && (
  <>
  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
- <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+ <span style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>
  {containers.length} container{containers.length !== 1 ? "s" : ""}
  </span>
  <button onClick={loadContainers} disabled={containersLoading} className="panel-btn panel-btn-secondary">
@@ -239,17 +239,17 @@ export function DockerPanel({ workspacePath }: DockerPanelProps) {
  padding: "8px 10px",
  background: selectedContainer === c.id ? "var(--bg-selected)" : "var(--bg-secondary)",
  border: `1px solid ${selectedContainer === c.id ? "var(--accent-color)" : "var(--border-color)"}`,
- borderRadius: 6, cursor: "pointer",
+ borderRadius: "var(--radius-sm)", cursor: "pointer",
  }}
  >
  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
  <span>{statusIcon(c.status)}</span>
- <span style={{ fontWeight: 600, fontSize: 12, flex: 1, fontFamily: "var(--font-mono)" }}>{c.name}</span>
- <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{c.image}</span>
- <span style={{ fontSize: 11, color: statusColor(c.status) }}>{c.status.split(" ")[0]}</span>
+ <span style={{ fontWeight: 600, fontSize: "var(--font-size-base)", flex: 1, fontFamily: "var(--font-mono)" }}>{c.name}</span>
+ <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{c.image}</span>
+ <span style={{ fontSize: "var(--font-size-sm)", color: statusColor(c.status) }}>{c.status.split(" ")[0]}</span>
  </div>
  {c.ports && (
- <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 3, fontFamily: "var(--font-mono)" }}>
+ <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 3, fontFamily: "var(--font-mono)" }}>
  {c.ports}
  </div>
  )}
@@ -321,13 +321,13 @@ export function DockerPanel({ workspacePath }: DockerPanelProps) {
  display: "flex", alignItems: "center", gap: 10,
  padding: "7px 10px",
  background: "var(--bg-secondary)", border: "1px solid var(--border-color)",
- borderRadius: 6, fontSize: 12,
+ borderRadius: "var(--radius-sm)", fontSize: "var(--font-size-base)",
  }}>
  <span style={{ fontFamily: "var(--font-mono)", flex: 1 }}>
  {img.repository}:{img.tag}
  </span>
- <span style={{ color: "var(--text-secondary)", fontSize: 11 }}>{img.size}</span>
- <span style={{ color: "var(--text-secondary)", fontSize: 10, fontFamily: "var(--font-mono)" }}>{img.id.slice(0, 12)}</span>
+ <span style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-sm)" }}>{img.size}</span>
+ <span style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-xs)", fontFamily: "var(--font-mono)" }}>{img.id.slice(0, 12)}</span>
  </div>
  ))}
  </div>
@@ -338,7 +338,7 @@ export function DockerPanel({ workspacePath }: DockerPanelProps) {
  {/* ── Compose ── */}
  {subTab === "compose" && (
  <>
- <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5 }}>
+ <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", lineHeight: 1.5 }}>
  Runs <code>docker compose</code> from your workspace root. Detects{" "}
  <code>docker-compose.yml</code>, <code>compose.yml</code>, etc.
  </div>

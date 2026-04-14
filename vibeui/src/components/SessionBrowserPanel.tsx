@@ -174,10 +174,10 @@ const SessionBrowserPanel: React.FC = () => {
           style={{
             padding: "6px 10px",
             marginBottom: 10,
-            borderRadius: 4,
+            borderRadius: "var(--radius-xs-plus)",
             background: "var(--bg-tertiary)",
             color: "var(--text-primary)",
-            fontSize: 12,
+            fontSize: "var(--font-size-base)",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
@@ -191,7 +191,7 @@ const SessionBrowserPanel: React.FC = () => {
               border: "none",
               color: "var(--text-secondary)",
               cursor: "pointer",
-              fontSize: 14,
+              fontSize: "var(--font-size-lg)",
             }}
           >
             ✕
@@ -227,11 +227,11 @@ const SessionBrowserPanel: React.FC = () => {
               style={{
                 padding: "8px 10px",
                 marginBottom: 10,
-                borderRadius: 4,
+                borderRadius: "var(--radius-xs-plus)",
                 background: "var(--bg-secondary)",
                 borderLeft: "3px solid var(--error-color)",
                 color: "var(--error-color)",
-                fontSize: 12,
+                fontSize: "var(--font-size-base)",
               }}
             >
               Error: {sessionsError}
@@ -246,7 +246,7 @@ const SessionBrowserPanel: React.FC = () => {
                 style={{
                   padding: "8px 10px",
                   marginBottom: 6,
-                  borderRadius: 4,
+                  borderRadius: "var(--radius-xs-plus)",
                   background: "var(--bg-secondary)",
                   cursor: "pointer",
                   borderLeft: "3px solid var(--accent-color)",
@@ -260,7 +260,7 @@ const SessionBrowserPanel: React.FC = () => {
                   }}
                 >
                   <span
-                    style={{ fontWeight: 600, fontSize: 12, cursor: "pointer" }}
+                    style={{ fontWeight: 600, fontSize: "var(--font-size-base)", cursor: "pointer" }}
                     onClick={() => {
                       setSelectedSession(s);
                       setReplayIndex(0);
@@ -282,7 +282,7 @@ const SessionBrowserPanel: React.FC = () => {
                       border: "none",
                       color: "var(--error-color)",
                       cursor: "pointer",
-                      fontSize: 12,
+                      fontSize: "var(--font-size-base)",
                       padding: "2px 6px",
                     }}
                   >
@@ -294,7 +294,7 @@ const SessionBrowserPanel: React.FC = () => {
                     display: "flex",
                     gap: 12,
                     marginTop: 4,
-                    fontSize: 11,
+                    fontSize: "var(--font-size-sm)",
                     color: "var(--text-secondary)",
                   }}
                   onClick={() => {
@@ -346,7 +346,7 @@ const SessionBrowserPanel: React.FC = () => {
               <div
                 style={{
                   marginBottom: 10,
-                  fontSize: 12,
+                  fontSize: "var(--font-size-base)",
                   color: "var(--text-secondary)",
                 }}
               >
@@ -375,11 +375,11 @@ const SessionBrowserPanel: React.FC = () => {
                   style={{
                     padding: "8px 10px",
                     marginBottom: 10,
-                    borderRadius: 4,
+                    borderRadius: "var(--radius-xs-plus)",
                     background: "var(--bg-secondary)",
                     borderLeft: "3px solid var(--error-color)",
                     color: "var(--error-color)",
-                    fontSize: 12,
+                    fontSize: "var(--font-size-base)",
                   }}
                 >
                   Error: {messagesError}
@@ -396,8 +396,8 @@ const SessionBrowserPanel: React.FC = () => {
                       disabled={replayIndex === 0}
                       style={{
                         padding: "4px 12px",
-                        fontSize: 11,
-                        borderRadius: 4,
+                        fontSize: "var(--font-size-sm)",
+                        borderRadius: "var(--radius-xs-plus)",
                         border: "1px solid var(--border-color)",
                         background: "none",
                         color: "var(--text-primary)",
@@ -415,8 +415,8 @@ const SessionBrowserPanel: React.FC = () => {
                       disabled={replayIndex >= messages.length - 1}
                       style={{
                         padding: "4px 12px",
-                        fontSize: 11,
-                        borderRadius: 4,
+                        fontSize: "var(--font-size-sm)",
+                        borderRadius: "var(--radius-xs-plus)",
                         border: "1px solid var(--border-color)",
                         background: "none",
                         color: "var(--text-primary)",
@@ -430,7 +430,7 @@ const SessionBrowserPanel: React.FC = () => {
                     </button>
                     <span
                       style={{
-                        fontSize: 11,
+                        fontSize: "var(--font-size-sm)",
                         color: "var(--text-secondary)",
                         lineHeight: "28px",
                       }}
@@ -444,7 +444,7 @@ const SessionBrowserPanel: React.FC = () => {
                       style={{
                         padding: "8px 10px",
                         marginBottom: 6,
-                        borderRadius: 4,
+                        borderRadius: "var(--radius-xs-plus)",
                         background:
                           i === replayIndex
                             ? "var(--bg-tertiary)"
@@ -456,7 +456,7 @@ const SessionBrowserPanel: React.FC = () => {
                         style={{
                           display: "flex",
                           justifyContent: "space-between",
-                          fontSize: 11,
+                          fontSize: "var(--font-size-sm)",
                           marginBottom: 4,
                         }}
                       >
@@ -472,7 +472,7 @@ const SessionBrowserPanel: React.FC = () => {
                       </div>
                       <div
                         style={{
-                          fontSize: 12,
+                          fontSize: "var(--font-size-base)",
                           whiteSpace: "pre-wrap",
                           lineHeight: 1.5,
                           maxHeight: 200,
@@ -535,7 +535,7 @@ const SessionBrowserPanel: React.FC = () => {
                 style={{
                   background: "var(--bg-secondary)",
                   padding: "10px 16px",
-                  borderRadius: 6,
+                  borderRadius: "var(--radius-sm)",
                   textAlign: "center",
                   minWidth: 90,
                 }}
@@ -551,7 +551,7 @@ const SessionBrowserPanel: React.FC = () => {
                 </div>
                 <div
                   style={{
-                    fontSize: 11,
+                    fontSize: "var(--font-size-sm)",
                     color: "var(--text-secondary)",
                     marginTop: 2,
                   }}
@@ -562,7 +562,7 @@ const SessionBrowserPanel: React.FC = () => {
             ))}
           </div>
 
-          <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>
+          <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, marginBottom: 8 }}>
             Sessions by Size
           </div>
           {sessions.length === 0 && (
@@ -595,7 +595,7 @@ const SessionBrowserPanel: React.FC = () => {
                   <span
                     style={{
                       minWidth: 100,
-                      fontSize: 11,
+                      fontSize: "var(--font-size-sm)",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
                       whiteSpace: "nowrap",
@@ -626,7 +626,7 @@ const SessionBrowserPanel: React.FC = () => {
                     style={{
                       minWidth: 50,
                       textAlign: "right",
-                      fontSize: 11,
+                      fontSize: "var(--font-size-sm)",
                       color: "var(--text-secondary)",
                     }}
                   >
@@ -636,7 +636,7 @@ const SessionBrowserPanel: React.FC = () => {
                     style={{
                       minWidth: 40,
                       textAlign: "right",
-                      fontSize: 11,
+                      fontSize: "var(--font-size-sm)",
                       color: "var(--text-secondary)",
                     }}
                   >

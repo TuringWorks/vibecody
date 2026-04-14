@@ -158,9 +158,9 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
           value={selectedSource}
           onChange={(e) => { setSelectedSource(e.target.value); setCustomPath(""); }}
           style={{
-            flex: 1, minWidth: 180, padding: "5px 8px", fontSize: 12,
+            flex: 1, minWidth: 180, padding: "5px 8px", fontSize: "var(--font-size-base)",
             background: "var(--bg-secondary)", color: "var(--text-primary)",
-            border: "1px solid var(--border-color)", borderRadius: 6,
+            border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)",
           }}
         >
           {sources.length === 0 && <option value="">No log files found</option>}
@@ -176,18 +176,18 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
           value={customPath}
           onChange={(e) => setCustomPath(e.target.value)}
           style={{
-            flex: 1, minWidth: 150, padding: "5px 8px", fontSize: 12,
+            flex: 1, minWidth: 150, padding: "5px 8px", fontSize: "var(--font-size-base)",
             background: "var(--bg-secondary)", color: "var(--text-primary)",
-            border: "1px solid var(--border-color)", borderRadius: 6,
+            border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)",
           }}
         />
         <button
           onClick={handleTail}
           disabled={loading}
           style={{
-            padding: "5px 14px", fontSize: 12, fontWeight: 600,
+            padding: "5px 14px", fontSize: "var(--font-size-base)", fontWeight: 600,
             background: loading ? "var(--bg-tertiary)" : "var(--accent-color)",
-            color: "var(--text-primary)", border: "none", borderRadius: 6,
+            color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-sm)",
             cursor: loading ? "not-allowed" : "pointer",
           }}
         >
@@ -201,9 +201,9 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
           value={lineCount}
           onChange={(e) => setLineCount(Number(e.target.value))}
           style={{
-            padding: "4px 6px", fontSize: 11,
+            padding: "4px 6px", fontSize: "var(--font-size-sm)",
             background: "var(--bg-secondary)", color: "var(--text-primary)",
-            border: "1px solid var(--border-color)", borderRadius: 4,
+            border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)",
           }}
         >
           <option value={100}>100 lines</option>
@@ -218,7 +218,7 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
             key={lv}
             onClick={() => setLevelFilter(lv)}
             style={{
-              padding: "3px 10px", fontSize: 11, borderRadius: 12,
+              padding: "3px 10px", fontSize: "var(--font-size-sm)", borderRadius: 12,
               background: levelFilter === lv ? (lv === "all" ? "var(--accent-color)" : levelColor[lv]) : "var(--bg-secondary)",
               border: `1px solid ${levelFilter === lv ? "transparent" : "var(--border-color)"}`,
               color: levelFilter === lv ? "var(--text-primary)" : "var(--text-primary)",
@@ -231,7 +231,7 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
           </button>
         ))}
 
-        <label style={{ fontSize: 11, display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
+        <label style={{ fontSize: "var(--font-size-sm)", display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
           <input
             type="checkbox"
             checked={autoRefresh}
@@ -246,16 +246,16 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           style={{
-            flex: 1, minWidth: 120, padding: "4px 8px", fontSize: 11,
+            flex: 1, minWidth: 120, padding: "4px 8px", fontSize: "var(--font-size-sm)",
             background: "var(--bg-secondary)", color: "var(--text-primary)",
-            border: "1px solid var(--border-color)", borderRadius: 4,
+            border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)",
           }}
         />
       </div>
 
       {/* Error */}
       {error && (
-        <div style={{ background: "color-mix(in srgb, var(--accent-rose) 15%, transparent)", border: "1px solid var(--error-color)", borderRadius: 6, padding: 8, fontSize: 11, color: "var(--error-color)" }}>
+        <div style={{ background: "color-mix(in srgb, var(--accent-rose) 15%, transparent)", border: "1px solid var(--error-color)", borderRadius: "var(--radius-sm)", padding: 8, fontSize: "var(--font-size-sm)", color: "var(--error-color)" }}>
           {error}
         </div>
       )}
@@ -263,8 +263,8 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
       {/* Summary bar */}
       {result && (
         <div style={{
-          display: "flex", gap: 12, fontSize: 12,
-          background: "var(--bg-secondary)", borderRadius: 6, padding: "6px 10px",
+          display: "flex", gap: 12, fontSize: "var(--font-size-base)",
+          background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: "6px 10px",
           border: "1px solid var(--border-color)",
         }}>
           <span>Lines: <strong>{result.total_lines}</strong></span>
@@ -280,9 +280,9 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
             onClick={handleAnalyze}
             disabled={analyzing || filtered.length === 0}
             style={{
-              padding: "2px 10px", fontSize: 11, fontWeight: 600,
+              padding: "2px 10px", fontSize: "var(--font-size-sm)", fontWeight: 600,
               background: analyzing ? "var(--bg-tertiary)" : "var(--success-color)",
-              color: "var(--bg-tertiary)", border: "none", borderRadius: 4,
+              color: "var(--bg-tertiary)", border: "none", borderRadius: "var(--radius-xs-plus)",
               cursor: analyzing ? "not-allowed" : "pointer",
             }}
           >
@@ -294,8 +294,8 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
       {/* AI Analysis */}
       {analysis && (
         <div style={{
-          background: "var(--bg-secondary)", borderRadius: 6, padding: 10,
-          border: "1px solid var(--border-color)", fontSize: 12,
+          background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: 10,
+          border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)",
           maxHeight: 200, overflowY: "auto", whiteSpace: "pre-wrap",
           fontFamily: "inherit", lineHeight: 1.5,
         }}>
@@ -303,7 +303,7 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
             <strong style={{ color: "var(--success-color)" }}>AI Analysis</strong>
             <button
               onClick={() => setAnalysis(null)}
-              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", fontSize: 11 }}
+              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", fontSize: "var(--font-size-sm)" }}
             >
               Dismiss
             </button>
@@ -315,8 +315,8 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
       {/* Log entries */}
       {result && filtered.length > 0 ? (
         <div style={{
-          flex: 1, overflowY: "auto", fontFamily: "var(--font-mono)", fontSize: 11,
-          background: "var(--bg-secondary)", borderRadius: 6,
+          flex: 1, overflowY: "auto", fontFamily: "var(--font-mono)", fontSize: "var(--font-size-sm)",
+          background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)",
           border: "1px solid var(--border-color)", padding: 4,
         }}>
           {filtered.map((entry) => (
@@ -334,13 +334,13 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
                 {entry.line_number}
               </span>
               <span style={{
-                minWidth: 28, fontWeight: 600, fontSize: 10,
+                minWidth: 28, fontWeight: 600, fontSize: "var(--font-size-xs)",
                 color: levelColor[entry.level] || "var(--text-secondary)",
               }}>
                 {levelBadge[entry.level] || "---"}
               </span>
               {entry.timestamp && (
-                <span style={{ color: "var(--text-secondary)", minWidth: 140, fontSize: 10 }}>
+                <span style={{ color: "var(--text-secondary)", minWidth: 140, fontSize: "var(--font-size-xs)" }}>
                   {entry.timestamp}
                 </span>
               )}
@@ -352,14 +352,14 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
           <div ref={logEndRef} />
         </div>
       ) : result ? (
-        <div style={{ padding: 16, opacity: 0.5, fontSize: 12, textAlign: "center" }}>
+        <div style={{ padding: 16, opacity: 0.5, fontSize: "var(--font-size-base)", textAlign: "center" }}>
           No log entries match the current filter.
         </div>
       ) : null}
 
       {/* Empty state */}
       {!result && !loading && !error && (
-        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.4, fontSize: 12 }}>
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.4, fontSize: "var(--font-size-base)" }}>
           {sources.length > 0 ? "Select a log source and click Load Logs." : "No log files found. Enter a custom path or command (cmd:docker logs ...)."}
         </div>
       )}

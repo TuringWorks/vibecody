@@ -145,12 +145,12 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  const barWidth = (pct: number) => `${Math.max(2, Math.min(100, pct))}%`;
 
  return (
- <div style={{ padding: "12px", fontFamily: "var(--font-family)", fontSize: "13px", height: "100%", overflowY: "auto" }}>
+ <div style={{ padding: "12px", fontFamily: "var(--font-family)", fontSize: "var(--font-size-md)", height: "100%", overflowY: "auto" }}>
  {/* Header */}
  <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px", flexWrap: "wrap" }}>
  <span style={{ fontWeight: "bold", display: "flex", alignItems: "center", gap: 6 }}><FlaskConical size={16} strokeWidth={1.5} />Coverage</span>
  {tool && (
- <span style={{ background: "var(--bg-secondary)", padding: "2px 8px", borderRadius: "4px", fontSize: "11px" }}>
+ <span style={{ background: "var(--bg-secondary)", padding: "2px 8px", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-sm)" }}>
  {toolLabel[tool] ?? tool}
  </span>
  )}
@@ -166,7 +166,7 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  style={{
  marginLeft: "auto",
  background: "var(--error-color)",
- color: "var(--btn-primary-fg)", border: "none", borderRadius: "4px",
+ color: "var(--btn-primary-fg)", border: "none", borderRadius: "var(--radius-xs-plus)",
  padding: "4px 12px", cursor: "pointer",
  }}
  >
@@ -179,7 +179,7 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  style={{
  marginLeft: "auto",
  background: "var(--accent-blue)", color: "var(--btn-primary-fg)",
- border: "none", borderRadius: "4px",
+ border: "none", borderRadius: "var(--radius-xs-plus)",
  padding: "4px 12px", cursor: !tool || !workspacePath ? "default" : "pointer",
  }}
  >
@@ -189,14 +189,14 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  </div>
 
  {error && (
- <div style={{ background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", color: "var(--error-color)", padding: "8px", borderRadius: "4px", marginBottom: "12px", whiteSpace: "pre-wrap" }}>
+ <div style={{ background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", color: "var(--error-color)", padding: "8px", borderRadius: "var(--radius-xs-plus)", marginBottom: "12px", whiteSpace: "pre-wrap" }}>
  {error}
  </div>
  )}
 
  {/* Live log — shown while running; after completion visible via Raw button */}
  {(running || (!result && logs.length > 0)) && (
-   <div style={{ background: "var(--bg-secondary)", borderRadius: "4px", padding: "10px", fontFamily: "var(--font-mono, monospace)", fontSize: "11px", lineHeight: 1.5, overflowY: "auto", overflowX: "auto", maxHeight: "calc(100vh - 160px)", color: "var(--text-secondary)" }}>
+   <div style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-xs-plus)", padding: "10px", fontFamily: "var(--font-mono, monospace)", fontSize: "var(--font-size-sm)", lineHeight: 1.5, overflowY: "auto", overflowX: "auto", maxHeight: "calc(100vh - 160px)", color: "var(--text-secondary)" }}>
      {logs.map((line, i) => (
        <div key={i} style={{ whiteSpace: "pre", minWidth: "max-content" }}>{line || "\u00A0"}</div>
      ))}
@@ -212,7 +212,7 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  <span style={{ color: pctColor(result.total_pct), fontWeight: "bold", fontSize: "16px" }}>
  {result.total_pct.toFixed(1)}%
  </span>
- <span style={{ color: "var(--text-secondary)", fontSize: "11px" }}>
+ <span style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-sm)" }}>
  {result.files.length} files
  </span>
  </div>
@@ -230,8 +230,8 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  style={{
  background: filter === f ? "var(--accent-blue)" : "var(--bg-secondary)",
  color: filter === f ? "var(--text-primary)" : "var(--text-secondary)",
- border: "none", borderRadius: "4px", padding: "2px 10px",
- cursor: "pointer", fontSize: "11px",
+ border: "none", borderRadius: "var(--radius-xs-plus)", padding: "2px 10px",
+ cursor: "pointer", fontSize: "var(--font-size-sm)",
  }}
  >
  {f === "all" ? `All (${result.files.length})` : f === "partial" ? `Partial (${result.files.filter(x => x.pct > 0 && x.pct < 100).length})` : `Uncovered (${result.files.filter(x => x.pct === 0).length})`}
@@ -243,8 +243,8 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  marginLeft: "auto",
  background: showRaw ? "var(--accent-blue)" : "var(--bg-secondary)",
  color: showRaw ? "var(--text-primary)" : "var(--text-secondary)",
- border: "none", borderRadius: "4px", padding: "2px 10px",
- cursor: "pointer", fontSize: "11px",
+ border: "none", borderRadius: "var(--radius-xs-plus)", padding: "2px 10px",
+ cursor: "pointer", fontSize: "var(--font-size-sm)",
  }}
  >
  Raw
@@ -252,7 +252,7 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  </div>
 
  {showRaw ? (
- <pre style={{ background: "var(--bg-secondary)", padding: "10px", borderRadius: "4px", fontSize: "11px", overflow: "auto", maxHeight: "400px", whiteSpace: "pre-wrap", fontFamily: "var(--font-mono, monospace)" }}>
+ <pre style={{ background: "var(--bg-secondary)", padding: "10px", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-sm)", overflow: "auto", maxHeight: "400px", whiteSpace: "pre-wrap", fontFamily: "var(--font-mono, monospace)" }}>
  {logs.length > 0 ? logs.join("\n") : result.raw_output || "(no output)"}
  </pre>
  ) : (
@@ -266,19 +266,19 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  const isExpanded = expanded.has(file.path);
  const shortPath = file.path.split("/").slice(-3).join("/");
  return (
- <div key={file.path} style={{ background: "var(--bg-secondary)", borderRadius: "4px", overflow: "hidden" }}>
+ <div key={file.path} style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-xs-plus)", overflow: "hidden" }}>
  <div
  onClick={() => toggleExpand(file.path)}
  style={{ padding: "6px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: "8px" }}
  >
- <span style={{ color: "var(--text-secondary)", fontSize: "10px" }}>{isExpanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />}</span>
+ <span style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-xs)" }}>{isExpanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />}</span>
  <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--text-secondary)" }} title={file.path}>
  {shortPath}
  </span>
  <span style={{ color: pctColor(file.pct), fontWeight: "bold", minWidth: "48px", textAlign: "right" }}>
  {file.pct.toFixed(0)}%
  </span>
- <span style={{ color: "var(--text-secondary)", fontSize: "11px", minWidth: "80px", textAlign: "right" }}>
+ <span style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-sm)", minWidth: "80px", textAlign: "right" }}>
  {file.covered}/{file.total} lines
  </span>
  <div style={{ width: "80px", background: "var(--bg-primary)", borderRadius: "2px", height: "4px", overflow: "hidden" }}>
@@ -287,14 +287,14 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  </div>
  {isExpanded && file.uncovered_lines.length > 0 && (
  <div style={{ padding: "6px 10px 8px 28px", borderTop: "1px solid var(--bg-primary)" }}>
- <span style={{ color: "var(--error-color)", fontSize: "11px" }}>
+ <span style={{ color: "var(--error-color)", fontSize: "var(--font-size-sm)" }}>
  Uncovered lines: {file.uncovered_lines.slice(0, 30).join(", ")}
  {file.uncovered_lines.length > 30 && ` … +${file.uncovered_lines.length - 30} more`}
  </span>
  </div>
  )}
  {isExpanded && file.uncovered_lines.length === 0 && (
- <div style={{ padding: "6px 10px 8px 28px", borderTop: "1px solid var(--bg-primary)", color: "var(--success-color)", fontSize: "11px" }}>
+ <div style={{ padding: "6px 10px 8px 28px", borderTop: "1px solid var(--bg-primary)", color: "var(--success-color)", fontSize: "var(--font-size-sm)" }}>
  <CircleCheck size={14} strokeWidth={1.5} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />All lines covered
  </div>
  )}

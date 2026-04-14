@@ -195,7 +195,7 @@ export function CronPanel() {
  <div className="panel-container" style={{ flexDirection: "row" }}>
  {/* Preset sidebar */}
  <div style={{ width: 200, borderRight: "1px solid var(--border-color)", display: "flex", flexDirection: "column", flexShrink: 0 }}>
- <div className="panel-header" style={{ fontSize: 11, fontWeight: 600 }}>
+ <div className="panel-header" style={{ fontSize: "var(--font-size-sm)", fontWeight: 600 }}>
  Presets
  </div>
  <div style={{ flex: 1, overflowY: "auto" }}>
@@ -211,8 +211,8 @@ export function CronPanel() {
  color: "var(--text-primary)",
  }}
  >
- <div style={{ fontSize: 11, fontWeight: expr === p.expr ? 600 : 400 }}>{p.label}</div>
- <div style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--accent-primary)" }}>{p.expr}</div>
+ <div style={{ fontSize: "var(--font-size-sm)", fontWeight: expr === p.expr ? 600 : 400 }}>{p.label}</div>
+ <div style={{ fontSize: "var(--font-size-xs)", fontFamily: "var(--font-mono)", color: "var(--accent-primary)" }}>{p.expr}</div>
  </button>
  ))}
  </div>
@@ -223,7 +223,7 @@ export function CronPanel() {
 
  {/* Expression input */}
  <div>
- <label style={{ fontSize: 10, fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>CRON EXPRESSION</label>
+ <label style={{ fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>CRON EXPRESSION</label>
  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
  <input
  value={expr}
@@ -232,16 +232,16 @@ export function CronPanel() {
  style={{
  flex: 1, padding: "8px 12px", fontSize: 16, fontFamily: "var(--font-mono)", fontWeight: 700,
  background: "var(--bg-secondary)", border: `1px solid ${error ? "var(--text-danger)" : "var(--border-color)"}`,
- borderRadius: 6, color: error ? "var(--text-danger)" : "var(--text-info)", outline: "none",
+ borderRadius: "var(--radius-sm)", color: error ? "var(--text-danger)" : "var(--text-info)", outline: "none",
  }}
  />
- <button onClick={copy} style={{ padding: "8px 14px", fontSize: 11, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 6, color: "var(--text-secondary)", cursor: "pointer", display: "inline-flex", alignItems: "center" }}>
+ <button onClick={copy} style={{ padding: "8px 14px", fontSize: "var(--font-size-sm)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", color: "var(--text-secondary)", cursor: "pointer", display: "inline-flex", alignItems: "center" }}>
  {copied ? <Check size={14} strokeWidth={1.5} /> : <Copy size={14} strokeWidth={1.5} />}
  </button>
  </div>
  {error
- ? <div style={{ fontSize: 11, color: "var(--text-danger)", marginTop: 5, display: "flex", alignItems: "center", gap: 4 }}><AlertCircle size={14} strokeWidth={1.5} /> {error}</div>
- : <div style={{ fontSize: 11, color: "var(--text-success)", marginTop: 5, display: "flex", alignItems: "center", gap: 4 }}><CheckCircle size={14} strokeWidth={1.5} /> {desc}</div>
+ ? <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-danger)", marginTop: 5, display: "flex", alignItems: "center", gap: 4 }}><AlertCircle size={14} strokeWidth={1.5} /> {error}</div>
+ : <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-success)", marginTop: 5, display: "flex", alignItems: "center", gap: 4 }}><CheckCircle size={14} strokeWidth={1.5} /> {desc}</div>
  }
  </div>
 
@@ -250,7 +250,7 @@ export function CronPanel() {
  {FIELDS.map((f, i) => (
  <div key={f.label} style={{ display: "flex", flexDirection: "column", gap: 5 }}>
  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
- <label style={{ fontSize: 10, fontWeight: 600, color: "var(--text-secondary)" }}>{f.label}</label>
+ <label style={{ fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-secondary)" }}>{f.label}</label>
  <span style={{ fontSize: 9, color: "var(--text-secondary)" }}>{f.min}–{f.max}</span>
  </div>
  <input
@@ -258,9 +258,9 @@ export function CronPanel() {
  onChange={e => setPart(i, e.target.value)}
  spellCheck={false}
  style={{
- padding: "5px 8px", fontSize: 13, fontFamily: "var(--font-mono)", fontWeight: 600, textAlign: "center",
+ padding: "5px 8px", fontSize: "var(--font-size-md)", fontFamily: "var(--font-mono)", fontWeight: 600, textAlign: "center",
  background: "var(--bg-secondary)", border: `1px solid ${parts[i] && !validatePart(parts[i], f) ? "var(--text-danger)" : "var(--border-color)"}`,
- borderRadius: 4, color: "var(--text-primary)", outline: "none",
+ borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none",
  }}
  />
  {/* Quick-set chips */}
@@ -272,7 +272,7 @@ export function CronPanel() {
  <button
  key={chip}
  onClick={() => setPart(i, chip)}
- style={{ padding: "1px 5px", fontSize: 9, borderRadius: 4, background: parts[i] === chip ? "color-mix(in srgb, var(--accent-blue) 25%, transparent)" : "var(--bg-primary)", border: `1px solid ${parts[i] === chip ? "var(--accent-primary)" : "var(--border-color)"}`, color: parts[i] === chip ? "var(--text-info)" : "var(--text-secondary)", cursor: "pointer" }}
+ style={{ padding: "1px 5px", fontSize: 9, borderRadius: "var(--radius-xs-plus)", background: parts[i] === chip ? "color-mix(in srgb, var(--accent-blue) 25%, transparent)" : "var(--bg-primary)", border: `1px solid ${parts[i] === chip ? "var(--accent-primary)" : "var(--border-color)"}`, color: parts[i] === chip ? "var(--text-info)" : "var(--text-secondary)", cursor: "pointer" }}
  >
  {chip}
  </button>
@@ -281,7 +281,7 @@ export function CronPanel() {
  <button
  key={name}
  onClick={() => setPart(i, String(f.min + ni))}
- style={{ padding: "1px 5px", fontSize: 9, borderRadius: 4, background: parts[i] === String(f.min + ni) ? "color-mix(in srgb, var(--accent-blue) 25%, transparent)" : "var(--bg-primary)", border: `1px solid ${parts[i] === String(f.min + ni) ? "var(--accent-primary)" : "var(--border-color)"}`, color: parts[i] === String(f.min + ni) ? "var(--text-info)" : "var(--text-secondary)", cursor: "pointer" }}
+ style={{ padding: "1px 5px", fontSize: 9, borderRadius: "var(--radius-xs-plus)", background: parts[i] === String(f.min + ni) ? "color-mix(in srgb, var(--accent-blue) 25%, transparent)" : "var(--bg-primary)", border: `1px solid ${parts[i] === String(f.min + ni) ? "var(--accent-primary)" : "var(--border-color)"}`, color: parts[i] === String(f.min + ni) ? "var(--text-info)" : "var(--text-secondary)", cursor: "pointer" }}
  >
  {name}
  </button>
@@ -292,9 +292,9 @@ export function CronPanel() {
  </div>
 
  {/* Field reference */}
- <div style={{ padding: "10px 14px", background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)" }}>
- <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 8 }}>Syntax Reference</div>
- <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 20px", fontSize: 11, fontFamily: "var(--font-mono)" }}>
+ <div style={{ padding: "10px 14px", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)" }}>
+ <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, marginBottom: 8 }}>Syntax Reference</div>
+ <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 20px", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)" }}>
  {[
  ["*", "any value"],
  ["*/n", "every n steps"],
@@ -314,16 +314,16 @@ export function CronPanel() {
  {/* Next runs */}
  {runs.length > 0 && (
  <div>
- <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 8 }}>Next {runs.length} Scheduled Runs</div>
+ <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, marginBottom: 8 }}>Next {runs.length} Scheduled Runs</div>
  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
  {runs.map((d, i) => (
- <div key={i} style={{ display: "flex", gap: 12, padding: "5px 10px", background: i === 0 ? "color-mix(in srgb, var(--accent-blue) 10%, transparent)" : "var(--bg-secondary)", borderRadius: 4, border: `1px solid ${i === 0 ? "var(--accent-primary)" : "var(--border-color)"}`, fontSize: 12, fontFamily: "var(--font-mono)" }}>
+ <div key={i} style={{ display: "flex", gap: 12, padding: "5px 10px", background: i === 0 ? "color-mix(in srgb, var(--accent-blue) 10%, transparent)" : "var(--bg-secondary)", borderRadius: "var(--radius-xs-plus)", border: `1px solid ${i === 0 ? "var(--accent-primary)" : "var(--border-color)"}`, fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)" }}>
  <span style={{ color: "var(--text-secondary)", minWidth: 20 }}>#{i + 1}</span>
  <span style={{ color: i === 0 ? "var(--text-info)" : "var(--text-primary)", fontWeight: i === 0 ? 600 : 400 }}>
  {d.toLocaleString([], { weekday: "short", year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
  </span>
  {i === 0 && (
- <span style={{ color: "var(--text-success)", fontSize: 10, marginLeft: "auto" }}>
+ <span style={{ color: "var(--text-success)", fontSize: "var(--font-size-xs)", marginLeft: "auto" }}>
  in {Math.round((d.getTime() - Date.now()) / 60000)} min
  </span>
  )}

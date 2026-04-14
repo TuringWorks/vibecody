@@ -100,7 +100,7 @@ export function CompanyBudgetPanel({ workspacePath: _wp }: CompanyBudgetPanelPro
       </div>
 
       {cmdResult && (
-        <div className="panel-card" style={{ marginBottom: 12, fontSize: 12 }}>
+        <div className="panel-card" style={{ marginBottom: 12, fontSize: "var(--font-size-base)" }}>
           {cmdResult}
         </div>
       )}
@@ -112,7 +112,7 @@ export function CompanyBudgetPanel({ workspacePath: _wp }: CompanyBudgetPanelPro
           <div style={{ marginBottom: 12 }}>
             <div className="panel-label" style={{ marginBottom: 6 }}>Budget Status</div>
             <div className="panel-card">
-              <pre style={{ margin: 0, fontSize: 12, whiteSpace: "pre-wrap" }}>
+              <pre style={{ margin: 0, fontSize: "var(--font-size-base)", whiteSpace: "pre-wrap" }}>
                 {budgetOutput || "No budgets set. Use the form above."}
               </pre>
             </div>
@@ -120,7 +120,7 @@ export function CompanyBudgetPanel({ workspacePath: _wp }: CompanyBudgetPanelPro
           <div>
             <div className="panel-label" style={{ marginBottom: 6 }}>Cost Events</div>
             <div className="panel-card" style={{ maxHeight: 200, overflowY: "auto" }}>
-              <pre style={{ margin: 0, fontSize: 12, whiteSpace: "pre-wrap" }}>
+              <pre style={{ margin: 0, fontSize: "var(--font-size-base)", whiteSpace: "pre-wrap" }}>
                 {eventsOutput || "No cost events recorded."}
               </pre>
             </div>

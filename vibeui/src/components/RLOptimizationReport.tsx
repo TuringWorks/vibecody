@@ -35,7 +35,7 @@ interface LatencyBenchmark {
   p99: number;
 }
 
-const tableStyle: React.CSSProperties = { width: "100%", borderCollapse: "collapse", fontSize: 12 };
+const tableStyle: React.CSSProperties = { width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" };
 const thStyle: React.CSSProperties = { textAlign: "left", padding: "6px 8px", borderBottom: "1px solid var(--border-color)", color: "var(--text-secondary)", fontWeight: 600 };
 const tdStyle: React.CSSProperties = { padding: "6px 8px", borderBottom: "1px solid var(--border-color)" };
 
@@ -70,11 +70,11 @@ export function RLOptimizationReport() {
 
   return (
     <div className="panel-container">
-      <h2 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>Optimization Report</h2>
+      <h2 style={{ margin: "0 0 12px", fontSize: "var(--font-size-xl)", fontWeight: 600, color: "var(--text-primary)" }}>Optimization Report</h2>
 
       <div className="panel-card" style={{ display: "flex", gap: 8, alignItems: "center" }}>
         <label className="panel-label">Policy ID:</label>
-        <input value={policyId} onChange={e => setPolicyId(e.target.value)} style={{ flex: 1, padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", fontSize: 12 }} />
+        <input value={policyId} onChange={e => setPolicyId(e.target.value)} style={{ flex: 1, padding: "4px 8px", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", fontSize: "var(--font-size-base)" }} />
         <button className="panel-btn panel-btn-secondary" onClick={fetchReport} disabled={loading}>View</button>
         <button className="panel-btn panel-btn-primary" onClick={runOptimization} disabled={loading}>Run Optimization</button>
       </div>
@@ -92,7 +92,7 @@ export function RLOptimizationReport() {
               <div className="panel-label">Reward Retention</div>
             </div>
             <div>
-              <div style={{ fontSize: 14 }}>{report.originalReward.toFixed(2)} &rarr; {report.optimizedReward.toFixed(2)}</div>
+              <div style={{ fontSize: "var(--font-size-lg)" }}>{report.originalReward.toFixed(2)} &rarr; {report.optimizedReward.toFixed(2)}</div>
               <div className="panel-label">Reward (before/after)</div>
             </div>
           </div>

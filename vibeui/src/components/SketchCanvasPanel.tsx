@@ -21,12 +21,12 @@ interface DrawnShape {
 
 const toolBtnStyle = (active: boolean): React.CSSProperties => ({
   padding: "8px 12px",
-  borderRadius: 6,
+  borderRadius: "var(--radius-sm)",
   border: active ? "2px solid var(--accent-color)" : "1px solid var(--border-color)",
   background: active ? "var(--accent-color)" : "var(--bg-secondary)",
   color: active ? "var(--btn-primary-fg, #fff)" : "var(--text-primary)",
   cursor: "pointer",
-  fontSize: 12,
+  fontSize: "var(--font-size-base)",
   fontWeight: active ? 600 : 400,
 });
 
@@ -442,7 +442,7 @@ export function SketchCanvasPanel() {
           <button className="panel-btn panel-btn-secondary" style={{ background: "transparent", color: "var(--text-primary)" }} onClick={handleClear} disabled={shapes.length === 0}>
             Clear
           </button>
-          <span style={{ fontSize: 11, color: "var(--text-secondary)", marginLeft: "auto" }}>
+          <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginLeft: "auto" }}>
             {shapes.length} shape{shapes.length !== 1 ? "s" : ""}
           </span>
         </div>
@@ -456,7 +456,7 @@ export function SketchCanvasPanel() {
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
             style={{
-              width: "100%", height: 400, borderRadius: 8, border: "2px solid var(--border-color)",
+              width: "100%", height: 400, borderRadius: "var(--radius-sm-alt)", border: "2px solid var(--border-color)",
               background: "var(--bg-secondary)",
               cursor: activeTool === "move" ? (drawing ? "grabbing" : "grab") : activeTool === "text" ? "text" : "crosshair",
             }}
@@ -478,7 +478,7 @@ export function SketchCanvasPanel() {
                 border: `1px solid ${activeColor}`,
                 borderRadius: 3,
                 padding: "2px 6px",
-                fontSize: 14,
+                fontSize: "var(--font-size-lg)",
                 fontFamily: "var(--font-family, sans-serif)",
                 outline: "none",
                 minWidth: 80,
@@ -499,16 +499,16 @@ export function SketchCanvasPanel() {
           </div>
           {recognizing && <div className="panel-loading">Analyzing shapes...</div>}
           {!recognizing && shapes.length === 0 && <div className="panel-empty">Draw shapes on the canvas first.</div>}
-          {!recognizing && shapes.length > 0 && recognized.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>Click Recognize to analyze your sketch.</div>}
+          {!recognizing && shapes.length > 0 && recognized.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-md)" }}>Click Recognize to analyze your sketch.</div>}
           {recognized.map((r, i) => (
             <div key={i} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
-                <span style={{ fontWeight: 600, fontSize: 13 }}>{r.shape}</span>
-                <span style={{ fontSize: 12, color: "var(--text-secondary)", marginLeft: 8 }}>at ({r.x}, {r.y})</span>
+                <span style={{ fontWeight: 600, fontSize: "var(--font-size-md)" }}>{r.shape}</span>
+                <span style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginLeft: 8 }}>at ({r.x}, {r.y})</span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 12, color: "var(--accent-color)", fontWeight: 600 }}>{r.component}</span>
-                <span style={{ fontSize: 11, fontWeight: 600, color: confColor(r.confidence) }}>{r.confidence}%</span>
+                <span style={{ fontSize: "var(--font-size-base)", color: "var(--accent-color)", fontWeight: 600 }}>{r.component}</span>
+                <span style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, color: confColor(r.confidence) }}>{r.confidence}%</span>
               </div>
             </div>
           ))}
@@ -530,9 +530,9 @@ export function SketchCanvasPanel() {
           </div>
           {generating && <div className="panel-loading">Generating code...</div>}
           {!generating && !generatedCode && shapes.length === 0 && <div className="panel-empty">Draw shapes on the canvas first.</div>}
-          {!generating && !generatedCode && shapes.length > 0 && <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>Click Generate Code to create SVG-based code from your sketch.</div>}
+          {!generating && !generatedCode && shapes.length > 0 && <div style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-md)" }}>Click Generate Code to create SVG-based code from your sketch.</div>}
           {generatedCode && (
-            <pre className="panel-card" style={{ fontFamily: "monospace", fontSize: 12, whiteSpace: "pre-wrap", lineHeight: 1.5, maxHeight: 400, overflow: "auto" }}>
+            <pre className="panel-card" style={{ fontFamily: "monospace", fontSize: "var(--font-size-base)", whiteSpace: "pre-wrap", lineHeight: 1.5, maxHeight: 400, overflow: "auto" }}>
               {generatedCode}
             </pre>
           )}
@@ -542,8 +542,8 @@ export function SketchCanvasPanel() {
       {tab === "export" && (
         <div>
           <div className="panel-card">
-            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Export Canvas</div>
-            {shapes.length === 0 && <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 8 }}>Draw shapes on the canvas first.</div>}
+            <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", marginBottom: 8 }}>Export Canvas</div>
+            {shapes.length === 0 && <div style={{ fontSize: "var(--font-size-md)", color: "var(--text-secondary)", marginBottom: 8 }}>Draw shapes on the canvas first.</div>}
             <div style={{ display: "flex", gap: 8 }}>
               <button className="panel-btn panel-btn-primary" onClick={() => handleExport("svg")} disabled={exporting || shapes.length === 0}>
                 {exporting ? "Exporting..." : "Download SVG"}
@@ -553,7 +553,7 @@ export function SketchCanvasPanel() {
               </button>
             </div>
           </div>
-          <div className="panel-card" style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+          <div className="panel-card" style={{ fontSize: "var(--font-size-md)", color: "var(--text-secondary)" }}>
             {shapes.length} shape{shapes.length !== 1 ? "s" : ""} drawn
           </div>
         </div>

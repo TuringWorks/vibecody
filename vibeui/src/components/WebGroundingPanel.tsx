@@ -106,11 +106,11 @@ export function WebGroundingPanel() {
           {results.map((r) => (
             <div key={r.id} className="panel-card">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <strong style={{ fontSize: 13 }}>{r.title}</strong>
-                <span style={{ fontSize: 11, color: "var(--text-secondary)", background: "var(--bg-primary)", padding: "2px 6px", borderRadius: 4 }}>{(r.relevance * 100).toFixed(0)}%</span>
+                <strong style={{ fontSize: "var(--font-size-md)" }}>{r.title}</strong>
+                <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", background: "var(--bg-primary)", padding: "2px 6px", borderRadius: "var(--radius-xs-plus)" }}>{(r.relevance * 100).toFixed(0)}%</span>
               </div>
-              <div style={{ fontSize: 12, color: "var(--accent-color)", marginTop: 2 }}>{r.url}</div>
-              <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>{r.snippet}</div>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--accent-color)", marginTop: 2 }}>{r.url}</div>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginTop: 4 }}>{r.snippet}</div>
             </div>
           ))}
         </div>
@@ -126,9 +126,9 @@ export function WebGroundingPanel() {
             <div key={i} className="panel-card">
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <strong>{c.query}</strong>
-                <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>{c.hitCount} hits</span>
+                <span style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>{c.hitCount} hits</span>
               </div>
-              <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Cached: {c.cachedAt}</div>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>Cached: {c.cachedAt}</div>
             </div>
           ))}
         </div>
@@ -140,10 +140,10 @@ export function WebGroundingPanel() {
           {citations.map((c) => (
             <div key={c.id} className="panel-card">
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <strong style={{ fontSize: 14, color: "var(--accent-color)" }}>{c.label}</strong>
-                <a href={c.url} style={{ fontSize: 13, color: "var(--accent-color)", textDecoration: "none" }}>{c.url}</a>
+                <strong style={{ fontSize: "var(--font-size-lg)", color: "var(--accent-color)" }}>{c.label}</strong>
+                <a href={c.url} style={{ fontSize: "var(--font-size-md)", color: "var(--accent-color)", textDecoration: "none" }}>{c.url}</a>
               </div>
-              <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>Used in: {c.usedIn}</div>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginTop: 4 }}>Used in: {c.usedIn}</div>
             </div>
           ))}
         </div>
@@ -166,7 +166,7 @@ export function WebGroundingPanel() {
           </div>
           <div className="panel-card">
             <label className="panel-label">Rate Limit</label>
-            <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>{rateLimit} requests/minute</div>
+            <div style={{ fontSize: "var(--font-size-md)", color: "var(--text-secondary)" }}>{rateLimit} requests/minute</div>
           </div>
         </div>
       )}

@@ -80,7 +80,7 @@ const S = {
   } as const,
 
   sectionTitle: {
-    fontSize: 11, fontWeight: 700, textTransform: "uppercase",
+    fontSize: "var(--font-size-sm)", fontWeight: 700, textTransform: "uppercase",
     letterSpacing: "0.06em", color: "var(--text-secondary)",
     margin: "0 0 12px 0",
     display: "flex", alignItems: "center", gap: 6,
@@ -116,7 +116,7 @@ const S = {
   btn: {
     padding: "9px 20px", border: "none",
     borderRadius: "var(--radius-sm)",
-    cursor: "pointer", fontSize: 13, fontWeight: 600,
+    cursor: "pointer", fontSize: "var(--font-size-md)", fontWeight: 600,
     background: "var(--accent-blue)", color: "var(--btn-primary-fg, #fff)",
     display: "inline-flex", alignItems: "center", gap: 6,
     transition: "opacity var(--transition-fast)",
@@ -127,7 +127,7 @@ const S = {
     borderRadius: "var(--radius-sm)",
     border: "1px solid var(--border-color)",
     background: "var(--bg-secondary)",
-    color: "var(--text-primary)", fontSize: 13,
+    color: "var(--text-primary)", fontSize: "var(--font-size-md)",
     boxSizing: "border-box",
   } as const,
 
@@ -136,7 +136,7 @@ const S = {
     borderRadius: "var(--radius-md)",
     border: "1px solid var(--border-color)",
     background: "var(--bg-secondary)",
-    color: "var(--text-primary)", fontSize: 13,
+    color: "var(--text-primary)", fontSize: "var(--font-size-md)",
     resize: "vertical", minHeight: 90,
     boxSizing: "border-box", fontFamily: "inherit",
     lineHeight: 1.5,
@@ -147,7 +147,7 @@ const S = {
     borderRadius: "var(--radius-sm)",
     border: "1px solid var(--border-color)",
     background: "var(--bg-secondary)",
-    color: "var(--text-primary)", fontSize: 13,
+    color: "var(--text-primary)", fontSize: "var(--font-size-md)",
   } as const,
 
   card: {
@@ -163,7 +163,7 @@ const S = {
     borderRadius: "var(--radius-md)",
     background: "var(--bg-tertiary)",
     border: "1px solid var(--border-color)",
-    fontSize: 12, color: "var(--text-secondary)",
+    fontSize: "var(--font-size-base)", color: "var(--text-secondary)",
     marginBottom: 16,
   } as const,
 
@@ -173,8 +173,8 @@ const S = {
 
   badge: (color: string) => ({
     display: "inline-flex", alignItems: "center", gap: 4,
-    padding: "3px 10px", borderRadius: 10,
-    fontSize: 11, fontWeight: 600,
+    padding: "3px 10px", borderRadius: "var(--radius-md)",
+    fontSize: "var(--font-size-sm)", fontWeight: 600,
     background: `color-mix(in srgb, ${color} 15%, transparent)`,
     color,
   }),
@@ -188,14 +188,14 @@ const S = {
   } as const,
 
   finalLabel: {
-    fontSize: 11, fontWeight: 700, textTransform: "uppercase",
+    fontSize: "var(--font-size-sm)", fontWeight: 700, textTransform: "uppercase",
     letterSpacing: "0.06em",
     color: "var(--accent-blue)", marginBottom: 10,
     display: "flex", alignItems: "center", gap: 5,
   } as const,
 
   responseText: {
-    fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap",
+    fontSize: "var(--font-size-md)", lineHeight: 1.6, whiteSpace: "pre-wrap",
   } as const,
 
   confidenceBar: {
@@ -215,7 +215,7 @@ const S = {
   }),
 
   progressMsg: {
-    fontSize: 12, color: "var(--accent-blue)",
+    fontSize: "var(--font-size-base)", color: "var(--accent-blue)",
     display: "inline-flex", alignItems: "center", gap: 5,
     fontStyle: "italic" as const,
   } as const,
@@ -226,7 +226,7 @@ const S = {
   } as const,
 
   label: {
-    fontSize: 11, fontWeight: 600, textTransform: "uppercase",
+    fontSize: "var(--font-size-sm)", fontWeight: 600, textTransform: "uppercase",
     letterSpacing: "0.04em",
     color: "var(--text-secondary)", marginBottom: 6, display: "block",
   } as const,
@@ -345,10 +345,10 @@ export function SuperBrainPanel() {
                   size={22} strokeWidth={1.5}
                   style={{ color: active ? m.color : "var(--text-secondary)", marginBottom: 6, transition: "color var(--transition-fast)" }}
                 />
-                <div style={{ fontSize: 12, fontWeight: 700, color: active ? "var(--text-primary)" : "var(--text-secondary)" }}>
+                <div style={{ fontSize: "var(--font-size-base)", fontWeight: 700, color: active ? "var(--text-primary)" : "var(--text-secondary)" }}>
                   {m.name}
                 </div>
-                <div style={{ fontSize: 10, color: "var(--text-secondary)", marginTop: 4, lineHeight: 1.3 }}>
+                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginTop: 4, lineHeight: 1.3 }}>
                   {m.description}
                 </div>
               </div>
@@ -374,7 +374,7 @@ export function SuperBrainPanel() {
                       : <ToggleLeft size={18} strokeWidth={1.5} style={{ color: "var(--text-secondary)" }} />
                     }
                   </span>
-                  <span style={{ fontSize: 12, fontWeight: 600, minWidth: 52 }}>{p.provider}</span>
+                  <span style={{ fontSize: "var(--font-size-base)", fontWeight: 600, minWidth: 52 }}>{p.provider}</span>
                   <datalist id={`sb-models-${i}`}>
                     {modelsForProvider(p.provider).map(m => <option key={m} value={m} />)}
                   </datalist>
@@ -473,9 +473,9 @@ export function SuperBrainPanel() {
               <div style={{ ...S.card, display: "flex", alignItems: "center", gap: 12 }}>
                 <Compass size={16} strokeWidth={1.5} style={{ color: "var(--accent-green)", flexShrink: 0 }} />
                 <span style={S.badge("var(--accent-green)")}>{routingInfo.category}</span>
-                <span style={{ fontSize: 12, flex: 1 }}>{routingInfo.reason}</span>
+                <span style={{ fontSize: "var(--font-size-base)", flex: 1 }}>{routingInfo.reason}</span>
                 <div style={{ width: 80, flexShrink: 0 }}>
-                  <div style={{ fontSize: 10, textAlign: "right", color: "var(--text-secondary)" }}>
+                  <div style={{ fontSize: "var(--font-size-xs)", textAlign: "right", color: "var(--text-secondary)" }}>
                     {Math.round(routingInfo.confidence * 100)}%
                   </div>
                   <div style={S.confidenceBar}>
@@ -495,8 +495,8 @@ export function SuperBrainPanel() {
                   {result.model_responses.map((resp, i) => (
                     <div key={i} style={S.card}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                        <span style={{ fontSize: 12, fontWeight: 600 }}>{resp.provider}/{resp.model}</span>
-                        <span style={{ fontSize: 10, color: "var(--text-secondary)", display: "inline-flex", alignItems: "center", gap: 3 }}>
+                        <span style={{ fontSize: "var(--font-size-base)", fontWeight: 600 }}>{resp.provider}/{resp.model}</span>
+                        <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", display: "inline-flex", alignItems: "center", gap: 3 }}>
                           <Clock size={10} strokeWidth={1.5} /> {resp.duration_ms}ms
                         </span>
                       </div>
@@ -530,7 +530,7 @@ export function SuperBrainPanel() {
                       )}
                       <div style={{ ...S.card, borderLeft: `3px solid ${stepColor}` }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                          <span style={{ fontSize: 12, fontWeight: 600 }}>
+                          <span style={{ fontSize: "var(--font-size-base)", fontWeight: 600 }}>
                             Step {i + 1}: {resp.provider}/{resp.model}
                           </span>
                           <span style={S.badge(stepColor)}>{resp.role}</span>
@@ -538,7 +538,7 @@ export function SuperBrainPanel() {
                         <div style={{ ...S.responseText, maxHeight: 300, overflowY: "auto" }}>
                           {resp.content}
                         </div>
-                        <div style={{ fontSize: 10, color: "var(--text-secondary)", marginTop: 8, display: "flex", alignItems: "center", gap: 8 }}>
+                        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginTop: 8, display: "flex", alignItems: "center", gap: 8 }}>
                           <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
                             <Clock size={10} strokeWidth={1.5} /> {resp.duration_ms}ms
                           </span>
@@ -565,8 +565,8 @@ export function SuperBrainPanel() {
                   {result.model_responses.map((resp, i) => (
                     <div key={i} style={S.card}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                        <span style={{ fontSize: 12, fontWeight: 600 }}>{resp.provider}/{resp.model}</span>
-                        <span style={{ fontSize: 10, color: "var(--text-secondary)", display: "inline-flex", alignItems: "center", gap: 3 }}>
+                        <span style={{ fontSize: "var(--font-size-base)", fontWeight: 600 }}>{resp.provider}/{resp.model}</span>
+                        <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", display: "inline-flex", alignItems: "center", gap: 3 }}>
                           <Clock size={10} strokeWidth={1.5} /> {resp.duration_ms}ms
                         </span>
                       </div>
@@ -597,7 +597,7 @@ export function SuperBrainPanel() {
                 {result.model_responses.map((resp, i) => (
                   <div key={i} style={S.card}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                      <span style={{ fontSize: 12, fontWeight: 600 }}>{resp.provider}/{resp.model}</span>
+                      <span style={{ fontSize: "var(--font-size-base)", fontWeight: 600 }}>{resp.provider}/{resp.model}</span>
                       <span style={S.badge("var(--accent-purple)")}>{resp.role}</span>
                     </div>
                     <div style={{ ...S.responseText, maxHeight: 200, overflowY: "auto" }}>

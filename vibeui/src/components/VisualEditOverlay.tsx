@@ -96,7 +96,7 @@ export function VisualEditOverlay({ element, onClose, onApply }: VisualEditOverl
     <div style={{
       position: "absolute", bottom: 0, left: 0, right: 0,
       background: "var(--bg-secondary)", borderTop: "2px solid var(--accent-color)",
-      padding: "10px 12px", fontSize: "12px",
+      padding: "10px 12px", fontSize: "var(--font-size-base)",
       maxHeight: "260px", overflowY: "auto", zIndex: 10,
     }}>
       {/* Header */}
@@ -104,7 +104,7 @@ export function VisualEditOverlay({ element, onClose, onApply }: VisualEditOverl
         <span style={{ fontWeight: 700, color: "var(--accent-primary)" }}>
           Edit &lt;{element.tagName}&gt;
           {element.reactComponent && (
-            <span style={{ color: "var(--text-secondary)", marginLeft: "6px", fontSize: "11px" }}>
+            <span style={{ color: "var(--text-secondary)", marginLeft: "6px", fontSize: "var(--font-size-sm)" }}>
               &lt;{element.reactComponent}&gt;
             </span>
           )}
@@ -115,7 +115,7 @@ export function VisualEditOverlay({ element, onClose, onApply }: VisualEditOverl
               key={m}
               onClick={() => setEditMode(m)}
               style={{
-                padding: "2px 8px", fontSize: "10px", fontWeight: 600, borderRadius: "3px",
+                padding: "2px 8px", fontSize: "var(--font-size-xs)", fontWeight: 600, borderRadius: "3px",
                 border: editMode === m ? "1px solid var(--accent-color)" : "1px solid var(--border-color)",
                 background: editMode === m ? "color-mix(in srgb, var(--accent-blue) 15%, transparent)" : "transparent",
                 color: "var(--text-primary)", cursor: "pointer",
@@ -126,7 +126,7 @@ export function VisualEditOverlay({ element, onClose, onApply }: VisualEditOverl
           ))}
           <button onClick={onClose} style={{
             background: "none", border: "none", cursor: "pointer",
-            color: "var(--text-secondary)", fontSize: "14px", padding: "0 4px",
+            color: "var(--text-secondary)", fontSize: "var(--font-size-lg)", padding: "0 4px",
           }}>✕</button>
         </div>
       </div>
@@ -139,9 +139,9 @@ export function VisualEditOverlay({ element, onClose, onApply }: VisualEditOverl
             onChange={(e) => setTextValue(e.target.value)}
             rows={2}
             style={{
-              width: "100%", padding: "6px 8px", fontSize: "12px",
+              width: "100%", padding: "6px 8px", fontSize: "var(--font-size-base)",
               background: "var(--bg-primary)", border: "1px solid var(--border-color)",
-              borderRadius: "4px", color: "var(--text-primary)", outline: "none",
+              borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none",
               resize: "vertical", fontFamily: "inherit", boxSizing: "border-box",
             }}
           />
@@ -156,7 +156,7 @@ export function VisualEditOverlay({ element, onClose, onApply }: VisualEditOverl
         <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
           {commonStyles.map((prop) => (
             <div key={prop} style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-              <span style={{ width: "120px", fontSize: "11px", color: "var(--text-secondary)" }}>
+              <span style={{ width: "120px", fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
                 {prop}:
               </span>
               <input
@@ -165,7 +165,7 @@ export function VisualEditOverlay({ element, onClose, onApply }: VisualEditOverl
                 onChange={(e) => setStyleEdits((prev) => ({ ...prev, [prop]: e.target.value }))}
                 placeholder={element.styles?.[prop] || ""}
                 style={{
-                  flex: 1, padding: "3px 6px", fontSize: "11px",
+                  flex: 1, padding: "3px 6px", fontSize: "var(--font-size-sm)",
                   background: "var(--bg-primary)", border: "1px solid var(--border-color)",
                   borderRadius: "3px", color: "var(--text-primary)", outline: "none",
                   fontFamily: "var(--font-mono)",
@@ -182,7 +182,7 @@ export function VisualEditOverlay({ element, onClose, onApply }: VisualEditOverl
       {/* AI edit mode */}
       {editMode === "ai" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-          <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>
+          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
             Describe the change you want to make to this element:
           </div>
           <textarea
@@ -191,9 +191,9 @@ export function VisualEditOverlay({ element, onClose, onApply }: VisualEditOverl
             rows={2}
             placeholder="e.g., Make this button larger with rounded corners and a gradient background"
             style={{
-              width: "100%", padding: "6px 8px", fontSize: "12px",
+              width: "100%", padding: "6px 8px", fontSize: "var(--font-size-base)",
               background: "var(--bg-primary)", border: "1px solid var(--border-color)",
-              borderRadius: "4px", color: "var(--text-primary)", outline: "none",
+              borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none",
               resize: "vertical", fontFamily: "inherit", boxSizing: "border-box",
             }}
           />
@@ -205,7 +205,7 @@ export function VisualEditOverlay({ element, onClose, onApply }: VisualEditOverl
 
       {result && (
         <div style={{
-          marginTop: "6px", padding: "4px 8px", fontSize: "11px", borderRadius: "3px",
+          marginTop: "6px", padding: "4px 8px", fontSize: "var(--font-size-sm)", borderRadius: "3px",
           background: result.startsWith("Error") ? "color-mix(in srgb, var(--accent-rose) 10%, transparent)" : "color-mix(in srgb, var(--accent-green) 10%, transparent)",
           color: result.startsWith("Error") ? "var(--error-color)" : "var(--success-color)",
         }}>
@@ -222,7 +222,7 @@ function extractText(html: string): string {
 }
 
 const applyBtnStyle: React.CSSProperties = {
-  padding: "5px 12px", fontSize: "11px", fontWeight: 600,
+  padding: "5px 12px", fontSize: "var(--font-size-sm)", fontWeight: 600,
   background: "var(--accent-primary)", color: "var(--text-primary)", border: "none",
-  borderRadius: "4px", cursor: "pointer", alignSelf: "flex-start",
+  borderRadius: "var(--radius-xs-plus)", cursor: "pointer", alignSelf: "flex-start",
 };

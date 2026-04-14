@@ -483,7 +483,7 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
     <div
       key={f.id}
       style={{
-        borderRadius: 6, background: "var(--bg-tertiary)",
+        borderRadius: "var(--radius-sm)", background: "var(--bg-tertiary)",
         borderLeft: `3px solid ${severityColor(f.severity)}`,
         border: `1px solid ${severityColor(f.severity)}44`,
       }}
@@ -493,19 +493,19 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
         style={{ padding: "8px 10px", cursor: "pointer", display: "flex", alignItems: "flex-start", gap: 8 }}
       >
         <span style={{
-          fontSize: 10, padding: "2px 8px", borderRadius: 3,
+          fontSize: "var(--font-size-xs)", padding: "2px 8px", borderRadius: 3,
           background: `${severityColor(f.severity)}22`, color: severityColor(f.severity),
           fontWeight: 600, flexShrink: 0, marginTop: 1,
         }}>
           {f.severity}
         </span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 600, fontSize: 12 }}>{f.title}</div>
+          <div style={{ fontWeight: 600, fontSize: "var(--font-size-base)" }}>{f.title}</div>
           <div style={{ display: "flex", gap: 8, marginTop: 3, flexWrap: "wrap", alignItems: "center" }}>
             <span
               onClick={(e) => { e.stopPropagation(); handleFileClick(f.file, f.line); }}
               style={{
-                fontSize: 10, color: "var(--accent-blue)", fontFamily: "var(--font-mono)",
+                fontSize: "var(--font-size-xs)", color: "var(--accent-blue)", fontFamily: "var(--font-mono)",
                 cursor: onOpenFile ? "pointer" : "default",
                 textDecoration: onOpenFile ? "underline" : "none",
               }}
@@ -514,7 +514,7 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
               {f.file}:{f.line}
             </span>
             {groupMode !== "cwe" && (
-              <span style={{ fontSize: 10, padding: "1px 5px", borderRadius: 3, background: "var(--bg-secondary)", color: "var(--text-secondary)" }}>
+              <span style={{ fontSize: "var(--font-size-xs)", padding: "1px 5px", borderRadius: 3, background: "var(--bg-secondary)", color: "var(--text-secondary)" }}>
                 {f.cwe}
               </span>
             )}
@@ -523,7 +523,7 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
         <button
           onClick={(e) => { e.stopPropagation(); toggleSuppress(f); }}
           style={{
-            padding: "2px 8px", fontSize: 10, borderRadius: 3,
+            padding: "2px 8px", fontSize: "var(--font-size-xs)", borderRadius: 3,
             border: "1px solid var(--border-color)", background: "none",
             color: "var(--text-secondary)", cursor: "pointer", flexShrink: 0,
           }}
@@ -535,13 +535,13 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
       {expandedId === f.id && (
         <div style={{ borderTop: "1px solid var(--bg-secondary)", padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 3 }}>PROBLEM</div>
-            <div style={{ fontSize: 12, lineHeight: 1.6 }}>{f.description}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, color: "var(--text-secondary)", marginBottom: 3 }}>PROBLEM</div>
+            <div style={{ fontSize: "var(--font-size-base)", lineHeight: 1.6 }}>{f.description}</div>
           </div>
           {f.remediation && (
             <div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 3 }}>REMEDIATION</div>
-              <div style={{ fontSize: 12, lineHeight: 1.6, color: "var(--success-color)" }}>{f.remediation}</div>
+              <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, color: "var(--text-secondary)", marginBottom: 3 }}>REMEDIATION</div>
+              <div style={{ fontSize: "var(--font-size-base)", lineHeight: 1.6, color: "var(--success-color)" }}>{f.remediation}</div>
             </div>
           )}
         </div>
@@ -554,7 +554,7 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
       {/* Header */}
       <div className="panel-header">
         <h3>Security Scanner</h3>
-        <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
           {lastScanTime ? `Last scan: ${lastScanTime}` : "Static analysis for common vulnerabilities"}
         </div>
         <button
@@ -586,10 +586,10 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
                 key={sev}
                 onClick={() => setFilterSeverity(filterSeverity === sev ? "All" : sev)}
                 style={{
-                  padding: "2px 8px", borderRadius: 4,
+                  padding: "2px 8px", borderRadius: "var(--radius-xs-plus)",
                   border: `1px solid ${severityColor(sev)}`,
                   background: filterSeverity === sev ? `${severityColor(sev)}33` : "transparent",
-                  color: severityColor(sev), cursor: "pointer", fontSize: 11, fontWeight: 600,
+                  color: severityColor(sev), cursor: "pointer", fontSize: "var(--font-size-sm)", fontWeight: 600,
                 }}
               >
                 {count} {sev}
@@ -599,7 +599,7 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
           {filterSeverity !== "All" && (
             <button
               onClick={() => setFilterSeverity("All")}
-              style={{ padding: "2px 8px", borderRadius: 4, border: "1px solid var(--border-color)", background: "transparent", color: "var(--text-secondary)", cursor: "pointer", fontSize: 11 }}
+              style={{ padding: "2px 8px", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", background: "transparent", color: "var(--text-secondary)", cursor: "pointer", fontSize: "var(--font-size-sm)" }}
             >
               Clear filter
             </button>
@@ -609,7 +609,7 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
             value={groupMode}
             onChange={(e) => { setGroupMode(e.target.value as GroupMode); setCollapsedGroups(new Set()); }}
             style={{
-              padding: "2px 6px", fontSize: 10, borderRadius: 3,
+              padding: "2px 6px", fontSize: "var(--font-size-xs)", borderRadius: 3,
               background: "var(--bg-tertiary)", border: "1px solid var(--border-color)",
               color: "var(--text-secondary)", cursor: "pointer",
             }}
@@ -626,7 +626,7 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
       <div style={{ display: "flex", gap: 0, borderBottom: "1px solid var(--border-color)", flexShrink: 0 }}>
         {tabs.map((t) => (
           <button key={t} onClick={() => setTab(t)} style={{
-            padding: "6px 14px", fontSize: 12, background: "none", border: "none",
+            padding: "6px 14px", fontSize: "var(--font-size-base)", background: "none", border: "none",
             borderBottom: tab === t ? "2px solid var(--accent-blue)" : "2px solid transparent",
             color: tab === t ? "var(--text-primary)" : "var(--text-secondary)",
             cursor: "pointer", fontWeight: tab === t ? 600 : 400,
@@ -653,14 +653,14 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
             )}
 
             {scanning && (
-              <div style={{ textAlign: "center", padding: 24, color: "var(--text-secondary)", fontSize: 13 }}>
+              <div style={{ textAlign: "center", padding: 24, color: "var(--text-secondary)", fontSize: "var(--font-size-md)" }}>
                 Scanning workspace for vulnerabilities...<br />
-                <span style={{ fontSize: 11, opacity: 0.7 }}>Checking {patterns.filter((p) => p.enabled).length} patterns</span>
+                <span style={{ fontSize: "var(--font-size-sm)", opacity: 0.7 }}>Checking {patterns.filter((p) => p.enabled).length} patterns</span>
               </div>
             )}
 
             {!scanning && findings.length === 0 && (
-              <div style={{ textAlign: "center", padding: 24, color: "var(--text-secondary)", fontSize: 13, lineHeight: 1.7 }}>
+              <div style={{ textAlign: "center", padding: 24, color: "var(--text-secondary)", fontSize: "var(--font-size-md)", lineHeight: 1.7 }}>
                 No scan results yet.<br />
                 Click <strong>Run Scan</strong> to analyze your workspace for security issues.
               </div>
@@ -678,14 +678,14 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
                       background: "var(--bg-secondary)", borderRadius: 5,
                     }}
                   >
-                    <span style={{ fontSize: 10, opacity: 0.6 }}>
+                    <span style={{ fontSize: "var(--font-size-xs)", opacity: 0.6 }}>
                       {collapsedGroups.has(groupKey) ? "\u25B6" : "\u25BC"}
                     </span>
-                    <span style={{ fontWeight: 600, fontSize: 12, flex: 1 }}>
+                    <span style={{ fontWeight: 600, fontSize: "var(--font-size-base)", flex: 1 }}>
                       {groupMode === "cwe" ? `${groupKey} — ${CWE_NAMES[groupKey] || "Unknown"}` : groupKey}
                     </span>
                     <span style={{
-                      fontSize: 10, padding: "2px 6px", borderRadius: 10,
+                      fontSize: "var(--font-size-xs)", padding: "2px 6px", borderRadius: "var(--radius-md)",
                       background: "var(--bg-tertiary)", color: "var(--text-secondary)", fontWeight: 600,
                     }}>
                       {groupFindings.length}
@@ -694,7 +694,7 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
                       <button
                         onClick={(e) => { e.stopPropagation(); suppressCwe(groupKey); }}
                         style={{
-                          padding: "2px 8px", fontSize: 10, borderRadius: 3,
+                          padding: "2px 8px", fontSize: "var(--font-size-xs)", borderRadius: 3,
                           border: "1px solid var(--border-color)", background: "none",
                           color: "var(--text-secondary)", cursor: "pointer",
                         }}
@@ -711,32 +711,32 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
 
             {/* Suppressed findings section — grouped by CWE */}
             {suppressedFindings.length > 0 && (
-              <div style={{ marginTop: 12, padding: "8px 10px", background: "var(--bg-secondary)", borderRadius: 6 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>
+              <div style={{ marginTop: 12, padding: "8px 10px", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)" }}>
+                <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>
                   {suppressedFindings.length} suppressed finding(s)
                 </div>
                 {Object.entries(suppressedByCwe)
                   .sort((a, b) => a[0].localeCompare(b[0]))
                   .map(([cwe, cweFindngs]) => (
                   <div key={cwe} style={{ marginBottom: 6 }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", padding: "4px 0 2px" }}>
+                    <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, color: "var(--text-secondary)", padding: "4px 0 2px" }}>
                       {cwe} — {CWE_NAMES[cwe] || "Unknown"} ({cweFindngs.length})
                     </div>
                     {cweFindngs.slice(0, 5).map((f) => (
                       <div key={f.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "2px 0" }}>
-                        <span style={{ textDecoration: "line-through", fontSize: 11, flex: 1, opacity: 0.6 }}>
+                        <span style={{ textDecoration: "line-through", fontSize: "var(--font-size-sm)", flex: 1, opacity: 0.6 }}>
                           {f.file}:{f.line}
                         </span>
                         <button
                           onClick={() => toggleSuppress(f)}
-                          style={{ padding: "2px 6px", fontSize: 10, borderRadius: 3, border: "1px solid var(--border-color)", background: "none", color: "var(--text-secondary)", cursor: "pointer" }}
+                          style={{ padding: "2px 6px", fontSize: "var(--font-size-xs)", borderRadius: 3, border: "1px solid var(--border-color)", background: "none", color: "var(--text-secondary)", cursor: "pointer" }}
                         >
                           Restore
                         </button>
                       </div>
                     ))}
                     {cweFindngs.length > 5 && (
-                      <div style={{ fontSize: 10, color: "var(--text-secondary)", padding: "2px 0" }}>
+                      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", padding: "2px 0" }}>
                         ...and {cweFindngs.length - 5} more
                       </div>
                     )}
@@ -756,25 +756,25 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
                 { label: "Active", value: activeFindings.length, color: "var(--success-color)" },
                 { label: "Suppressed", value: suppressedFindings.length, color: "var(--text-secondary)" },
               ].map(({ label, value, color }) => (
-                <div key={label} style={{ background: "var(--bg-tertiary)", padding: "10px 16px", borderRadius: 6, textAlign: "center", minWidth: 80, border: "1px solid var(--border-color)" }}>
+                <div key={label} style={{ background: "var(--bg-tertiary)", padding: "10px 16px", borderRadius: "var(--radius-sm)", textAlign: "center", minWidth: 80, border: "1px solid var(--border-color)" }}>
                   <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)", color }}>{value}</div>
-                  <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>{label}</div>
+                  <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 2 }}>{label}</div>
                 </div>
               ))}
             </div>
 
-            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Severity Breakdown</div>
+            <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, marginBottom: 8 }}>Severity Breakdown</div>
             {(["Critical", "High", "Medium", "Low", "Info"] as Severity[]).map((sev) => {
               const count = countBySeverity(sev);
               const pct = activeFindings.length > 0 ? Math.round((count / activeFindings.length) * 100) : 0;
               return (
                 <div key={sev} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                  <span style={{ minWidth: 55, fontSize: 12, color: severityColor(sev), fontWeight: 500 }}>{sev}</span>
+                  <span style={{ minWidth: 55, fontSize: "var(--font-size-base)", color: severityColor(sev), fontWeight: 500 }}>{sev}</span>
                   <div style={{ flex: 1, background: "var(--bg-tertiary)", borderRadius: 3, height: 10, overflow: "hidden" }}>
                     <div style={{ width: `${pct}%`, height: "100%", background: severityColor(sev), borderRadius: 3, transition: "width 0.3s" }} />
                   </div>
-                  <span style={{ minWidth: 25, textAlign: "right", fontSize: 11 }}>{count}</span>
-                  <span style={{ minWidth: 35, textAlign: "right", fontSize: 11, color: "var(--text-secondary)" }}>{pct}%</span>
+                  <span style={{ minWidth: 25, textAlign: "right", fontSize: "var(--font-size-sm)" }}>{count}</span>
+                  <span style={{ minWidth: 35, textAlign: "right", fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{pct}%</span>
                 </div>
               );
             })}
@@ -782,14 +782,14 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
             {/* CWE Breakdown */}
             {activeFindings.length > 0 && (
               <div style={{ marginTop: 16 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>By CWE Category</div>
+                <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, marginBottom: 8 }}>By CWE Category</div>
                 {Object.entries(groupBy(activeFindings, (f) => f.cwe))
                   .sort((a, b) => b[1].length - a[1].length)
                   .map(([cwe, items]) => (
-                    <div key={cwe} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", fontSize: 11 }}>
+                    <div key={cwe} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", fontSize: "var(--font-size-sm)" }}>
                       <span style={{ fontWeight: 600, minWidth: 60 }}>{cwe}</span>
                       <span style={{ flex: 1, color: "var(--text-secondary)" }}>{CWE_NAMES[cwe] || "Unknown"}</span>
-                      <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 10, background: "var(--bg-tertiary)", color: "var(--text-secondary)", fontWeight: 600 }}>
+                      <span style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px", borderRadius: "var(--radius-md)", background: "var(--bg-tertiary)", color: "var(--text-secondary)", fontWeight: 600 }}>
                         {items.length}
                       </span>
                     </div>
@@ -800,21 +800,21 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
             {/* Top affected files */}
             {activeFindings.length > 0 && (
               <div style={{ marginTop: 16 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Most Affected Files</div>
+                <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, marginBottom: 8 }}>Most Affected Files</div>
                 {Object.entries(
                   activeFindings.reduce<Record<string, number>>((acc, f) => { acc[f.file] = (acc[f.file] || 0) + 1; return acc; }, {})
                 )
                   .sort((a, b) => b[1] - a[1])
                   .slice(0, 5)
                   .map(([file, count]) => (
-                    <div key={file} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", fontSize: 11 }}>
+                    <div key={file} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", fontSize: "var(--font-size-sm)" }}>
                       <span
                         style={{ flex: 1, fontFamily: "var(--font-mono)", color: "var(--accent-blue)", cursor: onOpenFile ? "pointer" : "default" }}
                         onClick={() => handleFileClick(file, 1)}
                       >
                         {file}
                       </span>
-                      <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 10, background: "var(--bg-tertiary)", color: "var(--text-secondary)", fontWeight: 600 }}>
+                      <span style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px", borderRadius: "var(--radius-md)", background: "var(--bg-tertiary)", color: "var(--text-secondary)", fontWeight: 600 }}>
                         {count}
                       </span>
                     </div>
@@ -836,19 +836,19 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {/* Stats + bulk controls */}
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+                <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
                   {enabledCount}/{patterns.length} enabled
                 </span>
                 <span style={{ flex: 1 }} />
                 <button
                   onClick={() => setPatterns((prev) => prev.map((p) => ({ ...p, enabled: true })))}
-                  style={{ fontSize: 10, padding: "2px 8px", borderRadius: 3, border: "1px solid var(--border-color)", background: "none", color: "var(--text-secondary)", cursor: "pointer" }}
+                  style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px", borderRadius: 3, border: "1px solid var(--border-color)", background: "none", color: "var(--text-secondary)", cursor: "pointer" }}
                 >
                   Enable All
                 </button>
                 <button
                   onClick={() => setPatterns((prev) => prev.map((p) => ({ ...p, enabled: false })))}
-                  style={{ fontSize: 10, padding: "2px 8px", borderRadius: 3, border: "1px solid var(--border-color)", background: "none", color: "var(--text-secondary)", cursor: "pointer" }}
+                  style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px", borderRadius: 3, border: "1px solid var(--border-color)", background: "none", color: "var(--text-secondary)", cursor: "pointer" }}
                 >
                   Disable All
                 </button>
@@ -861,12 +861,12 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
                   onChange={(e) => setPatternSearch(e.target.value)}
                   placeholder="Search patterns or CWE…"
                   className="panel-input"
-                  style={{ flex: 1, fontSize: 11 }}
+                  style={{ flex: 1, fontSize: "var(--font-size-sm)" }}
                 />
                 <select
                   value={patternClassFilter}
                   onChange={(e) => setPatternClassFilter(e.target.value)}
-                  style={{ fontSize: 10, padding: "2px 6px", borderRadius: 3, background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", color: "var(--text-secondary)", cursor: "pointer" }}
+                  style={{ fontSize: "var(--font-size-xs)", padding: "2px 6px", borderRadius: 3, background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", color: "var(--text-secondary)", cursor: "pointer" }}
                 >
                   {VULN_CLASSES.map((c) => (
                     <option key={c} value={c}>{c}</option>
@@ -876,22 +876,22 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
 
               {/* Pattern list */}
               {visiblePatterns.length === 0 && (
-                <div style={{ textAlign: "center", padding: 16, color: "var(--text-secondary)", fontSize: 12 }}>No patterns match the current filter.</div>
+                <div style={{ textAlign: "center", padding: 16, color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>No patterns match the current filter.</div>
               )}
               {visiblePatterns.map((p) => (
                 <div key={p.id} style={{
-                  padding: "8px 10px", borderRadius: 6,
+                  padding: "8px 10px", borderRadius: "var(--radius-sm)",
                   background: "var(--bg-tertiary)", border: "1px solid var(--border-color)",
                   opacity: p.enabled ? 1 : 0.5,
                 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <input type="checkbox" checked={p.enabled} onChange={() => togglePattern(p.id)} style={{ cursor: "pointer" }} />
-                    <span style={{ fontWeight: 600, fontSize: 12, flex: 1 }}>{p.name}</span>
-                    <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 3, background: "var(--bg-secondary)", color: "var(--text-secondary)" }}>
+                    <span style={{ fontWeight: 600, fontSize: "var(--font-size-base)", flex: 1 }}>{p.name}</span>
+                    <span style={{ fontSize: "var(--font-size-xs)", padding: "2px 6px", borderRadius: 3, background: "var(--bg-secondary)", color: "var(--text-secondary)" }}>
                       {p.vulnerabilityClass}
                     </span>
                     {p.matchCount > 0 && (
-                      <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 10, background: "var(--error-bg)", color: "var(--error-color)", fontWeight: 600 }}>
+                      <span style={{ fontSize: "var(--font-size-xs)", padding: "2px 6px", borderRadius: "var(--radius-md)", background: "var(--error-bg)", color: "var(--error-color)", fontWeight: 600 }}>
                         {p.matchCount}
                       </span>
                     )}
@@ -905,7 +905,7 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
                   </div>
                   <div style={{ display: "flex", gap: 4, marginTop: 4, flexWrap: "wrap" }}>
                     {p.languages.map((lang) => (
-                      <span key={lang} style={{ fontSize: 10, padding: "1px 5px", borderRadius: 3, background: "var(--bg-secondary)", color: "var(--text-secondary)" }}>
+                      <span key={lang} style={{ fontSize: "var(--font-size-xs)", padding: "1px 5px", borderRadius: 3, background: "var(--bg-secondary)", color: "var(--text-secondary)" }}>
                         {lang}
                       </span>
                     ))}
@@ -920,27 +920,27 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
         {tab === "History" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {scanHistory.length === 0 ? (
-              <div style={{ textAlign: "center", padding: 24, color: "var(--text-secondary)", fontSize: 13 }}>
+              <div style={{ textAlign: "center", padding: 24, color: "var(--text-secondary)", fontSize: "var(--font-size-md)" }}>
                 No scan history yet. Run a scan to start tracking.
               </div>
             ) : (
               scanHistory.map((run) => (
                 <div key={run.id} style={{
-                  padding: "8px 10px", borderRadius: 6, background: "var(--bg-tertiary)",
+                  padding: "8px 10px", borderRadius: "var(--radius-sm)", background: "var(--bg-tertiary)",
                   border: "1px solid var(--border-color)", display: "flex", alignItems: "center", gap: 12,
                 }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 12, fontWeight: 500 }}>{run.timestamp}</div>
+                    <div style={{ fontSize: "var(--font-size-base)", fontWeight: 500 }}>{run.timestamp}</div>
                   </div>
                   <span style={{
-                    fontSize: 11, padding: "2px 8px", borderRadius: 10,
+                    fontSize: "var(--font-size-sm)", padding: "2px 8px", borderRadius: "var(--radius-md)",
                     background: run.findingCount > 0 ? "#f38ba822" : "#a6e3a122",
                     color: run.findingCount > 0 ? "var(--accent-rose)" : "var(--accent-green)",
                     fontWeight: 600,
                   }}>
                     {run.findingCount} findings
                   </span>
-                  <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>{run.duration}</span>
+                  <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>{run.duration}</span>
                 </div>
               ))
             )}
@@ -950,7 +950,7 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
 
       {/* Footer */}
       {findings.length > 0 && (
-        <div style={{ fontSize: 11, color: "var(--text-secondary)", flexShrink: 0 }}>
+        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", flexShrink: 0 }}>
           {activeFindings.length} active issue{activeFindings.length !== 1 ? "s" : ""} — click to expand, file links open in editor
         </div>
       )}

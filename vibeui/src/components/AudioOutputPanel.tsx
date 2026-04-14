@@ -55,8 +55,8 @@ const AudioOutputPanel: React.FC = () => {
                 <button key={n.label} className="panel-btn panel-btn-primary" aria-label={`Generate ${n.label}`} onClick={() => handleGenerate(n.label)}>{n.label}</button>
               ))}
             </div>
-            <textarea style={{ height: 80, resize: "vertical", width: "100%", padding: "8px 12px", background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4, fontSize: 13, fontFamily: "inherit", boxSizing: "border-box" }} placeholder="Or enter custom text to narrate..." aria-label="Custom narration text" value={customText} onChange={e => setCustomText(e.target.value)} />
-            <div style={{ marginTop: 8, fontSize: 12, color: "var(--text-secondary)" }}>
+            <textarea style={{ height: 80, resize: "vertical", width: "100%", padding: "8px 12px", background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-md)", fontFamily: "inherit", boxSizing: "border-box" }} placeholder="Or enter custom text to narrate..." aria-label="Custom narration text" value={customText} onChange={e => setCustomText(e.target.value)} />
+            <div style={{ marginTop: 8, fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>
               Select a narration type above or type custom text, then click Generate.
             </div>
           </div>
@@ -66,7 +66,7 @@ const AudioOutputPanel: React.FC = () => {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <strong>{h.title}</strong>
-                <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{h.type} &middot; {h.duration} &middot; {h.format} &middot; {h.date}</div>
+                <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>{h.type} &middot; {h.duration} &middot; {h.format} &middot; {h.date}</div>
               </div>
               <button className="panel-btn panel-btn-secondary" aria-label={`Play ${h.title}`}>Play</button>
             </div>
@@ -76,23 +76,23 @@ const AudioOutputPanel: React.FC = () => {
           <div>
             <div className="panel-card">
               <label className="panel-label">TTS Provider</label>
-              <select style={{ width: "100%", marginTop: 4, padding: "8px 12px", background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4, fontSize: 13, fontFamily: "inherit", boxSizing: "border-box" }} value={provider} onChange={e => setProvider(e.target.value)} aria-label="TTS provider">
+              <select style={{ width: "100%", marginTop: 4, padding: "8px 12px", background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-md)", fontFamily: "inherit", boxSizing: "border-box" }} value={provider} onChange={e => setProvider(e.target.value)} aria-label="TTS provider">
                 <option>OpenAI TTS</option><option>ElevenLabs</option><option>Google Cloud TTS</option><option>Azure Speech</option>
               </select>
             </div>
             <div className="panel-card">
               <label className="panel-label">Voice</label>
-              <select style={{ width: "100%", marginTop: 4, padding: "8px 12px", background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4, fontSize: 13, fontFamily: "inherit", boxSizing: "border-box" }} value={voice} onChange={e => setVoice(e.target.value)} aria-label="Voice selection">
+              <select style={{ width: "100%", marginTop: 4, padding: "8px 12px", background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-md)", fontFamily: "inherit", boxSizing: "border-box" }} value={voice} onChange={e => setVoice(e.target.value)} aria-label="Voice selection">
                 <option value="alloy">Alloy</option><option value="echo">Echo</option><option value="fable">Fable</option><option value="onyx">Onyx</option><option value="nova">Nova</option><option value="shimmer">Shimmer</option>
               </select>
             </div>
             <div className="panel-card">
               <label className="panel-label">Speed</label>
-              <input style={{ marginTop: 4, width: "100%", padding: "8px 12px", background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4, fontSize: 13, fontFamily: "inherit", boxSizing: "border-box" }} type="number" min="0.5" max="2.0" step="0.1" value={speed} onChange={e => setSpeed(e.target.value)} aria-label="Playback speed" />
+              <input style={{ marginTop: 4, width: "100%", padding: "8px 12px", background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-md)", fontFamily: "inherit", boxSizing: "border-box" }} type="number" min="0.5" max="2.0" step="0.1" value={speed} onChange={e => setSpeed(e.target.value)} aria-label="Playback speed" />
             </div>
             <div className="panel-card">
               <label className="panel-label">Output format</label>
-              <select style={{ width: "100%", marginTop: 4, padding: "8px 12px", background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4, fontSize: 13, fontFamily: "inherit", boxSizing: "border-box" }} value={format} onChange={e => setFormat(e.target.value)} aria-label="Output format">
+              <select style={{ width: "100%", marginTop: 4, padding: "8px 12px", background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-md)", fontFamily: "inherit", boxSizing: "border-box" }} value={format} onChange={e => setFormat(e.target.value)} aria-label="Output format">
                 <option value="mp3">MP3</option><option value="wav">WAV</option><option value="opus">Opus</option><option value="flac">FLAC</option>
               </select>
             </div>

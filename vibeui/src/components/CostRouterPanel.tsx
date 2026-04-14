@@ -33,8 +33,8 @@ interface AbTest {
 const badgeStyle = (color: string): React.CSSProperties => ({
   display: "inline-block",
   padding: "2px 8px",
-  borderRadius: 10,
-  fontSize: 11,
+  borderRadius: "var(--radius-md)",
+  fontSize: "var(--font-size-sm)",
   fontWeight: 600,
   background: color,
   color: "var(--btn-primary-fg, #fff)",
@@ -102,7 +102,7 @@ export function CostRouterPanel() {
       <div className="panel-body">
 
       {tab === "models" && (
-        <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
+        <table style={{ width: "100%", fontSize: "var(--font-size-md)", borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ borderBottom: "2px solid var(--border-color)" }}>
               {["Model", "Provider", "Cost/1k", "Quality", "Latency"].map((h) => (
@@ -130,11 +130,11 @@ export function CostRouterPanel() {
           {decisions.map((d: any, idx: number) => (
             <div key={d.id || idx} className="panel-card">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                <strong style={{ fontSize: 13 }}>{d.query}</strong>
-                <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>{d.timestamp}</span>
+                <strong style={{ fontSize: "var(--font-size-md)" }}>{d.query}</strong>
+                <span style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>{d.timestamp}</span>
               </div>
-              <div style={{ fontSize: 13 }}>Routed to: <span style={badgeStyle("#6366f1")}>{d.chosenModel || d.chosen_model}</span></div>
-              <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4, fontStyle: "italic" }}>{d.reason}</div>
+              <div style={{ fontSize: "var(--font-size-md)" }}>Routed to: <span style={badgeStyle("#6366f1")}>{d.chosenModel || d.chosen_model}</span></div>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginTop: 4, fontStyle: "italic" }}>{d.reason}</div>
             </div>
           ))}
         </div>
@@ -147,10 +147,10 @@ export function CostRouterPanel() {
               <span style={{ fontWeight: 600 }}>Budget Usage</span>
               <span style={{ fontWeight: 600 }}>${budget.spent.toFixed(2)} / ${budget.total.toFixed(2)}</span>
             </div>
-            <div style={{ background: "var(--bg-primary)", borderRadius: 4, height: 12 }}>
-              <div style={{ background: pct > alertThreshold ? "var(--error-color)" : "var(--accent-color)", borderRadius: 4, height: 12, width: `${Math.min(pct, 100)}%` }} />
+            <div style={{ background: "var(--bg-primary)", borderRadius: "var(--radius-xs-plus)", height: 12 }}>
+              <div style={{ background: pct > alertThreshold ? "var(--error-color)" : "var(--accent-color)", borderRadius: "var(--radius-xs-plus)", height: 12, width: `${Math.min(pct, 100)}%` }} />
             </div>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>Remaining: ${budget.remaining.toFixed(2)}</div>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginTop: 4 }}>Remaining: ${budget.remaining.toFixed(2)}</div>
           </div>
           <div className="panel-card">
             <div style={{ fontWeight: 600, marginBottom: 8 }}>Alert Threshold: {alertThreshold}%</div>
@@ -170,12 +170,12 @@ export function CostRouterPanel() {
                   <strong>{t.name}</strong>
                   <span style={badgeStyle(t.status === "active" ? "var(--accent-color)" : "var(--success-color)")}>{t.status}</span>
                 </div>
-                <div style={{ fontSize: 13, display: "flex", gap: 16, marginBottom: 6 }}>
+                <div style={{ fontSize: "var(--font-size-md)", display: "flex", gap: 16, marginBottom: 6 }}>
                   <span>{t.modelA}: <strong>{t.winnerScore.a}</strong> ({t.samplesA} samples)</span>
                   <span>vs</span>
                   <span>{t.modelB}: <strong>{t.winnerScore.b}</strong> ({t.samplesB} samples)</span>
                 </div>
-                <div style={{ fontSize: 12 }}>Winner: <span style={badgeStyle("var(--success-color)")}>{winner}</span></div>
+                <div style={{ fontSize: "var(--font-size-base)" }}>Winner: <span style={badgeStyle("var(--success-color)")}>{winner}</span></div>
               </div>
             );
           })}

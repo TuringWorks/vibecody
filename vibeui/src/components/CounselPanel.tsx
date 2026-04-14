@@ -71,20 +71,20 @@ const S = {
   container: { display: "flex", flex: 1, minHeight: 0, fontFamily: "var(--font-family, system-ui, sans-serif)", color: "var(--text-primary)", background: "var(--bg-primary)" } as const,
   sidebar: { width: 220, borderRight: "1px solid var(--border-color)", padding: 12, overflowY: "auto", flexShrink: 0 } as const,
   main: { flex: 1, padding: 20, overflowY: "auto" } as const,
-  btn: { padding: "8px 16px", border: "none", borderRadius: 6, cursor: "pointer", fontSize: 13, fontWeight: 600, background: "var(--accent-blue)", color: "var(--btn-primary-fg, #fff)" } as const,
-  btnSecondary: { padding: "6px 12px", border: "1px solid var(--border-color)", borderRadius: 6, cursor: "pointer", fontSize: 12, background: "transparent", color: "var(--text-primary)" } as const,
-  input: { width: "100%", padding: "8px 10px", borderRadius: 6, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: 13, boxSizing: "border-box" } as const,
-  textarea: { width: "100%", padding: "10px 12px", borderRadius: 6, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: 13, resize: "vertical", minHeight: 80, boxSizing: "border-box", fontFamily: "inherit" } as const,
-  select: { padding: "6px 8px", borderRadius: 6, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: 13 } as const,
-  card: { border: "1px solid var(--border-color)", borderRadius: 8, padding: 14, marginBottom: 12, background: "var(--bg-secondary)" } as const,
-  badge: (color: string) => ({ display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 11, fontWeight: 600, background: color + "22", color, marginRight: 6 }),
-  sidebarItem: (active: boolean) => ({ padding: "8px 10px", borderRadius: 6, cursor: "pointer", fontSize: 12, marginBottom: 4, background: active ? "var(--accent-blue)22" : "transparent", color: active ? "var(--accent-blue)" : "var(--text-secondary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } as const),
+  btn: { padding: "8px 16px", border: "none", borderRadius: "var(--radius-sm)", cursor: "pointer", fontSize: "var(--font-size-md)", fontWeight: 600, background: "var(--accent-blue)", color: "var(--btn-primary-fg, #fff)" } as const,
+  btnSecondary: { padding: "6px 12px", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", cursor: "pointer", fontSize: "var(--font-size-base)", background: "transparent", color: "var(--text-primary)" } as const,
+  input: { width: "100%", padding: "8px 10px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: "var(--font-size-md)", boxSizing: "border-box" } as const,
+  textarea: { width: "100%", padding: "10px 12px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: "var(--font-size-md)", resize: "vertical", minHeight: 80, boxSizing: "border-box", fontFamily: "inherit" } as const,
+  select: { padding: "6px 8px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: "var(--font-size-md)" } as const,
+  card: { border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm-alt)", padding: 14, marginBottom: 12, background: "var(--bg-secondary)" } as const,
+  badge: (color: string) => ({ display: "inline-block", padding: "2px 8px", borderRadius: "var(--radius-md)", fontSize: "var(--font-size-sm)", fontWeight: 600, background: color + "22", color, marginRight: 6 }),
+  sidebarItem: (active: boolean) => ({ padding: "8px 10px", borderRadius: "var(--radius-sm)", cursor: "pointer", fontSize: "var(--font-size-base)", marginBottom: 4, background: active ? "var(--accent-blue)22" : "transparent", color: active ? "var(--accent-blue)" : "var(--text-secondary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } as const),
   h2: { fontSize: 16, fontWeight: 700, margin: "0 0 16px 0" } as const,
-  h3: { fontSize: 14, fontWeight: 600, margin: "16px 0 8px 0" } as const,
-  label: { fontSize: 12, color: "var(--text-secondary)", marginBottom: 4, display: "block" } as const,
+  h3: { fontSize: "var(--font-size-lg)", fontWeight: 600, margin: "16px 0 8px 0" } as const,
+  label: { fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 4, display: "block" } as const,
   grid: { display: "grid", gap: 12 } as const,
-  voteBtn: { padding: "2px 6px", border: "1px solid var(--border-color)", borderRadius: 4, cursor: "pointer", fontSize: 12, background: "transparent", color: "var(--text-secondary)", lineHeight: 1 } as const,
-  synthesisCard: { border: "2px solid var(--accent-blue)", borderRadius: 8, padding: 16, background: "var(--accent-blue)08", marginBottom: 16 } as const,
+  voteBtn: { padding: "2px 6px", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", cursor: "pointer", fontSize: "var(--font-size-base)", background: "transparent", color: "var(--text-secondary)", lineHeight: 1 } as const,
+  synthesisCard: { border: "2px solid var(--accent-blue)", borderRadius: "var(--radius-sm-alt)", padding: 16, background: "var(--accent-blue)08", marginBottom: 16 } as const,
 };
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -269,7 +269,7 @@ export function CounselPanel() {
       {/* Sidebar */}
       <div style={S.sidebar}>
         <div style={{ marginBottom: 12 }}>
-          <button style={{ ...S.btn, width: "100%", fontSize: 12 }} onClick={newSession}>
+          <button style={{ ...S.btn, width: "100%", fontSize: "var(--font-size-base)" }} onClick={newSession}>
             + New Session
           </button>
         </div>
@@ -282,21 +282,21 @@ export function CounselPanel() {
           >
             <div style={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => loadSession(s.id)}>
               <div style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis" }}>{s.topic.slice(0, 28)}{s.topic.length > 28 ? "..." : ""}</div>
-              <div style={{ fontSize: 10, opacity: 0.7 }}>
+              <div style={{ fontSize: "var(--font-size-xs)", opacity: 0.7 }}>
                 {s.round_count} rounds, {s.participant_count} participants
               </div>
             </div>
             <button
               onClick={(e) => { e.stopPropagation(); deleteSession(s.id); }}
               title="Delete session"
-              style={{ flexShrink: 0, background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: 12, padding: "2px 4px", opacity: 0.6 }}
+              style={{ flexShrink: 0, background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: "var(--font-size-base)", padding: "2px 4px", opacity: 0.6 }}
             >
               x
             </button>
           </div>
         ))}
         {sessionList.length === 0 && (
-          <div style={{ fontSize: 11, color: "var(--text-secondary)", padding: 8 }}>
+          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", padding: 8 }}>
             No sessions yet
           </div>
         )}
@@ -329,7 +329,7 @@ export function CounselPanel() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <h3 style={S.h3}>Participants</h3>
               {selectedParticipants.size > 0 && (
-                <button style={{ ...S.btnSecondary, fontSize: 11, padding: "3px 8px", color: "var(--accent-rose, var(--error-color))" }} onClick={removeSelectedParticipants}>
+                <button style={{ ...S.btnSecondary, fontSize: "var(--font-size-sm)", padding: "3px 8px", color: "var(--accent-rose, var(--error-color))" }} onClick={removeSelectedParticipants}>
                   Remove {selectedParticipants.size} selected
                 </button>
               )}
@@ -408,7 +408,7 @@ export function CounselPanel() {
                 return (
                   <div key={i} style={{ ...S.badge(roleColor), display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 8px" }}>
                     <select
-                      style={{ background: "transparent", border: "none", color: "inherit", fontSize: 11, fontWeight: 600, cursor: "pointer", outline: "none", padding: 0 }}
+                      style={{ background: "transparent", border: "none", color: "inherit", fontSize: "var(--font-size-sm)", fontWeight: 600, cursor: "pointer", outline: "none", padding: 0 }}
                       value={p.provider}
                       onChange={e => {
                         const newProv = e.target.value;
@@ -420,7 +420,7 @@ export function CounselPanel() {
                     </select>
                     <span style={{ opacity: 0.5 }}>/</span>
                     <select
-                      style={{ background: "transparent", border: "none", color: "inherit", fontSize: 11, cursor: "pointer", outline: "none", padding: 0, maxWidth: 140 }}
+                      style={{ background: "transparent", border: "none", color: "inherit", fontSize: "var(--font-size-sm)", cursor: "pointer", outline: "none", padding: 0, maxWidth: 140 }}
                       value={p.model}
                       onChange={e => updateSessionParticipant(i, p.provider, e.target.value)}
                     >
@@ -429,7 +429,7 @@ export function CounselPanel() {
                         <option value={p.model} style={{ background: "var(--bg-secondary)", color: "var(--text-primary)" }}>{p.model}</option>
                       )}
                     </select>
-                    <span style={{ opacity: 0.7, fontSize: 10 }}>({p.role})</span>
+                    <span style={{ opacity: 0.7, fontSize: "var(--font-size-xs)" }}>({p.role})</span>
                     {i === activeSession.moderator_index && <span style={{ fontSize: 9, opacity: 0.6 }}>[Mod]</span>}
                   </div>
                 );
@@ -439,11 +439,11 @@ export function CounselPanel() {
             {/* Synthesis */}
             {activeSession.synthesis && (
               <div style={S.synthesisCard}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--accent-blue)", marginBottom: 8 }}>
+                <div style={{ fontSize: "var(--font-size-base)", fontWeight: 700, color: "var(--accent-blue)", marginBottom: 8 }}>
                   Synthesis by {activeSession.participants[activeSession.moderator_index]?.provider}/
                   {activeSession.participants[activeSession.moderator_index]?.model}
                 </div>
-                <div style={{ fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+                <div style={{ fontSize: "var(--font-size-md)", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
                   {activeSession.synthesis}
                 </div>
               </div>
@@ -461,20 +461,20 @@ export function CounselPanel() {
                       <div key={rsi} style={{ ...S.card, borderTop: `3px solid ${roleColor}` }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                           <div>
-                            <span style={{ fontSize: 12, fontWeight: 600 }}>{participant?.provider}/{participant?.model}</span>
+                            <span style={{ fontSize: "var(--font-size-base)", fontWeight: 600 }}>{participant?.provider}/{participant?.model}</span>
                             <span style={S.badge(roleColor)}>{participant?.role}</span>
                           </div>
-                          <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>{resp.duration_ms}ms</span>
+                          <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>{resp.duration_ms}ms</span>
                         </div>
-                        <div style={{ fontSize: 13, lineHeight: 1.5, whiteSpace: "pre-wrap", maxHeight: 300, overflowY: "auto", marginBottom: 8 }}>
+                        <div style={{ fontSize: "var(--font-size-md)", lineHeight: 1.5, whiteSpace: "pre-wrap", maxHeight: 300, overflowY: "auto", marginBottom: 8 }}>
                           {resp.content}
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                           <button style={S.voteBtn} onClick={() => vote(ri, resp.participant_index, 1)}>&#9650;</button>
-                          <span style={{ fontSize: 13, fontWeight: 600, minWidth: 20, textAlign: "center" }}>{resp.votes}</span>
+                          <span style={{ fontSize: "var(--font-size-md)", fontWeight: 600, minWidth: 20, textAlign: "center" }}>{resp.votes}</span>
                           <button style={S.voteBtn} onClick={() => vote(ri, resp.participant_index, -1)}>&#9660;</button>
                           {resp.tokens != null && (
-                            <span style={{ fontSize: 10, color: "var(--text-secondary)", marginLeft: 8 }}>{resp.tokens} tok</span>
+                            <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginLeft: 8 }}>{resp.tokens} tok</span>
                           )}
                         </div>
                       </div>
@@ -483,8 +483,8 @@ export function CounselPanel() {
                 </div>
                 {round.user_interjection && (
                   <div style={{ ...S.card, borderLeft: "3px solid var(--accent-blue)", marginTop: 8 }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--accent-blue)", marginBottom: 4 }}>User Context</div>
-                    <div style={{ fontSize: 13 }}>{round.user_interjection}</div>
+                    <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, color: "var(--accent-blue)", marginBottom: 4 }}>User Context</div>
+                    <div style={{ fontSize: "var(--font-size-md)" }}>{round.user_interjection}</div>
                   </div>
                 )}
               </div>

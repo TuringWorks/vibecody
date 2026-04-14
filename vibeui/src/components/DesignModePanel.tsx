@@ -103,11 +103,11 @@ export function DesignModePanel() {
 
   return (
     <div style={{ padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-mono)", height: "100%", overflowY: "auto" }}>
-      <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>Design Mode</div>
+      <div style={{ fontSize: "var(--font-size-xl)", fontWeight: 700, marginBottom: 12 }}>Design Mode</div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         {["annotate", "instructions", "tokens"].map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{ padding: "4px 12px", borderRadius: 6, cursor: "pointer", background: tab === t ? "var(--accent-color)" : "var(--bg-secondary)", color: tab === t ? "#fff" : "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: 12 }}>{t}</button>
+          <button key={t} onClick={() => setTab(t)} style={{ padding: "4px 12px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: tab === t ? "var(--accent-color)" : "var(--bg-secondary)", color: tab === t ? "#fff" : "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>{t}</button>
         ))}
       </div>
 
@@ -116,31 +116,31 @@ export function DesignModePanel() {
 
       {!loading && tab === "annotate" && (
         <div>
-          <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 8, padding: 14, marginBottom: 16 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 10 }}>Add Annotation</div>
+          <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm-alt)", padding: 14, marginBottom: 16 }}>
+            <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, marginBottom: 10 }}>Add Annotation</div>
             <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
               <div style={{ flex: "0 0 auto" }}>
-                <label style={{ display: "block", fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>Kind</label>
+                <label style={{ display: "block", fontSize: "var(--font-size-sm)", color: "var(--text-muted)", marginBottom: 4 }}>Kind</label>
                 <select value={newKind} onChange={e => setNewKind(e.target.value)}
-                  style={{ padding: "5px 10px", borderRadius: 6, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: 12 }}>
+                  style={{ padding: "5px 10px", borderRadius: "var(--radius-sm)", background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>
                   {ANNOTATION_KINDS.map(k => <option key={k} value={k}>{k}</option>)}
                 </select>
               </div>
               <div style={{ flex: 1, minWidth: 150 }}>
-                <label style={{ display: "block", fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>Selector (optional)</label>
+                <label style={{ display: "block", fontSize: "var(--font-size-sm)", color: "var(--text-muted)", marginBottom: 4 }}>Selector (optional)</label>
                 <input value={newSelector} onChange={e => setNewSelector(e.target.value)}
                   placeholder=".btn-primary"
-                  style={{ width: "100%", padding: "5px 10px", borderRadius: 6, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: 12, boxSizing: "border-box" }} />
+                  style={{ width: "100%", padding: "5px 10px", borderRadius: "var(--radius-sm)", background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)", boxSizing: "border-box" }} />
               </div>
             </div>
             <div style={{ marginBottom: 10 }}>
-              <label style={{ display: "block", fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>Description</label>
+              <label style={{ display: "block", fontSize: "var(--font-size-sm)", color: "var(--text-muted)", marginBottom: 4 }}>Description</label>
               <textarea value={newDesc} onChange={e => setNewDesc(e.target.value)}
                 placeholder="Describe the design annotation..."
-                style={{ width: "100%", height: 60, padding: "6px 10px", borderRadius: 6, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: 12, fontFamily: "var(--font-mono)", resize: "vertical", boxSizing: "border-box" }} />
+                style={{ width: "100%", height: 60, padding: "6px 10px", borderRadius: "var(--radius-sm)", background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)", resize: "vertical", boxSizing: "border-box" }} />
             </div>
             <button onClick={addAnnotation} disabled={!newDesc.trim()}
-              style={{ padding: "6px 16px", borderRadius: 6, cursor: newDesc.trim() ? "pointer" : "not-allowed", background: "var(--accent-color)", color: "#fff", border: "none", fontSize: 12, fontWeight: 600, opacity: newDesc.trim() ? 1 : 0.6 }}>
+              style={{ padding: "6px 16px", borderRadius: "var(--radius-sm)", cursor: newDesc.trim() ? "pointer" : "not-allowed", background: "var(--accent-color)", color: "var(--btn-primary-fg, #fff)", border: "none", fontSize: "var(--font-size-base)", fontWeight: 600, opacity: newDesc.trim() ? 1 : 0.6 }}>
               Add Annotation
             </button>
           </div>
@@ -149,13 +149,13 @@ export function DesignModePanel() {
             {annotations.map(ann => {
               const color = KIND_COLORS[ann.kind] ?? "var(--text-muted)";
               return (
-                <div key={ann.id} style={{ background: "var(--bg-secondary)", borderRadius: 8, border: `1px solid var(--border-color)`, borderLeft: `3px solid ${color}`, padding: "10px 14px" }}>
+                <div key={ann.id} style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", border: `1px solid var(--border-color)`, borderLeft: `3px solid ${color}`, padding: "10px 14px" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                    <span style={{ fontSize: 11, padding: "1px 8px", borderRadius: 8, background: color + "22", color, fontWeight: 600 }}>{ann.kind}</span>
-                    {ann.selector && <code style={{ fontSize: 11, color: "var(--text-muted)", background: "var(--bg-primary)", padding: "1px 6px", borderRadius: 4 }}>{ann.selector}</code>}
-                    <span style={{ marginLeft: "auto", fontSize: 10, color: "var(--text-muted)" }}>{ann.created_at}</span>
+                    <span style={{ fontSize: "var(--font-size-sm)", padding: "1px 8px", borderRadius: "var(--radius-sm-alt)", background: color + "22", color, fontWeight: 600 }}>{ann.kind}</span>
+                    {ann.selector && <code style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)", background: "var(--bg-primary)", padding: "1px 6px", borderRadius: "var(--radius-xs-plus)" }}>{ann.selector}</code>}
+                    <span style={{ marginLeft: "auto", fontSize: "var(--font-size-xs)", color: "var(--text-muted)" }}>{ann.created_at}</span>
                   </div>
-                  <div style={{ fontSize: 12, color: "var(--text-primary)" }}>{ann.description}</div>
+                  <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-primary)" }}>{ann.description}</div>
                 </div>
               );
             })}
@@ -166,21 +166,21 @@ export function DesignModePanel() {
       {!loading && tab === "instructions" && (
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-            <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{instructions.length} instructions generated</span>
+            <span style={{ fontSize: "var(--font-size-base)", color: "var(--text-muted)" }}>{instructions.length} instructions generated</span>
             <button onClick={regenerateInstructions} disabled={generating}
-              style={{ padding: "4px 14px", borderRadius: 6, cursor: generating ? "not-allowed" : "pointer", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: 12, opacity: generating ? 0.6 : 1 }}>
+              style={{ padding: "4px 14px", borderRadius: "var(--radius-sm)", cursor: generating ? "not-allowed" : "pointer", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)", opacity: generating ? 0.6 : 1 }}>
               {generating ? "Regenerating…" : "Regenerate"}
             </button>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {instructions.length === 0 && <div style={{ color: "var(--text-muted)" }}>No instructions generated. Add annotations first.</div>}
             {instructions.map(instr => (
-              <div key={instr.index} style={{ background: "var(--bg-secondary)", borderRadius: 8, border: "1px solid var(--border-color)", padding: "10px 14px", display: "flex", gap: 12 }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: "var(--accent-color)", minWidth: 24 }}>{instr.index}.</span>
+              <div key={instr.index} style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", border: "1px solid var(--border-color)", padding: "10px 14px", display: "flex", gap: 12 }}>
+                <span style={{ fontSize: "var(--font-size-md)", fontWeight: 700, color: "var(--accent-color)", minWidth: 24 }}>{instr.index}.</span>
                 <div>
-                  <div style={{ fontSize: 12, color: "var(--text-primary)", lineHeight: 1.5 }}>{instr.text}</div>
+                  <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-primary)", lineHeight: 1.5 }}>{instr.text}</div>
                   {instr.source_annotation_ids.length > 0 && (
-                    <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 4 }}>
+                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", marginTop: 4 }}>
                       Sources: {instr.source_annotation_ids.map(id => id.slice(0, 6)).join(", ")}
                     </div>
                   )}
@@ -196,15 +196,15 @@ export function DesignModePanel() {
           {Object.keys(tokensByCategory).length === 0 && <div style={{ color: "var(--text-muted)" }}>No design tokens extracted.</div>}
           {Object.entries(tokensByCategory).map(([category, categoryTokens]) => (
             <div key={category} style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>{category}</div>
+              <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>{category}</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 {categoryTokens.map(token => (
-                  <div key={token.name} style={{ display: "flex", alignItems: "center", gap: 12, background: "var(--bg-secondary)", borderRadius: 6, padding: "6px 12px", border: "1px solid var(--border-color)" }}>
+                  <div key={token.name} style={{ display: "flex", alignItems: "center", gap: 12, background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: "6px 12px", border: "1px solid var(--border-color)" }}>
                     {category === "color" && (
-                      <div style={{ width: 20, height: 20, borderRadius: 4, background: token.value, border: "1px solid var(--border-color)", flexShrink: 0 }} />
+                      <div style={{ width: 20, height: 20, borderRadius: "var(--radius-xs-plus)", background: token.value, border: "1px solid var(--border-color)", flexShrink: 0 }} />
                     )}
-                    <code style={{ fontSize: 12, color: "var(--accent-color)", flex: 1 }}>{token.name}</code>
-                    <code style={{ fontSize: 12, color: "var(--text-muted)" }}>{token.value}</code>
+                    <code style={{ fontSize: "var(--font-size-base)", color: "var(--accent-color)", flex: 1 }}>{token.name}</code>
+                    <code style={{ fontSize: "var(--font-size-base)", color: "var(--text-muted)" }}>{token.value}</code>
                   </div>
                 ))}
               </div>

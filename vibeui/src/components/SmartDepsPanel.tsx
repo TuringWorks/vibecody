@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 const badgeStyle = (color: string, bg: string): React.CSSProperties => ({
-  padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 600, color, background: bg,
+  padding: "2px 8px", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-sm)", fontWeight: 600, color, background: bg,
 });
 
 interface Dep {
@@ -146,8 +146,8 @@ export function SmartDepsPanel() {
           {deps.map((d) => (
             <div key={d.name} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontWeight: 600, fontSize: 13 }}>{d.name}</span>
-                <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>{d.version}</span>
+                <span style={{ fontWeight: 600, fontSize: "var(--font-size-md)" }}>{d.name}</span>
+                <span style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>{d.version}</span>
                 {d.dev && <span style={badgeStyle("var(--text-secondary)", "var(--border-color)")}>dev</span>}
               </div>
               <span style={badgeStyle(mgrColor(d.manager).color, mgrColor(d.manager).bg)}>{d.manager}</span>
@@ -171,15 +171,15 @@ export function SmartDepsPanel() {
           {conflicts.map((c) => (
             <div key={c.id} className="panel-card">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                <span style={{ fontWeight: 600, fontSize: 13 }}>{c.pkg}</span>
-                <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>{c.versions.join(" vs ")}</span>
+                <span style={{ fontWeight: 600, fontSize: "var(--font-size-md)" }}>{c.pkg}</span>
+                <span style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>{c.versions.join(" vs ")}</span>
               </div>
-              <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8 }}>{c.reason}</div>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 8 }}>{c.reason}</div>
               <div style={{ display: "flex", gap: 4 }}>
                 {["dedupe", "upgrade", "align", "ignore"].map((s) => (
                   <button key={s} onClick={() => setConflicts((prev) => prev.map((x) => x.id === c.id ? { ...x, strategy: s } : x))}
                     className={c.strategy === s ? "panel-btn panel-btn-primary" : "panel-btn panel-btn-secondary"}
-                    style={{ fontSize: 11, padding: "3px 8px" }}>
+                    style={{ fontSize: "var(--font-size-sm)", padding: "3px 8px" }}>
                     {s}
                   </button>
                 ))}
@@ -205,12 +205,12 @@ export function SmartDepsPanel() {
             <div key={i} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                  <span style={{ fontWeight: 600, fontSize: 13 }}>{a.pkg}</span>
+                  <span style={{ fontWeight: 600, fontSize: "var(--font-size-md)" }}>{a.pkg}</span>
                   <span style={badgeStyle(sevColor(a.severity).color, sevColor(a.severity).bg)}>{a.severity}</span>
                 </div>
-                <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{a.cve} - {a.desc}</div>
+                <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>{a.cve} - {a.desc}</div>
               </div>
-              <span style={{ fontSize: 11, fontWeight: 600, color: a.fixAvailable ? "var(--success-color)" : "var(--error-color)" }}>
+              <span style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, color: a.fixAvailable ? "var(--success-color)" : "var(--error-color)" }}>
                 {a.fixAvailable ? "Fix available" : "No fix"}
               </span>
             </div>
@@ -233,8 +233,8 @@ export function SmartDepsPanel() {
           {licenses.map((l) => (
             <div key={l.pkg} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
-                <span style={{ fontWeight: 600, fontSize: 13 }}>{l.pkg}</span>
-                <span style={{ fontSize: 12, color: "var(--text-secondary)", marginLeft: 8 }}>{l.license}</span>
+                <span style={{ fontWeight: 600, fontSize: "var(--font-size-md)" }}>{l.pkg}</span>
+                <span style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginLeft: 8 }}>{l.license}</span>
               </div>
               <span style={badgeStyle(
                 l.status === "compliant" ? "var(--success-color)" : "var(--error-color)",

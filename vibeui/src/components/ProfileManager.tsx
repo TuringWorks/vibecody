@@ -105,7 +105,7 @@ export function ProfileManager() {
     <div className="panel-container">
       <div className="panel-header"><h3>Settings Profiles</h3></div>
       <div className="panel-body">
-      <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 12px" }}>
+      <p style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", margin: "0 0 12px" }}>
         Profiles let you save and switch between different panel configurations. All settings are encrypted and stored locally.
       </p>
 
@@ -116,7 +116,7 @@ export function ProfileManager() {
         </div>
       )}
       {success && (
-        <div style={{ padding: "6px 10px", marginBottom: 8, borderRadius: 4, background: "var(--success-bg)", color: "var(--success-color)", fontSize: 12 }}>
+        <div style={{ padding: "6px 10px", marginBottom: 8, borderRadius: "var(--radius-xs-plus)", background: "var(--success-bg)", color: "var(--success-color)", fontSize: "var(--font-size-base)" }}>
           {success}
         </div>
       )}
@@ -126,10 +126,10 @@ export function ProfileManager() {
         {profiles.map((p) => (
           <div key={p.id} className="panel-card" style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div style={{ flex: 1 }}>
-              <span style={{ fontWeight: 600, fontSize: 13 }}>{p.name}</span>
-              <span style={{ marginLeft: 6, fontSize: 11, color: "var(--text-secondary)" }}>({p.id})</span>
+              <span style={{ fontWeight: 600, fontSize: "var(--font-size-md)" }}>{p.name}</span>
+              <span style={{ marginLeft: 6, fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>({p.id})</span>
               {p.is_default && (
-                <span style={{ marginLeft: 6, padding: "1px 6px", borderRadius: 3, fontSize: 10, background: "var(--accent-color)", color: "var(--btn-primary-fg)" }}>default</span>
+                <span style={{ marginLeft: 6, padding: "1px 6px", borderRadius: 3, fontSize: "var(--font-size-xs)", background: "var(--accent-color)", color: "var(--btn-primary-fg)" }}>default</span>
               )}
             </div>
             <div style={{ display: "flex", gap: 4 }}>
@@ -146,7 +146,7 @@ export function ProfileManager() {
 
       {/* Create profile form */}
       <div className="panel-card">
-        <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 8 }}>New Profile</div>
+        <div style={{ fontWeight: 600, fontSize: "var(--font-size-base)", marginBottom: 8 }}>New Profile</div>
         <div style={{ display: "flex", gap: 6 }}>
           <input className="panel-input" style={{ width: 120 }} placeholder="Profile ID" value={newId} onChange={(e) => setNewId(e.target.value)} />
           <input className="panel-input" style={{ flex: 1 }} placeholder="Profile Name" value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleCreate()} />

@@ -27,7 +27,7 @@ export function CopyButton({ text, label = "", feedbackMs = 1500 }: CopyButtonPr
       onClick={handleClick}
       title="Copy to clipboard"
       style={{
-        fontSize: 10,
+        fontSize: "var(--font-size-xs)",
         padding: "2px 8px",
         cursor: "pointer",
         background: copied ? "var(--accent-color)" : "var(--bg-tertiary)",

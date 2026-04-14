@@ -131,10 +131,10 @@ const ConversationalSearchPanel: React.FC = () => {
           {results.map((r) => (
             <div key={r.id} className="panel-card">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
-                <strong style={{ fontSize: "13px" }}>{r.file}:{r.line}</strong>
-                <span style={{ fontSize: "11px", opacity: 0.7 }}>{(r.relevance * 100).toFixed(0)}%</span>
+                <strong style={{ fontSize: "var(--font-size-md)" }}>{r.file}:{r.line}</strong>
+                <span style={{ fontSize: "var(--font-size-sm)", opacity: 0.7 }}>{(r.relevance * 100).toFixed(0)}%</span>
               </div>
-              <code style={{ fontSize: "12px", opacity: 0.85, display: "block", whiteSpace: "pre-wrap", marginBottom: "6px" }}>{r.snippet}</code>
+              <code style={{ fontSize: "var(--font-size-base)", opacity: 0.85, display: "block", whiteSpace: "pre-wrap", marginBottom: "6px" }}>{r.snippet}</code>
               <div style={{ background: "var(--border-color)", borderRadius: "2px", height: "4px" }}>
                 <div style={relevanceBar(r.relevance)} />
               </div>
@@ -145,7 +145,7 @@ const ConversationalSearchPanel: React.FC = () => {
           )}
           {followUps.length > 0 && (
             <div style={{ marginTop: "12px" }}>
-              <div style={{ fontSize: "12px", opacity: 0.6, marginBottom: "6px" }}>Follow-up suggestions:</div>
+              <div style={{ fontSize: "var(--font-size-base)", opacity: 0.6, marginBottom: "6px" }}>Follow-up suggestions:</div>
               {followUps.map((f, i) => (
                 <button key={i} className="panel-btn panel-btn-secondary" style={{ display: "block", marginBottom: "4px", textAlign: "left" }} onClick={() => setQuery(f)}>
                   {f}
@@ -160,7 +160,7 @@ const ConversationalSearchPanel: React.FC = () => {
         <div>
           {history.length > 0 && (
             <div style={{ marginBottom: "8px", textAlign: "right" }}>
-              <button className="panel-btn panel-btn-secondary" style={{ fontSize: "11px" }} onClick={handleClearHistory}>
+              <button className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-sm)" }} onClick={handleClearHistory}>
                 Clear History
               </button>
             </div>
@@ -171,11 +171,11 @@ const ConversationalSearchPanel: React.FC = () => {
           {history.map((h) => (
             <div key={h.id} className="panel-card">
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
-                <strong style={{ fontSize: "13px" }}>{h.query}</strong>
-                <span style={{ fontSize: "11px", opacity: 0.6 }}>{h.timestamp}</span>
+                <strong style={{ fontSize: "var(--font-size-md)" }}>{h.query}</strong>
+                <span style={{ fontSize: "var(--font-size-sm)", opacity: 0.6 }}>{h.timestamp}</span>
               </div>
-              <p style={{ margin: "4px 0", fontSize: "12px", opacity: 0.8 }}>{h.answer}</p>
-              <div style={{ fontSize: "11px", opacity: 0.5 }}>{h.result_count} results</div>
+              <p style={{ margin: "4px 0", fontSize: "var(--font-size-base)", opacity: 0.8 }}>{h.answer}</p>
+              <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.5 }}>{h.result_count} results</div>
             </div>
           ))}
         </div>

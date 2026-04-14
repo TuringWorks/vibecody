@@ -93,7 +93,7 @@ export function CheckpointPanel({ workspacePath }: CheckpointPanelProps) {
 
   if (!workspacePath) {
     return (
-      <div style={{ padding: "16px", color: "var(--text-secondary)", fontSize: "13px" }}>
+      <div style={{ padding: "16px", color: "var(--text-secondary)", fontSize: "var(--font-size-md)" }}>
         Open a workspace folder to use checkpoints.
       </div>
     );
@@ -103,7 +103,7 @@ export function CheckpointPanel({ workspacePath }: CheckpointPanelProps) {
     <div className="panel-container">
       {/* Header */}
       <div className="panel-header" style={{ padding: "12px", flexDirection: "column", alignItems: "stretch" }}>
-        <div style={{ fontSize: "11px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-secondary)", marginBottom: "8px" }}>
+        <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-secondary)", marginBottom: "8px" }}>
           Checkpoints
         </div>
 
@@ -118,10 +118,10 @@ export function CheckpointPanel({ workspacePath }: CheckpointPanelProps) {
             style={{
               flex: 1,
               padding: "5px 8px",
-              fontSize: "12px",
+              fontSize: "var(--font-size-base)",
               background: "var(--bg-input, var(--bg-primary))",
               border: "1px solid var(--border-color)",
-              borderRadius: "4px",
+              borderRadius: "var(--radius-xs-plus)",
               color: "var(--text-primary)",
               outline: "none",
             }}
@@ -141,7 +141,7 @@ export function CheckpointPanel({ workspacePath }: CheckpointPanelProps) {
         </div>
 
         {error && (
-          <div style={{ marginTop: "8px", padding: "6px 8px", background: "color-mix(in srgb, var(--accent-rose) 15%, transparent)", borderRadius: "4px", fontSize: "12px", color: "var(--error-color)" }}>
+          <div style={{ marginTop: "8px", padding: "6px 8px", background: "color-mix(in srgb, var(--accent-rose) 15%, transparent)", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-base)", color: "var(--error-color)" }}>
             {error}
           </div>
         )}
@@ -185,7 +185,7 @@ export function CheckpointPanel({ workspacePath }: CheckpointPanelProps) {
             {/* Label + meta */}
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{
-                fontSize: "12px",
+                fontSize: "var(--font-size-base)",
                 color: "var(--text-primary)",
                 whiteSpace: "nowrap",
                 overflow: "hidden",
@@ -193,7 +193,7 @@ export function CheckpointPanel({ workspacePath }: CheckpointPanelProps) {
               }}>
                 {extractLabel(cp.message)}
               </div>
-              <div style={{ fontSize: "10px", color: "var(--text-secondary)", marginTop: "2px" }}>
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginTop: "2px" }}>
                 stash@{"{" + cp.index + "}"} · {cp.oid.slice(0, 8)}
               </div>
             </div>
@@ -236,15 +236,15 @@ export function CheckpointPanel({ workspacePath }: CheckpointPanelProps) {
           <div style={{
             background: "var(--bg-secondary)",
             border: "1px solid var(--border-color)",
-            borderRadius: "8px",
+            borderRadius: "var(--radius-sm-alt)",
             padding: "20px",
             maxWidth: "320px",
             width: "90%",
           }}>
-            <div style={{ fontSize: "13px", fontWeight: 600, marginBottom: "10px", color: "var(--text-primary)" }}>
+            <div style={{ fontSize: "var(--font-size-md)", fontWeight: 600, marginBottom: "10px", color: "var(--text-primary)" }}>
               Delete Checkpoint?
             </div>
-            <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "16px", lineHeight: 1.5 }}>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: "16px", lineHeight: 1.5 }}>
               Permanently delete <strong style={{ color: "var(--text-primary)" }}>
                 "{extractLabel(confirmDelete.message)}"
               </strong>? This cannot be undone.
@@ -281,15 +281,15 @@ export function CheckpointPanel({ workspacePath }: CheckpointPanelProps) {
           <div style={{
             background: "var(--bg-secondary)",
             border: "1px solid var(--border-color)",
-            borderRadius: "8px",
+            borderRadius: "var(--radius-sm-alt)",
             padding: "20px",
             maxWidth: "320px",
             width: "90%",
           }}>
-            <div style={{ fontSize: "13px", fontWeight: 600, marginBottom: "10px", color: "var(--text-primary)" }}>
+            <div style={{ fontSize: "var(--font-size-md)", fontWeight: 600, marginBottom: "10px", color: "var(--text-primary)" }}>
               Restore Checkpoint?
             </div>
-            <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "16px", lineHeight: 1.5 }}>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: "16px", lineHeight: 1.5 }}>
               This will apply stash <strong style={{ color: "var(--text-primary)" }}>
                 "{extractLabel(confirmRestore.message)}"
               </strong> to your current working tree. Uncommitted changes may conflict.

@@ -63,10 +63,10 @@ function Sparkline({ history }: { history: HealthCheckResult[] }) {
 }
 
 function StatusBadge({ result }: { result: HealthCheckResult | undefined }) {
- if (!result) return <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>—</span>;
+ if (!result) return <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>—</span>;
  const color = result.ok ? "var(--text-success)" : "var(--text-danger)";
  return (
- <span style={{ padding: "2px 8px", borderRadius: 10, background: color + "22", border: `1px solid ${color}`, color, fontSize: 10, fontWeight: 700 }}>
+ <span style={{ padding: "2px 8px", borderRadius: "var(--radius-md)", background: color + "22", border: `1px solid ${color}`, color, fontSize: "var(--font-size-xs)", fontWeight: 700 }}>
  {result.ok ? "UP" : "DOWN"}
  </span>
  );
@@ -172,24 +172,24 @@ export function HealthMonitorPanel() {
  <div className="panel-container">
  {/* Header */}
  <div className="panel-header" style={{ flexWrap: "wrap" }}>
- <span style={{ fontSize: 15 }}></span>
- <div style={{ fontSize: 13, fontWeight: 600, flex: 1 }}>Service Health Monitor</div>
+ <span style={{ fontSize: "var(--font-size-xl)" }}></span>
+ <div style={{ fontSize: "var(--font-size-md)", fontWeight: 600, flex: 1 }}>Service Health Monitor</div>
 
  {checkedCount > 0 && (
  <div style={{ display: "flex", gap: 6 }}>
- {upCount > 0 && <span style={{ padding: "2px 8px", borderRadius: 10, background: "color-mix(in srgb, var(--accent-green) 15%, transparent)", border: "1px solid var(--text-success)", color: "var(--text-success)", fontSize: 10, fontWeight: 700 }}>↑ {upCount} UP</span>}
- {downCount > 0 && <span style={{ padding: "2px 8px", borderRadius: 10, background: "color-mix(in srgb, var(--accent-rose) 15%, transparent)", border: "1px solid var(--text-danger)", color: "var(--text-danger)", fontSize: 10, fontWeight: 700 }}>↓ {downCount} DOWN</span>}
+ {upCount > 0 && <span style={{ padding: "2px 8px", borderRadius: "var(--radius-md)", background: "color-mix(in srgb, var(--accent-green) 15%, transparent)", border: "1px solid var(--text-success)", color: "var(--text-success)", fontSize: "var(--font-size-xs)", fontWeight: 700 }}>↑ {upCount} UP</span>}
+ {downCount > 0 && <span style={{ padding: "2px 8px", borderRadius: "var(--radius-md)", background: "color-mix(in srgb, var(--accent-rose) 15%, transparent)", border: "1px solid var(--text-danger)", color: "var(--text-danger)", fontSize: "var(--font-size-xs)", fontWeight: 700 }}>↓ {downCount} DOWN</span>}
  </div>
  )}
 
  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
- <label style={{ fontSize: 10, color: "var(--text-secondary)" }}>Auto</label>
+ <label style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>Auto</label>
  <input type="checkbox" checked={autoRefresh} onChange={e => setAutoRefresh(e.target.checked)} />
  {autoRefresh && (
  <select
  value={intervalSec}
  onChange={e => setIntervalSec(Number(e.target.value))}
- style={{ fontSize: 10, padding: "2px 4px", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 3, color: "var(--text-primary)" }}
+ style={{ fontSize: "var(--font-size-xs)", padding: "2px 4px", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 3, color: "var(--text-primary)" }}
  >
  {[10, 30, 60, 120, 300].map(s => <option key={s} value={s}>{s}s</option>)}
  </select>
@@ -199,14 +199,14 @@ export function HealthMonitorPanel() {
  <button
  onClick={checkAll}
  disabled={checking || monitors.length === 0}
- style={{ padding: "4px 14px", fontSize: 11, fontWeight: 700, background: checking ? "var(--bg-secondary)" : "var(--accent-primary)", color: checking ? "var(--text-secondary)" : "var(--text-on-accent)", border: "none", borderRadius: 4, cursor: checking ? "not-allowed" : "pointer" }}
+ style={{ padding: "4px 14px", fontSize: "var(--font-size-sm)", fontWeight: 700, background: checking ? "var(--bg-secondary)" : "var(--accent-primary)", color: checking ? "var(--text-secondary)" : "var(--text-on-accent)", border: "none", borderRadius: "var(--radius-xs-plus)", cursor: checking ? "not-allowed" : "pointer" }}
  >
  {checking ? "Checking…" : "Check All"}
  </button>
 
  <button
  onClick={() => setShowAdd(v => !v)}
- style={{ padding: "4px 10px", fontSize: 11, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", cursor: "pointer" }}
+ style={{ padding: "4px 10px", fontSize: "var(--font-size-sm)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", cursor: "pointer" }}
  >
  + Add
  </button>
@@ -216,21 +216,21 @@ export function HealthMonitorPanel() {
  {showAdd && (
  <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
  <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
- <label style={{ fontSize: 10, fontWeight: 600, color: "var(--text-secondary)" }}>Label</label>
- <input value={newLabel} onChange={e => setNewLabel(e.target.value)} placeholder="My API" style={{ padding: "4px 8px", fontSize: 12, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none", width: 120 }} />
+ <label style={{ fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-secondary)" }}>Label</label>
+ <input value={newLabel} onChange={e => setNewLabel(e.target.value)} placeholder="My API" style={{ padding: "4px 8px", fontSize: "var(--font-size-base)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none", width: 120 }} />
  </div>
  <div style={{ display: "flex", flexDirection: "column", gap: 3, flex: 1 }}>
- <label style={{ fontSize: 10, fontWeight: 600, color: "var(--text-secondary)" }}>URL</label>
- <input value={newUrl} onChange={e => setNewUrl(e.target.value)} placeholder="https://api.example.com/health" style={{ padding: "4px 8px", fontSize: 11, fontFamily: "var(--font-mono)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none" }} />
+ <label style={{ fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-secondary)" }}>URL</label>
+ <input value={newUrl} onChange={e => setNewUrl(e.target.value)} placeholder="https://api.example.com/health" style={{ padding: "4px 8px", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none" }} />
  </div>
  <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
- <label style={{ fontSize: 10, fontWeight: 600, color: "var(--text-secondary)" }}>Timeout</label>
- <select value={newTimeout} onChange={e => setNewTimeout(Number(e.target.value))} style={{ padding: "4px 6px", fontSize: 11, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }}>
+ <label style={{ fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-secondary)" }}>Timeout</label>
+ <select value={newTimeout} onChange={e => setNewTimeout(Number(e.target.value))} style={{ padding: "4px 6px", fontSize: "var(--font-size-sm)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)" }}>
  {[2000, 5000, 10000, 30000].map(t => <option key={t} value={t}>{t / 1000}s</option>)}
  </select>
  </div>
- <button onClick={addMonitor} disabled={!newLabel || !newUrl} style={{ padding: "5px 14px", fontSize: 11, fontWeight: 700, background: "var(--accent-primary)", border: "none", borderRadius: 4, color: "var(--text-on-accent)", cursor: "pointer", height: 28 }}>Add</button>
- <button onClick={() => setShowAdd(false)} style={{ padding: "5px 10px", fontSize: 11, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-secondary)", cursor: "pointer", height: 28 }}>Cancel</button>
+ <button onClick={addMonitor} disabled={!newLabel || !newUrl} style={{ padding: "5px 14px", fontSize: "var(--font-size-sm)", fontWeight: 700, background: "var(--accent-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", color: "var(--text-on-accent)", cursor: "pointer", height: 28 }}>Add</button>
+ <button onClick={() => setShowAdd(false)} style={{ padding: "5px 10px", fontSize: "var(--font-size-sm)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-secondary)", cursor: "pointer", height: 28 }}>Cancel</button>
  </div>
  )}
 
@@ -239,7 +239,7 @@ export function HealthMonitorPanel() {
  {/* Monitor list */}
  <div className="panel-body">
  {monitors.length === 0 ? (
- <div style={{ padding: 32, textAlign: "center", color: "var(--text-secondary)", fontSize: 13 }}>
+ <div style={{ padding: 32, textAlign: "center", color: "var(--text-secondary)", fontSize: "var(--font-size-md)" }}>
  No monitors configured.<br />Click <b>+ Add</b> to add a service.
  </div>
  ) : (
@@ -257,8 +257,8 @@ export function HealthMonitorPanel() {
 
  {/* Label + URL */}
  <div style={{ flex: 1, minWidth: 0 }}>
- <div style={{ fontSize: 12, fontWeight: 600 }}>{m.label}</div>
- <div style={{ fontSize: 10, color: "var(--text-secondary)", fontFamily: "var(--font-mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.url}</div>
+ <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600 }}>{m.label}</div>
+ <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", fontFamily: "var(--font-mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.url}</div>
  </div>
 
  {/* Sparkline */}
@@ -268,10 +268,10 @@ export function HealthMonitorPanel() {
  <div style={{ width: 60, textAlign: "right", flexShrink: 0 }}>
  {r ? (
  <>
- <div style={{ fontSize: 12, fontWeight: 700, color: latencyColor(r.latency_ms) }}>{r.latency_ms}ms</div>
+ <div style={{ fontSize: "var(--font-size-base)", fontWeight: 700, color: latencyColor(r.latency_ms) }}>{r.latency_ms}ms</div>
  <div style={{ fontSize: 9, color: "var(--text-secondary)" }}>{r.status_code ?? "ERR"}</div>
  </>
- ) : <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>—</span>}
+ ) : <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>—</span>}
  </div>
 
  {/* Status badge */}
@@ -288,11 +288,11 @@ export function HealthMonitorPanel() {
  <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
  <button
  onClick={() => checkOne(m)}
- style={{ padding: "3px 8px", fontSize: 10, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-secondary)", cursor: "pointer" }}
+ style={{ padding: "3px 8px", fontSize: "var(--font-size-xs)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-secondary)", cursor: "pointer" }}
  >↺</button>
  <button
  onClick={() => removeMonitor(m.id)}
- style={{ padding: "3px 8px", fontSize: 10, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-danger)", cursor: "pointer" }}
+ style={{ padding: "3px 8px", fontSize: "var(--font-size-xs)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-danger)", cursor: "pointer" }}
  ><X size={12} /></button>
  </div>
  </div>
@@ -303,7 +303,7 @@ export function HealthMonitorPanel() {
 
  {/* Footer — last check time */}
  {checkedCount > 0 && (
- <div style={{ padding: "6px 14px", borderTop: "1px solid var(--border-color)", background: "var(--bg-secondary)", fontSize: 10, color: "var(--text-secondary)", flexShrink: 0 }}>
+ <div style={{ padding: "6px 14px", borderTop: "1px solid var(--border-color)", background: "var(--bg-secondary)", fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", flexShrink: 0 }}>
  Last check: {new Date(Math.max(...Object.values(results).map(r => r.timestamp)) * 1000).toLocaleTimeString()}
  {autoRefresh && <span style={{ marginLeft: 8 }}>· Auto-refresh every {intervalSec}s</span>}
  </div>

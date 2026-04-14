@@ -85,7 +85,7 @@ const ProcessPanel: React.FC = () => {
  );
 
  return (
- <div className="panel-container" style={{ fontSize: 13 }}>
+ <div className="panel-container" style={{ fontSize: "var(--font-size-md)" }}>
  {/* Toolbar */}
  <div className="panel-header">
  <input
@@ -116,7 +116,7 @@ const ProcessPanel: React.FC = () => {
  padding: "6px 12px",
  background: killFeedback.ok ? "var(--success-bg)" : "var(--error-bg)",
  color: killFeedback.ok ? "var(--success-fg)" : "var(--error-fg)",
- fontSize: 12,
+ fontSize: "var(--font-size-base)",
  }}
  >
  {killFeedback.ok ? "" : ""} {killFeedback.msg}
@@ -131,7 +131,7 @@ const ProcessPanel: React.FC = () => {
  )}
 
  {error && (
- <div style={{ padding: "8px 12px", color: "var(--error-fg)", fontSize: 12 }}>
+ <div style={{ padding: "8px 12px", color: "var(--error-fg)", fontSize: "var(--font-size-base)" }}>
  {error}
  </div>
  )}
@@ -181,12 +181,12 @@ const ProcessPanel: React.FC = () => {
  aria-label={`Kill process ${proc.name} (PID ${proc.pid})`}
  style={{
  padding: "2px 8px",
- borderRadius: 4,
+ borderRadius: "var(--radius-xs-plus)",
  border: "1px solid var(--error-fg)",
  background: "transparent",
  color: "var(--error-fg)",
  cursor: "pointer",
- fontSize: 11,
+ fontSize: "var(--font-size-sm)",
  }}
  >
  {killing === proc.pid ? "…" : "Kill"}
@@ -199,7 +199,7 @@ const ProcessPanel: React.FC = () => {
  </div>
 
  {/* Footer */}
- <div style={{ padding: "4px 12px", fontSize: 11, color: "var(--text-secondary)", borderTop: "1px solid var(--border)" }}>
+ <div style={{ padding: "4px 12px", fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", borderTop: "1px solid var(--border)" }}>
  {filtered.length} / {processes.length} processes shown · auto-refreshes every 5 s
  </div>
  </div>
@@ -212,7 +212,7 @@ const thStyle: React.CSSProperties = {
  padding: "6px 10px",
  fontWeight: 600,
  textAlign: "right",
- fontSize: 11,
+ fontSize: "var(--font-size-sm)",
  color: "var(--text-secondary)",
  whiteSpace: "nowrap",
 };

@@ -138,7 +138,7 @@ export function NetworkPanel() {
  key={id}
  onClick={() => setTool(id)}
  style={{
- padding: "6px 16px", fontSize: 11, fontWeight: tool === id ? 600 : 400,
+ padding: "6px 16px", fontSize: "var(--font-size-sm)", fontWeight: tool === id ? 600 : 400,
  background: tool === id ? "color-mix(in srgb, var(--accent-blue) 15%, transparent)" : "transparent",
  color: tool === id ? "var(--text-primary)" : "var(--text-secondary)",
  border: "none", borderBottom: tool === id ? "2px solid var(--accent-blue)" : "2px solid transparent",
@@ -154,10 +154,10 @@ export function NetworkPanel() {
  onClick={onClick}
  disabled={loading || disabled}
  style={{
- padding: "6px 16px", fontSize: 11, fontWeight: 600,
+ padding: "6px 16px", fontSize: "var(--font-size-sm)", fontWeight: 600,
  background: loading || disabled ? "var(--bg-secondary)" : "var(--accent-color)",
  color: loading || disabled ? "var(--text-secondary)" : "var(--text-primary)",
- border: "none", borderRadius: 4, cursor: loading || disabled ? "not-allowed" : "pointer",
+ border: "none", borderRadius: "var(--radius-xs-plus)", cursor: loading || disabled ? "not-allowed" : "pointer",
  }}
  >
  {loading ? "…" : label}
@@ -165,7 +165,7 @@ export function NetworkPanel() {
  );
 
  const ERR = (msg: string | null) => msg && (
- <div style={{ padding: "6px 10px", background: "var(--error-bg)", color: "var(--text-danger)", borderRadius: 4, fontSize: 11 }}>
+ <div style={{ padding: "6px 10px", background: "var(--error-bg)", color: "var(--text-danger)", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-sm)" }}>
  {msg}
  </div>
  );
@@ -189,41 +189,41 @@ export function NetworkPanel() {
  {tool === "ports" && (
  <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
  <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border-color)", flexShrink: 0, display: "flex", gap: 8, alignItems: "center" }}>
- <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>Localhost open ports via <code>lsof -i</code></span>
+ <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Localhost open ports via <code>lsof -i</code></span>
  {BTN(ports.length ? "↻ Refresh" : "Scan Ports", scanPorts, scanningPorts)}
  {ports.length > 0 && (
  <input
  value={portFilter}
  onChange={(e) => setPortFilter(e.target.value)}
  placeholder="Filter by port / process / state…"
- style={{ marginLeft: "auto", padding: "4px 8px", fontSize: 11, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none", width: 220 }}
+ style={{ marginLeft: "auto", padding: "4px 8px", fontSize: "var(--font-size-sm)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none", width: 220 }}
  />
  )}
  </div>
  <div style={{ flex: 1, overflow: "auto", padding: "8px 12px", display: "flex", flexDirection: "column", gap: 4 }}>
  {ERR(portError)}
  {ports.length === 0 && !scanningPorts && !portError && (
- <div style={{ textAlign: "center", padding: "40px 0", color: "var(--text-secondary)", fontSize: 12 }}>
+ <div style={{ textAlign: "center", padding: "40px 0", color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>
  Click "Scan Ports" to list open ports on localhost.
  </div>
  )}
  {filteredPorts.length > 0 && (
  <>
- <div style={{ display: "grid", gridTemplateColumns: "70px 60px 140px 1fr 90px", gap: 8, padding: "4px 8px", fontSize: 10, fontWeight: 600, color: "var(--text-secondary)", borderBottom: "1px solid var(--border-color)" }}>
+ <div style={{ display: "grid", gridTemplateColumns: "70px 60px 140px 1fr 90px", gap: 8, padding: "4px 8px", fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-secondary)", borderBottom: "1px solid var(--border-color)" }}>
  <span>Port</span><span>Proto</span><span>Process (PID)</span><span>Address</span><span>State</span>
  </div>
  {filteredPorts.map((p, i) => (
- <div key={i} style={{ display: "grid", gridTemplateColumns: "70px 60px 140px 1fr 90px", gap: 8, padding: "5px 8px", fontSize: 11, borderBottom: "1px solid var(--border-color)", alignItems: "center" }}>
+ <div key={i} style={{ display: "grid", gridTemplateColumns: "70px 60px 140px 1fr 90px", gap: 8, padding: "5px 8px", fontSize: "var(--font-size-sm)", borderBottom: "1px solid var(--border-color)", alignItems: "center" }}>
  <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text-info)" }}>{p.port}</span>
- <span style={{ fontSize: 10, fontWeight: 600, color: p.protocol === "tcp" ? "var(--accent-color)" : "var(--warning-color)" }}>{p.protocol.toUpperCase()}</span>
+ <span style={{ fontSize: "var(--font-size-xs)", fontWeight: 600, color: p.protocol === "tcp" ? "var(--accent-color)" : "var(--warning-color)" }}>{p.protocol.toUpperCase()}</span>
  <span style={{ fontFamily: "var(--font-mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={`${p.process ?? ""} (${p.pid ?? "?"})`}>
  {p.process ?? "—"}{p.pid ? ` (${p.pid})` : ""}
  </span>
- <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-secondary)" }}>{p.address}</span>
- <span style={{ fontSize: 10, fontWeight: 600, color: STATE_COLORS[p.state] ?? "var(--text-secondary)", padding: "1px 6px", background: STATE_COLORS[p.state] ? `${STATE_COLORS[p.state]}22` : "var(--bg-secondary)", borderRadius: 10 }}>{p.state}</span>
+ <span style={{ fontFamily: "var(--font-mono)", fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>{p.address}</span>
+ <span style={{ fontSize: "var(--font-size-xs)", fontWeight: 600, color: STATE_COLORS[p.state] ?? "var(--text-secondary)", padding: "1px 6px", background: STATE_COLORS[p.state] ? `${STATE_COLORS[p.state]}22` : "var(--bg-secondary)", borderRadius: "var(--radius-md)" }}>{p.state}</span>
  </div>
  ))}
- <div style={{ fontSize: 10, color: "var(--text-secondary)", padding: "6px 8px" }}>
+ <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", padding: "6px 8px" }}>
  {filteredPorts.length} of {ports.length} ports
  </div>
  </>
@@ -241,12 +241,12 @@ export function NetworkPanel() {
  onChange={(e) => setDnsDomain(e.target.value)}
  onKeyDown={(e) => e.key === "Enter" && lookupDns()}
  placeholder="example.com"
- style={{ flex: 1, padding: "6px 10px", fontSize: 12, fontFamily: "var(--font-mono)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none" }}
+ style={{ flex: 1, padding: "6px 10px", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none" }}
  />
  <select
  value={dnsType}
  onChange={(e) => setDnsType(e.target.value)}
- style={{ padding: "6px 8px", fontSize: 11, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none", fontWeight: 600 }}
+ style={{ padding: "6px 8px", fontSize: "var(--font-size-sm)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none", fontWeight: 600 }}
  >
  {DNS_TYPES.map((t) => <option key={t}>{t}</option>)}
  </select>
@@ -256,7 +256,7 @@ export function NetworkPanel() {
  {/* Quick domains */}
  <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
  {["google.com", "cloudflare.com", "github.com", "localhost"].map((d) => (
- <button key={d} onClick={() => setDnsDomain(d)} style={{ padding: "2px 8px", fontSize: 10, borderRadius: 10, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", color: "var(--text-secondary)", cursor: "pointer" }}>{d}</button>
+ <button key={d} onClick={() => setDnsDomain(d)} style={{ padding: "2px 8px", fontSize: "var(--font-size-xs)", borderRadius: "var(--radius-md)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", color: "var(--text-secondary)", cursor: "pointer" }}>{d}</button>
  ))}
  </div>
 
@@ -264,21 +264,21 @@ export function NetworkPanel() {
 
  {dnsRecords.length > 0 && (
  <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
- <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 2 }}>
+ <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, color: "var(--text-secondary)", marginBottom: 2 }}>
  {dnsRecords.length} {dnsType} record{dnsRecords.length !== 1 ? "s" : ""} for {dnsDomain}
  </div>
  {dnsRecords.map((r, i) => (
- <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 10px", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4 }}>
- <span style={{ fontSize: 10, fontWeight: 700, color: "var(--text-info)", width: 40 }}>{r.record_type}</span>
- <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, flex: 1 }}>{r.value}</span>
- <button onClick={() => navigator.clipboard.writeText(r.value).catch(() => {})} style={{ padding: "2px 6px", fontSize: 10, background: "none", border: "1px solid var(--border-color)", borderRadius: 3, color: "var(--text-secondary)", cursor: "pointer" }}>Copy</button>
+ <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 10px", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)" }}>
+ <span style={{ fontSize: "var(--font-size-xs)", fontWeight: 700, color: "var(--text-info)", width: 40 }}>{r.record_type}</span>
+ <span style={{ fontFamily: "var(--font-mono)", fontSize: "var(--font-size-base)", flex: 1 }}>{r.value}</span>
+ <button onClick={() => navigator.clipboard.writeText(r.value).catch(() => {})} style={{ padding: "2px 6px", fontSize: "var(--font-size-xs)", background: "none", border: "1px solid var(--border-color)", borderRadius: 3, color: "var(--text-secondary)", cursor: "pointer" }}>Copy</button>
  </div>
  ))}
  </div>
  )}
 
  {dnsRecords.length === 0 && !dnsLoading && !dnsError && dnsDomain && (
- <div style={{ textAlign: "center", padding: "20px 0", color: "var(--text-secondary)", fontSize: 12 }}>
+ <div style={{ textAlign: "center", padding: "20px 0", color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>
  No records found for {dnsType} {dnsDomain}
  </div>
  )}
@@ -294,12 +294,12 @@ export function NetworkPanel() {
  onChange={(e) => setTlsHost(e.target.value)}
  onKeyDown={(e) => e.key === "Enter" && checkTls()}
  placeholder="example.com or https://example.com"
- style={{ flex: 1, padding: "6px 10px", fontSize: 12, fontFamily: "var(--font-mono)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none" }}
+ style={{ flex: 1, padding: "6px 10px", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none" }}
  />
  <input
  type="number" value={tlsPort} min={1} max={65535}
  onChange={(e) => setTlsPort(Number(e.target.value))}
- style={{ width: 72, padding: "6px 8px", fontSize: 12, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none", textAlign: "center" }}
+ style={{ width: 72, padding: "6px 8px", fontSize: "var(--font-size-base)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none", textAlign: "center" }}
  />
  {BTN("Check", checkTls, tlsLoading, !tlsHost.trim())}
  </div>
@@ -307,7 +307,7 @@ export function NetworkPanel() {
  {/* Quick hosts */}
  <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
  {["google.com", "github.com", "cloudflare.com", "example.com"].map((h) => (
- <button key={h} onClick={() => { setTlsHost(h); setTlsPort(443); }} style={{ padding: "2px 8px", fontSize: 10, borderRadius: 10, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", color: "var(--text-secondary)", cursor: "pointer" }}>{h}</button>
+ <button key={h} onClick={() => { setTlsHost(h); setTlsPort(443); }} style={{ padding: "2px 8px", fontSize: "var(--font-size-xs)", borderRadius: "var(--radius-md)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", color: "var(--text-secondary)", cursor: "pointer" }}>{h}</button>
  ))}
  </div>
 
@@ -317,15 +317,15 @@ export function NetworkPanel() {
  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
  {/* Status banner */}
  <div style={{
- padding: "10px 14px", borderRadius: 6, display: "flex", justifyContent: "space-between", alignItems: "center",
+ padding: "10px 14px", borderRadius: "var(--radius-sm)", display: "flex", justifyContent: "space-between", alignItems: "center",
  background: tlsCert.valid ? "color-mix(in srgb, var(--accent-green) 10%, transparent)" : "color-mix(in srgb, var(--accent-rose) 10%, transparent)",
  border: `1px solid ${tlsCert.valid ? "var(--success-color)" : "var(--error-color)"}`,
  }}>
  <div>
- <span style={{ fontSize: 14, fontWeight: 700, color: tlsCert.valid ? "var(--success-color)" : "var(--error-color)" }}>
+ <span style={{ fontSize: "var(--font-size-lg)", fontWeight: 700, color: tlsCert.valid ? "var(--success-color)" : "var(--error-color)" }}>
  {tlsCert.valid ? "Valid" : "Invalid / Expired"}
  </span>
- <span style={{ marginLeft: 10, fontSize: 11, color: "var(--text-secondary)" }}>{tlsHost}:{tlsPort}</span>
+ <span style={{ marginLeft: 10, fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{tlsHost}:{tlsPort}</span>
  </div>
  <div style={{ textAlign: "right" }}>
  <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)", color: tlsCert.days_remaining > 30 ? "var(--success-color)" : tlsCert.days_remaining > 7 ? "var(--warning-color)" : "var(--error-color)" }}>
@@ -343,21 +343,21 @@ export function NetworkPanel() {
  ["Valid Until", tlsCert.not_after],
  ["Serial", tlsCert.serial],
  ].filter(([, v]) => v).map(([label, value]) => (
- <div key={label} style={{ display: "flex", gap: 10, padding: "6px 10px", background: "var(--bg-secondary)", borderRadius: 4, border: "1px solid var(--border-color)", alignItems: "flex-start" }}>
- <span style={{ fontSize: 10, fontWeight: 600, color: "var(--text-secondary)", width: 90, flexShrink: 0 }}>{label}</span>
- <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, flex: 1, wordBreak: "break-all" }}>{value}</span>
+ <div key={label} style={{ display: "flex", gap: 10, padding: "6px 10px", background: "var(--bg-secondary)", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", alignItems: "flex-start" }}>
+ <span style={{ fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-secondary)", width: 90, flexShrink: 0 }}>{label}</span>
+ <span style={{ fontFamily: "var(--font-mono)", fontSize: "var(--font-size-sm)", flex: 1, wordBreak: "break-all" }}>{value}</span>
  </div>
  ))}
 
  {/* SAN list */}
  {tlsCert.san.length > 0 && (
  <div>
- <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 5 }}>
+ <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, marginBottom: 5 }}>
  Subject Alternative Names ({tlsCert.san.length})
  </div>
  <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
  {tlsCert.san.map((s) => (
- <span key={s} style={{ padding: "2px 8px", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 10, fontSize: 11, fontFamily: "var(--font-mono)" }}>{s}</span>
+ <span key={s} style={{ padding: "2px 8px", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)" }}>{s}</span>
  ))}
  </div>
  </div>
@@ -365,11 +365,11 @@ export function NetworkPanel() {
 
  {/* Raw output toggle */}
  <div>
- <button onClick={() => setShowRawCert((p) => !p)} style={{ fontSize: 11, background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", padding: 0 }}>
+ <button onClick={() => setShowRawCert((p) => !p)} style={{ fontSize: "var(--font-size-sm)", background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", padding: 0 }}>
  {showRawCert ? "Hide raw output" : <><ChevronDown size={10} /> Show raw openssl output</>}
  </button>
  {showRawCert && (
- <pre style={{ margin: "6px 0 0", padding: 8, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, fontSize: 10, lineHeight: 1.4, overflow: "auto", maxHeight: 200, whiteSpace: "pre-wrap", wordBreak: "break-word", color: "var(--text-secondary)" }}>
+ <pre style={{ margin: "6px 0 0", padding: 8, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-xs)", lineHeight: 1.4, overflow: "auto", maxHeight: 200, whiteSpace: "pre-wrap", wordBreak: "break-word", color: "var(--text-secondary)" }}>
  {tlsCert.raw}
  </pre>
  )}

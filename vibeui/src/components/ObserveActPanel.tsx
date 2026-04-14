@@ -69,7 +69,7 @@ export function ObserveActPanel() {
   };
 
   return (
-    <div className="panel-container" style={{ fontSize: 13 }}>
+    <div className="panel-container" style={{ fontSize: "var(--font-size-md)" }}>
       <div className="panel-tab-bar">
         {(["setup", "monitor", "history", "safety"] as const).map(t => (
           <button key={t} className={`panel-tab ${tab === t ? "active" : ""}`} onClick={() => setTab(t)} style={{ textTransform: "capitalize" }}>{t}</button>
@@ -78,8 +78,8 @@ export function ObserveActPanel() {
 
       {tab === "setup" && (
         <div>
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Observe-Act Agent</div>
-          <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 12px" }}>
+          <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, marginBottom: 12 }}>Observe-Act Agent</div>
+          <p style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", margin: "0 0 12px" }}>
             Continuous visual grounding loop: screenshot → LLM vision → action → verify → repeat.
             Comparable to Anthropic Computer Use and OpenClaw.
           </p>
@@ -123,7 +123,7 @@ export function ObserveActPanel() {
 
       {tab === "monitor" && (
         <div>
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Live Monitor</div>
+          <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, marginBottom: 12 }}>Live Monitor</div>
           {loading ? (
             <div className="panel-loading">Loading monitor data...</div>
           ) : (
@@ -136,14 +136,14 @@ export function ObserveActPanel() {
                   { label: "Success Rate", value: `${steps.length > 0 ? Math.round(steps.filter(s => s.verified).length / steps.length * 100) : 0}%`, color: "var(--accent-green)" },
                 ].map(m => (
                   <div key={m.label} className="panel-card">
-                    <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>{m.label}</div>
+                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>{m.label}</div>
                     <div style={{ fontSize: 18, fontWeight: 700, color: m.color, marginTop: 2 }}>{m.value}</div>
                   </div>
                 ))}
               </div>
               <div className="panel-card">
-                <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Latest Screenshot</div>
-                <div style={{ background: "var(--bg-tertiary)", borderRadius: 4, height: 200, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-secondary)", fontSize: 12 }}>
+                <div style={{ fontSize: "var(--font-size-md)", fontWeight: 600, marginBottom: 8 }}>Latest Screenshot</div>
+                <div style={{ background: "var(--bg-tertiary)", borderRadius: "var(--radius-xs-plus)", height: 200, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>
                   {status === "running" ? "Capturing..." : "No active session"}
                 </div>
               </div>
@@ -154,7 +154,7 @@ export function ObserveActPanel() {
 
       {tab === "history" && (
         <div>
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Step History</div>
+          <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, marginBottom: 12 }}>Step History</div>
           {loading ? (
             <div className="panel-loading">Loading step history...</div>
           ) : steps.length === 0 ? (
@@ -165,16 +165,16 @@ export function ObserveActPanel() {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                   <span style={{ fontWeight: 600 }}>Step {s.num}</span>
                   <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                    <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>{s.durationMs}ms</span>
-                    <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 3, background: s.verified ? "var(--success-bg)" : "var(--error-bg)", color: s.verified ? "var(--accent-green)" : "var(--accent-rose)" }}>
+                    <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>{s.durationMs}ms</span>
+                    <span style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px", borderRadius: 3, background: s.verified ? "var(--success-bg)" : "var(--error-bg)", color: s.verified ? "var(--accent-green)" : "var(--accent-rose)" }}>
                       {s.verified ? "Verified" : "Failed"}
                     </span>
                   </div>
                 </div>
-                <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>{s.reasoning}</div>
+                <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 4 }}>{s.reasoning}</div>
                 <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                   {s.actions.map((a, i) => (
-                    <span key={i} className="panel-mono" style={{ fontSize: 10, padding: "2px 6px", borderRadius: 3, background: "var(--bg-tertiary)" }}>{a}</span>
+                    <span key={i} className="panel-mono" style={{ fontSize: "var(--font-size-xs)", padding: "2px 6px", borderRadius: 3, background: "var(--bg-tertiary)" }}>{a}</span>
                   ))}
                 </div>
               </div>
@@ -185,13 +185,13 @@ export function ObserveActPanel() {
 
       {tab === "safety" && (
         <div>
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Safety Configuration</div>
+          <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, marginBottom: 12 }}>Safety Configuration</div>
           {loading ? (
             <div className="panel-loading">Loading safety config...</div>
           ) : (
             <div className="panel-card">
-              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Safety Rails</div>
-              <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
+              <div style={{ fontSize: "var(--font-size-md)", fontWeight: 600, marginBottom: 8 }}>Safety Rails</div>
+              <table style={{ width: "100%", fontSize: "var(--font-size-base)", borderCollapse: "collapse" }}>
                 <tbody>
                   <tr><td style={{ padding: "4px 0", color: "var(--text-secondary)" }}>Max Actions per Step</td><td style={{ padding: "4px 0" }}>{config?.maxActionsPerStep ?? 5}</td></tr>
                   <tr><td style={{ padding: "4px 0", color: "var(--text-secondary)" }}>Rate Limit (ms between actions)</td><td style={{ padding: "4px 0" }}>{config?.rateLimitMs ?? 200}ms</td></tr>

@@ -80,7 +80,7 @@ export function HistoryPanel() {
  <div className="panel-container">
  <div className="panel-header">
  <h3>Agent History</h3>
- <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>Audit log of past agent sessions.</span>
+ <span style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>Audit log of past agent sessions.</span>
  </div>
 
  <div className="panel-body">
@@ -88,7 +88,7 @@ export function HistoryPanel() {
  // Session list view
  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
  {sessions.length === 0 ? (
- <div style={{ fontSize: "12px", color: "var(--text-secondary)", textAlign: "center", marginTop: "24px" }}>
+ <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", textAlign: "center", marginTop: "24px" }}>
  No agent sessions yet.
  <br />Run an agent task to see history here.
  </div>
@@ -103,11 +103,11 @@ export function HistoryPanel() {
  style={{
  padding: "8px",
  marginBottom: "4px",
- borderRadius: "4px",
+ borderRadius: "var(--radius-xs-plus)",
  background: "var(--bg-tertiary)",
  border: "1px solid var(--border-color)",
  cursor: "pointer",
- fontSize: "12px",
+ fontSize: "var(--font-size-base)",
  }}
  >
  <div style={{ fontWeight: 500 }}>
@@ -123,7 +123,7 @@ export function HistoryPanel() {
  <button
  className="btn-secondary"
  onClick={loadSessions}
- style={{ marginTop: "8px", width: "100%", fontSize: "12px" }}
+ style={{ marginTop: "8px", width: "100%", fontSize: "var(--font-size-base)" }}
  >
  ↺ Refresh
  </button>
@@ -134,7 +134,7 @@ export function HistoryPanel() {
  <button
  className="btn-secondary"
  onClick={() => { setSelected(null); setEntries([]); }}
- style={{ fontSize: "12px", alignSelf: "flex-start" }}
+ style={{ fontSize: "var(--font-size-base)", alignSelf: "flex-start" }}
  >
  ← Back
  </button>
@@ -144,10 +144,10 @@ export function HistoryPanel() {
  flex: 1,
  overflowY: "auto",
  background: "var(--bg-tertiary)",
- borderRadius: "6px",
+ borderRadius: "var(--radius-sm)",
  padding: "8px",
  fontFamily: "var(--font-mono)",
- fontSize: "11px",
+ fontSize: "var(--font-size-sm)",
  display: "flex",
  flexDirection: "column",
  gap: "6px",
@@ -188,7 +188,7 @@ export function HistoryPanel() {
  whiteSpace: "pre-wrap",
  maxHeight: "120px",
  overflowY: "auto",
- fontSize: "10px",
+ fontSize: "var(--font-size-xs)",
  }}
  >
  {e.output.length > 300

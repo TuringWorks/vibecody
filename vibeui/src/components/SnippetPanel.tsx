@@ -160,7 +160,7 @@ export function SnippetPanel({ workspacePath: _workspacePath }: SnippetPanelProp
               key={s.name}
               onClick={() => selectSnippet(s.name)}
               style={{
-                padding: "6px 8px", cursor: "pointer", fontSize: 11,
+                padding: "6px 8px", cursor: "pointer", fontSize: "var(--font-size-sm)",
                 borderBottom: "1px solid var(--border-color)",
                 background: selected === s.name ? "color-mix(in srgb, var(--accent-blue) 10%, transparent)" : "transparent",
               }}
@@ -177,7 +177,7 @@ export function SnippetPanel({ workspacePath: _workspacePath }: SnippetPanelProp
                 )}
               </div>
               {s.description && (
-                <div style={{ fontSize: 10, opacity: 0.6, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <div style={{ fontSize: "var(--font-size-xs)", opacity: 0.6, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {s.description}
                 </div>
               )}
@@ -193,7 +193,7 @@ export function SnippetPanel({ workspacePath: _workspacePath }: SnippetPanelProp
             </div>
           ))}
           {filtered.length === 0 && (
-            <div className="panel-empty" style={{ fontSize: 11 }}>
+            <div className="panel-empty" style={{ fontSize: "var(--font-size-sm)" }}>
               No snippets found.
             </div>
           )}
@@ -210,7 +210,7 @@ export function SnippetPanel({ workspacePath: _workspacePath }: SnippetPanelProp
         {selected && !creating && (
           <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
             <div style={{ display: "flex", gap: 6, padding: "8px 8px", alignItems: "center", borderBottom: "1px solid var(--border-color)" }}>
-              <span style={{ fontWeight: 600, fontSize: 12 }}>{selected}</span>
+              <span style={{ fontWeight: 600, fontSize: "var(--font-size-base)" }}>{selected}</span>
               <div style={{ flex: 1 }} />
               <button onClick={handleCopy} className="panel-btn panel-btn-secondary">Copy</button>
               <button onClick={handleInsert} className="panel-btn panel-btn-secondary" style={{ color: "var(--text-info)" }}>Insert</button>
@@ -218,7 +218,7 @@ export function SnippetPanel({ workspacePath: _workspacePath }: SnippetPanelProp
             </div>
             <pre style={{
               flex: 1, margin: 0, padding: "8px 10px", overflowY: "auto",
-              fontFamily: "var(--font-mono)", fontSize: 12, lineHeight: 1.5,
+              fontFamily: "var(--font-mono)", fontSize: "var(--font-size-base)", lineHeight: 1.5,
               background: "var(--bg-primary)", color: "var(--text-primary)",
               whiteSpace: "pre-wrap", wordBreak: "break-all",
             }}>
@@ -254,7 +254,7 @@ export function SnippetPanel({ workspacePath: _workspacePath }: SnippetPanelProp
               className="panel-input panel-textarea"
               style={{
                 flex: 1, minHeight: 120,
-                fontFamily: "var(--font-mono)", fontSize: 12, lineHeight: 1.5,
+                fontFamily: "var(--font-mono)", fontSize: "var(--font-size-base)", lineHeight: 1.5,
                 resize: "vertical",
               }}
             />

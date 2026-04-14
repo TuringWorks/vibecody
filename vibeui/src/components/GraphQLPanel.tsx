@@ -207,16 +207,16 @@ export function GraphQLPanel() {
  {/* Header */}
  <div className="panel-header" style={{ flexWrap: "wrap" }}>
  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
- <span style={{ fontSize: 15 }}></span>
+ <span style={{ fontSize: "var(--font-size-xl)" }}></span>
  <input
  value={url}
  onChange={(e) => setUrl(e.target.value)}
  list="gql-urls"
  placeholder="https://api.example.com/graphql"
  style={{
- flex: 1, padding: "5px 9px", fontSize: 12, fontFamily: "var(--font-mono)",
+ flex: 1, padding: "5px 9px", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)",
  background: "var(--bg-primary)", border: "1px solid var(--border-color)",
- borderRadius: 4, color: "var(--text-primary)", outline: "none",
+ borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none",
  }}
  />
  <datalist id="gql-urls">
@@ -226,9 +226,9 @@ export function GraphQLPanel() {
  onClick={introspect}
  disabled={introspecting || !url}
  style={{
- padding: "5px 12px", fontSize: 11, cursor: "pointer",
+ padding: "5px 12px", fontSize: "var(--font-size-sm)", cursor: "pointer",
  background: "var(--bg-secondary)", border: "1px solid var(--border-color)",
- borderRadius: 4, color: "var(--text-secondary)",
+ borderRadius: "var(--radius-xs-plus)", color: "var(--text-secondary)",
  }}
  >
  {introspecting ? "" : "Schema"}
@@ -237,10 +237,10 @@ export function GraphQLPanel() {
  onClick={runQuery}
  disabled={running || !url || !query.trim()}
  style={{
- padding: "5px 14px", fontSize: 11, fontWeight: 600, cursor: "pointer",
+ padding: "5px 14px", fontSize: "var(--font-size-sm)", fontWeight: 600, cursor: "pointer",
  background: running ? "var(--bg-secondary)" : "var(--accent-color)",
  color: running ? "var(--text-secondary)" : "var(--text-primary)",
- border: "none", borderRadius: 4,
+ border: "none", borderRadius: "var(--radius-xs-plus)",
  }}
  >
  {running ? "Running…" : "Run"}
@@ -254,7 +254,7 @@ export function GraphQLPanel() {
  key={label}
  onClick={() => setQuery(q)}
  style={{
- padding: "2px 8px", fontSize: 10, borderRadius: 10,
+ padding: "2px 8px", fontSize: "var(--font-size-xs)", borderRadius: "var(--radius-md)",
  background: "var(--bg-primary)", border: "1px solid var(--border-color)",
  color: "var(--text-secondary)", cursor: "pointer",
  }}
@@ -279,7 +279,7 @@ export function GraphQLPanel() {
  <div style={{ flex: 1, overflow: "hidden", display: "flex", gap: 0 }}>
  {/* Left: editor pane */}
  <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", borderRight: "1px solid var(--border-color)" }}>
- <div style={{ padding: "4px 10px", fontSize: 10, fontWeight: 600, color: "var(--text-secondary)", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
+ <div style={{ padding: "4px 10px", fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-secondary)", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
  QUERY / MUTATION
  </div>
  <textarea
@@ -288,7 +288,7 @@ export function GraphQLPanel() {
  onChange={(e) => setQuery(e.target.value)}
  onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); runQuery(); } }}
  style={{
- flex: 1, padding: "10px", fontSize: 12, fontFamily: "var(--font-mono)",
+ flex: 1, padding: "10px", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)",
  background: "var(--bg-primary)", border: "none", color: "var(--text-primary)",
  outline: "none", resize: "none", lineHeight: 1.6,
  }}
@@ -296,14 +296,14 @@ export function GraphQLPanel() {
 
  {/* Variables */}
  <div style={{ borderTop: "1px solid var(--border-color)" }}>
- <div style={{ padding: "3px 10px", fontSize: 10, fontWeight: 600, color: "var(--text-secondary)", background: "var(--bg-secondary)", display: "flex", gap: 8, alignItems: "center" }}>
+ <div style={{ padding: "3px 10px", fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-secondary)", background: "var(--bg-secondary)", display: "flex", gap: 8, alignItems: "center" }}>
  <span>VARIABLES</span>
  {operationName !== undefined && (
  <input
  value={operationName}
  onChange={(e) => setOperationName(e.target.value)}
  placeholder="operationName (optional)"
- style={{ marginLeft: "auto", padding: "2px 6px", fontSize: 10, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 3, color: "var(--text-secondary)", width: 180, outline: "none" }}
+ style={{ marginLeft: "auto", padding: "2px 6px", fontSize: "var(--font-size-xs)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 3, color: "var(--text-secondary)", width: 180, outline: "none" }}
  />
  )}
  </div>
@@ -313,7 +313,7 @@ export function GraphQLPanel() {
  rows={3}
  style={{
  width: "100%", boxSizing: "border-box",
- padding: "6px 10px", fontSize: 11, fontFamily: "var(--font-mono)",
+ padding: "6px 10px", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)",
  background: "var(--bg-secondary)", border: "none",
  color: "var(--text-secondary)", outline: "none", resize: "none",
  }}
@@ -322,7 +322,7 @@ export function GraphQLPanel() {
 
  {/* Headers */}
  <div style={{ borderTop: "1px solid var(--border-color)" }}>
- <div style={{ padding: "3px 10px", fontSize: 10, fontWeight: 600, color: "var(--text-secondary)", background: "var(--bg-secondary)" }}>
+ <div style={{ padding: "3px 10px", fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-secondary)", background: "var(--bg-secondary)" }}>
  HEADERS (JSON)
  </div>
  <textarea
@@ -332,7 +332,7 @@ export function GraphQLPanel() {
  placeholder='{"Authorization": "Bearer TOKEN"}'
  style={{
  width: "100%", boxSizing: "border-box",
- padding: "6px 10px", fontSize: 11, fontFamily: "var(--font-mono)",
+ padding: "6px 10px", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)",
  background: "var(--bg-secondary)", border: "none",
  color: "var(--text-secondary)", outline: "none", resize: "none",
  }}
@@ -343,17 +343,17 @@ export function GraphQLPanel() {
  {/* Right: result pane */}
  <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
  <div style={{ display: "flex", alignItems: "center", padding: "4px 10px", background: "var(--bg-secondary)", borderBottom: "1px solid var(--border-color)", gap: 6 }}>
- <span style={{ fontSize: 10, fontWeight: 600, color: "var(--text-secondary)", marginRight: 4 }}>RESPONSE</span>
+ <span style={{ fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-secondary)", marginRight: 4 }}>RESPONSE</span>
  {result && (
  <>
  <span style={{
- fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 10,
+ fontSize: "var(--font-size-xs)", fontWeight: 600, padding: "1px 6px", borderRadius: "var(--radius-md)",
  background: result.errors ? "color-mix(in srgb, var(--accent-rose) 15%, transparent)" : "color-mix(in srgb, var(--accent-green) 15%, transparent)",
  color: result.errors ? "var(--error-color)" : "var(--success-color)",
  }}>
  {result.status} {result.errors ? "errors" : "OK"}
  </span>
- <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>{result.duration_ms}ms</span>
+ <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>{result.duration_ms}ms</span>
  </>
  )}
  <div style={{ marginLeft: "auto", display: "flex", gap: 4 }}>
@@ -362,7 +362,7 @@ export function GraphQLPanel() {
  key={v}
  onClick={() => setViewTab(v)}
  style={{
- padding: "2px 8px", fontSize: 10, borderRadius: 3,
+ padding: "2px 8px", fontSize: "var(--font-size-xs)", borderRadius: 3,
  background: viewTab === v ? "var(--accent-color)" : "var(--bg-secondary)",
  color: viewTab === v ? "var(--text-primary)" : "var(--text-secondary)",
  border: "1px solid var(--border-color)", cursor: "pointer",
@@ -371,11 +371,11 @@ export function GraphQLPanel() {
  {v}
  </button>
  ))}
- {result && <button onClick={() => navigator.clipboard.writeText(result.raw).catch(() => {})} style={{ padding: "2px 8px", fontSize: 10, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 3, color: "var(--text-secondary)", cursor: "pointer" }}>Copy</button>}
+ {result && <button onClick={() => navigator.clipboard.writeText(result.raw).catch(() => {})} style={{ padding: "2px 8px", fontSize: "var(--font-size-xs)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 3, color: "var(--text-secondary)", cursor: "pointer" }}>Copy</button>}
  </div>
  </div>
 
- <div style={{ flex: 1, overflow: "auto", padding: 10, fontFamily: "var(--font-mono)", fontSize: 11, lineHeight: 1.6, background: "var(--bg-primary)", color: "var(--text-primary)", whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
+ <div style={{ flex: 1, overflow: "auto", padding: 10, fontFamily: "var(--font-mono)", fontSize: "var(--font-size-sm)", lineHeight: 1.6, background: "var(--bg-primary)", color: "var(--text-primary)", whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
  {!result && !running && (
  <span style={{ color: "var(--text-secondary)" }}>
  Run a query to see results here.{"\n"}Tip: Cmd+Enter to run.
@@ -409,13 +409,13 @@ export function GraphQLPanel() {
  {tab === "schema" && (
  <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
  {!schema ? (
- <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-secondary)", fontSize: 12 }}>
+ <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>
  Click "Schema" to introspect the API.
  </div>
  ) : (
  <>
  {/* Root types */}
- <div style={{ padding: "8px 12px", background: "var(--bg-secondary)", borderBottom: "1px solid var(--border-color)", display: "flex", gap: 12, fontSize: 11 }}>
+ <div style={{ padding: "8px 12px", background: "var(--bg-secondary)", borderBottom: "1px solid var(--border-color)", display: "flex", gap: 12, fontSize: "var(--font-size-sm)" }}>
  {[["Query", schema.query_type], ["Mutation", schema.mutation_type], ["Subscription", schema.subscription_type]].map(([label, name]) => name && (
  <span key={label} style={{ display: "flex", gap: 5, alignItems: "center" }}>
  <span style={{ color: "var(--text-secondary)", fontWeight: 600 }}>{label}:</span>
@@ -426,14 +426,14 @@ export function GraphQLPanel() {
  value={schemaSearch}
  onChange={(e) => setSchemaSearch(e.target.value)}
  placeholder="Filter types…"
- style={{ marginLeft: "auto", padding: "2px 8px", fontSize: 11, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 3, color: "var(--text-primary)", outline: "none", width: 150 }}
+ style={{ marginLeft: "auto", padding: "2px 8px", fontSize: "var(--font-size-sm)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 3, color: "var(--text-primary)", outline: "none", width: 150 }}
  />
  </div>
 
  {/* Type list */}
  <div style={{ flex: 1, overflow: "auto", padding: "6px 10px", display: "flex", flexDirection: "column", gap: 3 }}>
  {filteredTypes.map((t) => (
- <div key={t.name} style={{ borderRadius: 4, border: "1px solid var(--border-color)", overflow: "hidden" }}>
+ <div key={t.name} style={{ borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", overflow: "hidden" }}>
  <div
  onClick={() => setExpandedType(expandedType === t.name ? null : t.name)}
  style={{
@@ -441,20 +441,20 @@ export function GraphQLPanel() {
  background: "var(--bg-secondary)", cursor: "pointer",
  }}
  >
- <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 5px", borderRadius: 3, background: KIND_COLORS[t.kind] ? `${KIND_COLORS[t.kind]}22` : "transparent", color: KIND_COLORS[t.kind] ?? "var(--text-secondary)" }}>
+ <span style={{ fontSize: "var(--font-size-xs)", fontWeight: 700, padding: "1px 5px", borderRadius: 3, background: KIND_COLORS[t.kind] ? `${KIND_COLORS[t.kind]}22` : "transparent", color: KIND_COLORS[t.kind] ?? "var(--text-secondary)" }}>
  {t.kind}
  </span>
- <span style={{ fontSize: 12, fontFamily: "var(--font-mono)", fontWeight: 600 }}>{t.name}</span>
- {t.description && <span style={{ fontSize: 10, color: "var(--text-secondary)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.description}</span>}
- <span style={{ fontSize: 10, color: "var(--text-secondary)", marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 3 }}>{t.fields.length} fields {expandedType === t.name ? "" : <ChevronDown size={10} />}</span>
+ <span style={{ fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)", fontWeight: 600 }}>{t.name}</span>
+ {t.description && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.description}</span>}
+ <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 3 }}>{t.fields.length} fields {expandedType === t.name ? "" : <ChevronDown size={10} />}</span>
  </div>
  {expandedType === t.name && t.fields.length > 0 && (
  <div style={{ padding: "4px 0", background: "var(--bg-primary)" }}>
  {t.fields.map((f) => (
- <div key={f.name} style={{ padding: "3px 20px", display: "flex", gap: 10, fontSize: 11, borderBottom: "1px solid var(--border-color)" }}>
+ <div key={f.name} style={{ padding: "3px 20px", display: "flex", gap: 10, fontSize: "var(--font-size-sm)", borderBottom: "1px solid var(--border-color)" }}>
  <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-info)", width: 180, flexShrink: 0 }}>{f.name}</span>
- <span style={{ fontSize: 10, color: "var(--text-secondary)", fontWeight: 600 }}>{f.kind}</span>
- {f.description && <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>{f.description}</span>}
+ <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", fontWeight: 600 }}>{f.kind}</span>
+ {f.description && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>{f.description}</span>}
  </div>
  ))}
  </div>
@@ -471,13 +471,13 @@ export function GraphQLPanel() {
  {tab === "history" && (
  <div style={{ flex: 1, overflow: "auto", padding: "8px 12px", display: "flex", flexDirection: "column", gap: 5 }}>
  {history.length === 0 && (
- <div style={{ textAlign: "center", padding: "30px 0", color: "var(--text-secondary)", fontSize: 12 }}>
+ <div style={{ textAlign: "center", padding: "30px 0", color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>
  No query history yet. Run a query first.
  </div>
  )}
  {history.length > 0 && (
  <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 4 }}>
- <button onClick={() => saveHistory([])} style={{ fontSize: 10, background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}>Clear all</button>
+ <button onClick={() => saveHistory([])} style={{ fontSize: "var(--font-size-xs)", background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}>Clear all</button>
  </div>
  )}
  {history.map((entry, i) => (
@@ -490,11 +490,11 @@ export function GraphQLPanel() {
  }}
  >
  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
- <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--text-info)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{entry.url}</span>
- <span style={{ fontSize: 10, color: "var(--text-secondary)", flexShrink: 0, marginLeft: 8 }}>{new Date(entry.timestamp).toLocaleTimeString()} · {entry.duration_ms}ms</span>
- <span style={{ marginLeft: 6, fontSize: 10, color: entry.success ? "var(--success-color)" : "var(--error-color)" }}>{entry.success ? "" : ""}</span>
+ <span style={{ fontSize: "var(--font-size-xs)", fontFamily: "var(--font-mono)", color: "var(--text-info)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{entry.url}</span>
+ <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", flexShrink: 0, marginLeft: 8 }}>{new Date(entry.timestamp).toLocaleTimeString()} · {entry.duration_ms}ms</span>
+ <span style={{ marginLeft: 6, fontSize: "var(--font-size-xs)", color: entry.success ? "var(--success-color)" : "var(--error-color)" }}>{entry.success ? "" : ""}</span>
  </div>
- <pre style={{ margin: 0, fontSize: 10, color: "var(--text-secondary)", overflow: "hidden", maxHeight: 40, fontFamily: "var(--font-mono)", whiteSpace: "pre-wrap" }}>
+ <pre style={{ margin: 0, fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", overflow: "hidden", maxHeight: 40, fontFamily: "var(--font-mono)", whiteSpace: "pre-wrap" }}>
  {entry.query.slice(0, 120)}{entry.query.length > 120 ? "…" : ""}
  </pre>
  </div>

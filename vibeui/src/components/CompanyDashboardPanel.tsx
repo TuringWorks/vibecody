@@ -128,7 +128,7 @@ export function CompanyDashboardPanel({ workspacePath: _wp }: CompanyDashboardPa
       {/* Create form */}
       {showCreate && (
         <div className="panel-card" style={{ marginBottom: 16 }}>
-          <div style={{ fontWeight: 600, marginBottom: 10, fontSize: 13 }}>Create Company</div>
+          <div style={{ fontWeight: 600, marginBottom: 10, fontSize: "var(--font-size-md)" }}>Create Company</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <input
               value={newName}
@@ -145,7 +145,7 @@ export function CompanyDashboardPanel({ workspacePath: _wp }: CompanyDashboardPa
               placeholder="Description (optional)"
               className="panel-input panel-input-full"
             />
-            {createError && <div className="panel-error" style={{ fontSize: 12 }}>{createError}</div>}
+            {createError && <div className="panel-error" style={{ fontSize: "var(--font-size-base)" }}>{createError}</div>}
             <div style={{ display: "flex", gap: 8 }}>
               <button
                 onClick={createCompany}
@@ -163,7 +163,7 @@ export function CompanyDashboardPanel({ workspacePath: _wp }: CompanyDashboardPa
 
       {/* Action feedback */}
       {actionMsg && (
-        <div className="panel-card" style={{ marginBottom: 12, fontSize: 12 }}>
+        <div className="panel-card" style={{ marginBottom: 12, fontSize: "var(--font-size-base)" }}>
           {actionMsg}
           <button onClick={() => setActionMsg(null)} style={{ marginLeft: 8, cursor: "pointer", background: "none", border: "none", color: "var(--text-secondary)", display: "inline-flex" }}><X size={12} /></button>
         </div>
@@ -177,10 +177,10 @@ export function CompanyDashboardPanel({ workspacePath: _wp }: CompanyDashboardPa
         <div className="panel-empty" style={{ padding: 24 }}>
           <div style={{ marginBottom: 8, display: "flex", justifyContent: "center", color: "var(--accent, #4a9eff)" }}><Building2 size={32} strokeWidth={1.5} /></div>
           <div style={{ fontWeight: 600, marginBottom: 4 }}>No companies yet</div>
-          <div style={{ color: "var(--text-secondary)", fontSize: 12, marginBottom: 16 }}>
+          <div style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-base)", marginBottom: 16 }}>
             Create your first company to get started
           </div>
-          <button onClick={() => setShowCreate(true)} className="panel-btn panel-btn-primary" style={{ fontSize: 12 }}>
+          <button onClick={() => setShowCreate(true)} className="panel-btn panel-btn-primary" style={{ fontSize: "var(--font-size-base)" }}>
             + Create Company
           </button>
         </div>
@@ -198,26 +198,26 @@ export function CompanyDashboardPanel({ workspacePath: _wp }: CompanyDashboardPa
         >
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-              {c.active && <span style={{ fontSize: 10, color: "var(--accent, #4a9eff)", fontWeight: 700 }}>ACTIVE</span>}
-              <span style={{ fontWeight: 600, fontSize: 13 }}>{c.name}</span>
+              {c.active && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--accent, #4a9eff)", fontWeight: 700 }}>ACTIVE</span>}
+              <span style={{ fontWeight: 600, fontSize: "var(--font-size-md)" }}>{c.name}</span>
               <span style={{
-                fontSize: 10, padding: "1px 5px", borderRadius: 3,
+                fontSize: "var(--font-size-xs)", padding: "1px 5px", borderRadius: 3,
                 background: "var(--bg-tertiary)", color: "var(--text-secondary)",
               }}>{c.status}</span>
             </div>
             {c.description && (
-              <div style={{ fontSize: 11, color: "var(--text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {c.description}
               </div>
             )}
           </div>
           <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
             {!c.active && (
-              <button onClick={() => switchCompany(c.name)} className="panel-btn panel-btn-secondary" style={{ fontSize: 10, padding: "2px 8px" }}>
+              <button onClick={() => switchCompany(c.name)} className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px" }}>
                 Switch
               </button>
             )}
-            <button onClick={() => deleteCompany(c.name)} className="panel-btn panel-btn-danger" style={{ fontSize: 10, padding: "2px 8px" }}>
+            <button onClick={() => deleteCompany(c.name)} className="panel-btn panel-btn-danger" style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px" }}>
               Archive
             </button>
           </div>
@@ -229,7 +229,7 @@ export function CompanyDashboardPanel({ workspacePath: _wp }: CompanyDashboardPa
         <div style={{ marginTop: 16 }}>
           <div className="panel-label" style={{ marginBottom: 6, fontWeight: 600 }}>STATUS</div>
           <div className="panel-card">
-            <pre style={{ margin: 0, fontSize: 11, whiteSpace: "pre-wrap", lineHeight: 1.5 }}>
+            <pre style={{ margin: 0, fontSize: "var(--font-size-sm)", whiteSpace: "pre-wrap", lineHeight: 1.5 }}>
               {rawStatus}
             </pre>
           </div>

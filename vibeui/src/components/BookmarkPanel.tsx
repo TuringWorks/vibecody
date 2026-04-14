@@ -123,7 +123,7 @@ export function BookmarkPanel({ workspacePath }: BookmarkPanelProps) {
       </div>
 
       {error && (
-        <div style={{ padding: "6px 12px", fontSize: 11, color: "var(--text-danger)", background: "color-mix(in srgb, var(--accent-rose) 5%, transparent)" }}>
+        <div style={{ padding: "6px 12px", fontSize: "var(--font-size-sm)", color: "var(--text-danger)", background: "color-mix(in srgb, var(--accent-rose) 5%, transparent)" }}>
           {error}
         </div>
       )}
@@ -141,7 +141,7 @@ export function BookmarkPanel({ workspacePath }: BookmarkPanelProps) {
               onChange={(e) => setFileFilter(e.target.value)}
               className="panel-input"
             />
-            <span style={{ fontSize: 10, opacity: 0.5 }}>{filteredMarkers.length} results</span>
+            <span style={{ fontSize: "var(--font-size-xs)", opacity: 0.5 }}>{filteredMarkers.length} results</span>
           </div>
           {/* Type filter chips */}
           <div style={{ display: "flex", gap: 4, padding: "0 12px 6px", flexWrap: "wrap" }}>
@@ -150,7 +150,7 @@ export function BookmarkPanel({ workspacePath }: BookmarkPanelProps) {
                 key={t}
                 onClick={() => setTypeFilter(t)}
                 style={{
-                  padding: "2px 8px", fontSize: 10, fontWeight: 600, borderRadius: 3, cursor: "pointer",
+                  padding: "2px 8px", fontSize: "var(--font-size-xs)", fontWeight: 600, borderRadius: 3, cursor: "pointer",
                   border: typeFilter === t ? "1px solid var(--accent)" : "1px solid var(--border-color)",
                   background: typeFilter === t ? "color-mix(in srgb, var(--accent-blue) 20%, transparent)" : "transparent",
                   color: t === "ALL" ? "var(--text-primary)" : (markerColor[t] || "var(--text-primary)"),
@@ -169,7 +169,7 @@ export function BookmarkPanel({ workspacePath }: BookmarkPanelProps) {
                 style={{
                   display: "flex", gap: 8, alignItems: "center", padding: "4px 6px",
                   borderBottom: "1px solid var(--border-color)", cursor: "pointer",
-                  fontSize: 11,
+                  fontSize: "var(--font-size-sm)",
                 }}
               >
                 <span style={{
@@ -185,7 +185,7 @@ export function BookmarkPanel({ workspacePath }: BookmarkPanelProps) {
                 </span>
                 <button
                   onClick={(e) => { e.stopPropagation(); handleAddBookmark(m.file, m.line, m.text); }}
-                  style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, padding: "0 3px", color: "var(--text-warning)", opacity: 0.7 }}
+                  style={{ background: "none", border: "none", cursor: "pointer", fontSize: "var(--font-size-base)", padding: "0 3px", color: "var(--text-warning)", opacity: 0.7 }}
                   title="Bookmark this"
                 >
                   +
@@ -204,14 +204,14 @@ export function BookmarkPanel({ workspacePath }: BookmarkPanelProps) {
               placeholder="Label for new bookmark..."
               value={addLabel}
               onChange={(e) => setAddLabel(e.target.value)}
-              style={{ padding: "4px 8px", fontSize: 11, borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)", outline: "none", flex: 1 }}
+              style={{ padding: "4px 8px", fontSize: "var(--font-size-sm)", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)", outline: "none", flex: 1 }}
             />
             <button onClick={loadBookmarks} className="panel-btn panel-btn-secondary">Refresh</button>
-            <span style={{ fontSize: 10, opacity: 0.5 }}>{bookmarks.length}</span>
+            <span style={{ fontSize: "var(--font-size-xs)", opacity: 0.5 }}>{bookmarks.length}</span>
           </div>
           <div style={{ flex: 1, overflowY: "auto", padding: "0 12px" }}>
             {bookmarks.length === 0 && (
-              <div style={{ padding: 16, opacity: 0.5, textAlign: "center", fontSize: 12 }}>
+              <div style={{ padding: 16, opacity: 0.5, textAlign: "center", fontSize: "var(--font-size-base)" }}>
                 No bookmarks yet. Add from the Markers tab or scan results.
               </div>
             )}
@@ -222,7 +222,7 @@ export function BookmarkPanel({ workspacePath }: BookmarkPanelProps) {
                 style={{
                   display: "flex", gap: 8, alignItems: "center", padding: "4px 6px",
                   borderBottom: "1px solid var(--border-color)", cursor: "pointer",
-                  fontSize: 11,
+                  fontSize: "var(--font-size-sm)",
                 }}
               >
                 <span style={{ color: "var(--text-info)", whiteSpace: "nowrap" }}>{b.file}:{b.line}</span>
@@ -231,7 +231,7 @@ export function BookmarkPanel({ workspacePath }: BookmarkPanelProps) {
                 </span>
                 <button
                   onClick={(e) => { e.stopPropagation(); handleRemoveBookmark(b.id); }}
-                  style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, padding: "0 3px", color: "var(--text-danger)", opacity: 0.7 }}
+                  style={{ background: "none", border: "none", cursor: "pointer", fontSize: "var(--font-size-base)", padding: "0 3px", color: "var(--text-danger)", opacity: 0.7 }}
                   title="Remove bookmark"
                 >
                   ✕

@@ -166,8 +166,8 @@ export default function SteeringPanel({ workspaceRoot }: SteeringPanelProps) {
 
  {/* Templates dropdown */}
  {showTemplates && (
- <div style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: 6, padding: 8, display: "flex", gap: 6, flexWrap: "wrap" }}>
- <span style={{ color: "var(--text-secondary)", fontSize: 11, width: "100%" }}>Choose a template to get started:</span>
+ <div style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", padding: 8, display: "flex", gap: 6, flexWrap: "wrap" }}>
+ <span style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-sm)", width: "100%" }}>Choose a template to get started:</span>
  {TEMPLATES.map((tpl) => (
  <button key={tpl.label} onClick={() => applyTemplate(tpl)} className="panel-btn panel-btn-secondary" style={{ padding: "4px 10px" }}>
  {tpl.label}
@@ -178,9 +178,9 @@ export default function SteeringPanel({ workspaceRoot }: SteeringPanelProps) {
 
  <div className="panel-body" style={{ flexDirection: "row", gap: 8 }}>
  {/* File list */}
- <div style={{ width: 160, flexShrink: 0, overflowY: "auto", background: "var(--bg-tertiary)", borderRadius: 6, padding: 4 }}>
+ <div style={{ width: 160, flexShrink: 0, overflowY: "auto", background: "var(--bg-tertiary)", borderRadius: "var(--radius-sm)", padding: 4 }}>
  {files.length === 0 && (
- <div style={{ color: "var(--text-secondary)", fontSize: 12, padding: 8, textAlign: "center" }}>
+ <div style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-base)", padding: 8, textAlign: "center" }}>
  No steering files.<br />Click "+ New" to create one.
  </div>
  )}
@@ -193,7 +193,7 @@ export default function SteeringPanel({ workspaceRoot }: SteeringPanelProps) {
  alignItems: "center",
  justifyContent: "space-between",
  padding: "5px 6px",
- borderRadius: 4,
+ borderRadius: "var(--radius-xs-plus)",
  cursor: "pointer",
  background: selected?.filename === f.filename ? "var(--bg-secondary)" : "transparent",
  marginBottom: 2,
@@ -207,14 +207,14 @@ export default function SteeringPanel({ workspaceRoot }: SteeringPanelProps) {
  <button
  onClick={() => deleteFile(f.filename)}
  title="Confirm delete"
- style={{ background: "none", border: "none", color: "var(--text-danger)", cursor: "pointer", fontSize: 10, padding: "0 2px", lineHeight: 1, fontWeight: 600 }}
+ style={{ background: "none", border: "none", color: "var(--text-danger)", cursor: "pointer", fontSize: "var(--font-size-xs)", padding: "0 2px", lineHeight: 1, fontWeight: 600 }}
  >
  Del
  </button>
  <button
  onClick={() => setPendingDelete(null)}
  title="Cancel"
- style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: 10, padding: "0 2px", lineHeight: 1 }}
+ style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: "var(--font-size-xs)", padding: "0 2px", lineHeight: 1 }}
  >
  ✕
  </button>
@@ -223,7 +223,7 @@ export default function SteeringPanel({ workspaceRoot }: SteeringPanelProps) {
  <button
  onClick={(e) => { e.stopPropagation(); deleteFile(f.filename); }}
  title="Delete"
- style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: 12, padding: "0 2px", lineHeight: 1 }}
+ style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: "var(--font-size-base)", padding: "0 2px", lineHeight: 1 }}
  >
  ✕
  </button>
@@ -235,7 +235,7 @@ export default function SteeringPanel({ workspaceRoot }: SteeringPanelProps) {
  {/* Editor */}
  <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6, minHeight: 0 }}>
  {!editing ? (
- <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-secondary)", fontSize: 13 }}>
+ <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-secondary)", fontSize: "var(--font-size-md)" }}>
  Select a steering file or click "+ New"
  </div>
  ) : (
@@ -263,14 +263,14 @@ export default function SteeringPanel({ workspaceRoot }: SteeringPanelProps) {
  style={{
  flex: 1,
  resize: "none",
- fontSize: 13,
+ fontSize: "var(--font-size-md)",
  fontFamily: "var(--font-mono)",
  lineHeight: 1.6,
  minHeight: 200,
  }}
  />
 
- <div style={{ color: "var(--text-secondary)", fontSize: 11 }}>
+ <div style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-sm)" }}>
  Steering files inject into every agent prompt. Use YAML front-matter:{" "}
  <code style={{ background: "var(--bg-tertiary)", padding: "1px 4px", borderRadius: 3 }}>--- name: my-doc scope: project ---</code>
  </div>

@@ -21,8 +21,8 @@ interface QueueItem {
 const badgeStyle = (color: string): React.CSSProperties => ({
   display: "inline-block",
   padding: "2px 8px",
-  borderRadius: 10,
-  fontSize: 11,
+  borderRadius: "var(--radius-md)",
+  fontSize: "var(--font-size-sm)",
   fontWeight: 600,
   background: color,
   color: "var(--btn-primary-fg, #fff)",
@@ -41,7 +41,7 @@ export function WorktreePoolPanel() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [spawnTask, setSpawnTask] = useState("");
 
-  const inputStyle: React.CSSProperties = { width: "100%", padding: 8, borderRadius: 6, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)", fontSize: 13 };
+  const inputStyle: React.CSSProperties = { width: "100%", padding: 8, borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)", fontSize: "var(--font-size-md)" };
 
   useEffect(() => {
     async function loadWorktrees() {
@@ -130,16 +130,16 @@ export function WorktreePoolPanel() {
           {agents.filter((a) => a.status === "running" || a.status === "merging").map((a) => (
             <div key={a.id} className="panel-card">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                <strong style={{ fontSize: 13 }}>{a.branch}</strong>
+                <strong style={{ fontSize: "var(--font-size-md)" }}>{a.branch}</strong>
                 <span style={badgeStyle(statusColor[a.status])}>{a.status}</span>
               </div>
-              <div style={{ background: "var(--bg-primary)", borderRadius: 4, height: 8, marginBottom: 6 }}>
-                <div style={{ background: statusColor[a.status], borderRadius: 4, height: 8, width: `${a.progress}%`, transition: "width 0.3s" }} />
+              <div style={{ background: "var(--bg-primary)", borderRadius: "var(--radius-xs-plus)", height: 8, marginBottom: 6 }}>
+                <div style={{ background: statusColor[a.status], borderRadius: "var(--radius-xs-plus)", height: 8, width: `${a.progress}%`, transition: "width 0.3s" }} />
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{a.filesChanged} files changed | Started {a.startedAt}</div>
+                <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>{a.filesChanged} files changed | Started {a.startedAt}</div>
                 {a.status === "running" && (
-                  <button className="panel-btn panel-btn-primary" style={{ fontSize: 11, padding: "4px 10px" }} onClick={() => handleMerge(a.id)} disabled={actionLoading === a.id}>
+                  <button className="panel-btn panel-btn-primary" style={{ fontSize: "var(--font-size-sm)", padding: "4px 10px" }} onClick={() => handleMerge(a.id)} disabled={actionLoading === a.id}>
                     {actionLoading === a.id ? "..." : "Merge"}
                   </button>
                 )}
@@ -177,7 +177,7 @@ export function WorktreePoolPanel() {
                 <strong>{a.branch}</strong>
                 <span style={badgeStyle(statusColor[a.status])}>{a.status}</span>
               </div>
-              <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>{a.filesChanged} files | {a.duration || "N/A"}</div>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginTop: 4 }}>{a.filesChanged} files | {a.duration || "N/A"}</div>
             </div>
           ))}
         </div>

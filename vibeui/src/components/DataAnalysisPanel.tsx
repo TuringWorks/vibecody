@@ -17,18 +17,18 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const badgeStyle = (color: string): React.CSSProperties => ({
-  display: "inline-block", padding: "2px 8px", borderRadius: 10,
-  fontSize: 11, background: color, color: "var(--bg-primary)", fontWeight: 600,
+  display: "inline-block", padding: "2px 8px", borderRadius: "var(--radius-md)",
+  fontSize: "var(--font-size-sm)", background: color, color: "var(--bg-primary)", fontWeight: 600,
 });
 const inputStyle: React.CSSProperties = {
   width: "100%", padding: "8px 12px", background: "var(--bg-tertiary)", color: "var(--text-primary)",
-  border: "1px solid var(--border-color)", borderRadius: 4, fontSize: 13, fontFamily: "inherit",
+  border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-md)", fontFamily: "inherit",
   boxSizing: "border-box",
 };
 const formRowStyle: React.CSSProperties = {
   display: "flex", gap: 8, marginBottom: 12, alignItems: "flex-end", flexWrap: "wrap",
 };
-const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 2 };
+const labelStyle: React.CSSProperties = { fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 2 };
 
 interface Dataset {
   id: string;
@@ -218,16 +218,16 @@ const DataAnalysisPanel: React.FC = () => {
         ))}
       </div>
       {error && (
-        <div className="panel-error" style={{ padding: "8px 16px", fontSize: 12 }}>
+        <div className="panel-error" style={{ padding: "8px 16px", fontSize: "var(--font-size-base)" }}>
           {error}
-          <button style={{ marginLeft: 12, background: "transparent", border: "none", color: "inherit", cursor: "pointer", fontSize: 12 }} onClick={() => setError(null)}>Dismiss</button>
+          <button style={{ marginLeft: 12, background: "transparent", border: "none", color: "inherit", cursor: "pointer", fontSize: "var(--font-size-base)" }} onClick={() => setError(null)}>Dismiss</button>
         </div>
       )}
       <div className="panel-body" role="tabpanel" aria-label={tab}>
         {tab === "Datasets" && (
           <div>
             <div className="panel-card" style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Add Dataset</div>
+              <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, marginBottom: 8 }}>Add Dataset</div>
               <div style={formRowStyle}>
                 <div style={{ flex: 2 }}>
                   <div style={labelStyle}>Name</div>
@@ -264,7 +264,7 @@ const DataAnalysisPanel: React.FC = () => {
                     <button className="panel-btn panel-btn-danger" onClick={() => handleRemoveDataset(d.id)} title="Remove dataset">X</button>
                   </div>
                 </div>
-                <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>
                   {d.rows.toLocaleString()} rows x {d.cols} cols &middot; {d.size} &middot; Source: {d.source}
                 </div>
               </div>
@@ -274,7 +274,7 @@ const DataAnalysisPanel: React.FC = () => {
         {tab === "Charts" && (
           <div>
             <div className="panel-card" style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Add Chart</div>
+              <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, marginBottom: 8 }}>Add Chart</div>
               <div style={formRowStyle}>
                 <div style={{ flex: 2 }}>
                   <div style={labelStyle}>Title</div>
@@ -300,8 +300,8 @@ const DataAnalysisPanel: React.FC = () => {
                   <strong>{c.title}</strong>
                   <span style={badgeStyle("var(--info-color)")}>{c.type}</span>
                 </div>
-                <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Dataset: {c.dataset} &middot; {c.created}</div>
-                <div style={{ height: 40, background: "var(--bg-tertiary)", borderRadius: 4, marginTop: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "var(--text-secondary)" }}>
+                <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>Dataset: {c.dataset} &middot; {c.created}</div>
+                <div style={{ height: 40, background: "var(--bg-tertiary)", borderRadius: "var(--radius-xs-plus)", marginTop: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
                   [Chart visualization]
                 </div>
               </div>
@@ -311,7 +311,7 @@ const DataAnalysisPanel: React.FC = () => {
         {tab === "Dashboard" && (
           <div>
             <div className="panel-card" style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Add Widget</div>
+              <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, marginBottom: 8 }}>Add Widget</div>
               <div style={formRowStyle}>
                 <div style={{ flex: 2 }}>
                   <div style={labelStyle}>Title</div>
@@ -334,10 +334,10 @@ const DataAnalysisPanel: React.FC = () => {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 8 }}>
               {widgets.map((w) => (
                 <div key={w.id} className="panel-card">
-                  <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>{w.type}</div>
+                  <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 4 }}>{w.type}</div>
                   <strong>{w.title}</strong>
                   {w.value && <div style={{ fontSize: 20, fontWeight: 700, marginTop: 4, color: "var(--accent-color)" }}>{w.value}</div>}
-                  {w.type === "Chart" && <div style={{ height: 30, background: "var(--bg-tertiary)", borderRadius: 4, marginTop: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "var(--text-secondary)" }}>[chart]</div>}
+                  {w.type === "Chart" && <div style={{ height: 30, background: "var(--bg-tertiary)", borderRadius: "var(--radius-xs-plus)", marginTop: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>[chart]</div>}
                 </div>
               ))}
             </div>
@@ -359,12 +359,12 @@ const DataAnalysisPanel: React.FC = () => {
               </button>
             </div>
             {queries.length === 0 && <div className="panel-empty">No queries yet. Ask a question above.</div>}
-            {queries.length > 0 && <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 12 }}>Recent queries:</div>}
+            {queries.length > 0 && <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 12 }}>Recent queries:</div>}
             {queries.map((q) => (
               <div key={q.id} className="panel-card">
-                <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>{q.query}</div>
-                <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{q.result}</div>
-                <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4 }}>
+                <div style={{ fontSize: "var(--font-size-md)", fontWeight: 600, marginBottom: 4 }}>{q.query}</div>
+                <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>{q.result}</div>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 4 }}>
                   {q.rows_scanned.toLocaleString()} rows scanned &middot; {q.datasets_matched} dataset(s)
                 </div>
               </div>

@@ -133,12 +133,12 @@ export function SandboxPanel() {
   return (
     <div className="panel-container">
       <div className="panel-header"><h3>Container Sandbox</h3></div>
-      <div className="panel-body" style={{ color: "var(--text-secondary)", fontSize: 13 }}>
+      <div className="panel-body" style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-md)" }}>
 
-      {error && <div className="panel-error" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><span>{error}</span><button onClick={() => setError(null)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14 }}>&#x2715;</button></div>}
+      {error && <div className="panel-error" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><span>{error}</span><button onClick={() => setError(null)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "var(--font-size-lg)" }}>&#x2715;</button></div>}
 
       {/* Runtime Detection */}
-      <div style={{ marginBottom: 16, padding: "8px 12px", background: "var(--bg-primary)", borderRadius: 6, border: "1px solid var(--border-color)" }}>
+      <div style={{ marginBottom: 16, padding: "8px 12px", background: "var(--bg-primary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)" }}>
         <div style={{ fontWeight: 600, marginBottom: 6, color: "var(--text-primary)" }}>Available Runtimes</div>
         {runtimes ? (
           <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
@@ -153,22 +153,22 @@ export function SandboxPanel() {
       </div>
 
       {/* Create Sandbox Form */}
-      <div style={{ marginBottom: 16, padding: "8px 12px", background: "var(--bg-primary)", borderRadius: 6, border: "1px solid var(--border-color)" }}>
+      <div style={{ marginBottom: 16, padding: "8px 12px", background: "var(--bg-primary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)" }}>
         <div style={{ fontWeight: 600, marginBottom: 8, color: "var(--text-primary)" }}>Create Sandbox</div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-          <label style={{ display: "flex", flexDirection: "column", gap: 2, fontSize: 11, color: "var(--text-secondary)" }}>
+          <label style={{ display: "flex", flexDirection: "column", gap: 2, fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
             Image
             <input value={newImage} onChange={(e) => setNewImage(e.target.value)} className="panel-input" placeholder="ubuntu:22.04" />
           </label>
-          <label style={{ display: "flex", flexDirection: "column", gap: 2, fontSize: 11, color: "var(--text-secondary)" }}>
+          <label style={{ display: "flex", flexDirection: "column", gap: 2, fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
             CPUs
             <input value={newCpus} onChange={(e) => setNewCpus(e.target.value)} className="panel-input" style={{ width: 60 }} />
           </label>
-          <label style={{ display: "flex", flexDirection: "column", gap: 2, fontSize: 11, color: "var(--text-secondary)" }}>
+          <label style={{ display: "flex", flexDirection: "column", gap: 2, fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
             Memory
             <input value={newMemory} onChange={(e) => setNewMemory(e.target.value)} className="panel-input" style={{ width: 70 }} />
           </label>
-          <label style={{ display: "flex", flexDirection: "column", gap: 2, fontSize: 11, color: "var(--text-secondary)" }}>
+          <label style={{ display: "flex", flexDirection: "column", gap: 2, fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
             Network
             <select value={newNetwork} onChange={(e) => setNewNetwork(e.target.value)} className="panel-select">
               <option value="full">Full</option>
@@ -223,7 +223,7 @@ export function SandboxPanel() {
       </div>
 
       {/* Exec Console */}
-      <div style={{ padding: "8px 12px", background: "var(--bg-primary)", borderRadius: 6, border: "1px solid var(--border-color)" }}>
+      <div style={{ padding: "8px 12px", background: "var(--bg-primary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)" }}>
         <div style={{ fontWeight: 600, marginBottom: 8, color: "var(--text-primary)" }}>Execute Command</div>
         {instances.length > 0 ? (
           <>
@@ -252,10 +252,10 @@ export function SandboxPanel() {
               <pre style={{
                 background: "var(--bg-primary)",
                 padding: 8,
-                borderRadius: 4,
+                borderRadius: "var(--radius-xs-plus)",
                 maxHeight: 200,
                 overflow: "auto",
-                fontSize: 11,
+                fontSize: "var(--font-size-sm)",
                 color: "var(--text-secondary)",
                 margin: 0,
                 whiteSpace: "pre-wrap",
@@ -282,7 +282,7 @@ function RuntimeBadge({ name, version, active }: { name: string; version: string
       gap: 4,
       padding: "2px 8px",
       borderRadius: 12,
-      fontSize: 12,
+      fontSize: "var(--font-size-base)",
       background: version ? (active ? "rgba(14,99,156,0.2)" : "var(--bg-primary)") : "var(--bg-secondary)",
       border: `1px solid ${version ? (active ? "var(--accent-color)" : "var(--border-color)") : "var(--border-color)"}`,
       color: version ? (active ? "var(--success-color)" : "var(--text-secondary)") : "var(--text-secondary)",

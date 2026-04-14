@@ -54,7 +54,7 @@ function roleBadgeStyle(role: DocRole): React.CSSProperties {
   };
   const { color, bg } = map[role] ?? map['reference'];
   return {
-    display: 'inline-block', padding: '1px 7px', borderRadius: 10, fontSize: 10,
+    display: 'inline-block', padding: '1px 7px', borderRadius: "var(--radius-md)", fontSize: "var(--font-size-xs)",
     fontWeight: 600, color, background: bg, border: `1px solid ${color}`,
   };
 }
@@ -210,7 +210,7 @@ export function CompanyDocumentsPanel({ workspacePath: _wp }: CompanyDocumentsPa
       <div className="panel-body">
 
       {cmdResult && (
-        <div className="panel-card" style={{ marginBottom: 12, fontSize: 12 }}>
+        <div className="panel-card" style={{ marginBottom: 12, fontSize: "var(--font-size-base)" }}>
           {cmdResult}
         </div>
       )}
@@ -228,12 +228,12 @@ export function CompanyDocumentsPanel({ workspacePath: _wp }: CompanyDocumentsPa
               <span className="panel-loading" style={{ padding: 12, display: "block" }}>Loading…</span>
             ) : useStructured ? (
               docs.length === 0 ? (
-                <div style={{ padding: 16, fontSize: 12, color: "var(--text-secondary)" }}>No documents. Click + New to create one.</div>
+                <div style={{ padding: 16, fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>No documents. Click + New to create one.</div>
               ) : (
                 <div>
                   {docs.map((doc) => (
                     <div key={doc.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderBottom: "1px solid var(--border-color)" }}>
-                      <span style={{ fontSize: 12, flex: 1 }}>{doc.title}</span>
+                      <span style={{ fontSize: "var(--font-size-base)", flex: 1 }}>{doc.title}</span>
                       {/* Role badge with change dropdown */}
                       <div style={{ position: "relative" }}>
                         <span
@@ -246,7 +246,7 @@ export function CompanyDocumentsPanel({ workspacePath: _wp }: CompanyDocumentsPa
                           <div style={{
                             position: "absolute", right: 0, top: "110%", zIndex: 50, minWidth: 160,
                             background: "var(--bg-secondary)", border: "1px solid var(--border-color)",
-                            borderRadius: 6, boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+                            borderRadius: "var(--radius-sm)", boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
                           }}>
                             {roles.map((r) => (
                               <button
@@ -255,7 +255,7 @@ export function CompanyDocumentsPanel({ workspacePath: _wp }: CompanyDocumentsPa
                                 style={{
                                   display: "block", width: "100%", textAlign: "left",
                                   padding: "6px 12px", background: r === doc.role ? "rgba(128,128,128,0.1)" : "transparent",
-                                  border: "none", cursor: "pointer", fontSize: 12,
+                                  border: "none", cursor: "pointer", fontSize: "var(--font-size-base)",
                                 }}
                               >
                                 <span style={roleBadgeStyle(r)}>{r}</span>
@@ -264,13 +264,13 @@ export function CompanyDocumentsPanel({ workspacePath: _wp }: CompanyDocumentsPa
                           </div>
                         )}
                       </div>
-                      <span style={{ fontSize: 10, color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>{doc.id}</span>
+                      <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>{doc.id}</span>
                     </div>
                   ))}
                 </div>
               )
             ) : (
-              <pre style={{ margin: 0, fontSize: 12, whiteSpace: "pre-wrap" }}>
+              <pre style={{ margin: 0, fontSize: "var(--font-size-base)", whiteSpace: "pre-wrap" }}>
                 {listOutput || "No documents. Click + New to create one."}
               </pre>
             )}
@@ -296,7 +296,7 @@ export function CompanyDocumentsPanel({ workspacePath: _wp }: CompanyDocumentsPa
         <div>
           <button onClick={() => setTab("list")} className="panel-btn panel-btn-secondary" style={{ marginBottom: 12 }}>← Back</button>
           <div className="panel-card">
-            <pre style={{ margin: 0, fontSize: 12, whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
+            <pre style={{ margin: 0, fontSize: "var(--font-size-base)", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
               {docOutput}
             </pre>
           </div>
@@ -332,31 +332,31 @@ export function CompanyDocumentsPanel({ workspacePath: _wp }: CompanyDocumentsPa
 
           {meetingIngested && (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <div style={{ fontSize: 11, color: "var(--text-secondary)", borderTop: "1px solid var(--border-color)", paddingTop: 12, fontWeight: 600 }}>── Results ──</div>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", borderTop: "1px solid var(--border-color)", paddingTop: 12, fontWeight: 600 }}>── Results ──</div>
 
               {/* Tasks */}
               <div>
-                <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>
+                <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, marginBottom: 6 }}>
                   Tasks extracted: <span style={{ fontWeight: 400, color: "var(--text-secondary)" }}>{meetingTasks.length}</span>
                 </div>
                 {meetingTasks.length === 0 ? (
-                  <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>None</div>
+                  <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>None</div>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                     {meetingTasks.map((t, i) => (
-                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "var(--bg-secondary)", borderRadius: 6 }}>
+                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)" }}>
                         <input
                           type="checkbox"
                           checked={t.checked}
                           onChange={() => setMeetingTasks((prev) => prev.map((x, j) => j === i ? { ...x, checked: !x.checked } : x))}
                         />
-                        <span style={{ flex: 1, fontSize: 12 }}>{t.title}</span>
-                        {t.owner && <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>{t.owner}</span>}
-                        {t.due_date && <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>{t.due_date}</span>}
+                        <span style={{ flex: 1, fontSize: "var(--font-size-base)" }}>{t.title}</span>
+                        {t.owner && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>{t.owner}</span>}
+                        {t.due_date && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>{t.due_date}</span>}
                         <button
                           onClick={() => addTaskToBoard(t)}
                           className="panel-btn panel-btn-secondary"
-                          style={{ fontSize: 10, padding: "2px 8px" }}
+                          style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px" }}
                         >
                           Add as Task
                         </button>
@@ -368,20 +368,20 @@ export function CompanyDocumentsPanel({ workspacePath: _wp }: CompanyDocumentsPa
 
               {/* Decisions / Approvals */}
               <div>
-                <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>
+                <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, marginBottom: 6 }}>
                   Decisions/Approvals: <span style={{ fontWeight: 400, color: "var(--text-secondary)" }}>{meetingApprovals.length}</span>
                 </div>
                 {meetingApprovals.length === 0 ? (
-                  <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>None</div>
+                  <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>None</div>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                     {meetingApprovals.map((a, i) => (
-                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "var(--bg-secondary)", borderRadius: 6 }}>
-                        <span style={{ flex: 1, fontSize: 12 }}><strong>{a.subject}</strong> — {a.decision_text}</span>
+                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)" }}>
+                        <span style={{ flex: 1, fontSize: "var(--font-size-base)" }}><strong>{a.subject}</strong> — {a.decision_text}</span>
                         <button
                           onClick={() => createApproval(a)}
                           className="panel-btn panel-btn-secondary"
-                          style={{ fontSize: 10, padding: "2px 8px" }}
+                          style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px" }}
                         >
                           Create Approval
                         </button>
@@ -393,18 +393,18 @@ export function CompanyDocumentsPanel({ workspacePath: _wp }: CompanyDocumentsPa
 
               {/* Follow-ups */}
               <div>
-                <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>
+                <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, marginBottom: 6 }}>
                   Follow-ups: <span style={{ fontWeight: 400, color: "var(--text-secondary)" }}>{meetingFollowups.length}</span>
                 </div>
                 {meetingFollowups.length === 0 ? (
-                  <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>None</div>
+                  <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>None</div>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                     {meetingFollowups.map((f, i) => (
-                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "var(--bg-secondary)", borderRadius: 6 }}>
-                        <span style={{ flex: 1, fontSize: 12 }}>{f.text}</span>
+                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)" }}>
+                        <span style={{ flex: 1, fontSize: "var(--font-size-base)" }}>{f.text}</span>
                         {f.due_date && (
-                          <span style={{ fontSize: 10, color: "var(--accent-gold)", padding: "1px 6px", background: "rgba(255,193,7,0.12)", borderRadius: 6 }}>
+                          <span style={{ fontSize: "var(--font-size-xs)", color: "var(--accent-gold)", padding: "1px 6px", background: "rgba(255,193,7,0.12)", borderRadius: "var(--radius-sm)" }}>
                             due: {f.due_date}
                           </span>
                         )}

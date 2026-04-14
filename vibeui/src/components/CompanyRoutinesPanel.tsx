@@ -35,8 +35,8 @@ function deliveryBadgeStyle(mode: Routine['delivery_mode']): React.CSSProperties
   const color = mode === 'none' ? 'var(--text-secondary)' : mode === 'announce' ? 'var(--accent-blue)' : 'var(--accent-gold)';
   const bg = mode === 'none' ? 'rgba(128,128,128,0.15)' : mode === 'announce' ? 'rgba(74,158,255,0.15)' : 'rgba(255,193,7,0.15)';
   return {
-    display: 'inline-block', padding: '1px 7px', borderRadius: 10,
-    fontSize: 10, fontWeight: 600, color, background: bg, border: `1px solid ${color}`,
+    display: 'inline-block', padding: '1px 7px', borderRadius: "var(--radius-md)",
+    fontSize: "var(--font-size-xs)", fontWeight: 600, color, background: bg, border: `1px solid ${color}`,
   };
 }
 
@@ -146,7 +146,7 @@ export function CompanyRoutinesPanel({ workspacePath: _wp }: CompanyRoutinesPane
             </div>
             {/* Delivery mode */}
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              <label style={{ fontSize: 11, color: "var(--text-secondary)", whiteSpace: "nowrap" }}>Delivery:</label>
+              <label style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", whiteSpace: "nowrap" }}>Delivery:</label>
               <select
                 value={deliveryMode}
                 onChange={(e) => setDeliveryMode(e.target.value as typeof deliveryMode)}
@@ -160,7 +160,7 @@ export function CompanyRoutinesPanel({ workspacePath: _wp }: CompanyRoutinesPane
             </div>
             {/* Skill select */}
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              <label style={{ fontSize: 11, color: "var(--text-secondary)", whiteSpace: "nowrap" }}>Skill:</label>
+              <label style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", whiteSpace: "nowrap" }}>Skill:</label>
               <select
                 value={skillName}
                 onChange={(e) => setSkillName(e.target.value)}
@@ -201,14 +201,14 @@ export function CompanyRoutinesPanel({ workspacePath: _wp }: CompanyRoutinesPane
             </button>
           </div>
           {heartbeatOutput && (
-            <div className="panel-card" style={{ marginTop: 8, fontSize: 12 }}>
+            <div className="panel-card" style={{ marginTop: 8, fontSize: "var(--font-size-base)" }}>
               {heartbeatOutput}
             </div>
           )}
         </div>
 
         {cmdResult && (
-          <div className="panel-card" style={{ marginBottom: 12, fontSize: 12 }}>
+          <div className="panel-card" style={{ marginBottom: 12, fontSize: "var(--font-size-base)" }}>
             {cmdResult}
           </div>
         )}
@@ -219,29 +219,29 @@ export function CompanyRoutinesPanel({ workspacePath: _wp }: CompanyRoutinesPane
           {loading ? (
             <div className="panel-loading" style={{ padding: 16 }}>Loading…</div>
           ) : routines.length === 0 ? (
-            <div style={{ padding: 16, fontSize: 12, color: "var(--text-secondary)" }}>No routines. Create one above.</div>
+            <div style={{ padding: 16, fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>No routines. Create one above.</div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column" }}>
               {routines.map((r) => (
                 <div key={r.id} style={{ padding: "10px 12px", borderBottom: "1px solid var(--border-color)" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                    <strong style={{ fontSize: 13 }}>{r.name}</strong>
+                    <strong style={{ fontSize: "var(--font-size-md)" }}>{r.name}</strong>
                     <span style={deliveryBadgeStyle(r.delivery_mode)}>{r.delivery_mode}</span>
                     {r.skill_name && (
-                      <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 10, background: 'rgba(128,128,128,0.15)', color: 'var(--text-secondary)', border: '1px solid var(--border-color)' }}>
+                      <span style={{ fontSize: "var(--font-size-xs)", padding: '1px 6px', borderRadius: "var(--radius-md)", background: 'rgba(128,128,128,0.15)', color: 'var(--text-secondary)', border: '1px solid var(--border-color)' }}>
                         skill: {r.skill_name}
                       </span>
                     )}
-                    <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--text-secondary)" }}>
+                    <span style={{ marginLeft: "auto", fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
                       {r.enabled ? 'enabled' : 'disabled'}
                     </span>
                   </div>
-                  <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+                  <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
                     Agent: {r.agent_id} · Every {Math.round(r.interval_secs / 60)}min
                     {r.next_run_at ? ` · Next: ${new Date(r.next_run_at).toLocaleTimeString()}` : ''}
                   </div>
                   {r.prompt && (
-                    <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4, fontStyle: "italic" }}>
+                    <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 4, fontStyle: "italic" }}>
                       "{r.prompt}"
                     </div>
                   )}

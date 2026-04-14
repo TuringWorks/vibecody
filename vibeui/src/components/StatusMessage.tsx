@@ -51,8 +51,8 @@ export function StatusMessage({ variant, message, detail, icon, inline }: Status
           padding: "6px 10px",
           background: s.bg,
           color: s.fg,
-          borderRadius: 4,
-          fontSize: 12,
+          borderRadius: "var(--radius-xs-plus)",
+          fontSize: "var(--font-size-base)",
           lineHeight: 1.5,
         }}
       >
@@ -73,9 +73,9 @@ export function StatusMessage({ variant, message, detail, icon, inline }: Status
       }}
     >
       <div style={{ fontSize: 28, marginBottom: 8 }}>{displayIcon}</div>
-      <div style={{ fontSize: 13 }}>{message}</div>
+      <div style={{ fontSize: "var(--font-size-md)" }}>{message}</div>
       {detail && (
-        <div style={{ fontSize: 11, marginTop: 4, opacity: 0.7 }}>{detail}</div>
+        <div style={{ fontSize: "var(--font-size-sm)", marginTop: 4, opacity: 0.7 }}>{detail}</div>
       )}
     </div>
   );

@@ -53,10 +53,10 @@ function NodeTree({ nodes, depth = 0 }: { nodes: AstNode[]; depth?: number }) {
     <>
       {nodes.map(n => (
         <div key={n.name + n.line}>
-          <div style={{ display: "flex", gap: 8, padding: "3px 8px", paddingLeft: 8 + depth * 16, fontSize: 11, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 8, padding: "3px 8px", paddingLeft: 8 + depth * 16, fontSize: "var(--font-size-sm)", alignItems: "center" }}>
             <span style={{ color: kindColor[n.kind], fontSize: 9, fontWeight: 600, minWidth: 50 }}>{n.kind}</span>
             <span style={{ color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}>{n.name}</span>
-            <span style={{ color: "var(--text-secondary)", fontSize: 10, marginLeft: "auto" }}>L{n.line}</span>
+            <span style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-xs)", marginLeft: "auto" }}>L{n.line}</span>
           </div>
           {n.children && <NodeTree nodes={n.children} depth={depth + 1} />}
         </div>
@@ -144,7 +144,7 @@ export default function AstEditPanel() {
             </button>
           ))}
         </div>
-        <span style={{ marginLeft: "auto", fontSize: 10, color: "var(--text-secondary)", alignSelf: "center" }}>
+        <span style={{ marginLeft: "auto", fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", alignSelf: "center" }}>
           {edits.length} pending
         </span>
       </div>
@@ -160,10 +160,10 @@ export default function AstEditPanel() {
         {tab === "files" && !loading && (
           <div id="astpanel-files" role="tabpanel" aria-labelledby="asttab-files" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {files.map(f => (
-              <div key={f.path} style={{ background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)", overflow: "hidden" }}>
+              <div key={f.path} style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", overflow: "hidden" }}>
                 <div style={{ padding: "6px 10px", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontSize: 12, fontWeight: 600, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{f.path}</span>
-                  <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>{f.language} | {f.nodes.length} top-level</span>
+                  <span style={{ fontSize: "var(--font-size-base)", fontWeight: 600, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{f.path}</span>
+                  <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>{f.language} | {f.nodes.length} top-level</span>
                 </div>
                 <NodeTree nodes={f.nodes} />
               </div>
@@ -178,18 +178,18 @@ export default function AstEditPanel() {
           <div id="astpanel-edits" role="tabpanel" aria-labelledby="asttab-edits" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {edits.map(e => (
               <div key={e.id} role="button" tabIndex={0} onClick={() => { setSelectedEdit(e.id); setTab("preview"); }} onKeyDown={ev => ev.key === "Enter" && (setSelectedEdit(e.id), setTab("preview"))}
-                style={{ padding: 10, background: selectedEdit === e.id ? "var(--accent-bg, color-mix(in srgb, var(--accent-blue) 15%, transparent))" : "var(--bg-secondary)", borderRadius: 6, border: `1px solid ${selectedEdit === e.id ? "var(--accent-primary)" : "var(--border-color)"}`, cursor: "pointer" }}>
+                style={{ padding: 10, background: selectedEdit === e.id ? "var(--accent-bg, color-mix(in srgb, var(--accent-blue) 15%, transparent))" : "var(--bg-secondary)", borderRadius: "var(--radius-sm)", border: `1px solid ${selectedEdit === e.id ? "var(--accent-primary)" : "var(--border-color)"}`, cursor: "pointer" }}>
                 <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
-                  <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 3, background: "color-mix(in srgb, var(--accent-blue) 15%, transparent)", color: "var(--text-info)", fontWeight: 600 }}>{e.operation}</span>
-                  <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{e.target}</span>
-                  <span style={{ fontSize: 10, color: "var(--text-secondary)", marginLeft: "auto" }}>{e.file}</span>
+                  <span style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px", borderRadius: 3, background: "color-mix(in srgb, var(--accent-blue) 15%, transparent)", color: "var(--text-info)", fontWeight: 600 }}>{e.operation}</span>
+                  <span style={{ fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{e.target}</span>
+                  <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginLeft: "auto" }}>{e.file}</span>
                 </div>
-                <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 6 }}>{e.description}</div>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 6 }}>{e.description}</div>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                   <div style={{ flex: 1, height: 4, background: "var(--bg-primary)", borderRadius: 2, overflow: "hidden" }}>
                     <div style={{ width: `${e.confidence * 100}%`, height: "100%", background: e.confidence > 0.85 ? "var(--text-success)" : e.confidence > 0.7 ? "var(--text-warning)" : "var(--text-danger)", borderRadius: 2 }} />
                   </div>
-                  <span style={{ fontSize: 10, color: "var(--text-secondary)", minWidth: 30 }}>{(e.confidence * 100).toFixed(0)}%</span>
+                  <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", minWidth: 30 }}>{(e.confidence * 100).toFixed(0)}%</span>
                   <button onClick={(ev) => { ev.stopPropagation(); dismissEdit(e.id); }}
                     className="panel-btn panel-btn-secondary panel-btn-xs" style={{ color: "var(--text-danger)" }}>Reject</button>
                   <button onClick={(ev) => { ev.stopPropagation(); applyEdit(e.id); }}
@@ -207,16 +207,16 @@ export default function AstEditPanel() {
           <div id="astpanel-preview" role="tabpanel" aria-labelledby="asttab-preview">
             {selected ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>{selected.operation}: {selected.target}</div>
-                <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{selected.description}</div>
+                <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, color: "var(--text-primary)" }}>{selected.operation}: {selected.target}</div>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{selected.description}</div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                   <div>
-                    <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-danger)", marginBottom: 4 }}>Before</div>
-                    <pre style={{ padding: 10, background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)", fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text-primary)", whiteSpace: "pre-wrap", margin: 0 }}>{selected.diffBefore}</pre>
+                    <div style={{ fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-danger)", marginBottom: 4 }}>Before</div>
+                    <pre style={{ padding: 10, background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", color: "var(--text-primary)", whiteSpace: "pre-wrap", margin: 0 }}>{selected.diffBefore}</pre>
                   </div>
                   <div>
-                    <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-success)", marginBottom: 4 }}>After</div>
-                    <pre style={{ padding: 10, background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)", fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text-primary)", whiteSpace: "pre-wrap", margin: 0 }}>{selected.diffAfter}</pre>
+                    <div style={{ fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-success)", marginBottom: 4 }}>After</div>
+                    <pre style={{ padding: 10, background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", color: "var(--text-primary)", whiteSpace: "pre-wrap", margin: 0 }}>{selected.diffAfter}</pre>
                   </div>
                 </div>
               </div>

@@ -25,8 +25,8 @@ interface TypeNode {
 const badgeStyle = (color: string): React.CSSProperties => ({
   display: "inline-block",
   padding: "2px 8px",
-  borderRadius: 10,
-  fontSize: 11,
+  borderRadius: "var(--radius-md)",
+  fontSize: "var(--font-size-sm)",
   fontWeight: 600,
   background: color,
   color: "var(--btn-primary-fg, #fff)",
@@ -40,11 +40,11 @@ const kindColors: Record<string, string> = {
 const inputStyle: React.CSSProperties = {
   width: "100%",
   padding: 8,
-  borderRadius: 6,
+  borderRadius: "var(--radius-sm)",
   border: "1px solid var(--border-color)",
   background: "var(--bg-primary)",
   color: "var(--text-primary)",
-  fontSize: 13,
+  fontSize: "var(--font-size-md)",
 };
 
 const fallbackTypeTree: TypeNode[] = [
@@ -134,7 +134,7 @@ export function SemanticIndexPanel() {
   const renderTypeTree = (nodes: TypeNode[], depth: number): React.ReactElement[] =>
     nodes.map((n) => (
       <div key={n.name}>
-        <div style={{ paddingLeft: depth * 20, padding: "4px 0 4px " + depth * 20 + "px", fontSize: 13 }}>
+        <div style={{ paddingLeft: depth * 20, padding: "4px 0 4px " + depth * 20 + "px", fontSize: "var(--font-size-md)" }}>
           <span style={badgeStyle(kindColors[n.kind] || "var(--text-secondary)")}>{n.kind}</span>
           <strong>{n.name}</strong>
         </div>
@@ -155,15 +155,15 @@ export function SemanticIndexPanel() {
         {tab === "overview" && (
           <div id="semidx-panel-overview" role="tabpanel" aria-labelledby="semidx-tab-overview" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
             <div className="panel-card">
-              <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Symbols</div>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>Symbols</div>
               <div style={{ fontSize: 24, fontWeight: 700 }}>{loadingSymbols ? "..." : symbols.length}</div>
             </div>
             <div className="panel-card">
-              <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Call Edges</div>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>Call Edges</div>
               <div style={{ fontSize: 24, fontWeight: 700 }}>{loadingEdges ? "..." : callEdges.length}</div>
             </div>
             <div className="panel-card">
-              <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Files Indexed</div>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>Files Indexed</div>
               <div style={{ fontSize: 24, fontWeight: 700 }}>{loadingSymbols ? "..." : new Set(symbols.map((s) => s.file)).size}</div>
             </div>
           </div>
@@ -184,7 +184,7 @@ export function SemanticIndexPanel() {
               <div key={i} className="panel-card">
                 <span style={badgeStyle(kindColors[s.kind])}>{s.kind}</span>
                 <strong>{s.name}</strong>
-                <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>{s.file}:{s.line}</div>
+                <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginTop: 4 }}>{s.file}:{s.line}</div>
               </div>
             ))}
           </div>
@@ -197,12 +197,12 @@ export function SemanticIndexPanel() {
             {!loadingEdges && matchedEdges.length === 0 && <div className="panel-empty">No call edges found.</div>}
             {matchedEdges.map((e, i) => (
               <div key={i} className="panel-card">
-                <div style={{ fontSize: 13 }}>
+                <div style={{ fontSize: "var(--font-size-md)" }}>
                   <strong style={{ color: "var(--accent-color)" }}>{e.caller}</strong>
                   <span style={{ margin: "0 8px", color: "var(--text-secondary)" }}>&rarr;</span>
                   <strong>{e.callee}</strong>
                 </div>
-                <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>{e.file}:{e.line}</div>
+                <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginTop: 4 }}>{e.file}:{e.line}</div>
               </div>
             ))}
           </div>

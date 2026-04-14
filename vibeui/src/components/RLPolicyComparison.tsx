@@ -36,7 +36,7 @@ interface LineageNode {
   parentId: string | null;
 }
 
-const tableStyle: React.CSSProperties = { width: "100%", borderCollapse: "collapse", fontSize: 12 };
+const tableStyle: React.CSSProperties = { width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" };
 const thStyle: React.CSSProperties = { textAlign: "left", padding: "6px 8px", borderBottom: "1px solid var(--border-color)", color: "var(--text-secondary)", fontWeight: 600 };
 const tdStyle: React.CSSProperties = { padding: "6px 8px", borderBottom: "1px solid var(--border-color)" };
 
@@ -70,7 +70,7 @@ export function RLPolicyComparison() {
 
   return (
     <div className="panel-container">
-      <h2 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>Policy Comparison</h2>
+      <h2 style={{ margin: "0 0 12px", fontSize: "var(--font-size-xl)", fontWeight: 600, color: "var(--text-primary)" }}>Policy Comparison</h2>
 
       <div className="panel-card" style={{ display: "flex", gap: 8, alignItems: "center" }}>
         <select className="panel-select" style={{flex:1}} value={policyA} onChange={e => setPolicyA(e.target.value)}>
@@ -114,13 +114,13 @@ export function RLPolicyComparison() {
               const max = Math.max(a, b, 0.01);
               return (
                 <div key={k} style={{ marginBottom: 6 }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 2 }}>{k}</div>
+                  <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, marginBottom: 2 }}>{k}</div>
                   <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                    <div style={{ flex: 1, height: 8, background: "var(--bg-tertiary)", borderRadius: 4, overflow: "hidden" }}>
-                      <div style={{ width: `${(a / max) * 100}%`, height: "100%", background: "var(--info-color)", borderRadius: 4 }} />
+                    <div style={{ flex: 1, height: 8, background: "var(--bg-tertiary)", borderRadius: "var(--radius-xs-plus)", overflow: "hidden" }}>
+                      <div style={{ width: `${(a / max) * 100}%`, height: "100%", background: "var(--info-color)", borderRadius: "var(--radius-xs-plus)" }} />
                     </div>
-                    <div style={{ flex: 1, height: 8, background: "var(--bg-tertiary)", borderRadius: 4, overflow: "hidden" }}>
-                      <div style={{ width: `${(b / max) * 100}%`, height: "100%", background: "var(--warning-color)", borderRadius: 4 }} />
+                    <div style={{ flex: 1, height: 8, background: "var(--bg-tertiary)", borderRadius: "var(--radius-xs-plus)", overflow: "hidden" }}>
+                      <div style={{ width: `${(b / max) * 100}%`, height: "100%", background: "var(--warning-color)", borderRadius: "var(--radius-xs-plus)" }} />
                     </div>
                   </div>
                 </div>
@@ -131,7 +131,7 @@ export function RLPolicyComparison() {
           <div className="panel-card">
             <div className="panel-label">Lineage</div>
             {result.lineage.map(n => (
-              <div key={n.id} style={{ padding: "3px 0", paddingLeft: n.parentId ? 16 : 0, fontSize: 12 }}>
+              <div key={n.id} style={{ padding: "3px 0", paddingLeft: n.parentId ? 16 : 0, fontSize: "var(--font-size-base)" }}>
                 {n.parentId && <span style={{ color: "var(--text-secondary)" }}>|_ </span>}{n.label}
               </div>
             ))}

@@ -133,7 +133,7 @@ const TeamGovernancePanel: React.FC = () => {
   };
 
   const badge = (color: string): React.CSSProperties => ({
-    padding: "2px 8px", borderRadius: "10px", fontSize: "11px", fontWeight: 600,
+    padding: "2px 8px", borderRadius: "var(--radius-md)", fontSize: "var(--font-size-sm)", fontWeight: 600,
     backgroundColor: color, color: "var(--text-primary)", marginLeft: "6px",
   });
   const visibilityColor = (v: string) => v === "Public" ? "var(--success-color)" : v === "Org" ? "var(--info-color)" : v === "TeamOnly" ? "var(--accent-color)" : "var(--text-secondary)";
@@ -142,7 +142,7 @@ const TeamGovernancePanel: React.FC = () => {
   const pendingPlugins = plugins.filter(p => p.status === "Pending");
 
   return (
-    <div className="panel-container" style={{ padding: "16px", fontSize: "13px", overflow: "auto" }}>
+    <div className="panel-container" style={{ padding: "16px", fontSize: "var(--font-size-md)", overflow: "auto" }}>
       <h3 style={{ margin: "0 0 12px" }}>Team Governance</h3>
       <div className="panel-tab-bar">
         {["plugins", "approvals", "policy"].map(t => (

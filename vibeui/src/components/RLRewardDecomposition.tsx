@@ -51,11 +51,11 @@ export function RLRewardDecomposition() {
 
   return (
     <div className="panel-container">
-      <h2 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>Reward Decomposition</h2>
+      <h2 style={{ margin: "0 0 12px", fontSize: "var(--font-size-xl)", fontWeight: 600, color: "var(--text-primary)" }}>Reward Decomposition</h2>
 
       <div className="panel-card" style={{ display: "flex", gap: 8, alignItems: "center" }}>
         <label className="panel-label">Policy ID:</label>
-        <input value={policyId} onChange={e => setPolicyId(e.target.value)} style={{ flex: 1, padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", fontSize: 12 }} />
+        <input value={policyId} onChange={e => setPolicyId(e.target.value)} style={{ flex: 1, padding: "4px 8px", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", fontSize: "var(--font-size-base)" }} />
         <button className="panel-btn panel-btn-primary" onClick={fetchData} disabled={loading}>{loading ? "..." : "Load"}</button>
       </div>
 
@@ -63,10 +63,10 @@ export function RLRewardDecomposition() {
         <>
           <div className="panel-card">
             <div className="panel-label">Total Reward: <strong>{data.totalReward.toFixed(4)}</strong></div>
-            <div style={{ display: "flex", height: 32, borderRadius: 4, overflow: "hidden", marginTop: 6 }}>
+            <div style={{ display: "flex", height: 32, borderRadius: "var(--radius-xs-plus)", overflow: "hidden", marginTop: 6 }}>
               {data.components.filter(c => c.value * (weights[c.name] ?? c.weight) > 0).map((c, i) => {
                 const wVal = c.value * (weights[c.name] ?? c.weight);
-                return <div key={c.name} style={{ width: `${(wVal / totalPositive) * 100}%`, background: c.color || DEFAULT_COLORS[i % DEFAULT_COLORS.length], display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#fff", overflow: "hidden" }}>{c.name}</div>;
+                return <div key={c.name} style={{ width: `${(wVal / totalPositive) * 100}%`, background: c.color || DEFAULT_COLORS[i % DEFAULT_COLORS.length], display: "flex", alignItems: "center", justifyContent: "center", fontSize: "var(--font-size-xs)", color: "var(--btn-primary-fg, #fff)", overflow: "hidden" }}>{c.name}</div>;
               })}
             </div>
           </div>
@@ -92,7 +92,7 @@ export function RLRewardDecomposition() {
               const max = Math.max(...vals.map(Math.abs), 0.01);
               return (
                 <div key={c.name} style={{ marginBottom: 8 }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 2, color: c.color || DEFAULT_COLORS[ci % DEFAULT_COLORS.length] }}>{c.name}</div>
+                  <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, marginBottom: 2, color: c.color || DEFAULT_COLORS[ci % DEFAULT_COLORS.length] }}>{c.name}</div>
                   <div style={{ display: "flex", alignItems: "flex-end", gap: 1, height: 30 }}>
                     {vals.map((v, i) => (
                       <div key={i} style={{ flex: 1, height: `${(Math.abs(v) / max) * 100}%`, background: c.color || DEFAULT_COLORS[ci % DEFAULT_COLORS.length], opacity: 0.7, borderRadius: "2px 2px 0 0" }} />

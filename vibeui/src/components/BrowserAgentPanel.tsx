@@ -74,7 +74,7 @@ export function BrowserAgentPanel() {
 
       {tab === "browse" && (
         <div>
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Browser Agent Task</div>
+          <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, marginBottom: 12 }}>Browser Agent Task</div>
           <div className="panel-card">
             <label className="panel-label">Target URL</label>
             <input className="panel-input panel-input-full" value={url} onChange={e => setUrl(e.target.value)} placeholder="https://example.com" />
@@ -83,7 +83,7 @@ export function BrowserAgentPanel() {
               <textarea className="panel-input panel-input-full" style={{ height: 60, resize: "vertical" }} value={task} onChange={e => setTask(e.target.value)} placeholder="Extract all product names and prices from the page..." />
             </div>
             <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8 }}>
-              <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
+              <label style={{ fontSize: "var(--font-size-base)", display: "flex", alignItems: "center", gap: 4 }}>
                 <input type="checkbox" checked={headless} onChange={e => setHeadless(e.target.checked)} /> Headless mode
               </label>
             </div>
@@ -92,8 +92,8 @@ export function BrowserAgentPanel() {
             </div>
           </div>
           <div className="panel-card" style={{ marginTop: 12 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Capabilities</div>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.6 }}>
+            <div style={{ fontSize: "var(--font-size-md)", fontWeight: 600, marginBottom: 8 }}>Capabilities</div>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", lineHeight: 1.6 }}>
               <div>Navigate to URLs, click elements, fill forms, scroll pages</div>
               <div>Extract text and structured data from any web page</div>
               <div>Execute JavaScript for dynamic content interaction</div>
@@ -106,26 +106,26 @@ export function BrowserAgentPanel() {
 
       {tab === "sessions" && (
         <div>
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Browse Sessions</div>
+          <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, marginBottom: 12 }}>Browse Sessions</div>
           {sessions.length === 0 && <div className="panel-empty">No sessions yet. Launch a browser agent task to get started.</div>}
           {sessions.map(s => (
             <div key={s.id} className="panel-card" style={{ marginBottom: 8 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
-                  <div style={{ fontWeight: 600, fontSize: 13 }}>{s.task}</div>
-                  <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{s.url}</div>
+                  <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)" }}>{s.task}</div>
+                  <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{s.url}</div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 4, background: s.status === "completed" ? "var(--success-bg)" : s.status === "running" ? "#2196f322" : "#ff980022", color: s.status === "completed" ? "var(--accent-green)" : s.status === "running" ? "var(--accent-blue)" : "var(--accent-gold)" }}>{s.status}</span>
+                  <span style={{ fontSize: "var(--font-size-sm)", padding: "2px 8px", borderRadius: "var(--radius-xs-plus)", background: s.status === "completed" ? "var(--success-bg)" : s.status === "running" ? "#2196f322" : "#ff980022", color: s.status === "completed" ? "var(--accent-green)" : s.status === "running" ? "var(--accent-blue)" : "var(--accent-gold)" }}>{s.status}</span>
                   {s.status === "running" && (
-                    <button className="panel-btn panel-btn-secondary" style={{ fontSize: 11, padding: "2px 8px" }}
+                    <button className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-sm)", padding: "2px 8px" }}
                       onClick={() => invoke("browser_close_session", { sessionId: s.id }).then(fetchSessions).catch(() => {})}>
                       Stop
                     </button>
                   )}
                 </div>
               </div>
-              <div style={{ marginTop: 6, fontSize: 11, color: "var(--text-secondary)" }}>
+              <div style={{ marginTop: 6, fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
                 {s.actions} actions | {s.screenshots} screenshots
               </div>
             </div>
@@ -135,9 +135,9 @@ export function BrowserAgentPanel() {
 
       {tab === "config" && (
         <div>
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Browser Agent Configuration</div>
+          <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, marginBottom: 12 }}>Browser Agent Configuration</div>
           <div className="panel-card">
-            <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
+            <table style={{ width: "100%", fontSize: "var(--font-size-base)", borderCollapse: "collapse" }}>
               <tbody>
                 <tr><td style={{ padding: "4px 0", color: "var(--text-secondary)" }}>Chrome Debug Port</td><td style={{ padding: "4px 0" }}>9222</td></tr>
                 <tr><td style={{ padding: "4px 0", color: "var(--text-secondary)" }}>Default Viewport</td><td style={{ padding: "4px 0" }}>1280 x 720</td></tr>

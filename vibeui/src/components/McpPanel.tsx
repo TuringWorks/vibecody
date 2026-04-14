@@ -47,12 +47,12 @@ interface McpPlugin {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
+const labelStyle: React.CSSProperties = { fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 4 };
 
-const inputStyle: React.CSSProperties = { padding: "5px 8px", fontSize: "12px", background: "var(--bg-input, var(--bg-primary))", border: "1px solid var(--border-color)", borderRadius: "4px", color: "var(--text-primary)", outline: "none", width: "100%", boxSizing: "border-box" };
-const barBg: React.CSSProperties = { height: 8, borderRadius: 4, background: "var(--bg-tertiary)", overflow: "hidden" };
-const barFill = (pct: number, color: string): React.CSSProperties => ({ height: "100%", width: `${Math.min(pct, 100)}%`, borderRadius: 4, background: color });
-const badgeStyle = (v: string): React.CSSProperties => ({ display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600, color: "var(--btn-primary-fg)", background: v === "loaded" ? "var(--success-color)" : v === "loading" ? "var(--warning-color)" : "var(--text-secondary)" });
+const inputStyle: React.CSSProperties = { padding: "5px 8px", fontSize: "var(--font-size-base)", background: "var(--bg-input, var(--bg-primary))", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none", width: "100%", boxSizing: "border-box" };
+const barBg: React.CSSProperties = { height: 8, borderRadius: "var(--radius-xs-plus)", background: "var(--bg-tertiary)", overflow: "hidden" };
+const barFill = (pct: number, color: string): React.CSSProperties => ({ height: "100%", width: `${Math.min(pct, 100)}%`, borderRadius: "var(--radius-xs-plus)", background: color });
+const badgeStyle = (v: string): React.CSSProperties => ({ display: "inline-block", padding: "2px 8px", borderRadius: "var(--radius-md)", fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--btn-primary-fg)", background: v === "loaded" ? "var(--success-color)" : v === "loading" ? "var(--warning-color)" : "var(--text-secondary)" });
 
 const EMPTY_SERVER: McpServer = { name: "", command: "", args: [], env: {} };
 const CATEGORIES = ["All", "File Systems", "Git", "Databases", "Cloud", "AI/ML", "Testing", "DevOps", "Communication", "Security", "Code Quality", "Finance", "Design", "Utilities"];
@@ -306,7 +306,7 @@ export function McpPanel() {
     <div className="panel-container">
       <div className="panel-header" style={{ flexDirection: "column", alignItems: "flex-start" }}>
         <h3>MCP</h3>
-        <p style={{ fontSize: 11, color: "var(--text-secondary)", margin: 0 }}>
+        <p style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", margin: 0 }}>
           Model Context Protocol — servers, tools, and plugins
         </p>
 
@@ -341,10 +341,10 @@ export function McpPanel() {
       {tab === "servers" && (
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-            <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-              Tools are injected as <code style={{ fontSize: 11 }}>mcp__&lt;server&gt;__&lt;tool&gt;</code>
+            <span style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>
+              Tools are injected as <code style={{ fontSize: "var(--font-size-sm)" }}>mcp__&lt;server&gt;__&lt;tool&gt;</code>
             </span>
-            <button onClick={() => { setEditing({ ...EMPTY_SERVER }); setEditIdx(null); }} className="panel-btn panel-btn-primary" style={{ fontSize: 11 }}>+ Add Server</button>
+            <button onClick={() => { setEditing({ ...EMPTY_SERVER }); setEditIdx(null); }} className="panel-btn panel-btn-primary" style={{ fontSize: "var(--font-size-sm)" }}>+ Add Server</button>
           </div>
 
           {servers.length === 0 && <div className="panel-card" style={{ textAlign: "center", color: "var(--text-secondary)" }}>No MCP servers configured.</div>}
@@ -355,22 +355,22 @@ export function McpPanel() {
             return (
               <div key={srv.name} className="panel-card">
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, flex: 1 }}>
+                  <span style={{ fontSize: "var(--font-size-md)", fontWeight: 600, flex: 1 }}>
                     {srv.name}
-                    {tokenStatus[srv.name] && <span style={{ marginLeft: 6, fontSize: 10, color: "var(--success-color)", background: "color-mix(in srgb, var(--accent-green) 15%, transparent)", padding: "1px 5px", borderRadius: 3 }}>OAuth</span>}
+                    {tokenStatus[srv.name] && <span style={{ marginLeft: 6, fontSize: "var(--font-size-xs)", color: "var(--success-color)", background: "color-mix(in srgb, var(--accent-green) 15%, transparent)", padding: "1px 5px", borderRadius: 3 }}>OAuth</span>}
                   </span>
-                  <button onClick={() => testServer(idx)} disabled={testing === idx} className="panel-btn panel-btn-secondary" style={{ fontSize: 11, padding: "2px 8px" }}>{testing === idx ? "..." : "Test"}</button>
-                  <button onClick={() => startOAuth(srv.name)} className="panel-btn panel-btn-secondary" style={{ fontSize: 11, padding: "2px 8px" }}>OAuth</button>
-                  <button onClick={() => { setEditing({ ...srv, args: [...srv.args] }); setEditIdx(idx); }} className="panel-btn panel-btn-secondary" style={{ fontSize: 11, padding: "2px 8px" }}>Edit</button>
-                  <button onClick={() => setConfirmDelete(idx)} className="panel-btn panel-btn-danger" style={{ fontSize: 11, padding: "2px 8px" }}>✕</button>
+                  <button onClick={() => testServer(idx)} disabled={testing === idx} className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-sm)", padding: "2px 8px" }}>{testing === idx ? "..." : "Test"}</button>
+                  <button onClick={() => startOAuth(srv.name)} className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-sm)", padding: "2px 8px" }}>OAuth</button>
+                  <button onClick={() => { setEditing({ ...srv, args: [...srv.args] }); setEditIdx(idx); }} className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-sm)", padding: "2px 8px" }}>Edit</button>
+                  <button onClick={() => setConfirmDelete(idx)} className="panel-btn panel-btn-danger" style={{ fontSize: "var(--font-size-sm)", padding: "2px 8px" }}>✕</button>
                 </div>
-                <div style={{ fontSize: 11, color: "var(--text-secondary)", fontFamily: "var(--font-mono)", marginTop: 4 }}>$ {srv.command}{srv.args.length > 0 ? " " + srv.args.join(" ") : ""}</div>
-                {isErr && <div style={{ fontSize: 11, color: "var(--error-color)", marginTop: 4 }}>{res}</div>}
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", fontFamily: "var(--font-mono)", marginTop: 4 }}>$ {srv.command}{srv.args.length > 0 ? " " + srv.args.join(" ") : ""}</div>
+                {isErr && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--error-color)", marginTop: 4 }}>{res}</div>}
                 {isTools && res.length > 0 && (
                   <div style={{ marginTop: 4 }}>
-                    <div style={{ fontSize: 10, color: "var(--text-secondary)", textTransform: "uppercase" }}>{res.length} tool{res.length !== 1 ? "s" : ""}</div>
+                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", textTransform: "uppercase" }}>{res.length} tool{res.length !== 1 ? "s" : ""}</div>
                     {res.map(t => (
-                      <div key={t.name} style={{ fontSize: 11, display: "flex", gap: 6 }}>
+                      <div key={t.name} style={{ fontSize: "var(--font-size-sm)", display: "flex", gap: 6 }}>
                         <code style={{ color: "var(--accent-color)", flexShrink: 0 }}>{t.name}</code>
                         <span style={{ color: "var(--text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.description}</span>
                       </div>
@@ -405,14 +405,14 @@ export function McpPanel() {
                       <div style={{ fontWeight: 600 }}>{t.name} <span style={badgeStyle("loaded")}>built-in</span></div>
                       <div style={labelStyle}>{t.description}</div>
                     </div>
-                    <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>{t.category}</span>
+                    <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>{t.category}</span>
                   </div>
                 ));
               })()}
               {searchResults.map(r => (
                 <div key={r.tool_id} className="panel-card" style={{ display: "flex", justifyContent: "space-between" }}>
                   <div><div style={{ fontWeight: 600 }}>{r.name}</div><div style={labelStyle}>{r.description}</div></div>
-                  <div style={{ textAlign: "right" }}><div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Relevance</div><div style={{ fontWeight: 600, color: "var(--accent-primary)" }}>{(r.relevance * 100).toFixed(0)}%</div></div>
+                  <div style={{ textAlign: "right" }}><div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Relevance</div><div style={{ fontWeight: 600, color: "var(--accent-primary)" }}>{(r.relevance * 100).toFixed(0)}%</div></div>
                 </div>
               ))}
             </>
@@ -426,7 +426,7 @@ export function McpPanel() {
               </div>
 
               {/* Built-in Agent Tools */}
-              <div style={{ fontSize: 12, fontWeight: 600, margin: "12px 0 6px", color: "var(--text-secondary)" }}>BUILT-IN AGENT TOOLS</div>
+              <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, margin: "12px 0 6px", color: "var(--text-secondary)" }}>BUILT-IN AGENT TOOLS</div>
               {BUILTIN_TOOLS.map(t => (
                 <div key={t.name} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderLeft: "3px solid var(--success-color)" }}>
                   <div style={{ flex: 1 }}>
@@ -434,7 +434,7 @@ export function McpPanel() {
                     <div style={labelStyle}>{t.description}</div>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>{t.category}</span>
+                    <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>{t.category}</span>
                     <span style={badgeStyle("loaded")}>active</span>
                   </div>
                 </div>
@@ -472,7 +472,7 @@ export function McpPanel() {
                 if (serverNames.length === 0 && !serverToolsLoading) {
                   return (
                     <div className="panel-card" style={{ marginTop: 12 }}>
-                      <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                      <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>
                         No MCP server tools found. Add MCP servers in the Servers tab or install plugins from the Directory.
                       </div>
                     </div>
@@ -481,10 +481,10 @@ export function McpPanel() {
 
                 return (
                   <>
-                    <div style={{ fontSize: 12, fontWeight: 600, margin: "16px 0 6px", color: "var(--text-secondary)", display: "flex", justifyContent: "space-between" }}>
+                    <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, margin: "16px 0 6px", color: "var(--text-secondary)", display: "flex", justifyContent: "space-between" }}>
                       <span>MCP SERVER TOOLS</span>
-                      {serverToolsLoading && <span style={{ fontWeight: 400, fontSize: 11 }}>Discovering tools from {servers.length} server{servers.length !== 1 ? "s" : ""}...</span>}
-                      {!serverToolsLoading && <span style={{ fontWeight: 400, fontSize: 11 }}>{totalServerTools} tool{totalServerTools !== 1 ? "s" : ""} across {serverNames.length} server{serverNames.length !== 1 ? "s" : ""}</span>}
+                      {serverToolsLoading && <span style={{ fontWeight: 400, fontSize: "var(--font-size-sm)" }}>Discovering tools from {servers.length} server{servers.length !== 1 ? "s" : ""}...</span>}
+                      {!serverToolsLoading && <span style={{ fontWeight: 400, fontSize: "var(--font-size-sm)" }}>{totalServerTools} tool{totalServerTools !== 1 ? "s" : ""} across {serverNames.length} server{serverNames.length !== 1 ? "s" : ""}</span>}
                     </div>
 
                     {serverNames.map(serverName => {
@@ -499,10 +499,10 @@ export function McpPanel() {
                           ref={(el) => { serverSectionRefs.current[serverName] = el; }}
                         >
                           <div style={{
-                            fontSize: 11, fontWeight: 600, margin: "8px 0 4px", padding: "4px 8px",
+                            fontSize: "var(--font-size-sm)", fontWeight: 600, margin: "8px 0 4px", padding: "4px 8px",
                             background: isHighlighted ? "var(--accent-primary)" : "var(--bg-tertiary)",
                             color: isHighlighted ? "var(--btn-primary-fg, #fff)" : undefined,
-                            borderRadius: 4, display: "flex", justifyContent: "space-between",
+                            borderRadius: "var(--radius-xs-plus)", display: "flex", justifyContent: "space-between",
                             transition: "background 0.3s ease",
                           }}>
                             <span>{serverName}</span>
@@ -517,9 +517,9 @@ export function McpPanel() {
                             <div key={m.id} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginLeft: 8,
                               borderLeft: isHighlighted ? "3px solid var(--accent-primary)" : undefined, }}>
                               <div style={{ flex: 1 }}>
-                                <div style={{ fontWeight: 600 }}>{m.name} <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>v{m.version}</span></div>
+                                <div style={{ fontWeight: 600 }}>{m.name} <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>v{m.version}</span></div>
                                 <div style={labelStyle}>{m.description}</div>
-                                <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>
+                                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>
                                   {m.size_kb} KB{m.load_time_ms != null ? ` | ${m.load_time_ms}ms` : ""}
                                 </div>
                               </div>
@@ -545,7 +545,7 @@ export function McpPanel() {
                           ))}
 
                           {totalCount === 0 && (
-                            <div className="panel-card" style={{ marginLeft: 8, fontSize: 12, color: "var(--text-secondary)" }}>
+                            <div className="panel-card" style={{ marginLeft: 8, fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>
                               {serverToolsLoading ? "Connecting to server..." : "No tools discovered. Server may be offline."}
                             </div>
                           )}
@@ -580,7 +580,7 @@ export function McpPanel() {
 
                 return (
                   <>
-                    <div style={{ fontSize: 12, fontWeight: 600, margin: "16px 0 6px", color: "var(--text-secondary)" }}>
+                    <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, margin: "16px 0 6px", color: "var(--text-secondary)" }}>
                       INSTALLED PLUGINS ({installed.length}) — click to see tools
                     </div>
                     {installed.map(p => {
@@ -603,8 +603,8 @@ export function McpPanel() {
                             <div style={{ flex: 1 }}>
                               <div style={{ fontWeight: 600 }}>
                                 {isExpanded ? <ChevronDown size={10} style={{ marginRight: 4 }} /> : <ChevronRight size={10} style={{ marginRight: 4 }} />}
-                                {p.name} <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>v{p.version}</span>
-                                {tools.length > 0 && <span style={{ fontSize: 10, color: "var(--text-secondary)", marginLeft: 8 }}>({tools.length} tools)</span>}
+                                {p.name} <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>v{p.version}</span>
+                                {tools.length > 0 && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginLeft: 8 }}>({tools.length} tools)</span>}
                               </div>
                               <div style={labelStyle}>{p.description}</div>
                             </div>
@@ -620,14 +620,14 @@ export function McpPanel() {
                               padding: "4px 0",
                             }}>
                               {tools.length === 0 ? (
-                                <div style={{ padding: "8px 16px", fontSize: 12, color: "var(--text-secondary)" }}>Loading tools...</div>
+                                <div style={{ padding: "8px 16px", fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>Loading tools...</div>
                               ) : (
                                 tools.map(t => (
                                   <div key={t.name} style={{
                                     padding: "6px 16px 6px 28px",
                                     display: "flex", justifyContent: "space-between", alignItems: "center",
                                     borderBottom: "1px solid var(--border-color)",
-                                    fontSize: 12,
+                                    fontSize: "var(--font-size-base)",
                                   }}>
                                     <div>
                                       <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--accent-primary)" }}>{t.name}</span>
@@ -637,7 +637,7 @@ export function McpPanel() {
                                   </div>
                                 ))
                               )}
-                              <div style={{ padding: "6px 16px", fontSize: 10, color: "var(--text-secondary)" }}>
+                              <div style={{ padding: "6px 16px", fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>
                                 Config: <span style={{ fontFamily: "var(--font-mono)" }}>~/.vibecli/mcp/{p.id}/config.json</span>
                               </div>
                             </div>
@@ -662,16 +662,16 @@ export function McpPanel() {
               {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
-          <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8 }}>{dirResults.length} plugins | {installedCount} installed</div>
+          <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 8 }}>{dirResults.length} plugins | {installedCount} installed</div>
           {dirLoading && <div className="panel-card">Loading...</div>}
           {dirResults.map(p => (
             <div key={p.id} className="panel-card">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600 }}>{p.name} <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>v{p.version}</span></div>
-                  <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>by {p.author} | {p.category}</div>
-                  <div style={{ fontSize: 12, marginTop: 4 }}>{p.description}</div>
-                  <div style={{ display: "flex", gap: 12, marginTop: 4, fontSize: 11 }}>
+                  <div style={{ fontWeight: 600 }}>{p.name} <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>v{p.version}</span></div>
+                  <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 2 }}>by {p.author} | {p.category}</div>
+                  <div style={{ fontSize: "var(--font-size-base)", marginTop: 4 }}>{p.description}</div>
+                  <div style={{ display: "flex", gap: 12, marginTop: 4, fontSize: "var(--font-size-sm)" }}>
                     <span style={{ color: "var(--warning-color)" }}>{renderStars(p.rating)} {p.rating.toFixed(1)}</span>
                     <span style={{ color: "var(--text-secondary)" }}>{formatDl(p.downloads)} downloads</span>
                   </div>
@@ -695,8 +695,8 @@ export function McpPanel() {
               return (
                 <div className="panel-card">
                   <div style={{ textAlign: "center", padding: "20px 0" }}>
-                    <div style={{ fontSize: 14, marginBottom: 8 }}>No MCP plugins installed</div>
-                    <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 12 }}>
+                    <div style={{ fontSize: "var(--font-size-lg)", marginBottom: 8 }}>No MCP plugins installed</div>
+                    <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 12 }}>
                       Browse the Directory tab to find and install plugins.
                     </div>
                     <button className="panel-btn panel-btn-primary" onClick={() => setTab("directory")}>
@@ -743,32 +743,32 @@ export function McpPanel() {
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <span style={{ fontWeight: 600, fontSize: 14 }}>{p.name}</span>
-                          <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 8, background: "var(--bg-tertiary)", color: "var(--text-secondary)" }}>
+                          <span style={{ fontWeight: 600, fontSize: "var(--font-size-lg)" }}>{p.name}</span>
+                          <span style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px", borderRadius: "var(--radius-sm-alt)", background: "var(--bg-tertiary)", color: "var(--text-secondary)" }}>
                             v{p.version}
                           </span>
                           <span style={{
-                            fontSize: 10, padding: "1px 6px", borderRadius: 8,
+                            fontSize: "var(--font-size-xs)", padding: "1px 6px", borderRadius: "var(--radius-sm-alt)",
                             background: p.updatable ? "var(--warning-color)" : "var(--success-color)",
                             color: "var(--btn-primary-fg)",
                           }}>
                             {p.updatable ? "Update available" : "Up to date"}
                           </span>
                         </div>
-                        <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4 }}>
+                        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 4 }}>
                           by {p.author} | {p.category}
                         </div>
-                        <div style={{ fontSize: 12, marginTop: 4 }}>{p.description}</div>
+                        <div style={{ fontSize: "var(--font-size-base)", marginTop: 4 }}>{p.description}</div>
 
                         {/* Plugin details */}
-                        <div style={{ display: "flex", gap: 16, marginTop: 8, fontSize: 11 }}>
+                        <div style={{ display: "flex", gap: 16, marginTop: 8, fontSize: "var(--font-size-sm)" }}>
                           <span style={{ color: "var(--warning-color)" }}>{renderStars(p.rating)} {p.rating.toFixed(1)}</span>
                           <span style={{ color: "var(--text-secondary)" }}>{formatDl(p.downloads)} downloads</span>
                           <span style={{ color: "var(--text-secondary)" }}>ID: {p.id}</span>
                         </div>
 
                         {/* Config location hint */}
-                        <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 6, fontFamily: "var(--font-mono)" }}>
+                        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 6, fontFamily: "var(--font-mono)" }}>
                           Config: ~/.vibecli/mcp/{p.id}/config.json
                         </div>
                       </div>
@@ -778,7 +778,7 @@ export function McpPanel() {
                         {p.updatable && (
                           <button
                             className="panel-btn panel-btn-secondary"
-                            style={{ background: "var(--warning-color)", color: "var(--btn-primary-fg)", fontSize: 11 }}
+                            style={{ background: "var(--warning-color)", color: "var(--btn-primary-fg)", fontSize: "var(--font-size-sm)" }}
                             onClick={() => installPlugin(p.id)}
                             disabled={pluginAction === p.id}
                           >
@@ -787,7 +787,7 @@ export function McpPanel() {
                         )}
                         <button
                           className="panel-btn panel-btn-secondary"
-                          style={{ fontSize: 11 }}
+                          style={{ fontSize: "var(--font-size-sm)" }}
                           onClick={() => {
                             // Navigate to Tools tab and scroll to this plugin's server section
                             setToolsHighlightServer(p.name);
@@ -799,7 +799,7 @@ export function McpPanel() {
                         </button>
                         <button
                           className="panel-btn panel-btn-danger"
-                          style={{ fontSize: 11 }}
+                          style={{ fontSize: "var(--font-size-sm)" }}
                           onClick={() => uninstallPlugin(p.id)}
                           disabled={pluginAction === p.id}
                         >
@@ -826,15 +826,15 @@ export function McpPanel() {
           <div className="panel-card">
             <div style={labelStyle}>Cache Hit Rate</div>
             <div style={barBg}><div style={barFill(metrics.cache_hit_rate, "var(--success-color)")} /></div>
-            <div style={{ fontSize: 10, color: "var(--text-secondary)", marginTop: 4 }}>{metrics.cache_hit_rate.toFixed(1)}%</div>
+            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginTop: 4 }}>{metrics.cache_hit_rate.toFixed(1)}%</div>
           </div>
           <div className="panel-card">
             <div style={labelStyle}>Avg Load Time: {metrics.avg_load_time_ms}ms</div>
             {metrics.load_times.map(lt => (
               <div key={lt.label} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                <div style={{ width: 90, fontSize: 11 }}>{lt.label}</div>
+                <div style={{ width: 90, fontSize: "var(--font-size-sm)" }}>{lt.label}</div>
                 <div style={{ ...barBg, flex: 1 }}><div style={barFill((lt.ms / 60) * 100, "var(--info-color)")} /></div>
-                <div style={{ width: 40, fontSize: 10, textAlign: "right" }}>{lt.ms}ms</div>
+                <div style={{ width: 40, fontSize: "var(--font-size-xs)", textAlign: "right" }}>{lt.ms}ms</div>
               </div>
             ))}
           </div>
@@ -849,11 +849,11 @@ export function McpPanel() {
       {/* ── Modals ───────────────────────────────────────────────────────────── */}
       {editing && (
         <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
-          <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 8, padding: 20, width: 360, display: "flex", flexDirection: "column", gap: 10 }}>
-            <div style={{ fontSize: 13, fontWeight: 600 }}>{editIdx === null ? "Add MCP Server" : "Edit MCP Server"}</div>
-            <label style={{ fontSize: 12, display: "flex", flexDirection: "column", gap: 4 }}>Name<input autoFocus type="text" value={editing.name} onChange={e => setEditing({ ...editing, name: e.target.value })} placeholder="e.g. github" style={inputStyle} /></label>
-            <label style={{ fontSize: 12, display: "flex", flexDirection: "column", gap: 4 }}>Command<input type="text" value={editing.command} onChange={e => setEditing({ ...editing, command: e.target.value })} placeholder="npx @modelcontextprotocol/server-github" style={inputStyle} /></label>
-            <label style={{ fontSize: 12, display: "flex", flexDirection: "column", gap: 4 }}>Args (space-separated)<input type="text" value={editing.args.join(" ")} onChange={e => setEditing({ ...editing, args: e.target.value ? e.target.value.split(" ") : [] })} placeholder="optional" style={inputStyle} /></label>
+          <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm-alt)", padding: 20, width: 360, display: "flex", flexDirection: "column", gap: 10 }}>
+            <div style={{ fontSize: "var(--font-size-md)", fontWeight: 600 }}>{editIdx === null ? "Add MCP Server" : "Edit MCP Server"}</div>
+            <label style={{ fontSize: "var(--font-size-base)", display: "flex", flexDirection: "column", gap: 4 }}>Name<input autoFocus type="text" value={editing.name} onChange={e => setEditing({ ...editing, name: e.target.value })} placeholder="e.g. github" style={inputStyle} /></label>
+            <label style={{ fontSize: "var(--font-size-base)", display: "flex", flexDirection: "column", gap: 4 }}>Command<input type="text" value={editing.command} onChange={e => setEditing({ ...editing, command: e.target.value })} placeholder="npx @modelcontextprotocol/server-github" style={inputStyle} /></label>
+            <label style={{ fontSize: "var(--font-size-base)", display: "flex", flexDirection: "column", gap: 4 }}>Args (space-separated)<input type="text" value={editing.args.join(" ")} onChange={e => setEditing({ ...editing, args: e.target.value ? e.target.value.split(" ") : [] })} placeholder="optional" style={inputStyle} /></label>
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
               <button onClick={() => { setEditing(null); setEditIdx(null); }} className="panel-btn panel-btn-secondary">Cancel</button>
               <button onClick={commitEdit} disabled={!editing.name.trim() || !editing.command.trim() || saving} className="panel-btn panel-btn-primary">{saving ? "Saving..." : editIdx === null ? "Add" : "Save"}</button>
@@ -864,17 +864,17 @@ export function McpPanel() {
 
       {oauthForm && (
         <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 110 }}>
-          <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 8, padding: 20, width: 380, display: "flex", flexDirection: "column", gap: 10 }}>
-            <div style={{ fontSize: 13, fontWeight: 600 }}>OAuth — {oauthForm.serverName}</div>
+          <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm-alt)", padding: 20, width: 380, display: "flex", flexDirection: "column", gap: 10 }}>
+            <div style={{ fontSize: "var(--font-size-md)", fontWeight: 600 }}>OAuth — {oauthForm.serverName}</div>
             {oauthForm.step === "config" ? (<>
-              <label style={{ fontSize: 12, display: "flex", flexDirection: "column", gap: 3 }}>Client ID<input type="text" value={oauthForm.clientId} onChange={e => setOauthForm(f => f && { ...f, clientId: e.target.value })} style={inputStyle} /></label>
-              <label style={{ fontSize: 12, display: "flex", flexDirection: "column", gap: 3 }}>Auth URL<input type="text" value={oauthForm.authUrl} onChange={e => setOauthForm(f => f && { ...f, authUrl: e.target.value })} style={inputStyle} /></label>
-              <label style={{ fontSize: 12, display: "flex", flexDirection: "column", gap: 3 }}>Token URL<input type="text" value={oauthForm.tokenUrl} onChange={e => setOauthForm(f => f && { ...f, tokenUrl: e.target.value })} style={inputStyle} /></label>
-              <label style={{ fontSize: 12, display: "flex", flexDirection: "column", gap: 3 }}>Scopes<input type="text" value={oauthForm.scopes} onChange={e => setOauthForm(f => f && { ...f, scopes: e.target.value })} style={inputStyle} /></label>
+              <label style={{ fontSize: "var(--font-size-base)", display: "flex", flexDirection: "column", gap: 3 }}>Client ID<input type="text" value={oauthForm.clientId} onChange={e => setOauthForm(f => f && { ...f, clientId: e.target.value })} style={inputStyle} /></label>
+              <label style={{ fontSize: "var(--font-size-base)", display: "flex", flexDirection: "column", gap: 3 }}>Auth URL<input type="text" value={oauthForm.authUrl} onChange={e => setOauthForm(f => f && { ...f, authUrl: e.target.value })} style={inputStyle} /></label>
+              <label style={{ fontSize: "var(--font-size-base)", display: "flex", flexDirection: "column", gap: 3 }}>Token URL<input type="text" value={oauthForm.tokenUrl} onChange={e => setOauthForm(f => f && { ...f, tokenUrl: e.target.value })} style={inputStyle} /></label>
+              <label style={{ fontSize: "var(--font-size-base)", display: "flex", flexDirection: "column", gap: 3 }}>Scopes<input type="text" value={oauthForm.scopes} onChange={e => setOauthForm(f => f && { ...f, scopes: e.target.value })} style={inputStyle} /></label>
             </>) : (
-              <label style={{ fontSize: 12, display: "flex", flexDirection: "column", gap: 3 }}>Authorization Code<input autoFocus type="text" value={oauthForm.authCode} onChange={e => setOauthForm(f => f && { ...f, authCode: e.target.value })} style={inputStyle} /></label>
+              <label style={{ fontSize: "var(--font-size-base)", display: "flex", flexDirection: "column", gap: 3 }}>Authorization Code<input autoFocus type="text" value={oauthForm.authCode} onChange={e => setOauthForm(f => f && { ...f, authCode: e.target.value })} style={inputStyle} /></label>
             )}
-            {oauthForm.msg && <div style={{ fontSize: 11, padding: "6px 8px", borderRadius: 4, background: oauthForm.msg.startsWith("Error") ? "color-mix(in srgb, var(--accent-rose) 15%, transparent)" : "color-mix(in srgb, var(--accent-green) 15%, transparent)", color: oauthForm.msg.startsWith("Error") ? "var(--error-color)" : "var(--success-color)" }}>{oauthForm.msg}</div>}
+            {oauthForm.msg && <div style={{ fontSize: "var(--font-size-sm)", padding: "6px 8px", borderRadius: "var(--radius-xs-plus)", background: oauthForm.msg.startsWith("Error") ? "color-mix(in srgb, var(--accent-rose) 15%, transparent)" : "color-mix(in srgb, var(--accent-green) 15%, transparent)", color: oauthForm.msg.startsWith("Error") ? "var(--error-color)" : "var(--success-color)" }}>{oauthForm.msg}</div>}
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
               <button onClick={() => setOauthForm(null)} className="panel-btn panel-btn-secondary">Cancel</button>
               {oauthForm.step === "config" ? (
@@ -889,9 +889,9 @@ export function McpPanel() {
 
       {confirmDelete !== null && (
         <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
-          <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 8, padding: 20, maxWidth: 300, display: "flex", flexDirection: "column", gap: 12 }}>
-            <div style={{ fontSize: 13, fontWeight: 600 }}>Remove Server?</div>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Remove <strong>{servers[confirmDelete]?.name}</strong>?</div>
+          <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm-alt)", padding: 20, maxWidth: 300, display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={{ fontSize: "var(--font-size-md)", fontWeight: 600 }}>Remove Server?</div>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>Remove <strong>{servers[confirmDelete]?.name}</strong>?</div>
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
               <button onClick={() => setConfirmDelete(null)} className="panel-btn panel-btn-secondary">Cancel</button>
               <button onClick={async () => { await saveServers(servers.filter((_, i) => i !== confirmDelete)); setConfirmDelete(null); }} className="panel-btn panel-btn-danger">Remove</button>

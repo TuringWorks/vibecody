@@ -116,7 +116,7 @@ export function SupabasePanel({ workspacePath, provider }: { workspacePath: stri
  <div className="panel-container">
  <div className="panel-header">
  <h3>Supabase</h3>
- <span style={{ fontSize: "11px", padding: "2px 6px", borderRadius: "10px", background: connected ? "rgba(76,175,80,0.15)" : "color-mix(in srgb, var(--accent-rose) 15%, transparent)", color: connected ? "var(--success-color)" : "var(--error-color)" }}>
+ <span style={{ fontSize: "var(--font-size-sm)", padding: "2px 6px", borderRadius: "var(--radius-md)", background: connected ? "rgba(76,175,80,0.15)" : "color-mix(in srgb, var(--accent-rose) 15%, transparent)", color: connected ? "var(--success-color)" : "var(--error-color)" }}>
  {connected ? "Connected" : "Disconnected"}
  </span>
  </div>
@@ -144,13 +144,13 @@ export function SupabasePanel({ workspacePath, provider }: { workspacePath: stri
  {activeTab === "tables" && (
  <div>
  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
- <span style={{ color: "var(--text-secondary)", fontSize: "11px" }}>{tables.length} table(s)</span>
+ <span style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-sm)" }}>{tables.length} table(s)</span>
  <button className="panel-btn panel-btn-secondary" onClick={() => fetchTables()}>Refresh</button>
  </div>
  {tables.map(t => (
  <div key={t.name} role="button" tabIndex={0} onClick={() => selectTable(t.name)} onKeyDown={e => e.key === "Enter" && selectTable(t.name)} className="panel-card" style={{ display: "flex", justifyContent: "space-between", cursor: "pointer", background: selectedTable === t.name ? "var(--bg-tertiary)" : undefined }}>
  <span> {t.name}</span>
- <span style={{ color: "var(--text-secondary)", fontSize: "11px" }}>{t.row_count.toLocaleString()} rows</span>
+ <span style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-sm)" }}>{t.row_count.toLocaleString()} rows</span>
  </div>
  ))}
  {tables.length === 0 && <div className="panel-empty">No tables found</div>}
@@ -174,7 +174,7 @@ export function SupabasePanel({ workspacePath, provider }: { workspacePath: stri
  <thead><tr>{queryResult.columns.map(c => <th key={c}>{c}</th>)}</tr></thead>
  <tbody>{queryResult.rows.map((row, i) => <tr key={i}>{row.map((cell, j) => <td key={j}>{cell}</td>)}</tr>)}</tbody>
  </table>
- <div style={{ marginTop: "6px", color: "var(--text-secondary)", fontSize: "11px" }}>{queryResult.rows.length} row(s)</div>
+ <div style={{ marginTop: "6px", color: "var(--text-secondary)", fontSize: "var(--font-size-sm)" }}>{queryResult.rows.length} row(s)</div>
  </div>
  )}
  </div>
@@ -182,11 +182,11 @@ export function SupabasePanel({ workspacePath, provider }: { workspacePath: stri
 
  {activeTab === "ai" && (
  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
- <p style={{ color: "var(--text-secondary)", fontSize: "12px", margin: 0 }}>Describe what you want to query in plain English:</p>
+ <p style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-base)", margin: 0 }}>Describe what you want to query in plain English:</p>
  <textarea className="panel-input panel-textarea panel-input-full" style={{ height: "80px", resize: "vertical" }} placeholder="Show me all users who signed up in the last 7 days" value={naturalQuery} onChange={e => setNaturalQuery(e.target.value)} />
  <button className="panel-btn panel-btn-primary" onClick={generateQuery} disabled={loading || !naturalQuery.trim()}>Generate SQL</button>
  <div style={{ marginTop: "8px" }}>
- <p style={{ color: "var(--text-secondary)", fontSize: "11px", margin: "0 0 6px" }}>Quick queries:</p>
+ <p style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-sm)", margin: "0 0 6px" }}>Quick queries:</p>
  {[
  "Count rows in each table",
  "Show latest 20 records from selected table",

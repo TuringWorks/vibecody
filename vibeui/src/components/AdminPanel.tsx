@@ -129,9 +129,9 @@ export function AdminPanel() {
   ] as const;
 
   return (
-    <div className="panel-container" style={{ fontSize: 13 }}>
+    <div className="panel-container" style={{ fontSize: "var(--font-size-md)" }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <h3 style={{ margin: 0, fontSize: 15 }}>Admin Console</h3>
+        <h3 style={{ margin: 0, fontSize: "var(--font-size-xl)" }}>Admin Console</h3>
         <div style={{ display: 'flex', gap: 4 }}>
           {tabs.map(t => (
             <button key={t.key} onClick={() => setTab(t.key)} className={`panel-tab ${tab === t.key ? "active" : ""}`}>
@@ -154,9 +154,9 @@ export function AdminPanel() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
                     <span style={{ fontWeight: 600 }}>{m.name}</span>
-                    <span style={{ marginLeft: 8, color: 'var(--text-secondary)', fontSize: 11 }}>{m.email}</span>
+                    <span style={{ marginLeft: 8, color: 'var(--text-secondary)', fontSize: "var(--font-size-sm)" }}>{m.email}</span>
                     <span style={{
-                      marginLeft: 8, padding: '1px 6px', borderRadius: 3, fontSize: 10,
+                      marginLeft: 8, padding: '1px 6px', borderRadius: 3, fontSize: "var(--font-size-xs)",
                       background: `${ROLE_COLORS[m.role]}22`, color: ROLE_COLORS[m.role], fontWeight: 600,
                     }}>{m.role}</span>
                   </div>
@@ -165,7 +165,7 @@ export function AdminPanel() {
                     <button onClick={() => handleRemoveMember(m.id)} className="panel-btn panel-btn-danger panel-btn-xs">Remove</button>
                   </div>
                 </div>
-                <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 4 }}>
+                <div style={{ fontSize: "var(--font-size-xs)", color: 'var(--text-secondary)', marginTop: 4 }}>
                   Added: {new Date(m.added_at).toLocaleDateString()} | Last active: {new Date(m.last_active).toLocaleDateString()}
                   {m.api_keys.length > 0 && ` | ${m.api_keys.length} API key(s)`}
                 </div>
@@ -180,7 +180,7 @@ export function AdminPanel() {
 
       {tab === 'team' && editingMember && (
         <div className="panel-card" style={{ padding: 12 }}>
-          <h4 style={{ margin: '0 0 12px 0', fontSize: 13 }}>
+          <h4 style={{ margin: '0 0 12px 0', fontSize: "var(--font-size-md)" }}>
             {editingMember.name ? `Edit: ${editingMember.name}` : 'New Member'}
           </h4>
           <div style={{ marginBottom: 8 }}>
@@ -198,13 +198,13 @@ export function AdminPanel() {
             <div style={{ display: 'flex', gap: 8 }}>
               {(Object.keys(ROLE_COLORS) as Role[]).map(role => (
                 <button key={role} onClick={() => setEditingMember({ ...editingMember, role })} style={{
-                  padding: '6px 16px', fontSize: 12, borderRadius: 4, cursor: 'pointer', flex: 1,
+                  padding: '6px 16px', fontSize: "var(--font-size-base)", borderRadius: "var(--radius-xs-plus)", cursor: 'pointer', flex: 1,
                   background: editingMember.role === role ? `${ROLE_COLORS[role]}22` : 'var(--bg-tertiary)',
                   color: editingMember.role === role ? ROLE_COLORS[role] : 'var(--text-secondary)',
                   border: `1px solid ${editingMember.role === role ? ROLE_COLORS[role] : 'var(--border-color)'}`,
                 }}>
                   <div style={{ fontWeight: 600, textTransform: 'capitalize' }}>{role}</div>
-                  <div style={{ fontSize: 10, marginTop: 2 }}>{ROLE_DESCRIPTIONS[role]}</div>
+                  <div style={{ fontSize: "var(--font-size-xs)", marginTop: 2 }}>{ROLE_DESCRIPTIONS[role]}</div>
                 </button>
               ))}
             </div>
@@ -225,13 +225,13 @@ export function AdminPanel() {
           </div>
           <div style={{ display: 'grid', gap: 4 }}>
             {filteredAudit.map(entry => (
-              <div key={entry.id} className="panel-card" style={{ padding: '6px 8px', fontSize: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
-                <span style={{ color: 'var(--text-secondary)', fontSize: 10, minWidth: 70 }}>
+              <div key={entry.id} className="panel-card" style={{ padding: '6px 8px', fontSize: "var(--font-size-base)", display: 'flex', gap: 8, alignItems: 'center' }}>
+                <span style={{ color: 'var(--text-secondary)', fontSize: "var(--font-size-xs)", minWidth: 70 }}>
                   {new Date(entry.timestamp).toLocaleTimeString()}
                 </span>
                 <span style={{ fontWeight: 500, minWidth: 100 }}>{entry.actor}</span>
                 <span style={{
-                  padding: '1px 6px', borderRadius: 3, fontSize: 10, fontWeight: 600,
+                  padding: '1px 6px', borderRadius: 3, fontSize: "var(--font-size-xs)", fontWeight: 600,
                   background: entry.action.includes('delete') || entry.action.includes('remove')
                     ? 'color-mix(in srgb, var(--accent-rose) 15%, transparent)' : 'rgba(59,130,246,0.15)',
                   color: entry.action.includes('delete') || entry.action.includes('remove')
@@ -239,7 +239,7 @@ export function AdminPanel() {
                 }}>{entry.action}</span>
                 <span style={{ color: 'var(--text-secondary)' }}>{entry.target}</span>
                 {entry.details && (
-                  <span style={{ color: 'var(--text-secondary)', fontSize: 11 }}>{entry.details}</span>
+                  <span style={{ color: 'var(--text-secondary)', fontSize: "var(--font-size-sm)" }}>{entry.details}</span>
                 )}
               </div>
             ))}
@@ -262,15 +262,15 @@ export function AdminPanel() {
               <div key={p.id} className="panel-card" style={{ padding: '8px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   <span style={{
-                    padding: '2px 8px', borderRadius: 3, fontSize: 10, fontWeight: 600,
+                    padding: '2px 8px', borderRadius: 3, fontSize: "var(--font-size-xs)", fontWeight: 600,
                     background: p.action === 'allow' ? 'rgba(34,197,94,0.15)' : 'color-mix(in srgb, var(--accent-rose) 15%, transparent)',
                     color: p.action === 'allow' ? 'var(--success-color)' : 'var(--error-color)',
                   }}>{p.action.toUpperCase()}</span>
-                  <span className="panel-mono" style={{ fontSize: 12 }}>{p.resource}</span>
+                  <span className="panel-mono" style={{ fontSize: "var(--font-size-base)" }}>{p.resource}</span>
                   <div style={{ display: 'flex', gap: 4 }}>
                     {p.roles.map(r => (
                       <span key={r} style={{
-                        padding: '1px 5px', borderRadius: 3, fontSize: 10,
+                        padding: '1px 5px', borderRadius: 3, fontSize: "var(--font-size-xs)",
                         background: `${ROLE_COLORS[r]}22`, color: ROLE_COLORS[r],
                       }}>{r}</span>
                     ))}
@@ -289,7 +289,7 @@ export function AdminPanel() {
       {/* ── API Key Management ── */}
       {tab === 'keys' && (
         <div>
-          <div style={{ marginBottom: 12, color: 'var(--text-secondary)', fontSize: 12 }}>
+          <div style={{ marginBottom: 12, color: 'var(--text-secondary)', fontSize: "var(--font-size-base)" }}>
             Manage team-wide API keys for AI providers. Keys are encrypted and stored in the admin config.
           </div>
           <div style={{ display: 'grid', gap: 8 }}>
@@ -297,7 +297,7 @@ export function AdminPanel() {
               <div key={m.id} className="panel-card" style={{ padding: '8px 12px' }}>
                 <div style={{ fontWeight: 600, marginBottom: 4 }}>{m.name}</div>
                 {m.api_keys.map((k, i) => (
-                  <div key={i} className="panel-mono" style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+                  <div key={i} className="panel-mono" style={{ fontSize: "var(--font-size-sm)", color: 'var(--text-secondary)' }}>
                     {k.slice(0, 8)}...{k.slice(-4)}
                   </div>
                 ))}

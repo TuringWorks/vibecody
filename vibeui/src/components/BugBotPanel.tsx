@@ -107,8 +107,8 @@ export function BugBotPanel({ workspacePath, provider, onOpenFile }: BugBotPanel
  return (
  <div className="panel-container">
  <div className="panel-header">BugBot — AI Code Scanner</div>
- <div className="panel-body" style={{ gap: 10, display: "flex", flexDirection: "column", fontSize: 13 }}>
- <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>
+ <div className="panel-body" style={{ gap: 10, display: "flex", flexDirection: "column", fontSize: "var(--font-size-md)" }}>
+ <p style={{ margin: 0, fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>
  Automatically detects bugs, security vulnerabilities, and code smells using AI.
  </p>
 
@@ -162,12 +162,12 @@ export function BugBotPanel({ workspacePath, provider, onOpenFile }: BugBotPanel
  onClick={() => setFilterSeverity(filterSeverity === s ? "all" : s)}
  style={{
  padding: "2px 8px",
- borderRadius: 4,
+ borderRadius: "var(--radius-xs-plus)",
  border: `1px solid ${SEVERITY_COLOR[s]}`,
  background: filterSeverity === s ? `${SEVERITY_COLOR[s]}33` : "transparent",
  color: SEVERITY_COLOR[s],
  cursor: "pointer",
- fontSize: 11,
+ fontSize: "var(--font-size-sm)",
  fontWeight: 600,
  }}
  >
@@ -177,11 +177,11 @@ export function BugBotPanel({ workspacePath, provider, onOpenFile }: BugBotPanel
  )}
  <button
  onClick={() => { setFilterSeverity("all"); setFilterCategory("all"); }}
- style={{ padding: "2px 8px", borderRadius: 4, border: "1px solid var(--border-color)", background: "transparent", color: "var(--text-secondary)", cursor: "pointer", fontSize: 11 }}
+ style={{ padding: "2px 8px", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", background: "transparent", color: "var(--text-secondary)", cursor: "pointer", fontSize: "var(--font-size-sm)" }}
  >
  Clear filters
  </button>
- <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--text-secondary)", alignSelf: "center" }}>
+ <span style={{ marginLeft: "auto", fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", alignSelf: "center" }}>
  {filtered.length}/{reports.length} shown
  </span>
  </div>
@@ -196,12 +196,12 @@ export function BugBotPanel({ workspacePath, provider, onOpenFile }: BugBotPanel
  onClick={() => setFilterCategory(c)}
  style={{
  padding: "2px 7px",
- borderRadius: 4,
+ borderRadius: "var(--radius-xs-plus)",
  border: "1px solid var(--border-color)",
  background: filterCategory === c ? "var(--bg-secondary)" : "transparent",
  color: filterCategory === c ? "var(--text-primary)" : "var(--text-secondary)",
  cursor: "pointer",
- fontSize: 11,
+ fontSize: "var(--font-size-sm)",
  }}
  >
  {c === "all" ? "All" : CATEGORY_LABEL[c]}
@@ -213,14 +213,14 @@ export function BugBotPanel({ workspacePath, provider, onOpenFile }: BugBotPanel
  {/* Issue list */}
  <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6 }}>
  {scanning && (
- <div style={{ textAlign: "center", padding: 24, color: "var(--text-secondary)", fontSize: 13 }}>
+ <div style={{ textAlign: "center", padding: 24, color: "var(--text-secondary)", fontSize: "var(--font-size-md)" }}>
  Analyzing code with AI…<br />
- <span style={{ fontSize: 11, opacity: 0.7 }}>This may take 15–30 seconds</span>
+ <span style={{ fontSize: "var(--font-size-sm)", opacity: 0.7 }}>This may take 15–30 seconds</span>
  </div>
  )}
 
  {!scanning && reports.length === 0 && !error && (
- <div style={{ textAlign: "center", padding: 24, color: "var(--text-secondary)", fontSize: 13, lineHeight: 1.7 }}>
+ <div style={{ textAlign: "center", padding: 24, color: "var(--text-secondary)", fontSize: "var(--font-size-md)", lineHeight: 1.7 }}>
  No scan results yet.<br />
  Click <strong>Run Scan</strong> to analyze your workspace.
  </div>
@@ -232,7 +232,7 @@ export function BugBotPanel({ workspacePath, provider, onOpenFile }: BugBotPanel
  style={{
  border: `1px solid ${SEVERITY_COLOR[report.severity]}44`,
  borderLeft: `3px solid ${SEVERITY_COLOR[report.severity]}`,
- borderRadius: 6,
+ borderRadius: "var(--radius-sm)",
  background: "var(--bg-tertiary)",
  }}
  >
@@ -241,14 +241,14 @@ export function BugBotPanel({ workspacePath, provider, onOpenFile }: BugBotPanel
  onClick={() => setExpanded(expanded === report.id ? null : report.id)}
  style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "8px 10px", cursor: "pointer" }}
  >
- <span style={{ fontSize: 14, flexShrink: 0, marginTop: 1 }}>{SEVERITY_ICON[report.severity]}</span>
+ <span style={{ fontSize: "var(--font-size-lg)", flexShrink: 0, marginTop: 1 }}>{SEVERITY_ICON[report.severity]}</span>
  <div style={{ flex: 1, minWidth: 0 }}>
- <div style={{ fontWeight: 600, fontSize: 12 }}>{report.title}</div>
+ <div style={{ fontWeight: 600, fontSize: "var(--font-size-base)" }}>{report.title}</div>
  <div style={{ display: "flex", gap: 6, marginTop: 3, flexWrap: "wrap" }}>
- <span style={{ fontSize: 10, padding: "1px 5px", borderRadius: 3, background: `${SEVERITY_COLOR[report.severity]}22`, color: SEVERITY_COLOR[report.severity], fontWeight: 600 }}>
+ <span style={{ fontSize: "var(--font-size-xs)", padding: "1px 5px", borderRadius: 3, background: `${SEVERITY_COLOR[report.severity]}22`, color: SEVERITY_COLOR[report.severity], fontWeight: 600 }}>
  {report.severity.toUpperCase()}
  </span>
- <span style={{ fontSize: 10, padding: "1px 5px", borderRadius: 3, background: "var(--bg-secondary)", color: "var(--text-secondary)" }}>
+ <span style={{ fontSize: "var(--font-size-xs)", padding: "1px 5px", borderRadius: 3, background: "var(--bg-secondary)", color: "var(--text-secondary)" }}>
  {CATEGORY_LABEL[report.category] || report.category}
  </span>
  {report.file_path && (
@@ -262,7 +262,7 @@ export function BugBotPanel({ workspacePath, provider, onOpenFile }: BugBotPanel
  onOpenFile(fullPath, report.line_hint ?? undefined);
  }
  }}
- style={{ fontSize: 10, color: "var(--accent-blue)", fontFamily: "var(--font-mono)", cursor: onOpenFile ? "pointer" : "default", textDecoration: onOpenFile ? "underline" : "none" }}
+ style={{ fontSize: "var(--font-size-xs)", color: "var(--accent-blue)", fontFamily: "var(--font-mono)", cursor: onOpenFile ? "pointer" : "default", textDecoration: onOpenFile ? "underline" : "none" }}
  title="Open in editor"
  >
  {report.file_path}{report.line_hint ? `:${report.line_hint}` : ""}
@@ -270,7 +270,7 @@ export function BugBotPanel({ workspacePath, provider, onOpenFile }: BugBotPanel
  )}
  </div>
  </div>
- <span style={{ fontSize: 12, color: "var(--text-secondary)", flexShrink: 0 }}>
+ <span style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", flexShrink: 0 }}>
  {expanded === report.id ? "" : <ChevronDown size={12} />}
  </span>
  </div>
@@ -279,17 +279,17 @@ export function BugBotPanel({ workspacePath, provider, onOpenFile }: BugBotPanel
  {expanded === report.id && (
  <div style={{ borderTop: "1px solid var(--bg-secondary)", padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
  <div>
- <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 3 }}>PROBLEM</div>
- <div style={{ fontSize: 12, lineHeight: 1.6 }}>{report.description}</div>
+ <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, color: "var(--text-secondary)", marginBottom: 3 }}>PROBLEM</div>
+ <div style={{ fontSize: "var(--font-size-base)", lineHeight: 1.6 }}>{report.description}</div>
  </div>
  <div>
- <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 3 }}>SUGGESTION</div>
- <div style={{ fontSize: 12, lineHeight: 1.6, color: "var(--text-success)" }}>{report.suggestion}</div>
+ <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, color: "var(--text-secondary)", marginBottom: 3 }}>SUGGESTION</div>
+ <div style={{ fontSize: "var(--font-size-base)", lineHeight: 1.6, color: "var(--text-success)" }}>{report.suggestion}</div>
  </div>
  {report.fix_snippet && (
  <div>
- <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 3 }}>FIX</div>
- <pre style={{ fontSize: 11, background: "var(--bg-primary)", padding: 8, borderRadius: 4, margin: 0, overflow: "auto", lineHeight: 1.5, color: "var(--text-primary)" }}>
+ <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, color: "var(--text-secondary)", marginBottom: 3 }}>FIX</div>
+ <pre style={{ fontSize: "var(--font-size-sm)", background: "var(--bg-primary)", padding: 8, borderRadius: "var(--radius-xs-plus)", margin: 0, overflow: "auto", lineHeight: 1.5, color: "var(--text-primary)" }}>
  {report.fix_snippet}
  </pre>
  </div>
@@ -301,7 +301,7 @@ export function BugBotPanel({ workspacePath, provider, onOpenFile }: BugBotPanel
  </div>
 
  {reports.length > 0 && (
- <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+ <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
  {reports.length} issue{reports.length !== 1 ? "s" : ""} found — click any issue to expand
  </div>
  )}

@@ -75,7 +75,7 @@ export function CompanyGoalsPanel({ workspacePath: _wp }: CompanyGoalsPanelProps
       <div className="panel-body">
 
       {cmdResult && (
-        <div className="panel-card" style={{ marginBottom: 12, fontSize: 12 }}>
+        <div className="panel-card" style={{ marginBottom: 12, fontSize: "var(--font-size-base)" }}>
           {cmdResult}
           <button onClick={() => setCmdResult(null)} style={{ marginLeft: 8, cursor: "pointer", background: "none", border: "none", color: "var(--text-secondary)", display: "inline-flex" }}><X size={12} /></button>
         </div>
@@ -101,17 +101,17 @@ export function CompanyGoalsPanel({ workspacePath: _wp }: CompanyGoalsPanelProps
           <div className="panel-empty" style={{ padding: 24 }}>
             <div style={{ marginBottom: 8, display: "flex", justifyContent: "center", color: "var(--accent, #4a9eff)" }}><Target size={32} strokeWidth={1.5} /></div>
             <div style={{ fontWeight: 600, marginBottom: 4 }}>No goals yet</div>
-            <div style={{ color: "var(--text-secondary)", fontSize: 12, marginBottom: 16 }}>
+            <div style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-base)", marginBottom: 16 }}>
               Set company goals to track progress
             </div>
-            <button onClick={() => setView("create")} className="panel-btn panel-btn-primary" style={{ fontSize: 12 }}>+ Create Goal</button>
+            <button onClick={() => setView("create")} className="panel-btn panel-btn-primary" style={{ fontSize: "var(--font-size-base)" }}>+ Create Goal</button>
           </div>
         ) : (
           <div className="panel-card" style={{ minHeight: 120 }}>
             {loading ? (
               <span className="panel-loading">Loading…</span>
             ) : (
-              <pre style={{ margin: 0, fontSize: 12, whiteSpace: "pre-wrap", lineHeight: 1.7, fontFamily: "inherit" }}>{output}</pre>
+              <pre style={{ margin: 0, fontSize: "var(--font-size-base)", whiteSpace: "pre-wrap", lineHeight: 1.7, fontFamily: "inherit" }}>{output}</pre>
             )}
           </div>
         )
@@ -123,14 +123,14 @@ export function CompanyGoalsPanel({ workspacePath: _wp }: CompanyGoalsPanelProps
           {loading ? (
             <span className="panel-loading">Loading…</span>
           ) : (
-            <pre style={{ margin: 0, fontSize: 12, whiteSpace: "pre-wrap", lineHeight: 1.7, fontFamily: "inherit" }}>
+            <pre style={{ margin: 0, fontSize: "var(--font-size-base)", whiteSpace: "pre-wrap", lineHeight: 1.7, fontFamily: "inherit" }}>
               {treeOutput || "No goals yet."}
             </pre>
           )}
         </div>
       )}
 
-      <div style={{ marginTop: 10, fontSize: 11, color: "var(--text-secondary)" }}>
+      <div style={{ marginTop: 10, fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
         Workflow: planned → active → achieved | cancelled
       </div>
       </div>

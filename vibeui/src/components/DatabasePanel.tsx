@@ -331,7 +331,7 @@ function ConnectionWizard({ workspacePath, onClose, onSaved, toast }: WizardProp
         style={{
           background: "var(--bg-primary, #1e1e2e)",
           border: "1px solid var(--border-color, #3a3a5c)",
-          borderRadius: 10,
+          borderRadius: "var(--radius-md)",
           width: "min(820px, 96vw)",
           maxHeight: "90vh",
           display: "flex",
@@ -349,7 +349,7 @@ function ConnectionWizard({ workspacePath, onClose, onSaved, toast }: WizardProp
             justifyContent: "space-between",
           }}
         >
-          <h2 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>
+          <h2 style={{ margin: 0, fontSize: "var(--font-size-xl)", fontWeight: 600, color: "var(--text-primary)" }}>
             {step === 1 ? "Select Database Type" : `Configure ${selectedDriver ? catalogEntry(selectedDriver).label : ""}`}
           </h2>
           <button
@@ -378,7 +378,7 @@ function ConnectionWizard({ workspacePath, onClose, onSaved, toast }: WizardProp
                 <div key={cat} style={{ marginBottom: 20 }}>
                   <div
                     style={{
-                      fontSize: 10,
+                      fontSize: "var(--font-size-xs)",
                       fontWeight: 700,
                       textTransform: "uppercase",
                       letterSpacing: "0.08em",
@@ -406,10 +406,10 @@ function ConnectionWizard({ workspacePath, onClose, onSaved, toast }: WizardProp
                           padding: "9px 12px",
                           background: "var(--bg-secondary, #2a2a3e)",
                           border: "1px solid var(--border-color, #3a3a5c)",
-                          borderRadius: 6,
+                          borderRadius: "var(--radius-sm)",
                           cursor: "pointer",
                           color: "var(--text-primary)",
-                          fontSize: 12,
+                          fontSize: "var(--font-size-base)",
                           fontWeight: 500,
                           textAlign: "left",
                           transition: "border-color 0.15s",
@@ -433,7 +433,7 @@ function ConnectionWizard({ workspacePath, onClose, onSaved, toast }: WizardProp
           <div style={{ flex: 1, overflowY: "auto", padding: 20, display: "flex", flexDirection: "column", gap: 14 }}>
             {/* Connection name */}
             <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }}>Connection name</span>
+              <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)", fontWeight: 600 }}>Connection name</span>
               <input
                 className="panel-input panel-input-full"
                 value={profileName}
@@ -446,7 +446,7 @@ function ConnectionWizard({ workspacePath, onClose, onSaved, toast }: WizardProp
             {isFileBased && (
               <>
                 <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }}>File path</span>
+                  <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)", fontWeight: 600 }}>File path</span>
                   <input
                     className="panel-input panel-input-full"
                     value={params.filepath ?? ""}
@@ -456,7 +456,7 @@ function ConnectionWizard({ workspacePath, onClose, onSaved, toast }: WizardProp
                 </label>
                 {localFiles.length > 0 && (
                   <div>
-                    <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 6, fontWeight: 600 }}>
+                    <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)", marginBottom: 6, fontWeight: 600 }}>
                       Found in workspace:
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -470,9 +470,9 @@ function ConnectionWizard({ workspacePath, onClose, onSaved, toast }: WizardProp
                               textAlign: "left",
                               background: params.filepath === f.path ? "var(--bg-tertiary)" : "var(--bg-secondary)",
                               border: "1px solid var(--border-color)",
-                              borderRadius: 4,
+                              borderRadius: "var(--radius-xs-plus)",
                               padding: "5px 10px",
-                              fontSize: 11,
+                              fontSize: "var(--font-size-sm)",
                               color: "var(--text-primary)",
                               cursor: "pointer",
                               fontFamily: "var(--font-mono)",
@@ -490,7 +490,7 @@ function ConnectionWizard({ workspacePath, onClose, onSaved, toast }: WizardProp
             {/* Cloud connection string (primary) */}
             {isCloudString && !isTurso && (
               <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }}>Connection string</span>
+                <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)", fontWeight: 600 }}>Connection string</span>
                 <input
                   className="panel-input panel-input-full"
                   value={params.connection_string ?? ""}
@@ -510,11 +510,11 @@ function ConnectionWizard({ workspacePath, onClose, onSaved, toast }: WizardProp
             {isTurso && (
               <>
                 <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }}>URL</span>
+                  <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)", fontWeight: 600 }}>URL</span>
                   <input className="panel-input panel-input-full" value={params.url ?? ""} onChange={(e) => updateParam("url", e.target.value)} placeholder="libsql://your-db.turso.io" />
                 </label>
                 <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }}>Auth token</span>
+                  <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)", fontWeight: 600 }}>Auth token</span>
                   <input className="panel-input panel-input-full" type="password" value={params.token ?? ""} onChange={(e) => updateParam("token", e.target.value)} placeholder="eyJ..." />
                 </label>
               </>
@@ -523,7 +523,7 @@ function ConnectionWizard({ workspacePath, onClose, onSaved, toast }: WizardProp
             {/* Elasticsearch / OpenSearch */}
             {isElastic && (
               <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }}>URL</span>
+                <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)", fontWeight: 600 }}>URL</span>
                 <input className="panel-input panel-input-full" value={params.url ?? ""} onChange={(e) => updateParam("url", e.target.value)} placeholder="http://localhost:9200" />
               </label>
             )}
@@ -532,23 +532,23 @@ function ConnectionWizard({ workspacePath, onClose, onSaved, toast }: WizardProp
             {isSnowflake && (
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }}>Account identifier</span>
+                  <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)", fontWeight: 600 }}>Account identifier</span>
                   <input className="panel-input panel-input-full" value={params.account ?? ""} onChange={(e) => updateParam("account", e.target.value)} placeholder="org-account" />
                 </label>
                 <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }}>Warehouse</span>
+                  <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)", fontWeight: 600 }}>Warehouse</span>
                   <input className="panel-input panel-input-full" value={params.warehouse ?? ""} onChange={(e) => updateParam("warehouse", e.target.value)} placeholder="COMPUTE_WH" />
                 </label>
                 <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }}>Username</span>
+                  <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)", fontWeight: 600 }}>Username</span>
                   <input className="panel-input panel-input-full" value={params.username ?? ""} onChange={(e) => updateParam("username", e.target.value)} placeholder="user" />
                 </label>
                 <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }}>Password</span>
+                  <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)", fontWeight: 600 }}>Password</span>
                   <input className="panel-input panel-input-full" type="password" value={params.password ?? ""} onChange={(e) => updateParam("password", e.target.value)} placeholder="••••••••" />
                 </label>
                 <label style={{ display: "flex", flexDirection: "column", gap: 4, gridColumn: "1 / -1" }}>
-                  <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }}>Database</span>
+                  <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)", fontWeight: 600 }}>Database</span>
                   <input className="panel-input panel-input-full" value={params.database ?? ""} onChange={(e) => updateParam("database", e.target.value)} placeholder="MY_DATABASE" />
                 </label>
               </div>
@@ -558,11 +558,11 @@ function ConnectionWizard({ workspacePath, onClose, onSaved, toast }: WizardProp
             {isBigQuery && (
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }}>Project ID</span>
+                  <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)", fontWeight: 600 }}>Project ID</span>
                   <input className="panel-input panel-input-full" value={params.project ?? ""} onChange={(e) => updateParam("project", e.target.value)} placeholder="my-gcp-project" />
                 </label>
                 <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }}>Dataset</span>
+                  <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)", fontWeight: 600 }}>Dataset</span>
                   <input className="panel-input panel-input-full" value={params.dataset ?? ""} onChange={(e) => updateParam("dataset", e.target.value)} placeholder="my_dataset" />
                 </label>
               </div>
@@ -572,15 +572,15 @@ function ConnectionWizard({ workspacePath, onClose, onSaved, toast }: WizardProp
             {isKV && (
               <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10 }}>
                 <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }}>Host</span>
+                  <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)", fontWeight: 600 }}>Host</span>
                   <input className="panel-input panel-input-full" value={params.host ?? ""} onChange={(e) => updateParam("host", e.target.value)} placeholder="127.0.0.1" />
                 </label>
                 <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }}>Port</span>
+                  <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)", fontWeight: 600 }}>Port</span>
                   <input className="panel-input" style={{ width: 80 }} type="number" value={params.port ?? 6379} onChange={(e) => updateParam("port", Number(e.target.value))} />
                 </label>
                 <label style={{ display: "flex", flexDirection: "column", gap: 4, gridColumn: "1 / -1" }}>
-                  <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }}>Password (optional)</span>
+                  <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)", fontWeight: 600 }}>Password (optional)</span>
                   <input className="panel-input panel-input-full" type="password" value={params.password ?? ""} onChange={(e) => updateParam("password", e.target.value)} placeholder="••••••••" />
                 </label>
               </div>
@@ -591,43 +591,43 @@ function ConnectionWizard({ workspacePath, onClose, onSaved, toast }: WizardProp
               <>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10 }}>
                   <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                    <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }}>Host</span>
+                    <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)", fontWeight: 600 }}>Host</span>
                     <input className="panel-input panel-input-full" value={params.host ?? ""} onChange={(e) => updateParam("host", e.target.value)} placeholder="localhost" />
                   </label>
                   <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                    <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }}>Port</span>
+                    <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)", fontWeight: 600 }}>Port</span>
                     <input className="panel-input" style={{ width: 80 }} type="number" value={params.port ?? ""} onChange={(e) => updateParam("port", Number(e.target.value))} />
                   </label>
                 </div>
                 <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }}>Database</span>
+                  <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)", fontWeight: 600 }}>Database</span>
                   <input className="panel-input panel-input-full" value={params.database ?? ""} onChange={(e) => updateParam("database", e.target.value)} placeholder="mydb" />
                 </label>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                   <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                    <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }}>Username</span>
+                    <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)", fontWeight: 600 }}>Username</span>
                     <input className="panel-input panel-input-full" value={params.username ?? ""} onChange={(e) => updateParam("username", e.target.value)} placeholder="admin" />
                   </label>
                   <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                    <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }}>Password</span>
+                    <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)", fontWeight: 600 }}>Password</span>
                     <input className="panel-input panel-input-full" type="password" value={params.password ?? ""} onChange={(e) => updateParam("password", e.target.value)} placeholder="••••••••" />
                   </label>
                 </div>
                 <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
                   <input type="checkbox" checked={params.ssl ?? false} onChange={(e) => updateParam("ssl", e.target.checked)} />
-                  <span style={{ fontSize: 12, color: "var(--text-primary)" }}>Use SSL / TLS</span>
+                  <span style={{ fontSize: "var(--font-size-base)", color: "var(--text-primary)" }}>Use SSL / TLS</span>
                 </label>
               </>
             )}
 
             {/* Test result banner */}
             {testStatus === "ok" && (
-              <div style={{ background: "rgba(34,197,94,0.15)", border: "1px solid #22c55e", borderRadius: 6, padding: "8px 12px", fontSize: 12, color: "#22c55e" }}>
+              <div style={{ background: "rgba(34,197,94,0.15)", border: "1px solid #22c55e", borderRadius: "var(--radius-sm)", padding: "8px 12px", fontSize: "var(--font-size-base)", color: "var(--success-color)" }}>
                 <Check size={12} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} /> {testMessage}
               </div>
             )}
             {testStatus === "fail" && (
-              <div className="panel-error" role="alert" style={{ fontSize: 12, padding: "8px 12px" }}>
+              <div className="panel-error" role="alert" style={{ fontSize: "var(--font-size-base)", padding: "8px 12px" }}>
                 {testMessage}
               </div>
             )}
@@ -707,7 +707,7 @@ function SchemaTree({ tables, selectedTable, onTableClick }: SchemaTreeProps) {
 
   if (tables.length === 0) {
     return (
-      <div style={{ padding: 12, fontSize: 11, opacity: 0.5, textAlign: "center" }}>
+      <div style={{ padding: 12, fontSize: "var(--font-size-sm)", opacity: 0.5, textAlign: "center" }}>
         No schema loaded
       </div>
     );
@@ -728,7 +728,7 @@ function SchemaTree({ tables, selectedTable, onTableClick }: SchemaTreeProps) {
                 padding: "4px 10px",
                 background: isSelected ? "var(--bg-tertiary)" : "transparent",
                 cursor: "pointer",
-                fontSize: 12,
+                fontSize: "var(--font-size-base)",
                 color: "var(--text-primary)",
                 userSelect: "none",
               }}
@@ -758,16 +758,16 @@ function SchemaTree({ tables, selectedTable, onTableClick }: SchemaTreeProps) {
                       alignItems: "center",
                       gap: 4,
                       padding: "2px 8px",
-                      fontSize: 11,
+                      fontSize: "var(--font-size-sm)",
                       color: "var(--text-muted)",
                       fontFamily: "var(--font-mono)",
                     }}
                   >
-                    {col.primary_key && <span style={{ color: "#f59e0b", fontSize: 9 }}>PK</span>}
+                    {col.primary_key && <span style={{ color: "var(--warning-color)", fontSize: 9 }}>PK</span>}
                     <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
                       {col.name}
                     </span>
-                    <span style={{ fontSize: 10, opacity: 0.45, flexShrink: 0 }}>{col.data_type}</span>
+                    <span style={{ fontSize: "var(--font-size-xs)", opacity: 0.45, flexShrink: 0 }}>{col.data_type}</span>
                     {col.nullable && <span style={{ fontSize: 9, opacity: 0.35 }}>?</span>}
                   </div>
                 ))}
@@ -958,7 +958,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
   if (!workspacePath) {
     return (
       <div className="panel-container" style={{ alignItems: "center", justifyContent: "center" }}>
-        <div style={{ textAlign: "center", opacity: 0.6, fontSize: 13 }}>
+        <div style={{ textAlign: "center", opacity: 0.6, fontSize: "var(--font-size-md)" }}>
           <div style={{ marginBottom: 12, display: "flex", justifyContent: "center" }}><Database size={32} /></div>
           <p>Open a workspace folder to use the database browser.</p>
         </div>
@@ -986,7 +986,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
           style={{
             padding: "10px 12px 8px",
             borderBottom: "1px solid var(--border-color)",
-            fontSize: 11,
+            fontSize: "var(--font-size-sm)",
             fontWeight: 700,
             textTransform: "uppercase",
             letterSpacing: "0.07em",
@@ -1003,7 +1003,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
             </div>
           )}
           {profilesLoaded && profiles.length === 0 && (
-            <div style={{ padding: "16px 12px", fontSize: 11, opacity: 0.5, textAlign: "center" }}>
+            <div style={{ padding: "16px 12px", fontSize: "var(--font-size-sm)", opacity: 0.5, textAlign: "center" }}>
               No saved connections
             </div>
           )}
@@ -1031,7 +1031,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div
                     style={{
-                      fontSize: 12,
+                      fontSize: "var(--font-size-base)",
                       fontWeight: isActive ? 600 : 400,
                       color: "var(--text-primary)",
                       overflow: "hidden",
@@ -1041,7 +1041,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
                   >
                     {p.name}
                   </div>
-                  <div style={{ fontSize: 10, opacity: 0.5 }}>{entry.label}</div>
+                  <div style={{ fontSize: "var(--font-size-xs)", opacity: 0.5 }}>{entry.label}</div>
                 </div>
                 <StatusDot status={status} />
                 <button
@@ -1074,7 +1074,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
           <button
             onClick={() => setShowWizard(true)}
             className="panel-btn panel-btn-primary"
-            style={{ width: "100%", fontSize: 12 }}
+            style={{ width: "100%", fontSize: "var(--font-size-base)" }}
           >
             ＋ New Connection
           </button>
@@ -1104,7 +1104,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
           {connEntry && <connEntry.icon size={13} style={{ color: "var(--text-secondary)" }} />}
           <span
             style={{
-              fontSize: 11,
+              fontSize: "var(--font-size-sm)",
               fontWeight: 700,
               textTransform: "uppercase",
               letterSpacing: "0.07em",
@@ -1127,7 +1127,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
             </div>
           )}
           {activeConn?.status === "error" && (
-            <div className="panel-error" style={{ margin: 8, fontSize: 11, padding: "6px 10px" }} role="alert">
+            <div className="panel-error" style={{ margin: 8, fontSize: "var(--font-size-sm)", padding: "6px 10px" }} role="alert">
               Connection error. Click to retry.
             </div>
           )}
@@ -1139,7 +1139,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
             />
           )}
           {!activeConn && (
-            <div style={{ padding: "20px 12px", fontSize: 11, opacity: 0.4, textAlign: "center" }}>
+            <div style={{ padding: "20px 12px", fontSize: "var(--font-size-sm)", opacity: 0.4, textAlign: "center" }}>
               Select a connection to view schema
             </div>
           )}
@@ -1165,14 +1165,14 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
             onKeyDown={(e) => e.key === "Enter" && !isNlLoading && handleNlQuery()}
             placeholder="Ask in plain English — e.g., 'Show users signed up this week'"
             className="panel-input panel-input-full"
-            style={{ flex: 1, fontSize: 12 }}
+            style={{ flex: 1, fontSize: "var(--font-size-base)" }}
             disabled={!activeConn || activeConn.status !== "connected"}
           />
           <button
             onClick={handleNlQuery}
             disabled={isNlLoading || !nlQuery.trim() || activeConn?.status !== "connected"}
             className="panel-btn panel-btn-primary"
-            style={{ whiteSpace: "nowrap", fontSize: 12 }}
+            style={{ whiteSpace: "nowrap", fontSize: "var(--font-size-base)" }}
           >
             {isNlLoading ? (
               <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
@@ -1203,7 +1203,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
               rows={4}
               placeholder="SELECT * FROM users LIMIT 50   — Ctrl+Enter to run"
               className="panel-input panel-textarea panel-input-full"
-              style={{ fontFamily: "var(--font-mono)", fontSize: 12, resize: "vertical", minHeight: 72 }}
+              style={{ fontFamily: "var(--font-mono)", fontSize: "var(--font-size-base)", resize: "vertical", minHeight: 72 }}
               disabled={activeConn?.status !== "connected"}
             />
           </div>
@@ -1214,7 +1214,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
               onClick={() => runQuery(sqlQuery)}
               disabled={isQuerying || !sqlQuery.trim() || activeConn?.status !== "connected"}
               className="panel-btn panel-btn-primary"
-              style={{ fontSize: 12 }}
+              style={{ fontSize: "var(--font-size-base)" }}
             >
               {isQuerying ? (
                 <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
@@ -1231,7 +1231,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
               <button
                 onClick={() => setShowHistory((v) => !v)}
                 className="panel-btn panel-btn-secondary"
-                style={{ fontSize: 12 }}
+                style={{ fontSize: "var(--font-size-base)" }}
                 disabled={queryHistory.length === 0}
                 title="Query history"
               >
@@ -1247,7 +1247,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
                     zIndex: 20,
                     background: "var(--bg-primary)",
                     border: "1px solid var(--border-color)",
-                    borderRadius: 6,
+                    borderRadius: "var(--radius-sm)",
                     minWidth: 320,
                     maxHeight: 240,
                     overflowY: "auto",
@@ -1266,7 +1266,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
                         background: "none",
                         border: "none",
                         padding: "7px 12px",
-                        fontSize: 11,
+                        fontSize: "var(--font-size-sm)",
                         fontFamily: "var(--font-mono)",
                         color: "var(--text-primary)",
                         cursor: "pointer",
@@ -1290,7 +1290,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
                 onClick={handleExportCSV}
                 disabled={!queryResult || queryResult.rows.length === 0}
                 className="panel-btn panel-btn-secondary"
-                style={{ fontSize: 12 }}
+                style={{ fontSize: "var(--font-size-base)" }}
                 title="Export as CSV"
               >
                 <><Download size={12} /> CSV</>
@@ -1300,7 +1300,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
                 onClick={handleExportJSON}
                 disabled={!queryResult || queryResult.rows.length === 0}
                 className="panel-btn panel-btn-secondary"
-                style={{ fontSize: 12 }}
+                style={{ fontSize: "var(--font-size-base)" }}
                 title="Export as JSON"
               >
                 <><Download size={12} /> JSON</>
@@ -1310,7 +1310,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
                 onClick={handleGenerateMigration}
                 disabled={isQuerying || activeConn?.status !== "connected"}
                 className="panel-btn panel-btn-secondary"
-                style={{ fontSize: 12 }}
+                style={{ fontSize: "var(--font-size-base)" }}
                 title="Generate migration script"
               >
                 ＋ Migration
@@ -1335,7 +1335,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
               }}
             >
               <div style={{ display: "flex", justifyContent: "center" }}><Database size={40} style={{ opacity: 0.5 }} /></div>
-              <div style={{ fontSize: 13 }}>Select a connection or create a new one to get started.</div>
+              <div style={{ fontSize: "var(--font-size-md)" }}>Select a connection or create a new one to get started.</div>
               <button
                 onClick={() => setShowWizard(true)}
                 className="panel-btn panel-btn-primary"
@@ -1347,14 +1347,14 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
 
           {/* Loading */}
           {isQuerying && (
-            <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--text-muted)", fontSize: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--text-muted)", fontSize: "var(--font-size-base)" }}>
               <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> Running query…
             </div>
           )}
 
           {/* Error */}
           {queryResult?.error && !isQuerying && (
-            <div className="panel-error" role="alert" style={{ fontFamily: "var(--font-mono)", fontSize: 12, padding: "8px 12px", whiteSpace: "pre-wrap" }}>
+            <div className="panel-error" role="alert" style={{ fontFamily: "var(--font-mono)", fontSize: "var(--font-size-base)", padding: "8px 12px", whiteSpace: "pre-wrap" }}>
               {queryResult.error}
             </div>
           )}
@@ -1368,7 +1368,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
                   alignItems: "center",
                   gap: 10,
                   marginBottom: 8,
-                  fontSize: 11,
+                  fontSize: "var(--font-size-sm)",
                   color: "var(--text-muted)",
                 }}
               >
@@ -1376,7 +1376,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
                   style={{
                     background: "var(--bg-secondary)",
                     padding: "2px 8px",
-                    borderRadius: 10,
+                    borderRadius: "var(--radius-md)",
                     fontWeight: 600,
                     color: "var(--text-primary)",
                   }}
@@ -1392,7 +1392,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
                     style={{
                       width: "100%",
                       borderCollapse: "collapse",
-                      fontSize: 12,
+                      fontSize: "var(--font-size-base)",
                       fontFamily: "var(--font-mono)",
                     }}
                   >
@@ -1406,7 +1406,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
                             borderBottom: "1px solid var(--border-color)",
                             fontWeight: 500,
                             color: "var(--text-muted)",
-                            fontSize: 10,
+                            fontSize: "var(--font-size-xs)",
                             width: 36,
                           }}
                         >
@@ -1441,7 +1441,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
                               padding: "3px 8px",
                               borderBottom: "1px solid var(--border-color)",
                               color: "var(--text-muted)",
-                              fontSize: 10,
+                              fontSize: "var(--font-size-xs)",
                               textAlign: "right",
                               userSelect: "none",
                             }}

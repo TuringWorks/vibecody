@@ -31,7 +31,7 @@ function statusBadgeStyle(status: HeartbeatRun['status']): React.CSSProperties {
     status === 'completed' ? 'var(--accent-green)' :
     'var(--accent-rose)';
   return {
-    display: 'inline-block', padding: '1px 7px', borderRadius: 10, fontSize: 10,
+    display: 'inline-block', padding: '1px 7px', borderRadius: "var(--radius-md)", fontSize: "var(--font-size-xs)",
     fontWeight: 700, background: color, color: '#fff', textTransform: 'uppercase',
   };
 }
@@ -115,7 +115,7 @@ export function CompanyHeartbeatPanel({ workspacePath: _wp }: CompanyHeartbeatPa
           </button>
         </div>
         {triggerResult && (
-          <div style={{ marginTop: 8, fontSize: 12, padding: "6px 8px", background: "rgba(0,0,0,0.15)", borderRadius: 4, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ marginTop: 8, fontSize: "var(--font-size-base)", padding: "6px 8px", background: "rgba(0,0,0,0.15)", borderRadius: "var(--radius-xs-plus)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span>{triggerResult}</span>
             <button onClick={() => setTriggerResult(null)} style={{ cursor: "pointer", background: "none", border: "none", color: "var(--text-secondary)", display: "inline-flex" }}><X size={12} /></button>
           </div>
@@ -136,7 +136,7 @@ export function CompanyHeartbeatPanel({ workspacePath: _wp }: CompanyHeartbeatPa
       </div>
 
       {/* Legend */}
-      <div style={{ display: "flex", gap: 14, fontSize: 11, color: "var(--text-secondary)", marginBottom: 10 }}>
+      <div style={{ display: "flex", gap: 14, fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 10 }}>
         <span style={{ color: "var(--accent-blue)" }}>● running</span>
         <span style={{ color: "var(--accent-green)" }}>● completed</span>
         <span style={{ color: "var(--accent-rose)" }}>● failed</span>
@@ -169,24 +169,24 @@ export function CompanyHeartbeatPanel({ workspacePath: _wp }: CompanyHeartbeatPa
                       {expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
                     </span>
                     <span style={statusBadgeStyle(run.status)}>{run.status}</span>
-                    <span style={{ fontSize: 11, color: "var(--text-secondary)", minWidth: 70 }}>{run.trigger}</span>
-                    <span style={{ fontSize: 12, fontFamily: "var(--font-mono)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{run.agent_id}</span>
-                    <span style={{ fontSize: 11, color: "var(--text-secondary)", minWidth: 48, textAlign: "right" }}>{formatDuration(run)}</span>
-                    <span style={{ fontSize: 11, color: "var(--text-secondary)", minWidth: 140, textAlign: "right" }}>{formatTs(run.started_at)}</span>
+                    <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", minWidth: 70 }}>{run.trigger}</span>
+                    <span style={{ fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{run.agent_id}</span>
+                    <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", minWidth: 48, textAlign: "right" }}>{formatDuration(run)}</span>
+                    <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", minWidth: 140, textAlign: "right" }}>{formatTs(run.started_at)}</span>
                   </div>
                   {/* Inspector */}
                   {expanded && (
                     <div style={{
                       padding: "10px 16px 14px", background: "var(--bg-tertiary)",
-                      fontSize: 12, borderTop: "1px solid var(--border-color)",
+                      fontSize: "var(--font-size-base)", borderTop: "1px solid var(--border-color)",
                     }}>
                       {run.summary && (
                         <div style={{ marginBottom: 10, lineHeight: 1.6 }}>
-                          <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>SUMMARY</span>
+                          <span style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>SUMMARY</span>
                           <div style={{ whiteSpace: "pre-wrap" }}>{run.summary}</div>
                         </div>
                       )}
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 16px", fontSize: 11, color: "var(--text-secondary)" }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 16px", fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
                         <div><strong>Run ID:</strong> <span style={{ fontFamily: "var(--font-mono)" }}>{run.id}</span></div>
                         <div><strong>Company:</strong> <span style={{ fontFamily: "var(--font-mono)" }}>{run.company_id}</span></div>
                         <div><strong>Agent:</strong> <span style={{ fontFamily: "var(--font-mono)" }}>{run.agent_id}</span></div>

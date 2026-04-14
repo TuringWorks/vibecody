@@ -2,7 +2,7 @@ import { lazy, Suspense, useRef, type ComponentType } from "react";
 import { ErrorBoundary } from "./ErrorBoundary";
 
 const PanelLoading = () => (
-  <div style={{ padding: 16, color: "var(--text-secondary)", fontSize: 13 }}>Loading panel...</div>
+  <div style={{ padding: 16, color: "var(--text-secondary)", fontSize: "var(--font-size-md)" }}>Loading panel...</div>
 );
 
 /** Wraps a lazy-loaded panel with its own ErrorBoundary + Suspense. */

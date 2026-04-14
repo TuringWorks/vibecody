@@ -51,7 +51,7 @@ function HookRow({
  const inputStyle: React.CSSProperties = {
  width: "100%",
  padding: "5px 7px",
- fontSize: "11px",
+ fontSize: "var(--font-size-sm)",
  background: "var(--bg-input, var(--bg-primary))",
  border: "1px solid var(--border-color)",
  borderRadius: "3px",
@@ -80,17 +80,17 @@ function HookRow({
  userSelect: "none",
  }}
  >
- <span style={{ fontSize: "13px", display: "inline-flex", alignItems: "center" }}><Webhook size={14} strokeWidth={1.5} /></span>
+ <span style={{ fontSize: "var(--font-size-md)", display: "inline-flex", alignItems: "center" }}><Webhook size={14} strokeWidth={1.5} /></span>
  <div style={{ flex: 1, minWidth: 0 }}>
- <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)" }}>
+ <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, color: "var(--text-primary)" }}>
  {hook.event}
  {hook.tools.length > 0 && (
- <span style={{ fontSize: "10px", color: "var(--text-secondary)", marginLeft: "6px" }}>
+ <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginLeft: "6px" }}>
  [{hook.tools.join(", ")}]
  </span>
  )}
  </div>
- <div style={{ fontSize: "10px", color: "var(--text-secondary)" }}>
+ <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>
  {hook.handler_type === "command"
  ? hook.command || "(no command)"
  : hook.handler_type === "http"
@@ -105,7 +105,7 @@ function HookRow({
  >
  ✕
  </button>
- <span style={{ fontSize: "10px", color: "var(--text-secondary)" }}>{expanded ? "" : <ChevronDown size={10} />}</span>
+ <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>{expanded ? "" : <ChevronDown size={10} />}</span>
  </div>
 
  {/* Expanded editor */}
@@ -168,7 +168,7 @@ function HookRow({
  placeholder="sh .vibecli/hooks/lint.sh"
  style={inputStyle}
  />
- <div style={{ fontSize: "10px", color: "var(--text-secondary)", marginTop: "3px" }}>
+ <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginTop: "3px" }}>
  Event JSON piped to stdin. Exit 0 = allow, exit 2 = block, stdout = context injection.
  </div>
  </div>
@@ -206,7 +206,7 @@ function HookRow({
  value={hook.http_headers}
  onChange={(e) => update({ http_headers: e.target.value })}
  placeholder='{"Authorization": "Bearer ..."}'
- style={{ ...inputStyle, fontFamily: "var(--font-mono)", fontSize: "10px" }}
+ style={{ ...inputStyle, fontFamily: "var(--font-mono)", fontSize: "var(--font-size-xs)" }}
  />
  </div>
  <div>
@@ -218,7 +218,7 @@ function HookRow({
  style={{ ...inputStyle, width: "100px" }}
  />
  </div>
- <div style={{ fontSize: "10px", color: "var(--text-secondary)" }}>
+ <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>
  POSTs event JSON to URL. Response: {`{"decision": "allow"|"block"|"inject", "reason": "...", "context": "..."}`}
  </div>
  </div>
@@ -242,7 +242,7 @@ function HookRow({
  checked={hook.async_exec}
  onChange={(e) => update({ async_exec: e.target.checked })}
  />
- <span style={{ fontSize: "11px", color: "var(--text-primary)" }}>
+ <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-primary)" }}>
  Run asynchronously (never blocks the agent)
  </span>
  </label>
@@ -308,10 +308,10 @@ export function HooksPanel({ workspacePath }: HooksPanelProps) {
  <div className="panel-header">
  <span style={{ display: "inline-flex", alignItems: "center" }}><Webhook size={18} strokeWidth={1.5} /></span>
  <div style={{ flex: 1 }}>
- <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>
+ <div style={{ fontSize: "var(--font-size-md)", fontWeight: 600, color: "var(--text-primary)" }}>
  Hooks
  </div>
- <div style={{ fontSize: "10px", color: "var(--text-secondary)" }}>
+ <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>
  {scope}
  </div>
  </div>
@@ -337,11 +337,11 @@ export function HooksPanel({ workspacePath }: HooksPanelProps) {
  <div style={{
  padding: "6px 10px",
  marginBottom: "8px",
- fontSize: "11px",
+ fontSize: "var(--font-size-sm)",
  color: saveMsg.startsWith("Error") ? "var(--error-color)" : "var(--success-color)",
  background: saveMsg.startsWith("Error") ? "color-mix(in srgb, var(--accent-rose) 10%, transparent)" : "color-mix(in srgb, var(--accent-green) 10%, transparent)",
  border: `1px solid ${saveMsg.startsWith("Error") ? "var(--error-color)" : "var(--success-color)"}`,
- borderRadius: "4px",
+ borderRadius: "var(--radius-xs-plus)",
  }}>
  {saveMsg}
  </div>
@@ -350,8 +350,8 @@ export function HooksPanel({ workspacePath }: HooksPanelProps) {
  {hooks.length === 0 ? (
  <div className="panel-empty">
  <div style={{ fontSize: "24px", marginBottom: "8px", display: "flex", justifyContent: "center" }}><Webhook size={28} strokeWidth={1.5} /></div>
- <div style={{ fontSize: "13px" }}>No hooks configured.</div>
- <div style={{ fontSize: "11px", marginTop: "4px", opacity: 0.7 }}>
+ <div style={{ fontSize: "var(--font-size-md)" }}>No hooks configured.</div>
+ <div style={{ fontSize: "var(--font-size-sm)", marginTop: "4px", opacity: 0.7 }}>
  Hooks run shell commands or LLM checks before/after agent tool calls.
  </div>
  <button
@@ -376,7 +376,7 @@ export function HooksPanel({ workspacePath }: HooksPanelProps) {
 
  {/* Hook reference */}
  {hooks.length > 0 && (
- <div style={{ marginTop: "12px", padding: "10px", background: "var(--bg-secondary)", borderRadius: "5px", fontSize: "10px", color: "var(--text-secondary)" }}>
+ <div style={{ marginTop: "12px", padding: "10px", background: "var(--bg-secondary)", borderRadius: "5px", fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>
  <div style={{ fontWeight: 600, marginBottom: "4px" }}>Hook Protocol</div>
  <div><b>Shell:</b>Exit 0 → allow, Exit 2 → block, stdout JSON → context injection</div>
  <div><b>LLM:</b>Prompt receives event JSON, reply {`{"ok": true/false}`}</div>

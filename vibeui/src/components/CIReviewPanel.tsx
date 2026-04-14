@@ -74,10 +74,10 @@ export function CIReviewPanel() {
         padding: "8px 12px", borderBottom: "1px solid var(--border-color)",
         display: "flex", alignItems: "center", gap: 8,
       }}>
-        <span style={{ fontSize: 14, fontWeight: 700 }}>CI/CD Review Bot</span>
+        <span style={{ fontSize: "var(--font-size-lg)", fontWeight: 700 }}>CI/CD Review Bot</span>
         <div style={{ flex: 1 }} />
         <span style={{
-          fontSize: 10, padding: "2px 8px", borderRadius: 10, fontWeight: 600,
+          fontSize: "var(--font-size-xs)", padding: "2px 8px", borderRadius: "var(--radius-md)", fontWeight: 600,
           background: config.app_id > 0 ? "color-mix(in srgb, var(--accent-green) 15%, transparent)" : "color-mix(in srgb, var(--text-secondary) 15%, transparent)",
           color: config.app_id > 0 ? "var(--success-color)" : "var(--text-secondary)",
         }}>
@@ -88,10 +88,10 @@ export function CIReviewPanel() {
       <div style={{ flex: 1, overflowY: "auto", padding: "8px 12px" }}>
         {/* Configuration Section */}
         <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>GitHub App Configuration</div>
-          <div style={{ fontSize: 10, color: "var(--text-secondary)", marginBottom: 10 }}>
+          <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, marginBottom: 8 }}>GitHub App Configuration</div>
+          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginBottom: 10 }}>
             Set up a GitHub App to auto-review PRs. The webhook endpoint will be at{" "}
-            <code style={{ fontSize: 10 }}>/webhook/github</code> on your VibeCLI daemon.
+            <code style={{ fontSize: "var(--font-size-xs)" }}>/webhook/github</code> on your VibeCLI daemon.
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -141,7 +141,7 @@ export function CIReviewPanel() {
               </select>
             </div>
 
-            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11 }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)" }}>
               <input
                 type="checkbox"
                 checked={config.auto_fix}
@@ -155,12 +155,12 @@ export function CIReviewPanel() {
             </button>
 
             {error && (
-              <div style={{ fontSize: 11, color: "var(--text-danger)", padding: "4px 8px", background: "color-mix(in srgb, var(--accent-rose) 5%, transparent)", borderRadius: 4 }}>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-danger)", padding: "4px 8px", background: "color-mix(in srgb, var(--accent-rose) 5%, transparent)", borderRadius: "var(--radius-xs-plus)" }}>
                 {error}
               </div>
             )}
             {success && (
-              <div style={{ fontSize: 11, color: "var(--text-success)", padding: "4px 8px", background: "rgba(166,227,161,0.05)", borderRadius: 4 }}>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-success)", padding: "4px 8px", background: "rgba(166,227,161,0.05)", borderRadius: "var(--radius-xs-plus)" }}>
                 {success}
               </div>
             )}
@@ -169,9 +169,9 @@ export function CIReviewPanel() {
 
         {/* Setup Instructions */}
         <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>Setup Instructions</div>
+          <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, marginBottom: 6 }}>Setup Instructions</div>
           <div style={{
-            fontSize: 10, padding: "8px 10px", borderRadius: 4,
+            fontSize: "var(--font-size-xs)", padding: "8px 10px", borderRadius: "var(--radius-xs-plus)",
             background: "var(--bg-primary)", lineHeight: 1.6,
           }}>
             1. Create a GitHub App at github.com/settings/apps/new<br />
@@ -186,9 +186,9 @@ export function CIReviewPanel() {
 
         {/* CLI Usage */}
         <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>CLI CI Mode</div>
+          <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, marginBottom: 6 }}>CLI CI Mode</div>
           <div style={{
-            fontSize: 10, padding: "8px 10px", borderRadius: 4,
+            fontSize: "var(--font-size-xs)", padding: "8px 10px", borderRadius: "var(--radius-xs-plus)",
             background: "var(--bg-primary)", fontFamily: "var(--font-mono)",
           }}>
             vibecli --review --ci-mode --base $BASE_SHA<br />
@@ -198,18 +198,18 @@ export function CIReviewPanel() {
 
         {/* Recent Reviews */}
         <div>
-          <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>
+          <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, marginBottom: 6 }}>
             Recent Reviews ({reviews.length})
           </div>
           {reviews.length === 0 ? (
-            <div style={{ padding: 16, textAlign: "center", opacity: 0.5, fontSize: 11 }}>
+            <div style={{ padding: 16, textAlign: "center", opacity: 0.5, fontSize: "var(--font-size-sm)" }}>
               No reviews yet. Reviews will appear here when the webhook receives PR events.
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {reviews.map((r, i) => (
                 <div key={i} style={{
-                  padding: "6px 8px", borderRadius: 4,
+                  padding: "6px 8px", borderRadius: "var(--radius-xs-plus)",
                   border: "1px solid var(--border-color)",
                   background: "var(--bg-primary)",
                 }}>
@@ -221,7 +221,7 @@ export function CIReviewPanel() {
                     }}>
                       {r.status}
                     </span>
-                    <span style={{ fontSize: 11, fontWeight: 600 }}>
+                    <span style={{ fontSize: "var(--font-size-sm)", fontWeight: 600 }}>
                       {r.repo} #{r.pr_number}
                     </span>
                     <div style={{ flex: 1 }} />
@@ -229,7 +229,7 @@ export function CIReviewPanel() {
                       {new Date(r.timestamp * 1000).toLocaleString()}
                     </span>
                   </div>
-                  <div style={{ fontSize: 10, opacity: 0.8 }}>{r.summary}</div>
+                  <div style={{ fontSize: "var(--font-size-xs)", opacity: 0.8 }}>{r.summary}</div>
                   <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
                     {r.severity_counts.critical > 0 && (
                       <span style={{ fontSize: 9, color: "var(--text-danger)" }}>

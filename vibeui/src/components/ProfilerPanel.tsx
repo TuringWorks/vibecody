@@ -104,13 +104,13 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
       {/* Tool badge */}
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <div style={{
-          background: "var(--bg-secondary)", borderRadius: 6, padding: "6px 12px",
-          border: "1px solid var(--border-color)", fontSize: 12, fontWeight: 600,
+          background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: "6px 12px",
+          border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)", fontWeight: 600,
         }}>
           {tool ? toolLabel[tool] || tool : "No profiler detected"}
         </div>
         {tool && (
-          <span style={{ fontSize: 11, opacity: 0.5, fontFamily: "var(--font-mono)" }}>{tool}</span>
+          <span style={{ fontSize: "var(--font-size-sm)", opacity: 0.5, fontFamily: "var(--font-mono)" }}>{tool}</span>
         )}
       </div>
 
@@ -122,9 +122,9 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
           onChange={(e) => setTarget(e.target.value)}
           placeholder={tool === "cargo-flamegraph" ? "target binary (optional)" : tool === "py-spy" ? "script.py" : tool === "clinic" ? "server.js" : "target (optional)"}
           style={{
-            flex: 1, padding: "8px 10px", fontSize: 12, fontFamily: "var(--font-mono)",
+            flex: 1, padding: "8px 10px", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)",
             background: "var(--bg-secondary)",
-            border: "1px solid var(--border-color)", borderRadius: 4,
+            border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)",
             color: "var(--text-primary)", outline: "none",
           }}
         />
@@ -132,9 +132,9 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
           <button
             onClick={handleSuspend}
             style={{
-              padding: "8px 18px", fontSize: 13, fontWeight: 700,
+              padding: "8px 18px", fontSize: "var(--font-size-md)", fontWeight: 700,
               background: "var(--error-color)",
-              color: "var(--btn-primary-fg)", border: "none", borderRadius: 6,
+              color: "var(--btn-primary-fg)", border: "none", borderRadius: "var(--radius-sm)",
               cursor: "pointer",
               whiteSpace: "nowrap",
             }}
@@ -146,9 +146,9 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
             onClick={handleRun}
             disabled={!tool}
             style={{
-              padding: "8px 18px", fontSize: 13, fontWeight: 700,
+              padding: "8px 18px", fontSize: "var(--font-size-md)", fontWeight: 700,
               background: "var(--accent-color)",
-              color: "var(--btn-primary-fg)", border: "none", borderRadius: 6,
+              color: "var(--btn-primary-fg)", border: "none", borderRadius: "var(--radius-sm)",
               cursor: !tool ? "not-allowed" : "pointer",
               whiteSpace: "nowrap",
             }}
@@ -160,7 +160,7 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
 
       {/* Error */}
       {error && (
-        <div style={{ background: "color-mix(in srgb, var(--accent-rose) 15%, transparent)", border: "1px solid var(--error-color)", borderRadius: 6, padding: 8, fontSize: 11, color: "var(--error-color)" }}>
+        <div style={{ background: "color-mix(in srgb, var(--accent-rose) 15%, transparent)", border: "1px solid var(--error-color)", borderRadius: "var(--radius-sm)", padding: 8, fontSize: "var(--font-size-sm)", color: "var(--error-color)" }}>
           {error}
         </div>
       )}
@@ -170,8 +170,8 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
         <>
           {/* Summary bar */}
           <div style={{
-            background: "var(--bg-secondary)", borderRadius: 6, padding: 10,
-            border: "1px solid var(--border-color)", display: "flex", gap: 16, fontSize: 12,
+            background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: 10,
+            border: "1px solid var(--border-color)", display: "flex", gap: 16, fontSize: "var(--font-size-base)",
           }}>
             <span>Duration: <strong>{result.duration_secs.toFixed(1)}s</strong></span>
             <span>Samples: <strong>{result.total_samples.toLocaleString()}</strong></span>
@@ -189,7 +189,7 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
               {/* Header */}
               <div style={{
                 display: "grid", gridTemplateColumns: "1fr 70px 70px 80px",
-                gap: 4, padding: "6px 8px", fontSize: 11, fontWeight: 600,
+                gap: 4, padding: "6px 8px", fontSize: "var(--font-size-sm)", fontWeight: 600,
                 borderBottom: "1px solid var(--border-color)", opacity: 0.7,
               }}>
                 <span>Function</span>
@@ -203,7 +203,7 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
                   key={i}
                   style={{
                     display: "grid", gridTemplateColumns: "1fr 70px 70px 80px",
-                    gap: 4, padding: "5px 8px", fontSize: 11,
+                    gap: 4, padding: "5px 8px", fontSize: "var(--font-size-sm)",
                     borderBottom: "1px solid var(--border-color)",
                     background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.02)",
                   }}
@@ -230,13 +230,13 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
                 </div>
               ))}
               {result.hotspots.length > 50 && (
-                <div style={{ padding: 8, fontSize: 11, opacity: 0.5, textAlign: "center" }}>
+                <div style={{ padding: 8, fontSize: "var(--font-size-sm)", opacity: 0.5, textAlign: "center" }}>
                   Showing 50 of {result.hotspots.length} hotspots
                 </div>
               )}
             </div>
           ) : (
-            <div style={{ padding: 16, opacity: 0.5, fontSize: 12, textAlign: "center" }}>
+            <div style={{ padding: 16, opacity: 0.5, fontSize: "var(--font-size-base)", textAlign: "center" }}>
               No structured hotspot data available. Check raw output below.
             </div>
           )}
@@ -246,7 +246,7 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
             <button
               onClick={() => setShowRaw(!showRaw)}
               style={{
-                background: "none", border: "none", cursor: "pointer", fontSize: 11,
+                background: "none", border: "none", cursor: "pointer", fontSize: "var(--font-size-sm)",
                 color: "var(--accent-color)", padding: 0, textDecoration: "underline",
               }}
             >
@@ -254,8 +254,8 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
             </button>
             {showRaw && (
               <pre style={{
-                marginTop: 8, background: "var(--bg-secondary)", borderRadius: 6,
-                padding: 10, fontSize: 10, fontFamily: "var(--font-mono)", maxHeight: 200,
+                marginTop: 8, background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)",
+                padding: 10, fontSize: "var(--font-size-xs)", fontFamily: "var(--font-mono)", maxHeight: 200,
                 overflowY: "auto", whiteSpace: "pre-wrap", color: "var(--text-primary)",
                 border: "1px solid var(--border-color)",
               }}>
@@ -268,7 +268,7 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
 
       {/* Empty state when no results */}
       {!result && !running && !error && (
-        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.4, fontSize: 12 }}>
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.4, fontSize: "var(--font-size-base)" }}>
           {tool ? "Click Profile to start profiling your application." : "No profiling tool detected for this workspace."}
         </div>
       )}

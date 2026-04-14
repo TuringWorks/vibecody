@@ -99,10 +99,10 @@ const CATEGORIES: TemplateCategory[] = ["All", "Web", "Mobile", "API", "FullStac
 
 const tagStyle: React.CSSProperties = {
   padding: "1px 7px",
-  borderRadius: 10,
+  borderRadius: "var(--radius-md)",
   background: "var(--accent)",
   color: "var(--text-primary)",
-  fontSize: 10,
+  fontSize: "var(--font-size-xs)",
   fontWeight: 600,
   opacity: 0.85,
 };
@@ -120,11 +120,11 @@ const categoryBadgeStyle = (cat: TemplateCategory): React.CSSProperties => {
   const c = colors[cat];
   return {
     padding: "1px 7px",
-    borderRadius: 10,
+    borderRadius: "var(--radius-md)",
     background: c + "22",
     border: `1px solid ${c}`,
     color: c,
-    fontSize: 10,
+    fontSize: "var(--font-size-xs)",
     fontWeight: 600,
   };
 };
@@ -464,7 +464,7 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                   <div>
                     <div className="panel-label" style={{ marginBottom: 4 }}>User Stories</div>
-                    <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.8 }}>
+                    <ul style={{ margin: 0, paddingLeft: 16, fontSize: "var(--font-size-base)", color: "var(--text-secondary)", lineHeight: 1.8 }}>
                       {enhancedSpec.userStories.map((s, i) => <li key={i}>{s}</li>)}
                     </ul>
                   </div>
@@ -478,12 +478,12 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
                     </div>
 
                     <div className="panel-label" style={{ marginTop: 10, marginBottom: 4 }}>Complexity</div>
-                    <div style={{ fontSize: 12, color: "var(--warning)" }}>{enhancedSpec.complexityEstimate}</div>
+                    <div style={{ fontSize: "var(--font-size-base)", color: "var(--warning)" }}>{enhancedSpec.complexityEstimate}</div>
                   </div>
 
                   <div>
                     <div className="panel-label" style={{ marginBottom: 4 }}>API Endpoints</div>
-                    <ul style={{ margin: 0, paddingLeft: 16, fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.8, fontFamily: "var(--font-mono)" }}>
+                    <ul style={{ margin: 0, paddingLeft: 16, fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", lineHeight: 1.8, fontFamily: "var(--font-mono)" }}>
                       {enhancedSpec.apiEndpoints.map((e, i) => <li key={i}>{e}</li>)}
                     </ul>
                   </div>
@@ -514,7 +514,7 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
 
                 {isBuilding && (
                   <div style={{ marginTop: 10 }}>
-                    <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>
+                    <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 4 }}>
                       Scaffolding project...
                     </div>
                     <div style={{ height: 6, borderRadius: 3, background: "var(--bg-primary)", overflow: "hidden" }}>
@@ -533,14 +533,14 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
                 )}
 
                 {buildResult && (
-                  <div style={{ marginTop: 8, fontSize: 12, color: "var(--success)", display: "flex", flexDirection: "column", gap: 4 }}>
+                  <div style={{ marginTop: 8, fontSize: "var(--font-size-base)", color: "var(--success)", display: "flex", flexDirection: "column", gap: 4 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                       <Check size={14} /> {buildResult.message}
                     </div>
-                    <div style={{ fontSize: 11, color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
+                    <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
                       {buildResult.projectDir}
                     </div>
-                    <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+                    <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
                       Files: {buildResult.filesCreated.join(", ")}
                     </div>
                   </div>
@@ -554,11 +554,11 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
                 <div className="panel-label" style={{ marginBottom: 8 }}>Recent Projects</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   {history.slice(-5).reverse().map((h) => (
-                    <div key={h.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
+                    <div key={h.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--font-size-base)" }}>
                       <FileText size={12} color="var(--text-secondary)" />
                       <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>{h.name}</span>
-                      <span style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)", fontSize: 10 }}>{h.templateId}</span>
-                      <span style={{ color: "var(--text-secondary)", fontSize: 10, marginLeft: "auto" }}>{h.files.length} files</span>
+                      <span style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)", fontSize: "var(--font-size-xs)" }}>{h.templateId}</span>
+                      <span style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-xs)", marginLeft: "auto" }}>{h.files.length} files</span>
                     </div>
                   ))}
                 </div>
@@ -643,7 +643,7 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
             )}
 
             {isLoadingTemplates && (
-              <div style={{ textAlign: "center", padding: 20, color: "var(--text-secondary)", fontSize: 12 }}>
+              <div style={{ textAlign: "center", padding: 20, color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>
                 <Loader2 size={20} className="spin" style={{ marginBottom: 8 }} />
                 <div>Loading templates...</div>
               </div>
@@ -653,10 +653,10 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
               {filteredTemplates.map((t) => (
                 <div key={t.id} className="panel-card">
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>{t.name}</div>
+                    <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--text-primary)" }}>{t.name}</div>
                     <span style={categoryBadgeStyle(t.category as TemplateCategory)}>{t.category}</span>
                   </div>
-                  <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8, lineHeight: 1.4 }}>
+                  <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 8, lineHeight: 1.4 }}>
                     {t.description}
                   </div>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 10 }}>
@@ -689,7 +689,7 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
             </div>
 
             {!isLoadingTemplates && filteredTemplates.length === 0 && (
-              <div style={{ textAlign: "center", padding: 30, color: "var(--text-secondary)", fontSize: 13 }}>
+              <div style={{ textAlign: "center", padding: 30, color: "var(--text-secondary)", fontSize: "var(--font-size-md)" }}>
                 <Search size={24} style={{ marginBottom: 8, opacity: 0.5 }} />
                 <div>No templates found in this category.</div>
               </div>
@@ -712,7 +712,7 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
                       checked={provisionConfig.database.enabled}
                       onChange={(e) => setProvisionConfig((p) => ({ ...p, database: { ...p.database, enabled: e.target.checked } }))}
                     />
-                    <span style={{ fontSize: 13, color: "var(--text-primary)", fontWeight: 500 }}>Database</span>
+                    <span style={{ fontSize: "var(--font-size-md)", color: "var(--text-primary)", fontWeight: 500 }}>Database</span>
                   </label>
                   <select
                     className="panel-select" style={{ opacity: provisionConfig.database.enabled ? 1 : 0.5 }}
@@ -735,7 +735,7 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
                       checked={provisionConfig.auth.enabled}
                       onChange={(e) => setProvisionConfig((p) => ({ ...p, auth: { ...p.auth, enabled: e.target.checked } }))}
                     />
-                    <span style={{ fontSize: 13, color: "var(--text-primary)", fontWeight: 500 }}>Authentication</span>
+                    <span style={{ fontSize: "var(--font-size-md)", color: "var(--text-primary)", fontWeight: 500 }}>Authentication</span>
                   </label>
                   <select
                     className="panel-select" style={{ opacity: provisionConfig.auth.enabled ? 1 : 0.5 }}
@@ -752,7 +752,7 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
                 {/* Hosting */}
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <Globe size={16} color="var(--text-secondary)" />
-                  <span style={{ fontSize: 13, color: "var(--text-primary)", fontWeight: 500, minWidth: 120, paddingLeft: 22 }}>Hosting</span>
+                  <span style={{ fontSize: "var(--font-size-md)", color: "var(--text-primary)", fontWeight: 500, minWidth: 120, paddingLeft: 22 }}>Hosting</span>
                   <select
                     className="panel-select"
                     value={provisionConfig.hosting.target}
@@ -774,7 +774,7 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
                       checked={provisionConfig.seo.enabled}
                       onChange={(e) => setProvisionConfig((p) => ({ ...p, seo: { ...p.seo, enabled: e.target.checked } }))}
                     />
-                    <span style={{ fontSize: 13, color: "var(--text-primary)", fontWeight: 500 }}>SEO</span>
+                    <span style={{ fontSize: "var(--font-size-md)", color: "var(--text-primary)", fontWeight: 500 }}>SEO</span>
                   </label>
                 </div>
 
@@ -787,7 +787,7 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
                       checked={provisionConfig.payments.enabled}
                       onChange={(e) => setProvisionConfig((p) => ({ ...p, payments: { ...p.payments, enabled: e.target.checked } }))}
                     />
-                    <span style={{ fontSize: 13, color: "var(--text-primary)", fontWeight: 500 }}>Payments (Stripe)</span>
+                    <span style={{ fontSize: "var(--font-size-md)", color: "var(--text-primary)", fontWeight: 500 }}>Payments (Stripe)</span>
                   </label>
                 </div>
               </div>
@@ -810,12 +810,12 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
                 <div className="panel-label" style={{ marginBottom: 8 }}>Generated Files</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                   {generatedFiles.map((f, i) => (
-                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--font-size-base)" }}>
                       {f.status === "pending" && <Loader2 size={12} color="var(--text-secondary)" className="spin" />}
                       {f.status === "generated" && <Check size={12} color="var(--success)" />}
                       {f.status === "error" && <AlertCircle size={12} color="var(--error)" />}
                       <FileText size={12} color="var(--text-secondary)" />
-                      <span style={{ color: "var(--text-primary)", fontFamily: "var(--font-mono)", fontSize: 11 }}>{f.path}</span>
+                      <span style={{ color: "var(--text-primary)", fontFamily: "var(--font-mono)", fontSize: "var(--font-size-sm)" }}>{f.path}</span>
                     </div>
                   ))}
                 </div>
@@ -838,7 +838,7 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
                       alignItems: "center",
                       gap: 8,
                       padding: "8px 10px",
-                      borderRadius: 4,
+                      borderRadius: "var(--radius-xs-plus)",
                       border: "1px solid var(--border)",
                       background: "var(--bg-primary)",
                     }}
@@ -848,8 +848,8 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
                       : <XCircle size={12} strokeWidth={1.5} style={{ color: "var(--text-secondary)" }} />
                     }
                     <div>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>{svc.name}</div>
-                      <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>{svc.details}</div>
+                      <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, color: "var(--text-primary)" }}>{svc.name}</div>
+                      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>{svc.details}</div>
                     </div>
                   </div>
                 ))}
@@ -858,7 +858,7 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
 
             <div className="panel-card">
               <div className="panel-label" style={{ marginBottom: 10 }}>Backend Configuration</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, fontSize: 12, marginBottom: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, fontSize: "var(--font-size-base)", marginBottom: 12 }}>
                 <div>
                   <span style={{ color: "var(--text-secondary)" }}>Database:</span>{" "}
                   <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>
@@ -902,10 +902,10 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
                 <div style={{
                   marginTop: 10,
                   padding: 8,
-                  borderRadius: 4,
+                  borderRadius: "var(--radius-xs-plus)",
                   background: "var(--bg-primary)",
                   border: "1px solid var(--border)",
-                  fontSize: 12,
+                  fontSize: "var(--font-size-base)",
                   color: "var(--success)",
                   display: "flex",
                   alignItems: "center",
@@ -927,13 +927,13 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
                 {envVars.map((v, i) => (
                   <div key={i} style={{ display: "flex", gap: 6, alignItems: "center" }}>
                     <input
-                      className="panel-input" style={{ width: "40%", fontFamily: "var(--font-mono)", fontSize: 11 }}
+                      className="panel-input" style={{ width: "40%", fontFamily: "var(--font-mono)", fontSize: "var(--font-size-sm)" }}
                       placeholder="KEY"
                       value={v.key}
                       onChange={(e) => handleUpdateEnvVar(i, "key", e.target.value)}
                     />
                     <input
-                      className="panel-input" style={{ flex: 1, fontFamily: "var(--font-mono)", fontSize: 11 }}
+                      className="panel-input" style={{ flex: 1, fontFamily: "var(--font-mono)", fontSize: "var(--font-size-sm)" }}
                       placeholder="value"
                       value={v.value}
                       onChange={(e) => handleUpdateEnvVar(i, "value", e.target.value)}

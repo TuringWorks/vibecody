@@ -52,7 +52,7 @@ const DiscussionModePanel: React.FC = () => {
   const inputStyle: React.CSSProperties = {
     width: "100%", padding: "6px 10px", boxSizing: "border-box",
     backgroundColor: "var(--bg-secondary)", color: "var(--text-primary)",
-    border: "1px solid var(--border-color)", borderRadius: "4px",
+    border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)",
   };
 
   const typeColors: Record<MessageType, string> = {
@@ -60,13 +60,13 @@ const DiscussionModePanel: React.FC = () => {
     Decision: "var(--accent-purple)", Action: "#c62828",
   };
   const badgeStyle = (color: string): React.CSSProperties => ({
-    display: "inline-block", padding: "2px 8px", borderRadius: "10px",
-    fontSize: "11px", fontWeight: 600, backgroundColor: color, color: "var(--text-primary)",
+    display: "inline-block", padding: "2px 8px", borderRadius: "var(--radius-md)",
+    fontSize: "var(--font-size-sm)", fontWeight: 600, backgroundColor: color, color: "var(--text-primary)",
   });
   const reactionBtnStyle: React.CSSProperties = {
     padding: "2px 6px", border: "1px solid var(--border-color)",
     borderRadius: "12px", backgroundColor: "transparent", cursor: "pointer",
-    fontSize: "12px", color: "var(--text-primary)",
+    fontSize: "var(--font-size-base)", color: "var(--text-primary)",
   };
 
   const messageTypes: MessageType[] = ["Question", "Suggestion", "Concern", "Decision", "Action"];
@@ -169,7 +169,7 @@ const DiscussionModePanel: React.FC = () => {
           <strong>{m.author}</strong>
           <span style={badgeStyle(typeColors[m.type] || "var(--text-secondary)")}>{m.type}</span>
         </div>
-        <span style={{ fontSize: "11px", opacity: 0.6 }}>{m.timestamp}</span>
+        <span style={{ fontSize: "var(--font-size-sm)", opacity: 0.6 }}>{m.timestamp}</span>
       </div>
       <div style={{ marginBottom: "6px" }}>{m.text}</div>
       <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
@@ -202,9 +202,9 @@ const DiscussionModePanel: React.FC = () => {
         }} onClick={() => handleSelectThread(t.id)}>
           <div>
             <div style={{ fontWeight: 600 }}>{t.topic}</div>
-            <div style={{ fontSize: "11px", opacity: 0.6 }}>{t.messages.length} messages</div>
+            <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.6 }}>{t.messages.length} messages</div>
           </div>
-          <button className="panel-btn panel-btn-danger" style={{ padding: "4px 8px", fontSize: "11px" }}
+          <button className="panel-btn panel-btn-danger" style={{ padding: "4px 8px", fontSize: "var(--font-size-sm)" }}
             onClick={e => { e.stopPropagation(); handleDeleteThread(t.id); }}>Delete</button>
         </div>
       ))}
@@ -218,8 +218,8 @@ const DiscussionModePanel: React.FC = () => {
       {activeThread && (
         <>
           <div className="panel-card" style={{ marginBottom: "12px" }}>
-            <div style={{ fontSize: "11px", opacity: 0.6 }}>Topic</div>
-            <div style={{ fontWeight: 600, fontSize: "14px" }}>{activeThread.topic}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.6 }}>Topic</div>
+            <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)" }}>{activeThread.topic}</div>
           </div>
           {messages.map(renderMessageCard)}
           <div style={{ marginTop: "12px", display: "flex", gap: "8px" }}>
@@ -258,7 +258,7 @@ const DiscussionModePanel: React.FC = () => {
         {[["Decisions", decisionCount, "var(--accent-purple)"], ["Actions", actionCount, "#c62828"], ["Unresolved", unresolvedCount, "#e65100"]].map(([label, count, color]) => (
           <div key={label as string} className="panel-card" style={{ textAlign: "center" }}>
             <div style={{ fontSize: "24px", fontWeight: 700, color: color as string }}>{count as number}</div>
-            <div style={{ fontSize: "12px", opacity: 0.7 }}>{label as string}</div>
+            <div style={{ fontSize: "var(--font-size-base)", opacity: 0.7 }}>{label as string}</div>
           </div>
         ))}
       </div>
@@ -267,7 +267,7 @@ const DiscussionModePanel: React.FC = () => {
         <div style={{ display: "flex", gap: "4px" }}>
           {(["Building", "Discussing", "Paused"] as const).map(s => (
             <button key={s} onClick={() => setBuildState(s)}
-              style={{ padding: "4px 10px", fontSize: "12px", cursor: "pointer", borderRadius: "4px",
+              style={{ padding: "4px 10px", fontSize: "var(--font-size-base)", cursor: "pointer", borderRadius: "var(--radius-xs-plus)",
                 backgroundColor: buildState === s ? stateColors[s] : "transparent",
                 color: "var(--text-primary)",
                 border: `1px solid ${stateColors[s]}` }}>

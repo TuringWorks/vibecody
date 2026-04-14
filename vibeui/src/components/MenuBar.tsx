@@ -121,10 +121,10 @@ const barStyle: React.CSSProperties & Record<string, unknown> = {
 
 const menuBtnStyle: React.CSSProperties = {
   padding: "4px 10px",
-  fontSize: 12,
+  fontSize: "var(--font-size-base)",
   fontWeight: 500,
   border: "none",
-  borderRadius: 4,
+  borderRadius: "var(--radius-xs-plus)",
   cursor: "pointer",
   color: "var(--text-secondary)",
   background: "transparent",
@@ -138,7 +138,7 @@ const dropdownStyle: React.CSSProperties = {
   minWidth: 220,
   background: "var(--bg-secondary)",
   border: "1px solid var(--border-color)",
-  borderRadius: 6,
+  borderRadius: "var(--radius-sm)",
   boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
   padding: "4px 0",
   zIndex: 9999,
@@ -150,7 +150,7 @@ const itemStyle: React.CSSProperties = {
   justifyContent: "space-between",
   width: "100%",
   padding: "6px 12px",
-  fontSize: 12,
+  fontSize: "var(--font-size-base)",
   border: "none",
   background: "transparent",
   color: "var(--text-primary)",
@@ -160,7 +160,7 @@ const itemStyle: React.CSSProperties = {
 };
 
 const shortcutStyle: React.CSSProperties = {
-  fontSize: 11,
+  fontSize: "var(--font-size-sm)",
   color: "var(--text-secondary)",
   fontFamily: "var(--font-mono)",
   marginLeft: 24,

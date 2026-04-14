@@ -74,7 +74,7 @@ const DashboardPanel: React.FC = () => {
 
           {/* Languages */}
           <div style={{ marginBottom: 12 }}>
-            <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>Languages</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 4 }}>Languages</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
               {data.languages.map((lang) => (
                 <span
@@ -83,7 +83,7 @@ const DashboardPanel: React.FC = () => {
                     padding: "2px 8px",
                     background: "var(--bg-secondary)",
                     borderRadius: 12,
-                    fontSize: 11,
+                    fontSize: "var(--font-size-sm)",
                   }}
                 >
                   {lang}
@@ -114,10 +114,10 @@ const Card: React.FC<{ label: string; value: string; color?: string }> = ({ labe
   <div style={{
     padding: "8px 12px",
     background: "var(--bg-tertiary)",
-    borderRadius: 6,
+    borderRadius: "var(--radius-sm)",
     border: "1px solid var(--border-color)",
   }}>
-    <div style={{ fontSize: 10, color: "var(--text-secondary)", marginBottom: 2 }}>{label}</div>
+    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginBottom: 2 }}>{label}</div>
     <div style={{ fontSize: 16, fontWeight: 600, color: color || "var(--text-primary)" }}>{value}</div>
   </div>
 );
@@ -126,7 +126,7 @@ const Badge: React.FC<{ label: string; value: string; ok: boolean }> = ({ label,
   <span style={{
     padding: "3px 10px",
     borderRadius: 12,
-    fontSize: 11,
+    fontSize: "var(--font-size-sm)",
     background: ok ? "rgba(76,175,80,0.15)" : "color-mix(in srgb, var(--accent-rose) 15%, transparent)",
     color: ok ? "var(--success-color)" : "var(--error-color)",
   }}>

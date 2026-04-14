@@ -38,7 +38,7 @@ interface QualityGateResult {
   message: string;
 }
 
-const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" };
+const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: "var(--font-size-xl)", fontWeight: 600, color: "var(--text-primary)" };
 
 const severityColor = (s: string) => {
   switch (s) { case "Critical": case "Security": return "var(--error-color)"; case "Error": return "#ff5722"; case "Warning": return "var(--warning-color)"; default: return "var(--info-color)"; }
@@ -104,14 +104,14 @@ export default function AiCodeReviewPanel() {
             <div className="panel-card">
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
                 <span style={{ fontWeight: 600 }}>{analysis.title}</span>
-                <span style={{ padding: "2px 8px", borderRadius: 3, background: analysis.riskScore > 70 ? "var(--error-color)" : analysis.riskScore > 40 ? "var(--warning-color)" : "var(--success-color)", color: "#fff", fontSize: 11 }}>Risk: {analysis.riskScore.toFixed(0)}</span>
+                <span style={{ padding: "2px 8px", borderRadius: 3, background: analysis.riskScore > 70 ? "var(--error-color)" : analysis.riskScore > 40 ? "var(--warning-color)" : "var(--success-color)", color: "var(--btn-primary-fg, #fff)", fontSize: "var(--font-size-sm)" }}>Risk: {analysis.riskScore.toFixed(0)}</span>
               </div>
               <div className="panel-label">{analysis.filesChanged} files | +{analysis.linesAdded} -{analysis.linesRemoved} | {analysis.findings.length} finding(s)</div>
               <div style={{ marginTop: 8 }}>{analysis.summary}</div>
               {analysis.breakingChanges.length > 0 && (
-                <div style={{ marginTop: 8, padding: 8, background: "var(--error-bg)", borderRadius: 4 }}>
+                <div style={{ marginTop: 8, padding: 8, background: "var(--error-bg)", borderRadius: "var(--radius-xs-plus)" }}>
                   <div style={{ fontWeight: 600, color: "var(--error-color)", marginBottom: 4 }}>Breaking Changes</div>
-                  {analysis.breakingChanges.map((bc, i) => <div key={i} style={{ fontSize: 12 }}>{bc}</div>)}
+                  {analysis.breakingChanges.map((bc, i) => <div key={i} style={{ fontSize: "var(--font-size-base)" }}>{bc}</div>)}
                 </div>
               )}
             </div>
@@ -125,13 +125,13 @@ export default function AiCodeReviewPanel() {
           {analysis.findings.map(f => (
             <div key={f.id} className="panel-card" style={{ borderLeft: `3px solid ${severityColor(f.severity)}` }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                <span style={{ fontWeight: 600, fontSize: 12 }}>{f.file}:{f.lineStart}</span>
-                <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 3, background: severityColor(f.severity), color: "#fff" }}>{f.severity}</span>
+                <span style={{ fontWeight: 600, fontSize: "var(--font-size-base)" }}>{f.file}:{f.lineStart}</span>
+                <span style={{ fontSize: "var(--font-size-xs)", padding: "2px 6px", borderRadius: 3, background: severityColor(f.severity), color: "var(--btn-primary-fg, #fff)" }}>{f.severity}</span>
               </div>
-              <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>[{f.category}] confidence: {(f.confidence * 100).toFixed(0)}%</div>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 4 }}>[{f.category}] confidence: {(f.confidence * 100).toFixed(0)}%</div>
               <div>{f.message}</div>
               {f.suggestion && <div style={{ marginTop: 4, fontStyle: "italic", color: "var(--text-secondary)" }}>Suggestion: {f.suggestion}</div>}
-              {f.autoFixable && <span style={{ fontSize: 10, color: "var(--success-color)" }}>Auto-fixable</span>}
+              {f.autoFixable && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--success-color)" }}>Auto-fixable</span>}
             </div>
           ))}
         </>
@@ -146,7 +146,7 @@ export default function AiCodeReviewPanel() {
             <div key={g.gateId} className="panel-card" style={{ borderLeft: `3px solid ${g.passed ? "var(--success-color)" : "var(--error-color)"}` }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ fontWeight: 600 }}>{g.gateId}</span>
-                <span style={{ fontSize: 11, color: g.passed ? "var(--success-color)" : "var(--error-color)" }}>{g.passed ? "PASSED" : "FAILED"}</span>
+                <span style={{ fontSize: "var(--font-size-sm)", color: g.passed ? "var(--success-color)" : "var(--error-color)" }}>{g.passed ? "PASSED" : "FAILED"}</span>
               </div>
               <div className="panel-label">{g.message}</div>
             </div>
@@ -161,7 +161,7 @@ export default function AiCodeReviewPanel() {
             <button className="panel-btn panel-btn-secondary panel-btn-sm" onClick={() => runAireview("learn")} title='vibecli --cmd "/aireview learn"' style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Play size={12} /> View Metrics</button>
           </div>
           <div className="panel-label">Precision / recall / F1 from review feedback.</div>
-          {cliOutput && <pre style={{ whiteSpace: "pre-wrap", marginTop: 8, fontSize: 11, margin: 0 }}>{cliOutput}</pre>}
+          {cliOutput && <pre style={{ whiteSpace: "pre-wrap", marginTop: 8, fontSize: "var(--font-size-sm)", margin: 0 }}>{cliOutput}</pre>}
         </div>
       )}
     </div>

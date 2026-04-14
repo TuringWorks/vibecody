@@ -15,13 +15,13 @@ const VIS_COLORS: Record<string, string> = {
 };
 
 const badgeStyle = (color: string): React.CSSProperties => ({
-  display: "inline-block", padding: "2px 8px", borderRadius: 10,
-  fontSize: 11, background: color, color: "var(--bg-primary)", fontWeight: 600,
+  display: "inline-block", padding: "2px 8px", borderRadius: "var(--radius-md)",
+  fontSize: "var(--font-size-sm)", background: color, color: "var(--bg-primary)", fontWeight: 600,
 });
 
 const selectStyle: React.CSSProperties = {
   padding: "8px 12px", background: "var(--bg-tertiary)", color: "var(--text-primary)",
-  border: "1px solid var(--border-color)", borderRadius: 4, fontSize: 13, fontFamily: "inherit",
+  border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-md)", fontFamily: "inherit",
   width: "100%", boxSizing: "border-box" as const,
 };
 
@@ -91,7 +91,7 @@ const SessionSharingPanel: React.FC = () => {
                   <strong>{s.title}</strong>
                   <span style={badgeStyle(VIS_COLORS[s.visibility] || "var(--text-secondary)")}>{s.visibility}</span>
                 </div>
-                <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>
                   {s.owner} &middot; {s.messages} messages &middot; {s.views} views &middot; {s.date}
                 </div>
               </div>
@@ -108,10 +108,10 @@ const SessionSharingPanel: React.FC = () => {
               <div key={i} className="panel-card">
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                   <strong>{a.author}</strong>
-                  <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{a.session} line {a.line}</span>
+                  <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{a.session} line {a.line}</span>
                 </div>
-                <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{a.text}</div>
-                <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4 }}>{a.date}</div>
+                <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>{a.text}</div>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 4 }}>{a.date}</div>
               </div>
             ))
           )
@@ -124,7 +124,7 @@ const SessionSharingPanel: React.FC = () => {
                 {FORMATS.map(f => <option key={f} value={f}>{f}</option>)}
               </select>
             </div>
-            <div className="panel-card" style={{ background: "var(--bg-tertiary)", fontFamily: "var(--font-mono)", fontSize: 12, whiteSpace: "pre-wrap" }}>
+            <div className="panel-card" style={{ background: "var(--bg-tertiary)", fontFamily: "var(--font-mono)", fontSize: "var(--font-size-base)", whiteSpace: "pre-wrap" }}>
               {exportFormat === "Markdown" && "# Session Export\n\n## Auth refactor session\n**Owner:** alice | **Messages:** 24\n\n---\n> Message 1: ...\n> Message 2: ..."}
               {exportFormat === "JSON" && '{\n  "session_id": "sess-a1b2",\n  "title": "Auth refactor session",\n  "messages": [...]\n}'}
               {exportFormat === "HTML" && "<html>\n<body>\n  <h1>Session Export</h1>\n  <div class=\"message\">...</div>\n</body>\n</html>"}

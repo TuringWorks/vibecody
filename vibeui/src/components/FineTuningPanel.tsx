@@ -189,11 +189,11 @@ export default function FineTuningPanel() {
        <>
          {/* Source selector */}
          <div style={{ marginBottom: 12 }}>
-           <strong style={{ fontSize: 12 }}>Data Source</strong>
+           <strong style={{ fontSize: "var(--font-size-base)" }}>Data Source</strong>
            <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
              {(["codebase", "git", "conversations"] as const).map(s => (
                <button key={s} onClick={() => setDataSource(s)} style={{
-                 padding: "6px 14px", border: "1px solid var(--border-color)", borderRadius: 4, cursor: "pointer",
+                 padding: "6px 14px", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", cursor: "pointer",
                  background: dataSource === s ? "var(--accent-color)" : "transparent",
                  color: dataSource === s ? "var(--text-primary)" : "var(--text-primary)",
                }}>{s === "git" ? "Git History" : s.charAt(0).toUpperCase() + s.slice(1)}</button>
@@ -207,36 +207,36 @@ export default function FineTuningPanel() {
          ) : (
            <>
              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 12 }}>
-               <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: 6, textAlign: "center" }}>
+               <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", textAlign: "center" }}>
                  <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--accent-color)" }}>{stats.example_count.toLocaleString()}</div>
-                 <div style={{ fontSize: 11 }}>Examples</div>
+                 <div style={{ fontSize: "var(--font-size-sm)" }}>Examples</div>
                </div>
-               <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: 6, textAlign: "center" }}>
+               <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", textAlign: "center" }}>
                  <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--success-color)" }}>{(stats.total_tokens / 1000).toFixed(0)}K</div>
-                 <div style={{ fontSize: 11 }}>Tokens</div>
+                 <div style={{ fontSize: "var(--font-size-sm)" }}>Tokens</div>
                </div>
-               <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: 6, textAlign: "center" }}>
+               <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", textAlign: "center" }}>
                  <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{stats.avg_tokens_per_example.toFixed(0)}</div>
-                 <div style={{ fontSize: 11 }}>Avg Tokens/Ex</div>
+                 <div style={{ fontSize: "var(--font-size-sm)" }}>Avg Tokens/Ex</div>
                </div>
-               <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: 6, textAlign: "center" }}>
+               <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", textAlign: "center" }}>
                  <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)", color: stats.invalid_count > 0 ? "var(--error-color)" : "var(--success-color)" }}>
                    {stats.invalid_count}
                  </div>
-                 <div style={{ fontSize: 11 }}>Invalid</div>
+                 <div style={{ fontSize: "var(--font-size-sm)" }}>Invalid</div>
                </div>
              </div>
 
              {/* Language distribution */}
-             <strong style={{ fontSize: 12 }}>Language Distribution</strong>
+             <strong style={{ fontSize: "var(--font-size-base)" }}>Language Distribution</strong>
              <div style={{ marginTop: 4 }}>
                {Object.entries(stats.languages).map(([lang, count]) => (
                  <div key={lang} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                    <span style={{ width: 80 }}>{lang}</span>
-                   <div style={{ flex: 1, height: 16, background: "var(--border-color)", borderRadius: 4, overflow: "hidden" }}>
-                     <div style={{ height: "100%", width: `${stats.example_count > 0 ? (count / stats.example_count) * 100 : 0}%`, background: "var(--accent-color)", borderRadius: 4 }} />
+                   <div style={{ flex: 1, height: 16, background: "var(--border-color)", borderRadius: "var(--radius-xs-plus)", overflow: "hidden" }}>
+                     <div style={{ height: "100%", width: `${stats.example_count > 0 ? (count / stats.example_count) * 100 : 0}%`, background: "var(--accent-color)", borderRadius: "var(--radius-xs-plus)" }} />
                    </div>
-                   <span style={{ width: 50, textAlign: "right", fontSize: 12 }}>{count}</span>
+                   <span style={{ width: 50, textAlign: "right", fontSize: "var(--font-size-base)" }}>{count}</span>
                  </div>
                ))}
              </div>
@@ -244,13 +244,13 @@ export default function FineTuningPanel() {
          )}
 
          <div style={{ display: "flex", gap: 6, marginTop: 12 }}>
-           <button onClick={loadStats} style={{ padding: "6px 14px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: 4, cursor: "pointer" }}>
+           <button onClick={loadStats} style={{ padding: "6px 14px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", cursor: "pointer" }}>
              Build Dataset
            </button>
-           <button style={{ padding: "6px 14px", background: "transparent", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4, cursor: "pointer" }}>
+           <button style={{ padding: "6px 14px", background: "transparent", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", cursor: "pointer" }}>
              Export JSONL
            </button>
-           <button style={{ padding: "6px 14px", background: "transparent", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4, cursor: "pointer" }}>
+           <button style={{ padding: "6px 14px", background: "transparent", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", cursor: "pointer" }}>
              Deduplicate
            </button>
          </div>
@@ -263,41 +263,41 @@ export default function FineTuningPanel() {
            <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
              <span>Provider</span>
              <select value={provider} onChange={e => setProvider(e.target.value)}
-               style={{ width: 180, padding: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4 }}>
+               style={{ width: 180, padding: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)" }}>
                {PROVIDERS.map(p => <option key={p}>{p}</option>)}
              </select>
            </label>
            <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
              <span>Base Model</span>
              <input value={baseModel} onChange={e => setBaseModel(e.target.value)}
-               style={{ width: 180, padding: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4 }} />
+               style={{ width: 180, padding: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)" }} />
            </label>
            <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
              <span>Epochs</span>
              <input type="number" value={epochs} onChange={e => setEpochs(+e.target.value)} min={1} max={10}
-               style={{ width: 70, padding: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4 }} />
+               style={{ width: 70, padding: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)" }} />
            </label>
            <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
              <span>Batch Size</span>
              <input type="number" value={batchSize} onChange={e => setBatchSize(+e.target.value)} min={1} max={64}
-               style={{ width: 70, padding: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4 }} />
+               style={{ width: 70, padding: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)" }} />
            </label>
            <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
              <span>Learning Rate</span>
              <input value={lr} onChange={e => setLr(e.target.value)}
-               style={{ width: 100, padding: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4 }} />
+               style={{ width: 100, padding: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)" }} />
            </label>
            {provider === "Local (LoRA)" && (
              <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                <span>LoRA Rank</span>
                <input type="number" value={loraRank} onChange={e => setLoraRank(+e.target.value)} min={4} max={128}
-                 style={{ width: 70, padding: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4 }} />
+                 style={{ width: 70, padding: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)" }} />
              </label>
            )}
          </div>
 
          {/* Cost estimate */}
-         <div style={{ marginTop: 12, padding: 10, border: "1px solid var(--border-color)", borderRadius: 6, fontSize: 12 }}>
+         <div style={{ marginTop: 12, padding: 10, border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", fontSize: "var(--font-size-base)" }}>
            <strong>Cost Estimate</strong>
            <div style={{ marginTop: 4 }}>
              Tokens: {(stats.total_tokens * epochs / 1000).toFixed(0)}K |
@@ -306,7 +306,7 @@ export default function FineTuningPanel() {
            </div>
          </div>
 
-         <button onClick={handleCreateJob} disabled={loading} style={{ marginTop: 12, padding: "8px 20px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 600, opacity: loading ? 0.6 : 1 }}>
+         <button onClick={handleCreateJob} disabled={loading} style={{ marginTop: 12, padding: "8px 20px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", cursor: "pointer", fontWeight: 600, opacity: loading ? 0.6 : 1 }}>
            {loading ? "Creating..." : "Launch Training Job"}
          </button>
        </div>
@@ -319,7 +319,7 @@ export default function FineTuningPanel() {
              No fine-tuning jobs yet. Go to the Train tab to create one.
            </div>
          ) : (
-           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
              <thead>
                <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
                  <th style={{ textAlign: "left", padding: 6 }}>ID</th>
@@ -345,8 +345,8 @@ export default function FineTuningPanel() {
                    <td style={{ padding: 6, textAlign: "right" }}>{job.loss > 0 ? job.loss.toFixed(3) : "-"}</td>
                    <td style={{ padding: 6, textAlign: "right" }}>
                      <div style={{ display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end" }}>
-                       <div style={{ width: 60, height: 8, background: "var(--border-color)", borderRadius: 4, overflow: "hidden" }}>
-                         <div style={{ height: "100%", width: `${job.progress}%`, background: STATUS_COLORS[job.status], borderRadius: 4 }} />
+                       <div style={{ width: 60, height: 8, background: "var(--border-color)", borderRadius: "var(--radius-xs-plus)", overflow: "hidden" }}>
+                         <div style={{ height: "100%", width: `${job.progress}%`, background: STATUS_COLORS[job.status], borderRadius: "var(--radius-xs-plus)" }} />
                        </div>
                        {job.progress}%
                      </div>
@@ -368,7 +368,7 @@ export default function FineTuningPanel() {
              No evaluation results yet. Run an evaluation to see results.
            </div>
          ) : (
-           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, marginTop: 8 }}>
+           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)", marginTop: 8 }}>
              <thead>
                <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
                  <th style={{ textAlign: "left", padding: 6 }}>Model</th>
@@ -391,7 +391,7 @@ export default function FineTuningPanel() {
              </tbody>
            </table>
          )}
-         <button style={{ marginTop: 12, padding: "6px 14px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: 4, cursor: "pointer" }}>
+         <button style={{ marginTop: 12, padding: "6px 14px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", cursor: "pointer" }}>
            Run Evaluation
          </button>
        </>
@@ -405,7 +405,7 @@ export default function FineTuningPanel() {
              No LoRA adapters configured yet.
            </div>
          ) : (
-           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, marginTop: 8 }}>
+           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)", marginTop: 8 }}>
              <thead>
                <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
                  <th style={{ textAlign: "left", padding: 6 }}>Name</th>
@@ -423,15 +423,15 @@ export default function FineTuningPanel() {
                    <td style={{ padding: 6, textAlign: "right" }}>{a.rank}</td>
                    <td style={{ padding: 6, textAlign: "right" }}>{a.size_mb} MB</td>
                    <td style={{ padding: 6, textAlign: "right" }}>
-                     <button style={{ padding: "2px 8px", background: "transparent", color: "var(--accent-color)", border: "1px solid var(--accent-color)", borderRadius: 4, cursor: "pointer", marginRight: 4, fontSize: 11 }}>Merge</button>
-                     <button style={{ padding: "2px 8px", background: "transparent", color: "var(--error-color)", border: "1px solid var(--error-color)", borderRadius: 4, cursor: "pointer", fontSize: 11 }}>Delete</button>
+                     <button style={{ padding: "2px 8px", background: "transparent", color: "var(--accent-color)", border: "1px solid var(--accent-color)", borderRadius: "var(--radius-xs-plus)", cursor: "pointer", marginRight: 4, fontSize: "var(--font-size-sm)" }}>Merge</button>
+                     <button style={{ padding: "2px 8px", background: "transparent", color: "var(--error-color)", border: "1px solid var(--error-color)", borderRadius: "var(--radius-xs-plus)", cursor: "pointer", fontSize: "var(--font-size-sm)" }}>Delete</button>
                    </td>
                  </tr>
                ))}
              </tbody>
            </table>
          )}
-         <button onClick={handleCreateAdapter} style={{ marginTop: 12, padding: "6px 14px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: 4, cursor: "pointer" }}>
+         <button onClick={handleCreateAdapter} style={{ marginTop: 12, padding: "6px 14px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", cursor: "pointer" }}>
            Create Adapter
          </button>
        </>

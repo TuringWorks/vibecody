@@ -229,7 +229,7 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
     <div className="panel-body" style={{ overflowY: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
       {/* Environment selector */}
       <div>
-        <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>Environment</div>
+        <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, marginBottom: 6 }}>Environment</div>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
           {environments.map((env) => {
             const file = envFiles.find((f) => f.environment === env);
@@ -244,7 +244,7 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
                   padding: "4px 12px",
                   cursor: "pointer",
                   color: "var(--text-primary)",
-                  fontSize: 11,
+                  fontSize: "var(--font-size-sm)",
                   fontWeight: activeEnv === env ? 600 : 400,
                 }}
               >
@@ -280,7 +280,7 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
       </div>
 
       {/* File info */}
-      <div style={{ fontSize: 11, opacity: 0.6, fontFamily: "var(--font-mono)" }}>
+      <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.6, fontFamily: "var(--font-mono)" }}>
         {envToFilename(activeEnv)} &middot; {entries.length} variable{entries.length !== 1 ? "s" : ""}
         {dirty && <span style={{ color: "var(--text-warning)", marginLeft: 8 }}>Unsaved changes</span>}
       </div>
@@ -331,7 +331,7 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
               key={entry.key}
               style={{
                 display: "flex", alignItems: "center", gap: 8, padding: "6px 0",
-                borderBottom: "1px solid var(--border-color)", fontSize: 12,
+                borderBottom: "1px solid var(--border-color)", fontSize: "var(--font-size-base)",
               }}
             >
               {/* Key */}
@@ -356,7 +356,7 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
                   role="switch"
                   aria-checked={revealedKeys.has(entry.key)}
                   style={{
-                    background: "none", border: "none", cursor: "pointer", fontSize: 13,
+                    background: "none", border: "none", cursor: "pointer", fontSize: "var(--font-size-md)",
                     color: "var(--text-primary)", padding: "2px 4px", flexShrink: 0,
                   }}
                 >
@@ -369,7 +369,7 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
                 title="Delete variable"
                 aria-label="Delete environment variable"
                 style={{
-                  background: "none", border: "none", cursor: "pointer", fontSize: 13,
+                  background: "none", border: "none", cursor: "pointer", fontSize: "var(--font-size-md)",
                   color: "var(--text-danger)", padding: "2px 4px", flexShrink: 0,
                 }}
               >
@@ -382,7 +382,7 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
 
       {/* Add new variable */}
       <div style={{ borderTop: "1px solid var(--border-color)", paddingTop: 10 }}>
-        <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>Add Variable</div>
+        <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, marginBottom: 6 }}>Add Variable</div>
         <div style={{ display: "flex", gap: 6 }}>
           <label htmlFor="new-var-key" style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap" }}>
             Variable key name

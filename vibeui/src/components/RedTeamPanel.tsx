@@ -358,7 +358,7 @@ export function RedTeamPanel({ workspacePath, onOpenFile }: Props) {
 
       {/* Elapsed timer */}
       {scanning && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, fontSize: 12, color: "var(--text-secondary)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>
           <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
           <span>Scanning... {formatElapsed(elapsedSecs)}</span>
         </div>
@@ -375,7 +375,7 @@ export function RedTeamPanel({ workspacePath, onOpenFile }: Props) {
                 style={{
                   display: "flex", alignItems: "center", gap: 8, padding: "6px 10px",
                   background: ss.status === "running" ? "color-mix(in srgb, var(--accent-blue) 8%, transparent)" : "var(--bg-secondary)",
-                  borderRadius: 4, cursor: "pointer", fontSize: 12,
+                  borderRadius: "var(--radius-xs-plus)", cursor: "pointer", fontSize: "var(--font-size-base)",
                   borderLeft: `3px solid ${
                     ss.status === "running" ? "var(--accent-blue)" :
                     ss.status === "success" ? "var(--success-color)" :
@@ -406,13 +406,13 @@ export function RedTeamPanel({ workspacePath, onOpenFile }: Props) {
                 </span>
 
                 {/* Description */}
-                <span style={{ flex: 1, color: "var(--text-secondary)", fontSize: 11 }}>
+                <span style={{ flex: 1, color: "var(--text-secondary)", fontSize: "var(--font-size-sm)" }}>
                   {ss.status === "running" ? STAGE_DESCRIPTIONS[ss.stage] : ""}
                 </span>
 
                 {/* Duration */}
                 {ss.duration != null && (
-                  <span style={{ fontSize: 10, color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
+                  <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
                     {ss.duration.toFixed(1)}s
                   </span>
                 )}
@@ -427,7 +427,7 @@ export function RedTeamPanel({ workspacePath, onOpenFile }: Props) {
 
               {/* Expanded details */}
               {isExpanded && ss.details.length > 0 && (
-                <div style={{ marginLeft: 29, padding: "4px 10px", fontSize: 11, color: "var(--text-secondary)" }}>
+                <div style={{ marginLeft: 29, padding: "4px 10px", fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
                   {ss.details.map((d, j) => (
                     <div key={j} style={{ display: "flex", gap: 6, alignItems: "center", padding: "2px 0" }}>
                       <span style={{ color: "var(--success-color)" }}>&#10003;</span>
@@ -444,14 +444,14 @@ export function RedTeamPanel({ workspacePath, onOpenFile }: Props) {
       {/* Live activity log */}
       {logs.length > 0 && (
         <div style={{ marginBottom: 16 }}>
-          <h4 style={{ margin: "0 0 8px", fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
+          <h4 style={{ margin: "0 0 8px", fontSize: "var(--font-size-md)", display: "flex", alignItems: "center", gap: 6 }}>
             Activity Log
-            <span style={{ fontSize: 10, color: "var(--text-secondary)", fontWeight: 400 }}>({logs.length} entries)</span>
+            <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", fontWeight: 400 }}>({logs.length} entries)</span>
           </h4>
           <div style={{
             maxHeight: 200, overflow: "auto", padding: 8,
-            background: "var(--bg-tertiary)", borderRadius: 4,
-            fontFamily: "var(--font-mono)", fontSize: 11, lineHeight: 1.7,
+            background: "var(--bg-tertiary)", borderRadius: "var(--radius-xs-plus)",
+            fontFamily: "var(--font-mono)", fontSize: "var(--font-size-sm)", lineHeight: 1.7,
           }}>
             {logs.map((log, i) => (
               <div key={i} style={{ display: "flex", gap: 8 }}>
@@ -476,7 +476,7 @@ export function RedTeamPanel({ workspacePath, onOpenFile }: Props) {
       {activeSession && (
         <div style={{
           display: "flex", gap: 12, marginBottom: 16, padding: "8px 12px",
-          background: "var(--bg-secondary)", borderRadius: 4, fontSize: 12, alignItems: "center",
+          background: "var(--bg-secondary)", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-base)", alignItems: "center",
         }}>
           <span style={{ color: "var(--error-color)", fontWeight: 600 }}>{critical} Critical</span>
           <span style={{ color: "#e5a844", fontWeight: 600 }}>{high} High</span>
@@ -484,7 +484,7 @@ export function RedTeamPanel({ workspacePath, onOpenFile }: Props) {
           <span style={{ color: "var(--accent-blue)", fontWeight: 600 }}>{low} Low</span>
           <span style={{ flex: 1 }} />
           <button onClick={() => downloadReport(activeSession.id)} style={{
-            padding: "4px 12px", fontSize: 11, borderRadius: 3, border: "1px solid var(--border-color)",
+            padding: "4px 12px", fontSize: "var(--font-size-sm)", borderRadius: 3, border: "1px solid var(--border-color)",
             background: "none", color: "var(--text-primary)", cursor: "pointer",
           }}>
             Export Report
@@ -495,24 +495,24 @@ export function RedTeamPanel({ workspacePath, onOpenFile }: Props) {
       {/* Findings list */}
       {findings.length > 0 && (
         <div style={{ marginBottom: 16 }}>
-          <h4 style={{ margin: "0 0 8px", fontSize: 13 }}>Findings ({findings.length})</h4>
+          <h4 style={{ margin: "0 0 8px", fontSize: "var(--font-size-md)" }}>Findings ({findings.length})</h4>
           {findings.sort((a, b) => b.cvss_score - a.cvss_score).map((f) => (
             <div key={f.id} style={{
-              marginBottom: 8, padding: "8px 12px", borderRadius: 4,
+              marginBottom: 8, padding: "8px 12px", borderRadius: "var(--radius-xs-plus)",
               background: "var(--bg-secondary)", borderLeft: `3px solid ${severityColor(f.severity)}`,
               cursor: "pointer",
             }} onClick={() => setExpandedFinding(expandedFinding === f.id ? null : f.id)}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={{ display: "inline-flex" }}>{severityIcon(f.severity)}</span>
-                <span style={{ fontSize: 12, fontWeight: 600, flex: 1 }}>{f.title}</span>
+                <span style={{ fontSize: "var(--font-size-base)", fontWeight: 600, flex: 1 }}>{f.title}</span>
                 <span style={{
-                  fontSize: 10, padding: "2px 6px", borderRadius: 3,
+                  fontSize: "var(--font-size-xs)", padding: "2px 6px", borderRadius: 3,
                   background: severityColor(f.severity), color: "var(--btn-primary-fg, #fff)", fontWeight: 600,
                 }}>
                   CVSS {f.cvss_score.toFixed(1)}
                 </span>
                 {f.confirmed && (
-                  <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 3, background: "var(--error-color)", color: "var(--btn-primary-fg, #fff)" }}>
+                  <span style={{ fontSize: "var(--font-size-xs)", padding: "2px 6px", borderRadius: 3, background: "var(--error-color)", color: "var(--btn-primary-fg, #fff)" }}>
                     CONFIRMED
                   </span>
                 )}
@@ -524,7 +524,7 @@ export function RedTeamPanel({ workspacePath, onOpenFile }: Props) {
                   <span
                     onClick={(e) => { e.stopPropagation(); if (onOpenFile && workspacePath) { const full = f.source_file!.startsWith("/") ? f.source_file! : `${workspacePath}/${f.source_file}`; onOpenFile(full, f.source_line || undefined); } }}
                     style={{
-                      fontSize: 10, color: "var(--accent-blue)", fontFamily: "var(--font-mono)",
+                      fontSize: "var(--font-size-xs)", color: "var(--accent-blue)", fontFamily: "var(--font-mono)",
                       cursor: onOpenFile ? "pointer" : "default",
                       textDecoration: onOpenFile ? "underline" : "none",
                     }}
@@ -536,16 +536,16 @@ export function RedTeamPanel({ workspacePath, onOpenFile }: Props) {
               )}
 
               {expandedFinding === f.id && (
-                <div style={{ marginTop: 8, fontSize: 12, lineHeight: 1.6 }}>
-                  <div><strong>URL:</strong> <code style={{ fontSize: 11 }}>{f.url}</code></div>
-                  <div><strong>Parameter:</strong> <code style={{ fontSize: 11 }}>{f.location}</code></div>
+                <div style={{ marginTop: 8, fontSize: "var(--font-size-base)", lineHeight: 1.6 }}>
+                  <div><strong>URL:</strong> <code style={{ fontSize: "var(--font-size-sm)" }}>{f.url}</code></div>
+                  <div><strong>Parameter:</strong> <code style={{ fontSize: "var(--font-size-sm)" }}>{f.location}</code></div>
                   <div><strong>Vector:</strong> {f.attack_vector}</div>
                   <div style={{ marginTop: 4 }}><strong>Description:</strong> {f.description}</div>
                   <div style={{ marginTop: 4 }}>
                     <strong>PoC:</strong>
                     <pre style={{
                       margin: "4px 0", padding: 8, background: "var(--bg-primary)", borderRadius: 3,
-                      fontSize: 11, overflow: "auto", whiteSpace: "pre-wrap",
+                      fontSize: "var(--font-size-sm)", overflow: "auto", whiteSpace: "pre-wrap",
                     }}>
                       {f.poc}
                     </pre>
@@ -563,22 +563,22 @@ export function RedTeamPanel({ workspacePath, onOpenFile }: Props) {
       {/* Previous sessions */}
       {sessions.length > 0 && (
         <div>
-          <h4 style={{ margin: "0 0 8px", fontSize: 13 }}>Previous Sessions</h4>
+          <h4 style={{ margin: "0 0 8px", fontSize: "var(--font-size-md)" }}>Previous Sessions</h4>
           {sessions.map((s) => (
             <div key={s.id} style={{
               display: "flex", alignItems: "center", gap: 8,
-              padding: "6px 10px", marginBottom: 4, borderRadius: 4,
-              background: "var(--bg-secondary)", fontSize: 12, cursor: "pointer",
+              padding: "6px 10px", marginBottom: 4, borderRadius: "var(--radius-xs-plus)",
+              background: "var(--bg-secondary)", fontSize: "var(--font-size-base)", cursor: "pointer",
             }} onClick={async () => {
               try {
                 const f = await invoke<VulnFinding[]>("get_redteam_findings", { sessionId: s.id });
                 setActiveSession({ ...s, findings: f });
               } catch { setActiveSession(s); }
             }}>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>{s.id}</span>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: "var(--font-size-sm)" }}>{s.id}</span>
               <span style={{ color: "var(--text-secondary)" }}>{s.target_url}</span>
               <span style={{ flex: 1 }} />
-              <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>{s.findings.length} findings</span>
+              <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>{s.findings.length} findings</span>
             </div>
           ))}
         </div>
@@ -588,12 +588,12 @@ export function RedTeamPanel({ workspacePath, onOpenFile }: Props) {
       {!scanning && !activeSession && findings.length === 0 && sessions.length === 0 && logs.length === 0 && (
         <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--text-secondary)" }}>
           <CircleAlert size={32} strokeWidth={1.5} style={{ color: "var(--text-secondary)", marginBottom: 12 }} />
-          <p style={{ fontSize: 13, margin: "0 0 8px" }}>No security scans yet</p>
-          <p style={{ fontSize: 12 }}>
+          <p style={{ fontSize: "var(--font-size-md)", margin: "0 0 8px" }}>No security scans yet</p>
+          <p style={{ fontSize: "var(--font-size-base)" }}>
             Enter a target URL above and click <strong>Start Scan</strong> to run
             an autonomous security assessment.
           </p>
-          <p style={{ fontSize: 11, marginTop: 12, fontStyle: "italic" }}>
+          <p style={{ fontSize: "var(--font-size-sm)", marginTop: 12, fontStyle: "italic" }}>
             Only test applications you own and control.
           </p>
         </div>

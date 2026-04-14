@@ -125,11 +125,11 @@ export function OnDevicePanel() {
 
   return (
     <div style={{ padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-mono)", height: "100%", overflowY: "auto" }}>
-      <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>On-Device Models</div>
+      <div style={{ fontSize: "var(--font-size-xl)", fontWeight: 700, marginBottom: 12 }}>On-Device Models</div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
         {["models", "hardware", "benchmark", "privacy"].map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{ padding: "4px 12px", borderRadius: 6, cursor: "pointer", background: tab === t ? "var(--accent-color)" : "var(--bg-secondary)", color: tab === t ? "#fff" : "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: 12 }}>{t}</button>
+          <button key={t} onClick={() => setTab(t)} style={{ padding: "4px 12px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: tab === t ? "var(--accent-color)" : "var(--bg-secondary)", color: tab === t ? "#fff" : "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>{t}</button>
         ))}
       </div>
 
@@ -138,7 +138,7 @@ export function OnDevicePanel() {
 
       {!loading && tab === "models" && (
         <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
             <thead>
               <tr style={{ background: "var(--bg-secondary)" }}>
                 {["Name", "Format", "Quant", "Size", "Actions"].map(h => (
@@ -155,19 +155,19 @@ export function OnDevicePanel() {
                   <td style={{ padding: "6px 10px", fontWeight: 600 }}>{m.name}</td>
                   <td style={{ padding: "6px 10px", color: "var(--text-muted)" }}>{m.format}</td>
                   <td style={{ padding: "6px 10px" }}>
-                    <span style={{ padding: "1px 7px", borderRadius: 6, fontSize: 11, background: "var(--accent-color)22", color: "var(--accent-color)" }}>{m.quant}</span>
+                    <span style={{ padding: "1px 7px", borderRadius: "var(--radius-sm)", fontSize: "var(--font-size-sm)", background: "var(--accent-color)22", color: "var(--accent-color)" }}>{m.quant}</span>
                   </td>
                   <td style={{ padding: "6px 10px", color: "var(--text-muted)", whiteSpace: "nowrap" }}>{formatMb(m.size_mb)}</td>
                   <td style={{ padding: "6px 10px" }}>
                     <div style={{ display: "flex", gap: 6 }}>
                       {!m.downloaded ? (
                         <button onClick={() => downloadModel(m.id)} disabled={downloading.has(m.id)}
-                          style={{ padding: "3px 10px", borderRadius: 5, cursor: downloading.has(m.id) ? "not-allowed" : "pointer", background: "var(--accent-color)", color: "#fff", border: "none", fontSize: 11, opacity: downloading.has(m.id) ? 0.6 : 1 }}>
+                          style={{ padding: "3px 10px", borderRadius: 5, cursor: downloading.has(m.id) ? "not-allowed" : "pointer", background: "var(--accent-color)", color: "var(--btn-primary-fg, #fff)", border: "none", fontSize: "var(--font-size-sm)", opacity: downloading.has(m.id) ? 0.6 : 1 }}>
                           {downloading.has(m.id) ? "Downloading…" : "Download"}
                         </button>
                       ) : (
                         <button onClick={() => deleteModel(m.id)} disabled={deleting.has(m.id)}
-                          style={{ padding: "3px 10px", borderRadius: 5, cursor: deleting.has(m.id) ? "not-allowed" : "pointer", background: "var(--error-color)", color: "#fff", border: "none", fontSize: 11, opacity: deleting.has(m.id) ? 0.6 : 1 }}>
+                          style={{ padding: "3px 10px", borderRadius: 5, cursor: deleting.has(m.id) ? "not-allowed" : "pointer", background: "var(--error-color)", color: "var(--btn-primary-fg, #fff)", border: "none", fontSize: "var(--font-size-sm)", opacity: deleting.has(m.id) ? 0.6 : 1 }}>
                           {deleting.has(m.id) ? "Deleting…" : "Delete"}
                         </button>
                       )}
@@ -184,8 +184,8 @@ export function OnDevicePanel() {
         <div style={{ maxWidth: 480 }}>
           {!hardware && <div style={{ color: "var(--text-muted)" }}>No hardware info available.</div>}
           {hardware && (
-            <div style={{ background: "var(--bg-secondary)", borderRadius: 10, border: "1px solid var(--border-color)", padding: 18 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "150px 1fr", rowGap: 12, fontSize: 13 }}>
+            <div style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-md)", border: "1px solid var(--border-color)", padding: 18 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "150px 1fr", rowGap: 12, fontSize: "var(--font-size-md)" }}>
                 {[
                   ["Backend", hardware.backend_name],
                   ["GPU", hardware.gpu_name ?? "None"],
@@ -195,7 +195,7 @@ export function OnDevicePanel() {
                   ["RAM", formatMb(hardware.ram_mb)],
                 ].map(([label, value]) => (
                   <>
-                    <span key={`l-${label}`} style={{ color: "var(--text-muted)", fontSize: 12 }}>{label}</span>
+                    <span key={`l-${label}`} style={{ color: "var(--text-muted)", fontSize: "var(--font-size-base)" }}>{label}</span>
                     <span key={`v-${label}`} style={{ fontWeight: 600 }}>{value}</span>
                   </>
                 ))}
@@ -209,18 +209,18 @@ export function OnDevicePanel() {
         <div>
           <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 16, flexWrap: "wrap" }}>
             <select value={selectedModel} onChange={e => setSelectedModel(e.target.value)}
-              style={{ padding: "6px 10px", borderRadius: 6, background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: 12, flex: 1, minWidth: 200 }}>
+              style={{ padding: "6px 10px", borderRadius: "var(--radius-sm)", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)", flex: 1, minWidth: 200 }}>
               {models.filter(m => m.downloaded).map(m => (
                 <option key={m.id} value={m.id}>{m.name}</option>
               ))}
               {models.filter(m => m.downloaded).length === 0 && <option value="">No downloaded models</option>}
             </select>
             <button onClick={runBenchmark} disabled={benchRunning || !selectedModel}
-              style={{ padding: "6px 18px", borderRadius: 6, cursor: benchRunning || !selectedModel ? "not-allowed" : "pointer", background: "var(--accent-color)", color: "#fff", border: "none", fontSize: 12, fontWeight: 600, opacity: benchRunning || !selectedModel ? 0.6 : 1 }}>
+              style={{ padding: "6px 18px", borderRadius: "var(--radius-sm)", cursor: benchRunning || !selectedModel ? "not-allowed" : "pointer", background: "var(--accent-color)", color: "var(--btn-primary-fg, #fff)", border: "none", fontSize: "var(--font-size-base)", fontWeight: 600, opacity: benchRunning || !selectedModel ? 0.6 : 1 }}>
               {benchRunning ? "Running…" : "Run Benchmark"}
             </button>
           </div>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
             <thead>
               <tr style={{ background: "var(--bg-secondary)" }}>
                 {["Model", "TPS", "TTFT (ms)", "Tokens", "Run At"].map(h => (
@@ -248,25 +248,25 @@ export function OnDevicePanel() {
 
       {!loading && tab === "privacy" && (
         <div style={{ maxWidth: 480 }}>
-          <div style={{ background: "var(--bg-secondary)", borderRadius: 10, border: "1px solid var(--border-color)", padding: 18, marginBottom: 16 }}>
+          <div style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-md)", border: "1px solid var(--border-color)", padding: 18, marginBottom: 16 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
               <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
                 <input type="checkbox" checked={privacy.local_only} onChange={e => toggleLocalOnly(e.target.checked)} />
-                <span style={{ fontSize: 13, fontWeight: 600 }}>Local-Only Mode</span>
+                <span style={{ fontSize: "var(--font-size-md)", fontWeight: 600 }}>Local-Only Mode</span>
               </label>
               {privacy.local_only && (
-                <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 8, background: "var(--success-color)22", color: "var(--success-color)" }}>Active</span>
+                <span style={{ fontSize: "var(--font-size-sm)", padding: "2px 8px", borderRadius: "var(--radius-sm-alt)", background: "var(--success-color)22", color: "var(--success-color)" }}>Active</span>
               )}
             </div>
-            <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-muted)", marginBottom: 16 }}>
               When enabled, no data is sent to external providers. Only on-device models are available.
             </div>
             <div>
-              <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Blocked Providers</div>
-              {privacy.blocked_providers.length === 0 && <div style={{ fontSize: 12, color: "var(--text-muted)" }}>No providers blocked.</div>}
+              <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, marginBottom: 8 }}>Blocked Providers</div>
+              {privacy.blocked_providers.length === 0 && <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-muted)" }}>No providers blocked.</div>}
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                 {privacy.blocked_providers.map(p => (
-                  <span key={p} style={{ padding: "3px 10px", borderRadius: 12, fontSize: 11, background: "var(--error-color)22", color: "var(--error-color)", border: "1px solid var(--error-color)" }}>{p}</span>
+                  <span key={p} style={{ padding: "3px 10px", borderRadius: 12, fontSize: "var(--font-size-sm)", background: "var(--error-color)22", color: "var(--error-color)", border: "1px solid var(--error-color)" }}>{p}</span>
                 ))}
               </div>
             </div>

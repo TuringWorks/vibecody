@@ -95,11 +95,11 @@ export function ReproAgentPanel() {
 
   return (
     <div style={{ padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-mono)", height: "100%", overflowY: "auto" }}>
-      <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>Repro Agent</div>
+      <div style={{ fontSize: "var(--font-size-xl)", fontWeight: 700, marginBottom: 12 }}>Repro Agent</div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         {["sessions", "replay", "verify"].map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{ padding: "4px 12px", borderRadius: 6, cursor: "pointer", background: tab === t ? "var(--accent-color)" : "var(--bg-secondary)", color: tab === t ? "#fff" : "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: 12 }}>{t}</button>
+          <button key={t} onClick={() => setTab(t)} style={{ padding: "4px 12px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: tab === t ? "var(--accent-color)" : "var(--bg-secondary)", color: tab === t ? "#fff" : "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>{t}</button>
         ))}
       </div>
 
@@ -110,19 +110,19 @@ export function ReproAgentPanel() {
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {snapshots.length === 0 && <div style={{ color: "var(--text-muted)" }}>No snapshots found.</div>}
           {snapshots.map(snap => (
-            <div key={snap.session_id} style={{ background: "var(--bg-secondary)", borderRadius: 8, border: "1px solid var(--border-color)", padding: "12px 14px" }}>
+            <div key={snap.session_id} style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", border: "1px solid var(--border-color)", padding: "12px 14px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                <span style={{ fontSize: 13, fontWeight: 600 }}>{snap.label ?? snap.session_id.slice(0, 12) + "…"}</span>
-                <span style={{ fontSize: 11, padding: "2px 10px", borderRadius: 10, background: statusColor(snap.status) + "22", color: statusColor(snap.status), marginLeft: "auto" }}>{snap.status}</span>
+                <span style={{ fontSize: "var(--font-size-md)", fontWeight: 600 }}>{snap.label ?? snap.session_id.slice(0, 12) + "…"}</span>
+                <span style={{ fontSize: "var(--font-size-sm)", padding: "2px 10px", borderRadius: "var(--radius-md)", background: statusColor(snap.status) + "22", color: statusColor(snap.status), marginLeft: "auto" }}>{snap.status}</span>
               </div>
-              <div style={{ display: "flex", gap: 14, fontSize: 11, color: "var(--text-muted)", marginBottom: 6 }}>
+              <div style={{ display: "flex", gap: 14, fontSize: "var(--font-size-sm)", color: "var(--text-muted)", marginBottom: 6 }}>
                 <span>{snap.message_count} messages</span>
                 <span>{snap.tool_count} tool calls</span>
                 <span>{snap.created_at}</span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <span style={{ fontSize: 10, color: "var(--text-muted)" }}>Fingerprint:</span>
-                <code style={{ fontSize: 11, background: "var(--bg-primary)", padding: "1px 8px", borderRadius: 4, color: "var(--accent-color)" }}>{snap.fingerprint}</code>
+                <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)" }}>Fingerprint:</span>
+                <code style={{ fontSize: "var(--font-size-sm)", background: "var(--bg-primary)", padding: "1px 8px", borderRadius: "var(--radius-xs-plus)", color: "var(--accent-color)" }}>{snap.fingerprint}</code>
               </div>
             </div>
           ))}
@@ -133,7 +133,7 @@ export function ReproAgentPanel() {
         <div style={{ maxWidth: 600 }}>
           <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 16 }}>
             <select value={replaySession} onChange={e => setReplaySession(e.target.value)}
-              style={{ flex: 1, padding: "6px 10px", borderRadius: 6, background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: 12 }}>
+              style={{ flex: 1, padding: "6px 10px", borderRadius: "var(--radius-sm)", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>
               {snapshots.map(snap => (
                 <option key={snap.session_id} value={snap.session_id}>
                   {snap.label ?? snap.session_id.slice(0, 16) + "…"} ({snap.created_at})
@@ -141,21 +141,21 @@ export function ReproAgentPanel() {
               ))}
             </select>
             <button onClick={runReplay} disabled={replaying || !replaySession}
-              style={{ padding: "6px 18px", borderRadius: 6, cursor: replaying || !replaySession ? "not-allowed" : "pointer", background: "var(--accent-color)", color: "#fff", border: "none", fontSize: 12, fontWeight: 600, opacity: replaying || !replaySession ? 0.6 : 1 }}>
+              style={{ padding: "6px 18px", borderRadius: "var(--radius-sm)", cursor: replaying || !replaySession ? "not-allowed" : "pointer", background: "var(--accent-color)", color: "var(--btn-primary-fg, #fff)", border: "none", fontSize: "var(--font-size-base)", fontWeight: 600, opacity: replaying || !replaySession ? 0.6 : 1 }}>
               {replaying ? "Replaying…" : "Replay"}
             </button>
           </div>
           {diffResult && (
-            <div style={{ background: "var(--bg-secondary)", borderRadius: 10, border: "1px solid var(--border-color)", padding: 16 }}>
+            <div style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-md)", border: "1px solid var(--border-color)", padding: 16 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-                <span style={{ fontWeight: 600, fontSize: 13 }}>Diff Result</span>
-                <span style={{ fontSize: 12, padding: "2px 10px", borderRadius: 8, background: diffResult.identical ? "var(--success-color)22" : "var(--warning-color)22", color: diffResult.identical ? "var(--success-color)" : "var(--warning-color)" }}>
+                <span style={{ fontWeight: 600, fontSize: "var(--font-size-md)" }}>Diff Result</span>
+                <span style={{ fontSize: "var(--font-size-base)", padding: "2px 10px", borderRadius: "var(--radius-sm-alt)", background: diffResult.identical ? "var(--success-color)22" : "var(--warning-color)22", color: diffResult.identical ? "var(--success-color)" : "var(--warning-color)" }}>
                   {diffResult.identical ? "Identical" : "Differences found"}
                 </span>
               </div>
-              <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 10 }}>{diffResult.summary}</div>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-muted)", marginBottom: 10 }}>{diffResult.summary}</div>
               {diffResult.diff_lines.length > 0 && (
-                <pre style={{ background: "var(--bg-primary)", borderRadius: 6, padding: "10px 12px", fontSize: 11, overflow: "auto", maxHeight: 300, margin: 0, color: "var(--text-primary)" }}>
+                <pre style={{ background: "var(--bg-primary)", borderRadius: "var(--radius-sm)", padding: "10px 12px", fontSize: "var(--font-size-sm)", overflow: "auto", maxHeight: 300, margin: 0, color: "var(--text-primary)" }}>
                   {diffResult.diff_lines.map((line, i) => {
                     const color = line.startsWith("+") ? "var(--success-color)" : line.startsWith("-") ? "var(--error-color)" : "var(--text-primary)";
                     return <span key={i} style={{ display: "block", color }}>{line}</span>;
@@ -170,29 +170,29 @@ export function ReproAgentPanel() {
       {!loading && tab === "verify" && (
         <div style={{ maxWidth: 520 }}>
           <div style={{ marginBottom: 14 }}>
-            <label style={{ display: "block", fontSize: 12, color: "var(--text-muted)", marginBottom: 6 }}>Trace ID</label>
+            <label style={{ display: "block", fontSize: "var(--font-size-base)", color: "var(--text-muted)", marginBottom: 6 }}>Trace ID</label>
             <input value={traceId} onChange={e => setTraceId(e.target.value)}
               placeholder="trace_abc123..."
-              style={{ width: "100%", padding: "7px 10px", borderRadius: 6, background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: 12, boxSizing: "border-box", fontFamily: "var(--font-mono)" }} />
+              style={{ width: "100%", padding: "7px 10px", borderRadius: "var(--radius-sm)", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)", boxSizing: "border-box", fontFamily: "var(--font-mono)" }} />
           </div>
           <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", fontSize: 12, color: "var(--text-muted)", marginBottom: 6 }}>Reference Hash</label>
+            <label style={{ display: "block", fontSize: "var(--font-size-base)", color: "var(--text-muted)", marginBottom: 6 }}>Reference Hash</label>
             <input value={refHash} onChange={e => setRefHash(e.target.value)}
               placeholder="sha256:..."
-              style={{ width: "100%", padding: "7px 10px", borderRadius: 6, background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: 12, boxSizing: "border-box", fontFamily: "var(--font-mono)" }} />
+              style={{ width: "100%", padding: "7px 10px", borderRadius: "var(--radius-sm)", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)", boxSizing: "border-box", fontFamily: "var(--font-mono)" }} />
           </div>
           <button onClick={verify} disabled={verifying || !traceId.trim() || !refHash.trim()}
-            style={{ padding: "8px 24px", borderRadius: 6, cursor: verifying || !traceId.trim() || !refHash.trim() ? "not-allowed" : "pointer", background: "var(--accent-color)", color: "#fff", border: "none", fontSize: 13, fontWeight: 600, opacity: verifying || !traceId.trim() || !refHash.trim() ? 0.6 : 1, marginBottom: 20 }}>
+            style={{ padding: "8px 24px", borderRadius: "var(--radius-sm)", cursor: verifying || !traceId.trim() || !refHash.trim() ? "not-allowed" : "pointer", background: "var(--accent-color)", color: "var(--btn-primary-fg, #fff)", border: "none", fontSize: "var(--font-size-md)", fontWeight: 600, opacity: verifying || !traceId.trim() || !refHash.trim() ? 0.6 : 1, marginBottom: 20 }}>
             {verifying ? "Verifying…" : "Verify"}
           </button>
           {verifyResult && (
-            <div style={{ background: "var(--bg-secondary)", borderRadius: 10, border: `1px solid ${verifyResult.match ? "var(--success-color)" : "var(--error-color)"}`, padding: 16 }}>
+            <div style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-md)", border: `1px solid ${verifyResult.match ? "var(--success-color)" : "var(--error-color)"}`, padding: 16 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-                <span style={{ fontWeight: 700, fontSize: 14, color: verifyResult.match ? "var(--success-color)" : "var(--error-color)" }}>
+                <span style={{ fontWeight: 700, fontSize: "var(--font-size-lg)", color: verifyResult.match ? "var(--success-color)" : "var(--error-color)" }}>
                   {verifyResult.match ? "Hash Match" : "Hash Mismatch"}
                 </span>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", rowGap: 8, fontSize: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", rowGap: 8, fontSize: "var(--font-size-base)" }}>
                 <span style={{ color: "var(--text-muted)" }}>Trace ID</span>
                 <code style={{ color: "var(--text-primary)", wordBreak: "break-all" }}>{verifyResult.trace_id}</code>
                 <span style={{ color: "var(--text-muted)" }}>Reference</span>
@@ -200,7 +200,7 @@ export function ReproAgentPanel() {
                 <span style={{ color: "var(--text-muted)" }}>Computed</span>
                 <code style={{ color: verifyResult.match ? "var(--success-color)" : "var(--error-color)", wordBreak: "break-all" }}>{verifyResult.computed_hash || "—"}</code>
               </div>
-              <div style={{ marginTop: 10, fontSize: 12, color: "var(--text-muted)" }}>{verifyResult.details}</div>
+              <div style={{ marginTop: 10, fontSize: "var(--font-size-base)", color: "var(--text-muted)" }}>{verifyResult.details}</div>
             </div>
           )}
         </div>

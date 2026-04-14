@@ -51,7 +51,7 @@ export function CompanyPortabilityPanel({ workspacePath: _wp }: CompanyPortabili
         <div className="panel-label" style={{ marginBottom: 8 }}>
           Export Company Blueprint
         </div>
-        <p style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 10, lineHeight: 1.5 }}>
+        <p style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 10, lineHeight: 1.5 }}>
           Exports the active company's full structure: org chart, agents, goals, tasks, documents,
           and routines. <strong>Secrets are scrubbed</strong> from the export.
         </p>
@@ -77,7 +77,7 @@ export function CompanyPortabilityPanel({ workspacePath: _wp }: CompanyPortabili
         <div className="panel-label" style={{ marginBottom: 8 }}>
           Import Company Blueprint
         </div>
-        <p style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 10, lineHeight: 1.5 }}>
+        <p style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 10, lineHeight: 1.5 }}>
           Import a previously exported company JSON. A new company is created with re-mapped IDs.
         </p>
         <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
@@ -93,7 +93,7 @@ export function CompanyPortabilityPanel({ workspacePath: _wp }: CompanyPortabili
           </button>
         </div>
         {cmdResult && (
-          <div className="panel-card" style={{ fontSize: 12 }}>
+          <div className="panel-card" style={{ fontSize: "var(--font-size-base)" }}>
             {cmdResult}
           </div>
         )}

@@ -247,18 +247,18 @@ export function SpecPanel({ workspacePath, provider = "ollama" }: SpecPanelProps
  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
  <span style={{ fontSize: "16px" }}>{STATUS_ICONS[spec.status] ?? ""}</span>
  <span style={{ fontWeight: 600 }}>{spec.name.replace(/_/g, " ")}</span>
- <span style={{ marginLeft: "auto", padding: "2px 6px", borderRadius: "10px", fontSize: "10px", background: STATUS_COLORS[spec.status] + "33", color: STATUS_COLORS[spec.status] }}>
+ <span style={{ marginLeft: "auto", padding: "2px 6px", borderRadius: "var(--radius-md)", fontSize: "var(--font-size-xs)", background: STATUS_COLORS[spec.status] + "33", color: STATUS_COLORS[spec.status] }}>
  {spec.status}
  </span>
  </div>
  {spec.requirements && (
- <div style={{ color: "var(--text-secondary)", fontSize: "11px", marginTop: "4px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+ <div style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-sm)", marginTop: "4px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
  {spec.requirements}
  </div>
  )}
  {total > 0 && (
  <div style={{ marginTop: "8px" }}>
- <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", color: "var(--text-secondary)", marginBottom: "3px" }}>
+ <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginBottom: "3px" }}>
  <span>{done}/{total} tasks</span>
  <span>{Math.round(progress)}%</span>
  </div>
@@ -278,8 +278,8 @@ export function SpecPanel({ workspacePath, provider = "ollama" }: SpecPanelProps
  <div style={{ padding: "12px", display: "flex", flexDirection: "column", gap: "12px" }}>
  {/* Spec header */}
  <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
- <h3 style={{ margin: 0, fontSize: "15px" }}>{selectedSpec.name.replace(/_/g, " ")}</h3>
- <span style={{ padding: "2px 8px", borderRadius: "10px", fontSize: "11px", background: STATUS_COLORS[selectedSpec.status] + "33", color: STATUS_COLORS[selectedSpec.status] }}>
+ <h3 style={{ margin: 0, fontSize: "var(--font-size-xl)" }}>{selectedSpec.name.replace(/_/g, " ")}</h3>
+ <span style={{ padding: "2px 8px", borderRadius: "var(--radius-md)", fontSize: "var(--font-size-sm)", background: STATUS_COLORS[selectedSpec.status] + "33", color: STATUS_COLORS[selectedSpec.status] }}>
  {selectedSpec.status}
  </span>
  <div style={{ flex: 1 }} />
@@ -287,8 +287,8 @@ export function SpecPanel({ workspacePath, provider = "ollama" }: SpecPanelProps
  onClick={runSpec}
  disabled={loading || pendingCount === 0}
  style={{
- padding: "5px 12px", fontSize: "11px", background: pendingCount > 0 ? "var(--accent-color)" : "var(--bg-secondary)",
- color: pendingCount > 0 ? "var(--text-primary)" : "var(--text-secondary)", border: "none", borderRadius: "4px",
+ padding: "5px 12px", fontSize: "var(--font-size-sm)", background: pendingCount > 0 ? "var(--accent-color)" : "var(--bg-secondary)",
+ color: pendingCount > 0 ? "var(--text-primary)" : "var(--text-secondary)", border: "none", borderRadius: "var(--radius-xs-plus)",
  cursor: pendingCount > 0 ? "pointer" : "not-allowed", opacity: loading ? 0.6 : 1,
  }}
  title={pendingCount === 0 ? "All tasks complete" : `Run agent on ${pendingCount} pending tasks`}
@@ -299,22 +299,22 @@ export function SpecPanel({ workspacePath, provider = "ollama" }: SpecPanelProps
 
  {/* Requirements */}
  {selectedSpec.requirements && (
- <div style={{ background: "var(--bg-secondary)", borderRadius: "6px", padding: "10px 12px", borderLeft: "3px solid var(--accent-color)" }}>
- <div style={{ fontSize: "10px", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Requirements</div>
- <div style={{ fontSize: "12px" }}>{selectedSpec.requirements}</div>
+ <div style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: "10px 12px", borderLeft: "3px solid var(--accent-color)" }}>
+ <div style={{ fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Requirements</div>
+ <div style={{ fontSize: "var(--font-size-base)" }}>{selectedSpec.requirements}</div>
  </div>
  )}
 
  {/* Task list */}
  <div>
- <div style={{ fontSize: "12px", fontWeight: 600, marginBottom: "8px", display: "flex", alignItems: "center", gap: "8px" }}>
+ <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, marginBottom: "8px", display: "flex", alignItems: "center", gap: "8px" }}>
  Tasks
- <span style={{ fontSize: "10px", color: "var(--text-secondary)", fontWeight: 400 }}>
+ <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", fontWeight: 400 }}>
  {doneCount}/{selectedSpec.tasks.length} complete
  </span>
  </div>
  {selectedSpec.tasks.length === 0 && (
- <div style={{ color: "var(--text-secondary)", fontSize: "12px" }}>No tasks generated yet.</div>
+ <div style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>No tasks generated yet.</div>
  )}
  {selectedSpec.tasks.map(task => (
  <div
@@ -337,11 +337,11 @@ export function SpecPanel({ workspacePath, provider = "ollama" }: SpecPanelProps
  background: task.done ? "var(--success-color)" : "transparent",
  display: "flex", alignItems: "center", justifyContent: "center",
  }}>
- {task.done && <span style={{ color: "var(--text-primary)", fontSize: "10px" }}>✓</span>}
+ {task.done && <span style={{ color: "var(--text-primary)", fontSize: "var(--font-size-xs)" }}>✓</span>}
  </div>
  <div style={{ flex: 1 }}>
- <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginBottom: "2px" }}>Task {task.id}</div>
- <div style={{ fontSize: "12px", textDecoration: task.done ? "line-through" : "none" }}>{task.description}</div>
+ <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: "2px" }}>Task {task.id}</div>
+ <div style={{ fontSize: "var(--font-size-base)", textDecoration: task.done ? "line-through" : "none" }}>{task.description}</div>
  </div>
  </div>
  ))}
@@ -349,11 +349,11 @@ export function SpecPanel({ workspacePath, provider = "ollama" }: SpecPanelProps
 
  {/* Body (collapsible) */}
  {selectedSpec.body && (
- <details style={{ background: "var(--bg-secondary)", borderRadius: "6px", padding: "10px 12px" }}>
- <summary style={{ fontSize: "12px", fontWeight: 600, cursor: "pointer", color: "var(--text-secondary)" }}>
+ <details style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: "10px 12px" }}>
+ <summary style={{ fontSize: "var(--font-size-base)", fontWeight: 600, cursor: "pointer", color: "var(--text-secondary)" }}>
  Full Spec Document
  </summary>
- <pre style={{ marginTop: "8px", fontSize: "11px", whiteSpace: "pre-wrap", wordBreak: "break-word", color: "var(--text-primary)", lineHeight: 1.5 }}>
+ <pre style={{ marginTop: "8px", fontSize: "var(--font-size-sm)", whiteSpace: "pre-wrap", wordBreak: "break-word", color: "var(--text-primary)", lineHeight: 1.5 }}>
  {selectedSpec.body}
  </pre>
  </details>

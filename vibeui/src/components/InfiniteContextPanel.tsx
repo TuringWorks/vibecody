@@ -292,9 +292,9 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
 
   const btnSmall: React.CSSProperties = {
     padding: "2px 8px",
-    fontSize: "10px",
+    fontSize: "var(--font-size-xs)",
     border: "1px solid var(--border-color)",
-    borderRadius: "4px",
+    borderRadius: "var(--radius-xs-plus)",
     background: "var(--bg-secondary)",
     color: "var(--text-primary)",
     cursor: "pointer",
@@ -309,8 +309,8 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
   const badgeStyle = (color: string): React.CSSProperties => ({
     display: "inline-block",
     padding: "1px 8px",
-    borderRadius: "10px",
-    fontSize: "10px",
+    borderRadius: "var(--radius-md)",
+    fontSize: "var(--font-size-xs)",
     fontWeight: 600,
     background: color,
     color: "var(--bg-primary)",
@@ -322,7 +322,7 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: "4px",
-    fontSize: "12px",
+    fontSize: "var(--font-size-base)",
   };
 
   /* ── Render helpers ──────────────────────────────────────────────── */
@@ -337,7 +337,7 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
             gap: "6px",
             padding: "4px 0",
             paddingLeft: `${depth * 16}px`,
-            fontSize: "12px",
+            fontSize: "var(--font-size-base)",
             borderBottom: "1px solid var(--border-color)",
           }}
         >
@@ -351,19 +351,19 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
           ) : (
             <span style={{ width: "14px" }} />
           )}
-          <span style={{ color: STATUS_COLORS[f.contextStatus], fontSize: "10px" }}>
+          <span style={{ color: STATUS_COLORS[f.contextStatus], fontSize: "var(--font-size-xs)" }}>
             {STATUS_ICONS[f.contextStatus]}
           </span>
           <span style={{ flex: 1, color: "var(--text-primary)" }}>
             {f.isDirectory ? f.path + "/" : f.path.split("/").pop()}
           </span>
-          <span style={{ color: "var(--text-secondary)", fontSize: "11px", minWidth: "50px", textAlign: "right" }}>
+          <span style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-sm)", minWidth: "50px", textAlign: "right" }}>
             {fmtTokens(f.tokenEstimate)}
           </span>
-          <span style={{ color: "var(--text-secondary)", fontSize: "11px", minWidth: "120px", textAlign: "right" }}>
+          <span style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-sm)", minWidth: "120px", textAlign: "right" }}>
             {f.lastModified}
           </span>
-          <span style={{ color: "var(--accent-color)", fontSize: "11px", minWidth: "36px", textAlign: "right" }}>
+          <span style={{ color: "var(--accent-color)", fontSize: "var(--font-size-sm)", minWidth: "36px", textAlign: "right" }}>
             {fmtPct(f.relevance)}
           </span>
           {!f.isDirectory && f.contextStatus === "not-loaded" && (
@@ -424,7 +424,7 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
   if (!hasWorkspace) {
     return (
       <div className="panel-empty">
-        <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 8, color: "var(--text-primary)" }}>Infinite Context Manager</div>
+        <div style={{ fontWeight: 600, fontSize: "var(--font-size-xl)", marginBottom: 8, color: "var(--text-primary)" }}>Infinite Context Manager</div>
         <p>Open a folder to use context indexing.</p>
       </div>
     );
@@ -434,7 +434,7 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
     <div className="panel-container">
       {/* Header */}
       <div className="panel-header">
-        <div style={{ fontWeight: 600, fontSize: "15px" }}>Infinite Context Manager</div>
+        <div style={{ fontWeight: 600, fontSize: "var(--font-size-xl)" }}>Infinite Context Manager</div>
         <button className="panel-btn panel-btn-secondary" onClick={() => { loadChunks(); loadProjectTree(); }} disabled={loading}>
           {loading ? "Loading..." : "Refresh"}
         </button>
@@ -463,21 +463,21 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
           {/* Token usage bar */}
           <div className="panel-card">
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
-              <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>Token Usage</span>
-              <span style={{ fontSize: "12px", fontWeight: 600 }}>
+              <span style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>Token Usage</span>
+              <span style={{ fontSize: "var(--font-size-base)", fontWeight: 600 }}>
                 {fmtTokens(usedTokens)} / {fmtTokens(maxTokens)} tokens
               </span>
             </div>
-            <div style={{ height: "8px", borderRadius: "4px", background: "var(--bg-primary)", overflow: "hidden" }}>
+            <div style={{ height: "8px", borderRadius: "var(--radius-xs-plus)", background: "var(--bg-primary)", overflow: "hidden" }}>
               <div style={{
                 height: "100%",
                 width: `${Math.min(usagePct, 100)}%`,
-                borderRadius: "4px",
+                borderRadius: "var(--radius-xs-plus)",
                 background: usagePct > 90 ? "var(--error-color)" : usagePct > 70 ? "var(--warning-color)" : "var(--success-color)",
                 transition: "width 0.3s ease",
               }} />
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between", marginTop: "6px", fontSize: "11px", color: "var(--text-secondary)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: "6px", fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
               <span>{usagePct.toFixed(1)}% used</span>
               <span>Compression: {fmtPct(compressionRatio)}</span>
             </div>
@@ -486,7 +486,7 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
           {/* Sort + legend row */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px", flexWrap: "wrap", gap: "8px" }}>
             <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-              <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>Sort:</span>
+              <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Sort:</span>
               {(["relevance", "filePath", "tokenCount"] as SortKey[]).map(key => (
                 <button
                   key={key}
@@ -497,7 +497,7 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
                 </button>
               ))}
             </div>
-            <div style={{ display: "flex", gap: "10px", fontSize: "10px" }}>
+            <div style={{ display: "flex", gap: "10px", fontSize: "var(--font-size-xs)" }}>
               {(Object.keys(DEPTH_COLORS) as DepthLevel[]).map(d => (
                 <span key={d} style={{ display: "flex", alignItems: "center", gap: "4px" }}>
                   <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: DEPTH_COLORS[d], display: "inline-block" }} />
@@ -520,9 +520,9 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
                 <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px", flexWrap: "wrap" }}>
                   <span style={{ fontWeight: 600, color: "var(--text-primary)", wordBreak: "break-all" }}>{chunk.filePath}</span>
                   <span style={badgeStyle(DEPTH_COLORS[chunk.depth])}>{chunk.depth}</span>
-                  {chunk.pinned && <span style={{ fontSize: "10px", color: "var(--warning-color)", fontWeight: 600 }}>PINNED</span>}
+                  {chunk.pinned && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--warning-color)", fontWeight: 600 }}>PINNED</span>}
                 </div>
-                <div style={{ display: "flex", gap: "12px", fontSize: "11px", color: "var(--text-secondary)" }}>
+                <div style={{ display: "flex", gap: "12px", fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
                   <span>Relevance: <span style={{ color: "var(--accent-color)" }}>{fmtPct(chunk.relevance)}</span></span>
                   <span>Tokens: {fmtTokens(chunk.tokenCount)}</span>
                 </div>
@@ -548,9 +548,9 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
               { label: "Indexed", value: String(fileStats.indexed) },
               { label: "Coverage", value: `${coveragePct}%` },
             ].map(({ label, value }) => (
-              <div key={label} style={{ background: "var(--bg-secondary)", padding: "8px 14px", borderRadius: "6px", textAlign: "center", minWidth: "80px" }}>
+              <div key={label} style={{ background: "var(--bg-secondary)", padding: "8px 14px", borderRadius: "var(--radius-sm)", textAlign: "center", minWidth: "80px" }}>
                 <div style={{ fontSize: "18px", fontWeight: "bold", color: "var(--accent-color)" }}>{value}</div>
-                <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "2px" }}>{label}</div>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: "2px" }}>{label}</div>
               </div>
             ))}
           </div>
@@ -560,11 +560,11 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
             value={fileFilter}
             onChange={e => setFileFilter(e.target.value)}
             placeholder="Filter files..."
-            style={{ width: "100%", padding: "6px 10px", fontSize: "12px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "4px", color: "var(--text-primary)", boxSizing: "border-box", marginBottom: "10px" }}
+            style={{ width: "100%", padding: "6px 10px", fontSize: "var(--font-size-base)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", boxSizing: "border-box", marginBottom: "10px" }}
           />
 
           {/* Legend */}
-          <div style={{ display: "flex", gap: "12px", marginBottom: "8px", fontSize: "10px" }}>
+          <div style={{ display: "flex", gap: "12px", marginBottom: "8px", fontSize: "var(--font-size-xs)" }}>
             {(["loaded", "summarized", "not-loaded"] as const).map(s => (
               <span key={s} style={{ display: "flex", alignItems: "center", gap: "4px" }}>
                 <span style={{ color: STATUS_COLORS[s] }}>{STATUS_ICONS[s]}</span>
@@ -601,7 +601,7 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
               onChange={e => setSettingsMaxTokens(parseInt(e.target.value, 10))}
               style={{ width: "100%", accentColor: "var(--accent-color)" }}
             />
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", color: "var(--text-secondary)", marginTop: "2px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginTop: "2px" }}>
               <span>10K</span><span>500K</span>
             </div>
             <button className="panel-btn panel-btn-secondary" style={{ marginTop: "8px" }} onClick={applyMaxTokens}>Apply</button>
@@ -609,7 +609,7 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
 
           {/* Scoring weights */}
           <div className="panel-card">
-            <div style={{ fontWeight: 600, marginBottom: "10px", fontSize: "13px" }}>Scoring Weights</div>
+            <div style={{ fontWeight: 600, marginBottom: "10px", fontSize: "var(--font-size-md)" }}>Scoring Weights</div>
             {renderSlider("Recency", recencyWeight, setRecencyWeight)}
             {renderSlider("Proximity", proximityWeight, setProximityWeight)}
             {renderSlider("Keyword Match", keywordWeight, setKeywordWeight)}
@@ -621,8 +621,8 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
           <div className="panel-card">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
-                <div style={{ fontWeight: 600, fontSize: "13px", color: "var(--text-primary)" }}>Auto-Compress</div>
-                <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "2px" }}>Automatically compress when 90% full</div>
+                <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", color: "var(--text-primary)" }}>Auto-Compress</div>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: "2px" }}>Automatically compress when 90% full</div>
               </div>
               <button
                 style={{ ...btnSmall, background: autoCompress ? "var(--success-color)" : "var(--bg-secondary)", color: autoCompress ? "#000" : "var(--text-primary)", fontWeight: 600, minWidth: "50px" }}
@@ -635,15 +635,15 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
 
           {/* Cache settings */}
           <div className="panel-card">
-            <div style={{ fontWeight: 600, marginBottom: "8px", fontSize: "13px" }}>Cache</div>
+            <div style={{ fontWeight: 600, marginBottom: "8px", fontSize: "var(--font-size-md)" }}>Cache</div>
             <div style={{ display: "flex", gap: "8px", alignItems: "center", marginBottom: "8px" }}>
-              <label style={{ fontSize: "12px", color: "var(--text-secondary)", minWidth: "100px" }}>Cache Size</label>
+              <label style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", minWidth: "100px" }}>Cache Size</label>
               <input
                 type="number" min={16} max={4096} value={cacheSize}
                 onChange={e => setCacheSize(parseInt(e.target.value, 10) || 256)}
-                style={{ width: "80px", padding: "4px 8px", fontSize: "12px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "4px", color: "var(--text-primary)" }}
+                style={{ width: "80px", padding: "4px 8px", fontSize: "var(--font-size-base)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)" }}
               />
-              <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>summaries</span>
+              <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>summaries</span>
             </div>
             <div style={{ display: "flex", gap: "8px" }}>
               <button style={btnDanger} onClick={() => setCacheSize(256)}>Clear Cache</button>

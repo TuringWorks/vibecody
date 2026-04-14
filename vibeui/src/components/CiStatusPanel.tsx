@@ -132,7 +132,7 @@ export default function CiStatusPanel() {
             {t[0].toUpperCase() + t.slice(1)}
           </button>
         ))}
-        <button onClick={loadData} className="panel-btn panel-btn-secondary" style={{ marginLeft: "auto", fontSize: 10, padding: "4px 10px" }}>
+        <button onClick={loadData} className="panel-btn panel-btn-secondary" style={{ marginLeft: "auto", fontSize: "var(--font-size-xs)", padding: "4px 10px" }}>
           Refresh
         </button>
       </div>
@@ -145,22 +145,22 @@ export default function CiStatusPanel() {
 
       <div className="panel-body" style={{ padding: 12 }}>
         {tab === "suites" && suites.length === 0 && (
-          <div style={{ fontSize: 12, color: "var(--text-secondary)", textAlign: "center", padding: 24 }}>
+          <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", textAlign: "center", padding: 24 }}>
             No CI configurations detected in this workspace.
-            <br /><span style={{ fontSize: 10 }}>Add .github/workflows/, .gitlab-ci.yml, Jenkinsfile, etc.</span>
+            <br /><span style={{ fontSize: "var(--font-size-xs)" }}>Add .github/workflows/, .gitlab-ci.yml, Jenkinsfile, etc.</span>
           </div>
         )}
 
         {tab === "suites" && suites.map(s => (
           <div key={s.id} role="button" tabIndex={0} onClick={() => { setSelectedSuite(s.id); setTab("checks"); }} onKeyDown={e => e.key === "Enter" && (setSelectedSuite(s.id), setTab("checks"))}
-            style={{ padding: 10, background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)", cursor: "pointer" }}>
+            style={{ padding: 10, background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", cursor: "pointer" }}>
             <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
               <span style={{ width: 8, height: 8, borderRadius: "50%", background: stateColors[s.state] }} />
-              <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>{s.name}</span>
-              <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 10, background: `${stateColors[s.state]}22`, color: stateColors[s.state] }}>{s.state}</span>
-              <span style={{ fontSize: 10, color: "var(--text-secondary)", marginLeft: "auto" }}>{s.duration}</span>
+              <span style={{ fontSize: "var(--font-size-base)", fontWeight: 600, color: "var(--text-primary)" }}>{s.name}</span>
+              <span style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px", borderRadius: "var(--radius-md)", background: `${stateColors[s.state]}22`, color: stateColors[s.state] }}>{s.state}</span>
+              <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginLeft: "auto" }}>{s.duration}</span>
             </div>
-            <div style={{ display: "flex", gap: 12, fontSize: 10, color: "var(--text-secondary)" }}>
+            <div style={{ display: "flex", gap: 12, fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>
               <span>Branch: <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-info)" }}>{s.branch}</span></span>
               <span>Commit: <span style={{ fontFamily: "var(--font-mono)" }}>{s.commit}</span></span>
               <span style={{ marginLeft: "auto" }}>{s.passCount}/{s.checksCount} passed</span>
@@ -180,23 +180,23 @@ export default function CiStatusPanel() {
               </button>
             )}
             {filteredChecks.length === 0 && (
-              <div style={{ fontSize: 12, color: "var(--text-secondary)", textAlign: "center", padding: 24 }}>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", textAlign: "center", padding: 24 }}>
                 No checks found.
               </div>
             )}
             {filteredChecks.map(c => (
-              <div key={c.id} style={{ padding: 10, background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)", display: "flex", gap: 10, alignItems: "center" }}>
+              <div key={c.id} style={{ padding: 10, background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", display: "flex", gap: 10, alignItems: "center" }}>
                 <span style={{ width: 8, height: 8, borderRadius: "50%", background: stateColors[c.state], flexShrink: 0 }} />
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>{c.name}</div>
-                  <div style={{ fontSize: 10, color: "var(--text-secondary)", marginTop: 2 }}>{c.message}</div>
+                  <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, color: "var(--text-primary)" }}>{c.name}</div>
+                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginTop: 2 }}>{c.message}</div>
                 </div>
                 {c.annotations > 0 && (
-                  <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 10, background: "color-mix(in srgb, var(--accent-rose) 15%, transparent)", color: "var(--text-danger)" }}>
+                  <span style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px", borderRadius: "var(--radius-md)", background: "color-mix(in srgb, var(--accent-rose) 15%, transparent)", color: "var(--text-danger)" }}>
                     {c.annotations} annotations
                   </span>
                 )}
-                <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>{c.duration}</span>
+                <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>{c.duration}</span>
               </div>
             ))}
           </>
@@ -205,27 +205,27 @@ export default function CiStatusPanel() {
         {tab === "config" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {config.length === 0 && (
-              <div style={{ fontSize: 12, color: "var(--text-secondary)", textAlign: "center", padding: 24 }}>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", textAlign: "center", padding: 24 }}>
                 No CI configuration detected.
               </div>
             )}
             {config.length > 0 && (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 60px 60px 80px 70px", gap: 4, padding: "6px 10px", fontSize: 10, fontWeight: 600, color: "var(--text-secondary)" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 60px 60px 80px 70px", gap: 4, padding: "6px 10px", fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-secondary)" }}>
                 <span>Check</span><span>Enabled</span><span>Required</span><span>Threshold</span><span>Run</span>
               </div>
             )}
             {config.map(c => (
-              <div key={c.id} style={{ display: "grid", gridTemplateColumns: "1fr 60px 60px 80px 70px", gap: 4, padding: "8px 10px", background: "var(--bg-secondary)", borderRadius: 4, border: "1px solid var(--border-color)", alignItems: "center" }}>
-                <span style={{ fontSize: 11, color: c.enabled ? "var(--text-primary)" : "var(--text-secondary)" }}>{c.name}</span>
+              <div key={c.id} style={{ display: "grid", gridTemplateColumns: "1fr 60px 60px 80px 70px", gap: 4, padding: "8px 10px", background: "var(--bg-secondary)", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", alignItems: "center" }}>
+                <span style={{ fontSize: "var(--font-size-sm)", color: c.enabled ? "var(--text-primary)" : "var(--text-secondary)" }}>{c.name}</span>
                 <input type="checkbox" checked={c.enabled} onChange={() => toggleConfig(c.id, "enabled")} style={{ cursor: "pointer" }} />
                 <input type="checkbox" checked={c.required} onChange={() => toggleConfig(c.id, "required")} disabled={!c.enabled} style={{ cursor: "pointer" }} />
-                <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{c.threshold}</span>
+                <span style={{ fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{c.threshold}</span>
                 <button
                   disabled={!c.enabled || runningCheck === c.name}
                   onClick={() => triggerCheck(c.name)}
                   className={`panel-btn ${c.enabled ? "panel-btn-primary" : "panel-btn-secondary"}`}
                   style={{
-                    padding: "2px 8px", fontSize: 10, cursor: c.enabled ? "pointer" : "default",
+                    padding: "2px 8px", fontSize: "var(--font-size-xs)", cursor: c.enabled ? "pointer" : "default",
                     opacity: runningCheck === c.name ? 0.6 : 1,
                   }}>
                   {runningCheck === c.name ? "..." : "Run"}

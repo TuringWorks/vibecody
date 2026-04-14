@@ -86,14 +86,14 @@ const S = {
   refreshBtn: {
     background: "var(--bg-tertiary, #333)",
     border: "1px solid var(--border-primary, #444)",
-    borderRadius: 6,
+    borderRadius: "var(--radius-sm)",
     color: "var(--text-primary, #e0e0e0)",
     padding: "4px 10px",
     cursor: "pointer",
     display: "flex",
     alignItems: "center",
     gap: 4,
-    fontSize: 12,
+    fontSize: "var(--font-size-base)",
   } as React.CSSProperties,
   grid: {
     display: "grid",
@@ -104,14 +104,14 @@ const S = {
   statCard: {
     background: "var(--bg-secondary, #252525)",
     border: "1px solid var(--border-primary, #333)",
-    borderRadius: 8,
+    borderRadius: "var(--radius-sm-alt)",
     padding: "12px 14px",
     display: "flex",
     flexDirection: "column" as const,
     gap: 4,
   } as React.CSSProperties,
   statLabel: {
-    fontSize: 11,
+    fontSize: "var(--font-size-sm)",
     color: "var(--text-secondary, #999)",
     textTransform: "uppercase" as const,
     letterSpacing: "0.5px",
@@ -125,7 +125,7 @@ const S = {
     marginBottom: 20,
   } as React.CSSProperties,
   sectionTitle: {
-    fontSize: 13,
+    fontSize: "var(--font-size-md)",
     fontWeight: 600,
     marginBottom: 8,
     display: "flex",
@@ -136,7 +136,7 @@ const S = {
   table: {
     width: "100%",
     borderCollapse: "collapse" as const,
-    fontSize: 12,
+    fontSize: "var(--font-size-base)",
   } as React.CSSProperties,
   th: {
     textAlign: "left" as const,
@@ -144,7 +144,7 @@ const S = {
     borderBottom: "1px solid var(--border-primary, #333)",
     color: "var(--text-secondary, #999)",
     fontWeight: 500,
-    fontSize: 11,
+    fontSize: "var(--font-size-sm)",
     textTransform: "uppercase" as const,
   } as React.CSSProperties,
   td: {
@@ -157,8 +157,8 @@ const S = {
     alignItems: "center",
     gap: 4,
     padding: "2px 8px",
-    borderRadius: 10,
-    fontSize: 11,
+    borderRadius: "var(--radius-md)",
+    fontSize: "var(--font-size-sm)",
     fontWeight: 500,
     background: color + "20",
     color,
@@ -166,7 +166,7 @@ const S = {
   emptyRow: {
     padding: "12px 8px",
     color: "var(--text-secondary, #666)",
-    fontSize: 12,
+    fontSize: "var(--font-size-base)",
     fontStyle: "italic" as const,
   } as React.CSSProperties,
   modeBar: {
@@ -177,18 +177,18 @@ const S = {
   modeCard: {
     background: "var(--bg-secondary, #252525)",
     border: "1px solid var(--border-primary, #333)",
-    borderRadius: 8,
+    borderRadius: "var(--radius-sm-alt)",
     padding: "10px 14px",
     flex: "1 1 140px",
     minWidth: 140,
   } as React.CSSProperties,
   modeLabel: {
-    fontSize: 13,
+    fontSize: "var(--font-size-md)",
     fontWeight: 600,
     marginBottom: 4,
   } as React.CSSProperties,
   modeStat: {
-    fontSize: 11,
+    fontSize: "var(--font-size-sm)",
     color: "var(--text-secondary, #999)",
   } as React.CSSProperties,
 } as const;

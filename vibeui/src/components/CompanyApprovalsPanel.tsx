@@ -80,7 +80,7 @@ export function CompanyApprovalsPanel({ workspacePath: _wp }: CompanyApprovalsPa
       <div className="panel-header" style={{ justifyContent: "space-between" }}>
         <h3>Approvals</h3>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <label style={{ fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
+          <label style={{ fontSize: "var(--font-size-sm)", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
             <input type="checkbox" checked={showAll} onChange={(e) => setShowAll(e.target.checked)} />
             Show all
           </label>
@@ -117,7 +117,7 @@ export function CompanyApprovalsPanel({ workspacePath: _wp }: CompanyApprovalsPa
         {loading ? (
           <span className="panel-loading">Loading…</span>
         ) : (
-          <pre style={{ margin: 0, fontSize: 12, whiteSpace: "pre-wrap", lineHeight: 1.7, fontFamily: "inherit" }}>
+          <pre style={{ margin: 0, fontSize: "var(--font-size-base)", whiteSpace: "pre-wrap", lineHeight: 1.7, fontFamily: "inherit" }}>
             {output || "No pending approvals."}
           </pre>
         )}
@@ -161,7 +161,7 @@ export function CompanyApprovalsPanel({ workspacePath: _wp }: CompanyApprovalsPa
       </div>
 
       {cmdResult && (
-        <div className="panel-card" style={{ fontSize: 12 }}>
+        <div className="panel-card" style={{ fontSize: "var(--font-size-base)" }}>
           {cmdResult}
           <button onClick={() => setCmdResult(null)} style={{ marginLeft: 8, cursor: "pointer", background: "none", border: "none", color: "var(--text-secondary)", display: "inline-flex" }}><X size={12} /></button>
         </div>

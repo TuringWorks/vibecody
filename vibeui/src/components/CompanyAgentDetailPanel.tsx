@@ -58,7 +58,7 @@ export function CompanyAgentDetailPanel({ workspacePath: _wp }: CompanyAgentDeta
       {/* Agent list */}
       <div className="panel-card" style={{ marginBottom: 16, maxHeight: 200, overflowY: "auto" }}>
         <div className="panel-label">All Agents</div>
-        <pre style={{ margin: 0, fontSize: 12, whiteSpace: "pre-wrap" }}>
+        <pre style={{ margin: 0, fontSize: "var(--font-size-base)", whiteSpace: "pre-wrap" }}>
           {allAgents || "No agents. Use /company agent hire <name>"}
         </pre>
       </div>
@@ -85,7 +85,7 @@ export function CompanyAgentDetailPanel({ workspacePath: _wp }: CompanyAgentDeta
 
       {agentInfo && (
         <div className="panel-card">
-          <pre style={{ margin: 0, fontSize: 12, whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
+          <pre style={{ margin: 0, fontSize: "var(--font-size-base)", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
             {agentInfo}
           </pre>
         </div>

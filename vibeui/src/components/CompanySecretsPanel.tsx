@@ -103,7 +103,7 @@ export function CompanySecretsPanel({ workspacePath: _wp }: CompanySecretsPanelP
         )}
 
         {cmdResult && (
-          <div className="panel-card" style={{ marginBottom: 12, fontSize: 12 }}>
+          <div className="panel-card" style={{ marginBottom: 12, fontSize: "var(--font-size-base)" }}>
             {cmdResult}
             <button onClick={() => setCmdResult(null)} style={{ marginLeft: 8, cursor: "pointer", background: "none", border: "none", color: "var(--text-secondary)", display: "inline-flex" }}><X size={12} /></button>
           </div>
@@ -114,7 +114,7 @@ export function CompanySecretsPanel({ workspacePath: _wp }: CompanySecretsPanelP
           <div className="panel-empty">
             <div style={{ marginBottom: 8, display: "flex", justifyContent: "center", color: "var(--accent, #4a9eff)" }}><Lock size={32} strokeWidth={1.5} /></div>
             <div style={{ fontWeight: 600, marginBottom: 4 }}>No secrets stored</div>
-            <div style={{ color: "var(--text-secondary)", fontSize: 12, marginBottom: 16 }}>
+            <div style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-base)", marginBottom: 16 }}>
               Add API keys, tokens, and credentials
             </div>
             <button onClick={() => setShowAdd(true)} className="panel-btn panel-btn-primary">+ Add Secret</button>
@@ -124,7 +124,7 @@ export function CompanySecretsPanel({ workspacePath: _wp }: CompanySecretsPanelP
             {loading ? (
               <div className="panel-loading">Loading…</div>
             ) : (
-              <pre style={{ margin: 0, fontSize: 12, whiteSpace: "pre-wrap", lineHeight: 1.7 }}>
+              <pre style={{ margin: 0, fontSize: "var(--font-size-base)", whiteSpace: "pre-wrap", lineHeight: 1.7 }}>
                 {listOutput}
               </pre>
             )}

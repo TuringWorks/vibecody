@@ -140,12 +140,12 @@ export function BisectPanel({ workspacePath, provider }: BisectPanelProps) {
         {/* Setup view */}
         {view === "setup" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <div style={{ fontSize: 11, opacity: 0.7, lineHeight: 1.5 }}>
+            <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.7, lineHeight: 1.5 }}>
               Enter the known bad commit (has the bug) and a known good commit (before the bug).
               Git bisect will binary-search to find the exact commit that introduced the issue.
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <label style={{ fontSize: 10, fontWeight: 600, opacity: 0.6 }}>Bad commit (has bug)</label>
+              <label style={{ fontSize: "var(--font-size-xs)", fontWeight: 600, opacity: 0.6 }}>Bad commit (has bug)</label>
               <input
                 value={bad}
                 onChange={(e) => setBad(e.target.value)}
@@ -154,7 +154,7 @@ export function BisectPanel({ workspacePath, provider }: BisectPanelProps) {
               />
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <label style={{ fontSize: 10, fontWeight: 600, opacity: 0.6 }}>Good commit (before bug)</label>
+              <label style={{ fontSize: "var(--font-size-xs)", fontWeight: 600, opacity: 0.6 }}>Good commit (before bug)</label>
               <input
                 value={good}
                 onChange={(e) => setGood(e.target.value)}
@@ -173,20 +173,20 @@ export function BisectPanel({ workspacePath, provider }: BisectPanelProps) {
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {/* Current commit */}
             <div style={{
-              padding: "8px 10px", borderRadius: 6,
+              padding: "8px 10px", borderRadius: "var(--radius-sm)",
               background: "var(--bg-primary)", border: "1px solid var(--border-color)",
             }}>
-              <div style={{ fontSize: 10, fontWeight: 600, opacity: 0.6, marginBottom: 4 }}>Current Commit</div>
+              <div style={{ fontSize: "var(--font-size-xs)", fontWeight: 600, opacity: 0.6, marginBottom: 4 }}>Current Commit</div>
               {current.current_commit && (
-                <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-warning)" }}>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--font-size-base)", color: "var(--text-warning)" }}>
                   {current.current_commit.substring(0, 12)}
                 </div>
               )}
-              <div style={{ fontSize: 11, marginTop: 2, whiteSpace: "pre-wrap" }}>
+              <div style={{ fontSize: "var(--font-size-sm)", marginTop: 2, whiteSpace: "pre-wrap" }}>
                 {current.commit_message}
               </div>
               {current.commits_remaining != null && (
-                <div style={{ fontSize: 10, opacity: 0.5, marginTop: 4 }}>
+                <div style={{ fontSize: "var(--font-size-xs)", opacity: 0.5, marginTop: 4 }}>
                   ~{current.commits_remaining} revisions remaining
                 </div>
               )}
@@ -230,7 +230,7 @@ export function BisectPanel({ workspacePath, provider }: BisectPanelProps) {
 
             {showLog && bisectLog && (
               <pre style={{
-                padding: 8, fontSize: 10, fontFamily: "var(--font-mono)", borderRadius: 4,
+                padding: 8, fontSize: "var(--font-size-xs)", fontFamily: "var(--font-mono)", borderRadius: "var(--radius-xs-plus)",
                 background: "var(--bg-primary)", maxHeight: 150, overflowY: "auto",
                 whiteSpace: "pre-wrap", wordBreak: "break-all",
               }}>
@@ -240,7 +240,7 @@ export function BisectPanel({ workspacePath, provider }: BisectPanelProps) {
 
             {analysis && (
               <div style={{
-                padding: 8, fontSize: 11, borderRadius: 4, lineHeight: 1.5,
+                padding: 8, fontSize: "var(--font-size-sm)", borderRadius: "var(--radius-xs-plus)", lineHeight: 1.5,
                 background: "rgba(137,180,250,0.05)", border: "1px solid color-mix(in srgb, var(--accent-blue) 20%, transparent)",
                 whiteSpace: "pre-wrap",
               }}>
@@ -254,14 +254,14 @@ export function BisectPanel({ workspacePath, provider }: BisectPanelProps) {
         {view === "done" && current && (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <div style={{
-              padding: "12px 14px", borderRadius: 6, textAlign: "center",
+              padding: "12px 14px", borderRadius: "var(--radius-sm)", textAlign: "center",
               background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", border: "1px solid rgba(243,139,168,0.3)",
             }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-danger)" }}>Culprit Found!</div>
-              <div style={{ fontFamily: "var(--font-mono)", fontSize: 14, color: "var(--text-warning)", marginTop: 6 }}>
+              <div style={{ fontSize: "var(--font-size-md)", fontWeight: 700, color: "var(--text-danger)" }}>Culprit Found!</div>
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--font-size-lg)", color: "var(--text-warning)", marginTop: 6 }}>
                 {current.culprit_commit || current.current_commit}
               </div>
-              <div style={{ fontSize: 11, marginTop: 4, opacity: 0.7 }}>
+              <div style={{ fontSize: "var(--font-size-sm)", marginTop: 4, opacity: 0.7 }}>
                 {current.commit_message}
               </div>
             </div>
@@ -272,7 +272,7 @@ export function BisectPanel({ workspacePath, provider }: BisectPanelProps) {
 
             {analysis && (
               <div style={{
-                padding: 8, fontSize: 11, borderRadius: 4, lineHeight: 1.5,
+                padding: 8, fontSize: "var(--font-size-sm)", borderRadius: "var(--radius-xs-plus)", lineHeight: 1.5,
                 background: "rgba(137,180,250,0.05)", border: "1px solid color-mix(in srgb, var(--accent-blue) 20%, transparent)",
                 whiteSpace: "pre-wrap",
               }}>

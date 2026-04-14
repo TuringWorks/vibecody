@@ -29,19 +29,19 @@ const DISPATCH_STATUS_COLORS: Record<string, string> = {
 };
 
 const badgeStyle = (color: string): React.CSSProperties => ({
-  display: "inline-block", padding: "2px 8px", borderRadius: 10,
-  fontSize: 11, background: color, color: "var(--bg-primary)", fontWeight: 600,
+  display: "inline-block", padding: "2px 8px", borderRadius: "var(--radius-md)",
+  fontSize: "var(--font-size-sm)", background: color, color: "var(--bg-primary)", fontWeight: 600,
 });
 const statusBarStyle: React.CSSProperties = {
   padding: "8px 16px", background: "var(--bg-tertiary)", borderBottom: "1px solid var(--border-color)",
-  display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, flexShrink: 0,
+  display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "var(--font-size-base)", flexShrink: 0,
 };
 const metricCardStyle: React.CSSProperties = {
-  background: "var(--bg-secondary)", borderRadius: 8, padding: 16, textAlign: "center" as const,
+  background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", padding: 16, textAlign: "center" as const,
   border: "1px solid var(--border-color)", flex: 1, minWidth: 120,
 };
 const metricValue: React.CSSProperties = { fontSize: 28, fontWeight: 700 };
-const metricLabel: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginTop: 4 };
+const metricLabel: React.CSSProperties = { fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 4 };
 
 const MACHINES = [
   { machine_id: "mach-a1", name: "Mac Studio (macOS)", os: "macOS", arch: "aarch64", status: "online", daemon_port: 7878, workspace: "/Users/dev/project", cpu_cores: 12, memory_gb: 64, active_sessions: 2, tags: ["prod", "gpu"] },
@@ -111,12 +111,12 @@ function MachinesTab() {
               <OsIcon os={m.os} />
               <div>
                 <div style={{ fontWeight: 600 }}>{m.name}</div>
-                <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{m.workspace} · port {m.daemon_port}</div>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{m.workspace} · port {m.daemon_port}</div>
               </div>
             </div>
             <span style={badgeStyle(STATUS_COLORS[m.status] || "var(--text-secondary)")}>{m.status}</span>
           </div>
-          <div style={{ display: "flex", gap: 16, marginTop: 10, fontSize: 12, color: "var(--text-secondary)" }}>
+          <div style={{ display: "flex", gap: 16, marginTop: 10, fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>
             <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><Cpu size={11} strokeWidth={1.5} /> {m.cpu_cores} cores</span>
             <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><HardDrive size={11} strokeWidth={1.5} /> {m.memory_gb} GB</span>
             <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><Activity size={11} strokeWidth={1.5} /> {m.active_sessions} sessions</span>
@@ -124,7 +124,7 @@ function MachinesTab() {
           </div>
           {m.tags.length > 0 && (
             <div style={{ display: "flex", gap: 4, marginTop: 8 }}>
-              {m.tags.map(t => <span key={t} style={{ padding: "1px 8px", borderRadius: 10, fontSize: 10, background: "var(--accent-blue)", color: "var(--bg-primary)", opacity: 0.8 }}>{t}</span>)}
+              {m.tags.map(t => <span key={t} style={{ padding: "1px 8px", borderRadius: "var(--radius-md)", fontSize: "var(--font-size-xs)", background: "var(--accent-blue)", color: "var(--bg-primary)", opacity: 0.8 }}>{t}</span>)}
             </div>
           )}
         </div>
@@ -141,13 +141,13 @@ function DevicesTab() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
               <div style={{ fontWeight: 600 }}>{d.device_name}</div>
-              <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
                 {d.platform.toUpperCase()} · {d.os_version} · v{d.app_version}
               </div>
             </div>
-            <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{d.last_seen}</span>
+            <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{d.last_seen}</span>
           </div>
-          <div style={{ marginTop: 8, fontSize: 12 }}>
+          <div style={{ marginTop: 8, fontSize: "var(--font-size-base)" }}>
             <span style={{ color: "var(--text-secondary)" }}>Paired with: </span>
             {d.paired_machines.map((mid, i) => (
               <span key={mid}>{i > 0 ? ", " : ""}{MACHINES.find(m => m.machine_id === mid)?.name || mid}</span>
@@ -167,14 +167,14 @@ function DispatchesTab() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={badgeStyle(DISPATCH_STATUS_COLORS[d.status] || "var(--text-secondary)")}>{d.status}</span>
-              <span style={{ fontSize: 11, padding: "2px 6px", borderRadius: 4, background: "var(--bg-tertiary)" }}>{d.type}</span>
+              <span style={{ fontSize: "var(--font-size-sm)", padding: "2px 6px", borderRadius: "var(--radius-xs-plus)", background: "var(--bg-tertiary)" }}>{d.type}</span>
             </div>
-            <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{d.time}</span>
+            <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{d.time}</span>
           </div>
-          <div style={{ marginTop: 8, fontFamily: "monospace", fontSize: 13 }}>{d.payload}</div>
-          <div style={{ marginTop: 6, fontSize: 12, color: "var(--text-secondary)" }}>→ {d.machine}</div>
+          <div style={{ marginTop: 8, fontFamily: "monospace", fontSize: "var(--font-size-md)" }}>{d.payload}</div>
+          <div style={{ marginTop: 6, fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>→ {d.machine}</div>
           {d.result && (
-            <div style={{ marginTop: 8, padding: 8, borderRadius: 4, background: "var(--bg-tertiary)", fontSize: 12, fontFamily: "monospace" }}>{d.result}</div>
+            <div style={{ marginTop: 8, padding: 8, borderRadius: "var(--radius-xs-plus)", background: "var(--bg-tertiary)", fontSize: "var(--font-size-base)", fontFamily: "monospace" }}>{d.result}</div>
           )}
         </div>
       ))}
@@ -192,13 +192,13 @@ function PairingTab() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <div style={{ fontWeight: 600 }}>{p.machine}</div>
-                <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Method: {p.method} · Expires in {p.expires_in}</div>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Method: {p.method} · Expires in {p.expires_in}</div>
               </div>
               <span style={badgeStyle("var(--warning-color)")}>{p.status}</span>
             </div>
             {p.pin && (
               <div style={{ marginTop: 12, textAlign: "center" }}>
-                <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>PIN Code</div>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 4 }}>PIN Code</div>
                 <div style={{ fontSize: 36, fontFamily: "monospace", fontWeight: 700, letterSpacing: 8, color: "var(--accent-blue)" }}>{p.pin}</div>
               </div>
             )}
@@ -207,9 +207,9 @@ function PairingTab() {
       </div>
       <div className="panel-card">
         <div style={{ fontWeight: 600, marginBottom: 12 }}>How to Pair</div>
-        <ol style={{ margin: 0, paddingLeft: 20, fontSize: 13, lineHeight: 1.8 }}>
+        <ol style={{ margin: 0, paddingLeft: 20, fontSize: "var(--font-size-md)", lineHeight: 1.8 }}>
           <li>Install <strong>VibeCody Mobile</strong> from App Store or Play Store</li>
-          <li>Run <code style={{ padding: "2px 6px", borderRadius: 4, background: "var(--bg-tertiary)" }}>vibecli --serve --host 0.0.0.0 --port 7878</code> on your machine</li>
+          <li>Run <code style={{ padding: "2px 6px", borderRadius: "var(--radius-xs-plus)", background: "var(--bg-tertiary)" }}>vibecli --serve --host 0.0.0.0 --port 7878</code> on your machine</li>
           <li>Open the mobile app and tap <strong>Scan QR Code</strong> or enter the 6-digit PIN</li>
           <li>Start managing your sessions remotely!</li>
         </ol>

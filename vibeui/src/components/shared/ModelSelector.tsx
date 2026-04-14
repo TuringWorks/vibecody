@@ -9,11 +9,11 @@ import { useModelRegistry } from "../../hooks/useModelRegistry";
 
 const selectStyle: React.CSSProperties = {
   padding: "5px 8px",
-  borderRadius: 4,
+  borderRadius: "var(--radius-xs-plus)",
   border: "1px solid var(--border-color)",
   background: "var(--bg-tertiary, #1a1a2e)",
   color: "var(--text-primary)",
-  fontSize: 12,
+  fontSize: "var(--font-size-base)",
   fontFamily: "inherit",
   cursor: "pointer",
   minWidth: 0,

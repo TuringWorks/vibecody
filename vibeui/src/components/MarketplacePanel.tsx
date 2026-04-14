@@ -97,7 +97,7 @@ export function MarketplacePanel() {
 
       {message && (
         <div style={{
-          margin: "0 12px", padding: "4px 8px", fontSize: 11, borderRadius: 4,
+          margin: "0 12px", padding: "4px 8px", fontSize: "var(--font-size-sm)", borderRadius: "var(--radius-xs-plus)",
           color: message.type === "ok" ? "var(--success-color)" : "var(--error-color)",
           background: message.type === "ok" ? "rgba(166,227,161,0.05)" : "color-mix(in srgb, var(--accent-rose) 5%, transparent)",
         }}>
@@ -107,23 +107,23 @@ export function MarketplacePanel() {
 
       <div className="panel-body">
         {loading ? (
-          <div style={{ padding: 16, textAlign: "center", opacity: 0.5, fontSize: 11 }}>
+          <div style={{ padding: 16, textAlign: "center", opacity: 0.5, fontSize: "var(--font-size-sm)" }}>
             Loading...
           </div>
         ) : filtered.length === 0 ? (
-          <div style={{ padding: 16, textAlign: "center", opacity: 0.5, fontSize: 11 }}>
+          <div style={{ padding: 16, textAlign: "center", opacity: 0.5, fontSize: "var(--font-size-sm)" }}>
             No plugins found.
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {filtered.map((p) => (
               <div key={p.name} style={{
-                padding: "8px 10px", borderRadius: 6,
+                padding: "8px 10px", borderRadius: "var(--radius-sm)",
                 border: "1px solid var(--border-color)",
                 background: "var(--bg-primary)",
               }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                  <span style={{ fontSize: 12, fontWeight: 700 }}>{p.name}</span>
+                  <span style={{ fontSize: "var(--font-size-base)", fontWeight: 700 }}>{p.name}</span>
                   <span style={{ fontSize: 9, opacity: 0.5 }}>v{p.version}</span>
                   <div style={{ flex: 1 }} />
                   {installed.has(p.name) ? (
@@ -141,7 +141,7 @@ export function MarketplacePanel() {
                     </button>
                   )}
                 </div>
-                <div style={{ fontSize: 11, opacity: 0.8, marginBottom: 4 }}>{p.description}</div>
+                <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.8, marginBottom: 4 }}>{p.description}</div>
                 <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                   <span style={{ fontSize: 9, opacity: 0.5 }}>by {p.author}</span>
                   {p.tags.slice(0, 4).map((tag) => (

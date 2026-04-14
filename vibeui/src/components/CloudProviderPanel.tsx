@@ -55,9 +55,9 @@ interface CostResult {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
+const labelStyle: React.CSSProperties = { fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 4 };
 
-const preStyle: React.CSSProperties = { background: "var(--bg-tertiary)", padding: 10, borderRadius: 4, fontSize: 11, overflow: "auto", whiteSpace: "pre-wrap", border: "1px solid var(--border-color)", maxHeight: 400 };
+const preStyle: React.CSSProperties = { background: "var(--bg-tertiary)", padding: 10, borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-sm)", overflow: "auto", whiteSpace: "pre-wrap", border: "1px solid var(--border-color)", maxHeight: 400 };
 const providerColor: Record<string, string> = { AWS: "var(--warning-color)", GCP: "var(--info-color)", Azure: "var(--accent-primary)" };
 const confidenceColor = (c: number) => c >= 0.9 ? "var(--success-color)" : c >= 0.7 ? "var(--warning-color)" : "var(--error-color)";
 
@@ -213,16 +213,16 @@ export function CloudProviderPanel() {
   return (
     <div className="panel-container">
       <div className="panel-header">
-        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Cloud Provider Integration</h2>
+        <h2 style={{ margin: 0, fontSize: "var(--font-size-xl)", fontWeight: 600 }}>Cloud Provider Integration</h2>
       </div>
 
       <div className="panel-body">
       {/* Connection status banner */}
-      <div className="panel-card" style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 12 }}>
+      <div className="panel-card" style={{ display: "flex", alignItems: "center", gap: 10, fontSize: "var(--font-size-base)" }}>
         <span style={{ fontWeight: 600 }}>Connected:</span>
         {connectedProviders.length > 0 ? (
           connectedProviders.map(p => (
-            <span key={p} style={{ padding: "2px 8px", borderRadius: 10, fontSize: 11, background: "var(--success-bg)", color: "var(--success-color)" }}>
+            <span key={p} style={{ padding: "2px 8px", borderRadius: "var(--radius-md)", fontSize: "var(--font-size-sm)", background: "var(--success-bg)", color: "var(--success-color)" }}>
               {p}
             </span>
           ))
@@ -253,7 +253,7 @@ export function CloudProviderPanel() {
 
           {scanResult && !scanning && (
             <>
-              <div className="panel-card" style={{ fontSize: 12 }}>
+              <div className="panel-card" style={{ fontSize: "var(--font-size-base)" }}>
                 Detected {detectedServices.length} cloud service{detectedServices.length !== 1 ? "s" : ""} across{" "}
                 {detectedProviders.length} provider{detectedProviders.length !== 1 ? "s" : ""}.
                 {scanResult.files_scanned > 0 && (
@@ -272,11 +272,11 @@ export function CloudProviderPanel() {
                   <div>
                     <span style={{ fontWeight: 600, color: providerColor[s.provider] }}>[{s.provider}]</span>{" "}
                     <span style={{ fontWeight: 600 }}>{s.service}</span>
-                    <span style={{ fontSize: 10, color: "var(--text-secondary)", marginLeft: 8 }}>({s.usage_type})</span>
-                    <div style={{ fontSize: 10, color: "var(--text-secondary)", marginTop: 2 }}>{s.file}:{s.line}</div>
+                    <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginLeft: 8 }}>({s.usage_type})</span>
+                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginTop: 2 }}>{s.file}:{s.line}</div>
                   </div>
                   <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Confidence</div>
+                    <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Confidence</div>
                     <div style={{ fontWeight: 600, color: confidenceColor(s.confidence) }}>{(s.confidence * 100).toFixed(0)}%</div>
                   </div>
                 </div>
@@ -413,7 +413,7 @@ export function CloudProviderPanel() {
                           <tr key={i}>
                             <td>{c.service}</td>
                             <td style={{ color: providerColor[c.provider] }}>{c.provider}</td>
-                            <td style={{ fontSize: 11, color: "var(--text-secondary)" }}>{c.tier}</td>
+                            <td style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{c.tier}</td>
                             <td style={{ textAlign: "right" }}>${c.monthly.toFixed(2)}</td>
                             <td style={{ textAlign: "right" }}>${c.yearly.toFixed(2)}</td>
                           </tr>

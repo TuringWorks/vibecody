@@ -110,7 +110,7 @@ export function CollabPanel({
   // Connected state — show room info + peer list
   if (connected && roomId) {
     return (
-      <div style={{ padding: "12px", fontSize: "13px", height: "100%", overflow: "auto" }}>
+      <div style={{ padding: "12px", fontSize: "var(--font-size-md)", height: "100%", overflow: "auto" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
           <span
             style={{
@@ -128,10 +128,10 @@ export function CollabPanel({
           style={{
             background: "var(--bg-tertiary)",
             border: "1px solid var(--border-color)",
-            borderRadius: "4px",
+            borderRadius: "var(--radius-xs-plus)",
             padding: "8px",
             marginBottom: "12px",
-            fontSize: "12px",
+            fontSize: "var(--font-size-base)",
           }}
         >
           <div style={{ color: "var(--text-secondary)", marginBottom: "4px" }}>Room ID</div>
@@ -141,7 +141,7 @@ export function CollabPanel({
               onClick={handleCopyInvite}
               style={{
                 padding: "2px 8px",
-                fontSize: "11px",
+                fontSize: "var(--font-size-sm)",
                 background: "var(--accent-color)",
                 color: "var(--btn-primary-fg)",
                 border: "none",
@@ -183,7 +183,7 @@ export function CollabPanel({
               />
               <span style={{ flex: 1 }}>{p.name}</span>
               {p.peerId === peerId && (
-                <span style={{ fontSize: "10px", color: "var(--text-secondary)" }}>(you)</span>
+                <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>(you)</span>
               )}
             </div>
           ))}
@@ -201,9 +201,9 @@ export function CollabPanel({
             background: "var(--error-color)",
             color: "var(--btn-primary-fg)",
             border: "none",
-            borderRadius: "4px",
+            borderRadius: "var(--radius-xs-plus)",
             cursor: "pointer",
-            fontSize: "12px",
+            fontSize: "var(--font-size-base)",
           }}
         >
           Leave Session
@@ -214,9 +214,9 @@ export function CollabPanel({
 
   // Disconnected state — create or join
   return (
-    <div style={{ padding: "12px", fontSize: "13px", height: "100%", overflow: "auto" }}>
+    <div style={{ padding: "12px", fontSize: "var(--font-size-md)", height: "100%", overflow: "auto" }}>
       <div style={{ fontWeight: 600, marginBottom: "12px" }}>Multiplayer Collaboration</div>
-      <p style={{ color: "var(--text-secondary)", marginBottom: "16px", fontSize: "12px" }}>
+      <p style={{ color: "var(--text-secondary)", marginBottom: "16px", fontSize: "var(--font-size-base)" }}>
         Real-time collaborative editing powered by CRDTs. Create a new session or join an existing
         one by Room ID.
       </p>
@@ -226,10 +226,10 @@ export function CollabPanel({
           style={{
             background: "rgba(224,108,117,0.1)",
             border: "1px solid var(--error-color)",
-            borderRadius: "4px",
+            borderRadius: "var(--radius-xs-plus)",
             padding: "8px",
             marginBottom: "12px",
-            fontSize: "12px",
+            fontSize: "var(--font-size-base)",
             color: "var(--error-color)",
           }}
         >
@@ -238,7 +238,7 @@ export function CollabPanel({
       )}
 
       <div style={{ marginBottom: "12px" }}>
-        <label style={{ display: "block", marginBottom: "4px", fontSize: "12px" }}>
+        <label style={{ display: "block", marginBottom: "4px", fontSize: "var(--font-size-base)" }}>
           Your Name
         </label>
         <input
@@ -248,11 +248,11 @@ export function CollabPanel({
           style={{
             width: "100%",
             padding: "6px 8px",
-            fontSize: "12px",
+            fontSize: "var(--font-size-base)",
             background: "var(--bg-tertiary)",
             color: "var(--text-primary)",
             border: "1px solid var(--border-color)",
-            borderRadius: "4px",
+            borderRadius: "var(--radius-xs-plus)",
             boxSizing: "border-box",
           }}
         />
@@ -268,9 +268,9 @@ export function CollabPanel({
             background: "var(--accent-color)",
             color: "var(--btn-primary-fg)",
             border: "none",
-            borderRadius: "4px",
+            borderRadius: "var(--radius-xs-plus)",
             cursor: loading ? "wait" : "pointer",
-            fontSize: "12px",
+            fontSize: "var(--font-size-base)",
             fontWeight: 600,
             opacity: loading ? 0.6 : 1,
           }}
@@ -285,7 +285,7 @@ export function CollabPanel({
           paddingTop: "16px",
         }}
       >
-        <label style={{ display: "block", marginBottom: "4px", fontSize: "12px" }}>
+        <label style={{ display: "block", marginBottom: "4px", fontSize: "var(--font-size-base)" }}>
           Join Existing Room
         </label>
         <div style={{ display: "flex", gap: "8px" }}>
@@ -296,11 +296,11 @@ export function CollabPanel({
             style={{
               flex: 1,
               padding: "6px 8px",
-              fontSize: "12px",
+              fontSize: "var(--font-size-base)",
               background: "var(--bg-tertiary)",
               color: "var(--text-primary)",
               border: "1px solid var(--border-color)",
-              borderRadius: "4px",
+              borderRadius: "var(--radius-xs-plus)",
             }}
           />
           <button
@@ -311,9 +311,9 @@ export function CollabPanel({
               background: "var(--success-color)",
               color: "var(--btn-primary-fg)",
               border: "none",
-              borderRadius: "4px",
+              borderRadius: "var(--radius-xs-plus)",
               cursor: loading ? "wait" : "pointer",
-              fontSize: "12px",
+              fontSize: "var(--font-size-base)",
               fontWeight: 600,
               opacity: loading || !joinRoomId.trim() ? 0.6 : 1,
             }}
@@ -328,8 +328,8 @@ export function CollabPanel({
           marginTop: "20px",
           padding: "8px",
           background: "var(--bg-tertiary)",
-          borderRadius: "4px",
-          fontSize: "11px",
+          borderRadius: "var(--radius-xs-plus)",
+          fontSize: "var(--font-size-sm)",
           color: "var(--text-secondary)",
           lineHeight: 1.5,
         }}

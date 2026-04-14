@@ -78,10 +78,10 @@ export function StreamingPanel() {
     width: "100%",
     background: "var(--bg-secondary)",
     border: "1px solid var(--border)",
-    borderRadius: 4,
+    borderRadius: "var(--radius-xs-plus)",
     color: "var(--text-primary)",
     padding: "5px 8px",
-    fontSize: 12,
+    fontSize: "var(--font-size-base)",
     boxSizing: "border-box",
   };
 
@@ -90,10 +90,10 @@ export function StreamingPanel() {
   const codeBlock: React.CSSProperties = {
     background: "var(--bg-secondary)",
     border: "1px solid var(--border)",
-    borderRadius: 4,
+    borderRadius: "var(--radius-xs-plus)",
     padding: 12,
     fontFamily: "var(--font-mono)",
-    fontSize: 11,
+    fontSize: "var(--font-size-sm)",
     whiteSpace: "pre-wrap",
     overflowX: "auto",
     color: "var(--text-primary)",
@@ -253,7 +253,7 @@ export function StreamingPanel() {
         {/* ===== Topics ===== */}
         {tab === "topics" && (
           <div>
-            <h3 style={{ margin: "0 0 12px", fontSize: 14 }}>Create Topic</h3>
+            <h3 style={{ margin: "0 0 12px", fontSize: "var(--font-size-lg)" }}>Create Topic</h3>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr auto", gap: 8, alignItems: "end", marginBottom: 16 }}>
               <div>
                 <label className="panel-label">Name</label>
@@ -309,7 +309,7 @@ export function StreamingPanel() {
               <div className="panel-empty">No topics created yet. Use the form above to add topics.</div>
             ) : (
               <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, fontFamily: "var(--font-mono)" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)" }}>
                   <thead>
                     <tr style={{ background: "var(--bg-secondary)" }}>
                       <th style={{ padding: "6px 8px", textAlign: "left", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>Name</th>
@@ -327,11 +327,11 @@ export function StreamingPanel() {
                         <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "right" }}>{t.partitions}</td>
                         <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "right" }}>{t.replicationFactor}</td>
                         <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)" }}>{t.cleanupPolicy}</td>
-                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", fontSize: 10, opacity: 0.7 }}>
+                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", fontSize: "var(--font-size-xs)", opacity: 0.7 }}>
                           kafka-topics.sh --create --topic {t.name} --partitions {t.partitions} --replication-factor {t.replicationFactor} --config cleanup.policy={t.cleanupPolicy}
                         </td>
                         <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>
-                          <button onClick={() => handleDeleteTopic(t.name)} style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: 14 }} title="Remove topic">
+                          <button onClick={() => handleDeleteTopic(t.name)} style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: "var(--font-size-lg)" }} title="Remove topic">
                             x
                           </button>
                         </td>
@@ -347,7 +347,7 @@ export function StreamingPanel() {
         {/* ===== Producer / Consumer ===== */}
         {tab === "prodcon" && (
           <div>
-            <h3 style={{ margin: "0 0 12px", fontSize: 14 }}>Client Configuration</h3>
+            <h3 style={{ margin: "0 0 12px", fontSize: "var(--font-size-lg)" }}>Client Configuration</h3>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
               <div>
                 <label className="panel-label">Bootstrap Servers</label>
@@ -389,7 +389,7 @@ export function StreamingPanel() {
             {generatedCommand && (
               <div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                  <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>Generated Command</span>
+                  <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Generated Command</span>
                   <button
                     onClick={() => navigator.clipboard.writeText(generatedCommand)}
                     className="panel-btn panel-btn-secondary panel-btn-xs"
@@ -407,7 +407,7 @@ export function StreamingPanel() {
         {tab === "infra" && (
           <div>
             {/* Docker Compose Generator */}
-            <h3 style={{ margin: "0 0 12px", fontSize: 14 }}>Docker Compose Generator</h3>
+            <h3 style={{ margin: "0 0 12px", fontSize: "var(--font-size-lg)" }}>Docker Compose Generator</h3>
             <div style={{ display: "flex", gap: 12, alignItems: "end", marginBottom: 12 }}>
               <div>
                 <label className="panel-label">Number of Brokers</label>
@@ -428,7 +428,7 @@ export function StreamingPanel() {
                   onChange={(e) => setUseZookeeper(e.target.checked)}
                   style={{ accentColor: "var(--accent)" }}
                 />
-                <label htmlFor="zk-toggle" style={{ fontSize: 12, color: "var(--text-primary)", cursor: "pointer" }}>
+                <label htmlFor="zk-toggle" style={{ fontSize: "var(--font-size-base)", color: "var(--text-primary)", cursor: "pointer" }}>
                   Use Zookeeper (legacy)
                 </label>
               </div>
@@ -438,7 +438,7 @@ export function StreamingPanel() {
             {composeYaml && (
               <div style={{ marginBottom: 24 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                  <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>docker-compose.yml</span>
+                  <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>docker-compose.yml</span>
                   <button
                     onClick={() => navigator.clipboard.writeText(composeYaml)}
                     className="panel-btn panel-btn-secondary panel-btn-xs"
@@ -451,7 +451,7 @@ export function StreamingPanel() {
             )}
 
             {/* Kafka Connect Connector */}
-            <h3 style={{ margin: "0 0 12px", fontSize: 14 }}>Kafka Connect — Connector Config</h3>
+            <h3 style={{ margin: "0 0 12px", fontSize: "var(--font-size-lg)" }}>Kafka Connect — Connector Config</h3>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
               <div>
                 <label className="panel-label">Connector Name</label>
@@ -482,7 +482,7 @@ export function StreamingPanel() {
             {connectorJson && (
               <div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                  <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>Connector Configuration</span>
+                  <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Connector Configuration</span>
                   <button
                     onClick={() => navigator.clipboard.writeText(connectorJson)}
                     className="panel-btn panel-btn-secondary panel-btn-xs"

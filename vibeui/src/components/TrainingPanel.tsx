@@ -33,12 +33,12 @@ interface ParallelismSuggestion {
 // ---------------------------------------------------------------------------
 const inputStyle: React.CSSProperties = {
   width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border-color)",
-  borderRadius: 4, color: "var(--text-primary)", padding: "5px 8px", fontSize: 12, boxSizing: "border-box",
+  borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", padding: "5px 8px", fontSize: "var(--font-size-base)", boxSizing: "border-box",
 };
 const selectStyle: React.CSSProperties = { ...inputStyle, appearance: "auto" as never };
 const codeBlockStyle: React.CSSProperties = {
-  background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4,
-  padding: 12, fontFamily: "var(--font-mono)", fontSize: 11, whiteSpace: "pre-wrap", overflowX: "auto",
+  background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)",
+  padding: 12, fontFamily: "var(--font-mono)", fontSize: "var(--font-size-sm)", whiteSpace: "pre-wrap", overflowX: "auto",
   color: "var(--text-primary)", maxHeight: 360, overflowY: "auto",
 };
 const fieldRow: React.CSSProperties = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 10 };
@@ -355,11 +355,11 @@ export function TrainingPanel() {
         )}
       </div>
       <div style={{ display: "flex", gap: 20, marginBottom: 14 }}>
-        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, cursor: "pointer", color: "var(--text-primary)" }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", cursor: "pointer", color: "var(--text-primary)" }}>
           <input type="checkbox" checked={gradCkpt} onChange={(e) => setGradCkpt(e.target.checked)} />
           Gradient Checkpointing
         </label>
-        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, cursor: "pointer", color: "var(--text-primary)" }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", cursor: "pointer", color: "var(--text-primary)" }}>
           <input type="checkbox" checked={flashAttn} onChange={(e) => setFlashAttn(e.target.checked)} />
           Flash Attention
         </label>
@@ -428,7 +428,7 @@ export function TrainingPanel() {
         <div className="panel-label">Target Modules</div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 4 }}>
           {TARGET_MODULES.map((mod) => (
-            <label key={mod} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, cursor: "pointer", color: "var(--text-primary)" }}>
+            <label key={mod} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-base)", cursor: "pointer", color: "var(--text-primary)" }}>
               <input
                 type="checkbox"
                 checked={loraTargets.has(mod)}
@@ -438,7 +438,7 @@ export function TrainingPanel() {
                   setLoraTargets(next);
                 }}
               />
-              <code style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>{mod}</code>
+              <code style={{ fontFamily: "var(--font-mono)", fontSize: "var(--font-size-sm)" }}>{mod}</code>
             </label>
           ))}
         </div>
@@ -467,8 +467,8 @@ export function TrainingPanel() {
   const renderCluster = () => (
     <div className="panel-body">
       {/* SLURM script generator */}
-      <div style={{ marginBottom: 20, padding: 12, border: "1px solid var(--border-color)", borderRadius: 6, background: "var(--bg-primary)" }}>
-        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, color: "var(--text-primary)" }}>SLURM Script Generator</div>
+      <div style={{ marginBottom: 20, padding: 12, border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", background: "var(--bg-primary)" }}>
+        <div style={{ fontSize: "var(--font-size-md)", fontWeight: 600, marginBottom: 10, color: "var(--text-primary)" }}>SLURM Script Generator</div>
         <div style={fieldRow}>
           <div>
             <div className="panel-label">Partition Name</div>
@@ -514,8 +514,8 @@ export function TrainingPanel() {
       </div>
 
       {/* Hostfile generator */}
-      <div style={{ marginBottom: 20, padding: 12, border: "1px solid var(--border-color)", borderRadius: 6, background: "var(--bg-primary)" }}>
-        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, color: "var(--text-primary)" }}>Hostfile Generator</div>
+      <div style={{ marginBottom: 20, padding: 12, border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", background: "var(--bg-primary)" }}>
+        <div style={{ fontSize: "var(--font-size-md)", fontWeight: 600, marginBottom: 10, color: "var(--text-primary)" }}>Hostfile Generator</div>
         {hosts.map((h, i) => (
           <div key={i} style={{ display: "flex", gap: 8, marginBottom: 6, alignItems: "center" }}>
             <input
@@ -532,7 +532,7 @@ export function TrainingPanel() {
               placeholder="slots"
             />
             <button
-              className="panel-btn panel-btn-secondary" style={{ padding: "4px 8px", fontSize: 14, lineHeight: 1 }}
+              className="panel-btn panel-btn-secondary" style={{ padding: "4px 8px", fontSize: "var(--font-size-lg)", lineHeight: 1 }}
               onClick={() => setHosts(hosts.filter((_, j) => j !== i))}
               disabled={hosts.length <= 1}
             >x</button>
@@ -548,8 +548,8 @@ export function TrainingPanel() {
       </div>
 
       {/* Memory estimator */}
-      <div style={{ marginBottom: 20, padding: 12, border: "1px solid var(--border-color)", borderRadius: 6, background: "var(--bg-primary)" }}>
-        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, color: "var(--text-primary)" }}>Memory Estimator</div>
+      <div style={{ marginBottom: 20, padding: 12, border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", background: "var(--bg-primary)" }}>
+        <div style={{ fontSize: "var(--font-size-md)", fontWeight: 600, marginBottom: 10, color: "var(--text-primary)" }}>Memory Estimator</div>
         <div style={fieldRow}>
           <div>
             <div className="panel-label">Model Parameters (B)</div>
@@ -567,7 +567,7 @@ export function TrainingPanel() {
         {(() => {
           const est = estimateVram(estimatorParams, estimatorPrecision);
           return (
-            <div style={{ fontSize: 12, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>
+            <div style={{ fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>
               <table style={{ borderCollapse: "collapse", width: "100%" }}>
                 <tbody>
                   {([
@@ -590,8 +590,8 @@ export function TrainingPanel() {
       </div>
 
       {/* Parallelism suggestion */}
-      <div style={{ padding: 12, border: "1px solid var(--border-color)", borderRadius: 6, background: "var(--bg-primary)" }}>
-        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, color: "var(--text-primary)" }}>Parallelism Suggestion</div>
+      <div style={{ padding: 12, border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", background: "var(--bg-primary)" }}>
+        <div style={{ fontSize: "var(--font-size-md)", fontWeight: 600, marginBottom: 10, color: "var(--text-primary)" }}>Parallelism Suggestion</div>
         <div style={fieldRow}>
           <div>
             <div className="panel-label">Model Size (B params)</div>
@@ -609,7 +609,7 @@ export function TrainingPanel() {
         {(() => {
           const suggestion = suggestParallelism(estimatorParams, estimatorGpuCount, estimatorVram);
           return (
-            <div style={{ marginTop: 8, padding: 10, background: "var(--bg-secondary)", borderRadius: 4, fontSize: 12, color: "var(--text-primary)" }}>
+            <div style={{ marginTop: 8, padding: 10, background: "var(--bg-secondary)", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-base)", color: "var(--text-primary)" }}>
               <div style={{ display: "flex", gap: 16, marginBottom: 6, fontFamily: "var(--font-mono)" }}>
                 <span>DP={suggestion.dp}</span>
                 <span>TP={suggestion.tp}</span>
@@ -642,28 +642,28 @@ export function TrainingPanel() {
       {tab === "cluster" && renderCluster()}
       {tab === "jobs" && (
         <div className="panel-body">
-          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, color: "var(--text-primary)" }}>Training Jobs</div>
+          <div style={{ fontSize: "var(--font-size-md)", fontWeight: 600, marginBottom: 10, color: "var(--text-primary)" }}>Training Jobs</div>
           <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
             <input style={inputStyle} value={jobName} onChange={e => setJobName(e.target.value)} placeholder="Job name..." />
             <button className="panel-btn panel-btn-primary" onClick={createJob}>Create Job</button>
             <button className="panel-btn panel-btn-secondary" onClick={loadJobs}>Refresh</button>
           </div>
           {jobs.length === 0 ? (
-            <div style={{ color: "var(--text-secondary)", fontSize: 12, fontStyle: "italic" }}>
+            <div style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-base)", fontStyle: "italic" }}>
               No training jobs yet. Configure training parameters in the Config tab and create a job.
             </div>
           ) : (
             jobs.map(j => (
-              <div key={j.id} style={{ padding: 12, border: "1px solid var(--border-color)", borderRadius: 6, marginBottom: 8, background: "var(--bg-secondary)" }}>
+              <div key={j.id} style={{ padding: 12, border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", marginBottom: 8, background: "var(--bg-secondary)" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                  <div style={{ fontWeight: 600, fontSize: 13 }}>{j.name}</div>
+                  <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)" }}>{j.name}</div>
                   <span style={{
-                    fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 10,
+                    fontSize: "var(--font-size-xs)", fontWeight: 600, padding: "2px 8px", borderRadius: "var(--radius-md)",
                     background: j.status === "running" ? "var(--accent-green)" : j.status === "queued" ? "var(--warning-color)" : "var(--bg-tertiary)",
                     color: j.status === "running" || j.status === "queued" ? "#fff" : "var(--text-secondary)",
                   }}>{j.status}</span>
                 </div>
-                <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
                   {j.framework} | {j.model || "No model specified"} | Created: {j.created ? new Date(j.created).toLocaleString() : "N/A"}
                 </div>
                 {j.progress > 0 && (

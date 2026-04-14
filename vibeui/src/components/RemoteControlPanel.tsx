@@ -194,7 +194,7 @@ export default function RemoteControlPanel() {
             {t[0].toUpperCase() + t.slice(1)}
           </button>
         ))}
-        <span style={{ marginLeft: "auto", fontSize: 10, color: serverRunning ? "var(--success-color)" : "var(--text-secondary)", alignSelf: "center" }}>
+        <span style={{ marginLeft: "auto", fontSize: "var(--font-size-xs)", color: serverRunning ? "var(--success-color)" : "var(--text-secondary)", alignSelf: "center" }}>
           {serverRunning ? "Listening" : "Stopped"}
         </span>
       </div>
@@ -203,45 +203,45 @@ export default function RemoteControlPanel() {
         {/* Server tab */}
         {tab === "server" && (
           <>
-            <div style={{ padding: 14, background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)" }}>
-              <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 10 }}>Remote Server</div>
+            <div style={{ padding: 14, background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)" }}>
+              <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, marginBottom: 10 }}>Remote Server</div>
               <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 10 }}>
-                <label style={{ fontSize: 11, color: "var(--text-secondary)" }}>Port:</label>
+                <label style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Port:</label>
                 <input type="number" value={port} onChange={e => setPort(Number(e.target.value))}
-                  style={{ width: 80, padding: "4px 8px", fontSize: 12, fontFamily: "var(--font-mono)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }} />
+                  style={{ width: 80, padding: "4px 8px", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)" }} />
                 <button onClick={handleToggleServer}
-                  style={{ padding: "6px 16px", fontSize: 11, fontWeight: 600, borderRadius: 4, border: "none", cursor: "pointer",
+                  style={{ padding: "6px 16px", fontSize: "var(--font-size-sm)", fontWeight: 600, borderRadius: "var(--radius-xs-plus)", border: "none", cursor: "pointer",
                     background: serverRunning ? "var(--text-danger)" : "var(--text-success)",
                     color: "var(--bg-primary)" }}>
                   {serverRunning ? "Stop Server" : "Start Server"}
                 </button>
               </div>
-              {serverRunning && <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Listening on 0.0.0.0:{port}</div>}
+              {serverRunning && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Listening on 0.0.0.0:{port}</div>}
             </div>
 
-            <div style={{ padding: 14, background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)", textAlign: "center" }}>
-              <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 10 }}>QR Code</div>
+            <div style={{ padding: 14, background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", textAlign: "center" }}>
+              <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, marginBottom: 10 }}>QR Code</div>
               {serverRunning ? (
                 <canvas ref={qrRef} width={240} height={240}
-                  style={{ width: 120, height: 120, margin: "0 auto", borderRadius: 8, imageRendering: "pixelated" }} />
+                  style={{ width: 120, height: 120, margin: "0 auto", borderRadius: "var(--radius-sm-alt)", imageRendering: "pixelated" }} />
               ) : (
-                <div style={{ width: 120, height: 120, margin: "0 auto", border: "2px dashed var(--border-color)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-secondary)", fontSize: 10 }}>
+                <div style={{ width: 120, height: 120, margin: "0 auto", border: "2px dashed var(--border-color)", borderRadius: "var(--radius-sm-alt)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-secondary)", fontSize: "var(--font-size-xs)" }}>
                   Start server to generate
                 </div>
               )}
               {serverRunning && (
-                <div style={{ fontSize: 10, color: "var(--text-secondary)", marginTop: 6 }}>
+                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginTop: 6 }}>
                   Scan with VibeCLI mobile app to pair
                 </div>
               )}
             </div>
 
-            <div style={{ padding: 14, background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)" }}>
-              <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 8 }}>Pairing Token</div>
+            <div style={{ padding: 14, background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)" }}>
+              <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, marginBottom: 8 }}>Pairing Token</div>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <code style={{ flex: 1, padding: "6px 10px", background: "var(--bg-primary)", borderRadius: 4, fontSize: 13, fontFamily: "var(--font-mono)", color: "var(--accent-color)", letterSpacing: 1 }}>{token || "---"}</code>
+                <code style={{ flex: 1, padding: "6px 10px", background: "var(--bg-primary)", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-md)", fontFamily: "var(--font-mono)", color: "var(--accent-color)", letterSpacing: 1 }}>{token || "---"}</code>
                 <button onClick={() => token && navigator.clipboard.writeText(token)}
-                  style={{ padding: "5px 12px", fontSize: 10, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-secondary)", cursor: "pointer" }}>Copy</button>
+                  style={{ padding: "5px 12px", fontSize: "var(--font-size-xs)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-secondary)", cursor: "pointer" }}>Copy</button>
               </div>
             </div>
           </>
@@ -249,27 +249,27 @@ export default function RemoteControlPanel() {
 
         {/* Clients tab */}
         {tab === "clients" && clients.map(c => (
-          <div key={c.id} style={{ padding: 10, background: "var(--bg-secondary)", borderRadius: 6, border: `1px solid ${c.connected ? "var(--accent-color)" : "var(--border-color)"}`, display: "flex", gap: 10, alignItems: "center" }}>
-            <span style={{ fontSize: 14 }}>[{typeIcon[c.type]}]</span>
+          <div key={c.id} style={{ padding: 10, background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", border: `1px solid ${c.connected ? "var(--accent-color)" : "var(--border-color)"}`, display: "flex", gap: 10, alignItems: "center" }}>
+            <span style={{ fontSize: "var(--font-size-lg)" }}>[{typeIcon[c.type]}]</span>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>{c.name}</div>
-              <div style={{ fontSize: 10, color: "var(--text-secondary)", marginTop: 2 }}>
+              <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, color: "var(--text-primary)" }}>{c.name}</div>
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginTop: 2 }}>
                 {c.permissions.join(", ")} | {c.lastSeen}
               </div>
             </div>
-            <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 10, background: c.connected ? "color-mix(in srgb, var(--accent-green) 15%, transparent)" : "color-mix(in srgb, var(--accent-rose) 15%, transparent)", color: c.connected ? "var(--text-success)" : "var(--text-danger)" }}>
+            <span style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px", borderRadius: "var(--radius-md)", background: c.connected ? "color-mix(in srgb, var(--accent-green) 15%, transparent)" : "color-mix(in srgb, var(--accent-rose) 15%, transparent)", color: c.connected ? "var(--text-success)" : "var(--text-danger)" }}>
               {c.connected ? "Online" : "Offline"}
             </span>
             {c.connected && (
               <button onClick={() => handleDisconnectClient(c.id)}
-                style={{ padding: "4px 10px", fontSize: 10, borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-secondary)", cursor: "pointer" }}>
+                style={{ padding: "4px 10px", fontSize: "var(--font-size-xs)", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-secondary)", cursor: "pointer" }}>
                 Disconnect
               </button>
             )}
           </div>
         ))}
         {tab === "clients" && clients.length === 0 && (
-          <div style={{ textAlign: "center", padding: 24, color: "var(--text-secondary)", fontSize: 12 }}>
+          <div style={{ textAlign: "center", padding: 24, color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>
             No clients connected. Start the server and pair a device.
           </div>
         )}
@@ -278,15 +278,15 @@ export default function RemoteControlPanel() {
         {tab === "events" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             {events.map(e => (
-              <div key={e.id} style={{ display: "flex", gap: 10, padding: "6px 10px", background: "var(--bg-secondary)", borderRadius: 4, border: "1px solid var(--border-color)", fontSize: 11, fontFamily: "var(--font-mono)" }}>
+              <div key={e.id} style={{ display: "flex", gap: 10, padding: "6px 10px", background: "var(--bg-secondary)", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)" }}>
                 <span style={{ color: "var(--text-secondary)", minWidth: 60 }}>{e.timestamp}</span>
                 <span style={{ color: "var(--accent-color)", minWidth: 80 }}>{e.action}</span>
                 <span style={{ color: "var(--text-primary)", flex: 1 }}>{e.detail}</span>
-                <span style={{ color: "var(--text-secondary)", fontSize: 10 }}>{e.clientId}</span>
+                <span style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-xs)" }}>{e.clientId}</span>
               </div>
             ))}
             {events.length === 0 && (
-              <div style={{ textAlign: "center", padding: 24, color: "var(--text-secondary)", fontSize: 12 }}>
+              <div style={{ textAlign: "center", padding: 24, color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>
                 No events yet.
               </div>
             )}

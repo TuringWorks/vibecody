@@ -141,8 +141,8 @@ const DebugModePanel: React.FC = () => {
 
   const badgeStyle = (status: string): React.CSSProperties => ({
     padding: "2px 8px",
-    borderRadius: "10px",
-    fontSize: "11px",
+    borderRadius: "var(--radius-md)",
+    fontSize: "var(--font-size-sm)",
     fontWeight: 600,
     backgroundColor: status === "running" ? "var(--success-color)" : status === "paused" ? "var(--warning-color)" : "var(--text-secondary)",
     color: "var(--bg-primary)",
@@ -223,7 +223,7 @@ const DebugModePanel: React.FC = () => {
             >
               <div>
                 <strong>{s.name}</strong> <span style={{ opacity: 0.7 }}>({s.language})</span>
-                <div style={{ fontSize: "12px", opacity: 0.6, marginTop: "2px" }}>Started: {s.startedAt}</div>
+                <div style={{ fontSize: "var(--font-size-base)", opacity: 0.6, marginTop: "2px" }}>Started: {s.startedAt}</div>
               </div>
               <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
                 <span style={badgeStyle(s.status)}>{s.status}</span>
@@ -244,7 +244,7 @@ const DebugModePanel: React.FC = () => {
 
           {selectedSession && (
             <>
-              <div style={{ marginBottom: "8px", fontSize: "12px", opacity: 0.7 }}>
+              <div style={{ marginBottom: "8px", fontSize: "var(--font-size-base)", opacity: 0.7 }}>
                 Session: {sessions.find((s) => s.id === selectedSession)?.name || selectedSession}
               </div>
 
@@ -252,11 +252,11 @@ const DebugModePanel: React.FC = () => {
                 <div key={bp.id} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
                   <div>
                     <strong>{bp.file}:{bp.line}</strong>{" "}
-                    <span style={{ opacity: 0.7, fontSize: "12px" }}>[{bp.type}]</span>
-                    {bp.condition && <div style={{ fontSize: "12px", opacity: 0.6 }}>Condition: {bp.condition}</div>}
+                    <span style={{ opacity: 0.7, fontSize: "var(--font-size-base)" }}>[{bp.type}]</span>
+                    {bp.condition && <div style={{ fontSize: "var(--font-size-base)", opacity: 0.6 }}>Condition: {bp.condition}</div>}
                   </div>
                   <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                    <span style={{ fontSize: "12px", color: bp.enabled ? "var(--success-color)" : "var(--text-secondary)" }}>
+                    <span style={{ fontSize: "var(--font-size-base)", color: bp.enabled ? "var(--success-color)" : "var(--text-secondary)" }}>
                       {bp.enabled ? "Enabled" : "Disabled"}
                     </span>
                     <button className="panel-btn panel-btn-secondary" onClick={() => removeBreakpoint(bp.id)}>Remove</button>
@@ -293,7 +293,7 @@ const DebugModePanel: React.FC = () => {
           {selectedSession && (
             <>
               <div style={{ marginBottom: "12px", display: "flex", gap: "8px", alignItems: "center" }}>
-                <span style={{ fontSize: "12px", opacity: 0.7 }}>
+                <span style={{ fontSize: "var(--font-size-base)", opacity: 0.7 }}>
                   Session: {sessions.find((s) => s.id === selectedSession)?.name || selectedSession}
                 </span>
                 <button className="panel-btn panel-btn-primary" onClick={runAnalysis} disabled={loading}>
@@ -309,16 +309,16 @@ const DebugModePanel: React.FC = () => {
                 <div key={i} className="panel-card" style={{ marginBottom: "8px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
                     <strong>Hypothesis {i + 1}</strong>
-                    <span style={{ fontSize: "12px", opacity: 0.7 }}>Confidence: {(a.confidence * 100).toFixed(0)}%</span>
+                    <span style={{ fontSize: "var(--font-size-base)", opacity: 0.7 }}>Confidence: {(a.confidence * 100).toFixed(0)}%</span>
                   </div>
                   <p style={{ margin: "4px 0" }}>{a.hypothesis}</p>
                   <div style={{ marginTop: "8px", padding: "6px 8px", borderRadius: "3px", backgroundColor: "var(--bg-secondary)" }}>
-                    <div style={{ fontSize: "12px", fontWeight: 600, marginBottom: "2px" }}>Root Cause</div>
-                    <div style={{ fontSize: "12px" }}>{a.rootCause}</div>
+                    <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, marginBottom: "2px" }}>Root Cause</div>
+                    <div style={{ fontSize: "var(--font-size-base)" }}>{a.rootCause}</div>
                   </div>
                   <div style={{ marginTop: "6px", padding: "6px 8px", borderRadius: "3px", backgroundColor: "var(--bg-secondary)" }}>
-                    <div style={{ fontSize: "12px", fontWeight: 600, marginBottom: "2px" }}>Auto-Fix Suggestion</div>
-                    <div style={{ fontSize: "12px" }}>{a.autoFix}</div>
+                    <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, marginBottom: "2px" }}>Auto-Fix Suggestion</div>
+                    <div style={{ fontSize: "var(--font-size-base)" }}>{a.autoFix}</div>
                   </div>
                 </div>
               ))}

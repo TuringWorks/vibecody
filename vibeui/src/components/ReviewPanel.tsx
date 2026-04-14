@@ -67,11 +67,11 @@ function ScoreBar({ label, value }: { label: string; value: number }) {
  const color = value >= 8 ? 'var(--text-success)' : value >= 5 ? 'var(--text-warning)' : 'var(--text-danger)';
  return (
  <div style={{ marginBottom: 6 }}>
- <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 2 }}>
+ <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: "var(--font-size-base)", marginBottom: 2 }}>
  <span>{label}</span>
  <span style={{ color }}>{value.toFixed(1)}</span>
  </div>
- <div style={{ background: 'var(--border-color)', borderRadius: 4, height: 6, overflow: 'hidden' }}>
+ <div style={{ background: 'var(--border-color)', borderRadius: "var(--radius-xs-plus)", height: 6, overflow: 'hidden' }}>
  <div style={{ width: `${pct}%`, height: '100%', background: color, transition: 'width 0.3s' }} />
  </div>
  </div>
@@ -143,9 +143,9 @@ export function ReviewPanel({ workspacePath, onOpenFile }: ReviewPanelProps) {
 
  {/* ── Loading placeholder ── */}
  {isLoading && (
- <div style={{ textAlign: 'center', color: 'var(--text-secondary)', paddingTop: 32, fontSize: 13 }}>
+ <div style={{ textAlign: 'center', color: 'var(--text-secondary)', paddingTop: 32, fontSize: "var(--font-size-md)" }}>
  Analyzing diff…<br />
- <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>This may take 15–30 seconds depending on diff size</span>
+ <span style={{ fontSize: "var(--font-size-sm)", color: 'var(--text-secondary)' }}>This may take 15–30 seconds depending on diff size</span>
  </div>
  )}
 
@@ -154,25 +154,25 @@ export function ReviewPanel({ workspacePath, onOpenFile }: ReviewPanelProps) {
  <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
 
  {/* Summary card */}
- <div style={{ background: 'var(--bg-tertiary)', borderRadius: 6, padding: 12 }}>
- <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6, color: 'var(--text-primary)' }}>
+ <div style={{ background: 'var(--bg-tertiary)', borderRadius: "var(--radius-sm)", padding: 12 }}>
+ <div style={{ fontSize: "var(--font-size-md)", fontWeight: 600, marginBottom: 6, color: 'var(--text-primary)' }}>
  Review Summary {report.base_ref && (
- <span style={{ fontWeight: 400, color: 'var(--text-secondary)', fontSize: 11 }}>
+ <span style={{ fontWeight: 400, color: 'var(--text-secondary)', fontSize: "var(--font-size-sm)" }}>
  ({report.base_ref || 'working tree'} → {report.target_ref || 'HEAD'})
  </span>
  )}
  </div>
- <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>{report.summary}</p>
+ <p style={{ fontSize: "var(--font-size-base)", color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>{report.summary}</p>
  {report.files_reviewed.length > 0 && (
- <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-secondary)' }}>
+ <div style={{ marginTop: 8, fontSize: "var(--font-size-sm)", color: 'var(--text-secondary)' }}>
  {report.files_reviewed.length} file{report.files_reviewed.length !== 1 ? 's' : ''} reviewed
  </div>
  )}
  </div>
 
  {/* Score bars */}
- <div style={{ background: 'var(--bg-tertiary)', borderRadius: 6, padding: 12 }}>
- <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, color: 'var(--text-primary)' }}>
+ <div style={{ background: 'var(--bg-tertiary)', borderRadius: "var(--radius-sm)", padding: 12 }}>
+ <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, marginBottom: 8, color: 'var(--text-primary)' }}>
  Quality Score — Overall: {report.score.overall.toFixed(1)} / 10
  </div>
  <ScoreBar label="Correctness" value={report.score.correctness} />
@@ -194,7 +194,7 @@ export function ReviewPanel({ workspacePath, onOpenFile }: ReviewPanelProps) {
  style={{
  padding: '3px 10px', borderRadius: 12, border: '1px solid var(--border-color)',
  background: active ? 'var(--border-color)' : 'transparent', color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
- fontSize: 11, cursor: 'pointer',
+ fontSize: "var(--font-size-sm)", cursor: 'pointer',
  }}
  >
  {sev === 'all' ? 'All' : sev.charAt(0).toUpperCase() + sev.slice(1)} ({count})
@@ -206,11 +206,11 @@ export function ReviewPanel({ workspacePath, onOpenFile }: ReviewPanelProps) {
 
  {/* Issues list */}
  {filteredIssues.length === 0 && report.issues.length > 0 ? (
- <div style={{ color: 'var(--text-secondary)', fontSize: 12, textAlign: 'center', paddingTop: 12 }}>
+ <div style={{ color: 'var(--text-secondary)', fontSize: "var(--font-size-base)", textAlign: 'center', paddingTop: 12 }}>
  No {filterSeverity} issues found.
  </div>
  ) : filteredIssues.length === 0 ? (
- <div style={{ color: 'var(--text-success)', fontSize: 13, textAlign: 'center', paddingTop: 12 }}>
+ <div style={{ color: 'var(--text-success)', fontSize: "var(--font-size-md)", textAlign: 'center', paddingTop: 12 }}>
  No issues found — looks good!
  </div>
  ) : (
@@ -222,7 +222,7 @@ export function ReviewPanel({ workspacePath, onOpenFile }: ReviewPanelProps) {
  <div
  key={idx}
  style={{
- background: 'var(--bg-tertiary)', borderRadius: 6, borderLeft: `3px solid`,
+ background: 'var(--bg-tertiary)', borderRadius: "var(--radius-sm)", borderLeft: `3px solid`,
  borderLeftColor: sty.border.replace('border-l-', '').includes('red') ? 'var(--text-danger)'
  : sty.border.includes('yellow') ? 'var(--text-warning)' : 'var(--text-info)',
  overflow: 'hidden',
@@ -232,20 +232,20 @@ export function ReviewPanel({ workspacePath, onOpenFile }: ReviewPanelProps) {
  style={{ padding: '8px 10px', cursor: 'pointer', display: 'flex', gap: 8, alignItems: 'flex-start' }}
  onClick={() => setExpanded(isOpen ? null : idx)}
  >
- <span style={{ fontSize: 11 }}>{FOCUS_EMOJI[issue.category]}</span>
+ <span style={{ fontSize: "var(--font-size-sm)" }}>{FOCUS_EMOJI[issue.category]}</span>
  <div style={{ flex: 1, minWidth: 0 }}>
  <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
  <span style={{
- fontSize: 10, padding: '1px 6px', borderRadius: 10,
+ fontSize: "var(--font-size-xs)", padding: '1px 6px', borderRadius: "var(--radius-md)",
  background: sty.badge.includes('red') ? 'var(--text-danger)'
  : sty.badge.includes('yellow') ? 'var(--text-warning)' : 'var(--text-info)',
  color: sty.badge.includes('yellow') ? '#000' : '#fff',
  }}>
  {issue.severity}
  </span>
- <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{issue.category}</span>
+ <span style={{ fontSize: "var(--font-size-sm)", color: 'var(--text-secondary)' }}>{issue.category}</span>
  </div>
- <div style={{ fontSize: 12, color: 'var(--text-primary)', marginTop: 3, lineHeight: 1.4 }}>
+ <div style={{ fontSize: "var(--font-size-base)", color: 'var(--text-primary)', marginTop: 3, lineHeight: 1.4 }}>
  {issue.description}
  </div>
  {issue.file && (
@@ -255,7 +255,7 @@ export function ReviewPanel({ workspacePath, onOpenFile }: ReviewPanelProps) {
  onOpenFile?.(issue.file, issue.line);
  }}
  style={{
- marginTop: 4, fontSize: 10, color: 'var(--accent-color)', background: 'none',
+ marginTop: 4, fontSize: "var(--font-size-xs)", color: 'var(--accent-color)', background: 'none',
  border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline',
  }}
  >
@@ -268,12 +268,12 @@ export function ReviewPanel({ workspacePath, onOpenFile }: ReviewPanelProps) {
 
  {isOpen && issue.suggested_fix && (
  <div style={{ padding: '0 10px 10px', borderTop: '1px solid var(--border-color)', marginTop: 4 }}>
- <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4, paddingTop: 8 }}>
+ <div style={{ fontSize: "var(--font-size-sm)", color: 'var(--text-secondary)', marginBottom: 4, paddingTop: 8 }}>
  Suggested fix:
  </div>
  <pre style={{
- margin: 0, fontSize: 11, color: 'var(--text-success)', background: 'var(--bg-primary)',
- borderRadius: 4, padding: 8, overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+ margin: 0, fontSize: "var(--font-size-sm)", color: 'var(--text-success)', background: 'var(--bg-primary)',
+ borderRadius: "var(--radius-xs-plus)", padding: 8, overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
  }}>
  {issue.suggested_fix}
  </pre>
@@ -287,15 +287,15 @@ export function ReviewPanel({ workspacePath, onOpenFile }: ReviewPanelProps) {
 
  {/* Suggestions */}
  {report.suggestions.length > 0 && (
- <div style={{ background: 'var(--bg-tertiary)', borderRadius: 6, padding: 12 }}>
- <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, color: 'var(--text-primary)' }}>
+ <div style={{ background: 'var(--bg-tertiary)', borderRadius: "var(--radius-sm)", padding: 12 }}>
+ <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, marginBottom: 8, color: 'var(--text-primary)' }}>
  <Lightbulb size={14} strokeWidth={1.5} /> Suggestions ({report.suggestions.length})
  </div>
  {report.suggestions.map((s, i) => (
- <div key={i} style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4, paddingLeft: 8, borderLeft: '2px solid var(--border-color)' }}>
+ <div key={i} style={{ fontSize: "var(--font-size-base)", color: 'var(--text-secondary)', marginBottom: 4, paddingLeft: 8, borderLeft: '2px solid var(--border-color)' }}>
  {s.description}
  {s.file && (
- <span style={{ marginLeft: 6, color: 'var(--accent-color)', fontSize: 11 }}>— {s.file}</span>
+ <span style={{ marginLeft: 6, color: 'var(--accent-color)', fontSize: "var(--font-size-sm)" }}>— {s.file}</span>
  )}
  </div>
  ))}
@@ -307,8 +307,8 @@ export function ReviewPanel({ workspacePath, onOpenFile }: ReviewPanelProps) {
  {/* ── Empty state ── */}
  {!report && !isLoading && !error && (
  <div className="panel-empty">
- <div style={{ fontSize: 13 }}>Run a code review to see issues</div>
- <div style={{ fontSize: 11 }}>Analyzes your uncommitted changes or compares branches</div>
+ <div style={{ fontSize: "var(--font-size-md)" }}>Run a code review to see issues</div>
+ <div style={{ fontSize: "var(--font-size-sm)" }}>Analyzes your uncommitted changes or compares branches</div>
  </div>
  )}
  </div>

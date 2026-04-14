@@ -135,16 +135,16 @@ const STEPS = [
 
 // ── Shared inline styles for elements not covered by design system classes ──
 
-const tableStyle: React.CSSProperties = { width: "100%", borderCollapse: "collapse", fontSize: 12 };
+const tableStyle: React.CSSProperties = { width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" };
 const thStyle: React.CSSProperties = { textAlign: "left", padding: "6px 8px", borderBottom: "1px solid var(--border-color)", color: "var(--text-secondary)", fontWeight: 600 };
 const tdStyle: React.CSSProperties = { padding: "6px 8px", borderBottom: "1px solid var(--border-color)" };
 const fieldRow: React.CSSProperties = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 };
 const fieldCol: React.CSSProperties = { display: "flex", flexDirection: "column", gap: 4 };
-const fieldLabel: React.CSSProperties = { fontSize: 11, fontWeight: 600, color: "var(--text-secondary)" };
+const fieldLabel: React.CSSProperties = { fontSize: "var(--font-size-sm)", fontWeight: 600, color: "var(--text-secondary)" };
 const checkRow: React.CSSProperties = { display: "flex", alignItems: "center", gap: 8, marginBottom: 8 };
 const statusColor = (s: string) => s === "running" ? "var(--success-color)" : s === "paused" ? "var(--warning-color)" : "var(--text-secondary)";
 const stepBarItem = (active: boolean, done: boolean): React.CSSProperties => ({
-  padding: "4px 10px", borderRadius: 12, fontSize: 11, fontWeight: active ? 700 : 400,
+  padding: "4px 10px", borderRadius: 12, fontSize: "var(--font-size-sm)", fontWeight: active ? 700 : 400,
   background: active ? "var(--accent-color)" : done ? "var(--bg-tertiary)" : "transparent",
   color: active ? "#fff" : done ? "var(--text-primary)" : "var(--text-secondary)",
   cursor: done ? "pointer" : "default", whiteSpace: "nowrap",
@@ -418,7 +418,7 @@ export function RLTrainingDashboard(_props: { workspacePath?: string | null; pro
             <div key={idx} className="panel-card" style={{ background: "var(--bg-tertiary)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
                 <span style={{ ...fieldLabel, fontWeight: 700 }}>Stage {idx + 1}</span>
-                <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 8px", fontSize: 11 }} onClick={() => {
+                <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 8px", fontSize: "var(--font-size-sm)" }} onClick={() => {
                   const next = [...config.curriculumStages];
                   next.splice(idx, 1);
                   upd({ curriculumStages: next });
@@ -509,7 +509,7 @@ export function RLTrainingDashboard(_props: { workspacePath?: string | null; pro
   const renderSetupWizard = () => (
     <>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>New Training Run</h2>
+        <h2 style={{ margin: 0, fontSize: "var(--font-size-xl)", fontWeight: 600, color: "var(--text-primary)" }}>New Training Run</h2>
         <button className="panel-btn panel-btn-secondary" onClick={() => { setMode("list"); setStep(0); }}>Cancel</button>
       </div>
       {renderStepBar()}
@@ -540,7 +540,7 @@ export function RLTrainingDashboard(_props: { workspacePath?: string | null; pro
   const renderMonitor = () => (
     <>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>Training Monitor</h2>
+        <h2 style={{ margin: 0, fontSize: "var(--font-size-xl)", fontWeight: 600, color: "var(--text-primary)" }}>Training Monitor</h2>
         <button className="panel-btn panel-btn-secondary" onClick={() => { setMode("list"); setSelectedRun(null); setMetrics(null); }}>Back to Runs</button>
       </div>
       {loading && <div className="panel-loading">Loading metrics...</div>}
@@ -571,8 +571,8 @@ export function RLTrainingDashboard(_props: { workspacePath?: string | null; pro
             <div style={{ display: "flex", gap: 4 }}>
               {metrics.gpuUtil.map((g, i) => (
                 <div key={i} style={{ flex: 1, textAlign: "center" }}>
-                  <div style={{ height: 40, background: "var(--bg-tertiary)", borderRadius: 4, position: "relative", overflow: "hidden" }}>
-                    <div style={{ position: "absolute", bottom: 0, width: "100%", height: `${g}%`, background: g > 80 ? "var(--success-color)" : "var(--warning-color)", borderRadius: 4 }} />
+                  <div style={{ height: 40, background: "var(--bg-tertiary)", borderRadius: "var(--radius-xs-plus)", position: "relative", overflow: "hidden" }}>
+                    <div style={{ position: "absolute", bottom: 0, width: "100%", height: `${g}%`, background: g > 80 ? "var(--success-color)" : "var(--warning-color)", borderRadius: "var(--radius-xs-plus)" }} />
                   </div>
                   <div className="panel-label" style={{ marginTop: 2 }}>GPU{i}: {g}%</div>
                 </div>
@@ -600,7 +600,7 @@ export function RLTrainingDashboard(_props: { workspacePath?: string | null; pro
   const renderRunsList = () => (
     <>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>RL Training Dashboard</h2>
+        <h2 style={{ margin: 0, fontSize: "var(--font-size-xl)", fontWeight: 600, color: "var(--text-primary)" }}>RL Training Dashboard</h2>
         <div>
           <button className="panel-btn panel-btn-primary" onClick={() => { setMode("setup"); setStep(0); setConfig({ ...DEFAULT_CONFIG }); }}>+ New Training Run</button>
           <button className="panel-btn panel-btn-secondary" onClick={fetchRuns}>Refresh</button>
@@ -615,7 +615,7 @@ export function RLTrainingDashboard(_props: { workspacePath?: string | null; pro
             {runs.map(r => (
               <tr key={r.id} style={{ cursor: "pointer" }} onClick={() => { fetchMetrics(r.id); setMode("monitor"); }}>
                 <td style={tdStyle}>{r.name}</td>
-                <td style={tdStyle}><span style={{ background: "var(--bg-tertiary)", padding: "2px 6px", borderRadius: 3, fontSize: 11 }}>{r.algorithm}</span></td>
+                <td style={tdStyle}><span style={{ background: "var(--bg-tertiary)", padding: "2px 6px", borderRadius: 3, fontSize: "var(--font-size-sm)" }}>{r.algorithm}</span></td>
                 <td style={tdStyle}>{r.environment}</td>
                 <td style={tdStyle}><span style={{ color: statusColor(r.status), fontWeight: 600 }}>{r.status}</span></td>
                 <td style={tdStyle}>{r.episodes.toLocaleString()}</td>

@@ -31,7 +31,7 @@ interface SafetyBenchmark {
   passed: boolean;
 }
 
-const tableStyle: React.CSSProperties = { width: "100%", borderCollapse: "collapse", fontSize: 12 };
+const tableStyle: React.CSSProperties = { width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" };
 const thStyle: React.CSSProperties = { textAlign: "left", padding: "6px 8px", borderBottom: "1px solid var(--border-color)", color: "var(--text-secondary)", fontWeight: 600 };
 const tdStyle: React.CSSProperties = { padding: "6px 8px", borderBottom: "1px solid var(--border-color)" };
 
@@ -54,11 +54,11 @@ export function RLHFAlignmentDashboard() {
 
   return (
     <div className="panel-container">
-      <h2 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>RLHF Alignment Dashboard</h2>
+      <h2 style={{ margin: "0 0 12px", fontSize: "var(--font-size-xl)", fontWeight: 600, color: "var(--text-primary)" }}>RLHF Alignment Dashboard</h2>
 
       <div className="panel-card" style={{ display: "flex", gap: 8, alignItems: "center" }}>
         <label className="panel-label">Run ID:</label>
-        <input value={runId} onChange={e => setRunId(e.target.value)} style={{ flex: 1, padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", fontSize: 12 }} />
+        <input value={runId} onChange={e => setRunId(e.target.value)} style={{ flex: 1, padding: "4px 8px", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", fontSize: "var(--font-size-base)" }} />
         <button className="panel-btn panel-btn-primary" onClick={fetchData} disabled={loading}>{loading ? "..." : "Load"}</button>
       </div>
 
@@ -69,9 +69,9 @@ export function RLHFAlignmentDashboard() {
             <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
               {data.stages.map((s, i) => (
                 <div key={s.name} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  <div style={{ padding: "8px 12px", borderRadius: 6, background: stageStatusColor(s.status), color: "#fff", fontWeight: 600, fontSize: 12, textAlign: "center", minWidth: 60 }}>
+                  <div style={{ padding: "8px 12px", borderRadius: "var(--radius-sm)", background: stageStatusColor(s.status), color: "var(--btn-primary-fg, #fff)", fontWeight: 600, fontSize: "var(--font-size-base)", textAlign: "center", minWidth: 60 }}>
                     <div>{s.name}</div>
-                    <div style={{ fontSize: 10, fontWeight: 400 }}>{s.progress}%</div>
+                    <div style={{ fontSize: "var(--font-size-xs)", fontWeight: 400 }}>{s.progress}%</div>
                   </div>
                   {i < data.stages.length - 1 && <span style={{ color: "var(--text-secondary)" }}>&rarr;</span>}
                 </div>
@@ -79,9 +79,9 @@ export function RLHFAlignmentDashboard() {
             </div>
             {data.stages.map(s => s.status !== "pending" && (
               <div key={s.name} style={{ marginTop: 8 }}>
-                <div style={{ fontSize: 11, fontWeight: 600 }}>{s.name} Metrics</div>
+                <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600 }}>{s.name} Metrics</div>
                 {Object.entries(s.metrics).map(([k, v]) => (
-                  <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "1px 0" }}><span>{k}</span><span>{v.toFixed(4)}</span></div>
+                  <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--font-size-base)", padding: "1px 0" }}><span>{k}</span><span>{v.toFixed(4)}</span></div>
                 ))}
               </div>
             ))}
@@ -93,7 +93,7 @@ export function RLHFAlignmentDashboard() {
               <div className="panel-label">Alignment Tax</div>
             </div>
             <div>
-              <div style={{ fontSize: 14 }}>{data.basePerformance.toFixed(2)} &rarr; {data.alignedPerformance.toFixed(2)}</div>
+              <div style={{ fontSize: "var(--font-size-lg)" }}>{data.basePerformance.toFixed(2)} &rarr; {data.alignedPerformance.toFixed(2)}</div>
               <div className="panel-label">Performance (base / aligned)</div>
             </div>
           </div>

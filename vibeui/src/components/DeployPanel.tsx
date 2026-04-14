@@ -148,15 +148,15 @@ export function DeployPanel({ workspacePath }: DeployPanelProps) {
  {/* Detected project */}
  {detected && (
  <div className="panel-card">
- <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 4 }}>Detected Project</div>
+ <div style={{ fontSize: "var(--font-size-base)", opacity: 0.7, marginBottom: 4 }}>Detected Project</div>
  <div style={{ fontWeight: 600 }}>{detected.detected_framework || "Static Site"}</div>
- <div style={{ fontSize: 11, opacity: 0.6, fontFamily: "var(--font-mono)" }}>Build: {detected.build_cmd}</div>
+ <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.6, fontFamily: "var(--font-mono)" }}>Build: {detected.build_cmd}</div>
  </div>
  )}
 
  {/* Target selection */}
  <div>
- <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Deploy Target</div>
+ <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, marginBottom: 8 }}>Deploy Target</div>
  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, maxHeight: 260, overflowY: "auto" }}>
  {TARGETS.map((t) => {
  const isRec = detected?.recommended_targets?.includes(t.id);
@@ -167,11 +167,11 @@ export function DeployPanel({ workspacePath }: DeployPanelProps) {
  style={{
  background: selectedTarget === t.id ? "var(--accent-color)" : "var(--bg-secondary)",
  border: `1px solid ${selectedTarget === t.id ? "var(--accent-color)" : "var(--border-color)"}`,
- borderRadius: 6,
+ borderRadius: "var(--radius-sm)",
  padding: "7px 6px",
  cursor: "pointer",
  color: "var(--text-primary)",
- fontSize: 11,
+ fontSize: "var(--font-size-sm)",
  fontWeight: selectedTarget === t.id ? 600 : 400,
  display: "flex",
  alignItems: "center",
@@ -200,9 +200,9 @@ export function DeployPanel({ workspacePath }: DeployPanelProps) {
 
  {/* Deployed URL */}
  {deployedUrl && (
- <div style={{ background: "color-mix(in srgb, var(--accent-green) 10%, transparent)", border: "1px solid var(--success-color)", borderRadius: 6, padding: 10 }}>
- <div style={{ fontSize: 12, color: "var(--text-success)", marginBottom: 4 }}>Live at</div>
- <a href={deployedUrl} target="_blank" rel="noopener noreferrer" style={{ color: "var(--text-info)", fontSize: 13, fontFamily: "var(--font-mono)" }}>
+ <div style={{ background: "color-mix(in srgb, var(--accent-green) 10%, transparent)", border: "1px solid var(--success-color)", borderRadius: "var(--radius-sm)", padding: 10 }}>
+ <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-success)", marginBottom: 4 }}>Live at</div>
+ <a href={deployedUrl} target="_blank" rel="noopener noreferrer" style={{ color: "var(--text-info)", fontSize: "var(--font-size-md)", fontFamily: "var(--font-mono)" }}>
  {deployedUrl}
  </a>
  </div>
@@ -210,7 +210,7 @@ export function DeployPanel({ workspacePath }: DeployPanelProps) {
 
  {/* Custom Domain */}
  <div>
- <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>Custom Domain</div>
+ <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, marginBottom: 6 }}>Custom Domain</div>
  <div style={{ display: "flex", gap: 8 }}>
  <input
  type="text"
@@ -231,9 +231,9 @@ export function DeployPanel({ workspacePath }: DeployPanelProps) {
  </button>
  </div>
  {domainResult && (
- <div style={{ marginTop: 8, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 6, padding: 10 }}>
- <div style={{ fontSize: 11, color: "var(--text-accent)", marginBottom: 4 }}>DNS Instructions</div>
- <pre style={{ fontSize: 11, margin: 0, whiteSpace: "pre-wrap", fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>
+ <div style={{ marginTop: 8, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", padding: 10 }}>
+ <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-accent)", marginBottom: 4 }}>DNS Instructions</div>
+ <pre style={{ fontSize: "var(--font-size-sm)", margin: 0, whiteSpace: "pre-wrap", fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>
  {domainResult.instructions}
  </pre>
  </div>
@@ -242,7 +242,7 @@ export function DeployPanel({ workspacePath }: DeployPanelProps) {
 
  {/* Log stream */}
  {logs.length > 0 && (
- <div style={{ background: "var(--bg-secondary)", borderRadius: 6, padding: 10, maxHeight: 200, overflowY: "auto", fontFamily: "var(--font-mono)", fontSize: 11 }}>
+ <div style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: 10, maxHeight: 200, overflowY: "auto", fontFamily: "var(--font-mono)", fontSize: "var(--font-size-sm)" }}>
  {logs.map((line, i) => (
  <div key={i} style={{ opacity: 0.8 }}>{line}</div>
  ))}
@@ -253,9 +253,9 @@ export function DeployPanel({ workspacePath }: DeployPanelProps) {
  {/* Deployment history */}
  {history.length > 0 && (
  <div>
- <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>History</div>
+ <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, marginBottom: 8 }}>History</div>
  {history.slice(0, 5).map((rec) => (
- <div key={rec.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: "1px solid var(--border-color)", fontSize: 12 }}>
+ <div key={rec.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>
  <span>{rec.status === "success" ? "" : rec.status === "running" ? "" : ""}</span>
  <span style={{ opacity: 0.7 }}>{rec.target}</span>
  {rec.url && <a href={rec.url} target="_blank" rel="noopener noreferrer" style={{ color: "var(--text-info)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{rec.url}</a>}

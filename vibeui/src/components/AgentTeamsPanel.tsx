@@ -168,17 +168,17 @@ const AgentTeamsPanel: React.FC = () => {
     <div className="panel-container">
       {/* Header */}
       <div className="panel-header">
-        <span style={{ fontSize: 14, fontWeight: 700 }}>Agent Teams</span>
+        <span style={{ fontSize: "var(--font-size-lg)", fontWeight: 700 }}>Agent Teams</span>
         {team && (
           <>
             <span style={{
-              fontSize: 10, padding: "2px 8px", borderRadius: 10, fontWeight: 600,
+              fontSize: "var(--font-size-xs)", padding: "2px 8px", borderRadius: "var(--radius-md)", fontWeight: 600,
               background: (statusBadge[team.status] ?? statusBadge.working).bg,
               color: (statusBadge[team.status] ?? statusBadge.working).color,
             }}>
               {team.status}
             </span>
-            <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>
+            <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>
               {completedTasks}/{totalTasks} tasks
             </span>
           </>
@@ -216,7 +216,7 @@ const AgentTeamsPanel: React.FC = () => {
           display: "flex", alignItems: "center", gap: 8,
         }}>
           <span style={{ flex: 1 }}>{error}</span>
-          <button onClick={() => setError(null)} className="panel-btn panel-btn-secondary" style={{ fontSize: 10, padding: "2px 6px" }}>Dismiss</button>
+          <button onClick={() => setError(null)} className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-xs)", padding: "2px 6px" }}>Dismiss</button>
         </div>
       )}
 
@@ -226,7 +226,7 @@ const AgentTeamsPanel: React.FC = () => {
         {/* TEAM TAB */}
         {tab === "team" && !team && (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5 }}>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", lineHeight: 1.5 }}>
               Create a team of AI agents that collaborate on a shared goal.
               The lead agent decomposes the task into sub-tasks and coordinates team members.
               Each agent works autonomously and communicates findings via the message bus.
@@ -238,7 +238,7 @@ const AgentTeamsPanel: React.FC = () => {
                 onChange={(e) => setGoal(e.target.value)}
                 rows={4}
                 placeholder="e.g., Refactor the authentication module to use JWT tokens with refresh rotation..."
-                style={{ padding: "6px 10px", fontSize: 12, borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)", outline: "none", resize: "vertical", fontFamily: "inherit", width: "100%", boxSizing: "border-box" }}
+                style={{ padding: "6px 10px", fontSize: "var(--font-size-base)", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)", outline: "none", resize: "vertical", fontFamily: "inherit", width: "100%", boxSizing: "border-box" }}
               />
             </div>
             <div>
@@ -249,11 +249,11 @@ const AgentTeamsPanel: React.FC = () => {
                   onChange={(e) => setMemberCount(parseInt(e.target.value))}
                   style={{ flex: 1 }}
                 />
-                <span style={{ fontSize: 13, fontWeight: 700, fontFamily: "var(--font-mono)", minWidth: 60 }}>
+                <span style={{ fontSize: "var(--font-size-md)", fontWeight: 700, fontFamily: "var(--font-mono)", minWidth: 60 }}>
                   {memberCount} agents
                 </span>
               </div>
-              <div style={{ fontSize: 10, color: "var(--text-secondary)", marginTop: 4 }}>
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginTop: 4 }}>
                 1 lead + {memberCount - 1} worker{memberCount - 1 !== 1 ? "s" : ""}
               </div>
             </div>
@@ -269,20 +269,20 @@ const AgentTeamsPanel: React.FC = () => {
         {tab === "team" && team && (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {/* Goal */}
-            <div style={{ padding: "10px 12px", background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)" }}>
-              <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Goal</div>
-              <div style={{ fontSize: 12 }}>{team.goal}</div>
+            <div style={{ padding: "10px 12px", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)" }}>
+              <div style={{ fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-secondary)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Goal</div>
+              <div style={{ fontSize: "var(--font-size-base)" }}>{team.goal}</div>
             </div>
 
             {/* Progress bar */}
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>Progress</span>
-                <span style={{ fontSize: 10, fontWeight: 600, color: "var(--text-info)" }}>{progressPct}%</span>
+                <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>Progress</span>
+                <span style={{ fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-info)" }}>{progressPct}%</span>
               </div>
-              <div style={{ height: 8, background: "var(--bg-primary)", borderRadius: 4, overflow: "hidden" }}>
+              <div style={{ height: 8, background: "var(--bg-primary)", borderRadius: "var(--radius-xs-plus)", overflow: "hidden" }}>
                 <div style={{
-                  width: `${progressPct}%`, height: "100%", borderRadius: 4,
+                  width: `${progressPct}%`, height: "100%", borderRadius: "var(--radius-xs-plus)",
                   background: progressPct === 100 ? "var(--success-color)" : "var(--accent-color)",
                   transition: "width 0.5s ease",
                 }} />
@@ -291,7 +291,7 @@ const AgentTeamsPanel: React.FC = () => {
 
             {/* Members */}
             <div>
-              <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              <div style={{ fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>
                 Members ({team.member_ids.length})
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
@@ -302,14 +302,14 @@ const AgentTeamsPanel: React.FC = () => {
                   const inProgress = agentTasks.filter(t => t.status === "InProgress").length;
                   return (
                     <div key={id} style={{
-                      padding: "6px 10px", borderRadius: 6, minWidth: 120,
+                      padding: "6px 10px", borderRadius: "var(--radius-sm)", minWidth: 120,
                       background: isLead ? "color-mix(in srgb, var(--accent-blue) 10%, transparent)" : "var(--bg-secondary)",
                       border: `1px solid ${isLead ? "var(--accent-color)" : "var(--border-color)"}`,
                     }}>
-                      <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 2 }}>
+                      <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, marginBottom: 2 }}>
                         {isLead ? "Lead" : id.split("-").pop()}
                       </div>
-                      <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>
+                      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>
                         {inProgress > 0 && <span style={{ color: "var(--accent-color)" }}>Working </span>}
                         {completed > 0 && <span style={{ color: "var(--success-color)" }}>{completed} done </span>}
                         {agentTasks.length === 0 && "Idle"}
@@ -324,7 +324,7 @@ const AgentTeamsPanel: React.FC = () => {
 
         {/* TASKS TAB */}
         {tab === "tasks" && !team && (
-          <div style={{ textAlign: "center", padding: 40, color: "var(--text-secondary)", fontSize: 12 }}>
+          <div style={{ textAlign: "center", padding: 40, color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>
             Create a team first to see task decomposition.
           </div>
         )}
@@ -332,13 +332,13 @@ const AgentTeamsPanel: React.FC = () => {
         {tab === "tasks" && team && (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {team.tasks.length === 0 && (
-              <div style={{ textAlign: "center", padding: 30, color: "var(--text-secondary)", fontSize: 12 }}>
+              <div style={{ textAlign: "center", padding: 30, color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>
                 The lead agent is decomposing the goal into sub-tasks...
               </div>
             )}
             {team.tasks.map((t) => (
               <div key={t.id} style={{
-                padding: "8px 10px", borderRadius: 6,
+                padding: "8px 10px", borderRadius: "var(--radius-sm)",
                 border: "1px solid var(--border-color)",
                 background: "var(--bg-secondary)",
                 borderLeft: `3px solid ${statusColor[t.status] ?? "var(--text-secondary)"}`,
@@ -351,22 +351,22 @@ const AgentTeamsPanel: React.FC = () => {
                   }}>
                     {t.status}
                   </span>
-                  <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>
+                  <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>
                     {t.agent_id === team.lead_agent_id ? "Lead" : t.agent_id.split("-").pop()}
                   </span>
                 </div>
-                <div style={{ fontSize: 12, marginBottom: t.result ? 6 : 0 }}>{t.description}</div>
+                <div style={{ fontSize: "var(--font-size-base)", marginBottom: t.result ? 6 : 0 }}>{t.description}</div>
                 {t.generated_files?.length > 0 && (
                   <div style={{
-                    fontSize: 11, marginTop: 4, padding: "6px 8px",
-                    background: "rgba(52,211,153,0.08)", borderRadius: 4,
+                    fontSize: "var(--font-size-sm)", marginTop: 4, padding: "6px 8px",
+                    background: "rgba(52,211,153,0.08)", borderRadius: "var(--radius-xs-plus)",
                     border: "1px solid rgba(52,211,153,0.2)",
                   }}>
                     <div style={{ fontSize: 9, fontWeight: 700, color: "var(--success-color)", marginBottom: 3, textTransform: "uppercase", letterSpacing: "0.05em" }}>
                       Generated Files ({t.generated_files.length})
                     </div>
                     {t.generated_files.map((f, i) => (
-                      <div key={i} style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-primary)", lineHeight: 1.6 }}>
+                      <div key={i} style={{ fontFamily: "var(--font-mono)", fontSize: "var(--font-size-sm)", color: "var(--text-primary)", lineHeight: 1.6 }}>
                         {f}
                       </div>
                     ))}
@@ -374,12 +374,12 @@ const AgentTeamsPanel: React.FC = () => {
                 )}
                 {t.result && (
                   <details style={{ marginTop: 4 }}>
-                    <summary style={{ fontSize: 10, color: "var(--text-secondary)", cursor: "pointer" }}>
+                    <summary style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", cursor: "pointer" }}>
                       Full response
                     </summary>
                     <div style={{
-                      fontSize: 11, color: "var(--text-secondary)", marginTop: 4,
-                      padding: "6px 8px", background: "var(--bg-primary)", borderRadius: 4,
+                      fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 4,
+                      padding: "6px 8px", background: "var(--bg-primary)", borderRadius: "var(--radius-xs-plus)",
                       lineHeight: 1.4, whiteSpace: "pre-wrap", maxHeight: 300, overflowY: "auto",
                     }}>
                       {t.result}
@@ -393,7 +393,7 @@ const AgentTeamsPanel: React.FC = () => {
 
         {/* MESSAGES TAB */}
         {tab === "messages" && !team && (
-          <div style={{ textAlign: "center", padding: 40, color: "var(--text-secondary)", fontSize: 12 }}>
+          <div style={{ textAlign: "center", padding: 40, color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>
             Create a team first to see inter-agent messages.
           </div>
         )}
@@ -401,13 +401,13 @@ const AgentTeamsPanel: React.FC = () => {
         {tab === "messages" && team && (
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             {team.messages.length === 0 && (
-              <div style={{ textAlign: "center", padding: 30, color: "var(--text-secondary)", fontSize: 12 }}>
+              <div style={{ textAlign: "center", padding: 30, color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>
                 No messages yet. Agents will communicate as they work.
               </div>
             )}
             {team.messages.map((m, i) => (
               <div key={i} style={{
-                padding: "6px 10px", borderRadius: 4,
+                padding: "6px 10px", borderRadius: "var(--radius-xs-plus)",
                 borderLeft: `3px solid ${msgTypeColor[m.msg_type] ?? "var(--text-secondary)"}`,
                 background: "var(--bg-secondary)",
               }}>
@@ -424,7 +424,7 @@ const AgentTeamsPanel: React.FC = () => {
                     {new Date(m.timestamp).toLocaleTimeString()}
                   </span>
                 </div>
-                <div style={{ fontSize: 11, lineHeight: 1.4 }}>{m.content}</div>
+                <div style={{ fontSize: "var(--font-size-sm)", lineHeight: 1.4 }}>{m.content}</div>
               </div>
             ))}
             <div ref={messagesEndRef} />
@@ -435,13 +435,13 @@ const AgentTeamsPanel: React.FC = () => {
         {tab === "history" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {history.length === 0 && (
-              <div style={{ textAlign: "center", padding: 40, color: "var(--text-secondary)", fontSize: 12 }}>
+              <div style={{ textAlign: "center", padding: 40, color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>
                 No past team runs yet. Completed teams will appear here.
               </div>
             )}
             {history.map((h) => (
               <div key={h.id} style={{
-                padding: "8px 10px", borderRadius: 6,
+                padding: "8px 10px", borderRadius: "var(--radius-sm)",
                 border: "1px solid var(--border-color)",
                 background: "var(--bg-secondary)",
               }}>
@@ -453,18 +453,18 @@ const AgentTeamsPanel: React.FC = () => {
                   }}>
                     {h.status}
                   </span>
-                  <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>
+                  <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>
                     {h.member_count} agents · {h.task_count} tasks
                   </span>
                   <div style={{ flex: 1 }} />
-                  <span style={{ fontSize: 10, color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
+                  <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
                     {new Date(h.completed_at).toLocaleDateString()}
                   </span>
                 </div>
-                <div style={{ fontSize: 12 }}>{h.goal}</div>
+                <div style={{ fontSize: "var(--font-size-base)" }}>{h.goal}</div>
                 {h.artifacts_dir && (
                   <div style={{
-                    fontSize: 10, color: "var(--text-secondary)", marginTop: 4,
+                    fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginTop: 4,
                     fontFamily: "var(--font-mono)", opacity: 0.8,
                   }}>
                     Artifacts: {h.artifacts_dir}
@@ -487,7 +487,7 @@ const AgentTeamsPanel: React.FC = () => {
             onChange={(e) => setUserMsg(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
             placeholder="Send a message to the team..."
-            style={{ padding: "6px 10px", fontSize: 12, borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)", outline: "none", flex: 1 }}
+            style={{ padding: "6px 10px", fontSize: "var(--font-size-base)", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)", outline: "none", flex: 1 }}
           />
           <button onClick={handleSendMessage} disabled={!userMsg.trim()} className="panel-btn panel-btn-primary" style={{
             opacity: !userMsg.trim() ? 0.5 : 1,

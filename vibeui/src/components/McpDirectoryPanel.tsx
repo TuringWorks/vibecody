@@ -136,10 +136,10 @@ export function McpDirectoryPanel() {
       <div key={plugin.id} className="panel-card">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
           <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 600 }}>{plugin.name} <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>v{plugin.version}</span></div>
-            <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>by {plugin.author} | {plugin.category}</div>
-            <div style={{ fontSize: 12, marginTop: 4 }}>{plugin.description}</div>
-            <div style={{ display: "flex", gap: 12, marginTop: 6, fontSize: 11 }}>
+            <div style={{ fontWeight: 600 }}>{plugin.name} <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>v{plugin.version}</span></div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 2 }}>by {plugin.author} | {plugin.category}</div>
+            <div style={{ fontSize: "var(--font-size-base)", marginTop: 4 }}>{plugin.description}</div>
+            <div style={{ display: "flex", gap: 12, marginTop: 6, fontSize: "var(--font-size-sm)" }}>
               <span style={{ color: "var(--warning-color)" }}>{renderStars(plugin.rating)} {plugin.rating.toFixed(1)}</span>
               <span style={{ color: "var(--text-secondary)" }}>{formatDownloads(plugin.downloads)} downloads</span>
             </div>
@@ -174,12 +174,12 @@ export function McpDirectoryPanel() {
 
   return (
     <div className="panel-container">
-      <h2 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>MCP Plugin Directory</h2>
+      <h2 style={{ margin: "0 0 12px", fontSize: "var(--font-size-xl)", fontWeight: 600, color: "var(--text-primary)" }}>MCP Plugin Directory</h2>
 
       {error && (
         <div className="panel-error" style={{ marginBottom: 12 }}>
           {error}
-          <button className="panel-btn panel-btn-secondary" style={{ marginLeft: 8, fontSize: 11 }} onClick={() => setError(null)}>Dismiss</button>
+          <button className="panel-btn panel-btn-secondary" style={{ marginLeft: 8, fontSize: "var(--font-size-sm)" }} onClick={() => setError(null)}>Dismiss</button>
         </div>
       )}
 
@@ -193,7 +193,7 @@ export function McpDirectoryPanel() {
 
       {!loading && tab === "browse" && (
         <div>
-          <div className="panel-card" style={{ fontSize: 12 }}>
+          <div className="panel-card" style={{ fontSize: "var(--font-size-base)" }}>
             {plugins.length} plugins available | {installedPlugins.length} installed
           </div>
           {browsePlugins.map((p) => renderPluginCard(p, true))}
@@ -205,8 +205,8 @@ export function McpDirectoryPanel() {
           {installedPlugins.length === 0 && (
             <div className="panel-card">
               <div style={{ textAlign: "center", padding: "16px 0" }}>
-                <div style={{ fontSize: 14, marginBottom: 6 }}>No MCP plugins installed</div>
-                <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 10 }}>
+                <div style={{ fontSize: "var(--font-size-lg)", marginBottom: 6 }}>No MCP plugins installed</div>
+                <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 10 }}>
                   Browse the directory to find and install plugins.
                 </div>
                 <button className="panel-btn panel-btn-primary" onClick={() => setTab("browse")}>
@@ -219,7 +219,7 @@ export function McpDirectoryPanel() {
           {installedPlugins.length > 0 && (
             <>
               {/* Summary */}
-              <div className="panel-card" style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+              <div className="panel-card" style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--font-size-base)" }}>
                 <span>{installedPlugins.length} plugin{installedPlugins.length !== 1 ? "s" : ""} installed</span>
                 {installedPlugins.some(p => p.updatable) && (
                   <span style={{ color: "var(--warning-color, #cca700)" }}>
@@ -235,24 +235,24 @@ export function McpDirectoryPanel() {
                     <div style={{ flex: 1 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <span style={{ fontWeight: 600 }}>{p.name}</span>
-                        <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>v{p.version}</span>
+                        <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>v{p.version}</span>
                         <span style={{
-                          fontSize: 10, padding: "1px 6px", borderRadius: 8,
+                          fontSize: "var(--font-size-xs)", padding: "1px 6px", borderRadius: "var(--radius-sm-alt)",
                           background: p.updatable ? "var(--warning-color, #cca700)" : "var(--accent-green)",
                           color: "var(--btn-primary-fg)",
                         }}>
                           {p.updatable ? "Update available" : "Active"}
                         </span>
                       </div>
-                      <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 3 }}>
+                      <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 3 }}>
                         by {p.author} | {p.category}
                       </div>
-                      <div style={{ fontSize: 12, marginTop: 4 }}>{p.description}</div>
-                      <div style={{ display: "flex", gap: 12, marginTop: 6, fontSize: 11 }}>
+                      <div style={{ fontSize: "var(--font-size-base)", marginTop: 4 }}>{p.description}</div>
+                      <div style={{ display: "flex", gap: 12, marginTop: 6, fontSize: "var(--font-size-sm)" }}>
                         <span style={{ color: "var(--warning-color, #cca700)" }}>{renderStars(p.rating)} {p.rating.toFixed(1)}</span>
                         <span style={{ color: "var(--text-secondary)" }}>{formatDownloads(p.downloads)} downloads</span>
                       </div>
-                      <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 6, fontFamily: "var(--font-mono)" }}>
+                      <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 6, fontFamily: "var(--font-mono)" }}>
                         Config: ~/.vibecli/mcp/{p.id}/config.json
                       </div>
                     </div>
@@ -260,7 +260,7 @@ export function McpDirectoryPanel() {
                       {p.updatable && (
                         <button
                           className="panel-btn panel-btn-secondary"
-                          style={{ background: "var(--warning-color, #cca700)", color: "var(--btn-primary-fg)", fontSize: 11 }}
+                          style={{ background: "var(--warning-color, #cca700)", color: "var(--btn-primary-fg)", fontSize: "var(--font-size-sm)" }}
                           onClick={() => handleInstall(p.id)}
                           disabled={actionInProgress === p.id}
                         >
@@ -269,7 +269,7 @@ export function McpDirectoryPanel() {
                       )}
                       <button
                         className="panel-btn panel-btn-secondary"
-                        style={{ borderColor: "var(--accent-rose)", color: "var(--accent-rose)", fontSize: 11 }}
+                        style={{ borderColor: "var(--accent-rose)", color: "var(--accent-rose)", fontSize: "var(--font-size-sm)" }}
                         onClick={() => handleUninstall(p.id)}
                         disabled={actionInProgress === p.id}
                       >

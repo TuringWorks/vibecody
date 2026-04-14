@@ -75,7 +75,7 @@ function AgentCard({
  return (
  <div style={{
  border: "1px solid var(--border-color)",
- borderRadius: "6px",
+ borderRadius: "var(--radius-sm)",
  marginBottom: "8px",
  background: "var(--bg-secondary)",
  overflow: "hidden",
@@ -95,7 +95,7 @@ function AgentCard({
  <span style={{ fontSize: "16px" }}>{statusIcon(agent.status)}</span>
  <div style={{ flex: 1, minWidth: 0 }}>
  <div style={{
- fontSize: "12px",
+ fontSize: "var(--font-size-base)",
  fontWeight: 600,
  color: "var(--text-primary)",
  whiteSpace: "nowrap",
@@ -104,7 +104,7 @@ function AgentCard({
  }}>
  {agent.task || `Agent ${agent.id}`}
  </div>
- <div style={{ fontSize: "10px", color: "var(--text-secondary)", marginTop: "2px" }}>
+ <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginTop: "2px" }}>
  <span style={{ color: statusColor(agent.status), marginRight: "8px" }}>
  {agent.status}
  </span>
@@ -129,7 +129,7 @@ function AgentCard({
  value={mergeStrategy}
  onChange={(e) => setMergeStrategy(e.target.value)}
  style={{
- fontSize: "10px",
+ fontSize: "var(--font-size-xs)",
  padding: "2px 4px",
  background: "var(--bg-primary)",
  border: "1px solid var(--border-color)",
@@ -144,7 +144,7 @@ function AgentCard({
  <button
  onClick={() => onMerge(agent.id, mergeStrategy)}
  style={{
- fontSize: "10px",
+ fontSize: "var(--font-size-xs)",
  padding: "3px 8px",
  background: "var(--accent-color)",
  border: "none",
@@ -158,7 +158,7 @@ function AgentCard({
  </div>
  )}
 
- <span style={{ fontSize: "10px", color: "var(--text-secondary)" }}>
+ <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>
  {expanded ? "" : <ChevronDown size={10} />}
  </span>
  </div>
@@ -166,18 +166,18 @@ function AgentCard({
  {/* Expanded step trace */}
  {expanded && steps.length > 0 && (
  <div style={{ borderTop: "1px solid var(--border-color)", padding: "8px 12px" }}>
- <div style={{ fontSize: "10px", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+ <div style={{ fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.06em" }}>
  Step Trace
  </div>
  {steps.map((s, i) => (
  <div key={i} style={{ display: "flex", gap: "8px", marginBottom: "3px", alignItems: "center" }}>
- <span style={{ fontSize: "10px", color: "var(--text-secondary)", minWidth: "20px", textAlign: "right" }}>
+ <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", minWidth: "20px", textAlign: "right" }}>
  {s.step_num + 1}.
  </span>
- <span style={{ fontSize: "10px", color: s.success ? "var(--success-color)" : "var(--error-color)" }}>
+ <span style={{ fontSize: "var(--font-size-xs)", color: s.success ? "var(--success-color)" : "var(--error-color)" }}>
  {s.success ? <Check size={11} strokeWidth={2} /> : <X size={11} strokeWidth={2} />}
  </span>
- <span style={{ fontSize: "11px", fontFamily: "var(--font-mono)", color: "var(--accent-color)" }}>
+ <span style={{ fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", color: "var(--accent-color)" }}>
  {s.tool}
  </span>
  </div>
@@ -186,7 +186,7 @@ function AgentCard({
  )}
 
  {expanded && steps.length === 0 && agent.status === "running" && (
- <div style={{ borderTop: "1px solid var(--border-color)", padding: "10px 12px", fontSize: "11px", color: "var(--text-secondary)" }}>
+ <div style={{ borderTop: "1px solid var(--border-color)", padding: "10px 12px", fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
  Waiting for first tool call…
  </div>
  )}
@@ -312,7 +312,7 @@ export function ManagerView({ provider }: ManagerViewProps) {
  <span style={{ fontSize: "16px" }}></span>
  <h3>Manager View</h3>
  {agentList.length > 0 && (
- <div style={{ fontSize: "10px", color: "var(--text-secondary)" }}>
+ <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>
  {running > 0 && <span style={{ color: "var(--accent-color)", marginRight: "8px" }}> {running} running</span>}
  {done > 0 && <span style={{ color: "var(--success-color)", marginRight: "8px" }}> {done} done</span>}
  {failed > 0 && <span style={{ color: "var(--error-color)" }}> {failed} failed</span>}
@@ -326,17 +326,17 @@ export function ManagerView({ provider }: ManagerViewProps) {
  <div style={{
  background: "var(--bg-secondary)",
  border: "1px solid var(--border-color)",
- borderRadius: "6px",
+ borderRadius: "var(--radius-sm)",
  padding: "10px",
  marginBottom: "12px",
  }}>
- <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.07em" }}>
+ <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.07em" }}>
  New Parallel Tasks
  </div>
 
  {drafts.map((draft, i) => (
  <div key={draft.id} style={{ display: "flex", gap: "6px", marginBottom: "6px" }}>
- <span style={{ fontSize: "10px", color: "var(--text-secondary)", padding: "6px 0", minWidth: "16px", textAlign: "right" }}>
+ <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", padding: "6px 0", minWidth: "16px", textAlign: "right" }}>
  {i + 1}.
  </span>
  <input
@@ -350,10 +350,10 @@ export function ManagerView({ provider }: ManagerViewProps) {
  style={{
  flex: 1,
  padding: "5px 8px",
- fontSize: "12px",
+ fontSize: "var(--font-size-base)",
  background: "var(--bg-input, var(--bg-primary))",
  border: "1px solid var(--border-color)",
- borderRadius: "4px",
+ borderRadius: "var(--radius-xs-plus)",
  color: "var(--text-primary)",
  outline: "none",
  }}
@@ -363,7 +363,7 @@ export function ManagerView({ provider }: ManagerViewProps) {
  onClick={() => removeDraft(draft.id)}
  style={{
  padding: "4px 7px",
- fontSize: "11px",
+ fontSize: "var(--font-size-sm)",
  background: "none",
  border: "1px solid var(--border-color)",
  borderRadius: "3px",
@@ -381,7 +381,7 @@ export function ManagerView({ provider }: ManagerViewProps) {
  <button
  onClick={addDraft}
  style={{
- fontSize: "11px",
+ fontSize: "var(--font-size-sm)",
  padding: "4px 10px",
  background: "none",
  border: "1px dashed var(--border-color)",
@@ -396,7 +396,7 @@ export function ManagerView({ provider }: ManagerViewProps) {
  onClick={handleLaunch}
  disabled={launching || drafts.every((d) => !d.task.trim())}
  style={{
- fontSize: "11px",
+ fontSize: "var(--font-size-sm)",
  padding: "4px 14px",
  background: launching ? "var(--bg-secondary)" : "var(--accent-color)",
  border: "none",
@@ -411,7 +411,7 @@ export function ManagerView({ provider }: ManagerViewProps) {
  </div>
 
  {error && (
- <div className="panel-error" style={{ marginTop: "8px", fontSize: "11px" }}>
+ <div className="panel-error" style={{ marginTop: "8px", fontSize: "var(--font-size-sm)" }}>
  {error}
  </div>
  )}
@@ -424,14 +424,14 @@ export function ManagerView({ provider }: ManagerViewProps) {
  marginBottom: "10px",
  background: mergeResult.startsWith("Error") ? "rgba(255,68,68,0.07)" : "rgba(68,204,68,0.07)",
  border: `1px solid ${mergeResult.startsWith("Error") ? "var(--error-color)" : "var(--success-color)"}`,
- borderRadius: "4px",
- fontSize: "11px",
+ borderRadius: "var(--radius-xs-plus)",
+ fontSize: "var(--font-size-sm)",
  color: mergeResult.startsWith("Error") ? "var(--error-color)" : "var(--success-color)",
  }}>
  {mergeResult}
  <button
  onClick={() => setMergeResult(null)}
- style={{ marginLeft: "8px", background: "none", border: "none", cursor: "pointer", color: "inherit", fontSize: "11px" }}
+ style={{ marginLeft: "8px", background: "none", border: "none", cursor: "pointer", color: "inherit", fontSize: "var(--font-size-sm)" }}
  >
  <X size={12} />
  </button>

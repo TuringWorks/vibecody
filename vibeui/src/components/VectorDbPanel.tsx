@@ -215,10 +215,10 @@ collection = client.create_collection(
     width: "100%",
     background: "var(--bg-secondary)",
     border: "1px solid var(--border)",
-    borderRadius: 4,
+    borderRadius: "var(--radius-xs-plus)",
     color: "var(--text-primary)",
     padding: "6px 8px",
-    fontSize: 12,
+    fontSize: "var(--font-size-base)",
     boxSizing: "border-box",
   };
 
@@ -244,7 +244,7 @@ collection = client.create_collection(
 
         {!loading && tab === "collections" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <div style={{ fontSize: 13, fontWeight: 600 }}>Create Collection</div>
+            <div style={{ fontSize: "var(--font-size-md)", fontWeight: 600 }}>Create Collection</div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div>
@@ -269,7 +269,7 @@ collection = client.create_collection(
 
             {/* HNSW config */}
             <div className="panel-card">
-              <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 8, color: "var(--text-secondary)" }}>HNSW Index Config</div>
+              <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, marginBottom: 8, color: "var(--text-secondary)" }}>HNSW Index Config</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
                 <div>
                   <label className="panel-label">M (max connections)</label>
@@ -293,8 +293,8 @@ collection = client.create_collection(
             {/* Collection list table */}
             {collections.length > 0 && (
               <div style={{ marginTop: 8 }}>
-                <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 8 }}>{collections.length} collection(s)</div>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 8 }}>{collections.length} collection(s)</div>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
                   <thead>
                     <tr style={{ background: "var(--bg-secondary)" }}>
                       <th style={{ padding: "6px 8px", textAlign: "left", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>Name</th>
@@ -312,9 +312,9 @@ collection = client.create_collection(
                         <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>{c.dimension}</td>
                         <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>{c.metric}</td>
                         <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>{c.vectorCount.toLocaleString()}</td>
-                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "center", fontSize: 10 }}>M={c.hnsw.m} ef={c.hnsw.efConstruction}</td>
+                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "center", fontSize: "var(--font-size-xs)" }}>M={c.hnsw.m} ef={c.hnsw.efConstruction}</td>
                         <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>
-                          <button onClick={() => handleDeleteCollection(c.name)} className="panel-btn panel-btn-danger" style={{ fontSize: 11, padding: "2px 8px" }}>Delete</button>
+                          <button onClick={() => handleDeleteCollection(c.name)} className="panel-btn panel-btn-danger" style={{ fontSize: "var(--font-size-sm)", padding: "2px 8px" }}>Delete</button>
                         </td>
                       </tr>
                     ))}
@@ -368,8 +368,8 @@ collection = client.create_collection(
             {/* Results table */}
             {searchResults.length > 0 && (
               <div style={{ marginTop: 8 }}>
-                <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 8 }}>{searchResults.length} result(s)</div>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 8 }}>{searchResults.length} result(s)</div>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
                   <thead>
                     <tr style={{ background: "var(--bg-secondary)" }}>
                       <th style={{ padding: "6px 8px", textAlign: "left", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>ID</th>
@@ -382,7 +382,7 @@ collection = client.create_collection(
                       <tr key={r.id} style={{ background: i % 2 === 0 ? "transparent" : "var(--bg-secondary)" }}>
                         <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", fontFamily: "var(--font-mono)" }}>{r.id}</td>
                         <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "center", color: r.score > 0.8 ? "var(--success-color)" : r.score > 0.5 ? "var(--warning-color)" : "var(--text-secondary)" }}>{r.score}</td>
-                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", fontSize: 11 }}>
+                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", fontSize: "var(--font-size-sm)" }}>
                           {Object.entries(r.payload).map(([k, v]) => (
                             <span key={k} style={{ marginRight: 12 }}><strong>{k}:</strong> {v}</span>
                           ))}
@@ -421,9 +421,9 @@ collection = client.create_collection(
               <pre style={{
                 background: "var(--bg-secondary)",
                 border: "1px solid var(--border)",
-                borderRadius: 4,
+                borderRadius: "var(--radius-xs-plus)",
                 padding: 16,
-                fontSize: 12,
+                fontSize: "var(--font-size-base)",
                 fontFamily: "var(--font-mono)",
                 margin: 0,
                 whiteSpace: "pre-wrap",

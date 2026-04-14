@@ -265,11 +265,11 @@ export function AuthPanel({ workspacePath, provider }: { workspacePath: string |
   const allProviders = AUTH_CATEGORIES.flatMap(c => c.providers);
 
   return (
-    <div className="panel-container" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, fontSize: 13 }}>
+    <div className="panel-container" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, fontSize: "var(--font-size-md)" }}>
       {/* Header */}
       <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
-        <span style={{ fontSize: 14, fontWeight: 600 }}>Authorization Scaffolding</span>
-        <span style={{ fontSize: 11, color: "var(--text-secondary)", marginLeft: 8 }}>
+        <span style={{ fontSize: "var(--font-size-lg)", fontWeight: 600 }}>Authorization Scaffolding</span>
+        <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginLeft: 8 }}>
           {allProviders.length} auth providers | {FRAMEWORKS.length} frameworks | {LANGUAGES.length} languages
         </span>
       </div>
@@ -278,10 +278,10 @@ export function AuthPanel({ workspacePath, provider }: { workspacePath: string |
         {/* Auth Provider — organized by category */}
         <div>
           <div style={labelStyle}>Auth Provider <span style={{ color: "var(--accent-color)", fontWeight: 600 }}>{allProviders.find(p => p.value === config.auth_provider)?.label}</span></div>
-          <div style={{ maxHeight: 220, overflowY: "auto", border: "1px solid var(--border-color)", borderRadius: 4, padding: 8, background: "var(--bg-secondary)" }}>
+          <div style={{ maxHeight: 220, overflowY: "auto", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: 8, background: "var(--bg-secondary)" }}>
             {AUTH_CATEGORIES.map(cat => (
               <div key={cat.label} style={{ marginBottom: 8 }}>
-                <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: 4, letterSpacing: 0.5 }}>{cat.label}</div>
+                <div style={{ fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: 4, letterSpacing: 0.5 }}>{cat.label}</div>
                 <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                   {cat.providers.map(p => (
                     <button key={p.value} onClick={() => setConfig(c => ({ ...c, auth_provider: p.value }))}
@@ -316,12 +316,12 @@ export function AuthPanel({ workspacePath, provider }: { workspacePath: string |
           </div>
 
           {/* Framework grid */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 4, maxHeight: 200, overflowY: "auto", border: "1px solid var(--border-color)", borderRadius: 4, padding: 6, background: "var(--bg-secondary)" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 4, maxHeight: 200, overflowY: "auto", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: 6, background: "var(--bg-secondary)" }}>
             {filteredFrameworks.map(f => (
               <button key={f.value} onClick={() => setConfig(c => ({ ...c, framework: f.value }))}
                 style={{
-                  padding: "5px 8px", fontSize: 11, border: `1px solid ${config.framework === f.value ? "var(--accent-color)" : "var(--border-color)"}`,
-                  borderRadius: 4, cursor: "pointer", textAlign: "left",
+                  padding: "5px 8px", fontSize: "var(--font-size-sm)", border: `1px solid ${config.framework === f.value ? "var(--accent-color)" : "var(--border-color)"}`,
+                  borderRadius: "var(--radius-xs-plus)", cursor: "pointer", textAlign: "left",
                   background: config.framework === f.value ? "rgba(0,122,204,0.15)" : "transparent",
                   color: config.framework === f.value ? "var(--accent-color)" : "var(--text-primary)",
                   fontWeight: config.framework === f.value ? 600 : 400,
@@ -331,18 +331,18 @@ export function AuthPanel({ workspacePath, provider }: { workspacePath: string |
               </button>
             ))}
             {filteredFrameworks.length === 0 && (
-              <div style={{ gridColumn: "1 / -1", padding: 8, color: "var(--text-secondary)", textAlign: "center", fontSize: 12 }}>No frameworks match "{fwSearch}"</div>
+              <div style={{ gridColumn: "1 / -1", padding: 8, color: "var(--text-secondary)", textAlign: "center", fontSize: "var(--font-size-base)" }}>No frameworks match "{fwSearch}"</div>
             )}
           </div>
         </div>
 
         {/* Options */}
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 12 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: "var(--font-size-base)" }}>
             <input type="checkbox" checked={config.include_middleware} onChange={e => setConfig(c => ({ ...c, include_middleware: e.target.checked }))} />
             Auth middleware
           </label>
-          <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 12 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: "var(--font-size-base)" }}>
             <input type="checkbox" checked={config.include_tests} onChange={e => setConfig(c => ({ ...c, include_tests: e.target.checked }))} />
             Tests
           </label>
@@ -354,13 +354,13 @@ export function AuthPanel({ workspacePath, provider }: { workspacePath: string |
           {loading ? "Generating..." : `Generate Auth for ${selectedFw?.label ?? config.framework}`}
         </button>
 
-        {error && <div className="panel-error" style={{ fontSize: 12, padding: 8 }}>{error}</div>}
+        {error && <div className="panel-error" style={{ fontSize: "var(--font-size-base)", padding: 8 }}>{error}</div>}
 
         {generatedCode && (
           <>
             <div>
               <div style={labelStyle}>Preview</div>
-              <pre style={{ background: "var(--bg-secondary)", padding: 10, borderRadius: 4, fontSize: 11, fontFamily: "var(--font-mono)", whiteSpace: "pre", overflow: "auto", maxHeight: 300, border: "1px solid var(--border-color)" }}>
+              <pre style={{ background: "var(--bg-secondary)", padding: 10, borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", whiteSpace: "pre", overflow: "auto", maxHeight: 300, border: "1px solid var(--border-color)" }}>
                 {generatedCode.slice(0, 3000)}{generatedCode.length > 3000 ? "\n... (truncated)" : ""}
               </pre>
             </div>
@@ -369,11 +369,11 @@ export function AuthPanel({ workspacePath, provider }: { workspacePath: string |
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <input className="panel-input" style={{ flex: 1 }} value={targetPath} onChange={e => setTargetPath(e.target.value)} />
                 <button onClick={saveToWorkspace} disabled={loading}
-                  style={{ padding: "8px 16px", background: "var(--accent-color)", color: "var(--btn-primary-fg, #fff)", border: "none", borderRadius: 4, cursor: "pointer", fontSize: 12, fontWeight: 600, whiteSpace: "nowrap" }}>
+                  style={{ padding: "8px 16px", background: "var(--accent-color)", color: "var(--btn-primary-fg, #fff)", border: "none", borderRadius: "var(--radius-xs-plus)", cursor: "pointer", fontSize: "var(--font-size-base)", fontWeight: 600, whiteSpace: "nowrap" }}>
                   {saved ? "Saved" : "Save Files"}
                 </button>
               </div>
-              {saved && <div style={{ color: "var(--success-color)", fontSize: 12, marginTop: 4 }}>Files written to {workspacePath}/{targetPath}</div>}
+              {saved && <div style={{ color: "var(--success-color)", fontSize: "var(--font-size-base)", marginTop: 4 }}>Files written to {workspacePath}/{targetPath}</div>}
             </div>
           </>
         )}
@@ -382,9 +382,9 @@ export function AuthPanel({ workspacePath, provider }: { workspacePath: string |
   );
 }
 
-const labelStyle: React.CSSProperties = { display: "block", marginBottom: 4, fontSize: 11, color: "var(--text-secondary)" };
+const labelStyle: React.CSSProperties = { display: "block", marginBottom: 4, fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" };
 const chipStyle = (active: boolean): React.CSSProperties => ({
   padding: "4px 12px", border: `1px solid ${active ? "var(--accent-color)" : "var(--border-color)"}`,
-  borderRadius: 12, cursor: "pointer", fontSize: 12, background: active ? "rgba(0,122,204,0.15)" : "transparent",
+  borderRadius: 12, cursor: "pointer", fontSize: "var(--font-size-base)", background: active ? "rgba(0,122,204,0.15)" : "transparent",
   color: active ? "var(--accent-color)" : "var(--text-secondary)", fontWeight: active ? 600 : 400,
 });

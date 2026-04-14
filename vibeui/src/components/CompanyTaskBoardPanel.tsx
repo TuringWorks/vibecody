@@ -33,14 +33,14 @@ interface CompanyTaskBoardPanelProps {
 function ownerBadge(owner: TaskOwner): React.CSSProperties {
   const color = owner === 'principal' ? 'var(--accent-gold)' : owner === 'assistant' ? 'var(--accent-blue)' : 'var(--accent-green)';
   return {
-    display: 'inline-block', padding: '1px 6px', borderRadius: 10, fontSize: 10, fontWeight: 600,
+    display: 'inline-block', padding: '1px 6px', borderRadius: "var(--radius-md)", fontSize: "var(--font-size-xs)", fontWeight: 600,
     background: `rgba(0,0,0,0.15)`, color, border: `1px solid ${color}`,
   };
 }
 
 function programBadge(_program: TaskProgram): React.CSSProperties {
   return {
-    display: 'inline-block', padding: '1px 6px', borderRadius: 10, fontSize: 10, fontWeight: 500,
+    display: 'inline-block', padding: '1px 6px', borderRadius: "var(--radius-md)", fontSize: "var(--font-size-xs)", fontWeight: 500,
     background: 'rgba(128,128,128,0.12)', color: 'var(--text-secondary)',
     border: '1px solid var(--border-color)',
   };
@@ -156,7 +156,7 @@ export function CompanyTaskBoardPanel({ workspacePath: _wp }: CompanyTaskBoardPa
       <div className="panel-body">
         {/* Create task form */}
         <div className="panel-card" style={{ marginBottom: 12 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-secondary)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>New Task</div>
+          <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 700, color: "var(--text-secondary)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>New Task</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <input
               value={newTitle}
@@ -178,7 +178,7 @@ export function CompanyTaskBoardPanel({ workspacePath: _wp }: CompanyTaskBoardPa
           </div>
         </div>
 
-        {cmdResult && <div className="panel-card" style={{ marginBottom: 10, fontSize: 12 }}>{cmdResult}</div>}
+        {cmdResult && <div className="panel-card" style={{ marginBottom: 10, fontSize: "var(--font-size-base)" }}>{cmdResult}</div>}
 
         {/* Kanban board */}
         {loading ? (
@@ -188,7 +188,7 @@ export function CompanyTaskBoardPanel({ workspacePath: _wp }: CompanyTaskBoardPa
             <div className="panel-empty">
               <div style={{ marginBottom: 8, display: "flex", justifyContent: "center", color: "var(--accent-blue)" }}><ClipboardList size={32} strokeWidth={1.5} /></div>
               <div style={{ fontWeight: 600, marginBottom: 4 }}>No tasks yet</div>
-              <div style={{ color: "var(--text-secondary)", fontSize: 12 }}>Use the form above to create your first task</div>
+              <div style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>Use the form above to create your first task</div>
             </div>
           ) : (
             <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 8 }}>
@@ -210,8 +210,8 @@ export function CompanyTaskBoardPanel({ workspacePath: _wp }: CompanyTaskBoardPa
                   >
                     {/* Column header */}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                      <span style={{ fontWeight: 600, fontSize: 13, color: "var(--text-primary)" }}>{STATUS_LABELS[status] ?? status.replace("_", " ")}</span>
-                      <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{colTasks.length}</span>
+                      <span style={{ fontWeight: 600, fontSize: "var(--font-size-md)", color: "var(--text-primary)" }}>{STATUS_LABELS[status] ?? status.replace("_", " ")}</span>
+                      <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{colTasks.length}</span>
                     </div>
 
                     {/* Cards */}
@@ -234,12 +234,12 @@ export function CompanyTaskBoardPanel({ workspacePath: _wp }: CompanyTaskBoardPa
                             boxShadow: hoveredCard === task.id ? "var(--elevation-2)" : "var(--card-shadow)",
                           }}
                         >
-                          <div style={{ fontWeight: 500, fontSize: 13, color: "var(--text-primary)", marginBottom: 6 }}>{task.title}</div>
+                          <div style={{ fontWeight: 500, fontSize: "var(--font-size-md)", color: "var(--text-primary)", marginBottom: 6 }}>{task.title}</div>
                           <div style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
                             <span style={ownerBadge(task.owner)}>{task.owner}</span>
                             <span style={programBadge(task.program)}>{task.program}</span>
                             {task.recurrence && (
-                              <span style={{ fontSize: 10, color: "var(--text-secondary)", padding: "1px 5px", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: 6 }}>
+                              <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", padding: "1px 5px", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)" }}>
                                 {task.recurrence}
                               </span>
                             )}
@@ -247,10 +247,10 @@ export function CompanyTaskBoardPanel({ workspacePath: _wp }: CompanyTaskBoardPa
                           {/* ← → move buttons */}
                           <div style={{ display: "flex", gap: 4, marginTop: 8 }}>
                             {STATUSES.indexOf(status) > 0 && (
-                              <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 8px", fontSize: 11 }} onClick={() => moveTask(task.id, STATUSES[STATUSES.indexOf(status) - 1])}>&larr;</button>
+                              <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 8px", fontSize: "var(--font-size-sm)" }} onClick={() => moveTask(task.id, STATUSES[STATUSES.indexOf(status) - 1])}>&larr;</button>
                             )}
                             {STATUSES.indexOf(status) < STATUSES.length - 1 && (
-                              <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 8px", fontSize: 11 }} onClick={() => moveTask(task.id, STATUSES[STATUSES.indexOf(status) + 1])}>&rarr;</button>
+                              <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 8px", fontSize: "var(--font-size-sm)" }} onClick={() => moveTask(task.id, STATUSES[STATUSES.indexOf(status) + 1])}>&rarr;</button>
                             )}
                           </div>
                         </div>
@@ -258,7 +258,7 @@ export function CompanyTaskBoardPanel({ workspacePath: _wp }: CompanyTaskBoardPa
                     })}
 
                     {colTasks.length === 0 && (
-                      <div style={{ textAlign: "center", padding: "20px 8px", color: "var(--text-muted)", fontSize: 11, opacity: 0.5 }}>Drop here</div>
+                      <div style={{ textAlign: "center", padding: "20px 8px", color: "var(--text-muted)", fontSize: "var(--font-size-sm)", opacity: 0.5 }}>Drop here</div>
                     )}
                   </div>
                 );
@@ -270,11 +270,11 @@ export function CompanyTaskBoardPanel({ workspacePath: _wp }: CompanyTaskBoardPa
             <div className="panel-empty">
               <div style={{ marginBottom: 8, display: "flex", justifyContent: "center", color: "var(--accent-blue)" }}><ClipboardList size={32} strokeWidth={1.5} /></div>
               <div style={{ fontWeight: 600, marginBottom: 4 }}>No tasks yet</div>
-              <div style={{ color: "var(--text-secondary)", fontSize: 12 }}>Use the form above to create your first task</div>
+              <div style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>Use the form above to create your first task</div>
             </div>
           ) : (
             <div className="panel-card" style={{ minHeight: 120 }}>
-              <pre style={{ margin: 0, fontSize: 12, whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{rawOutput}</pre>
+              <pre style={{ margin: 0, fontSize: "var(--font-size-base)", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{rawOutput}</pre>
             </div>
           )
         )}

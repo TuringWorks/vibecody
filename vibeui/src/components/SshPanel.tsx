@@ -147,7 +147,7 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  {/* Header */}
  <div className="panel-header">
  <h3>SSH Remote Manager</h3>
- <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+ <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
  {profiles.length} profile{profiles.length !== 1 ? "s" : ""}
  </div>
  </div>
@@ -209,7 +209,7 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  key={p.id}
  onClick={() => { setSelectedId(p.id); setEditingProfile(null); }}
  style={{
- padding: "9px 12px", borderRadius: 6, cursor: "pointer",
+ padding: "9px 12px", borderRadius: "var(--radius-sm)", cursor: "pointer",
  background: selectedId === p.id ? "color-mix(in srgb, var(--accent-blue) 12%, transparent)" : "var(--bg-secondary)",
  border: `1px solid ${selectedId === p.id ? "var(--accent-color)" : "var(--border-color)"}`,
  display: "flex", alignItems: "center", gap: 10,
@@ -217,15 +217,15 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  >
  <span style={{ fontSize: 18 }}></span>
  <div style={{ flex: 1 }}>
- <div style={{ fontSize: 12, fontWeight: 600 }}>{p.name}</div>
- <div style={{ fontSize: 11, color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
+ <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600 }}>{p.name}</div>
+ <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
  {p.user}@{p.host}:{p.port}
  {p.key_path && <span style={{ marginLeft: 6, color: "var(--success-color)" }}></span>}
  </div>
  </div>
  <button
  onClick={(e) => { e.stopPropagation(); setSelectedId(p.id); setTab("run"); }}
- style={{ padding: "3px 10px", fontSize: 10, background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: 4, cursor: "pointer" }}
+ style={{ padding: "3px 10px", fontSize: "var(--font-size-xs)", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", cursor: "pointer" }}
  >
  Connect →
  </button>
@@ -237,10 +237,10 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  {/* Edit / New form */}
  {editingProfile && (
  <div style={{
- padding: 12, background: "var(--bg-secondary)", borderRadius: 6,
+ padding: 12, background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)",
  border: "1px solid var(--border-color)", display: "flex", flexDirection: "column", gap: 8,
  }}>
- <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 2 }}>
+ <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, marginBottom: 2 }}>
  {isNew ? "New Profile" : "Edit Profile"}
  </div>
  {[
@@ -252,7 +252,7 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  { label: "Notes", key: "notes", placeholder: "" },
  ].map(({ label, key, placeholder }) => (
  <div key={key} style={{ display: "flex", flexDirection: "column", gap: 3 }}>
- <label style={{ fontSize: 10, color: "var(--text-secondary)", fontWeight: 600 }}>{label}</label>
+ <label style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", fontWeight: 600 }}>{label}</label>
  <input
  type={key === "port" ? "number" : "text"}
  value={(editingProfile[key as keyof SshProfile] ?? "") as string}
@@ -279,7 +279,7 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
  {/* Connection selector */}
  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
- <label style={{ fontSize: 11, color: "var(--text-secondary)", fontWeight: 600, flexShrink: 0 }}>Connect to:</label>
+ <label style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", fontWeight: 600, flexShrink: 0 }}>Connect to:</label>
  <select
  value={selectedId ?? ""}
  onChange={(e) => setSelectedId(e.target.value)}
@@ -294,7 +294,7 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  </div>
 
  {selected && (
- <div style={{ fontSize: 11, color: "var(--text-secondary)", fontFamily: "var(--font-mono)", padding: "4px 8px", background: "var(--bg-secondary)", borderRadius: 4, border: "1px solid var(--border-color)" }}>
+ <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", fontFamily: "var(--font-mono)", padding: "4px 8px", background: "var(--bg-secondary)", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)" }}>
  {selected.user}@{selected.host}:{selected.port}
  {selected.key_path && ` (-i ${selected.key_path})`}
  </div>
@@ -307,7 +307,7 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  key={cmd}
  onClick={() => setCommand(cmd)}
  style={{
- padding: "3px 8px", fontSize: 10, borderRadius: 12,
+ padding: "3px 8px", fontSize: "var(--font-size-xs)", borderRadius: 12,
  background: "var(--bg-secondary)", border: "1px solid var(--border-color)",
  color: "var(--text-secondary)", cursor: "pointer",
  }}
@@ -340,7 +340,7 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  {/* Result summary */}
  {result && (
  <div style={{
- padding: "5px 10px", borderRadius: 4, fontSize: 11, fontWeight: 600,
+ padding: "5px 10px", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-sm)", fontWeight: 600,
  background: result.success ? "color-mix(in srgb, var(--accent-green) 10%, transparent)" : "color-mix(in srgb, var(--accent-rose) 10%, transparent)",
  color: result.success ? "var(--success-color)" : "var(--error-color)",
  border: `1px solid ${result.success ? "var(--success-color)" : "var(--error-color)"}`,
@@ -356,8 +356,8 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  <div
  ref={logRef}
  style={{
- background: "var(--bg-primary)", borderRadius: 6, padding: "8px 10px",
- fontFamily: "var(--font-mono)", fontSize: 11, lineHeight: 1.5,
+ background: "var(--bg-primary)", borderRadius: "var(--radius-sm)", padding: "8px 10px",
+ fontFamily: "var(--font-mono)", fontSize: "var(--font-size-sm)", lineHeight: 1.5,
  overflow: "auto", maxHeight: 320,
  border: "1px solid var(--border-color)",
  whiteSpace: "pre-wrap", wordBreak: "break-all",

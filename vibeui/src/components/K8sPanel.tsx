@@ -270,7 +270,7 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
  <pre style={{
  margin: 0, padding: 12,
  background: "var(--bg-secondary)", border: "1px solid var(--border-color)",
- borderRadius: 6, fontSize: 11, lineHeight: 1.5,
+ borderRadius: "var(--radius-sm)", fontSize: "var(--font-size-sm)", lineHeight: 1.5,
  overflow: "auto", maxHeight: 400, whiteSpace: "pre-wrap",
  wordBreak: "break-word", color: "var(--text-primary)",
  }}>
@@ -314,14 +314,14 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
 
  {/* Quick-action chips */}
  <div>
- <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 6 }}>QUICK ACTIONS</div>
+ <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 6 }}>QUICK ACTIONS</div>
  <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
  {QUICK_CMDS.map((cmd) => (
  <button
  key={cmd}
  onClick={() => { setKubectlCmd(cmd); handleRunKubectl(cmd); }}
  style={{
- padding: "3px 9px", fontSize: 11,
+ padding: "3px 9px", fontSize: "var(--font-size-sm)",
  background: "var(--bg-secondary)", color: "var(--text-secondary)",
  border: "1px solid var(--border-color)", borderRadius: 12,
  cursor: "pointer",
@@ -364,8 +364,8 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
  style={{
  margin: 0, padding: 12,
  background: "var(--bg-primary)", color: "var(--text-primary)",
- border: "1px solid var(--border-color)", borderRadius: 6,
- fontSize: 11, lineHeight: 1.5,
+ border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)",
+ fontSize: "var(--font-size-sm)", lineHeight: 1.5,
  minHeight: 80, maxHeight: 340,
  overflow: "auto", whiteSpace: "pre-wrap", wordBreak: "break-all",
  }}
@@ -383,7 +383,7 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
  {/* ── ArgoCD ── */}
  {subTab === "argocd" && (
  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
- <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5 }}>
+ <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", lineHeight: 1.5 }}>
  Generate an <strong>ArgoCD Application CR</strong> for GitOps continuous deployment. Apply it to install and auto-sync your app.
  </div>
 
@@ -440,7 +440,7 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
  </div>
 
  {argoApplied && (
- <div style={{ padding: "8px 12px", background: "var(--bg-secondary)", borderRadius: 6, fontSize: 12, color: "var(--text-success)" }}>
+ <div style={{ padding: "8px 12px", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", fontSize: "var(--font-size-base)", color: "var(--text-success)" }}>
  {argoApplied}
  </div>
  )}
@@ -449,7 +449,7 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
  <pre style={{
  margin: 0, padding: 12,
  background: "var(--bg-secondary)", border: "1px solid var(--border-color)",
- borderRadius: 6, fontSize: 11, lineHeight: 1.5,
+ borderRadius: "var(--radius-sm)", fontSize: "var(--font-size-sm)", lineHeight: 1.5,
  overflow: "auto", maxHeight: 360, whiteSpace: "pre-wrap",
  wordBreak: "break-word", color: "var(--text-primary)",
  }}>
@@ -470,7 +470,7 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
  />
  ) : (
  <>
- <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+ <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>
  {contexts.length} context{contexts.length !== 1 ? "s" : ""} found in your kubeconfig.
  </div>
  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -484,21 +484,21 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
  background: selectedContext === ctx ? "var(--bg-selected)" : "var(--bg-secondary)",
  border: "1px solid",
  borderColor: selectedContext === ctx ? "var(--accent-color)" : "var(--border-color)",
- borderRadius: 6,
+ borderRadius: "var(--radius-sm)",
  cursor: "pointer",
  }}
  >
  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
- <span style={{ fontSize: 14 }}></span>
- <code style={{ fontSize: 12 }}>{ctx}</code>
+ <span style={{ fontSize: "var(--font-size-lg)" }}></span>
+ <code style={{ fontSize: "var(--font-size-base)" }}>{ctx}</code>
  </div>
  {selectedContext === ctx && (
- <span style={{ fontSize: 11, color: "var(--accent-color)" }}>active</span>
+ <span style={{ fontSize: "var(--font-size-sm)", color: "var(--accent-color)" }}>active</span>
  )}
  </div>
  ))}
  </div>
- <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+ <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>
  Click a context to select it and switch to the Deploy tab.
  </div>
  </>

@@ -89,7 +89,7 @@ export function CompanyWorkspaceConfigPanel() {
         <div style={{
           marginBottom: 16, padding: "10px 14px",
           background: "rgba(74,158,255,0.08)", border: "1px solid rgba(74,158,255,0.25)",
-          borderRadius: 6, fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.6,
+          borderRadius: "var(--radius-sm)", fontSize: "var(--font-size-base)", color: "var(--text-secondary)", lineHeight: 1.6,
         }}>
           These values are automatically substituted into skill prompts as{" "}
           <code style={{ fontFamily: "var(--font-mono)", color: "var(--accent-blue)" }}>{"{{owner_name}}"}</code>,{" "}
@@ -105,7 +105,7 @@ export function CompanyWorkspaceConfigPanel() {
           }}>
             {fields.map((key) => (
               <label key={key} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                <span style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
                   {FIELD_LABELS[key]}
                 </span>
                 <input
@@ -132,7 +132,7 @@ export function CompanyWorkspaceConfigPanel() {
         {/* Toast */}
         {toast && (
           <div style={{
-            marginTop: 12, padding: "8px 14px", borderRadius: 6, fontSize: 12,
+            marginTop: 12, padding: "8px 14px", borderRadius: "var(--radius-sm)", fontSize: "var(--font-size-base)",
             background: toast.startsWith("Error") ? "rgba(231,76,60,0.15)" : "rgba(39,174,96,0.15)",
             color: toast.startsWith("Error") ? "var(--accent-rose)" : "var(--accent-green)",
             border: `1px solid ${toast.startsWith("Error") ? "var(--accent-rose)" : "var(--accent-green)"}`,

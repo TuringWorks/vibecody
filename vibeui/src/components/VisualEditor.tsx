@@ -98,7 +98,7 @@ export function VisualEditor({ onEdit, workspacePath, iframeOffset = { top: 0, l
           zIndex: 9999,
           background: "var(--bg-secondary)",
           border: "1px solid var(--border-color)",
-          borderRadius: 8,
+          borderRadius: "var(--radius-sm-alt)",
           padding: "10px 12px",
           boxShadow: "0 4px 24px rgba(0,0,0,0.4)",
           minWidth: 320,
@@ -106,12 +106,12 @@ export function VisualEditor({ onEdit, workspacePath, iframeOffset = { top: 0, l
         }}
       >
         <div style={{ display: "flex", alignItems: "center", marginBottom: 8, gap: 6 }}>
-          <span style={{ fontSize: 11, opacity: 0.7, fontFamily: "var(--font-mono)" }}>
+          <span style={{ fontSize: "var(--font-size-sm)", opacity: 0.7, fontFamily: "var(--font-mono)" }}>
             {elementName}
           </span>
           <button
             onClick={() => setSelected(null)}
-            style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", opacity: 0.6, fontSize: 14 }}
+            style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", opacity: 0.6, fontSize: "var(--font-size-lg)" }}
             title="Close"
           >
             ✕
@@ -130,10 +130,10 @@ export function VisualEditor({ onEdit, workspacePath, iframeOffset = { top: 0, l
               flex: 1,
               background: "var(--bg-tertiary)",
               border: "1px solid var(--border-color)",
-              borderRadius: 4,
+              borderRadius: "var(--radius-xs-plus)",
               color: "var(--text-primary)",
               padding: "5px 8px",
-              fontSize: 13,
+              fontSize: "var(--font-size-md)",
             }}
             autoFocus
           />
@@ -144,10 +144,10 @@ export function VisualEditor({ onEdit, workspacePath, iframeOffset = { top: 0, l
               background: "var(--accent-color)",
               color: "var(--text-primary)",
               border: "none",
-              borderRadius: 4,
+              borderRadius: "var(--radius-xs-plus)",
               padding: "5px 12px",
               cursor: "pointer",
-              fontSize: 13,
+              fontSize: "var(--font-size-md)",
               fontWeight: 600,
             }}
           >
@@ -166,7 +166,7 @@ export function VisualEditor({ onEdit, workspacePath, iframeOffset = { top: 0, l
                 border: "1px solid var(--border-color)",
                 borderRadius: 12,
                 padding: "2px 8px",
-                fontSize: 11,
+                fontSize: "var(--font-size-sm)",
                 cursor: "pointer",
                 color: "var(--text-secondary)",
               }}
@@ -177,7 +177,7 @@ export function VisualEditor({ onEdit, workspacePath, iframeOffset = { top: 0, l
         </div>
 
         {/* Computed styles preview */}
-        <details style={{ fontSize: 11, opacity: 0.7 }}>
+        <details style={{ fontSize: "var(--font-size-sm)", opacity: 0.7 }}>
           <summary style={{ cursor: "pointer", marginBottom: 4 }}>Computed styles</summary>
           <div style={{ fontFamily: "var(--font-mono)", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2px 8px" }}>
             {Object.entries(selected.styles).map(([k, v]) => (
@@ -190,7 +190,7 @@ export function VisualEditor({ onEdit, workspacePath, iframeOffset = { top: 0, l
         </details>
 
         {lastResult && (
-          <div style={{ marginTop: 8, fontSize: 12, color: "var(--success-color)", fontFamily: "var(--font-mono)" }}>
+          <div style={{ marginTop: 8, fontSize: "var(--font-size-base)", color: "var(--success-color)", fontFamily: "var(--font-mono)" }}>
             {lastResult}
           </div>
         )}

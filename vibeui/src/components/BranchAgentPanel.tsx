@@ -17,12 +17,12 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const badgeStyle = (color: string): React.CSSProperties => ({
-  display: "inline-block", padding: "2px 8px", borderRadius: 10,
-  fontSize: 11, background: color, color: "var(--bg-primary)", fontWeight: 600,
+  display: "inline-block", padding: "2px 8px", borderRadius: "var(--radius-md)",
+  fontSize: "var(--font-size-sm)", background: color, color: "var(--bg-primary)", fontWeight: 600,
 });
 const statsBarStyle: React.CSSProperties = {
   padding: "8px 16px", background: "var(--bg-tertiary)", borderBottom: "1px solid var(--border-color)",
-  display: "flex", gap: 24, fontSize: 12, flexShrink: 0,
+  display: "flex", gap: 24, fontSize: "var(--font-size-base)", flexShrink: 0,
 };
 const statStyle: React.CSSProperties = { display: "flex", flexDirection: "column", alignItems: "center" };
 
@@ -69,8 +69,8 @@ const VmOrchestratorPanel: React.FC = () => {
               <strong>{a.id}</strong>
               <span style={badgeStyle(STATUS_COLORS[a.status] || "var(--text-secondary)")}>{a.status}</span>
             </div>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Branch: <code>{a.branch}</code> &middot; {a.duration}</div>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 2 }}>{a.task}</div>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>Branch: <code>{a.branch}</code> &middot; {a.duration}</div>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginTop: 2 }}>{a.task}</div>
           </div>
         ))}
         {tab === "Pull Requests" && prs.map((pr, i) => (
@@ -79,7 +79,7 @@ const VmOrchestratorPanel: React.FC = () => {
               <strong>{pr.title}</strong>
               <span style={badgeStyle(STATUS_COLORS[pr.status] || "var(--text-secondary)")}>{pr.status}</span>
             </div>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>
               {pr.agent} &middot; {pr.files} files &middot; <span style={{ color: "var(--success-color)" }}>+{pr.additions}</span> <span style={{ color: "var(--error-color)" }}>-{pr.deletions}</span>
             </div>
           </div>
@@ -90,8 +90,8 @@ const VmOrchestratorPanel: React.FC = () => {
               <strong>{c.branch} &rarr; {c.target}</strong>
               <span style={badgeStyle(STATUS_COLORS[c.severity] || "var(--text-secondary)")}>{c.severity}</span>
             </div>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Files: {c.files.join(", ")}</div>
-            <div style={{ fontSize: 12, color: "var(--accent-color)", marginTop: 4 }}>{c.suggestion}</div>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>Files: {c.files.join(", ")}</div>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--accent-color)", marginTop: 4 }}>{c.suggestion}</div>
           </div>
         ))}
       </div>

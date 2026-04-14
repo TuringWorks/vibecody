@@ -108,10 +108,10 @@ export function WebCrawlerPanel() {
     width: "100%",
     background: "var(--bg-secondary)",
     border: "1px solid var(--border)",
-    borderRadius: 4,
+    borderRadius: "var(--radius-xs-plus)",
     color: "var(--text-primary)",
     padding: "6px 8px",
-    fontSize: 12,
+    fontSize: "var(--font-size-base)",
     boxSizing: "border-box",
   };
 
@@ -204,7 +204,7 @@ export function WebCrawlerPanel() {
                     transition: "left 0.15s ease",
                   }} />
                 </button>
-                <span style={{ fontSize: 12 }}>Respect robots.txt</span>
+                <span style={{ fontSize: "var(--font-size-base)" }}>Respect robots.txt</span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <button
@@ -226,7 +226,7 @@ export function WebCrawlerPanel() {
                     transition: "left 0.15s ease",
                   }} />
                 </button>
-                <span style={{ fontSize: 12 }}>Follow external links</span>
+                <span style={{ fontSize: "var(--font-size-base)" }}>Follow external links</span>
               </div>
             </div>
 
@@ -245,9 +245,9 @@ export function WebCrawlerPanel() {
               <div className="panel-loading">Loading previous results...</div>
             ) : crawlResults.length > 0 ? (
               <div style={{ marginTop: 8 }}>
-                <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 8 }}>{crawlResults.length} page(s) crawled</div>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 8 }}>{crawlResults.length} page(s) crawled</div>
                 <div style={{ overflowX: "auto" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, fontFamily: "var(--font-mono)" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)" }}>
                     <thead>
                       <tr style={{ background: "var(--bg-secondary)" }}>
                         <th style={{ padding: "6px 8px", textAlign: "left", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>URL</th>
@@ -277,7 +277,7 @@ export function WebCrawlerPanel() {
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             {/* Sitemap section */}
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <div style={{ fontSize: 13, fontWeight: 600 }}>Parse Sitemap</div>
+              <div style={{ fontSize: "var(--font-size-md)", fontWeight: 600 }}>Parse Sitemap</div>
               <div>
                 <label className="panel-label">Sitemap URL</label>
                 <input
@@ -297,9 +297,9 @@ export function WebCrawlerPanel() {
               </button>
               {sitemapUrls.length > 0 && (
                 <div className="panel-card" style={{ maxHeight: 200, overflow: "auto" }}>
-                  <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 6 }}>{sitemapUrls.length} URLs found</div>
+                  <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 6 }}>{sitemapUrls.length} URLs found</div>
                   {sitemapUrls.map((u, i) => (
-                    <div key={i} style={{ fontSize: 12, fontFamily: "var(--font-mono)", padding: "2px 0", borderBottom: i < sitemapUrls.length - 1 ? "1px solid var(--border)" : "none" }}>
+                    <div key={i} style={{ fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)", padding: "2px 0", borderBottom: i < sitemapUrls.length - 1 ? "1px solid var(--border)" : "none" }}>
                       {u}
                     </div>
                   ))}
@@ -311,7 +311,7 @@ export function WebCrawlerPanel() {
 
             {/* Robots.txt section */}
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <div style={{ fontSize: 13, fontWeight: 600 }}>Check robots.txt</div>
+              <div style={{ fontSize: "var(--font-size-md)", fontWeight: 600 }}>Check robots.txt</div>
               <div>
                 <label className="panel-label">robots.txt URL</label>
                 <input
@@ -330,7 +330,7 @@ export function WebCrawlerPanel() {
                 Check robots.txt
               </button>
               {robotsResult && (
-                <pre style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: 4, padding: 12, fontSize: 12, fontFamily: "var(--font-mono)", margin: 0, whiteSpace: "pre-wrap", color: "var(--text-primary)" }}>
+                <pre style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "var(--radius-xs-plus)", padding: 12, fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)", margin: 0, whiteSpace: "pre-wrap", color: "var(--text-primary)" }}>
                   {robotsResult}
                 </pre>
               )}

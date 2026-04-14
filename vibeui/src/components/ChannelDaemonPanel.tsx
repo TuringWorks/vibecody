@@ -17,12 +17,12 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const badgeStyle = (color: string): React.CSSProperties => ({
-  display: "inline-block", padding: "2px 8px", borderRadius: 10,
-  fontSize: 11, background: color, color: "var(--bg-primary)", fontWeight: 600,
+  display: "inline-block", padding: "2px 8px", borderRadius: "var(--radius-md)",
+  fontSize: "var(--font-size-sm)", background: color, color: "var(--bg-primary)", fontWeight: 600,
 });
 const statusBarStyle: React.CSSProperties = {
   padding: "8px 16px", background: "var(--bg-tertiary)", borderBottom: "1px solid var(--border-color)",
-  display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, flexShrink: 0,
+  display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "var(--font-size-base)", flexShrink: 0,
 };
 
 interface Channel { name: string; type: string; status: string; events: number }
@@ -56,30 +56,30 @@ const ChannelDaemonPanel: React.FC = () => {
               <strong>{ch.name}</strong>
               <span style={badgeStyle(STATUS_COLORS[ch.status] || "var(--text-secondary)")}>{ch.status}</span>
             </div>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Type: {ch.type} &middot; Events processed: {ch.events}</div>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>Type: {ch.type} &middot; Events processed: {ch.events}</div>
           </div>
         ))}
         {tab === "Events" && messages.map((ev, i) => (
           <div key={i} className="panel-card">
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>{ev.time}</span>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: "var(--font-size-base)" }}>{ev.time}</span>
               <span style={badgeStyle("var(--info-color)")}>{ev.type}</span>
             </div>
-            <div style={{ fontSize: 12, marginTop: 4 }}>[{ev.channel}] {ev.summary}</div>
+            <div style={{ fontSize: "var(--font-size-base)", marginTop: 4 }}>[{ev.channel}] {ev.summary}</div>
           </div>
         ))}
         {tab === "Sessions" && (
           <div className="panel-empty">
-            <div style={{ fontSize: 14 }}>No active sessions</div>
-            <div style={{ fontSize: 12, marginTop: 4 }}>Sessions will appear here when channels are connected</div>
+            <div style={{ fontSize: "var(--font-size-lg)" }}>No active sessions</div>
+            <div style={{ fontSize: "var(--font-size-base)", marginTop: 4 }}>Sessions will appear here when channels are connected</div>
           </div>
         )}
         {tab === "Settings" && (
           <div>
-            <div className="panel-card"><strong>Auto-reconnect</strong><div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>Automatically reconnect dropped channels after 30s</div></div>
-            <div className="panel-card"><strong>Event retention</strong><div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>Keep event logs for 7 days (configurable)</div></div>
-            <div className="panel-card"><strong>Session timeout</strong><div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>Idle sessions expire after 15 minutes</div></div>
-            <div className="panel-card"><strong>Rate limiting</strong><div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>Max 60 events/min per channel</div></div>
+            <div className="panel-card"><strong>Auto-reconnect</strong><div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginTop: 4 }}>Automatically reconnect dropped channels after 30s</div></div>
+            <div className="panel-card"><strong>Event retention</strong><div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginTop: 4 }}>Keep event logs for 7 days (configurable)</div></div>
+            <div className="panel-card"><strong>Session timeout</strong><div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginTop: 4 }}>Idle sessions expire after 15 minutes</div></div>
+            <div className="panel-card"><strong>Rate limiting</strong><div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginTop: 4 }}>Max 60 events/min per channel</div></div>
           </div>
         )}
       </div>

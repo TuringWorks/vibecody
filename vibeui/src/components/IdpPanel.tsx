@@ -126,8 +126,8 @@ const inputStyle: React.CSSProperties = {
   background: "var(--bg-tertiary)",
   color: "var(--text-primary)",
   border: "1px solid var(--border-color)",
-  borderRadius: 4,
-  fontSize: 13,
+  borderRadius: "var(--radius-xs-plus)",
+  fontSize: "var(--font-size-md)",
   fontFamily: "inherit",
   width: "100%",
   boxSizing: "border-box",
@@ -136,7 +136,7 @@ const inputStyle: React.CSSProperties = {
 const tableStyle: React.CSSProperties = {
   width: "100%",
   borderCollapse: "collapse",
-  fontSize: 13,
+  fontSize: "var(--font-size-md)",
 };
 
 const thStyle: React.CSSProperties = {
@@ -145,7 +145,7 @@ const thStyle: React.CSSProperties = {
   borderBottom: "1px solid var(--border-color)",
   color: "var(--text-secondary)",
   fontWeight: 600,
-  fontSize: 12,
+  fontSize: "var(--font-size-base)",
 };
 
 const tdStyle: React.CSSProperties = {
@@ -156,8 +156,8 @@ const tdStyle: React.CSSProperties = {
 const badgeStyle = (color: string): React.CSSProperties => ({
   display: "inline-block",
   padding: "2px 8px",
-  borderRadius: 10,
-  fontSize: 11,
+  borderRadius: "var(--radius-md)",
+  fontSize: "var(--font-size-sm)",
   fontWeight: 600,
   background: "transparent",
   color,
@@ -448,7 +448,7 @@ spec:
     return (
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <h3 style={{ margin: 0, fontSize: 15 }}>Service Catalog ({services.length} services)</h3>
+          <h3 style={{ margin: 0, fontSize: "var(--font-size-xl)" }}>Service Catalog ({services.length} services)</h3>
           <div style={{ display: "flex", gap: 6 }}>
             <button className="panel-btn panel-btn-secondary" onClick={loadCatalog}>Refresh</button>
             <button className="panel-btn panel-btn-primary" onClick={() => setShowServiceForm(!showServiceForm)}>
@@ -537,9 +537,9 @@ spec:
                 <td style={tdStyle}>
                   <div style={{ display: "flex", gap: 4 }}>
                     {svc.repo_url && (
-                      <a href={svc.repo_url} target="_blank" rel="noopener noreferrer" className="panel-btn panel-btn-secondary" style={{ padding: "2px 8px", fontSize: 11, textDecoration: "none" }}>Repo</a>
+                      <a href={svc.repo_url} target="_blank" rel="noopener noreferrer" className="panel-btn panel-btn-secondary" style={{ padding: "2px 8px", fontSize: "var(--font-size-sm)", textDecoration: "none" }}>Repo</a>
                     )}
-                    <button className="panel-btn panel-btn-danger" style={{ padding: "2px 8px", fontSize: 11 }} onClick={() => deleteService(svc.id)}>Remove</button>
+                    <button className="panel-btn panel-btn-danger" style={{ padding: "2px 8px", fontSize: "var(--font-size-sm)" }} onClick={() => deleteService(svc.id)}>Remove</button>
                   </div>
                 </td>
               </tr>
@@ -554,11 +554,11 @@ spec:
     return (
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <h3 style={{ margin: 0, fontSize: 15 }}>Golden Paths ({goldenPaths.length} templates)</h3>
+          <h3 style={{ margin: 0, fontSize: "var(--font-size-xl)" }}>Golden Paths ({goldenPaths.length} templates)</h3>
           <button className="panel-btn panel-btn-secondary" onClick={loadGoldenPaths}>Refresh</button>
         </div>
 
-        <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 12px" }}>
+        <p style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", margin: "0 0 12px" }}>
           Opinionated, production-ready project templates that encode best practices for each language and framework.
         </p>
 
@@ -577,17 +577,17 @@ spec:
                   {gp.language === "TypeScript" ? "TS" : gp.language === "Rust" ? "Rs" : gp.language === "Go" ? "Go" : gp.language === "Python" ? "Py" : gp.language === "Java" ? "Jv" : gp.language === "Kotlin" ? "Kt" : gp.language.slice(0, 2)}
                 </span>
                 <div>
-                  <strong style={{ fontSize: 14 }}>{gp.framework}</strong>
-                  <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{gp.language}</div>
+                  <strong style={{ fontSize: "var(--font-size-lg)" }}>{gp.framework}</strong>
+                  <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{gp.language}</div>
                 </div>
               </div>
-              <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--text-secondary)" }}>{gp.description}</p>
+              <p style={{ margin: "0 0 8px", fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>{gp.description}</p>
               <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 8 }}>
                 {gp.features.map((f) => (
-                  <span key={f} style={{ ...badgeStyle("var(--info-color)"), fontSize: 10 }}>{f}</span>
+                  <span key={f} style={{ ...badgeStyle("var(--info-color)"), fontSize: "var(--font-size-xs)" }}>{f}</span>
                 ))}
               </div>
-              <div style={{ fontSize: 11, fontFamily: "inherit", color: "var(--text-secondary)" }}>
+              <div style={{ fontSize: "var(--font-size-sm)", fontFamily: "inherit", color: "var(--text-secondary)" }}>
                 Template: {gp.template_repo}
               </div>
             </div>
@@ -600,8 +600,8 @@ spec:
   function renderScorecards() {
     return (
       <div>
-        <h3 style={{ margin: "0 0 8px", fontSize: 15 }}>Service Scorecards</h3>
-        <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 14px" }}>
+        <h3 style={{ margin: "0 0 8px", fontSize: "var(--font-size-xl)" }}>Service Scorecards</h3>
+        <p style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", margin: "0 0 14px" }}>
           Evaluate services against quality, governance, standards, and DORA metrics. Scores are computed from service metadata and can be improved by completing recommendations.
         </p>
 
@@ -620,7 +620,7 @@ spec:
             <button className="panel-btn panel-btn-primary" onClick={() => scorecardServiceId && evaluateScorecard(scorecardServiceId)} disabled={!scorecardServiceId}>Evaluate</button>
           </div>
           {services.length === 0 && (
-            <p style={{ margin: "10px 0 0", fontSize: 11, color: "var(--text-secondary)" }}>Register services in the Service Catalog tab first.</p>
+            <p style={{ margin: "10px 0 0", fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Register services in the Service Catalog tab first.</p>
           )}
         </div>
 
@@ -631,26 +631,26 @@ spec:
                 <div style={{ fontSize: 36, fontWeight: 700, fontFamily: "var(--font-mono)", color: GRADE_COLORS[scorecard.overall_grade] || "var(--text-primary)" }}>
                   {scorecard.overall_grade}
                 </div>
-                <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Overall Grade</div>
-                <div style={{ fontSize: 14, fontWeight: 600, marginTop: 4 }}>{scorecard.overall_score}/100</div>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Overall Grade</div>
+                <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, marginTop: 4 }}>{scorecard.overall_score}/100</div>
               </div>
               <div style={{ flex: 1 }}>
-                <h4 style={{ margin: "0 0 10px", fontSize: 14 }}>{scorecard.service_name} — Metrics</h4>
+                <h4 style={{ margin: "0 0 10px", fontSize: "var(--font-size-lg)" }}>{scorecard.service_name} — Metrics</h4>
                 {scorecard.metrics.map((metric) => (
                   <div key={metric.name} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-                    <span style={{ fontSize: 12, minWidth: 180, color: "var(--text-secondary)" }}>
+                    <span style={{ fontSize: "var(--font-size-base)", minWidth: 180, color: "var(--text-secondary)" }}>
                       <span style={{ ...badgeStyle("var(--text-secondary)"), fontSize: 9, marginRight: 4 }}>{metric.category}</span>
                       {metric.name}
                     </span>
-                    <div style={{ flex: 1, height: 8, background: "var(--bg-tertiary)", borderRadius: 4, overflow: "hidden" }}>
+                    <div style={{ flex: 1, height: 8, background: "var(--bg-tertiary)", borderRadius: "var(--radius-xs-plus)", overflow: "hidden" }}>
                       <div style={{
                         width: `${(metric.score / metric.max_score) * 100}%`,
                         height: "100%",
-                        borderRadius: 4,
+                        borderRadius: "var(--radius-xs-plus)",
                         background: metric.score / metric.max_score >= 0.8 ? "var(--success-color)" : metric.score / metric.max_score >= 0.5 ? "var(--warning-color)" : "var(--error-color)",
                       }} />
                     </div>
-                    <span style={{ fontSize: 11, minWidth: 50, textAlign: "right", fontFamily: "inherit" }}>
+                    <span style={{ fontSize: "var(--font-size-sm)", minWidth: 50, textAlign: "right", fontFamily: "inherit" }}>
                       {metric.score}/{metric.max_score}
                     </span>
                   </div>
@@ -660,8 +660,8 @@ spec:
 
             {scorecard.recommendations.length > 0 && (
               <div className="panel-card">
-                <h4 style={{ margin: "0 0 8px", fontSize: 14 }}>Recommendations</h4>
-                <ul style={{ margin: 0, paddingLeft: 20, fontSize: 12 }}>
+                <h4 style={{ margin: "0 0 8px", fontSize: "var(--font-size-lg)" }}>Recommendations</h4>
+                <ul style={{ margin: 0, paddingLeft: 20, fontSize: "var(--font-size-base)" }}>
                   {scorecard.recommendations.map((rec, i) => (
                     <li key={i} style={{ marginBottom: 4, color: "var(--text-secondary)" }}>{rec}</li>
                   ))}
@@ -678,7 +678,7 @@ spec:
     return (
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <h3 style={{ margin: 0, fontSize: 15 }}>Self-Service Infrastructure ({infraRequests.length} requests)</h3>
+          <h3 style={{ margin: 0, fontSize: "var(--font-size-xl)" }}>Self-Service Infrastructure ({infraRequests.length} requests)</h3>
           <div style={{ display: "flex", gap: 6 }}>
             <button className="panel-btn panel-btn-secondary" onClick={loadInfraRequests}>Refresh</button>
             <button className="panel-btn panel-btn-primary" onClick={() => setShowInfraForm(!showInfraForm)}>
@@ -687,7 +687,7 @@ spec:
           </div>
         </div>
 
-        <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 12px" }}>
+        <p style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", margin: "0 0 12px" }}>
           Request pre-approved infrastructure resources. Requests are tracked and provisioned automatically.
         </p>
 
@@ -750,7 +750,7 @@ spec:
             )}
             {infraRequests.map((req) => (
               <tr key={req.id}>
-                <td style={{ ...tdStyle, fontFamily: "inherit", fontSize: 11 }}>{req.id}</td>
+                <td style={{ ...tdStyle, fontFamily: "inherit", fontSize: "var(--font-size-sm)" }}>{req.id}</td>
                 <td style={tdStyle}>{req.template}</td>
                 <td style={tdStyle}><span style={badgeStyle(STATUS_COLORS[req.status] || "var(--text-secondary)")}>{req.status}</span></td>
                 <td style={tdStyle}>{req.config?.environment || "—"}</td>
@@ -769,7 +769,7 @@ spec:
     return (
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <h3 style={{ margin: 0, fontSize: 15 }}>Teams ({teams.length})</h3>
+          <h3 style={{ margin: 0, fontSize: "var(--font-size-xl)" }}>Teams ({teams.length})</h3>
           <div style={{ display: "flex", gap: 6 }}>
             <button className="panel-btn panel-btn-secondary" onClick={loadTeams}>Refresh</button>
             <button className="panel-btn panel-btn-primary" onClick={() => setShowTeamForm(!showTeamForm)}>
@@ -778,7 +778,7 @@ spec:
           </div>
         </div>
 
-        <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 12px" }}>
+        <p style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", margin: "0 0 12px" }}>
           Create teams and track their onboarding progress through an 8-step checklist. Each item can be toggled as completed.
         </p>
 
@@ -799,17 +799,17 @@ spec:
           {teams.map((team) => (
             <div key={team.id} className="panel-card">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                <strong style={{ fontSize: 14 }}>{team.name}</strong>
-                <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 8px", fontSize: 11 }} onClick={() => setExpandedTeam(expandedTeam === team.id ? null : team.id)}>
+                <strong style={{ fontSize: "var(--font-size-lg)" }}>{team.name}</strong>
+                <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 8px", fontSize: "var(--font-size-sm)" }} onClick={() => setExpandedTeam(expandedTeam === team.id ? null : team.id)}>
                   {expandedTeam === team.id ? "Hide Checklist" : "Onboarding"}
                 </button>
               </div>
-              <div style={{ display: "flex", gap: 16, fontSize: 12, color: "var(--text-secondary)", marginBottom: 10 }}>
+              <div style={{ display: "flex", gap: 16, fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 10 }}>
                 <span>{team.member_count} members</span>
                 <span>{team.service_count} services</span>
               </div>
               <div style={{ marginBottom: 4 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 2 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--font-size-sm)", marginBottom: 2 }}>
                   <span style={{ color: "var(--text-secondary)" }}>Onboarding Progress</span>
                   <span style={{ fontWeight: 600, color: team.onboarding_progress === 100 ? "var(--success-color)" : "var(--text-primary)" }}>{team.onboarding_progress}%</span>
                 </div>
@@ -820,9 +820,9 @@ spec:
 
               {expandedTeam === team.id && team.onboarding_checklist.length > 0 && (
                 <div style={{ marginTop: 10, borderTop: "1px solid var(--border-color)", paddingTop: 8 }}>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>Onboarding Checklist</span>
+                  <span style={{ fontSize: "var(--font-size-base)", fontWeight: 600, color: "var(--text-secondary)" }}>Onboarding Checklist</span>
                   {team.onboarding_checklist.map((item, i) => (
-                    <div key={i} role="checkbox" aria-checked={item.completed} tabIndex={0} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", fontSize: 12, cursor: "pointer" }} onClick={() => toggleChecklist(team.id, i)} onKeyDown={e => e.key === "Enter" && toggleChecklist(team.id, i)}>
+                    <div key={i} role="checkbox" aria-checked={item.completed} tabIndex={0} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", fontSize: "var(--font-size-base)", cursor: "pointer" }} onClick={() => toggleChecklist(team.id, i)} onKeyDown={e => e.key === "Enter" && toggleChecklist(team.id, i)}>
                       <input type="checkbox" checked={item.completed} readOnly style={{ cursor: "pointer" }} />
                       <span style={{ textDecoration: item.completed ? "line-through" : "none", color: item.completed ? "var(--text-secondary)" : "var(--text-primary)" }}>{item.label}</span>
                     </div>
@@ -839,24 +839,24 @@ spec:
   function renderPlatforms() {
     return (
       <div>
-        <h3 style={{ margin: "0 0 8px", fontSize: 15 }}>IDP Platforms ({platforms.filter(p => p.enabled).length} enabled)</h3>
-        <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 14px" }}>
+        <h3 style={{ margin: "0 0 8px", fontSize: "var(--font-size-xl)" }}>IDP Platforms ({platforms.filter(p => p.enabled).length} enabled)</h3>
+        <p style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", margin: "0 0 14px" }}>
           Enable and configure supported Internal Developer Platforms. Toggle platforms on/off and view their feature sets.
         </p>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
           {platforms.map((platform) => (
             <div key={platform.name} className="panel-card" style={{ opacity: platform.enabled ? 1 : 0.7, borderColor: platform.enabled ? "var(--accent-color)" : "var(--border-color)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                <strong style={{ fontSize: 14 }}>{platform.name}</strong>
-                <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 12 }}>
+                <strong style={{ fontSize: "var(--font-size-lg)" }}>{platform.name}</strong>
+                <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: "var(--font-size-base)" }}>
                   <input type="checkbox" checked={platform.enabled} onChange={() => togglePlatform(platform.name, !platform.enabled)} />
                   {platform.enabled ? "Enabled" : "Disabled"}
                 </label>
               </div>
-              <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--text-secondary)" }}>{platform.description}</p>
+              <p style={{ margin: "0 0 8px", fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>{platform.description}</p>
               <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                 {platform.features.map((f) => (
-                  <span key={f} style={{ ...badgeStyle(platform.enabled ? "var(--success-color)" : "var(--text-secondary)"), fontSize: 10 }}>{f}</span>
+                  <span key={f} style={{ ...badgeStyle(platform.enabled ? "var(--success-color)" : "var(--text-secondary)"), fontSize: "var(--font-size-xs)" }}>{f}</span>
                 ))}
               </div>
             </div>
@@ -869,13 +869,13 @@ spec:
   function renderBackstage() {
     return (
       <div>
-        <h3 style={{ margin: "0 0 8px", fontSize: 15 }}>Backstage Integration</h3>
-        <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 14px" }}>
+        <h3 style={{ margin: "0 0 8px", fontSize: "var(--font-size-xl)" }}>Backstage Integration</h3>
+        <p style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", margin: "0 0 14px" }}>
           Generate Backstage-compatible <code>catalog-info.yaml</code> files for your registered services. These can be committed to your repos for automatic Backstage discovery.
         </p>
 
         <div className="panel-card">
-          <h4 style={{ margin: "0 0 10px", fontSize: 14 }}>Generate catalog-info.yaml</h4>
+          <h4 style={{ margin: "0 0 10px", fontSize: "var(--font-size-lg)" }}>Generate catalog-info.yaml</h4>
           <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
             <div style={{ ...formGroup, flex: 1, marginBottom: 0 }}>
               <label className="panel-label">Select Service</label>
@@ -891,22 +891,22 @@ spec:
             }} disabled={!backstageServiceId}>Generate</button>
           </div>
           {services.length === 0 && (
-            <p style={{ margin: "10px 0 0", fontSize: 11, color: "var(--text-secondary)" }}>Register services in the Service Catalog tab first.</p>
+            <p style={{ margin: "10px 0 0", fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Register services in the Service Catalog tab first.</p>
           )}
         </div>
 
         {catalogYaml && (
           <div style={{ marginTop: 16 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-              <h4 style={{ margin: 0, fontSize: 14 }}>catalog-info.yaml</h4>
+              <h4 style={{ margin: 0, fontSize: "var(--font-size-lg)" }}>catalog-info.yaml</h4>
               <button className="panel-btn panel-btn-secondary" onClick={() => { navigator.clipboard.writeText(catalogYaml); showSuccess("YAML copied to clipboard."); }}>Copy</button>
             </div>
             <pre style={{
               background: "var(--bg-tertiary)",
               border: "1px solid var(--border-color)",
-              borderRadius: 6,
+              borderRadius: "var(--radius-sm)",
               padding: 16,
-              fontSize: 12,
+              fontSize: "var(--font-size-base)",
               fontFamily: "inherit",
               overflow: "auto",
               whiteSpace: "pre-wrap",
@@ -918,7 +918,7 @@ spec:
         )}
 
         <div style={{ marginTop: 20 }}>
-          <h4 style={{ margin: "0 0 10px", fontSize: 14 }}>Registered Components</h4>
+          <h4 style={{ margin: "0 0 10px", fontSize: "var(--font-size-lg)" }}>Registered Components</h4>
           {services.length === 0 ? (
             <p style={{ color: "var(--text-secondary)", textAlign: "center" }}>No components registered. Register services in the Service Catalog tab first.</p>
           ) : (
@@ -944,7 +944,7 @@ spec:
                       </span>
                     </td>
                     <td style={tdStyle}>
-                      <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 8px", fontSize: 11 }} onClick={() => {
+                      <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 8px", fontSize: "var(--font-size-sm)" }} onClick={() => {
                         setBackstageServiceId(svc.id);
                         generateCatalogInfoLocal(svc);
                       }}>Generate YAML</button>
@@ -982,15 +982,15 @@ spec:
       </div>
       <div className="panel-body">
         {successMsg && (
-          <div style={{ padding: "8px 12px", marginBottom: 12, background: "color-mix(in srgb, var(--success-color) 13%, transparent)", border: "1px solid var(--success-color)", borderRadius: 4, fontSize: 12, color: "var(--success-color)", display: "flex", justifyContent: "space-between" }}>
+          <div style={{ padding: "8px 12px", marginBottom: 12, background: "color-mix(in srgb, var(--success-color) 13%, transparent)", border: "1px solid var(--success-color)", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-base)", color: "var(--success-color)", display: "flex", justifyContent: "space-between" }}>
             <span>{successMsg}</span>
-            <button style={{ background: "none", border: "none", color: "var(--success-color)", cursor: "pointer", fontSize: 14 }} onClick={() => setSuccessMsg(null)}>x</button>
+            <button style={{ background: "none", border: "none", color: "var(--success-color)", cursor: "pointer", fontSize: "var(--font-size-lg)" }} onClick={() => setSuccessMsg(null)}>x</button>
           </div>
         )}
         {error && (
-          <div style={{ padding: "8px 12px", marginBottom: 12, background: "color-mix(in srgb, var(--error-color) 13%, transparent)", border: "1px solid var(--error-color)", borderRadius: 4, fontSize: 12, color: "var(--error-color)", display: "flex", justifyContent: "space-between" }}>
+          <div style={{ padding: "8px 12px", marginBottom: 12, background: "color-mix(in srgb, var(--error-color) 13%, transparent)", border: "1px solid var(--error-color)", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-base)", color: "var(--error-color)", display: "flex", justifyContent: "space-between" }}>
             <span>{error}</span>
-            <button style={{ background: "none", border: "none", color: "var(--error-color)", cursor: "pointer", fontSize: 14 }} onClick={() => setError(null)}>x</button>
+            <button style={{ background: "none", border: "none", color: "var(--error-color)", cursor: "pointer", fontSize: "var(--font-size-lg)" }} onClick={() => setError(null)}>x</button>
           </div>
         )}
         {loading && <div className="panel-loading">Loading...</div>}

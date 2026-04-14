@@ -103,8 +103,8 @@ const STATUS_COLORS: Record<string, string> = {
 const badgeStyle = (color: string): React.CSSProperties => ({
   display: "inline-block",
   padding: "2px 8px",
-  borderRadius: 10,
-  fontSize: 11,
+  borderRadius: "var(--radius-md)",
+  fontSize: "var(--font-size-sm)",
   fontWeight: 600,
   background: color + "22",
   color,
@@ -365,7 +365,7 @@ export function BlueTeamPanel() {
     return (
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <h3 style={{ margin: 0, fontSize: 15 }}>Security Incidents</h3>
+          <h3 style={{ margin: 0, fontSize: "var(--font-size-xl)" }}>Security Incidents</h3>
           <div style={{ display: "flex", gap: 8 }}>
             <button className="panel-btn panel-btn-secondary" onClick={generateReport}>Generate Report</button>
             <button className="panel-btn panel-btn-primary" onClick={() => setShowIncidentForm(!showIncidentForm)}>
@@ -442,7 +442,7 @@ export function BlueTeamPanel() {
     return (
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <h3 style={{ margin: 0, fontSize: 15 }}>Indicators of Compromise</h3>
+          <h3 style={{ margin: 0, fontSize: "var(--font-size-xl)" }}>Indicators of Compromise</h3>
           <button className="panel-btn panel-btn-primary" onClick={() => setShowIOCForm(!showIOCForm)}>
             {showIOCForm ? "Cancel" : "+ Add IOC"}
           </button>
@@ -494,13 +494,13 @@ export function BlueTeamPanel() {
             {iocs.map((ioc) => (
               <tr key={ioc.id}>
                 <td ><span style={badgeStyle("var(--accent-blue)")}>{ioc.ioc_type}</span></td>
-                <td style={{ fontSize: 12 }}>{ioc.value}</td>
+                <td style={{ fontSize: "var(--font-size-base)" }}>{ioc.value}</td>
                 <td >
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <div style={{ flex: 1, height: 6, background: "var(--bg-tertiary)", borderRadius: 3, overflow: "hidden" }}>
                       <div style={{ width: `${ioc.confidence}%`, height: "100%", background: ioc.confidence > 75 ? "var(--accent-green)" : ioc.confidence > 40 ? "var(--accent-gold)" : "var(--accent-rose)", borderRadius: 3 }} />
                     </div>
-                    <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{ioc.confidence}%</span>
+                    <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{ioc.confidence}%</span>
                   </div>
                 </td>
                 <td >{ioc.source}</td>
@@ -517,7 +517,7 @@ export function BlueTeamPanel() {
     return (
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <h3 style={{ margin: 0, fontSize: 15 }}>Detection Rules</h3>
+          <h3 style={{ margin: 0, fontSize: "var(--font-size-xl)" }}>Detection Rules</h3>
           <button className="panel-btn panel-btn-primary" onClick={() => setShowRuleForm(!showRuleForm)}>
             {showRuleForm ? "Cancel" : "+ New Rule"}
           </button>
@@ -556,20 +556,20 @@ export function BlueTeamPanel() {
           <div key={rule.id} className="panel-card">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
-                <strong style={{ fontSize: 14 }}>{rule.name}</strong>
+                <strong style={{ fontSize: "var(--font-size-lg)" }}>{rule.name}</strong>
                 <span style={{ ...badgeStyle("var(--info-color)"), marginLeft: 8 }}>{rule.platform}</span>
                 {rule.mitre_ids.map((mid) => (
-                  <span key={mid} style={{ ...badgeStyle("var(--accent-purple)"), marginLeft: 4, fontSize: 10 }}>{mid}</span>
+                  <span key={mid} style={{ ...badgeStyle("var(--accent-purple)"), marginLeft: 4, fontSize: "var(--font-size-xs)" }}>{mid}</span>
                 ))}
               </div>
-              <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 12 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: "var(--font-size-base)" }}>
                 <input type="checkbox" checked={rule.enabled} onChange={() => {
                   toggleRule(rule.id, !rule.enabled);
                 }} />
                 {rule.enabled ? "Enabled" : "Disabled"}
               </label>
             </div>
-            {rule.description && <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--text-secondary)" }}>{rule.description}</p>}
+            {rule.description && <p style={{ margin: "6px 0 0", fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>{rule.description}</p>}
           </div>
         ))}
       </div>
@@ -579,7 +579,7 @@ export function BlueTeamPanel() {
   function renderForensics() {
     return (
       <div>
-        <h3 style={{ margin: "0 0 14px", fontSize: 15 }}>Forensic Cases</h3>
+        <h3 style={{ margin: "0 0 14px", fontSize: "var(--font-size-xl)" }}>Forensic Cases</h3>
         {cases.length === 0 && <p style={{ color: "var(--text-secondary)", textAlign: "center" }}>No forensic cases. Cases are created from incident investigations.</p>}
         <table className="panel-table">
           <thead>
@@ -595,7 +595,7 @@ export function BlueTeamPanel() {
           <tbody>
             {cases.map((c) => (
               <tr key={c.id}>
-                <td style={{ fontSize: 11 }}>{c.id.slice(0, 8)}</td>
+                <td style={{ fontSize: "var(--font-size-sm)" }}>{c.id.slice(0, 8)}</td>
                 <td >{c.incident_title}</td>
                 <td ><span style={badgeStyle(STATUS_COLORS[c.status] || "var(--text-secondary)")}>{c.status}</span></td>
                 <td >{c.artifact_count}</td>
@@ -613,7 +613,7 @@ export function BlueTeamPanel() {
     return (
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <h3 style={{ margin: 0, fontSize: 15 }}>SIEM Connections</h3>
+          <h3 style={{ margin: 0, fontSize: "var(--font-size-xl)" }}>SIEM Connections</h3>
           <button className="panel-btn panel-btn-primary" onClick={() => setShowSIEMForm(!showSIEMForm)}>
             {showSIEMForm ? "Cancel" : "+ Add Connection"}
           </button>
@@ -646,16 +646,16 @@ export function BlueTeamPanel() {
           {siemConns.map((conn) => (
             <div key={conn.id} className="panel-card">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                <strong style={{ fontSize: 14 }}>{conn.platform}</strong>
+                <strong style={{ fontSize: "var(--font-size-lg)" }}>{conn.platform}</strong>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <div style={{ width: 8, height: 8, borderRadius: "50%", background: conn.status === "connected" ? "var(--accent-green)" : conn.status === "error" ? "var(--accent-rose)" : "var(--text-secondary)" }} />
-                  <span style={{ fontSize: 11, color: "var(--text-secondary)", textTransform: "capitalize" }}>{conn.status}</span>
+                  <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", textTransform: "capitalize" }}>{conn.status}</span>
                 </div>
               </div>
-              <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 4 }}>
                 <span style={{ fontFamily: "inherit" }}>{conn.endpoint}</span>
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--text-secondary)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
                 <span>Last sync: {conn.last_sync}</span>
                 <span>{conn.event_count.toLocaleString()} events</span>
               </div>
@@ -669,29 +669,29 @@ export function BlueTeamPanel() {
   function renderPlaybooks() {
     return (
       <div>
-        <h3 style={{ margin: "0 0 14px", fontSize: 15 }}>Incident Response Playbooks</h3>
+        <h3 style={{ margin: "0 0 14px", fontSize: "var(--font-size-xl)" }}>Incident Response Playbooks</h3>
         {playbooks.length === 0 && <p style={{ color: "var(--text-secondary)", textAlign: "center" }}>No playbooks defined.</p>}
         {playbooks.map((pb) => (
           <div key={pb.id} className="panel-card">
             <div role="button" tabIndex={0} aria-expanded={expandedPlaybook === pb.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }} onClick={() => setExpandedPlaybook(expandedPlaybook === pb.id ? null : pb.id)} onKeyDown={e => e.key === "Enter" && setExpandedPlaybook(expandedPlaybook === pb.id ? null : pb.id)}>
               <div>
-                <strong style={{ fontSize: 14 }}>{pb.name}</strong>
+                <strong style={{ fontSize: "var(--font-size-lg)" }}>{pb.name}</strong>
                 <span style={{ ...badgeStyle("var(--info-color)"), marginLeft: 8 }}>{pb.category}</span>
-                <span style={{ marginLeft: 8, fontSize: 11, color: "var(--text-secondary)" }}>{pb.steps.length} steps</span>
+                <span style={{ marginLeft: 8, fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{pb.steps.length} steps</span>
               </div>
-              <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>{expandedPlaybook === pb.id ? <ChevronUp size={12} /> : <ChevronDown size={12} />}</span>
+              <span style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>{expandedPlaybook === pb.id ? <ChevronUp size={12} /> : <ChevronDown size={12} />}</span>
             </div>
             {expandedPlaybook === pb.id && (
               <div style={{ marginTop: 12 }}>
                 {pb.steps.map((step) => (
                   <div key={step.order} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "8px 0", borderTop: "1px solid var(--border-color)" }}>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: "var(--accent-blue)", minWidth: 24 }}>#{step.order}</span>
+                    <span style={{ fontSize: "var(--font-size-base)", fontWeight: 600, color: "var(--accent-blue)", minWidth: 24 }}>#{step.order}</span>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <span style={{ fontSize: 13, fontWeight: 500 }}>{step.name || step.action}</span>
+                        <span style={{ fontSize: "var(--font-size-md)", fontWeight: 500 }}>{step.name || step.action}</span>
                         {step.automated && <span style={badgeStyle("var(--success-color)")}>Auto</span>}
                       </div>
-                      <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--text-secondary)" }}>{step.description}</p>
+                      <p style={{ margin: "4px 0 0", fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>{step.description}</p>
                     </div>
                   </div>
                 ))}
@@ -707,7 +707,7 @@ export function BlueTeamPanel() {
     return (
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <h3 style={{ margin: 0, fontSize: 15 }}>Threat Hunting</h3>
+          <h3 style={{ margin: 0, fontSize: "var(--font-size-xl)" }}>Threat Hunting</h3>
           <button className="panel-btn panel-btn-primary" onClick={() => setShowHuntForm(!showHuntForm)}>
             {showHuntForm ? "Cancel" : "+ New Hunt"}
           </button>
@@ -735,23 +735,23 @@ export function BlueTeamPanel() {
         {hunts.map((hunt) => (
           <div key={hunt.id} className="panel-card">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-              <strong style={{ fontSize: 14 }}>{hunt.hypothesis.slice(0, 80)}{hunt.hypothesis.length > 80 ? "..." : ""}</strong>
+              <strong style={{ fontSize: "var(--font-size-lg)" }}>{hunt.hypothesis.slice(0, 80)}{hunt.hypothesis.length > 80 ? "..." : ""}</strong>
               <span style={badgeStyle(STATUS_COLORS[hunt.status] || "var(--text-secondary)")}>{hunt.status}</span>
             </div>
             <div style={{ display: "flex", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>
               {hunt.data_sources.map((ds) => (
-                <span key={ds} style={{ ...badgeStyle("var(--info-color)"), fontSize: 10 }}>{ds}</span>
+                <span key={ds} style={{ ...badgeStyle("var(--info-color)"), fontSize: "var(--font-size-xs)" }}>{ds}</span>
               ))}
             </div>
             {hunt.query && (
-              <pre style={{ margin: "8px 0", padding: 10, background: "var(--bg-tertiary)", borderRadius: 4, fontSize: 11, fontFamily: "inherit", overflow: "auto", whiteSpace: "pre-wrap" }}>
+              <pre style={{ margin: "8px 0", padding: 10, background: "var(--bg-tertiary)", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-sm)", fontFamily: "inherit", overflow: "auto", whiteSpace: "pre-wrap" }}>
                 {hunt.query}
               </pre>
             )}
             {hunt.findings.length > 0 && (
               <div style={{ marginTop: 8 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>Findings:</span>
-                <ul style={{ margin: "4px 0 0", paddingLeft: 20, fontSize: 12 }}>
+                <span style={{ fontSize: "var(--font-size-base)", fontWeight: 600, color: "var(--text-secondary)" }}>Findings:</span>
+                <ul style={{ margin: "4px 0 0", paddingLeft: 20, fontSize: "var(--font-size-base)" }}>
                   {hunt.findings.map((f, i) => <li key={i} style={{ marginBottom: 2 }}>{f}</li>)}
                 </ul>
               </div>
@@ -785,7 +785,7 @@ export function BlueTeamPanel() {
       </div>
       <div className="panel-body">
         {successMsg && (
-          <div style={{ padding: "8px 12px", marginBottom: 12, background: "var(--success-bg)", border: "1px solid var(--success-color)", borderRadius: 4, fontSize: 12, color: "var(--success-color)" }}>
+          <div style={{ padding: "8px 12px", marginBottom: 12, background: "var(--success-bg)", border: "1px solid var(--success-color)", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-base)", color: "var(--success-color)" }}>
             {successMsg}
           </div>
         )}

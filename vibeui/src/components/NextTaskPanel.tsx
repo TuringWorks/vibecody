@@ -33,8 +33,8 @@ interface LearningRule {
 const badgeStyle = (color: string): React.CSSProperties => ({
   display: "inline-block",
   padding: "2px 8px",
-  borderRadius: 10,
-  fontSize: 11,
+  borderRadius: "var(--radius-md)",
+  fontSize: "var(--font-size-sm)",
   fontWeight: 600,
   background: color,
   color: "var(--btn-primary-fg, #fff)",
@@ -132,12 +132,12 @@ export function NextTaskPanel() {
                 <strong>{p.action}</strong>
                 <span style={badgeStyle(confColor(p.confidence))}>{p.confidence}%</span>
               </div>
-              <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 6 }}>{p.description}</div>
-              <div style={{ background: "var(--bg-primary)", borderRadius: 4, height: 6, marginBottom: 8 }}>
-                <div style={{ background: confColor(p.confidence), borderRadius: 4, height: 6, width: `${p.confidence}%` }} />
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 6 }}>{p.description}</div>
+              <div style={{ background: "var(--bg-primary)", borderRadius: "var(--radius-xs-plus)", height: 6, marginBottom: 8 }}>
+                <div style={{ background: confColor(p.confidence), borderRadius: "var(--radius-xs-plus)", height: 6, width: `${p.confidence}%` }} />
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>Source: {p.source}</span>
+                <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Source: {p.source}</span>
                 <div>
                   <button className="panel-btn panel-btn-primary" onClick={() => handleAccept(p.id)}>Accept</button>
                   <button className="panel-btn panel-btn-secondary" onClick={() => handleDismiss(p.id)}>Dismiss</button>
@@ -155,8 +155,8 @@ export function NextTaskPanel() {
           {history.map((h) => (
             <div key={h.id} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
-                <strong style={{ fontSize: 13 }}>{h.action}</strong>
-                <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{h.timestamp}</div>
+                <strong style={{ fontSize: "var(--font-size-md)" }}>{h.action}</strong>
+                <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>{h.timestamp}</div>
               </div>
               {h.predicted && <span style={badgeStyle("var(--success-color)")}>predicted</span>}
               {!h.predicted && <span style={badgeStyle("var(--text-secondary)")}>unpredicted</span>}
@@ -168,15 +168,15 @@ export function NextTaskPanel() {
       {tab === "learning" && (
         <div>
           <div className="panel-card">
-            <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Prediction Accuracy</div>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>Prediction Accuracy</div>
             <div style={{ fontSize: 24, fontWeight: 700 }}>{accuracy}%</div>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{predictedCorrect} / {history.length} actions correctly predicted</div>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>{predictedCorrect} / {history.length} actions correctly predicted</div>
           </div>
           <div className="panel-card">
             <div style={{ fontWeight: 600, marginBottom: 8 }}>Transition Matrix</div>
-            {transitions.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: 12 }}>No transitions recorded yet.</div>}
+            {transitions.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>No transitions recorded yet.</div>}
             {transitions.length > 0 && (
-              <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
+              <table style={{ width: "100%", fontSize: "var(--font-size-base)", borderCollapse: "collapse" }}>
                 <thead>
                   <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
                     <th style={{ textAlign: "left", padding: 6 }}>From</th>
@@ -215,8 +215,8 @@ export function NextTaskPanel() {
           {rules.map((r) => (
             <div key={r.id} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
-                <strong style={{ fontSize: 13 }}>{r.name}</strong>
-                <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{r.description}</div>
+                <strong style={{ fontSize: "var(--font-size-md)" }}>{r.name}</strong>
+                <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>{r.description}</div>
               </div>
               <label style={{ cursor: "pointer" }}>
                 <input type="checkbox" checked={r.enabled} onChange={() => toggleRule(r.id)} />

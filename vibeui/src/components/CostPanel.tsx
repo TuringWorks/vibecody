@@ -119,16 +119,16 @@ export function CostPanel() {
  { label: "Total Tokens", value: fmtTokens(metrics.total_tokens) },
  { label: "AI Calls", value: String(metrics.entries.length) },
  ].map(({ label, value }) => (
- <div key={label} style={{ background: "var(--bg-secondary)", padding: "8px 14px", borderRadius: "6px", textAlign: "center", minWidth: "100px" }}>
+ <div key={label} style={{ background: "var(--bg-secondary)", padding: "8px 14px", borderRadius: "var(--radius-sm)", textAlign: "center", minWidth: "100px" }}>
  <div style={{ fontSize: "18px", fontWeight: "bold", color: "var(--accent-color)" }}>{value}</div>
- <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "2px" }}>{label}</div>
+ <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: "2px" }}>{label}</div>
  </div>
  ))}
  </div>
 
  {/* Budget */}
- <div style={{ background: "var(--bg-secondary)", padding: "10px", borderRadius: "6px", marginBottom: "14px" }}>
- <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginBottom: "6px" }}>Monthly Budget Limit</div>
+ <div style={{ background: "var(--bg-secondary)", padding: "10px", borderRadius: "var(--radius-sm)", marginBottom: "14px" }}>
+ <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: "6px" }}>Monthly Budget Limit</div>
  <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
  <span style={{ color: "var(--text-secondary)" }}>$</span>
  <input
@@ -138,19 +138,19 @@ export function CostPanel() {
  value={budgetInput}
  onChange={e => setBudgetInput(e.target.value)}
  placeholder="e.g. 10.00 (blank = no limit)"
- style={{ flex: 1, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "4px", padding: "4px 8px", fontFamily: "inherit", fontSize: "12px" }}
+ style={{ flex: 1, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: "4px 8px", fontFamily: "inherit", fontSize: "var(--font-size-base)" }}
  />
  <button
  onClick={handleSetBudget}
  disabled={savingBudget}
- style={{ background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "4px", padding: "4px 12px", cursor: "pointer", fontSize: "12px" }}
+ style={{ background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", padding: "4px 12px", cursor: "pointer", fontSize: "var(--font-size-base)" }}
  >
  {savingBudget ? "…" : "Save"}
  </button>
  </div>
  {metrics.budget_limit_usd != null && metrics.budget_remaining_usd != null && (
  <div style={{ marginTop: "8px" }}>
- <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", marginBottom: "3px" }}>
+ <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--font-size-sm)", marginBottom: "3px" }}>
  <span style={{ color: "var(--text-secondary)" }}>Used: {fmt(metrics.total_cost_usd)} / {fmt(metrics.budget_limit_usd)}</span>
  <span style={{ color: budgetColor(metrics.budget_remaining_usd, metrics.budget_limit_usd) }}>
  {fmt(metrics.budget_remaining_usd)} remaining
@@ -171,11 +171,11 @@ export function CostPanel() {
  {/* By provider */}
  {metrics.by_provider.length > 0 && (
  <div style={{ marginBottom: "14px" }}>
- <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginBottom: "6px" }}>Cost by Provider</div>
+ <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: "6px" }}>Cost by Provider</div>
  <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
  {metrics.by_provider.map(p => (
  <div key={p.provider} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
- <span style={{ minWidth: "70px", color: "var(--text-secondary)", fontSize: "12px" }}>{p.provider}</span>
+ <span style={{ minWidth: "70px", color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>{p.provider}</span>
  <div style={{ flex: 1, background: "var(--bg-secondary)", borderRadius: "2px", height: "8px", overflow: "hidden" }}>
  <div style={{
  background: "var(--accent-color)",
@@ -183,9 +183,9 @@ export function CostPanel() {
  height: "100%",
  }} />
  </div>
- <span style={{ minWidth: "60px", textAlign: "right", color: "var(--text-secondary)", fontSize: "12px" }}>{fmt(p.total_cost_usd)}</span>
- <span style={{ minWidth: "70px", textAlign: "right", color: "var(--text-secondary)", fontSize: "11px" }}>{fmtTokens(p.total_tokens)} tok</span>
- <span style={{ minWidth: "50px", textAlign: "right", color: "var(--text-secondary)", fontSize: "11px" }}>{p.call_count}×</span>
+ <span style={{ minWidth: "60px", textAlign: "right", color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>{fmt(p.total_cost_usd)}</span>
+ <span style={{ minWidth: "70px", textAlign: "right", color: "var(--text-secondary)", fontSize: "var(--font-size-sm)" }}>{fmtTokens(p.total_tokens)} tok</span>
+ <span style={{ minWidth: "50px", textAlign: "right", color: "var(--text-secondary)", fontSize: "var(--font-size-sm)" }}>{p.call_count}×</span>
  </div>
  ))}
  </div>
@@ -196,31 +196,31 @@ export function CostPanel() {
  {metrics.entries.length > 0 && (
  <div>
  <div style={{ display: "flex", alignItems: "center", marginBottom: "6px" }}>
- <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>Recent Calls</span>
+ <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Recent Calls</span>
  <button
  onClick={handleClear}
  disabled={clearing}
- style={{ marginLeft: "auto", background: "none", color: "var(--error-color)", border: "none", cursor: "pointer", fontSize: "11px", padding: "0" }}
+ style={{ marginLeft: "auto", background: "none", color: "var(--error-color)", border: "none", cursor: "pointer", fontSize: "var(--font-size-sm)", padding: "0" }}
  >
  {clearing ? "…" : "Clear history"}
  </button>
  </div>
  <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
  {visibleEntries.map((e, i) => (
- <div key={i} style={{ background: "var(--bg-secondary)", padding: "5px 8px", borderRadius: "4px", display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
- <span style={{ color: "var(--text-secondary)", fontSize: "10px", minWidth: "110px" }}>{fmtTime(e.timestamp_ms)}</span>
- <span style={{ color: "var(--text-secondary)", fontSize: "11px" }}>{e.provider}</span>
- <span style={{ color: "var(--text-secondary)", fontSize: "10px" }}>{e.model}</span>
- {e.task_hint && <span style={{ color: "var(--text-secondary)", fontSize: "10px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "160px" }}>{e.task_hint}</span>}
- <span style={{ marginLeft: "auto", color: "var(--text-secondary)", fontSize: "11px" }}>{fmtTokens(e.prompt_tokens + e.completion_tokens)} tok</span>
- <span style={{ color: e.cost_usd > 0 ? "var(--accent-color)" : "var(--text-secondary)", fontSize: "11px", minWidth: "60px", textAlign: "right" }}>{fmt(e.cost_usd)}</span>
+ <div key={i} style={{ background: "var(--bg-secondary)", padding: "5px 8px", borderRadius: "var(--radius-xs-plus)", display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+ <span style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-xs)", minWidth: "110px" }}>{fmtTime(e.timestamp_ms)}</span>
+ <span style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-sm)" }}>{e.provider}</span>
+ <span style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-xs)" }}>{e.model}</span>
+ {e.task_hint && <span style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-xs)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "160px" }}>{e.task_hint}</span>}
+ <span style={{ marginLeft: "auto", color: "var(--text-secondary)", fontSize: "var(--font-size-sm)" }}>{fmtTokens(e.prompt_tokens + e.completion_tokens)} tok</span>
+ <span style={{ color: e.cost_usd > 0 ? "var(--accent-color)" : "var(--text-secondary)", fontSize: "var(--font-size-sm)", minWidth: "60px", textAlign: "right" }}>{fmt(e.cost_usd)}</span>
  </div>
  ))}
  </div>
  {metrics.entries.length > 20 && (
  <button
  onClick={() => setShowAll(s => !s)}
- style={{ marginTop: "8px", background: "none", color: "var(--accent-color)", border: "none", cursor: "pointer", fontSize: "12px", padding: "0" }}
+ style={{ marginTop: "8px", background: "none", color: "var(--accent-color)", border: "none", cursor: "pointer", fontSize: "var(--font-size-base)", padding: "0" }}
  >
  {showAll ? "Show less" : `Show all ${metrics.entries.length} calls`}
  </button>

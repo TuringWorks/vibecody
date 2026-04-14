@@ -24,7 +24,7 @@ function ResponseCard({ resp, side }: { resp: ModelResponse; side: "A" | "B" }) 
  display: "flex",
  flexDirection: "column",
  border: `1px solid ${isError ? "rgba(244,67,54,0.4)" : "var(--border-color)"}`,
- borderRadius: "6px",
+ borderRadius: "var(--radius-sm)",
  overflow: "hidden",
  minWidth: 0,
  }}>
@@ -40,9 +40,9 @@ function ResponseCard({ resp, side }: { resp: ModelResponse; side: "A" | "B" }) 
  {side}
  </span>
  <span style={{ color: "var(--text-secondary)" }}>{resp.provider}</span>
- <span style={{ color: "var(--text-secondary)", fontSize: "11px" }}>{resp.model}</span>
+ <span style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-sm)" }}>{resp.model}</span>
  {resp.duration_ms > 0 && (
- <span style={{ marginLeft: "auto", color: "var(--text-secondary)", fontSize: "11px" }}>
+ <span style={{ marginLeft: "auto", color: "var(--text-secondary)", fontSize: "var(--font-size-sm)" }}>
  {resp.duration_ms}ms
  {resp.tokens != null && ` · ${resp.tokens} tok`}
  </span>
@@ -52,7 +52,7 @@ function ResponseCard({ resp, side }: { resp: ModelResponse; side: "A" | "B" }) 
  {isError ? (
  <span style={{ color: "var(--error-color)" }}>{resp.error}</span>
  ) : (
- <pre style={{ margin: 0, whiteSpace: "pre-wrap", fontFamily: "inherit", fontSize: "13px" }}>
+ <pre style={{ margin: 0, whiteSpace: "pre-wrap", fontFamily: "inherit", fontSize: "var(--font-size-md)" }}>
  {resp.content || <span style={{ color: "var(--text-secondary)" }}>(empty response)</span>}
  </pre>
  )}
@@ -71,7 +71,7 @@ function ProviderSelector({
  const listId = `multi-models-${label}`;
  return (
  <div style={{ display: "flex", alignItems: "center", gap: "8px", flex: 1 }}>
- <span style={{ color: "var(--text-secondary)", fontSize: "12px", minWidth: "14px" }}>{label}</span>
+ <span style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-base)", minWidth: "14px" }}>{label}</span>
  <select
  value={provider}
  onChange={e => { onProvider(e.target.value); onModel(PROVIDER_DEFAULT_MODEL[e.target.value] ?? ""); }}
@@ -161,7 +161,7 @@ export function MultiModelPanel() {
  </button>
 
  {error && (
- <div style={{ color: "var(--error-color)", fontSize: "12px" }}>{error}</div>
+ <div style={{ color: "var(--error-color)", fontSize: "var(--font-size-base)" }}>{error}</div>
  )}
 
  {/* Side-by-side responses */}

@@ -134,15 +134,15 @@ const CloudSandboxPanel: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: 12, fontFamily: "var(--font-family, system-ui, sans-serif)", fontSize: 13, height: "100%", overflowY: "auto", color: "var(--text-primary)", background: "var(--bg-primary)" }}>
-      <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>Cloud Sandbox</div>
+    <div style={{ padding: 12, fontFamily: "var(--font-family, system-ui, sans-serif)", fontSize: "var(--font-size-md)", height: "100%", overflowY: "auto", color: "var(--text-primary)", background: "var(--bg-primary)" }}>
+      <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)", marginBottom: 12 }}>Cloud Sandbox</div>
 
       {error && <div className="panel-error"><span>{error}</span><button onClick={() => setError(null)}>&#x2715;</button></div>}
 
       {/* Tab bar */}
       <div style={{ display: "flex", gap: 2, borderBottom: "1px solid var(--border-color)", padding: "0 16px", flexShrink: 0 }}>
         {tabs.map((t) => (
-          <button key={t} onClick={() => setTab(t)} style={{ padding: "6px 16px", fontSize: 12, background: "none", border: "none", borderBottom: tab === t ? "2px solid var(--accent-blue)" : "2px solid transparent", color: tab === t ? "var(--text-primary)" : "var(--text-secondary)", cursor: "pointer", fontWeight: tab === t ? 600 : 400 }}>
+          <button key={t} onClick={() => setTab(t)} style={{ padding: "6px 16px", fontSize: "var(--font-size-base)", background: "none", border: "none", borderBottom: tab === t ? "2px solid var(--accent-blue)" : "2px solid transparent", color: tab === t ? "var(--text-primary)" : "var(--text-secondary)", cursor: "pointer", fontWeight: tab === t ? 600 : 400 }}>
             {t}
           </button>
         ))}
@@ -152,27 +152,27 @@ const CloudSandboxPanel: React.FC = () => {
       {tab === "Instances" && (
         <div>
           {instances.map((inst) => (
-            <div key={inst.id} style={{ padding: "8px 10px", marginBottom: 6, borderRadius: 4, background: "var(--bg-secondary)", borderLeft: `3px solid ${stateColor(inst.state)}` }}>
+            <div key={inst.id} style={{ padding: "8px 10px", marginBottom: 6, borderRadius: "var(--radius-xs-plus)", background: "var(--bg-secondary)", borderLeft: `3px solid ${stateColor(inst.state)}` }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontWeight: 600, fontSize: 12 }}>{inst.name}</span>
-                <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 10, background: stateColor(inst.state), color: "var(--btn-primary-fg)", fontWeight: 600 }}>{inst.state}</span>
+                <span style={{ fontWeight: 600, fontSize: "var(--font-size-base)" }}>{inst.name}</span>
+                <span style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px", borderRadius: "var(--radius-md)", background: stateColor(inst.state), color: "var(--btn-primary-fg)", fontWeight: 600 }}>{inst.state}</span>
               </div>
-              <div style={{ display: "flex", gap: 10, marginTop: 4, fontSize: 11, color: "var(--text-secondary)", flexWrap: "wrap" }}>
+              <div style={{ display: "flex", gap: 10, marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", flexWrap: "wrap" }}>
                 <span>{inst.template}</span>
                 <span>{inst.cpu} CPU / {inst.memoryGb}GB RAM / {inst.diskGb}GB disk</span>
                 <span>Owner: {inst.owner}</span>
               </div>
               <div style={{ display: "flex", gap: 8, marginTop: 6, alignItems: "center" }}>
                 {inst.state === "Running" && (
-                  <a href={inst.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: "var(--accent-color)", textDecoration: "none" }}>{inst.url}</a>
+                  <a href={inst.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: "var(--font-size-sm)", color: "var(--accent-color)", textDecoration: "none" }}>{inst.url}</a>
                 )}
                 {(inst.state === "Running" || inst.state === "Creating") && (
-                  <button onClick={() => handleStop(inst.id)} style={{ fontSize: 10, padding: "2px 8px", borderRadius: 3, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)", cursor: "pointer" }}>Stop</button>
+                  <button onClick={() => handleStop(inst.id)} style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px", borderRadius: 3, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)", cursor: "pointer" }}>Stop</button>
                 )}
                 {(inst.state === "Stopped" || inst.state === "Expired") && (
-                  <button onClick={() => handleDelete(inst.id)} style={{ fontSize: 10, padding: "2px 8px", borderRadius: 3, border: "1px solid var(--error-color)", background: "var(--bg-primary)", color: "var(--error-color)", cursor: "pointer" }}>Delete</button>
+                  <button onClick={() => handleDelete(inst.id)} style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px", borderRadius: 3, border: "1px solid var(--error-color)", background: "var(--bg-primary)", color: "var(--error-color)", cursor: "pointer" }}>Delete</button>
                 )}
-                <span style={{ marginLeft: "auto", fontSize: 10, color: "var(--text-secondary)" }}>Created: {inst.createdAt}</span>
+                <span style={{ marginLeft: "auto", fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>Created: {inst.createdAt}</span>
               </div>
             </div>
           ))}
@@ -186,18 +186,18 @@ const CloudSandboxPanel: React.FC = () => {
       {tab === "Templates" && (
         <div>
           {templates.map((tpl) => (
-            <div key={tpl.id} style={{ padding: "10px 12px", marginBottom: 8, borderRadius: 4, background: "var(--bg-secondary)" }}>
+            <div key={tpl.id} style={{ padding: "10px 12px", marginBottom: 8, borderRadius: "var(--radius-xs-plus)", background: "var(--bg-secondary)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontWeight: 600, fontSize: 13 }}>{tpl.name}</span>
-                <button onClick={() => handleTemplateSelect(tpl)} style={{ padding: "4px 12px", fontSize: 11, borderRadius: 4, border: "none", background: "var(--accent-color)", color: "var(--btn-primary-fg)", cursor: "pointer" }}>Use Template</button>
+                <span style={{ fontWeight: 600, fontSize: "var(--font-size-md)" }}>{tpl.name}</span>
+                <button onClick={() => handleTemplateSelect(tpl)} style={{ padding: "4px 12px", fontSize: "var(--font-size-sm)", borderRadius: "var(--radius-xs-plus)", border: "none", background: "var(--accent-color)", color: "var(--btn-primary-fg)", cursor: "pointer" }}>Use Template</button>
               </div>
-              <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4 }}>{tpl.language} - {tpl.description}</div>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 4 }}>{tpl.language} - {tpl.description}</div>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
                 {tpl.preinstalled.map((pkg) => (
-                  <span key={pkg} style={{ fontSize: 10, padding: "2px 6px", borderRadius: 3, background: "var(--border-color)", color: "var(--text-primary)" }}>{pkg}</span>
+                  <span key={pkg} style={{ fontSize: "var(--font-size-xs)", padding: "2px 6px", borderRadius: 3, background: "var(--border-color)", color: "var(--text-primary)" }}>{pkg}</span>
                 ))}
               </div>
-              <div style={{ fontSize: 10, color: "var(--text-secondary)", marginTop: 6 }}>
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginTop: 6 }}>
                 Defaults: {tpl.defaultCpu} CPU / {tpl.defaultMemoryGb}GB RAM / {tpl.defaultDiskGb}GB disk
               </div>
             </div>
@@ -212,12 +212,12 @@ const CloudSandboxPanel: React.FC = () => {
       {tab === "Create" && (
         <div>
           <div style={{ marginBottom: 12 }}>
-            <label style={{ fontSize: 11, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Instance Name</label>
-            <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="my-sandbox" style={{ width: "100%", padding: "6px 10px", fontSize: 12, background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4, boxSizing: "border-box" }} />
+            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Instance Name</label>
+            <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="my-sandbox" style={{ width: "100%", padding: "6px 10px", fontSize: "var(--font-size-base)", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", boxSizing: "border-box" }} />
           </div>
           <div style={{ marginBottom: 12 }}>
-            <label style={{ fontSize: 11, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Template</label>
-            <select value={form.template} onChange={(e) => { const tpl = templates.find((t) => t.name === e.target.value); if (tpl) { setForm({ ...form, template: tpl.name, cpu: tpl.defaultCpu, memory: tpl.defaultMemoryGb, disk: tpl.defaultDiskGb }); } }} style={{ width: "100%", padding: "6px 10px", fontSize: 12, background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4, boxSizing: "border-box" }}>
+            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Template</label>
+            <select value={form.template} onChange={(e) => { const tpl = templates.find((t) => t.name === e.target.value); if (tpl) { setForm({ ...form, template: tpl.name, cpu: tpl.defaultCpu, memory: tpl.defaultMemoryGb, disk: tpl.defaultDiskGb }); } }} style={{ width: "100%", padding: "6px 10px", fontSize: "var(--font-size-base)", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", boxSizing: "border-box" }}>
               {templates.map((t) => (
                 <option key={t.id} value={t.name}>{t.name} ({t.language})</option>
               ))}
@@ -226,15 +226,15 @@ const CloudSandboxPanel: React.FC = () => {
           <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
             {([["CPU Cores", "cpu", 1, 16], ["Memory (GB)", "memory", 1, 32], ["Disk (GB)", "disk", 5, 100]] as const).map(([label, key, min, max]) => (
               <div key={key} style={{ flex: 1 }}>
-                <label style={{ fontSize: 11, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>{label}</label>
-                <input type="number" min={min} max={max} value={form[key]} onChange={(e) => setForm({ ...form, [key]: parseInt(e.target.value) || min })} style={{ width: "100%", padding: "6px 10px", fontSize: 12, background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4, boxSizing: "border-box" }} />
+                <label style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>{label}</label>
+                <input type="number" min={min} max={max} value={form[key]} onChange={(e) => setForm({ ...form, [key]: parseInt(e.target.value) || min })} style={{ width: "100%", padding: "6px 10px", fontSize: "var(--font-size-base)", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", boxSizing: "border-box" }} />
               </div>
             ))}
           </div>
-          <div style={{ padding: "8px 12px", borderRadius: 4, background: "var(--bg-secondary)", marginBottom: 12, fontSize: 11, color: "var(--text-secondary)" }}>
+          <div style={{ padding: "8px 12px", borderRadius: "var(--radius-xs-plus)", background: "var(--bg-secondary)", marginBottom: 12, fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
             Configuration: {form.template} template with {form.cpu} CPU, {form.memory}GB RAM, {form.disk}GB disk. Instance expires in 24 hours.
           </div>
-          <button onClick={handleCreate} disabled={!form.name.trim() || loading} style={{ width: "100%", padding: "8px 16px", fontSize: 13, borderRadius: 4, border: "none", background: form.name.trim() && !loading ? "var(--accent-color)" : "var(--text-secondary)", color: "var(--btn-primary-fg)", cursor: form.name.trim() && !loading ? "pointer" : "not-allowed", fontWeight: 600 }}>
+          <button onClick={handleCreate} disabled={!form.name.trim() || loading} style={{ width: "100%", padding: "8px 16px", fontSize: "var(--font-size-md)", borderRadius: "var(--radius-xs-plus)", border: "none", background: form.name.trim() && !loading ? "var(--accent-color)" : "var(--text-secondary)", color: "var(--btn-primary-fg)", cursor: form.name.trim() && !loading ? "pointer" : "not-allowed", fontWeight: 600 }}>
             {loading ? "Creating..." : "Create Sandbox"}
           </button>
         </div>

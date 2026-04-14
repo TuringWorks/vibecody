@@ -74,13 +74,13 @@ export function ChatMemoryPanel({
           padding: "8px 12px", borderBottom: "1px solid var(--border-color)",
           flexShrink: 0,
         }}>
-          <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>
+          <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-md)", fontWeight: 600, color: "var(--text-primary)" }}>
             Memory
             {total > 0 && (
               <span style={{
                 background: pinnedFacts.length > 0 ? "var(--accent-blue, #3b82f6)" : "var(--bg-tertiary)",
                 color: pinnedFacts.length > 0 ? "#fff" : "var(--text-secondary)",
-                borderRadius: 10, padding: "0 5px", fontSize: 10, lineHeight: "16px",
+                borderRadius: "var(--radius-md)", padding: "0 5px", fontSize: "var(--font-size-xs)", lineHeight: "16px",
               }}>
                 {total}
               </span>
@@ -88,7 +88,7 @@ export function ChatMemoryPanel({
           </span>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             {pinnedFacts.length > 0 && (
-              <span style={{ fontSize: 10, color: "var(--accent-blue, #3b82f6)" }}>
+              <span style={{ fontSize: "var(--font-size-xs)", color: "var(--accent-blue, #3b82f6)" }}>
                 {pinnedFacts.length} pinned · in every message
               </span>
             )}
@@ -113,7 +113,7 @@ export function ChatMemoryPanel({
             width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
             padding: "5px 10px", background: "none", border: "none",
             color: total > 0 ? "var(--text-primary)" : "var(--text-secondary)",
-            cursor: "pointer", fontSize: 11, textAlign: "left",
+            cursor: "pointer", fontSize: "var(--font-size-sm)", textAlign: "left",
           }}
         >
           <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
@@ -123,14 +123,14 @@ export function ChatMemoryPanel({
               <span style={{
                 background: pinnedFacts.length > 0 ? "var(--accent-blue, #3b82f6)" : "var(--bg-tertiary)",
                 color: pinnedFacts.length > 0 ? "#fff" : "var(--text-secondary)",
-                borderRadius: 10, padding: "0 5px", fontSize: 10, lineHeight: "16px",
+                borderRadius: "var(--radius-md)", padding: "0 5px", fontSize: "var(--font-size-xs)", lineHeight: "16px",
               }}>
                 {total}
               </span>
             )}
           </span>
           {pinnedFacts.length > 0 && (
-            <span style={{ fontSize: 10, color: "var(--accent-blue, #3b82f6)" }}>
+            <span style={{ fontSize: "var(--font-size-xs)", color: "var(--accent-blue, #3b82f6)" }}>
               {pinnedFacts.length} pinned · in every message
             </span>
           )}
@@ -190,7 +190,7 @@ export function ChatMemoryPanel({
           )}
 
           {total === 0 && (
-            <div style={{ color: "var(--text-secondary)", fontSize: 11, padding: "6px 2px", opacity: 0.7 }}>
+            <div style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-sm)", padding: "6px 2px", opacity: 0.7 }}>
               No facts yet. Facts are picked up from AI responses automatically.
             </div>
           )}
@@ -205,7 +205,7 @@ export function ChatMemoryPanel({
               style={{
                 flex: 1, background: "var(--bg-primary)", border: "1px solid var(--border-color)",
                 color: "var(--text-primary)", borderRadius: 3, padding: "3px 6px",
-                fontSize: 11, outline: "none",
+                fontSize: "var(--font-size-sm)", outline: "none",
               }}
             />
             <button
@@ -214,7 +214,7 @@ export function ChatMemoryPanel({
               style={{
                 background: "var(--bg-tertiary)", border: "1px solid var(--border-color)",
                 color: "var(--text-primary)", borderRadius: 3, padding: "3px 8px",
-                fontSize: 11, cursor: newText.trim() ? "pointer" : "default",
+                fontSize: "var(--font-size-sm)", cursor: newText.trim() ? "pointer" : "default",
                 opacity: newText.trim() ? 1 : 0.4,
               }}
             >
@@ -231,7 +231,7 @@ export function ChatMemoryPanel({
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ fontSize: 10, color: "var(--text-secondary)", marginBottom: 3, padding: "2px 2px", letterSpacing: "0.05em" }}>
+    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginBottom: 3, padding: "2px 2px", letterSpacing: "0.05em" }}>
       {children}
     </div>
   );
@@ -283,7 +283,7 @@ function FactRow({
           style={{
             flex: 1, background: "var(--bg-primary)", border: "1px solid var(--accent-blue, #3b82f6)",
             color: "var(--text-primary)", borderRadius: 3, padding: "1px 4px",
-            fontSize: 11, outline: "none",
+            fontSize: "var(--font-size-sm)", outline: "none",
           }}
         />
       ) : (
@@ -291,7 +291,7 @@ function FactRow({
           onClick={() => onStartEdit(fact)}
           title="Click to edit"
           style={{
-            flex: 1, fontSize: 11, color: "var(--text-primary)", cursor: "text",
+            flex: 1, fontSize: "var(--font-size-sm)", color: "var(--text-primary)", cursor: "text",
             lineHeight: 1.4, wordBreak: "break-word",
           }}
         >

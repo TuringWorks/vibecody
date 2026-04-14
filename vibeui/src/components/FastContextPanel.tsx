@@ -66,11 +66,11 @@ const FastContextPanel: React.FC<{ workspacePath?: string | null }> = ({ workspa
     width: "100%", padding: "6px 10px", boxSizing: "border-box",
     backgroundColor: "var(--bg-secondary)",
     color: "var(--text-primary)",
-    border: "1px solid var(--border-color)", borderRadius: "4px",
+    border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)",
   };
   const badgeStyle = (color: string): React.CSSProperties => ({
-    display: "inline-block", padding: "2px 8px", borderRadius: "10px",
-    fontSize: "11px", fontWeight: 600, backgroundColor: color, color: "var(--btn-primary-fg)",
+    display: "inline-block", padding: "2px 8px", borderRadius: "var(--radius-md)",
+    fontSize: "var(--font-size-sm)", fontWeight: 600, backgroundColor: color, color: "var(--btn-primary-fg)",
   });
   const statRow: React.CSSProperties = {
     display: "flex", justifyContent: "space-between", padding: "8px 0",
@@ -137,7 +137,7 @@ const FastContextPanel: React.FC<{ workspacePath?: string | null }> = ({ workspa
       {error && (
         <div className="panel-error" style={{ marginBottom: "8px" }}>{error}</div>
       )}
-      <div style={{ fontSize: "12px", marginBottom: "8px", color: "var(--text-secondary)" }}>
+      <div style={{ fontSize: "var(--font-size-base)", marginBottom: "8px", color: "var(--text-secondary)" }}>
         {results.length} result{results.length !== 1 ? "s" : ""}
       </div>
       {results.map((r, i) => (
@@ -148,7 +148,7 @@ const FastContextPanel: React.FC<{ workspacePath?: string | null }> = ({ workspa
               {(r.relevance * 100).toFixed(0)}%
             </span>
           </div>
-          <code style={{ fontSize: "12px", color: "var(--text-secondary)" }}>{r.snippet}</code>
+          <code style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>{r.snippet}</code>
           <div style={{ marginTop: "4px" }}>
             <span style={badgeStyle("var(--accent-color)")}>{r.matchType}</span>
           </div>
@@ -186,7 +186,7 @@ const FastContextPanel: React.FC<{ workspacePath?: string | null }> = ({ workspa
       <h3 style={{ margin: "0 0 12px", color: "var(--text-primary)" }}>Cache Statistics</h3>
       <div className="panel-card" style={{ textAlign: "center", marginBottom: "16px" }}>
         <div style={{ fontSize: "28px", fontWeight: 700, color: "var(--text-primary)" }}>{hitRate}%</div>
-        <div style={{ color: "var(--text-secondary)", fontSize: "12px" }}>Hit Rate</div>
+        <div style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>Hit Rate</div>
       </div>
       <div style={statRow}><span>Cache Hits</span><strong style={{ color: "var(--text-primary)" }}>{cacheStats.hits.toLocaleString()}</strong></div>
       <div style={statRow}><span>Cache Misses</span><strong style={{ color: "var(--text-primary)" }}>{cacheStats.misses.toLocaleString()}</strong></div>
@@ -202,8 +202,8 @@ const FastContextPanel: React.FC<{ workspacePath?: string | null }> = ({ workspa
 
   if (!workspace) {
     return (
-      <div className="panel-empty" style={{ padding: 24, textAlign: "center", fontSize: 13 }}>
-        <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 8, color: "var(--text-primary)" }}>Fast Context</div>
+      <div className="panel-empty" style={{ padding: 24, textAlign: "center", fontSize: "var(--font-size-md)" }}>
+        <div style={{ fontWeight: 600, fontSize: "var(--font-size-xl)", marginBottom: 8, color: "var(--text-primary)" }}>Fast Context</div>
         <p>Open a folder to use fast context indexing.</p>
       </div>
     );

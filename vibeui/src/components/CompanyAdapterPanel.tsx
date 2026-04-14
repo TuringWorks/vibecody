@@ -95,7 +95,7 @@ export function CompanyAdapterPanel({ workspacePath: _wp }: CompanyAdapterPanelP
       </div>
 
       {cmdResult && (
-        <div className="panel-card" style={{ marginBottom: 12, fontSize: 12 }}>
+        <div className="panel-card" style={{ marginBottom: 12, fontSize: "var(--font-size-base)" }}>
           {cmdResult}
         </div>
       )}
@@ -124,7 +124,7 @@ export function CompanyAdapterPanel({ workspacePath: _wp }: CompanyAdapterPanelP
         {loading ? (
           <span className="panel-loading">Loading…</span>
         ) : (
-          <pre style={{ margin: 0, fontSize: 12, whiteSpace: "pre-wrap" }}>
+          <pre style={{ margin: 0, fontSize: "var(--font-size-base)", whiteSpace: "pre-wrap" }}>
             {listOutput || "Built-in adapter: internal (VibeCody AgentPool)"}
           </pre>
         )}

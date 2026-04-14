@@ -248,17 +248,17 @@ export function UnitConverterPanel() {
  };
 
  return (
- <div className="panel-container" style={{ flexDirection: "row", fontSize: 13 }}>
+ <div className="panel-container" style={{ flexDirection: "row", fontSize: "var(--font-size-md)" }}>
  {/* Category sidebar */}
  <div style={{ width: 140, borderRight: "1px solid var(--border-color)", display: "flex", flexDirection: "column", overflow: "hidden", flexShrink: 0 }}>
  <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search…"
- className="panel-input" style={{ margin: 6, fontSize: 12 }} />
+ className="panel-input" style={{ margin: 6, fontSize: "var(--font-size-base)" }} />
  <div style={{ flex: 1, overflowY: "auto" }}>
  {filteredCats.map((c) => {
  const realIdx = CATEGORIES.indexOf(c);
  return (
  <button key={c.name} onClick={() => { setCatIdx(realIdx); setFromIdx(0); setToIdx(1); setSearch(""); }}
- style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", padding: "7px 10px", border: "none", background: catIdx === realIdx ? "rgba(var(--accent-rgb,99,102,241),0.18)" : "none", color: catIdx === realIdx ? "var(--accent-color)" : "var(--text-secondary)", textAlign: "left", cursor: "pointer", fontSize: 12, borderLeft: catIdx === realIdx ? "3px solid var(--accent-color)" : "3px solid transparent" }}>
+ style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", padding: "7px 10px", border: "none", background: catIdx === realIdx ? "rgba(var(--accent-rgb,99,102,241),0.18)" : "none", color: catIdx === realIdx ? "var(--accent-color)" : "var(--text-secondary)", textAlign: "left", cursor: "pointer", fontSize: "var(--font-size-base)", borderLeft: catIdx === realIdx ? "3px solid var(--accent-color)" : "3px solid transparent" }}>
  <span>{c.icon}</span>{c.name}
  </button>
  );
@@ -270,24 +270,24 @@ export function UnitConverterPanel() {
  <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
  {/* Converter card */}
  <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
- <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>{cat.icon} {cat.name}</div>
+ <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, marginBottom: 12 }}>{cat.icon} {cat.name}</div>
  <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
  <input value={inputVal} onChange={e => setInputVal(e.target.value)} type="number"
- className="panel-input" style={{ width: 140, fontSize: 14 }} />
+ className="panel-input" style={{ width: 140, fontSize: "var(--font-size-lg)" }} />
  <select value={fromIdx} onChange={e => setFromIdx(Number(e.target.value))} className="panel-select" style={{ minWidth: 150 }}>
  {cat.units.map((u, i) => <option key={i} value={i}>{u.label} ({u.symbol})</option>)}
  </select>
  <button onClick={swap} title="Swap"
- style={{ padding: "5px 10px", background: "none", border: "1px solid var(--border-color)", borderRadius: 4, cursor: "pointer", color: "var(--text-primary)", fontSize: 16 }}>⇄</button>
+ style={{ padding: "5px 10px", background: "none", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", cursor: "pointer", color: "var(--text-primary)", fontSize: 16 }}>⇄</button>
  <select value={toIdx} onChange={e => setToIdx(Number(e.target.value))} className="panel-select" style={{ minWidth: 150 }}>
  {cat.units.map((u, i) => <option key={i} value={i}>{u.label} ({u.symbol})</option>)}
  </select>
- <span style={{ fontSize: 15, fontWeight: 600, color: "var(--accent-color)", minWidth: 180 }}>
+ <span style={{ fontSize: "var(--font-size-xl)", fontWeight: 600, color: "var(--accent-color)", minWidth: 180 }}>
  = {isNaN(result) ? "—" : fmt(result)} {toUnit.symbol}
  </span>
  {!isNaN(result) && (
  <button onClick={() => navigator.clipboard.writeText(fmt(result))}
- style={{ padding: "4px 8px", background: "none", border: "1px solid var(--border-color)", borderRadius: 4, cursor: "pointer", color: "var(--text-secondary)", fontSize: 11 }}>
+ style={{ padding: "4px 8px", background: "none", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", cursor: "pointer", color: "var(--text-secondary)", fontSize: "var(--font-size-sm)" }}>
  Copy
  </button>
  )}
@@ -296,14 +296,14 @@ export function UnitConverterPanel() {
 
  {/* All units table */}
  <div style={{ flex: 1, overflowY: "auto", padding: "10px 20px" }}>
- <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 8 }}>
+ <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 8 }}>
  All {cat.name} units — {isNaN(inputNum) ? "enter a value above" : `${inputVal} ${fromUnit.symbol}`}
  </div>
- <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+ <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
  <thead>
  <tr>
  {["Unit", "Symbol", "Value"].map(h => (
- <th key={h} style={{ padding: "5px 10px", textAlign: "left", borderBottom: "2px solid var(--accent-blue)", color: "var(--text-secondary)", fontSize: 11 }}>{h}</th>
+ <th key={h} style={{ padding: "5px 10px", textAlign: "left", borderBottom: "2px solid var(--accent-blue)", color: "var(--text-secondary)", fontSize: "var(--font-size-sm)" }}>{h}</th>
  ))}
  <th style={{ width: 50 }} />
  </tr>
@@ -317,8 +317,8 @@ export function UnitConverterPanel() {
  style={{ background: isFrom ? "rgba(var(--accent-rgb,99,102,241),0.08)" : isTo ? "rgba(100,200,100,0.08)" : i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.02)" }}>
  <td style={{ padding: "4px 10px", fontWeight: isFrom || isTo ? 600 : undefined }}>
  {unit.label}
- {isFrom && <span style={{ marginLeft: 6, fontSize: 10, color: "var(--accent-color)" }}>FROM</span>}
- {isTo && <span style={{ marginLeft: 6, fontSize: 10, color: "var(--success-color)" }}>TO</span>}
+ {isFrom && <span style={{ marginLeft: 6, fontSize: "var(--font-size-xs)", color: "var(--accent-color)" }}>FROM</span>}
+ {isTo && <span style={{ marginLeft: 6, fontSize: "var(--font-size-xs)", color: "var(--success-color)" }}>TO</span>}
  </td>
  <td style={{ padding: "4px 10px", color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>{unit.symbol}</td>
  <td style={{ padding: "4px 10px", fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>
@@ -326,7 +326,7 @@ export function UnitConverterPanel() {
  </td>
  <td style={{ padding: "4px 6px" }}>
  <button onClick={() => navigator.clipboard.writeText(isNaN(inputNum) ? "" : fmt(value))} title="Copy"
- style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", fontSize: 11, opacity: isNaN(inputNum) ? 0.3 : 1 }}>⎘</button>
+ style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", fontSize: "var(--font-size-sm)", opacity: isNaN(inputNum) ? 0.3 : 1 }}>⎘</button>
  </td>
  </tr>
  );

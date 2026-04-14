@@ -86,11 +86,11 @@ export function LongContextPanel() {
 
   return (
     <div style={{ padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-mono)", height: "100%", overflowY: "auto" }}>
-      <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>Long Context Router</div>
+      <div style={{ fontSize: "var(--font-size-xl)", fontWeight: 700, marginBottom: 12 }}>Long Context Router</div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         {["routing", "models", "ingest"].map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{ padding: "4px 12px", borderRadius: 6, cursor: "pointer", background: tab === t ? "var(--accent-color)" : "var(--bg-secondary)", color: tab === t ? "#fff" : "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: 12 }}>{t}</button>
+          <button key={t} onClick={() => setTab(t)} style={{ padding: "4px 12px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: tab === t ? "var(--accent-color)" : "var(--bg-secondary)", color: tab === t ? "#fff" : "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>{t}</button>
         ))}
       </div>
 
@@ -100,23 +100,23 @@ export function LongContextPanel() {
       {!loading && tab === "routing" && (
         <div style={{ maxWidth: 520 }}>
           <div style={{ marginBottom: 20 }}>
-            <label style={{ display: "block", fontSize: 12, color: "var(--text-muted)", marginBottom: 6 }}>
+            <label style={{ display: "block", fontSize: "var(--font-size-base)", color: "var(--text-muted)", marginBottom: 6 }}>
               Input Token Count: <strong style={{ color: "var(--text-primary)" }}>{formatTokens(tokenCount)}</strong>
             </label>
             <input type="range" min={1000} max={2000000} step={1000} value={tokenCount} onChange={e => setTokenCount(Number(e.target.value))}
               style={{ width: "100%", accentColor: "var(--accent-color)" }} />
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--text-muted)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--font-size-xs)", color: "var(--text-muted)" }}>
               <span>1k</span><span>2M</span>
             </div>
           </div>
           <button onClick={runRoute} disabled={routing}
-            style={{ padding: "8px 24px", borderRadius: 6, cursor: routing ? "not-allowed" : "pointer", background: "var(--accent-color)", color: "#fff", border: "none", fontSize: 13, fontWeight: 600, opacity: routing ? 0.6 : 1, marginBottom: 20 }}>
+            style={{ padding: "8px 24px", borderRadius: "var(--radius-sm)", cursor: routing ? "not-allowed" : "pointer", background: "var(--accent-color)", color: "var(--btn-primary-fg, #fff)", border: "none", fontSize: "var(--font-size-md)", fontWeight: 600, opacity: routing ? 0.6 : 1, marginBottom: 20 }}>
             {routing ? "Routing…" : "Find Best Model"}
           </button>
           {routeResult && (
-            <div style={{ background: "var(--bg-secondary)", borderRadius: 10, border: "1px solid var(--border-color)", padding: 16 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--accent-color)", marginBottom: 10 }}>{routeResult.chosen_model}</div>
-              <div style={{ display: "grid", gridTemplateColumns: "130px 1fr", rowGap: 8, fontSize: 12 }}>
+            <div style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-md)", border: "1px solid var(--border-color)", padding: 16 }}>
+              <div style={{ fontSize: "var(--font-size-md)", fontWeight: 700, color: "var(--accent-color)", marginBottom: 10 }}>{routeResult.chosen_model}</div>
+              <div style={{ display: "grid", gridTemplateColumns: "130px 1fr", rowGap: 8, fontSize: "var(--font-size-base)" }}>
                 {[
                   ["Provider", routeResult.provider],
                   ["Input Tokens", formatTokens(routeResult.input_tokens)],
@@ -136,7 +136,7 @@ export function LongContextPanel() {
 
       {!loading && tab === "models" && (
         <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
             <thead>
               <tr style={{ background: "var(--bg-secondary)" }}>
                 {["Model", "Provider", "Max Tokens", "$/1k In", "$/1k Out", "Long Ctx"].map(h => (
@@ -156,7 +156,7 @@ export function LongContextPanel() {
                   <td style={{ padding: "6px 10px" }}>${m.cost_per_1k_input.toFixed(4)}</td>
                   <td style={{ padding: "6px 10px" }}>${m.cost_per_1k_output.toFixed(4)}</td>
                   <td style={{ padding: "6px 10px" }}>
-                    <span style={{ fontSize: 11, color: m.supports_long_context ? "var(--success-color)" : "var(--text-muted)" }}>
+                    <span style={{ fontSize: "var(--font-size-sm)", color: m.supports_long_context ? "var(--success-color)" : "var(--text-muted)" }}>
                       {m.supports_long_context ? "Yes" : "No"}
                     </span>
                   </td>
@@ -170,35 +170,35 @@ export function LongContextPanel() {
       {!loading && tab === "ingest" && (
         <div style={{ maxWidth: 520 }}>
           <div style={{ marginBottom: 14 }}>
-            <label style={{ display: "block", fontSize: 12, color: "var(--text-muted)", marginBottom: 6 }}>File Path</label>
+            <label style={{ display: "block", fontSize: "var(--font-size-base)", color: "var(--text-muted)", marginBottom: 6 }}>File Path</label>
             <input value={filePath} onChange={e => setFilePath(e.target.value)}
               placeholder="/path/to/large/document.txt"
-              style={{ width: "100%", padding: "7px 10px", borderRadius: 6, background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: 12, boxSizing: "border-box" }} />
+              style={{ width: "100%", padding: "7px 10px", borderRadius: "var(--radius-sm)", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)", boxSizing: "border-box" }} />
           </div>
           <button onClick={runIngest} disabled={ingesting || !filePath.trim()}
-            style={{ padding: "8px 24px", borderRadius: 6, cursor: ingesting || !filePath.trim() ? "not-allowed" : "pointer", background: "var(--accent-color)", color: "#fff", border: "none", fontSize: 13, fontWeight: 600, opacity: ingesting || !filePath.trim() ? 0.6 : 1, marginBottom: 20 }}>
+            style={{ padding: "8px 24px", borderRadius: "var(--radius-sm)", cursor: ingesting || !filePath.trim() ? "not-allowed" : "pointer", background: "var(--accent-color)", color: "var(--btn-primary-fg, #fff)", border: "none", fontSize: "var(--font-size-md)", fontWeight: 600, opacity: ingesting || !filePath.trim() ? 0.6 : 1, marginBottom: 20 }}>
             {ingesting ? "Ingesting…" : "Start Ingest"}
           </button>
           {ingestProgress && (
-            <div style={{ background: "var(--bg-secondary)", borderRadius: 10, border: "1px solid var(--border-color)", padding: 16 }}>
-              <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 8, wordBreak: "break-all" }}>{ingestProgress.file_path}</div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 6 }}>
+            <div style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-md)", border: "1px solid var(--border-color)", padding: 16 }}>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-muted)", marginBottom: 8, wordBreak: "break-all" }}>{ingestProgress.file_path}</div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--font-size-base)", marginBottom: 6 }}>
                 <span>Progress</span>
                 <span style={{ color: "var(--text-muted)" }}>{ingestProgress.processed_chunks} / {ingestProgress.total_chunks} chunks</span>
               </div>
-              <div style={{ height: 8, background: "var(--bg-primary)", borderRadius: 4, marginBottom: 10 }}>
+              <div style={{ height: 8, background: "var(--bg-primary)", borderRadius: "var(--radius-xs-plus)", marginBottom: 10 }}>
                 <div style={{
                   height: "100%",
                   width: ingestProgress.total_chunks > 0 ? `${(ingestProgress.processed_chunks / ingestProgress.total_chunks) * 100}%` : "0%",
                   background: ingestProgress.status === "failed" ? "var(--error-color)" : "var(--accent-color)",
-                  borderRadius: 4,
+                  borderRadius: "var(--radius-xs-plus)",
                   transition: "width 0.3s ease"
                 }} />
               </div>
-              <div style={{ fontSize: 12 }}>
+              <div style={{ fontSize: "var(--font-size-base)" }}>
                 Status: <span style={{ color: ingestProgress.status === "completed" ? "var(--success-color)" : ingestProgress.status === "failed" ? "var(--error-color)" : "var(--warning-color)" }}>{ingestProgress.status}</span>
               </div>
-              {ingestProgress.error && <div style={{ fontSize: 12, color: "var(--error-color)", marginTop: 6 }}>{ingestProgress.error}</div>}
+              {ingestProgress.error && <div style={{ fontSize: "var(--font-size-base)", color: "var(--error-color)", marginTop: 6 }}>{ingestProgress.error}</div>}
             </div>
           )}
         </div>

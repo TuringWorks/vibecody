@@ -32,8 +32,8 @@ const statusBadge = (status: SessionStatus) => {
       style={{
         display: "inline-block",
         padding: "2px 8px",
-        borderRadius: 4,
-        fontSize: 11,
+        borderRadius: "var(--radius-xs-plus)",
+        fontSize: "var(--font-size-sm)",
         fontWeight: 600,
         color: "var(--text-primary)",
         background: s.bg,
@@ -129,11 +129,11 @@ export function VisualTestPanel() {
   const inputStyle: React.CSSProperties = {
     flex: 1,
     padding: "6px 10px",
-    borderRadius: 4,
+    borderRadius: "var(--radius-xs-plus)",
     border: "1px solid var(--border-color)",
     background: "var(--bg-primary)",
     color: "var(--text-primary)",
-    fontSize: 13,
+    fontSize: "var(--font-size-md)",
   };
 
   return (
@@ -199,7 +199,7 @@ export function VisualTestPanel() {
           <div
             style={{
               fontWeight: 600,
-              fontSize: 12,
+              fontSize: "var(--font-size-base)",
               color: "var(--text-secondary)",
               textTransform: "uppercase",
             }}
@@ -228,7 +228,7 @@ export function VisualTestPanel() {
                   alignItems: "center",
                   justifyContent: "center",
                   fontWeight: 700,
-                  fontSize: 12,
+                  fontSize: "var(--font-size-base)",
                   flexShrink: 0,
                 }}
               >
@@ -245,7 +245,7 @@ export function VisualTestPanel() {
                 {step.screenshot && (
                   <div
                     style={{
-                      fontSize: 11,
+                      fontSize: "var(--font-size-sm)",
                       color: "var(--text-secondary)",
                       marginBottom: 4,
                     }}
@@ -259,11 +259,11 @@ export function VisualTestPanel() {
                   <div
                     style={{
                       padding: 6,
-                      borderRadius: 4,
+                      borderRadius: "var(--radius-xs-plus)",
                       background: step.assertion.passed
                         ? "rgba(76,175,80,0.12)"
                         : "rgba(244,67,54,0.12)",
-                      fontSize: 12,
+                      fontSize: "var(--font-size-base)",
                       marginTop: 4,
                     }}
                   >
@@ -293,7 +293,7 @@ export function VisualTestPanel() {
           <div style={{ fontSize: 32, marginBottom: 8 }}>
             Visual Self-Testing
           </div>
-          <div style={{ fontSize: 13 }}>
+          <div style={{ fontSize: "var(--font-size-md)" }}>
             Enter an application URL and start a visual test session.
             <br />
             The agent will take screenshots and evaluate visual assertions via

@@ -122,11 +122,11 @@ type SubTab = "base64" | "url" | "html" | "hash" | "case" | "stats";
 function OutputRow({ label, value, colour = "var(--text-primary)" }: { label: string; value: string; colour?: string }) {
  return (
  <div style={{ borderBottom: "1px solid var(--border-color)" }}>
- <div style={{ padding: "3px 12px", fontSize: 10, fontWeight: 700, color: "var(--text-secondary)", background: "var(--bg-secondary)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+ <div style={{ padding: "3px 12px", fontSize: "var(--font-size-xs)", fontWeight: 700, color: "var(--text-secondary)", background: "var(--bg-secondary)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
  <span>{label}</span>
  <CopyButton text={value} />
  </div>
- <div style={{ padding: "6px 12px", fontFamily: "var(--font-mono)", fontSize: 12, color: colour, wordBreak: "break-all", lineHeight: 1.6, background: "var(--bg-primary)" }}>{value || <span style={{ color: "var(--text-secondary)", fontStyle: "italic" }}>—</span>}</div>
+ <div style={{ padding: "6px 12px", fontFamily: "var(--font-mono)", fontSize: "var(--font-size-base)", color: colour, wordBreak: "break-all", lineHeight: 1.6, background: "var(--bg-primary)" }}>{value || <span style={{ color: "var(--text-secondary)", fontStyle: "italic" }}>—</span>}</div>
  </div>
  );
 }
@@ -172,7 +172,7 @@ export function EncodingPanel() {
 
  {/* Header */}
  <div className="panel-header" style={{ flexWrap: "wrap" }}>
- <span style={{ fontSize: 13, fontWeight: 600 }}>Encoding &amp; Hash</span>
+ <span style={{ fontSize: "var(--font-size-md)", fontWeight: 600 }}>Encoding &amp; Hash</span>
  <div className="panel-tab-bar" style={{ border: "none", padding: 0, margin: 0 }}>
  {TABS.map(t => (
  <button key={t.id} onClick={() => setSubTab(t.id)} className={`panel-tab ${subTab === t.id ? "active" : ""}`}>{t.label}</button>
@@ -182,14 +182,14 @@ export function EncodingPanel() {
 
  {/* Input */}
  <div style={{ borderBottom: "1px solid var(--border-color)" }}>
- <div style={{ padding: "4px 12px", fontSize: 10, fontWeight: 700, color: "var(--text-secondary)", background: "var(--bg-secondary)", display: "flex", gap: 8, alignItems: "center" }}>
+ <div style={{ padding: "4px 12px", fontSize: "var(--font-size-xs)", fontWeight: 700, color: "var(--text-secondary)", background: "var(--bg-secondary)", display: "flex", gap: 8, alignItems: "center" }}>
  <span>INPUT</span>
  <button onClick={pasteClipboard} style={{ fontSize: 9, background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}>Paste</button>
  <button onClick={() => setInput("")} style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 3, fontSize: 9 }}><X size={9} /> Clear</button>
  <span style={{ marginLeft: "auto", fontSize: 9, color: "var(--text-secondary)" }}>{input.length} chars</span>
  </div>
  <textarea value={input} onChange={e => setInput(e.target.value)} rows={4} spellCheck={false}
- style={{ width: "100%", resize: "vertical", padding: "8px 12px", fontSize: 12, fontFamily: "var(--font-mono)", lineHeight: 1.6, background: "var(--bg-primary)", color: "var(--text-primary)", border: "none", outline: "none", boxSizing: "border-box" }} />
+ style={{ width: "100%", resize: "vertical", padding: "8px 12px", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)", lineHeight: 1.6, background: "var(--bg-primary)", color: "var(--text-primary)", border: "none", outline: "none", boxSizing: "border-box" }} />
  </div>
 
  {/* Output area */}
@@ -199,7 +199,7 @@ export function EncodingPanel() {
  {subTab === "base64" && (
  <div>
  <div style={{ padding: "4px 12px", display: "flex", gap: 8, alignItems: "center", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
- <label style={{ fontSize: 10, color: "var(--text-secondary)", display: "flex", gap: 4, alignItems: "center", cursor: "pointer" }}>
+ <label style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", display: "flex", gap: 4, alignItems: "center", cursor: "pointer" }}>
  <input type="checkbox" checked={urlSafe} onChange={e => setUrlSafe(e.target.checked)} style={{ accentColor: "var(--accent-color)" }} />
  URL-safe (no +/=//)
  </label>
@@ -229,12 +229,12 @@ export function EncodingPanel() {
  {subTab === "hash" && (
  <div>
  {!input
- ? <div style={{ padding: 16, color: "var(--text-secondary)", fontSize: 12 }}>Type or paste text above to compute hashes.</div>
+ ? <div style={{ padding: 16, color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>Type or paste text above to compute hashes.</div>
  : ["SHA-1", "SHA-256", "SHA-512"].map(algo => (
  <OutputRow key={algo} label={algo} value={hashes[algo] ?? "computing…"} colour={algo === "SHA-256" ? "var(--success-color)" : algo === "SHA-512" ? "var(--accent-color)" : "var(--error-color)"} />
  ))
  }
- <div style={{ padding: "10px 12px", fontSize: 10, color: "var(--text-secondary)", lineHeight: 1.7, background: "var(--bg-secondary)", borderTop: "1px solid var(--border-color)" }}>
+ <div style={{ padding: "10px 12px", fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", lineHeight: 1.7, background: "var(--bg-secondary)", borderTop: "1px solid var(--border-color)" }}>
  <strong style={{ color: "var(--text-warning-alt)" }}>Note:</strong>MD5 is not available in Web Crypto (deprecated for security). Use SHA-256 or higher for any security-sensitive purpose.
  </div>
  </div>
@@ -247,11 +247,11 @@ export function EncodingPanel() {
  const result = input ? fn(input) : "";
  return (
  <div key={label} style={{ borderBottom: "1px solid var(--border-color)", display: "flex", alignItems: "center" }}>
- <span style={{ width: 140, flexShrink: 0, padding: "6px 12px", fontSize: 10, fontWeight: 700, color: "var(--text-secondary)", fontFamily: "var(--font-mono)", background: "var(--bg-secondary)", alignSelf: "stretch", display: "flex", alignItems: "center" }}>{label}</span>
- <div style={{ flex: 1, padding: "6px 12px", fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-primary)", wordBreak: "break-all" }}>{result || <span style={{ color: "var(--text-secondary)", fontStyle: "italic" }}>—</span>}</div>
+ <span style={{ width: 140, flexShrink: 0, padding: "6px 12px", fontSize: "var(--font-size-xs)", fontWeight: 700, color: "var(--text-secondary)", fontFamily: "var(--font-mono)", background: "var(--bg-secondary)", alignSelf: "stretch", display: "flex", alignItems: "center" }}>{label}</span>
+ <div style={{ flex: 1, padding: "6px 12px", fontFamily: "var(--font-mono)", fontSize: "var(--font-size-base)", color: "var(--text-primary)", wordBreak: "break-all" }}>{result || <span style={{ color: "var(--text-secondary)", fontStyle: "italic" }}>—</span>}</div>
  {result && (
  <div style={{ paddingRight: 10, flexShrink: 0 }}>
- <button onClick={() => setInput(result)} style={{ fontSize: 9, padding: "2px 6px", background: "none", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-secondary)", cursor: "pointer", marginRight: 4 }}>↑ Use</button>
+ <button onClick={() => setInput(result)} style={{ fontSize: 9, padding: "2px 6px", background: "none", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-secondary)", cursor: "pointer", marginRight: 4 }}>↑ Use</button>
  <CopyButton text={result} />
  </div>
  )}
@@ -274,9 +274,9 @@ export function EncodingPanel() {
  { label: "Sentences", value: stats.sentences, colour: "var(--warning-color)" },
  { label: "Paragraphs", value: stats.paragraphs, colour: "var(--error-color)" },
  ].map(({ label, value, colour }) => (
- <div key={label} style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 6, padding: "8px 10px", textAlign: "center" }}>
+ <div key={label} style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", padding: "8px 10px", textAlign: "center" }}>
  <div style={{ fontSize: 20, fontWeight: 700, color: colour, fontFamily: "var(--font-mono)" }}>{value.toLocaleString()}</div>
- <div style={{ fontSize: 10, color: "var(--text-secondary)", marginTop: 2 }}>{label}</div>
+ <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginTop: 2 }}>{label}</div>
  </div>
  ))}
  </div>
@@ -284,15 +284,15 @@ export function EncodingPanel() {
  {/* Char frequency */}
  {stats.topChars.length > 0 && (
  <div>
- <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-secondary)", marginBottom: 8, letterSpacing: "0.05em" }}>TOP CHARACTERS (excluding whitespace)</div>
+ <div style={{ fontSize: "var(--font-size-xs)", fontWeight: 700, color: "var(--text-secondary)", marginBottom: 8, letterSpacing: "0.05em" }}>TOP CHARACTERS (excluding whitespace)</div>
  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
  {stats.topChars.map(([ch, count]) => (
  <div key={ch} style={{ display: "flex", alignItems: "center", gap: 8 }}>
- <span style={{ width: 24, textAlign: "center", fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: 700, color: "var(--text-primary)", flexShrink: 0, background: "var(--bg-secondary)", borderRadius: 4, padding: "1px 0" }}>{ch === " " ? "·" : ch}</span>
- <div style={{ flex: 1, background: "var(--bg-secondary)", borderRadius: 4, height: 12, overflow: "hidden" }}>
+ <span style={{ width: 24, textAlign: "center", fontFamily: "var(--font-mono)", fontSize: "var(--font-size-md)", fontWeight: 700, color: "var(--text-primary)", flexShrink: 0, background: "var(--bg-secondary)", borderRadius: "var(--radius-xs-plus)", padding: "1px 0" }}>{ch === " " ? "·" : ch}</span>
+ <div style={{ flex: 1, background: "var(--bg-secondary)", borderRadius: "var(--radius-xs-plus)", height: 12, overflow: "hidden" }}>
  <div style={{ width: `${(count / stats.maxFreq) * 100}%`, height: "100%", background: "rgba(137,180,250,0.5)", transition: "width 0.2s" }} />
  </div>
- <span style={{ fontSize: 11, color: "var(--text-secondary)", minWidth: 30, textAlign: "right", fontFamily: "var(--font-mono)" }}>{count}</span>
+ <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", minWidth: 30, textAlign: "right", fontFamily: "var(--font-mono)" }}>{count}</span>
  </div>
  ))}
  </div>

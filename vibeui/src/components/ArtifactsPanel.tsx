@@ -93,7 +93,7 @@ function TaskListBody({ items }: { items: TaskItem[] }) {
  <span style={{ color: item.done ? "var(--success-color)" : "var(--text-secondary)", marginTop: "2px" }}>
  {item.done ? "☑" : "☐"}
  </span>
- <span style={{ fontSize: "12px", color: item.done ? "var(--text-secondary)" : "var(--text-primary)", textDecoration: item.done ? "line-through" : "none" }}>
+ <span style={{ fontSize: "var(--font-size-base)", color: item.done ? "var(--text-secondary)" : "var(--text-primary)", textDecoration: item.done ? "line-through" : "none" }}>
  {item.description}
  {item.file && <span style={{ marginLeft: "6px", opacity: 0.6, fontStyle: "italic" }}>{item.file}</span>}
  </span>
@@ -107,19 +107,19 @@ function ImplementationPlanBody({ steps, files }: { steps: PlanStep[]; files: st
  return (
  <div>
  {files.length > 0 && (
- <div style={{ marginBottom: "8px", fontSize: "11px", color: "var(--text-secondary)" }}>
+ <div style={{ marginBottom: "8px", fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
  Files: {files.join(", ")}
  </div>
  )}
  {steps.map((step, i) => (
  <div key={step.id} style={{ display: "flex", gap: "8px", marginBottom: "6px", alignItems: "flex-start" }}>
- <span style={{ fontSize: "11px", color: "var(--text-secondary)", minWidth: "20px", textAlign: "right" }}>
+ <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", minWidth: "20px", textAlign: "right" }}>
  {i + 1}.
  </span>
  <div>
- <div style={{ fontSize: "12px", color: "var(--text-primary)" }}>{step.description}</div>
+ <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-primary)" }}>{step.description}</div>
  {step.estimated_path && (
- <div style={{ fontSize: "10px", color: "var(--accent-blue)", marginTop: "1px" }}>
+ <div style={{ fontSize: "var(--font-size-xs)", color: "var(--accent-blue)", marginTop: "1px" }}>
  {step.estimated_path}
  </div>
  )}
@@ -134,9 +134,9 @@ function FileChangeBody({ path, diff }: { path: string; diff: string }) {
  const lines = diff.split("\n").slice(0, 40);
  return (
  <div>
- <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginBottom: "6px" }}>{path}</div>
+ <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: "6px" }}>{path}</div>
  {diff ? (
- <pre style={{ fontSize: "11px", overflowX: "auto", maxHeight: "200px", overflowY: "auto", margin: 0, background: "var(--bg-primary)", padding: "8px", borderRadius: "4px", lineHeight: 1.4 }}>
+ <pre style={{ fontSize: "var(--font-size-sm)", overflowX: "auto", maxHeight: "200px", overflowY: "auto", margin: 0, background: "var(--bg-primary)", padding: "8px", borderRadius: "var(--radius-xs-plus)", lineHeight: 1.4 }}>
  {lines.map((line, i) => (
  <div key={i} style={{ color: line.startsWith("+") ? "var(--success-color)" : line.startsWith("-") ? "var(--error-color)" : "var(--text-secondary)" }}>
  {line}
@@ -145,7 +145,7 @@ function FileChangeBody({ path, diff }: { path: string; diff: string }) {
  {diff.split("\n").length > 40 && <div style={{ color: "var(--text-secondary)", fontStyle: "italic" }}>… {diff.split("\n").length - 40} more lines</div>}
  </pre>
  ) : (
- <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>New file</div>
+ <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>New file</div>
  )}
  </div>
  );
@@ -154,18 +154,18 @@ function FileChangeBody({ path, diff }: { path: string; diff: string }) {
 function CommandOutputBody({ command, stdout, stderr, exit_code }: { command: string; stdout: string; stderr: string; exit_code: number }) {
  return (
  <div>
- <div style={{ fontSize: "11px", fontFamily: "var(--font-mono)", color: "var(--accent-blue)", marginBottom: "6px" }}>$ {command}</div>
+ <div style={{ fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", color: "var(--accent-blue)", marginBottom: "6px" }}>$ {command}</div>
  {stdout && (
- <pre style={{ fontSize: "11px", margin: "0 0 4px 0", maxHeight: "120px", overflowY: "auto", color: "var(--text-primary)" }}>
+ <pre style={{ fontSize: "var(--font-size-sm)", margin: "0 0 4px 0", maxHeight: "120px", overflowY: "auto", color: "var(--text-primary)" }}>
  {stdout.trim()}
  </pre>
  )}
  {stderr && (
- <pre style={{ fontSize: "11px", margin: "0 0 4px 0", color: "var(--error-color)", maxHeight: "80px", overflowY: "auto" }}>
+ <pre style={{ fontSize: "var(--font-size-sm)", margin: "0 0 4px 0", color: "var(--error-color)", maxHeight: "80px", overflowY: "auto" }}>
  {stderr.trim()}
  </pre>
  )}
- <div style={{ fontSize: "10px", color: exit_code === 0 ? "var(--success-color)" : "var(--error-color)" }}>
+ <div style={{ fontSize: "var(--font-size-xs)", color: exit_code === 0 ? "var(--success-color)" : "var(--error-color)" }}>
  Exit code: {exit_code}
  </div>
  </div>
@@ -176,12 +176,12 @@ function TestResultsBody({ passed, failed, skipped, output }: { passed: number; 
  return (
  <div>
  <div style={{ display: "flex", gap: "12px", marginBottom: "8px" }}>
- <span style={{ fontSize: "12px", color: "var(--success-color)" }}> {passed} passed</span>
- {failed > 0 && <span style={{ fontSize: "12px", color: "var(--error-color)" }}> {failed} failed</span>}
- {skipped > 0 && <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>{skipped} skipped</span>}
+ <span style={{ fontSize: "var(--font-size-base)", color: "var(--success-color)" }}> {passed} passed</span>
+ {failed > 0 && <span style={{ fontSize: "var(--font-size-base)", color: "var(--error-color)" }}> {failed} failed</span>}
+ {skipped > 0 && <span style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>{skipped} skipped</span>}
  </div>
  {output && (
- <pre style={{ fontSize: "10px", maxHeight: "100px", overflowY: "auto", margin: 0, color: "var(--text-secondary)" }}>
+ <pre style={{ fontSize: "var(--font-size-xs)", maxHeight: "100px", overflowY: "auto", margin: 0, color: "var(--text-secondary)" }}>
  {output.trim()}
  </pre>
  )}
@@ -192,19 +192,19 @@ function TestResultsBody({ passed, failed, skipped, output }: { passed: number; 
 function ReviewReportBody({ issues, summary, score }: { issues: ReviewIssueRef[]; summary: string; score: number }) {
  return (
  <div>
- <div style={{ fontSize: "12px", color: "var(--text-primary)", marginBottom: "8px" }}>{summary}</div>
- <div style={{ fontSize: "11px", color: score >= 8 ? "var(--success-color)" : score >= 5 ? "var(--warning-color)" : "var(--error-color)", marginBottom: "8px" }}>
+ <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-primary)", marginBottom: "8px" }}>{summary}</div>
+ <div style={{ fontSize: "var(--font-size-sm)", color: score >= 8 ? "var(--success-color)" : score >= 5 ? "var(--warning-color)" : "var(--error-color)", marginBottom: "8px" }}>
  Score: {score.toFixed(1)}/10
  </div>
  {issues.map((issue, i) => (
  <div key={i} style={{ padding: "4px 0", borderTop: "1px solid var(--border-color)" }}>
- <span style={{ fontSize: "11px", color: severityColor(issue.severity), marginRight: "6px" }}>
+ <span style={{ fontSize: "var(--font-size-sm)", color: severityColor(issue.severity), marginRight: "6px" }}>
  {issue.severity}
  </span>
- <span style={{ fontSize: "11px", color: "var(--text-secondary)", marginRight: "6px" }}>
+ <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginRight: "6px" }}>
  {issue.file}:{issue.line}
  </span>
- <span style={{ fontSize: "11px", color: "var(--text-primary)" }}>{issue.description}</span>
+ <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-primary)" }}>{issue.description}</span>
  </div>
  ))}
  </div>
@@ -213,7 +213,7 @@ function ReviewReportBody({ issues, summary, score }: { issues: ReviewIssueRef[]
 
 function TextBody({ content }: { content: string }) {
  return (
- <pre style={{ fontSize: "12px", whiteSpace: "pre-wrap", wordBreak: "break-word", margin: 0, color: "var(--text-primary)", maxHeight: "200px", overflowY: "auto" }}>
+ <pre style={{ fontSize: "var(--font-size-base)", whiteSpace: "pre-wrap", wordBreak: "break-word", margin: 0, color: "var(--text-primary)", maxHeight: "200px", overflowY: "auto" }}>
  {content}
  </pre>
  );
@@ -256,7 +256,7 @@ function ArtifactCard({
  return (
  <div style={{
  border: "1px solid var(--border-color)",
- borderRadius: "6px",
+ borderRadius: "var(--radius-sm)",
  marginBottom: "8px",
  background: "var(--bg-secondary)",
  overflow: "hidden",
@@ -274,12 +274,12 @@ function ArtifactCard({
  userSelect: "none",
  }}
  >
- <span style={{ fontSize: "14px" }}>{artifactIcon(artifact.artifact)}</span>
+ <span style={{ fontSize: "var(--font-size-lg)" }}>{artifactIcon(artifact.artifact)}</span>
  <div style={{ flex: 1, minWidth: 0 }}>
- <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+ <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, color: "var(--text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
  {artifactLabel(artifact.artifact)}
  </div>
- <div style={{ fontSize: "10px", color: "var(--text-secondary)" }}>
+ <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>
  Step {artifact.step}
  {pendingAnnotations.length > 0 && (
  <span style={{ marginLeft: "8px", color: "var(--warning-color)" }}>
@@ -288,7 +288,7 @@ function ArtifactCard({
  )}
  </div>
  </div>
- <span style={{ fontSize: "10px", color: "var(--text-secondary)" }}>{expanded ? "" : <ChevronDown size={10} />}</span>
+ <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>{expanded ? "" : <ChevronDown size={10} />}</span>
  </div>
 
  {/* Body */}
@@ -301,10 +301,10 @@ function ArtifactCard({
  <div style={{ marginTop: "10px", paddingTop: "8px", borderTop: "1px solid var(--border-color)" }}>
  {artifact.annotations.map((ann, i) => (
  <div key={i} style={{ marginBottom: "4px", display: "flex", gap: "6px", alignItems: "flex-start" }}>
- <span style={{ fontSize: "10px", color: ann.applied ? "var(--success-color)" : "var(--warning-color)" }}>
+ <span style={{ fontSize: "var(--font-size-xs)", color: ann.applied ? "var(--success-color)" : "var(--warning-color)" }}>
  {ann.applied ? "✔" : ""}
  </span>
- <span style={{ fontSize: "11px", color: ann.applied ? "var(--text-secondary)" : "var(--text-primary)", fontStyle: "italic" }}>
+ <span style={{ fontSize: "var(--font-size-sm)", color: ann.applied ? "var(--text-secondary)" : "var(--text-primary)", fontStyle: "italic" }}>
  {ann.text}
  </span>
  </div>
@@ -327,7 +327,7 @@ function ArtifactCard({
  style={{
  flex: 1,
  padding: "4px 7px",
- fontSize: "11px",
+ fontSize: "var(--font-size-sm)",
  background: "var(--bg-input, var(--bg-primary))",
  border: "1px solid var(--border-color)",
  borderRadius: "3px",
@@ -335,17 +335,17 @@ function ArtifactCard({
  outline: "none",
  }}
  />
- <button onClick={submitAnnotation} style={{ padding: "4px 8px", fontSize: "11px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "3px", cursor: "pointer" }}>
+ <button onClick={submitAnnotation} style={{ padding: "4px 8px", fontSize: "var(--font-size-sm)", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "3px", cursor: "pointer" }}>
  Add
  </button>
- <button onClick={() => setShowAnnotationForm(false)} style={{ padding: "4px 6px", fontSize: "11px", background: "none", border: "1px solid var(--border-color)", borderRadius: "3px", color: "var(--text-secondary)", cursor: "pointer" }}>
+ <button onClick={() => setShowAnnotationForm(false)} style={{ padding: "4px 6px", fontSize: "var(--font-size-sm)", background: "none", border: "1px solid var(--border-color)", borderRadius: "3px", color: "var(--text-secondary)", cursor: "pointer" }}>
  ✕
  </button>
  </div>
  ) : (
  <button
  onClick={() => setShowAnnotationForm(true)}
- style={{ fontSize: "11px", padding: "3px 8px", background: "none", border: "1px dashed var(--border-color)", borderRadius: "3px", color: "var(--text-secondary)", cursor: "pointer" }}
+ style={{ fontSize: "var(--font-size-sm)", padding: "3px 8px", background: "none", border: "1px dashed var(--border-color)", borderRadius: "3px", color: "var(--text-secondary)", cursor: "pointer" }}
  >
  + Add note
  </button>
@@ -363,10 +363,10 @@ function ArtifactCard({
 export function ArtifactsPanel({ artifacts = [], onAnnotate }: Partial<ArtifactsPanelProps>) {
  if (!artifacts || artifacts.length === 0) {
  return (
- <div style={{ padding: "24px 16px", color: "var(--text-secondary)", fontSize: "13px", textAlign: "center" }}>
+ <div style={{ padding: "24px 16px", color: "var(--text-secondary)", fontSize: "var(--font-size-md)", textAlign: "center" }}>
  <div style={{ fontSize: "24px", marginBottom: "8px" }}></div>
  <div>No artifacts yet.</div>
- <div style={{ fontSize: "11px", marginTop: "4px", opacity: 0.7 }}>
+ <div style={{ fontSize: "var(--font-size-sm)", marginTop: "4px", opacity: 0.7 }}>
  Artifacts appear when the agent writes files, runs commands, or produces structured output.
  </div>
  </div>
@@ -375,7 +375,7 @@ export function ArtifactsPanel({ artifacts = [], onAnnotate }: Partial<Artifacts
 
  return (
  <div style={{ padding: "8px", overflowY: "auto", height: "100%" }}>
- <div style={{ fontSize: "11px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-secondary)", marginBottom: "8px", padding: "4px 2px" }}>
+ <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-secondary)", marginBottom: "8px", padding: "4px 2px" }}>
  {artifacts.length} Artifact{artifacts.length !== 1 ? "s" : ""}
  </div>
  {artifacts.map((artifact) => (

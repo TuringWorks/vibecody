@@ -153,13 +153,13 @@ const AgentModesPanel: React.FC = () => {
                 </div>
                 <div>
                   <strong>{m.name}</strong>
-                  {activeMode === m.id && <span style={{ marginLeft: "8px", fontSize: "11px", color: "var(--success-color)" }}>Active</span>}
+                  {activeMode === m.id && <span style={{ marginLeft: "8px", fontSize: "var(--font-size-sm)", color: "var(--success-color)" }}>Active</span>}
                 </div>
               </div>
-              <p style={{ margin: "4px 0 8px", fontSize: "12px", opacity: 0.8 }}>{m.description}</p>
+              <p style={{ margin: "4px 0 8px", fontSize: "var(--font-size-base)", opacity: 0.8 }}>{m.description}</p>
               <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
                 {m.traits.map((t) => (
-                  <span key={t} style={{ padding: "2px 8px", borderRadius: "10px", fontSize: "11px", backgroundColor: "var(--bg-tertiary)", color: "var(--btn-primary-fg)" }}>{t}</span>
+                  <span key={t} style={{ padding: "2px 8px", borderRadius: "var(--radius-md)", fontSize: "var(--font-size-sm)", backgroundColor: "var(--bg-tertiary)", color: "var(--btn-primary-fg)" }}>{t}</span>
                 ))}
               </div>
             </div>
@@ -173,7 +173,7 @@ const AgentModesPanel: React.FC = () => {
             <thead>
               <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
                 {["Mode", "Invocations", "Avg Tokens", "Last Used"].map((h) => (
-                  <th key={h} style={{ padding: "6px 8px", textAlign: "left", fontSize: "12px", opacity: 0.7 }}>{h}</th>
+                  <th key={h} style={{ padding: "6px 8px", textAlign: "left", fontSize: "var(--font-size-base)", opacity: 0.7 }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -183,12 +183,12 @@ const AgentModesPanel: React.FC = () => {
                   <td style={{ padding: "8px" }}><strong>{modes.find((m) => m.id === s.modeId)?.name}</strong></td>
                   <td style={{ padding: "8px" }}>{s.invocations}</td>
                   <td style={{ padding: "8px" }}>{s.avgTokens.toLocaleString()}</td>
-                  <td style={{ padding: "8px", fontSize: "12px", opacity: 0.7 }}>{s.lastUsed}</td>
+                  <td style={{ padding: "8px", fontSize: "var(--font-size-base)", opacity: 0.7 }}>{s.lastUsed}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <div style={{ marginTop: "12px", fontSize: "12px", opacity: 0.6 }}>
+          <div style={{ marginTop: "12px", fontSize: "var(--font-size-base)", opacity: 0.6 }}>
             Total invocations: {stats.reduce((a, s) => a + s.invocations, 0)}
           </div>
           <button className="panel-btn panel-btn-secondary" style={{ marginTop: "8px" }} onClick={loadStats}>Refresh</button>
@@ -201,9 +201,9 @@ const AgentModesPanel: React.FC = () => {
             <div key={p.id} className="panel-card" style={{ marginBottom: "8px" }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <strong>{p.name}</strong>
-                <span style={{ fontSize: "12px", opacity: 0.7 }}>Base: {p.baseMode}</span>
+                <span style={{ fontSize: "var(--font-size-base)", opacity: 0.7 }}>Base: {p.baseMode}</span>
               </div>
-              <div style={{ fontSize: "12px", marginTop: "4px", opacity: 0.7 }}>
+              <div style={{ fontSize: "var(--font-size-base)", marginTop: "4px", opacity: 0.7 }}>
                 Max tokens: {p.maxTokens} | Temperature: {p.temperature}
               </div>
             </div>

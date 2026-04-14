@@ -471,7 +471,7 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
 
   // ── Shared mini-components ────────────────────────────────────────────────
   const Badge = ({ label, color }: { label: string; color: string }) => (
-    <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 10, border: `1px solid ${color}`, color, whiteSpace: "nowrap" }}>
+    <span style={{ fontSize: "var(--font-size-xs)", padding: "2px 7px", borderRadius: "var(--radius-md)", border: `1px solid ${color}`, color, whiteSpace: "nowrap" }}>
       {label}
     </span>
   );
@@ -481,7 +481,7 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
       <div style={{ width: 60, height: 4, background: "var(--bg-tertiary)", borderRadius: 2, overflow: "hidden" }}>
         <div style={{ width: `${pct}%`, height: "100%", borderRadius: 2, background: pct === 100 ? "var(--accent-green,#22c55e)" : "var(--accent-color,#4f8ef7)" }} />
       </div>
-      <span className="panel-label" style={{ fontSize: 10 }}>{total === 0 ? "0 artifacts" : `${Math.round(pct / 100 * total)}/${total} approved`}</span>
+      <span className="panel-label" style={{ fontSize: "var(--font-size-xs)" }}>{total === 0 ? "0 artifacts" : `${Math.round(pct / 100 * total)}/${total} approved`}</span>
     </div>
   );
 
@@ -529,8 +529,8 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
     return (
       <div style={{
         display: "flex", alignItems: "center", gap: 8, padding: "4px 8px",
-        fontSize: 11, color: "var(--text-secondary)", background: "var(--bg-tertiary)",
-        borderRadius: 4, marginBottom: 6,
+        fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", background: "var(--bg-tertiary)",
+        borderRadius: "var(--radius-xs-plus)", marginBottom: 6,
       }}>
         <span>Last scanned: <strong style={{ color: "var(--text-primary)" }}>{scanInfo.ago}</strong></span>
         <span title={scanInfo.date}>({scanInfo.date})</span>
@@ -546,13 +546,13 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
     return (
       <div className="panel-card" style={{ marginBottom: 8, maxHeight: 200, overflowY: "auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-          <span style={{ fontWeight: 600, fontSize: 12 }}>Scan History</span>
+          <span style={{ fontWeight: 600, fontSize: "var(--font-size-base)" }}>Scan History</span>
           <button className="panel-btn panel-btn-secondary panel-btn-sm" onClick={handleClearHistory}
             title="Delete all scan history" style={{ color: "var(--error-color)" }}>
             <Trash2 size={11} strokeWidth={1.5} style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }} />Clear All
           </button>
         </div>
-        <table style={{ width: "100%", fontSize: 11, borderCollapse: "collapse" }}>
+        <table style={{ width: "100%", fontSize: "var(--font-size-sm)", borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ borderBottom: "1px solid var(--border-color)", color: "var(--text-secondary)" }}>
               <th style={{ textAlign: "left", padding: "3px 6px" }}>Date</th>
@@ -578,8 +578,8 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
                 <td style={{ textAlign: "right", padding: "3px 6px" }}>{s.governance_rules}</td>
                 <td style={{ padding: "3px 6px" }}>
                   {s.current
-                    ? <span style={{ fontSize: 10, color: "var(--accent-green)" }}>current</span>
-                    : <button className="panel-btn panel-btn-secondary" style={{ fontSize: 10, padding: "1px 6px" }}
+                    ? <span style={{ fontSize: "var(--font-size-xs)", color: "var(--accent-green)" }}>current</span>
+                    : <button className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px" }}
                         onClick={() => loadHistoricalScan(s.timestamp)}>Load</button>
                   }
                 </td>
@@ -601,16 +601,16 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
   const ReportPane = () => report ? (
     <div className="panel-card" style={{ marginTop: 10 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-        <span style={{ fontWeight: 600, fontSize: 12 }}>{reportLabel}</span>
+        <span style={{ fontWeight: 600, fontSize: "var(--font-size-base)" }}>{reportLabel}</span>
         <button className="panel-btn panel-btn-secondary panel-btn-sm" onClick={() => setReport("")}><X size={12} strokeWidth={1.5} style={{ display: "inline", verticalAlign: "middle" }} /></button>
       </div>
       <textarea
         value={report}
         onChange={e => setReport(e.target.value)}
         style={{
-          width: "100%", minHeight: 320, fontFamily: "monospace", fontSize: 11,
+          width: "100%", minHeight: 320, fontFamily: "monospace", fontSize: "var(--font-size-sm)",
           background: "var(--bg-tertiary)", color: "var(--text-primary)",
-          border: "1px solid var(--border-color)", borderRadius: 4,
+          border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)",
           padding: "8px", resize: "vertical", boxSizing: "border-box",
         }}
       />
@@ -642,7 +642,7 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
       <ScanStatusBar />
       <ScanHistoryPanel />
 
-      {!workspacePath && <div className="panel-card" style={{ color: "var(--text-secondary)", fontSize: 13 }}>Open a workspace folder to enable architecture tracking.</div>}
+      {!workspacePath && <div className="panel-card" style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-md)" }}>Open a workspace folder to enable architecture tracking.</div>}
       {loading && <div className="panel-label" style={{ padding: 8 }}>Loading…</div>}
 
       <div style={{ overflowY: "auto", maxHeight: "calc(100vh - 280px)" }}>
@@ -655,7 +655,7 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center",
                 padding: "6px 0", borderBottom: "1px solid var(--border-color)", cursor: arts.length ? "pointer" : "default" }}
                 onClick={() => arts.length && setExpandedPhase(open ? null : phase.key)}>
-                <span style={{ fontSize: 13 }}>
+                <span style={{ fontSize: "var(--font-size-md)" }}>
                   {arts.length > 0 && (open
                     ? <ChevronDown size={12} strokeWidth={1.5} style={{ display: "inline", verticalAlign: "middle", marginRight: 4, color: "var(--text-secondary)" }} />
                     : <ChevronRight size={12} strokeWidth={1.5} style={{ display: "inline", verticalAlign: "middle", marginRight: 4, color: "var(--text-secondary)" }} />
@@ -665,52 +665,52 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
                 <ProgBar pct={pct} total={arts.length} />
               </div>
               {open && (
-                <div style={{ background: "var(--bg-secondary)", borderRadius: 6, margin: "4px 0 8px", padding: "6px 10px" }}>
+                <div style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", margin: "4px 0 8px", padding: "6px 10px" }}>
                   {arts.map(art => (
                     <div key={art.id} style={{ padding: "10px 0", borderBottom: "1px solid var(--border-color)" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                            <span style={{ fontWeight: 600, fontSize: 12 }}>{art.name}</span>
+                            <span style={{ fontWeight: 600, fontSize: "var(--font-size-base)" }}>{art.name}</span>
                             <Badge label={art.artifact_type} color="var(--text-secondary)" />
                             <Badge label={art.status} color={ARTIFACT_STATUS_COLOR[art.status]} />
                           </div>
-                          <div className="panel-label" style={{ fontSize: 11, marginBottom: 6 }}>Description</div>
+                          <div className="panel-label" style={{ fontSize: "var(--font-size-sm)", marginBottom: 6 }}>Description</div>
                           <textarea
                             value={art.description}
                             onChange={e => patchArtifact(art.id, "description", e.target.value)}
                             rows={2}
                             style={{
-                              width: "100%", fontSize: 11, padding: "4px 8px", resize: "vertical",
+                              width: "100%", fontSize: "var(--font-size-sm)", padding: "4px 8px", resize: "vertical",
                               background: "var(--bg-tertiary)", color: "var(--text-primary)",
-                              border: "1px solid var(--border-color)", borderRadius: 4, boxSizing: "border-box",
+                              border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", boxSizing: "border-box",
                               marginBottom: 6,
                             }}
                           />
-                          <div className="panel-label" style={{ fontSize: 11, marginBottom: 4 }}>Content</div>
+                          <div className="panel-label" style={{ fontSize: "var(--font-size-sm)", marginBottom: 4 }}>Content</div>
                           <textarea
                             value={art.content}
                             onChange={e => patchArtifact(art.id, "content", e.target.value)}
                             rows={6}
                             style={{
-                              width: "100%", fontFamily: "monospace", fontSize: 11, padding: "6px 8px",
+                              width: "100%", fontFamily: "monospace", fontSize: "var(--font-size-sm)", padding: "6px 8px",
                               resize: "vertical", background: "var(--bg-tertiary)", color: "var(--text-primary)",
-                              border: "1px solid var(--border-color)", borderRadius: 4, boxSizing: "border-box",
+                              border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", boxSizing: "border-box",
                             }}
                             placeholder="Artifact content (generated or manually authored)…"
                           />
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 4, flexShrink: 0 }}>
                           {art.status !== "Approved" && (
-                            <button className="panel-btn panel-btn-sm" style={{ fontSize: 10, padding: "2px 8px", color: "var(--accent-green,#22c55e)", borderColor: "var(--accent-green,#22c55e)" }}
+                            <button className="panel-btn panel-btn-sm" style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px", color: "var(--accent-green,#22c55e)", borderColor: "var(--accent-green,#22c55e)" }}
                               disabled={statusBusy === art.id} onClick={() => setArtifactStatus(art.id, "Approved")}><Check size={11} strokeWidth={2} style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }} />Approve</button>
                           )}
                           {art.status !== "Review" && art.status !== "Approved" && (
-                            <button className="panel-btn panel-btn-secondary panel-btn-sm" style={{ fontSize: 10, padding: "2px 8px" }}
+                            <button className="panel-btn panel-btn-secondary panel-btn-sm" style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px" }}
                               disabled={statusBusy === art.id} onClick={() => setArtifactStatus(art.id, "Review")}><RotateCcw size={11} strokeWidth={1.5} style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }} />Review</button>
                           )}
                           {art.status === "Approved" && (
-                            <button className="panel-btn panel-btn-sm" style={{ fontSize: 10, padding: "2px 8px", color: "var(--error-color)", borderColor: "var(--error-color)" }}
+                            <button className="panel-btn panel-btn-sm" style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px", color: "var(--error-color)", borderColor: "var(--error-color)" }}
                               disabled={statusBusy === art.id} onClick={() => setArtifactStatus(art.id, "Draft")}><X size={11} strokeWidth={2} style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }} />Revoke</button>
                           )}
                         </div>
@@ -764,7 +764,7 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
           return (
             <div className="panel-card" style={{ marginBottom: 10, border: "1px solid var(--accent-color)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                <span style={{ fontWeight: 600, fontSize: 13 }}>Edit Cell: {p} / {a}</span>
+                <span style={{ fontWeight: 600, fontSize: "var(--font-size-md)" }}>Edit Cell: {p} / {a}</span>
                 <button className="panel-btn panel-btn-secondary panel-btn-sm" onClick={() => setEditingCell(null)}><X size={12} strokeWidth={1.5} style={{ display: "inline", verticalAlign: "middle" }} /></button>
               </div>
               <div className="panel-label" style={{ marginBottom: 4 }}>Content</div>
@@ -774,14 +774,14 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
                 onChange={e => patchZachmanCell(editingCell, "content", e.target.value)}
                 rows={5}
                 style={{
-                  width: "100%", fontSize: 12, padding: "6px 8px", resize: "vertical",
+                  width: "100%", fontSize: "var(--font-size-base)", padding: "6px 8px", resize: "vertical",
                   background: "var(--bg-tertiary)", color: "var(--text-primary)",
-                  border: "1px solid var(--border-color)", borderRadius: 4, boxSizing: "border-box", marginBottom: 8,
+                  border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", boxSizing: "border-box", marginBottom: 8,
                 }}
                 placeholder={`Describe the ${a.toLowerCase()} dimension from the ${p.toLowerCase()} perspective…`}
               />
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <div className="panel-label" style={{ fontSize: 11 }}>Maturity: {cell.maturity}/5</div>
+                <div className="panel-label" style={{ fontSize: "var(--font-size-sm)" }}>Maturity: {cell.maturity}/5</div>
                 <input type="range" min={0} max={5} value={cell.maturity}
                   onChange={e => patchZachmanCell(editingCell, "maturity", Number(e.target.value))}
                   style={{ width: 120 }} />
@@ -792,7 +792,7 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
 
         {hasData && (
           <div style={{ overflowX: "auto", overflowY: "auto", maxHeight: "calc(100vh - 320px)" }}>
-            <table style={{ borderCollapse: "collapse", fontSize: 11, tableLayout: "fixed", minWidth: 700 }}>
+            <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)", tableLayout: "fixed", minWidth: 700 }}>
               <colgroup>
                 <col style={{ width: 100 }} />
                 {ZACHMAN_ASPECTS.map(a => <col key={a} style={{ width: 140 }} />)}
@@ -801,7 +801,7 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
                 <tr>
                   <th style={{ padding: "6px 8px", border: "1px solid var(--border-color)", background: "var(--bg-secondary)", textAlign: "left", position: "sticky", top: 0, zIndex: 2 }} />
                   {ZACHMAN_ASPECTS.map(a => (
-                    <th key={a} style={{ padding: "6px 8px", border: "1px solid var(--border-color)", background: "var(--bg-secondary)", fontSize: 10, fontWeight: 600, textAlign: "center", position: "sticky", top: 0, zIndex: 2 }}>
+                    <th key={a} style={{ padding: "6px 8px", border: "1px solid var(--border-color)", background: "var(--bg-secondary)", fontSize: "var(--font-size-xs)", fontWeight: 600, textAlign: "center", position: "sticky", top: 0, zIndex: 2 }}>
                       {a}
                     </th>
                   ))}
@@ -827,7 +827,7 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
                           title={cell?.content ? `${p} / ${a}: ${cell.content}` : `Click to add ${p} / ${a}`}>
                           {cell?.content ? (
                             <>
-                              <div style={{ fontSize: 10, color: "var(--text-primary)", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical" }}>
+                              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-primary)", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical" }}>
                                 {cell.content}
                               </div>
                               {maturity > 0 && (
@@ -838,7 +838,7 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
                                 </div>
                               )}
                             </>
-                          ) : <span style={{ color: "var(--text-secondary)", fontSize: 10 }}>+ Add</span>}
+                          ) : <span style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-xs)" }}>+ Add</span>}
                         </td>
                       );
                     })}
@@ -846,7 +846,7 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
                 ))}
               </tbody>
             </table>
-            <div className="panel-label" style={{ marginTop: 6, fontSize: 10 }}>
+            <div className="panel-label" style={{ marginTop: 6, fontSize: "var(--font-size-xs)" }}>
               Click any cell to edit. Sticky header/perspective column. Maturity dots: 1=Initial → 5=Optimised.
             </div>
           </div>
@@ -871,44 +871,44 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
       if (!items.length) return null;
       return (
         <div style={{ marginBottom: 12 }}>
-          <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 6, color: "var(--text-secondary)" }}>{label}</div>
+          <div style={{ fontWeight: 600, fontSize: "var(--font-size-base)", marginBottom: 6, color: "var(--text-secondary)" }}>{label}</div>
           {items.map(el => (
             <div key={el.id} style={{ padding: "8px 0", borderBottom: "1px solid var(--border-color)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", cursor: "pointer", marginBottom: 4 }}
                 onClick={() => setExpandedC4(expandedC4 === el.id ? null : el.id)}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontWeight: 600, fontSize: 12 }}>{el.name}</span>
+                  <span style={{ fontWeight: 600, fontSize: "var(--font-size-base)" }}>{el.name}</span>
                   {expandedC4 === el.id
                     ? <ChevronDown size={12} strokeWidth={1.5} style={{ color: "var(--text-secondary)" }} />
                     : <ChevronRight size={12} strokeWidth={1.5} style={{ color: "var(--text-secondary)" }} />}
                 </div>
-                {el.technology && <span className="panel-label" style={{ fontSize: 10 }}>{el.technology}</span>}
+                {el.technology && <span className="panel-label" style={{ fontSize: "var(--font-size-xs)" }}>{el.technology}</span>}
               </div>
               {expandedC4 === el.id && (
                 <div style={{ marginTop: 6 }}>
-                  <div className="panel-label" style={{ fontSize: 11, marginBottom: 4 }}>Description</div>
+                  <div className="panel-label" style={{ fontSize: "var(--font-size-sm)", marginBottom: 4 }}>Description</div>
                   <textarea
                     value={el.description}
                     onChange={e => patchC4Element(el.id, "description", e.target.value)}
                     rows={2}
                     style={{
-                      width: "100%", fontSize: 11, padding: "4px 8px", resize: "vertical",
+                      width: "100%", fontSize: "var(--font-size-sm)", padding: "4px 8px", resize: "vertical",
                       background: "var(--bg-tertiary)", color: "var(--text-primary)",
-                      border: "1px solid var(--border-color)", borderRadius: 4, boxSizing: "border-box", marginBottom: 6,
+                      border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", boxSizing: "border-box", marginBottom: 6,
                     }}
                   />
-                  <div className="panel-label" style={{ fontSize: 11, marginBottom: 4 }}>Technology</div>
+                  <div className="panel-label" style={{ fontSize: "var(--font-size-sm)", marginBottom: 4 }}>Technology</div>
                   <input
                     value={el.technology}
                     onChange={e => patchC4Element(el.id, "technology", e.target.value)}
                     style={{
-                      width: "100%", fontSize: 11, padding: "4px 8px",
+                      width: "100%", fontSize: "var(--font-size-sm)", padding: "4px 8px",
                       background: "var(--bg-tertiary)", color: "var(--text-primary)",
-                      border: "1px solid var(--border-color)", borderRadius: 4, boxSizing: "border-box", marginBottom: 6,
+                      border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", boxSizing: "border-box", marginBottom: 6,
                     }}
                   />
                   {rels.filter(r => r.source_id === el.id || r.target_id === el.id).map((r, i) => (
-                    <div key={i} style={{ fontSize: 10, padding: "2px 0", color: "var(--text-secondary)" }}>
+                    <div key={i} style={{ fontSize: "var(--font-size-xs)", padding: "2px 0", color: "var(--text-secondary)" }}>
                       {r.source_id === el.id
                         ? <span>→ <b>{nameOf(r.target_id)}</b>: {r.description}{r.technology ? ` [${r.technology}]` : ""}</span>
                         : <span>← <b>{nameOf(r.source_id)}</b>: {r.description}</span>}
@@ -991,64 +991,64 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
                             value={adr.title}
                             onChange={e => patchAdr(adr.id, "title", e.target.value)}
                             style={{
-                              fontSize: 12, fontWeight: 600, padding: "2px 6px", flex: 1,
+                              fontSize: "var(--font-size-base)", fontWeight: 600, padding: "2px 6px", flex: 1,
                               background: "var(--bg-tertiary)", color: "var(--text-primary)",
-                              border: "1px solid var(--border-color)", borderRadius: 4, boxSizing: "border-box",
+                              border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", boxSizing: "border-box",
                             }}
                           />
                           <Badge label={statusLabel} color={ADR_STATUS_COLOR[statusLabel] ?? "var(--text-secondary)"} />
-                          {adr.date && <span className="panel-label" style={{ fontSize: 10 }}>{adr.date}</span>}
+                          {adr.date && <span className="panel-label" style={{ fontSize: "var(--font-size-xs)" }}>{adr.date}</span>}
                         </div>
-                        <div className="panel-label" style={{ fontSize: 11, marginBottom: 3 }}>Context</div>
+                        <div className="panel-label" style={{ fontSize: "var(--font-size-sm)", marginBottom: 3 }}>Context</div>
                         <textarea
                           value={adr.context}
                           onChange={e => patchAdr(adr.id, "context", e.target.value)}
                           rows={2}
                           style={{
-                            width: "100%", fontSize: 11, padding: "4px 8px", resize: "vertical", marginBottom: 6,
+                            width: "100%", fontSize: "var(--font-size-sm)", padding: "4px 8px", resize: "vertical", marginBottom: 6,
                             background: "var(--bg-tertiary)", color: "var(--text-primary)",
-                            border: "1px solid var(--border-color)", borderRadius: 4, boxSizing: "border-box",
+                            border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", boxSizing: "border-box",
                           }}
                         />
-                        <div className="panel-label" style={{ fontSize: 11, marginBottom: 3 }}>Decision</div>
+                        <div className="panel-label" style={{ fontSize: "var(--font-size-sm)", marginBottom: 3 }}>Decision</div>
                         <textarea
                           value={adr.decision}
                           onChange={e => patchAdr(adr.id, "decision", e.target.value)}
                           rows={2}
                           style={{
-                            width: "100%", fontSize: 11, padding: "4px 8px", resize: "vertical", marginBottom: 6,
+                            width: "100%", fontSize: "var(--font-size-sm)", padding: "4px 8px", resize: "vertical", marginBottom: 6,
                             background: "var(--bg-tertiary)", color: "var(--text-primary)",
-                            border: "1px solid var(--border-color)", borderRadius: 4, boxSizing: "border-box",
+                            border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", boxSizing: "border-box",
                           }}
                         />
-                        <div className="panel-label" style={{ fontSize: 11, marginBottom: 3 }}>Consequences</div>
+                        <div className="panel-label" style={{ fontSize: "var(--font-size-sm)", marginBottom: 3 }}>Consequences</div>
                         <textarea
                           value={adr.consequences.join("\n")}
                           onChange={e => patchAdr(adr.id, "consequences", e.target.value.split("\n"))}
                           rows={3}
                           style={{
-                            width: "100%", fontSize: 11, padding: "4px 8px", resize: "vertical",
+                            width: "100%", fontSize: "var(--font-size-sm)", padding: "4px 8px", resize: "vertical",
                             background: "var(--bg-tertiary)", color: "var(--text-primary)",
-                            border: "1px solid var(--border-color)", borderRadius: 4, boxSizing: "border-box",
+                            border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", boxSizing: "border-box",
                           }}
                         />
                         {adr.tags.length > 0 && (
                           <div style={{ marginTop: 6, display: "flex", gap: 4, flexWrap: "wrap" }}>
-                            {adr.tags.map(t => <span key={t} className="panel-label" style={{ fontSize: 9, padding: "1px 5px", border: "1px solid var(--border-color)", borderRadius: 8 }}>{t}</span>)}
+                            {adr.tags.map(t => <span key={t} className="panel-label" style={{ fontSize: 9, padding: "1px 5px", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm-alt)" }}>{t}</span>)}
                           </div>
                         )}
                       </div>
                       <div style={{ display: "flex", flexDirection: "column", gap: 4, flexShrink: 0 }}>
                         {statusLabel !== "Accepted" && (
-                          <button className="panel-btn panel-btn-sm" style={{ fontSize: 10, padding: "2px 8px", color: "var(--accent-green,#22c55e)", borderColor: "var(--accent-green,#22c55e)" }}
+                          <button className="panel-btn panel-btn-sm" style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px", color: "var(--accent-green,#22c55e)", borderColor: "var(--accent-green,#22c55e)" }}
                             disabled={statusBusy === adr.id} onClick={() => setAdrStatus(adr.id, "Accepted")}><Check size={11} strokeWidth={2} style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }} />Accept</button>
                         )}
                         {statusLabel !== "Deprecated" && statusLabel !== "Accepted" && (
-                          <button className="panel-btn panel-btn-secondary panel-btn-sm" style={{ fontSize: 10, padding: "2px 8px" }}
+                          <button className="panel-btn panel-btn-secondary panel-btn-sm" style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px" }}
                             disabled={statusBusy === adr.id} onClick={() => setAdrStatus(adr.id, "Deprecated")}><X size={11} strokeWidth={2} style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }} />Deprecate</button>
                         )}
                         {statusLabel === "Accepted" && (
-                          <button className="panel-btn panel-btn-sm" style={{ fontSize: 10, padding: "2px 8px", color: "var(--error-color)", borderColor: "var(--error-color)" }}
+                          <button className="panel-btn panel-btn-sm" style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px", color: "var(--error-color)", borderColor: "var(--error-color)" }}
                             disabled={statusBusy === adr.id} onClick={() => setAdrStatus(adr.id, "Proposed")}><RotateCcw size={11} strokeWidth={1.5} style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }} />Re-open</button>
                         )}
                       </div>
@@ -1074,7 +1074,7 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
           <button className="panel-btn panel-btn-primary" disabled={!adrTitle || adrBusy || !workspacePath} onClick={createAdr}>
             {adrBusy ? "Saving…" : "Create ADR"}
           </button>
-          {!workspacePath && <span className="panel-label" style={{ marginLeft: 10, fontSize: 11 }}>Open a workspace to save ADRs.</span>}
+          {!workspacePath && <span className="panel-label" style={{ marginLeft: 10, fontSize: "var(--font-size-sm)" }}>Open a workspace to save ADRs.</span>}
         </div>
 
         {error && <div className="panel-error" style={{ marginTop: 8 }}>{error}</div>}
@@ -1114,36 +1114,36 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
         <div style={{ overflowY: "auto", maxHeight: "calc(100vh - 300px)" }}>
           {hasData && Object.entries(byCategory).map(([cat, catRules]) => (
             <div key={cat} style={{ marginBottom: 12 }}>
-              <div style={{ fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: 1, color: "var(--text-secondary)", marginBottom: 6 }}>{cat}</div>
+              <div style={{ fontWeight: 600, fontSize: "var(--font-size-sm)", textTransform: "uppercase", letterSpacing: 1, color: "var(--text-secondary)", marginBottom: 6 }}>{cat}</div>
               {catRules.map(rule => (
                 <div key={rule.id} className="panel-card" style={{ marginBottom: 6, padding: "10px 10px" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                     <Badge label={rule.severity} color={SEV_COLOR[rule.severity]} />
-                    <span style={{ fontWeight: 600, fontSize: 12 }}>{rule.name}</span>
-                    <span className="panel-label" style={{ fontSize: 10 }}>{rule.id}</span>
+                    <span style={{ fontWeight: 600, fontSize: "var(--font-size-base)" }}>{rule.name}</span>
+                    <span className="panel-label" style={{ fontSize: "var(--font-size-xs)" }}>{rule.id}</span>
                   </div>
-                  <div className="panel-label" style={{ fontSize: 11, marginBottom: 4 }}>Description</div>
+                  <div className="panel-label" style={{ fontSize: "var(--font-size-sm)", marginBottom: 4 }}>Description</div>
                   <textarea
                     value={rule.description}
                     onChange={e => patchRule(rule.id, "description", e.target.value)}
                     rows={2}
                     style={{
-                      width: "100%", fontSize: 11, padding: "4px 8px", resize: "vertical",
+                      width: "100%", fontSize: "var(--font-size-sm)", padding: "4px 8px", resize: "vertical",
                       background: "var(--bg-tertiary)", color: "var(--text-primary)",
-                      border: "1px solid var(--border-color)", borderRadius: 4, boxSizing: "border-box", marginBottom: 6,
+                      border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", boxSizing: "border-box", marginBottom: 6,
                     }}
                   />
                   {rule.check_fn_description && (
                     <>
-                      <div className="panel-label" style={{ fontSize: 11, marginBottom: 4 }}>Check Condition</div>
+                      <div className="panel-label" style={{ fontSize: "var(--font-size-sm)", marginBottom: 4 }}>Check Condition</div>
                       <textarea
                         value={rule.check_fn_description}
                         onChange={e => patchRule(rule.id, "check_fn_description", e.target.value)}
                         rows={2}
                         style={{
-                          width: "100%", fontSize: 11, padding: "4px 8px", resize: "vertical",
+                          width: "100%", fontSize: "var(--font-size-sm)", padding: "4px 8px", resize: "vertical",
                           background: "var(--bg-tertiary)", color: "var(--text-primary)",
-                          border: "1px solid var(--border-color)", borderRadius: 4, boxSizing: "border-box",
+                          border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", boxSizing: "border-box",
                           fontStyle: "italic",
                         }}
                       />
@@ -1165,11 +1165,11 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
   return (
     <div className="panel-container">
       <div className="panel-header">
-        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>
+        <h2 style={{ margin: 0, fontSize: "var(--font-size-xl)", fontWeight: 600, color: "var(--text-primary)" }}>
           Architecture Specification
           {disp && <span className="panel-label" style={{ marginLeft: 10, fontWeight: 400 }}>{disp.project_name}</span>}
         </h2>
-        {dirty && <span style={{ fontSize: 11, color: "var(--warning-color)", marginLeft: 8, display: "inline-flex", alignItems: "center", gap: 4 }}>
+        {dirty && <span style={{ fontSize: "var(--font-size-sm)", color: "var(--warning-color)", marginLeft: 8, display: "inline-flex", alignItems: "center", gap: 4 }}>
           <Circle size={7} strokeWidth={0} fill="var(--warning-color)" />unsaved changes
         </span>}
       </div>

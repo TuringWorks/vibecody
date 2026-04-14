@@ -80,13 +80,13 @@ const NODE_TYPE_COLORS: Record<string, string> = {
 };
 
 const badgeStyle = (color: string): React.CSSProperties => ({
-  display: "inline-block", padding: "2px 8px", borderRadius: 10,
-  fontSize: 11, background: color, color: "var(--bg-primary)", fontWeight: 600,
+  display: "inline-block", padding: "2px 8px", borderRadius: "var(--radius-md)",
+  fontSize: "var(--font-size-sm)", background: color, color: "var(--bg-primary)", fontWeight: 600,
 });
 
 const loadingStyle: React.CSSProperties = {
   display: "flex", justifyContent: "center", alignItems: "center",
-  padding: 32, color: "var(--text-secondary)", fontSize: 13,
+  padding: 32, color: "var(--text-secondary)", fontSize: "var(--font-size-md)",
 };
 
 // -- Component --
@@ -227,7 +227,7 @@ const LangGraphPanel: React.FC = () => {
     <div>
       {renderError()}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-        <span style={{ fontWeight: 600, fontSize: 14 }}>Pipelines ({pipelines.length})</span>
+        <span style={{ fontWeight: 600, fontSize: "var(--font-size-lg)" }}>Pipelines ({pipelines.length})</span>
         <button className="panel-btn panel-btn-primary" onClick={handleCreatePipeline} disabled={creating}>
           {creating ? "Creating..." : "+ Create Pipeline"}
         </button>
@@ -247,8 +247,8 @@ const LangGraphPanel: React.FC = () => {
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
-                <div style={{ fontWeight: 600, fontSize: 13 }}>{p.name}</div>
-                <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>
+                <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)" }}>{p.name}</div>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 2 }}>
                   {p.id}
                   {p.nodes != null && <> &middot; {p.nodes} nodes</>}
                   {p.steps != null && <> &middot; {p.steps} steps</>}
@@ -269,7 +269,7 @@ const LangGraphPanel: React.FC = () => {
   const renderGraph = () => (
     <div>
       {renderError()}
-      <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>
+      <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)", marginBottom: 12 }}>
         Graph: {selectedPipelineName || "No pipeline selected"}
       </div>
       {!selectedPipeline ? (
@@ -279,17 +279,17 @@ const LangGraphPanel: React.FC = () => {
       ) : (
         <>
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8 }}>Nodes</div>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 8 }}>Nodes</div>
             {graphNodes.map((n) => (
               <div key={n.id} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={badgeStyle(NODE_TYPE_COLORS[n.type] || "var(--text-secondary)")}>{n.type}</span>
-                  <span style={{ fontWeight: 500, fontSize: 13 }}>{n.name}</span>
-                  <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>({n.id})</span>
+                  <span style={{ fontWeight: 500, fontSize: "var(--font-size-md)" }}>{n.name}</span>
+                  <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>({n.id})</span>
                 </div>
                 {n.isEntry && (
                   <span style={{
-                    fontSize: 10, padding: "2px 6px", borderRadius: 4,
+                    fontSize: "var(--font-size-xs)", padding: "2px 6px", borderRadius: "var(--radius-xs-plus)",
                     background: "var(--accent-blue)", color: "var(--btn-primary-fg, #fff)", fontWeight: 600,
                   }}>
                     ENTRY
@@ -299,25 +299,25 @@ const LangGraphPanel: React.FC = () => {
             ))}
           </div>
           <div>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8 }}>Edges</div>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 8 }}>Edges</div>
             {graphEdges.length === 0 ? (
               <div style={loadingStyle}>No edges found.</div>
             ) : (
               graphEdges.map((e, i) => (
                 <div key={i} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontSize: 13 }}>
+                  <span style={{ fontSize: "var(--font-size-md)" }}>
                     <strong>{e.from}</strong> &rarr; <strong>{e.to}</strong>
                   </span>
                   {e.condition ? (
                     <span style={{
-                      fontSize: 11, padding: "2px 8px", borderRadius: 4,
+                      fontSize: "var(--font-size-sm)", padding: "2px 8px", borderRadius: "var(--radius-xs-plus)",
                       background: "var(--bg-tertiary)", color: "var(--warning-color)",
                       fontFamily: "monospace",
                     }}>
                       {e.condition}
                     </span>
                   ) : (
-                    <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>unconditional</span>
+                    <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>unconditional</span>
                   )}
                 </div>
               ))
@@ -331,7 +331,7 @@ const LangGraphPanel: React.FC = () => {
   const renderCheckpoints = () => (
     <div>
       {renderError()}
-      <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>
+      <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)", marginBottom: 12 }}>
         Checkpoints ({checkpoints.length})
       </div>
       {!selectedPipeline ? (
@@ -342,11 +342,11 @@ const LangGraphPanel: React.FC = () => {
         checkpoints.map((cp) => (
           <div key={cp.id} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
-              <div style={{ fontWeight: 600, fontSize: 13 }}>{cp.id}</div>
-              <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>
+              <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)" }}>{cp.id}</div>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 2 }}>
                 {cp.pipeline} &middot; step {cp.step} &middot; {cp.state}
               </div>
-              <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{cp.timestamp}</div>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{cp.timestamp}</div>
             </div>
             <button className="panel-btn panel-btn-secondary">Restore</button>
           </div>
@@ -358,7 +358,7 @@ const LangGraphPanel: React.FC = () => {
   const renderEvents = () => (
     <div>
       {renderError()}
-      <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>
+      <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)", marginBottom: 12 }}>
         Event Log ({events.length} events)
       </div>
       {!selectedPipeline ? (
@@ -368,16 +368,16 @@ const LangGraphPanel: React.FC = () => {
       ) : (
         events.map((ev, i) => (
           <div key={i} className="panel-card" style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-            <span style={{ fontSize: 11, color: "var(--text-secondary)", whiteSpace: "nowrap", minWidth: 60 }}>
+            <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", whiteSpace: "nowrap", minWidth: 60 }}>
               {ev.time}
             </span>
             <span style={badgeStyle(EVENT_COLORS[ev.type] || "var(--text-secondary)")}>
               {ev.type}
             </span>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 12 }}>{ev.data}</div>
+              <div style={{ fontSize: "var(--font-size-base)" }}>{ev.data}</div>
               {ev.node && (
-                <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 2 }}>
                   node: {ev.node}
                 </div>
               )}
@@ -393,7 +393,7 @@ const LangGraphPanel: React.FC = () => {
 
   return (
     <div className="panel-container">
-      <div style={{ padding: "8px 16px", background: "var(--bg-tertiary)", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, flexShrink: 0 }}>
+      <div style={{ padding: "8px 16px", background: "var(--bg-tertiary)", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "var(--font-size-base)", flexShrink: 0 }}>
         <span>{pipelines.length} pipelines &middot; {active} running &middot; {totalSteps} total steps</span>
         <span>{checkpoints.length} checkpoints &middot; {events.length} events</span>
       </div>

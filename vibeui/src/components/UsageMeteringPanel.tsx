@@ -43,17 +43,17 @@ interface KpiData {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const inputStyle: React.CSSProperties = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: 12, fontFamily: "var(--font-family)", boxSizing: "border-box" };
+const inputStyle: React.CSSProperties = { width: "100%", padding: "6px 10px", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: "var(--font-size-base)", fontFamily: "var(--font-family)", boxSizing: "border-box" };
 const selectStyle: React.CSSProperties = { ...inputStyle, width: "auto", cursor: "pointer" };
 
-const barBg: React.CSSProperties = { height: 8, borderRadius: 4, background: "var(--bg-tertiary)", overflow: "hidden" };
-const barFill = (pct: number, color: string): React.CSSProperties => ({ height: "100%", width: `${Math.min(pct, 100)}%`, borderRadius: 4, background: color });
+const barBg: React.CSSProperties = { height: 8, borderRadius: "var(--radius-xs-plus)", background: "var(--bg-tertiary)", overflow: "hidden" };
+const barFill = (pct: number, color: string): React.CSSProperties => ({ height: "100%", width: `${Math.min(pct, 100)}%`, borderRadius: "var(--radius-xs-plus)", background: color });
 
-const thStyle: React.CSSProperties = { textAlign: "left", padding: "6px 10px", borderBottom: "1px solid var(--border-color)", fontSize: 11, color: "var(--text-secondary)" };
-const tdStyle: React.CSSProperties = { padding: "6px 10px", borderBottom: "1px solid var(--border-color)", fontSize: 12 };
+const thStyle: React.CSSProperties = { textAlign: "left", padding: "6px 10px", borderBottom: "1px solid var(--border-color)", fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" };
+const tdStyle: React.CSSProperties = { padding: "6px 10px", borderBottom: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" };
 
 const severityColor: Record<string, string> = { info: "var(--info-color)", warning: "var(--warning-color)", critical: "var(--error-color)" };
-const badgeStyle = (severity: string): React.CSSProperties => ({ display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600, color: "var(--btn-primary-fg)", background: severityColor[severity] || "var(--text-secondary)" });
+const badgeStyle = (severity: string): React.CSSProperties => ({ display: "inline-block", padding: "2px 8px", borderRadius: "var(--radius-md)", fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--btn-primary-fg)", background: severityColor[severity] || "var(--text-secondary)" });
 
 const budgetBarColor = (pct: number) => pct >= 90 ? "var(--error-color)" : pct >= 70 ? "var(--warning-color)" : "var(--success-color)";
 const formatTokens = (n: number) => n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1_000 ? `${(n / 1_000).toFixed(0)}k` : String(n);
@@ -162,7 +162,7 @@ export function UsageMeteringPanel() {
   if (loading) {
     return (
       <div className="panel-container">
-        <h2 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>Usage Metering</h2>
+        <h2 style={{ margin: "0 0 12px", fontSize: "var(--font-size-xl)", fontWeight: 600, color: "var(--text-primary)" }}>Usage Metering</h2>
         <div className="panel-loading">Loading...</div>
       </div>
     );
@@ -170,7 +170,7 @@ export function UsageMeteringPanel() {
 
   return (
     <div className="panel-container">
-      <h2 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>Usage Metering</h2>
+      <h2 style={{ margin: "0 0 12px", fontSize: "var(--font-size-xl)", fontWeight: 600, color: "var(--text-primary)" }}>Usage Metering</h2>
 
       {error && (
         <div className="panel-error" style={{ marginBottom: 12 }}>
@@ -204,16 +204,16 @@ export function UsageMeteringPanel() {
 
           <div className="panel-card">
             <div className="panel-label">Spend by Provider</div>
-            {byProvider.length === 0 && <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>No provider data yet.</div>}
+            {byProvider.length === 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>No provider data yet.</div>}
             {byProvider.map((p) => {
               const pct = kpis.totalSpend > 0 ? (p.cost / kpis.totalSpend) * 100 : 0;
               return (
                 <div key={p.label} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                  <div style={{ width: 140, fontSize: 11 }}>{p.label}</div>
+                  <div style={{ width: 140, fontSize: "var(--font-size-sm)" }}>{p.label}</div>
                   <div style={{ ...barBg, flex: 1 }}>
                     <div style={barFill(pct, "var(--accent-primary)")} />
                   </div>
-                  <div style={{ width: 60, fontSize: 11, textAlign: "right" }}>${p.cost.toFixed(2)}</div>
+                  <div style={{ width: 60, fontSize: "var(--font-size-sm)", textAlign: "right" }}>${p.cost.toFixed(2)}</div>
                 </div>
               );
             })}
@@ -231,14 +231,14 @@ export function UsageMeteringPanel() {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                   <div>
                     <span style={{ fontWeight: 600 }}>{b.name}</span>
-                    <span style={{ fontSize: 10, color: "var(--text-secondary)", marginLeft: 6 }}>{b.period}</span>
+                    <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginLeft: 6 }}>{b.period}</span>
                   </div>
-                  <button className="panel-btn panel-btn-secondary" style={{ fontSize: 10, padding: "3px 8px" }} onClick={() => deleteBudget(b.id)}>Remove</button>
+                  <button className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-xs)", padding: "3px 8px" }} onClick={() => deleteBudget(b.id)}>Remove</button>
                 </div>
                 <div style={barBg}>
                   <div style={barFill(pct, budgetBarColor(pct))} />
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--text-secondary)", marginTop: 4 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginTop: 4 }}>
                   <span>${b.used.toFixed(2)} used</span>
                   <span>${b.limit.toFixed(2)} limit ({pct.toFixed(0)}%)</span>
                 </div>
@@ -247,7 +247,7 @@ export function UsageMeteringPanel() {
           })}
 
           <div className="panel-card">
-            <div className="panel-label" style={{ fontWeight: 600, fontSize: 12 }}>Create Budget</div>
+            <div className="panel-label" style={{ fontWeight: 600, fontSize: "var(--font-size-base)" }}>Create Budget</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 8 }}>
               <div>
                 <div className="panel-label">Name</div>
@@ -279,7 +279,7 @@ export function UsageMeteringPanel() {
           </div>
           <div className="panel-card">
             {reportData[reportView].length === 0
-              ? <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>No data yet.</div>
+              ? <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>No data yet.</div>
               : renderTable(reportData[reportView])}
           </div>
         </div>
@@ -296,10 +296,10 @@ export function UsageMeteringPanel() {
                   <span>{a.message}</span>
                 </div>
                 {!a.dismissed && (
-                  <button className="panel-btn panel-btn-secondary" style={{ fontSize: 10, padding: "3px 8px" }} onClick={() => dismissAlert(a.id)}>Dismiss</button>
+                  <button className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-xs)", padding: "3px 8px" }} onClick={() => dismissAlert(a.id)}>Dismiss</button>
                 )}
               </div>
-              <div style={{ fontSize: 10, color: "var(--text-secondary)", marginTop: 4 }}>{new Date(a.timestamp).toLocaleString()}</div>
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginTop: 4 }}>{new Date(a.timestamp).toLocaleString()}</div>
             </div>
           ))}
         </div>

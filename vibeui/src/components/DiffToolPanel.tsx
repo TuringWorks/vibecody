@@ -91,7 +91,7 @@ type ViewMode = "split" | "unified" | "inline";
 
 function LineNumber({ n }: { n?: number }) {
  return (
- <span style={{ minWidth: 36, display: "inline-block", textAlign: "right", paddingRight: 10, color: "var(--text-secondary)", fontSize: 10, userSelect: "none", flexShrink: 0 }}>
+ <span style={{ minWidth: 36, display: "inline-block", textAlign: "right", paddingRight: 10, color: "var(--text-secondary)", fontSize: "var(--font-size-xs)", userSelect: "none", flexShrink: 0 }}>
  {n ?? ""}
  </span>
  );
@@ -121,16 +121,16 @@ export function DiffToolPanel() {
  <div className="panel-container">
  {/* Header */}
  <div className="panel-header" style={{ flexWrap: "wrap" }}>
- <span style={{ fontSize: 13, fontWeight: 600 }}>Diff Tool</span>
+ <span style={{ fontSize: "var(--font-size-md)", fontWeight: 600 }}>Diff Tool</span>
 
  {/* Stats */}
  <div style={{ display: "flex", gap: 6 }}>
  {identical
- ? <span style={{ fontSize: 10, color: "var(--text-success)", padding: "2px 8px", background: "color-mix(in srgb, var(--accent-green) 10%, transparent)", border: "1px solid var(--success-color)", borderRadius: 10, display: "inline-flex", alignItems: "center", gap: 3 }}><Check size={10} /> Identical</span>
+ ? <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-success)", padding: "2px 8px", background: "color-mix(in srgb, var(--accent-green) 10%, transparent)", border: "1px solid var(--success-color)", borderRadius: "var(--radius-md)", display: "inline-flex", alignItems: "center", gap: 3 }}><Check size={10} /> Identical</span>
  : <>
- {stats.added > 0 && <span style={{ fontSize: 10, color: "var(--text-success)", padding: "2px 8px", background: "color-mix(in srgb, var(--accent-green) 10%, transparent)", border: "1px solid var(--success-color)", borderRadius: 10 }}>+{stats.added}</span>}
- {stats.removed > 0 && <span style={{ fontSize: 10, color: "var(--text-danger)", padding: "2px 8px", background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", border: "1px solid var(--error-color)", borderRadius: 10 }}>−{stats.removed}</span>}
- <span style={{ fontSize: 10, color: "var(--text-secondary)", padding: "2px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 10 }}>{stats.unchanged} unchanged</span>
+ {stats.added > 0 && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-success)", padding: "2px 8px", background: "color-mix(in srgb, var(--accent-green) 10%, transparent)", border: "1px solid var(--success-color)", borderRadius: "var(--radius-md)" }}>+{stats.added}</span>}
+ {stats.removed > 0 && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-danger)", padding: "2px 8px", background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", border: "1px solid var(--error-color)", borderRadius: "var(--radius-md)" }}>−{stats.removed}</span>}
+ <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", padding: "2px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)" }}>{stats.unchanged} unchanged</span>
  </>
  }
  </div>
@@ -139,15 +139,15 @@ export function DiffToolPanel() {
 
  {/* View mode */}
  {(["split", "inline", "unified"] as ViewMode[]).map(v => (
- <button key={v} onClick={() => setMode(v)} style={{ padding: "2px 10px", fontSize: 10, borderRadius: 10, background: mode === v ? "color-mix(in srgb, var(--accent-blue) 20%, transparent)" : "var(--bg-primary)", border: `1px solid ${mode === v ? "var(--accent-color)" : "var(--border-color)"}`, color: mode === v ? "var(--info-color)" : "var(--text-secondary)", cursor: "pointer", fontWeight: mode === v ? 700 : 400 }}>
+ <button key={v} onClick={() => setMode(v)} style={{ padding: "2px 10px", fontSize: "var(--font-size-xs)", borderRadius: "var(--radius-md)", background: mode === v ? "color-mix(in srgb, var(--accent-blue) 20%, transparent)" : "var(--bg-primary)", border: `1px solid ${mode === v ? "var(--accent-color)" : "var(--border-color)"}`, color: mode === v ? "var(--info-color)" : "var(--text-secondary)", cursor: "pointer", fontWeight: mode === v ? 700 : 400 }}>
  {v}
  </button>
  ))}
 
- <button onClick={swap} style={{ fontSize: 10, padding: "3px 10px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-secondary)", cursor: "pointer" }}>⇄ Swap</button>
- <button onClick={clear} style={{ fontSize: 10, padding: "3px 10px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-secondary)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 3 }}><X size={10} /> Clear</button>
+ <button onClick={swap} style={{ fontSize: "var(--font-size-xs)", padding: "3px 10px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-secondary)", cursor: "pointer" }}>⇄ Swap</button>
+ <button onClick={clear} style={{ fontSize: "var(--font-size-xs)", padding: "3px 10px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-secondary)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 3 }}><X size={10} /> Clear</button>
  {mode === "unified" && (
- <button onClick={copyUnified} style={{ fontSize: 10, padding: "3px 10px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-secondary)", cursor: "pointer" }}>
+ <button onClick={copyUnified} style={{ fontSize: "var(--font-size-xs)", padding: "3px 10px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-secondary)", cursor: "pointer" }}>
  {copied ? <><Check size={10} /> Copied</> : "Copy patch"}
  </button>
  )}
@@ -158,7 +158,7 @@ export function DiffToolPanel() {
  <div style={{ display: "flex", borderBottom: "1px solid var(--border-color)", height: 180, flexShrink: 0 }}>
  {[{ label: "Original (A)", value: left, setter: setLeft }, { label: "Modified (B)", value: right, setter: setRight }].map(({ label, value, setter }, idx) => (
  <div key={idx} style={{ flex: 1, display: "flex", flexDirection: "column", borderRight: idx === 0 ? "1px solid var(--border-color)" : "none" }}>
- <div style={{ padding: "4px 10px", background: "var(--bg-secondary)", fontSize: 10, fontWeight: 600, color: "var(--text-secondary)", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between" }}>
+ <div style={{ padding: "4px 10px", background: "var(--bg-secondary)", fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-secondary)", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between" }}>
  <span>{label}</span>
  <button onClick={() => { navigator.clipboard.readText().then(t => setter(t)).catch(() => {}); }} style={{ fontSize: 9, background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}>Paste</button>
  </div>
@@ -166,7 +166,7 @@ export function DiffToolPanel() {
  value={value}
  onChange={e => setter(e.target.value)}
  spellCheck={false}
- style={{ flex: 1, resize: "none", padding: "8px 10px", fontSize: 12, fontFamily: "var(--font-mono)", lineHeight: 1.6, background: "var(--bg-primary)", color: "var(--text-primary)", border: "none", outline: "none" }}
+ style={{ flex: 1, resize: "none", padding: "8px 10px", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)", lineHeight: 1.6, background: "var(--bg-primary)", color: "var(--text-primary)", border: "none", outline: "none" }}
  />
  </div>
  ))}
@@ -174,7 +174,7 @@ export function DiffToolPanel() {
  )}
 
  {/* Diff output */}
- <div style={{ flex: 1, overflow: "auto", fontFamily: "var(--font-mono)", fontSize: 12 }}>
+ <div style={{ flex: 1, overflow: "auto", fontFamily: "var(--font-mono)", fontSize: "var(--font-size-base)" }}>
 
  {/* Unified patch */}
  {mode === "unified" && (
@@ -182,12 +182,12 @@ export function DiffToolPanel() {
  <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
  {[{ label: "Original (A)", value: left, setter: setLeft }, { label: "Modified (B)", value: right, setter: setRight }].map(({ label, value, setter }, idx) => (
  <div key={idx} style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
- <label style={{ fontSize: 10, fontWeight: 600, color: "var(--text-secondary)" }}>{label}</label>
- <textarea value={value} onChange={e => setter(e.target.value)} rows={5} spellCheck={false} style={{ resize: "vertical", padding: "6px 8px", fontSize: 11, fontFamily: "var(--font-mono)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none" }} />
+ <label style={{ fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-secondary)" }}>{label}</label>
+ <textarea value={value} onChange={e => setter(e.target.value)} rows={5} spellCheck={false} style={{ resize: "vertical", padding: "6px 8px", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none" }} />
  </div>
  ))}
  </div>
- <pre style={{ margin: 0, padding: "12px 14px", background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)", fontSize: 12, lineHeight: 1.6, color: "var(--text-primary)", overflowX: "auto", whiteSpace: "pre" }}>
+ <pre style={{ margin: 0, padding: "12px 14px", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)", lineHeight: 1.6, color: "var(--text-primary)", overflowX: "auto", whiteSpace: "pre" }}>
  {unified || "(no differences)"}
  </pre>
  </div>
@@ -201,7 +201,7 @@ export function DiffToolPanel() {
  {diff.filter(l => l.op !== "ins").map((l, i) => (
  <div key={i} style={{ display: "flex", background: OP_BG[l.op], borderBottom: "1px solid rgba(255,255,255,0.02)", minHeight: 22 }}>
  <LineNumber n={l.leftN} />
- <span style={{ color: l.op === "del" ? OP_FG.del : OP_FG.eq, fontSize: 10, paddingRight: 6, flexShrink: 0, fontWeight: 700 }}>{l.op === "del" ? "−" : " "}</span>
+ <span style={{ color: l.op === "del" ? OP_FG.del : OP_FG.eq, fontSize: "var(--font-size-xs)", paddingRight: 6, flexShrink: 0, fontWeight: 700 }}>{l.op === "del" ? "−" : " "}</span>
  <span style={{ flex: 1, color: OP_FG[l.op], padding: "2px 0", whiteSpace: "pre-wrap", wordBreak: "break-all" }}>{l.text}</span>
  </div>
  ))}
@@ -211,7 +211,7 @@ export function DiffToolPanel() {
  {diff.filter(l => l.op !== "del").map((l, i) => (
  <div key={i} style={{ display: "flex", background: OP_BG[l.op], borderBottom: "1px solid rgba(255,255,255,0.02)", minHeight: 22 }}>
  <LineNumber n={l.rightN} />
- <span style={{ color: l.op === "ins" ? OP_FG.ins : OP_FG.eq, fontSize: 10, paddingRight: 6, flexShrink: 0, fontWeight: 700 }}>{l.op === "ins" ? "+" : " "}</span>
+ <span style={{ color: l.op === "ins" ? OP_FG.ins : OP_FG.eq, fontSize: "var(--font-size-xs)", paddingRight: 6, flexShrink: 0, fontWeight: 700 }}>{l.op === "ins" ? "+" : " "}</span>
  <span style={{ flex: 1, color: OP_FG[l.op], padding: "2px 0", whiteSpace: "pre-wrap", wordBreak: "break-all" }}>{l.text}</span>
  </div>
  ))}
@@ -226,7 +226,7 @@ export function DiffToolPanel() {
  <div key={i} style={{ display: "flex", background: OP_BG[l.op], borderBottom: "1px solid rgba(255,255,255,0.02)", minHeight: 22 }}>
  <LineNumber n={l.leftN} />
  <LineNumber n={l.rightN} />
- <span style={{ color: OP_FG[l.op], fontSize: 10, paddingRight: 8, flexShrink: 0, fontWeight: 700, minWidth: 12 }}>{OP_PFX[l.op]}</span>
+ <span style={{ color: OP_FG[l.op], fontSize: "var(--font-size-xs)", paddingRight: 8, flexShrink: 0, fontWeight: 700, minWidth: 12 }}>{OP_PFX[l.op]}</span>
  <span style={{ flex: 1, color: OP_FG[l.op], padding: "2px 0", whiteSpace: "pre-wrap", wordBreak: "break-all" }}>{l.text}</span>
  </div>
  ))}

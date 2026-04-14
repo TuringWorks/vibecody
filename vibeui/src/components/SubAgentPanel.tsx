@@ -70,9 +70,9 @@ const formatTimestamp = (ts: string): string => {
 // -- Styles -------------------------------------------------------------------
 
 const badgeStyle = (color: string): React.CSSProperties => ({
-  fontSize: 10,
+  fontSize: "var(--font-size-xs)",
   padding: "2px 8px",
-  borderRadius: 10,
+  borderRadius: "var(--radius-md)",
   background: color,
   color: "var(--btn-primary-fg)",
   fontWeight: 600,
@@ -81,8 +81,8 @@ const badgeStyle = (color: string): React.CSSProperties => ({
 const inputStyle: React.CSSProperties = {
   width: "100%",
   padding: "6px 8px",
-  fontSize: 12,
-  borderRadius: 4,
+  fontSize: "var(--font-size-base)",
+  borderRadius: "var(--radius-xs-plus)",
   border: "1px solid var(--border-color)",
   background: "var(--bg-secondary)",
   color: "var(--text-primary)",
@@ -189,8 +189,8 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
   const selectedRoleDesc = ROLES.find((r) => r.name === spawnRole)?.description ?? "";
 
   return (
-    <div className="panel-container" style={{ padding: 12, fontSize: 13 }}>
-      <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12, color: "var(--text-primary)" }}>Sub-Agents</div>
+    <div className="panel-container" style={{ padding: 12, fontSize: "var(--font-size-md)" }}>
+      <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)", marginBottom: 12, color: "var(--text-primary)" }}>Sub-Agents</div>
 
       {/* Tab bar */}
       <div className="panel-tab-bar">
@@ -217,7 +217,7 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
         <div>
           {/* Clear completed button */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-            <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+            <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
               {agents.length} agent{agents.length !== 1 ? "s" : ""}
               {loading ? " (refreshing...)" : ""}
             </span>
@@ -225,7 +225,7 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
               <button
                 onClick={handleClearCompleted}
                 className="panel-btn panel-btn-secondary"
-                style={{ fontSize: 11, padding: "4px 10px" }}
+                style={{ fontSize: "var(--font-size-sm)", padding: "4px 10px" }}
               >
                 Clear completed
               </button>
@@ -246,37 +246,37 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
               style={{ borderLeft: `3px solid ${statusColor(agent.status)}`, cursor: "pointer" }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontWeight: 600, fontSize: 12, color: "var(--text-primary)" }}>{agent.role}</span>
+                <span style={{ fontWeight: 600, fontSize: "var(--font-size-base)", color: "var(--text-primary)" }}>{agent.role}</span>
                 <span style={badgeStyle(statusColor(agent.status))}>{statusLabel(agent.status)}</span>
-                <span style={{ marginLeft: "auto", fontSize: 10, color: "var(--text-secondary)" }}>{agent.provider}</span>
+                <span style={{ marginLeft: "auto", fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>{agent.provider}</span>
               </div>
 
               {agent.task_description && (
-                <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4, lineHeight: 1.4 }}>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 4, lineHeight: 1.4 }}>
                   {agent.task_description}
                 </div>
               )}
 
-              <div style={{ display: "flex", gap: 12, marginTop: 4, fontSize: 10, color: "var(--text-secondary)" }}>
+              <div style={{ display: "flex", gap: 12, marginTop: 4, fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>
                 <span>Created: {formatTimestamp(agent.created_at)}</span>
                 {agent.completed_at && <span>Completed: {formatTimestamp(agent.completed_at)}</span>}
               </div>
 
               {expandedAgent === agent.id && (
                 <div style={{ marginTop: 8 }}>
-                  <div style={{ fontSize: 10, color: "var(--text-secondary)", marginBottom: 2 }}>ID: {agent.id}</div>
+                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginBottom: 2 }}>ID: {agent.id}</div>
 
                   {agent.context_files.length > 0 && (
                     <>
-                      <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 6, marginBottom: 4 }}>Context Files:</div>
+                      <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 6, marginBottom: 4 }}>Context Files:</div>
                       {agent.context_files.map((f) => (
-                        <div key={f} style={{ fontSize: 11, fontFamily: "var(--font-mono)", padding: "2px 6px", marginBottom: 2, background: "var(--bg-primary)", borderRadius: 3 }}>{f}</div>
+                        <div key={f} style={{ fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", padding: "2px 6px", marginBottom: 2, background: "var(--bg-primary)", borderRadius: 3 }}>{f}</div>
                       ))}
                     </>
                   )}
 
                   {agent.error && (
-                    <div style={{ fontSize: 11, color: "var(--error-color)", marginTop: 6 }}>
+                    <div style={{ fontSize: "var(--font-size-sm)", color: "var(--error-color)", marginTop: 6 }}>
                       Error: {agent.error}
                     </div>
                   )}
@@ -285,7 +285,7 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
                     <button
                       onClick={(e) => { e.stopPropagation(); handleDismiss(agent.id); }}
                       className="panel-btn panel-btn-secondary"
-                      style={{ marginTop: 8, fontSize: 11, padding: "4px 10px" }}
+                      style={{ marginTop: 8, fontSize: "var(--font-size-sm)", padding: "4px 10px" }}
                     >
                       Dismiss
                     </button>
@@ -313,29 +313,29 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
             return (
               <div key={agent.id} className="panel-card" style={{ borderLeft: `3px solid ${borderColor}` }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                  <span style={{ fontWeight: 600, fontSize: 12, color: "var(--text-primary)" }}>{agent.role}</span>
+                  <span style={{ fontWeight: 600, fontSize: "var(--font-size-base)", color: "var(--text-primary)" }}>{agent.role}</span>
                   <span style={badgeStyle(borderColor)}>{isSuccess ? "Completed" : "Failed"}</span>
-                  <span style={{ marginLeft: "auto", fontSize: 10, color: "var(--text-secondary)" }}>
+                  <span style={{ marginLeft: "auto", fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>
                     {agent.completed_at ? formatTimestamp(agent.completed_at) : ""}
                   </span>
                 </div>
 
                 {agent.result_summary && (
-                  <div style={{ fontSize: 12, marginBottom: 6, lineHeight: 1.5, color: "var(--text-secondary)" }}>
+                  <div style={{ fontSize: "var(--font-size-base)", marginBottom: 6, lineHeight: 1.5, color: "var(--text-secondary)" }}>
                     {agent.result_summary}
                   </div>
                 )}
 
                 {agent.error && (
-                  <div style={{ fontSize: 12, marginBottom: 6, lineHeight: 1.5, color: "var(--error-color)" }}>
+                  <div style={{ fontSize: "var(--font-size-base)", marginBottom: 6, lineHeight: 1.5, color: "var(--error-color)" }}>
                     {agent.error}
                   </div>
                 )}
 
                 {agent.findings.length > 0 && (
                   <>
-                    <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>Findings:</div>
-                    <ul style={{ margin: 0, paddingLeft: 16, fontSize: 11, lineHeight: 1.6, color: "var(--text-secondary)" }}>
+                    <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 4 }}>Findings:</div>
+                    <ul style={{ margin: 0, paddingLeft: 16, fontSize: "var(--font-size-sm)", lineHeight: 1.6, color: "var(--text-secondary)" }}>
                       {agent.findings.map((f, i) => (
                         <li key={i}>{f}</li>
                       ))}
@@ -345,9 +345,9 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
 
                 {agent.files_modified.length > 0 && (
                   <div style={{ marginTop: 6 }}>
-                    <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>Modified: </span>
+                    <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Modified: </span>
                     {agent.files_modified.map((f) => (
-                      <span key={f} style={{ fontSize: 10, fontFamily: "var(--font-mono)", padding: "1px 5px", borderRadius: 3, background: "var(--bg-primary)", marginLeft: 4 }}>{f}</span>
+                      <span key={f} style={{ fontSize: "var(--font-size-xs)", fontFamily: "var(--font-mono)", padding: "1px 5px", borderRadius: 3, background: "var(--bg-primary)", marginLeft: 4 }}>{f}</span>
                     ))}
                   </div>
                 )}
@@ -366,7 +366,7 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
             </div>
           )}
           {spawnSuccess && (
-            <div style={{ padding: "8px 10px", marginBottom: 8, borderRadius: 4, background: "var(--success-color)", color: "var(--btn-primary-fg)", fontSize: 12 }}>
+            <div style={{ padding: "8px 10px", marginBottom: 8, borderRadius: "var(--radius-xs-plus)", background: "var(--success-color)", color: "var(--btn-primary-fg)", fontSize: "var(--font-size-base)" }}>
               {spawnSuccess}
             </div>
           )}
@@ -384,7 +384,7 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
               ))}
             </select>
             {selectedRoleDesc && (
-              <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4, fontStyle: "italic" }}>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 4, fontStyle: "italic" }}>
                 {selectedRoleDesc}
               </div>
             )}

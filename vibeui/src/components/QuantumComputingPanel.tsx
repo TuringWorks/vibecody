@@ -941,32 +941,32 @@ function amplitudesToBloch(re0: number, im0: number, re1: number, im1: number) {
 
 const inputStyle: React.CSSProperties = {
   padding: "4px 8px",
-  borderRadius: 4,
+  borderRadius: "var(--radius-xs-plus)",
   border: "1px solid var(--border-color)",
   background: "var(--bg-secondary)",
   color: "var(--text-primary)",
-  fontSize: 12,
+  fontSize: "var(--font-size-base)",
 };
 
 const btnPrimary: React.CSSProperties = {
   padding: "6px 14px",
-  borderRadius: 6,
+  borderRadius: "var(--radius-sm)",
   border: "none",
   background: "var(--accent-primary)",
   color: "var(--btn-primary-fg)",
   cursor: "pointer",
   fontWeight: 600,
-  fontSize: 13,
+  fontSize: "var(--font-size-md)",
 };
 
 const btnSmall: React.CSSProperties = {
   background: "none",
   border: "1px solid var(--border-color)",
-  borderRadius: 4,
+  borderRadius: "var(--radius-xs-plus)",
   color: "var(--text-secondary)",
   cursor: "pointer",
   padding: "2px 6px",
-  fontSize: 11,
+  fontSize: "var(--font-size-sm)",
 };
 
 
@@ -1417,7 +1417,7 @@ export function QuantumComputingPanel() {
         width="100%"
         height={svgH}
         viewBox={`0 0 ${svgW} ${svgH}`}
-        style={{ background: "var(--bg-tertiary)", borderRadius: 8, border: "1px solid var(--border-color)", cursor: selectedGate ? "crosshair" : "default" }}
+        style={{ background: "var(--bg-tertiary)", borderRadius: "var(--radius-sm-alt)", border: "1px solid var(--border-color)", cursor: selectedGate ? "crosshair" : "default" }}
       >
         {/* Qubit labels */}
         {Array.from({ length: numQubits }, (_, q) => (
@@ -1596,7 +1596,7 @@ export function QuantumComputingPanel() {
 
     return (
       <div className="panel-card" style={{ marginTop: 12 }}>
-        <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Bloch Sphere</div>
+        <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", marginBottom: 8 }}>Bloch Sphere</div>
         <svg width={200} height={200} viewBox="0 0 200 200">
           {/* Main circle */}
           <circle cx={svgCx} cy={svgCy} r={R} fill="none" stroke="var(--text-tertiary)" strokeWidth={1} opacity={0.5} />
@@ -1617,7 +1617,7 @@ export function QuantumComputingPanel() {
           <line x1={svgCx} y1={svgCy} x2={px} y2={py} stroke="var(--accent-primary)" strokeWidth={2} />
           <circle cx={px} cy={py} r={4} fill="var(--accent-primary)" />
         </svg>
-        <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4 }}>
+        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 4 }}>
           theta = {theta.toFixed(3)} rad, phi = {phi.toFixed(3)} rad
         </div>
       </div>
@@ -1628,15 +1628,15 @@ export function QuantumComputingPanel() {
 
   function renderProbabilityChart(probs: [string, number][]) {
     const nonZero = probs.filter(([, p]) => p > 0.001);
-    if (nonZero.length === 0) return <div style={{ color: "var(--text-secondary)", fontSize: 12 }}>No non-zero probabilities.</div>;
+    if (nonZero.length === 0) return <div style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>No non-zero probabilities.</div>;
     const maxP = Math.max(...nonZero.map(([, p]) => p));
 
     return (
       <div className="panel-card" style={{ marginTop: 12 }}>
-        <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Probability Distribution</div>
+        <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", marginBottom: 8 }}>Probability Distribution</div>
         {nonZero.map(([label, prob]) => (
           <div key={label} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-            <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", width: 60, textAlign: "right", color: "var(--text-secondary)" }}>
+            <span style={{ fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", width: 60, textAlign: "right", color: "var(--text-secondary)" }}>
               |{label}&#x27E9;
             </span>
             <div style={{ flex: 1, height: 16, background: "var(--bg-tertiary)", borderRadius: 3, overflow: "hidden" }}>
@@ -1650,7 +1650,7 @@ export function QuantumComputingPanel() {
                 }}
               />
             </div>
-            <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", width: 55, color: "var(--text-primary)" }}>
+            <span style={{ fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", width: 55, color: "var(--text-primary)" }}>
               {(prob * 100).toFixed(1)}%
             </span>
           </div>
@@ -1668,10 +1668,10 @@ export function QuantumComputingPanel() {
 
     return (
       <div className="panel-card" style={{ marginTop: 12 }}>
-        <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Sample Histogram (top {entries.length})</div>
+        <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", marginBottom: 8 }}>Sample Histogram (top {entries.length})</div>
         {entries.map(([label, count]) => (
           <div key={label} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
-            <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", width: 60, textAlign: "right", color: "var(--text-secondary)" }}>
+            <span style={{ fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", width: 60, textAlign: "right", color: "var(--text-secondary)" }}>
               {label}
             </span>
             <div style={{ flex: 1, height: 14, background: "var(--bg-tertiary)", borderRadius: 3, overflow: "hidden" }}>
@@ -1685,7 +1685,7 @@ export function QuantumComputingPanel() {
                 }}
               />
             </div>
-            <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", width: 45, color: "var(--text-primary)" }}>
+            <span style={{ fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", width: 45, color: "var(--text-primary)" }}>
               {count}
             </span>
           </div>
@@ -1734,7 +1734,7 @@ export function QuantumComputingPanel() {
         width="100%"
         height={Math.min(vh + 40, 500)}
         viewBox={`${minX} ${minY} ${vw} ${vh}`}
-        style={{ background: "var(--bg-tertiary)", borderRadius: 8, border: "1px solid var(--border-color)" }}
+        style={{ background: "var(--bg-tertiary)", borderRadius: "var(--radius-sm-alt)", border: "1px solid var(--border-color)" }}
       >
         {/* Coupling edges */}
         {couplings.map(([a, b], i) => {
@@ -1784,7 +1784,7 @@ export function QuantumComputingPanel() {
     label?: string;
   }) {
     return (
-      <label style={{ fontSize: 12 }}>
+      <label style={{ fontSize: "var(--font-size-base)" }}>
         {label || "Circuit"}
         <br />
         <select
@@ -1828,7 +1828,7 @@ export function QuantumComputingPanel() {
 
             {/* Circuit selector + create */}
             <div style={{ display: "flex", gap: 12, alignItems: "flex-end", marginBottom: 12, flexWrap: "wrap" }}>
-              <label style={{ fontSize: 12 }}>
+              <label style={{ fontSize: "var(--font-size-base)" }}>
                 Circuit
                 <br />
                 <select
@@ -1851,18 +1851,18 @@ export function QuantumComputingPanel() {
                   ))}
                 </select>
               </label>
-              <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>or</div>
-              <label style={{ fontSize: 12 }}>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>or</div>
+              <label style={{ fontSize: "var(--font-size-base)" }}>
                 Name
                 <br />
                 <input value={cbNewName} onChange={(e) => setCbNewName(e.target.value)} style={{ ...inputStyle, width: 120 }} />
               </label>
-              <label style={{ fontSize: 12 }}>
+              <label style={{ fontSize: "var(--font-size-base)" }}>
                 Qubits
                 <br />
                 <input type="number" value={cbNewQubits} onChange={(e) => setCbNewQubits(+e.target.value)} min={1} max={20} style={{ ...inputStyle, width: 50 }} />
               </label>
-              <label style={{ fontSize: 12 }}>
+              <label style={{ fontSize: "var(--font-size-base)" }}>
                 Classical
                 <br />
                 <input type="number" value={cbNewClassical} onChange={(e) => setCbNewClassical(+e.target.value)} min={0} max={20} style={{ ...inputStyle, width: 50 }} />
@@ -1884,7 +1884,7 @@ export function QuantumComputingPanel() {
               <div style={{ display: "flex", gap: 12 }}>
                 {/* Gate palette */}
                 <div style={{ width: 100, flexShrink: 0 }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>SINGLE</div>
+                  <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>SINGLE</div>
                   {SINGLE_QUBIT_GATES.map((g) => (
                     <button
                       key={g}
@@ -1898,12 +1898,12 @@ export function QuantumComputingPanel() {
                         width: "100%",
                         marginBottom: 3,
                         padding: "4px 8px",
-                        borderRadius: 4,
+                        borderRadius: "var(--radius-xs-plus)",
                         border: selectedGate === g ? "2px solid var(--accent-primary)" : "1px solid var(--border-color)",
                         background: selectedGate === g ? "var(--accent-primary-10)" : "var(--bg-secondary)",
                         color: GATE_COLORS[g] || "var(--text-primary)",
                         cursor: "pointer",
-                        fontSize: 12,
+                        fontSize: "var(--font-size-base)",
                         fontWeight: 600,
                         textAlign: "left",
                       }}
@@ -1911,7 +1911,7 @@ export function QuantumComputingPanel() {
                       {g}
                     </button>
                   ))}
-                  <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", marginTop: 8, marginBottom: 6 }}>ROTATION</div>
+                  <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, color: "var(--text-secondary)", marginTop: 8, marginBottom: 6 }}>ROTATION</div>
                   {ROTATION_GATES.map((g) => (
                     <button
                       key={g}
@@ -1925,12 +1925,12 @@ export function QuantumComputingPanel() {
                         width: "100%",
                         marginBottom: 3,
                         padding: "4px 8px",
-                        borderRadius: 4,
+                        borderRadius: "var(--radius-xs-plus)",
                         border: selectedGate === g ? "2px solid var(--accent-primary)" : "1px solid var(--border-color)",
                         background: selectedGate === g ? "var(--accent-primary-10)" : "var(--bg-secondary)",
                         color: GATE_COLORS[g] || "var(--text-primary)",
                         cursor: "pointer",
-                        fontSize: 12,
+                        fontSize: "var(--font-size-base)",
                         fontWeight: 600,
                         textAlign: "left",
                       }}
@@ -1938,7 +1938,7 @@ export function QuantumComputingPanel() {
                       {g}
                     </button>
                   ))}
-                  <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", marginTop: 8, marginBottom: 6 }}>MULTI-QUBIT</div>
+                  <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, color: "var(--text-secondary)", marginTop: 8, marginBottom: 6 }}>MULTI-QUBIT</div>
                   {MULTI_QUBIT_GATES.map((g) => (
                     <button
                       key={g}
@@ -1952,12 +1952,12 @@ export function QuantumComputingPanel() {
                         width: "100%",
                         marginBottom: 3,
                         padding: "4px 8px",
-                        borderRadius: 4,
+                        borderRadius: "var(--radius-xs-plus)",
                         border: selectedGate === g ? "2px solid var(--accent-primary)" : "1px solid var(--border-color)",
                         background: selectedGate === g ? "var(--accent-primary-10)" : "var(--bg-secondary)",
                         color: GATE_COLORS[g] || "var(--text-primary)",
                         cursor: "pointer",
-                        fontSize: 12,
+                        fontSize: "var(--font-size-base)",
                         fontWeight: 600,
                         textAlign: "left",
                       }}
@@ -1965,7 +1965,7 @@ export function QuantumComputingPanel() {
                       {g}
                     </button>
                   ))}
-                  <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", marginTop: 8, marginBottom: 6 }}>MEASURE</div>
+                  <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, color: "var(--text-secondary)", marginTop: 8, marginBottom: 6 }}>MEASURE</div>
                   {MEASUREMENT_GATES.map((g) => (
                     <button
                       key={g}
@@ -1979,12 +1979,12 @@ export function QuantumComputingPanel() {
                         width: "100%",
                         marginBottom: 3,
                         padding: "4px 8px",
-                        borderRadius: 4,
+                        borderRadius: "var(--radius-xs-plus)",
                         border: selectedGate === g ? "2px solid var(--accent-primary)" : "1px solid var(--border-color)",
                         background: selectedGate === g ? "var(--accent-primary-10)" : "var(--bg-secondary)",
                         color: GATE_COLORS[g] || "var(--text-primary)",
                         cursor: "pointer",
-                        fontSize: 12,
+                        fontSize: "var(--font-size-base)",
                         fontWeight: 600,
                         textAlign: "left",
                       }}
@@ -2002,10 +2002,10 @@ export function QuantumComputingPanel() {
                       style={{
                         padding: "4px 10px",
                         marginBottom: 6,
-                        borderRadius: 4,
+                        borderRadius: "var(--radius-xs-plus)",
                         background: "var(--accent-primary-10)",
                         border: "1px solid var(--accent-primary)",
-                        fontSize: 12,
+                        fontSize: "var(--font-size-base)",
                         color: "var(--text-primary)",
                       }}
                     >
@@ -2024,10 +2024,10 @@ export function QuantumComputingPanel() {
                     style={{
                       marginTop: 8,
                       padding: "6px 12px",
-                      borderRadius: 6,
+                      borderRadius: "var(--radius-sm)",
                       background: "var(--bg-secondary)",
                       border: "1px solid var(--border-color)",
-                      fontSize: 12,
+                      fontSize: "var(--font-size-base)",
                       color: "var(--text-secondary)",
                       display: "flex",
                       gap: 16,
@@ -2045,7 +2045,7 @@ export function QuantumComputingPanel() {
             )}
 
             {!circuitDetail && (
-              <div style={{ color: "var(--text-secondary)", fontSize: 13, marginTop: 20 }}>
+              <div style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-md)", marginTop: 20 }}>
                 Select an existing circuit or create a new one to start building.
               </div>
             )}
@@ -2058,7 +2058,7 @@ export function QuantumComputingPanel() {
             <h3 style={{ margin: "0 0 12px", color: "var(--text-primary)" }}>Quantum Circuit Simulator</h3>
             <div style={{ display: "flex", gap: 12, alignItems: "flex-end", marginBottom: 16, flexWrap: "wrap" }}>
               <CircuitSelect value={simCircuitIdx} onChange={setSimCircuitIdx} />
-              <label style={{ fontSize: 12 }}>
+              <label style={{ fontSize: "var(--font-size-base)" }}>
                 Shots
                 <br />
                 <input
@@ -2077,7 +2077,7 @@ export function QuantumComputingPanel() {
 
             {simResult && (
               <div>
-                <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8 }}>
+                <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 8 }}>
                   {simResult.num_qubits} qubit(s) | {simResult.probabilities.length} basis states | {Object.values(simResult.samples).reduce((a, b) => a + b, 0)} samples
                 </div>
 
@@ -2089,8 +2089,8 @@ export function QuantumComputingPanel() {
 
                 {/* Amplitudes table */}
                 <div className="panel-card" style={{ marginTop: 12 }}>
-                  <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>State Amplitudes</div>
-                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+                  <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", marginBottom: 8 }}>State Amplitudes</div>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-sm)" }}>
                     <thead>
                       <tr style={{ borderBottom: "2px solid var(--border-color)" }}>
                         <th style={{ textAlign: "left", padding: 4 }}>State</th>
@@ -2135,26 +2135,26 @@ export function QuantumComputingPanel() {
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
                   {/* Original card */}
                   <div className="panel-card">
-                    <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8, color: "var(--text-secondary)" }}>Original</div>
+                    <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", marginBottom: 8, color: "var(--text-secondary)" }}>Original</div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                      <div style={{ fontSize: 12 }}>
+                      <div style={{ fontSize: "var(--font-size-base)" }}>
                         Gates: <strong>{optResult.originalGateCount}</strong>
                       </div>
-                      <div style={{ fontSize: 12 }}>
+                      <div style={{ fontSize: "var(--font-size-base)" }}>
                         Depth: <strong>{optResult.originalDepth}</strong>
                       </div>
                     </div>
                   </div>
                   {/* Optimized card */}
                   <div className="panel-card" style={{ borderColor: "var(--accent-primary)" }}>
-                    <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8, color: "var(--accent-primary)" }}>
+                    <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", marginBottom: 8, color: "var(--accent-primary)" }}>
                       Optimized ({optResult.savingsPercent.toFixed(1)}% savings)
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                      <div style={{ fontSize: 12 }}>
+                      <div style={{ fontSize: "var(--font-size-base)" }}>
                         Gates: <strong>{optResult.optimizedGateCount}</strong>
                       </div>
-                      <div style={{ fontSize: 12 }}>
+                      <div style={{ fontSize: "var(--font-size-base)" }}>
                         Depth: <strong>{optResult.optimizedDepth}</strong>
                       </div>
                     </div>
@@ -2164,8 +2164,8 @@ export function QuantumComputingPanel() {
                 {/* Rules applied */}
                 {optResult.rulesApplied.length > 0 && (
                   <div className="panel-card">
-                    <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Optimization Rules Applied</div>
-                    <ul style={{ margin: 0, paddingLeft: 20, fontSize: 12, color: "var(--text-secondary)" }}>
+                    <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", marginBottom: 8 }}>Optimization Rules Applied</div>
+                    <ul style={{ margin: 0, paddingLeft: 20, fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>
                       {optResult.rulesApplied.map((r, i) => (
                         <li key={i} style={{ marginBottom: 3 }}>
                           {r}
@@ -2185,7 +2185,7 @@ export function QuantumComputingPanel() {
             <h3 style={{ margin: "0 0 12px", color: "var(--text-primary)" }}>Provider Cost Estimation</h3>
             <div style={{ display: "flex", gap: 12, alignItems: "flex-end", marginBottom: 16, flexWrap: "wrap" }}>
               <CircuitSelect value={costCircuitIdx} onChange={setCostCircuitIdx} />
-              <label style={{ fontSize: 12 }}>
+              <label style={{ fontSize: "var(--font-size-base)" }}>
                 Shots
                 <br />
                 <input
@@ -2203,7 +2203,7 @@ export function QuantumComputingPanel() {
             </div>
 
             {costEstimates.length > 0 && (
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
                 <thead>
                   <tr style={{ borderBottom: "2px solid var(--border-color)" }}>
                     <th style={{ textAlign: "left", padding: 6 }}>Provider</th>
@@ -2221,12 +2221,12 @@ export function QuantumComputingPanel() {
                       </td>
                       <td style={{ padding: 6 }}>
                         {est.breakdown.map(([item, cost], i) => (
-                          <div key={i} style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+                          <div key={i} style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
                             {item}: ${cost.toFixed(4)}
                           </div>
                         ))}
                       </td>
-                      <td style={{ padding: 6, fontSize: 11, color: "var(--text-secondary)" }}>
+                      <td style={{ padding: 6, fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
                         {est.notes.join("; ")}
                       </td>
                     </tr>
@@ -2244,29 +2244,29 @@ export function QuantumComputingPanel() {
 
             {/* Parameters section */}
             <div className="panel-card" style={{ marginBottom: 16 }}>
-              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Template Parameters</div>
+              <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", marginBottom: 8 }}>Template Parameters</div>
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
-                <label style={{ fontSize: 12 }}>
+                <label style={{ fontSize: "var(--font-size-base)" }}>
                   Qubits
                   <br />
                   <input type="number" value={tplQubits} onChange={(e) => setTplQubits(+e.target.value)} min={1} max={20} style={{ ...inputStyle, width: 60 }} />
                 </label>
-                <label style={{ fontSize: 12 }}>
+                <label style={{ fontSize: "var(--font-size-base)" }}>
                   Secret (BV)
                   <br />
                   <input value={tplSecret} onChange={(e) => setTplSecret(e.target.value)} style={{ ...inputStyle, width: 80 }} placeholder="101" />
                 </label>
-                <label style={{ fontSize: 12 }}>
+                <label style={{ fontSize: "var(--font-size-base)" }}>
                   Layers (VQE)
                   <br />
                   <input type="number" value={tplLayers} onChange={(e) => setTplLayers(+e.target.value)} min={1} max={10} style={{ ...inputStyle, width: 60 }} />
                 </label>
-                <label style={{ fontSize: 12 }}>
+                <label style={{ fontSize: "var(--font-size-base)" }}>
                   Gamma (QAOA)
                   <br />
                   <input type="number" value={tplGamma} onChange={(e) => setTplGamma(+e.target.value)} step={0.1} style={{ ...inputStyle, width: 60 }} />
                 </label>
-                <label style={{ fontSize: 12 }}>
+                <label style={{ fontSize: "var(--font-size-base)" }}>
                   Beta (QAOA)
                   <br />
                   <input type="number" value={tplBeta} onChange={(e) => setTplBeta(+e.target.value)} step={0.1} style={{ ...inputStyle, width: 60 }} />
@@ -2276,18 +2276,18 @@ export function QuantumComputingPanel() {
 
             {/* Template cards */}
             {templateList.length === 0 ? (
-              <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>Loading templates...</div>
+              <div style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-md)" }}>Loading templates...</div>
             ) : (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
                 {templateList.map((tpl) => (
                   <div key={tpl.name} className="panel-card">
-                    <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>{tpl.name}</div>
-                    <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8 }}>{tpl.description}</div>
+                    <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)", marginBottom: 4 }}>{tpl.name}</div>
+                    <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 8 }}>{tpl.description}</div>
                     <div style={{ display: "flex", gap: 6 }}>
                       <button
                         onClick={() => loadTemplate(tpl.name)}
                         disabled={tplLoading === tpl.name}
-                        style={{ ...btnPrimary, fontSize: 11, padding: "4px 10px", opacity: tplLoading === tpl.name ? 0.5 : 1 }}
+                        style={{ ...btnPrimary, fontSize: "var(--font-size-sm)", padding: "4px 10px", opacity: tplLoading === tpl.name ? 0.5 : 1 }}
                       >
                         {tplLoading === tpl.name ? "Loading..." : "Load Template"}
                       </button>
@@ -2304,12 +2304,12 @@ export function QuantumComputingPanel() {
           <div>
             <h3 style={{ margin: "0 0 12px", color: "var(--text-primary)" }}>Project Scaffolding</h3>
             <div style={{ display: "flex", gap: 12, alignItems: "flex-end", marginBottom: 16, flexWrap: "wrap" }}>
-              <label style={{ fontSize: 12 }}>
+              <label style={{ fontSize: "var(--font-size-base)" }}>
                 Project Name
                 <br />
                 <input value={scafName} onChange={(e) => setScafName(e.target.value)} style={{ ...inputStyle, width: 180 }} />
               </label>
-              <label style={{ fontSize: 12 }}>
+              <label style={{ fontSize: "var(--font-size-base)" }}>
                 Language
                 <br />
                 <select value={scafLang} onChange={(e) => setScafLang(e.target.value)} style={{ ...inputStyle, minWidth: 120 }}>
@@ -2319,7 +2319,7 @@ export function QuantumComputingPanel() {
                   <option value="Q#">Q#</option>
                 </select>
               </label>
-              <label style={{ fontSize: 12 }}>
+              <label style={{ fontSize: "var(--font-size-base)" }}>
                 Qubits
                 <br />
                 <input type="number" value={scafQubits} onChange={(e) => setScafQubits(+e.target.value)} min={1} max={100} style={{ ...inputStyle, width: 60 }} />
@@ -2331,7 +2331,7 @@ export function QuantumComputingPanel() {
 
             {scafFiles.length > 0 && (
               <div>
-                <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8 }}>
+                <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 8 }}>
                   Generated {scafFiles.length} file(s)
                 </div>
                 {scafFiles.map((f) => (
@@ -2340,7 +2340,7 @@ export function QuantumComputingPanel() {
                       style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}
                       onClick={() => toggleScafExpand(f.path)}
                     >
-                      <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 600, color: "var(--accent-primary)" }}>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--font-size-base)", fontWeight: 600, color: "var(--accent-primary)" }}>
                         {scafExpanded.has(f.path) ? "v " : "> "}
                         {f.path}
                       </div>
@@ -2360,8 +2360,8 @@ export function QuantumComputingPanel() {
                           marginTop: 8,
                           padding: 10,
                           background: "var(--bg-tertiary)",
-                          borderRadius: 6,
-                          fontSize: 11,
+                          borderRadius: "var(--radius-sm)",
+                          fontSize: "var(--font-size-sm)",
                           overflow: "auto",
                           maxHeight: 300,
                           whiteSpace: "pre-wrap",
@@ -2383,7 +2383,7 @@ export function QuantumComputingPanel() {
           <div>
             <h3 style={{ margin: "0 0 12px", color: "var(--text-primary)" }}>Hardware Topology Viewer</h3>
             <div style={{ display: "flex", gap: 12, alignItems: "flex-end", marginBottom: 16, flexWrap: "wrap" }}>
-              <label style={{ fontSize: 12 }}>
+              <label style={{ fontSize: "var(--font-size-base)" }}>
                 Backend
                 <br />
                 <select
@@ -2405,7 +2405,7 @@ export function QuantumComputingPanel() {
               if (!topo) return null;
               return (
                 <div>
-                  <div style={{ display: "flex", gap: 16, marginBottom: 12, fontSize: 12, color: "var(--text-secondary)" }}>
+                  <div style={{ display: "flex", gap: 16, marginBottom: 12, fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>
                     <span>Vendor: <strong style={{ color: "var(--text-primary)" }}>{topo.vendor}</strong></span>
                     <span>Qubits: <strong style={{ color: "var(--text-primary)" }}>{topo.qubitCount}</strong></span>
                     <span>Couplings: <strong style={{ color: "var(--text-primary)" }}>{topo.couplings.length}</strong></span>
@@ -2419,7 +2419,7 @@ export function QuantumComputingPanel() {
                     </span>
                   </div>
                   {renderTopologySvg(topo)}
-                  <div style={{ marginTop: 8, fontSize: 11, color: "var(--text-tertiary)" }}>
+                  <div style={{ marginTop: 8, fontSize: "var(--font-size-sm)", color: "var(--text-tertiary)" }}>
                     Node brightness indicates connectivity degree. Hover over a qubit to see its ID and degree.
                   </div>
                 </div>
@@ -2439,17 +2439,17 @@ export function QuantumComputingPanel() {
                   onClick={() => loadHelloCircuit(l.name)}
                   style={{
                     padding: 12,
-                    borderRadius: 8,
+                    borderRadius: "var(--radius-sm-alt)",
                     cursor: "pointer",
                     background: selectedLang === l.name ? "var(--accent-primary-10)" : "var(--bg-secondary)",
                     border: selectedLang === l.name ? "1px solid var(--accent-primary)" : "1px solid var(--border-color)",
                   }}
                 >
-                  <div style={{ fontWeight: 600, fontSize: 14 }}>{l.name}</div>
-                  <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>
+                  <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)" }}>{l.name}</div>
+                  <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginTop: 4 }}>
                     Host: {l.hostLanguage} &middot; {l.vendor}
                   </div>
-                  <code style={{ fontSize: 11, color: "var(--text-tertiary)", display: "block", marginTop: 4, wordBreak: "break-all" }}>
+                  <code style={{ fontSize: "var(--font-size-sm)", color: "var(--text-tertiary)", display: "block", marginTop: 4, wordBreak: "break-all" }}>
                     {l.installCommand}
                   </code>
                 </div>
@@ -2462,8 +2462,8 @@ export function QuantumComputingPanel() {
                   style={{
                     background: "var(--bg-tertiary)",
                     padding: 12,
-                    borderRadius: 8,
-                    fontSize: 12,
+                    borderRadius: "var(--radius-sm-alt)",
+                    fontSize: "var(--font-size-base)",
                     overflow: "auto",
                     maxHeight: 400,
                     whiteSpace: "pre-wrap",
@@ -2477,7 +2477,7 @@ export function QuantumComputingPanel() {
             {compat.length > 0 && (
               <div style={{ marginTop: 20 }}>
                 <h4 style={{ margin: "0 0 8px" }}>Language / OS Compatibility Matrix</h4>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
                   <thead>
                     <tr style={{ borderBottom: "2px solid var(--border-color)" }}>
                       <th style={{ textAlign: "left", padding: 6 }}>Language</th>
@@ -2504,10 +2504,10 @@ export function QuantumComputingPanel() {
             <h3 style={{ margin: "0 0 12px" }}>Quantum Operating Systems (15)</h3>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
               {osList.map((o) => (
-                <div key={o.name} style={{ padding: 12, borderRadius: 8, background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
-                  <div style={{ fontWeight: 600, fontSize: 14 }}>{o.name}</div>
-                  <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>Layer: {o.layer}</div>
-                  <div style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 2 }}>Vendor: {o.vendor}</div>
+                <div key={o.name} style={{ padding: 12, borderRadius: "var(--radius-sm-alt)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
+                  <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)" }}>{o.name}</div>
+                  <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginTop: 4 }}>Layer: {o.layer}</div>
+                  <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-tertiary)", marginTop: 2 }}>Vendor: {o.vendor}</div>
                 </div>
               ))}
             </div>
@@ -2519,12 +2519,12 @@ export function QuantumComputingPanel() {
           <div>
             <h3 style={{ margin: "0 0 12px" }}>Quantum Projects</h3>
             <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "flex-end" }}>
-              <label style={{ fontSize: 12 }}>
+              <label style={{ fontSize: "var(--font-size-base)" }}>
                 Name
                 <br />
                 <input value={npName} onChange={(e) => setNpName(e.target.value)} style={{ ...inputStyle, width: 140 }} />
               </label>
-              <label style={{ fontSize: 12 }}>
+              <label style={{ fontSize: "var(--font-size-base)" }}>
                 Language
                 <br />
                 <select value={npLang} onChange={(e) => setNpLang(e.target.value)} style={inputStyle}>
@@ -2535,7 +2535,7 @@ export function QuantumComputingPanel() {
                   ))}
                 </select>
               </label>
-              <label style={{ fontSize: 12 }}>
+              <label style={{ fontSize: "var(--font-size-base)" }}>
                 Hardware
                 <br />
                 <select value={npHw} onChange={(e) => setNpHw(e.target.value)} style={inputStyle}>
@@ -2546,12 +2546,12 @@ export function QuantumComputingPanel() {
                   ))}
                 </select>
               </label>
-              <label style={{ fontSize: 12 }}>
+              <label style={{ fontSize: "var(--font-size-base)" }}>
                 Qubits
                 <br />
                 <input type="number" value={npQubits} onChange={(e) => setNpQubits(+e.target.value)} min={1} max={10000} style={{ ...inputStyle, width: 60 }} />
               </label>
-              <label style={{ fontSize: 12 }}>
+              <label style={{ fontSize: "var(--font-size-base)" }}>
                 Description
                 <br />
                 <input value={npDesc} onChange={(e) => setNpDesc(e.target.value)} style={{ ...inputStyle, width: 200 }} />
@@ -2561,29 +2561,29 @@ export function QuantumComputingPanel() {
               </button>
             </div>
             {projects.length === 0 ? (
-              <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>No quantum projects yet.</div>
+              <div style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-md)" }}>No quantum projects yet.</div>
             ) : (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 12 }}>
                 {projects.map((p) => (
-                  <div key={p.id} style={{ padding: 12, borderRadius: 8, background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
+                  <div key={p.id} style={{ padding: 12, borderRadius: "var(--radius-sm-alt)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <div style={{ fontWeight: 600, fontSize: 14 }}>{p.name}</div>
+                      <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)" }}>{p.name}</div>
                       <button onClick={() => deleteProject(p.id)} style={{ background: "none", border: "none", color: "var(--text-tertiary)", cursor: "pointer", fontSize: 16 }} title="Delete project">
                         &times;
                       </button>
                     </div>
-                    <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>
+                    <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginTop: 4 }}>
                       {p.language} &middot; {p.targetHardware} &middot; {p.numQubits} qubits
                     </div>
-                    {p.targetOs && <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginTop: 2 }}>OS: {p.targetOs}</div>}
-                    {p.algorithm && <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginTop: 2 }}>Algorithm: {p.algorithm}</div>}
+                    {p.targetOs && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-tertiary)", marginTop: 2 }}>OS: {p.targetOs}</div>}
+                    {p.algorithm && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-tertiary)", marginTop: 2 }}>Algorithm: {p.algorithm}</div>}
                     {p.errorCorrection && (
-                      <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginTop: 2 }}>
+                      <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-tertiary)", marginTop: 2 }}>
                         ECC: {p.errorCorrection} &middot; Est. physical qubits: {p.estimatedPhysicalQubits ?? "N/A"}
                       </div>
                     )}
-                    {p.description && <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginTop: 4 }}>{p.description}</div>}
-                    <div style={{ fontSize: 10, color: "var(--text-tertiary)", marginTop: 4 }}>{p.id}</div>
+                    {p.description && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-tertiary)", marginTop: 4 }}>{p.description}</div>}
+                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-tertiary)", marginTop: 4 }}>{p.id}</div>
                   </div>
                 ))}
               </div>
@@ -2595,7 +2595,7 @@ export function QuantumComputingPanel() {
         {tab === "algorithms" && (
           <div>
             <h3 style={{ margin: "0 0 12px" }}>Quantum Algorithms</h3>
-            <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 12px" }}>
+            <p style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", margin: "0 0 12px" }}>
               Click an algorithm to view code examples in Qiskit, Cirq, and PennyLane.
             </p>
             {algorithms.map((a) => {
@@ -2608,11 +2608,11 @@ export function QuantumComputingPanel() {
                     onClick={() => setAlgoExpanded(isExpanded ? null : a.name)}
                   >
                     <div>
-                      <span style={{ fontWeight: 600, fontSize: 13 }}>{a.name}</span>
-                      <span style={{ fontSize: 11, color: "var(--text-secondary)", marginLeft: 8 }}>{a.category}</span>
-                      <span style={{ fontSize: 11, color: "var(--text-tertiary)", marginLeft: 8 }}>{a.scaling}</span>
+                      <span style={{ fontWeight: 600, fontSize: "var(--font-size-md)" }}>{a.name}</span>
+                      <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginLeft: 8 }}>{a.category}</span>
+                      <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-tertiary)", marginLeft: 8 }}>{a.scaling}</span>
                     </div>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, color: "var(--accent-primary)" }}>{isExpanded ? <ChevronDown size={11} /> : <ChevronRight size={11} />} Code</span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: "var(--font-size-sm)", color: "var(--accent-primary)" }}>{isExpanded ? <ChevronDown size={11} /> : <ChevronRight size={11} />} Code</span>
                   </div>
                   {isExpanded && examples && (
                     <div style={{ marginTop: 10 }}>
@@ -2622,15 +2622,15 @@ export function QuantumComputingPanel() {
                         return (
                           <div key={lang} style={{ marginBottom: 10 }}>
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                              <span style={{ fontSize: 12, fontWeight: 600, color: "var(--accent-primary)" }}>{lang}</span>
+                              <span style={{ fontSize: "var(--font-size-base)", fontWeight: 600, color: "var(--accent-primary)" }}>{lang}</span>
                               <button onClick={() => navigator.clipboard.writeText(code)} style={btnSmall}>Copy</button>
                             </div>
-                            <pre style={{ margin: 0, padding: 8, background: "var(--bg-primary)", borderRadius: 4, fontSize: 11, overflowX: "auto", whiteSpace: "pre-wrap", color: "var(--text-primary)", border: "1px solid var(--border-color)" }}>{code}</pre>
+                            <pre style={{ margin: 0, padding: 8, background: "var(--bg-primary)", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-sm)", overflowX: "auto", whiteSpace: "pre-wrap", color: "var(--text-primary)", border: "1px solid var(--border-color)" }}>{code}</pre>
                           </div>
                         );
                       })}
                       {!examples && (
-                        <div style={{ fontSize: 12, color: "var(--text-secondary)", fontStyle: "italic" }}>Code examples coming soon.</div>
+                        <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", fontStyle: "italic" }}>Code examples coming soon.</div>
                       )}
                     </div>
                   )}

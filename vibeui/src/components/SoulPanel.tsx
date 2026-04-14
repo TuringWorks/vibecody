@@ -114,7 +114,7 @@ export function SoulPanel({ workspacePath }: { workspacePath?: string | null }) 
         <div className="panel-error">{error}</div>
       )}
       {success && (
-        <div style={{ padding: "8px 16px", background: "var(--bg-secondary)", borderBottom: "1px solid var(--border-color)", color: "var(--text-success)", fontSize: "12px" }}>
+        <div style={{ padding: "8px 16px", background: "var(--bg-secondary)", borderBottom: "1px solid var(--border-color)", color: "var(--text-success)", fontSize: "var(--font-size-base)" }}>
           {success}
         </div>
       )}
@@ -130,7 +130,7 @@ export function SoulPanel({ workspacePath }: { workspacePath?: string | null }) 
                     value={editContent}
                     onChange={(e) => setEditContent(e.target.value)}
                     className="panel-input panel-textarea panel-input-full"
-                    style={{ minHeight: 360, fontFamily: "var(--font-mono)", fontSize: "13px", lineHeight: "1.6", resize: "vertical" }}
+                    style={{ minHeight: 360, fontFamily: "var(--font-mono)", fontSize: "var(--font-size-md)", lineHeight: "1.6", resize: "vertical" }}
                   />
                   <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end", marginTop: 8 }}>
                     <button className="panel-btn panel-btn-secondary" onClick={cancelEdit}>Cancel</button>
@@ -142,7 +142,7 @@ export function SoulPanel({ workspacePath }: { workspacePath?: string | null }) 
               ) : (
                 <>
                   <div className="panel-card">
-                    <pre style={{ fontFamily: "var(--font-mono)", fontSize: "13px", lineHeight: "1.6", whiteSpace: "pre-wrap", wordBreak: "break-word", color: "var(--text-primary)", margin: 0 }}>
+                    <pre style={{ fontFamily: "var(--font-mono)", fontSize: "var(--font-size-md)", lineHeight: "1.6", whiteSpace: "pre-wrap", wordBreak: "break-word", color: "var(--text-primary)", margin: 0 }}>
                       {content}
                     </pre>
                   </div>
@@ -158,7 +158,7 @@ export function SoulPanel({ workspacePath }: { workspacePath?: string | null }) 
               )
             ) : (
               <div className="panel-empty">
-                <div style={{ fontSize: "14px", marginBottom: "12px" }}>No SOUL.md found in this project.</div>
+                <div style={{ fontSize: "var(--font-size-lg)", marginBottom: "12px" }}>No SOUL.md found in this project.</div>
                 <button className="panel-btn panel-btn-primary" onClick={() => setTab("generate")}>
                   Generate One
                 </button>
@@ -170,10 +170,10 @@ export function SoulPanel({ workspacePath }: { workspacePath?: string | null }) 
         {tab === "generate" && (
           <>
             <div className="panel-card">
-              <div style={{ fontWeight: 600, fontSize: "14px", marginBottom: "8px", color: "var(--text-primary)" }}>
+              <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)", marginBottom: "8px", color: "var(--text-primary)" }}>
                 Generate SOUL.md
               </div>
-              <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "16px" }}>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: "16px" }}>
                 VibeCody will scan your project structure, detect languages, frameworks, license, and
                 testing patterns, then generate a SOUL.md that captures your project's philosophy and design principles.
               </div>
@@ -205,10 +205,10 @@ export function SoulPanel({ workspacePath }: { workspacePath?: string | null }) 
             </div>
 
             <div className="panel-card">
-              <div style={{ fontWeight: 600, fontSize: "13px", marginBottom: "8px", color: "var(--text-primary)" }}>
+              <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", marginBottom: "8px", color: "var(--text-primary)" }}>
                 What gets generated
               </div>
-              <ul style={{ fontSize: "12px", color: "var(--text-secondary)", margin: 0, paddingLeft: "20px", lineHeight: "1.8" }}>
+              <ul style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", margin: 0, paddingLeft: "20px", lineHeight: "1.8" }}>
                 <li><strong>Why This Project Exists</strong> — The problem and motivation</li>
                 <li><strong>Core Beliefs</strong> — 3-6 principles that guide decisions</li>
                 <li><strong>Design Principles</strong> — Technical philosophy and patterns</li>
@@ -223,10 +223,10 @@ export function SoulPanel({ workspacePath }: { workspacePath?: string | null }) 
           <>
             {signals ? (
               <div className="panel-card">
-                <div style={{ fontWeight: 600, fontSize: "14px", marginBottom: "12px", color: "var(--text-primary)" }}>
+                <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)", marginBottom: "12px", color: "var(--text-primary)" }}>
                   Project Signals: {signals.name}
                 </div>
-                <table style={{ width: "100%", fontSize: "12px", borderCollapse: "collapse" }}>
+                <table style={{ width: "100%", fontSize: "var(--font-size-base)", borderCollapse: "collapse" }}>
                   <tbody>
                     {[
                       ["Name", signals.name],

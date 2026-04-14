@@ -273,18 +273,18 @@ export function TrustPanel() {
 
       {tab === "scores" && !noData && (
         <div>
-          <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 10 }}>
+          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 10 }}>
             Score = success rate across all traced tool calls. Green {"\u2265"}80, Yellow {"\u2265"}50, Red &lt;50.
           </div>
           {modelScores.map((s) => (
             <div key={s.model} className="panel-card" style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <div style={{ minWidth: 140, fontWeight: 600, fontSize: 13 }}>{s.model}</div>
-              <div style={{ flex: 1, height: 8, borderRadius: 4, background: "var(--border-color)" }}>
-                <div style={{ width: `${s.score}%`, height: 8, borderRadius: 4, background: scoreColor(s.score), transition: "width 0.3s" }} />
+              <div style={{ minWidth: 140, fontWeight: 600, fontSize: "var(--font-size-md)" }}>{s.model}</div>
+              <div style={{ flex: 1, height: 8, borderRadius: "var(--radius-xs-plus)", background: "var(--border-color)" }}>
+                <div style={{ width: `${s.score}%`, height: 8, borderRadius: "var(--radius-xs-plus)", background: scoreColor(s.score), transition: "width 0.3s" }} />
               </div>
-              <span style={{ fontWeight: 600, fontSize: 13, color: scoreColor(s.score), minWidth: 36, textAlign: "right" }}>{s.score}</span>
-              <span style={{ fontSize: 11, color: "var(--text-secondary)", minWidth: 60 }}>{s.tasks} tasks</span>
-              <span style={{ fontSize: 10, color: "var(--text-secondary)", minWidth: 80 }}>
+              <span style={{ fontWeight: 600, fontSize: "var(--font-size-md)", color: scoreColor(s.score), minWidth: 36, textAlign: "right" }}>{s.score}</span>
+              <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", minWidth: 60 }}>{s.tasks} tasks</span>
+              <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", minWidth: 80 }}>
                 {s.successes}ok / {s.failures}fail
               </span>
             </div>
@@ -294,7 +294,7 @@ export function TrustPanel() {
 
       {tab === "events" && (
         <div>
-          <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 10 }}>
+          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 10 }}>
             Latest 50 tool invocations across all models. Delta shows configured recovery (+{config.recoveryRate}) or decay (-{config.decayRate}) points.
           </div>
           {events.length === 0 ? (
@@ -302,17 +302,17 @@ export function TrustPanel() {
           ) : events.map((e, i) => (
             <div key={i} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
-                <span style={{ fontWeight: 600, fontSize: 13 }}>{e.model}</span>
-                <span style={{ fontSize: 12, color: "var(--text-secondary)", marginLeft: 8 }}>{e.tool}</span>
+                <span style={{ fontWeight: 600, fontSize: "var(--font-size-md)" }}>{e.model}</span>
+                <span style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginLeft: 8 }}>{e.tool}</span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{timeAgo(e.timestamp)}</span>
+                <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{timeAgo(e.timestamp)}</span>
                 <span style={{
-                  padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 600,
+                  padding: "2px 8px", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-sm)", fontWeight: 600,
                   background: e.success ? "var(--success-bg)" : "var(--error-bg)",
                   color: e.success ? "var(--success-color)" : "var(--error-color)",
                 }}>{e.success ? "success" : "failure"}</span>
-                <span style={{ fontWeight: 600, fontSize: 12, color: e.delta >= 0 ? "var(--success-color)" : "var(--error-color)", minWidth: 28, textAlign: "right" }}>
+                <span style={{ fontWeight: 600, fontSize: "var(--font-size-base)", color: e.delta >= 0 ? "var(--success-color)" : "var(--error-color)", minWidth: 28, textAlign: "right" }}>
                   {e.delta >= 0 ? "+" : ""}{e.delta}
                 </span>
               </div>
@@ -323,23 +323,23 @@ export function TrustPanel() {
 
       {tab === "domains" && (
         <div>
-          <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 10 }}>
+          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 10 }}>
             Per-domain success rates grouped by tool type (edit/write = Code Generation, test = Testing, fix/debug = Bug Fixing, etc.).
           </div>
           {domains.length === 0 ? (
             <div className="panel-empty">No domain data yet</div>
           ) : domains.map((d) => (
             <div key={d.domain} className="panel-card">
-              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>{d.domain}</div>
+              <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", marginBottom: 8 }}>{d.domain}</div>
               {Object.entries(d.scores)
                 .sort(([, a], [, b]) => b - a)
                 .map(([model, score]) => (
                 <div key={model} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                  <span style={{ fontSize: 12, minWidth: 140, color: "var(--text-secondary)" }}>{model}</span>
+                  <span style={{ fontSize: "var(--font-size-base)", minWidth: 140, color: "var(--text-secondary)" }}>{model}</span>
                   <div style={{ flex: 1, height: 6, borderRadius: 3, background: "var(--border-color)" }}>
                     <div style={{ width: `${score}%`, height: 6, borderRadius: 3, background: scoreColor(score), transition: "width 0.3s" }} />
                   </div>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: scoreColor(score), minWidth: 28, textAlign: "right" }}>{score}</span>
+                  <span style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, color: scoreColor(score), minWidth: 28, textAlign: "right" }}>{score}</span>
                 </div>
               ))}
             </div>
@@ -349,27 +349,27 @@ export function TrustPanel() {
 
       {tab === "config" && (
         <div>
-          <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 10 }}>
+          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 10 }}>
             Configure trust scoring parameters. Changes are saved and applied on next refresh.
           </div>
           <div className="panel-card">
-            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Decay Rate: {config.decayRate} pts/failure</div>
-            <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 6 }}>Points deducted per failed tool invocation</div>
+            <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", marginBottom: 8 }}>Decay Rate: {config.decayRate} pts/failure</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 6 }}>Points deducted per failed tool invocation</div>
             <input type="range" min={1} max={20} value={config.decayRate} onChange={(e) => updateConfig({ decayRate: Number(e.target.value) })} style={{ width: "100%" }} />
           </div>
           <div className="panel-card">
-            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Recovery Rate: {config.recoveryRate} pts/success</div>
-            <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 6 }}>Points awarded per successful tool invocation</div>
+            <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", marginBottom: 8 }}>Recovery Rate: {config.recoveryRate} pts/success</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 6 }}>Points awarded per successful tool invocation</div>
             <input type="range" min={1} max={25} value={config.recoveryRate} onChange={(e) => updateConfig({ recoveryRate: Number(e.target.value) })} style={{ width: "100%" }} />
           </div>
           <div className="panel-card">
-            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Auto-Merge Threshold: {config.autoMergeThreshold}</div>
-            <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 6 }}>Models scoring above this can auto-merge without review</div>
+            <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", marginBottom: 8 }}>Auto-Merge Threshold: {config.autoMergeThreshold}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 6 }}>Models scoring above this can auto-merge without review</div>
             <input type="range" min={50} max={100} value={config.autoMergeThreshold} onChange={(e) => updateConfig({ autoMergeThreshold: Number(e.target.value) })} style={{ width: "100%" }} />
           </div>
           <div className="panel-card">
-            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Manual Review Below: {config.manualReviewThreshold}</div>
-            <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 6 }}>Models scoring below this require manual review for all actions</div>
+            <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", marginBottom: 8 }}>Manual Review Below: {config.manualReviewThreshold}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 6 }}>Models scoring below this require manual review for all actions</div>
             <input type="range" min={10} max={80} value={config.manualReviewThreshold} onChange={(e) => updateConfig({ manualReviewThreshold: Number(e.target.value) })} style={{ width: "100%" }} />
           </div>
         </div>

@@ -49,10 +49,10 @@ interface OPEResult {
   ciHigh: number;
 }
 
-const tableStyle: React.CSSProperties = { width: "100%", borderCollapse: "collapse", fontSize: 12 };
+const tableStyle: React.CSSProperties = { width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" };
 const thStyle: React.CSSProperties = { textAlign: "left", padding: "6px 8px", borderBottom: "1px solid var(--border-color)", color: "var(--text-secondary)", fontWeight: 600 };
 const tdStyle: React.CSSProperties = { padding: "6px 8px", borderBottom: "1px solid var(--border-color)" };
-const passBadge: React.CSSProperties = { fontSize: 10, padding: "2px 6px", borderRadius: 3, color: "#fff" };
+const passBadge: React.CSSProperties = { fontSize: "var(--font-size-xs)", padding: "2px 6px", borderRadius: 3, color: "var(--btn-primary-fg, #fff)" };
 
 export function RLEvalResults() {
   const [suites, setSuites] = useState<EvalSuite[]>([]);
@@ -77,7 +77,7 @@ export function RLEvalResults() {
 
   return (
     <div className="panel-container">
-      <h2 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>Evaluation Results</h2>
+      <h2 style={{ margin: "0 0 12px", fontSize: "var(--font-size-xl)", fontWeight: 600, color: "var(--text-primary)" }}>Evaluation Results</h2>
 
       <div className="panel-card">
         <div className="panel-label">Eval Suites</div>
@@ -119,7 +119,7 @@ export function RLEvalResults() {
               </table>
               <div className="panel-label" style={{ marginTop: 6 }}>Safety Constraints</div>
               {sc.safetyConstraints.map(c => (
-                <div key={c.name} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "2px 0" }}>
+                <div key={c.name} style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--font-size-base)", padding: "2px 0" }}>
                   <span>{c.name}</span>
                   <span style={{ color: c.satisfied ? "var(--success-color)" : "var(--error-color)" }}>{c.value.toFixed(4)} / {c.threshold.toFixed(4)}</span>
                 </div>

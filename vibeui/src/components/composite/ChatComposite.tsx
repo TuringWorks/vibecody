@@ -2,7 +2,7 @@ import { lazy, Suspense } from "react";
 import { TabbedPanel } from "../TabbedPanel";
 
 const Loading = () => (
-  <div style={{ padding: 16, color: "var(--text-secondary)", fontSize: 13 }}>Loading...</div>
+  <div style={{ padding: 16, color: "var(--text-secondary)", fontSize: "var(--font-size-md)" }}>Loading...</div>
 );
 
 const ChatTabManager = lazy(() =>

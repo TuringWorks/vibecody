@@ -65,8 +65,8 @@ interface QueryHistoryEntry {
 // ── Styles ───────────────────────────────────────────────────────────────────
 
 const badge = (bg: string): React.CSSProperties => ({
-  display: "inline-block", padding: "2px 8px", borderRadius: 10,
-  fontSize: 10, fontWeight: 600, background: bg, color: "var(--btn-primary-fg)",
+  display: "inline-block", padding: "2px 8px", borderRadius: "var(--radius-md)",
+  fontSize: "var(--font-size-xs)", fontWeight: 600, background: bg, color: "var(--btn-primary-fg)",
 });
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -237,7 +237,7 @@ export function VibeSqlPanel({ provider }: { workspacePath: string | null; provi
 
   const tabBtn = (id: string, lbl: string, disabled = false) => (
     <button key={id} disabled={disabled} onClick={() => !disabled && setTab(id as typeof tab)} style={{
-      padding: "5px 12px", fontSize: 11, fontWeight: tab === id ? 600 : 400, cursor: disabled ? "not-allowed" : "pointer",
+      padding: "5px 12px", fontSize: "var(--font-size-sm)", fontWeight: tab === id ? 600 : 400, cursor: disabled ? "not-allowed" : "pointer",
       background: tab === id ? "var(--accent-color)" : "transparent",
       color: tab === id ? "var(--btn-primary-fg, #fff)" : disabled ? "var(--text-secondary)" : "var(--text-primary)",
       border: `1px solid ${tab === id ? "var(--accent-color)" : "var(--border-color)"}`,
@@ -259,8 +259,8 @@ export function VibeSqlPanel({ provider }: { workspacePath: string | null; provi
             <div key={c.id} className="panel-card" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div style={{ flex: 1, cursor: "pointer" }} role="button" tabIndex={0}
                 onClick={() => handleQuickConnect(c)} onKeyDown={e => e.key === "Enter" && handleQuickConnect(c)}>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>{c.name}</div>
-                <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+                <div style={{ fontSize: "var(--font-size-md)", fontWeight: 600 }}>{c.name}</div>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
                   {c.edition === "cloud" ? "cloud.vibesql.online" : `${c.host}:${c.port}`} / {c.database}
                   <span style={{ ...badge(c.edition === "cloud" ? "var(--info-color)" : "var(--success-color)"), marginLeft: 6 }}>{c.edition}</span>
                 </div>
@@ -299,7 +299,7 @@ export function VibeSqlPanel({ provider }: { workspacePath: string | null; provi
             <label className="panel-label">Database</label>
             <input className="panel-input panel-input-full" value={database} onChange={e => setDatabase(e.target.value)} placeholder="mydb" />
           </div>
-          <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 10 }}>
+          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 10 }}>
             Connects to <strong>cloud.vibesql.online</strong> with TLS. Get your API key at{" "}
             <span style={{ color: "var(--accent-color)" }}>vibesql.online/dashboard</span>
           </div>
@@ -330,7 +330,7 @@ export function VibeSqlPanel({ provider }: { workspacePath: string | null; provi
               <input className="panel-input panel-input-full" style={{ fontFamily: "var(--font-mono, monospace)" }} type="password" value={password} onChange={e => setPassword(e.target.value)} />
             </div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, fontSize: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, fontSize: "var(--font-size-base)" }}>
             <input type="checkbox" id="vibesql-ssl" checked={useSsl} onChange={e => setUseSsl(e.target.checked)} />
             <label htmlFor="vibesql-ssl">Use SSL/TLS</label>
           </div>
@@ -356,24 +356,24 @@ export function VibeSqlPanel({ provider }: { workspacePath: string | null; provi
           <div key={t.name} role="button" tabIndex={0}
             onClick={() => setSelectedTable(t.name)} onKeyDown={e => e.key === "Enter" && setSelectedTable(t.name)}
             style={{
-              padding: "6px 8px", borderRadius: "var(--radius-sm)", cursor: "pointer", marginBottom: 2, fontSize: 12,
+              padding: "6px 8px", borderRadius: "var(--radius-sm)", cursor: "pointer", marginBottom: 2, fontSize: "var(--font-size-base)",
               background: selectedTable === t.name ? "var(--accent-color)" : "transparent",
               color: selectedTable === t.name ? "var(--btn-primary-fg, #fff)" : "var(--text-primary)",
             }}>
             <div style={{ fontWeight: 500 }}>{t.name}</div>
-            <div style={{ fontSize: 10, opacity: 0.7 }}>{t.row_count.toLocaleString()} rows</div>
+            <div style={{ fontSize: "var(--font-size-xs)", opacity: 0.7 }}>{t.row_count.toLocaleString()} rows</div>
           </div>
         ))}
-        {tables.length === 0 && <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>No tables found</div>}
+        {tables.length === 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>No tables found</div>}
       </div>
 
       {/* Column details */}
       <div style={{ flex: 1, overflowY: "auto" }}>
         {selectedTableInfo ? (
           <>
-            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>{selectedTableInfo.schema}.{selectedTableInfo.name}</div>
-            <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 10 }}>{selectedTableInfo.row_count.toLocaleString()} rows</div>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+            <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 700, marginBottom: 8 }}>{selectedTableInfo.schema}.{selectedTableInfo.name}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 10 }}>{selectedTableInfo.row_count.toLocaleString()} rows</div>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
                   <th style={{ textAlign: "left", padding: "4px 8px", color: "var(--text-secondary)", fontWeight: 600 }}>Column</th>
@@ -386,7 +386,7 @@ export function VibeSqlPanel({ provider }: { workspacePath: string | null; provi
                 {selectedTableInfo.columns.map(c => (
                   <tr key={c.name} style={{ borderBottom: "1px solid var(--border-color)" }}>
                     <td style={{ padding: "4px 8px", fontWeight: c.primary_key ? 600 : 400 }}>{c.name}</td>
-                    <td style={{ padding: "4px 8px", fontFamily: "var(--font-mono, monospace)", color: "var(--text-secondary)", fontSize: 11 }}>{c.data_type}</td>
+                    <td style={{ padding: "4px 8px", fontFamily: "var(--font-mono, monospace)", color: "var(--text-secondary)", fontSize: "var(--font-size-sm)" }}>{c.data_type}</td>
                     <td style={{ padding: "4px 8px", textAlign: "center" }}>{c.primary_key ? <Key size={12} strokeWidth={1.5} style={{ color: "var(--accent, #4a9eff)" }} /> : ""}</td>
                     <td style={{ padding: "4px 8px", textAlign: "center", color: "var(--text-secondary)" }}>{c.nullable ? "yes" : "no"}</td>
                   </tr>
@@ -403,7 +403,7 @@ export function VibeSqlPanel({ provider }: { workspacePath: string | null; provi
             </div>
           </>
         ) : (
-          <div style={{ color: "var(--text-secondary)", fontSize: 12, padding: 20, textAlign: "center" }}>
+          <div style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-base)", padding: 20, textAlign: "center" }}>
             Select a table to view its schema
           </div>
         )}
@@ -449,7 +449,7 @@ export function VibeSqlPanel({ provider }: { workspacePath: string | null; provi
       {queryResult && (
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-            <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+            <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
               {queryResult.error
                 ? <span style={{ color: "var(--error-color)" }}>{queryResult.error}</span>
                 : `${queryResult.row_count} row${queryResult.row_count !== 1 ? "s" : ""} in ${queryResult.elapsed_ms}ms`
@@ -458,7 +458,7 @@ export function VibeSqlPanel({ provider }: { workspacePath: string | null; provi
           </div>
           {!queryResult.error && queryResult.columns.length > 0 && (
             <div style={{ overflowX: "auto", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, fontFamily: "var(--font-mono, monospace)" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono, monospace)" }}>
                 <thead>
                   <tr style={{ background: "var(--bg-tertiary)" }}>
                     {queryResult.columns.map(c => (
@@ -496,10 +496,10 @@ export function VibeSqlPanel({ provider }: { workspacePath: string | null; provi
         <div key={i} className="panel-card" style={{ cursor: "pointer" }} role="button" tabIndex={0}
           onClick={() => { setSql(h.sql); setTab("query"); }}
           onKeyDown={e => { if (e.key === "Enter") { setSql(h.sql); setTab("query"); } }}>
-          <div style={{ fontFamily: "var(--font-mono, monospace)", fontSize: 11, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <div style={{ fontFamily: "var(--font-mono, monospace)", fontSize: "var(--font-size-sm)", marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {h.sql}
           </div>
-          <div style={{ fontSize: 10, color: "var(--text-secondary)", display: "flex", gap: 8 }}>
+          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", display: "flex", gap: 8 }}>
             <span>{new Date(h.timestamp).toLocaleTimeString()}</span>
             <span>{h.row_count} rows</span>
             <span>{h.elapsed_ms}ms</span>
@@ -518,11 +518,11 @@ export function VibeSqlPanel({ provider }: { workspacePath: string | null; provi
         <>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
             <div className="panel-card">
-              <div style={{ fontSize: 10, color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: 2 }}>Version</div>
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: 2 }}>Version</div>
               <div style={{ fontSize: 16, fontWeight: 700, fontFamily: "var(--font-mono, monospace)" }}>{serverInfo.version}</div>
             </div>
             <div className="panel-card">
-              <div style={{ fontSize: 10, color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: 2 }}>Edition</div>
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: 2 }}>Edition</div>
               <div style={{ fontSize: 16, fontWeight: 700 }}>
                 {serverInfo.edition}
                 <span style={{ ...badge(serverInfo.edition.toLowerCase().includes("cloud") ? "var(--info-color)" : "var(--success-color)"), marginLeft: 6, fontSize: 9 }}>
@@ -531,24 +531,24 @@ export function VibeSqlPanel({ provider }: { workspacePath: string | null; provi
               </div>
             </div>
             <div className="panel-card">
-              <div style={{ fontSize: 10, color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: 2 }}>Uptime</div>
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: 2 }}>Uptime</div>
               <div style={{ fontSize: 16, fontWeight: 700, fontFamily: "var(--font-mono, monospace)" }}>{serverInfo.uptime}</div>
             </div>
             <div className="panel-card">
-              <div style={{ fontSize: 10, color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: 2 }}>Connections</div>
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: 2 }}>Connections</div>
               <div style={{ fontSize: 16, fontWeight: 700, fontFamily: "var(--font-mono, monospace)" }}>{serverInfo.connections_active}</div>
             </div>
           </div>
           <div className="panel-card">
-            <div style={{ fontSize: 10, color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: 4 }}>Memory</div>
-            <div style={{ fontSize: 13, fontFamily: "var(--font-mono, monospace)" }}>{serverInfo.memory_used_mb} MB</div>
+            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: 4 }}>Memory</div>
+            <div style={{ fontSize: "var(--font-size-md)", fontFamily: "var(--font-mono, monospace)" }}>{serverInfo.memory_used_mb} MB</div>
           </div>
           {serverInfo.databases.length > 0 && (
             <div className="panel-card" style={{ marginTop: 8 }}>
-              <div style={{ fontSize: 10, color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: 6 }}>Databases</div>
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: 6 }}>Databases</div>
               <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                 {serverInfo.databases.map(db => (
-                  <span key={db} style={{ ...badge("var(--accent-color)"), fontSize: 11 }}>{db}</span>
+                  <span key={db} style={{ ...badge("var(--accent-color)"), fontSize: "var(--font-size-sm)" }}>{db}</span>
                 ))}
               </div>
             </div>

@@ -89,13 +89,13 @@ export function QaValidationPanel() {
 
       <div className="panel-body">
         {loading && (
-          <div style={{ color: "var(--text-secondary)", fontSize: 12, textAlign: "center", marginTop: 32 }}>Loading...</div>
+          <div style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-base)", textAlign: "center", marginTop: 32 }}>Loading...</div>
         )}
 
         {!loading && tab === "validate" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div>
-              <label style={{ fontSize: 11, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Assertions / Test Cases (one per line)</label>
+              <label style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Assertions / Test Cases (one per line)</label>
               <textarea
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
@@ -116,7 +116,7 @@ export function QaValidationPanel() {
             {/* Results */}
             {currentResults.length > 0 && (
               <div style={{ marginTop: 8 }}>
-                <div style={{ display: "flex", gap: 16, fontSize: 12, marginBottom: 12 }}>
+                <div style={{ display: "flex", gap: 16, fontSize: "var(--font-size-base)", marginBottom: 12 }}>
                   <span style={{ color: "var(--success-color)", fontWeight: 600 }}>{currentResults.filter((c) => c.passed).length} passed</span>
                   <span style={{ color: "var(--error-color)", fontWeight: 600 }}>{currentResults.filter((c) => !c.passed).length} failed</span>
                   <span style={{ color: "var(--text-secondary)" }}>{currentResults.length} total</span>
@@ -132,21 +132,21 @@ export function QaValidationPanel() {
                       marginBottom: 4,
                       background: "var(--bg-secondary)",
                       border: "1px solid var(--border)",
-                      borderRadius: 4,
+                      borderRadius: "var(--radius-xs-plus)",
                       borderLeft: `3px solid ${c.passed ? "var(--success-color)" : "var(--error-color)"}`,
                     }}
                   >
-                    <span style={{ fontSize: 14, lineHeight: "20px", flexShrink: 0 }}>{c.passed ? "[PASS]" : "[FAIL]"}</span>
+                    <span style={{ fontSize: "var(--font-size-lg)", lineHeight: "20px", flexShrink: 0 }}>{c.passed ? "[PASS]" : "[FAIL]"}</span>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 12, fontFamily: "var(--font-mono)" }}>{c.assertion}</div>
-                      <div style={{ fontSize: 11, color: c.passed ? "var(--success-color)" : "var(--error-color)", marginTop: 2 }}>{c.message}</div>
+                      <div style={{ fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)" }}>{c.assertion}</div>
+                      <div style={{ fontSize: "var(--font-size-sm)", color: c.passed ? "var(--success-color)" : "var(--error-color)", marginTop: 2 }}>{c.message}</div>
                     </div>
                   </div>
                 ))}
               </div>
             )}
             {currentResults.length === 0 && !isRunning && (
-              <div style={{ textAlign: "center", opacity: 0.4, fontSize: 12, marginTop: 32 }}>Enter assertions and click Run Validation to test them.</div>
+              <div style={{ textAlign: "center", opacity: 0.4, fontSize: "var(--font-size-base)", marginTop: 32 }}>Enter assertions and click Run Validation to test them.</div>
             )}
           </div>
         )}
@@ -154,13 +154,13 @@ export function QaValidationPanel() {
         {!loading && tab === "reports" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {history.length === 0 && (
-              <div style={{ textAlign: "center", opacity: 0.4, fontSize: 12, marginTop: 32 }}>No validation runs yet. Go to the Validate tab to run assertions.</div>
+              <div style={{ textAlign: "center", opacity: 0.4, fontSize: "var(--font-size-base)", marginTop: 32 }}>No validation runs yet. Go to the Validate tab to run assertions.</div>
             )}
 
             {history.length > 0 && !selectedRun && (
               <>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>Validation History</div>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                <div style={{ fontSize: "var(--font-size-md)", fontWeight: 600 }}>Validation History</div>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
                   <thead>
                     <tr style={{ background: "var(--bg-secondary)" }}>
                       <th style={{ padding: "6px 8px", textAlign: "left", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>Timestamp</th>
@@ -174,13 +174,13 @@ export function QaValidationPanel() {
                   <tbody>
                     {history.map((run, i) => (
                       <tr key={run.id} style={{ background: i % 2 === 0 ? "transparent" : "var(--bg-secondary)" }}>
-                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", fontFamily: "var(--font-mono)", fontSize: 11 }}>{new Date(run.timestamp).toLocaleString()}</td>
+                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", fontFamily: "var(--font-mono)", fontSize: "var(--font-size-sm)" }}>{new Date(run.timestamp).toLocaleString()}</td>
                         <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>
                           <span style={{
                             display: "inline-block",
                             padding: "2px 8px",
-                            borderRadius: 10,
-                            fontSize: 10,
+                            borderRadius: "var(--radius-md)",
+                            fontSize: "var(--font-size-xs)",
                             fontWeight: 600,
                             background: run.failed === 0 ? "rgba(76,175,80,0.15)" : "color-mix(in srgb, var(--accent-rose) 15%, transparent)",
                             color: run.failed === 0 ? "var(--success-color)" : "var(--error-color)",
@@ -192,7 +192,7 @@ export function QaValidationPanel() {
                         <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "center", color: run.failed > 0 ? "var(--error-color)" : "var(--text-secondary)" }}>{run.failed}</td>
                         <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>{run.total}</td>
                         <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>
-                          <button onClick={() => setSelectedRun(run.id)} style={{ background: "none", border: "none", color: "var(--accent)", cursor: "pointer", fontSize: 11, textDecoration: "underline" }}>Details</button>
+                          <button onClick={() => setSelectedRun(run.id)} style={{ background: "none", border: "none", color: "var(--accent)", cursor: "pointer", fontSize: "var(--font-size-sm)", textDecoration: "underline" }}>Details</button>
                         </td>
                       </tr>
                     ))}
@@ -205,12 +205,12 @@ export function QaValidationPanel() {
               <div>
                 <button
                   onClick={() => setSelectedRun(null)}
-                  style={{ background: "none", border: "none", color: "var(--accent)", cursor: "pointer", fontSize: 12, marginBottom: 12, padding: 0 }}
+                  style={{ background: "none", border: "none", color: "var(--accent)", cursor: "pointer", fontSize: "var(--font-size-base)", marginBottom: 12, padding: 0 }}
                 >
                   &larr; Back to History
                 </button>
-                <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Run {selectedRunData.id}</div>
-                <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 12 }}>
+                <div style={{ fontSize: "var(--font-size-md)", fontWeight: 600, marginBottom: 4 }}>Run {selectedRunData.id}</div>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 12 }}>
                   {new Date(selectedRunData.timestamp).toLocaleString()} — {selectedRunData.passed} passed, {selectedRunData.failed} failed
                 </div>
                 {selectedRunData.cases.map((c) => (
@@ -224,14 +224,14 @@ export function QaValidationPanel() {
                       marginBottom: 4,
                       background: "var(--bg-secondary)",
                       border: "1px solid var(--border)",
-                      borderRadius: 4,
+                      borderRadius: "var(--radius-xs-plus)",
                       borderLeft: `3px solid ${c.passed ? "var(--success-color)" : "var(--error-color)"}`,
                     }}
                   >
-                    <span style={{ fontSize: 14, lineHeight: "20px", flexShrink: 0 }}>{c.passed ? "[PASS]" : "[FAIL]"}</span>
+                    <span style={{ fontSize: "var(--font-size-lg)", lineHeight: "20px", flexShrink: 0 }}>{c.passed ? "[PASS]" : "[FAIL]"}</span>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 12, fontFamily: "var(--font-mono)" }}>{c.assertion}</div>
-                      <div style={{ fontSize: 11, color: c.passed ? "var(--success-color)" : "var(--error-color)", marginTop: 2 }}>{c.message}</div>
+                      <div style={{ fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)" }}>{c.assertion}</div>
+                      <div style={{ fontSize: "var(--font-size-sm)", color: c.passed ? "var(--success-color)" : "var(--error-color)", marginTop: 2 }}>{c.message}</div>
                     </div>
                   </div>
                 ))}

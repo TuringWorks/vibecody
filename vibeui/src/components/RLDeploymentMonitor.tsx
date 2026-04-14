@@ -36,7 +36,7 @@ interface ABTestResult {
   significant: boolean;
 }
 
-const badgeStyle: React.CSSProperties = { fontSize: 10, padding: "2px 6px", borderRadius: 3, color: "#fff", marginLeft: 6 };
+const badgeStyle: React.CSSProperties = { fontSize: "var(--font-size-xs)", padding: "2px 6px", borderRadius: 3, color: "var(--btn-primary-fg, #fff)", marginLeft: 6 };
 
 const statusColor = (s: string) => s === "healthy" ? "var(--success-color)" : s === "degraded" ? "var(--warning-color)" : s === "rollback" ? "var(--error-color)" : "var(--text-secondary)";
 
@@ -62,7 +62,7 @@ export function RLDeploymentMonitor() {
 
   return (
     <div className="panel-container">
-      <h2 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>Deployment Monitor</h2>
+      <h2 style={{ margin: "0 0 12px", fontSize: "var(--font-size-xl)", fontWeight: 600, color: "var(--text-primary)" }}>Deployment Monitor</h2>
 
       <div className="panel-card">
         <div className="panel-label">Deployments</div>

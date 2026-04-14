@@ -251,10 +251,10 @@ export function BuildPanel({ workspacePath, currentFile, onOpenFile }: BuildPane
   return (
     <div className="panel-container">
       {/* Working directory selector */}
-      <div style={{ padding: "4px 12px", borderBottom: "1px solid var(--border-color)", display: "flex", alignItems: "center", gap: 6, fontSize: 11, background: "var(--bg-secondary)" }}>
+      <div style={{ padding: "4px 12px", borderBottom: "1px solid var(--border-color)", display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", background: "var(--bg-secondary)" }}>
         <span style={{ color: "var(--text-secondary)", flexShrink: 0 }}>Working dir:</span>
         <select
-          style={{ flex: 1, minWidth: 0, padding: "2px 6px", fontSize: 11, borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)", fontFamily: "var(--font-mono, monospace)" }}
+          style={{ flex: 1, minWidth: 0, padding: "2px 6px", fontSize: "var(--font-size-sm)", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)", fontFamily: "var(--font-mono, monospace)" }}
           value={buildDir}
           onChange={e => setBuildDir(e.target.value)}
         >
@@ -275,12 +275,12 @@ export function BuildPanel({ workspacePath, currentFile, onOpenFile }: BuildPane
 
       {/* Header */}
       <div className="panel-header" style={{ flexWrap: "wrap" }}>
-        <span style={{ fontSize: 14, fontWeight: 700 }}>Build</span>
-        <span style={{ fontSize: 10, fontFamily: "var(--font-mono, monospace)", color: "var(--text-secondary)", background: "var(--bg-tertiary)", padding: "1px 6px", borderRadius: 3 }}>{shortDir}</span>
+        <span style={{ fontSize: "var(--font-size-lg)", fontWeight: 700 }}>Build</span>
+        <span style={{ fontSize: "var(--font-size-xs)", fontFamily: "var(--font-mono, monospace)", color: "var(--text-secondary)", background: "var(--bg-tertiary)", padding: "1px 6px", borderRadius: 3 }}>{shortDir}</span>
 
         {/* Status badge */}
         <span style={{
-          fontSize: 10, padding: "2px 8px", borderRadius: 10, fontWeight: 600,
+          fontSize: "var(--font-size-xs)", padding: "2px 8px", borderRadius: "var(--radius-md)", fontWeight: 600,
           background: `${STATUS_COLORS[status]}22`, color: STATUS_COLORS[status],
         }}>
           {status === "idle" ? "Ready" : status === "building" ? "Building..." : status === "running" ? "Running..." : status === "success" ? "Success" : "Failed"}
@@ -289,7 +289,7 @@ export function BuildPanel({ workspacePath, currentFile, onOpenFile }: BuildPane
         {/* Build system selector */}
         {systems.length > 1 && (
           <select
-            style={{ fontSize: 11, padding: "2px 6px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)" }}
+            style={{ fontSize: "var(--font-size-sm)", padding: "2px 6px", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)" }}
             value={selectedIdx}
             onChange={e => setSelectedIdx(Number(e.target.value))}
           >
@@ -297,7 +297,7 @@ export function BuildPanel({ workspacePath, currentFile, onOpenFile }: BuildPane
           </select>
         )}
         {systems.length === 1 && selected && (
-          <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+          <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
             {SYSTEM_ICONS[selected.name] || selected.name}
             {selected.project_path && <span style={{ color: "var(--text-secondary)" }}> — {selected.project_path}/</span>}
           </span>
@@ -315,24 +315,24 @@ export function BuildPanel({ workspacePath, currentFile, onOpenFile }: BuildPane
         <button onClick={handleBuildAndRun} disabled={busy || !effectiveDir} className="panel-btn panel-btn-primary" style={{ opacity: busy ? 0.5 : 1 }}>
           Build & Run
         </button>
-        <button onClick={() => setShowCustom(prev => !prev)} className="panel-btn panel-btn-secondary" style={{ fontSize: 10, padding: "2px 6px" }}>
+        <button onClick={() => setShowCustom(prev => !prev)} className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-xs)", padding: "2px 6px" }}>
           {showCustom ? "Hide" : "Custom"}
         </button>
       </div>
 
       {/* Custom command inputs */}
       {showCustom && (
-        <div style={{ padding: "6px 12px", borderBottom: "1px solid var(--border-color)", display: "flex", gap: 6, alignItems: "center", fontSize: 11 }}>
+        <div style={{ padding: "6px 12px", borderBottom: "1px solid var(--border-color)", display: "flex", gap: 6, alignItems: "center", fontSize: "var(--font-size-sm)" }}>
           <span style={{ color: "var(--text-secondary)", flexShrink: 0 }}>Build:</span>
           <input
-            style={{ flex: 1, minWidth: 0, padding: "3px 6px", fontSize: 11, borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)" }}
+            style={{ flex: 1, minWidth: 0, padding: "3px 6px", fontSize: "var(--font-size-sm)", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)" }}
             value={customBuildCmd}
             onChange={e => setCustomBuildCmd(e.target.value)}
             placeholder={selected?.build_command || "auto-detect"}
           />
           <span style={{ color: "var(--text-secondary)", flexShrink: 0 }}>Run:</span>
           <input
-            style={{ flex: 1, minWidth: 0, padding: "3px 6px", fontSize: 11, borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)" }}
+            style={{ flex: 1, minWidth: 0, padding: "3px 6px", fontSize: "var(--font-size-sm)", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)" }}
             value={customRunCmd}
             onChange={e => setCustomRunCmd(e.target.value)}
             placeholder={selected?.run_command || "auto-detect"}
@@ -344,12 +344,12 @@ export function BuildPanel({ workspacePath, currentFile, onOpenFile }: BuildPane
       {selected && !selected.tool_available && (
         <div style={{
           padding: "8px 12px", borderBottom: "1px solid var(--border-color)",
-          background: "var(--warning-bg)", fontSize: 12, display: "flex", alignItems: "flex-start", gap: 8, flexWrap: "wrap",
+          background: "var(--warning-bg)", fontSize: "var(--font-size-base)", display: "flex", alignItems: "flex-start", gap: 8, flexWrap: "wrap",
         }}>
           <span style={{ color: "var(--warning-color)", fontWeight: 600, flexShrink: 0 }}>Tool not found:</span>
           <span style={{ color: "var(--text-primary)" }}>`{selected.name}` is not installed.</span>
           {selected.install_hint && (
-            <span style={{ color: "var(--text-secondary)", fontSize: 11, fontFamily: "var(--font-mono)" }}>{selected.install_hint}</span>
+            <span style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)" }}>{selected.install_hint}</span>
           )}
         </div>
       )}
@@ -358,7 +358,7 @@ export function BuildPanel({ workspacePath, currentFile, onOpenFile }: BuildPane
       {result && (
         <div style={{
           padding: "6px 12px", borderBottom: "1px solid var(--border-color)",
-          display: "flex", gap: 12, alignItems: "center", fontSize: 11,
+          display: "flex", gap: 12, alignItems: "center", fontSize: "var(--font-size-sm)",
           background: result.success ? "var(--success-bg)" : "var(--error-bg)",
         }}>
           <span style={{ fontWeight: 600, color: result.success ? "var(--success-color)" : "var(--error-color)" }}>
@@ -366,7 +366,7 @@ export function BuildPanel({ workspacePath, currentFile, onOpenFile }: BuildPane
           </span>
           <span style={{ color: "var(--text-secondary)" }}>{(result.duration_ms / 1000).toFixed(1)}s</span>
           {errorCount > 0 && (
-            <button onClick={() => setShowErrors(true)} className="panel-btn panel-btn-secondary" style={{ fontSize: 10, padding: "1px 6px", color: "var(--error-color)" }}>
+            <button onClick={() => setShowErrors(true)} className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px", color: "var(--error-color)" }}>
               {errorCount} error{errorCount !== 1 ? "s" : ""}
             </button>
           )}
@@ -380,7 +380,7 @@ export function BuildPanel({ workspacePath, currentFile, onOpenFile }: BuildPane
       {showErrors && result && result.errors.length > 0 && (
         <div style={{ maxHeight: 150, overflowY: "auto", borderBottom: "1px solid var(--border-color)" }}>
           <div style={{ display: "flex", alignItems: "center", padding: "4px 12px", background: "var(--bg-tertiary)" }}>
-            <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", color: "var(--text-secondary)", letterSpacing: "0.05em" }}>
+            <span style={{ fontSize: "var(--font-size-xs)", fontWeight: 700, textTransform: "uppercase", color: "var(--text-secondary)", letterSpacing: "0.05em" }}>
               Diagnostics ({result.errors.length})
             </span>
             <div style={{ flex: 1 }} />
@@ -396,7 +396,7 @@ export function BuildPanel({ workspacePath, currentFile, onOpenFile }: BuildPane
                 }
               }}
               style={{
-                padding: "3px 12px", fontSize: 11, cursor: err.file ? "pointer" : "default",
+                padding: "3px 12px", fontSize: "var(--font-size-sm)", cursor: err.file ? "pointer" : "default",
                 borderBottom: "1px solid var(--border-color)",
                 display: "flex", gap: 8, alignItems: "baseline",
               }}
@@ -408,7 +408,7 @@ export function BuildPanel({ workspacePath, currentFile, onOpenFile }: BuildPane
                 {err.severity === "error" ? "ERR" : "WARN"}
               </span>
               {err.file && (
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--accent-color)", flexShrink: 0 }}>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: "var(--font-size-xs)", color: "var(--accent-color)", flexShrink: 0 }}>
                   {err.file.split("/").pop()}{err.line ? `:${err.line}` : ""}
                 </span>
               )}
@@ -423,7 +423,7 @@ export function BuildPanel({ workspacePath, currentFile, onOpenFile }: BuildPane
       {/* Output log */}
       <div className="panel-body" style={{ padding: "8px 12px" }}>
         {log.length === 0 && !busy && (
-          <div style={{ textAlign: "center", color: "var(--text-secondary)", padding: 24, fontSize: 12 }}>
+          <div style={{ textAlign: "center", color: "var(--text-secondary)", padding: 24, fontSize: "var(--font-size-base)" }}>
             {systems.length > 0 ? (
               `${SYSTEM_ICONS[systems[0]?.name] || systems[0]?.name} project detected. Click Build to compile.`
             ) : workspacePath ? (
@@ -431,7 +431,7 @@ export function BuildPanel({ workspacePath, currentFile, onOpenFile }: BuildPane
                 <div style={{ marginBottom: 12 }}>No build system detected. Select a language or use Custom.</div>
                 <select
                   style={{
-                    padding: "6px 10px", fontSize: 12, borderRadius: "var(--radius-sm)",
+                    padding: "6px 10px", fontSize: "var(--font-size-base)", borderRadius: "var(--radius-sm)",
                     border: "1px solid var(--border-color)", background: "var(--bg-secondary)",
                     color: "var(--text-primary)", width: 280, marginBottom: 8,
                   }}
@@ -450,14 +450,14 @@ export function BuildPanel({ workspacePath, currentFile, onOpenFile }: BuildPane
                     <option key={p.label} value={p.label}>{p.label}</option>
                   ))}
                 </select>
-                <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
                   This will pre-fill the Custom build and run commands.
                 </div>
               </div>
             ) : "Open a folder to start building."}
           </div>
         )}
-        <pre style={{ margin: 0, fontFamily: "var(--font-mono)", fontSize: 11, lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-all", overflow: "auto", color: "var(--text-primary)" }}>
+        <pre style={{ margin: 0, fontFamily: "var(--font-mono)", fontSize: "var(--font-size-sm)", lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-all", overflow: "auto", color: "var(--text-primary)" }}>
           {log.join("\n")}
         </pre>
         <div ref={logEndRef} />

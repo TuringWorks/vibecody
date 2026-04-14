@@ -177,7 +177,7 @@ export function NotebookPanel({ workspacePath, provider }: NotebookPanelProps) {
  {runningAll ? "Running..." : "Run All"}
  </button>
  <button onClick={clearAll} className="panel-btn panel-btn-secondary">Clear All</button>
- <span style={{ fontSize: 11, opacity: 0.5 }}>{cells.length} cell{cells.length !== 1 ? "s" : ""}</span>
+ <span style={{ fontSize: "var(--font-size-sm)", opacity: 0.5 }}>{cells.length} cell{cells.length !== 1 ? "s" : ""}</span>
  </div>
 
  {/* Cells */}
@@ -187,7 +187,7 @@ export function NotebookPanel({ workspacePath, provider }: NotebookPanelProps) {
  key={cell.id}
  style={{
  border: "1px solid var(--border-color)",
- borderRadius: 6,
+ borderRadius: "var(--radius-sm)",
  background: "var(--bg-secondary)",
  overflow: "hidden",
  }}
@@ -196,10 +196,10 @@ export function NotebookPanel({ workspacePath, provider }: NotebookPanelProps) {
  <div style={{
  display: "flex", alignItems: "center", gap: 6, padding: "4px 8px",
  borderBottom: "1px solid var(--border-color)",
- fontSize: 11,
+ fontSize: "var(--font-size-sm)",
  }}>
  <span style={{
- padding: "1px 6px", borderRadius: 4, fontWeight: 600, fontSize: 10,
+ padding: "1px 6px", borderRadius: "var(--radius-xs-plus)", fontWeight: 600, fontSize: "var(--font-size-xs)",
  background: cell.type === "code" ? (langColor[cell.language] || "var(--text-secondary)") : "var(--accent-purple)",
  color: "var(--bg-tertiary)",
  }}>
@@ -211,7 +211,7 @@ export function NotebookPanel({ workspacePath, provider }: NotebookPanelProps) {
  value={cell.language}
  onChange={(e) => updateCell(cell.id, { language: e.target.value })}
  style={{
- padding: "1px 4px", fontSize: 10, borderRadius: 3,
+ padding: "1px 4px", fontSize: "var(--font-size-xs)", borderRadius: 3,
  background: "var(--bg-primary)", color: "var(--text-primary)",
  border: "1px solid var(--border-color)",
  }}
@@ -270,7 +270,7 @@ export function NotebookPanel({ workspacePath, provider }: NotebookPanelProps) {
  }}
  style={{
  width: "100%", minHeight: 60, padding: "8px 10px",
- fontFamily: "var(--font-mono)", fontSize: 12, lineHeight: 1.5,
+ fontFamily: "var(--font-mono)", fontSize: "var(--font-size-base)", lineHeight: 1.5,
  background: "var(--bg-primary)", color: "var(--text-primary)",
  border: "none", outline: "none", resize: "vertical",
  boxSizing: "border-box",
@@ -284,7 +284,7 @@ export function NotebookPanel({ workspacePath, provider }: NotebookPanelProps) {
  placeholder="Enter markdown..."
  style={{
  width: "100%", minHeight: 40, padding: "8px 10px",
- fontFamily: "inherit", fontSize: 12, lineHeight: 1.5,
+ fontFamily: "inherit", fontSize: "var(--font-size-base)", lineHeight: 1.5,
  background: "var(--bg-primary)", color: "var(--text-primary)",
  border: "none", outline: "none", resize: "vertical",
  boxSizing: "border-box",
@@ -294,7 +294,7 @@ export function NotebookPanel({ workspacePath, provider }: NotebookPanelProps) {
  <div
  onClick={() => updateCell(cell.id, { editing: true })}
  style={{
- padding: "8px 10px", fontSize: 12, lineHeight: 1.6,
+ padding: "8px 10px", fontSize: "var(--font-size-base)", lineHeight: 1.6,
  cursor: "text", minHeight: 30,
  color: "var(--text-primary)",
  whiteSpace: "pre-wrap",
@@ -308,12 +308,12 @@ export function NotebookPanel({ workspacePath, provider }: NotebookPanelProps) {
  {cell.output && (
  <div style={{
  borderTop: "1px solid var(--border-color)",
- padding: "6px 10px", fontSize: 11, fontFamily: "var(--font-mono)",
+ padding: "6px 10px", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)",
  maxHeight: 200, overflowY: "auto",
  background: cell.output.exit_code !== 0 ? "color-mix(in srgb, var(--accent-rose) 5%, transparent)" : "rgba(166,227,161,0.05)",
  }}>
  {/* Status bar */}
- <div style={{ display: "flex", gap: 8, marginBottom: 4, fontSize: 10, opacity: 0.6 }}>
+ <div style={{ display: "flex", gap: 8, marginBottom: 4, fontSize: "var(--font-size-xs)", opacity: 0.6 }}>
  <span style={{ color: cell.output.exit_code === 0 ? "var(--success-color)" : "var(--error-color)" }}>
  exit: {cell.output.exit_code}
  </span>
@@ -341,6 +341,6 @@ export function NotebookPanel({ workspacePath, provider }: NotebookPanelProps) {
 
 const cellBtnStyle: React.CSSProperties = {
  background: "none", border: "none", cursor: "pointer",
- fontSize: 12, padding: "0 3px",
+ fontSize: "var(--font-size-base)", padding: "0 3px",
  color: "var(--text-primary)", opacity: 0.7,
 };

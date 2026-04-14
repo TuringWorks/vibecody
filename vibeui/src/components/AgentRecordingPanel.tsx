@@ -17,16 +17,16 @@ interface Recording {
 const badgeStyle: React.CSSProperties = {
   background: "var(--accent-color)",
   color: "var(--text-primary)",
-  borderRadius: 10,
+  borderRadius: "var(--radius-md)",
   padding: "2px 8px",
-  fontSize: 11,
+  fontSize: "var(--font-size-sm)",
   fontWeight: 600,
   marginLeft: 8,
 };
 
 const sessionCardStyle: React.CSSProperties = {
   background: "var(--bg-secondary)",
-  borderRadius: 6,
+  borderRadius: "var(--radius-sm)",
   padding: 10,
   marginBottom: 8,
   cursor: "pointer",
@@ -46,7 +46,7 @@ const thumbStyle: React.CSSProperties = {
   width: 80,
   height: 50,
   objectFit: "cover",
-  borderRadius: 4,
+  borderRadius: "var(--radius-xs-plus)",
   border: "1px solid var(--border-color)",
   background: "var(--bg-primary)",
 };
@@ -90,7 +90,7 @@ export function AgentRecordingPanel() {
   return (
     <div className="panel-container">
       <div className="panel-header">
-        <span style={{ fontWeight: 700, fontSize: 15 }}>Agent Recordings</span>
+        <span style={{ fontWeight: 700, fontSize: "var(--font-size-xl)" }}>Agent Recordings</span>
         <button
           onClick={load}
           disabled={loading}
@@ -123,7 +123,7 @@ export function AgentRecordingPanel() {
             <span style={{ fontWeight: 600 }}>{rec.session_id}</span>
             <span style={badgeStyle}>{rec.frames.length} frames</span>
           </div>
-          <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4 }}>
+          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 4 }}>
             {formatTs(rec.started_at)}
             {rec.finished_at && <span> — {formatTs(rec.finished_at)}</span>}
           </div>
@@ -131,7 +131,7 @@ export function AgentRecordingPanel() {
           {expanded.has(rec.session_id) && (
             <div style={{ marginTop: 8 }}>
               {rec.frames.length === 0 && (
-                <div style={{ color: "var(--text-secondary)", fontSize: 12 }}>No frames captured.</div>
+                <div style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>No frames captured.</div>
               )}
               {rec.frames.map((frame, i) => (
                 <div key={i} style={frameRowStyle}>
@@ -144,8 +144,8 @@ export function AgentRecordingPanel() {
                     }}
                   />
                   <div>
-                    <div style={{ fontWeight: 500, fontSize: 12 }}>{frame.caption}</div>
-                    <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{formatTs(frame.timestamp)}</div>
+                    <div style={{ fontWeight: 500, fontSize: "var(--font-size-base)" }}>{frame.caption}</div>
+                    <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{formatTs(frame.timestamp)}</div>
                   </div>
                 </div>
               ))}

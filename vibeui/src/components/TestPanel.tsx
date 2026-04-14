@@ -144,18 +144,18 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
 
  if (!workspacePath) {
  return (
- <div style={{ padding: 24, textAlign: "center", color: "var(--text-secondary)", fontSize: 13 }}>
+ <div style={{ padding: 24, textAlign: "center", color: "var(--text-secondary)", fontSize: "var(--font-size-md)" }}>
  Open a workspace folder to run tests.
  </div>
  );
  }
 
  return (
- <div className="panel-container" style={{ fontSize: 12 }}>
+ <div className="panel-container" style={{ fontSize: "var(--font-size-base)" }}>
  <div className="panel-header">
  <h3>Test Runner</h3>
  {framework && (
- <span style={{ fontSize: 10, padding: "2px 6px", background: "color-mix(in srgb, var(--accent-blue) 20%, transparent)", color: "var(--text-info)", borderRadius: 3 }}>
+ <span style={{ fontSize: "var(--font-size-xs)", padding: "2px 6px", background: "color-mix(in srgb, var(--accent-blue) 20%, transparent)", color: "var(--text-info)", borderRadius: 3 }}>
  {framework}
  </span>
  )}
@@ -178,13 +178,13 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
 
  {/* Summary bar */}
  {result && !running && (
- <div style={{ background: "var(--bg-secondary)", borderRadius: 6, padding: "10px 12px", display: "flex", gap: 16, alignItems: "center" }}>
+ <div style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: "10px 12px", display: "flex", gap: 16, alignItems: "center" }}>
  {/* Pass-rate ring (simple colored bar) */}
  <div style={{ flex: 1 }}>
  <div style={{ height: 4, borderRadius: 2, background: "var(--bg-tertiary)", overflow: "hidden" }}>
  <div style={{ height: "100%", width: `${passRate}%`, background: result.failed > 0 ? "var(--error-color)" : "var(--success-color)", transition: "width 0.4s" }} />
  </div>
- <div style={{ marginTop: 4, display: "flex", gap: 12, fontSize: 11 }}>
+ <div style={{ marginTop: 4, display: "flex", gap: 12, fontSize: "var(--font-size-sm)" }}>
  <span style={{ color: "var(--text-success)" }}>✓ {result.passed}</span>
  {result.failed > 0 && <span style={{ color: "var(--text-danger)" }}>✗ {result.failed}</span>}
  {result.ignored > 0 && <span style={{ color: "var(--text-secondary)" }}>⊘ {result.ignored}</span>}
@@ -206,7 +206,7 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
  key={f}
  onClick={() => setFilter(f)}
  style={{
- padding: "2px 10px", fontSize: 11, borderRadius: 3, cursor: "pointer",
+ padding: "2px 10px", fontSize: "var(--font-size-sm)", borderRadius: 3, cursor: "pointer",
  background: filter === f ? "var(--accent-blue)" : "var(--bg-secondary)",
  color: filter === f ? "var(--text-primary)" : "var(--text-secondary)",
  border: "1px solid var(--border-color)",
@@ -224,7 +224,7 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
  <div
  key={t.name}
  style={{
- borderRadius: 4, padding: "5px 8px",
+ borderRadius: "var(--radius-xs-plus)", padding: "5px 8px",
  background: t.status === "failed" ? "color-mix(in srgb, var(--accent-rose) 8%, transparent)" : "var(--bg-secondary)",
  border: `1px solid ${t.status === "failed" ? "rgba(243,139,168,0.3)" : "var(--border-color)"}`,
  cursor: t.output ? "pointer" : "default",
@@ -233,27 +233,27 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
  >
  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
  <span style={{
- fontSize: 10, flexShrink: 0,
+ fontSize: "var(--font-size-xs)", flexShrink: 0,
  color: t.status === "passed" ? "var(--success-color)" : t.status === "failed" ? "var(--error-color)" : t.status === "ignored" ? "var(--text-secondary)" : "var(--warning-color)",
  }}>
  {t.status === "passed" ? "✓" : t.status === "failed" ? "✗" : t.status === "ignored" ? "⊘" : "…"}
  </span>
- <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 11 }}>
+ <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "var(--font-size-sm)" }}>
  {t.name}
  </span>
  {t.duration_ms !== null && (
- <span style={{ fontSize: 10, color: "var(--text-secondary)", flexShrink: 0 }}>
+ <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", flexShrink: 0 }}>
  {t.duration_ms}ms
  </span>
  )}
  {t.output && (
- <span style={{ fontSize: 10, color: "var(--text-secondary)", flexShrink: 0 }}>
+ <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", flexShrink: 0 }}>
  {expanded.has(t.name) ? "" : <ChevronDown size={10} />}
  </span>
  )}
  </div>
  {expanded.has(t.name) && t.output && (
- <pre style={{ margin: "4px 0 0 14px", fontSize: 10, color: "var(--text-danger)", whiteSpace: "pre-wrap", wordBreak: "break-all", maxHeight: 200, overflowY: "auto" }}>
+ <pre style={{ margin: "4px 0 0 14px", fontSize: "var(--font-size-xs)", color: "var(--text-danger)", whiteSpace: "pre-wrap", wordBreak: "break-all", maxHeight: 200, overflowY: "auto" }}>
  {t.output}
  </pre>
  )}
@@ -262,7 +262,7 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
 
  {/* Live log during run */}
  {running && liveLog.length > 0 && (
- <div style={{ background: "var(--bg-secondary)", borderRadius: 4, padding: "6px 8px", maxHeight: 160, overflowY: "auto", fontFamily: "var(--font-mono)", fontSize: 10 }}>
+ <div style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-xs-plus)", padding: "6px 8px", maxHeight: 160, overflowY: "auto", fontFamily: "var(--font-mono)", fontSize: "var(--font-size-xs)" }}>
  {liveLog.map((line, i) => (
  <div key={i} style={{ color: "var(--text-secondary)" }}>{line}</div>
  ))}
@@ -271,7 +271,7 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
  )}
 
  {!running && !result && (
- <div style={{ textAlign: "center", padding: "32px 16px", color: "var(--text-secondary)", fontSize: 12 }}>
+ <div style={{ textAlign: "center", padding: "32px 16px", color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>
  Click Run Tests to start.
  </div>
  )}

@@ -40,15 +40,15 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const badgeStyle = (color: string): React.CSSProperties => ({
-  display: "inline-block", padding: "2px 8px", borderRadius: 10,
-  fontSize: 11, background: color, color: "var(--bg-primary)", fontWeight: 600,
+  display: "inline-block", padding: "2px 8px", borderRadius: "var(--radius-md)",
+  fontSize: "var(--font-size-sm)", background: color, color: "var(--bg-primary)", fontWeight: 600,
 });
 const barBg: React.CSSProperties = {
-  height: 8, borderRadius: 4, background: "var(--bg-tertiary)", overflow: "hidden", flex: 1,
+  height: 8, borderRadius: "var(--radius-xs-plus)", background: "var(--bg-tertiary)", overflow: "hidden", flex: 1,
 };
 const statusBarStyle: React.CSSProperties = {
   padding: "8px 16px", background: "var(--bg-tertiary)", borderBottom: "1px solid var(--border-color)",
-  display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, flexShrink: 0, gap: 12,
+  display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "var(--font-size-base)", flexShrink: 0, gap: 12,
 };
 
 const SpecPipelinePanel: React.FC = () => {
@@ -99,7 +99,7 @@ const SpecPipelinePanel: React.FC = () => {
     <div className="panel-container" role="region" aria-label="Spec Pipeline Panel">
       <div style={statusBarStyle}>
         <span>Coverage: <strong>{coverage}%</strong></span>
-        <div style={barBg}><div style={{ height: "100%", borderRadius: 4, background: "var(--success-color)", width: `${coverage}%` }} /></div>
+        <div style={barBg}><div style={{ height: "100%", borderRadius: "var(--radius-xs-plus)", background: "var(--success-color)", width: `${coverage}%` }} /></div>
         <span>{reqs.filter(r => r.status === "Verified").length} verified / {reqs.length} total</span>
       </div>
       <div className="panel-tab-bar" role="tablist" aria-label="Spec Pipeline tabs">
@@ -114,10 +114,10 @@ const SpecPipelinePanel: React.FC = () => {
         {tab === "Requirements" && reqs.map((r, i) => (
           <div key={i} className="panel-card">
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-              <span><strong>{r.id}</strong> <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>[{r.priority}]</span></span>
+              <span><strong>{r.id}</strong> <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>[{r.priority}]</span></span>
               <span style={badgeStyle(STATUS_COLORS[r.status] || "var(--text-secondary)")}>{r.status}</span>
             </div>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{r.text}</div>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>{r.text}</div>
           </div>
         ))}
         {tab === "Design" && designs.length === 0 && (
@@ -129,8 +129,8 @@ const SpecPipelinePanel: React.FC = () => {
               <strong>{d.id}: {d.title}</strong>
               <span style={badgeStyle(STATUS_COLORS[d.status] || "var(--text-secondary)")}>{d.status}</span>
             </div>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Rationale: {d.rationale}</div>
-            <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4 }}>Links: {d.reqs.join(", ")}</div>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>Rationale: {d.rationale}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 4 }}>Links: {d.reqs.join(", ")}</div>
           </div>
         ))}
         {tab === "Tasks" && tasks.length === 0 && (
@@ -143,10 +143,10 @@ const SpecPipelinePanel: React.FC = () => {
               <span style={badgeStyle(STATUS_COLORS[t.status] || "var(--text-secondary)")}>{t.status}</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
-              <div style={barBg}><div style={{ height: "100%", borderRadius: 4, background: "var(--accent-color)", width: `${t.progress}%` }} /></div>
-              <span style={{ fontSize: 11 }}>{t.progress}%</span>
+              <div style={barBg}><div style={{ height: "100%", borderRadius: "var(--radius-xs-plus)", background: "var(--accent-color)", width: `${t.progress}%` }} /></div>
+              <span style={{ fontSize: "var(--font-size-sm)" }}>{t.progress}%</span>
             </div>
-            {t.deps.length > 0 && <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4 }}>Depends on: {t.deps.join(", ")}</div>}
+            {t.deps.length > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 4 }}>Depends on: {t.deps.join(", ")}</div>}
           </div>
         ))}
       </div>

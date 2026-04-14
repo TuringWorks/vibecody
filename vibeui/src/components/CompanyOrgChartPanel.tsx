@@ -118,9 +118,9 @@ export function CompanyOrgChartPanel({ workspacePath: _wp }: CompanyOrgChartPane
       <div className="panel-body">
 
       {loading && <div className="panel-loading">Loading…</div>}
-      {error && <div className="panel-error" style={{ fontSize: 12, marginBottom: 8 }}>{error}</div>}
+      {error && <div className="panel-error" style={{ fontSize: "var(--font-size-base)", marginBottom: 8 }}>{error}</div>}
       {actionMsg && (
-        <div className="panel-card" style={{ marginBottom: 12, fontSize: 12 }}>
+        <div className="panel-card" style={{ marginBottom: 12, fontSize: "var(--font-size-base)" }}>
           {actionMsg}
           <button onClick={() => setActionMsg(null)} style={{ marginLeft: 8, cursor: "pointer", background: "none", border: "none", color: "var(--text-secondary)", display: "inline-flex" }}><X size={12} /></button>
         </div>
@@ -138,7 +138,7 @@ export function CompanyOrgChartPanel({ workspacePath: _wp }: CompanyOrgChartPane
             </select>
             <input placeholder="Reports to (agent name, optional)" className="panel-input" />
           </div>
-          {hireResult && <div style={{ fontSize: 12, marginBottom: 8, color: hireResult.startsWith("Error") ? "var(--danger, #e74c3c)" : "var(--success, #27ae60)" }}>{hireResult}</div>}
+          {hireResult && <div style={{ fontSize: "var(--font-size-base)", marginBottom: 8, color: hireResult.startsWith("Error") ? "var(--danger, #e74c3c)" : "var(--success, #27ae60)" }}>{hireResult}</div>}
           <button onClick={hireAgent} disabled={hiring || !hireName.trim()} className="panel-btn panel-btn-primary" style={{ opacity: hiring ? 0.6 : 1 }}>
             {hiring ? "Hiring…" : "Hire Agent"}
           </button>
@@ -152,13 +152,13 @@ export function CompanyOrgChartPanel({ workspacePath: _wp }: CompanyOrgChartPane
             <div className="panel-empty" style={{ padding: 24 }}>
               <div style={{ marginBottom: 8, display: "flex", justifyContent: "center", color: "var(--accent, #4a9eff)" }}><Users size={32} strokeWidth={1.5} /></div>
               <div style={{ fontWeight: 600, marginBottom: 4 }}>No agents yet</div>
-              <div style={{ color: "var(--text-secondary)", fontSize: 12, marginBottom: 16 }}>Hire your first agent to build your team</div>
-              <button onClick={() => setView("hire")} className="panel-btn panel-btn-primary" style={{ fontSize: 12 }}>+ Hire Agent</button>
+              <div style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-base)", marginBottom: 16 }}>Hire your first agent to build your team</div>
+              <button onClick={() => setView("hire")} className="panel-btn panel-btn-primary" style={{ fontSize: "var(--font-size-base)" }}>+ Hire Agent</button>
             </div>
           )}
           {!isEmpty && (
             <div className="panel-card" style={{ marginBottom: 12 }}>
-              <pre style={{ margin: 0, fontSize: 12, whiteSpace: "pre-wrap", lineHeight: 1.7, fontFamily: "inherit" }}>
+              <pre style={{ margin: 0, fontSize: "var(--font-size-base)", whiteSpace: "pre-wrap", lineHeight: 1.7, fontFamily: "inherit" }}>
                 {agentText.split("\n").filter(Boolean).map((line, i) => {
                   // Parse line: "  [status] name — title (role)"
                   const m = line.match(/\[(\w+)\]\s+(.+?)\s+—\s+(.+?)\s+\((\w+)\)/);
@@ -168,10 +168,10 @@ export function CompanyOrgChartPanel({ workspacePath: _wp }: CompanyOrgChartPane
                   const badge = STATUS_BADGE[status] ?? "?";
                   return (
                     <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "3px 0" }}>
-                      <span style={{ color, fontSize: 11 }}>{badge}</span>
+                      <span style={{ color, fontSize: "var(--font-size-sm)" }}>{badge}</span>
                       <span style={{ fontWeight: 500 }}>{name}</span>
-                      <span style={{ color: "var(--text-secondary)", fontSize: 11 }}>{title}</span>
-                      <span style={{ fontSize: 10, padding: "1px 5px", borderRadius: 3, background: "var(--bg-tertiary)", color: "var(--text-secondary)" }}>{role}</span>
+                      <span style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-sm)" }}>{title}</span>
+                      <span style={{ fontSize: "var(--font-size-xs)", padding: "1px 5px", borderRadius: 3, background: "var(--bg-tertiary)", color: "var(--text-secondary)" }}>{role}</span>
                     </div>
                   );
                 })}
@@ -206,7 +206,7 @@ export function CompanyOrgChartPanel({ workspacePath: _wp }: CompanyOrgChartPane
       {view === "tree" && (
         <div className="panel-card">
           {treeText ? (
-            <pre style={{ margin: 0, fontSize: 12, whiteSpace: "pre-wrap", lineHeight: 1.7 }}>{treeText}</pre>
+            <pre style={{ margin: 0, fontSize: "var(--font-size-base)", whiteSpace: "pre-wrap", lineHeight: 1.7 }}>{treeText}</pre>
           ) : (
             <div className="panel-empty">No org chart yet.</div>
           )}

@@ -15,8 +15,8 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const badgeStyle = (color: string): React.CSSProperties => ({
-  display: "inline-block", padding: "2px 8px", borderRadius: 10,
-  fontSize: 11, background: color, color: "var(--bg-primary)", fontWeight: 600,
+  display: "inline-block", padding: "2px 8px", borderRadius: "var(--radius-md)",
+  fontSize: "var(--font-size-sm)", background: color, color: "var(--bg-primary)", fontWeight: 600,
 });
 
 const GH_ACTION_YAML = `name: VibeCody CI Gates
@@ -70,12 +70,12 @@ const CiGatesPanel: React.FC = () => {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <strong>{r.name}</strong>
-                <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>Category: {r.category}</div>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 2 }}>Category: {r.category}</div>
               </div>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <span style={badgeStyle(STATUS_COLORS[r.severity] || "var(--text-secondary)")}>{r.severity}</span>
                 <button
-                  style={{ fontSize: 11, color: r.enabled ? "var(--success-color)" : "var(--text-secondary)", background: "none", border: "none", cursor: "pointer" }}
+                  style={{ fontSize: "var(--font-size-sm)", color: r.enabled ? "var(--success-color)" : "var(--text-secondary)", background: "none", border: "none", cursor: "pointer" }}
                   onClick={() => handleToggle(r.name)}
                 >{r.enabled ? "ON" : "OFF"}</button>
               </div>
@@ -84,17 +84,17 @@ const CiGatesPanel: React.FC = () => {
         ))}
         {tab === "Reports" && (
           <div className="panel-empty">
-            <div style={{ fontSize: 14 }}>No CI reports yet</div>
-            <div style={{ fontSize: 12, marginTop: 4 }}>Reports will appear after CI runs complete</div>
+            <div style={{ fontSize: "var(--font-size-lg)" }}>No CI reports yet</div>
+            <div style={{ fontSize: "var(--font-size-base)", marginTop: 4 }}>Reports will appear after CI runs complete</div>
           </div>
         )}
         {tab === "GitHub Action" && (
           <div>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8 }}>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 8 }}>
               Generated GitHub Actions workflow for your CI gates configuration:
             </div>
             <pre style={{
-              background: "var(--bg-tertiary)", padding: 12, borderRadius: 6, fontSize: 12,
+              background: "var(--bg-tertiary)", padding: 12, borderRadius: "var(--radius-sm)", fontSize: "var(--font-size-base)",
               fontFamily: "var(--font-mono)", overflow: "auto", border: "1px solid var(--border-color)",
               whiteSpace: "pre-wrap", color: "var(--text-primary)",
             }}>{GH_ACTION_YAML}</pre>

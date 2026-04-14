@@ -78,29 +78,29 @@ export function ThoughtStreamPanel() {
   const ThoughtCard = ({ thought }: { thought: ThoughtEntry }) => {
     const color = CATEGORY_COLORS[thought.category] ?? "var(--text-muted)";
     return (
-      <div style={{ background: "var(--bg-secondary)", borderRadius: 8, border: `1px solid ${color}44`, borderLeft: `3px solid ${color}`, padding: "10px 14px", marginBottom: 8 }}>
+      <div style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", border: `1px solid ${color}44`, borderLeft: `3px solid ${color}`, padding: "10px 14px", marginBottom: 8 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-          <span style={{ fontSize: 11, padding: "1px 8px", borderRadius: 8, background: color + "22", color, fontWeight: 600 }}>{thought.category}</span>
-          <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{thought.timestamp}</span>
+          <span style={{ fontSize: "var(--font-size-sm)", padding: "1px 8px", borderRadius: "var(--radius-sm-alt)", background: color + "22", color, fontWeight: 600 }}>{thought.category}</span>
+          <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)" }}>{thought.timestamp}</span>
           {thought.confidence !== null && (
-            <span style={{ fontSize: 10, color: "var(--text-muted)", marginLeft: "auto" }}>conf: {Math.round(thought.confidence * 100)}%</span>
+            <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", marginLeft: "auto" }}>conf: {Math.round(thought.confidence * 100)}%</span>
           )}
         </div>
-        <div style={{ fontSize: 12, color: "var(--text-primary)", lineHeight: 1.5 }}>{thought.content}</div>
+        <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-primary)", lineHeight: 1.5 }}>{thought.content}</div>
       </div>
     );
   };
 
   return (
     <div style={{ padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-mono)", height: "100%", display: "flex", flexDirection: "column" }}>
-      <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>Thought Stream</div>
+      <div style={{ fontSize: "var(--font-size-xl)", fontWeight: 700, marginBottom: 12 }}>Thought Stream</div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         {["live", "history", "export"].map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{ padding: "4px 12px", borderRadius: 6, cursor: "pointer", background: tab === t ? "var(--accent-color)" : "var(--bg-secondary)", color: tab === t ? "#fff" : "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: 12 }}>{t}</button>
+          <button key={t} onClick={() => setTab(t)} style={{ padding: "4px 12px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: tab === t ? "var(--accent-color)" : "var(--bg-secondary)", color: tab === t ? "#fff" : "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>{t}</button>
         ))}
         {tab === "live" && (
-          <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--success-color)", display: "flex", alignItems: "center", gap: 4 }}>
+          <span style={{ marginLeft: "auto", fontSize: "var(--font-size-sm)", color: "var(--success-color)", display: "flex", alignItems: "center", gap: 4 }}>
             <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--success-color)", display: "inline-block" }} />
             Live
           </span>
@@ -121,11 +121,11 @@ export function ThoughtStreamPanel() {
         <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
           <div style={{ marginBottom: 12 }}>
             <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)}
-              style={{ padding: "5px 10px", borderRadius: 6, background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: 12 }}>
+              style={{ padding: "5px 10px", borderRadius: "var(--radius-sm)", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>
               <option value="All">All Categories</option>
               {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
-            <span style={{ marginLeft: 10, fontSize: 11, color: "var(--text-muted)" }}>{filteredHistory.length} entries</span>
+            <span style={{ marginLeft: 10, fontSize: "var(--font-size-sm)", color: "var(--text-muted)" }}>{filteredHistory.length} entries</span>
           </div>
           <div style={{ flex: 1, overflowY: "auto" }}>
             {filteredHistory.length === 0 && <div style={{ color: "var(--text-muted)" }}>No thoughts in this category.</div>}
@@ -137,13 +137,13 @@ export function ThoughtStreamPanel() {
       {!loading && tab === "export" && (
         <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-            <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Markdown export preview</span>
+            <span style={{ fontSize: "var(--font-size-base)", color: "var(--text-muted)" }}>Markdown export preview</span>
             <button onClick={copyExport}
-              style={{ padding: "4px 14px", borderRadius: 6, cursor: "pointer", background: copied ? "var(--success-color)" : "var(--bg-secondary)", color: copied ? "#fff" : "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: 12 }}>
+              style={{ padding: "4px 14px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: copied ? "var(--success-color)" : "var(--bg-secondary)", color: copied ? "#fff" : "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>
               {copied ? "Copied!" : "Copy"}
             </button>
           </div>
-          <pre style={{ flex: 1, overflowY: "auto", background: "var(--bg-secondary)", borderRadius: 8, border: "1px solid var(--border-color)", padding: 14, fontSize: 11, lineHeight: 1.6, whiteSpace: "pre-wrap", wordBreak: "break-word", color: "var(--text-primary)", margin: 0 }}>
+          <pre style={{ flex: 1, overflowY: "auto", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", border: "1px solid var(--border-color)", padding: 14, fontSize: "var(--font-size-sm)", lineHeight: 1.6, whiteSpace: "pre-wrap", wordBreak: "break-word", color: "var(--text-primary)", margin: 0 }}>
             {exportMd || "No export data available."}
           </pre>
         </div>

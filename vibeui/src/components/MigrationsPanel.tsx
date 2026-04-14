@@ -106,7 +106,7 @@ export function MigrationsPanel({ workspacePath }: MigrationsPanelProps) {
 
  if (!workspacePath) {
  return (
- <div style={{ padding: 24, textAlign: "center", color: "var(--text-secondary)", fontSize: 12 }}>
+ <div style={{ padding: 24, textAlign: "center", color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>
  Open a workspace folder to manage migrations.
  </div>
  );
@@ -125,7 +125,7 @@ export function MigrationsPanel({ workspacePath }: MigrationsPanelProps) {
  {tool === "unknown" ? "No migration tool detected" : tool.charAt(0).toUpperCase() + tool.slice(1)}
  </h3>
  {status && (
- <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+ <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
  {status.applied.length} applied · {status.pending.length} pending
  </span>
  )}
@@ -141,7 +141,7 @@ export function MigrationsPanel({ workspacePath }: MigrationsPanelProps) {
 
  <div className="panel-body" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
  {error && (
- <div className="panel-error" style={{ padding: "7px 10px", fontSize: 12 }}>
+ <div className="panel-error" style={{ padding: "7px 10px", fontSize: "var(--font-size-base)" }}>
  {error}
  </div>
  )}
@@ -154,10 +154,10 @@ export function MigrationsPanel({ workspacePath }: MigrationsPanelProps) {
  onClick={() => runAction("migrate")}
  disabled={!!actionLoading || status.pending.length === 0}
  style={{
- padding: "6px 12px", fontSize: 12, fontWeight: 600,
+ padding: "6px 12px", fontSize: "var(--font-size-base)", fontWeight: 600,
  background: status.pending.length > 0 ? "var(--accent-color)" : "var(--bg-secondary)",
  color: status.pending.length > 0 ? "var(--text-primary)" : "var(--text-secondary)",
- border: "none", borderRadius: 4, cursor: status.pending.length > 0 ? "pointer" : "default",
+ border: "none", borderRadius: "var(--radius-xs-plus)", cursor: status.pending.length > 0 ? "pointer" : "default",
  opacity: actionLoading === "migrate" ? 0.7 : 1,
  }}
  >
@@ -167,9 +167,9 @@ export function MigrationsPanel({ workspacePath }: MigrationsPanelProps) {
  onClick={() => { if (confirm("Rollback the last migration?")) runAction("rollback"); }}
  disabled={!!actionLoading || status.applied.length === 0}
  style={{
- padding: "6px 12px", fontSize: 12,
+ padding: "6px 12px", fontSize: "var(--font-size-base)",
  background: "color-mix(in srgb, var(--accent-rose) 15%, transparent)", color: "var(--error-color)",
- border: "1px solid var(--error-color)", borderRadius: 4,
+ border: "1px solid var(--error-color)", borderRadius: "var(--radius-xs-plus)",
  cursor: status.applied.length > 0 ? "pointer" : "default",
  opacity: actionLoading === "rollback" ? 0.7 : 1,
  }}
@@ -179,7 +179,7 @@ export function MigrationsPanel({ workspacePath }: MigrationsPanelProps) {
  <button
  onClick={() => runAction("status")}
  disabled={!!actionLoading}
- style={{ padding: "6px 12px", fontSize: 12, background: "var(--bg-secondary)", color: "var(--text-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, cursor: "pointer" }}
+ style={{ padding: "6px 12px", fontSize: "var(--font-size-base)", background: "var(--bg-secondary)", color: "var(--text-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", cursor: "pointer" }}
  >
  {actionLoading === "status" ? "" : "Status"}
  </button>
@@ -193,15 +193,15 @@ export function MigrationsPanel({ workspacePath }: MigrationsPanelProps) {
  onKeyDown={(e) => e.key === "Enter" && handleGenerate()}
  placeholder="Migration name (e.g. add_users_table)"
  style={{
- flex: 1, padding: "5px 8px", fontSize: 12,
+ flex: 1, padding: "5px 8px", fontSize: "var(--font-size-base)",
  background: "var(--bg-secondary)", border: "1px solid var(--border-color)",
- borderRadius: 4, color: "var(--text-primary)", outline: "none",
+ borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none",
  }}
  />
  <button
  onClick={handleGenerate}
  disabled={!!actionLoading || !newMigName.trim()}
- style={{ padding: "5px 12px", fontSize: 12, background: "var(--bg-secondary)", color: "var(--text-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, cursor: "pointer" }}
+ style={{ padding: "5px 12px", fontSize: "var(--font-size-base)", background: "var(--bg-secondary)", color: "var(--text-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", cursor: "pointer" }}
  >
  {actionLoading === "generate" ? "" : "+ Generate"}
  </button>
@@ -213,8 +213,8 @@ export function MigrationsPanel({ workspacePath }: MigrationsPanelProps) {
  {output && (
  <pre style={{
  margin: 0, padding: 10, background: "var(--bg-primary)", color: "var(--text-primary)",
- border: "1px solid var(--border-color)", borderRadius: 6,
- fontSize: 11, lineHeight: 1.4, overflow: "auto", maxHeight: 180,
+ border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)",
+ fontSize: "var(--font-size-sm)", lineHeight: 1.4, overflow: "auto", maxHeight: 180,
  whiteSpace: "pre-wrap", wordBreak: "break-all",
  }}>
  {output}
@@ -224,7 +224,7 @@ export function MigrationsPanel({ workspacePath }: MigrationsPanelProps) {
  {/* Migration list */}
  {allMigrations.length > 0 ? (
  <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
- <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 2, fontWeight: 600 }}>
+ <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 2, fontWeight: 600 }}>
  MIGRATIONS ({allMigrations.length})
  </div>
  {allMigrations.map((m) => (
@@ -234,16 +234,16 @@ export function MigrationsPanel({ workspacePath }: MigrationsPanelProps) {
  display: "flex", alignItems: "center", gap: 10,
  padding: "7px 10px", borderRadius: 5,
  background: "var(--bg-secondary)", border: "1px solid var(--border-color)",
- fontSize: 12,
+ fontSize: "var(--font-size-base)",
  }}
  >
  <span>{STATE_ICONS[m.state]}</span>
- <span style={{ fontFamily: "var(--font-mono)", flex: 1, fontSize: 11 }}>{m.name}</span>
- <span style={{ fontSize: 10, color: STATE_COLORS[m.state], fontWeight: 600 }}>
+ <span style={{ fontFamily: "var(--font-mono)", flex: 1, fontSize: "var(--font-size-sm)" }}>{m.name}</span>
+ <span style={{ fontSize: "var(--font-size-xs)", color: STATE_COLORS[m.state], fontWeight: 600 }}>
  {m.state}
  </span>
  {m.applied_at && (
- <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>
+ <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>
  {new Date(m.applied_at).toLocaleDateString()}
  </span>
  )}
@@ -263,14 +263,14 @@ export function MigrationsPanel({ workspacePath }: MigrationsPanelProps) {
  <div>
  <button
  onClick={() => setShowRaw((p) => !p)}
- style={{ fontSize: 11, background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", padding: 0, marginBottom: 4 }}
+ style={{ fontSize: "var(--font-size-sm)", background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", padding: 0, marginBottom: 4 }}
  >
  {showRaw ? "Hide raw output" : <><ChevronDown size={10} /> Show raw output</>}
  </button>
  {showRaw && (
  <pre style={{
  margin: 0, padding: 8, background: "var(--bg-secondary)", border: "1px solid var(--border-color)",
- borderRadius: 4, fontSize: 10, lineHeight: 1.4,
+ borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-xs)", lineHeight: 1.4,
  overflow: "auto", maxHeight: 200, whiteSpace: "pre-wrap", color: "var(--text-secondary)",
  }}>
  {status.raw_output}

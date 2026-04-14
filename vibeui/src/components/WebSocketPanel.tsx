@@ -171,7 +171,7 @@ export function WebSocketPanel() {
  <div className="panel-container" style={{ flexDirection: "row" }}>
  {/* Sidebar — saved configs */}
  <div style={{ width: 200, borderRight: "1px solid var(--border-color)", display: "flex", flexDirection: "column", flexShrink: 0 }}>
- <div style={{ padding: "10px 10px 6px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", fontSize: 11, fontWeight: 600 }}>
+ <div style={{ padding: "10px 10px 6px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", fontSize: "var(--font-size-sm)", fontWeight: 600 }}>
  Saved
  </div>
  <div style={{ flex: 1, overflowY: "auto" }}>
@@ -182,12 +182,12 @@ export function WebSocketPanel() {
  onClick={() => loadConfig(c)}
  >
  <div style={{ flex: 1, minWidth: 0 }}>
- <div style={{ fontSize: 11, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.label}</div>
+ <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.label}</div>
  <div style={{ fontSize: 9, color: "var(--text-secondary)", fontFamily: "var(--font-mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.url}</div>
  </div>
  <button
  onClick={e => { e.stopPropagation(); removeConfig(c.id); }}
- style={{ fontSize: 10, background: "none", border: "none", color: "var(--text-danger)", cursor: "pointer", padding: "0 2px" }}
+ style={{ fontSize: "var(--font-size-xs)", background: "none", border: "none", color: "var(--text-danger)", cursor: "pointer", padding: "0 2px" }}
  >✕</button>
  </div>
  ))}
@@ -198,12 +198,12 @@ export function WebSocketPanel() {
  value={label}
  onChange={e => setLabel(e.target.value)}
  placeholder="Name to save…"
- className="panel-input" style={{ fontSize: 10 }}
+ className="panel-input" style={{ fontSize: "var(--font-size-xs)" }}
  />
  <button
  onClick={saveConfig}
  disabled={!label || !url}
- className="panel-btn panel-btn-primary" style={{ fontSize: 10 }}
+ className="panel-btn panel-btn-primary" style={{ fontSize: "var(--font-size-xs)" }}
  >
  Save current
  </button>
@@ -226,19 +226,19 @@ export function WebSocketPanel() {
  value={protocols}
  onChange={e => setProtocols(e.target.value)}
  placeholder="subprotocols (comma-sep)"
- className="panel-input" style={{ width: 160, fontSize: 11 }}
+ className="panel-input" style={{ width: 160, fontSize: "var(--font-size-sm)" }}
  />
  {status !== "open" ? (
  <button
  onClick={connect}
- className="panel-btn panel-btn-primary" style={{ fontSize: 11 }}
+ className="panel-btn panel-btn-primary" style={{ fontSize: "var(--font-size-sm)" }}
  >
  {status === "connecting" ? "Connecting…" : "Connect"}
  </button>
  ) : (
  <button
  onClick={disconnect}
- className="panel-btn panel-btn-danger" style={{ fontSize: 11 }}
+ className="panel-btn panel-btn-danger" style={{ fontSize: "var(--font-size-sm)" }}
  >
  ■ Disconnect
  </button>
@@ -248,18 +248,18 @@ export function WebSocketPanel() {
  {/* Filter bar */}
  <div style={{ padding: "5px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 6, alignItems: "center" }}>
  {(["all", "sent", "received", "system", "error"] as const).map(d => (
- <button key={d} onClick={() => setFilterDir(d)} style={{ padding: "2px 10px", fontSize: 10, borderRadius: 10, background: filterDir === d ? "color-mix(in srgb, var(--accent-blue) 25%, transparent)" : "var(--bg-primary)", border: `1px solid ${filterDir === d ? "var(--accent-color)" : "var(--border-color)"}`, color: d === "all" ? "var(--text-primary)" : DIR_COLORS[d as MsgDirection], cursor: "pointer", fontWeight: filterDir === d ? 700 : 400 }}>
+ <button key={d} onClick={() => setFilterDir(d)} style={{ padding: "2px 10px", fontSize: "var(--font-size-xs)", borderRadius: "var(--radius-md)", background: filterDir === d ? "color-mix(in srgb, var(--accent-blue) 25%, transparent)" : "var(--bg-primary)", border: `1px solid ${filterDir === d ? "var(--accent-color)" : "var(--border-color)"}`, color: d === "all" ? "var(--text-primary)" : DIR_COLORS[d as MsgDirection], cursor: "pointer", fontWeight: filterDir === d ? 700 : 400 }}>
  {d === "all" ? "All" : `${DIR_ICONS[d as MsgDirection]} ${d}`}
  </button>
  ))}
  <div style={{ flex: 1 }} />
- <label style={{ fontSize: 10, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4 }}>
+ <label style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4 }}>
  <input type="checkbox" checked={prettyJson} onChange={e => setPrettyJson(e.target.checked)} />Pretty JSON
  </label>
- <label style={{ fontSize: 10, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4 }}>
+ <label style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4 }}>
  <input type="checkbox" checked={autoScroll} onChange={e => setAutoScroll(e.target.checked)} />Auto-scroll
  </label>
- <button onClick={() => setMessages([])} style={{ fontSize: 10, padding: "2px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-secondary)", cursor: "pointer" }}>
+ <button onClick={() => setMessages([])} style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-secondary)", cursor: "pointer" }}>
  Clear
  </button>
  </div>
@@ -267,15 +267,15 @@ export function WebSocketPanel() {
  {/* Message log */}
  <div ref={logRef} style={{ flex: 1, overflowY: "auto", padding: "6px 0", fontFamily: "var(--font-mono)" }}>
  {filtered.length === 0 && (
- <div style={{ padding: 24, textAlign: "center", color: "var(--text-secondary)", fontSize: 12 }}>
+ <div style={{ padding: 24, textAlign: "center", color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>
  {status === "idle" ? "Enter a WebSocket URL and click Connect" : "No messages yet"}
  </div>
  )}
  {filtered.map(m => (
  <div key={m.id} style={{ padding: "4px 12px", display: "flex", gap: 10, alignItems: "flex-start", borderBottom: "1px solid var(--border-subtle)" }}>
  <span style={{ fontSize: 9, color: "var(--text-secondary)", flexShrink: 0, paddingTop: 2, minWidth: 86 }}>{fmt(m.ts)}</span>
- <span style={{ fontSize: 11, fontWeight: 700, color: DIR_COLORS[m.direction], flexShrink: 0, width: 12 }}>{DIR_ICONS[m.direction]}</span>
- <pre style={{ margin: 0, fontSize: 11, color: "var(--text-primary)", whiteSpace: "pre-wrap", wordBreak: "break-word", flex: 1, lineHeight: 1.5 }}>
+ <span style={{ fontSize: "var(--font-size-sm)", fontWeight: 700, color: DIR_COLORS[m.direction], flexShrink: 0, width: 12 }}>{DIR_ICONS[m.direction]}</span>
+ <pre style={{ margin: 0, fontSize: "var(--font-size-sm)", color: "var(--text-primary)", whiteSpace: "pre-wrap", wordBreak: "break-word", flex: 1, lineHeight: 1.5 }}>
  {tryPretty(m.data)}
  </pre>
  {m.latency !== undefined && (
@@ -293,18 +293,18 @@ export function WebSocketPanel() {
  onKeyDown={e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); send(); } }}
  placeholder='{"type":"hello"} — Ctrl+Enter to send'
  rows={2}
- className="panel-input panel-textarea" style={{ flex: 1, fontFamily: "var(--font-mono)", fontSize: 11, resize: "none" }}
+ className="panel-input panel-textarea" style={{ flex: 1, fontFamily: "var(--font-mono)", fontSize: "var(--font-size-sm)", resize: "none" }}
  />
  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
  <button
  onClick={send}
  disabled={status !== "open" || !input.trim()}
- className="panel-btn panel-btn-primary" style={{ fontSize: 11 }}
+ className="panel-btn panel-btn-primary" style={{ fontSize: "var(--font-size-sm)" }}
  >↑ Send</button>
  <button
  onClick={sendPing}
  disabled={status !== "open"}
- className="panel-btn panel-btn-secondary" style={{ fontSize: 11 }}
+ className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-sm)" }}
  >Ping</button>
  </div>
  </div>

@@ -43,8 +43,8 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const badgeStyle = (color: string): React.CSSProperties => ({
-  display: "inline-block", padding: "2px 8px", borderRadius: 10,
-  fontSize: 11, background: color, color: "var(--bg-primary)", fontWeight: 600,
+  display: "inline-block", padding: "2px 8px", borderRadius: "var(--radius-md)",
+  fontSize: "var(--font-size-sm)", background: color, color: "var(--bg-primary)", fontWeight: 600,
 });
 
 const barBg: React.CSSProperties = {
@@ -98,7 +98,7 @@ const OrgContextPanel: React.FC = () => {
 
   return (
     <div className="panel-container" role="region" aria-label="Org Context Panel">
-      <div style={{ padding: "8px 16px", background: "var(--bg-tertiary)", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, flexShrink: 0 }}>
+      <div style={{ padding: "8px 16px", background: "var(--bg-tertiary)", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "var(--font-size-base)", flexShrink: 0 }}>
         <span>Index: <strong>{indexed}/{repos.length}</strong> repos indexed</span>
         <span>Total files: {repos.reduce((s, r) => s + r.files, 0).toLocaleString()}</span>
       </div>
@@ -117,7 +117,7 @@ const OrgContextPanel: React.FC = () => {
               <strong>{r.name}</strong>
               <span style={badgeStyle(STATUS_COLORS[r.status] || "var(--text-secondary)")}>{r.status}</span>
             </div>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{r.lang} &middot; {r.files} files &middot; Last indexed: {r.lastIndexed}</div>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>{r.lang} &middot; {r.files} files &middot; Last indexed: {r.lastIndexed}</div>
           </div>
         ))}
         {tab === "Patterns" && patterns.length === 0 && (
@@ -127,9 +127,9 @@ const OrgContextPanel: React.FC = () => {
           <div key={i} className="panel-card">
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
               <strong>{p.type}</strong>
-              <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{p.count} occurrences in {p.repos} repos</span>
+              <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{p.count} occurrences in {p.repos} repos</span>
             </div>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{p.desc}</div>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>{p.desc}</div>
           </div>
         ))}
         {tab === "Conventions" && conventions.length === 0 && (
@@ -139,9 +139,9 @@ const OrgContextPanel: React.FC = () => {
           <div key={i} className="panel-card">
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
               <strong>{c.name}</strong>
-              <span style={{ fontSize: 11, color: c.adoption >= 90 ? "var(--success-color)" : c.adoption >= 70 ? "var(--warning-color)" : "var(--error-color)" }}>{c.adoption}% adoption</span>
+              <span style={{ fontSize: "var(--font-size-sm)", color: c.adoption >= 90 ? "var(--success-color)" : c.adoption >= 70 ? "var(--warning-color)" : "var(--error-color)" }}>{c.adoption}% adoption</span>
             </div>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>{c.rule}</div>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 4 }}>{c.rule}</div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <div style={barBg}><div style={{ height: "100%", borderRadius: 3, background: c.adoption >= 90 ? "var(--success-color)" : "var(--warning-color)", width: `${c.adoption}%` }} /></div>
             </div>
@@ -152,8 +152,8 @@ const OrgContextPanel: React.FC = () => {
         )}
         {tab === "Dependencies" && deps.map((d, i) => (
           <div key={i} className="panel-card">
-            <div style={{ fontSize: 13 }}><strong>{d.from}</strong> <span style={{ color: "var(--text-secondary)" }}>&rarr;</span> <strong>{d.to}</strong></div>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>Type: {d.type} &middot; Version: {d.version}</div>
+            <div style={{ fontSize: "var(--font-size-md)" }}><strong>{d.from}</strong> <span style={{ color: "var(--text-secondary)" }}>&rarr;</span> <strong>{d.to}</strong></div>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginTop: 4 }}>Type: {d.type} &middot; Version: {d.version}</div>
           </div>
         ))}
       </div>

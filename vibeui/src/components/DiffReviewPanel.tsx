@@ -275,10 +275,10 @@ export function DiffReviewPanel({ original, modified, filePath, onApply }: DiffR
    {/* Divider */}
    <span style={{ width: 1, height: 14, background: "var(--border-color)", flexShrink: 0 }} />
    {/* File info — allowed to truncate, pushed right */}
-   <span style={{ fontSize: 11, color: "var(--text-secondary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>
+   <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>
      <code style={{ color: "var(--text-primary)" }}>{filePath.split("/").pop()}</code>
    </span>
-   <span style={{ fontSize: 10, color: "var(--text-secondary)", whiteSpace: "nowrap", marginLeft: "auto", flexShrink: 0 }}>
+   <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", whiteSpace: "nowrap", marginLeft: "auto", flexShrink: 0 }}>
      {acceptedCount}/{hunks.length} hunks
    </span>
  </div>
@@ -286,7 +286,7 @@ export function DiffReviewPanel({ original, modified, filePath, onApply }: DiffR
  {/* Diff body */}
  <div className="panel-body">
  {noChanges ? (
- <div style={{ padding: 24, textAlign: "center", color: "var(--text-secondary)", fontSize: 13 }}>
+ <div style={{ padding: 24, textAlign: "center", color: "var(--text-secondary)", fontSize: "var(--font-size-md)" }}>
  No changes detected.
  </div>
  ) : (
@@ -313,14 +313,14 @@ const HunkBlock = React.memo(function HunkBlock({ hunk, onToggle }: { hunk: Diff
  <div style={{
  margin: "8px 0",
  border: `1px solid ${hunk.accepted ? "var(--border-color)" : "rgba(180,80,80,0.4)"}`,
- borderRadius: 4,
+ borderRadius: "var(--radius-xs-plus)",
  overflow: "hidden",
  opacity: hunk.accepted ? 1 : 0.6,
  }}>
  {/* Hunk header */}
  <div style={{
  display: "flex", alignItems: "center", gap: 8,
- padding: "4px 10px", background: "var(--bg-secondary)", fontSize: 11,
+ padding: "4px 10px", background: "var(--bg-secondary)", fontSize: "var(--font-size-sm)",
  }}>
  <button
  onClick={() => onToggle(hunk.id)}
@@ -329,7 +329,7 @@ const HunkBlock = React.memo(function HunkBlock({ hunk, onToggle }: { hunk: Diff
  border: `1px solid ${hunk.accepted ? "var(--success-color, #4ade80)" : "var(--error-color, #f87171)"}`,
  background: "transparent",
  color: hunk.accepted ? "var(--success-color, #4ade80)" : "var(--error-color, #f87171)",
- cursor: "pointer", fontWeight: 600, fontSize: 11, display: "inline-flex", alignItems: "center",
+ cursor: "pointer", fontWeight: 600, fontSize: "var(--font-size-sm)", display: "inline-flex", alignItems: "center",
  }}
  >
  {hunk.accepted ? <><Check size={11} strokeWidth={2} style={{ marginRight: 3 }} /> Accept</> : <><X size={11} strokeWidth={2} style={{ marginRight: 3 }} /> Reject</>}
@@ -339,7 +339,7 @@ const HunkBlock = React.memo(function HunkBlock({ hunk, onToggle }: { hunk: Diff
  </div>
 
  {/* Hunk lines */}
- <div style={{ fontSize: 12, lineHeight: 1.5 }}>
+ <div style={{ fontSize: "var(--font-size-base)", lineHeight: 1.5 }}>
  {hunk.lines.map((line, idx) => (
  <div
  key={idx}
@@ -360,7 +360,7 @@ const HunkBlock = React.memo(function HunkBlock({ hunk, onToggle }: { hunk: Diff
  {/* Gutter */}
  <span style={{
  width: 70, flexShrink: 0, textAlign: "right", padding: "0 6px",
- color: "var(--text-secondary)", userSelect: "none", fontSize: 10,
+ color: "var(--text-secondary)", userSelect: "none", fontSize: "var(--font-size-xs)",
  }}>
  {line.origLine ?? ""}
  <span style={{ margin: "0 2px", color: "var(--text-secondary)" }}>
@@ -391,7 +391,7 @@ const HunkBlock = React.memo(function HunkBlock({ hunk, onToggle }: { hunk: Diff
 
 function btnStyle(accent: string): React.CSSProperties {
  return {
- padding: "3px 10px", fontSize: 11, borderRadius: 4, lineHeight: 1.4,
+ padding: "3px 10px", fontSize: "var(--font-size-sm)", borderRadius: "var(--radius-xs-plus)", lineHeight: 1.4,
  border: `1px solid ${accent}`,
  background: "transparent", color: accent,
  cursor: "pointer", whiteSpace: "nowrap",
@@ -425,12 +425,12 @@ export class DiffReviewErrorBoundary extends Component<EBProps, EBState> {
         display: "flex", flexDirection: "column", alignItems: "center",
         justifyContent: "center", height: "100%", gap: 12,
         background: "var(--bg-primary)", color: "var(--text-primary)",
-        fontFamily: "var(--font-mono)", fontSize: 13, padding: 24,
+        fontFamily: "var(--font-mono)", fontSize: "var(--font-size-md)", padding: 24,
       }}>
         <span style={{ color: "var(--error-color, #f87171)", fontWeight: 600 }}>
           Diff view encountered an error
         </span>
-        <span style={{ color: "var(--text-secondary)", fontSize: 11, maxWidth: 400, textAlign: "center" }}>
+        <span style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-sm)", maxWidth: 400, textAlign: "center" }}>
           {this.state.message || "An unexpected error occurred."}
         </span>
         <button

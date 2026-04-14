@@ -88,7 +88,7 @@ export function CompanyPriorityMapPanel() {
             const cfg = URGENCY_CONFIG[u];
             return (
               <span key={u} style={{
-                padding: "2px 10px", borderRadius: 10, fontSize: 11, fontWeight: 600,
+                padding: "2px 10px", borderRadius: "var(--radius-md)", fontSize: "var(--font-size-sm)", fontWeight: 600,
                 color: cfg.color, background: cfg.bg, border: `1px solid ${cfg.color}`,
               }}>
                 {cfg.label} {cfg.desc}
@@ -103,9 +103,9 @@ export function CompanyPriorityMapPanel() {
           <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
             {/* Header row */}
             <div style={{ display: "grid", gridTemplateColumns: "110px 1fr 1fr", gap: 8, alignItems: "center", padding: "0 4px" }}>
-              <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase" }}>Program</span>
-              <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase" }}>Urgency</span>
-              <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase" }}>Routing Rules</span>
+              <span style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase" }}>Program</span>
+              <span style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase" }}>Urgency</span>
+              <span style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase" }}>Routing Rules</span>
             </div>
             {map.map((entry, i) => {
               const urgencyCfg = URGENCY_CONFIG[entry.urgency];
@@ -115,12 +115,12 @@ export function CompanyPriorityMapPanel() {
                   style={{
                     display: "grid", gridTemplateColumns: "110px 1fr 1fr", gap: 8,
                     alignItems: "center", padding: "8px 10px",
-                    background: "var(--bg-secondary)", borderRadius: 6,
+                    background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)",
                     border: "1px solid var(--border-color)",
                   }}
                 >
                   {/* Program name */}
-                  <span style={{ fontSize: 13, fontWeight: 600 }}>{entry.program}</span>
+                  <span style={{ fontSize: "var(--font-size-md)", fontWeight: 600 }}>{entry.program}</span>
 
                   {/* Urgency button group */}
                   <div style={{ display: "flex", gap: 4 }}>
@@ -132,7 +132,7 @@ export function CompanyPriorityMapPanel() {
                           key={u}
                           onClick={() => setUrgency(i, u)}
                           style={{
-                            padding: "2px 8px", borderRadius: 6, fontSize: 11, fontWeight: 700,
+                            padding: "2px 8px", borderRadius: "var(--radius-sm)", fontSize: "var(--font-size-sm)", fontWeight: 700,
                             cursor: "pointer",
                             background: selected ? cfg.bg : "transparent",
                             color: selected ? cfg.color : "var(--text-secondary)",
@@ -144,7 +144,7 @@ export function CompanyPriorityMapPanel() {
                         </button>
                       );
                     })}
-                    <span style={{ fontSize: 10, color: urgencyCfg.color, alignSelf: "center", marginLeft: 4 }}>
+                    <span style={{ fontSize: "var(--font-size-xs)", color: urgencyCfg.color, alignSelf: "center", marginLeft: 4 }}>
                       {urgencyCfg.desc}
                     </span>
                   </div>
@@ -175,7 +175,7 @@ export function CompanyPriorityMapPanel() {
 
         {toast && (
           <div style={{
-            marginTop: 12, padding: "8px 14px", borderRadius: 6, fontSize: 12,
+            marginTop: 12, padding: "8px 14px", borderRadius: "var(--radius-sm)", fontSize: "var(--font-size-base)",
             background: toast.startsWith("Error") ? "rgba(231,76,60,0.15)" : "rgba(39,174,96,0.15)",
             color: toast.startsWith("Error") ? "var(--accent-rose)" : "var(--accent-green)",
             border: `1px solid ${toast.startsWith("Error") ? "var(--accent-rose)" : "var(--accent-green)"}`,

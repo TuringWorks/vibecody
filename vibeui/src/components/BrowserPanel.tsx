@@ -283,20 +283,20 @@ export function BrowserPanel() {
  padding: '6px 8px', borderBottom: '1px solid var(--border-color)',
  background: 'var(--bg-secondary)', flexShrink: 0, maxHeight: 120, overflowY: 'auto',
  }}>
- <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>
+ <div style={{ fontSize: "var(--font-size-sm)", color: 'var(--text-secondary)', marginBottom: 4 }}>
  Chrome DevTools Targets ({cdpTargets.length})
  </div>
  {cdpTargets.filter((t: CdpTarget) => t.type === 'page').map((t: CdpTarget) => (
  <div key={t.id} style={{
  display: 'flex', gap: 6, alignItems: 'center', padding: '2px 4px',
- fontSize: 11, borderRadius: 3, cursor: 'pointer',
+ fontSize: "var(--font-size-sm)", borderRadius: 3, cursor: 'pointer',
  }} onClick={() => { setUrlInput(t.url); navigate(t.url); }}>
  <span style={{
  padding: '0 4px', borderRadius: 2, fontSize: 9,
  background: 'rgba(34,197,94,0.15)', color: 'var(--success-color)',
  }}>PAGE</span>
  <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{t.title.slice(0, 40)}</span>
- <span style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', fontSize: 10 }}>
+ <span style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', fontSize: "var(--font-size-xs)" }}>
  {t.url.slice(0, 60)}
  </span>
  <button onClick={(e) => { e.stopPropagation(); cdpOpenTab(t.url); }}

@@ -133,7 +133,7 @@ export default function ReviewProtocolPanel() {
                   <button className="panel-btn panel-btn-secondary panel-btn-sm" onClick={() => runCreview(`list ${sessionId}`)} title='vibecli --cmd "/creview list"' style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Play size={12} /> List Comments</button>
                   <button className="panel-btn panel-btn-secondary panel-btn-sm" onClick={() => runCreview(`summary ${sessionId}`)} title='vibecli --cmd "/creview summary"' style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Play size={12} /> Summary</button>
                 </div>
-                {cliOutput && <pre style={{ whiteSpace: "pre-wrap", marginTop: 8, fontSize: 11 }}>{cliOutput}</pre>}
+                {cliOutput && <pre style={{ whiteSpace: "pre-wrap", marginTop: 8, fontSize: "var(--font-size-sm)" }}>{cliOutput}</pre>}
               </div>
             )}
 

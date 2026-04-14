@@ -106,23 +106,23 @@ export function TraceDashboard() {
  {!selectedSession ? (
  /* Session list */
  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
- <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>
+ <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 4 }}>
  Select a session to view its execution timeline.
  </div>
  {sessions.length === 0 && (
- <div style={{ padding: 16, textAlign: "center", opacity: 0.5, fontSize: 11 }}>
+ <div style={{ padding: 16, textAlign: "center", opacity: 0.5, fontSize: "var(--font-size-sm)" }}>
  No trace sessions found. Run an agent task to generate traces.
  </div>
  )}
  {sessions.map((s) => (
  <button key={s.session_id} onClick={() => loadSession(s.session_id)} style={{
- padding: "6px 8px", borderRadius: 4, textAlign: "left", cursor: "pointer",
+ padding: "6px 8px", borderRadius: "var(--radius-xs-plus)", textAlign: "left", cursor: "pointer",
  border: "1px solid var(--border-color)",
  background: "var(--bg-primary)",
  color: "var(--text-primary)",
  }}>
  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
- <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--text-info)" }}>
+ <span style={{ fontSize: "var(--font-size-xs)", fontFamily: "var(--font-mono)", color: "var(--text-info)" }}>
  {s.session_id.slice(0, 12)}
  </span>
  <div style={{ flex: 1 }} />
@@ -137,7 +137,7 @@ export function TraceDashboard() {
  ))}
  </div>
  ) : loading ? (
- <div style={{ padding: 16, textAlign: "center", opacity: 0.5, fontSize: 11 }}>
+ <div style={{ padding: 16, textAlign: "center", opacity: 0.5, fontSize: "var(--font-size-sm)" }}>
  Loading session...
  </div>
  ) : (
@@ -145,8 +145,8 @@ export function TraceDashboard() {
  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
  {/* Summary bar */}
  <div style={{
- display: "flex", gap: 12, padding: "6px 8px", borderRadius: 4,
- background: "var(--bg-primary)", fontSize: 10,
+ display: "flex", gap: 12, padding: "6px 8px", borderRadius: "var(--radius-xs-plus)",
+ background: "var(--bg-primary)", fontSize: "var(--font-size-xs)",
  }}>
  <span><strong>{steps.length}</strong> steps</span>
  <span><strong>{formatDuration(totalDuration)}</strong> total</span>
@@ -200,7 +200,7 @@ export function TraceDashboard() {
  const isExpanded = expandedStep === s.step;
  return (
  <div key={i} style={{
- borderRadius: 4, overflow: "hidden",
+ borderRadius: "var(--radius-xs-plus)", overflow: "hidden",
  border: "1px solid var(--border-color)",
  background: "var(--bg-primary)",
  }}>
@@ -218,7 +218,7 @@ export function TraceDashboard() {
  <span style={{ fontSize: 9, fontWeight: 700, minWidth: 20 }}>
  #{s.step}
  </span>
- <span style={{ fontSize: 10, fontWeight: 600, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+ <span style={{ fontSize: "var(--font-size-xs)", fontWeight: 600, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
  {s.tool || "LLM"}
  </span>
  {!s.success && (
@@ -230,7 +230,7 @@ export function TraceDashboard() {
  <span style={{ fontSize: 9, opacity: 0.3, fontFamily: "var(--font-mono)" }}>
  {formatTimestamp(s.timestamp)}
  </span>
- <span style={{ fontSize: 10, opacity: 0.4 }}>{isExpanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />}</span>
+ <span style={{ fontSize: "var(--font-size-xs)", opacity: 0.4 }}>{isExpanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />}</span>
  </button>
 
  {isExpanded && (
@@ -239,7 +239,7 @@ export function TraceDashboard() {
  <div style={{ marginBottom: 6 }}>
  <div style={{ fontSize: 9, fontWeight: 700, opacity: 0.5, marginBottom: 2 }}>INPUT</div>
  <pre style={{
- fontSize: 10, padding: "4px 6px", borderRadius: 3, margin: 0,
+ fontSize: "var(--font-size-xs)", padding: "4px 6px", borderRadius: 3, margin: 0,
  background: "var(--bg-secondary)", whiteSpace: "pre-wrap",
  maxHeight: 150, overflowY: "auto",
  }}>
@@ -251,7 +251,7 @@ export function TraceDashboard() {
  <div>
  <div style={{ fontSize: 9, fontWeight: 700, opacity: 0.5, marginBottom: 2 }}>OUTPUT</div>
  <pre style={{
- fontSize: 10, padding: "4px 6px", borderRadius: 3, margin: 0,
+ fontSize: "var(--font-size-xs)", padding: "4px 6px", borderRadius: 3, margin: 0,
  background: "var(--bg-secondary)", whiteSpace: "pre-wrap",
  maxHeight: 200, overflowY: "auto",
  }}>
@@ -270,7 +270,7 @@ export function TraceDashboard() {
  );
  })}
  {filteredSteps.length === 0 && (
- <div style={{ padding: 16, textAlign: "center", opacity: 0.5, fontSize: 11 }}>
+ <div style={{ padding: 16, textAlign: "center", opacity: 0.5, fontSize: "var(--font-size-sm)" }}>
  {filter === "all" ? "No steps in this session." : `No ${filter.replace("_", " ")} steps.`}
  </div>
  )}
@@ -283,7 +283,7 @@ export function TraceDashboard() {
 }
 
 const chipStyle: React.CSSProperties = {
- padding: "2px 8px", fontSize: 9, fontWeight: 600, borderRadius: 4,
+ padding: "2px 8px", fontSize: 9, fontWeight: 600, borderRadius: "var(--radius-xs-plus)",
  border: "1px solid var(--border-color)",
  background: "transparent", color: "var(--text-primary)",
 };

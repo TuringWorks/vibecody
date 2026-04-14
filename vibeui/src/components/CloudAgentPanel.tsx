@@ -81,14 +81,14 @@ export function CloudAgentPanel() {
 
   return (
     <div style={{ padding: 16, height: "100%", overflowY: "auto", color: "var(--text-primary)" }}>
-      <h3 style={{ margin: "0 0 12px 0", fontSize: 15 }}>Cloud Agent (Docker)</h3>
-      <p style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 16 }}>
+      <h3 style={{ margin: "0 0 12px 0", fontSize: "var(--font-size-xl)" }}>Cloud Agent (Docker)</h3>
+      <p style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 16 }}>
         Run agent tasks inside isolated Docker containers. Requires Docker to be installed and running.
       </p>
 
       {/* Image selector */}
       <div style={{ marginBottom: 12 }}>
-        <label style={{ fontSize: 12, display: "block", marginBottom: 4 }}>Docker Image</label>
+        <label style={{ fontSize: "var(--font-size-base)", display: "block", marginBottom: 4 }}>Docker Image</label>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
           {PRESET_IMAGES.map((preset) => (
             <button
@@ -96,9 +96,9 @@ export function CloudAgentPanel() {
               onClick={() => setImage(preset.value)}
               style={{
                 padding: "3px 8px",
-                fontSize: 11,
+                fontSize: "var(--font-size-sm)",
                 border: "1px solid var(--border-color)",
-                borderRadius: 4,
+                borderRadius: "var(--radius-xs-plus)",
                 cursor: "pointer",
                 background: image === preset.value ? "var(--accent-color)" : "var(--bg-secondary)",
                 color: image === preset.value ? "var(--text-primary)" : "var(--text-secondary)",
@@ -116,11 +116,11 @@ export function CloudAgentPanel() {
           style={{
             width: "100%",
             padding: "6px 8px",
-            fontSize: 12,
+            fontSize: "var(--font-size-base)",
             background: "var(--bg-primary)",
             color: "var(--text-primary)",
             border: "1px solid var(--border-color)",
-            borderRadius: 4,
+            borderRadius: "var(--radius-xs-plus)",
             boxSizing: "border-box",
           }}
         />
@@ -128,7 +128,7 @@ export function CloudAgentPanel() {
 
       {/* Workspace path */}
       <div style={{ marginBottom: 12 }}>
-        <label style={{ fontSize: 12, display: "block", marginBottom: 4 }}>
+        <label style={{ fontSize: "var(--font-size-base)", display: "block", marginBottom: 4 }}>
           Workspace Path (optional, mounted as /workspace)
         </label>
         <input
@@ -139,11 +139,11 @@ export function CloudAgentPanel() {
           style={{
             width: "100%",
             padding: "6px 8px",
-            fontSize: 12,
+            fontSize: "var(--font-size-base)",
             background: "var(--bg-primary)",
             color: "var(--text-primary)",
             border: "1px solid var(--border-color)",
-            borderRadius: 4,
+            borderRadius: "var(--radius-xs-plus)",
             boxSizing: "border-box",
           }}
         />
@@ -151,7 +151,7 @@ export function CloudAgentPanel() {
 
       {/* Task input */}
       <div style={{ marginBottom: 12 }}>
-        <label style={{ fontSize: 12, display: "block", marginBottom: 4 }}>Agent Task</label>
+        <label style={{ fontSize: "var(--font-size-base)", display: "block", marginBottom: 4 }}>Agent Task</label>
         <textarea
           value={task}
           onChange={(e) => setTask(e.target.value)}
@@ -160,11 +160,11 @@ export function CloudAgentPanel() {
           style={{
             width: "100%",
             padding: "6px 8px",
-            fontSize: 12,
+            fontSize: "var(--font-size-base)",
             background: "var(--bg-primary)",
             color: "var(--text-primary)",
             border: "1px solid var(--border-color)",
-            borderRadius: 4,
+            borderRadius: "var(--radius-xs-plus)",
             resize: "vertical",
             boxSizing: "border-box",
             fontFamily: "inherit",
@@ -179,11 +179,11 @@ export function CloudAgentPanel() {
           disabled={launching || !task.trim()}
           style={{
             padding: "6px 16px",
-            fontSize: 12,
+            fontSize: "var(--font-size-base)",
             background: launching ? "var(--bg-secondary)" : "var(--accent-color)",
             color: "var(--text-primary)",
             border: "none",
-            borderRadius: 4,
+            borderRadius: "var(--radius-xs-plus)",
             cursor: launching || !task.trim() ? "not-allowed" : "pointer",
             opacity: launching || !task.trim() ? 0.6 : 1,
           }}
@@ -195,11 +195,11 @@ export function CloudAgentPanel() {
             onClick={handleCheckStatus}
             style={{
               padding: "6px 12px",
-              fontSize: 12,
+              fontSize: "var(--font-size-base)",
               background: "var(--bg-secondary)",
               color: "var(--text-primary)",
               border: "1px solid var(--border-color)",
-              borderRadius: 4,
+              borderRadius: "var(--radius-xs-plus)",
               cursor: "pointer",
             }}
           >
@@ -216,8 +216,8 @@ export function CloudAgentPanel() {
             marginBottom: 12,
             background: "var(--error-bg)",
             border: "1px solid var(--error-color)",
-            borderRadius: 4,
-            fontSize: 12,
+            borderRadius: "var(--radius-xs-plus)",
+            fontSize: "var(--font-size-base)",
             color: "var(--error-color)",
           }}
         >
@@ -233,8 +233,8 @@ export function CloudAgentPanel() {
             marginBottom: 12,
             background: "var(--bg-secondary)",
             border: "1px solid var(--border-color)",
-            borderRadius: 4,
-            fontSize: 12,
+            borderRadius: "var(--radius-xs-plus)",
+            fontSize: "var(--font-size-base)",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
@@ -260,7 +260,7 @@ export function CloudAgentPanel() {
       {/* Log output */}
       {logs.length > 0 && (
         <div>
-          <label style={{ fontSize: 12, display: "block", marginBottom: 4, color: "var(--text-secondary)" }}>
+          <label style={{ fontSize: "var(--font-size-base)", display: "block", marginBottom: 4, color: "var(--text-secondary)" }}>
             Container Logs
           </label>
           <pre
@@ -269,8 +269,8 @@ export function CloudAgentPanel() {
               background: "var(--bg-primary)",
               color: "var(--text-primary)",
               border: "1px solid var(--border-color)",
-              borderRadius: 4,
-              fontSize: 11,
+              borderRadius: "var(--radius-xs-plus)",
+              fontSize: "var(--font-size-sm)",
               fontFamily: "var(--font-mono)",
               maxHeight: 200,
               overflowY: "auto",

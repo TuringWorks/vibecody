@@ -370,7 +370,7 @@ export function ChatTabManager({
                                         border: "1px solid var(--accent-blue)",
                                         color: "var(--text-primary)",
                                         borderRadius: 3, padding: "0 4px",
-                                        fontSize: "12px", width: `${Math.max(editingTitle.length, 6)}ch`,
+                                        fontSize: "var(--font-size-base)", width: `${Math.max(editingTitle.length, 6)}ch`,
                                         outline: "none",
                                     }}
                                     autoFocus
@@ -384,7 +384,7 @@ export function ChatTabManager({
                                 </span>
                             )}
                             {msgCount > 0 && editingTabId !== tab.id && (
-                                <span style={{ fontSize: "10px", color: "var(--text-secondary)", opacity: 0.7 }}>({msgCount})</span>
+                                <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", opacity: 0.7 }}>({msgCount})</span>
                             )}
                             {tabs.length > 1 && (
                                 <button
@@ -421,7 +421,7 @@ export function ChatTabManager({
                     style={{
                         background: showHistory ? "var(--bg-primary)" : "none",
                         border: "none", color: showHistory ? "var(--accent-color)" : "var(--text-secondary)",
-                        cursor: "pointer", padding: "4px 8px", fontSize: "12px",
+                        cursor: "pointer", padding: "4px 8px", fontSize: "var(--font-size-base)",
                         lineHeight: 1, flexShrink: 0,
                         borderBottom: showHistory ? "2px solid var(--accent-color)" : "2px solid transparent",
                     }}
@@ -442,7 +442,7 @@ export function ChatTabManager({
                                 background: showMemoryDialog ? "var(--bg-primary)" : "none",
                                 border: "none",
                                 color: pinned > 0 ? "var(--accent-blue, #3b82f6)" : "var(--text-secondary)",
-                                cursor: "pointer", padding: "4px 8px", fontSize: "12px",
+                                cursor: "pointer", padding: "4px 8px", fontSize: "var(--font-size-base)",
                                 lineHeight: 1, flexShrink: 0, display: "flex", alignItems: "center", gap: 4,
                                 borderBottom: showMemoryDialog ? "2px solid var(--accent-blue, #3b82f6)" : "2px solid transparent",
                             }}
@@ -452,7 +452,7 @@ export function ChatTabManager({
                                 <span style={{
                                     background: pinned > 0 ? "var(--accent-blue, #3b82f6)" : "var(--bg-tertiary)",
                                     color: pinned > 0 ? "#fff" : "var(--text-secondary)",
-                                    borderRadius: 10, padding: "0 5px", fontSize: 10, lineHeight: "16px",
+                                    borderRadius: "var(--radius-md)", padding: "0 5px", fontSize: "var(--font-size-xs)", lineHeight: "16px",
                                 }}>
                                     {total}
                                 </span>
@@ -468,7 +468,7 @@ export function ChatTabManager({
                         title="Save current session to history"
                         style={{
                             background: "none", border: "none", color: "var(--text-secondary)",
-                            cursor: "pointer", padding: "4px 8px", fontSize: "11px",
+                            cursor: "pointer", padding: "4px 8px", fontSize: "var(--font-size-sm)",
                             flexShrink: 0,
                         }}
                     >
@@ -483,7 +483,7 @@ export function ChatTabManager({
                             value={activeTab.provider}
                             onChange={(e) => setTabProvider(activeTab.id, e.target.value)}
                             style={{
-                                padding: "2px 4px", fontSize: "11px",
+                                padding: "2px 4px", fontSize: "var(--font-size-sm)",
                                 background: "var(--bg-tertiary)", border: "1px solid var(--border-color)",
                                 color: activeTab.manualOverride ? "var(--accent-gold)" : "var(--text-secondary)",
                                 borderRadius: "3px",
@@ -504,7 +504,7 @@ export function ChatTabManager({
                                 style={{
                                     background: "none", border: "none",
                                     color: "var(--text-secondary)", cursor: "pointer",
-                                    fontSize: "10px", padding: "2px 4px",
+                                    fontSize: "var(--font-size-xs)", padding: "2px 4px",
                                     borderRadius: "3px",
                                 }}
                                 title="Reset to follow top bar selection"
@@ -520,7 +520,7 @@ export function ChatTabManager({
             {showHistory && (
                 <div style={{ flex: 1, overflow: "auto", padding: 12 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                        <h3 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
+                        <h3 style={{ margin: 0, fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--text-primary)" }}>
                             Session History
                         </h3>
                         {history.length > 0 && (
@@ -529,7 +529,7 @@ export function ChatTabManager({
                                 style={{
                                     background: "none", border: "1px solid var(--border-color)",
                                     color: "var(--text-secondary)", cursor: "pointer",
-                                    padding: "2px 8px", fontSize: "11px", borderRadius: 4,
+                                    padding: "2px 8px", fontSize: "var(--font-size-sm)", borderRadius: "var(--radius-xs-plus)",
                                 }}
                             >
                                 Clear All
@@ -537,7 +537,7 @@ export function ChatTabManager({
                         )}
                     </div>
                     {history.length === 0 ? (
-                        <div style={{ color: "var(--text-secondary)", fontSize: 13, textAlign: "center", padding: 24 }}>
+                        <div style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-md)", textAlign: "center", padding: 24 }}>
                             No saved sessions yet. Sessions are auto-saved when you close a tab with messages.
                         </div>
                     ) : (
@@ -550,21 +550,21 @@ export function ChatTabManager({
                                     key={session.id}
                                     onClick={() => restoreSession(session)}
                                     style={{
-                                        background: "var(--bg-secondary)", borderRadius: 6,
+                                        background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)",
                                         padding: "10px 12px", marginBottom: 6,
                                         border: "1px solid var(--border-color)", cursor: "pointer",
                                     }}
                                 >
                                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                                         <div style={{ flex: 1, minWidth: 0 }}>
-                                            <div style={{ fontWeight: 600, fontSize: 13, color: "var(--text-primary)", marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                            <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", color: "var(--text-primary)", marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                                                 {session.title}
                                             </div>
-                                            <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>
+                                            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 4 }}>
                                                 {session.provider} · {userMsgs} questions · {assistantMsgs} responses · {formatDate(session.savedAt)}
                                             </div>
                                             {preview && (
-                                                <div style={{ fontSize: 11, color: "var(--text-secondary)", opacity: 0.7, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", opacity: 0.7, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                                                     {preview}
                                                 </div>
                                             )}
@@ -576,7 +576,7 @@ export function ChatTabManager({
                                                 style={{
                                                     background: "var(--bg-tertiary)", border: "1px solid var(--border-color)",
                                                     color: "var(--text-primary)", cursor: "pointer",
-                                                    padding: "2px 8px", fontSize: "11px", borderRadius: 3,
+                                                    padding: "2px 8px", fontSize: "var(--font-size-sm)", borderRadius: 3,
                                                 }}
                                             >
                                                 Restore
@@ -650,7 +650,7 @@ export function ChatTabManager({
                             width: 340, maxHeight: "calc(100vh - 60px)",
                             background: "var(--bg-secondary)",
                             border: "1px solid var(--border-color)",
-                            borderRadius: 6, overflow: "hidden",
+                            borderRadius: "var(--radius-sm)", overflow: "hidden",
                             boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
                             display: "flex", flexDirection: "column",
                         }}

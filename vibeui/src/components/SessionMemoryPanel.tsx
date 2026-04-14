@@ -55,16 +55,16 @@ const FALLBACK_HEALTH: HealthStatus = {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const barBg: React.CSSProperties = { height: 12, borderRadius: 6, background: "var(--bg-tertiary)", overflow: "hidden" };
-const barFill = (pct: number, color: string): React.CSSProperties => ({ height: "100%", width: `${Math.min(pct, 100)}%`, borderRadius: 6, background: color });
+const barBg: React.CSSProperties = { height: 12, borderRadius: "var(--radius-sm)", background: "var(--bg-tertiary)", overflow: "hidden" };
+const barFill = (pct: number, color: string): React.CSSProperties => ({ height: "100%", width: `${Math.min(pct, 100)}%`, borderRadius: "var(--radius-sm)", background: color });
 
-const thStyle: React.CSSProperties = { textAlign: "left", padding: "6px 10px", borderBottom: "1px solid var(--border-color)", fontSize: 11, color: "var(--text-secondary)" };
-const tdStyle: React.CSSProperties = { padding: "6px 10px", borderBottom: "1px solid var(--border-color)", fontSize: 12, fontFamily: "var(--font-mono)" };
+const thStyle: React.CSSProperties = { textAlign: "left", padding: "6px 10px", borderBottom: "1px solid var(--border-color)", fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" };
+const tdStyle: React.CSSProperties = { padding: "6px 10px", borderBottom: "1px solid var(--border-color)", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)" };
 
 const statusColors: Record<string, string> = { healthy: "var(--success-color)", warning: "var(--warning-color)", critical: "var(--error-color)" };
 const severityColors: Record<string, string> = { info: "var(--info-color)", warning: "var(--warning-color)", critical: "var(--error-color)" };
 const typeLabels: Record<string, string> = { high_usage: "High Usage", rapid_growth: "Rapid Growth", gc_pressure: "GC Pressure", token_overflow: "Token Overflow", leak_suspected: "Leak Suspected" };
-const badgeStyle = (color: string): React.CSSProperties => ({ display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600, color: "var(--btn-primary-fg)", background: color });
+const badgeStyle = (color: string): React.CSSProperties => ({ display: "inline-block", padding: "2px 8px", borderRadius: "var(--radius-md)", fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--btn-primary-fg)", background: color });
 
 const formatUptime = (sec: number): string => {
   const h = Math.floor(sec / 3600);
@@ -157,7 +157,7 @@ export function SessionMemoryPanel() {
   return (
     <div className="panel-container">
       <div className="panel-header">
-        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>Session Memory Profiling</h2>
+        <h2 style={{ margin: 0, fontSize: "var(--font-size-xl)", fontWeight: 600, color: "var(--text-primary)" }}>Session Memory Profiling</h2>
         <div style={{ display: "flex", gap: 6 }}>
           <button className="panel-btn panel-btn-secondary" onClick={runCompact} disabled={compacting}>
             {compacting ? "Compacting..." : "Compact"}
@@ -184,8 +184,8 @@ export function SessionMemoryPanel() {
         <div>
           <div className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
-              <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text-primary)" }}>Session Status</div>
-              <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2, fontFamily: "var(--font-mono)" }}>
+              <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)", color: "var(--text-primary)" }}>Session Status</div>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 2, fontFamily: "var(--font-mono)" }}>
                 Uptime: {formatUptime(health.uptimeSec)} | GC runs: {health.gcCount}
               </div>
             </div>
@@ -195,12 +195,12 @@ export function SessionMemoryPanel() {
           <div className="panel-card">
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
               <span className="panel-label">Memory Usage</span>
-              <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{health.memoryUsedMb} / {health.memoryLimitMb} MB</span>
+              <span style={{ fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{health.memoryUsedMb} / {health.memoryLimitMb} MB</span>
             </div>
             <div style={barBg}>
               <div style={barFill(memPct, memBarColor)} />
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--text-secondary)", fontFamily: "var(--font-mono)", marginTop: 4 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", fontFamily: "var(--font-mono)", marginTop: 4 }}>
               <span>{memPct.toFixed(1)}% used</span>
               <span>Peak: {health.peakMemoryMb} MB</span>
             </div>
@@ -215,7 +215,7 @@ export function SessionMemoryPanel() {
             </div>
             <div className="panel-card">
               <div className="panel-label">Last GC</div>
-              <div style={{ fontSize: 13, fontWeight: 600, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{new Date(health.lastGcAt).toLocaleTimeString()}</div>
+              <div style={{ fontSize: "var(--font-size-md)", fontWeight: 600, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{new Date(health.lastGcAt).toLocaleTimeString()}</div>
             </div>
             <div className="panel-card">
               <div className="panel-label">Active Alerts</div>
@@ -239,11 +239,11 @@ export function SessionMemoryPanel() {
                     const pct = (s.heapUsedMb / maxHeap) * 100;
                     return (
                       <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                        <div style={{ width: 50, fontSize: 10, color: "var(--text-secondary)" }}>{new Date(s.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+                        <div style={{ width: 50, fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>{new Date(s.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
                         <div style={{ ...barBg, flex: 1, height: 6 }}>
                           <div style={barFill(pct, pct > 75 ? "var(--error-color)" : pct > 50 ? "var(--warning-color)" : "var(--info-color)")} />
                         </div>
-                        <div style={{ width: 50, fontSize: 10, textAlign: "right" }}>{s.heapUsedMb} MB</div>
+                        <div style={{ width: 50, fontSize: "var(--font-size-xs)", textAlign: "right" }}>{s.heapUsedMb} MB</div>
                       </div>
                     );
                   })}
@@ -296,11 +296,11 @@ export function SessionMemoryPanel() {
                   <span style={badgeStyle("var(--bg-tertiary)")}>{typeLabels[a.type]}</span>
                 </div>
                 {!a.resolved && (
-                  <button className="panel-btn panel-btn-secondary" style={{ fontSize: 10, padding: "3px 8px" }} onClick={() => resolveAlert(a.id)}>Resolve</button>
+                  <button className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-xs)", padding: "3px 8px" }} onClick={() => resolveAlert(a.id)}>Resolve</button>
                 )}
               </div>
               <div style={{ marginTop: 6, color: "var(--text-primary)" }}>{a.message}</div>
-              <div style={{ fontSize: 10, color: "var(--text-secondary)", fontFamily: "var(--font-mono)", marginTop: 4 }}>
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", fontFamily: "var(--font-mono)", marginTop: 4 }}>
                 {new Date(a.timestamp).toLocaleString()} {a.resolved && "— Resolved"}
               </div>
             </div>

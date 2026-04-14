@@ -108,9 +108,9 @@ export function WebhookPanel() {
   };
 
   return (
-    <div className="panel-container" style={{ padding: '12px', overflow: 'auto', fontSize: 13 }}>
+    <div className="panel-container" style={{ padding: '12px', overflow: 'auto', fontSize: "var(--font-size-md)" }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <h3 style={{ margin: 0, fontSize: 15 }}>Webhook Automations</h3>
+        <h3 style={{ margin: 0, fontSize: "var(--font-size-xl)" }}>Webhook Automations</h3>
         <div style={{ display: 'flex', gap: 6 }}>
           {(['config', 'logs'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)} className={`panel-btn ${tab === t ? 'panel-btn-primary' : 'panel-btn-secondary'}`}>
@@ -138,24 +138,24 @@ export function WebhookPanel() {
                 <div>
                   <span style={{ fontWeight: 600 }}>{wh.name || 'Unnamed'}</span>
                   <span style={{
-                    marginLeft: 8, padding: '1px 6px', borderRadius: 3, fontSize: 10,
+                    marginLeft: 8, padding: '1px 6px', borderRadius: 3, fontSize: "var(--font-size-xs)",
                     background: wh.enabled ? 'rgba(34,197,94,0.15)' : 'color-mix(in srgb, var(--accent-rose) 15%, transparent)',
                     color: wh.enabled ? 'var(--success-color)' : 'var(--error-color)',
                   }}>{wh.enabled ? 'Active' : 'Disabled'}</span>
                 </div>
                 <div style={{ display: 'flex', gap: 4 }}>
-                  <button onClick={() => handleTest(wh.id)} className="panel-btn panel-btn-secondary" style={{ fontSize: 11, padding: '2px 8px' }}>Test</button>
-                  <button onClick={() => setEditing(wh)} className="panel-btn panel-btn-secondary" style={{ fontSize: 11, padding: '2px 8px' }}>Edit</button>
-                  <button onClick={() => handleDelete(wh.id)} className="panel-btn panel-btn-danger" style={{ fontSize: 11, padding: '2px 8px' }}>Delete</button>
+                  <button onClick={() => handleTest(wh.id)} className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-sm)", padding: '2px 8px' }}>Test</button>
+                  <button onClick={() => setEditing(wh)} className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-sm)", padding: '2px 8px' }}>Edit</button>
+                  <button onClick={() => handleDelete(wh.id)} className="panel-btn panel-btn-danger" style={{ fontSize: "var(--font-size-sm)", padding: '2px 8px' }}>Delete</button>
                 </div>
               </div>
-              <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4, fontFamily: 'var(--font-mono)' }}>
+              <div style={{ fontSize: "var(--font-size-sm)", color: 'var(--text-secondary)', marginTop: 4, fontFamily: 'var(--font-mono)' }}>
                 {wh.url}
               </div>
               <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 6 }}>
                 {wh.events.map(ev => (
                   <span key={ev} style={{
-                    padding: '1px 6px', borderRadius: 3, fontSize: 10,
+                    padding: '1px 6px', borderRadius: 3, fontSize: "var(--font-size-xs)",
                     background: 'color-mix(in srgb, var(--accent-blue) 15%, transparent)', color: 'var(--accent-color)',
                   }}>{ev}</span>
                 ))}
@@ -167,7 +167,7 @@ export function WebhookPanel() {
 
       {tab === 'config' && editing && (
         <div className="panel-card">
-          <h4 style={{ margin: '0 0 12px 0', fontSize: 13 }}>{editing.name ? `Edit: ${editing.name}` : 'New Webhook'}</h4>
+          <h4 style={{ margin: '0 0 12px 0', fontSize: "var(--font-size-md)" }}>{editing.name ? `Edit: ${editing.name}` : 'New Webhook'}</h4>
           <div style={{ marginBottom: 8 }}>
             <label className="panel-label">Name</label>
             <input value={editing.name} onChange={e => setEditing({ ...editing, name: e.target.value })}
@@ -188,7 +188,7 @@ export function WebhookPanel() {
             <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
               {AVAILABLE_EVENTS.map(ev => (
                 <button key={ev} onClick={() => toggleEvent(ev)} style={{
-                  padding: '3px 8px', fontSize: 11, borderRadius: 4, cursor: 'pointer',
+                  padding: '3px 8px', fontSize: "var(--font-size-sm)", borderRadius: "var(--radius-xs-plus)", cursor: 'pointer',
                   background: editing.events.includes(ev) ? 'color-mix(in srgb, var(--accent-blue) 25%, transparent)' : 'var(--bg-tertiary)',
                   color: editing.events.includes(ev) ? 'var(--accent-color)' : 'var(--text-secondary)',
                   border: `1px solid ${editing.events.includes(ev) ? 'var(--accent-color)' : 'var(--border-color)'}`,
@@ -223,32 +223,32 @@ export function WebhookPanel() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   <span style={{
-                    padding: '1px 6px', borderRadius: 3, fontSize: 10, fontWeight: 600,
+                    padding: '1px 6px', borderRadius: 3, fontSize: "var(--font-size-xs)", fontWeight: 600,
                     background: log.status < 300 ? 'rgba(34,197,94,0.15)' : 'color-mix(in srgb, var(--accent-rose) 15%, transparent)',
                     color: log.status < 300 ? 'var(--success-color)' : 'var(--error-color)',
                   }}>{log.status}</span>
                   <span style={{ fontWeight: 500 }}>{log.webhook_name}</span>
-                  <span style={{ color: 'var(--text-secondary)', fontSize: 11 }}>{log.event}</span>
+                  <span style={{ color: 'var(--text-secondary)', fontSize: "var(--font-size-sm)" }}>{log.event}</span>
                 </div>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{log.duration_ms}ms</span>
-                  <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+                  <span style={{ fontSize: "var(--font-size-sm)", color: 'var(--text-secondary)' }}>{log.duration_ms}ms</span>
+                  <span style={{ fontSize: "var(--font-size-sm)", color: 'var(--text-secondary)' }}>
                     {new Date(log.timestamp).toLocaleTimeString()}
                   </span>
                   <button onClick={(e) => { e.stopPropagation(); handleReplay(log.id); }}
-                    className="panel-btn panel-btn-secondary" style={{ fontSize: 10, padding: '2px 8px' }}>Replay</button>
+                    className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-xs)", padding: '2px 8px' }}>Replay</button>
                 </div>
               </div>
               {expandedLog === log.id && (
-                <div style={{ marginTop: 8, fontSize: 11, fontFamily: 'var(--font-mono)' }}>
+                <div style={{ marginTop: 8, fontSize: "var(--font-size-sm)", fontFamily: 'var(--font-mono)' }}>
                   <div style={{ marginBottom: 4, color: 'var(--text-secondary)' }}>Request:</div>
                   <pre style={{
-                    background: 'var(--bg-tertiary)', padding: 8, borderRadius: 4,
+                    background: 'var(--bg-tertiary)', padding: 8, borderRadius: "var(--radius-xs-plus)",
                     whiteSpace: 'pre-wrap', maxHeight: 120, overflow: 'auto', margin: '0 0 8px 0',
                   }}>{log.request_body.slice(0, 1000)}</pre>
                   <div style={{ marginBottom: 4, color: 'var(--text-secondary)' }}>Response:</div>
                   <pre style={{
-                    background: 'var(--bg-tertiary)', padding: 8, borderRadius: 4,
+                    background: 'var(--bg-tertiary)', padding: 8, borderRadius: "var(--radius-xs-plus)",
                     whiteSpace: 'pre-wrap', maxHeight: 120, overflow: 'auto', margin: 0,
                   }}>{log.response_body.slice(0, 1000)}</pre>
                 </div>
@@ -262,7 +262,7 @@ export function WebhookPanel() {
 }
 
 const inputStyle: React.CSSProperties = {
-  width: '100%', padding: '5px 8px', fontSize: 12, borderRadius: 4,
+  width: '100%', padding: '5px 8px', fontSize: "var(--font-size-base)", borderRadius: "var(--radius-xs-plus)",
   background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)',
   color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box',
 };

@@ -54,11 +54,11 @@ interface ResultsResponse {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const barBg: React.CSSProperties = { height: 8, borderRadius: 4, background: "var(--bg-tertiary)", overflow: "hidden" };
-const barFill = (pct: number, color: string): React.CSSProperties => ({ height: "100%", width: `${Math.min(pct, 100)}%`, borderRadius: 4, background: color });
+const barBg: React.CSSProperties = { height: 8, borderRadius: "var(--radius-xs-plus)", background: "var(--bg-tertiary)", overflow: "hidden" };
+const barFill = (pct: number, color: string): React.CSSProperties => ({ height: "100%", width: `${Math.min(pct, 100)}%`, borderRadius: "var(--radius-xs-plus)", background: color });
 
 const statusColor: Record<string, string> = { pass: "var(--success-color)", fail: "var(--error-color)", error: "var(--warning-color)", completed: "var(--success-color)", running: "var(--info-color)", pending: "var(--text-secondary)", failed: "var(--error-color)" };
-const badgeStyle = (status: string): React.CSSProperties => ({ display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600, color: "var(--text-primary)", background: statusColor[status] || "var(--text-secondary)" });
+const badgeStyle = (status: string): React.CSSProperties => ({ display: "inline-block", padding: "2px 8px", borderRadius: "var(--radius-md)", fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-primary)", background: statusColor[status] || "var(--text-secondary)" });
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -175,7 +175,7 @@ export function SweBenchPanel() {
   if (loading) {
     return (
       <div className="panel-container">
-        <h2 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>SWE-bench Benchmarking</h2>
+        <h2 style={{ margin: "0 0 12px", fontSize: "var(--font-size-xl)", fontWeight: 600, color: "var(--text-primary)" }}>SWE-bench Benchmarking</h2>
         <div className="panel-loading">Loading...</div>
       </div>
     );
@@ -185,7 +185,7 @@ export function SweBenchPanel() {
 
   return (
     <div className="panel-container">
-      <h2 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>SWE-bench Benchmarking</h2>
+      <h2 style={{ margin: "0 0 12px", fontSize: "var(--font-size-xl)", fontWeight: 600, color: "var(--text-primary)" }}>SWE-bench Benchmarking</h2>
 
       <div className="panel-tab-bar" style={{ marginBottom: 12 }}>
         <button className={`panel-tab ${tab === "run" ? "active" : ""}`} onClick={() => setTab("run")}>Run</button>
@@ -233,14 +233,14 @@ export function SweBenchPanel() {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                 <div>
                   <span style={{ fontWeight: 600 }}>{r.model}</span>
-                  <span style={{ fontSize: 10, color: "var(--text-secondary)", marginLeft: 6 }}>{r.suite}</span>
+                  <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginLeft: 6 }}>{r.suite}</span>
                 </div>
                 <span style={badgeStyle(r.status)}>{r.status}</span>
               </div>
               <div style={barBg}>
                 <div style={barFill(r.progress, statusColor[r.status])} />
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--text-secondary)", marginTop: 4 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginTop: 4 }}>
                 <span>{r.progress}% complete</span>
                 {r.status === "completed" && <span>Pass@1: {r.passRate}%</span>}
               </div>
@@ -282,7 +282,7 @@ export function SweBenchPanel() {
 
               <div className="panel-card">
                 <div className="panel-label">Task Breakdown</div>
-                {taskResults.length === 0 && <div style={{ fontSize: 12, color: "var(--text-secondary)", padding: "8px 0" }}>No task results available for this run.</div>}
+                {taskResults.length === 0 && <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", padding: "8px 0" }}>No task results available for this run.</div>}
                 {taskResults.length > 0 && (
                   <table className="panel-table">
                     <thead>
@@ -297,8 +297,8 @@ export function SweBenchPanel() {
                     <tbody>
                       {taskResults.map((t) => (
                         <tr key={t.id}>
-                          <td style={{ fontSize: 11 }}>{t.task}</td>
-                          <td style={{ fontSize: 11 }}>{t.repo}</td>
+                          <td style={{ fontSize: "var(--font-size-sm)" }}>{t.task}</td>
+                          <td style={{ fontSize: "var(--font-size-sm)" }}>{t.repo}</td>
                           <td><span style={badgeStyle(t.status)}>{t.status}</span></td>
                           <td style={{ textAlign: "right" }}>{t.durationSec}s</td>
                           <td style={{ textAlign: "right" }}>{t.tokensUsed.toLocaleString()}</td>
@@ -318,7 +318,7 @@ export function SweBenchPanel() {
           <div className="panel-card">
             <div className="panel-label">Select runs to compare</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
-              {completedRuns.length === 0 && <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>No completed runs to compare.</div>}
+              {completedRuns.length === 0 && <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>No completed runs to compare.</div>}
               {completedRuns.map((r) => (
                 <button
                   key={r.id}

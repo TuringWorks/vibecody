@@ -31,8 +31,8 @@ interface TriageResult {
 const badgeStyle = (color: string): React.CSSProperties => ({
   display: "inline-block",
   padding: "2px 8px",
-  borderRadius: 10,
-  fontSize: 11,
+  borderRadius: "var(--radius-md)",
+  fontSize: "var(--font-size-sm)",
   fontWeight: 600,
   background: color,
   color: "var(--btn-primary-fg, #fff)",
@@ -122,8 +122,8 @@ export function TriagePanel() {
                 </div>
               </div>
               <div style={{ marginBottom: 6 }}>{(i.suggestedLabels || []).map((l) => <span key={l} style={badgeStyle("#374151")}>{l}</span>)}</div>
-              <div style={{ fontSize: 12, color: "var(--text-secondary)", fontStyle: "italic", padding: 8, background: "var(--bg-primary)", borderRadius: 4 }}>{i.draftResponse}</div>
-              <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4 }}>Confidence: {i.confidence}%</div>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", fontStyle: "italic", padding: 8, background: "var(--bg-primary)", borderRadius: "var(--radius-xs-plus)" }}>{i.draftResponse}</div>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 4 }}>Confidence: {i.confidence}%</div>
             </div>
           ))}
         </div>
@@ -147,7 +147,7 @@ export function TriagePanel() {
             <div key={r.id || idx} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <strong>{r.name || r.pattern}</strong>
-                <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>/{r.pattern}/ &rarr; {r.action || `Label: ${r.name}`}</div>
+                <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>/{r.pattern}/ &rarr; {r.action || `Label: ${r.name}`}</div>
               </div>
               {r.enabled !== undefined && (
                 <label style={{ cursor: "pointer" }}><input type="checkbox" checked={r.enabled} readOnly /></label>
@@ -174,14 +174,14 @@ export function TriagePanel() {
 
       {tab === "metrics" && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-          <div className="panel-card"><div style={{ fontSize: 12, color: "var(--text-secondary)" }}>By Type</div>{["bug", "feature", "docs"].map((t) => <div key={t} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "2px 0" }}><span>{t}</span><strong>{allIssues.filter((i) => i.classification === t).length}</strong></div>)}</div>
-          <div className="panel-card"><div style={{ fontSize: 12, color: "var(--text-secondary)" }}>By Severity</div>{["critical", "high", "medium", "low"].map((s) => <div key={s} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "2px 0" }}><span>{s}</span><strong>{allIssues.filter((i) => i.severity === s).length}</strong></div>)}</div>
-          <div className="panel-card"><div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Accuracy</div><div style={{ fontSize: 24, fontWeight: 700 }}>{accuracy}%</div></div>
-          <div className="panel-card"><div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Avg Confidence</div><div style={{ fontSize: 24, fontWeight: 700 }}>{avgConf}%</div></div>
+          <div className="panel-card"><div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>By Type</div>{["bug", "feature", "docs"].map((t) => <div key={t} style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--font-size-md)", padding: "2px 0" }}><span>{t}</span><strong>{allIssues.filter((i) => i.classification === t).length}</strong></div>)}</div>
+          <div className="panel-card"><div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>By Severity</div>{["critical", "high", "medium", "low"].map((s) => <div key={s} style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--font-size-md)", padding: "2px 0" }}><span>{s}</span><strong>{allIssues.filter((i) => i.severity === s).length}</strong></div>)}</div>
+          <div className="panel-card"><div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>Accuracy</div><div style={{ fontSize: 24, fontWeight: 700 }}>{accuracy}%</div></div>
+          <div className="panel-card"><div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>Avg Confidence</div><div style={{ fontSize: 24, fontWeight: 700 }}>{avgConf}%</div></div>
           {metrics && (
             <div className="panel-card" style={{ gridColumn: "1 / -1" }}>
-              <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>Backend Metrics</div>
-              <pre style={{ fontSize: 12, color: "var(--text-secondary)", whiteSpace: "pre-wrap" }}>{JSON.stringify(metrics, null, 2)}</pre>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 4 }}>Backend Metrics</div>
+              <pre style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", whiteSpace: "pre-wrap" }}>{JSON.stringify(metrics, null, 2)}</pre>
             </div>
           )}
         </div>

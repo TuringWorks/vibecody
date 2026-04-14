@@ -93,7 +93,7 @@ const ClarifyingQuestionsPanel: React.FC = () => {
       {activeTab === "questions" && (
         <div>
           <div style={{ marginBottom: "12px" }}>
-            <label style={{ fontSize: "12px", fontWeight: 600, display: "block", marginBottom: "4px" }}>Task Description</label>
+            <label style={{ fontSize: "var(--font-size-base)", fontWeight: 600, display: "block", marginBottom: "4px" }}>Task Description</label>
             <textarea className="panel-input panel-input-full" style={{ minHeight: "60px", resize: "vertical" }} placeholder="Describe what you want to build or change..." value={taskInput} onChange={(e) => setTaskInput(e.target.value)} />
           </div>
           {questions.length === 0 && (
@@ -104,8 +104,8 @@ const ClarifyingQuestionsPanel: React.FC = () => {
           {questions.map((q) => (
             <div key={q.id} className="panel-card" style={{ opacity: q.skipped ? 0.5 : 1 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-                <strong style={{ fontSize: "13px" }}>{q.question}</strong>
-                <span style={{ fontSize: "11px", color: priorityColor(q.priority) }}>{q.priority}</span>
+                <strong style={{ fontSize: "var(--font-size-md)" }}>{q.question}</strong>
+                <span style={{ fontSize: "var(--font-size-sm)", color: priorityColor(q.priority) }}>{q.priority}</span>
               </div>
               {!q.skipped ? (
                 <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
@@ -113,7 +113,7 @@ const ClarifyingQuestionsPanel: React.FC = () => {
                   <button className="panel-btn panel-btn-secondary" onClick={() => skipQuestion(q.id)}>Skip</button>
                 </div>
               ) : (
-                <div style={{ fontSize: "12px", opacity: 0.6, fontStyle: "italic" }}>Skipped</div>
+                <div style={{ fontSize: "var(--font-size-base)", opacity: 0.6, fontStyle: "italic" }}>Skipped</div>
               )}
             </div>
           ))}
@@ -128,21 +128,21 @@ const ClarifyingQuestionsPanel: React.FC = () => {
             </div>
           ) : (
             <>
-              <div style={{ marginBottom: "10px", fontSize: "12px", opacity: 0.7 }}>
+              <div style={{ marginBottom: "10px", fontSize: "var(--font-size-base)", opacity: 0.7 }}>
                 MegaPlan: {planSteps.length} steps | Est. total: {totalEffort} hrs
               </div>
               {planSteps.map((step, i) => (
                 <div key={step.id} className="panel-card">
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
                     <strong>Step {i + 1}: {step.description}</strong>
-                    <span style={{ fontSize: "11px", padding: "2px 8px", borderRadius: "10px", backgroundColor: statusColor(step.status), color: "var(--bg-primary)" }}>
+                    <span style={{ fontSize: "var(--font-size-sm)", padding: "2px 8px", borderRadius: "var(--radius-md)", backgroundColor: statusColor(step.status), color: "var(--bg-primary)" }}>
                       {step.status}
                     </span>
                   </div>
-                  <div style={{ fontSize: "12px", opacity: 0.7, marginBottom: "4px" }}>Effort: {step.effort}</div>
+                  <div style={{ fontSize: "var(--font-size-base)", opacity: 0.7, marginBottom: "4px" }}>Effort: {step.effort}</div>
                   <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
                     {step.files.map((f) => (
-                      <span key={f} style={{ padding: "2px 6px", borderRadius: "3px", fontSize: "11px", backgroundColor: "var(--bg-tertiary)", color: "var(--btn-primary-fg)" }}>
+                      <span key={f} style={{ padding: "2px 6px", borderRadius: "3px", fontSize: "var(--font-size-sm)", backgroundColor: "var(--bg-tertiary)", color: "var(--btn-primary-fg)" }}>
                         {f}
                       </span>
                     ))}
@@ -161,15 +161,15 @@ const ClarifyingQuestionsPanel: React.FC = () => {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px", textAlign: "center" }}>
               <div>
                 <div style={{ fontSize: "24px", fontWeight: 700, color: "var(--success-color)" }}>{answeredCount}</div>
-                <div style={{ fontSize: "11px", opacity: 0.6 }}>Answered</div>
+                <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.6 }}>Answered</div>
               </div>
               <div>
                 <div style={{ fontSize: "24px", fontWeight: 700, color: "var(--warning-color)" }}>{unansweredCount}</div>
-                <div style={{ fontSize: "11px", opacity: 0.6 }}>Unanswered</div>
+                <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.6 }}>Unanswered</div>
               </div>
               <div>
                 <div style={{ fontSize: "24px", fontWeight: 700, color: "var(--text-secondary)" }}>{skippedCount}</div>
-                <div style={{ fontSize: "11px", opacity: 0.6 }}>Skipped</div>
+                <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.6 }}>Skipped</div>
               </div>
             </div>
           </div>
@@ -180,11 +180,11 @@ const ClarifyingQuestionsPanel: React.FC = () => {
             <div key={i} className="panel-card">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
                 <strong>{r.label}</strong>
-                <span style={{ fontSize: "11px", padding: "2px 8px", borderRadius: "10px", color: "var(--bg-primary)", backgroundColor: priorityColor(r.level) }}>
+                <span style={{ fontSize: "var(--font-size-sm)", padding: "2px 8px", borderRadius: "var(--radius-md)", color: "var(--bg-primary)", backgroundColor: priorityColor(r.level) }}>
                   {r.level}
                 </span>
               </div>
-              <div style={{ fontSize: "12px", opacity: 0.8 }}>{r.detail}</div>
+              <div style={{ fontSize: "var(--font-size-base)", opacity: 0.8 }}>{r.detail}</div>
             </div>
           ))}
         </div>

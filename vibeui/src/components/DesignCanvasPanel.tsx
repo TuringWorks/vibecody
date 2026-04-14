@@ -234,9 +234,9 @@ export function DesignCanvasPanel() {
   const paletteItemStyle: React.CSSProperties = {
     padding: "6px 10px",
     cursor: "grab",
-    borderRadius: "4px",
+    borderRadius: "var(--radius-xs-plus)",
     border: "1px solid var(--border-color)",
-    fontSize: "12px",
+    fontSize: "var(--font-size-base)",
     textAlign: "center" as const,
     userSelect: "none" as const,
   };
@@ -249,7 +249,7 @@ export function DesignCanvasPanel() {
         <button className={`panel-tab ${tab === "code" ? "active" : ""}`} onClick={() => setTab("code")}>Code</button>
         <button className={`panel-tab ${tab === "ai" ? "active" : ""}`} onClick={() => setTab("ai")}>AI Generate</button>
         <button className={`panel-tab ${tab === "export" ? "active" : ""}`} onClick={() => setTab("export")}>Export</button>
-        <span style={{ marginLeft: "auto", padding: "6px 12px", fontSize: "11px", color: "var(--text-secondary)" }}>
+        <span style={{ marginLeft: "auto", padding: "6px 12px", fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
           {components.length} components
         </span>
       </div>
@@ -268,7 +268,7 @@ export function DesignCanvasPanel() {
               flexDirection: "column",
               gap: "4px",
             }}>
-              <div style={{ fontSize: "11px", fontWeight: 600, marginBottom: "4px", color: "var(--text-secondary)" }}>
+              <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, marginBottom: "4px", color: "var(--text-secondary)" }}>
                 COMPONENTS
               </div>
               {PALETTE.map((item) => (
@@ -318,13 +318,13 @@ export function DesignCanvasPanel() {
                     border: selectedId === comp.id
                       ? "2px solid var(--accent-color, #007acc)"
                       : "1px solid var(--border-color)",
-                    borderRadius: "4px",
+                    borderRadius: "var(--radius-xs-plus)",
                     background: "var(--panel-bg, #252526)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     cursor: "pointer",
-                    fontSize: "12px",
+                    fontSize: "var(--font-size-base)",
                     color: "var(--text-secondary)",
                   }}
                   onClick={(e) => { e.stopPropagation(); setSelectedId(comp.id); }}
@@ -344,7 +344,7 @@ export function DesignCanvasPanel() {
                   color: "var(--text-secondary)",
                 }}>
                   <div style={{ fontSize: "16px", marginBottom: "8px" }}>Drag components here</div>
-                  <div style={{ fontSize: "12px" }}>Or use AI Generate tab to describe your UI</div>
+                  <div style={{ fontSize: "var(--font-size-base)" }}>Or use AI Generate tab to describe your UI</div>
                 </div>
               )}
             </div>
@@ -357,14 +357,14 @@ export function DesignCanvasPanel() {
                 padding: "12px",
                 overflowY: "auto",
               }}>
-                <div style={{ fontSize: "13px", fontWeight: 600, marginBottom: "8px" }}>
+                <div style={{ fontSize: "var(--font-size-md)", fontWeight: 600, marginBottom: "8px" }}>
                   {selected.type}
                 </div>
-                <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginBottom: "12px" }}>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: "12px" }}>
                   {selected.id}
                 </div>
 
-                <label style={{ fontSize: "11px", display: "block", marginBottom: "4px" }}>Text</label>
+                <label style={{ fontSize: "var(--font-size-sm)", display: "block", marginBottom: "4px" }}>Text</label>
                 <input
                   type="text"
                   value={selected.props.text || ""}
@@ -372,7 +372,7 @@ export function DesignCanvasPanel() {
                   style={{
                     width: "100%",
                     padding: "4px 8px",
-                    fontSize: "12px",
+                    fontSize: "var(--font-size-base)",
                     background: "var(--bg-secondary)",
                     color: "var(--text-primary)",
                     border: "1px solid var(--border-color)",
@@ -384,14 +384,14 @@ export function DesignCanvasPanel() {
 
                 {selected.type === "button" && (
                   <>
-                    <label style={{ fontSize: "11px", display: "block", marginBottom: "4px" }}>Variant</label>
+                    <label style={{ fontSize: "var(--font-size-sm)", display: "block", marginBottom: "4px" }}>Variant</label>
                     <select
                       value={selected.props.variant || "primary"}
                       onChange={(e) => updateProp(selected.id, "variant", e.target.value)}
                       style={{
                         width: "100%",
                         padding: "4px",
-                        fontSize: "12px",
+                        fontSize: "var(--font-size-base)",
                         background: "var(--bg-secondary)",
                         color: "var(--text-primary)",
                         border: "1px solid var(--border-color)",
@@ -423,7 +423,7 @@ export function DesignCanvasPanel() {
         {tab === "code" && (
           <div style={{ flex: 1, padding: "12px", overflow: "auto" }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
-              <span style={{ fontSize: "13px", fontWeight: 600 }}>Generated React + Tailwind CSS</span>
+              <span style={{ fontSize: "var(--font-size-md)", fontWeight: 600 }}>Generated React + Tailwind CSS</span>
               <button
                 onClick={() => navigator.clipboard.writeText(generatedCode)}
                 className="panel-btn panel-btn-primary"
@@ -434,8 +434,8 @@ export function DesignCanvasPanel() {
             <pre style={{
               background: "var(--terminal-bg, #1a1a1a)",
               padding: "12px",
-              borderRadius: "4px",
-              fontSize: "12px",
+              borderRadius: "var(--radius-xs-plus)",
+              fontSize: "var(--font-size-base)",
               lineHeight: "1.5",
               whiteSpace: "pre-wrap",
               overflow: "auto",
@@ -448,10 +448,10 @@ export function DesignCanvasPanel() {
 
         {tab === "ai" && (
           <div style={{ flex: 1, padding: "16px", display: "flex", flexDirection: "column" }}>
-            <div style={{ fontSize: "13px", fontWeight: 600, marginBottom: "8px" }}>
+            <div style={{ fontSize: "var(--font-size-md)", fontWeight: 600, marginBottom: "8px" }}>
               Describe Your UI
             </div>
-            <p style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "12px" }}>
+            <p style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: "12px" }}>
               Describe the page or component you want to build. The AI will generate
               the component layout for you.
             </p>
@@ -463,11 +463,11 @@ export function DesignCanvasPanel() {
                 flex: 1,
                 maxHeight: "200px",
                 padding: "10px",
-                fontSize: "13px",
+                fontSize: "var(--font-size-md)",
                 background: "var(--bg-secondary)",
                 color: "var(--text-primary)",
                 border: "1px solid var(--border-color)",
-                borderRadius: "4px",
+                borderRadius: "var(--radius-xs-plus)",
                 resize: "vertical",
                 fontFamily: "inherit",
               }}
@@ -538,7 +538,7 @@ export function DesignCanvasPanel() {
 
         {tab === "export" && (
           <div style={{ flex: 1, padding: "16px" }}>
-            <div style={{ fontSize: "13px", fontWeight: 600, marginBottom: "12px" }}>
+            <div style={{ fontSize: "var(--font-size-md)", fontWeight: 600, marginBottom: "12px" }}>
               Export Generated Code
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -566,7 +566,7 @@ export function DesignCanvasPanel() {
                 Clear Canvas
               </button>
             </div>
-            <div style={{ marginTop: "20px", fontSize: "12px", color: "var(--text-secondary)" }}>
+            <div style={{ marginTop: "20px", fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>
               <p>Components: {components.length}</p>
               <p>Code lines: {generatedCode.split("\n").length}</p>
               <p>Framework: React + Tailwind CSS</p>

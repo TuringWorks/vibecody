@@ -27,8 +27,8 @@ interface ClipboardEntry {
 const badgeStyle = (color: string): React.CSSProperties => ({
   display: "inline-block",
   padding: "2px 8px",
-  borderRadius: 10,
-  fontSize: 11,
+  borderRadius: "var(--radius-md)",
+  fontSize: "var(--font-size-sm)",
   fontWeight: 600,
   background: color,
   color: "var(--btn-primary-fg, #fff)",
@@ -139,7 +139,7 @@ export function AgentHostPanel() {
         <button className={`panel-tab ${tab === "context" ? "active" : ""}`} onClick={() => setTab("context")}>
           Context
           {clipboard.length > 0 && (
-            <span style={{ marginLeft: 4, background: "var(--accent-color)", color: "#fff", borderRadius: 8, padding: "0 5px", fontSize: 10 }}>
+            <span style={{ marginLeft: 4, background: "var(--accent-color)", color: "var(--btn-primary-fg, #fff)", borderRadius: "var(--radius-sm-alt)", padding: "0 5px", fontSize: "var(--font-size-xs)" }}>
               {clipboard.length}
             </span>
           )}
@@ -159,7 +159,7 @@ export function AgentHostPanel() {
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={{ width: 8, height: 8, borderRadius: "50%", background: statusColor[a.status], display: "inline-block" }} />
-                <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>{a.status}</span>
+                <span style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>{a.status}</span>
                 <button className="panel-btn panel-btn-primary" disabled={actionLoading === a.id} onClick={() => toggleAgent(a.id)}>
                   {actionLoading === a.id ? "..." : a.status === "running" ? "Stop" : "Start"}
                 </button>
@@ -170,7 +170,7 @@ export function AgentHostPanel() {
       )}
 
       {tab === "output" && (
-        <div style={{ fontFamily: "monospace", fontSize: 12 }}>
+        <div style={{ fontFamily: "monospace", fontSize: "var(--font-size-base)" }}>
           {loading && <div className="panel-loading">Loading output...</div>}
           {!loading && output.length === 0 && <div className="panel-empty">No output yet.</div>}
           {output.map((line, i) => (
@@ -188,7 +188,7 @@ export function AgentHostPanel() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <span style={{ fontWeight: 600 }}>Shared Clipboard</span>
             {clipboard.length > 0 && (
-              <button className="panel-btn panel-btn-secondary" style={{ fontSize: 12 }} onClick={handleClearClipboard}>
+              <button className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-base)" }} onClick={handleClearClipboard}>
                 Clear All
               </button>
             )}
@@ -198,13 +198,13 @@ export function AgentHostPanel() {
             <div key={c.id} className="panel-card">
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <strong>{c.key}</strong>
-                <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>by {c.setBy}</span>
+                <span style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>by {c.setBy}</span>
               </div>
-              <div style={{ fontSize: 12, fontFamily: "monospace", marginTop: 4, color: "var(--text-secondary)", wordBreak: "break-all" }}>{c.value}</div>
+              <div style={{ fontSize: "var(--font-size-base)", fontFamily: "monospace", marginTop: 4, color: "var(--text-secondary)", wordBreak: "break-all" }}>{c.value}</div>
             </div>
           ))}
           <div className="panel-card" style={{ marginTop: 8 }}>
-            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Set Clipboard Entry</div>
+            <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", marginBottom: 8 }}>Set Clipboard Entry</div>
             <input className="panel-input panel-input-full" placeholder="Key" style={{ marginBottom: 6 }}
               value={newKey} onChange={(e) => setNewKey(e.target.value)} />
             <input className="panel-input panel-input-full" placeholder="Value"

@@ -28,7 +28,7 @@ interface LineageEdge {
   label: string;
 }
 
-const badgeStyle: React.CSSProperties = { fontSize: 10, padding: "2px 6px", borderRadius: 3, color: "#fff", marginLeft: 4 };
+const badgeStyle: React.CSSProperties = { fontSize: "var(--font-size-xs)", padding: "2px 6px", borderRadius: 3, color: "var(--btn-primary-fg, #fff)", marginLeft: 4 };
 
 const typeColor = (t: string) => t === "training" ? "var(--info-color)" : t === "distillation" ? "#9c27b0" : t === "deployment" ? "var(--success-color)" : "var(--warning-color)";
 
@@ -61,11 +61,11 @@ export function RLModelLineage() {
 
   return (
     <div className="panel-container">
-      <h2 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>Model Lineage</h2>
+      <h2 style={{ margin: "0 0 12px", fontSize: "var(--font-size-xl)", fontWeight: 600, color: "var(--text-primary)" }}>Model Lineage</h2>
 
       <div className="panel-card" style={{ display: "flex", gap: 8, alignItems: "center" }}>
         <label className="panel-label">Policy ID:</label>
-        <input value={policyId} onChange={e => setPolicyId(e.target.value)} style={{ flex: 1, padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", fontSize: 12 }} />
+        <input value={policyId} onChange={e => setPolicyId(e.target.value)} style={{ flex: 1, padding: "4px 8px", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", fontSize: "var(--font-size-base)" }} />
         <button className="panel-btn panel-btn-primary" onClick={fetchLineage} disabled={loading}>{loading ? "..." : "Load"}</button>
       </div>
 
@@ -84,7 +84,7 @@ export function RLModelLineage() {
               const edge = parentMap[n.id];
               return (
                 <div key={n.id} style={{ paddingLeft: d * 24, padding: "6px 0", paddingRight: 0, borderBottom: "1px solid var(--border-color)", cursor: "pointer", background: selected?.id === n.id ? "var(--bg-tertiary)" : undefined }} onClick={() => setSelected(n)}>
-                  {d > 0 && <span style={{ color: "var(--text-secondary)", fontSize: 11, marginRight: 4 }}>{edge?.label ?? "---"} &rarr;</span>}
+                  {d > 0 && <span style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-sm)", marginRight: 4 }}>{edge?.label ?? "---"} &rarr;</span>}
                   <span style={{ fontWeight: 600 }}>{n.label}</span>
                   <span style={{ ...badgeStyle, background: typeColor(n.nodeType) }}>{n.nodeType}</span>
                   <span style={{ ...badgeStyle, background: "var(--bg-tertiary)", color: "var(--text-primary)" }}>env v{n.envVersion}</span>
@@ -99,7 +99,7 @@ export function RLModelLineage() {
               <div className="panel-label">Type: {selected.nodeType} | Env: v{selected.envVersion} | Time: {new Date(selected.timestamp * 1000).toLocaleString()}</div>
               <div className="panel-label" style={{ marginTop: 6 }}>Metrics</div>
               {Object.entries(selected.metrics).map(([k, v]) => (
-                <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "2px 0" }}>
+                <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--font-size-base)", padding: "2px 0" }}>
                   <span>{k}</span><span style={{ fontWeight: 600 }}>{v.toFixed(4)}</span>
                 </div>
               ))}

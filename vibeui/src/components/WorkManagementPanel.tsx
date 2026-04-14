@@ -64,11 +64,11 @@ interface Scope { orgId?: string; groupId?: string; teamId?: string; workspaceId
 
 /* ── Styles ────────────────────────────────────────────────── */
 
-const cardS: React.CSSProperties = { background: "var(--bg-elevated)", border: "1px solid var(--border-color)", borderRadius: 8, padding: 12, marginBottom: 8 };
-const btnS: React.CSSProperties = { padding: "5px 12px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-elevated)", color: "var(--text-primary)", cursor: "pointer", fontSize: 12, fontWeight: 500 };
+const cardS: React.CSSProperties = { background: "var(--bg-elevated)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm-alt)", padding: 12, marginBottom: 8 };
+const btnS: React.CSSProperties = { padding: "5px 12px", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", background: "var(--bg-elevated)", color: "var(--text-primary)", cursor: "pointer", fontSize: "var(--font-size-base)", fontWeight: 500 };
 const btnP: React.CSSProperties = { ...btnS, background: "var(--accent-color)", color: "var(--btn-primary-fg)", borderColor: "var(--accent-color)" };
-const inpS: React.CSSProperties = { padding: "5px 8px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: 12, width: "100%", boxSizing: "border-box" as const };
-const badge = (bg: string, fg = "var(--text-primary)"): React.CSSProperties => ({ display: "inline-block", padding: "1px 6px", borderRadius: 3, fontSize: 10, fontWeight: 600, background: bg, color: fg, marginRight: 4 });
+const inpS: React.CSSProperties = { padding: "5px 8px", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: "var(--font-size-base)", width: "100%", boxSizing: "border-box" as const };
+const badge = (bg: string, fg = "var(--text-primary)"): React.CSSProperties => ({ display: "inline-block", padding: "1px 6px", borderRadius: 3, fontSize: "var(--font-size-xs)", fontWeight: 600, background: bg, color: fg, marginRight: 4 });
 
 const TYPE_COLORS: Record<string, string> = {
   initiative: "var(--accent-purple)", okr: "var(--accent-gold)", epic: "var(--accent-blue)",
@@ -154,13 +154,13 @@ export default function WorkManagementPanel({ provider }: { provider?: string } 
       {/* Header */}
       <div className="panel-header">
         <h3>Projects</h3>
-        {scope.orgId && <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+        {scope.orgId && <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
           {orgs.find(o => o.id === scope.orgId)?.name}
           {scope.groupId && ` / ${groups.find(g => g.id === scope.groupId)?.name || ""}`}
           {scope.teamId && ` / ${teams.find(t => t.id === scope.teamId)?.name || ""}`}
           {scope.workspaceId && ` / ${workspaces.find(w => w.id === scope.workspaceId)?.name || ""}`}
         </span>}
-        {scope.orgId && <button style={{ ...btnS, fontSize: 10, padding: "2px 6px", marginLeft: "auto" }} onClick={() => setScope({})}>Clear scope</button>}
+        {scope.orgId && <button style={{ ...btnS, fontSize: "var(--font-size-xs)", padding: "2px 6px", marginLeft: "auto" }} onClick={() => setScope({})}>Clear scope</button>}
       </div>
 
       {/* Tabs */}
@@ -170,7 +170,7 @@ export default function WorkManagementPanel({ provider }: { provider?: string } 
         ))}
       </div>
 
-      {error && <div className="panel-error">{error}<button style={{ float: "right", ...btnS, fontSize: 10, padding: "1px 6px" }} onClick={() => setError("")}>x</button></div>}
+      {error && <div className="panel-error">{error}<button style={{ float: "right", ...btnS, fontSize: "var(--font-size-xs)", padding: "1px 6px" }} onClick={() => setError("")}>x</button></div>}
 
       <div className="panel-body">
         {tab === "hierarchy" && <HierarchyTab orgs={orgs} groups={groups} teams={teams} workspaces={workspaces} scope={scope} setScope={setScope} onRefresh={refreshAll} setError={setError} />}
@@ -264,8 +264,8 @@ function HierarchyTab({ orgs, groups, teams, workspaces, scope, setScope, onRefr
   const renderLevel = (label: string, items: { id: string; name: string; description: string }[], onSelect: (id: string) => void, selectedId?: string, createType?: "org" | "group" | "team" | "workspace") => (
     <div style={{ marginBottom: 16 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-        <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-secondary)" }}>{label} ({items.length})</span>
-        {createType && <button style={{ ...btnS, fontSize: 10, padding: "2px 8px" }} onClick={() => setCreating(createType)}>+</button>}
+        <span style={{ fontSize: "var(--font-size-sm)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-secondary)" }}>{label} ({items.length})</span>
+        {createType && <button style={{ ...btnS, fontSize: "var(--font-size-xs)", padding: "2px 8px" }} onClick={() => setCreating(createType)}>+</button>}
       </div>
       {items.map(item => (
         <div key={item.id} onClick={() => onSelect(item.id)} style={{
@@ -275,8 +275,8 @@ function HierarchyTab({ orgs, groups, teams, workspaces, scope, setScope, onRefr
           display: "flex", alignItems: "center", gap: 8,
         }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontWeight: 600, fontSize: 13 }}>{item.name}</div>
-            {item.description && <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>{item.description}</div>}
+            <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)" }}>{item.name}</div>
+            {item.description && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 2 }}>{item.description}</div>}
           </div>
           {createType && (
             <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
@@ -298,7 +298,7 @@ function HierarchyTab({ orgs, groups, teams, workspaces, scope, setScope, onRefr
           )}
         </div>
       ))}
-      {items.length === 0 && <div style={{ fontSize: 11, color: "var(--text-secondary)", padding: 8 }}>No {label.toLowerCase()} yet. Click + to create one.</div>}
+      {items.length === 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", padding: 8 }}>No {label.toLowerCase()} yet. Click + to create one.</div>}
     </div>
   );
 
@@ -306,7 +306,7 @@ function HierarchyTab({ orgs, groups, teams, workspaces, scope, setScope, onRefr
     <div>
       {creating && (
         <div style={{ ...cardS, marginBottom: 12 }}>
-          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8, color: "var(--text-primary)" }}>Create {creating}</div>
+          <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", marginBottom: 8, color: "var(--text-primary)" }}>Create {creating}</div>
           <input style={{ ...inpS, marginBottom: 6 }} placeholder="Name" value={name} onChange={e => setName(e.target.value)} />
           <input style={{ ...inpS, marginBottom: 6 }} placeholder="Description" value={desc} onChange={e => setDesc(e.target.value)} />
           {creating === "workspace" && <input style={{ ...inpS, marginBottom: 6 }} placeholder="ID Prefix (e.g. PROJ)" value={prefix} onChange={e => setPrefix(e.target.value)} />}
@@ -319,7 +319,7 @@ function HierarchyTab({ orgs, groups, teams, workspaces, scope, setScope, onRefr
 
       {editing && (
         <div style={{ ...cardS, marginBottom: 12, borderLeft: "3px solid var(--accent-color)" }}>
-          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8, color: "var(--text-primary)" }}>Edit {editing.type}: {editing.item.name}</div>
+          <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", marginBottom: 8, color: "var(--text-primary)" }}>Edit {editing.type}: {editing.item.name}</div>
           <input style={{ ...inpS, marginBottom: 6 }} placeholder="Name" value={name} onChange={e => setName(e.target.value)} />
           <input style={{ ...inpS, marginBottom: 6 }} placeholder="Description" value={desc} onChange={e => setDesc(e.target.value)} />
           {editing.type === "workspace" && <input style={{ ...inpS, marginBottom: 6 }} placeholder="ID Prefix" value={prefix} onChange={e => setPrefix(e.target.value)} />}
@@ -333,8 +333,8 @@ function HierarchyTab({ orgs, groups, teams, workspaces, scope, setScope, onRefr
       {/* Getting started guide */}
       {orgs.length === 0 && !creating && (
         <div style={{ ...cardS, textAlign: "center", padding: 24, marginBottom: 16 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>Get Started with Projects</div>
-          <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.6, marginBottom: 12 }}>
+          <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, marginBottom: 8 }}>Get Started with Projects</div>
+          <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", lineHeight: 1.6, marginBottom: 12 }}>
             Create an organizational hierarchy to track work items across your teams.<br />
             Organization &rarr; Group/Division &rarr; Team &rarr; Workspace/Project
           </div>
@@ -344,7 +344,7 @@ function HierarchyTab({ orgs, groups, teams, workspaces, scope, setScope, onRefr
 
       {/* Breadcrumb flow */}
       {orgs.length > 0 && (
-        <div style={{ display: "flex", gap: 6, marginBottom: 12, fontSize: 11, color: "var(--text-secondary)", alignItems: "center", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 6, marginBottom: 12, fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", alignItems: "center", flexWrap: "wrap" }}>
           <span style={{ fontWeight: scope.orgId ? 600 : 400, color: scope.orgId ? "var(--accent-color)" : "var(--text-secondary)", cursor: "pointer" }}
             onClick={() => setScope({})}>
             Organizations
@@ -368,22 +368,22 @@ function HierarchyTab({ orgs, groups, teams, workspaces, scope, setScope, onRefr
 
       {/* Next step hints */}
       {scope.orgId && groups.length === 0 && !creating && (
-        <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 8, textAlign: "center" }}>
+        <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginTop: 8, textAlign: "center" }}>
           Create a Group/Division within your organization to organize teams.
         </div>
       )}
       {scope.groupId && teams.length === 0 && !creating && (
-        <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 8, textAlign: "center" }}>
+        <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginTop: 8, textAlign: "center" }}>
           Create a Team within this group to start managing work.
         </div>
       )}
       {scope.teamId && workspaces.length === 0 && !creating && (
-        <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 8, textAlign: "center" }}>
+        <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginTop: 8, textAlign: "center" }}>
           Create a Workspace/Project to define ID prefixes and start tracking work items.
         </div>
       )}
       {scope.workspaceId && (
-        <div style={{ fontSize: 12, color: "var(--success-color)", marginTop: 8, textAlign: "center" }}>
+        <div style={{ fontSize: "var(--font-size-base)", color: "var(--success-color)", marginTop: 8, textAlign: "center" }}>
           Workspace selected. Switch to the Items tab to create and manage work items.
         </div>
       )}
@@ -487,9 +487,9 @@ function ItemsTab({ items, scope, onRefresh, setError, provider }: {
       {creating ? (
         <div style={{ ...cardS, marginBottom: 12 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-            <div style={{ fontWeight: 600, fontSize: 13 }}>Create Work Item</div>
+            <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)" }}>Create Work Item</div>
             <button
-              style={{ ...btnS, background: showAiPrompt ? "var(--accent-color)" : "var(--bg-secondary)", color: showAiPrompt ? "var(--btn-primary-fg)" : "var(--text-primary)", fontSize: 11, padding: "3px 10px", display: "flex", alignItems: "center", gap: 4 }}
+              style={{ ...btnS, background: showAiPrompt ? "var(--accent-color)" : "var(--bg-secondary)", color: showAiPrompt ? "var(--btn-primary-fg)" : "var(--text-primary)", fontSize: "var(--font-size-sm)", padding: "3px 10px", display: "flex", alignItems: "center", gap: 4 }}
               onClick={() => setShowAiPrompt(v => !v)}
             >
               ✦ AI Generate
@@ -498,8 +498,8 @@ function ItemsTab({ items, scope, onRefresh, setError, provider }: {
 
           {/* AI prompt panel */}
           {showAiPrompt && (
-            <div style={{ marginBottom: 10, padding: 10, background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--accent-color)" }}>
-              <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 6 }}>
+            <div style={{ marginBottom: 10, padding: 10, background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--accent-color)" }}>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 6 }}>
                 Describe what you want to build — AI will suggest a title, description, type &amp; points.
               </div>
               <div style={{ display: "flex", gap: 6 }}>
@@ -551,7 +551,7 @@ function ItemsTab({ items, scope, onRefresh, setError, provider }: {
       {/* Edit item form */}
       {editingItem && (
         <div style={{ ...cardS, marginBottom: 12, borderLeft: "3px solid var(--accent-color)" }}>
-          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Edit {editingItem.displayId}: {editingItem.title}</div>
+          <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", marginBottom: 8 }}>Edit {editingItem.displayId}: {editingItem.title}</div>
           <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
             <select style={{ ...inpS, width: "auto" }} value={editingItem.type} onChange={e => setEditingItem({ ...editingItem, type: e.target.value as WorkItemType })}>
               {ITEM_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
@@ -592,39 +592,39 @@ function ItemsTab({ items, scope, onRefresh, setError, provider }: {
           <option value="">All Statuses</option>
           {allStatuses.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
-        <span style={{ fontSize: 11, color: "var(--text-secondary)", marginLeft: "auto" }}>{filtered.length} items</span>
+        <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginLeft: "auto" }}>{filtered.length} items</span>
       </div>
 
       {/* Item list */}
       {filtered.map(item => (
         <div key={item.id} style={{ ...cardS, borderLeft: `3px solid ${TYPE_COLORS[item.type] || "var(--border-color)"}` }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--accent-color)" }}>{item.displayId}</span>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: "var(--font-size-sm)", fontWeight: 700, color: "var(--accent-color)" }}>{item.displayId}</span>
             <span style={badge(TYPE_COLORS[item.type] || "var(--bg-tertiary)", "var(--btn-primary-fg)")}>{item.type}</span>
             <span style={badge(PRIORITY_COLORS[item.priority] || "var(--bg-tertiary)", "var(--btn-primary-fg)")}>{item.priority}</span>
             <span style={badge("var(--bg-tertiary)", "var(--text-secondary)")}>{item.status}</span>
-            {item.storyPoints !== undefined && item.storyPoints > 0 && <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>{item.storyPoints} pts</span>}
-            {item.parentId && <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>parent: {item.parentId}</span>}
+            {item.storyPoints !== undefined && item.storyPoints > 0 && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>{item.storyPoints} pts</span>}
+            {item.parentId && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>parent: {item.parentId}</span>}
             <div style={{ flex: 1 }} />
-            <button style={{ ...btnS, fontSize: 10, padding: "2px 6px" }} onClick={() => setEditingItem(item)}>Edit</button>
+            <button style={{ ...btnS, fontSize: "var(--font-size-xs)", padding: "2px 6px" }} onClick={() => setEditingItem(item)}>Edit</button>
             {["initiative", "epic", "feature", "story"].includes(item.type) && (
-              <button style={{ ...btnS, fontSize: 10, padding: "2px 6px" }} onClick={() => handleAiBreakdown(item)} disabled={aiBreaking === item.displayId}>
+              <button style={{ ...btnS, fontSize: "var(--font-size-xs)", padding: "2px 6px" }} onClick={() => handleAiBreakdown(item)} disabled={aiBreaking === item.displayId}>
                 {aiBreaking === item.displayId ? "Breaking down..." : "AI Breakdown"}
               </button>
             )}
-            <button style={{ ...btnS, fontSize: 10, padding: "2px 6px", color: "var(--error-color)", borderColor: "var(--error-color)", background: "transparent" }}
+            <button style={{ ...btnS, fontSize: "var(--font-size-xs)", padding: "2px 6px", color: "var(--error-color)", borderColor: "var(--error-color)", background: "transparent" }}
               onClick={async () => {
                 if (!confirm(`Delete ${item.displayId}?`)) return;
                 try { await invoke("wm_delete_item", { displayId: item.displayId }); onRefresh(); }
                 catch (e: any) { setError(String(e)); }
               }}>Delete</button>
           </div>
-          <div style={{ fontWeight: 500, fontSize: 13 }}>{item.title}</div>
-          {item.description && <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 2 }}>{item.description.slice(0, 150)}{item.description.length > 150 ? "..." : ""}</div>}
+          <div style={{ fontWeight: 500, fontSize: "var(--font-size-md)" }}>{item.title}</div>
+          {item.description && <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginTop: 2 }}>{item.description.slice(0, 150)}{item.description.length > 150 ? "..." : ""}</div>}
           {item.relationships.length > 0 && (
             <div style={{ display: "flex", gap: 4, marginTop: 4, flexWrap: "wrap" }}>
               {item.relationships.map((r, i) => (
-                <span key={i} style={{ fontSize: 10, color: "var(--text-secondary)" }}>{r.type}: <strong>{r.targetId}</strong></span>
+                <span key={i} style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>{r.type}: <strong>{r.targetId}</strong></span>
               ))}
             </div>
           )}
@@ -636,15 +636,15 @@ function ItemsTab({ items, scope, onRefresh, setError, provider }: {
         </div>
       ))}
       {filtered.length === 0 && (
-        <div style={{ textAlign: "center", padding: 24, color: "var(--text-secondary)", fontSize: 12 }}>
+        <div style={{ textAlign: "center", padding: 24, color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>
           {scope.orgId
             ? "No work items in this scope. Click + Create Item to get started."
             : "Select an organization from the Hierarchy tab first, then create work items here."}
           <div style={{ marginTop: 12, display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
             {ITEM_TYPES.slice(0, 6).map(t => (
-              <span key={t} style={{ ...badge(TYPE_COLORS[t] || "var(--bg-tertiary)", "var(--btn-primary-fg)"), fontSize: 10 }}>{t}</span>
+              <span key={t} style={{ ...badge(TYPE_COLORS[t] || "var(--bg-tertiary)", "var(--btn-primary-fg)"), fontSize: "var(--font-size-xs)" }}>{t}</span>
             ))}
-            <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>+{ITEM_TYPES.length - 6} more types</span>
+            <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>+{ITEM_TYPES.length - 6} more types</span>
           </div>
         </div>
       )}
@@ -711,15 +711,15 @@ function BoardTab({ items, onRefresh, setError }: {
       <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10, padding: "6px 0", borderBottom: "1px solid var(--border-color)", flexWrap: "wrap" }}>
         <input
           className="panel-input"
-          style={{ width: 160, fontSize: 11, padding: "4px 8px" }}
+          style={{ width: 160, fontSize: "var(--font-size-sm)", padding: "4px 8px" }}
           placeholder="Search items…"
           value={filterText}
           onChange={e => setFilterText(e.target.value)}
         />
         {filterText && (
-          <button className="panel-btn panel-btn-secondary" style={{ padding: "3px 8px", fontSize: 11, color: "var(--error-color)" }} onClick={() => setFilterText("")}>Clear</button>
+          <button className="panel-btn panel-btn-secondary" style={{ padding: "3px 8px", fontSize: "var(--font-size-sm)", color: "var(--error-color)" }} onClick={() => setFilterText("")}>Clear</button>
         )}
-        <span style={{ fontSize: 11, color: "var(--text-secondary)", marginLeft: "auto" }}>{filtered.length} item{filtered.length !== 1 ? "s" : ""}</span>
+        <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginLeft: "auto" }}>{filtered.length} item{filtered.length !== 1 ? "s" : ""}</span>
       </div>
 
       {/* Kanban columns */}
@@ -742,8 +742,8 @@ function BoardTab({ items, onRefresh, setError }: {
             >
               {/* Column header */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                <span style={{ fontWeight: 600, fontSize: 13, color: "var(--text-primary)" }}>{col}</span>
-                <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{colItems.length}</span>
+                <span style={{ fontWeight: 600, fontSize: "var(--font-size-md)", color: "var(--text-primary)" }}>{col}</span>
+                <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{colItems.length}</span>
               </div>
 
               {/* Cards */}
@@ -768,11 +768,11 @@ function BoardTab({ items, onRefresh, setError }: {
                   >
                     {/* Type + ID row */}
                     <div style={{ display: "flex", gap: 4, marginBottom: 4, alignItems: "center" }}>
-                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--accent-color)" }}>{item.displayId}</span>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "var(--font-size-xs)", color: "var(--accent-color)" }}>{item.displayId}</span>
                       <span style={badge(PRIORITY_COLORS[item.priority] || "var(--bg-tertiary)", "var(--btn-primary-fg)")}>{item.priority}</span>
-                      <span style={{ fontSize: 10, color: "var(--text-secondary)", background: "var(--bg-tertiary)", padding: "1px 5px", borderRadius: 3 }}>{item.type}</span>
+                      <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", background: "var(--bg-tertiary)", padding: "1px 5px", borderRadius: 3 }}>{item.type}</span>
                     </div>
-                    <div style={{ fontWeight: 500, fontSize: 13, color: "var(--text-primary)", marginBottom: 6 }}>{item.title}</div>
+                    <div style={{ fontWeight: 500, fontSize: "var(--font-size-md)", color: "var(--text-primary)", marginBottom: 6 }}>{item.title}</div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 3, marginBottom: item.assignee ? 4 : 0 }}>
                       {item.storyPoints != null && item.storyPoints > 0 && (
                         <span style={badge("var(--accent-purple)", "white")}>{item.storyPoints} pts</span>
@@ -782,15 +782,15 @@ function BoardTab({ items, onRefresh, setError }: {
                       ))}
                     </div>
                     {item.assignee && (
-                      <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>{item.assignee}</div>
+                      <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 2 }}>{item.assignee}</div>
                     )}
                     {/* ← → move buttons */}
                     <div style={{ display: "flex", gap: 4, marginTop: 6 }}>
                       {colIdx(col) > 0 && (
-                        <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 8px", fontSize: 11 }} onClick={() => moveItem(item.displayId, columns[colIdx(col) - 1])}>&larr;</button>
+                        <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 8px", fontSize: "var(--font-size-sm)" }} onClick={() => moveItem(item.displayId, columns[colIdx(col) - 1])}>&larr;</button>
                       )}
                       {colIdx(col) < columns.length - 1 && (
-                        <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 8px", fontSize: 11 }} onClick={() => moveItem(item.displayId, columns[colIdx(col) + 1])}>&rarr;</button>
+                        <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 8px", fontSize: "var(--font-size-sm)" }} onClick={() => moveItem(item.displayId, columns[colIdx(col) + 1])}>&rarr;</button>
                       )}
                     </div>
                   </div>
@@ -798,7 +798,7 @@ function BoardTab({ items, onRefresh, setError }: {
               })}
 
               {colItems.length === 0 && (
-                <div style={{ textAlign: "center", padding: "20px 8px", color: "var(--text-muted)", fontSize: 11, opacity: 0.5 }}>Drop here</div>
+                <div style={{ textAlign: "center", padding: "20px 8px", color: "var(--text-muted)", fontSize: "var(--font-size-sm)", opacity: 0.5 }}>Drop here</div>
               )}
             </div>
           );
@@ -830,7 +830,7 @@ function RelationshipsTab({ items, onRefresh, setError }: { items: WorkItem[]; o
     <div>
       {/* Add relationship form */}
       <div style={{ ...cardS, marginBottom: 12 }}>
-        <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Link Work Items</div>
+        <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", marginBottom: 8 }}>Link Work Items</div>
         <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
           <input style={{ ...inpS, width: 100 }} placeholder="Source ID" value={sourceId} onChange={e => setSourceId(e.target.value)} />
           <select style={{ ...inpS, width: "auto" }} value={relType} onChange={e => setRelType(e.target.value as RelationType)}>
@@ -844,11 +844,11 @@ function RelationshipsTab({ items, onRefresh, setError }: { items: WorkItem[]; o
       {/* Relationship list */}
       {linked.map(item => (
         <div key={item.id} style={{ ...cardS }}>
-          <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 4 }}>
+          <div style={{ fontWeight: 600, fontSize: "var(--font-size-base)", marginBottom: 4 }}>
             <span style={{ fontFamily: "var(--font-mono)", color: "var(--accent-color)" }}>{item.displayId}</span> — {item.title}
           </div>
           {item.relationships.map((r, i) => (
-            <div key={i} style={{ fontSize: 11, color: "var(--text-secondary)", padding: "2px 0", display: "flex", alignItems: "center", gap: 6 }}>
+            <div key={i} style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", padding: "2px 0", display: "flex", alignItems: "center", gap: 6 }}>
               <span style={badge("var(--bg-tertiary)", "var(--text-secondary)")}>{r.type.replace("_", " ")}</span>
               <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--accent-color)" }}>{r.targetId}</span>
               <button style={{ ...btnS, fontSize: 9, padding: "1px 4px", marginLeft: "auto" }} onClick={async () => {
@@ -858,7 +858,7 @@ function RelationshipsTab({ items, onRefresh, setError }: { items: WorkItem[]; o
           ))}
         </div>
       ))}
-      {linked.length === 0 && <div style={{ textAlign: "center", padding: 24, color: "var(--text-secondary)", fontSize: 12 }}>No linked items yet. Use the form above to create relationships.</div>}
+      {linked.length === 0 && <div style={{ textAlign: "center", padding: 24, color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>No linked items yet. Use the form above to create relationships.</div>}
     </div>
   );
 }
@@ -872,38 +872,38 @@ function OkrTab({ items }: { items: WorkItem[] }) {
       {okrs.map(okr => (
         <div key={okr.id} style={{ ...cardS }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--accent-color)" }}>{okr.displayId}</span>
-            <span style={{ fontWeight: 600, fontSize: 13 }}>{okr.title}</span>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: "var(--font-size-sm)", color: "var(--accent-color)" }}>{okr.displayId}</span>
+            <span style={{ fontWeight: 600, fontSize: "var(--font-size-md)" }}>{okr.title}</span>
             <span style={badge(okr.status === "Achieved" ? "var(--success-color)" : okr.status === "At Risk" ? "var(--warning-color)" : "var(--bg-tertiary)", "var(--btn-primary-fg)")}>{okr.status}</span>
           </div>
-          {okr.description && <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8 }}>{okr.description}</div>}
+          {okr.description && <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 8 }}>{okr.description}</div>}
 
           {/* Key Results */}
           {(okr.okrKeyResults || []).map(kr => {
             const pct = kr.target > 0 ? Math.round((kr.current / kr.target) * 100) : 0;
             return (
               <div key={kr.id} style={{ marginBottom: 6 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 2 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--font-size-base)", marginBottom: 2 }}>
                   <span>{kr.title}</span>
                   <span style={{ fontWeight: 600, color: pct >= 100 ? "var(--success-color)" : pct >= 70 ? "var(--accent-color)" : "var(--warning-color)" }}>{pct}%</span>
                 </div>
                 <div style={{ height: 6, background: "var(--bg-tertiary)", borderRadius: 3, overflow: "hidden" }}>
                   <div style={{ width: `${Math.min(pct, 100)}%`, height: "100%", background: pct >= 100 ? "var(--success-color)" : "var(--accent-color)", borderRadius: 3, transition: "width 0.3s" }} />
                 </div>
-                <div style={{ fontSize: 10, color: "var(--text-secondary)", marginTop: 1 }}>{kr.current} / {kr.target}</div>
+                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginTop: 1 }}>{kr.current} / {kr.target}</div>
               </div>
             );
           })}
 
           {/* Linked items */}
           {okr.relationships.filter(r => r.type === "implemented_by" || r.type === "child").length > 0 && (
-            <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4 }}>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 4 }}>
               Linked: {okr.relationships.filter(r => r.type === "implemented_by" || r.type === "child").map(r => r.targetId).join(", ")}
             </div>
           )}
         </div>
       ))}
-      {okrs.length === 0 && <div style={{ textAlign: "center", padding: 24, color: "var(--text-secondary)", fontSize: 12 }}>No OKRs. Create one from the Items tab with type "okr".</div>}
+      {okrs.length === 0 && <div style={{ textAlign: "center", padding: 24, color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>No OKRs. Create one from the Items tab with type "okr".</div>}
     </div>
   );
 }
@@ -930,26 +930,26 @@ function RisksTab({ items }: { items: WorkItem[] }) {
   return (
     <div>
       {/* Risk Matrix */}
-      <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Risk Matrix</div>
+      <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", marginBottom: 8 }}>Risk Matrix</div>
       <table style={{ borderCollapse: "collapse", marginBottom: 16, width: "100%" }}>
         <thead>
           <tr>
-            <th style={{ padding: 6, fontSize: 10, color: "var(--text-secondary)" }}></th>
-            {["high", "medium", "low"].map(i => <th key={i} style={{ padding: 6, fontSize: 10, textTransform: "uppercase", color: "var(--text-secondary)" }}>Impact: {i}</th>)}
+            <th style={{ padding: 6, fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}></th>
+            {["high", "medium", "low"].map(i => <th key={i} style={{ padding: 6, fontSize: "var(--font-size-xs)", textTransform: "uppercase", color: "var(--text-secondary)" }}>Impact: {i}</th>)}
           </tr>
         </thead>
         <tbody>
           {(["high", "medium", "low"] as const).map(l => (
             <tr key={l}>
-              <td style={{ padding: 6, fontSize: 10, textTransform: "uppercase", color: "var(--text-secondary)", fontWeight: 600 }}>Likelihood: {l}</td>
+              <td style={{ padding: 6, fontSize: "var(--font-size-xs)", textTransform: "uppercase", color: "var(--text-secondary)", fontWeight: 600 }}>Likelihood: {l}</td>
               {(["high", "medium", "low"] as const).map(i => (
                 <td key={i} style={{ padding: 6, background: matrixColor(l, i), border: "1px solid var(--border-color)", textAlign: "center", minWidth: 80 }}>
                   {riskMatrix[l][i].map(r => (
-                    <div key={r.id} style={{ fontSize: 10, marginBottom: 2 }}>
+                    <div key={r.id} style={{ fontSize: "var(--font-size-xs)", marginBottom: 2 }}>
                       <span style={{ fontFamily: "var(--font-mono)", color: "var(--accent-color)" }}>{r.displayId}</span>
                     </div>
                   ))}
-                  {riskMatrix[l][i].length === 0 && <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>-</span>}
+                  {riskMatrix[l][i].length === 0 && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>-</span>}
                 </td>
               ))}
             </tr>
@@ -961,34 +961,34 @@ function RisksTab({ items }: { items: WorkItem[] }) {
       {risks.map(r => (
         <div key={r.id} style={{ ...cardS, borderLeft: "3px solid var(--warning-color)" }}>
           <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4 }}>
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--accent-color)" }}>{r.displayId}</span>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: "var(--font-size-sm)", color: "var(--accent-color)" }}>{r.displayId}</span>
             <span style={badge("var(--warning-bg)", "var(--warning-color)")}>{r.status}</span>
-            {r.riskLikelihood && <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>L:{r.riskLikelihood}</span>}
-            {r.riskImpact && <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>I:{r.riskImpact}</span>}
+            {r.riskLikelihood && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>L:{r.riskLikelihood}</span>}
+            {r.riskImpact && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>I:{r.riskImpact}</span>}
           </div>
-          <div style={{ fontWeight: 500, fontSize: 13 }}>{r.title}</div>
-          {r.riskMitigation && <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4 }}>Mitigation: {r.riskMitigation}</div>}
+          <div style={{ fontWeight: 500, fontSize: "var(--font-size-md)" }}>{r.title}</div>
+          {r.riskMitigation && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 4 }}>Mitigation: {r.riskMitigation}</div>}
         </div>
       ))}
 
       {/* Decision Log */}
       {decisions.length > 0 && (
         <div style={{ marginTop: 16 }}>
-          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Decision Log</div>
+          <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", marginBottom: 8 }}>Decision Log</div>
           {decisions.map(d => (
             <div key={d.id} style={{ ...cardS, borderLeft: "3px solid var(--info-color)" }}>
               <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4 }}>
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--accent-color)" }}>{d.displayId}</span>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: "var(--font-size-sm)", color: "var(--accent-color)" }}>{d.displayId}</span>
                 <span style={badge(d.status === "Accepted" ? "var(--success-bg)" : "var(--bg-tertiary)", d.status === "Accepted" ? "var(--success-color)" : "var(--text-secondary)")}>{d.status}</span>
               </div>
-              <div style={{ fontWeight: 500, fontSize: 13 }}>{d.title}</div>
-              {d.decisionOutcome && <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4 }}>Outcome: {d.decisionOutcome}</div>}
+              <div style={{ fontWeight: 500, fontSize: "var(--font-size-md)" }}>{d.title}</div>
+              {d.decisionOutcome && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 4 }}>Outcome: {d.decisionOutcome}</div>}
             </div>
           ))}
         </div>
       )}
 
-      {risks.length === 0 && decisions.length === 0 && <div style={{ textAlign: "center", padding: 24, color: "var(--text-secondary)", fontSize: 12 }}>No risks or decisions tracked yet.</div>}
+      {risks.length === 0 && decisions.length === 0 && <div style={{ textAlign: "center", padding: 24, color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>No risks or decisions tracked yet.</div>}
     </div>
   );
 }
@@ -1012,11 +1012,11 @@ function DashboardTab({ items }: { items: WorkItem[] }) {
 
   const renderBar = (label: string, count: number, total: number, color: string) => (
     <div key={label} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-      <span style={{ fontSize: 11, width: 80, textAlign: "right", color: "var(--text-secondary)" }}>{label}</span>
+      <span style={{ fontSize: "var(--font-size-sm)", width: 80, textAlign: "right", color: "var(--text-secondary)" }}>{label}</span>
       <div style={{ flex: 1, height: 14, background: "var(--bg-tertiary)", borderRadius: 3, overflow: "hidden" }}>
         <div style={{ width: total > 0 ? `${(count / total) * 100}%` : "0%", height: "100%", background: color, borderRadius: 3 }} />
       </div>
-      <span style={{ fontSize: 11, fontWeight: 600, width: 30, color: "var(--text-primary)" }}>{count}</span>
+      <span style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, width: 30, color: "var(--text-primary)" }}>{count}</span>
     </div>
   );
 
@@ -1032,27 +1032,27 @@ function DashboardTab({ items }: { items: WorkItem[] }) {
           { label: "Open Risks", value: items.filter(i => i.type === "risk" && !["Resolved", "Accepted"].includes(i.status)).length },
           { label: "Open Bugs", value: items.filter(i => i.type === "bug" && !["Closed", "Wont Fix", "Verified"].includes(i.status)).length },
         ].map(({ label, value }) => (
-          <div key={label} style={{ background: "var(--bg-secondary)", borderRadius: 6, padding: "10px 12px", border: "1px solid var(--border-color)" }}>
-            <div style={{ fontSize: 10, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</div>
+          <div key={label} style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: "10px 12px", border: "1px solid var(--border-color)" }}>
+            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</div>
             <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{value}</div>
           </div>
         ))}
       </div>
 
       {/* By type */}
-      <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>By Type</div>
+      <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", marginBottom: 8 }}>By Type</div>
       {[...byType.entries()].sort((a, b) => b[1] - a[1]).map(([type, count]) =>
         renderBar(type, count, items.length, TYPE_COLORS[type] || "var(--accent-color)")
       )}
 
       {/* By status */}
-      <div style={{ fontWeight: 600, fontSize: 13, marginTop: 16, marginBottom: 8 }}>By Status</div>
+      <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", marginTop: 16, marginBottom: 8 }}>By Status</div>
       {[...byStatus.entries()].sort((a, b) => b[1] - a[1]).map(([status, count]) =>
         renderBar(status, count, items.length, "var(--accent-color)")
       )}
 
       {/* By priority */}
-      <div style={{ fontWeight: 600, fontSize: 13, marginTop: 16, marginBottom: 8 }}>By Priority</div>
+      <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", marginTop: 16, marginBottom: 8 }}>By Priority</div>
       {[...byPriority.entries()].sort((a, b) => PRIORITIES.indexOf(a[0] as Priority) - PRIORITIES.indexOf(b[0] as Priority)).map(([pri, count]) =>
         renderBar(pri, count, items.length, PRIORITY_COLORS[pri] || "var(--accent-color)")
       )}

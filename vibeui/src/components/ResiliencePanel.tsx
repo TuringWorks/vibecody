@@ -59,15 +59,15 @@ const DEFAULT_CONFIG: ResilienceConfig = {
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
-const card: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, border: "1px solid var(--border-color)" };
-const heading: React.CSSProperties = { fontSize: 14, fontWeight: 600, marginBottom: 8, color: "var(--text-primary)" };
-const label: React.CSSProperties = { fontSize: 12, color: "var(--text-secondary)" };
-const tbl: React.CSSProperties = { width: "100%", borderCollapse: "collapse", fontSize: 13 };
-const th: React.CSSProperties = { textAlign: "left", padding: "6px 8px", borderBottom: "1px solid var(--border-color)", color: "var(--text-secondary)", fontSize: 12, fontWeight: 500 };
+const card: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: 12, border: "1px solid var(--border-color)" };
+const heading: React.CSSProperties = { fontSize: "var(--font-size-lg)", fontWeight: 600, marginBottom: 8, color: "var(--text-primary)" };
+const label: React.CSSProperties = { fontSize: "var(--font-size-base)", color: "var(--text-secondary)" };
+const tbl: React.CSSProperties = { width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-md)" };
+const th: React.CSSProperties = { textAlign: "left", padding: "6px 8px", borderBottom: "1px solid var(--border-color)", color: "var(--text-secondary)", fontSize: "var(--font-size-base)", fontWeight: 500 };
 const td: React.CSSProperties = { padding: "6px 8px", borderBottom: "1px solid var(--border-color)" };
 
 function badge(color: string): React.CSSProperties {
-  return { display: "inline-block", padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 600, background: color + "22", color };
+  return { display: "inline-block", padding: "2px 8px", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-sm)", fontWeight: 600, background: color + "22", color };
 }
 
 function HealthBar({ score }: { score: number }) {
@@ -77,7 +77,7 @@ function HealthBar({ score }: { score: number }) {
       <div style={{ height: 6, borderRadius: 3, background: "var(--bg-tertiary)", width: 80, overflow: "hidden" }}>
         <div style={{ height: "100%", width: `${Math.round(score * 100)}%`, background: color, borderRadius: 3 }} />
       </div>
-      <span style={{ fontSize: 12, fontWeight: 600, color }}>{(score * 100).toFixed(0)}%</span>
+      <span style={{ fontSize: "var(--font-size-base)", fontWeight: 600, color }}>{(score * 100).toFixed(0)}%</span>
     </div>
   );
 }

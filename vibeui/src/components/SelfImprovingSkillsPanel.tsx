@@ -97,7 +97,7 @@ function StatusBar({ status }: { status: SisStatus }) {
       {cards.map(c => (
         <div key={c.label} className="panel-card" style={{ padding: "10px 12px", textAlign: "center" }}>
           <div style={{ fontSize: 20, fontWeight: 700, color: c.color }}>{c.value}</div>
-          <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>{c.label}</div>
+          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 2 }}>{c.label}</div>
         </div>
       ))}
     </div>
@@ -115,7 +115,7 @@ function MetricsTable({ metrics }: { metrics: SkillMetrics[] }) {
   const sorted = [...metrics].sort((a, b) => b.total_activations - a.total_activations);
   return (
     <div style={{ overflowX: "auto" }}>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
         <thead>
           <tr style={{ borderBottom: "1px solid var(--border-color)", color: "var(--text-secondary)", textAlign: "left" }}>
             <th style={{ padding: "6px 8px" }}>Skill</th>
@@ -131,7 +131,7 @@ function MetricsTable({ metrics }: { metrics: SkillMetrics[] }) {
             <tr key={m.skill_name} style={{ borderBottom: "1px solid var(--border-color)" }}>
               <td style={{ padding: "7px 8px", fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{m.skill_name}</td>
               <td style={{ padding: "7px 8px" }}>
-                <span style={{ fontSize: 11, padding: "2px 6px", borderRadius: 3,
+                <span style={{ fontSize: "var(--font-size-sm)", padding: "2px 6px", borderRadius: 3,
                   background: `color-mix(in srgb, ${healthColor(m.health)} 18%, transparent)`,
                   color: healthColor(m.health), fontWeight: 600 }}>
                   {m.health}
@@ -162,40 +162,40 @@ function EvolutionCard({
   return (
     <div className="panel-card" style={{ marginBottom: 8 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span style={{ fontSize: 11, padding: "2px 6px", borderRadius: 3,
+        <span style={{ fontSize: "var(--font-size-sm)", padding: "2px 6px", borderRadius: 3,
           background: `color-mix(in srgb, ${kindColor(ev.kind)} 18%, transparent)`,
           color: kindColor(ev.kind), fontWeight: 600 }}>
           {kindLabel(ev.kind)}
         </span>
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-primary)", flex: 1 }}>{ev.skill_name}</span>
-        <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: "var(--font-size-base)", color: "var(--text-primary)", flex: 1 }}>{ev.skill_name}</span>
+        <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
           {pct(ev.confidence)} confidence
           {ev.auto_applicable && (
             <span style={{ marginLeft: 6, color: "var(--success-color, #34d399)", fontWeight: 600 }}>auto</span>
           )}
         </span>
       </div>
-      <div style={{ fontSize: 12, color: "var(--text-secondary)", margin: "6px 0" }}>{ev.rationale}</div>
+      <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", margin: "6px 0" }}>{ev.rationale}</div>
       {ev.proposed_content && (
         <button
           onClick={() => setExpanded(v => !v)}
-          style={{ fontSize: 11, background: "none", border: "none", color: "var(--accent-blue, #6c8cff)", cursor: "pointer", padding: 0, marginBottom: 6 }}
+          style={{ fontSize: "var(--font-size-sm)", background: "none", border: "none", color: "var(--accent-blue, #6c8cff)", cursor: "pointer", padding: 0, marginBottom: 6 }}
         >
           {expanded ? <><ChevronUp size={10} /> Hide proposed content</> : <><ChevronDown size={10} /> View proposed content</>}
         </button>
       )}
       {expanded && ev.proposed_content && (
-        <pre style={{ fontSize: 11, fontFamily: "var(--font-mono)", background: "var(--bg-tertiary)",
-          border: "1px solid var(--border-color)", borderRadius: 4, padding: 8,
+        <pre style={{ fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", background: "var(--bg-tertiary)",
+          border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: 8,
           overflowX: "auto", whiteSpace: "pre-wrap", wordBreak: "break-word", maxHeight: 200 }}>
           {ev.proposed_content}
         </pre>
       )}
       <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-        <button className="panel-btn panel-btn-primary" style={{ fontSize: 11, padding: "3px 10px" }} onClick={() => onApply(ev.id)}>
+        <button className="panel-btn panel-btn-primary" style={{ fontSize: "var(--font-size-sm)", padding: "3px 10px" }} onClick={() => onApply(ev.id)}>
           Apply
         </button>
-        <button className="panel-btn panel-btn-secondary" style={{ fontSize: 11, padding: "3px 10px" }} onClick={() => onDismiss(ev.id)}>
+        <button className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-sm)", padding: "3px 10px" }} onClick={() => onDismiss(ev.id)}>
           Dismiss
         </button>
       </div>
@@ -302,7 +302,7 @@ export function SelfImprovingSkillsPanel() {
       <div className="panel-header">
         <Brain size={16} strokeWidth={1.5} style={{ color: "var(--accent-blue, #6c8cff)" }} />
         <h3>Self-Improving Skills</h3>
-        <button className="panel-btn panel-btn-secondary" style={{ marginLeft: "auto", fontSize: 11 }}
+        <button className="panel-btn panel-btn-secondary" style={{ marginLeft: "auto", fontSize: "var(--font-size-sm)" }}
           onClick={() => { loadStatus(); if (tab === "metrics") loadMetrics(); if (tab === "evolutions") loadEvolutions(); }}>
           <RefreshCw size={12} /> Refresh
         </button>
@@ -317,10 +317,10 @@ export function SelfImprovingSkillsPanel() {
       </div>
 
       {feedback && (
-        <div style={{ padding: "6px 14px", fontSize: 12, color: "var(--success-color, #34d399)",
+        <div style={{ padding: "6px 14px", fontSize: "var(--font-size-base)", color: "var(--success-color, #34d399)",
           borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
           {feedback}
-          <button onClick={() => setFeedback("")} style={{ marginLeft: 8, fontSize: 11, background: "none",
+          <button onClick={() => setFeedback("")} style={{ marginLeft: 8, fontSize: "var(--font-size-sm)", background: "none",
             border: "none", color: "var(--text-secondary)", cursor: "pointer" }}>✕</button>
         </div>
       )}
@@ -329,7 +329,7 @@ export function SelfImprovingSkillsPanel() {
         {/* ── Overview ──────────────────────────────────────────────── */}
         {tab === "overview" && (
           <>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 12 }}>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 12 }}>
               Skills learn from every agent interaction. Accepted responses reinforce a skill;
               rejected or corrected ones trigger evolution proposals.
             </div>
@@ -337,10 +337,10 @@ export function SelfImprovingSkillsPanel() {
               <div className="panel-loading">Loading…</div>
             )}
             <div className="panel-card" style={{ marginTop: 12 }}>
-              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+              <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
                 <TrendingUp size={14} /> How the loop works
               </div>
-              <ol style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.9 }}>
+              <ol style={{ margin: 0, paddingLeft: 18, fontSize: "var(--font-size-base)", color: "var(--text-secondary)", lineHeight: 1.9 }}>
                 <li>Agent fires a skill on a task → activation recorded</li>
                 <li>User accepts, rejects, or corrects the response → outcome recorded</li>
                 <li>Engine aggregates outcomes into per-skill health metrics</li>
@@ -366,13 +366,13 @@ export function SelfImprovingSkillsPanel() {
             <div className="panel-empty">
               <AlertTriangle size={28} strokeWidth={1.5} style={{ color: "var(--text-muted)", marginBottom: 8 }} />
               <div style={{ fontWeight: 600 }}>No pending evolutions</div>
-              <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginTop: 4 }}>
                 VibeCody will propose improvements once enough skill data is collected.
               </div>
             </div>
           ) : (
             <>
-              <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 10 }}>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 10 }}>
                 {visibleEvolutions.length} pending evolution{visibleEvolutions.length !== 1 ? "s" : ""}.
                 Apply to write changes to the skill file, or dismiss to skip.
               </div>
@@ -386,7 +386,7 @@ export function SelfImprovingSkillsPanel() {
         {/* ── Extract Skill ─────────────────────────────────────────── */}
         {tab === "extract" && (
           <>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 10 }}>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 10 }}>
               Paste a task and an accepted response to draft a new skill file from the interaction.
             </div>
             <label className="panel-label">Task text</label>
@@ -419,21 +419,21 @@ export function SelfImprovingSkillsPanel() {
 
             {extractResult && (
               <div className="panel-card" style={{ marginTop: 12 }}>
-                <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6, color: "var(--success-color, #34d399)" }}>
-                  Skill draft created: <code style={{ fontSize: 12 }}>{extractResult.skill_name}</code>
+                <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", marginBottom: 6, color: "var(--success-color, #34d399)" }}>
+                  Skill draft created: <code style={{ fontSize: "var(--font-size-base)" }}>{extractResult.skill_name}</code>
                 </div>
-                <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8 }}>{extractResult.rationale}</div>
-                <pre style={{ fontSize: 11, fontFamily: "var(--font-mono)", background: "var(--bg-tertiary)",
-                  border: "1px solid var(--border-color)", borderRadius: 4, padding: 8,
+                <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 8 }}>{extractResult.rationale}</div>
+                <pre style={{ fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", background: "var(--bg-tertiary)",
+                  border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: 8,
                   overflowX: "auto", whiteSpace: "pre-wrap", wordBreak: "break-word", maxHeight: 240 }}>
                   {extractResult.proposed_content}
                 </pre>
                 <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-                  <button className="panel-btn panel-btn-primary" style={{ fontSize: 11 }}
+                  <button className="panel-btn panel-btn-primary" style={{ fontSize: "var(--font-size-sm)" }}
                     onClick={() => applyEvolution(extractResult.id)}>
                     Save to skills dir
                   </button>
-                  <button className="panel-btn panel-btn-secondary" style={{ fontSize: 11 }}
+                  <button className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-sm)" }}
                     onClick={() => setExtractResult(null)}>
                     Discard
                   </button>

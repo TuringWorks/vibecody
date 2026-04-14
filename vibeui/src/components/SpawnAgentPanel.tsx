@@ -149,7 +149,7 @@ const inputStyle = {
   color: "var(--text-primary)",
   border: "1px solid var(--border-color)",
   borderRadius: 3,
-  fontSize: 13,
+  fontSize: "var(--font-size-md)",
   boxSizing: "border-box" as const,
 };
 
@@ -268,7 +268,7 @@ export default function SpawnAgentPanel() {
   const renderActive = () => (
     <div>
       {stats && (
-        <div style={{ display: "flex", gap: 12, marginBottom: 12, flexWrap: "wrap", fontSize: 12, color: "var(--text-secondary)" }}>
+        <div style={{ display: "flex", gap: 12, marginBottom: 12, flexWrap: "wrap", fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>
           <span>{stats.running} running</span>
           <span>{stats.queued} queued</span>
           <span>{stats.paused} paused</span>
@@ -294,34 +294,34 @@ export default function SpawnAgentPanel() {
               <div>
                 <span style={{ color: statusColor(a.status), marginRight: 6 }}>{statusIcon(a.status)}</span>
                 <strong>{a.name}</strong>
-                <span style={{ color: "var(--text-secondary)", marginLeft: 8, fontSize: 11 }}>{a.id}</span>
+                <span style={{ color: "var(--text-secondary)", marginLeft: 8, fontSize: "var(--font-size-sm)" }}>{a.id}</span>
               </div>
               <div style={{ display: "flex", gap: 4 }}>
                 {a.status === "running" && (
-                  <button className="panel-btn panel-btn-secondary" style={{ padding: "3px 8px", fontSize: 12 }} onClick={e => { e.stopPropagation(); handleAction("pause", a.id); }}>Pause</button>
+                  <button className="panel-btn panel-btn-secondary" style={{ padding: "3px 8px", fontSize: "var(--font-size-base)" }} onClick={e => { e.stopPropagation(); handleAction("pause", a.id); }}>Pause</button>
                 )}
                 {a.status === "paused" && (
-                  <button className="panel-btn panel-btn-secondary" style={{ padding: "3px 8px", fontSize: 12 }} onClick={e => { e.stopPropagation(); handleAction("resume", a.id); }}>Resume</button>
+                  <button className="panel-btn panel-btn-secondary" style={{ padding: "3px 8px", fontSize: "var(--font-size-base)" }} onClick={e => { e.stopPropagation(); handleAction("resume", a.id); }}>Resume</button>
                 )}
                 {!["completed", "failed", "cancelled"].includes(a.status) && (
-                  <button className="panel-btn panel-btn-danger" style={{ padding: "3px 8px", fontSize: 12 }}
+                  <button className="panel-btn panel-btn-danger" style={{ padding: "3px 8px", fontSize: "var(--font-size-base)" }}
                     onClick={e => { e.stopPropagation(); handleAction("cancel", a.id); }}>
                     Stop
                   </button>
                 )}
                 {a.child_ids.length > 0 && (
-                  <button className="panel-btn panel-btn-secondary" style={{ padding: "3px 8px", fontSize: 12 }} onClick={e => { e.stopPropagation(); handleAggregate(a.id); }}>
+                  <button className="panel-btn panel-btn-secondary" style={{ padding: "3px 8px", fontSize: "var(--font-size-base)" }} onClick={e => { e.stopPropagation(); handleAggregate(a.id); }}>
                     Results
                   </button>
                 )}
               </div>
             </div>
 
-            <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>{a.task}</div>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginTop: 4 }}>{a.task}</div>
 
             <ProgressBar percent={a.progress.percent_complete} status={a.status} />
 
-            <div style={{ display: "flex", gap: 12, marginTop: 6, fontSize: 11, color: "var(--text-secondary)" }}>
+            <div style={{ display: "flex", gap: 12, marginTop: 6, fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
               <span>{a.progress.turns_completed}/{a.progress.turns_limit} turns</span>
               <span>{a.progress.files_modified.length} files</span>
               <span>{a.progress.tokens_used.toLocaleString()} tokens</span>
@@ -330,7 +330,7 @@ export default function SpawnAgentPanel() {
             </div>
 
             {a.progress.last_message && (
-              <div style={{ fontSize: 11, marginTop: 4, fontStyle: "italic", color: "var(--text-secondary)" }}>
+              <div style={{ fontSize: "var(--font-size-sm)", marginTop: 4, fontStyle: "italic", color: "var(--text-secondary)" }}>
                 {a.progress.last_message}
               </div>
             )}
@@ -342,7 +342,7 @@ export default function SpawnAgentPanel() {
       {selected && (
         <div className="panel-card" style={{ marginTop: 12, borderTop: "2px solid var(--accent-color)" }}>
           <h4 style={{ margin: "0 0 8px" }}>{selected.name} — Detail</h4>
-          <div style={{ fontSize: 12, lineHeight: 1.6 }}>
+          <div style={{ fontSize: "var(--font-size-base)", lineHeight: 1.6 }}>
             <div><strong>ID:</strong> {selected.id}</div>
             <div><strong>Task:</strong> {selected.task}</div>
             <div><strong>Status:</strong> {selected.status} | <strong>Priority:</strong> {selected.config.priority}</div>
@@ -362,7 +362,7 @@ export default function SpawnAgentPanel() {
               <div>
                 <strong>Messages ({selected.inbox.length}):</strong>
                 {selected.inbox.slice(-5).map((m, i) => (
-                  <div key={i} style={{ fontSize: 11, marginLeft: 8, color: "var(--text-secondary)" }}>
+                  <div key={i} style={{ fontSize: "var(--font-size-sm)", marginLeft: 8, color: "var(--text-secondary)" }}>
                     [{m.msg_type}] {m.from_id}: {m.content}
                   </div>
                 ))}
@@ -431,7 +431,7 @@ export default function SpawnAgentPanel() {
       </div>
 
       <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 10 }}>
-        <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
+        <label style={{ fontSize: "var(--font-size-base)", display: "flex", alignItems: "center", gap: 4 }}>
           <input type="checkbox" checked={decompose} onChange={e => setDecompose(e.target.checked)} />
           Decompose into parallel subtasks
         </label>
@@ -459,7 +459,7 @@ export default function SpawnAgentPanel() {
         </div>
       ) : (
         <div>
-          <div style={{ display: "flex", gap: 16, marginBottom: 12, flexWrap: "wrap", fontSize: 13 }}>
+          <div style={{ display: "flex", gap: 16, marginBottom: 12, flexWrap: "wrap", fontSize: "var(--font-size-md)" }}>
             <span><strong>Strategy:</strong> {aggregatedResult.strategy.replace("_", " ")}</span>
             <span><strong>Agents:</strong> {aggregatedResult.successful_agents}/{aggregatedResult.total_agents} successful</span>
             <span><strong>Files:</strong> {aggregatedResult.total_files_modified}</span>
@@ -479,7 +479,7 @@ export default function SpawnAgentPanel() {
                 Conflicts ({aggregatedResult.conflicts.length})
               </h4>
               {aggregatedResult.conflicts.map((c, i) => (
-                <div key={i} className="panel-card" style={{ borderLeft: "3px solid var(--warning-color)", fontSize: 12 }}>
+                <div key={i} className="panel-card" style={{ borderLeft: "3px solid var(--warning-color)", fontSize: "var(--font-size-base)" }}>
                   <strong>{c.file}</strong> - {c.description}
                 </div>
               ))}
@@ -495,17 +495,17 @@ export default function SpawnAgentPanel() {
                 <div>
                   <span style={{ color: statusColor(s.status), marginRight: 4 }}>{statusIcon(s.status)}</span>
                   <strong>{s.agent_name}</strong>
-                  <span style={{ marginLeft: 8, fontSize: 11, color: "var(--text-secondary)" }}>{s.agent_id}</span>
+                  <span style={{ marginLeft: 8, fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{s.agent_id}</span>
                 </div>
-                {s.branch && <span style={{ fontSize: 11 }}>{s.branch}</span>}
+                {s.branch && <span style={{ fontSize: "var(--font-size-sm)" }}>{s.branch}</span>}
               </div>
-              <div style={{ fontSize: 12, marginTop: 4, display: "flex", gap: 12, color: "var(--text-secondary)" }}>
+              <div style={{ fontSize: "var(--font-size-base)", marginTop: 4, display: "flex", gap: 12, color: "var(--text-secondary)" }}>
                 <span>{s.files_modified} files</span>
                 <span>{s.turns_taken} turns</span>
                 <span>{s.tokens_used.toLocaleString()} tokens</span>
                 <span>{formatDuration(s.duration_ms)}</span>
               </div>
-              {s.summary && <div style={{ fontSize: 12, marginTop: 4 }}>{s.summary}</div>}
+              {s.summary && <div style={{ fontSize: "var(--font-size-base)", marginTop: 4 }}>{s.summary}</div>}
             </div>
           ))}
         </div>
@@ -530,26 +530,26 @@ export default function SpawnAgentPanel() {
               <div>
                 <span style={{ color: statusColor(a.status), marginRight: 6 }}>{statusIcon(a.status)}</span>
                 <strong>{a.name}</strong>
-                <span style={{ fontSize: 11, color: "var(--text-secondary)", marginLeft: 8 }}>{a.id}</span>
+                <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginLeft: 8 }}>{a.id}</span>
               </div>
-              <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+              <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
                 {a.finished_at ? formatTime(a.finished_at) : ""}
               </span>
             </div>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>{a.task}</div>
-            <div style={{ display: "flex", gap: 12, marginTop: 4, fontSize: 11, color: "var(--text-secondary)" }}>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginTop: 4 }}>{a.task}</div>
+            <div style={{ display: "flex", gap: 12, marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
               <span>{a.progress.turns_completed} turns</span>
               <span>{a.progress.files_modified.length} files</span>
               <span>{a.progress.tokens_used.toLocaleString()} tokens</span>
               {a.branch && <span>branch: {a.branch}</span>}
             </div>
             {a.result_summary && (
-              <div style={{ fontSize: 12, marginTop: 4, color: "var(--success-color)" }}>
+              <div style={{ fontSize: "var(--font-size-base)", marginTop: 4, color: "var(--success-color)" }}>
                 {a.result_summary}
               </div>
             )}
             {a.error && (
-              <div style={{ fontSize: 12, marginTop: 4, color: "var(--error-color)" }}>
+              <div style={{ fontSize: "var(--font-size-base)", marginTop: 4, color: "var(--error-color)" }}>
                 {a.error}
               </div>
             )}

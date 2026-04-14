@@ -36,7 +36,7 @@ interface EloEntry {
   losses: number;
 }
 
-const tableStyle: React.CSSProperties = { width: "100%", borderCollapse: "collapse", fontSize: 12 };
+const tableStyle: React.CSSProperties = { width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" };
 const thStyle: React.CSSProperties = { textAlign: "left", padding: "6px 8px", borderBottom: "1px solid var(--border-color)", color: "var(--text-secondary)", fontWeight: 600 };
 const tdStyle: React.CSSProperties = { padding: "6px 8px", borderBottom: "1px solid var(--border-color)" };
 
@@ -59,7 +59,7 @@ export function RLMultiAgentView() {
 
   return (
     <div className="panel-container">
-      <h2 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>Multi-Agent Dashboard</h2>
+      <h2 style={{ margin: "0 0 12px", fontSize: "var(--font-size-xl)", fontWeight: 600, color: "var(--text-primary)" }}>Multi-Agent Dashboard</h2>
       <button className="panel-btn panel-btn-secondary" onClick={fetch} disabled={loading}>{loading ? "..." : "Refresh"}</button>
 
       {metrics && (
@@ -72,8 +72,8 @@ export function RLMultiAgentView() {
                   <span style={{ fontWeight: 600 }}>{a.name}</span>
                   <span>{a.reward.toFixed(2)} ({a.episodes} eps, {(a.winRate * 100).toFixed(0)}% win)</span>
                 </div>
-                <div style={{ height: 8, borderRadius: 4, background: "var(--bg-tertiary)", overflow: "hidden" }}>
-                  <div style={{ width: `${(Math.abs(a.reward) / maxReward) * 100}%`, height: "100%", background: a.reward >= 0 ? "var(--success-color)" : "var(--error-color)", borderRadius: 4 }} />
+                <div style={{ height: 8, borderRadius: "var(--radius-xs-plus)", background: "var(--bg-tertiary)", overflow: "hidden" }}>
+                  <div style={{ width: `${(Math.abs(a.reward) / maxReward) * 100}%`, height: "100%", background: a.reward >= 0 ? "var(--success-color)" : "var(--error-color)", borderRadius: "var(--radius-xs-plus)" }} />
                 </div>
               </div>
             ))}

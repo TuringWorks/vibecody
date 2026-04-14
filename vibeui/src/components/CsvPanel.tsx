@@ -47,7 +47,7 @@ function detectDelimiter(text: string): string {
  return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
 }
 
-const CARD: React.CSSProperties = { background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 6, padding: "8px 14px", display: "flex", flexDirection: "column", alignItems: "center" };
+const CARD: React.CSSProperties = { background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", padding: "8px 14px", display: "flex", flexDirection: "column", alignItems: "center" };
 
 export function CsvPanel() {
  const [tab, setTab] = useState<"table" | "stats" | "filter" | "convert">("table");
@@ -184,30 +184,30 @@ export function CsvPanel() {
  <div className="panel-header" style={{ flexWrap: "wrap" }}>
  <input ref={fileInputRef} type="file" accept=".csv,.tsv,.txt" style={{ display: "none" }} onChange={handleFile} />
  <button onClick={() => fileInputRef.current?.click()}
- style={{ padding: "4px 10px", background: "var(--accent-color)", color: "var(--text-on-accent)", border: "none", borderRadius: 4, cursor: "pointer", fontSize: 12 }}>
+ style={{ padding: "4px 10px", background: "var(--accent-color)", color: "var(--text-on-accent)", border: "none", borderRadius: "var(--radius-xs-plus)", cursor: "pointer", fontSize: "var(--font-size-base)" }}>
  Open File
  </button>
- <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
+ <label style={{ fontSize: "var(--font-size-base)", display: "flex", alignItems: "center", gap: 4 }}>
  Delimiter:
  <select value={delimiter} onChange={e => { setDelimiter(e.target.value); setRows(parseCsv(rawText, e.target.value)); }}
- style={{ background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4, padding: "2px 4px" }}>
+ style={{ background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: "2px 4px" }}>
  <option value=",">, (CSV)</option>
  <option value={"\t"}>⇥ (TSV)</option>
  <option value=";">; (semicolon)</option>
  <option value="|">| (pipe)</option>
  </select>
  </label>
- <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
+ <label style={{ fontSize: "var(--font-size-base)", display: "flex", alignItems: "center", gap: 4 }}>
  <input type="checkbox" checked={hasHeader} onChange={e => setHasHeader(e.target.checked)} />
  Header row
  </label>
  {rows.length > 0 && (
  <>
- <span style={{ fontSize: 11, color: "var(--text-secondary)", marginLeft: "auto" }}>
+ <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginLeft: "auto" }}>
  {dataRows.length} rows × {headers.length || rows[0]?.length || 0} cols
  </span>
  <button onClick={exportCsv}
- style={{ padding: "4px 10px", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: 4, cursor: "pointer", fontSize: 12, color: "var(--text-primary)" }}>
+ style={{ padding: "4px 10px", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", cursor: "pointer", fontSize: "var(--font-size-base)", color: "var(--text-primary)" }}>
  Export
  </button>
  </>
@@ -221,7 +221,7 @@ export function CsvPanel() {
  <div style={{ color: "var(--text-secondary)", textAlign: "center" }}>Open a CSV / TSV file or paste data below</div>
  <textarea
  placeholder="Paste CSV data here..."
- style={{ width: "100%", height: 180, background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 6, padding: 8, fontSize: 12, resize: "vertical", boxSizing: "border-box" }}
+ style={{ width: "100%", height: 180, background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", padding: 8, fontSize: "var(--font-size-base)", resize: "vertical", boxSizing: "border-box" }}
  onChange={e => { if (e.target.value) loadText(e.target.value); }}
  />
  <div style={{ display: "flex", gap: 8 }}>
@@ -230,7 +230,7 @@ export function CsvPanel() {
  "product\tprice\tstock\nApple\t1.20\t500\nBanana\t0.50\t1200\nCherry\t3.00\t80",
  ].map((sample, i) => (
  <button key={i} onClick={() => loadText(sample)}
- style={{ padding: "4px 10px", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: 4, cursor: "pointer", fontSize: 11, color: "var(--text-primary)" }}>
+ style={{ padding: "4px 10px", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", cursor: "pointer", fontSize: "var(--font-size-sm)", color: "var(--text-primary)" }}>
  {i === 0 ? "CSV Sample" : "TSV Sample"}
  </button>
  ))}
@@ -254,11 +254,11 @@ export function CsvPanel() {
  {tab === "table" && (
  <div className="panel-body" style={{ padding: 8 }}>
  <div style={{ overflowX: "auto" }}>
- <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 12 }}>
+ <table style={{ borderCollapse: "collapse", width: "100%", fontSize: "var(--font-size-base)" }}>
  {hasHeader && headers.length > 0 && (
  <thead>
  <tr>
- <th style={{ padding: "4px 6px", borderBottom: "2px solid var(--accent-blue)", color: "var(--text-secondary)", fontSize: 11, textAlign: "left", width: 32 }}>#</th>
+ <th style={{ padding: "4px 6px", borderBottom: "2px solid var(--accent-blue)", color: "var(--text-secondary)", fontSize: "var(--font-size-sm)", textAlign: "left", width: 32 }}>#</th>
  {headers.map((h, ci) => (
  <th key={ci} onClick={() => handleSort(ci)}
  style={{ padding: "4px 8px", borderBottom: "2px solid var(--accent-blue)", color: "var(--text-primary)", textAlign: "left", cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}>
@@ -272,14 +272,14 @@ export function CsvPanel() {
  <tbody>
  {sortedRows.map((row, ri) => (
  <tr key={ri} style={{ background: ri % 2 === 0 ? "transparent" : "var(--border-subtle)" }}>
- <td style={{ padding: "3px 6px", color: "var(--text-secondary)", fontSize: 10 }}>{ri + 1}</td>
+ <td style={{ padding: "3px 6px", color: "var(--text-secondary)", fontSize: "var(--font-size-xs)" }}>{ri + 1}</td>
  {row.map((cell, ci) => (
  <td key={ci} onDoubleClick={() => { setEditCell({ r: ri, c: ci }); setEditVal(cell); }}
  style={{ padding: "3px 8px", borderBottom: "1px solid var(--border-color)", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", wordBreak: "break-word", cursor: "text" }}>
  {editCell?.r === ri && editCell?.c === ci ? (
  <input autoFocus value={editVal} onChange={e => setEditVal(e.target.value)}
  onBlur={commitEdit} onKeyDown={e => { if (e.key === "Enter") commitEdit(); if (e.key === "Escape") setEditCell(null); }}
- style={{ width: "100%", background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--accent-color)", borderRadius: 2, padding: "1px 4px", fontSize: 12, boxSizing: "border-box" }} />
+ style={{ width: "100%", background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--accent-color)", borderRadius: 2, padding: "1px 4px", fontSize: "var(--font-size-base)", boxSizing: "border-box" }} />
  ) : cell}
  </td>
  ))}
@@ -293,7 +293,7 @@ export function CsvPanel() {
  </table>
  </div>
  <button onClick={addRow}
- style={{ marginTop: 8, padding: "4px 10px", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: 4, cursor: "pointer", fontSize: 11, color: "var(--text-primary)" }}>
+ style={{ marginTop: 8, padding: "4px 10px", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", cursor: "pointer", fontSize: "var(--font-size-sm)", color: "var(--text-primary)" }}>
  + Add Row
  </button>
  </div>
@@ -304,16 +304,16 @@ export function CsvPanel() {
  <div className="panel-body" style={{ padding: 12 }}>
  <div style={{ display: "flex", gap: 8, marginBottom: 12, alignItems: "center" }}>
  <input value={filterText} onChange={e => setFilterText(e.target.value)} placeholder="Filter value..."
- style={{ flex: 1, background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4, padding: "5px 8px", fontSize: 12 }} />
+ style={{ flex: 1, background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: "5px 8px", fontSize: "var(--font-size-base)" }} />
  <select value={filterCol} onChange={e => setFilterCol(e.target.value === "all" ? "all" : Number(e.target.value))}
- style={{ background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4, padding: "4px 6px", fontSize: 12 }}>
+ style={{ background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: "4px 6px", fontSize: "var(--font-size-base)" }}>
  <option value="all">All columns</option>
  {headers.map((h, i) => <option key={i} value={i}>{h}</option>)}
  </select>
- <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{filteredRows.length} / {dataRows.length} rows</span>
+ <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{filteredRows.length} / {dataRows.length} rows</span>
  </div>
  <div style={{ overflowX: "auto" }}>
- <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 12 }}>
+ <table style={{ borderCollapse: "collapse", width: "100%", fontSize: "var(--font-size-base)" }}>
  {hasHeader && headers.length > 0 && (
  <thead>
  <tr>
@@ -339,7 +339,7 @@ export function CsvPanel() {
  </tbody>
  </table>
  </div>
- {filteredRows.length > 200 && <div style={{ padding: 8, color: "var(--text-secondary)", fontSize: 11 }}>Showing first 200 of {filteredRows.length} matches</div>}
+ {filteredRows.length > 200 && <div style={{ padding: 8, color: "var(--text-secondary)", fontSize: "var(--font-size-sm)" }}>Showing first 200 of {filteredRows.length} matches</div>}
  </div>
  )}
 
@@ -355,16 +355,16 @@ export function CsvPanel() {
  ].map(({ label, value }) => (
  <div key={label} style={CARD}>
  <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{value}</div>
- <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{label}</div>
+ <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{label}</div>
  </div>
  ))}
  </div>
  <div style={{ overflowX: "auto" }}>
- <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 12 }}>
+ <table style={{ borderCollapse: "collapse", width: "100%", fontSize: "var(--font-size-base)" }}>
  <thead>
  <tr>
  {["Column", "Non-empty", "Unique", "Type", "Min", "Max", "Avg"].map(h => (
- <th key={h} style={{ padding: "5px 8px", borderBottom: "2px solid var(--accent-blue)", color: "var(--text-secondary)", textAlign: "left", fontSize: 11 }}>{h}</th>
+ <th key={h} style={{ padding: "5px 8px", borderBottom: "2px solid var(--accent-blue)", color: "var(--text-secondary)", textAlign: "left", fontSize: "var(--font-size-sm)" }}>{h}</th>
  ))}
  </tr>
  </thead>
@@ -374,7 +374,7 @@ export function CsvPanel() {
  <td style={{ padding: "4px 8px", fontWeight: 600 }}>{s.header}</td>
  <td style={{ padding: "4px 8px" }}>{s.nonEmpty}</td>
  <td style={{ padding: "4px 8px" }}>{s.unique}</td>
- <td style={{ padding: "4px 8px" }}><span style={{ padding: "1px 5px", borderRadius: 3, fontSize: 10, background: s.isNumeric ? "rgba(100,200,100,0.2)" : "rgba(100,150,255,0.2)", color: s.isNumeric ? "var(--text-success)" : "var(--text-info)" }}>{s.isNumeric ? "numeric" : "text"}</span></td>
+ <td style={{ padding: "4px 8px" }}><span style={{ padding: "1px 5px", borderRadius: 3, fontSize: "var(--font-size-xs)", background: s.isNumeric ? "rgba(100,200,100,0.2)" : "rgba(100,150,255,0.2)", color: s.isNumeric ? "var(--text-success)" : "var(--text-info)" }}>{s.isNumeric ? "numeric" : "text"}</span></td>
  <td style={{ padding: "4px 8px", color: "var(--text-secondary)" }}>{s.min ?? "—"}</td>
  <td style={{ padding: "4px 8px", color: "var(--text-secondary)" }}>{s.max ?? "—"}</td>
  <td style={{ padding: "4px 8px", color: "var(--text-secondary)" }}>{s.avg != null ? s.avg.toFixed(2) : "—"}</td>
@@ -402,27 +402,27 @@ export function CsvPanel() {
  }
  navigator.clipboard.writeText(out);
  }}
- style={{ padding: "5px 12px", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, cursor: "pointer", fontSize: 12, color: "var(--text-primary)" }}>
+ style={{ padding: "5px 12px", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", cursor: "pointer", fontSize: "var(--font-size-base)", color: "var(--text-primary)" }}>
  Copy as {fmt}
  </button>
  ))}
  </div>
  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
  <div>
- <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>JSON</div>
- <pre style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, padding: 8, fontSize: 11, overflow: "auto", maxHeight: "calc(60vh - 200px)", margin: 0 }}>
+ <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 4 }}>JSON</div>
+ <pre style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: 8, fontSize: "var(--font-size-sm)", overflow: "auto", maxHeight: "calc(60vh - 200px)", margin: 0 }}>
  {convertToJson().slice(0, 2000)}{convertToJson().length > 2000 ? "\n…" : ""}
  </pre>
  </div>
  <div>
- <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>SQL INSERT</div>
- <pre style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, padding: 8, fontSize: 11, overflow: "auto", maxHeight: "calc(60vh - 200px)", margin: 0 }}>
+ <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 4 }}>SQL INSERT</div>
+ <pre style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: 8, fontSize: "var(--font-size-sm)", overflow: "auto", maxHeight: "calc(60vh - 200px)", margin: 0 }}>
  {convertToSql().slice(0, 2000)}{convertToSql().length > 2000 ? "\n…" : ""}
  </pre>
  </div>
  <div>
- <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>Markdown Table</div>
- <pre style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, padding: 8, fontSize: 11, overflow: "auto", maxHeight: "calc(60vh - 200px)", margin: 0 }}>
+ <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 4 }}>Markdown Table</div>
+ <pre style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: 8, fontSize: "var(--font-size-sm)", overflow: "auto", maxHeight: "calc(60vh - 200px)", margin: 0 }}>
  {(() => {
  const headerRow = hasHeader ? `| ${headers.join(" | ")} |\n| ${headers.map(() => "---").join(" | ")} |\n` : "";
  const body = sortedRows.slice(0, 20).map(r => `| ${r.join(" | ")} |`).join("\n");

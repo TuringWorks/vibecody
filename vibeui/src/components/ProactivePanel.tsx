@@ -20,8 +20,8 @@ interface ScanRecord {
 const badgeStyle = (color: string): React.CSSProperties => ({
   display: "inline-block",
   padding: "2px 8px",
-  borderRadius: 10,
-  fontSize: 11,
+  borderRadius: "var(--radius-md)",
+  fontSize: "var(--font-size-sm)",
   fontWeight: 600,
   background: color,
   color: "var(--btn-primary-fg, #fff)",
@@ -120,7 +120,7 @@ export function ProactivePanel() {
                 <strong>{s.title}</strong>
                 <span style={badgeStyle(priorityColor[s.priority])}>{s.priority}</span>
               </div>
-              <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8 }}>{s.description}</div>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 8 }}>{s.description}</div>
               <div>
                 <button className="panel-btn panel-btn-primary" onClick={() => handleAction(s.id, "accepted")}>Accept</button>
                 <button className="panel-btn panel-btn-danger" onClick={() => handleAction(s.id, "rejected")}>Reject</button>
@@ -136,7 +136,7 @@ export function ProactivePanel() {
       {tab === "scan" && (
         <div>
           <button className="panel-btn panel-btn-primary" onClick={handleScan}>Trigger Scan</button>
-          <table style={{ width: "100%", fontSize: 13, marginTop: 12, borderCollapse: "collapse" }}>
+          <table style={{ width: "100%", fontSize: "var(--font-size-md)", marginTop: 12, borderCollapse: "collapse" }}>
             <thead><tr style={{ borderBottom: "1px solid var(--border-color)" }}>
               <th style={{ textAlign: "left", padding: 8 }}>Time</th>
               <th style={{ textAlign: "left", padding: 8 }}>Found</th>
@@ -158,19 +158,19 @@ export function ProactivePanel() {
           <div className="panel-card">
             <div style={{ fontWeight: 600, marginBottom: 8 }}>Acceptance Rate</div>
             <div style={{ fontSize: 24, fontWeight: 700 }}>{total > 0 ? ((accepted / total) * 100).toFixed(0) : 0}%</div>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{accepted} accepted / {rejected} rejected / {total} total</div>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>{accepted} accepted / {rejected} rejected / {total} total</div>
           </div>
           {digest && (
             <div className="panel-card">
               <div style={{ fontWeight: 600, marginBottom: 8 }}>Digest</div>
-              <pre style={{ fontSize: 12, color: "var(--text-secondary)", whiteSpace: "pre-wrap" }}>{JSON.stringify(digest, null, 2)}</pre>
+              <pre style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", whiteSpace: "pre-wrap" }}>{JSON.stringify(digest, null, 2)}</pre>
             </div>
           )}
           <div className="panel-card">
             <div style={{ fontWeight: 600, marginBottom: 8 }}>Top Patterns by Category</div>
             {categories.map((c) => {
               const count = suggestions.filter((s) => s.category === c).length;
-              return <div key={c} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 13 }}><span>{c}</span><strong>{count}</strong></div>;
+              return <div key={c} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: "var(--font-size-md)" }}><span>{c}</span><strong>{count}</strong></div>;
             })}
           </div>
         </div>
@@ -180,7 +180,7 @@ export function ProactivePanel() {
         <div>
           <div className="panel-card">
             <div style={{ fontWeight: 600, marginBottom: 8 }}>Scan Cadence</div>
-            <select value={cadence} onChange={(e) => setCadence(e.target.value)} style={{ padding: 8, borderRadius: 6, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)", fontSize: 13 }}>
+            <select value={cadence} onChange={(e) => setCadence(e.target.value)} style={{ padding: 8, borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)", fontSize: "var(--font-size-md)" }}>
               <option value="realtime">Real-time</option>
               <option value="hourly">Hourly</option>
               <option value="daily">Daily</option>

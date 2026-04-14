@@ -52,26 +52,26 @@ export function RlcefPanel() {
         <div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 16 }}>
             <div className="panel-card">
-              <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Pass</div>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>Pass</div>
               <div style={{ fontSize: 22, fontWeight: 700, color: "var(--success-color)" }}>{outcomes.pass}</div>
             </div>
             <div className="panel-card">
-              <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Fail</div>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>Fail</div>
               <div style={{ fontSize: 22, fontWeight: 700, color: "var(--error-color)" }}>{outcomes.fail}</div>
             </div>
             <div className="panel-card">
-              <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Pass Rate</div>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>Pass Rate</div>
               <div style={{ fontSize: 22, fontWeight: 700, color: "var(--accent-color)" }}>{passRate}%</div>
             </div>
           </div>
-          <div className="panel-card" style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Reward Distribution</div>
+          <div className="panel-card" style={{ fontWeight: 600, fontSize: "var(--font-size-md)", marginBottom: 8 }}>Reward Distribution</div>
           {rewards.map((r) => (
             <div key={r.range} className="panel-card" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 12, minWidth: 100, color: "var(--text-secondary)" }}>{r.range}</span>
-              <div style={{ flex: 1, height: 8, borderRadius: 4, background: "var(--border-color)" }}>
-                <div style={{ width: `${(r.count / maxReward) * 100}%`, height: 8, borderRadius: 4, background: r.color }} />
+              <span style={{ fontSize: "var(--font-size-base)", minWidth: 100, color: "var(--text-secondary)" }}>{r.range}</span>
+              <div style={{ flex: 1, height: 8, borderRadius: "var(--radius-xs-plus)", background: "var(--border-color)" }}>
+                <div style={{ width: `${(r.count / maxReward) * 100}%`, height: 8, borderRadius: "var(--radius-xs-plus)", background: r.color }} />
               </div>
-              <span style={{ fontSize: 12, fontWeight: 600, minWidth: 36 }}>{r.count}</span>
+              <span style={{ fontSize: "var(--font-size-base)", fontWeight: 600, minWidth: 36 }}>{r.count}</span>
             </div>
           ))}
         </div>
@@ -82,12 +82,12 @@ export function RlcefPanel() {
           {mistakes.map((m, i) => (
             <div key={i} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>{m.pattern}</div>
-                <span style={{ fontSize: 11, color: catColor(m.category), fontWeight: 600 }}>{m.category}</span>
+                <div style={{ fontSize: "var(--font-size-md)", fontWeight: 600 }}>{m.pattern}</div>
+                <span style={{ fontSize: "var(--font-size-sm)", color: catColor(m.category), fontWeight: 600 }}>{m.category}</span>
               </div>
               <div style={{ textAlign: "right" }}>
                 <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)" }}>{m.frequency}</div>
-                <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>occurrences</div>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>occurrences</div>
               </div>
             </div>
           ))}
@@ -99,15 +99,15 @@ export function RlcefPanel() {
           {strategies.map((s, i) => (
             <div key={i} className="panel-card">
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                <span style={{ fontWeight: 600, fontSize: 13 }}>{s.name}</span>
-                <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{s.time}</span>
+                <span style={{ fontWeight: 600, fontSize: "var(--font-size-md)" }}>{s.name}</span>
+                <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{s.time}</span>
               </div>
               <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}>
-                <span style={{ fontSize: 12, color: "var(--error-color)", textDecoration: "line-through" }}>{s.before}</span>
-                <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>-&gt;</span>
-                <span style={{ fontSize: 12, color: "var(--success-color)", fontWeight: 600 }}>{s.after}</span>
+                <span style={{ fontSize: "var(--font-size-base)", color: "var(--error-color)", textDecoration: "line-through" }}>{s.before}</span>
+                <span style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>-&gt;</span>
+                <span style={{ fontSize: "var(--font-size-base)", color: "var(--success-color)", fontWeight: 600 }}>{s.after}</span>
               </div>
-              <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{s.reason}</div>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>{s.reason}</div>
             </div>
           ))}
         </div>
@@ -116,7 +116,7 @@ export function RlcefPanel() {
       {tab === "export" && (
         <div>
           <div className="panel-card">
-            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Training Data Format</div>
+            <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", marginBottom: 8 }}>Training Data Format</div>
             <div style={{ display: "flex", gap: 8 }}>
               {["jsonl", "parquet", "csv"].map((f) => (
                 <button key={f} onClick={() => setExportFormat(f)}
@@ -126,7 +126,7 @@ export function RlcefPanel() {
               ))}
             </div>
           </div>
-          <div className="panel-card" style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+          <div className="panel-card" style={{ fontSize: "var(--font-size-md)", color: "var(--text-secondary)" }}>
             {outcomes.total} samples | {outcomes.pass} positive | {outcomes.fail} negative
           </div>
           <button className="panel-btn panel-btn-primary">Export Training Data</button>

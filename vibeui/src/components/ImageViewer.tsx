@@ -206,10 +206,10 @@ export function ImageViewer({ filePath, base64Data, rawContent }: ImageViewerPro
         </div>
         <div className="toolbar-separator" />
         <div className="toolbar-group">
-          <button onClick={fitToView} title="Fit to View" style={{ width: "auto", padding: "0 8px", fontSize: 11 }}>
+          <button onClick={fitToView} title="Fit to View" style={{ width: "auto", padding: "0 8px", fontSize: "var(--font-size-sm)" }}>
             Fit
           </button>
-          <button onClick={zoomActual} title="Actual Size (1:1)" style={{ width: "auto", padding: "0 8px", fontSize: 11 }}>
+          <button onClick={zoomActual} title="Actual Size (1:1)" style={{ width: "auto", padding: "0 8px", fontSize: "var(--font-size-sm)" }}>
             1:1
           </button>
         </div>

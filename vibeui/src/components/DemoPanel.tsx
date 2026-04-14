@@ -43,9 +43,9 @@ interface DemoRecording {
 // ── Styles ───────────────────────────────────────────────────────────────────
 
 const badgeStyle = (status: string): React.CSSProperties => ({
-  borderRadius: 10,
+  borderRadius: "var(--radius-md)",
   padding: "2px 8px",
-  fontSize: 11,
+  fontSize: "var(--font-size-sm)",
   fontWeight: 600,
   background:
     status === "completed"
@@ -70,7 +70,7 @@ const thumbStyle: React.CSSProperties = {
   width: 100,
   height: 64,
   objectFit: "cover",
-  borderRadius: 4,
+  borderRadius: "var(--radius-xs-plus)",
   border: "1px solid var(--border-color)",
   background: "var(--bg-primary)",
 };
@@ -78,11 +78,11 @@ const thumbStyle: React.CSSProperties = {
 const inputStyle: React.CSSProperties = {
   width: "100%",
   padding: "6px 10px",
-  borderRadius: 4,
+  borderRadius: "var(--radius-xs-plus)",
   border: "1px solid var(--border-color)",
   background: "var(--bg-primary)",
   color: "var(--text-primary)",
-  fontSize: 13,
+  fontSize: "var(--font-size-md)",
   boxSizing: "border-box",
 };
 
@@ -265,7 +265,7 @@ export function DemoPanel() {
   return (
     <div className="panel-container">
       <div className="panel-header">
-        <span style={{ fontWeight: 700, fontSize: 15 }}>Feature Demos</span>
+        <span style={{ fontWeight: 700, fontSize: "var(--font-size-xl)" }}>Feature Demos</span>
         <button onClick={loadDemos} disabled={loading} className="panel-btn panel-btn-primary">
           {loading ? "Loading..." : "Refresh"}
         </button>
@@ -306,10 +306,10 @@ export function DemoPanel() {
                 <span style={{ fontWeight: 600 }}>{demo.name}</span>
                 <span style={badgeStyle(demo.status)}>{demo.status}</span>
               </div>
-              <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4 }}>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 4 }}>
                 {demo.description}
               </div>
-              <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 2 }}>
                 {formatTs(demo.started_at)}
                 {demo.finished_at && <span> — {formatTs(demo.finished_at)}</span>}
                 <span style={{ marginLeft: 8 }}>{demo.frames.length} frames</span>
@@ -320,7 +320,7 @@ export function DemoPanel() {
                   <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
                     <button
                       className="panel-btn panel-btn-secondary"
-                      style={{ fontSize: 11, padding: "4px 10px" }}
+                      style={{ fontSize: "var(--font-size-sm)", padding: "4px 10px" }}
                       onClick={(e) => {
                         e.stopPropagation();
                         exportDemo(demo.id, "html");
@@ -330,7 +330,7 @@ export function DemoPanel() {
                     </button>
                     <button
                       className="panel-btn panel-btn-secondary"
-                      style={{ fontSize: 11, padding: "4px 10px" }}
+                      style={{ fontSize: "var(--font-size-sm)", padding: "4px 10px" }}
                       onClick={(e) => {
                         e.stopPropagation();
                         exportDemo(demo.id, "markdown");
@@ -358,7 +358,7 @@ export function DemoPanel() {
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
-                            fontSize: 10,
+                            fontSize: "var(--font-size-xs)",
                             color: "var(--text-secondary)",
                           }}
                         >
@@ -366,13 +366,13 @@ export function DemoPanel() {
                         </div>
                       )}
                       <div>
-                        <div style={{ fontWeight: 500, fontSize: 12 }}>{stepSummary(frame.step)}</div>
+                        <div style={{ fontWeight: 500, fontSize: "var(--font-size-base)" }}>{stepSummary(frame.step)}</div>
                         {frame.result && (
-                          <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+                          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
                             {frame.result}
                           </div>
                         )}
-                        <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>
+                        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>
                           {frame.duration_ms}ms
                         </div>
                       </div>
@@ -424,12 +424,12 @@ export function DemoPanel() {
           <div
             style={{
               background: "var(--bg-secondary)",
-              borderRadius: 6,
+              borderRadius: "var(--radius-sm)",
               padding: 10,
               marginBottom: 10,
             }}
           >
-            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Add Step</div>
+            <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", marginBottom: 8 }}>Add Step</div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
               <select
                 style={selectStyle}
@@ -488,7 +488,7 @@ export function DemoPanel() {
 
           {steps.length > 0 && (
             <div style={{ marginBottom: 10 }}>
-              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>
+              <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", marginBottom: 6 }}>
                 Steps ({steps.length})
               </div>
               {steps.map((s, i) => (
@@ -500,9 +500,9 @@ export function DemoPanel() {
                     justifyContent: "space-between",
                     padding: "4px 8px",
                     background: "var(--bg-secondary)",
-                    borderRadius: 4,
+                    borderRadius: "var(--radius-xs-plus)",
                     marginBottom: 4,
-                    fontSize: 12,
+                    fontSize: "var(--font-size-base)",
                   }}
                 >
                   <span>
@@ -514,7 +514,7 @@ export function DemoPanel() {
                       border: "none",
                       color: "var(--error-color)",
                       cursor: "pointer",
-                      fontSize: 14,
+                      fontSize: "var(--font-size-lg)",
                     }}
                     onClick={() => setSteps(steps.filter((_, idx) => idx !== i))}
                   >
@@ -527,7 +527,7 @@ export function DemoPanel() {
 
           <button
             className="panel-btn panel-btn-primary"
-            style={{ width: "100%", padding: "10px 0", fontSize: 14 }}
+            style={{ width: "100%", padding: "10px 0", fontSize: "var(--font-size-lg)" }}
             disabled={!demoName || steps.length === 0 || loading}
             onClick={() => runDemo(demoName, demoDesc, steps)}
           >
@@ -581,7 +581,7 @@ export function DemoPanel() {
 
           {generatedSteps && (
             <div>
-              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>
+              <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", marginBottom: 8 }}>
                 Generated Steps ({generatedSteps.length})
               </div>
               {generatedSteps.map((s, i) => (
@@ -590,9 +590,9 @@ export function DemoPanel() {
                   style={{
                     padding: "6px 10px",
                     background: "var(--bg-secondary)",
-                    borderRadius: 4,
+                    borderRadius: "var(--radius-xs-plus)",
                     marginBottom: 4,
-                    fontSize: 12,
+                    fontSize: "var(--font-size-base)",
                   }}
                 >
                   {i + 1}. {stepSummary(s)}
@@ -600,7 +600,7 @@ export function DemoPanel() {
               ))}
               <button
                 className="panel-btn panel-btn-primary"
-                style={{ width: "100%", padding: "10px 0", fontSize: 14, marginTop: 10 }}
+                style={{ width: "100%", padding: "10px 0", fontSize: "var(--font-size-lg)", marginTop: 10 }}
                 disabled={loading}
                 onClick={() =>
                   runDemo(

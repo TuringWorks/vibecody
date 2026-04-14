@@ -40,7 +40,7 @@ interface AcpStatus {
 
 const badgeStyle = (variant: string): React.CSSProperties => {
   const colors: Record<string, string> = { tool: "var(--accent-color)", resource: "var(--accent-purple)", prompt: "var(--warning-color)", ok: "var(--success-color)", error: "var(--error-color)", pending: "var(--text-secondary)", sent: "var(--accent-color)", received: "var(--accent-purple)" };
-  return { display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600, color: "var(--btn-primary-fg)", background: colors[variant] || "var(--text-secondary)" };
+  return { display: "inline-block", padding: "2px 8px", borderRadius: "var(--radius-md)", fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--btn-primary-fg)", background: colors[variant] || "var(--text-secondary)" };
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -171,12 +171,12 @@ export function AcpPanel() {
 
   return (
     <div className="panel-container">
-      <h2 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>Agent Client Protocol (ACP)</h2>
+      <h2 style={{ margin: "0 0 12px", fontSize: "var(--font-size-xl)", fontWeight: 600, color: "var(--text-primary)" }}>Agent Client Protocol (ACP)</h2>
 
       {error && (
         <div className="panel-error" style={{ marginBottom: 12 }}>
           {error}
-          <button className="panel-btn panel-btn-secondary" style={{ marginLeft: 8, fontSize: 10 }} onClick={() => setError(null)}>Dismiss</button>
+          <button className="panel-btn panel-btn-secondary" style={{ marginLeft: 8, fontSize: "var(--font-size-xs)" }} onClick={() => setError(null)}>Dismiss</button>
         </div>
       )}
 
@@ -191,10 +191,10 @@ export function AcpPanel() {
           <div className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
               <div style={{ fontWeight: 600 }}>ACP Server</div>
-              <div style={{ fontSize: 11, color: serverRunning ? "var(--success-color)" : "var(--text-secondary)" }}>
+              <div style={{ fontSize: "var(--font-size-sm)", color: serverRunning ? "var(--success-color)" : "var(--text-secondary)" }}>
                 {serverRunning ? "Running on localhost:7878/acp" : "Stopped"}
               </div>
-              {status && <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>v{status.version} | {status.connected_clients} client(s)</div>}
+              {status && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>v{status.version} | {status.connected_clients} client(s)</div>}
             </div>
             <button
               className={serverRunning ? "panel-btn panel-btn-danger" : "panel-btn panel-btn-primary"}
@@ -224,8 +224,8 @@ export function AcpPanel() {
             <div key={cap.id} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <span style={{ fontWeight: 600 }}>{cap.name}</span>{" "}
-                <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>v{cap.version}</span>
-                <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>{cap.description}</div>
+                <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>v{cap.version}</span>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 2 }}>{cap.description}</div>
               </div>
               <span style={badgeStyle(cap.type)}>{cap.type}</span>
             </div>
@@ -275,14 +275,14 @@ export function AcpPanel() {
               <span style={badgeStyle(negotiationStatus === "connected" ? "ok" : negotiationStatus === "failed" ? "error" : "pending")}>
                 {negotiationStatus}
               </span>
-              {negotiationStatus === "connected" && <span style={{ fontSize: 11 }}>Protocol v1.0 negotiated</span>}
+              {negotiationStatus === "connected" && <span style={{ fontSize: "var(--font-size-sm)" }}>Protocol v1.0 negotiated</span>}
             </div>
           </div>
 
           {clientConnected && (
             <div className="panel-card">
               <div className="panel-label">Remote Server Capabilities</div>
-              <div style={{ fontSize: 12, marginTop: 4 }}>
+              <div style={{ fontSize: "var(--font-size-base)", marginTop: 4 }}>
                 <div>Tools: {capabilities.filter((c) => c.type === "tool").map((c) => c.name).join(", ")}</div>
                 <div>Resources: {capabilities.filter((c) => c.type === "resource").map((c) => c.name).join(", ")}</div>
                 <div>Prompts: {capabilities.filter((c) => c.type === "prompt").map((c) => c.name).join(", ")}</div>
@@ -297,7 +297,7 @@ export function AcpPanel() {
           <div className="panel-card" style={{ display: "flex", justifyContent: "space-between" }}>
             <div>
               <div style={{ fontWeight: 600 }}>ACP Protocol</div>
-              <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Based on Model Context Protocol (MCP) specification</div>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Based on Model Context Protocol (MCP) specification</div>
             </div>
             <div style={{ textAlign: "right" }}>
               <div className="panel-label">Version</div>
@@ -320,12 +320,12 @@ export function AcpPanel() {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <span style={badgeStyle(msg.direction)}>{msg.direction === "sent" ? "OUT" : "IN"}</span>
-                  <span style={{ fontWeight: 600, fontSize: 12 }}>{msg.method}</span>
+                  <span style={{ fontWeight: 600, fontSize: "var(--font-size-base)" }}>{msg.method}</span>
                   <span style={badgeStyle(msg.status)}>{msg.status}</span>
                 </div>
-                <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>{new Date(msg.timestamp).toLocaleTimeString()}</span>
+                <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>{new Date(msg.timestamp).toLocaleTimeString()}</span>
               </div>
-              <div style={{ fontSize: 10, color: "var(--text-secondary)", fontFamily: "var(--font-family)", wordBreak: "break-all" }}>
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", fontFamily: "var(--font-family)", wordBreak: "break-all" }}>
                 {msg.payload}
               </div>
             </div>

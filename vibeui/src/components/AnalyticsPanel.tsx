@@ -234,9 +234,9 @@ export function AnalyticsPanel() {
     <div className="panel-container">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
         <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 12, color: "var(--text-primary)" }}>Enterprise Agent Analytics</h2>
-        <button onClick={loadData} className="panel-btn panel-btn-secondary" style={{ fontSize: 11, padding: "4px 10px" }}>Refresh</button>
+        <button onClick={loadData} className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-sm)", padding: "4px 10px" }}>Refresh</button>
       </div>
-      <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 12 }}>
+      <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 12 }}>
         {sessions.length} total sessions | {(costMetrics?.entries.length ?? 0)} AI calls tracked | Est. {MINS_SAVED_PER_TASK} min saved/task @ ${HOURLY_RATE_USD}/hr
       </div>
       <div className="panel-tab-bar" style={{ marginBottom: 16 }}>
@@ -251,9 +251,9 @@ export function AnalyticsPanel() {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
           {metrics.map((m) => (
             <div key={m.label} className="panel-card">
-              <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>{m.label}</div>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 4 }}>{m.label}</div>
               <div style={{ fontSize: 22, fontWeight: 700, color: m.color }}>{m.value}</div>
-              <div style={{ fontSize: 12, color: m.change.startsWith("+") ? "var(--success-color)" : m.change.startsWith("-") ? "var(--error-color)" : "var(--text-secondary)", marginTop: 4 }}>
+              <div style={{ fontSize: "var(--font-size-base)", color: m.change.startsWith("+") ? "var(--success-color)" : m.change.startsWith("-") ? "var(--error-color)" : "var(--text-secondary)", marginTop: 4 }}>
                 {m.change} vs last month
               </div>
             </div>
@@ -283,7 +283,7 @@ export function AnalyticsPanel() {
                     <td><span style={{ fontWeight: 600 }}>{u.name}</span></td>
                     <td>{u.tasks}</td>
                     <td>{u.calls}</td>
-                    <td style={{ fontFamily: "monospace", fontSize: 12 }}>{u.tokens}</td>
+                    <td style={{ fontFamily: "monospace", fontSize: "var(--font-size-base)" }}>{u.tokens}</td>
                     <td>{u.cost}</td>
                     <td>{u.timeSaved}</td>
                   </tr>
@@ -301,8 +301,8 @@ export function AnalyticsPanel() {
           ) : modelRows.map((t) => (
             <div key={t.name} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
-                <div style={{ fontWeight: 600, fontSize: 14 }}>{t.name}</div>
-                <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 2 }}>
+                <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)" }}>{t.name}</div>
+                <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginTop: 2 }}>
                   {t.tasks} sessions | {t.calls} calls | {t.cost} | {t.timeSaved}
                 </div>
               </div>
@@ -315,7 +315,7 @@ export function AnalyticsPanel() {
       {tab === "export" && (
         <div>
           <div className="panel-card">
-            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Export Format</div>
+            <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", marginBottom: 8 }}>Export Format</div>
             <div style={{ display: "flex", gap: 8 }}>
               {["csv", "json"].map((f) => (
                 <button key={f} onClick={() => setExportFormat(f)}
@@ -326,13 +326,13 @@ export function AnalyticsPanel() {
             </div>
           </div>
           <div className="panel-card">
-            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Date Range</div>
+            <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", marginBottom: 8 }}>Date Range</div>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
-                style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)", fontSize: 13 }} />
+                style={{ padding: "4px 8px", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)", fontSize: "var(--font-size-md)" }} />
               <span style={{ color: "var(--text-secondary)" }}>to</span>
               <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
-                style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)", fontSize: 13 }} />
+                style={{ padding: "4px 8px", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)", fontSize: "var(--font-size-md)" }} />
             </div>
           </div>
           <button className="panel-btn panel-btn-primary" onClick={handleExport}>Export {exportFormat.toUpperCase()}</button>

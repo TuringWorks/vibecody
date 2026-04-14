@@ -125,7 +125,7 @@ export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
 
  if (!workspacePath) {
  return (
- <div style={{ padding: 24, textAlign: "center", color: "var(--text-secondary)", fontSize: 12 }}>
+ <div style={{ padding: 24, textAlign: "center", color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>
  Open a workspace to view available scripts.
  </div>
  );
@@ -152,7 +152,7 @@ export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
  <div style={{ flex: 1 }}>
  <h3>Script Runner</h3>
  {data && (
- <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+ <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
  {data.scripts.length} scripts · {data.detected_tools.join(", ")}
  </div>
  )}
@@ -178,7 +178,7 @@ export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
  key={cat}
  onClick={() => setFilter(cat)}
  style={{
- padding: "3px 10px", fontSize: 11, borderRadius: 12,
+ padding: "3px 10px", fontSize: "var(--font-size-sm)", borderRadius: 12,
  background: filter === cat ? (CATEGORY_COLORS[cat] ?? "var(--accent-color)") : "var(--bg-secondary)",
  border: `1px solid ${filter === cat ? (CATEGORY_COLORS[cat] ?? "var(--accent-color)") : "var(--border-color)"}`,
  color: filter === cat ? "var(--bg-primary)" : "var(--text-secondary)",
@@ -193,7 +193,7 @@ export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
  onChange={(e) => setSearch(e.target.value)}
  placeholder="Filter scripts…"
  style={{
- marginLeft: "auto", padding: "3px 8px", fontSize: 11,
+ marginLeft: "auto", padding: "3px 8px", fontSize: "var(--font-size-sm)",
  background: "var(--bg-secondary)", border: "1px solid var(--border-color)",
  borderRadius: 12, color: "var(--text-primary)", outline: "none", width: 140,
  }}
@@ -222,7 +222,7 @@ export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
  key={`${script.category}:${script.name}`}
  style={{
  display: "flex", alignItems: "center", gap: 10,
- padding: "8px 10px", borderRadius: 6,
+ padding: "8px 10px", borderRadius: "var(--radius-sm)",
  background: isRunning ? "color-mix(in srgb, var(--accent-blue) 12%, transparent)" : "var(--bg-secondary)",
  border: `1px solid ${isRunning ? "var(--accent-color)" : "var(--border-color)"}`,
  transition: "border-color 0.15s",
@@ -240,15 +240,15 @@ export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
 
  {/* Script info */}
  <div style={{ flex: 1, minWidth: 0 }}>
- <div style={{ fontSize: 12, fontWeight: 600, fontFamily: "var(--font-mono)" }}>
+ <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, fontFamily: "var(--font-mono)" }}>
  {script.name}
  </div>
  {script.description && (
- <div style={{ fontSize: 10, color: "var(--text-secondary)", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+ <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
  {script.description}
  </div>
  )}
- <div style={{ fontSize: 10, color: "var(--text-secondary)", fontFamily: "var(--font-mono)", opacity: 0.7, marginTop: 1 }}>
+ <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", fontFamily: "var(--font-mono)", opacity: 0.7, marginTop: 1 }}>
  {script.command}
  </div>
  </div>
@@ -303,7 +303,7 @@ export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
  {/* Result header */}
  {result && (
  <div style={{
- padding: "6px 12px", fontSize: 11, fontWeight: 600,
+ padding: "6px 12px", fontSize: "var(--font-size-sm)", fontWeight: 600,
  background: result.success ? "color-mix(in srgb, var(--accent-green) 10%, transparent)" : "color-mix(in srgb, var(--accent-rose) 10%, transparent)",
  color: result.success ? "var(--success-color)" : "var(--error-color)",
  borderBottom: "1px solid var(--border-color)",
@@ -322,7 +322,7 @@ export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
  ref={logRef}
  style={{
  maxHeight: 220, overflow: "auto", padding: "8px 12px",
- background: "var(--bg-primary)", fontFamily: "var(--font-mono)", fontSize: 11,
+ background: "var(--bg-primary)", fontFamily: "var(--font-mono)", fontSize: "var(--font-size-sm)",
  lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-all",
  }}
  >

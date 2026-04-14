@@ -121,7 +121,7 @@ export function InlineChat({ selection, position, provider, fileContent, onAccep
     width: 420,
     background: "var(--bg-secondary)",
     border: "1px solid var(--accent-color)",
-    borderRadius: 8,
+    borderRadius: "var(--radius-sm-alt)",
     boxShadow: "0 4px 24px rgba(0,0,0,0.5)",
     zIndex: 9999,
     padding: 12,
@@ -133,10 +133,10 @@ export function InlineChat({ selection, position, provider, fileContent, onAccep
    {/* Header — draggable */}
    <div
     onMouseDown={onDragStart}
-    style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, cursor: "grab", userSelect: "none" }}
+    style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", cursor: "grab", userSelect: "none" }}
    >
     <span style={{
-     padding: "2px 6px", borderRadius: 3, fontWeight: 600, fontSize: 10,
+     padding: "2px 6px", borderRadius: 3, fontWeight: 600, fontSize: "var(--font-size-xs)",
      background: isGenerateMode ? "var(--accent-color)" : "var(--accent-bg)",
      color: isGenerateMode ? "var(--btn-primary-fg)" : "var(--accent-color)",
     }}>
@@ -148,7 +148,7 @@ export function InlineChat({ selection, position, provider, fileContent, onAccep
       : `Lines ${selection.startLine + 1}–${selection.endLine + 1} · ${selection.language}`}
     </span>
     {selection.filePath && (
-     <span style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)", fontSize: 10, marginLeft: "auto" }}>
+     <span style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)", fontSize: "var(--font-size-xs)", marginLeft: "auto" }}>
       {selection.filePath.split("/").pop()}
      </span>
     )}
@@ -159,7 +159,7 @@ export function InlineChat({ selection, position, provider, fileContent, onAccep
     <pre
      style={{
       margin: 0, padding: "6px 8px", background: "var(--bg-tertiary)",
-      borderRadius: 4, fontSize: 11, maxHeight: 80, overflow: "auto",
+      borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-sm)", maxHeight: 80, overflow: "auto",
       color: "var(--text-primary)", whiteSpace: "pre-wrap", wordBreak: "break-all",
      }}
     >
@@ -180,7 +180,7 @@ export function InlineChat({ selection, position, provider, fileContent, onAccep
      style={{
       resize: "none", height: 60, width: "100%", boxSizing: "border-box",
       background: "var(--bg-primary)", border: "1px solid var(--border-color)",
-      borderRadius: 4, color: "var(--text-primary)", fontSize: 13,
+      borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", fontSize: "var(--font-size-md)",
       padding: "6px 32px 6px 8px", outline: "none",
      }}
     />
@@ -190,7 +190,7 @@ export function InlineChat({ selection, position, provider, fileContent, onAccep
      title={isListening ? "Stop listening" : "Voice input"}
      style={{
       position: "absolute", right: 4, top: 4,
-      width: 24, height: 24, borderRadius: 4, border: "none",
+      width: 24, height: 24, borderRadius: "var(--radius-xs-plus)", border: "none",
       background: isListening ? "var(--error-color)" : "transparent",
       color: isListening ? "var(--btn-primary-fg)" : "var(--text-secondary)",
       cursor: isTranscribing ? "wait" : "pointer", display: "flex",
@@ -209,7 +209,7 @@ export function InlineChat({ selection, position, provider, fileContent, onAccep
     <pre
      style={{
       margin: 0, padding: "6px 8px", background: "var(--bg-tertiary)",
-      borderRadius: 4, fontSize: 12, maxHeight: 200, overflow: "auto",
+      borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-base)", maxHeight: 200, overflow: "auto",
       color: loading ? "var(--text-secondary)" : "var(--text-primary)",
       whiteSpace: "pre-wrap", wordBreak: "break-all",
      }}
@@ -223,8 +223,8 @@ export function InlineChat({ selection, position, provider, fileContent, onAccep
     <button
      onClick={onReject}
      style={{
-      padding: "4px 12px", fontSize: 12, background: "transparent",
-      border: "1px solid var(--border-color)", borderRadius: 4,
+      padding: "4px 12px", fontSize: "var(--font-size-base)", background: "transparent",
+      border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)",
       color: "var(--text-secondary)", cursor: "pointer",
      }}
     >
@@ -235,8 +235,8 @@ export function InlineChat({ selection, position, provider, fileContent, onAccep
       onClick={handleSubmit}
       disabled={loading || !prompt.trim()}
       style={{
-       padding: "4px 12px", fontSize: 12, background: "var(--accent-color)",
-       border: "none", borderRadius: 4, color: "var(--btn-primary-fg)",
+       padding: "4px 12px", fontSize: "var(--font-size-base)", background: "var(--accent-color)",
+       border: "none", borderRadius: "var(--radius-xs-plus)", color: "var(--btn-primary-fg)",
        cursor: loading ? "wait" : "pointer", opacity: !prompt.trim() ? 0.5 : 1,
       }}
      >
@@ -248,8 +248,8 @@ export function InlineChat({ selection, position, provider, fileContent, onAccep
       <button
        onClick={() => { setResponse(""); setPrompt(""); }}
        style={{
-        padding: "4px 12px", fontSize: 12, background: "transparent",
-        border: "1px solid var(--border-color)", borderRadius: 4,
+        padding: "4px 12px", fontSize: "var(--font-size-base)", background: "transparent",
+        border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)",
         color: "var(--text-secondary)", cursor: "pointer",
        }}
       >
@@ -258,8 +258,8 @@ export function InlineChat({ selection, position, provider, fileContent, onAccep
       <button
        onClick={() => onAccept(response)}
        style={{
-        padding: "4px 12px", fontSize: 12, background: "var(--accent-color)",
-        border: "none", borderRadius: 4, color: "var(--btn-primary-fg)", cursor: "pointer",
+        padding: "4px 12px", fontSize: "var(--font-size-base)", background: "var(--accent-color)",
+        border: "none", borderRadius: "var(--radius-xs-plus)", color: "var(--btn-primary-fg)", cursor: "pointer",
        }}
       >
        {isGenerateMode ? "Insert" : "Accept"}

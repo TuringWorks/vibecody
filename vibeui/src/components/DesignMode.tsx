@@ -61,7 +61,7 @@ const tabDefs: { id: DesignTab; label: string }[] = [
 
 const tabStyle = (active: boolean): React.CSSProperties => ({
   padding: "7px 16px",
-  fontSize: 12,
+  fontSize: "var(--font-size-base)",
   fontWeight: active ? 600 : 400,
   cursor: "pointer",
   border: "none",
@@ -277,7 +277,7 @@ try {
           onBlur={() => {
             if (previewUrl.trim()) setPreviewUrl(normalizeUrl(previewUrl));
           }}
-          style={{ flex: 1, background: "var(--bg-tertiary)", border: `1px solid ${blockedError ? "var(--error-color, #e53e3e)" : "var(--border-color)"}`, borderRadius: 4, color: "inherit", padding: "4px 8px", fontSize: 12 }}
+          style={{ flex: 1, background: "var(--bg-tertiary)", border: `1px solid ${blockedError ? "var(--error-color, #e53e3e)" : "var(--border-color)"}`, borderRadius: "var(--radius-xs-plus)", color: "inherit", padding: "4px 8px", fontSize: "var(--font-size-base)" }}
           placeholder={previewSrcdoc ? "Showing generated preview — enter URL to load external" : "https://example.com"}
         />
         <button
@@ -299,11 +299,11 @@ try {
           style={{
             background: visualEditEnabled ? "var(--accent-color)" : "var(--bg-tertiary)",
             border: "1px solid var(--border-color)",
-            borderRadius: 4,
+            borderRadius: "var(--radius-xs-plus)",
             padding: "3px 10px",
             cursor: "pointer",
             color: "inherit",
-            fontSize: 12,
+            fontSize: "var(--font-size-base)",
             fontWeight: 600,
           }}
           title="Toggle visual element selection"
@@ -317,8 +317,8 @@ try {
         {blockedError ? (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 8, color: "var(--text-secondary)", padding: 32, textAlign: "center" }}>
             <div style={{ fontSize: 32 }}>⚠</div>
-            <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text-primary)" }}>URL blocked</div>
-            <div style={{ fontSize: 13, maxWidth: 360, lineHeight: 1.6 }}>
+            <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)", color: "var(--text-primary)" }}>URL blocked</div>
+            <div style={{ fontSize: "var(--font-size-md)", maxWidth: 360, lineHeight: 1.6 }}>
               This URL serves the VibeUI editor and cannot be loaded in the preview pane. Enter an external URL to preview.
             </div>
           </div>
@@ -346,18 +346,18 @@ try {
 
   const renderGenerate = () => (
     <div style={panelStyle}>
-      <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 12 }}>Generate Component</div>
+      <div style={{ fontWeight: 600, fontSize: "var(--font-size-xl)", marginBottom: 12 }}>Generate Component</div>
       <textarea
         value={aiInstruction}
         onChange={(e) => setAiInstruction(e.target.value)}
         placeholder="Describe a component to generate..."
         rows={5}
-        style={{ width: "100%", resize: "vertical", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 6, color: "inherit", padding: 12, fontSize: 13, boxSizing: "border-box" }}
+        style={{ width: "100%", resize: "vertical", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", color: "inherit", padding: 12, fontSize: "var(--font-size-md)", boxSizing: "border-box" }}
       />
       <button
         onClick={handleGenerateComponent}
         disabled={isGenerating || !aiInstruction.trim()}
-        style={{ width: "100%", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: 6, padding: "10px 0", cursor: "pointer", fontWeight: 600, fontSize: 14, marginTop: 8, opacity: isGenerating || !aiInstruction.trim() ? 0.5 : 1 }}
+        style={{ width: "100%", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-sm)", padding: "10px 0", cursor: "pointer", fontWeight: 600, fontSize: "var(--font-size-lg)", marginTop: 8, opacity: isGenerating || !aiInstruction.trim() ? 0.5 : 1 }}
       >
         {isGenerating ? "Generating..." : "Generate"}
       </button>
@@ -365,17 +365,17 @@ try {
       {generationResult && (
         <div style={{ marginTop: 16 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-            <div style={{ fontWeight: 600, fontSize: 13 }}>Generated Code</div>
+            <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)" }}>Generated Code</div>
             {previewSrcdoc && (
               <button
                 onClick={() => setActiveTab("preview")}
-                style={{ background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: 4, padding: "4px 10px", cursor: "pointer", fontSize: 11, fontWeight: 600 }}
+                style={{ background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", padding: "4px 10px", cursor: "pointer", fontSize: "var(--font-size-sm)", fontWeight: 600 }}
               >
                 View Preview
               </button>
             )}
           </div>
-          <pre style={{ fontSize: 12, color: "var(--text-success)", overflow: "auto", maxHeight: 500, whiteSpace: "pre", background: "var(--bg-secondary)", borderRadius: 6, padding: 12, border: "1px solid var(--border-color)" }}>
+          <pre style={{ fontSize: "var(--font-size-base)", color: "var(--text-success)", overflow: "auto", maxHeight: 500, whiteSpace: "pre", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: 12, border: "1px solid var(--border-color)" }}>
             {generationResult}
           </pre>
         </div>
@@ -385,22 +385,22 @@ try {
 
   const renderComponents = () => (
     <div style={panelStyle}>
-      <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 12 }}>Component Tree</div>
-      <div style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6 }}>
+      <div style={{ fontWeight: 600, fontSize: "var(--font-size-xl)", marginBottom: 12 }}>Component Tree</div>
+      <div style={{ fontSize: "var(--font-size-md)", color: "var(--text-secondary)", lineHeight: 1.6 }}>
         Component tree from your project files will appear here once a live dev server is running at the preview URL.
       </div>
-      <div style={{ marginTop: 20, padding: 16, background: "var(--bg-secondary)", borderRadius: 8, border: "1px solid var(--border-color)" }}>
-        <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8 }}>Quick actions</div>
+      <div style={{ marginTop: 20, padding: 16, background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", border: "1px solid var(--border-color)" }}>
+        <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 8 }}>Quick actions</div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button
             onClick={() => setActiveTab("generate")}
-            style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: 6, padding: "8px 14px", color: "var(--text-primary)", cursor: "pointer", fontSize: 12 }}
+            style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", padding: "8px 14px", color: "var(--text-primary)", cursor: "pointer", fontSize: "var(--font-size-base)" }}
           >
             Generate Component
           </button>
           <button
             onClick={() => setActiveTab("figma")}
-            style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: 6, padding: "8px 14px", color: "var(--text-primary)", cursor: "pointer", fontSize: 12 }}
+            style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", padding: "8px 14px", color: "var(--text-primary)", cursor: "pointer", fontSize: "var(--font-size-base)" }}
           >
             Import from Figma
           </button>
@@ -411,33 +411,33 @@ try {
 
   const renderInspector = () => (
     <div style={panelStyle}>
-      <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 12 }}>Element Inspector</div>
+      <div style={{ fontWeight: 600, fontSize: "var(--font-size-xl)", marginBottom: 12 }}>Element Inspector</div>
       {selectedElement ? (
         <div>
-          <div style={{ padding: 12, background: "var(--bg-secondary)", borderRadius: 8, border: "1px solid var(--border-color)", marginBottom: 12 }}>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>Component</div>
-            <div style={{ fontSize: 14, fontFamily: "var(--font-mono)", fontWeight: 600 }}>
+          <div style={{ padding: 12, background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", border: "1px solid var(--border-color)", marginBottom: 12 }}>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 4 }}>Component</div>
+            <div style={{ fontSize: "var(--font-size-lg)", fontFamily: "var(--font-mono)", fontWeight: 600 }}>
               {selectedElement.reactComponent ?? `<${selectedElement.tagName}>`}
             </div>
-            <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 6, wordBreak: "break-all" }}>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 6, wordBreak: "break-all" }}>
               {selectedElement.selector}
             </div>
           </div>
-          <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>Outer HTML</div>
-          <pre style={{ fontSize: 11, overflow: "auto", maxHeight: 200, whiteSpace: "pre", background: "var(--bg-secondary)", borderRadius: 6, padding: 10, border: "1px solid var(--border-color)" }}>
+          <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 4 }}>Outer HTML</div>
+          <pre style={{ fontSize: "var(--font-size-sm)", overflow: "auto", maxHeight: 200, whiteSpace: "pre", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: 10, border: "1px solid var(--border-color)" }}>
             {selectedElement.outerHTML}
           </pre>
           {generationResult && (
             <div style={{ marginTop: 12 }}>
-              <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>Edit Result</div>
-              <pre style={{ fontSize: 11, color: "var(--text-success)", overflow: "auto", maxHeight: 300, whiteSpace: "pre", background: "var(--bg-secondary)", borderRadius: 6, padding: 10, border: "1px solid var(--border-color)" }}>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 4 }}>Edit Result</div>
+              <pre style={{ fontSize: "var(--font-size-sm)", color: "var(--text-success)", overflow: "auto", maxHeight: 300, whiteSpace: "pre", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: 10, border: "1px solid var(--border-color)" }}>
                 {generationResult}
               </pre>
             </div>
           )}
         </div>
       ) : (
-        <div style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6 }}>
+        <div style={{ fontSize: "var(--font-size-md)", color: "var(--text-secondary)", lineHeight: 1.6 }}>
           No element selected. Go to the <button onClick={() => setActiveTab("preview")} style={{ background: "none", border: "none", color: "var(--accent-color)", cursor: "pointer", padding: 0, fontSize: "inherit", textDecoration: "underline" }}>Preview</button> tab, enable <strong>Visual Edit</strong>, and click an element to inspect it.
         </div>
       )}
@@ -456,7 +456,7 @@ try {
             <div key={s} style={{ display: "flex", alignItems: "center", flex: i < steps.length - 1 ? 1 : undefined }}>
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
                 <div style={{
-                  width: 20, height: 20, borderRadius: "50%", fontSize: 10, fontWeight: 700,
+                  width: 20, height: 20, borderRadius: "50%", fontSize: "var(--font-size-xs)", fontWeight: 700,
                   display: "flex", alignItems: "center", justifyContent: "center",
                   background: i <= currentStep ? "var(--accent-blue)" : "var(--bg-secondary)",
                   color: i <= currentStep ? "#fff" : "var(--text-secondary)",
@@ -472,31 +472,31 @@ try {
         </div>
 
         {/* Form */}
-        <div style={{ background: "var(--bg-secondary)", borderRadius: 8, border: "1px solid var(--border-color)", padding: "12px 14px", marginBottom: 10 }}>
-          <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 10, lineHeight: 1.5 }}>
+        <div style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", border: "1px solid var(--border-color)", padding: "12px 14px", marginBottom: 10 }}>
+          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 10, lineHeight: 1.5 }}>
             Get your token from <em>Figma → Settings → Personal access tokens</em>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <div>
-              <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 3 }}>Figma File URL</div>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 3 }}>Figma File URL</div>
               <input
                 value={figmaUrl}
                 onChange={(e) => setFigmaUrl(e.target.value)}
                 placeholder="https://www.figma.com/file/…"
-                style={{ width: "100%", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: 5, color: "inherit", padding: "5px 8px", fontSize: 12, boxSizing: "border-box" }}
+                style={{ width: "100%", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: 5, color: "inherit", padding: "5px 8px", fontSize: "var(--font-size-base)", boxSizing: "border-box" }}
               />
             </div>
             <div>
-              <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 3 }}>Personal Access Token</div>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 3 }}>Personal Access Token</div>
               <input
                 type="password"
                 value={figmaToken}
                 onChange={(e) => setFigmaToken(e.target.value)}
                 placeholder="figd_…"
-                style={{ width: "100%", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: 5, color: "inherit", padding: "5px 8px", fontSize: 12, boxSizing: "border-box" }}
+                style={{ width: "100%", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: 5, color: "inherit", padding: "5px 8px", fontSize: "var(--font-size-base)", boxSizing: "border-box" }}
               />
             </div>
-            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--text-secondary)", cursor: "pointer" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", cursor: "pointer" }}>
               <input
                 type="checkbox"
                 checked={figmaSaveToken}
@@ -510,7 +510,7 @@ try {
         <button
           onClick={handleFigmaImport}
           disabled={btnDisabled}
-          style={{ width: "100%", background: "var(--accent-blue)", color: "#fff", border: "none", borderRadius: 6, padding: "8px 0", cursor: btnDisabled ? "not-allowed" : "pointer", fontWeight: 600, fontSize: 13, opacity: btnDisabled ? 0.5 : 1, marginBottom: 14 }}
+          style={{ width: "100%", background: "var(--accent-blue)", color: "var(--btn-primary-fg, #fff)", border: "none", borderRadius: "var(--radius-sm)", padding: "8px 0", cursor: btnDisabled ? "not-allowed" : "pointer", fontWeight: 600, fontSize: "var(--font-size-md)", opacity: btnDisabled ? 0.5 : 1, marginBottom: 14 }}
         >
           {isGenerating ? "Importing…" : "Import & Generate Components"}
         </button>
@@ -518,20 +518,20 @@ try {
         {/* Results */}
         {figmaResult.length > 0 && (
           <div>
-            <div style={{ fontSize: 12, color: "var(--text-success)", fontWeight: 600, marginBottom: 8 }}>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-success)", fontWeight: 600, marginBottom: 8 }}>
               {figmaResult.length} component{figmaResult.length > 1 ? "s" : ""} generated — click a file to preview
             </div>
             {figmaResult.map((f) => (
-              <div key={f.path} style={{ marginBottom: 6, borderRadius: 6, border: "1px solid var(--border-color)", overflow: "hidden" }}>
+              <div key={f.path} style={{ marginBottom: 6, borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", overflow: "hidden" }}>
                 <div
                   onClick={() => setFigmaExpandedFile(figmaExpandedFile === f.path ? null : f.path)}
                   style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "var(--bg-secondary)", cursor: "pointer" }}
                 >
-                  <span style={{ flex: 1, fontSize: 11, fontFamily: "var(--font-mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.path}</span>
+                  <span style={{ flex: 1, fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.path}</span>
                   <button
                     onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(f.content); }}
                     title="Copy code"
-                    style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: 10, padding: "2px 4px", borderRadius: 3 }}
+                    style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: "var(--font-size-xs)", padding: "2px 4px", borderRadius: 3 }}
                   >
                     Copy
                   </button>
@@ -542,13 +542,13 @@ try {
                       setActiveTab("preview");
                     }}
                     title="Preview in browser"
-                    style={{ background: "none", border: "none", color: "var(--accent-blue)", cursor: "pointer", fontSize: 10, padding: "2px 4px", borderRadius: 3 }}
+                    style={{ background: "none", border: "none", color: "var(--accent-blue)", cursor: "pointer", fontSize: "var(--font-size-xs)", padding: "2px 4px", borderRadius: 3 }}
                   >
                     Preview
                   </button>
                 </div>
                 {figmaExpandedFile === f.path && (
-                  <pre style={{ margin: 0, padding: "10px 12px", fontSize: 10, lineHeight: 1.5, overflow: "auto", maxHeight: 220, background: "var(--bg-tertiary)", color: "var(--text-primary)" }}>
+                  <pre style={{ margin: 0, padding: "10px 12px", fontSize: "var(--font-size-xs)", lineHeight: 1.5, overflow: "auto", maxHeight: 220, background: "var(--bg-tertiary)", color: "var(--text-primary)" }}>
                     <code>{f.content}</code>
                   </pre>
                 )}

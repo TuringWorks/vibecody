@@ -167,8 +167,8 @@ const DEPLOY_TARGETS: DeployTarget[] = [
 
 // ── Styles ───────────────────────────────────────────────────────────────
 
-const headingStyle: React.CSSProperties = { margin: "0 0 4px", fontSize: 15, fontWeight: 600 };
-const badgeStyle = (color: string): React.CSSProperties => ({ display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600, color: "var(--btn-primary-fg)", background: color });
+const headingStyle: React.CSSProperties = { margin: "0 0 4px", fontSize: "var(--font-size-xl)", fontWeight: 600 };
+const badgeStyle = (color: string): React.CSSProperties => ({ display: "inline-block", padding: "2px 8px", borderRadius: "var(--radius-md)", fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--btn-primary-fg)", background: color });
 
 // ── Component ────────────────────────────────────────────────────────────
 
@@ -278,22 +278,22 @@ export function AiMlWorkflowPanel() {
 
               {/* Expanded config for selected stage */}
               {selectedStage === stage.id && stage.status !== "pending" && (
-                <div style={{ marginTop: 10, padding: 10, background: "var(--bg-tertiary)", borderRadius: 4, fontSize: 12 }}>
+                <div style={{ marginTop: 10, padding: 10, background: "var(--bg-tertiary)", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-base)" }}>
                   {stage.id === "data" && (
                     <div>
                       <div className="panel-label">Data Sources</div>
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
                         {["Codebase files", "Git history", "Agent traces", "Documents", "CSV/JSON", "PDF (scientific)"].map(s => (
-                          <span key={s} className="panel-btn panel-btn-secondary" style={{ fontSize: 11 }}>{s}</span>
+                          <span key={s} className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-sm)" }}>{s}</span>
                         ))}
                       </div>
                       <div className="panel-label">Document Processors</div>
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
                         {["MinerU (PDF to MD)", "Docling (IBM)", "Unstructured", "LlamaParse", "VibeCody Built-in"].map(p => (
-                          <span key={p} className="panel-btn panel-btn-secondary" style={{ fontSize: 11 }}>{p}</span>
+                          <span key={p} className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-sm)" }}>{p}</span>
                         ))}
                       </div>
-                      <div style={{ marginTop: 8, color: "var(--text-secondary)", fontSize: 11 }}>
+                      <div style={{ marginTop: 8, color: "var(--text-secondary)", fontSize: "var(--font-size-sm)" }}>
                         <div>CLI: <code>/ingest ./docs</code> | <code>/train dataset from-codebase</code> | <code>/train dataset from-git</code></div>
                         <div style={{ marginTop: 4 }}>MinerU: <code>magic-pdf -p input.pdf -o output/ -m auto</code></div>
                       </div>
@@ -304,7 +304,7 @@ export function AiMlWorkflowPanel() {
                       <div className="panel-label">Vector DB Provider</div>
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                         {["In-Memory", "Qdrant", "Pinecone", "pgvector", "Milvus", "Weaviate", "Chroma"].map(p => (
-                          <span key={p} className="panel-btn panel-btn-secondary" style={{ fontSize: 11 }}>{p}</span>
+                          <span key={p} className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-sm)" }}>{p}</span>
                         ))}
                       </div>
                       <div style={{ marginTop: 8, color: "var(--text-secondary)" }}>
@@ -317,19 +317,19 @@ export function AiMlWorkflowPanel() {
                       <div className="panel-label">Fine-Tuning Libraries</div>
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
                         {["Unsloth", "Axolotl", "LLaMA Factory", "DeepSpeed", "HuggingFace TRL", "PEFT"].map(p => (
-                          <span key={p} className="panel-btn panel-btn-secondary" style={{ fontSize: 11 }}>{p}</span>
+                          <span key={p} className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-sm)" }}>{p}</span>
                         ))}
                       </div>
                       <div className="panel-label">Cloud Providers</div>
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
                         {["OpenAI", "Together AI", "Fireworks", "Local (LoRA/QLoRA)"].map(p => (
-                          <span key={p} className="panel-btn panel-btn-secondary" style={{ fontSize: 11 }}>{p}</span>
+                          <span key={p} className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-sm)" }}>{p}</span>
                         ))}
                       </div>
                       <div className="panel-label">Notebook Environments</div>
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
                         {["Google Colab (free T4)", "Kaggle (free P100)", "SageMaker Studio", "Lightning AI", "Local Jupyter"].map(e => (
-                          <span key={e} className="panel-btn panel-btn-secondary" style={{ fontSize: 11 }}>{e}</span>
+                          <span key={e} className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-sm)" }}>{e}</span>
                         ))}
                       </div>
                       <div className="panel-label">Alignment Methods: SFT, DPO, PPO, RLHF, KTO</div>
@@ -344,7 +344,7 @@ export function AiMlWorkflowPanel() {
                       <div className="panel-label">Framework</div>
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                         {["DeepSpeed", "FSDP", "Megatron", "Horovod", "Ray Train", "Colossal AI"].map(f => (
-                          <span key={f} className="panel-btn panel-btn-secondary" style={{ fontSize: 11 }}>{f}</span>
+                          <span key={f} className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-sm)" }}>{f}</span>
                         ))}
                       </div>
                       <div style={{ marginTop: 6 }}>
@@ -361,7 +361,7 @@ export function AiMlWorkflowPanel() {
                       <div className="panel-label">Quantization Method</div>
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                         {["FP16", "BF16", "Int8", "Int4", "GPTQ", "AWQ", "SqueezeLLM", "GGUF-Q4", "GGUF-Q5"].map(q => (
-                          <span key={q} className="panel-btn panel-btn-secondary" style={{ fontSize: 11 }}>{q}</span>
+                          <span key={q} className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-sm)" }}>{q}</span>
                         ))}
                       </div>
                       <div style={{ marginTop: 8, color: "var(--text-secondary)" }}>
@@ -374,7 +374,7 @@ export function AiMlWorkflowPanel() {
                       <div className="panel-label">Inference Backend</div>
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                         {["vLLM", "TGI", "Triton", "llama.cpp", "Ollama", "TorchServe", "ONNX Runtime", "TRT-LLM"].map(b => (
-                          <span key={b} className="panel-btn panel-btn-secondary" style={{ fontSize: 11 }}>{b}</span>
+                          <span key={b} className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-sm)" }}>{b}</span>
                         ))}
                       </div>
                       <div style={{ marginTop: 8, color: "var(--text-secondary)" }}>
@@ -387,16 +387,16 @@ export function AiMlWorkflowPanel() {
                       <div className="panel-label">Agent Capabilities</div>
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
                         {["Tool Calling (MCP)", "Agent Protocol (ACP)", "RAG Context", "Memory", "Multi-Agent Teams", "Reasoning (think tool)"].map(c => (
-                          <span key={c} className="panel-btn panel-btn-secondary" style={{ fontSize: 11 }}>{c}</span>
+                          <span key={c} className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-sm)" }}>{c}</span>
                         ))}
                       </div>
                       <div className="panel-label">RL Training Environments</div>
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
                         {["NeMo Gym (60+ tasks)", "OpenAI Gymnasium", "Reasoning Gym", "SWE-Bench", "TRL PPO (RLHF)", "Aviary (tool-use)", "LMSYS Arena"].map(e => (
-                          <span key={e} className="panel-btn panel-btn-secondary" style={{ fontSize: 11 }}>{e}</span>
+                          <span key={e} className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-sm)" }}>{e}</span>
                         ))}
                       </div>
-                      <div style={{ marginTop: 8, color: "var(--text-secondary)", fontSize: 11 }}>
+                      <div style={{ marginTop: 8, color: "var(--text-secondary)", fontSize: "var(--font-size-sm)" }}>
                         <div>CLI: <code>/agent "task"</code> | <code>/team create my-team</code></div>
                         <div style={{ marginTop: 4 }}>RL: <code>/benchmark run --env nemo-gym --tasks gpqa,coding</code></div>
                       </div>
@@ -425,7 +425,7 @@ export function AiMlWorkflowPanel() {
       {/* ── EXAMPLES TAB ──────────────────────────────────────────────── */}
       {tab === "examples" && (
         <div>
-          <div className="panel-card" style={{ fontSize: 12 }}>
+          <div className="panel-card" style={{ fontSize: "var(--font-size-base)" }}>
             {EXAMPLE_WORKFLOWS.length} end-to-end examples you can try today. Each uses existing VibeCody commands.
           </div>
 
@@ -433,23 +433,23 @@ export function AiMlWorkflowPanel() {
             <div key={idx} className="panel-card" style={{ cursor: "pointer" }} onClick={() => setExpandedExample(expandedExample === idx ? null : idx)}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600, fontSize: 14 }}>{ex.title}</div>
+                  <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)" }}>{ex.title}</div>
                   <div className="panel-label">{ex.description}</div>
                   <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
                     <span style={badgeStyle(difficultyColor(ex.difficulty))}>{ex.difficulty}</span>
-                    <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{ex.timeEstimate}</span>
-                    <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{ex.stages.length} stages</span>
+                    <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{ex.timeEstimate}</span>
+                    <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{ex.stages.length} stages</span>
                   </div>
                 </div>
                 <span style={{ fontSize: 16, color: "var(--text-secondary)" }}>{expandedExample === idx ? "v" : ">"}</span>
               </div>
 
               {expandedExample === idx && (
-                <div style={{ marginTop: 12, padding: 10, background: "var(--bg-tertiary)", borderRadius: 4 }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 6, color: "var(--text-secondary)", textTransform: "uppercase" }}>
+                <div style={{ marginTop: 12, padding: 10, background: "var(--bg-tertiary)", borderRadius: "var(--radius-xs-plus)" }}>
+                  <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, marginBottom: 6, color: "var(--text-secondary)", textTransform: "uppercase" }}>
                     Stages: {ex.stages.join(" > ")}
                   </div>
-                  <div style={{ fontSize: 12 }}>
+                  <div style={{ fontSize: "var(--font-size-base)" }}>
                     {ex.steps.map((step, si) => (
                       <div key={si} style={{
                         padding: "4px 0",
@@ -488,7 +488,7 @@ export function AiMlWorkflowPanel() {
                     <span style={{ ...badgeStyle(categoryColor(target.category)), marginLeft: 8 }}>{target.category}</span>
                   </div>
                   <div className="panel-label">{target.description}</div>
-                  <code style={{ fontSize: 11, color: "var(--accent-primary, #7c6aef)" }}>{target.command}</code>
+                  <code style={{ fontSize: "var(--font-size-sm)", color: "var(--accent-primary, #7c6aef)" }}>{target.command}</code>
                 </div>
               </div>
             </div>
@@ -501,7 +501,7 @@ export function AiMlWorkflowPanel() {
         <div>
           <div className="panel-card">
             <div className="panel-label">Monitoring Commands</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 12 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: "var(--font-size-base)" }}>
               <div><code>/metering status</code> — Token usage, costs, budgets per provider</div>
               <div><code>/cost</code> — Current session cost breakdown</div>
               <div><code>/benchmark run</code> — SWE-bench performance evaluation</div>
@@ -514,7 +514,7 @@ export function AiMlWorkflowPanel() {
 
           <div className="panel-card">
             <div className="panel-label">VibeUI Panels for Monitoring</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: "var(--font-size-base)" }}>
               <div><strong>Cost Observatory</strong> — Per-provider spend, budget alerts, historical trends</div>
               <div><strong>Model Arena</strong> — Blind A/B testing with ELO rankings</div>
               <div><strong>Usage Metering</strong> — Credit budgets, team allocation, chargeback reports</div>

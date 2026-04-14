@@ -170,13 +170,13 @@ mermaid.initialize({ startOnLoad: true, theme: 'dark' });
   return (
     <div className="panel-container">
       <div className="panel-header" style={{ padding: "8px 12px", justifyContent: "space-between" }}>
-        <span style={{ fontWeight: 600, fontSize: 14 }}>AI Diagram Generator</span>
+        <span style={{ fontWeight: 600, fontSize: "var(--font-size-lg)" }}>AI Diagram Generator</span>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          {statusMsg && <span style={{ fontSize: 11, color: "var(--text-success)" }}>✓ {statusMsg}</span>}
+          {statusMsg && <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-success)" }}>✓ {statusMsg}</span>}
           {history.length > 0 && (
             <button
               onClick={() => setShowHistory(!showHistory)}
-              style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: 4, padding: "3px 8px", cursor: "pointer", color: "inherit", fontSize: 11 }}
+              style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: "3px 8px", cursor: "pointer", color: "inherit", fontSize: "var(--font-size-sm)" }}
             >
               History ({history.length})
             </button>
@@ -190,11 +190,11 @@ mermaid.initialize({ startOnLoad: true, theme: 'dark' });
           <div style={{ flex: 1, overflow: "auto", padding: 16 }}>
             {/* Diagram kind */}
             <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 6, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>Diagram Type</div>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 6, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>Diagram Type</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                 {(Object.keys(KIND_LABELS) as DiagKind[]).map((k) => (
                   <button key={k} onClick={() => setKind(k)}
-                    style={{ background: kind === k ? "var(--accent-blue)" : "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: 4, padding: "3px 8px", cursor: "pointer", color: kind === k ? "#fff" : "inherit", fontSize: 11, fontWeight: kind === k ? 600 : 400 }}
+                    style={{ background: kind === k ? "var(--accent-blue)" : "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: "3px 8px", cursor: "pointer", color: kind === k ? "#fff" : "inherit", fontSize: "var(--font-size-sm)", fontWeight: kind === k ? 600 : 400 }}
                   >{KIND_LABELS[k]}</button>
                 ))}
               </div>
@@ -202,11 +202,11 @@ mermaid.initialize({ startOnLoad: true, theme: 'dark' });
 
             {/* Output format */}
             <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 6, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>Output Format</div>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 6, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>Output Format</div>
               <div style={{ display: "flex", gap: 4 }}>
                 {(Object.keys(FORMAT_LABELS) as DiagFormat[]).map((f) => (
                   <button key={f} onClick={() => setFormat(f)}
-                    style={{ background: format === f ? "var(--accent-blue)" : "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: 4, padding: "3px 8px", cursor: "pointer", color: format === f ? "#fff" : "inherit", fontSize: 11, fontWeight: format === f ? 600 : 400 }}
+                    style={{ background: format === f ? "var(--accent-blue)" : "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: "3px 8px", cursor: "pointer", color: format === f ? "#fff" : "inherit", fontSize: "var(--font-size-sm)", fontWeight: format === f ? 600 : 400 }}
                   >{FORMAT_LABELS[f]}</button>
                 ))}
               </div>
@@ -214,18 +214,18 @@ mermaid.initialize({ startOnLoad: true, theme: 'dark' });
 
             {/* Description */}
             <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 6, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>Description</div>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 6, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>Description</div>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Describe the system or process to diagram…"
                 rows={6}
-                style={{ width: "100%", resize: "vertical", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 6, color: "inherit", padding: 10, fontSize: 13, boxSizing: "border-box" as const }}
+                style={{ width: "100%", resize: "vertical", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", color: "inherit", padding: 10, fontSize: "var(--font-size-md)", boxSizing: "border-box" as const }}
               />
             </div>
 
             {error && (
-              <div style={{ marginBottom: 12, padding: "8px 10px", background: "var(--bg-secondary)", border: "1px solid var(--error-color, #f85149)", borderRadius: 6, fontSize: 12, color: "var(--error-color, #f85149)" }}>
+              <div style={{ marginBottom: 12, padding: "8px 10px", background: "var(--bg-secondary)", border: "1px solid var(--error-color, #f85149)", borderRadius: "var(--radius-sm)", fontSize: "var(--font-size-base)", color: "var(--error-color, #f85149)" }}>
                 {error}
               </div>
             )}
@@ -233,17 +233,17 @@ mermaid.initialize({ startOnLoad: true, theme: 'dark' });
             <button
               onClick={handleGenerate}
               disabled={isGenerating || !description.trim()}
-              style={{ width: "100%", background: "var(--accent-blue)", color: "#fff", border: "none", borderRadius: 6, padding: "10px 0", cursor: "pointer", fontWeight: 600, fontSize: 14, opacity: isGenerating || !description.trim() ? 0.5 : 1 }}
+              style={{ width: "100%", background: "var(--accent-blue)", color: "var(--btn-primary-fg, #fff)", border: "none", borderRadius: "var(--radius-sm)", padding: "10px 0", cursor: "pointer", fontWeight: 600, fontSize: "var(--font-size-lg)", opacity: isGenerating || !description.trim() ? 0.5 : 1 }}
             >
               {isGenerating ? "Generating…" : "Generate Diagram"}
             </button>
 
             {/* Sample prompts */}
             <div style={{ marginTop: 16 }}>
-              <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 6, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>Examples</div>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 6, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>Examples</div>
               {SAMPLE_PROMPTS.map((p, i) => (
                 <button key={i} onClick={() => applySamplePrompt(p)}
-                  style={{ display: "block", width: "100%", textAlign: "left", background: "none", border: "none", borderBottom: "1px solid var(--border-color)", padding: "6px 0", cursor: "pointer", color: "var(--text-secondary)", fontSize: 12, lineHeight: 1.5 }}
+                  style={{ display: "block", width: "100%", textAlign: "left", background: "none", border: "none", borderBottom: "1px solid var(--border-color)", padding: "6px 0", cursor: "pointer", color: "var(--text-secondary)", fontSize: "var(--font-size-base)", lineHeight: 1.5 }}
                 >
                   <span style={{ color: "var(--accent-blue)", marginRight: 6 }}>[{KIND_LABELS[p.kind]}]</span>
                   {p.text.slice(0, 60)}{p.text.length > 60 ? "…" : ""}
@@ -259,20 +259,20 @@ mermaid.initialize({ startOnLoad: true, theme: 'dark' });
             <>
               {/* Toolbar */}
               <div style={{ padding: "6px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 6, flexShrink: 0 }}>
-                <span style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: "26px" }}>{FORMAT_LABELS[format]} • {KIND_LABELS[kind]}</span>
+                <span style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", lineHeight: "26px" }}>{FORMAT_LABELS[format]} • {KIND_LABELS[kind]}</span>
                 <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
                   <button onClick={copyOutput}
-                    style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: 4, padding: "3px 8px", cursor: "pointer", color: "inherit", fontSize: 11 }}>Copy</button>
+                    style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: "3px 8px", cursor: "pointer", color: "inherit", fontSize: "var(--font-size-sm)" }}>Copy</button>
                   {workspacePath && (
                     <button onClick={saveToWorkspace}
-                      style={{ background: "var(--accent-blue)", border: "none", borderRadius: 4, padding: "3px 8px", cursor: "pointer", color: "#fff", fontSize: 11, fontWeight: 600 }}>Save</button>
+                      style={{ background: "var(--accent-blue)", border: "none", borderRadius: "var(--radius-xs-plus)", padding: "3px 8px", cursor: "pointer", color: "var(--btn-primary-fg, #fff)", fontSize: "var(--font-size-sm)", fontWeight: 600 }}>Save</button>
                   )}
                 </div>
               </div>
               <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
                 {/* Code pane */}
                 <div style={{ flex: 1, overflow: "auto", padding: 12, borderRight: previewHtml ? "1px solid var(--border-color)" : "none" }}>
-                  <pre style={{ fontSize: 12, fontFamily: "var(--font-mono)", whiteSpace: "pre", color: "var(--text-primary)", margin: 0 }}>
+                  <pre style={{ fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)", whiteSpace: "pre", color: "var(--text-primary)", margin: 0 }}>
                     {output}
                   </pre>
                 </div>
@@ -293,8 +293,8 @@ mermaid.initialize({ startOnLoad: true, theme: 'dark' });
           ) : (
             <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, color: "var(--text-secondary)" }}>
               <div style={{ fontSize: 40 }}>📐</div>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>AI Diagram Generator</div>
-              <div style={{ fontSize: 12, maxWidth: 340, textAlign: "center", lineHeight: 1.6 }}>
+              <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600 }}>AI Diagram Generator</div>
+              <div style={{ fontSize: "var(--font-size-base)", maxWidth: 340, textAlign: "center", lineHeight: 1.6 }}>
                 Describe a system, process, or architecture in plain language. Choose a diagram type and format, then click Generate.
               </div>
             </div>
@@ -304,14 +304,14 @@ mermaid.initialize({ startOnLoad: true, theme: 'dark' });
         {/* History sidebar */}
         {showHistory && (
           <div style={{ width: 240, borderLeft: "1px solid var(--border-color)", overflow: "auto" }}>
-            <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border-color)", fontWeight: 600, fontSize: 13 }}>History</div>
+            <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border-color)", fontWeight: 600, fontSize: "var(--font-size-md)" }}>History</div>
             {history.map((h) => (
               <div key={h.id} onClick={() => loadFromHistory(h)}
-                style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", cursor: "pointer", fontSize: 12 }}
+                style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", cursor: "pointer", fontSize: "var(--font-size-base)" }}
               >
                 <div style={{ fontWeight: 600, marginBottom: 2 }}>{KIND_LABELS[h.kind]}</div>
                 <div style={{ color: "var(--text-secondary)", lineHeight: 1.4 }}>{h.description}</div>
-                <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4 }}>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 4 }}>
                   {FORMAT_LABELS[h.format]} • {new Date(h.timestamp).toLocaleTimeString()}
                 </div>
               </div>

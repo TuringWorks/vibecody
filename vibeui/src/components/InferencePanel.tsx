@@ -77,10 +77,10 @@ const inputStyle: React.CSSProperties = {
   width: "100%",
   background: "var(--bg-secondary)",
   border: "1px solid var(--border-color)",
-  borderRadius: 4,
+  borderRadius: "var(--radius-xs-plus)",
   color: "var(--text-primary)",
   padding: "5px 8px",
-  fontSize: 12,
+  fontSize: "var(--font-size-base)",
   boxSizing: "border-box",
 };
 
@@ -89,10 +89,10 @@ const selectStyle: React.CSSProperties = { ...inputStyle };
 const codeBlock: React.CSSProperties = {
   background: "var(--bg-secondary)",
   border: "1px solid var(--border-color)",
-  borderRadius: 4,
+  borderRadius: "var(--radius-xs-plus)",
   padding: 12,
   fontFamily: "var(--font-mono)",
-  fontSize: 11,
+  fontSize: "var(--font-size-sm)",
   whiteSpace: "pre-wrap",
   wordBreak: "break-all",
   color: "var(--text-primary)",
@@ -465,7 +465,7 @@ export function InferencePanel() {
                 onChange={(e) => updateDeploy("gpuMemUtil", Number(e.target.value))}
                 style={{ width: "100%", accentColor: "var(--accent-color)" }}
               />
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, opacity: 0.5 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--font-size-xs)", opacity: 0.5 }}>
                 <span>10%</span><span>100%</span>
               </div>
             </div>
@@ -490,10 +490,10 @@ export function InferencePanel() {
             {generatedCli && (
               <div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)" }}>CLI Command</span>
+                  <span style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, color: "var(--text-secondary)" }}>CLI Command</span>
                   <button
                     className="panel-btn panel-btn-secondary"
-                    style={{ padding: "2px 8px", fontSize: 10 }}
+                    style={{ padding: "2px 8px", fontSize: "var(--font-size-xs)" }}
                     onClick={() => navigator.clipboard.writeText(generatedCli)}
                   >
                     Copy
@@ -505,10 +505,10 @@ export function InferencePanel() {
             {generatedCompose && (
               <div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)" }}>docker-compose.yml</span>
+                  <span style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, color: "var(--text-secondary)" }}>docker-compose.yml</span>
                   <button
                     className="panel-btn panel-btn-secondary"
-                    style={{ padding: "2px 8px", fontSize: 10 }}
+                    style={{ padding: "2px 8px", fontSize: "var(--font-size-xs)" }}
                     onClick={() => navigator.clipboard.writeText(generatedCompose)}
                   >
                     Copy
@@ -525,7 +525,7 @@ export function InferencePanel() {
           <div>
             {/* Entry form */}
             <div className="panel-card" style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 8, color: "var(--text-secondary)" }}>Add Benchmark Entry</div>
+              <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, marginBottom: 8, color: "var(--text-secondary)" }}>Add Benchmark Entry</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr repeat(3, 1fr) auto", gap: 8, alignItems: "end" }}>
                 <div>
                   <label className="panel-label">Backend</label>
@@ -590,7 +590,7 @@ export function InferencePanel() {
               </div>
             ) : (
               <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, fontFamily: "var(--font-mono)" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)" }}>
                   <thead>
                     <tr style={{ background: "var(--bg-secondary)" }}>
                       <th style={{ padding: "6px 8px", textAlign: "center", borderBottom: "1px solid var(--border-color)", fontWeight: 600, width: 36 }}>Cmp</th>
@@ -623,7 +623,7 @@ export function InferencePanel() {
                         <td style={{ padding: "4px 8px", textAlign: "center", borderBottom: "1px solid var(--border-color)" }}>
                           <button
                             onClick={() => removeBenchmark(b.id)}
-                            style={{ background: "none", border: "none", color: "var(--error-color)", cursor: "pointer", fontSize: 14 }}
+                            style={{ background: "none", border: "none", color: "var(--error-color)", cursor: "pointer", fontSize: "var(--font-size-lg)" }}
                             title="Remove"
                           >
                             x
@@ -639,7 +639,7 @@ export function InferencePanel() {
             {/* Comparison view */}
             {comparedEntries.length >= 2 && (
               <div style={{ marginTop: 20 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 8, color: "var(--text-secondary)" }}>
+                <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, marginBottom: 8, color: "var(--text-secondary)" }}>
                   Comparison ({comparedEntries.length} selected)
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: `repeat(${comparedEntries.length}, 1fr)`, gap: 12 }}>
@@ -649,22 +649,22 @@ export function InferencePanel() {
                     const bestVram = Math.min(...comparedEntries.map((e) => e.vram));
                     return (
                       <div key={b.id} className="panel-card">
-                        <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 8 }}>
+                        <div style={{ fontWeight: 600, fontSize: "var(--font-size-base)", marginBottom: 8 }}>
                           {BACKENDS.find((x) => x.value === b.backend)?.label} — {b.model}
                         </div>
-                        <div style={{ fontSize: 11, marginBottom: 4 }}>
+                        <div style={{ fontSize: "var(--font-size-sm)", marginBottom: 4 }}>
                           <span style={{ opacity: 0.6 }}>TTFT: </span>
                           <span style={{ color: b.ttft === bestTtft ? "var(--success-color)" : "var(--text-primary)", fontWeight: b.ttft === bestTtft ? 700 : 400 }}>
                             {b.ttft} ms
                           </span>
                         </div>
-                        <div style={{ fontSize: 11, marginBottom: 4 }}>
+                        <div style={{ fontSize: "var(--font-size-sm)", marginBottom: 4 }}>
                           <span style={{ opacity: 0.6 }}>Tokens/s: </span>
                           <span style={{ color: b.tokensPerSec === bestTps ? "var(--success-color)" : "var(--text-primary)", fontWeight: b.tokensPerSec === bestTps ? 700 : 400 }}>
                             {b.tokensPerSec}
                           </span>
                         </div>
-                        <div style={{ fontSize: 11 }}>
+                        <div style={{ fontSize: "var(--font-size-sm)" }}>
                           <span style={{ opacity: 0.6 }}>VRAM: </span>
                           <span style={{ color: b.vram === bestVram ? "var(--success-color)" : "var(--text-primary)", fontWeight: b.vram === bestVram ? 700 : 400 }}>
                             {b.vram} GB
@@ -684,7 +684,7 @@ export function InferencePanel() {
           <div>
             {/* Auto-scale config */}
             <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>Auto-Scale Configuration</div>
+              <div style={{ fontSize: "var(--font-size-md)", fontWeight: 600, marginBottom: 12 }}>Auto-Scale Configuration</div>
               <div style={fieldRow}>
                 <div>
                   <label className="panel-label">Min Replicas</label>
@@ -756,7 +756,7 @@ export function InferencePanel() {
 
             {/* Load balancer config */}
             <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>Load Balancer</div>
+              <div style={{ fontSize: "var(--font-size-md)", fontWeight: 600, marginBottom: 12 }}>Load Balancer</div>
               <div style={fieldRow}>
                 <div>
                   <label className="panel-label">Strategy</label>
@@ -805,7 +805,7 @@ export function InferencePanel() {
               {generatedK8s && (
                 <button
                   className="panel-btn panel-btn-secondary"
-                  style={{ fontSize: 10 }}
+                  style={{ fontSize: "var(--font-size-xs)" }}
                   onClick={() => navigator.clipboard.writeText(generatedK8s)}
                 >
                   Copy

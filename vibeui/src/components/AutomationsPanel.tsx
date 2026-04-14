@@ -96,7 +96,7 @@ function ResolutionBadge({ ruleId, mode, onChange }: { ruleId: string; mode: Res
         onClick={() => setOpen((v) => !v)}
         title={RESOLUTION_MODE_DESCRIPTIONS[mode]}
         style={{
-          padding: '1px 8px', borderRadius: 10, fontSize: 10, fontWeight: 600, cursor: 'pointer',
+          padding: '1px 8px', borderRadius: "var(--radius-md)", fontSize: "var(--font-size-xs)", fontWeight: 600, cursor: 'pointer',
           background: RESOLUTION_MODE_BG[mode], color: RESOLUTION_MODE_COLORS[mode],
           border: `1px solid ${RESOLUTION_MODE_COLORS[mode]}`,
         }}
@@ -106,7 +106,7 @@ function ResolutionBadge({ ruleId, mode, onChange }: { ruleId: string; mode: Res
       {open && (
         <div style={{
           position: 'absolute', top: '110%', left: 0, zIndex: 50, minWidth: 180,
-          background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 6,
+          background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-sm)",
           boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
         }}>
           {(['auto', 'draft', 'approve', 'ignore'] as ResolutionMode[]).map((m) => (
@@ -116,7 +116,7 @@ function ResolutionBadge({ ruleId, mode, onChange }: { ruleId: string; mode: Res
               style={{
                 display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px',
                 background: m === mode ? RESOLUTION_MODE_BG[m] : 'transparent',
-                color: RESOLUTION_MODE_COLORS[m], border: 'none', cursor: 'pointer', fontSize: 12,
+                color: RESOLUTION_MODE_COLORS[m], border: 'none', cursor: 'pointer', fontSize: "var(--font-size-base)",
               }}
             >
               <strong>{m}</strong> — {RESOLUTION_MODE_DESCRIPTIONS[m]}
@@ -237,9 +237,9 @@ const AutomationsPanel: React.FC = () => {
           { label: 'Completed', value: stats.completedTasks },
           { label: 'Failed', value: stats.failedTasks },
         ].map((s) => (
-          <div key={s.label} style={{ background: 'var(--bg-secondary)', padding: '8px 16px', borderRadius: 6, textAlign: 'center' }}>
+          <div key={s.label} style={{ background: 'var(--bg-secondary)', padding: '8px 16px', borderRadius: "var(--radius-sm)", textAlign: 'center' }}>
             <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)", color: 'var(--accent-color)' }}>{s.value}</div>
-            <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{s.label}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: 'var(--text-secondary)' }}>{s.label}</div>
           </div>
         ))}
       </div>
@@ -261,11 +261,11 @@ const AutomationsPanel: React.FC = () => {
         <div className="panel-card" style={{ marginBottom: 12 }}>
           <div style={{ fontWeight: 600, marginBottom: 8 }}>Create Automation Rule</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            <label style={{ fontSize: 12 }}>
+            <label style={{ fontSize: "var(--font-size-base)" }}>
               Name
               <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="e.g. PR Review Agent" className="panel-input panel-input-full" />
             </label>
-            <label style={{ fontSize: 12 }}>
+            <label style={{ fontSize: "var(--font-size-base)" }}>
               Trigger Source
               <select value={newTrigger} onChange={(e) => setNewTrigger(e.target.value as TriggerSource)} className="panel-select panel-input-full">
                 <option value="github">GitHub</option>
@@ -287,7 +287,7 @@ const AutomationsPanel: React.FC = () => {
                 <option value="webhook">Webhook</option>
               </select>
             </label>
-            <label style={{ fontSize: 12 }}>
+            <label style={{ fontSize: "var(--font-size-base)" }}>
               Resolution Mode
               <select value={newResolutionMode} onChange={(e) => setNewResolutionMode(e.target.value as ResolutionMode)} className="panel-select panel-input-full">
                 <option value="auto">Auto — {RESOLUTION_MODE_DESCRIPTIONS.auto}</option>
@@ -296,11 +296,11 @@ const AutomationsPanel: React.FC = () => {
                 <option value="ignore">Ignore — {RESOLUTION_MODE_DESCRIPTIONS.ignore}</option>
               </select>
             </label>
-            <label style={{ fontSize: 12, gridColumn: 'span 2' }}>
+            <label style={{ fontSize: "var(--font-size-base)", gridColumn: 'span 2' }}>
               Events (comma-separated)
               <input type="text" value={newEvents} onChange={(e) => setNewEvents(e.target.value)} placeholder="e.g. push, pull_request.opened" className="panel-input panel-input-full" />
             </label>
-            <label style={{ fontSize: 12, gridColumn: 'span 2' }}>
+            <label style={{ fontSize: "var(--font-size-base)", gridColumn: 'span 2' }}>
               Prompt Template
               <textarea value={newPrompt} onChange={(e) => setNewPrompt(e.target.value)} placeholder="Use {{variables}} from event payload" rows={3} className="panel-input panel-textarea panel-input-full" style={{ fontFamily: 'var(--font-mono)' }} />
             </label>
@@ -326,46 +326,46 @@ const AutomationsPanel: React.FC = () => {
           )}
           {rules.map((rule) => (
             <div key={rule.id} style={{
-              background: 'var(--bg-secondary)', padding: 12, borderRadius: 8,
+              background: 'var(--bg-secondary)', padding: 12, borderRadius: "var(--radius-sm-alt)",
               border: `1px solid ${rule.enabled ? 'var(--border-color)' : 'var(--text-secondary)'}`,
               opacity: rule.enabled ? 1 : 0.6,
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
                 <span style={{
-                  display: 'inline-block', padding: '2px 6px', borderRadius: 4, fontSize: 11,
+                  display: 'inline-block', padding: '2px 6px', borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-sm)",
                   fontWeight: 700, background: 'var(--accent-color)', color: 'var(--text-primary)',
                 }}>{triggerIcons[rule.trigger]}</span>
                 <strong>{rule.name}</strong>
                 {/* Resolution badge with inline change */}
                 <ResolutionBadge ruleId={rule.id} mode={rule.resolution_mode ?? 'auto'} onChange={handleResolutionChange} />
                 {(rule.resolution_mode ?? 'auto') === 'approve' && (
-                  <span style={{ fontSize: 10, color: 'var(--accent-gold)' }}>→ routes to Approvals</span>
+                  <span style={{ fontSize: "var(--font-size-xs)", color: 'var(--accent-gold)' }}>→ routes to Approvals</span>
                 )}
-                <span style={{ fontSize: 11, color: 'var(--text-secondary)', marginLeft: 'auto' }}>
+                <span style={{ fontSize: "var(--font-size-sm)", color: 'var(--text-secondary)', marginLeft: 'auto' }}>
                   {rule.fireCount} runs {rule.lastFired ? `· last ${rule.lastFired}` : ''}
                 </span>
                 <button onClick={() => handleToggle(rule.id)} style={{
-                  padding: '2px 8px', fontSize: 10, borderRadius: 3, cursor: 'pointer',
+                  padding: '2px 8px', fontSize: "var(--font-size-xs)", borderRadius: 3, cursor: 'pointer',
                   border: '1px solid var(--border-color)', background: 'none',
                   color: rule.enabled ? 'var(--success-color)' : 'var(--text-secondary)',
                 }}>
                   {rule.enabled ? 'Enabled' : 'Disabled'}
                 </button>
                 <button onClick={() => handleDelete(rule.id)} style={{
-                  padding: '2px 8px', fontSize: 10, borderRadius: 3, cursor: 'pointer',
+                  padding: '2px 8px', fontSize: "var(--font-size-xs)", borderRadius: 3, cursor: 'pointer',
                   border: '1px solid var(--border-color)', background: 'none',
                   color: 'var(--error-color)',
                 }}>
                   Delete
                 </button>
               </div>
-              {rule.description && <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4 }}>{rule.description}</div>}
-              <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+              {rule.description && <div style={{ fontSize: "var(--font-size-base)", color: 'var(--text-secondary)', marginBottom: 4 }}>{rule.description}</div>}
+              <div style={{ fontSize: "var(--font-size-sm)", color: 'var(--text-secondary)' }}>
                 Events: {rule.events.join(', ')} · Provider: {rule.provider} · Max turns: {rule.maxTurns}
                 {rule.sandbox && ' · Sandbox'}
               </div>
               {rule.promptTemplate && (
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-secondary)', marginTop: 4, padding: 4, background: 'var(--bg-primary)', borderRadius: 4 }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: "var(--font-size-sm)", color: 'var(--text-secondary)', marginTop: 4, padding: 4, background: 'var(--bg-primary)', borderRadius: "var(--radius-xs-plus)" }}>
                   {rule.promptTemplate}
                 </div>
               )}
@@ -384,20 +384,20 @@ const AutomationsPanel: React.FC = () => {
           )}
           {tasks.map((task) => (
             <div key={task.taskId} style={{
-              background: 'var(--bg-secondary)', padding: 10, borderRadius: 6,
+              background: 'var(--bg-secondary)', padding: 10, borderRadius: "var(--radius-sm)",
               borderLeft: `3px solid ${statusColors[task.status]}`,
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                 <span style={{
-                  fontSize: 11, padding: '1px 6px', borderRadius: 3,
+                  fontSize: "var(--font-size-sm)", padding: '1px 6px', borderRadius: 3,
                   background: statusColors[task.status], color: 'var(--text-primary)', fontWeight: 600,
                 }}>{task.status}</span>
-                <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>{task.taskId}</span>
-                <span style={{ fontSize: 11, color: 'var(--text-secondary)', marginLeft: 'auto' }}>{task.createdAt}</span>
+                <span style={{ fontSize: "var(--font-size-base)", fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>{task.taskId}</span>
+                <span style={{ fontSize: "var(--font-size-sm)", color: 'var(--text-secondary)', marginLeft: 'auto' }}>{task.createdAt}</span>
               </div>
-              <div style={{ fontSize: 12, color: 'var(--text-primary)' }}>{task.prompt}</div>
+              <div style={{ fontSize: "var(--font-size-base)", color: 'var(--text-primary)' }}>{task.prompt}</div>
               {task.output && (
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>
+                <div style={{ fontSize: "var(--font-size-sm)", color: 'var(--text-secondary)', marginTop: 4 }}>
                   Output: {task.output}
                 </div>
               )}
@@ -408,7 +408,7 @@ const AutomationsPanel: React.FC = () => {
 
       {/* Logs tab */}
       {!loading && tab === 'logs' && (
-        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, background: 'var(--bg-secondary)', padding: 12, borderRadius: 8, lineHeight: 1.8, color: 'var(--text-secondary)', minHeight: 100 }}>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: "var(--font-size-base)", background: 'var(--bg-secondary)', padding: 12, borderRadius: "var(--radius-sm-alt)", lineHeight: 1.8, color: 'var(--text-secondary)', minHeight: 100 }}>
           {logs.length === 0 && <div>No log entries yet. Logs appear when automation rules fire.</div>}
           {logs.map((entry, i) => (
             <div key={i}>[{entry.timestamp}] {entry.message}</div>

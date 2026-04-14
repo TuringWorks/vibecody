@@ -34,7 +34,7 @@ interface VersionEntry {
   note: string;
 }
 
-const badgeStyle: React.CSSProperties = { fontSize: 10, padding: "2px 6px", borderRadius: 3, background: "var(--accent-blue)", color: "#fff", marginLeft: 6 };
+const badgeStyle: React.CSSProperties = { fontSize: "var(--font-size-xs)", padding: "2px 6px", borderRadius: 3, background: "var(--accent-blue)", color: "var(--btn-primary-fg, #fff)", marginLeft: 6 };
 
 export function RLEnvironmentViewer() {
   const [envs, setEnvs] = useState<EnvSummary[]>([]);
@@ -71,7 +71,7 @@ export function RLEnvironmentViewer() {
 
   return (
     <div className="panel-container">
-      <h2 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>RL Environments</h2>
+      <h2 style={{ margin: "0 0 12px", fontSize: "var(--font-size-xl)", fontWeight: 600, color: "var(--text-primary)" }}>RL Environments</h2>
 
       <div className="panel-card">
         <div className="panel-label">Environments</div>
@@ -95,11 +95,11 @@ export function RLEnvironmentViewer() {
             <div style={{ fontWeight: 600, marginBottom: 8 }}>{detail.name} <span style={badgeStyle}>v{detail.version}</span></div>
             <div className="panel-label">Observation Schema</div>
             {Object.entries(detail.observationSchema).map(([k, v]) => (
-              <div key={k} style={{ display: "flex", gap: 8, fontSize: 12, padding: "2px 0" }}><span style={{ fontWeight: 600 }}>{k}:</span><span>{v}</span></div>
+              <div key={k} style={{ display: "flex", gap: 8, fontSize: "var(--font-size-base)", padding: "2px 0" }}><span style={{ fontWeight: 600 }}>{k}:</span><span>{v}</span></div>
             ))}
             <div className="panel-label" style={{ marginTop: 8 }}>Action Schema</div>
             {Object.entries(detail.actionSchema).map(([k, v]) => (
-              <div key={k} style={{ display: "flex", gap: 8, fontSize: 12, padding: "2px 0" }}><span style={{ fontWeight: 600 }}>{k}:</span><span>{v}</span></div>
+              <div key={k} style={{ display: "flex", gap: 8, fontSize: "var(--font-size-base)", padding: "2px 0" }}><span style={{ fontWeight: 600 }}>{k}:</span><span>{v}</span></div>
             ))}
             <div className="panel-label" style={{ marginTop: 8 }}>Reward Components</div>
             <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>

@@ -8,7 +8,7 @@ const RenderOptimizePanel = lazy(() => import("../RenderOptimizePanel")) as any;
 const SmartDepsPanel = lazy(() => import("../SmartDepsPanel").then(m => ({ default: m.SmartDepsPanel }))) as any;
 const ResiliencePanel = lazy(() => import("../ResiliencePanel").then(m => ({ default: m.ResiliencePanel }))) as any;
 
-const Loading = () => <div style={{ padding: 16, color: "var(--text-secondary)", fontSize: 13 }}>Loading...</div>;
+const Loading = () => <div style={{ padding: 16, color: "var(--text-secondary)", fontSize: "var(--font-size-md)" }}>Loading...</div>;
 
 interface Props {
   workspacePath: string | null;

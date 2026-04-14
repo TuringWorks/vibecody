@@ -8,4 +8,5 @@ export const CodeAnalysisComposite = createComposite([
   { id: "healthscore", label: "Health Score", importFn: () => import("../HealthScorePanel") },
   { id: "intentrefactor", label: "Refactor", importFn: () => import("../IntentRefactorPanel") },
   { id: "reviewprotocol", label: "Review", importFn: () => import("../ReviewProtocolPanel") },
+  { id: "aicodereview", label: "AI Review", importFn: () => import("../AiCodeReviewPanel") },
 ]);

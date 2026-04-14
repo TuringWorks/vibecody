@@ -39,7 +39,7 @@ const LANG_COLORS: Record<string, string> = {
 function LangBadge({ lang }: { lang: string }) {
  const color = LANG_COLORS[lang] ?? "var(--text-secondary)";
  return (
- <span style={{ padding: "1px 7px", borderRadius: 10, background: color + "33", border: `1px solid ${color}`, color, fontSize: 10, fontWeight: 600 }}>
+ <span style={{ padding: "1px 7px", borderRadius: "var(--radius-md)", background: color + "33", border: `1px solid ${color}`, color, fontSize: "var(--font-size-xs)", fontWeight: 600 }}>
  {lang}
  </span>
  );
@@ -120,12 +120,12 @@ export function ScaffoldPanel({ workspacePath }: { workspacePath: string | null 
  {/* Template list */}
  <div style={{ width: 220, borderRight: "1px solid var(--border-color)", display: "flex", flexDirection: "column", flexShrink: 0 }}>
  <div style={{ padding: "10px 10px 6px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
- <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>Scaffold</div>
+ <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, marginBottom: 6 }}>Scaffold</div>
  <input
  value={filter}
  onChange={e => setFilter(e.target.value)}
  placeholder="Filter templates…"
- style={{ width: "100%", padding: "4px 8px", fontSize: 11, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }}
+ style={{ width: "100%", padding: "4px 8px", fontSize: "var(--font-size-sm)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }}
  />
  </div>
  <div style={{ flex: 1, overflowY: "auto" }}>
@@ -141,9 +141,9 @@ export function ScaffoldPanel({ workspacePath }: { workspacePath: string | null 
  color: "var(--text-primary)",
  }}
  >
- <div style={{ fontSize: 12, fontWeight: 600 }}>{t.name}</div>
+ <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600 }}>{t.name}</div>
  <LangBadge lang={t.language} />
- <div style={{ fontSize: 10, color: "var(--text-secondary)", marginTop: 3, lineHeight: 1.3 }}>{t.description}</div>
+ <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginTop: 3, lineHeight: 1.3 }}>{t.description}</div>
  </button>
  ))}
  </div>
@@ -152,7 +152,7 @@ export function ScaffoldPanel({ workspacePath }: { workspacePath: string | null 
  {/* Right pane */}
  <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
  {!selected ? (
- <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-secondary)", fontSize: 13 }}>
+ <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-secondary)", fontSize: "var(--font-size-md)" }}>
  ← Select a template to get started
  </div>
  ) : (
@@ -160,44 +160,44 @@ export function ScaffoldPanel({ workspacePath }: { workspacePath: string | null 
  {/* Config bar */}
  <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
  <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
- <label style={{ fontSize: 10, fontWeight: 600, color: "var(--text-secondary)" }}>Project Name</label>
+ <label style={{ fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-secondary)" }}>Project Name</label>
  <input
  value={projectName}
  onChange={e => setProjectName(e.target.value.replace(/[^a-zA-Z0-9_-]/g, ""))}
- style={{ padding: "4px 8px", fontSize: 12, fontFamily: "var(--font-mono)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none", width: 160 }}
+ style={{ padding: "4px 8px", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none", width: 160 }}
  />
  </div>
  <div style={{ display: "flex", flexDirection: "column", gap: 3, flex: 1 }}>
- <label style={{ fontSize: 10, fontWeight: 600, color: "var(--text-secondary)" }}>Output Directory</label>
+ <label style={{ fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-secondary)" }}>Output Directory</label>
  <input
  value={outputDir}
  onChange={e => setOutputDir(e.target.value)}
  placeholder="/path/to/output"
- style={{ padding: "4px 8px", fontSize: 11, fontFamily: "var(--font-mono)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none" }}
+ style={{ padding: "4px 8px", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none" }}
  />
  </div>
  <button
  onClick={handlePreview}
  disabled={generating || !projectName}
- style={{ padding: "5px 14px", fontSize: 11, fontWeight: 600, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-secondary)", cursor: "pointer", height: 28 }}
+ style={{ padding: "5px 14px", fontSize: "var(--font-size-sm)", fontWeight: 600, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-secondary)", cursor: "pointer", height: 28 }}
  >
  Preview
  </button>
  <button
  onClick={handleWrite}
  disabled={generating || !projectName || !outputDir.trim()}
- style={{ padding: "5px 14px", fontSize: 11, fontWeight: 700, background: generating ? "var(--bg-secondary)" : "var(--accent-color)", border: "none", borderRadius: 4, color: generating ? "var(--text-secondary)" : "var(--text-primary)", cursor: generating || !outputDir.trim() ? "not-allowed" : "pointer", height: 28 }}
+ style={{ padding: "5px 14px", fontSize: "var(--font-size-sm)", fontWeight: 700, background: generating ? "var(--bg-secondary)" : "var(--accent-color)", border: "none", borderRadius: "var(--radius-xs-plus)", color: generating ? "var(--text-secondary)" : "var(--text-primary)", cursor: generating || !outputDir.trim() ? "not-allowed" : "pointer", height: 28 }}
  >
  {generating ? "Writing…" : written ? "Written" : "Write Files"}
  </button>
  </div>
 
  {error && (
- <div style={{ padding: "6px 12px", background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", color: "var(--text-danger)", fontSize: 11, borderBottom: "1px solid var(--border-color)" }}> {error}</div>
+ <div style={{ padding: "6px 12px", background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", color: "var(--text-danger)", fontSize: "var(--font-size-sm)", borderBottom: "1px solid var(--border-color)" }}> {error}</div>
  )}
 
  {written && (
- <div style={{ padding: "6px 12px", background: "color-mix(in srgb, var(--accent-green) 10%, transparent)", color: "var(--text-success)", fontSize: 11, borderBottom: "1px solid var(--border-color)" }}>
+ <div style={{ padding: "6px 12px", background: "color-mix(in srgb, var(--accent-green) 10%, transparent)", color: "var(--text-success)", fontSize: "var(--font-size-sm)", borderBottom: "1px solid var(--border-color)" }}>
  Scaffold written to <code style={{ fontFamily: "var(--font-mono)" }}>{outputDir}</code>
  {preview?.install_command && <> — run <code style={{ fontFamily: "var(--font-mono)" }}>{preview.install_command}</code></>}
  </div>
@@ -214,7 +214,7 @@ export function ScaffoldPanel({ workspacePath }: { workspacePath: string | null 
  onClick={() => setPreviewFile(f)}
  style={{
  display: "block", width: "100%", textAlign: "left",
- padding: "6px 10px", fontSize: 11, fontFamily: "var(--font-mono)",
+ padding: "6px 10px", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)",
  background: previewFile?.path === f.path ? "var(--accent-bg)" : "transparent",
  border: "none", borderBottom: "1px solid var(--border-color)",
  color: "var(--text-primary)", cursor: "pointer",
@@ -225,7 +225,7 @@ export function ScaffoldPanel({ workspacePath }: { workspacePath: string | null 
  </button>
  ))}
  {/* Commands */}
- <div style={{ padding: "10px 10px", fontSize: 10, color: "var(--text-secondary)", borderTop: "1px solid var(--border-color)" }}>
+ <div style={{ padding: "10px 10px", fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", borderTop: "1px solid var(--border-color)" }}>
  {preview.install_command && <div><b>Install:</b> {preview.install_command}</div>}
  {preview.dev_command && <div style={{ marginTop: 4 }}><b>Dev:</b> {preview.dev_command}</div>}
  {preview.notes && <div style={{ marginTop: 6, lineHeight: 1.4 }}>{preview.notes}</div>}
@@ -236,29 +236,29 @@ export function ScaffoldPanel({ workspacePath }: { workspacePath: string | null 
  <div style={{ flex: 1, overflow: "auto" }}>
  {previewFile ? (
  <>
- <div style={{ padding: "6px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>
+ <div style={{ padding: "6px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>
  {previewFile.path}
  </div>
- <pre style={{ margin: 0, padding: "12px 14px", fontSize: 11, fontFamily: "var(--font-mono)", lineHeight: 1.6, color: "var(--text-primary)", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+ <pre style={{ margin: 0, padding: "12px 14px", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", lineHeight: 1.6, color: "var(--text-primary)", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
  {previewFile.content}
  </pre>
  </>
  ) : (
- <div style={{ padding: 20, color: "var(--text-secondary)", fontSize: 12 }}>Select a file to preview</div>
+ <div style={{ padding: 20, color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>Select a file to preview</div>
  )}
  </div>
  </div>
  ) : (
  <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, color: "var(--text-secondary)" }}>
  <div style={{ fontSize: 32 }}></div>
- <div style={{ fontSize: 13, fontWeight: 600 }}>{selected.name}</div>
- <div style={{ fontSize: 11 }}>{selected.description}</div>
+ <div style={{ fontSize: "var(--font-size-md)", fontWeight: 600 }}>{selected.name}</div>
+ <div style={{ fontSize: "var(--font-size-sm)" }}>{selected.description}</div>
  <div style={{ marginTop: 4, display: "flex", gap: 4 }}>
  {selected.tags.map(tag => (
- <span key={tag} style={{ padding: "2px 8px", borderRadius: 10, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", fontSize: 10, color: "var(--text-secondary)" }}>{tag}</span>
+ <span key={tag} style={{ padding: "2px 8px", borderRadius: "var(--radius-md)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>{tag}</span>
  ))}
  </div>
- <div style={{ fontSize: 11, marginTop: 8 }}>Click <b>Preview</b> to see generated files</div>
+ <div style={{ fontSize: "var(--font-size-sm)", marginTop: 8 }}>Click <b>Preview</b> to see generated files</div>
  </div>
  )}
  </>

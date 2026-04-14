@@ -97,23 +97,23 @@ export function DocumentIngestPanel() {
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {/* File path input */}
             <div>
-              <label htmlFor="doc-ingest-path" style={{ fontSize: 11, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>File or Directory Path</label>
+              <label htmlFor="doc-ingest-path" style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>File or Directory Path</label>
               <input
                 id="doc-ingest-path"
                 value={filePath}
                 onChange={(e) => setFilePath(e.target.value)}
                 placeholder="/path/to/document.pdf or /path/to/directory"
-                style={{ width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: 4, color: "var(--text-primary)", padding: "6px 8px", fontSize: 12, boxSizing: "border-box" }}
+                style={{ width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", padding: "6px 8px", fontSize: "var(--font-size-base)", boxSizing: "border-box" }}
               />
             </div>
 
             {/* Format dropdown */}
             <div>
-              <label style={{ fontSize: 11, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Format</label>
+              <label style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Format</label>
               <select
                 value={format}
                 onChange={(e) => setFormat(e.target.value as Format)}
-                style={{ width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: 4, color: "var(--text-primary)", padding: "6px 8px", fontSize: 12, boxSizing: "border-box" }}
+                style={{ width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", padding: "6px 8px", fontSize: "var(--font-size-base)", boxSizing: "border-box" }}
               >
                 <option value="auto">Auto-detect</option>
                 <option value="plain">Plain Text</option>
@@ -150,15 +150,15 @@ export function DocumentIngestPanel() {
             {/* Results */}
             {results.length > 0 && (
               <div style={{ marginTop: 8 }}>
-                <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 8 }}>{results.length} document(s) ingested</div>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 8 }}>{results.length} document(s) ingested</div>
                 {results.map((r) => (
                   <div
                     key={r.id}
                     className="panel-card"
                     style={{ marginBottom: 6 }}
                   >
-                    <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 4 }}>{r.title}</div>
-                    <div style={{ display: "flex", gap: 16, fontSize: 11, color: "var(--text-secondary)" }}>
+                    <div style={{ fontWeight: 600, fontSize: "var(--font-size-base)", marginBottom: 4 }}>{r.title}</div>
+                    <div style={{ display: "flex", gap: 16, fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
                       <span>{r.chunks} chunks</span>
                       <span>{r.tokens.toLocaleString()} tokens</span>
                       <span>{r.format}</span>
@@ -176,11 +176,11 @@ export function DocumentIngestPanel() {
 
         {tab === "config" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Chunking Configuration</div>
+            <div style={{ fontSize: "var(--font-size-md)", fontWeight: 600, marginBottom: 4 }}>Chunking Configuration</div>
 
             {/* Max tokens slider */}
             <div>
-              <label style={{ fontSize: 11, color: "var(--text-secondary)", display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+              <label style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                 <span>Max Tokens per Chunk</span>
                 <span style={{ fontFamily: "var(--font-mono)" }}>{config.maxTokens}</span>
               </label>
@@ -193,14 +193,14 @@ export function DocumentIngestPanel() {
                 onChange={(e) => setConfig((c) => ({ ...c, maxTokens: Number(e.target.value) }))}
                 style={{ width: "100%" }}
               />
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--text-secondary)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>
                 <span>128</span><span>2048</span>
               </div>
             </div>
 
             {/* Overlap slider */}
             <div>
-              <label style={{ fontSize: 11, color: "var(--text-secondary)", display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+              <label style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                 <span>Overlap (tokens)</span>
                 <span style={{ fontFamily: "var(--font-mono)" }}>{config.overlap}</span>
               </label>
@@ -213,29 +213,29 @@ export function DocumentIngestPanel() {
                 onChange={(e) => setConfig((c) => ({ ...c, overlap: Number(e.target.value) }))}
                 style={{ width: "100%" }}
               />
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--text-secondary)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>
                 <span>0</span><span>200</span>
               </div>
             </div>
 
             {/* Min chunk size */}
             <div>
-              <label style={{ fontSize: 11, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Min Chunk Size (tokens)</label>
+              <label style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Min Chunk Size (tokens)</label>
               <input
                 type="number"
                 min={1}
                 max={512}
                 value={config.minChunkSize}
                 onChange={(e) => setConfig((c) => ({ ...c, minChunkSize: Number(e.target.value) }))}
-                style={{ width: 120, background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: 4, color: "var(--text-primary)", padding: "6px 8px", fontSize: 12 }}
+                style={{ width: 120, background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", padding: "6px 8px", fontSize: "var(--font-size-base)" }}
               />
             </div>
 
             {/* Sentence boundary toggle */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
-                <div style={{ fontSize: 12 }}>Respect Sentence Boundaries</div>
-                <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>Avoid splitting mid-sentence when chunking</div>
+                <div style={{ fontSize: "var(--font-size-base)" }}>Respect Sentence Boundaries</div>
+                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>Avoid splitting mid-sentence when chunking</div>
               </div>
               <button
                 onClick={() => setConfig((c) => ({ ...c, sentenceBoundary: !c.sentenceBoundary }))}
@@ -268,8 +268,8 @@ export function DocumentIngestPanel() {
             {/* Section title toggle */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
-                <div style={{ fontSize: 12 }}>Extract Section Titles</div>
-                <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>Attach heading/title metadata to each chunk</div>
+                <div style={{ fontSize: "var(--font-size-base)" }}>Extract Section Titles</div>
+                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>Attach heading/title metadata to each chunk</div>
               </div>
               <button
                 onClick={() => setConfig((c) => ({ ...c, sectionTitle: !c.sectionTitle }))}
@@ -300,7 +300,7 @@ export function DocumentIngestPanel() {
             </div>
 
             {/* Summary */}
-            <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: 4, padding: 12, fontSize: 11, color: "var(--text-secondary)", marginTop: 8 }}>
+            <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "var(--radius-xs-plus)", padding: 12, fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 8 }}>
               <div style={{ fontWeight: 600, marginBottom: 4, color: "var(--text-primary)" }}>Current Config Summary</div>
               <div>Chunk size: {config.maxTokens} tokens (min {config.minChunkSize})</div>
               <div>Overlap: {config.overlap} tokens</div>

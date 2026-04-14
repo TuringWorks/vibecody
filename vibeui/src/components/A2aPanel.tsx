@@ -77,8 +77,8 @@ const capBadgeColors: Record<string, string> = {
 const badgeStyle = (color: string): React.CSSProperties => ({
   display: "inline-block",
   padding: "2px 8px",
-  borderRadius: 10,
-  fontSize: 11,
+  borderRadius: "var(--radius-md)",
+  fontSize: "var(--font-size-sm)",
   fontWeight: 600,
   background: color,
   color: "var(--btn-primary-fg, #fff)",
@@ -105,7 +105,7 @@ const rowStyle: React.CSSProperties = {
 };
 
 const labelStyle: React.CSSProperties = {
-  fontSize: 11,
+  fontSize: "var(--font-size-sm)",
   color: "var(--text-secondary)",
   marginBottom: 4,
   display: "block",
@@ -311,7 +311,7 @@ export function A2aPanel() {
   return (
     <div className="panel-container">
       <div className="panel-header">
-        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>A2A Protocol</h2>
+        <h2 style={{ margin: 0, fontSize: "var(--font-size-xl)", fontWeight: 600 }}>A2A Protocol</h2>
       </div>
 
       <div className="panel-body">
@@ -365,12 +365,12 @@ export function A2aPanel() {
             {agents.map((agent) => (
               <div key={agent.id} className="panel-card">
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <strong style={{ fontSize: 14 }}>{agent.name}</strong>
+                  <strong style={{ fontSize: "var(--font-size-lg)" }}>{agent.name}</strong>
                   <span style={badgeStyle(statusBadgeColors[agent.status] || "var(--text-secondary)")}>
                     {agent.status}
                   </span>
                 </div>
-                <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>
+                <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginTop: 4 }}>
                   <span className="panel-mono">{agent.url}</span>
                 </div>
                 {agent.capabilities.length > 0 && (
@@ -466,14 +466,14 @@ export function A2aPanel() {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span className="panel-mono" style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                      <span className="panel-mono" style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)" }}>
                         {task.id.slice(0, 8)}
                       </span>
                       <span style={badgeStyle(statusBadgeColors[task.status] || "var(--text-secondary)")}>
                         {task.status}
                       </span>
                     </div>
-                    <div style={{ marginTop: 4, fontSize: 12, color: "var(--text-secondary)" }}>
+                    <div style={{ marginTop: 4, fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>
                       Agent: <strong>{task.agent_name || task.agent_url}</strong>
                     </div>
                   </div>
@@ -489,7 +489,7 @@ export function A2aPanel() {
                     padding: 8,
                     background: "var(--bg-tertiary)",
                     borderRadius: "var(--border-radius, 4px)",
-                    fontSize: 12,
+                    fontSize: "var(--font-size-base)",
                     fontFamily: "monospace",
                     whiteSpace: "pre-wrap",
                     maxHeight: 120,
@@ -498,7 +498,7 @@ export function A2aPanel() {
                 >
                   {task.input}
                 </div>
-                <div style={{ marginTop: 6, fontSize: 11, color: "var(--text-muted)" }}>
+                <div style={{ marginTop: 6, fontSize: "var(--font-size-sm)", color: "var(--text-muted)" }}>
                   Created: {formatTime(task.created_at)}
                   {task.completed_at && <> | Completed: {formatTime(task.completed_at)}</>}
                 </div>
@@ -576,7 +576,7 @@ export function A2aPanel() {
                             background: checked ? (capBadgeColors[cap] || "var(--accent)") : "var(--bg-tertiary)",
                             color: checked ? "var(--btn-primary-fg, #fff)" : "var(--text-secondary)",
                             cursor: "pointer",
-                            fontSize: 12,
+                            fontSize: "var(--font-size-base)",
                             fontWeight: checked ? 600 : 400,
                             border: `1px solid ${checked ? "transparent" : "var(--border)"}`,
                             transition: "all 0.15s ease",
@@ -612,7 +612,7 @@ export function A2aPanel() {
         {tab === "metrics" && (
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-              <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Auto-refreshes every 5 seconds</div>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-muted)" }}>Auto-refreshes every 5 seconds</div>
               <button className="panel-btn panel-btn-secondary" onClick={fetchMetrics}>
                 Refresh
               </button>
@@ -687,7 +687,7 @@ export function A2aPanel() {
                 {/* Simple bar visualization */}
                 {metrics.tasks_created > 0 && (
                   <div className="panel-card" style={{ marginTop: 10 }}>
-                    <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 12 }}>Task Distribution</div>
+                    <div style={{ fontWeight: 600, marginBottom: 8, fontSize: "var(--font-size-base)" }}>Task Distribution</div>
                     {[
                       { label: "Completed", count: metrics.tasks_completed, color: "var(--success-color)" },
                       { label: "Failed", count: metrics.tasks_failed, color: "var(--error-color)" },
@@ -701,7 +701,7 @@ export function A2aPanel() {
                       .filter((item) => item.count > 0)
                       .map((item) => (
                         <div key={item.label} style={{ marginBottom: 6 }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 2 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--font-size-sm)", marginBottom: 2 }}>
                             <span>{item.label}</span>
                             <span>{item.count}</span>
                           </div>

@@ -205,7 +205,7 @@ export default function KnowledgeGraphPanel() {
        <button onClick={handleRefresh} disabled={loading} className="panel-btn panel-btn-primary" style={{ opacity: loading ? 0.6 : 1 }}>
          {loading ? "Scanning..." : "Refresh"}
        </button>
-       <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+       <span style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>
          {nodes.length} nodes, {edges.length} edges
        </span>
      </div>
@@ -215,21 +215,21 @@ export default function KnowledgeGraphPanel() {
      <div className="panel-body">
      {/* Workspace Path */}
      <div style={{ marginBottom: 12, display: "flex", gap: 6, alignItems: "center" }}>
-       <label style={{ fontSize: 12 }}>Workspace:</label>
+       <label style={{ fontSize: "var(--font-size-base)" }}>Workspace:</label>
        <input value={workspace} onChange={e => setWorkspace(e.target.value)}
-         style={{ flex: 1, padding: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4, fontSize: 12 }} />
-       <button onClick={loadGraph} disabled={loading} style={{ padding: "4px 10px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: 4, cursor: "pointer", fontSize: 12 }}>
+         style={{ flex: 1, padding: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-base)" }} />
+       <button onClick={loadGraph} disabled={loading} style={{ padding: "4px 10px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", cursor: "pointer", fontSize: "var(--font-size-base)" }}>
          Load
        </button>
      </div>
 
      {/* Repo Registration */}
-     <div style={{ marginBottom: 12, padding: 10, border: "1px solid var(--border-color)", borderRadius: 6 }}>
+     <div style={{ marginBottom: 12, padding: 10, border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)" }}>
        <strong>Registered Repos</strong>
        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, margin: "6px 0" }}>
          {repos.map(r => (
            <span key={r.name} style={{
-             padding: "2px 8px", borderRadius: 4, fontSize: 12,
+             padding: "2px 8px", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-base)",
              background: REPO_COLORS[r.name] || "var(--border-color)", color: "var(--bg-primary)",
            }}>
              {r.name}: {r.path}
@@ -240,10 +240,10 @@ export default function KnowledgeGraphPanel() {
        </div>
        <div style={{ display: "flex", gap: 4 }}>
          <input value={newRepoName} onChange={e => setNewRepoName(e.target.value)} placeholder="Repo name"
-           style={{ flex: 1, padding: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4 }} />
+           style={{ flex: 1, padding: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)" }} />
          <input value={newRepoPath} onChange={e => setNewRepoPath(e.target.value)} placeholder="Path"
-           style={{ flex: 2, padding: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4 }} />
-         <button onClick={addRepo} style={{ padding: "4px 10px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: 4, cursor: "pointer" }}>Add</button>
+           style={{ flex: 2, padding: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)" }} />
+         <button onClick={addRepo} style={{ padding: "4px 10px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", cursor: "pointer" }}>Add</button>
        </div>
      </div>
 
@@ -251,7 +251,7 @@ export default function KnowledgeGraphPanel() {
      <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
        {(["graph", "stats", "export"] as const).map(t => (
          <button key={t} onClick={() => setTab(t)} style={{
-           padding: "4px 12px", border: "1px solid var(--border-color)", borderRadius: 4, cursor: "pointer",
+           padding: "4px 12px", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", cursor: "pointer",
            background: tab === t ? "var(--accent-color)" : "transparent", color: tab === t ? "var(--text-primary)" : "var(--text-primary)",
          }}>{t.charAt(0).toUpperCase() + t.slice(1)}</button>
        ))}
@@ -262,7 +262,7 @@ export default function KnowledgeGraphPanel() {
          {/* Query Controls */}
          <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap", alignItems: "center" }}>
            <select value={queryMode} onChange={e => setQueryMode(e.target.value as QueryMode)}
-             style={{ padding: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4 }}>
+             style={{ padding: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)" }}>
              <option value="callers">Callers</option>
              <option value="callees">Callees</option>
              <option value="implementors">Implementors</option>
@@ -273,23 +273,23 @@ export default function KnowledgeGraphPanel() {
            </select>
            <input value={querySymbol} onChange={e => setQuerySymbol(e.target.value)} placeholder="Search symbol name"
              onKeyDown={e => e.key === "Enter" && handleSearch()}
-             style={{ flex: 1, padding: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4 }} />
+             style={{ flex: 1, padding: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)" }} />
            {queryMode === "path" && (
              <input value={targetSymbol} onChange={e => setTargetSymbol(e.target.value)} placeholder="Target symbol"
-               style={{ flex: 1, padding: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4 }} />
+               style={{ flex: 1, padding: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)" }} />
            )}
            {queryMode === "subgraph" && (
-             <label style={{ fontSize: 12 }}>
+             <label style={{ fontSize: "var(--font-size-base)" }}>
                Depth: {depth}
              </label>
            )}
            <button onClick={handleSearch} disabled={loading} style={{
-             padding: "4px 10px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: 4, cursor: "pointer",
+             padding: "4px 10px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", cursor: "pointer",
            }}>Search</button>
          </div>
 
          {/* Graph SVG */}
-         <svg width={graphWidth} height={graphHeight} style={{ border: "1px solid var(--border-color)", borderRadius: 6, background: "var(--bg-primary)", marginBottom: 12 }}>
+         <svg width={graphWidth} height={graphHeight} style={{ border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", background: "var(--bg-primary)", marginBottom: 12 }}>
            <defs>
              <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
                <polygon points="0 0, 8 3, 0 6" fill="var(--border-color)" />
@@ -335,7 +335,7 @@ export default function KnowledgeGraphPanel() {
          </svg>
 
          {/* Legend */}
-         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 11, marginBottom: 12 }}>
+         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: "var(--font-size-sm)", marginBottom: 12 }}>
            {Object.entries(KIND_COLORS).map(([kind, color]) => (
              <span key={kind}><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", background: color, marginRight: 3 }} />{kind}</span>
            ))}
@@ -344,15 +344,15 @@ export default function KnowledgeGraphPanel() {
 
          {/* Selected Node Detail */}
          {selectedNode && (
-           <div style={{ padding: 8, border: "1px solid var(--border-color)", borderRadius: 6, fontSize: 12, marginBottom: 12 }}>
+           <div style={{ padding: 8, border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", fontSize: "var(--font-size-base)", marginBottom: 12 }}>
              <strong>{selectedNode.name}</strong> ({selectedNode.kind})
              <div style={{ marginTop: 4 }}>Repo: {selectedNode.repo} | File: {selectedNode.file}:{selectedNode.line}</div>
-             <div style={{ marginTop: 2, fontFamily: "var(--font-mono)", fontSize: 11 }}>{selectedNode.signature}</div>
+             <div style={{ marginTop: 2, fontFamily: "var(--font-mono)", fontSize: "var(--font-size-sm)" }}>{selectedNode.signature}</div>
            </div>
          )}
 
          {/* Query Results */}
-         <div style={{ fontSize: 12 }}>
+         <div style={{ fontSize: "var(--font-size-base)" }}>
            <strong>Results ({results.length})</strong>
            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 4 }}>
              <thead>
@@ -369,13 +369,13 @@ export default function KnowledgeGraphPanel() {
                    <td style={{ padding: 4, color: KIND_COLORS[n.kind] }}>{n.name}</td>
                    <td style={{ padding: 4 }}>{n.kind}</td>
                    <td style={{ padding: 4, color: REPO_COLORS[n.repo] }}>{n.repo}</td>
-                   <td style={{ padding: 4, fontFamily: "var(--font-mono)", fontSize: 11 }}>{n.file}:{n.line}</td>
+                   <td style={{ padding: 4, fontFamily: "var(--font-mono)", fontSize: "var(--font-size-sm)" }}>{n.file}:{n.line}</td>
                  </tr>
                ))}
              </tbody>
            </table>
            {results.length > 100 && (
-             <div style={{ marginTop: 4, fontSize: 11, color: "var(--text-secondary)" }}>
+             <div style={{ marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
                Showing 100 of {results.length} results
              </div>
            )}
@@ -384,19 +384,19 @@ export default function KnowledgeGraphPanel() {
      )}
 
      {tab === "stats" && (
-       <div style={{ fontSize: 13 }}>
+       <div style={{ fontSize: "var(--font-size-md)" }}>
          {stats ? (
            <>
              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 12 }}>
-               <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: 6, textAlign: "center" }}>
+               <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", textAlign: "center" }}>
                  <div style={{ fontSize: 24, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--accent-color)" }}>{stats.total_nodes}</div>
                  <div>Nodes</div>
                </div>
-               <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: 6, textAlign: "center" }}>
+               <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", textAlign: "center" }}>
                  <div style={{ fontSize: 24, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--success-color)" }}>{stats.total_edges}</div>
                  <div>Edges</div>
                </div>
-               <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: 6, textAlign: "center" }}>
+               <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", textAlign: "center" }}>
                  <div style={{ fontSize: 24, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--warning-color)" }}>{stats.cross_repo_edges}</div>
                  <div>Cross-Repo</div>
                </div>
@@ -407,8 +407,8 @@ export default function KnowledgeGraphPanel() {
                {Object.entries(stats.nodes_per_repo).map(([repo, count]) => (
                  <div key={repo} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                    <span style={{ width: 80, color: REPO_COLORS[repo] }}>{repo}</span>
-                   <div style={{ flex: 1, height: 16, background: "var(--border-color)", borderRadius: 4, overflow: "hidden" }}>
-                     <div style={{ height: "100%", width: `${(count / stats.total_nodes) * 100}%`, background: REPO_COLORS[repo] || "var(--accent-color)", borderRadius: 4 }} />
+                   <div style={{ flex: 1, height: 16, background: "var(--border-color)", borderRadius: "var(--radius-xs-plus)", overflow: "hidden" }}>
+                     <div style={{ height: "100%", width: `${(count / stats.total_nodes) * 100}%`, background: REPO_COLORS[repo] || "var(--accent-color)", borderRadius: "var(--radius-xs-plus)" }} />
                    </div>
                    <span style={{ width: 30, textAlign: "right" }}>{count}</span>
                  </div>
@@ -446,13 +446,13 @@ export default function KnowledgeGraphPanel() {
          <strong>DOT Export</strong>
          <pre style={{
            marginTop: 8, padding: 10, background: "var(--bg-primary)", border: "1px solid var(--border-color)",
-           borderRadius: 6, fontSize: 11, overflow: "auto", maxHeight: 300,
+           borderRadius: "var(--radius-sm)", fontSize: "var(--font-size-sm)", overflow: "auto", maxHeight: 300,
          }}>
            {nodes.length > 0 ? dotExport() : "No graph data. Click Refresh to scan workspace."}
          </pre>
          <button onClick={() => {
            navigator.clipboard.writeText(dotExport()).catch(() => {});
-         }} style={{ marginTop: 8, padding: "6px 12px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: 4, cursor: "pointer" }}>
+         }} style={{ marginTop: 8, padding: "6px 12px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", cursor: "pointer" }}>
            Copy to Clipboard
          </button>
        </div>

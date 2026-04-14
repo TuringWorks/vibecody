@@ -112,7 +112,7 @@ function CharGrid({ chars, selected, onSelect }: CharGridProps) {
             width: 38, height: 38, display: "flex", alignItems: "center", justifyContent: "center",
             fontSize: 18, background: selected?.cp === info.cp ? "var(--accent-color)" : "var(--bg-secondary)",
             border: `1px solid ${selected?.cp === info.cp ? "var(--accent-color)" : "var(--border-color)"}`,
-            borderRadius: 4, cursor: "pointer", color: "var(--text-primary)",
+            borderRadius: "var(--radius-xs-plus)", cursor: "pointer", color: "var(--text-primary)",
             transition: "background 0.1s",
           }}>
           {info.char}
@@ -132,15 +132,15 @@ function InfoPanel({ info, toggleFavorite, isFav }: InfoPanelProps) {
   return (
     <div style={{ padding: "12px 16px", borderTop: "1px solid var(--border-color)", background: "var(--bg-secondary)", flexShrink: 0 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
-        <div style={{ fontSize: 40, lineHeight: 1, width: 52, height: 52, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 6 }}>
+        <div style={{ fontSize: 40, lineHeight: 1, width: 52, height: 52, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)" }}>
           {info.char}
         </div>
         <div>
-          <div style={{ fontWeight: 600, fontSize: 14 }}>{info.name}</div>
-          <div style={{ color: "var(--text-secondary)", fontSize: 12, fontFamily: "var(--font-mono)" }}>U+{cpToHex(info.cp)} · dec {info.cp}</div>
+          <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)" }}>{info.name}</div>
+          <div style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)" }}>U+{cpToHex(info.cp)} · dec {info.cp}</div>
         </div>
         <button onClick={() => toggleFavorite(info)}
-          style={{ marginLeft: "auto", background: "none", border: "1px solid var(--border-color)", borderRadius: 4, padding: "4px 8px", cursor: "pointer", color: isFav(info.cp) ? "#f5a623" : "var(--text-secondary)", fontSize: 16 }}>
+          style={{ marginLeft: "auto", background: "none", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: "4px 8px", cursor: "pointer", color: isFav(info.cp) ? "#f5a623" : "var(--text-secondary)", fontSize: 16 }}>
           {isFav(info.cp) ? "★" : "☆"}
         </button>
       </div>
@@ -153,13 +153,13 @@ function InfoPanel({ info, toggleFavorite, isFav }: InfoPanelProps) {
           { label: "UTF-8 hex", value: Array.from(new TextEncoder().encode(info.char)).map(b => b.toString(16).toUpperCase().padStart(2, "0")).join(" ") },
           { label: "Percent-encoded", value: encodeURIComponent(info.char) },
         ].map(({ label, value }) => (
-          <div key={label} style={{ background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, padding: "5px 8px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>
+          <div key={label} style={{ background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: "5px 8px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>
             <div>
-              <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>{label}</div>
-              <div style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>{value}</div>
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>{label}</div>
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--font-size-base)" }}>{value}</div>
             </div>
             <button onClick={() => navigator.clipboard.writeText(value)}
-              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", fontSize: 11, flexShrink: 0 }}>⎘</button>
+              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", fontSize: "var(--font-size-sm)", flexShrink: 0 }}>⎘</button>
           </div>
         ))}
       </div>
@@ -239,7 +239,7 @@ export function UnicodePanel() {
   ];
 
   return (
-    <div className="panel-container" style={{ fontSize: 13, color: "var(--text-primary)" }}>
+    <div className="panel-container" style={{ fontSize: "var(--font-size-md)", color: "var(--text-primary)" }}>
       {/* Sub-tab bar */}
       <div className="panel-tab-bar">
         {TABS.map(t => (
@@ -256,7 +256,7 @@ export function UnicodePanel() {
           <div style={{ width: 190, borderRight: "1px solid var(--border-color)", overflowY: "auto", flexShrink: 0 }}>
             {BLOCKS.map(([, , label], i) => (
               <button key={i} onClick={() => { setBlockIdx(i); setSelected(null); }}
-                style={{ display: "block", width: "100%", padding: "7px 10px", border: "none", textAlign: "left", background: blockIdx === i ? "rgba(var(--accent-rgb,99,102,241),0.15)" : "none", color: blockIdx === i ? "var(--accent-color)" : "var(--text-secondary)", cursor: "pointer", fontSize: 11, borderLeft: blockIdx === i ? "3px solid var(--accent-color)" : "3px solid transparent" }}>
+                style={{ display: "block", width: "100%", padding: "7px 10px", border: "none", textAlign: "left", background: blockIdx === i ? "rgba(var(--accent-rgb,99,102,241),0.15)" : "none", color: blockIdx === i ? "var(--accent-color)" : "var(--text-secondary)", cursor: "pointer", fontSize: "var(--font-size-sm)", borderLeft: blockIdx === i ? "3px solid var(--accent-color)" : "3px solid transparent" }}>
                 {label}
               </button>
             ))}
@@ -278,7 +278,7 @@ export function UnicodePanel() {
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Name (e.g. ARROW), U+2192, or hex 2192"
               autoFocus
               className="panel-input panel-input-full" />
-            {search && <div style={{ marginTop: 6, fontSize: 11, color: "var(--text-secondary)" }}>{searchResults.length} results</div>}
+            {search && <div style={{ marginTop: 6, fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{searchResults.length} results</div>}
           </div>
           <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
             <div style={{ flex: 1, overflowY: "auto" }}>
@@ -307,9 +307,9 @@ export function UnicodePanel() {
             ) : (
               <>
                 <div style={{ padding: "8px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{favorites.length} saved</span>
+                  <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{favorites.length} saved</span>
                   <button onClick={() => navigator.clipboard.writeText(favorites.map(f => f.char).join(""))}
-                    style={{ padding: "3px 8px", background: "none", border: "1px solid var(--border-color)", borderRadius: 4, cursor: "pointer", fontSize: 11, color: "var(--text-primary)" }}>
+                    style={{ padding: "3px 8px", background: "none", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", cursor: "pointer", fontSize: "var(--font-size-sm)", color: "var(--text-primary)" }}>
                     Copy all
                   </button>
                 </div>
@@ -327,15 +327,15 @@ export function UnicodePanel() {
           <div style={{ padding: 12, borderBottom: "1px solid var(--border-color)", flexShrink: 0 }}>
             <textarea value={inputText} onChange={e => setInputText(e.target.value)} placeholder="Paste or type text to analyze each character…"
               className="panel-input panel-textarea panel-input-full" style={{ height: 72, resize: "none" }} />
-            {inputText && <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4 }}>{[...inputText].length} code points · {new TextEncoder().encode(inputText).length} UTF-8 bytes</div>}
+            {inputText && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 4 }}>{[...inputText].length} code points · {new TextEncoder().encode(inputText).length} UTF-8 bytes</div>}
           </div>
           <div style={{ flex: 1, overflowY: "auto" }}>
             {inputAnalysis.length > 0 && (
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
                 <thead>
                   <tr>
                     {["Char", "Code Point", "Name", "HTML Entity", "UTF-8"].map(h => (
-                      <th key={h} style={{ padding: "5px 10px", textAlign: "left", borderBottom: "2px solid var(--accent-blue)", color: "var(--text-secondary)", fontSize: 11 }}>{h}</th>
+                      <th key={h} style={{ padding: "5px 10px", textAlign: "left", borderBottom: "2px solid var(--accent-blue)", color: "var(--text-secondary)", fontSize: "var(--font-size-sm)" }}>{h}</th>
                     ))}
                   </tr>
                 </thead>

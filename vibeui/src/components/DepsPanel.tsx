@@ -133,8 +133,8 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
       {/* Manager badge + Scan button */}
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <div style={{
-          background: "var(--bg-secondary)", borderRadius: 6, padding: "6px 12px",
-          border: "1px solid var(--border-color)", fontSize: 12, fontWeight: 600,
+          background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: "6px 12px",
+          border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)", fontWeight: 600,
         }}>
           {manager ? managerLabel[manager] || manager : "No package manager detected"}
         </div>
@@ -166,8 +166,8 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
         <>
           {/* Summary bar */}
           <div style={{
-            display: "flex", gap: 12, fontSize: 12,
-            background: "var(--bg-secondary)", borderRadius: 6, padding: 10,
+            display: "flex", gap: 12, fontSize: "var(--font-size-base)",
+            background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: 10,
             border: "1px solid var(--border-color)",
           }}>
             <span>Total: <strong>{result.total}</strong></span>
@@ -186,7 +186,7 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
                 key={f}
                 onClick={() => setFilter(f)}
                 style={{
-                  padding: "4px 12px", fontSize: 11, borderRadius: 12,
+                  padding: "4px 12px", fontSize: "var(--font-size-sm)", borderRadius: 12,
                   background: filter === f ? "var(--accent-blue)" : "var(--bg-secondary)",
                   border: `1px solid ${filter === f ? "var(--accent-blue)" : "var(--border-color)"}`,
                   color: "var(--text-primary)", cursor: "pointer",
@@ -206,7 +206,7 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
               {/* Header */}
               <div style={{
                 display: "grid", gridTemplateColumns: "1fr 80px 80px 80px 90px 60px",
-                gap: 4, padding: "6px 8px", fontSize: 11, fontWeight: 600,
+                gap: 4, padding: "6px 8px", fontSize: "var(--font-size-sm)", fontWeight: 600,
                 borderBottom: "1px solid var(--border-color)", opacity: 0.7,
               }}>
                 <span>Package</span>
@@ -222,7 +222,7 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
                   key={dep.name}
                   style={{
                     display: "grid", gridTemplateColumns: "1fr 80px 80px 80px 90px 60px",
-                    gap: 4, padding: "5px 8px", fontSize: 11,
+                    gap: 4, padding: "5px 8px", fontSize: "var(--font-size-sm)",
                     borderBottom: "1px solid var(--border-color)",
                     background: dep.is_vulnerable ? "color-mix(in srgb, var(--accent-rose) 5%, transparent)" : "transparent",
                   }}
@@ -235,7 +235,7 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
                   <span style={{ textAlign: "right", fontFamily: "var(--font-mono)", color: dep.is_outdated ? "var(--warning-color)" : "inherit" }}>
                     {dep.latest}
                   </span>
-                  <span style={{ textAlign: "center", fontSize: 10 }}>
+                  <span style={{ textAlign: "center", fontSize: "var(--font-size-xs)" }}>
                     {dep.is_vulnerable && (
                       <span title={dep.vulnerability || "Vulnerable"} style={{ color: "var(--text-danger)", marginRight: 4 }}>
                         &#9888;
@@ -251,7 +251,7 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
                         title={`Upgrade to ${dep.latest}`}
                         style={{
                           background: "none", border: "1px solid var(--border-color)",
-                          borderRadius: 4, padding: "1px 6px", fontSize: 10,
+                          borderRadius: "var(--radius-xs-plus)", padding: "1px 6px", fontSize: "var(--font-size-xs)",
                           color: "var(--text-info)", cursor: "pointer",
                         }}
                       >
@@ -273,14 +273,14 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
           <div>
             <button
               onClick={() => setShowRaw(!showRaw)}
-              style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: "var(--text-info)", padding: 0, textDecoration: "underline" }}
+              style={{ background: "none", border: "none", cursor: "pointer", fontSize: "var(--font-size-sm)", color: "var(--text-info)", padding: 0, textDecoration: "underline" }}
             >
               {showRaw ? "Hide raw output" : "Show raw output"}
             </button>
             {showRaw && (
               <pre style={{
-                marginTop: 8, background: "var(--bg-secondary)", borderRadius: 6,
-                padding: 10, fontSize: 10, fontFamily: "var(--font-mono)", maxHeight: 200,
+                marginTop: 8, background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)",
+                padding: 10, fontSize: "var(--font-size-xs)", fontFamily: "var(--font-mono)", maxHeight: 200,
                 overflowY: "auto", whiteSpace: "pre-wrap", color: "var(--text-primary)",
                 border: "1px solid var(--border-color)",
               }}>

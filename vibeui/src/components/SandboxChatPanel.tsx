@@ -147,13 +147,13 @@ export function SandboxChatPanel({ provider: initialProvider, availableProviders
       {/* Toolbar */}
       <div className="panel-header">
         <Shield size={14} style={{ color: sandboxPath ? "var(--success-color)" : "var(--text-muted)" }} />
-        <span style={{ fontSize: 12, fontWeight: 500, color: "var(--text-primary)" }}>Sandbox</span>
+        <span style={{ fontSize: "var(--font-size-base)", fontWeight: 500, color: "var(--text-primary)" }}>Sandbox</span>
         {sandboxPath ? (
-          <span style={{ fontSize: 11, color: "var(--text-secondary)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={sandboxPath}>
+          <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={sandboxPath}>
             {sandboxPath}
           </span>
         ) : (
-          <span style={{ fontSize: 11, color: "var(--text-muted)", flex: 1 }}>No folder selected</span>
+          <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)", flex: 1 }}>No folder selected</span>
         )}
         <button onClick={handlePickFolder} title="Pick sandbox folder" className="panel-btn panel-btn-secondary panel-btn-xs" style={{ display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap" }}>
           <FolderOpen size={12} /> {sandboxPath ? "Change" : "Open Folder"}
@@ -170,12 +170,12 @@ export function SandboxChatPanel({ provider: initialProvider, availableProviders
         {/* File tree (only when sandbox is set) */}
         {sandboxPath && (
           <div style={{ width: 200, minWidth: 160, maxWidth: 260, borderRight: "1px solid var(--border-color)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-            <div style={{ padding: "6px 10px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", borderBottom: "1px solid var(--border-color)", flexShrink: 0 }}>
+            <div style={{ padding: "6px 10px", fontSize: "var(--font-size-sm)", fontWeight: 600, color: "var(--text-muted)", borderBottom: "1px solid var(--border-color)", flexShrink: 0 }}>
               FILES
             </div>
             <div style={{ flex: 1, overflowY: "auto", padding: "4px 0" }}>
               {dirError && (
-                <div style={{ padding: "8px 10px", fontSize: 11, color: "var(--error-color)" }}>{dirError}</div>
+                <div style={{ padding: "8px 10px", fontSize: "var(--font-size-sm)", color: "var(--error-color)" }}>{dirError}</div>
               )}
               {tree.map((node) => (
                 <TreeNodeRow key={node.entry.path} node={node} depth={0} onToggle={toggleNode} />
@@ -183,9 +183,9 @@ export function SandboxChatPanel({ provider: initialProvider, availableProviders
             </div>
             {writeLog.length > 0 && (
               <div style={{ borderTop: "1px solid var(--border-color)", padding: "6px 10px", flexShrink: 0 }}>
-                <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>RECENT WRITES</div>
+                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", marginBottom: 4 }}>RECENT WRITES</div>
                 {writeLog.slice(-4).map((p, i) => (
-                  <div key={i} style={{ fontSize: 10, color: "var(--success-color)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={p}>
+                  <div key={i} style={{ fontSize: "var(--font-size-xs)", color: "var(--success-color)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={p}>
                     ✓ {p.split("/").pop()}
                   </div>
                 ))}
@@ -194,7 +194,7 @@ export function SandboxChatPanel({ provider: initialProvider, availableProviders
             {/* Auto-approve toggle */}
             <div style={{ borderTop: "1px solid var(--border-color)", padding: "6px 10px", flexShrink: 0, display: "flex", alignItems: "center", gap: 6 }}>
               <input type="checkbox" id="sandbox-auto-approve" checked={autoApprove} onChange={(e) => setAutoApprove(e.target.checked)} style={{ cursor: "pointer" }} />
-              <label htmlFor="sandbox-auto-approve" style={{ fontSize: 11, color: "var(--text-secondary)", cursor: "pointer" }}>
+              <label htmlFor="sandbox-auto-approve" style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", cursor: "pointer" }}>
                 Auto-write files
               </label>
             </div>
@@ -206,11 +206,11 @@ export function SandboxChatPanel({ provider: initialProvider, availableProviders
           {!sandboxPath ? (
             <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, padding: 24, textAlign: "center" }}>
               <Shield size={32} style={{ color: "var(--text-muted)", opacity: 0.5 }} />
-              <div style={{ fontSize: 14, fontWeight: 500 }}>No sandbox folder selected</div>
-              <div style={{ fontSize: 12, color: "var(--text-secondary)", maxWidth: 280 }}>
+              <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 500 }}>No sandbox folder selected</div>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", maxWidth: 280 }}>
                 Pick a folder to give the AI full read/write access. It can create, edit, and delete files freely within that folder.
               </div>
-              <button onClick={handlePickFolder} style={{ background: "var(--accent)", color: "#fff", border: "none", borderRadius: 8, padding: "8px 16px", cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
+              <button onClick={handlePickFolder} style={{ background: "var(--accent)", color: "var(--btn-primary-fg, #fff)", border: "none", borderRadius: "var(--radius-sm-alt)", padding: "8px 16px", cursor: "pointer", fontSize: "var(--font-size-md)", display: "flex", alignItems: "center", gap: 6 }}>
                 <FolderOpen size={14} /> Open Sandbox Folder
               </button>
             </div>
@@ -237,7 +237,7 @@ function TreeNodeRow({ node, depth, onToggle }: { node: TreeNode; depth: number;
     <>
       <div
         onClick={() => onToggle(node)}
-        style={{ display: "flex", alignItems: "center", gap: 4, padding: "2px 8px", paddingLeft: 8 + depth * 14, cursor: node.entry.is_directory ? "pointer" : "default", fontSize: 12, color: "var(--text-primary)", userSelect: "none" }}
+        style={{ display: "flex", alignItems: "center", gap: 4, padding: "2px 8px", paddingLeft: 8 + depth * 14, cursor: node.entry.is_directory ? "pointer" : "default", fontSize: "var(--font-size-base)", color: "var(--text-primary)", userSelect: "none" }}
         className="tree-row-hover"
       >
         {node.entry.is_directory

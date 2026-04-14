@@ -211,13 +211,13 @@ export function TimestampPanel() {
 
  {/* Header */}
  <div className="panel-tab-bar" style={{ padding: "8px 12px", alignItems: "center", flexWrap: "wrap" }}>
- <span style={{ fontSize: 13, fontWeight: 600, marginRight: 6 }}>Timestamp</span>
+ <span style={{ fontSize: "var(--font-size-md)", fontWeight: 600, marginRight: 6 }}>Timestamp</span>
  {(["convert","duration","relative","formats"] as SubTab[]).map(t => (
  <button key={t} onClick={() => setSubTab(t)} className={`panel-tab${subTab === t ? " active" : ""}`}>
  {t.charAt(0).toUpperCase() + t.slice(1)}
  </button>
  ))}
- <div style={{ marginLeft: "auto", fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>
+ <div style={{ marginLeft: "auto", fontSize: "var(--font-size-xs)", fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>
  now: {Math.floor(Date.now() / 1000)}
  </div>
  </div>
@@ -230,7 +230,7 @@ export function TimestampPanel() {
  {/* Input */}
  <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
  <input value={tsInput} onChange={e => setTsInput(e.target.value)} placeholder="Unix timestamp or ISO date string…"
- style={{ flex: 1, minWidth: 200, padding: "5px 10px", fontSize: 12, fontFamily: "var(--font-mono)", background: !parsedDate && tsInput ? "color-mix(in srgb, var(--accent-rose) 8%, transparent)" : "var(--bg-primary)", border: `1px solid ${!parsedDate && tsInput ? "var(--text-danger)" : "var(--border-color)"}`, borderRadius: 4, color: "var(--text-primary)", outline: "none" }} />
+ style={{ flex: 1, minWidth: 200, padding: "5px 10px", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)", background: !parsedDate && tsInput ? "color-mix(in srgb, var(--accent-rose) 8%, transparent)" : "var(--bg-primary)", border: `1px solid ${!parsedDate && tsInput ? "var(--text-danger)" : "var(--border-color)"}`, borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none" }} />
  <button onClick={setNow} className="panel-btn panel-btn-secondary panel-btn-xs" style={{ color: "var(--text-info)" }}>Now</button>
  <select value={tz} onChange={e => setTz(e.target.value)} className="panel-select">
  {TIMEZONES.map(z => <option key={z} value={z}>{z}</option>)}
@@ -238,7 +238,7 @@ export function TimestampPanel() {
  </div>
 
  {!parsedDate && tsInput.trim() && (
- <div style={{ padding: "8px 12px", fontSize: 11, color: "var(--text-danger)" }}>Could not parse input. Try a Unix timestamp (e.g. 1700000000) or ISO date (e.g. 2024-01-15T12:00:00Z).</div>
+ <div style={{ padding: "8px 12px", fontSize: "var(--font-size-sm)", color: "var(--text-danger)" }}>Could not parse input. Try a Unix timestamp (e.g. 1700000000) or ISO date (e.g. 2024-01-15T12:00:00Z).</div>
  )}
 
  {/* Format table */}
@@ -246,19 +246,19 @@ export function TimestampPanel() {
  <div>
  {fmtRows.map(({ label, value }) => (
  <div key={label} style={{ display: "flex", alignItems: "center", borderBottom: "1px solid var(--border-color)", padding: "5px 12px", gap: 10 }}>
- <span style={{ width: 140, flexShrink: 0, fontSize: 10, fontWeight: 700, color: "var(--text-secondary)" }}>{label}</span>
- <span style={{ flex: 1, fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-primary)", wordBreak: "break-all" }}>{value}</span>
+ <span style={{ width: 140, flexShrink: 0, fontSize: "var(--font-size-xs)", fontWeight: 700, color: "var(--text-secondary)" }}>{label}</span>
+ <span style={{ flex: 1, fontFamily: "var(--font-mono)", fontSize: "var(--font-size-base)", color: "var(--text-primary)", wordBreak: "break-all" }}>{value}</span>
  <CopyBtn text={value} />
  </div>
  ))}
 
  {/* Timezone grid */}
- <div style={{ padding: "6px 12px 0", fontSize: 10, fontWeight: 700, color: "var(--text-secondary)", background: "var(--bg-secondary)", borderTop: "1px solid var(--border-color)", marginTop: 8, letterSpacing: "0.05em" }}>WORLD CLOCKS</div>
+ <div style={{ padding: "6px 12px 0", fontSize: "var(--font-size-xs)", fontWeight: 700, color: "var(--text-secondary)", background: "var(--bg-secondary)", borderTop: "1px solid var(--border-color)", marginTop: 8, letterSpacing: "0.05em" }}>WORLD CLOCKS</div>
  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 0 }}>
  {tzRows.map(({ tz: z, label, value }) => (
  <div key={z} style={{ padding: "5px 12px", borderBottom: "1px solid var(--border-color)", display: "flex", gap: 8, alignItems: "center" }}>
- <span style={{ flex: 1, fontSize: 10, color: "var(--text-secondary)" }}>{label}</span>
- <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-info)" }}>{value}</span>
+ <span style={{ flex: 1, fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>{label}</span>
+ <span style={{ fontFamily: "var(--font-mono)", fontSize: "var(--font-size-sm)", color: "var(--text-info)" }}>{value}</span>
  </div>
  ))}
  </div>
@@ -272,17 +272,17 @@ export function TimestampPanel() {
  <div style={{ padding: "12px", display: "flex", flexDirection: "column", gap: 12 }}>
  <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
  <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
- <label style={{ fontSize: 10, fontWeight: 700, color: "var(--text-secondary)" }}>START</label>
+ <label style={{ fontSize: "var(--font-size-xs)", fontWeight: 700, color: "var(--text-secondary)" }}>START</label>
  <input type="datetime-local" value={durA} onChange={e => setDurA(e.target.value)}
- style={{ padding: "5px 8px", fontSize: 12, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none" }} />
+ style={{ padding: "5px 8px", fontSize: "var(--font-size-base)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none" }} />
  </div>
  <span style={{ fontSize: 18, color: "var(--text-secondary)", paddingTop: 16 }}>→</span>
  <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
- <label style={{ fontSize: 10, fontWeight: 700, color: "var(--text-secondary)" }}>END</label>
+ <label style={{ fontSize: "var(--font-size-xs)", fontWeight: 700, color: "var(--text-secondary)" }}>END</label>
  <input type="datetime-local" value={durB} onChange={e => setDurB(e.target.value)}
- style={{ padding: "5px 8px", fontSize: 12, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none" }} />
+ style={{ padding: "5px 8px", fontSize: "var(--font-size-base)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none" }} />
  </div>
- <button onClick={() => { setDurA(toLocalInputValue(new Date())); setDurB(toLocalInputValue(new Date())); }} style={{ paddingTop: 16, fontSize: 10, background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}>Reset</button>
+ <button onClick={() => { setDurA(toLocalInputValue(new Date())); setDurB(toLocalInputValue(new Date())); }} style={{ paddingTop: 16, fontSize: "var(--font-size-xs)", background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}>Reset</button>
  </div>
 
  {duration && (
@@ -297,14 +297,14 @@ export function TimestampPanel() {
  { label: "Minutes", value: duration.minutes, colour: "var(--text-warning)" },
  { label: "Seconds", value: duration.seconds, colour: "var(--text-danger)" },
  ].map(({ label, value, colour }) => (
- <div key={label} style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 6, padding: "8px", textAlign: "center" }}>
+ <div key={label} style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", padding: "8px", textAlign: "center" }}>
  <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)", color: colour }}>{value}</div>
- <div style={{ fontSize: 10, color: "var(--text-secondary)", marginTop: 2 }}>{label}</div>
+ <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginTop: 2 }}>{label}</div>
  </div>
  ))}
  </div>
  {/* Totals */}
- <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 6, padding: "10px 12px" }}>
+ <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", padding: "10px 12px" }}>
  {[
  ["Total days", duration.totalDays.toLocaleString()],
  ["Total hours", duration.totalHours.toLocaleString()],
@@ -312,8 +312,8 @@ export function TimestampPanel() {
  ["Total seconds", duration.totalSecs.toLocaleString()],
  ["Total ms", duration.totalMs.toLocaleString()],
  ].map(([label, value]) => (
- <div key={label} style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", fontSize: 12, borderBottom: "1px solid var(--border-color)" }}>
- <span style={{ color: "var(--text-secondary)", fontSize: 11 }}>{label}</span>
+ <div key={label} style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", fontSize: "var(--font-size-base)", borderBottom: "1px solid var(--border-color)" }}>
+ <span style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-sm)" }}>{label}</span>
  <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{value}</span>
  </div>
  ))}
@@ -327,29 +327,29 @@ export function TimestampPanel() {
  {subTab === "relative" && (
  <div style={{ padding: "12px", display: "flex", flexDirection: "column", gap: 12 }}>
  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
- <label style={{ fontSize: 11, color: "var(--text-secondary)", flexShrink: 0 }}>Base date:</label>
+ <label style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", flexShrink: 0 }}>Base date:</label>
  <input type="datetime-local" value={relBase} onChange={e => setRelBase(e.target.value)}
- style={{ flex: 1, padding: "4px 8px", fontSize: 12, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none" }} />
- <button onClick={() => setRelBase(toLocalInputValue(new Date()))} style={{ padding: "3px 10px", fontSize: 10, background: "color-mix(in srgb, var(--accent-blue) 10%, transparent)", border: "1px solid var(--text-info)", borderRadius: 4, color: "var(--text-info)", cursor: "pointer" }}>Now</button>
+ style={{ flex: 1, padding: "4px 8px", fontSize: "var(--font-size-base)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none" }} />
+ <button onClick={() => setRelBase(toLocalInputValue(new Date()))} style={{ padding: "3px 10px", fontSize: "var(--font-size-xs)", background: "color-mix(in srgb, var(--accent-blue) 10%, transparent)", border: "1px solid var(--text-info)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-info)", cursor: "pointer" }}>Now</button>
  </div>
 
  {relDate && (
  <>
- <div style={{ padding: "8px 12px", background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)", fontSize: 13, textAlign: "center" }}>
+ <div style={{ padding: "8px 12px", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-md)", textAlign: "center" }}>
  <span style={{ color: "var(--text-secondary)" }}>That date is </span>
  <span style={{ color: "var(--text-info)", fontWeight: 700 }}>{relativeTime(relDate)}</span>
  </div>
 
  <div>
- <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-secondary)", marginBottom: 8, letterSpacing: "0.05em" }}>OFFSETS FROM BASE DATE</div>
+ <div style={{ fontSize: "var(--font-size-xs)", fontWeight: 700, color: "var(--text-secondary)", marginBottom: 8, letterSpacing: "0.05em" }}>OFFSETS FROM BASE DATE</div>
  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 4 }}>
  {offsets.map(days => {
  const d = new Date(relDate.getTime() + days * 86400000);
  const label = days === 0 ? "Base date" : days > 0 ? `+${days} day${Math.abs(days) !== 1 ? "s" : ""}` : `${days} day${Math.abs(days) !== 1 ? "s" : ""}`;
  return (
- <div key={days} style={{ display: "flex", justifyContent: "space-between", padding: "5px 10px", background: days === 0 ? "rgba(137,180,250,0.08)" : "var(--bg-secondary)", border: `1px solid ${days === 0 ? "var(--text-info)" : "var(--border-color)"}`, borderRadius: 4, fontSize: 11 }}>
+ <div key={days} style={{ display: "flex", justifyContent: "space-between", padding: "5px 10px", background: days === 0 ? "rgba(137,180,250,0.08)" : "var(--bg-secondary)", border: `1px solid ${days === 0 ? "var(--text-info)" : "var(--border-color)"}`, borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-sm)" }}>
  <span style={{ color: days < 0 ? "var(--text-danger)" : days > 0 ? "var(--text-success)" : "var(--text-info)", fontWeight: 600 }}>{label}</span>
- <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-primary)", fontSize: 10 }}>{d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+ <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-primary)", fontSize: "var(--font-size-xs)" }}>{d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
  </div>
  );
  })}
@@ -363,7 +363,7 @@ export function TimestampPanel() {
  {/* ── FORMATS REFERENCE ── */}
  {subTab === "formats" && (
  <div style={{ padding: "12px" }}>
- <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 12 }}>Common date format tokens used across languages and libraries.</div>
+ <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 12 }}>Common date format tokens used across languages and libraries.</div>
  {[
  { title: "ISO 8601 / ECMAScript",
  rows: [["YYYY-MM-DD","2025-01-15"],["YYYY-MM-DDTHH:mm:ssZ","2025-01-15T14:30:00Z"],["YYYY-MM-DDTHH:mm:ss.sssZ","2025-01-15T14:30:00.000Z"]] },
@@ -379,8 +379,8 @@ export function TimestampPanel() {
  rows: [["yyyy-MM-dd","2025-01-15"],["yyyy-MM-ddTHH:mm:ss","2025-01-15T14:30:00"],["ddd, dd MMM yyyy HH':'mm':'ss 'GMT'","Wed, 15 Jan 2025 14:30:00 GMT"]] },
  ].map(({ title, rows }) => (
  <div key={title} style={{ marginBottom: 16 }}>
- <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-info)", marginBottom: 6 }}>{title}</div>
- <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+ <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 700, color: "var(--text-info)", marginBottom: 6 }}>{title}</div>
+ <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-sm)" }}>
  <tbody>
  {rows.map(([fmt, ex]) => (
  <tr key={fmt} style={{ borderBottom: "1px solid var(--border-color)" }}>

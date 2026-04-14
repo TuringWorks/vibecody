@@ -214,7 +214,7 @@ const badgeStyle = (bg: string, fg = "white"): React.CSSProperties => ({
   display: "inline-block",
   padding: "2px 8px",
   borderRadius: "var(--radius-sm)",
-  fontSize: 11,
+  fontSize: "var(--font-size-sm)",
   fontWeight: 600,
   background: bg,
   color: fg,
@@ -225,7 +225,7 @@ const badgeStyle = (bg: string, fg = "white"): React.CSSProperties => ({
 
 
 const sectionTitle: React.CSSProperties = {
-  fontSize: 15,
+  fontSize: "var(--font-size-xl)",
   fontWeight: 600,
   color: "var(--text-primary)",
   marginBottom: 10,
@@ -321,7 +321,7 @@ function StoryDetailModal({ story, onSave, onDelete, onClose, title }: StoryDeta
         }}>
           <span style={badgeStyle(PRIORITY_COLORS[draft.priority])}>{draft.priority}</span>
           {draft.epic && <span style={badgeStyle("var(--accent-bg)", "var(--accent-color)")}>{draft.epic}</span>}
-          <span style={{ fontSize: 11, color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
+          <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
             {title ?? "Story"}
           </span>
           <div style={{ flex: 1 }} />
@@ -339,7 +339,7 @@ function StoryDetailModal({ story, onSave, onDelete, onClose, title }: StoryDeta
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
               <label style={{ ...fieldLabel, margin: 0 }}>User Story</label>
               <span style={{
-                fontSize: 10, padding: "1px 7px", borderRadius: 10, fontWeight: 600,
+                fontSize: "var(--font-size-xs)", padding: "1px 7px", borderRadius: "var(--radius-md)", fontWeight: 600,
                 background: followsFormat ? "color-mix(in srgb, var(--accent-green) 15%, transparent)" : "color-mix(in srgb, var(--accent-gold) 15%, transparent)",
                 color: followsFormat ? "var(--text-success)" : "var(--text-warning)",
                 border: `1px solid ${followsFormat ? "var(--success-color)" : "var(--warning-color)"}`,
@@ -349,7 +349,7 @@ function StoryDetailModal({ story, onSave, onDelete, onClose, title }: StoryDeta
             </div>
             <input
               className="panel-input panel-input-full"
-              style={{ fontSize: 14, fontWeight: 600 }}
+              style={{ fontSize: "var(--font-size-lg)", fontWeight: 600 }}
               placeholder='As a [type of user], I want [an action] so that [value/benefit]'
               value={draft.title}
               onChange={e => set("title", e.target.value)}
@@ -362,15 +362,15 @@ function StoryDetailModal({ story, onSave, onDelete, onClose, title }: StoryDeta
                 border: "1px solid color-mix(in srgb, var(--accent-blue) 25%, transparent)",
                 display: "flex", flexDirection: "column", gap: 4,
               }}>
-                <div style={{ fontSize: 11, display: "flex", gap: 6, flexWrap: "wrap" }}>
+                <div style={{ fontSize: "var(--font-size-sm)", display: "flex", gap: 6, flexWrap: "wrap" }}>
                   <span style={{ color: "var(--text-secondary)", fontWeight: 600, minWidth: 50 }}>As a</span>
                   <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>{parsedStory.who}</span>
                 </div>
-                <div style={{ fontSize: 11, display: "flex", gap: 6, flexWrap: "wrap" }}>
+                <div style={{ fontSize: "var(--font-size-sm)", display: "flex", gap: 6, flexWrap: "wrap" }}>
                   <span style={{ color: "var(--text-secondary)", fontWeight: 600, minWidth: 50 }}>I want</span>
                   <span style={{ color: "var(--text-primary)" }}>{parsedStory.action}</span>
                 </div>
-                <div style={{ fontSize: 11, display: "flex", gap: 6, flexWrap: "wrap" }}>
+                <div style={{ fontSize: "var(--font-size-sm)", display: "flex", gap: 6, flexWrap: "wrap" }}>
                   <span style={{ color: "var(--text-secondary)", fontWeight: 600, minWidth: 50 }}>So that</span>
                   <span style={{ color: "var(--accent-color)" }}>{parsedStory.benefit}</span>
                 </div>
@@ -440,10 +440,10 @@ function StoryDetailModal({ story, onSave, onDelete, onClose, title }: StoryDeta
             <label style={fieldLabel}>Acceptance Criteria</label>
             {draft.acceptanceCriteria.map((ac, i) => (
               <div key={i} style={{ display: "flex", gap: 6, marginBottom: 6, alignItems: "flex-start" }}>
-                <span style={{ marginTop: 7, fontSize: 11, color: "var(--text-secondary)", fontFamily: "var(--font-mono)", minWidth: 20 }}>{i + 1}.</span>
+                <span style={{ marginTop: 7, fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", fontFamily: "var(--font-mono)", minWidth: 20 }}>{i + 1}.</span>
                 <textarea
                   className="panel-input"
-                  style={{ flex: 1, minHeight: 36, resize: "vertical", fontSize: 12, lineHeight: 1.4 }}
+                  style={{ flex: 1, minHeight: 36, resize: "vertical", fontSize: "var(--font-size-base)", lineHeight: 1.4 }}
                   value={ac}
                   onChange={e => updateAC(i, e.target.value)}
                 />
@@ -456,13 +456,13 @@ function StoryDetailModal({ story, onSave, onDelete, onClose, title }: StoryDeta
             <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
               <input
                 className="panel-input"
-                style={{ flex: 1, fontSize: 12 }}
+                style={{ flex: 1, fontSize: "var(--font-size-base)" }}
                 placeholder="Add acceptance criterion..."
                 value={acInput}
                 onChange={e => setAcInput(e.target.value)}
                 onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addAC(); } }}
               />
-              <button className="panel-btn panel-btn-secondary" onClick={addAC} style={{ fontSize: 11 }}>Add</button>
+              <button className="panel-btn panel-btn-secondary" onClick={addAC} style={{ fontSize: "var(--font-size-sm)" }}>Add</button>
             </div>
           </div>
         </div>
@@ -476,7 +476,7 @@ function StoryDetailModal({ story, onSave, onDelete, onClose, title }: StoryDeta
           <button className="panel-btn panel-btn-secondary" onClick={onClose}>Cancel</button>
           <div style={{ flex: 1 }} />
           {onDelete && (
-            <button className="panel-btn panel-btn-danger" onClick={onDelete} style={{ fontSize: 11 }}>Delete Story</button>
+            <button className="panel-btn panel-btn-danger" onClick={onDelete} style={{ fontSize: "var(--font-size-sm)" }}>Delete Story</button>
           )}
         </div>
       </div>
@@ -485,7 +485,7 @@ function StoryDetailModal({ story, onSave, onDelete, onClose, title }: StoryDeta
 }
 
 const fieldLabel: React.CSSProperties = {
-  display: "block", fontSize: 11, fontWeight: 600,
+  display: "block", fontSize: "var(--font-size-sm)", fontWeight: 600,
   color: "var(--text-secondary)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em",
 };
 
@@ -548,7 +548,7 @@ function SubtaskProgress({ subtasks }: { subtasks?: Subtask[] }) {
   const pct = Math.round((done / subtasks.length) * 100);
   return (
     <div style={{ marginTop: 4 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--text-secondary)", marginBottom: 2 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginBottom: 2 }}>
         <span>Subtasks</span><span>{done}/{subtasks.length}</span>
       </div>
       <div style={{ height: 4, borderRadius: 2, background: "var(--bg-tertiary)", overflow: "hidden" }}>
@@ -725,18 +725,18 @@ function BoardTab({ provider }: { provider?: string } = {}) {
 
   return (
     <div>
-      {error && <div style={{ color: "var(--error-color)", marginBottom: 8, fontSize: 12 }}>{error}</div>}
+      {error && <div style={{ color: "var(--error-color)", marginBottom: 8, fontSize: "var(--font-size-base)" }}>{error}</div>}
 
       {/* ── Toolbar: Board Mode + Swimlane + Quick Filters ── */}
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginBottom: 10, padding: "8px 0", borderBottom: "1px solid var(--border-color)" }}>
         {/* Board mode toggle */}
         <div style={{ display: "flex", borderRadius: "var(--radius-sm)", overflow: "hidden", border: "1px solid var(--border-color)" }}>
-          <button className={`panel-tab ${boardMode === "kanban" ? "active" : ""}`} style={{ border: "none", borderRadius: 0, fontSize: 11, padding: "4px 10px" }} onClick={() => setBoardMode("kanban")}>Kanban</button>
-          <button className={`panel-tab ${boardMode === "sprint" ? "active" : ""}`} style={{ border: "none", borderRadius: 0, fontSize: 11, padding: "4px 10px" }} onClick={() => setBoardMode("sprint")}>Sprint Board</button>
+          <button className={`panel-tab ${boardMode === "kanban" ? "active" : ""}`} style={{ border: "none", borderRadius: 0, fontSize: "var(--font-size-sm)", padding: "4px 10px" }} onClick={() => setBoardMode("kanban")}>Kanban</button>
+          <button className={`panel-tab ${boardMode === "sprint" ? "active" : ""}`} style={{ border: "none", borderRadius: 0, fontSize: "var(--font-size-sm)", padding: "4px 10px" }} onClick={() => setBoardMode("sprint")}>Sprint Board</button>
         </div>
 
         {boardMode === "sprint" && (
-          <select className="panel-select" style={{ width: "auto", fontSize: 11, padding: "4px 8px" }} value={activeSprint} onChange={e => setActiveSprint(e.target.value)}>
+          <select className="panel-select" style={{ width: "auto", fontSize: "var(--font-size-sm)", padding: "4px 8px" }} value={activeSprint} onChange={e => setActiveSprint(e.target.value)}>
             <option value="">All Sprints</option>
             {sprints.map(s => <option key={s.id} value={s.id}>{s.name} ({s.status})</option>)}
           </select>
@@ -745,9 +745,9 @@ function BoardTab({ provider }: { provider?: string } = {}) {
         <div style={{ width: 1, height: 20, background: "var(--border-color)" }} />
 
         {/* Swimlane selector */}
-        <label style={{ fontSize: 11, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4 }}>
+        <label style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4 }}>
           Swimlanes:
-          <select className="panel-select" style={{ width: "auto", fontSize: 11, padding: "4px 8px" }} value={swimlane} onChange={e => setSwimlane(e.target.value as SwimlaneMode)}>
+          <select className="panel-select" style={{ width: "auto", fontSize: "var(--font-size-sm)", padding: "4px 8px" }} value={swimlane} onChange={e => setSwimlane(e.target.value as SwimlaneMode)}>
             <option value="none">None</option>
             <option value="assignee">Assignee</option>
             <option value="priority">Priority</option>
@@ -758,36 +758,36 @@ function BoardTab({ provider }: { provider?: string } = {}) {
         <div style={{ width: 1, height: 20, background: "var(--border-color)" }} />
 
         {/* Quick filters */}
-        <input className="panel-input" style={{ width: 140, fontSize: 11, padding: "4px 8px" }} placeholder="Search cards..." value={filterText} onChange={e => setFilterText(e.target.value)} />
-        <select className="panel-select" style={{ width: "auto", fontSize: 11, padding: "4px 8px" }} value={filterAssignee} onChange={e => setFilterAssignee(e.target.value)}>
+        <input className="panel-input" style={{ width: 140, fontSize: "var(--font-size-sm)", padding: "4px 8px" }} placeholder="Search cards..." value={filterText} onChange={e => setFilterText(e.target.value)} />
+        <select className="panel-select" style={{ width: "auto", fontSize: "var(--font-size-sm)", padding: "4px 8px" }} value={filterAssignee} onChange={e => setFilterAssignee(e.target.value)}>
           <option value="">All Assignees</option>
           {allAssignees.map(a => <option key={a} value={a}>{a}</option>)}
         </select>
-        <select className="panel-select" style={{ width: "auto", fontSize: 11, padding: "4px 8px" }} value={filterPriority} onChange={e => setFilterPriority(e.target.value as Priority | "")}>
+        <select className="panel-select" style={{ width: "auto", fontSize: "var(--font-size-sm)", padding: "4px 8px" }} value={filterPriority} onChange={e => setFilterPriority(e.target.value as Priority | "")}>
           <option value="">All Priorities</option>
           {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
         </select>
         {allLabels.length > 0 && (
-          <select className="panel-select" style={{ width: "auto", fontSize: 11, padding: "4px 8px" }} value={filterLabel} onChange={e => setFilterLabel(e.target.value)}>
+          <select className="panel-select" style={{ width: "auto", fontSize: "var(--font-size-sm)", padding: "4px 8px" }} value={filterLabel} onChange={e => setFilterLabel(e.target.value)}>
             <option value="">All Labels</option>
             {allLabels.map(l => <option key={l} value={l}>{l}</option>)}
           </select>
         )}
         {hasFilters && (
-          <button className="panel-btn panel-btn-secondary" style={{ padding: "3px 8px", fontSize: 11, color: "var(--error-color)" }} onClick={() => { setFilterText(""); setFilterAssignee(""); setFilterPriority(""); setFilterLabel(""); }}>Clear Filters</button>
+          <button className="panel-btn panel-btn-secondary" style={{ padding: "3px 8px", fontSize: "var(--font-size-sm)", color: "var(--error-color)" }} onClick={() => { setFilterText(""); setFilterAssignee(""); setFilterPriority(""); setFilterLabel(""); }}>Clear Filters</button>
         )}
-        <span style={{ fontSize: 11, color: "var(--text-secondary)", marginLeft: "auto" }}>{filteredCards.length} card{filteredCards.length !== 1 ? "s" : ""}</span>
+        <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginLeft: "auto" }}>{filteredCards.length} card{filteredCards.length !== 1 ? "s" : ""}</span>
       </div>
 
       {/* ── Swimlaned Board ── */}
       {lanes.map(lane => (
         <div key={lane.key}>
           {lane.label && (
-            <div style={{ padding: "6px 8px", margin: "8px 0 4px", background: "var(--bg-tertiary)", borderRadius: "var(--radius-sm)", fontWeight: 600, fontSize: 12, color: "var(--text-primary)", display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ padding: "6px 8px", margin: "8px 0 4px", background: "var(--bg-tertiary)", borderRadius: "var(--radius-sm)", fontWeight: 600, fontSize: "var(--font-size-base)", color: "var(--text-primary)", display: "flex", alignItems: "center", gap: 8 }}>
               {swimlane === "assignee" && <AvatarBadge name={lane.label} size={20} />}
               {swimlane === "priority" && <span style={badgeStyle(PRIORITY_COLORS[lane.label as Priority] || "var(--bg-tertiary)")}>{lane.label}</span>}
               {(swimlane === "epic" || swimlane === "assignee") && <span>{lane.label}</span>}
-              <span style={{ fontSize: 11, color: "var(--text-secondary)", fontWeight: 400 }}>({lane.cards.length})</span>
+              <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", fontWeight: 400 }}>({lane.cards.length})</span>
             </div>
           )}
           <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 8, marginBottom: swimlane !== "none" ? 12 : 0 }}>
@@ -806,10 +806,10 @@ function BoardTab({ provider }: { provider?: string } = {}) {
                   }}
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                    <span style={{ fontWeight: 600, fontSize: 13, color: "var(--text-primary)" }}>{col}</span>
-                    <span style={{ fontSize: 11, color: overWip ? "var(--warning-color)" : "var(--text-secondary)" }}>{colCards.length}/{wipLimits[col] || "~"}</span>
+                    <span style={{ fontWeight: 600, fontSize: "var(--font-size-md)", color: "var(--text-primary)" }}>{col}</span>
+                    <span style={{ fontSize: "var(--font-size-sm)", color: overWip ? "var(--warning-color)" : "var(--text-secondary)" }}>{colCards.length}/{wipLimits[col] || "~"}</span>
                   </div>
-                  {overWip && <div style={{ fontSize: 11, color: "var(--warning-color)", marginBottom: 6 }}>WIP limit exceeded!</div>}
+                  {overWip && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--warning-color)", marginBottom: 6 }}>WIP limit exceeded!</div>}
 
                   {colCards.map(card => {
                     const age = cardAgeDays(card);
@@ -828,8 +828,8 @@ function BoardTab({ provider }: { provider?: string } = {}) {
                         onMouseEnter={() => setHoveredCard(card.id)} onMouseLeave={() => setHoveredCard(null)}
                         onClick={() => setEditingCard({ ...card })}
                       >
-                        {card.epic && <div style={{ fontSize: 10, color: "var(--accent-purple)", fontWeight: 600, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>{card.epic}</div>}
-                        <div style={{ fontWeight: 500, fontSize: 13, color: "var(--text-primary)", marginBottom: 6 }}>{card.title}</div>
+                        {card.epic && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--accent-purple)", fontWeight: 600, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>{card.epic}</div>}
+                        <div style={{ fontWeight: 500, fontSize: "var(--font-size-md)", color: "var(--text-primary)", marginBottom: 6 }}>{card.title}</div>
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 4, alignItems: "center" }}>
                           <span style={badgeStyle(PRIORITY_COLORS[card.priority])}>{card.priority}</span>
                           {card.storyPoints > 0 && <span style={badgeStyle("var(--accent-purple)")}>{card.storyPoints} pts</span>}
@@ -839,13 +839,13 @@ function BoardTab({ provider }: { provider?: string } = {}) {
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 6 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                             <AvatarBadge name={card.assignee} size={22} />
-                            {card.assignee && <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{card.assignee}</span>}
+                            {card.assignee && <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{card.assignee}</span>}
                           </div>
-                          {age > 3 && <span style={{ fontSize: 10, color: aging || "var(--text-secondary)" }} title="Card age">{age}d</span>}
+                          {age > 3 && <span style={{ fontSize: "var(--font-size-xs)", color: aging || "var(--text-secondary)" }} title="Card age">{age}d</span>}
                         </div>
                         <div style={{ display: "flex", gap: 4, marginTop: 6 }} onClick={e => e.stopPropagation()}>
-                          {colIdx(col) > 0 && <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 8px", fontSize: 11 }} onClick={() => moveCard(card.id, COLUMNS[colIdx(col) - 1])}>&larr;</button>}
-                          {colIdx(col) < COLUMNS.length - 1 && <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 8px", fontSize: 11 }} onClick={() => moveCard(card.id, COLUMNS[colIdx(col) + 1])}>&rarr;</button>}
+                          {colIdx(col) > 0 && <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 8px", fontSize: "var(--font-size-sm)" }} onClick={() => moveCard(card.id, COLUMNS[colIdx(col) - 1])}>&larr;</button>}
+                          {colIdx(col) < COLUMNS.length - 1 && <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 8px", fontSize: "var(--font-size-sm)" }} onClick={() => moveCard(card.id, COLUMNS[colIdx(col) + 1])}>&rarr;</button>}
                         </div>
                       </div>
                     );
@@ -861,7 +861,7 @@ function BoardTab({ provider }: { provider?: string } = {}) {
                         </div>
                       </div>
                     ) : (
-                      <button className="panel-btn panel-btn-secondary" style={{ width: "100%", marginTop: 6, fontSize: 12 }} onClick={() => setAddingTo(col)}>+ Add Card</button>
+                      <button className="panel-btn panel-btn-secondary" style={{ width: "100%", marginTop: 6, fontSize: "var(--font-size-base)" }} onClick={() => setAddingTo(col)}>+ Add Card</button>
                     )
                   )}
                 </div>
@@ -878,51 +878,51 @@ function BoardTab({ provider }: { provider?: string } = {}) {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
               <h3 style={{ margin: 0, color: "var(--text-primary)", fontSize: 16 }}>Edit Card</h3>
               <div style={{ display: "flex", gap: 6 }}>
-                <button className="panel-btn panel-btn-danger" style={{ padding: "4px 10px", fontSize: 11 }} onClick={() => { if (confirm("Delete this card?")) deleteCard(editingCard.id); }}>Delete</button>
-                <button className="panel-btn panel-btn-secondary" style={{ padding: "4px 10px", fontSize: 11 }} onClick={() => setEditingCard(null)}>Close</button>
+                <button className="panel-btn panel-btn-danger" style={{ padding: "4px 10px", fontSize: "var(--font-size-sm)" }} onClick={() => { if (confirm("Delete this card?")) deleteCard(editingCard.id); }}>Delete</button>
+                <button className="panel-btn panel-btn-secondary" style={{ padding: "4px 10px", fontSize: "var(--font-size-sm)" }} onClick={() => setEditingCard(null)}>Close</button>
               </div>
             </div>
-            <label style={{ fontSize: 12, color: "var(--text-secondary)" }}>Title</label>
+            <label style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>Title</label>
             <input className="panel-input panel-input-full" style={{ marginBottom: 8 }} value={editingCard.title} onChange={e => setEditingCard({ ...editingCard, title: e.target.value })} />
-            <label style={{ fontSize: 12, color: "var(--text-secondary)" }}>Description</label>
+            <label style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>Description</label>
             <textarea className="panel-input panel-input-full" style={{ minHeight: 60, marginBottom: 8, resize: "vertical" }} value={editingCard.description} onChange={e => setEditingCard({ ...editingCard, description: e.target.value })} />
             <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
               <div style={{ flex: 1 }}>
-                <label style={{ fontSize: 12, color: "var(--text-secondary)" }}>Assignee</label>
+                <label style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>Assignee</label>
                 <input className="panel-input panel-input-full" value={editingCard.assignee} onChange={e => setEditingCard({ ...editingCard, assignee: e.target.value })} />
               </div>
               <div style={{ flex: 1 }}>
-                <label style={{ fontSize: 12, color: "var(--text-secondary)" }}>Priority</label>
+                <label style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>Priority</label>
                 <select className="panel-select" value={editingCard.priority} onChange={e => setEditingCard({ ...editingCard, priority: e.target.value as Priority })}>
                   {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
               </div>
               <div style={{ width: 80 }}>
-                <label style={{ fontSize: 12, color: "var(--text-secondary)" }}>Points</label>
+                <label style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>Points</label>
                 <input className="panel-input panel-input-full" type="number" min={0} value={editingCard.storyPoints} onChange={e => setEditingCard({ ...editingCard, storyPoints: Number(e.target.value) })} />
               </div>
             </div>
             <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
               <div style={{ flex: 1 }}>
-                <label style={{ fontSize: 12, color: "var(--text-secondary)" }}>Epic</label>
+                <label style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>Epic</label>
                 <input className="panel-input panel-input-full" placeholder="Epic name" value={editingCard.epic || ""} onChange={e => setEditingCard({ ...editingCard, epic: e.target.value || undefined })} list="epic-suggestions" />
                 <datalist id="epic-suggestions">{allEpics.map(ep => <option key={ep} value={ep} />)}</datalist>
               </div>
               <div style={{ flex: 1 }}>
-                <label style={{ fontSize: 12, color: "var(--text-secondary)" }}>Column</label>
+                <label style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>Column</label>
                 <select className="panel-select" value={editingCard.column} onChange={e => setEditingCard({ ...editingCard, column: e.target.value as Column })}>
                   {COLUMNS.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
             </div>
-            <label style={{ fontSize: 12, color: "var(--text-secondary)" }}>Labels (comma-separated)</label>
+            <label style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>Labels (comma-separated)</label>
             <input className="panel-input panel-input-full" style={{ marginBottom: 8 }} value={editingCard.labels.join(", ")} onChange={e => setEditingCard({ ...editingCard, labels: e.target.value.split(",").map(s => s.trim()).filter(Boolean) })} />
 
             {/* Acceptance Criteria */}
             <div style={{ marginBottom: 12 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                <label style={{ fontSize: 12, color: "var(--text-secondary)" }}>Acceptance Criteria</label>
-                <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 8px", fontSize: 11, color: "var(--accent-blue)" }} onClick={async () => {
+                <label style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>Acceptance Criteria</label>
+                <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 8px", fontSize: "var(--font-size-sm)", color: "var(--accent-blue)" }} onClick={async () => {
                   try {
                     const result = await invoke<{ criteria: string[] }>("agile_ai_generate_ac", { title: editingCard.title, description: editingCard.description , provider});
                     if (result.criteria?.length) {
@@ -935,13 +935,13 @@ function BoardTab({ provider }: { provider?: string } = {}) {
               </div>
               {editingCard.acceptanceCriteria.map((ac, i) => (
                 <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                  <span style={{ flex: 1, fontSize: 12, color: "var(--text-primary)" }}>{ac}</span>
-                  <button style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", fontSize: 12 }} onClick={() => {
+                  <span style={{ flex: 1, fontSize: "var(--font-size-base)", color: "var(--text-primary)" }}>{ac}</span>
+                  <button style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }} onClick={() => {
                     setEditingCard({ ...editingCard, acceptanceCriteria: editingCard.acceptanceCriteria.filter((_, j) => j !== i) });
                   }}>x</button>
                 </div>
               ))}
-              <input className="panel-input panel-input-full" style={{ fontSize: 12 }} placeholder="Add acceptance criterion..." onKeyDown={e => {
+              <input className="panel-input panel-input-full" style={{ fontSize: "var(--font-size-base)" }} placeholder="Add acceptance criterion..." onKeyDown={e => {
                 if (e.key === "Enter" && (e.target as HTMLInputElement).value.trim()) {
                   setEditingCard({ ...editingCard, acceptanceCriteria: [...editingCard.acceptanceCriteria, (e.target as HTMLInputElement).value.trim()] });
                   (e.target as HTMLInputElement).value = "";
@@ -952,10 +952,10 @@ function BoardTab({ provider }: { provider?: string } = {}) {
             {/* Subtasks section */}
             <div style={{ marginBottom: 12, borderTop: "1px solid var(--border-color)", paddingTop: 12 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                <label style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>Subtasks ({(editingCard.subtasks || []).length})</label>
+                <label style={{ fontSize: "var(--font-size-md)", fontWeight: 600, color: "var(--text-primary)" }}>Subtasks ({(editingCard.subtasks || []).length})</label>
                 <div style={{ display: "flex", gap: 4 }}>
-                  <button className="panel-btn panel-btn-secondary" style={{ padding: "3px 10px", fontSize: 11 }} onClick={addSubtask}>+ Add</button>
-                  <button className="panel-btn panel-btn-primary" style={{ padding: "3px 10px", fontSize: 11 }} onClick={aiGenerateSubtasks} disabled={subtaskLoading}>
+                  <button className="panel-btn panel-btn-secondary" style={{ padding: "3px 10px", fontSize: "var(--font-size-sm)" }} onClick={addSubtask}>+ Add</button>
+                  <button className="panel-btn panel-btn-primary" style={{ padding: "3px 10px", fontSize: "var(--font-size-sm)" }} onClick={aiGenerateSubtasks} disabled={subtaskLoading}>
                     {subtaskLoading ? "Generating..." : "AI Generate"}
                   </button>
                 </div>
@@ -963,14 +963,14 @@ function BoardTab({ provider }: { provider?: string } = {}) {
               {(editingCard.subtasks || []).map(sub => (
                 <div key={sub.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", borderBottom: "1px solid var(--border-color)" }}>
                   <input type="checkbox" checked={sub.done} onChange={() => toggleSubtask(sub.id)} />
-                  <span style={{ flex: 1, fontSize: 12, textDecoration: sub.done ? "line-through" : "none", color: sub.done ? "var(--text-secondary)" : "var(--text-primary)" }}>{sub.title}</span>
-                  <button style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", fontSize: 12 }} onClick={() => removeSubtask(sub.id)}>x</button>
+                  <span style={{ flex: 1, fontSize: "var(--font-size-base)", textDecoration: sub.done ? "line-through" : "none", color: sub.done ? "var(--text-secondary)" : "var(--text-primary)" }}>{sub.title}</span>
+                  <button style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }} onClick={() => removeSubtask(sub.id)}>x</button>
                 </div>
               ))}
               {(editingCard.subtasks || []).length > 0 && <SubtaskProgress subtasks={editingCard.subtasks} />}
             </div>
 
-            <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 12 }}>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 12 }}>
               Created: {new Date(editingCard.createdAt).toLocaleDateString()} · Age: {cardAgeDays(editingCard)} days
               {editingCard.sprintId && <span> · Sprint: {sprints.find(s => s.id === editingCard.sprintId)?.name || editingCard.sprintId}</span>}
             </div>
@@ -1070,7 +1070,7 @@ function SprintTab() {
 
   return (
     <div>
-      {error && <div style={{ color: "var(--error-color)", marginBottom: 8, fontSize: 12 }}>{error}</div>}
+      {error && <div style={{ color: "var(--error-color)", marginBottom: 8, fontSize: "var(--font-size-base)" }}>{error}</div>}
 
       {/* Sprint selector */}
       <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12 }}>
@@ -1113,8 +1113,8 @@ function SprintTab() {
               { label: "Completed", value: `${current.completedPoints} pts` },
             ].map(({ label, value }) => (
               <div key={label} style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: "8px 14px", border: "1px solid var(--border-color)" }}>
-                <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{label}</div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>{value}</div>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{label}</div>
+                <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--text-primary)" }}>{value}</div>
               </div>
             ))}
           </div>
@@ -1122,11 +1122,11 @@ function SprintTab() {
           {/* Sprint backlog table */}
           <div style={sectionTitle}>Sprint Backlog</div>
           <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-md)" }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
                   {["Story", "Points", "Assignee", "Status", "Priority"].map(h => (
-                    <th key={h} style={{ textAlign: "left", padding: "6px 10px", color: "var(--text-secondary)", fontWeight: 500, fontSize: 12 }}>{h}</th>
+                    <th key={h} style={{ textAlign: "left", padding: "6px 10px", color: "var(--text-secondary)", fontWeight: 500, fontSize: "var(--font-size-base)" }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -1155,12 +1155,12 @@ function SprintTab() {
                 {availableBacklog.map(item => (
                   <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)" }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 12, fontWeight: 500, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.title}</div>
-                      <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{item.priority} · {item.storyPoints} pts</div>
+                      <div style={{ fontSize: "var(--font-size-base)", fontWeight: 500, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.title}</div>
+                      <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{item.priority} · {item.storyPoints} pts</div>
                     </div>
                     <button
                       className="panel-btn panel-btn-primary"
-                      style={{ fontSize: 11, padding: "3px 8px", flexShrink: 0 }}
+                      style={{ fontSize: "var(--font-size-sm)", padding: "3px 8px", flexShrink: 0 }}
                       onClick={async () => {
                         const updated: Sprint = {
                           ...current,
@@ -1187,7 +1187,7 @@ function SprintTab() {
 
           {/* Burndown */}
           <div style={{ ...sectionTitle, marginTop: 16 }}>Burndown Chart</div>
-          <pre style={{ background: "var(--bg-secondary)", padding: 12, borderRadius: "var(--radius-sm)", fontSize: 11, overflow: "auto", color: "var(--text-primary)", border: "1px solid var(--border-color)" }}>
+          <pre style={{ background: "var(--bg-secondary)", padding: 12, borderRadius: "var(--radius-sm)", fontSize: "var(--font-size-sm)", overflow: "auto", color: "var(--text-primary)", border: "1px solid var(--border-color)" }}>
             {renderBurndown()}
           </pre>
         </div>
@@ -1200,8 +1200,8 @@ function SprintTab() {
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {history.map(h => (
               <div key={h.id} style={{ ...cardBaseStyle, minWidth: 160 }}>
-                <div style={{ fontWeight: 600, fontSize: 13, color: "var(--text-primary)" }}>{h.name}</div>
-                <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Velocity: {h.velocity} | {h.completedPoints}/{h.plannedPoints} pts</div>
+                <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", color: "var(--text-primary)" }}>{h.name}</div>
+                <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>Velocity: {h.velocity} | {h.completedPoints}/{h.plannedPoints} pts</div>
                 <span style={badgeStyle(h.status === "Completed" ? "var(--success-color)" : "var(--text-secondary)")}>{h.status}</span>
               </div>
             ))}
@@ -1441,14 +1441,14 @@ function BacklogTab({ provider }: { provider?: string } = {}) {
 
   return (
     <div>
-      {error && <div style={{ color: "var(--error-color)", marginBottom: 8, fontSize: 12 }}>{error}</div>}
+      {error && <div style={{ color: "var(--error-color)", marginBottom: 8, fontSize: "var(--font-size-base)" }}>{error}</div>}
 
       {/* AI Backlog Generation */}
       <div style={{ marginBottom: 12 }}>
         {showAiGenerate ? (
           <div style={{ ...cardBaseStyle }}>
             <h4 style={{ margin: "0 0 8px", color: "var(--text-primary)" }}>AI Backlog Generator</h4>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8, lineHeight: 1.5 }}>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 8, lineHeight: 1.5 }}>
               Describe what you want to build. The AI will analyze your project structure and generate epics, stories, estimates, dependencies, and ordering.
             </div>
             <textarea
@@ -1463,20 +1463,20 @@ function BacklogTab({ provider }: { provider?: string } = {}) {
                 {aiGenerating ? "Analyzing project..." : "Generate Backlog"}
               </button>
               <button className="panel-btn panel-btn-secondary" onClick={() => { setShowAiGenerate(false); setAiSuggestions([]); setAiEpics([]); }}>Cancel</button>
-              {aiGenerating && <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>AI is scanning files and generating stories...</span>}
+              {aiGenerating && <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>AI is scanning files and generating stories...</span>}
             </div>
 
             {/* Suggestions review */}
             {aiSuggestions.length > 0 && (
               <div style={{ marginTop: 12 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>
+                  <div style={{ fontSize: "var(--font-size-md)", fontWeight: 600, color: "var(--text-primary)" }}>
                     {aiSuggestions.length} stories generated
                     {aiEpics.length > 0 && <span style={{ fontWeight: 400, color: "var(--text-secondary)" }}> across {aiEpics.length} epic{aiEpics.length !== 1 ? "s" : ""}</span>}
                   </div>
                   <div style={{ display: "flex", gap: 6 }}>
-                    <button className="panel-btn panel-btn-secondary" style={{ fontSize: 11, padding: "3px 8px" }} onClick={acceptAllSuggestions}>Accept All</button>
-                    <button className="panel-btn panel-btn-secondary" style={{ fontSize: 11, padding: "3px 8px" }} onClick={rejectAllSuggestions}>Reject All</button>
+                    <button className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-sm)", padding: "3px 8px" }} onClick={acceptAllSuggestions}>Accept All</button>
+                    <button className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-sm)", padding: "3px 8px" }} onClick={rejectAllSuggestions}>Reject All</button>
                   </div>
                 </div>
 
@@ -1505,11 +1505,11 @@ function BacklogTab({ provider }: { provider?: string } = {}) {
                         {/* Accept checkbox */}
                         <div
                           style={{
-                            width: 20, height: 20, borderRadius: 4, flexShrink: 0, marginTop: 2, cursor: "pointer",
+                            width: 20, height: 20, borderRadius: "var(--radius-xs-plus)", flexShrink: 0, marginTop: 2, cursor: "pointer",
                             background: s._accepted ? "var(--accent-color)" : "var(--bg-tertiary)",
                             border: `1px solid ${s._accepted ? "var(--accent-color)" : "var(--border-color)"}`,
                             display: "flex", alignItems: "center", justifyContent: "center",
-                            color: "var(--btn-primary-fg)", fontSize: 12, fontWeight: 700,
+                            color: "var(--btn-primary-fg)", fontSize: "var(--font-size-base)", fontWeight: 700,
                           }}
                           onClick={() => toggleSuggestion(idx)}
                         >
@@ -1521,10 +1521,10 @@ function BacklogTab({ provider }: { provider?: string } = {}) {
                           onClick={() => setDetailSuggIdx(idx)}
                         >
                           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
-                            <span style={{ fontSize: 10, color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>#{idx + 1}</span>
-                            <span style={{ fontWeight: 600, fontSize: 13, color: "var(--text-primary)" }}>{s.title}</span>
+                            <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>#{idx + 1}</span>
+                            <span style={{ fontWeight: 600, fontSize: "var(--font-size-md)", color: "var(--text-primary)" }}>{s.title}</span>
                           </div>
-                          <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 4, lineHeight: 1.4 }}>
+                          <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 4, lineHeight: 1.4 }}>
                             {s.description.length > 120 ? s.description.slice(0, 120) + "…" : s.description}
                           </div>
                           <div style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
@@ -1533,10 +1533,10 @@ function BacklogTab({ provider }: { provider?: string } = {}) {
                             {s.epic && <span style={badgeStyle("var(--accent-bg)", "var(--accent-color)")}>{s.epic}</span>}
                             {s.labels.map(l => <span key={l} style={badgeStyle("var(--bg-tertiary)", "var(--text-secondary)")}>{l}</span>)}
                             {s.acceptanceCriteria.length > 0 && (
-                              <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>AC: {s.acceptanceCriteria.length}</span>
+                              <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>AC: {s.acceptanceCriteria.length}</span>
                             )}
                             {deps.length > 0 && (
-                              <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>
+                              <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>
                                 ↳ {deps.join(", ")}
                               </span>
                             )}
@@ -1544,7 +1544,7 @@ function BacklogTab({ provider }: { provider?: string } = {}) {
                         </div>
                         <button
                           className="panel-btn panel-btn-secondary"
-                          style={{ fontSize: 10, padding: "2px 8px", flexShrink: 0 }}
+                          style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px", flexShrink: 0 }}
                           onClick={() => setDetailSuggIdx(idx)}
                           title="Edit story"
                         >Edit</button>
@@ -1574,7 +1574,7 @@ function BacklogTab({ provider }: { provider?: string } = {}) {
       {showCreate && !showAiGenerate && (
         <div style={{ ...cardBaseStyle, marginBottom: 12 }}>
           <h4 style={{ margin: "0 0 4px", color: "var(--text-primary)" }}>Create Story</h4>
-          <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 8, lineHeight: 1.5 }}>
+          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 8, lineHeight: 1.5 }}>
             Use the standard format: <em style={{ color: "var(--accent-color)" }}>"As a [user], I want [action] so that [benefit]"</em>
           </div>
           <input
@@ -1608,14 +1608,14 @@ function BacklogTab({ provider }: { provider?: string } = {}) {
 
       {/* Filters */}
       <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap", alignItems: "center" }}>
-        <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>Filter:</span>
+        <span style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>Filter:</span>
         <select className="panel-select" style={{ width: "auto" }} value={filterPriority} onChange={e => setFilterPriority(e.target.value as Priority | "")}>
           <option value="">All Priorities</option>
           {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
         </select>
         <input className="panel-input" style={{ width: 140 }} placeholder="Label" value={filterLabel} onChange={e => setFilterLabel(e.target.value)} />
         <input className="panel-input" style={{ width: 140 }} placeholder="Assignee" value={filterAssignee} onChange={e => setFilterAssignee(e.target.value)} />
-        <button className="panel-btn panel-btn-primary" style={{ fontSize: 11, padding: "4px 10px", marginLeft: "auto" }} onClick={async () => {
+        <button className="panel-btn panel-btn-primary" style={{ fontSize: "var(--font-size-sm)", padding: "4px 10px", marginLeft: "auto" }} onClick={async () => {
           const unestimated = items.filter(c => c.storyPoints === 0);
           if (unestimated.length === 0) { setError("All stories already have estimates."); setTimeout(() => setError(""), 3000); return; }
           try {
@@ -1647,9 +1647,9 @@ function BacklogTab({ provider }: { provider?: string } = {}) {
         >
           <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 600, fontSize: 13, color: "var(--text-primary)", marginBottom: 2 }}>{item.title}</div>
+              <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", color: "var(--text-primary)", marginBottom: 2 }}>{item.title}</div>
               {item.description && (
-                <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 4, lineHeight: 1.4 }}>
+                <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 4, lineHeight: 1.4 }}>
                   {item.description.length > 120 ? item.description.slice(0, 120) + "…" : item.description}
                 </div>
               )}
@@ -1659,28 +1659,28 @@ function BacklogTab({ provider }: { provider?: string } = {}) {
                 {item.epic && <span style={badgeStyle("var(--accent-bg)", "var(--accent-color)")}>{item.epic}</span>}
                 {item.labels.map(l => <span key={l} style={badgeStyle("var(--bg-tertiary)", "var(--text-secondary)")}>{l}</span>)}
                 {item.acceptanceCriteria.length > 0 && (
-                  <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>AC: {item.acceptanceCriteria.length}</span>
+                  <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>AC: {item.acceptanceCriteria.length}</span>
                 )}
               </div>
             </div>
             {/* Quick inline controls */}
             <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }} onClick={e => e.stopPropagation()}>
               <select
-                className="panel-input" style={{ width: 60, fontSize: 11 }}
+                className="panel-input" style={{ width: 60, fontSize: "var(--font-size-sm)" }}
                 value={item.priority}
                 onChange={e => updateInline(item.id, "priority", e.target.value)}
               >
                 {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
               </select>
               <input
-                className="panel-input" style={{ width: 50, textAlign: "center", fontSize: 11 }}
+                className="panel-input" style={{ width: 50, textAlign: "center", fontSize: "var(--font-size-sm)" }}
                 type="number" min={0}
                 value={item.storyPoints}
                 onChange={e => updateInline(item.id, "storyPoints", Number(e.target.value))}
               />
               <button
                 className="panel-btn panel-btn-primary"
-                style={{ fontSize: 11, padding: "4px 8px" }}
+                style={{ fontSize: "var(--font-size-sm)", padding: "4px 8px" }}
                 title="AI-powered story decomposition"
                 onClick={() => suggestSplit(item.id)}
                 disabled={splitLoading === item.id}
@@ -1817,7 +1817,7 @@ function CeremoniesTab({ provider }: { provider?: string } = {}) {
 
   return (
     <div>
-      {error && <div style={{ color: "var(--error-color)", marginBottom: 8, fontSize: 12 }}>{error}</div>}
+      {error && <div style={{ color: "var(--error-color)", marginBottom: 8, fontSize: "var(--font-size-base)" }}>{error}</div>}
       <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
         {subTabBtn("standup", "Daily Standup")}
         {subTabBtn("planning", "Sprint Planning")}
@@ -1831,10 +1831,10 @@ function CeremoniesTab({ provider }: { provider?: string } = {}) {
           <div style={sectionTitle}>Daily Standup</div>
           {standups.map((s, i) => (
             <div key={i} style={{ ...cardBaseStyle }}>
-              <div style={{ fontWeight: 600, fontSize: 13, color: "var(--accent-blue)", marginBottom: 4 }}>{s.member}</div>
-              <div style={{ fontSize: 12, color: "var(--text-primary)" }}><strong>Did:</strong> {s.didYesterday}</div>
-              <div style={{ fontSize: 12, color: "var(--text-primary)" }}><strong>Will do:</strong> {s.willDoToday}</div>
-              {s.blockers && <div style={{ fontSize: 12, color: "var(--error-color)" }}><strong>Blockers:</strong> {s.blockers}</div>}
+              <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", color: "var(--accent-blue)", marginBottom: 4 }}>{s.member}</div>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-primary)" }}><strong>Did:</strong> {s.didYesterday}</div>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-primary)" }}><strong>Will do:</strong> {s.willDoToday}</div>
+              {s.blockers && <div style={{ fontSize: "var(--font-size-base)", color: "var(--error-color)" }}><strong>Blockers:</strong> {s.blockers}</div>}
             </div>
           ))}
           <div style={{ ...cardBaseStyle, background: "var(--bg-secondary)" }}>
@@ -1853,23 +1853,23 @@ function CeremoniesTab({ provider }: { provider?: string } = {}) {
           <div style={sectionTitle}>Capacity Calculator</div>
           <div style={{ display: "flex", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
             <div>
-              <label style={{ fontSize: 12, color: "var(--text-secondary)" }}>Team Members</label>
+              <label style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>Team Members</label>
               <input className="panel-input" style={{ width: 80 }} type="number" min={1} value={capacity.members} onChange={e => { const v = { ...capacity, members: Number(e.target.value) }; setCapacity(v); saveCeremony({ capacity: v }); }} />
             </div>
             <div>
-              <label style={{ fontSize: 12, color: "var(--text-secondary)" }}>Available Days</label>
+              <label style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>Available Days</label>
               <input className="panel-input" style={{ width: 80 }} type="number" min={1} value={capacity.days} onChange={e => { const v = { ...capacity, days: Number(e.target.value) }; setCapacity(v); saveCeremony({ capacity: v }); }} />
             </div>
             <div>
-              <label style={{ fontSize: 12, color: "var(--text-secondary)" }}>Focus Factor</label>
+              <label style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>Focus Factor</label>
               <input className="panel-input" style={{ width: 80 }} type="number" step={0.05} min={0} max={1} value={capacity.focusFactor} onChange={e => { const v = { ...capacity, focusFactor: Number(e.target.value) }; setCapacity(v); saveCeremony({ capacity: v }); }} />
             </div>
           </div>
           <div style={{ ...cardBaseStyle, background: "var(--bg-secondary)" }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--accent-green)" }}>
+            <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--accent-green)" }}>
               Total Capacity: {(capacity.members * capacity.days * capacity.focusFactor).toFixed(1)} person-days
             </div>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginTop: 4 }}>
               {capacity.members} members x {capacity.days} days x {(capacity.focusFactor * 100).toFixed(0)}% focus
             </div>
           </div>
@@ -1883,7 +1883,7 @@ function CeremoniesTab({ provider }: { provider?: string } = {}) {
           {demoChecklist.map((d, i) => (
             <div key={i} role="checkbox" aria-checked={d.done} tabIndex={0} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, cursor: "pointer" }} onClick={() => toggleDemo(i)} onKeyDown={e => e.key === "Enter" && toggleDemo(i)}>
               <span style={{ fontSize: 16, color: d.done ? "var(--success-color)" : "var(--text-secondary)" }}>{d.done ? "[x]" : "[ ]"}</span>
-              <span style={{ fontSize: 13, color: d.done ? "var(--text-secondary)" : "var(--text-primary)", textDecoration: d.done ? "line-through" : "none" }}>{d.item}</span>
+              <span style={{ fontSize: "var(--font-size-md)", color: d.done ? "var(--text-secondary)" : "var(--text-primary)", textDecoration: d.done ? "line-through" : "none" }}>{d.item}</span>
             </div>
           ))}
           <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
@@ -1899,7 +1899,7 @@ function CeremoniesTab({ provider }: { provider?: string } = {}) {
           <div style={sectionTitle}>Retrospective</div>
           <div style={{ display: "flex", gap: 8, marginBottom: 12, alignItems: "center" }}>
             <input className="panel-input" style={{ flex: 1 }} placeholder="Add a card..." value={newRetroText} onChange={e => setNewRetroText(e.target.value)} />
-            <button className="panel-btn panel-btn-primary" style={{ whiteSpace: "nowrap", fontSize: 12 }} onClick={async () => {
+            <button className="panel-btn panel-btn-primary" style={{ whiteSpace: "nowrap", fontSize: "var(--font-size-base)" }} onClick={async () => {
               try {
                 const sprintData = await invoke("agile_get_sprints");
                 const result = await invoke<{ well: string[]; didnt: string[]; actions: string[] }>("agile_ai_retro_generate", { sprintData , provider});
@@ -1922,12 +1922,12 @@ function CeremoniesTab({ provider }: { provider?: string } = {}) {
               const color = cat === "well" ? "var(--success-color)" : cat === "didnt" ? "var(--error-color)" : "var(--accent-blue)";
               return (
                 <div key={cat} style={{ flex: 1, background: "var(--bg-secondary)", borderRadius: "var(--radius-md)", padding: 10, border: "1px solid var(--border-color)" }}>
-                  <div style={{ fontWeight: 600, fontSize: 13, color, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", color, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     {title}
-                    <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 8px", fontSize: 11 }} onClick={() => addRetroCard(cat)}>+</button>
+                    <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 8px", fontSize: "var(--font-size-sm)" }} onClick={() => addRetroCard(cat)}>+</button>
                   </div>
                   {retro.filter(r => r.category === cat).map(r => (
-                    <div key={r.id} style={{ ...cardBaseStyle, fontSize: 12 }}>{r.text}</div>
+                    <div key={r.id} style={{ ...cardBaseStyle, fontSize: "var(--font-size-base)" }}>{r.text}</div>
                   ))}
                 </div>
               );
@@ -1987,7 +1987,7 @@ function MetricsTab() {
           { label: "Capacity", value: `${(metrics.capacityUtilization * 100).toFixed(0)}%`, color: "var(--accent-gold)" },
         ].map(({ label, value, color }) => (
           <div key={label} style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "12px 18px", border: "1px solid var(--border-color)", minWidth: 130, boxShadow: "var(--card-shadow)" }}>
-            <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{label}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{label}</div>
             <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)", color }}>{value}</div>
           </div>
         ))}
@@ -1998,7 +1998,7 @@ function MetricsTab() {
       <div style={{ display: "flex", gap: 8, alignItems: "flex-end", height: 120, marginBottom: 16, padding: "0 4px" }}>
         {metrics.velocityHistory.map(v => (
           <div key={v.sprint} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center" }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-primary)", marginBottom: 2 }}>{v.points}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, color: "var(--text-primary)", marginBottom: 2 }}>{v.points}</div>
             <div style={{
               width: "100%",
               maxWidth: 48,
@@ -2007,7 +2007,7 @@ function MetricsTab() {
               borderRadius: "var(--radius-sm) var(--radius-sm) 0 0",
               transition: "var(--transition-smooth)",
             }} />
-            <div style={{ fontSize: 10, color: "var(--text-secondary)", marginTop: 4 }}>{v.sprint}</div>
+            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginTop: 4 }}>{v.sprint}</div>
           </div>
         ))}
       </div>
@@ -2020,7 +2020,7 @@ function MetricsTab() {
           const pct = (v: number) => total > 0 ? `${(v / total * 100).toFixed(0)}%` : "0%";
           return (
             <div key={row.date} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-              <span style={{ width: 60, fontSize: 11, color: "var(--text-secondary)" }}>{row.date}</span>
+              <span style={{ width: 60, fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{row.date}</span>
               <div style={{ flex: 1, display: "flex", height: 18, borderRadius: "var(--radius-sm)", overflow: "hidden" }}>
                 <div style={{ width: pct(row.backlog), background: "var(--text-secondary)", transition: "var(--transition-smooth)" }} title={`Backlog: ${row.backlog}`} />
                 <div style={{ width: pct(row.todo), background: "var(--info-color)", transition: "var(--transition-smooth)" }} title={`To Do: ${row.todo}`} />
@@ -2031,7 +2031,7 @@ function MetricsTab() {
             </div>
           );
         })}
-        <div style={{ display: "flex", gap: 12, marginTop: 6, fontSize: 11 }}>
+        <div style={{ display: "flex", gap: 12, marginTop: 6, fontSize: "var(--font-size-sm)" }}>
           {[
             { label: "Backlog", color: "var(--text-secondary)" },
             { label: "To Do", color: "var(--info-color)" },
@@ -2051,15 +2051,15 @@ function MetricsTab() {
       <div style={sectionTitle}>Sprint Health Indicators</div>
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
         <div style={{ ...cardBaseStyle, flex: 1, minWidth: 180 }}>
-          <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Planned vs Completed Ratio</div>
-          <div style={{ height: 8, background: "var(--bg-tertiary)", borderRadius: 4, marginTop: 6 }}>
-            <div style={{ height: "100%", width: `${Math.min(metrics.plannedVsCompleted * 100, 100)}%`, background: metrics.plannedVsCompleted >= 0.8 ? "var(--success-color)" : "var(--warning-color)", borderRadius: 4, transition: "var(--transition-smooth)" }} />
+          <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>Planned vs Completed Ratio</div>
+          <div style={{ height: 8, background: "var(--bg-tertiary)", borderRadius: "var(--radius-xs-plus)", marginTop: 6 }}>
+            <div style={{ height: "100%", width: `${Math.min(metrics.plannedVsCompleted * 100, 100)}%`, background: metrics.plannedVsCompleted >= 0.8 ? "var(--success-color)" : "var(--warning-color)", borderRadius: "var(--radius-xs-plus)", transition: "var(--transition-smooth)" }} />
           </div>
         </div>
         <div style={{ ...cardBaseStyle, flex: 1, minWidth: 180 }}>
-          <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Scope Creep</div>
-          <div style={{ height: 8, background: "var(--bg-tertiary)", borderRadius: 4, marginTop: 6 }}>
-            <div style={{ height: "100%", width: `${Math.min(metrics.scopeCreepPct, 100)}%`, background: metrics.scopeCreepPct > 20 ? "var(--error-color)" : "var(--success-color)", borderRadius: 4, transition: "var(--transition-smooth)" }} />
+          <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>Scope Creep</div>
+          <div style={{ height: 8, background: "var(--bg-tertiary)", borderRadius: "var(--radius-xs-plus)", marginTop: 6 }}>
+            <div style={{ height: "100%", width: `${Math.min(metrics.scopeCreepPct, 100)}%`, background: metrics.scopeCreepPct > 20 ? "var(--error-color)" : "var(--success-color)", borderRadius: "var(--radius-xs-plus)", transition: "var(--transition-smooth)" }} />
           </div>
         </div>
       </div>
@@ -2175,7 +2175,7 @@ function MethodologyTab() {
       {/* Comparison matrix */}
       {showCompare && (
         <div style={{ overflowX: "auto", marginBottom: 16 }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
             <thead>
               <tr style={{ borderBottom: "2px solid var(--border-color)" }}>
                 <th style={{ textAlign: "left", padding: 6, color: "var(--text-secondary)" }}>Aspect</th>
@@ -2202,18 +2202,18 @@ function MethodologyTab() {
       {/* Selected methodology details */}
       <div style={{ ...cardBaseStyle }}>
         <h3 style={{ margin: "0 0 8px", fontSize: 18, color: "var(--text-primary)" }}>{info.name}</h3>
-        <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5, marginBottom: 12 }}>{info.description}</p>
+        <p style={{ fontSize: "var(--font-size-md)", color: "var(--text-secondary)", lineHeight: 1.5, marginBottom: 12 }}>{info.description}</p>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <div>
             <div style={sectionTitle}>Core Principles</div>
-            <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12, color: "var(--text-primary)" }}>
+            <ul style={{ margin: 0, paddingLeft: 16, fontSize: "var(--font-size-base)", color: "var(--text-primary)" }}>
               {info.principles.map(p => <li key={p} style={{ marginBottom: 4 }}>{p}</li>)}
             </ul>
           </div>
           <div>
             <div style={sectionTitle}>Roles</div>
-            <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12, color: "var(--text-primary)" }}>
+            <ul style={{ margin: 0, paddingLeft: 16, fontSize: "var(--font-size-base)", color: "var(--text-primary)" }}>
               {info.roles.map(r => <li key={r} style={{ marginBottom: 4 }}>{r}</li>)}
             </ul>
           </div>
@@ -2221,24 +2221,24 @@ function MethodologyTab() {
             <div style={sectionTitle}>Ceremonies / Practices</div>
             {info.ceremonies.map(c => (
               <div key={c} role="checkbox" aria-checked={enabledPractices[`${info.name}:${c}`] !== false} tabIndex={0} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, cursor: "pointer" }} onClick={() => togglePractice(`${info.name}:${c}`)} onKeyDown={e => e.key === "Enter" && togglePractice(`${info.name}:${c}`)}>
-                <span style={{ fontSize: 14, color: enabledPractices[`${info.name}:${c}`] !== false ? "var(--success-color)" : "var(--text-secondary)" }}>
+                <span style={{ fontSize: "var(--font-size-lg)", color: enabledPractices[`${info.name}:${c}`] !== false ? "var(--success-color)" : "var(--text-secondary)" }}>
                   {enabledPractices[`${info.name}:${c}`] !== false ? "[x]" : "[ ]"}
                 </span>
-                <span style={{ fontSize: 12, color: "var(--text-primary)" }}>{c}</span>
+                <span style={{ fontSize: "var(--font-size-base)", color: "var(--text-primary)" }}>{c}</span>
               </div>
             ))}
           </div>
           <div>
             <div style={sectionTitle}>Artifacts</div>
-            <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12, color: "var(--text-primary)" }}>
+            <ul style={{ margin: 0, paddingLeft: 16, fontSize: "var(--font-size-base)", color: "var(--text-primary)" }}>
               {info.artifacts.map(a => <li key={a} style={{ marginBottom: 4 }}>{a}</li>)}
             </ul>
           </div>
         </div>
 
         <div style={{ marginTop: 12, padding: "8px 12px", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)" }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--accent-gold)" }}>Best Suited For: </span>
-          <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>{info.bestFor}</span>
+          <span style={{ fontSize: "var(--font-size-base)", fontWeight: 600, color: "var(--accent-gold)" }}>Best Suited For: </span>
+          <span style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>{info.bestFor}</span>
         </div>
       </div>
     </div>
@@ -2303,7 +2303,7 @@ function AiCoachTab({ provider }: { provider?: string } = {}) {
 
   return (
     <div>
-      {error && <div style={{ color: "var(--error-color)", marginBottom: 8, fontSize: 12 }}>{error}</div>}
+      {error && <div style={{ color: "var(--error-color)", marginBottom: 8, fontSize: "var(--font-size-base)" }}>{error}</div>}
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16, alignItems: "center" }}>
         <select className="panel-select" style={{ width: 200 }} value={sprintId} onChange={e => setSprintId(e.target.value)}>
@@ -2322,8 +2322,8 @@ function AiCoachTab({ provider }: { provider?: string } = {}) {
 
       {loading && (
         <div style={{ textAlign: "center", padding: 24, color: "var(--text-secondary)" }}>
-          <div style={{ fontSize: 13, marginBottom: 4 }}>Running AI analysis on sprint data...</div>
-          <div style={{ fontSize: 12 }}>This may take a moment. You can suspend at any time.</div>
+          <div style={{ fontSize: "var(--font-size-md)", marginBottom: 4 }}>Running AI analysis on sprint data...</div>
+          <div style={{ fontSize: "var(--font-size-base)" }}>This may take a moment. You can suspend at any time.</div>
         </div>
       )}
 
@@ -2334,17 +2334,17 @@ function AiCoachTab({ provider }: { provider?: string } = {}) {
           {analysis.recommendations.map((rec, i) => (
             <div key={i} style={{ ...cardBaseStyle, borderLeft: `3px solid ${riskColor(rec.risk)}` }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                <span style={{ fontWeight: 600, fontSize: 13, color: "var(--text-primary)" }}>{rec.title}</span>
+                <span style={{ fontWeight: 600, fontSize: "var(--font-size-md)", color: "var(--text-primary)" }}>{rec.title}</span>
                 <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                   <span style={badgeStyle("var(--bg-tertiary)", "var(--text-secondary)")}>{rec.category}</span>
                   <span style={{ width: 10, height: 10, borderRadius: "50%", background: riskColor(rec.risk), display: "inline-block" }} title={`Risk: ${rec.risk}`} />
                 </div>
               </div>
-              <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 6 }}>{rec.description}</div>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 6 }}>{rec.description}</div>
               {rec.actionItems.length > 0 && (
                 <div>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 2 }}>Action Items:</div>
-                  <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12, color: "var(--text-primary)" }}>
+                  <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, color: "var(--text-secondary)", marginBottom: 2 }}>Action Items:</div>
+                  <ul style={{ margin: 0, paddingLeft: 16, fontSize: "var(--font-size-base)", color: "var(--text-primary)" }}>
                     {rec.actionItems.map((a, j) => <li key={j} style={{ marginBottom: 2 }}>{a}</li>)}
                   </ul>
                 </div>
@@ -2357,7 +2357,7 @@ function AiCoachTab({ provider }: { provider?: string } = {}) {
             <div style={{ marginTop: 16 }}>
               <div style={sectionTitle}>Bottleneck Detection</div>
               {analysis.bottlenecks.map((b, i) => (
-                <div key={i} style={{ ...cardBaseStyle, borderLeft: "3px solid var(--warning-color)", padding: "8px 12px", fontSize: 12, color: "var(--text-primary)" }}>{b}</div>
+                <div key={i} style={{ ...cardBaseStyle, borderLeft: "3px solid var(--warning-color)", padding: "8px 12px", fontSize: "var(--font-size-base)", color: "var(--text-primary)" }}>{b}</div>
               ))}
             </div>
           )}
@@ -2367,7 +2367,7 @@ function AiCoachTab({ provider }: { provider?: string } = {}) {
             <div style={{ marginTop: 16 }}>
               <div style={sectionTitle}>Story Sizing Suggestions</div>
               {analysis.sizingSuggestions.map((s, i) => (
-                <div key={i} style={{ ...cardBaseStyle, borderLeft: "3px solid var(--accent-blue)", padding: "8px 12px", fontSize: 12, color: "var(--text-primary)" }}>{s}</div>
+                <div key={i} style={{ ...cardBaseStyle, borderLeft: "3px solid var(--accent-blue)", padding: "8px 12px", fontSize: "var(--font-size-base)", color: "var(--text-primary)" }}>{s}</div>
               ))}
             </div>
           )}
@@ -2377,7 +2377,7 @@ function AiCoachTab({ provider }: { provider?: string } = {}) {
             <div style={{ marginTop: 16 }}>
               <div style={sectionTitle}>Retrospective Insights</div>
               {analysis.retroInsights.map((r, i) => (
-                <div key={i} style={{ ...cardBaseStyle, borderLeft: "3px solid var(--accent-purple)", padding: "8px 12px", fontSize: 12, color: "var(--text-primary)" }}>{r}</div>
+                <div key={i} style={{ ...cardBaseStyle, borderLeft: "3px solid var(--accent-purple)", padding: "8px 12px", fontSize: "var(--font-size-base)", color: "var(--text-primary)" }}>{r}</div>
               ))}
             </div>
           )}
@@ -2392,7 +2392,7 @@ function AiCoachTab({ provider }: { provider?: string } = {}) {
                   <div key={level} style={{ ...cardBaseStyle, flex: 1, textAlign: "center" }}>
                     <div style={{ width: 24, height: 24, borderRadius: "50%", background: riskColor(level), margin: "0 auto 6px" }} />
                     <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{count}</div>
-                    <div style={{ fontSize: 11, color: "var(--text-secondary)", textTransform: "capitalize" }}>{level}</div>
+                    <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", textTransform: "capitalize" }}>{level}</div>
                   </div>
                 );
               })}
@@ -2404,8 +2404,8 @@ function AiCoachTab({ provider }: { provider?: string } = {}) {
       {/* Placeholder when no analysis */}
       {!analysis && !loading && (
         <div style={{ textAlign: "center", padding: 32, color: "var(--text-secondary)" }}>
-          <div style={{ fontSize: 14, marginBottom: 4 }}>AI Agile Coach</div>
-          <div style={{ fontSize: 12 }}>Enter a Sprint ID and click "Analyze Sprint" to get AI-powered coaching recommendations, bottleneck detection, and process improvement suggestions.</div>
+          <div style={{ fontSize: "var(--font-size-lg)", marginBottom: 4 }}>AI Agile Coach</div>
+          <div style={{ fontSize: "var(--font-size-base)" }}>Enter a Sprint ID and click "Analyze Sprint" to get AI-powered coaching recommendations, bottleneck detection, and process improvement suggestions.</div>
         </div>
       )}
     </div>
@@ -2521,40 +2521,40 @@ function SAFeTab({ provider }: { provider?: string } = {}) {
           <div style={{ fontWeight: 600, marginBottom: 8 }}>Create Program Increment</div>
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <input className="panel-input panel-input-full" placeholder="PI name (e.g. PI 24.1)" value={name} onChange={e => setName(e.target.value)} />
-            <label style={{ fontSize: 12 }}>Iterations: <input type="number" min={2} max={12} value={iterations} onChange={e => setIterations(+e.target.value)} className="panel-input" style={{ width: 60 }} /></label>
+            <label style={{ fontSize: "var(--font-size-base)" }}>Iterations: <input type="number" min={2} max={12} value={iterations} onChange={e => setIterations(+e.target.value)} className="panel-input" style={{ width: 60 }} /></label>
             <button className="panel-btn panel-btn-secondary" onClick={createPI}>Create PI</button>
           </div>
         </div>
         {safeData.programIncrements.map(pi => (
           <div key={pi.id} className="panel-card" style={{ marginBottom: 12 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-              <div style={{ fontWeight: 600, fontSize: 14 }}>{pi.name}</div>
+              <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)" }}>{pi.name}</div>
               <div style={{ display: "flex", gap: 4 }}>
                 {PI_STATUSES.map(s => (
-                  <button key={s} className={`panel-tab ${pi.status === s ? "active" : ""}`} style={{ padding: "2px 8px", fontSize: 11 }} onClick={() => updatePIStatus(pi.id, s)}>{s}</button>
+                  <button key={s} className={`panel-tab ${pi.status === s ? "active" : ""}`} style={{ padding: "2px 8px", fontSize: "var(--font-size-sm)" }} onClick={() => updatePIStatus(pi.id, s)}>{s}</button>
                 ))}
               </div>
             </div>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8 }}>{pi.startDate} → {pi.endDate} · {pi.iterations} iterations {pi.ipIteration ? "(+IP)" : ""}</div>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 8 }}>{pi.startDate} → {pi.endDate} · {pi.iterations} iterations {pi.ipIteration ? "(+IP)" : ""}</div>
             <div style={{ marginBottom: 8 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                <span style={{ fontWeight: 600, fontSize: 12 }}>Features ({pi.features.length})</span>
+                <span style={{ fontWeight: 600, fontSize: "var(--font-size-base)" }}>Features ({pi.features.length})</span>
                 <div style={{ display: "flex", gap: 4 }}>
-                  <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 8px", fontSize: 11 }} onClick={() => addFeature(pi.id)}>+ Feature</button>
-                  <button className="panel-btn panel-btn-primary" style={{ padding: "2px 8px", fontSize: 11 }} onClick={() => aiGenerateFeatures(pi.id)} disabled={featureLoading}>
+                  <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 8px", fontSize: "var(--font-size-sm)" }} onClick={() => addFeature(pi.id)}>+ Feature</button>
+                  <button className="panel-btn panel-btn-primary" style={{ padding: "2px 8px", fontSize: "var(--font-size-sm)" }} onClick={() => aiGenerateFeatures(pi.id)} disabled={featureLoading}>
                     {featureLoading ? "Generating..." : "AI Generate"}
                   </button>
                 </div>
               </div>
               {showFeatureForm === pi.id && (
                 <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
-                  <input className="panel-input panel-input-full" style={{ fontSize: 12 }} placeholder="Feature title" value={featureTitle} onChange={e => setFeatureTitle(e.target.value)} onKeyDown={e => e.key === "Enter" && addFeature(pi.id)} autoFocus />
-                  <button className="panel-btn panel-btn-primary" style={{ padding: "2px 10px", fontSize: 11 }} onClick={() => addFeature(pi.id)}>Add</button>
-                  <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 10px", fontSize: 11 }} onClick={() => { setShowFeatureForm(null); setFeatureTitle(""); }}>Cancel</button>
+                  <input className="panel-input panel-input-full" style={{ fontSize: "var(--font-size-base)" }} placeholder="Feature title" value={featureTitle} onChange={e => setFeatureTitle(e.target.value)} onKeyDown={e => e.key === "Enter" && addFeature(pi.id)} autoFocus />
+                  <button className="panel-btn panel-btn-primary" style={{ padding: "2px 10px", fontSize: "var(--font-size-sm)" }} onClick={() => addFeature(pi.id)}>Add</button>
+                  <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 10px", fontSize: "var(--font-size-sm)" }} onClick={() => { setShowFeatureForm(null); setFeatureTitle(""); }}>Cancel</button>
                 </div>
               )}
               {pi.features.sort((a, b) => wsjf(b) - wsjf(a)).map(f => (
-                <div key={f.id} style={{ padding: "4px 8px", borderRadius: 4, background: "var(--bg-tertiary)", marginBottom: 4, fontSize: 12, display: "flex", justifyContent: "space-between" }}>
+                <div key={f.id} style={{ padding: "4px 8px", borderRadius: "var(--radius-xs-plus)", background: "var(--bg-tertiary)", marginBottom: 4, fontSize: "var(--font-size-base)", display: "flex", justifyContent: "space-between" }}>
                   <span>{f.title}</span>
                   <span style={{ color: "var(--text-secondary)" }}>WSJF: {wsjf(f).toFixed(1)} · Team: {safeData.teams.find(t => t.id === f.teamId)?.name || f.teamId}</span>
                 </div>
@@ -2562,22 +2562,22 @@ function SAFeTab({ provider }: { provider?: string } = {}) {
             </div>
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                <span style={{ fontWeight: 600, fontSize: 12 }}>PI Objectives ({pi.objectives.length})</span>
-                <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 8px", fontSize: 11 }} onClick={() => addObjective(pi.id)}>+ Objective</button>
+                <span style={{ fontWeight: 600, fontSize: "var(--font-size-base)" }}>PI Objectives ({pi.objectives.length})</span>
+                <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 8px", fontSize: "var(--font-size-sm)" }} onClick={() => addObjective(pi.id)}>+ Objective</button>
               </div>
               {showObjectiveForm === pi.id && (
                 <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
-                  <input className="panel-input panel-input-full" style={{ fontSize: 12 }} placeholder="PI Objective description" value={objectiveDesc} onChange={e => setObjectiveDesc(e.target.value)} onKeyDown={e => e.key === "Enter" && addObjective(pi.id)} autoFocus />
-                  <button className="panel-btn panel-btn-primary" style={{ padding: "2px 10px", fontSize: 11 }} onClick={() => addObjective(pi.id)}>Add</button>
-                  <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 10px", fontSize: 11 }} onClick={() => { setShowObjectiveForm(null); setObjectiveDesc(""); }}>Cancel</button>
+                  <input className="panel-input panel-input-full" style={{ fontSize: "var(--font-size-base)" }} placeholder="PI Objective description" value={objectiveDesc} onChange={e => setObjectiveDesc(e.target.value)} onKeyDown={e => e.key === "Enter" && addObjective(pi.id)} autoFocus />
+                  <button className="panel-btn panel-btn-primary" style={{ padding: "2px 10px", fontSize: "var(--font-size-sm)" }} onClick={() => addObjective(pi.id)}>Add</button>
+                  <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 10px", fontSize: "var(--font-size-sm)" }} onClick={() => { setShowObjectiveForm(null); setObjectiveDesc(""); }}>Cancel</button>
                 </div>
               )}
               {pi.objectives.map(obj => (
-                <div key={obj.id} style={{ padding: "4px 8px", borderRadius: 4, background: "var(--bg-tertiary)", marginBottom: 4, fontSize: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div key={obj.id} style={{ padding: "4px 8px", borderRadius: "var(--radius-xs-plus)", background: "var(--bg-tertiary)", marginBottom: 4, fontSize: "var(--font-size-base)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span>{obj.description}</span>
                   <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                     <span style={{ color: "var(--text-secondary)" }}>BV: {obj.businessValue}</span>
-                    <label style={{ fontSize: 11 }}><input type="checkbox" checked={obj.achieved} onChange={() => {
+                    <label style={{ fontSize: "var(--font-size-sm)" }}><input type="checkbox" checked={obj.achieved} onChange={() => {
                       const newObjs = pi.objectives.map(o => o.id === obj.id ? { ...o, achieved: !o.achieved } : o);
                       save({ ...safeData, programIncrements: safeData.programIncrements.map(p => p.id === pi.id ? { ...p, objectives: newObjs } : p) });
                     }} /> Achieved</label>
@@ -2612,12 +2612,12 @@ function SAFeTab({ provider }: { provider?: string } = {}) {
           <div style={{ fontWeight: 600, marginBottom: 8 }}>Add Team to ART</div>
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <input className="panel-input panel-input-full" placeholder="Team name" value={teamName} onChange={e => setTeamName(e.target.value)} />
-            <label style={{ fontSize: 12 }}>Capacity: <input type="number" min={10} max={200} value={teamCapacity} onChange={e => setTeamCapacity(+e.target.value)} className="panel-input" style={{ width: 60 }} /></label>
-            <label style={{ fontSize: 12 }}>Members: <input type="number" min={3} max={15} value={teamMembers} onChange={e => setTeamMembers(+e.target.value)} className="panel-input" style={{ width: 60 }} /></label>
+            <label style={{ fontSize: "var(--font-size-base)" }}>Capacity: <input type="number" min={10} max={200} value={teamCapacity} onChange={e => setTeamCapacity(+e.target.value)} className="panel-input" style={{ width: 60 }} /></label>
+            <label style={{ fontSize: "var(--font-size-base)" }}>Members: <input type="number" min={3} max={15} value={teamMembers} onChange={e => setTeamMembers(+e.target.value)} className="panel-input" style={{ width: 60 }} /></label>
             <button className="panel-btn panel-btn-secondary" onClick={addTeam}>Add Team</button>
           </div>
         </div>
-        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 8 }}>Agile Release Train ({safeData.teams.length} teams)</div>
+        <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)", marginBottom: 8 }}>Agile Release Train ({safeData.teams.length} teams)</div>
         {safeData.teams.map(team => {
           const totalLoad = safeData.programIncrements.flatMap(p => p.features).filter(f => f.teamId === team.id).length;
           const loadPct = team.capacity > 0 ? Math.min(100, (totalLoad / team.capacity) * 100 * 10) : 0;
@@ -2625,9 +2625,9 @@ function SAFeTab({ provider }: { provider?: string } = {}) {
             <div key={team.id} className="panel-card" style={{ marginBottom: 8 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                 <span style={{ fontWeight: 600 }}>{team.name}</span>
-                <button onClick={() => removeTeam(team.id)} className="panel-btn panel-btn-danger" style={{ padding: "2px 8px", fontSize: 11 }}>Remove</button>
+                <button onClick={() => removeTeam(team.id)} className="panel-btn panel-btn-danger" style={{ padding: "2px 8px", fontSize: "var(--font-size-sm)" }}>Remove</button>
               </div>
-              <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>{team.members} members · Capacity: {team.capacity} pts · Features: {totalLoad}</div>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 4 }}>{team.members} members · Capacity: {team.capacity} pts · Features: {totalLoad}</div>
               <div style={{ height: 6, borderRadius: 3, background: "var(--bg-tertiary)", overflow: "hidden" }}>
                 <div style={{ height: "100%", width: `${loadPct}%`, borderRadius: 3, background: loadPct > 85 ? "var(--error-color)" : loadPct > 60 ? "var(--warning-color)" : "var(--success-color)", transition: "width 0.3s" }} />
               </div>
@@ -2662,29 +2662,29 @@ function SAFeTab({ provider }: { provider?: string } = {}) {
     return (
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-          <div style={{ fontWeight: 600, fontSize: 14 }}>Portfolio Kanban</div>
+          <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)" }}>Portfolio Kanban</div>
           <button className="panel-btn panel-btn-secondary" onClick={() => setShowEpicForm(true)}>+ Epic</button>
         </div>
         {showEpicForm && (
           <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
-            <input className="panel-input panel-input-full" style={{ fontSize: 12 }} placeholder="Epic title" value={epicTitle} onChange={e => setEpicTitle(e.target.value)} onKeyDown={e => e.key === "Enter" && addEpic()} autoFocus />
-            <button className="panel-btn panel-btn-primary" style={{ padding: "4px 12px", fontSize: 11 }} onClick={addEpic}>Add</button>
-            <button className="panel-btn panel-btn-secondary" style={{ padding: "4px 12px", fontSize: 11 }} onClick={() => { setShowEpicForm(false); setEpicTitle(""); }}>Cancel</button>
+            <input className="panel-input panel-input-full" style={{ fontSize: "var(--font-size-base)" }} placeholder="Epic title" value={epicTitle} onChange={e => setEpicTitle(e.target.value)} onKeyDown={e => e.key === "Enter" && addEpic()} autoFocus />
+            <button className="panel-btn panel-btn-primary" style={{ padding: "4px 12px", fontSize: "var(--font-size-sm)" }} onClick={addEpic}>Add</button>
+            <button className="panel-btn panel-btn-secondary" style={{ padding: "4px 12px", fontSize: "var(--font-size-sm)" }} onClick={() => { setShowEpicForm(false); setEpicTitle(""); }}>Cancel</button>
           </div>
         )}
         <div style={{ display: "grid", gridTemplateColumns: `repeat(${EPIC_COLUMNS.length}, 1fr)`, gap: 8 }}>
           {EPIC_COLUMNS.map(col => (
-            <div key={col} style={{ background: "var(--bg-secondary)", borderRadius: 8, padding: 8, minHeight: 120 }}>
-              <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 8, textAlign: "center", color: "var(--text-secondary)" }}>{col} ({safeData.epics.filter(e => e.status === col).length})</div>
+            <div key={col} style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", padding: 8, minHeight: 120 }}>
+              <div style={{ fontWeight: 600, fontSize: "var(--font-size-base)", marginBottom: 8, textAlign: "center", color: "var(--text-secondary)" }}>{col} ({safeData.epics.filter(e => e.status === col).length})</div>
               {safeData.epics.filter(e => e.status === col).map(epic => (
-                <div key={epic.id} style={{ padding: 8, borderRadius: 6, background: "var(--bg-primary)", marginBottom: 6, border: "1px solid var(--border-color)" }}>
-                  <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 4 }}>{epic.title}</div>
-                  {epic.wsjfScore > 0 && <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>WSJF: {epic.wsjfScore}</div>}
+                <div key={epic.id} style={{ padding: 8, borderRadius: "var(--radius-sm)", background: "var(--bg-primary)", marginBottom: 6, border: "1px solid var(--border-color)" }}>
+                  <div style={{ fontWeight: 600, fontSize: "var(--font-size-base)", marginBottom: 4 }}>{epic.title}</div>
+                  {epic.wsjfScore > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 4 }}>WSJF: {epic.wsjfScore}</div>}
                   <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                     {EPIC_COLUMNS.filter(c => c !== col).map(c => (
-                      <button key={c} className="panel-btn panel-btn-secondary" style={{ padding: "1px 6px", fontSize: 10 }} onClick={() => moveEpic(epic.id, c)}>→ {c}</button>
+                      <button key={c} className="panel-btn panel-btn-secondary" style={{ padding: "1px 6px", fontSize: "var(--font-size-xs)" }} onClick={() => moveEpic(epic.id, c)}>→ {c}</button>
                     ))}
-                    <button className="panel-btn panel-btn-danger" style={{ padding: "1px 6px", fontSize: 10 }} onClick={() => removeEpic(epic.id)}><X size={10} /></button>
+                    <button className="panel-btn panel-btn-danger" style={{ padding: "1px 6px", fontSize: "var(--font-size-xs)" }} onClick={() => removeEpic(epic.id)}><X size={10} /></button>
                   </div>
                 </div>
               ))}
@@ -2699,15 +2699,15 @@ function SAFeTab({ provider }: { provider?: string } = {}) {
   const ProgramBoard = () => {
     const activePIs = safeData.programIncrements.filter(p => p.status !== "Completed");
     const pi = activePIs.length > 0 ? activePIs[0] : null;
-    if (!pi) return <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>No active Program Increment. Create one in PI Planning.</div>;
+    if (!pi) return <div style={{ fontSize: "var(--font-size-md)", color: "var(--text-secondary)" }}>No active Program Increment. Create one in PI Planning.</div>;
 
     const iterationNums = Array.from({ length: pi.iterations + (pi.ipIteration ? 1 : 0) }, (_, i) => i + 1);
 
     return (
       <div>
-        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 8 }}>Program Board — {pi.name}</div>
+        <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)", marginBottom: 8 }}>Program Board — {pi.name}</div>
         <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
             <thead>
               <tr>
                 <th style={{ padding: 6, borderBottom: "2px solid var(--border-color)", textAlign: "left" }}>Team</th>
@@ -2727,7 +2727,7 @@ function SAFeTab({ provider }: { provider?: string } = {}) {
                     return (
                       <td key={iter} style={{ padding: 4, borderBottom: "1px solid var(--border-color)", verticalAlign: "top" }}>
                         {features.map(f => (
-                          <div key={f.id} style={{ padding: "2px 6px", borderRadius: 4, background: "var(--accent-blue)", color: "var(--btn-primary-fg)", fontSize: 10, marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={`${f.title} (WSJF: ${wsjf(f).toFixed(1)})`}>
+                          <div key={f.id} style={{ padding: "2px 6px", borderRadius: "var(--radius-xs-plus)", background: "var(--accent-blue)", color: "var(--btn-primary-fg)", fontSize: "var(--font-size-xs)", marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={`${f.title} (WSJF: ${wsjf(f).toFixed(1)})`}>
                             {f.title}
                           </div>
                         ))}
@@ -2756,7 +2756,7 @@ function SAFeTab({ provider }: { provider?: string } = {}) {
     <div>
       <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
         {SUB_VIEWS.map(sv => (
-          <button key={sv.key} className={`panel-tab ${subView === sv.key ? "active" : ""}`} style={{ fontSize: 12 }} onClick={() => setSubView(sv.key)}>
+          <button key={sv.key} className={`panel-tab ${subView === sv.key ? "active" : ""}`} style={{ fontSize: "var(--font-size-base)" }} onClick={() => setSubView(sv.key)}>
             {sv.label}
           </button>
         ))}

@@ -51,17 +51,17 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const badgeStyle = (color: string): React.CSSProperties => ({
-  display: "inline-block", padding: "2px 8px", borderRadius: 10,
-  fontSize: 11, background: color, color: "var(--bg-primary)", fontWeight: 600,
+  display: "inline-block", padding: "2px 8px", borderRadius: "var(--radius-md)",
+  fontSize: "var(--font-size-sm)", background: color, color: "var(--bg-primary)", fontWeight: 600,
 });
 const inputStyle: React.CSSProperties = {
   width: "100%",
   background: "var(--bg-secondary)",
   border: "1px solid var(--border-color)",
-  borderRadius: 4,
+  borderRadius: "var(--radius-xs-plus)",
   color: "var(--text-primary)",
   padding: "6px 8px",
-  fontSize: 12,
+  fontSize: "var(--font-size-base)",
   boxSizing: "border-box",
 };
 
@@ -138,7 +138,7 @@ const VmOrchestratorPanel: React.FC = () => {
               <strong>{e.name}</strong>
               <span style={badgeStyle(STATUS_COLORS[e.status] || "var(--text-secondary)")}>{e.status}</span>
             </div>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>
               Branch: <code>{e.branch}</code> &middot; {e.cpu} / {e.mem} &middot; Uptime: {e.uptime}
             </div>
           </div>
@@ -152,7 +152,7 @@ const VmOrchestratorPanel: React.FC = () => {
               <strong>{pr.title}</strong>
               <span style={badgeStyle(STATUS_COLORS[pr.status] || "var(--text-secondary)")}>{pr.status}</span>
             </div>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>
               {pr.branch} &middot; {pr.author} &middot; Checks: {pr.checks}
             </div>
           </div>
@@ -166,10 +166,10 @@ const VmOrchestratorPanel: React.FC = () => {
               <strong>{c.file}</strong>
               <span style={badgeStyle(STATUS_COLORS[c.status] || "var(--text-secondary)")}>{c.status}</span>
             </div>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>
               {c.branch1} vs {c.branch2}
             </div>
-            <div style={{ fontSize: 12, color: "var(--accent-color)", marginTop: 4 }}>{c.suggestion}</div>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--accent-color)", marginTop: 4 }}>{c.suggestion}</div>
           </div>
         ))}
         {tab === "Config" && config && (
@@ -184,7 +184,7 @@ const VmOrchestratorPanel: React.FC = () => {
                 onChange={(e) => setConfig({ ...config, maxConcurrentVms: Number(e.target.value) })}
                 style={inputStyle}
               />
-              <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>{config.activeVms} currently active</div>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 2 }}>{config.activeVms} currently active</div>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div>

@@ -86,8 +86,8 @@ export function ConnectorsPanel() {
               <div key={c.id} className="panel-card" style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={dotStyle(statusColor(c.status))} />
                 <div>
-                  <div style={{ fontWeight: 600, fontSize: 13 }}>{c.type}</div>
-                  <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+                  <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)" }}>{c.type}</div>
+                  <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
                     Key: {c.key_len} chars &middot; {c.connected_at}
                   </div>
                 </div>
@@ -103,10 +103,10 @@ export function ConnectorsPanel() {
             const isConnected = connected.some((c) => c.type === name);
             return (
               <div key={name} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: 13 }}>{name}</span>
+                <span style={{ fontSize: "var(--font-size-md)" }}>{name}</span>
                 <button
                   className={`panel-btn ${isConnected ? "panel-btn-secondary" : "panel-btn-primary"}`}
-                  style={{ fontSize: 11, padding: "4px 10px" }}
+                  style={{ fontSize: "var(--font-size-sm)", padding: "4px 10px" }}
                   onClick={() => !isConnected && handleSetup(name)}
                   disabled={isConnected}
                 >
@@ -121,24 +121,24 @@ export function ConnectorsPanel() {
       {tab === "webhooks" && (
         <div>
           <div className="panel-card">
-            <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>Webhook Endpoint</div>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 4 }}>Webhook Endpoint</div>
             <div className="panel-mono" style={{ wordBreak: "break-all" }}>
               {webhookUrl || "No webhook URL configured"}
             </div>
           </div>
-          <div style={{ fontWeight: 600, fontSize: 13, margin: "12px 0 8px" }}>Recent Events</div>
+          <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", margin: "12px 0 8px" }}>Recent Events</div>
           {events.length === 0 && (
             <div className="panel-empty">No webhook events yet.</div>
           )}
           {events.map((e, i) => (
             <div key={i} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
-                <span style={{ fontWeight: 600, fontSize: 13 }}>{e.source}</span>
-                <span style={{ fontSize: 12, color: "var(--text-secondary)", marginLeft: 8 }}>{e.event}</span>
+                <span style={{ fontWeight: 600, fontSize: "var(--font-size-md)" }}>{e.source}</span>
+                <span style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginLeft: 8 }}>{e.event}</span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{e.time}</span>
-                <span style={{ fontSize: 11, fontWeight: 600, color: e.status === 200 ? "var(--success-color)" : "var(--error-color)" }}>{e.status}</span>
+                <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{e.time}</span>
+                <span style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, color: e.status === 200 ? "var(--success-color)" : "var(--error-color)" }}>{e.status}</span>
               </div>
             </div>
           ))}
@@ -158,11 +158,11 @@ export function ConnectorsPanel() {
               <div key={i} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={dotStyle(statusColor(d.status))} />
-                  <span style={{ fontSize: 13 }}>{d.type}</span>
+                  <span style={{ fontSize: "var(--font-size-md)" }}>{d.type}</span>
                 </div>
                 <button
                   className="panel-btn panel-btn-primary"
-                  style={{ fontSize: 11, padding: "4px 10px" }}
+                  style={{ fontSize: "var(--font-size-sm)", padding: "4px 10px" }}
                   onClick={() => handleSetup(d.type)}
                 >
                   Connect

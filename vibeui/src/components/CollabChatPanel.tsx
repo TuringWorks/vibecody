@@ -359,16 +359,16 @@ export function CollabChatPanel({ provider = "claude", daemonPort = 7878 }: Coll
       <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12, flex: 1, minHeight: 0, overflow: "auto" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
           <Users size={16} style={{ color: "var(--text-secondary)" }} />
-          <span style={{ fontWeight: 600, fontSize: 14 }}>Collaborative AI Chat</span>
+          <span style={{ fontWeight: 600, fontSize: "var(--font-size-lg)" }}>Collaborative AI Chat</span>
         </div>
-        <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: 0 }}>
+        <p style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", margin: 0 }}>
           Create or join a room to chat with AI together. All participants see messages and AI responses in real time.
           Requires <code>vibecli --serve --port {daemonPort}</code>.
         </p>
 
-        <label style={{ fontSize: 12, color: "var(--text-secondary)" }}>Your name</label>
+        <label style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>Your name</label>
         <input
-          style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 6, padding: "6px 10px", fontSize: 13, color: "var(--text-primary)" }}
+          style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", padding: "6px 10px", fontSize: "var(--font-size-md)", color: "var(--text-primary)" }}
           value={userName}
           onChange={(e) => setUserName(e.target.value)}
           placeholder="Your display name"
@@ -377,19 +377,19 @@ export function CollabChatPanel({ provider = "claude", daemonPort = 7878 }: Coll
         <button
           onClick={handleCreate}
           disabled={loading || !userName.trim()}
-          style={{ background: "var(--accent)", color: "var(--btn-primary-fg)", border: "none", borderRadius: 6, padding: "8px 14px", cursor: "pointer", fontSize: 13, fontWeight: 500 }}
+          style={{ background: "var(--accent)", color: "var(--btn-primary-fg)", border: "none", borderRadius: "var(--radius-sm)", padding: "8px 14px", cursor: "pointer", fontSize: "var(--font-size-md)", fontWeight: 500 }}
         >
           {loading ? "Creating…" : "Create Room"}
         </button>
 
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ flex: 1, height: 1, background: "var(--border-color)" }} />
-          <span style={{ fontSize: 11, color: "var(--text-muted)" }}>or join</span>
+          <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)" }}>or join</span>
           <div style={{ flex: 1, height: 1, background: "var(--border-color)" }} />
         </div>
 
         <input
-          style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 6, padding: "6px 10px", fontSize: 13, color: "var(--text-primary)" }}
+          style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", padding: "6px 10px", fontSize: "var(--font-size-md)", color: "var(--text-primary)" }}
           value={joinRoomId}
           onChange={(e) => setJoinRoomId(e.target.value)}
           placeholder="Room ID"
@@ -398,7 +398,7 @@ export function CollabChatPanel({ provider = "claude", daemonPort = 7878 }: Coll
         <button
           onClick={handleJoin}
           disabled={loading || !joinRoomId.trim() || !userName.trim()}
-          style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 6, padding: "8px 14px", cursor: "pointer", fontSize: 13 }}
+          style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", padding: "8px 14px", cursor: "pointer", fontSize: "var(--font-size-md)" }}
         >
           {loading ? "Joining…" : "Join Room"}
         </button>
@@ -419,7 +419,7 @@ export function CollabChatPanel({ provider = "claude", daemonPort = 7878 }: Coll
       {/* Header */}
       <div className="panel-header">
         <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--success-color)", flexShrink: 0 }} />
-        <span style={{ fontSize: 12, fontWeight: 500, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <span style={{ fontSize: "var(--font-size-base)", fontWeight: 500, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           Room: {roomId}
         </span>
         <button onClick={handleCopy} title="Copy room ID" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", padding: 2 }}>
@@ -435,7 +435,7 @@ export function CollabChatPanel({ provider = "claude", daemonPort = 7878 }: Coll
         <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderBottom: "1px solid var(--border-color)", flexShrink: 0 }}>
           <Users size={12} style={{ color: "var(--text-muted)" }} />
           {[{ peerId: myPeerId || "me", name: userName, color: myColor }, ...peers].map((p) => (
-            <span key={p.peerId} title={p.name} style={{ width: 22, height: 22, borderRadius: "50%", background: p.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "var(--btn-primary-fg)", fontWeight: 700, flexShrink: 0 }}>
+            <span key={p.peerId} title={p.name} style={{ width: 22, height: 22, borderRadius: "50%", background: p.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "var(--font-size-xs)", color: "var(--btn-primary-fg)", fontWeight: 700, flexShrink: 0 }}>
               {p.name.charAt(0).toUpperCase()}
             </span>
           ))}
@@ -448,7 +448,7 @@ export function CollabChatPanel({ provider = "claude", daemonPort = 7878 }: Coll
           <MessageBubble key={msg.id} msg={msg} myPeerId={myPeerId} />
         ))}
         {aiLoading && messages.every((m) => !m.streaming) && (
-          <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 0", color: "var(--text-secondary)", fontSize: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 0", color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>
             <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} />
             <span>AI is thinking…</span>
           </div>
@@ -465,20 +465,20 @@ export function CollabChatPanel({ provider = "claude", daemonPort = 7878 }: Coll
           placeholder="Message the AI… (Enter to send)"
           disabled={aiLoading}
           rows={2}
-          style={{ flex: 1, resize: "none", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 8, padding: "8px 10px", fontSize: 13, color: "var(--text-primary)", fontFamily: "inherit" }}
+          style={{ flex: 1, resize: "none", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm-alt)", padding: "8px 10px", fontSize: "var(--font-size-md)", color: "var(--text-primary)", fontFamily: "inherit" }}
         />
         <button
           onClick={send}
           disabled={aiLoading || !input.trim()}
           title="Send"
-          style={{ background: "var(--accent)", border: "none", borderRadius: 8, padding: "0 12px", cursor: "pointer", color: "var(--btn-primary-fg)", display: "flex", alignItems: "center" }}
+          style={{ background: "var(--accent)", border: "none", borderRadius: "var(--radius-sm-alt)", padding: "0 12px", cursor: "pointer", color: "var(--btn-primary-fg)", display: "flex", alignItems: "center" }}
         >
           {aiLoading ? <Loader2 size={15} style={{ animation: "spin 1s linear infinite" }} /> : <Send size={15} />}
         </button>
       </div>
 
       {!connected && (
-        <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", fontSize: 11, color: "var(--warning-color)", background: "rgba(249,123,34,0.1)" /* TODO: tokenize background */}}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", fontSize: "var(--font-size-sm)", color: "var(--warning-color)", background: "rgba(249,123,34,0.1)" /* TODO: tokenize background */}}>
           <WifiOff size={12} /> Disconnected
         </div>
       )}
@@ -491,7 +491,7 @@ export function CollabChatPanel({ provider = "claude", daemonPort = 7878 }: Coll
 function MessageBubble({ msg, myPeerId }: { msg: DisplayMsg; myPeerId: string | null }) {
   if (msg.kind === "system") {
     return (
-      <div style={{ textAlign: "center", fontSize: 11, color: "var(--text-muted)", padding: "4px 0 8px" }}>
+      <div style={{ textAlign: "center", fontSize: "var(--font-size-sm)", color: "var(--text-muted)", padding: "4px 0 8px" }}>
         {msg.content}
       </div>
     );
@@ -509,11 +509,11 @@ function MessageBubble({ msg, myPeerId }: { msg: DisplayMsg; myPeerId: string | 
             {msg.senderName.charAt(0).toUpperCase()}
           </span>
         )}
-        <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+        <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)" }}>
           {isAi ? "AI Assistant" : msg.senderName}
           {isMe && !isAi && " (you)"}
         </span>
-        {msg.streaming && <span style={{ fontSize: 10, color: "var(--accent-color)" }}>●</span>}
+        {msg.streaming && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--accent-color)" }}>●</span>}
       </div>
       <div style={{
         maxWidth: "85%",
@@ -521,7 +521,7 @@ function MessageBubble({ msg, myPeerId }: { msg: DisplayMsg; myPeerId: string | 
         color: isMe && !isAi ? "var(--btn-primary-fg)" : "var(--text-primary)",
         borderRadius: isMe ? "12px 12px 4px 12px" : "12px 12px 12px 4px",
         padding: "8px 12px",
-        fontSize: 13,
+        fontSize: "var(--font-size-md)",
         lineHeight: 1.5,
         whiteSpace: "pre-wrap",
         wordBreak: "break-word",

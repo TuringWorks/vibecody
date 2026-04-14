@@ -24,8 +24,8 @@ interface TreeNode {
 const badgeStyle = (color: string): React.CSSProperties => ({
   display: "inline-block",
   padding: "2px 8px",
-  borderRadius: 10,
-  fontSize: 11,
+  borderRadius: "var(--radius-md)",
+  fontSize: "var(--font-size-sm)",
   fontWeight: 600,
   background: color,
   color: "var(--btn-primary-fg, #fff)",
@@ -167,8 +167,8 @@ export function MctsRepairPanel() {
                   <span style={badgeStyle(statusColor[s.status] || "var(--text-secondary)")}>{s.status}</span>
                 </div>
               </div>
-              <div style={{ fontSize: 12, fontFamily: "monospace", color: "var(--error-color)", marginBottom: 4 }}>{s.error}</div>
-              <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Nodes: {s.nodesExplored} | Depth: {s.depth}</div>
+              <div style={{ fontSize: "var(--font-size-base)", fontFamily: "monospace", color: "var(--error-color)", marginBottom: 4 }}>{s.error}</div>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>Nodes: {s.nodesExplored} | Depth: {s.depth}</div>
             </div>
           ))}
         </div>
@@ -195,7 +195,7 @@ export function MctsRepairPanel() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <span style={{ fontWeight: 600 }}>MCTS Tree Visualization</span>
             {selectedSession && (
-              <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+              <span style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>
                 {selectedSession.file} · {selectedSession.nodesExplored} nodes
               </span>
             )}
@@ -208,10 +208,10 @@ export function MctsRepairPanel() {
           {treeNodes.map((n, i) => (
             <div key={n.id} className="panel-card" style={{ marginLeft: i * 8, borderLeft: n.isBestPath ? "3px solid var(--success-color)" : "3px solid var(--border-color)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <strong style={{ fontSize: 13 }}>{n.label}</strong>
+                <strong style={{ fontSize: "var(--font-size-md)" }}>{n.label}</strong>
                 {n.isBestPath && <span style={badgeStyle("var(--success-color)")}>best path</span>}
               </div>
-              <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginTop: 4 }}>
                 Visits: {n.visits} | Reward: {n.reward.toFixed(2)} | Children: {n.children}
               </div>
             </div>
@@ -223,7 +223,7 @@ export function MctsRepairPanel() {
         <div>
           <div style={{ fontWeight: 600, marginBottom: 12 }}>3-Phase Pipeline</div>
           {!selectedSession && (
-            <div className="panel-card" style={{ color: "var(--text-secondary)", fontSize: 13 }}>
+            <div className="panel-card" style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-md)" }}>
               Select a session from the Sessions tab to see its phase progress.
             </div>
           )}
@@ -232,9 +232,9 @@ export function MctsRepairPanel() {
               <span style={{ width: 10, height: 10, borderRadius: "50%", background: phaseColor[p.status] || "var(--text-secondary)", flexShrink: 0 }} />
               <div style={{ flex: 1 }}>
                 <strong>{p.name}</strong>
-                {p.detail && <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{p.detail}</div>}
+                {p.detail && <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>{p.detail}</div>}
               </div>
-              <span style={{ fontSize: 11, color: phaseColor[p.status] || "var(--text-secondary)" }}>{p.status}</span>
+              <span style={{ fontSize: "var(--font-size-sm)", color: phaseColor[p.status] || "var(--text-secondary)" }}>{p.status}</span>
               {i < phases.length - 1 && <ChevronDown size={14} strokeWidth={1.5} style={{ color: "var(--text-secondary)", flexShrink: 0 }} />}
             </div>
           ))}
@@ -243,7 +243,7 @@ export function MctsRepairPanel() {
 
       {tab === "compare" && (
         <div>
-          <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
+          <table style={{ width: "100%", fontSize: "var(--font-size-md)", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ borderBottom: "2px solid var(--border-color)" }}>
                 {["Strategy", "Avg Nodes", "Success Rate", "Avg Time", "Quality"].map((h) => (
