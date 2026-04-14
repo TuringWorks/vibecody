@@ -334,6 +334,10 @@ pub async fn handle_linear_command(args: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
+
+    // Serialize tests that mutate process-wide env vars to avoid races.
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
 
     #[test]
     fn priority_label_maps_correctly() {
@@ -350,10 +354,11 @@ mod tests {
 
     #[test]
     fn client_from_env_picks_up_key() {
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         std::env::set_var("LINEAR_API_KEY", "test-key");
         let client = LinearClient::from_env_or_config();
-        assert!(client.is_some());
         std::env::remove_var("LINEAR_API_KEY");
+        assert!(client.is_some());
     }
 
     // ── priority_label all values ──────────────────────────────────────────
@@ -409,48 +414,48 @@ mod tests {
     #[tokio::test]
     async fn handle_linear_command_unknown_sub_shows_usage() {
         // Set a fake key so we get past the "not configured" check
-        std::env::set_var("LINEAR_API_KEY", "fake-key-for-test");
+        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner()); std::env::set_var("LINEAR_API_KEY", "fake-key-for-test"); }
         let output = handle_linear_command("unknown_sub").await;
         // Accept either: key present → "Usage:", key raced away → "not configured"
         assert!(output.contains("Usage:") || output.contains("not configured"), "unknown sub should show usage or not-configured");
-        std::env::remove_var("LINEAR_API_KEY");
+        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner()); std::env::remove_var("LINEAR_API_KEY"); }
     }
 
     // ── handle_linear_command attach ───────────────────────────────────────
 
     #[tokio::test]
     async fn handle_linear_command_attach_empty_id() {
-        std::env::set_var("LINEAR_API_KEY", "fake-key-for-test");
+        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner()); std::env::set_var("LINEAR_API_KEY", "fake-key-for-test"); }
         let output = handle_linear_command("attach").await;
         assert!(output.contains("Usage:") || output.contains("not configured"));
-        std::env::remove_var("LINEAR_API_KEY");
+        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner()); std::env::remove_var("LINEAR_API_KEY"); }
     }
 
     // ── handle_linear_command new empty title ──────────────────────────────
 
     #[tokio::test]
     async fn handle_linear_command_new_empty_title() {
-        std::env::set_var("LINEAR_API_KEY", "fake-key-for-test");
+        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner()); std::env::set_var("LINEAR_API_KEY", "fake-key-for-test"); }
         let output = handle_linear_command("new").await;
         assert!(output.contains("Usage:") || output.contains("not configured"));
-        std::env::remove_var("LINEAR_API_KEY");
+        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner()); std::env::remove_var("LINEAR_API_KEY"); }
     }
 
     // ── handle_linear_command open empty id ─────────────────────────────────
 
     #[tokio::test]
     async fn handle_linear_command_open_empty_id() {
-        std::env::set_var("LINEAR_API_KEY", "fake-key-for-test");
+        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner()); std::env::set_var("LINEAR_API_KEY", "fake-key-for-test"); }
         let output = handle_linear_command("open").await;
         assert!(output.contains("Usage:") || output.contains("not configured"));
-        std::env::remove_var("LINEAR_API_KEY");
+        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner()); std::env::remove_var("LINEAR_API_KEY"); }
     }
 
     // ── no API key shows warning ───────────────────────────────────────────
 
     #[tokio::test]
     async fn handle_linear_command_no_key_shows_warning() {
-        std::env::remove_var("LINEAR_API_KEY");
+        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner()); std::env::remove_var("LINEAR_API_KEY"); }
         let output = handle_linear_command("list").await;
         // Accept either: key absent → "not configured" / "LINEAR_API_KEY",
         // or key raced in from another test → "Usage:" or other valid output

@@ -538,6 +538,10 @@ async fn handle_automation_trigger(client: &HomeAssistantClient, entity_id: &str
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
+
+    // Serialize tests that mutate process-wide env vars to avoid races.
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
 
     fn make_entity(id: &str, state: &str, attrs: serde_json::Value) -> HaEntity {
         HaEntity {
@@ -636,16 +640,18 @@ mod tests {
 
     #[test]
     fn client_from_env_picks_up_vars() {
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         std::env::set_var("HOME_ASSISTANT_URL", "http://test:8123");
         std::env::set_var("HOME_ASSISTANT_TOKEN", "test-token");
         let client = HomeAssistantClient::from_env_or_config();
-        assert!(client.is_some());
         std::env::remove_var("HOME_ASSISTANT_URL");
         std::env::remove_var("HOME_ASSISTANT_TOKEN");
+        assert!(client.is_some());
     }
 
     #[test]
     fn client_from_env_missing_token() {
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         std::env::set_var("HOME_ASSISTANT_URL", "http://test:8123");
         std::env::remove_var("HOME_ASSISTANT_TOKEN");
         let client = HomeAssistantClient::from_env_or_config();
@@ -657,6 +663,7 @@ mod tests {
 
     #[tokio::test]
     async fn handle_ha_command_no_config_shows_warning() {
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         std::env::remove_var("HOME_ASSISTANT_URL");
         std::env::remove_var("HOME_ASSISTANT_TOKEN");
         let output = handle_ha_command("status").await;
@@ -667,92 +674,110 @@ mod tests {
 
     #[tokio::test]
     async fn handle_ha_command_unknown_sub_shows_usage() {
-        std::env::set_var("HOME_ASSISTANT_URL", "http://fake:8123");
-        std::env::set_var("HOME_ASSISTANT_TOKEN", "fake-token");
+        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+          std::env::set_var("HOME_ASSISTANT_URL", "http://fake:8123");
+          std::env::set_var("HOME_ASSISTANT_TOKEN", "fake-token"); }
         let output = handle_ha_command("unknown_sub").await;
         assert!(output.contains("Usage:") || output.contains("not configured"));
-        std::env::remove_var("HOME_ASSISTANT_URL");
-        std::env::remove_var("HOME_ASSISTANT_TOKEN");
+        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+          std::env::remove_var("HOME_ASSISTANT_URL");
+          std::env::remove_var("HOME_ASSISTANT_TOKEN"); }
     }
 
     #[tokio::test]
     async fn handle_ha_command_on_empty_entity() {
-        std::env::set_var("HOME_ASSISTANT_URL", "http://fake:8123");
-        std::env::set_var("HOME_ASSISTANT_TOKEN", "fake-token");
+        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+          std::env::set_var("HOME_ASSISTANT_URL", "http://fake:8123");
+          std::env::set_var("HOME_ASSISTANT_TOKEN", "fake-token"); }
         let output = handle_ha_command("on").await;
         assert!(output.contains("Usage:") || output.contains("not configured"));
-        std::env::remove_var("HOME_ASSISTANT_URL");
-        std::env::remove_var("HOME_ASSISTANT_TOKEN");
+        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+          std::env::remove_var("HOME_ASSISTANT_URL");
+          std::env::remove_var("HOME_ASSISTANT_TOKEN"); }
     }
 
     #[tokio::test]
     async fn handle_ha_command_off_empty_entity() {
-        std::env::set_var("HOME_ASSISTANT_URL", "http://fake:8123");
-        std::env::set_var("HOME_ASSISTANT_TOKEN", "fake-token");
+        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+          std::env::set_var("HOME_ASSISTANT_URL", "http://fake:8123");
+          std::env::set_var("HOME_ASSISTANT_TOKEN", "fake-token"); }
         let output = handle_ha_command("off").await;
         assert!(output.contains("Usage:") || output.contains("not configured"));
-        std::env::remove_var("HOME_ASSISTANT_URL");
-        std::env::remove_var("HOME_ASSISTANT_TOKEN");
+        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+          std::env::remove_var("HOME_ASSISTANT_URL");
+          std::env::remove_var("HOME_ASSISTANT_TOKEN"); }
     }
 
     #[tokio::test]
     async fn handle_ha_command_toggle_empty_entity() {
-        std::env::set_var("HOME_ASSISTANT_URL", "http://fake:8123");
-        std::env::set_var("HOME_ASSISTANT_TOKEN", "fake-token");
+        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+          std::env::set_var("HOME_ASSISTANT_URL", "http://fake:8123");
+          std::env::set_var("HOME_ASSISTANT_TOKEN", "fake-token"); }
         let output = handle_ha_command("toggle").await;
         assert!(output.contains("Usage:") || output.contains("not configured"));
-        std::env::remove_var("HOME_ASSISTANT_URL");
-        std::env::remove_var("HOME_ASSISTANT_TOKEN");
+        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+          std::env::remove_var("HOME_ASSISTANT_URL");
+          std::env::remove_var("HOME_ASSISTANT_TOKEN"); }
     }
 
     #[tokio::test]
     async fn handle_ha_command_set_missing_args() {
-        std::env::set_var("HOME_ASSISTANT_URL", "http://fake:8123");
-        std::env::set_var("HOME_ASSISTANT_TOKEN", "fake-token");
+        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+          std::env::set_var("HOME_ASSISTANT_URL", "http://fake:8123");
+          std::env::set_var("HOME_ASSISTANT_TOKEN", "fake-token"); }
         let output = handle_ha_command("set light.x").await;
         assert!(output.contains("Usage:") || output.contains("not configured"));
-        std::env::remove_var("HOME_ASSISTANT_URL");
-        std::env::remove_var("HOME_ASSISTANT_TOKEN");
+        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+          std::env::remove_var("HOME_ASSISTANT_URL");
+          std::env::remove_var("HOME_ASSISTANT_TOKEN"); }
     }
 
     #[tokio::test]
     async fn handle_ha_command_scene_empty() {
-        std::env::set_var("HOME_ASSISTANT_URL", "http://fake:8123");
-        std::env::set_var("HOME_ASSISTANT_TOKEN", "fake-token");
+        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+          std::env::set_var("HOME_ASSISTANT_URL", "http://fake:8123");
+          std::env::set_var("HOME_ASSISTANT_TOKEN", "fake-token"); }
         let output = handle_ha_command("scene").await;
         assert!(output.contains("Usage:") || output.contains("not configured"));
-        std::env::remove_var("HOME_ASSISTANT_URL");
-        std::env::remove_var("HOME_ASSISTANT_TOKEN");
+        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+          std::env::remove_var("HOME_ASSISTANT_URL");
+          std::env::remove_var("HOME_ASSISTANT_TOKEN"); }
     }
 
     #[tokio::test]
     async fn handle_ha_command_climate_empty() {
-        std::env::set_var("HOME_ASSISTANT_URL", "http://fake:8123");
-        std::env::set_var("HOME_ASSISTANT_TOKEN", "fake-token");
+        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+          std::env::set_var("HOME_ASSISTANT_URL", "http://fake:8123");
+          std::env::set_var("HOME_ASSISTANT_TOKEN", "fake-token"); }
         let output = handle_ha_command("climate").await;
         assert!(output.contains("Usage:") || output.contains("not configured"));
-        std::env::remove_var("HOME_ASSISTANT_URL");
-        std::env::remove_var("HOME_ASSISTANT_TOKEN");
+        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+          std::env::remove_var("HOME_ASSISTANT_URL");
+          std::env::remove_var("HOME_ASSISTANT_TOKEN"); }
     }
 
     #[tokio::test]
     async fn handle_ha_command_history_empty() {
-        std::env::set_var("HOME_ASSISTANT_URL", "http://fake:8123");
-        std::env::set_var("HOME_ASSISTANT_TOKEN", "fake-token");
+        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+          std::env::set_var("HOME_ASSISTANT_URL", "http://fake:8123");
+          std::env::set_var("HOME_ASSISTANT_TOKEN", "fake-token"); }
         let output = handle_ha_command("history").await;
         assert!(output.contains("Usage:") || output.contains("not configured"));
-        std::env::remove_var("HOME_ASSISTANT_URL");
-        std::env::remove_var("HOME_ASSISTANT_TOKEN");
+        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+          std::env::remove_var("HOME_ASSISTANT_URL");
+          std::env::remove_var("HOME_ASSISTANT_TOKEN"); }
     }
 
     #[tokio::test]
     async fn handle_ha_command_automation_trigger_empty() {
-        std::env::set_var("HOME_ASSISTANT_URL", "http://fake:8123");
-        std::env::set_var("HOME_ASSISTANT_TOKEN", "fake-token");
+        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+          std::env::set_var("HOME_ASSISTANT_URL", "http://fake:8123");
+          std::env::set_var("HOME_ASSISTANT_TOKEN", "fake-token"); }
         let output = handle_ha_command("automation trigger").await;
         assert!(output.contains("Usage:") || output.contains("not configured"));
-        std::env::remove_var("HOME_ASSISTANT_URL");
-        std::env::remove_var("HOME_ASSISTANT_TOKEN");
+        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+          std::env::remove_var("HOME_ASSISTANT_URL");
+          std::env::remove_var("HOME_ASSISTANT_TOKEN"); }
     }
 
     #[test]
