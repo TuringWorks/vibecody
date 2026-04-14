@@ -22733,9 +22733,12 @@ pub async fn run_canvas_workflow(workflow: CanvasWorkflow) -> Result<String, Str
 
 #[tauri::command]
 pub async fn transcribe_audio(audio_path: String) -> Result<String, String> {
-    // Resolve Whisper API key from env
-    let api_key = std::env::var("GROQ_API_KEY")
-        .map_err(|_| "GROQ_API_KEY not set (needed for Whisper transcription)".to_string())?;
+    // Resolve Groq/Whisper API key: ProfileStore → env var
+    let api_key = PanelStore::new().ok()
+        .and_then(|s| s.get_api_key("default", "groq").ok().flatten())
+        .filter(|v| !v.is_empty())
+        .or_else(|| std::env::var("GROQ_API_KEY").ok().filter(|v| !v.is_empty()))
+        .ok_or_else(|| "Groq API key not set — add it in Settings → API Keys → Groq".to_string())?;
 
     let path = std::path::Path::new(&audio_path);
     if !path.exists() {
@@ -22782,10 +22785,22 @@ pub async fn transcribe_audio(audio_path: String) -> Result<String, String> {
 
 #[tauri::command]
 pub async fn text_to_speech(text: String) -> Result<Vec<u8>, String> {
-    let api_key = std::env::var("ELEVENLABS_API_KEY")
-        .map_err(|_| "ELEVENLABS_API_KEY not set".to_string())?;
-    let voice_id = std::env::var("ELEVENLABS_VOICE_ID")
-        .unwrap_or_else(|_| "21m00Tcm4TlvDq8ikWAM".to_string());
+    // Resolve ElevenLabs credentials: ProfileStore → env var.
+    // Extract synchronously before any await so PanelStore (non-Send) is dropped.
+    let (api_key, voice_id) = {
+        let get = |key: &str| -> Option<String> {
+            PanelStore::new().ok()
+                .and_then(|s| s.get_api_key("default", key).ok().flatten())
+                .filter(|v| !v.is_empty())
+        };
+        let key = get("integration.voice.elevenlabs_api_key")
+            .or_else(|| std::env::var("ELEVENLABS_API_KEY").ok().filter(|v| !v.is_empty()))
+            .ok_or_else(|| "ElevenLabs API key not set — add it in Settings → Integrations → Voice".to_string())?;
+        let vid = get("integration.voice.elevenlabs_voice_id")
+            .or_else(|| std::env::var("ELEVENLABS_VOICE_ID").ok().filter(|v| !v.is_empty()))
+            .unwrap_or_else(|| "21m00Tcm4TlvDq8ikWAM".to_string());
+        (key, vid)
+    };
 
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
@@ -22816,8 +22831,12 @@ pub async fn text_to_speech(text: String) -> Result<Vec<u8>, String> {
 /// Transcribe audio from base64-encoded bytes (WebM/WAV) using Groq Whisper.
 #[tauri::command]
 pub async fn transcribe_audio_bytes(audio_base64: String, mime_type: Option<String>) -> Result<String, String> {
-    let api_key = std::env::var("GROQ_API_KEY")
-        .map_err(|_| "GROQ_API_KEY not set (needed for Whisper transcription)".to_string())?;
+    // Resolve Groq/Whisper API key: ProfileStore → env var
+    let api_key = PanelStore::new().ok()
+        .and_then(|s| s.get_api_key("default", "groq").ok().flatten())
+        .filter(|v| !v.is_empty())
+        .or_else(|| std::env::var("GROQ_API_KEY").ok().filter(|v| !v.is_empty()))
+        .ok_or_else(|| "Groq API key not set — add it in Settings → API Keys → Groq".to_string())?;
 
     use base64::Engine;
     let audio_bytes = base64::engine::general_purpose::STANDARD
