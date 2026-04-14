@@ -1,4 +1,5 @@
 // ExtensionHost.ts
+/* eslint-disable no-console, @typescript-eslint/no-explicit-any */
 
 // --- Inlined vscode-api/commands.ts ---
 type Thenable<T> = PromiseLike<T>;

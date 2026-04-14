@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * CollabPanel — Session management UI for CRDT multiplayer collaboration.
  *

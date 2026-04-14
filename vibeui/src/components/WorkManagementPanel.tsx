@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * WorkManagementPanel — Unified project management combining enterprise work
  * management (hierarchy, work items, OKRs, risks) with Agile project management

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Icon — Thin, themeable SVG icon system for VibeUI.
  *

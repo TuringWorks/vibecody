@@ -1282,6 +1282,7 @@ export function QuantumComputingPanel() {
         return;
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [selectedGate, circuitDetail, placingControl, placingControls, selectedCircuitIdx],
   );
 

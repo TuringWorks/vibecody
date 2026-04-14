@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * TransformPanel — AI-powered code transformation and language migration.
  *

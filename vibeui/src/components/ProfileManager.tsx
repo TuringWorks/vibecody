@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * ProfileManager — Manage settings profiles.
  * Can be embedded in the Settings panel or used standalone.

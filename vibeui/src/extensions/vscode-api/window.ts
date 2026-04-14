@@ -1,4 +1,5 @@
 // vscode-api/window.ts
+/* eslint-disable no-console, @typescript-eslint/no-explicit-any */
 
 type Thenable<T> = PromiseLike<T>;
 

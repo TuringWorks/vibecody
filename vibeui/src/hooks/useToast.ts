@@ -41,9 +41,10 @@ export function useToast(): { toasts: Toast[]; toast: ToastApi; dismiss: (id: nu
   const timersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
 
   useEffect(() => {
+    const timers = timersRef.current;
     return () => {
-      timersRef.current.forEach(t => clearTimeout(t));
-      timersRef.current.clear();
+      timers.forEach(t => clearTimeout(t));
+      timers.clear();
     };
   }, []);
 

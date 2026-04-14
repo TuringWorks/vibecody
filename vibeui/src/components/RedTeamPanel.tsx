@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { CircleAlert, AlertTriangle, Info, CheckCircle2, Loader2, XCircle, ChevronDown, ChevronRight } from "lucide-react";

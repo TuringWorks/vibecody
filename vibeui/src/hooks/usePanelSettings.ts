@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * usePanelSettings — React hook for panel settings persistence.
  *

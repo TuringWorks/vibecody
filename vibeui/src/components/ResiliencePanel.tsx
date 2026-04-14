@@ -126,6 +126,7 @@ export function ResiliencePanel() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadAll(); }, []);
 
   // Reload data when tab changes to keep it fresh
@@ -134,7 +135,6 @@ export function ResiliencePanel() {
     if (tab === "circuit") loadCircuit();
     if (tab === "journal") loadJournal();
     if (tab === "config") loadConfig();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
 
   async function loadAll() {

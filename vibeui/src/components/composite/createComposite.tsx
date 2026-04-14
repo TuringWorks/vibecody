@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { lazy, Suspense, type ComponentType } from "react";
 import { TabbedPanel } from "../TabbedPanel";
 

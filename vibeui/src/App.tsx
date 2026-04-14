@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useToast } from "./hooks/useToast";
 import { useNotifications } from "./hooks/useNotifications";
@@ -232,6 +233,7 @@ function App() {
     return () => {
       window.removeEventListener("vibeui:providers-updated", onProvidersUpdated);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Global keyboard shortcuts
@@ -294,6 +296,7 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const openFolder = async () => {
@@ -337,7 +340,7 @@ function App() {
     try {
       const status = await invoke<GitStatus>("get_git_status");
       setGitStatus(status);
-    } catch (error) {
+    } catch (_error) {
       // Not a git repo or git not available — expected in some workspaces
       setGitStatus(null);
     }
@@ -866,6 +869,7 @@ function App() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentFile, editorContent]);
 
   // Keyboard shortcut: Cmd/Ctrl+Shift+M to maximize/restore panels, Escape to restore

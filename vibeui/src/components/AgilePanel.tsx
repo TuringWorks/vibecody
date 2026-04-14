@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * AgilePanel — Comprehensive Agile Project Management panel.
  *

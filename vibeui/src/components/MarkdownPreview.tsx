@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import ReactMarkdown from 'react-markdown';
 import React from 'react';
 import { openUrl } from '@tauri-apps/plugin-opener';

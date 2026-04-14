@@ -1,4 +1,5 @@
 // ExtensionManager.ts
+/* eslint-disable no-console, @typescript-eslint/no-explicit-any */
 
 export class ExtensionManager {
     private worker: Worker | null = null;

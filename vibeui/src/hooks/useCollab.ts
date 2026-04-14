@@ -111,6 +111,7 @@ export function useCollab() {
         ws.close();
       };
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
 

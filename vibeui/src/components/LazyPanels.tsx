@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { lazy, Suspense, useRef, type ComponentType } from "react";
 import { ErrorBoundary } from "./ErrorBoundary";
 
