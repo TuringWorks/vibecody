@@ -1568,6 +1568,15 @@ pub async fn serve(
     eprintln!("[vibecli serve] Jobs persisted at ~/.vibecli/jobs/");
     eprintln!("[vibecli serve] Session viewer at http://{addr}/sessions");
 
+    // Start zero-config mDNS announcer — announces _vibecli._tcp.local. so
+    // the mobile app discovers this daemon on any LAN without special flags.
+    {
+        let machine_id = std::env::var("VIBECLI_MACHINE_ID")
+            .unwrap_or_else(|_| format!("{:016x}", rand::thread_rng().gen::<u64>()));
+        crate::mdns_announce::start(port, machine_id);
+        eprintln!("[vibecli serve] mDNS announcing _vibecli._tcp.local. on port {port}");
+    }
+
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal())
         .await?;

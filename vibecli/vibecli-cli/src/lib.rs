@@ -207,3 +207,5 @@ pub mod rpc_mode;
 pub mod paste_guard;
 pub mod event_bus;
 pub mod pod_manager;
+// Zero-config LAN discovery
+pub mod mdns_announce;

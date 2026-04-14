@@ -1690,6 +1690,7 @@ function App() {
                   { label: "Administration", panel: "administration" },
                   { label: "Collaboration", panel: "collaboration" },
                   { label: "Sandbox Chat", panel: "sandbox-chat" },
+                  { label: "Apple Watch", panel: "watch" },
                   { label: "Billing & Usage", panel: "billing" },
                 ] as const).map(({ label, panel }) => (
                   <button key={panel} className="sidebar-action-item"

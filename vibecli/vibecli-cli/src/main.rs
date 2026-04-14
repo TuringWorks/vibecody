@@ -32,6 +32,7 @@ mod memory_recorder;
 mod ci;
 mod review;
 mod serve;
+mod mdns_announce;
 mod mcp_server;
 mod otel_init;
 mod plugin;

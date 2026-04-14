@@ -83,6 +83,8 @@ const CompanyComposite = lazy(() => import("./composite/CompanyComposite").then(
 // FIT-GAP v8
 const AgentIntelligenceComposite = lazy(() => import("./composite/AgentIntelligenceComposite").then(m => ({ default: m.AgentIntelligenceComposite })));
 const EnterpriseGovernanceComposite = lazy(() => import("./composite/EnterpriseGovernanceComposite").then(m => ({ default: m.EnterpriseGovernanceComposite })));
+// Apple Watch
+const WatchManagementPanel = lazy(() => import("./WatchManagementPanel").then(m => ({ default: m.WatchManagementPanel })));
 
 // --- Props interfaces ---
 
@@ -149,6 +151,7 @@ export function PanelHost(props: PanelHostProps) {
     "config", "integrations", "administration", "billing", "tools-settings", "productivity",
     "architecture", "company",
     "agent-intelligence", "enterprise-governance",
+    "watch",
   ];
 
   return (
@@ -218,6 +221,9 @@ export function PanelHost(props: PanelHostProps) {
       {/* --- FIT-GAP v8 --- */}
       {panel("agent-intelligence", <LazyPanel Component={AgentIntelligenceComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}
       {panel("enterprise-governance", <LazyPanel Component={EnterpriseGovernanceComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}
+
+      {/* --- Apple Watch --- */}
+      {panel("watch", <LazyPanel Component={WatchManagementPanel} props={{}} />)}
 
       {/* Fallback for unknown tabs */}
       {!visited.has(tab) || !KNOWN_TABS.includes(tab) ? (

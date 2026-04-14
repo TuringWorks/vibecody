@@ -45183,3 +45183,90 @@ pub async fn integration_token_delete(
     let provider = format!("integration.{}.{}", category, field);
     store.delete_api_key("default", &provider)
 }
+
+// ── Apple Watch management Tauri commands ─────────────────────────────────────
+
+/// Return pairing info for the Watch setup QR code.
+/// The frontend renders this as a QR code containing the JSON payload.
+/// The Watch app scans it and uses the nonce + endpoint to begin registration.
+#[tauri::command]
+pub async fn get_watch_pairing_info() -> Result<serde_json::Value, String> {
+    use std::net::TcpListener;
+    // Find the running daemon port (try defaults)
+    let daemon_url = {
+        let port = [7878u16, 7879, 8080]
+            .iter()
+            .find(|&&p| TcpListener::bind(format!("127.0.0.1:{}", p)).is_err())
+            .copied()
+            .unwrap_or(7878);
+        format!("http://localhost:{}", port)
+    };
+    // Read the daemon bearer token
+    let token_path = dirs::home_dir()
+        .map(|h| h.join(".vibecli").join("daemon.token"))
+        .ok_or("Cannot determine home directory")?;
+    let bearer = std::fs::read_to_string(&token_path)
+        .map(|s| s.trim().to_string())
+        .map_err(|_| "Daemon is not running (no token file found)")?;
+    // Issue a challenge nonce via the daemon
+    let client = reqwest::Client::new();
+    let resp = client
+        .post(format!("{}/watch/challenge", daemon_url))
+        .header("Authorization", format!("Bearer {}", bearer))
+        .send()
+        .await
+        .map_err(|e| format!("Daemon not reachable: {}", e))?;
+    if !resp.status().is_success() {
+        return Err(format!("Daemon returned {}", resp.status()));
+    }
+    let challenge: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
+    Ok(serde_json::json!({
+        "endpoint": daemon_url,
+        "nonce": challenge["nonce"],
+        "machine_id": challenge["machine_id"],
+        "expires_at": challenge["expires_at"],
+        "version": "watch-v1",
+    }))
+}
+
+/// List all paired Apple Watch devices.
+#[tauri::command]
+pub async fn list_watch_devices() -> Result<serde_json::Value, String> {
+    let token_path = dirs::home_dir()
+        .map(|h| h.join(".vibecli").join("daemon.token"))
+        .ok_or("Cannot determine home directory")?;
+    let bearer = std::fs::read_to_string(&token_path)
+        .map(|s| s.trim().to_string())
+        .map_err(|_| "Daemon not running")?;
+    let client = reqwest::Client::new();
+    let resp = client
+        .get("http://localhost:7878/watch/devices")
+        .header("Authorization", format!("Bearer {}", bearer))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    resp.json::<serde_json::Value>().await.map_err(|e| e.to_string())
+}
+
+/// Revoke an Apple Watch device by device_id.
+#[tauri::command]
+pub async fn revoke_watch_device(device_id: String) -> Result<(), String> {
+    let token_path = dirs::home_dir()
+        .map(|h| h.join(".vibecli").join("daemon.token"))
+        .ok_or("Cannot determine home directory")?;
+    let bearer = std::fs::read_to_string(&token_path)
+        .map(|s| s.trim().to_string())
+        .map_err(|_| "Daemon not running")?;
+    let client = reqwest::Client::new();
+    let resp = client
+        .delete(format!("http://localhost:7878/watch/devices/{}", device_id))
+        .header("Authorization", format!("Bearer {}", bearer))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    if resp.status().is_success() {
+        Ok(())
+    } else {
+        Err(format!("Revoke failed: {}", resp.status()))
+    }
+}
