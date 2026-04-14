@@ -1518,14 +1518,131 @@ impl Default for CopilotConfig {
 impl Config {
     pub fn load() -> Result<Self> {
         let config_path = Self::config_path()?;
-        
-        if config_path.exists() {
+        let mut config = if config_path.exists() {
             let content = fs::read_to_string(&config_path)?;
-            let config: Config = toml::from_str(&content)?;
-            Ok(config)
+            toml::from_str(&content)?
         } else {
-            Ok(Self::default())
+            Self::default()
+        };
+        // Overlay encrypted ProfileStore values on top of TOML.
+        // ProfileStore wins for any key it has set; TOML values are kept for the rest.
+        config.overlay_from_store();
+        Ok(config)
+    }
+
+    /// Merge encrypted ProfileStore values into this config.
+    /// Called automatically by `load()`. ProfileStore takes precedence over TOML.
+    /// Silently ignores any store errors (store unavailable ⇒ TOML-only mode).
+    pub fn overlay_from_store(&mut self) {
+        let Ok(store) = crate::profile_store::ProfileStore::new() else { return };
+
+        // ── Helper closures ────────────────────────────────────────────────────
+        let get_key = |p: &str| -> Option<String> {
+            store.get_api_key("default", p).ok().flatten().filter(|v| !v.is_empty())
+        };
+        let get_cfg = |p: &str, k: &str| -> Option<String> {
+            store.get_provider_config("default", p, k).ok().flatten().filter(|v| !v.is_empty())
+        };
+        let get_int = |cat: &str, field: &str| -> Option<String> {
+            let key = format!("integration.{}.{}", cat, field);
+            store.get_api_key("default", &key).ok().flatten().filter(|v| !v.is_empty())
+        };
+
+        // ── AI provider API keys + model + api_url ─────────────────────────────
+        // Maps ProfileStore provider name → mutable Option<ProviderConfig> field.
+        macro_rules! overlay {
+            ($field:expr, $store_name:expr) => {{
+                let api_key = get_key($store_name);
+                let model   = get_cfg($store_name, "model");
+                let api_url = get_cfg($store_name, "api_url");
+                if api_key.is_some() || model.is_some() || api_url.is_some() {
+                    let pc = $field.get_or_insert_with(ProviderConfig::default);
+                    if let Some(v) = api_key { pc.api_key = Some(v); }
+                    if let Some(v) = model   { pc.model   = Some(v); }
+                    if let Some(v) = api_url { pc.api_url = Some(v); }
+                }
+            }};
         }
+
+        overlay!(self.claude,      "anthropic");
+        overlay!(self.openai,      "openai");
+        overlay!(self.gemini,      "gemini");
+        overlay!(self.grok,        "grok");
+        overlay!(self.groq,        "groq");
+        overlay!(self.openrouter,  "openrouter");
+        overlay!(self.azure_openai,"azure_openai");
+        overlay!(self.mistral,     "mistral");
+        overlay!(self.cerebras,    "cerebras");
+        overlay!(self.deepseek,    "deepseek");
+        overlay!(self.zhipu,       "zhipu");
+        overlay!(self.vercel_ai,   "vercel_ai");
+        overlay!(self.minimax,     "minimax");
+        overlay!(self.perplexity,  "perplexity");
+        overlay!(self.together,    "together");
+        overlay!(self.fireworks,   "fireworks");
+        overlay!(self.sambanova,   "sambanova");
+        overlay!(self.ollama,      "ollama");
+
+        // ── Email ──────────────────────────────────────────────────────────────
+        {
+            let gmail_token   = get_int("email", "gmail_access_token");
+            let outlook_token = get_int("email", "outlook_access_token");
+            if gmail_token.is_some() || outlook_token.is_some() {
+                let ec = self.email.get_or_insert_with(EmailConfig::default);
+                if let Some(v) = gmail_token   { ec.gmail_access_token   = Some(v); }
+                if let Some(v) = outlook_token { ec.outlook_access_token = Some(v); }
+            }
+        }
+
+        // ── Calendar ───────────────────────────────────────────────────────────
+        {
+            let google_token  = get_int("calendar", "google_access_token");
+            let outlook_token = get_int("calendar", "outlook_access_token");
+            if google_token.is_some() || outlook_token.is_some() {
+                let cc = self.calendar.get_or_insert_with(CalendarConfig::default);
+                if let Some(v) = google_token  { cc.google_access_token  = Some(v); }
+                if let Some(v) = outlook_token { cc.outlook_access_token = Some(v); }
+            }
+        }
+
+        // ── Project tools ──────────────────────────────────────────────────────
+        if let Some(v) = get_int("projecttools", "linear_api_key")  { self.linear_api_key  = Some(v); }
+        if let Some(v) = get_int("projecttools", "notion_api_key")  { self.notion_api_key  = Some(v); }
+        if let Some(v) = get_int("projecttools", "todoist_api_key") { self.todoist_api_key = Some(v); }
+        {
+            let url   = get_int("projecttools", "jira_url");
+            let email = get_int("projecttools", "jira_email");
+            let token = get_int("projecttools", "jira_api_token");
+            if url.is_some() || email.is_some() || token.is_some() {
+                let jc = self.jira.get_or_insert_with(JiraConfig::default);
+                if let Some(v) = url   { jc.url       = Some(v); }
+                if let Some(v) = email { jc.email     = Some(v); }
+                if let Some(v) = token { jc.api_token = Some(v); }
+            }
+        }
+
+        // ── Home Assistant ─────────────────────────────────────────────────────
+        {
+            let url   = get_int("smarthome", "home_assistant_url");
+            let token = get_int("smarthome", "home_assistant_token");
+            if url.is_some() || token.is_some() {
+                let ha = self.home_assistant.get_or_insert_with(HomeAssistantConfig::default);
+                if let Some(v) = url   { ha.url   = Some(v); }
+                if let Some(v) = token { ha.token = Some(v); }
+            }
+        }
+
+        // ── Voice ──────────────────────────────────────────────────────────────
+        if let Some(v) = get_int("voice", "elevenlabs_api_key") { self.voice.elevenlabs_api_key = Some(v); }
+        if let Some(v) = get_int("voice", "elevenlabs_voice_id") { self.voice.elevenlabs_voice_id = Some(v); }
+
+        // ── Messaging gateway ──────────────────────────────────────────────────
+        // Store values are already read directly in GatewayConfig::resolve_*()
+        // via integration_store_get(), so no overlay needed here.
+
+        // ── Search ─────────────────────────────────────────────────────────────
+        // tool_executor.rs reads TAVILY_API_KEY / BRAVE_API_KEY env vars;
+        // integration_store_get() handles those via GatewayConfig resolve methods.
     }
 
     pub fn save(&self) -> Result<()> {
