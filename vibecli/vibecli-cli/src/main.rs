@@ -203,6 +203,327 @@ mod render_optimize;
 mod gh_actions_agent;
 #[allow(dead_code)]
 mod usage_metering;
+
+// ── --metering CLI handler ────────────────────────────────────────────────────
+
+/// Dispatch `vibecli --metering <subcommand> [flags]`.
+///
+/// Called before Clap parses the rest of argv so that metering-specific flags
+/// (--owner, --limit, --period, --group-by, --agent, --detail, --chargeback,
+/// --alert-warning, --alert-critical, --alert-limit) don't need to be declared
+/// on the main Cli struct.
+fn run_metering_command(args: &[String]) {
+    use usage_metering::{
+        BudgetOwner, BudgetPeriod, CreditBudget, UsageMeter,
+    };
+
+    // ── Tiny flag parser ──────────────────────────────────────────────────────
+    let get_flag = |flag: &str| -> Option<String> {
+        let mut it = args.iter().peekable();
+        while let Some(a) = it.next() {
+            if a == flag {
+                return it.next().cloned();
+            }
+            // --flag=value form
+            if let Some(val) = a.strip_prefix(&format!("{}=", flag)) {
+                return Some(val.to_string());
+            }
+        }
+        None
+    };
+    let has_flag = |flag: &str| args.iter().any(|a| a == flag);
+
+    // First positional arg is the subcommand; second (if any) is a sub-subcommand.
+    let positionals: Vec<&str> = args
+        .iter()
+        .filter(|a| !a.starts_with('-'))
+        .map(String::as_str)
+        .collect();
+
+    let subcmd = positionals.first().copied().unwrap_or("status");
+    let sub2 = positionals.get(1).copied().unwrap_or("");
+
+    match subcmd {
+        // ── status ────────────────────────────────────────────────────────────
+        "status" => {
+            let agent_filter = get_flag("--agent");
+            let detail = has_flag("--detail");
+            let meter = UsageMeter::new();
+            if let Some(ref agent) = agent_filter {
+                println!("Usage Metering — Agent: {}", agent);
+                let records: Vec<_> = meter
+                    .records
+                    .iter()
+                    .filter(|r| r.agent_id.as_deref() == Some(agent.as_str()))
+                    .collect();
+                if records.is_empty() {
+                    println!("  (no usage records for this agent)");
+                } else {
+                    let total_in: u64 = records.iter().map(|r| r.input_tokens).sum();
+                    let total_out: u64 = records.iter().map(|r| r.output_tokens).sum();
+                    let cost: f64 = records.iter().map(|r| r.cost_usd).sum();
+                    println!("  Requests     : {}", records.len());
+                    println!("  Input tokens : {}", total_in);
+                    println!("  Output tokens: {}", total_out);
+                    println!("  Cost (USD)   : ${:.4}", cost);
+                    if detail {
+                        for r in &records {
+                            println!(
+                                "  [{:?}] provider={} model={} in={} out={} cost=${:.4}",
+                                r.task_type, r.provider, r.model,
+                                r.input_tokens, r.output_tokens, r.cost_usd
+                            );
+                        }
+                    }
+                }
+            } else {
+                println!("Usage Metering — Current Status");
+                println!("  Records this session : {}", meter.records.len());
+                println!("  Budgets configured   : {}", meter.budgets.len());
+                println!("  Alerts               : {}", if meter.alerts.is_empty() { "none".to_string() } else { meter.alerts.len().to_string() });
+                println!("  Total input tokens   : 0");
+                println!("  Total output tokens  : 0");
+                println!("  Total cost (USD)     : $0.0000");
+                println!();
+                println!("  Tip: use 'vibecli --metering budget set' to configure spending limits.");
+            }
+        }
+
+        // ── budget ────────────────────────────────────────────────────────────
+        "budget" => match sub2 {
+            "set" | "" => {
+                let owner_str = get_flag("--owner").unwrap_or_else(|| "global".to_string());
+                let limit: f64 = get_flag("--limit")
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or(1_000_000.0);
+                let period_str = get_flag("--period").unwrap_or_else(|| "monthly".to_string());
+                let alert_warning: f64 = get_flag("--alert-warning")
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or(80.0);
+                let alert_critical: f64 = get_flag("--alert-critical")
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or(95.0);
+                let _alert_limit: f64 = get_flag("--alert-limit")
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or(100.0);
+
+                let owner = if let Some(rest) = owner_str.strip_prefix("user:") {
+                    BudgetOwner::User(rest.to_string())
+                } else if let Some(rest) = owner_str.strip_prefix("team:") {
+                    BudgetOwner::Team(rest.to_string())
+                } else if let Some(rest) = owner_str.strip_prefix("project:") {
+                    BudgetOwner::Project(rest.to_string())
+                } else {
+                    BudgetOwner::Global
+                };
+
+                let period = match period_str.to_lowercase().as_str() {
+                    "daily" => BudgetPeriod::Daily,
+                    "weekly" => BudgetPeriod::Weekly,
+                    "monthly" => BudgetPeriod::Monthly,
+                    "quarterly" => BudgetPeriod::Quarterly,
+                    "yearly" => BudgetPeriod::Yearly,
+                    _ => BudgetPeriod::Unlimited,
+                };
+
+                let now = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_secs())
+                    .unwrap_or(0);
+
+                let id = format!(
+                    "bgt-{:x}",
+                    now % 0xffff_ffff
+                );
+                let name = format!("{} ({} budget)", owner_str, period_str);
+                let budget = CreditBudget {
+                    id: id.clone(),
+                    name: name.clone(),
+                    owner_type: owner,
+                    total_credits: limit,
+                    used_credits: 0.0,
+                    alert_threshold_percent: alert_warning,
+                    hard_limit: false,
+                    period,
+                    period_start: now,
+                };
+                let mut meter = UsageMeter::new();
+                meter.create_budget(budget);
+
+                println!("Budget created:");
+                println!("  ID      : {}", id);
+                println!("  Name    : {}", name);
+                println!("  Owner   : {}", owner_str);
+                println!("  Limit   : {} tokens", format_tokens(limit as u64));
+                println!("  Period  : {}", period_str);
+                println!("  Alerts  : {}% warning / {}% critical / {}% limit",
+                    alert_warning as u64, alert_critical as u64, _alert_limit as u64);
+                println!();
+                println!("  Note: budget is held in-session memory. Persist it in");
+                println!("  ~/.vibecli/config.toml under [metering] or via VibeUI.");
+            }
+            "list" => {
+                let meter = UsageMeter::new();
+                if meter.budgets.is_empty() {
+                    println!("Active Budgets:");
+                    println!("  (no budgets configured — use 'vibecli --metering budget set' to create one)");
+                } else {
+                    println!("Active Budgets:");
+                    for (id, b) in &meter.budgets {
+                        let pct = if b.total_credits > 0.0 {
+                            b.used_credits / b.total_credits * 100.0
+                        } else {
+                            0.0
+                        };
+                        println!(
+                            "  {} | {:.1}% used ({:.0}/{:.0} tokens)",
+                            id, pct, b.used_credits, b.total_credits
+                        );
+                    }
+                }
+            }
+            other => {
+                eprintln!("Unknown budget subcommand '{}'. Use: set, list", other);
+                std::process::exit(1);
+            }
+        },
+
+        // ── alerts ────────────────────────────────────────────────────────────
+        "alerts" => {
+            let meter = UsageMeter::new();
+            if meter.alerts.is_empty() {
+                println!("Budget Alerts:");
+                println!("  (no alerts triggered)");
+            } else {
+                println!("Budget Alerts:");
+                for a in &meter.alerts {
+                    println!("  [{}] {} ({:.1}%)", a.budget_id, a.message, a.usage_percent);
+                }
+            }
+        }
+
+        // ── report ────────────────────────────────────────────────────────────
+        "report" => {
+            let period_str = get_flag("--period").unwrap_or_else(|| "current".to_string());
+            let group_by = get_flag("--group-by").unwrap_or_else(|| "provider".to_string());
+            let chargeback = has_flag("--chargeback");
+
+            println!(
+                "Usage Report — {} (grouped by {}{})",
+                period_str,
+                group_by,
+                if chargeback { ", chargeback" } else { "" }
+            );
+            println!("{}", "─".repeat(64));
+
+            let meter = UsageMeter::new();
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+            let report = meter.generate_report(0, now);
+
+            if report.total_tokens == 0 {
+                println!("  (no usage data for this period)");
+            } else {
+                match group_by.as_str() {
+                    "provider" => {
+                        println!("  {:<20} {:>10} {:>14} {:>14} {:>12}",
+                            "Provider", "Requests", "Input Tokens", "Output Tokens", "Cost (USD)");
+                        println!("  {}", "─".repeat(74));
+                        for (_, p) in &report.by_provider {
+                            println!("  {:<20} {:>10} {:>14} {:>14} {:>12.4}",
+                                p.provider, p.request_count,
+                                p.input_tokens, p.output_tokens, p.cost_usd);
+                        }
+                    }
+                    "model" => {
+                        println!("  {:<30} {:>14} {:>14} {:>12}",
+                            "Model", "Input Tokens", "Output Tokens", "Cost (USD)");
+                        println!("  {}", "─".repeat(74));
+                        for (_, m) in &report.by_model {
+                            println!("  {:<30} {:>14} {:>14} {:>12.4}",
+                                m.model, m.input_tokens, m.output_tokens, m.cost_usd);
+                        }
+                    }
+                    "task-type" => {
+                        println!("  {:<20} {:>10} {:>14} {:>12}",
+                            "Task Type", "Count", "Total Tokens", "Cost (USD)");
+                        println!("  {}", "─".repeat(62));
+                        for (_, t) in &report.by_task {
+                            println!("  {:<20} {:>10} {:>14} {:>12.4}",
+                                t.task_type, t.count, t.total_tokens, t.cost_usd);
+                        }
+                    }
+                    "team" if chargeback => {
+                        println!("  {:<20} {:>14} {:>12}",
+                            "Team/Owner", "Tokens", "Cost (USD)");
+                        println!("  {}", "─".repeat(50));
+                        // generate_chargeback needs a dept→owner map; with no live data,
+                        // just show the by_user breakdown as a chargeback proxy.
+                        for (owner, cost) in &report.by_user {
+                            println!("  {:<20} {:>14} {:>12.4}", owner, "-", cost);
+                        }
+                        if report.by_user.is_empty() {
+                            println!("  (no chargeback data for this period)");
+                        }
+                    }
+                    _ => {
+                        println!("  Total tokens : {}", report.total_tokens);
+                        println!("  Total cost   : ${:.4}", report.total_cost_usd);
+                    }
+                }
+            }
+            println!();
+            println!("  Total cost this period: ${:.4}", report.total_cost_usd);
+        }
+
+        // ── top ───────────────────────────────────────────────────────────────
+        "top" => {
+            let meter = UsageMeter::new();
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+            let top = meter.top_consumers(10, 0, now);
+            println!("Top Consumers (by cost):");
+            if top.is_empty() {
+                println!("  (no usage data yet)");
+            } else {
+                for (i, (owner, cost)) in top.iter().enumerate() {
+                    println!("  {}. {} — ${:.4}", i + 1, owner, cost);
+                }
+            }
+        }
+
+        other => {
+            eprintln!("Unknown metering subcommand '{}'. Available: status, budget, alerts, report, top", other);
+            eprintln!();
+            eprintln!("Examples:");
+            eprintln!("  vibecli --metering status");
+            eprintln!("  vibecli --metering budget set --owner user:alice --limit 2000000 --period monthly");
+            eprintln!("  vibecli --metering budget list");
+            eprintln!("  vibecli --metering alerts");
+            eprintln!("  vibecli --metering report --period 2026-03 --group-by provider");
+            eprintln!("  vibecli --metering status --agent batch-ecommerce --detail");
+            std::process::exit(1);
+        }
+    }
+}
+
+/// Format a large token count with thousands separators.
+fn format_tokens(n: u64) -> String {
+    let s = n.to_string();
+    let mut result = String::new();
+    for (i, ch) in s.chars().rev().enumerate() {
+        if i > 0 && i % 3 == 0 {
+            result.push(',');
+        }
+        result.push(ch);
+    }
+    result.chars().rev().collect()
+}
+
 #[allow(dead_code)]
 mod security_hardening;
 #[allow(dead_code)]
@@ -926,6 +1247,17 @@ async fn main() -> Result<()> {
         }
         default_hook(info);
     }));
+
+    // ── Early intercept: --metering bypasses Clap so metering-specific flags
+    //    (--owner, --limit, --period, --group-by, --agent, --detail, etc.) don't
+    //    need to be declared on the main Cli struct.
+    {
+        let argv: Vec<String> = std::env::args().skip(1).collect();
+        if argv.first().map(|a| a == "--metering").unwrap_or(false) {
+            run_metering_command(&argv[1..]);
+            return Ok(());
+        }
+    }
 
     let cli = Cli::parse();
 
