@@ -30,7 +30,7 @@ type HmacSha256 = Hmac<Sha256>;
 pub const ACCESS_TOKEN_TTL_SECS: u64 = 900; // 15 minutes
 pub const REFRESH_TOKEN_TTL_SECS: u64 = 604_800; // 7 days
 pub const NONCE_TTL_SECS: u64 = 120; // registration nonce valid 2 minutes
-pub const MAX_WATCH_DEVICES: usize = 5;
+pub const MAX_WATCH_DEVICES: usize = 10;
 
 // ── Stored device record ───────────────────────────────────────────────────────
 
@@ -215,13 +215,19 @@ impl WatchAuthManager {
         verify_p256_signature(&pk_bytes, &msg, &sig_bytes)
             .map_err(|e| anyhow::anyhow!("Invalid registration signature: {}", e))?;
 
-        // 4. Check device limit
-        let devices = self.list_devices()?;
+        // 4. Check device limit — auto-evict the oldest if at capacity
+        let mut devices = self.list_devices()?;
         if devices.len() >= MAX_WATCH_DEVICES {
-            bail!(
-                "Maximum of {} watch devices already registered. Revoke one first.",
-                MAX_WATCH_DEVICES
-            );
+            // Sort oldest first by registered_at and remove it
+            devices.sort_by_key(|d| d.registered_at);
+            if let Some(oldest) = devices.first() {
+                let old_id = oldest.device_id.clone();
+                tracing::info!("Watch device limit reached; evicting oldest device {}", old_id);
+                let store = crate::profile_store::ProfileStore::new()
+                    .map_err(|e| anyhow::anyhow!("{}", e))?;
+                let key = format!("watch.device.{}.record", old_id);
+                let _ = store.delete_api_key("default", &key);
+            }
         }
 
         // 5. Persist
@@ -820,8 +826,8 @@ mod tests {
     }
 
     #[test]
-    fn max_devices_constant_is_five() {
-        assert_eq!(MAX_WATCH_DEVICES, 5);
+    fn max_devices_constant_is_ten() {
+        assert_eq!(MAX_WATCH_DEVICES, 10);
     }
 
     // ── RED → GREEN: P256 verification (replaces Ed25519 stub) ───────────────
