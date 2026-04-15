@@ -902,7 +902,7 @@ fn run_legacymigrate_command(args: &[String]) {
 // ── --qavalidate handler ──────────────────────────────────────────────────────
 
 fn run_qavalidate_command(args: &[String]) {
-    use qa_validation::{QaConfig, QaPipeline, Severity};
+    use qa_validation::{QaPipeline, Severity};
 
     let get_flag = |flag: &str| -> Option<String> {
         let mut it = args.iter().peekable();
@@ -1216,6 +1216,146 @@ fn run_script_command(args: &[String]) {
         }
         other => {
             eprintln!("Unknown --script subcommand '{}'. Available: run, list, create, history", other);
+            std::process::exit(1);
+        }
+    }
+}
+
+/// `vibecli docker <subcmd> [args...]`
+/// Dispatches directly to the local `docker` binary so demo commands like
+/// `vibecli docker build --tag myapp:latest .` produce real output.
+fn run_docker_command(args: &[String]) {
+    if args.is_empty() {
+        println!("VibeCLI Docker integration");
+        println!("Usage: vibecli docker <command> [args...]");
+        println!();
+        println!("Supported commands (pass-through to docker/docker compose):");
+        println!("  build     — vibecli docker build --tag myapp:latest .");
+        println!("  run       — vibecli docker run -it ubuntu bash");
+        println!("  ps        — vibecli docker ps");
+        println!("  logs      — vibecli docker logs <container>");
+        println!("  exec      — vibecli docker exec -it <container> bash");
+        println!("  stop      — vibecli docker stop <container>");
+        println!("  rm        — vibecli docker rm <container>");
+        println!("  compose   — vibecli docker compose up / down / ps");
+        println!("  images    — vibecli docker images");
+        println!("  pull      — vibecli docker pull <image>");
+        println!("  version   — vibecli docker version");
+        return;
+    }
+
+    // Detect `compose` as the first arg and route to `docker compose`.
+    let (binary, real_args): (&str, Vec<&str>) = if args[0] == "compose" {
+        ("docker", std::iter::once("compose").chain(args[1..].iter().map(String::as_str)).collect())
+    } else {
+        ("docker", args.iter().map(String::as_str).collect())
+    };
+
+    let status = std::process::Command::new(binary)
+        .args(&real_args)
+        .status();
+    match status {
+        Ok(s) => {
+            if !s.success() {
+                std::process::exit(s.code().unwrap_or(1));
+            }
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            eprintln!("docker: command not found");
+            eprintln!("  Install Docker Desktop: https://docs.docker.com/get-docker/");
+            std::process::exit(1);
+        }
+        Err(e) => {
+            eprintln!("Failed to run docker: {}", e);
+            std::process::exit(1);
+        }
+    }
+}
+
+/// `vibecli k8s <subcmd> [args...]`
+/// Dispatches to `kubectl` so demo commands like
+/// `vibecli k8s pods`, `vibecli k8s logs <pod> --follow` produce real output.
+fn run_k8s_command(args: &[String]) {
+    if args.is_empty() {
+        println!("VibeCLI Kubernetes integration");
+        println!("Usage: vibecli k8s <command> [args...]");
+        println!();
+        println!("Supported commands:");
+        println!("  pods                    — list pods (kubectl get pods)");
+        println!("  deploy                  — list deployments");
+        println!("  services                — list services");
+        println!("  ingresses               — list ingresses");
+        println!("  logs <pod> [--follow]   — tail pod logs");
+        println!("  scale <deploy> --replicas N");
+        println!("  describe <resource>     — describe a resource");
+        println!("  yaml <resource>         — get resource YAML");
+        println!("  apply -f <file>         — kubectl apply");
+        println!("  delete <resource>       — kubectl delete");
+        println!("  exec <pod> -- <cmd>     — execute in pod");
+        println!("  context                 — list/switch contexts");
+        return;
+    }
+
+    // Map vibecli k8s shorthands → kubectl equivalents.
+    let kubectl_args: Vec<String> = match args[0].as_str() {
+        "pods"      => vec!["get".into(), "pods".into()],
+        "deploy"    => vec!["get".into(), "deployments".into()],
+        "services"  => vec!["get".into(), "services".into()],
+        "ingresses" => vec!["get".into(), "ingresses".into()],
+        "context"   => vec!["config".into(), "get-contexts".into()],
+        "logs"      => {
+            let mut a = vec!["logs".to_string()];
+            for arg in &args[1..] {
+                if arg == "--follow" { a.push("-f".into()); } else { a.push(arg.clone()); }
+            }
+            a
+        }
+        "scale" => {
+            // vibecli k8s scale <deployment> --replicas N
+            let mut a = vec!["scale".to_string(), "deployment".to_string()];
+            let mut i = 1;
+            while i < args.len() {
+                if args[i] == "--replicas" && i + 1 < args.len() {
+                    a.push(format!("--replicas={}", args[i + 1]));
+                    i += 2;
+                } else {
+                    a.push(args[i].clone());
+                    i += 1;
+                }
+            }
+            a
+        }
+        "describe" => {
+            let mut a = vec!["describe".to_string()];
+            a.extend(args[1..].iter().cloned());
+            a
+        }
+        "yaml" => {
+            let mut a = vec!["get".to_string()];
+            a.extend(args[1..].iter().cloned());
+            a.push("-o".into());
+            a.push("yaml".into());
+            a
+        }
+        _ => args.to_vec(), // pass-through unknown subcommands directly to kubectl
+    };
+
+    let status = std::process::Command::new("kubectl")
+        .args(&kubectl_args)
+        .status();
+    match status {
+        Ok(s) => {
+            if !s.success() {
+                std::process::exit(s.code().unwrap_or(1));
+            }
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            eprintln!("kubectl: command not found");
+            eprintln!("  Install kubectl: https://kubernetes.io/docs/tasks/tools/");
+            std::process::exit(1);
+        }
+        Err(e) => {
+            eprintln!("Failed to run kubectl: {}", e);
             std::process::exit(1);
         }
     }
@@ -3215,6 +3355,19 @@ async fn main() -> Result<()> {
     // ── One-shot chat mode: vibecli "message" or vibecli chat "message" ─────
     if !cli.message.is_empty() {
         let mut words = cli.message.clone();
+
+        // ── Positional subcommand dispatch ────────────────────────────────────
+        // `vibecli docker …` and `vibecli k8s …` route to real tools instead
+        // of being forwarded to the LLM as a chat message.
+        match words.first().map(String::as_str) {
+            Some("docker") => { run_docker_command(&words[1..]); return Ok(()); }
+            Some("k8s") | Some("kubectl") | Some("kube") => {
+                run_k8s_command(&words[1..]);
+                return Ok(());
+            }
+            _ => {}
+        }
+
         // Strip leading "chat" keyword if present (allows `vibecli chat "Hello"`)
         if words.first().map(|w| w.eq_ignore_ascii_case("chat")).unwrap_or(false) && words.len() > 1 {
             words.remove(0);
