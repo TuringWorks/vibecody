@@ -6,6 +6,9 @@ edition.workspace = true
 authors.workspace = true
 license.workspace = true
 
+[features]
+testing = []
+
 [lib]
 name = "vibecli_cli"
 path = "src/lib.rs"
@@ -352,6 +355,11 @@ harness = false
 [[test]]
 name = "watch_bridge_bdd"
 path = "tests/watch_bridge_bdd.rs"
+harness = false
+
+[[test]]
+name = "watch_p256_auth_bdd"
+path = "tests/watch_p256_auth_bdd.rs"
 harness = false
 
 # Connectivity BDD harnesses — mDNS, ngrok, Tailscale

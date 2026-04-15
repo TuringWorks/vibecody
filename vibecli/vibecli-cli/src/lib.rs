@@ -218,3 +218,4 @@ pub mod ngrok;
 pub mod watch_auth;
 pub mod watch_session_relay;
 pub mod watch_bridge;
+pub mod session_store;

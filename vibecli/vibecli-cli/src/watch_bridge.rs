@@ -29,7 +29,6 @@ use axum::{
     routing::{delete, get, post},
     Router,
 };
-use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
 use std::sync::{Arc, Mutex};
 
@@ -37,8 +36,8 @@ use crate::watch_auth::{
     WatchAuthManager, WatchRefreshRequest, WatchRegisterRequest, WristEvent,
 };
 use crate::watch_session_relay::{
-    to_watch_event_json, NonceRegistry, WatchDispatchRequest,
-    WatchDispatchResponse,
+    to_watch_event_json, to_watch_message, to_watch_summary, MessageRowView,
+    NonceRegistry, SessionRowView, WatchDispatchRequest, WatchDispatchResponse,
 };
 use tokio_stream::StreamExt as _;
 
@@ -63,6 +62,8 @@ pub struct WatchBridgeState {
     pub started_at: std::time::Instant,
     /// Base URL for Tailscale (resolved at startup).
     pub tailscale_ip: Option<String>,
+    /// Path to the SQLite session database (~/.vibecli/sessions.db).
+    pub session_db_path: Option<std::path::PathBuf>,
 }
 
 impl WatchBridgeState {
@@ -71,6 +72,7 @@ impl WatchBridgeState {
         streams: WatchEventStreams,
         machine_id: impl Into<String>,
         tailscale_ip: Option<String>,
+        session_db_path: Option<std::path::PathBuf>,
     ) -> anyhow::Result<Self> {
         let machine_id = machine_id.into();
         let auth = WatchAuthManager::new(&machine_id)?;
@@ -82,6 +84,7 @@ impl WatchBridgeState {
             machine_id,
             started_at: std::time::Instant::now(),
             tailscale_ip,
+            session_db_path,
         })
     }
 
@@ -252,9 +255,6 @@ async fn watch_wrist_event(
 }
 
 /// GET /watch/sessions — list recent sessions in Watch-optimised format.
-/// This handler is wired at the binary level where session_store is accessible.
-/// The lib-level stub returns a not-implemented placeholder so the router
-/// type-checks correctly.
 async fn watch_list_sessions(
     State(state): State<WatchBridgeState>,
     headers: axum::http::HeaderMap,
@@ -262,10 +262,52 @@ async fn watch_list_sessions(
     if let Err(e) = extract_watch_auth(&state, &headers) {
         return e.into_response();
     }
-    // Sessions are served by the existing /sessions.json endpoint.
-    // The Watch router proxies to that endpoint at the binary level (serve.rs).
-    // This stub satisfies the type system for the library crate.
-    Json(serde_json::json!({"sessions": [], "note": "served by binary-level handler"})).into_response()
+    let db_path = match &state.session_db_path {
+        Some(p) => p.clone(),
+        None => {
+            // Fall back to default location
+            dirs::home_dir()
+                .unwrap_or_else(|| std::path::PathBuf::from("."))
+                .join(".vibecli")
+                .join("sessions.db")
+        }
+    };
+    let store = match crate::session_store::SessionStore::open(&db_path) {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::warn!("watch_list_sessions: cannot open session store: {e}");
+            return Json(serde_json::json!({"sessions": []})).into_response();
+        }
+    };
+    let rows = store.list_sessions(50).unwrap_or_default();
+    let summaries: Vec<serde_json::Value> = rows
+        .iter()
+        .map(|row| {
+            // Load last assistant message for preview
+            let messages = store.get_messages(&row.id).unwrap_or_default();
+            let msg_views: Vec<MessageRowView<'_>> = messages
+                .iter()
+                .map(|m| MessageRowView {
+                    id: m.id,
+                    role: &m.role,
+                    content: &m.content,
+                    created_at: m.created_at,
+                })
+                .collect();
+            let session_view = SessionRowView {
+                id: &row.id,
+                task: &row.task,
+                status: &row.status,
+                provider: &row.provider,
+                model: &row.model,
+                step_count: row.step_count as usize,
+                started_at: row.started_at,
+            };
+            let summary = to_watch_summary(&session_view, &msg_views);
+            serde_json::to_value(summary).unwrap_or_default()
+        })
+        .collect();
+    Json(serde_json::json!({"sessions": summaries})).into_response()
 }
 
 /// GET /watch/sessions/:id/messages — paginated message list.
@@ -277,11 +319,42 @@ async fn watch_session_messages(
     if let Err(e) = extract_watch_auth(&state, &headers) {
         return e.into_response();
     }
-    // Messages served by binary-level handler (session_store accessible there).
+    let db_path = match &state.session_db_path {
+        Some(p) => p.clone(),
+        None => dirs::home_dir()
+            .unwrap_or_else(|| std::path::PathBuf::from("."))
+            .join(".vibecli")
+            .join("sessions.db"),
+    };
+    let store = match crate::session_store::SessionStore::open(&db_path) {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::warn!("watch_session_messages: cannot open session store: {e}");
+            return Json(serde_json::json!({
+                "session_id": session_id,
+                "messages": [],
+                "total": 0,
+            })).into_response();
+        }
+    };
+    let messages = store.get_messages(&session_id).unwrap_or_default();
+    let watch_msgs: Vec<serde_json::Value> = messages
+        .iter()
+        .map(|m| {
+            let view = MessageRowView {
+                id: m.id,
+                role: &m.role,
+                content: &m.content,
+                created_at: m.created_at,
+            };
+            serde_json::to_value(to_watch_message(&view)).unwrap_or_default()
+        })
+        .collect();
+    let total = watch_msgs.len();
     Json(serde_json::json!({
         "session_id": session_id,
-        "messages": [],
-        "total": 0,
+        "messages": watch_msgs,
+        "total": total,
     })).into_response()
 }
 

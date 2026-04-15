@@ -1444,12 +1444,17 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route_layer(middleware::from_fn_with_state(public_limiter, rate_limit));
 
     // Watch routes (/watch/*) — separate state, no bearer auth required on challenge/register
+    let watch_session_db = dirs::home_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join(".vibecli")
+        .join("sessions.db");
     let watch_router = crate::watch_bridge::WatchBridgeState::new(
         state.api_token.clone(),
         Arc::new(std::sync::Mutex::new(std::collections::HashMap::new())),
         std::env::var("VIBECLI_MACHINE_ID")
             .unwrap_or_else(|_| format!("{:016x}", rand::thread_rng().gen::<u64>())),
         None,
+        Some(watch_session_db),
     )
     .map(|s| crate::watch_bridge::build_watch_router(s).with_state(()))
     .unwrap_or_else(|e| {

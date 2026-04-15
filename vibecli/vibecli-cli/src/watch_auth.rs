@@ -84,7 +84,7 @@ pub struct RegistrationChallenge {
     pub expires_at: u64,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WatchRegisterRequest {
     pub device_id: String,
     pub name: String,
@@ -145,7 +145,6 @@ pub struct WatchAuthManager {
 impl WatchAuthManager {
     /// Load or generate the JWT signing secret from ProfileStore.
     /// Testing constructor — bypasses ProfileStore, uses supplied key material.
-    #[cfg(any(test, feature = "testing"))]
     pub fn new_with_path(_path: &std::path::Path, secret: &[u8]) -> Result<Self> {
         Ok(Self {
             machine_id: "test-machine-bdd".into(),

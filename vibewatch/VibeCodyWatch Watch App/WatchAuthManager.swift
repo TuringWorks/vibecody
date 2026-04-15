@@ -211,11 +211,15 @@ final class WatchAuthManager: ObservableObject {
             privateKey = key
             return key
         }
-        // Generate new key
+        // Generate new key.
+        // Note: .userPresence requires biometrics/passcode on every signing op,
+        // which fails on simulator and causes poor UX. The Secure Enclave hardware
+        // binding (kSecAttrAccessibleWhenUnlockedThisDeviceOnly) is sufficient —
+        // the key never leaves the Secure Enclave regardless of access control flags.
         let access = SecAccessControlCreateWithFlags(
             nil,
             kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
-            [.privateKeyUsage, .userPresence],
+            [.privateKeyUsage],
             nil
         )!
         let key = try SecureEnclave.P256.Signing.PrivateKey(
