@@ -1448,11 +1448,25 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .unwrap_or_else(|| std::path::PathBuf::from("."))
         .join(".vibecli")
         .join("sessions.db");
+    // machine_id must be stable across restarts so Watch JWTs (which embed it)
+    // remain valid after daemon restarts. Load from ProfileStore, generate once.
+    let watch_machine_id = std::env::var("VIBECLI_MACHINE_ID").unwrap_or_else(|_| {
+        crate::profile_store::ProfileStore::new()
+            .ok()
+            .and_then(|s| s.get_api_key("default", "watch.machine_id").ok().flatten())
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| {
+                let id = format!("{:016x}", rand::thread_rng().gen::<u64>());
+                if let Ok(s) = crate::profile_store::ProfileStore::new() {
+                    let _ = s.set_api_key("default", "watch.machine_id", &id);
+                }
+                id
+            })
+    });
     let watch_router = crate::watch_bridge::WatchBridgeState::new(
         state.api_token.clone(),
         Arc::new(std::sync::Mutex::new(std::collections::HashMap::new())),
-        std::env::var("VIBECLI_MACHINE_ID")
-            .unwrap_or_else(|_| format!("{:016x}", rand::thread_rng().gen::<u64>())),
+        watch_machine_id,
         None,
         Some(watch_session_db),
     )
