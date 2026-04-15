@@ -1,0 +1,362 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		4836FA3BC7201C39E97372B8 /* WatchKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 32880B7F626F5DFDDCA83F83 /* WatchKit.framework */; };
+		51F190782065C7E8AACD8F7C /* WatchNetworkManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98F0087E8F2B8E69FFF5C32D /* WatchNetworkManager.swift */; };
+		7C2A0A23ABAD1526845A29F5 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A09B80FFB463A2177F32453 /* ContentView.swift */; };
+		7C32D176CE08067ACDA9C194 /* WatchAuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8B0D8FAD1D248DB545F4995 /* WatchAuthManager.swift */; };
+		7DA3A4753DD193F900E5F8D9 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 96E0C9589773BFD2D2EC6F3F /* AVFoundation.framework */; };
+		81CA0728E69E773A0B269417 /* VoiceInputView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F082D34943FEC9B3E219CD8E /* VoiceInputView.swift */; };
+		96BDBB3D38DEF4A2A9D2F657 /* SandboxStatusView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5475ABA033425FF3BF0C3CA /* SandboxStatusView.swift */; };
+		9C0FDC24B7829A5FF7BEFB79 /* ConversationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A059DE4BD832164F8E372EAB /* ConversationView.swift */; };
+		B9E4F585ED4B79D6B51EDA26 /* SessionPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4B90E1E5125CE0F141F0B0F /* SessionPickerView.swift */; };
+		BBA0AA16DFE0B076269441EB /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D07206583247B730A3AD026 /* Models.swift */; };
+		C92DC748300926C835015A3E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 039D0536936F28F9C493B3D8 /* Assets.xcassets */; };
+		DAA20FB43FC84635A043CE6E /* VibeCodyWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D44DDFC24E59A9919BE4700 /* VibeCodyWatchApp.swift */; };
+		F0A0F574F48AC86655946CE0 /* CryptoKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A690BF0A70416D196912375A /* CryptoKit.framework */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		039D0536936F28F9C493B3D8 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		32880B7F626F5DFDDCA83F83 /* WatchKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WatchKit.framework; path = System/Library/Frameworks/WatchKit.framework; sourceTree = SDKROOT; };
+		37E7D34694471C76451FF971 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		49182330224E17E363A2DC79 /* VibeCodyWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VibeCodyWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		4D07206583247B730A3AD026 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		4D44DDFC24E59A9919BE4700 /* VibeCodyWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VibeCodyWatchApp.swift; sourceTree = "<group>"; };
+		8A09B80FFB463A2177F32453 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		96E0C9589773BFD2D2EC6F3F /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
+		98F0087E8F2B8E69FFF5C32D /* WatchNetworkManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchNetworkManager.swift; sourceTree = "<group>"; };
+		A059DE4BD832164F8E372EAB /* ConversationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationView.swift; sourceTree = "<group>"; };
+		A690BF0A70416D196912375A /* CryptoKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CryptoKit.framework; path = System/Library/Frameworks/CryptoKit.framework; sourceTree = SDKROOT; };
+		B5475ABA033425FF3BF0C3CA /* SandboxStatusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SandboxStatusView.swift; sourceTree = "<group>"; };
+		C8B0D8FAD1D248DB545F4995 /* WatchAuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchAuthManager.swift; sourceTree = "<group>"; };
+		D4B90E1E5125CE0F141F0B0F /* SessionPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionPickerView.swift; sourceTree = "<group>"; };
+		F082D34943FEC9B3E219CD8E /* VoiceInputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceInputView.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		2A1CD6FFF5128C2C13089551 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7DA3A4753DD193F900E5F8D9 /* AVFoundation.framework in Frameworks */,
+				4836FA3BC7201C39E97372B8 /* WatchKit.framework in Frameworks */,
+				F0A0F574F48AC86655946CE0 /* CryptoKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		5CA6A0436EE4831CA05CEC69 = {
+			isa = PBXGroup;
+			children = (
+				A79F9E7A93D73C1142276CA0 /* VibeCodyWatch Watch App */,
+				7619728E8BD774BF4DC6519A /* Frameworks */,
+				9B5442B5D7EF1DD70642621D /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		7619728E8BD774BF4DC6519A /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				96E0C9589773BFD2D2EC6F3F /* AVFoundation.framework */,
+				A690BF0A70416D196912375A /* CryptoKit.framework */,
+				32880B7F626F5DFDDCA83F83 /* WatchKit.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		9B5442B5D7EF1DD70642621D /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				49182330224E17E363A2DC79 /* VibeCodyWatch.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		A79F9E7A93D73C1142276CA0 /* VibeCodyWatch Watch App */ = {
+			isa = PBXGroup;
+			children = (
+				039D0536936F28F9C493B3D8 /* Assets.xcassets */,
+				8A09B80FFB463A2177F32453 /* ContentView.swift */,
+				A059DE4BD832164F8E372EAB /* ConversationView.swift */,
+				37E7D34694471C76451FF971 /* Info.plist */,
+				4D07206583247B730A3AD026 /* Models.swift */,
+				B5475ABA033425FF3BF0C3CA /* SandboxStatusView.swift */,
+				D4B90E1E5125CE0F141F0B0F /* SessionPickerView.swift */,
+				4D44DDFC24E59A9919BE4700 /* VibeCodyWatchApp.swift */,
+				F082D34943FEC9B3E219CD8E /* VoiceInputView.swift */,
+				C8B0D8FAD1D248DB545F4995 /* WatchAuthManager.swift */,
+				98F0087E8F2B8E69FFF5C32D /* WatchNetworkManager.swift */,
+			);
+			path = "VibeCodyWatch Watch App";
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		AB9DE38FA5EBAC488581792F /* VibeCodyWatch */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7EA06B19F22AE754C89439B9 /* Build configuration list for PBXNativeTarget "VibeCodyWatch" */;
+			buildPhases = (
+				5D554C2268A6118BD930DA33 /* Sources */,
+				0B434B75C18D1E294AEDC01E /* Resources */,
+				2A1CD6FFF5128C2C13089551 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = VibeCodyWatch;
+			packageProductDependencies = (
+			);
+			productName = VibeCodyWatch;
+			productReference = 49182330224E17E363A2DC79 /* VibeCodyWatch.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		EBEB82E374E6F6CEF5858305 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+				};
+			};
+			buildConfigurationList = 5F49E68CF8E89ACD4E63A6AD /* Build configuration list for PBXProject "VibeCodyWatch" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 5CA6A0436EE4831CA05CEC69;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 9B5442B5D7EF1DD70642621D /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				AB9DE38FA5EBAC488581792F /* VibeCodyWatch */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		0B434B75C18D1E294AEDC01E /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C92DC748300926C835015A3E /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		5D554C2268A6118BD930DA33 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7C2A0A23ABAD1526845A29F5 /* ContentView.swift in Sources */,
+				9C0FDC24B7829A5FF7BEFB79 /* ConversationView.swift in Sources */,
+				BBA0AA16DFE0B076269441EB /* Models.swift in Sources */,
+				96BDBB3D38DEF4A2A9D2F657 /* SandboxStatusView.swift in Sources */,
+				B9E4F585ED4B79D6B51EDA26 /* SessionPickerView.swift in Sources */,
+				DAA20FB43FC84635A043CE6E /* VibeCodyWatchApp.swift in Sources */,
+				81CA0728E69E773A0B269417 /* VoiceInputView.swift in Sources */,
+				7C32D176CE08067ACDA9C194 /* WatchAuthManager.swift in Sources */,
+				51F190782065C7E8AACD8F7C /* WatchNetworkManager.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		02E57B5D821DC29747721948 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				INFOPLIST_FILE = "VibeCodyWatch Watch App/Info.plist";
+				PRODUCT_BUNDLE_IDENTIFIER = com.turingworks.vibecody.watch;
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Release;
+		};
+		17DA02313AFB0502803744C8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Debug;
+		};
+		59A186154D3A705C7BE26F67 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Release;
+		};
+		9E57364D5844209CABC26C03 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				INFOPLIST_FILE = "VibeCodyWatch Watch App/Info.plist";
+				PRODUCT_BUNDLE_IDENTIFIER = com.turingworks.vibecody.watch;
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		5F49E68CF8E89ACD4E63A6AD /* Build configuration list for PBXProject "VibeCodyWatch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				17DA02313AFB0502803744C8 /* Debug */,
+				59A186154D3A705C7BE26F67 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		7EA06B19F22AE754C89439B9 /* Build configuration list for PBXNativeTarget "VibeCodyWatch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9E57364D5844209CABC26C03 /* Debug */,
+				02E57B5D821DC29747721948 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = EBEB82E374E6F6CEF5858305 /* Project object */;
+}

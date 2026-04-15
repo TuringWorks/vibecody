@@ -140,6 +140,14 @@ struct WatchPairingPayload: Codable {
     let version: String
 }
 
+// MARK: - Sandbox control
+
+struct WatchSandboxControlRequest: Codable {
+    let action: String   // "pause" | "resume" | "stop"
+    let nonce: String
+    let timestamp: UInt64
+}
+
 // MARK: - Beacon
 
 struct WatchBeacon: Codable {

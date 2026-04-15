@@ -40,8 +40,10 @@ struct ContentView: View {
 
 struct PairingView: View {
     @StateObject private var auth = WatchAuthManager.shared
-    @State private var isScanning = false
     @State private var errorMsg: String?
+    @State private var showManual = false
+    @State private var daemonURL  = "http://localhost:7878"
+    @State private var isPairing  = false
 
     var body: some View {
         ScrollView {
@@ -53,22 +55,136 @@ struct PairingView: View {
                 Text("VibeCody")
                     .font(.headline)
 
-                Text("Open VibeUI on Mac\nand tap **Watch** in Settings to pair.")
+                Text("Open VibeUI → Governance → Watch Devices and tap **Pair**.")
                     .font(.caption2)
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
+
+                // Dev / simulator shortcut
+                Button {
+                    showManual = true
+                } label: {
+                    Label("Connect manually", systemImage: "link")
+                        .font(.caption2)
+                }
+                .buttonStyle(.bordered)
+                .tint(.blue)
 
                 if let err = errorMsg {
                     Text(err)
                         .font(.caption2)
                         .foregroundStyle(.red)
-                        .lineLimit(3)
+                        .lineLimit(4)
                 }
             }
             .padding()
         }
         .navigationTitle("Pair Watch")
+        .sheet(isPresented: $showManual) {
+            ManualPairingView(daemonURL: $daemonURL, isPairing: $isPairing, errorMsg: $errorMsg)
+        }
     }
+}
+
+// MARK: - Manual pairing (simulator / dev)
+
+struct ManualPairingView: View {
+    @Binding var daemonURL:  String
+    @Binding var isPairing:  Bool
+    @Binding var errorMsg:   String?
+    @State private var apiToken = ""
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 10) {
+                Text("Daemon URL")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+
+                TextField("http://host:7878", text: $daemonURL)
+                    .font(.caption2)
+                    .multilineTextAlignment(.center)
+                    .autocorrectionDisabled()
+
+                Text("API Token")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+
+                SecureField("Bearer token", text: $apiToken)
+                    .font(.caption2)
+                    .multilineTextAlignment(.center)
+
+                if isPairing {
+                    ProgressView("Pairing…")
+                        .font(.caption2)
+                } else {
+                    Button("Connect") {
+                        Task { await pair() }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(daemonURL.isEmpty || apiToken.isEmpty)
+                }
+
+                if let err = errorMsg {
+                    Text(err)
+                        .font(.caption2)
+                        .foregroundStyle(.red)
+                        .lineLimit(4)
+                }
+            }
+            .padding()
+        }
+        .navigationTitle("Connect")
+    }
+
+    private func pair() async {
+        isPairing = true
+        errorMsg  = nil
+        defer { isPairing = false }
+
+        let base = daemonURL.hasSuffix("/") ? String(daemonURL.dropLast()) : daemonURL
+
+        // 1. POST /watch/challenge with Bearer token
+        guard let challengeURL = URL(string: "\(base)/watch/challenge") else {
+            errorMsg = "Invalid URL"; return
+        }
+        do {
+            var req = URLRequest(url: challengeURL)
+            req.httpMethod = "POST"
+            req.setValue("Bearer \(apiToken)", forHTTPHeaderField: "Authorization")
+            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            req.httpBody = Data("{}".utf8)
+
+            let (challengeData, response) = try await URLSession.shared.data(for: req)
+            if let http = response as? HTTPURLResponse, http.statusCode != 200 {
+                let msg = String(data: challengeData, encoding: .utf8) ?? "HTTP \(http.statusCode)"
+                errorMsg = msg; return
+            }
+            let challenge = try JSONDecoder().decode(WatchChallengeResponse.self, from: challengeData)
+
+            // 2. Build pairing payload and register
+            let payload = WatchPairingPayload(
+                endpoint:   base,
+                nonce:      challenge.nonce,
+                machine_id: challenge.machine_id,
+                expires_at: challenge.expires_at,
+                version:    "1"
+            )
+            try await WatchAuthManager.shared.registerDevice(pairing: payload)
+            dismiss()
+        } catch {
+            errorMsg = error.localizedDescription
+        }
+    }
+}
+
+/// Minimal decodable for the /watch/challenge response.
+private struct WatchChallengeResponse: Decodable {
+    let nonce:      String
+    let machine_id: String
+    let issued_at:  UInt64
+    let expires_at: UInt64
 }
 
 // MARK: - Settings view

@@ -47,12 +47,12 @@ struct SandboxStatusView: View {
     }
 
     private func loadSandboxes() async {
-        guard network.auth.isPaired else { return }
+        guard WatchAuthManager.shared.isPaired else { return }
         isLoading = true
         defer { isLoading = false }
         // Fetch from /watch/sandbox (implemented by watch_bridge.rs)
-        guard let token = try? await network.auth.validAccessToken() else { return }
-        let url = URL(string: "\(network.auth.endpoint)/watch/sandbox")!
+        guard let token = try? await WatchAuthManager.shared.validAccessToken() else { return }
+        let url = URL(string: "\(WatchAuthManager.shared.endpoint)/watch/sandbox")!
         var req = URLRequest(url: url)
         req.setValue("Watch-Token \(token)", forHTTPHeaderField: "Authorization")
         guard let (data, _) = try? await URLSession.shared.data(for: req),
@@ -61,14 +61,14 @@ struct SandboxStatusView: View {
     }
 
     private func sendControl(sandboxId: String, action: String) async {
-        guard let token = try? await network.auth.validAccessToken() else { return }
+        guard let token = try? await WatchAuthManager.shared.validAccessToken() else { return }
         let nonce = UUID().uuidString.lowercased().replacingOccurrences(of: "-", with: "")
         let body = WatchSandboxControlRequest(
             action: action,
             nonce: nonce,
             timestamp: UInt64(Date().timeIntervalSince1970)
         )
-        let url = URL(string: "\(network.auth.endpoint)/watch/sandbox/\(sandboxId)/control")!
+        let url = URL(string: "\(WatchAuthManager.shared.endpoint)/watch/sandbox/\(sandboxId)/control")!
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -239,6 +239,4 @@ private struct SandboxListResponse: Codable {
     let sandboxes: [WatchSandboxStatus]
 }
 
-// MARK: - WatchSandboxControlRequest (re-export for use here)
-
-extension WatchSandboxControlRequest: Encodable {}
+// WatchSandboxControlRequest is defined in Models.swift

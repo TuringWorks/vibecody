@@ -1443,9 +1443,24 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/mobile/beacon", get(mobile_beacon))
         .route_layer(middleware::from_fn_with_state(public_limiter, rate_limit));
 
+    // Watch routes (/watch/*) — separate state, no bearer auth required on challenge/register
+    let watch_router = crate::watch_bridge::WatchBridgeState::new(
+        state.api_token.clone(),
+        Arc::new(std::sync::Mutex::new(std::collections::HashMap::new())),
+        std::env::var("VIBECLI_MACHINE_ID")
+            .unwrap_or_else(|_| format!("{:016x}", rand::thread_rng().gen::<u64>())),
+        None,
+    )
+    .map(|s| crate::watch_bridge::build_watch_router(s).with_state(()))
+    .unwrap_or_else(|e| {
+        eprintln!("[watch] Failed to init WatchBridgeState: {e}");
+        axum::Router::new()
+    });
+
     // Public routes (health check, GitHub webhook with HMAC, pairing, collab WS, ACP discovery)
     public_routes
         .merge(authed_routes)
+        .nest("/watch", watch_router)
         .fallback(|| async {
             (StatusCode::NOT_FOUND, Json(serde_json::json!({"error":"Not found"})))
         })

@@ -67,7 +67,7 @@ struct ConversationView: View {
                     } label: {
                         Image(systemName: "mic.fill")
                             .font(.system(size: 16))
-                            .foregroundStyle(network.isStreaming ? .secondary : .blue)
+                            .foregroundStyle(network.isStreaming ? Color.secondary : Color.blue)
                     }
                     .disabled(network.isStreaming)
                     .buttonStyle(.plain)
@@ -85,7 +85,7 @@ struct ConversationView: View {
                 .padding(.horizontal, 8)
                 .padding(.vertical, 6)
             }
-            .navigationTitle(Text(session.task_preview).lineLimit(1))
+            .navigationTitle(String(session.task_preview.prefix(24)))
             .sheet(isPresented: $showVoice) {
                 VoiceInputView(sessionId: session.session_id) { text in
                     Task { await sendMessage(text) }

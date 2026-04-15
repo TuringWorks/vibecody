@@ -12,7 +12,7 @@ import Combine
 import WatchConnectivity
 
 @MainActor
-final class WatchNetworkManager: ObservableObject {
+final class WatchNetworkManager: NSObject, ObservableObject {
 
     static let shared = WatchNetworkManager()
 
@@ -26,7 +26,7 @@ final class WatchNetworkManager: ObservableObject {
     @Published var streamingText: String = ""
     @Published var isStreaming = false
 
-    private init() {}
+    override private init() { super.init() }
 
     // MARK: - Session list
 
@@ -72,7 +72,7 @@ final class WatchNetworkManager: ObservableObject {
 
     // MARK: - SSE streaming
 
-    func startStreaming(sessionId: String, onEvent: @escaping (WatchAgentEvent) -> Void) async {
+    func startStreaming(sessionId: String, onEvent: @escaping @Sendable (WatchAgentEvent) -> Void) async {
         guard auth.isPaired else { return }
         guard let token = try? await auth.validAccessToken() else { return }
         stopStreaming()
@@ -107,7 +107,7 @@ final class WatchNetworkManager: ObservableObject {
         isStreaming = false
     }
 
-    private func handleSSEChunk(_ chunk: String, onEvent: @escaping (WatchAgentEvent) -> Void) {
+    private func handleSSEChunk(_ chunk: String, onEvent: @escaping @Sendable (WatchAgentEvent) -> Void) {
         streamingBuffer += chunk
         // Parse SSE lines
         while let range = streamingBuffer.range(of: "\n\n") {

@@ -120,7 +120,13 @@ final class WatchAuthManager: ObservableObject {
     /// Returns a valid access token, refreshing if < 2 min left.
     func validAccessToken() async throws -> String {
         guard isPaired else { throw WatchAuthError.notPaired }
-        guard WKExtension.shared().isWristDetected else { throw WatchAuthError.wristOff }
+        // Wrist detection: skip on simulator (SIMULATOR_DEVICE_NAME is set in env)
+        let onSimulator = ProcessInfo.processInfo.environment["SIMULATOR_DEVICE_NAME"] != nil
+        if !onSimulator {
+            // WKInterfaceDevice.wristLocation is .left or .right when worn
+            let loc = WKInterfaceDevice.current().wristLocation
+            if loc != .left && loc != .right { throw WatchAuthError.wristOff }
+        }
 
         let expiresAt = UInt64(loadString(for: KeychainKey.expiresAt) ?? "0") ?? 0
         let now = UInt64(Date().timeIntervalSince1970)
@@ -128,7 +134,10 @@ final class WatchAuthManager: ObservableObject {
         if now + 120 >= expiresAt {
             try await refreshTokens()
         }
-        return loadString(for: KeychainKey.accessToken) ?? { throw WatchAuthError.tokenExpired }()
+        guard let token = loadString(for: KeychainKey.accessToken) else {
+            throw WatchAuthError.tokenExpired
+        }
+        return token
     }
 
     // MARK: - Token refresh
@@ -209,9 +218,8 @@ final class WatchAuthManager: ObservableObject {
             nil
         )!
         let key = try SecureEnclave.P256.Signing.PrivateKey(
-            accessControl: access,
-            authenticationContext: nil,
-            compactRepresentable: false
+            compactRepresentable: false,
+            accessControl: access
         )
         // Persist tag for later retrieval
         let tagData = KeychainKey.privateKeyTag.data(using: .utf8)!
