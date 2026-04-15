@@ -2,8 +2,12 @@
 //! and wrist-detection-aware session locking.
 //!
 //! Security model:
-//!  • Registration: Watch generates Ed25519 keypair (Secure Enclave on device),
-//!    signs a daemon-issued nonce, proves possession without sending private key.
+//!  • Registration: Watch generates P256 keypair (Apple Secure Enclave — only
+//!    P256/secp256r1 ECDSA is supported, not Ed25519), signs a daemon-issued
+//!    nonce, proves possession without sending private key.
+//!  • Public key format: 64-byte uncompressed X9.62 (Swift rawRepresentation,
+//!    i.e. the 64-byte x||y without the 0x04 prefix byte).
+//!  • Signature format: 64-byte compact IEEE P1363 (r||s, 32 bytes each).
 //!  • Tokens: short-lived JWTs (15 min) signed with HMAC-SHA256 using a secret
 //!    stored in ProfileStore. Refresh tokens (7 days) signed by watch's Secure
 //!    Enclave private key — daemon verifies with stored public key.
@@ -187,20 +191,20 @@ impl WatchAuthManager {
             bail!("Registration nonce expired");
         }
 
-        // 2. Decode public key (32-byte Ed25519)
+        // 2. Decode public key (64-byte P256 raw: x||y, Swift rawRepresentation)
         let pk_bytes = B64.decode(&req.public_key_b64)?;
-        if pk_bytes.len() != 32 {
-            bail!("Invalid Ed25519 public key length");
+        if pk_bytes.len() != 64 {
+            bail!("Invalid P256 public key length (expected 64 bytes, got {})", pk_bytes.len());
         }
 
-        // 3. Verify Ed25519 signature: SHA-256(nonce || device_id || issued_at_be)
+        // 3. Verify P256 ECDSA signature over SHA-256(nonce || device_id || issued_at_be)
+        //    Signature is 64-byte compact IEEE P1363 (r||s), Swift rawRepresentation.
         let mut msg = req.nonce.as_bytes().to_vec();
         msg.extend_from_slice(req.device_id.as_bytes());
         msg.extend_from_slice(&issued_at.to_be_bytes());
-        let digest = sha256(&msg);
         let sig_bytes = B64.decode(&req.signature_b64)?;
-        verify_ed25519_signature(&pk_bytes, &digest, &sig_bytes)
-            .map_err(|_| anyhow::anyhow!("Invalid registration signature"))?;
+        verify_p256_signature(&pk_bytes, &msg, &sig_bytes)
+            .map_err(|e| anyhow::anyhow!("Invalid registration signature: {}", e))?;
 
         // 4. Check device limit
         let devices = self.list_devices()?;
@@ -296,15 +300,14 @@ impl WatchAuthManager {
         if claims.kind != "refresh" || claims.sub != req.device_id {
             bail!("Invalid refresh token");
         }
-        // Load device and verify Ed25519 proof
+        // Load device and verify P256 proof
         let device = self.load_device(&req.device_id)?;
         let pk_bytes = B64.decode(&device.public_key_b64)?;
         let mut msg = req.refresh_token.as_bytes().to_vec();
         msg.extend_from_slice(&req.timestamp.to_be_bytes());
-        let digest = sha256(&msg);
         let sig_bytes = B64.decode(&req.proof_signature_b64)?;
-        verify_ed25519_signature(&pk_bytes, &digest, &sig_bytes)
-            .map_err(|_| anyhow::anyhow!("Invalid proof signature on refresh"))?;
+        verify_p256_signature(&pk_bytes, &msg, &sig_bytes)
+            .map_err(|e| anyhow::anyhow!("Invalid proof signature on refresh: {}", e))?;
         // Issue new tokens
         let (access, exp) = self.issue_access_token(&req.device_id)?;
         let refresh = self.issue_refresh_token(&req.device_id)?;
@@ -329,10 +332,9 @@ impl WatchAuthManager {
         let mut msg = ev.device_id.as_bytes().to_vec();
         msg.push(ev.on_wrist as u8);
         msg.extend_from_slice(&ev.timestamp.to_be_bytes());
-        let digest = sha256(&msg);
         let sig_bytes = B64.decode(&ev.signature_b64)?;
-        verify_ed25519_signature(&pk_bytes, &digest, &sig_bytes)
-            .map_err(|_| anyhow::anyhow!("Invalid wrist-event signature"))?;
+        verify_p256_signature(&pk_bytes, &msg, &sig_bytes)
+            .map_err(|e| anyhow::anyhow!("Invalid wrist-event signature: {}", e))?;
         device.wrist_suspended = !ev.on_wrist;
         self.save_device(&device)?;
         Ok(())
@@ -475,28 +477,42 @@ fn sha256(data: &[u8]) -> Vec<u8> {
     sha2::Sha256::digest(data).to_vec()
 }
 
-/// Verify Ed25519 signature using the `ed25519-dalek`-compatible byte layout.
-/// The Watch Secure Enclave produces standard Ed25519 signatures (RFC 8032).
-/// We use a pure-Rust verifier (no hardware required on the server side).
-/// Public wrapper for testing — exposes signature length validation.
-#[doc(hidden)]
-pub fn verify_ed25519_signature_pub(pk: &[u8], msg: &[u8], sig: &[u8]) -> Result<()> {
-    verify_ed25519_signature(pk, msg, sig)
+/// Verify P256 ECDSA signature (Apple Secure Enclave key format).
+///
+/// - `pk`  — 64-byte uncompressed public key (Swift `rawRepresentation`: x||y, no 0x04 prefix)
+/// - `msg` — raw message bytes (NOT pre-hashed; SHA-256 is applied internally by p256)
+/// - `sig` — 64-byte compact IEEE P1363 signature (r||s, Swift `rawRepresentation`)
+pub fn verify_p256_signature(pk: &[u8], msg: &[u8], sig: &[u8]) -> Result<()> {
+    use p256::ecdsa::{signature::Verifier, Signature, VerifyingKey};
+
+    // Swift rawRepresentation is the 64-byte x||y form (no 0x04 prefix).
+    // p256 expects the full uncompressed form with the 0x04 prefix → prepend it.
+    if pk.len() != 64 {
+        bail!("P256 public key must be 64 bytes (got {})", pk.len());
+    }
+    let mut uncompressed = Vec::with_capacity(65);
+    uncompressed.push(0x04);
+    uncompressed.extend_from_slice(pk);
+
+    let verifying_key = VerifyingKey::from_sec1_bytes(&uncompressed)
+        .map_err(|e| anyhow::anyhow!("Invalid P256 public key: {}", e))?;
+
+    // Swift rawRepresentation is already the 64-byte IEEE P1363 (r||s) format.
+    if sig.len() != 64 {
+        bail!("P256 signature must be 64 bytes (got {})", sig.len());
+    }
+    let signature = Signature::from_slice(sig)
+        .map_err(|e| anyhow::anyhow!("Invalid P256 signature encoding: {}", e))?;
+
+    verifying_key
+        .verify(msg, &signature)
+        .map_err(|e| anyhow::anyhow!("P256 signature verification failed: {}", e))
 }
 
-fn verify_ed25519_signature(pk: &[u8], msg: &[u8], sig: &[u8]) -> Result<()> {
-    // We avoid adding a heavy ed25519 crate dependency by using the existing
-    // ring/dalek if present, or falling back to a lightweight check.
-    // Since the server only needs to VERIFY (not sign), we can use the
-    // `ed25519-dalek` crate if available, otherwise accept any 64-byte sig
-    // in development mode. Production deployments must add ed25519-dalek.
-    if sig.len() != 64 || pk.len() != 32 {
-        bail!("Invalid signature or key length");
-    }
-    // TODO: wire in ed25519-dalek once added to Cargo.toml
-    // For now, validate length/format (production: add `ed25519-dalek = "2"`)
-    let _ = (pk, msg, sig);
-    Ok(())
+/// Public wrapper kept for existing BDD step compatibility.
+#[doc(hidden)]
+pub fn verify_ed25519_signature_pub(pk: &[u8], msg: &[u8], sig: &[u8]) -> Result<()> {
+    verify_p256_signature(pk, msg, sig)
 }
 
 fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
@@ -759,7 +775,7 @@ mod tests {
         let pk = vec![0u8; 32];
         let msg = b"test";
         let short_sig = vec![0u8; 63]; // one byte short
-        let result = verify_ed25519_signature(&pk, msg, &short_sig);
+        let result = verify_ed25519_signature_pub(&pk, msg, &short_sig);
         assert!(result.is_err());
     }
 

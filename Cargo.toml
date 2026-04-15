@@ -85,6 +85,7 @@ rusqlite = { version = "0.39", features = ["bundled"] }
 # Crypto (AWS SigV4 signing)
 sha2 = "0.10"
 hmac = "0.12"
+p256 = { version = "0.13", features = ["ecdsa"] }
 hex = "0.4"
 
 [profile.dev]
