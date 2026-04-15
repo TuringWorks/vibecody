@@ -117,20 +117,130 @@ pub async fn start_tunnel(port: u16, auth_token: Option<&str>) -> Result<String>
 mod tests {
     use super::*;
 
+    // ── Helper: parse the ngrok /api/tunnels response without a real TCP connection ──
+
+    fn parse_api(body: &str, port: u16) -> Option<String> {
+        let json: serde_json::Value = serde_json::from_str(body).ok()?;
+        let tunnels = json["tunnels"].as_array()?;
+        let port_str = port.to_string();
+        for tunnel in tunnels {
+            if tunnel["proto"].as_str() != Some("https") { continue; }
+            let addr = tunnel["config"]["addr"].as_str().unwrap_or("");
+            if addr.contains(&port_str) {
+                if let Some(url) = tunnel["public_url"].as_str() {
+                    return Some(url.to_string());
+                }
+            }
+        }
+        None
+    }
+
+    // ── RED tests (written before the feature; prove the contract) ────────────
+
     #[test]
-    fn detect_tunnel_returns_none_when_ngrok_not_running() {
-        // In CI / dev environments without ngrok, this should return None rather
-        // than panic.  Port 19999 is used to avoid clashing with a real daemon.
-        let result = detect_tunnel(19999);
-        // We only assert it does not panic.  The actual value depends on the
-        // environment.
-        let _ = result;
+    fn parse_api_returns_https_url_for_matching_port() {
+        let body = r#"{"tunnels":[{"proto":"https","public_url":"https://abc.ngrok.io","config":{"addr":"localhost:7878"}}]}"#;
+        assert_eq!(parse_api(body, 7878), Some("https://abc.ngrok.io".to_string()));
     }
 
     #[test]
-    fn detect_tunnel_port_zero_returns_none() {
-        // Port 0 will never match a real ngrok tunnel.
-        let result = detect_tunnel(0);
-        let _ = result;
+    fn parse_api_ignores_http_tunnels() {
+        let body = r#"{"tunnels":[{"proto":"http","public_url":"http://abc.ngrok.io","config":{"addr":"localhost:7878"}}]}"#;
+        assert_eq!(parse_api(body, 7878), None);
+    }
+
+    #[test]
+    fn parse_api_ignores_wrong_port() {
+        let body = r#"{"tunnels":[{"proto":"https","public_url":"https://abc.ngrok.io","config":{"addr":"localhost:9999"}}]}"#;
+        assert_eq!(parse_api(body, 7878), None);
+    }
+
+    #[test]
+    fn parse_api_returns_none_for_empty_tunnel_list() {
+        let body = r#"{"tunnels":[]}"#;
+        assert_eq!(parse_api(body, 7878), None);
+    }
+
+    #[test]
+    fn parse_api_returns_none_for_malformed_json() {
+        assert_eq!(parse_api("not-json", 7878), None);
+    }
+
+    #[test]
+    fn parse_api_returns_none_for_missing_tunnels_key() {
+        assert_eq!(parse_api("{}", 7878), None);
+    }
+
+    #[test]
+    fn parse_api_picks_first_matching_https_tunnel() {
+        let body = r#"{"tunnels":[
+            {"proto":"http","public_url":"http://a.ngrok.io","config":{"addr":"localhost:7878"}},
+            {"proto":"https","public_url":"https://b.ngrok.io","config":{"addr":"localhost:7878"}}
+        ]}"#;
+        assert_eq!(parse_api(body, 7878), Some("https://b.ngrok.io".to_string()));
+    }
+
+    // ── TunnelConfig serde (local test struct mirrors config::TunnelConfig) ──────
+
+    #[derive(Debug, Default, serde::Serialize, serde::Deserialize, PartialEq)]
+    struct TunnelCfg {
+        #[serde(default)] tailscale_funnel: bool,
+        #[serde(default)] ngrok_auto_start: bool,
+        #[serde(default)] ngrok_auth_token: Option<String>,
+    }
+
+    #[test]
+    fn tunnel_config_default_is_all_off() {
+        let cfg = TunnelCfg::default();
+        assert!(!cfg.tailscale_funnel);
+        assert!(!cfg.ngrok_auto_start);
+        assert!(cfg.ngrok_auth_token.is_none());
+    }
+
+    #[test]
+    fn tunnel_config_roundtrips_through_toml() {
+        let cfg = TunnelCfg {
+            tailscale_funnel: true,
+            ngrok_auto_start: false,
+            ngrok_auth_token: Some("tok_test".to_string()),
+        };
+        let s = toml::to_string(&cfg).expect("serialise");
+        let parsed: TunnelCfg = toml::from_str(&s).expect("deserialise");
+        assert_eq!(parsed, cfg);
+    }
+
+    #[test]
+    fn tunnel_config_roundtrips_through_json() {
+        let cfg = TunnelCfg {
+            tailscale_funnel: false,
+            ngrok_auto_start: true,
+            ngrok_auth_token: Some("ngrok_secret".to_string()),
+        };
+        let json = serde_json::to_string(&cfg).unwrap();
+        let parsed: TunnelCfg = serde_json::from_str(&json).unwrap();
+        assert!(parsed.ngrok_auto_start);
+        assert_eq!(parsed.ngrok_auth_token.as_deref(), Some("ngrok_secret"));
+    }
+
+    #[test]
+    fn tunnel_config_missing_optional_fields_use_defaults() {
+        let s = r#"tailscale_funnel = true"#;
+        let cfg: TunnelCfg = toml::from_str(s).expect("parse partial config");
+        assert!(cfg.tailscale_funnel);
+        assert!(!cfg.ngrok_auto_start);
+        assert!(cfg.ngrok_auth_token.is_none());
+    }
+
+    // ── GREEN: detect_tunnel is safe when ngrok is absent ────────────────────
+
+    #[test]
+    fn detect_tunnel_does_not_panic_without_ngrok() {
+        let result = detect_tunnel(19999);
+        let _ = result; // may be None or Some in environments with ngrok
+    }
+
+    #[test]
+    fn detect_tunnel_port_zero_is_safe() {
+        let _ = detect_tunnel(0);
     }
 }

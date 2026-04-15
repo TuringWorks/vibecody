@@ -352,3 +352,19 @@ harness = false
 name = "watch_bridge_bdd"
 path = "tests/watch_bridge_bdd.rs"
 harness = false
+
+# Connectivity BDD harnesses — mDNS, ngrok, Tailscale
+[[test]]
+name = "mdns_announce_bdd"
+path = "tests/mdns_announce_bdd.rs"
+harness = false
+
+[[test]]
+name = "ngrok_bdd"
+path = "tests/ngrok_bdd.rs"
+harness = false
+
+[[test]]
+name = "tailscale_bdd"
+path = "tests/tailscale_bdd.rs"
+harness = false

@@ -207,6 +207,8 @@ pub mod rpc_mode;
 pub mod paste_guard;
 pub mod event_bus;
 pub mod pod_manager;
+// Tailscale + ngrok connectivity (exposed for BDD test harnesses)
+pub mod tailscale;
 // Zero-config LAN discovery
 pub mod mdns_announce;
 // ngrok tunnel auto-detection and startup
