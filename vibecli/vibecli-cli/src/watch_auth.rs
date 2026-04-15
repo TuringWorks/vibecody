@@ -144,6 +144,16 @@ pub struct WatchAuthManager {
 
 impl WatchAuthManager {
     /// Load or generate the JWT signing secret from ProfileStore.
+    /// Testing constructor — bypasses ProfileStore, uses supplied key material.
+    #[cfg(any(test, feature = "testing"))]
+    pub fn new_with_path(_path: &std::path::Path, secret: &[u8]) -> Result<Self> {
+        Ok(Self {
+            machine_id: "test-machine-bdd".into(),
+            jwt_secret: secret.to_vec(),
+            pending_nonces: Default::default(),
+        })
+    }
+
     pub fn new(machine_id: impl Into<String>) -> Result<Self> {
         let machine_id = machine_id.into();
         let store = crate::profile_store::ProfileStore::new()
@@ -784,7 +794,7 @@ mod tests {
         let pk = vec![0u8; 31]; // one byte short
         let msg = b"test";
         let sig = vec![0u8; 64];
-        let result = verify_ed25519_signature(&pk, msg, &sig);
+        let result = verify_ed25519_signature_pub(&pk, msg, &sig);
         assert!(result.is_err());
     }
 
@@ -813,6 +823,154 @@ mod tests {
     #[test]
     fn max_devices_constant_is_five() {
         assert_eq!(MAX_WATCH_DEVICES, 5);
+    }
+
+    // ── RED → GREEN: P256 verification (replaces Ed25519 stub) ───────────────
+    // These tests use the p256 crate to generate real keys + signatures so
+    // we can verify the server-side verifier is correct end-to-end.
+
+    #[test]
+    fn verify_p256_rejects_wrong_key_length() {
+        // Ed25519-sized key (32 bytes) must be rejected
+        let pk = vec![0u8; 32];
+        let msg = b"hello watch";
+        let sig = vec![0u8; 64];
+        let result = verify_p256_signature(&pk, msg, &sig);
+        assert!(result.is_err(), "32-byte key should be rejected (not P256)");
+        assert!(result.unwrap_err().to_string().contains("64 bytes"));
+    }
+
+    #[test]
+    fn verify_p256_rejects_wrong_sig_length() {
+        let pk = vec![0u8; 64]; // valid length, random bytes
+        let msg = b"hello watch";
+        let short_sig = vec![0u8; 63];
+        let result = verify_p256_signature(&pk, msg, &short_sig);
+        assert!(result.is_err(), "63-byte sig should be rejected");
+    }
+
+    #[test]
+    fn verify_p256_rejects_invalid_public_key_bytes() {
+        // All-zeros is not a valid P256 curve point
+        let pk = vec![0u8; 64];
+        let msg = b"hello watch";
+        let sig = vec![0u8; 64];
+        let result = verify_p256_signature(&pk, msg, &sig);
+        assert!(result.is_err(), "invalid curve point should be rejected");
+    }
+
+    #[test]
+    fn verify_p256_valid_signature_accepted() {
+        use p256::ecdsa::{signature::Signer, SigningKey};
+        use p256::ecdsa::signature::digest::Digest;
+
+        // Generate a real P256 keypair
+        let signing_key = SigningKey::random(&mut rand::thread_rng());
+        let verifying_key = signing_key.verifying_key();
+
+        // Swift uses: SHA256.hash(data: msg) → sign the hash directly.
+        // On the server, verify_p256_signature calls verifying_key.verify(msg)
+        // which applies SHA-256 internally — same result.
+        let msg = b"nonce_abc device_001 timestamp";
+
+        // Sign via SigningKey::sign (applies SHA-256 internally — same as
+        // Secure Enclave's sign(for: SHA256.hash(data:)))
+        let sig: p256::ecdsa::Signature = signing_key.sign(msg);
+
+        // Extract raw 64-byte x||y public key (Swift rawRepresentation format)
+        let pk_uncompressed = verifying_key.to_encoded_point(false);
+        let pk_bytes = &pk_uncompressed.as_bytes()[1..]; // strip 0x04 prefix
+
+        let result = verify_p256_signature(pk_bytes, msg, &sig.to_bytes());
+        assert!(result.is_ok(), "valid P256 signature must verify: {:?}", result.err());
+    }
+
+    #[test]
+    fn verify_p256_wrong_message_rejected() {
+        use p256::ecdsa::{signature::Signer, SigningKey};
+
+        let signing_key = SigningKey::random(&mut rand::thread_rng());
+        let verifying_key = signing_key.verifying_key();
+
+        let msg = b"correct message";
+        let sig: p256::ecdsa::Signature = signing_key.sign(msg);
+
+        let pk_uncompressed = verifying_key.to_encoded_point(false);
+        let pk_bytes = &pk_uncompressed.as_bytes()[1..];
+
+        let result = verify_p256_signature(pk_bytes, b"tampered message", &sig.to_bytes());
+        assert!(result.is_err(), "signature over different message must be rejected");
+    }
+
+    #[test]
+    fn verify_p256_wrong_key_rejected() {
+        use p256::ecdsa::{signature::Signer, SigningKey};
+
+        let signing_key = SigningKey::random(&mut rand::thread_rng());
+        let wrong_key = SigningKey::random(&mut rand::thread_rng());
+        let wrong_verifying = wrong_key.verifying_key();
+
+        let msg = b"some message";
+        let sig: p256::ecdsa::Signature = signing_key.sign(msg);
+
+        let wrong_pk = wrong_verifying.to_encoded_point(false);
+        let wrong_pk_bytes = &wrong_pk.as_bytes()[1..];
+
+        let result = verify_p256_signature(wrong_pk_bytes, msg, &sig.to_bytes());
+        assert!(result.is_err(), "signature verified with wrong key must fail");
+    }
+
+    #[test]
+    fn register_device_full_p256_roundtrip() {
+        use p256::ecdsa::{signature::Signer, SigningKey};
+        use base64::{engine::general_purpose::URL_SAFE_NO_PAD as B64, Engine};
+
+        let (mut mgr, _tmp) = make_manager();
+        let ch = mgr.issue_challenge().unwrap();
+
+        // Simulate what Swift does: generate key, build message, sign
+        let signing_key = SigningKey::random(&mut rand::thread_rng());
+        let verifying_key = signing_key.verifying_key();
+        let device_id = "deadbeef12345678deadbeef12345678";
+
+        let mut msg_bytes = ch.nonce.as_bytes().to_vec();
+        msg_bytes.extend_from_slice(device_id.as_bytes());
+        msg_bytes.extend_from_slice(&ch.issued_at.to_be_bytes());
+
+        let sig: p256::ecdsa::Signature = signing_key.sign(&msg_bytes);
+        let pk_uncompressed = verifying_key.to_encoded_point(false);
+        let pk_bytes = &pk_uncompressed.as_bytes()[1..]; // 64-byte x||y
+
+        let req = WatchRegisterRequest {
+            device_id: device_id.into(),
+            name: "Test Watch".into(),
+            os_version: "11.0".into(),
+            model: "Watch7,1".into(),
+            public_key_b64: B64.encode(pk_bytes),
+            signature_b64: B64.encode(sig.to_bytes()),
+            nonce: ch.nonce.clone(),
+            device_check_token: None,
+        };
+
+        let result = mgr.register_device(&req);
+        assert!(result.is_ok(), "full P256 registration roundtrip failed: {:?}", result.err());
+        let device = result.unwrap();
+        assert_eq!(device.device_id, device_id);
+    }
+
+    // Legacy Ed25519 pub wrapper tests — now routes through verify_p256_signature
+    #[test]
+    fn verify_ed25519_pub_rejects_short_key() {
+        let pk = vec![0u8; 31]; // too short for P256 (must be 64)
+        let result = verify_ed25519_signature_pub(&pk, b"msg", &vec![0u8; 64]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn verify_ed25519_pub_rejects_short_sig() {
+        let pk = vec![0u8; 64];
+        let result = verify_ed25519_signature_pub(&pk, b"msg", &vec![0u8; 63]);
+        assert!(result.is_err());
     }
 
     #[test]

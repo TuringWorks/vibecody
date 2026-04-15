@@ -4,7 +4,7 @@ title: VibeCody Feature Demos
 permalink: /demos/
 ---
 
-Interactive walkthroughs covering VibeCody's 60 major capabilities across CLI, Desktop IDE, and API surfaces.
+Interactive walkthroughs covering VibeCody's 65 major capabilities across CLI, Desktop IDE, and API surfaces.
 
 
 ## Getting Started
@@ -14,6 +14,7 @@ Interactive walkthroughs covering VibeCody's 60 major capabilities across CLI, D
 | [01 — First Run & Setup](first-run/) | CLI | Install, configure providers, first AI chat |
 | [02 — TUI Interface](tui-interface/) | CLI | Navigate the terminal UI, panels, keybindings |
 | [36 — One-Shot Chat](36-one-shot-chat/) | CLI | Send a message and get a response without entering the REPL |
+| [57 — Easy Setup & Deployment](57-easy-setup/) | CLI | One-command install, systemd/launchd service, platform deploy |
 
 ## AI & Providers
 
@@ -117,6 +118,12 @@ Interactive walkthroughs covering VibeCody's 60 major capabilities across CLI, D
 
 > **Full reference:** [Memory Guide](../memory-guide/) — all three memory layers (auto-recording, cognitive store, verbatim drawers), every REPL command, and VibeUI panel tour.
 
+## Productivity Integrations
+
+| Demo | Surface | Description |
+|------|---------|-------------|
+| [58 — Productivity Integrations](58-productivity-integrations/) | CLI | Email, calendar, todo, Jira, Home Assistant, Notion via REPL |
+
 ## Voice & Access
 
 | Demo | Surface | Description |
@@ -124,6 +131,8 @@ Interactive walkthroughs covering VibeCody's 60 major capabilities across CLI, D
 | [45 — Offline Voice Coding](45-offline-voice/) | CLI | Local whisper.cpp speech recognition |
 | [55 — Voice, Pairing & Tailscale](55-voice-pairing-tailscale/) | CLI | Voice input, QR pairing, Tailscale Funnel |
 | [56 — Browser Web Client](56-web-client/) | Web | Zero-install SPA with SSE streaming |
+| [64 — Apple Watch & Wear OS](64-watch-integration/) | Mobile | Wrist-based agent control with HMAC-JWT auth |
+| [65 — Zero-Config Connectivity](65-connectivity/) | CLI | mDNS LAN discovery and ngrok tunnel auto-detection |
 
 ## Security & Compliance
 
