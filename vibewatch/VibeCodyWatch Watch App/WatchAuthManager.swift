@@ -76,8 +76,9 @@ final class WatchAuthManager: ObservableObject {
 
         // 2. Sign the registration challenge:
         //    message = SHA-256(nonce || device_id || issued_at_be)
+        //    issued_at MUST match the server's stored challenge timestamp, not local time.
         let newDeviceId = UUID().uuidString.lowercased().replacingOccurrences(of: "-", with: "")
-        let issuedAt = UInt64(Date().timeIntervalSince1970)
+        let issuedAt = pairing.issued_at
         var msgData = Data()
         msgData.append(Data(pairing.nonce.utf8))
         msgData.append(Data(newDeviceId.utf8))

@@ -158,6 +158,7 @@ struct ManualPairingView: View {
                 endpoint:   base,
                 nonce:      challenge.nonce,
                 machine_id: challenge.machine_id,
+                issued_at:  challenge.issued_at,   // must match server's stored challenge timestamp
                 expires_at: challenge.expires_at,
                 version:    "1"
             )

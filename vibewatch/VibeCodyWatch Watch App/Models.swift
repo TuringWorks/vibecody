@@ -136,6 +136,7 @@ struct WatchPairingPayload: Codable {
     let endpoint: String
     let nonce: String
     let machine_id: String
+    let issued_at: UInt64   // from challenge — must match server's stored issued_at for signature
     let expires_at: UInt64
     let version: String
 }
