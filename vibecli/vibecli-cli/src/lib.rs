@@ -213,3 +213,8 @@ pub mod tailscale;
 pub mod mdns_announce;
 // ngrok tunnel auto-detection and startup
 pub mod ngrok;
+
+// Apple Watch + Wear OS bridge
+pub mod watch_auth;
+pub mod watch_session_relay;
+pub mod watch_bridge;
