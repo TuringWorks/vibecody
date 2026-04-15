@@ -92,7 +92,6 @@ struct ManualPairingView: View {
     @Binding var daemonURL:  String
     @Binding var isPairing:  Bool
     @Binding var errorMsg:   String?
-    @State private var apiToken = ""
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -107,14 +106,6 @@ struct ManualPairingView: View {
                     .multilineTextAlignment(.center)
                     .autocorrectionDisabled()
 
-                Text("API Token")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-
-                SecureField("Bearer token", text: $apiToken)
-                    .font(.caption2)
-                    .multilineTextAlignment(.center)
-
                 if isPairing {
                     ProgressView("Pairing…")
                         .font(.caption2)
@@ -123,7 +114,7 @@ struct ManualPairingView: View {
                         Task { await pair() }
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(daemonURL.isEmpty || apiToken.isEmpty)
+                    .disabled(daemonURL.isEmpty)
                 }
 
                 if let err = errorMsg {
@@ -145,14 +136,13 @@ struct ManualPairingView: View {
 
         let base = daemonURL.hasSuffix("/") ? String(daemonURL.dropLast()) : daemonURL
 
-        // 1. POST /watch/challenge with Bearer token
+        // 1. POST /watch/challenge — no auth required, nonce grants nothing on its own
         guard let challengeURL = URL(string: "\(base)/watch/challenge") else {
             errorMsg = "Invalid URL"; return
         }
         do {
             var req = URLRequest(url: challengeURL)
             req.httpMethod = "POST"
-            req.setValue("Bearer \(apiToken)", forHTTPHeaderField: "Authorization")
             req.setValue("application/json", forHTTPHeaderField: "Content-Type")
             req.httpBody = Data("{}".utf8)
 
@@ -163,7 +153,7 @@ struct ManualPairingView: View {
             }
             let challenge = try JSONDecoder().decode(WatchChallengeResponse.self, from: challengeData)
 
-            // 2. Build pairing payload and register
+            // 2. Build pairing payload and register (Ed25519 signature verifies device)
             let payload = WatchPairingPayload(
                 endpoint:   base,
                 nonce:      challenge.nonce,

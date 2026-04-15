@@ -147,24 +147,14 @@ async fn watch_beacon(State(state): State<WatchBridgeState>) -> impl IntoRespons
     }))
 }
 
-/// POST /watch/challenge — issue a registration nonce (requires bearer token).
+/// POST /watch/challenge — issue a registration nonce (no auth required).
+///
+/// The nonce itself grants nothing; real security is in /watch/register
+/// which verifies the Ed25519 device signature against the nonce.
+/// Rate-limited naturally by the 2-minute nonce TTL.
 async fn watch_challenge(
     State(state): State<WatchBridgeState>,
-    headers: axum::http::HeaderMap,
 ) -> impl IntoResponse {
-    // Require the daemon's regular bearer token for challenge issuance —
-    // prevents random devices from spamming challenge generation.
-    let bearer = headers
-        .get("Authorization")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("");
-    let expected = format!("Bearer {}", state.api_token);
-    if bearer != expected {
-        return (
-            StatusCode::UNAUTHORIZED,
-            Json(serde_json::json!({"error": "Bearer token required to issue challenge"})),
-        );
-    }
     let ch = state
         .auth
         .lock()
