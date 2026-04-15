@@ -256,6 +256,10 @@ interface AIChatProps {
   * Injected into every outgoing message's context.
   */
  pinnedMemory?: string;
+ /** Stable tab/conversation ID — written to sessions.db so Watch can see it. */
+ sessionId?: string;
+ /** Human-readable tab title (e.g. "Ember Ridge") used as the session task. */
+ sessionTitle?: string;
 }
 
 // ── Slash commands ───────────────────────────────────────────────────────────
@@ -826,6 +830,8 @@ export function AIChat({
   messages: controlledMessages,
   onMessagesChange,
   pinnedMemory,
+  sessionId,
+  sessionTitle,
 }: AIChatProps) {
   const [agentMode, setAgentMode] = useState<AgentMode>("chat");
   const [localMessages, setLocalMessages] = useState<Message[]>([]);
@@ -1429,6 +1435,8 @@ export function AIChat({
         attachments: currentAttachments.map(({ name, mime_type, data, size, text_content }) => ({
           name, mime_type, data, size, text_content: text_content ?? null,
         })),
+        session_id: sessionId ?? null,
+        session_title: sessionTitle ?? null,
       };
       console.warn("[AIChat] invoke stream_chat_message:", {
         provider,

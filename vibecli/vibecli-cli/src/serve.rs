@@ -1469,6 +1469,8 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         watch_machine_id,
         None,
         Some(watch_session_db),
+        Some(state.provider.clone()),
+        state.provider_name.clone(),
     )
     .map(|s| crate::watch_bridge::build_watch_router(s).with_state(()))
     .unwrap_or_else(|e| {

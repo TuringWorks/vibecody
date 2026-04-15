@@ -31,6 +31,7 @@ use axum::{
 };
 use std::convert::Infallible;
 use std::sync::{Arc, Mutex};
+use vibe_ai::provider::AIProvider;
 
 use crate::watch_auth::{
     WatchAuthManager, WatchRefreshRequest, WatchRegisterRequest, WristEvent,
@@ -64,6 +65,10 @@ pub struct WatchBridgeState {
     pub tailscale_ip: Option<String>,
     /// Path to the SQLite session database (~/.vibecli/sessions.db).
     pub session_db_path: Option<std::path::PathBuf>,
+    /// Optional LLM provider for watch dispatch.
+    pub provider: Option<Arc<dyn AIProvider>>,
+    /// Human-readable provider name (e.g. "claude", "ollama").
+    pub provider_name: String,
 }
 
 impl WatchBridgeState {
@@ -73,6 +78,8 @@ impl WatchBridgeState {
         machine_id: impl Into<String>,
         tailscale_ip: Option<String>,
         session_db_path: Option<std::path::PathBuf>,
+        provider: Option<Arc<dyn AIProvider>>,
+        provider_name: impl Into<String>,
     ) -> anyhow::Result<Self> {
         let machine_id = machine_id.into();
         let auth = WatchAuthManager::new(&machine_id)?;
@@ -85,6 +92,8 @@ impl WatchBridgeState {
             started_at: std::time::Instant::now(),
             tailscale_ip,
             session_db_path,
+            provider,
+            provider_name: provider_name.into(),
         })
     }
 
@@ -401,9 +410,9 @@ async fn watch_stream(
 
 /// POST /watch/dispatch — send a message or continue a session.
 ///
-/// This lib-level handler validates auth + replay prevention, then returns a
-/// stub response. The binary-level handler in serve.rs replaces this with full
-/// session_store + agent pipeline wiring.
+/// Creates (or continues) a session, inserts the user message, spawns an async
+/// task that streams the LLM response over the broadcast channel, and returns
+/// the session/streaming coordinates immediately.
 async fn watch_dispatch(
     State(state): State<WatchBridgeState>,
     headers: axum::http::HeaderMap,
@@ -425,17 +434,103 @@ async fn watch_dispatch(
             Json(serde_json::json!({"error": "Content must not be empty"}))).into_response();
     }
 
+    let provider = match &state.provider {
+        Some(p) => p.clone(),
+        None => return (StatusCode::SERVICE_UNAVAILABLE,
+            Json(serde_json::json!({"error": "No LLM provider configured"}))).into_response(),
+    };
+
+    let db_path = state.session_db_path.clone().unwrap_or_else(|| {
+        dirs::home_dir()
+            .unwrap_or_else(|| std::path::PathBuf::from("."))
+            .join(".vibecli")
+            .join("sessions.db")
+    });
+
+    // Use supplied session_id or create a new one
+    let session_id = req.session_id.clone().unwrap_or_else(|| {
+        format!(
+            "{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_millis())
+                .unwrap_or(0)
+        )
+    });
+
+    // Open store and create/continue session
+    let store = match crate::session_store::SessionStore::open(&db_path) {
+        Ok(s) => s,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": format!("session store: {}", e)}))).into_response(),
+    };
+    if req.session_id.is_none() {
+        let _ = store.insert_session(&session_id, &content, &state.provider_name, "");
+    }
+    let _ = store.insert_message(&session_id, "user", &content);
+
+    // Load prior messages for context
+    let prior = store.get_messages(&session_id).unwrap_or_default();
+    let messages: Vec<vibe_ai::provider::Message> = prior.iter().map(|m| {
+        use vibe_ai::provider::MessageRole;
+        vibe_ai::provider::Message {
+            role: match m.role.as_str() {
+                "assistant" => MessageRole::Assistant,
+                "system"    => MessageRole::System,
+                _           => MessageRole::User,
+            },
+            content: m.content.clone(),
+        }
+    }).collect();
+
+    // Create or reuse broadcast channel for this session
+    let tx = {
+        let mut map = state.streams.lock().unwrap_or_else(|e| e.into_inner());
+        map.entry(session_id.clone())
+            .or_insert_with(|| tokio::sync::broadcast::channel(128).0)
+            .clone()
+    };
+
     tracing::info!(
         device_id = %device_id,
+        session_id = %session_id,
         content_len = content.len(),
-        "Watch dispatch (stub — binary handler not mounted)"
+        "Watch dispatch: spawning LLM stream task"
     );
 
-    // Dispatch is handled by the binary-level handler which has access to
-    // session_store and the agent pipeline. This stub acknowledges the
-    // request so the lib crate type-checks.
-    (StatusCode::SERVICE_UNAVAILABLE,
-        Json(serde_json::json!({"error": "dispatch requires binary-level handler"}))).into_response()
+    let sid2 = session_id.clone();
+    let db2 = db_path.clone();
+    tokio::spawn(async move {
+        let mut full = String::new();
+        match provider.stream_chat(&messages).await {
+            Ok(mut stream) => {
+                while let Some(chunk) = futures::StreamExt::next(&mut stream).await {
+                    if let Ok(text) = chunk {
+                        full.push_str(&text);
+                        let _ = tx.send(serde_json::json!({"type": "token_delta", "text": text}));
+                    }
+                }
+                let _ = tx.send(serde_json::json!({"type": "done", "status": "complete"}));
+                if let Ok(s) = crate::session_store::SessionStore::open(&db2) {
+                    let _ = s.insert_message(&sid2, "assistant", &full);
+                    let _ = s.finish_session(&sid2, "complete", None);
+                }
+            }
+            Err(e) => {
+                let _ = tx.send(serde_json::json!({"type": "error", "message": e.to_string()}));
+                if let Ok(s) = crate::session_store::SessionStore::open(&db2) {
+                    let _ = s.finish_session(&sid2, "failed", None);
+                }
+            }
+        }
+    });
+
+    let streaming_url = format!("/watch/stream/{}", session_id);
+    Json(serde_json::json!({
+        "session_id": session_id,
+        "message_id": 0,
+        "streaming_url": streaming_url,
+    })).into_response()
 }
 
 /// GET /watch/devices — list registered watch devices (requires bearer token).

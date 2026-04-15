@@ -628,6 +628,8 @@ export function ChatTabManager({
                             messages={getMessages(tab.id)}
                             onMessagesChange={(msgs) => setMessagesForTab(tab.id, msgs)}
                             pinnedMemory={memory.getPinnedSystemPromptText() || undefined}
+                            sessionId={tab.id}
+                            sessionTitle={tab.title}
                         />
                     </div>
                 ))}

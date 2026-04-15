@@ -2232,6 +2232,12 @@ pub struct ChatRequest {
     /// File/image/document attachments for the current message.
     #[serde(default)]
     pub attachments: Vec<ChatAttachment>,
+    /// Stable tab ID from ChatTabManager — used to persist session to sessions.db.
+    #[serde(default)]
+    pub session_id: Option<String>,
+    /// Human-readable tab title (e.g. "Ember Ridge") — used as session task name.
+    #[serde(default)]
+    pub session_title: Option<String>,
 }
 
 #[derive(Serialize, Clone)]
@@ -2583,6 +2589,9 @@ pub async fn stream_chat_message(
     let health_tracker = state.provider_health.clone();
     let provider_name = provider.name().to_string();
     let model_name = request.provider.clone();
+    // Extract Watch session info before moving request into the spawn closure.
+    let watch_session_id = request.session_id.clone();
+    let watch_session_title = request.session_title.clone();
 
     let join_handle = tokio::spawn(async move {
         use futures::StreamExt;
@@ -2713,6 +2722,8 @@ pub async fn stream_chat_message(
                 error_category: None,
             });
             let (tool_output, pending_write) = process_tool_calls(&accumulated, &workspace, &app_handle).await;
+            // Persist to sessions.db for Watch visibility
+            write_to_session_store(&watch_session_id, &watch_session_title, &messages, &accumulated, &provider_name, &model_name);
             let response = ChatResponse { message: accumulated.clone(), tool_output, pending_write };
             let _ = app_handle.emit("chat:complete", response);
             let estimated_tokens = accumulated.len() / 4;
@@ -2922,6 +2933,8 @@ pub async fn stream_chat_message(
             tool_output,
             pending_write,
         };
+        // Persist to sessions.db for Watch visibility
+        write_to_session_store(&watch_session_id, &watch_session_title, &messages, &accumulated, &provider_name, &model_name);
         let _ = app_handle.emit("chat:complete", response);
 
         // Emit token/cost metrics
@@ -3390,6 +3403,49 @@ async fn fetch_github_issue(url: &str, token: Option<String>) -> Result<GithubIs
             Ok(issue)
         }
     }).await.map_err(|e| e.to_string())
+}
+
+/// Write a VibeUI chat exchange to sessions.db so the Watch can see it.
+/// Called at completion of each LLM response. Idempotent: uses INSERT OR IGNORE.
+fn write_to_session_store(
+    session_id: &Option<String>,
+    session_title: &Option<String>,
+    messages: &[vibe_ai::Message],
+    assistant_response: &str,
+    provider_name: &str,
+    model_name: &str,
+) {
+    let sid = match session_id {
+        Some(s) if !s.is_empty() => s.clone(),
+        _ => return, // no session_id → not a tracked tab
+    };
+    let db_path = match dirs::home_dir() {
+        Some(h) => h.join(".vibecli").join("sessions.db"),
+        None => return,
+    };
+    let store = match vibecli_cli::session_store::SessionStore::open(&db_path) {
+        Ok(s) => s,
+        Err(_) => return,
+    };
+    // Derive task name: explicit title > first user message > fallback
+    let task = session_title.as_deref()
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| {
+            messages.iter()
+                .find(|m| m.role == vibe_ai::MessageRole::User)
+                .map(|m| m.content.as_str())
+                .unwrap_or("VibeUI Chat")
+        });
+    let _ = store.insert_session(&sid, task, provider_name, model_name);
+    // Upsert all messages (insert_message is append-only — only write the last pair)
+    if let Some(last_user) = messages.iter().rev().find(|m| m.role == vibe_ai::MessageRole::User) {
+        let _ = store.insert_message(&sid, "user", &last_user.content);
+    }
+    if !assistant_response.is_empty() {
+        let _ = store.insert_message(&sid, "assistant", assistant_response);
+    }
+    // Keep session as "running" so Watch shows it as active
+    let _ = store.finish_session(&sid, "complete", None);
 }
 
 async fn process_tool_calls(response: &str, workspace_lock: &Arc<Mutex<Workspace>>, app: &tauri::AppHandle) -> (String, Option<PendingWrite>) {
