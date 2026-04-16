@@ -24,7 +24,7 @@ struct ConversationView: View {
                 // Message list
                 ScrollViewReader { proxy in
                     ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: 8) {
                             ForEach(messages) { msg in
                                 MessageBubble(message: msg)
                                     .id(msg.id)
@@ -178,34 +178,38 @@ struct MessageBubble: View {
     @State private var showFull = false
 
     var body: some View {
-        Button { showFull = true } label: {
-            HStack(alignment: .top, spacing: 6) {
-                if message.isUser {
-                    Spacer(minLength: 20)
+        HStack(alignment: .top, spacing: 6) {
+            if message.isUser {
+                Spacer(minLength: 16)
+                Text(message.content)
+                    .font(.caption)
+                    .lineLimit(nil)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .multilineTextAlignment(.trailing)
+                    .padding(6)
+                    .background(Color.blue.opacity(0.3))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            } else {
+                VStack(alignment: .leading, spacing: 2) {
+                    if message.role == "tool" {
+                        Label("Tool", systemImage: "wrench")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.orange)
+                    }
                     Text(message.content)
                         .font(.caption)
+                        .lineLimit(nil)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .multilineTextAlignment(.leading)
                         .padding(6)
-                        .background(Color.blue.opacity(0.3))
+                        .background(Color.gray.opacity(0.2))
                         .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .multilineTextAlignment(.trailing)
-                } else {
-                    VStack(alignment: .leading, spacing: 2) {
-                        if message.role == "tool" {
-                            Label("Tool", systemImage: "wrench")
-                                .font(.system(size: 9))
-                                .foregroundStyle(.orange)
-                        }
-                        Text(message.content)
-                            .font(.caption)
-                            .padding(6)
-                            .background(Color.gray.opacity(0.2))
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                    }
-                    Spacer(minLength: 20)
                 }
+                Spacer(minLength: 16)
             }
         }
-        .buttonStyle(.plain)
+        .contentShape(Rectangle())
+        .onTapGesture { showFull = true }
         .sheet(isPresented: $showFull) {
             FullMessageView(message: message)
         }
@@ -218,6 +222,8 @@ struct StreamingBubble: View {
         HStack {
             Text(text)
                 .font(.caption)
+                .lineLimit(nil)
+                .fixedSize(horizontal: false, vertical: true)
                 .padding(6)
                 .background(Color.gray.opacity(0.15))
                 .clipShape(RoundedRectangle(cornerRadius: 8))
@@ -225,7 +231,7 @@ struct StreamingBubble: View {
                     RoundedRectangle(cornerRadius: 8)
                         .stroke(Color.blue.opacity(0.4), lineWidth: 1)
                 )
-            Spacer(minLength: 20)
+            Spacer(minLength: 16)
         }
     }
 }
@@ -236,6 +242,9 @@ struct FullMessageView: View {
         ScrollView {
             Text(message.content)
                 .font(.caption)
+                .lineLimit(nil)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
         }
         .navigationTitle(message.isUser ? "You" : "Assistant")
