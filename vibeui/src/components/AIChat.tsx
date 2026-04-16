@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useToast } from "../hooks/useToast";
+import { useWatchSync, WatchMessage as WatchSyncMessage } from "../hooks/useWatchSync";
 import { ContextPicker } from "./ContextPicker";
 import { flowContext } from "../utils/FlowContext";
 import { Mic, User, Paperclip, X, FileText, Loader2, Download, ZoomIn } from "lucide-react";
@@ -875,6 +876,22 @@ export function AIChat({
       setLocalMessages(update as Parameters<typeof setLocalMessages>[0]);
     }
   }, []);
+
+  // Watch → VibeUI sync: poll sessions.db for messages sent from the Watch app.
+  // When new messages arrive (role=user from Watch, role=assistant from daemon LLM),
+  // append them to the chat history so both sides stay in sync.
+  useWatchSync(sessionId, (watchMsgs: WatchSyncMessage[]) => {
+    setMessages(prev => {
+      const existingContents = new Set(prev.map(m => m.content));
+      const newMsgs: Message[] = watchMsgs
+        .filter(wm => !existingContents.has(wm.content))
+        .map(wm => ({
+          role: wm.role === 'assistant' ? 'assistant' : 'user',
+          content: wm.content,
+        }));
+      return newMsgs.length > 0 ? [...prev, ...newMsgs] : prev;
+    });
+  });
 
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);

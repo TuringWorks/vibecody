@@ -1043,6 +1043,7 @@ pub fn run() {
             commands::get_watch_pairing_info,
             commands::list_watch_devices,
             commands::revoke_watch_device,
+            commands::watch_get_session_messages,
             commands::profile_provider_config_set,
             commands::profile_provider_config_get,
             commands::profile_provider_config_get_all,

@@ -3448,6 +3448,39 @@ fn write_to_session_store(
     let _ = store.finish_session(&sid, "complete", None);
 }
 
+/// Poll sessions.db for messages in a session, optionally only returning rows
+/// with id > after_id. Used by VibeUI to pick up Watch-originated messages.
+#[tauri::command]
+pub async fn watch_get_session_messages(
+    session_id: String,
+    after_id: Option<i64>,
+) -> Result<serde_json::Value, String> {
+    if session_id.is_empty() {
+        return Ok(serde_json::json!({"messages": [], "session_id": ""}));
+    }
+    let db_path = match dirs::home_dir() {
+        Some(h) => h.join(".vibecli").join("sessions.db"),
+        None => return Err("HOME not found".into()),
+    };
+    let store = vibecli_cli::session_store::SessionStore::open(&db_path)
+        .map_err(|e| e.to_string())?;
+    let all = store.get_messages(&session_id).map_err(|e| e.to_string())?;
+    let filtered: Vec<serde_json::Value> = all
+        .iter()
+        .filter(|m| after_id.map_or(true, |aid| m.id > aid))
+        .map(|m| serde_json::json!({
+            "id":         m.id,
+            "role":       m.role,
+            "content":    m.content,
+            "created_at": m.created_at,
+        }))
+        .collect();
+    Ok(serde_json::json!({
+        "session_id": session_id,
+        "messages":   filtered,
+    }))
+}
+
 async fn process_tool_calls(response: &str, workspace_lock: &Arc<Mutex<Workspace>>, app: &tauri::AppHandle) -> (String, Option<PendingWrite>) {
     // Normalize GLM/Qwen-style delimiters: <|tag|> → <tag>, </|tag|> → </tag>
     // These models wrap tool calls in <|...|> instead of <...>

@@ -21,7 +21,10 @@ final class WatchNetworkManager: NSObject, ObservableObject {
     @Published var lastError: String?
 
     private let auth = WatchAuthManager.shared
+    // Legacy URLSessionDataTask kept for stopStreaming() cancellation compat
     private var sseTask: URLSessionDataTask?
+    // AsyncBytes streaming task handle
+    private var streamingTask: Task<Void, Never>?
     private var streamingBuffer = ""
     @Published var streamingText: String = ""
     @Published var isStreaming = false
@@ -71,64 +74,83 @@ final class WatchNetworkManager: NSObject, ObservableObject {
     }
 
     // MARK: - SSE streaming
+    //
+    // Uses URLSession.bytes(for:) + AsyncBytes.lines so tokens arrive
+    // incrementally as the server sends them. The old dataTask(completionHandler:)
+    // approach fired only once the ENTIRE response body was received — which
+    // never happens for a keep-alive SSE stream, leaving isStreaming stuck.
 
-    func startStreaming(sessionId: String, onEvent: @escaping @Sendable (WatchAgentEvent) -> Void) async {
-        guard auth.isPaired else { return }
-        guard let token = try? await auth.validAccessToken() else { return }
+    func startStreaming(sessionId: String, onEvent: @escaping @Sendable (WatchAgentEvent) -> Void) {
         stopStreaming()
         isStreaming = true
         streamingText = ""
-        let url = URL(string: "\(auth.endpoint)/watch/stream/\(sessionId)")!
-        var req = URLRequest(url: url)
-        req.setValue("Watch-Token \(token)", forHTTPHeaderField: "Authorization")
-        req.setValue("text/event-stream", forHTTPHeaderField: "Accept")
-        // Use a dedicated SSE URLSession
-        let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 300
-        config.timeoutIntervalForResource = 3600
-        let session = URLSession(configuration: config)
-        let task = session.dataTask(with: req) { [weak self] data, _, error in
-            guard let self, let data, error == nil else {
-                Task { @MainActor in self?.isStreaming = false }
+
+        streamingTask = Task { [weak self] in
+            guard let self else { return }
+            guard await self.auth.isPaired else {
+                await MainActor.run { self.isStreaming = false }
                 return
             }
-            let chunk = String(data: data, encoding: .utf8) ?? ""
-            Task { @MainActor in
-                self.handleSSEChunk(chunk, onEvent: onEvent)
+            guard let token = try? await self.auth.validAccessToken() else {
+                await MainActor.run { self.isStreaming = false }
+                return
             }
+
+            let urlStr = await "\(self.auth.endpoint)/watch/stream/\(sessionId)"
+            guard let url = URL(string: urlStr) else {
+                await MainActor.run { self.isStreaming = false }
+                return
+            }
+            var request = URLRequest(url: url)
+            request.setValue("Watch-Token \(token)", forHTTPHeaderField: "Authorization")
+            request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+            // Long timeout — LLM responses can be slow
+            request.timeoutInterval = 300
+
+            do {
+                let (asyncBytes, response) = try await URLSession.shared.bytes(for: request)
+                guard let http = response as? HTTPURLResponse,
+                      (200...299).contains(http.statusCode) else {
+                    await MainActor.run { self.isStreaming = false }
+                    return
+                }
+
+                // Iterate line-by-line as the server sends them
+                for try await line in asyncBytes.lines {
+                    if Task.isCancelled { break }
+                    // SSE lines start with "data: "; skip blank lines and comments
+                    guard line.hasPrefix("data: ") else { continue }
+                    let json = String(line.dropFirst(6))
+                    // Skip keepalive ping strings
+                    guard json != "ping", !json.isEmpty else { continue }
+                    guard let data = json.data(using: .utf8),
+                          let event = try? JSONDecoder().decode(WatchAgentEvent.self, from: data) else { continue }
+
+                    await MainActor.run {
+                        onEvent(event)
+                        if event.kind == "delta", let d = event.delta {
+                            self.streamingText += d
+                        }
+                        if event.kind == "done" || event.kind == "error" {
+                            self.isStreaming = false
+                        }
+                    }
+                    // Stop reading once we receive terminal event
+                    if event.kind == "done" || event.kind == "error" { break }
+                }
+            } catch {
+                // Task cancellation or network error — not unexpected
+            }
+            await MainActor.run { self.isStreaming = false }
         }
-        task.resume()
-        sseTask = task
     }
 
     func stopStreaming() {
+        streamingTask?.cancel()
+        streamingTask = nil
         sseTask?.cancel()
         sseTask = nil
         isStreaming = false
-    }
-
-    private func handleSSEChunk(_ chunk: String, onEvent: @escaping @Sendable (WatchAgentEvent) -> Void) {
-        streamingBuffer += chunk
-        // Parse SSE lines
-        while let range = streamingBuffer.range(of: "\n\n") {
-            let block = String(streamingBuffer[..<range.lowerBound])
-            streamingBuffer = String(streamingBuffer[range.upperBound...])
-            for line in block.components(separatedBy: "\n") {
-                if line.hasPrefix("data: ") {
-                    let json = String(line.dropFirst(6))
-                    if let data = json.data(using: .utf8),
-                       let event = try? JSONDecoder().decode(WatchAgentEvent.self, from: data) {
-                        onEvent(event)
-                        if event.kind == "delta", let d = event.delta {
-                            streamingText += d
-                        }
-                        if event.kind == "done" || event.kind == "error" {
-                            isStreaming = false
-                        }
-                    }
-                }
-            }
-        }
     }
 
     // MARK: - Beacon / discovery

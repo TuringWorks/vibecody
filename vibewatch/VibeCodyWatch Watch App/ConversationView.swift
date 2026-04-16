@@ -122,13 +122,13 @@ struct ConversationView: View {
         streamingDelta = ""
         do {
             let resp = try await network.dispatch(content: text, sessionId: session.session_id)
-            // Start SSE stream
-            await network.startStreaming(sessionId: resp.session_id) { event in
+            // Start SSE stream — non-blocking fire-and-forget; events arrive via callback
+            network.startStreaming(sessionId: resp.session_id) { [self] event in
                 switch event.kind {
                 case "delta":
                     streamingDelta += event.delta ?? ""
                 case "done":
-                    // Commit streaming text as a message
+                    // Commit accumulated streaming text as an assistant message
                     if !streamingDelta.isEmpty {
                         let msg = WatchMessage(
                             id: Int(Date().timeIntervalSince1970 * 1000) + 1,
@@ -139,6 +139,8 @@ struct ConversationView: View {
                         messages.append(msg)
                         streamingDelta = ""
                     }
+                    // Reload from server to get the persisted message IDs
+                    Task { await self.loadMessages() }
                 case "error":
                     self.error = event.error
                     streamingDelta = ""
