@@ -52,7 +52,10 @@ fun VibeCodyWearApp(activity: Activity) {
             ConversationScreen(net = net, sessionId = sessionId)
         }
         composable("sandbox") {
-            SandboxStatusScreen(net = net)
+            SandboxStatusScreen(
+                net = net,
+                onOpenSession = { id -> navController.navigate("conversation/$id") },
+            )
         }
         composable("settings") {
             SettingsScreen(auth = auth) {

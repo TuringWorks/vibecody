@@ -122,7 +122,7 @@ impl WatchBridgeState {
     }
 }
 
-// ── Auth extractor helper ─────────────────────────────────────────────────────
+// ── Auth extractor helpers ────────────────────────────────────────────────────
 
 fn extract_watch_auth(
     state: &WatchBridgeState,
@@ -138,6 +138,22 @@ fn extract_watch_auth(
             Json(serde_json::json!({"error": e.to_string()})),
         )
     })
+}
+
+/// Accept Watch-Token (watch/wear device) OR Bearer (phone app / VibeUI).
+/// Returns Ok("bearer") for Bearer auth, Ok(device_id) for Watch-Token.
+fn extract_any_auth(
+    state: &WatchBridgeState,
+    headers: &axum::http::HeaderMap,
+) -> Result<String, (StatusCode, Json<serde_json::Value>)> {
+    let hdr = headers
+        .get("Authorization")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
+    if hdr == format!("Bearer {}", state.api_token) {
+        return Ok("bearer".to_string());
+    }
+    extract_watch_auth(state, headers)
 }
 
 // ── Router builder ────────────────────────────────────────────────────────────
@@ -284,7 +300,7 @@ async fn watch_list_sessions(
     State(state): State<WatchBridgeState>,
     headers: axum::http::HeaderMap,
 ) -> impl IntoResponse {
-    if let Err(e) = extract_watch_auth(&state, &headers) {
+    if let Err(e) = extract_any_auth(&state, &headers) {
         return e.into_response();
     }
     let db_path = match &state.session_db_path {
@@ -336,12 +352,13 @@ async fn watch_list_sessions(
 }
 
 /// GET /watch/sessions/:id/messages — paginated message list.
+/// Auth: Watch-Token (watch/wear) OR Bearer (phone apps / VibeUI).
 async fn watch_session_messages(
     State(state): State<WatchBridgeState>,
     headers: axum::http::HeaderMap,
     Path(session_id): Path<String>,
 ) -> impl IntoResponse {
-    if let Err(e) = extract_watch_auth(&state, &headers) {
+    if let Err(e) = extract_any_auth(&state, &headers) {
         return e.into_response();
     }
     let db_path = match &state.session_db_path {
@@ -440,14 +457,18 @@ async fn watch_dispatch(
     headers: axum::http::HeaderMap,
     Json(req): Json<WatchDispatchRequest>,
 ) -> impl IntoResponse {
-    let device_id = match extract_watch_auth(&state, &headers) {
+    // Accept Watch-Token (watch/wear) OR Bearer (phone apps)
+    let device_id = match extract_any_auth(&state, &headers) {
         Ok(id) => id,
         Err(e) => return e.into_response(),
     };
-    // Replay check
-    if let Err(e) = state.nonces.check_and_record(&req.nonce, req.timestamp) {
-        return (StatusCode::UNPROCESSABLE_ENTITY,
-            Json(serde_json::json!({"error": e.to_string()}))).into_response();
+    // Bearer callers skip nonce/replay check (stateless API token is sufficient)
+    let is_bearer = device_id == "bearer";
+    if !is_bearer {
+        if let Err(e) = state.nonces.check_and_record(&req.nonce, req.timestamp) {
+            return (StatusCode::UNPROCESSABLE_ENTITY,
+                Json(serde_json::json!({"error": e.to_string()}))).into_response();
+        }
     }
     // Validate content
     let content = req.content.trim().to_string();

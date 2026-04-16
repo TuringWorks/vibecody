@@ -13,6 +13,7 @@ package com.vibecody.wear
 import android.content.Context
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import okhttp3.*
@@ -97,6 +98,48 @@ class WearNetworkManager(
         JSONObject(resp.body?.string() ?: "{}")
     }
 
+    // ── Active session (Google Docs-style sync) ───────────────────────────────
+
+    /** Tell the daemon which session this device is currently viewing. */
+    suspend fun setActiveSession(sessionId: String) = withContext(Dispatchers.IO) {
+        try {
+            val body = JSONObject().put("session_id", sessionId).toString()
+                .toRequestBody("application/json".toMediaType())
+            val req = watchRequest("${auth.daemonUrl}/watch/active-session")
+                .put(body)
+                .build()
+            client.newCall(req).awaitResponse()
+        } catch (e: Exception) {
+            Log.w(TAG, "setActiveSession failed (ignored): ${e.message}")
+        }
+    }
+
+    /** Poll the daemon for the active session on VibeUI (for auto-switching). */
+    suspend fun getActiveSession(): String? = withContext(Dispatchers.IO) {
+        try {
+            val req = watchRequest("${auth.daemonUrl}/watch/active-session").get().build()
+            val resp = client.newCall(req).awaitResponse()
+            JSONObject(resp.body?.string() ?: "{}").optString("session_id").takeIf { it.isNotEmpty() }
+        } catch (e: Exception) {
+            Log.w(TAG, "getActiveSession failed: ${e.message}")
+            null
+        }
+    }
+
+    // ── Sandbox chat session ──────────────────────────────────────────────────
+
+    /** Fetch the VibeUI sandbox chat session ID so Sandbox tab shows the AI Chat card. */
+    suspend fun getSandboxChatSession(): String? = withContext(Dispatchers.IO) {
+        try {
+            val req = watchRequest("${auth.daemonUrl}/watch/sandbox/chat-session").get().build()
+            val resp = client.newCall(req).awaitResponse()
+            JSONObject(resp.body?.string() ?: "{}").optString("session_id").takeIf { it.isNotEmpty() }
+        } catch (e: Exception) {
+            Log.w(TAG, "getSandboxChatSession failed: ${e.message}")
+            null
+        }
+    }
+
     // ── Dispatch ──────────────────────────────────────────────────────────────
 
     suspend fun dispatch(content: String, sessionId: String? = null, provider: String? = null): JSONObject =
@@ -116,6 +159,37 @@ class WearNetworkManager(
                 .build()
             val resp = client.newCall(req).awaitResponse()
             JSONObject(resp.body?.string() ?: "{}")
+        }
+
+    // ── Poll for response (reliable fallback / complement to SSE) ─────────────
+
+    /**
+     * Poll every 1 second until the session has a new assistant message
+     * (status = "complete" or "failed").  Returns the full message list.
+     * Times out after [timeoutSeconds] (default 60).
+     */
+    suspend fun pollForResponse(sessionId: String, timeoutSeconds: Int = 60): List<WearMessage> =
+        withContext(Dispatchers.IO) {
+            var elapsed = 0
+            while (elapsed < timeoutSeconds) {
+                try {
+                    val resp = getMessages(sessionId)
+                    val arr = resp.optJSONArray("messages")
+                    val msgs = buildList {
+                        if (arr != null) for (i in 0 until arr.length()) {
+                            val m = arr.getJSONObject(i)
+                            add(WearMessage(m.getLong("id"), m.getString("role"), m.getString("content")))
+                        }
+                    }
+                    val status = resp.optString("status", "running")
+                    val hasAssistant = msgs.any { it.role == "assistant" }
+                    val isDone = status == "complete" || status == "failed"
+                    if (hasAssistant && isDone) return@withContext msgs
+                } catch (_: Exception) {}
+                delay(1_000)
+                elapsed += 1
+            }
+            emptyList()
         }
 
     // ── SSE streaming ─────────────────────────────────────────────────────────
@@ -177,10 +251,6 @@ class WearNetworkManager(
 
     // ── Data Layer relay (offline fallback) ───────────────────────────────────
 
-    /**
-     * Send a dispatch request via the paired Android phone's Wearable Data Layer
-     * when the watch has no direct network access.
-     */
     fun relayDispatchViaPhone(
         context: Context,
         content: String,

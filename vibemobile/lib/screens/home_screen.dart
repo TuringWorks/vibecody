@@ -4,11 +4,12 @@ import '../services/notification_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/handoff_banner.dart';
 import 'machines_screen.dart';
-import 'chat_screen.dart';
+import 'watch_chat_screen.dart';
+import 'sandbox_chat_screen.dart';
 import 'sessions_screen.dart';
 import 'settings_screen.dart';
 
-/// Main screen with bottom navigation: Machines, Chat, Sessions, Settings.
+/// Main screen with bottom navigation: Machines, Chat, Sandbox, Sessions, Settings.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -21,7 +22,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final _screens = const [
     MachinesScreen(),
-    ChatScreen(),
+    WatchChatScreen(),
+    SandboxChatScreen(),
     SessionsScreen(),
     SettingsScreen(),
   ];
@@ -55,6 +57,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 icon: const Icon(Icons.chat_bubble_outline_rounded),
                 selectedIcon: Icon(Icons.chat_bubble_rounded, color: c.accentBlue),
                 label: 'Chat',
+              ),
+              NavigationDestination(
+                icon: const Icon(Icons.terminal_rounded),
+                selectedIcon: Icon(Icons.terminal_rounded, color: c.accentBlue),
+                label: 'Sandbox',
               ),
               NavigationDestination(
                 icon: Badge(
