@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { FolderOpen, RefreshCw, File, Folder, ChevronRight, ChevronDown, Shield } from "lucide-react";
@@ -54,6 +54,28 @@ export function SandboxChatPanel({ provider: initialProvider, availableProviders
   const [dirError, setDirError] = useState<string | null>(null);
   const [autoApprove, setAutoApprove] = useState(true);
   const [writeLog, setWriteLog] = useState<string[]>([]);
+
+  // ── Stable sandbox session ID for Watch sync ──────────────────────────────
+  // Derive a deterministic session ID from the sandbox path using FNV-1a hash,
+  // so messages are persisted to sessions.db and visible on the Watch.
+  const sandboxSessionId = useMemo<string | undefined>(() => {
+    if (!sandboxPath) return undefined;
+    let h = 0x811c9dc5;
+    for (let i = 0; i < sandboxPath.length; i++) {
+      h ^= sandboxPath.charCodeAt(i);
+      h = Math.imul(h, 0x01000193) >>> 0;
+    }
+    return `sbx-${h.toString(16).padStart(8, '0')}`;
+  }, [sandboxPath]);
+
+  // Notify daemon so Watch can navigate to this sandbox session
+  useEffect(() => {
+    invoke('watch_set_sandbox_chat_session', { sessionId: sandboxSessionId ?? null }).catch(() => {});
+    return () => {
+      // Clear sandbox session when panel unmounts
+      invoke('watch_set_sandbox_chat_session', { sessionId: null }).catch(() => {});
+    };
+  }, [sandboxSessionId]);
 
   // ── Directory loading ──────────────────────────────────────────────────────
 
@@ -222,6 +244,8 @@ export function SandboxChatPanel({ provider: initialProvider, availableProviders
               pinnedMemory={pinnedMemory}
               context={`Sandbox: ${sandboxPath}`}
               onPendingWrite={handlePendingWrite}
+              sessionId={sandboxSessionId}
+              sessionTitle={sandboxPath ? `Sandbox: ${sandboxPath.split('/').pop()}` : 'Sandbox'}
             />
           )}
         </div>

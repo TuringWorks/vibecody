@@ -47,6 +47,15 @@ final class WatchNetworkManager: NSObject, ObservableObject {
         }
     }
 
+    // MARK: - Fetch a single session summary by ID
+
+    func fetchSessionSummary(sessionId: String) async throws -> WatchSessionSummary? {
+        let token = try await auth.validAccessToken()
+        let url = URL(string: "\(auth.endpoint)/watch/sessions")!
+        let result: WatchSessionsResponse = try await getJSON(url: url, token: token)
+        return result.sessions.first { $0.session_id == sessionId }
+    }
+
     // MARK: - Messages for a session
 
     func loadMessages(sessionId: String) async throws -> [WatchMessage] {

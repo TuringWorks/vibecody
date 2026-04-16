@@ -10,40 +10,108 @@ struct SandboxStatusView: View {
     @State private var sandboxes: [WatchSandboxStatus] = []
     @State private var isLoading = false
     @State private var error: String?
+    @State private var sandboxChatSession: WatchSessionSummary? = nil
     private let timer = Timer.publish(every: 10, on: .main, in: .common).autoconnect()
 
     var body: some View {
         NavigationStack {
-            Group {
-                if isLoading && sandboxes.isEmpty {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if sandboxes.isEmpty {
-                    VStack(spacing: 8) {
-                        Image(systemName: "shippingbox")
-                            .font(.title2)
-                            .foregroundStyle(.secondary)
-                        Text("No active sandboxes")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                } else {
-                    ScrollView {
-                        LazyVStack(spacing: 10) {
-                            ForEach(sandboxes) { sandbox in
-                                SandboxCard(sandbox: sandbox, onControl: { action in
-                                    Task { await sendControl(sandboxId: sandbox.container_id, action: action) }
-                                })
+            ScrollView {
+                VStack(spacing: 10) {
+                    // AI Chat row — shows when VibeUI Sandbox chat is active
+                    if let chatSession = sandboxChatSession {
+                        NavigationLink(destination: ConversationView(session: chatSession)) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "bubble.left.and.text.bubble.right")
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(.blue)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("AI Chat")
+                                        .font(.system(size: 12, weight: .medium))
+                                    Text(chatSession.task_preview.isEmpty ? "Sandbox conversation" : chatSession.task_preview)
+                                        .font(.system(size: 10))
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(.secondary)
                             }
+                            .padding(10)
+                            .background(Color.blue.opacity(0.12))
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
                         }
-                        .padding(.horizontal, 4)
+                        .buttonStyle(.plain)
+                    }
+
+                    // Container list
+                    if isLoading && sandboxes.isEmpty {
+                        ProgressView()
+                            .frame(maxWidth: .infinity, minHeight: 60)
+                    } else if sandboxes.isEmpty {
+                        VStack(spacing: 8) {
+                            Image(systemName: "shippingbox")
+                                .font(.title2)
+                                .foregroundStyle(.secondary)
+                            Text("No active sandboxes")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 60)
+                    } else {
+                        ForEach(sandboxes) { sandbox in
+                            SandboxCard(sandbox: sandbox, onControl: { action in
+                                Task { await sendControl(sandboxId: sandbox.container_id, action: action) }
+                            })
+                        }
                     }
                 }
+                .padding(.horizontal, 4)
+                .padding(.vertical, 6)
             }
             .navigationTitle("Sandbox")
         }
-        .task { await loadSandboxes() }
-        .onReceive(timer) { _ in Task { await loadSandboxes() } }
+        .task {
+            await loadSandboxChatSession()
+            await loadSandboxes()
+        }
+        .onReceive(timer) { _ in Task {
+            await loadSandboxChatSession()
+            await loadSandboxes()
+        }}
+    }
+
+    private func loadSandboxChatSession() async {
+        guard WatchAuthManager.shared.isPaired,
+              let token = try? await WatchAuthManager.shared.validAccessToken() else { return }
+        let url = URL(string: "\(WatchAuthManager.shared.endpoint)/watch/sandbox/chat-session")!
+        var req = URLRequest(url: url)
+        req.setValue("Watch-Token \(token)", forHTTPHeaderField: "Authorization")
+        guard let (data, _) = try? await URLSession.shared.data(for: req),
+              let json = try? JSONDecoder().decode(SandboxChatSessionResponse.self, from: data),
+              let sid = json.session_id else {
+            await MainActor.run { sandboxChatSession = nil }
+            return
+        }
+        // Fetch session summary so ConversationView gets the full model
+        guard let summary = try? await network.fetchSessionSummary(sessionId: sid) else {
+            // Build a minimal stub so navigation still works
+            let stub = WatchSessionSummary(
+                session_id: sid,
+                task_preview: "Sandbox Chat",
+                status: "running",
+                provider: "",
+                model: "",
+                message_count: 0,
+                step_count: 0,
+                started_at: 0,
+                last_activity: Date().timeIntervalSince1970,
+                last_message_preview: ""
+            )
+            await MainActor.run { sandboxChatSession = stub }
+            return
+        }
+        await MainActor.run { sandboxChatSession = summary }
     }
 
     private func loadSandboxes() async {
@@ -233,10 +301,14 @@ struct FullOutputView: View {
     }
 }
 
-// MARK: - Response envelope
+// MARK: - Response envelopes
 
 private struct SandboxListResponse: Codable {
     let sandboxes: [WatchSandboxStatus]
+}
+
+private struct SandboxChatSessionResponse: Codable {
+    let session_id: String?
 }
 
 // WatchSandboxControlRequest is defined in Models.swift

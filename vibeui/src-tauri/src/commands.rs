@@ -3482,6 +3482,74 @@ pub async fn watch_get_active_session() -> Result<serde_json::Value, String> {
     }
 }
 
+/// Get the current sandbox chat session ID from the daemon.
+/// Watch reads this so it can navigate to the sandbox conversation.
+#[tauri::command]
+pub async fn watch_get_sandbox_chat_session() -> Result<serde_json::Value, String> {
+    let token_path = dirs::home_dir()
+        .ok_or("HOME not found")?
+        .join(".vibecli")
+        .join("daemon.token");
+    let token = std::fs::read_to_string(&token_path)
+        .unwrap_or_default()
+        .trim()
+        .to_string();
+    if token.is_empty() {
+        return Ok(serde_json::json!({"session_id": null}));
+    }
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(2))
+        .build()
+        .map_err(|e| e.to_string())?;
+    match client
+        .get("http://localhost:7878/watch/sandbox/chat-session")
+        .header("Authorization", format!("Bearer {}", token))
+        .send()
+        .await
+    {
+        Ok(resp) if resp.status().is_success() => {
+            let json: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
+            Ok(json)
+        }
+        _ => Ok(serde_json::json!({"session_id": null})),
+    }
+}
+
+/// Notify the daemon that VibeUI's sandbox chat session has changed.
+/// The Watch polls this to navigate to the correct conversation.
+#[tauri::command]
+pub async fn watch_set_sandbox_chat_session(session_id: Option<String>) -> Result<serde_json::Value, String> {
+    let token_path = dirs::home_dir()
+        .ok_or("HOME not found")?
+        .join(".vibecli")
+        .join("daemon.token");
+    let token = std::fs::read_to_string(&token_path)
+        .unwrap_or_default()
+        .trim()
+        .to_string();
+    if token.is_empty() {
+        return Ok(serde_json::json!({"ok": false, "error": "daemon not running"}));
+    }
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(2))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let body = serde_json::json!({"session_id": session_id});
+    match client
+        .put("http://localhost:7878/watch/sandbox/chat-session")
+        .header("Authorization", format!("Bearer {}", token))
+        .json(&body)
+        .send()
+        .await
+    {
+        Ok(resp) if resp.status().is_success() => {
+            Ok(serde_json::json!({"ok": true}))
+        }
+        Ok(resp) => Ok(serde_json::json!({"ok": false, "status": resp.status().as_u16()})),
+        Err(e) => Ok(serde_json::json!({"ok": false, "error": e.to_string()})),
+    }
+}
+
 /// Poll sessions.db for messages in a session, optionally only returning rows
 /// with id > after_id. Used by VibeUI to pick up Watch-originated messages.
 #[tauri::command]

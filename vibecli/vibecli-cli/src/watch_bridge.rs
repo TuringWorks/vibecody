@@ -75,6 +75,9 @@ pub struct WatchBridgeState {
     /// Broadcast channel for real-time session events.
     /// Payloads: {"type":"session_updated","session_id":"..."} etc.
     pub session_events: Arc<tokio::sync::broadcast::Sender<serde_json::Value>>,
+    /// Sandbox chat session ID (set via PUT /watch/sandbox/chat-session by VibeUI).
+    /// Watch reads this to navigate to the sandbox conversation.
+    pub sandbox_chat_session: Arc<Mutex<Option<String>>>,
 }
 
 impl WatchBridgeState {
@@ -103,6 +106,7 @@ impl WatchBridgeState {
             provider_name: provider_name.into(),
             active_session: Arc::new(Mutex::new(None)),
             session_events: Arc::new(ev_tx),
+            sandbox_chat_session: Arc::new(Mutex::new(None)),
         })
     }
 
@@ -152,6 +156,7 @@ pub fn build_watch_router(state: WatchBridgeState) -> Router {
         .route("/dispatch",         post(watch_dispatch))
         .route("/active-session",   get(watch_get_active_session).put(watch_set_active_session))
         .route("/events",           get(watch_session_events_sse))
+        .route("/sandbox/chat-session", get(watch_get_sandbox_chat_session).put(watch_set_sandbox_chat_session))
         .route("/devices",          get(watch_list_devices))
         .route("/devices/:id",      delete(watch_revoke_device))
         .with_state(state)
@@ -623,6 +628,57 @@ async fn watch_session_events_sse(
                 .text("ping"),
         )
         .into_response()
+}
+
+// ── Sandbox chat session tracking ────────────────────────────────────────────
+
+/// GET /watch/sandbox/chat-session — returns the VibeUI sandbox chat session ID.
+/// Watch reads this on the Sandbox tab to navigate to the matching conversation.
+/// Auth: Bearer (VibeUI/daemon) OR Watch-Token (Watch device).
+async fn watch_get_sandbox_chat_session(
+    State(state): State<WatchBridgeState>,
+    headers: axum::http::HeaderMap,
+) -> impl IntoResponse {
+    let authed = extract_watch_auth(&state, &headers).is_ok()
+        || headers.get("Authorization")
+               .and_then(|v| v.to_str().ok())
+               .map_or(false, |v| v == format!("Bearer {}", state.api_token));
+    if !authed {
+        return (StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({"error": "Auth required"}))).into_response();
+    }
+    let sid = state.sandbox_chat_session.lock().unwrap_or_else(|e| e.into_inner()).clone();
+    Json(serde_json::json!({"session_id": sid})).into_response()
+}
+
+#[derive(serde::Deserialize)]
+struct SetSandboxChatSessionRequest { session_id: Option<String> }
+
+/// PUT /watch/sandbox/chat-session — VibeUI notifies the daemon which sandbox
+/// chat session is active so the Watch can navigate to it.
+/// Auth: Bearer only (VibeUI sets this, Watch reads it).
+async fn watch_set_sandbox_chat_session(
+    State(state): State<WatchBridgeState>,
+    headers: axum::http::HeaderMap,
+    Json(req): Json<SetSandboxChatSessionRequest>,
+) -> impl IntoResponse {
+    let bearer = headers
+        .get("Authorization")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
+    // Accept both Bearer (VibeUI) and Watch-Token (Watch UI) so either surface can set it
+    let authed = bearer == format!("Bearer {}", state.api_token)
+        || extract_watch_auth(&state, &headers).is_ok();
+    if !authed {
+        return (StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({"error": "Auth required"}))).into_response();
+    }
+    *state.sandbox_chat_session.lock().unwrap_or_else(|e| e.into_inner()) = req.session_id.clone();
+    let _ = state.session_events.send(serde_json::json!({
+        "type": "sandbox_chat_session_changed",
+        "session_id": req.session_id,
+    }));
+    Json(serde_json::json!({"ok": true})).into_response()
 }
 
 /// GET /watch/devices — list registered watch devices (requires bearer token).
