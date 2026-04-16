@@ -3448,6 +3448,40 @@ fn write_to_session_store(
     let _ = store.finish_session(&sid, "complete", None);
 }
 
+/// Query the running vibecli daemon for which session the Watch is viewing.
+/// Returns {"session_id": "tab-1"} or {"session_id": null} when none set.
+#[tauri::command]
+pub async fn watch_get_active_session() -> Result<serde_json::Value, String> {
+    // Read the daemon API token
+    let token_path = dirs::home_dir()
+        .ok_or("HOME not found")?
+        .join(".vibecli")
+        .join("daemon.token");
+    let token = std::fs::read_to_string(&token_path)
+        .unwrap_or_default()
+        .trim()
+        .to_string();
+    if token.is_empty() {
+        return Ok(serde_json::json!({"session_id": null}));
+    }
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(2))
+        .build()
+        .map_err(|e| e.to_string())?;
+    match client
+        .get("http://localhost:7878/watch/active-session")
+        .header("Authorization", format!("Bearer {}", token))
+        .send()
+        .await
+    {
+        Ok(resp) if resp.status().is_success() => {
+            let json: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
+            Ok(json)
+        }
+        _ => Ok(serde_json::json!({"session_id": null})),
+    }
+}
+
 /// Poll sessions.db for messages in a session, optionally only returning rows
 /// with id > after_id. Used by VibeUI to pick up Watch-originated messages.
 #[tauri::command]

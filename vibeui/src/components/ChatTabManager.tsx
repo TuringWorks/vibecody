@@ -4,6 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { AIChat, Message } from "./AIChat";
 import { ChatMemoryPanel } from "./ChatMemoryPanel";
 import { useSessionMemory } from "../hooks/useSessionMemory";
+import { useWatchActiveSession } from "../hooks/useWatchSync";
 
 interface ChatTab {
     id: string;
@@ -108,6 +109,15 @@ export function ChatTabManager({
         { id: "tab-1", title: nextAdventureName(), provider: defaultProvider, manualOverride: false },
     ]);
     const [activeTabId, setActiveTabId] = useState("tab-1");
+
+    // Google Docs-style sync: when Watch switches to a session, VibeUI follows.
+    useWatchActiveSession((watchSessionId) => {
+        // Only switch if the session exists as a tab
+        if (tabs.some(t => t.id === watchSessionId)) {
+            setActiveTabId(watchSessionId);
+        }
+    });
+
     const [showHistory, setShowHistory] = useState(false);
     const [showMemoryDialog, setShowMemoryDialog] = useState(false);
     const [history, setHistory] = useState<ChatSession[]>(loadHistory);

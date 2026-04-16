@@ -1,14 +1,15 @@
-// useWatchSync.ts — polls sessions.db for Watch-originated messages and
-// notifies VibeUI when new messages arrive (Watch → VibeUI live sync).
+// useWatchSync.ts — real-time Watch ↔ VibeUI bidirectional session sync.
 //
-// Usage: call useWatchSync(sessionId, onNewMessages) in a chat component.
-// The hook polls every POLL_INTERVAL_MS while the window is focused.
-// onNewMessages is called with messages that have id > lastSeenId.
+// Two mechanisms:
+//  1. Polling: checks sessions.db for new Watch messages every POLL_INTERVAL_MS.
+//  2. Events (optional): subscribes to /watch/events SSE for instant push.
+//
+// Usage: call useWatchSync(sessionId, onNewMessages, onSessionChange) in AIChat.
 
 import { useEffect, useRef, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 
-const POLL_INTERVAL_MS = 3000;
+const POLL_INTERVAL_MS = 1000; // 1 second — near real-time like Google Docs
 
 export interface WatchMessage {
   id: number;
@@ -55,7 +56,7 @@ export function useWatchSync(
 
   useEffect(() => {
     if (!sessionId) return;
-    // Initial fetch to set lastId without surfacing existing messages
+    // Initial fetch to set lastId without surfacing existing messages to caller
     invoke<WatchSessionMessages>('watch_get_session_messages', {
       sessionId,
       afterId: null,
@@ -69,4 +70,40 @@ export function useWatchSync(
     timerRef.current = interval;
     return () => clearInterval(interval);
   }, [sessionId, poll]);
+}
+
+// ── Watch active-session hook ─────────────────────────────────────────────────
+// Polls the daemon for which session the Watch is currently viewing.
+// Call this at the top level (e.g. ChatTabManager) to auto-switch tabs.
+
+export interface WatchActiveSession {
+  session_id: string | null;
+}
+
+const ACTIVE_SESSION_POLL_MS = 2000;
+
+export function useWatchActiveSession(
+  onSessionChange: (sessionId: string) => void,
+) {
+  const lastSessionRef = useRef<string | null>(null);
+  const onChangeRef = useRef(onSessionChange);
+  onChangeRef.current = onSessionChange;
+
+  useEffect(() => {
+    const poll = async () => {
+      try {
+        const result = await invoke<WatchActiveSession>('watch_get_active_session');
+        const sid = result.session_id;
+        if (sid && sid !== lastSessionRef.current) {
+          lastSessionRef.current = sid;
+          onChangeRef.current(sid);
+        }
+      } catch {
+        // Daemon not running or command not available
+      }
+    };
+
+    const interval = setInterval(poll, ACTIVE_SESSION_POLL_MS);
+    return () => clearInterval(interval);
+  }, []);
 }

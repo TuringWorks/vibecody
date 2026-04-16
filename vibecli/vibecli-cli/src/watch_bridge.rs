@@ -69,6 +69,12 @@ pub struct WatchBridgeState {
     pub provider: Option<Arc<dyn AIProvider>>,
     /// Human-readable provider name (e.g. "claude", "ollama").
     pub provider_name: String,
+    /// Currently active session on Watch (set via PUT /watch/active-session).
+    /// Used so VibeUI can sync to the same session the Watch is viewing.
+    pub active_session: Arc<Mutex<Option<String>>>,
+    /// Broadcast channel for real-time session events.
+    /// Payloads: {"type":"session_updated","session_id":"..."} etc.
+    pub session_events: Arc<tokio::sync::broadcast::Sender<serde_json::Value>>,
 }
 
 impl WatchBridgeState {
@@ -83,6 +89,7 @@ impl WatchBridgeState {
     ) -> anyhow::Result<Self> {
         let machine_id = machine_id.into();
         let auth = WatchAuthManager::new(&machine_id)?;
+        let (ev_tx, _) = tokio::sync::broadcast::channel(256);
         Ok(Self {
             api_token: api_token.into(),
             streams,
@@ -94,6 +101,8 @@ impl WatchBridgeState {
             session_db_path,
             provider,
             provider_name: provider_name.into(),
+            active_session: Arc::new(Mutex::new(None)),
+            session_events: Arc::new(ev_tx),
         })
     }
 
@@ -141,6 +150,8 @@ pub fn build_watch_router(state: WatchBridgeState) -> Router {
         .route("/sessions/:id/messages", get(watch_session_messages))
         .route("/stream/:id",       get(watch_stream))
         .route("/dispatch",         post(watch_dispatch))
+        .route("/active-session",   get(watch_get_active_session).put(watch_set_active_session))
+        .route("/events",           get(watch_session_events_sse))
         .route("/devices",          get(watch_list_devices))
         .route("/devices/:id",      delete(watch_revoke_device))
         .with_state(state)
@@ -531,12 +542,87 @@ async fn watch_dispatch(
         }
     });
 
+    // Broadcast session_updated so VibeUI clients on /watch/events know immediately
+    let _ = state.session_events.send(serde_json::json!({
+        "type": "session_updated",
+        "session_id": session_id,
+        "source": "watch",
+    }));
+
     let streaming_url = format!("/watch/stream/{}", session_id);
     Json(serde_json::json!({
         "session_id": session_id,
         "message_id": 0,
         "streaming_url": streaming_url,
     })).into_response()
+}
+
+// ── Active session tracking ────────────────────────────────────────────────────
+
+/// GET /watch/active-session — returns the session Watch is currently viewing.
+/// VibeUI subscribes to this so both surfaces stay on the same session.
+async fn watch_get_active_session(
+    State(state): State<WatchBridgeState>,
+    headers: axum::http::HeaderMap,
+) -> impl IntoResponse {
+    // Allow both Watch-Token and Bearer auth so VibeUI can poll this too
+    let authed = extract_watch_auth(&state, &headers).is_ok()
+        || headers.get("Authorization")
+               .and_then(|v| v.to_str().ok())
+               .map_or(false, |v| v == format!("Bearer {}", state.api_token));
+    if !authed {
+        return (StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({"error": "Auth required"}))).into_response();
+    }
+    let sid = state.active_session.lock().unwrap_or_else(|e| e.into_inner()).clone();
+    Json(serde_json::json!({"session_id": sid})).into_response()
+}
+
+#[derive(serde::Deserialize)]
+struct SetActiveSessionRequest { session_id: String }
+
+/// PUT /watch/active-session — Watch sets which session it's currently viewing.
+async fn watch_set_active_session(
+    State(state): State<WatchBridgeState>,
+    headers: axum::http::HeaderMap,
+    Json(req): Json<SetActiveSessionRequest>,
+) -> impl IntoResponse {
+    if let Err(e) = extract_watch_auth(&state, &headers) {
+        return e.into_response();
+    }
+    *state.active_session.lock().unwrap_or_else(|e| e.into_inner()) = Some(req.session_id.clone());
+    // Notify VibeUI that the Watch switched sessions
+    let _ = state.session_events.send(serde_json::json!({
+        "type": "watch_session_changed",
+        "session_id": req.session_id,
+    }));
+    Json(serde_json::json!({"ok": true})).into_response()
+}
+
+/// GET /watch/events — SSE stream of real-time session events.
+/// VibeUI Tauri backend subscribes here so it gets instant push when Watch
+/// sends a message or changes session. No auth required (daemon-local use).
+async fn watch_session_events_sse(
+    State(state): State<WatchBridgeState>,
+) -> impl IntoResponse {
+    use std::convert::Infallible;
+    let rx = state.session_events.subscribe();
+    let stream = tokio_stream::wrappers::BroadcastStream::new(rx)
+        .filter_map(|item| {
+            item.ok().map(|payload| {
+                let data = serde_json::to_string(&payload).unwrap_or_default();
+                Ok::<axum::response::sse::Event, Infallible>(
+                    axum::response::sse::Event::default().data(data)
+                )
+            })
+        });
+    Sse::new(stream)
+        .keep_alive(
+            axum::response::sse::KeepAlive::new()
+                .interval(std::time::Duration::from_secs(15))
+                .text("ping"),
+        )
+        .into_response()
 }
 
 /// GET /watch/devices — list registered watch devices (requires bearer token).

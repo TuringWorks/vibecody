@@ -92,7 +92,23 @@ struct ConversationView: View {
                 }
             }
         }
-        .task { await loadMessages() }
+        .task {
+        // Tell daemon which session we're viewing (so VibeUI can sync to same session)
+        await network.setActiveSession(session.session_id)
+        await loadMessages()
+    }
+    .task {
+        // Real-time sync loop — polls for new messages every 2 s while visible.
+        // Picks up messages sent from VibeUI on the desktop (Google Docs style).
+        while !Task.isCancelled {
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            guard !network.isStreaming else { continue }
+            let updated = (try? await network.loadMessages(sessionId: session.session_id)) ?? []
+            if updated.count > messages.count {
+                messages = updated
+            }
+        }
+    }
     }
 
     // MARK: - Load messages

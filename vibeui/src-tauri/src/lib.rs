@@ -1044,6 +1044,7 @@ pub fn run() {
             commands::list_watch_devices,
             commands::revoke_watch_device,
             commands::watch_get_session_messages,
+            commands::watch_get_active_session,
             commands::profile_provider_config_set,
             commands::profile_provider_config_get,
             commands::profile_provider_config_get_all,

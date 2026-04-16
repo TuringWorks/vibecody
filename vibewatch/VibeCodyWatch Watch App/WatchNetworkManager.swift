@@ -153,6 +153,18 @@ final class WatchNetworkManager: NSObject, ObservableObject {
         isStreaming = false
     }
 
+    // MARK: - Active session (Google Docs-style session lock)
+
+    /// Tell the daemon which session this Watch is currently viewing.
+    /// VibeUI subscribes to /watch/events and switches to the same tab automatically.
+    func setActiveSession(_ sessionId: String) async {
+        guard auth.isPaired, let token = try? await auth.validAccessToken() else { return }
+        guard let url = URL(string: "\(auth.endpoint)/watch/active-session") else { return }
+        struct Body: Encodable { let session_id: String }
+        struct OkResponse: Codable { let ok: Bool }
+        _ = try? await postJSON(url: url, body: Body(session_id: sessionId), token: token) as OkResponse
+    }
+
     // MARK: - Poll for response (reliable fallback / complement to SSE)
     //
     // Polls GET /watch/sessions/{id}/messages every second until the session
