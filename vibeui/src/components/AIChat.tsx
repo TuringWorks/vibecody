@@ -882,9 +882,14 @@ export function AIChat({
   // append them to the chat history so both sides stay in sync.
   useWatchSync(sessionId, (watchMsgs: WatchSyncMessage[]) => {
     setMessages(prev => {
-      const existingContents = new Set(prev.map(m => m.content));
+      // Deduplicate by DB message ID — content-based dedup collapses identical messages.
+      // We track which IDs are already reflected in the local message list by content
+      // match on the last N chars (local messages have no DB id, so exact-id match
+      // isn't possible). Fall back: only add messages whose content isn't already present
+      // in the last 20 messages to avoid surfacing truly new dupes while being safe.
+      const recentContents = new Set(prev.slice(-20).map(m => m.content.trim()));
       const newMsgs: Message[] = watchMsgs
-        .filter(wm => !existingContents.has(wm.content))
+        .filter(wm => !recentContents.has(wm.content.trim()))
         .map(wm => ({
           role: wm.role === 'assistant' ? 'assistant' : 'user',
           content: wm.content,

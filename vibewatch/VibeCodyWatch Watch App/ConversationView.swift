@@ -104,7 +104,10 @@ struct ConversationView: View {
             try? await Task.sleep(nanoseconds: 2_000_000_000)
             guard !network.isStreaming else { continue }
             let updated = (try? await network.loadMessages(sessionId: session.session_id)) ?? []
-            if updated.count > messages.count {
+            // Update if any new message ID is higher than what we already have
+            let localMaxId  = messages.map(\.id).max() ?? 0
+            let remoteMaxId = updated.map(\.id).max() ?? 0
+            if remoteMaxId > localMaxId {
                 messages = updated
             }
         }
