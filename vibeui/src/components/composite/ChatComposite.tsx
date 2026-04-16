@@ -1,5 +1,6 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useState } from "react";
 import { TabbedPanel } from "../TabbedPanel";
+import { useWatchActiveSession } from "../../hooks/useWatchSync";
 
 const Loading = () => (
   <div style={{ padding: 16, color: "var(--text-secondary)", fontSize: "var(--font-size-md)" }}>Loading...</div>
@@ -29,8 +30,21 @@ export function ChatComposite({
   currentFile,
   onPendingWrite,
 }: ChatCompositeProps) {
+  const [activeTab, setActiveTab] = useState("chat");
+
+  // When Watch opens a sandbox conversation, auto-switch VibeUI to the Sandbox tab.
+  // Sandbox session IDs start with "sbx-" (derived from sandbox path hash).
+  useWatchActiveSession((watchSessionId) => {
+    if (watchSessionId.startsWith('sbx-')) {
+      setActiveTab('sandbox');
+    }
+    // Regular session switching is handled inside ChatTabManager
+  });
+
   return (
     <TabbedPanel
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
       tabs={[
         {
           id: "chat",
