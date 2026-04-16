@@ -14,11 +14,15 @@ import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.wear.compose.material.*
 import kotlinx.coroutines.*
 import okhttp3.MediaType.Companion.toMediaType
@@ -32,6 +36,8 @@ fun PairingScreen(auth: WearAuthManager, onPaired: () -> Unit) {
     var status by remember { mutableStateOf("Scan QR to pair") }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var showPasteField by remember { mutableStateOf(false) }
+    var pasteJson by remember { mutableStateOf("") }
 
     // QR scanner result launcher
     val qrLauncher = rememberLauncherForActivityResult(
@@ -98,6 +104,97 @@ fun PairingScreen(auth: WearAuthManager, onPaired: () -> Unit) {
             ) {
                 if (busy) CircularProgressIndicator(modifier = Modifier.size(20.dp))
                 else Text("Scan QR")
+            }
+        }
+        item {
+            // Manual paste fallback (for emulators without camera)
+            if (!showPasteField) {
+                CompactButton(
+                    onClick = { showPasteField = true; error = null },
+                    enabled = !busy,
+                    modifier = Modifier.padding(top = 4.dp),
+                ) {
+                    Text("Paste JSON", style = MaterialTheme.typography.caption2)
+                }
+            } else {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                ) {
+                    Text(
+                        "Paste pairing JSON:",
+                        style = MaterialTheme.typography.caption2,
+                        color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
+                        modifier = Modifier.padding(bottom = 4.dp),
+                    )
+                    BasicTextField(
+                        value = pasteJson,
+                        onValueChange = { pasteJson = it },
+                        textStyle = TextStyle(
+                            color = MaterialTheme.colors.onSurface,
+                            fontSize = 10.sp,
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .defaultMinSize(minHeight = 60.dp)
+                            .padding(4.dp),
+                        decorationBox = { inner ->
+                            androidx.compose.foundation.layout.Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(4.dp),
+                            ) {
+                                if (pasteJson.isEmpty()) {
+                                    Text(
+                                        "{\"endpoint\":\"...\"}",
+                                        style = TextStyle(
+                                            color = MaterialTheme.colors.onSurface.copy(alpha = 0.4f),
+                                            fontSize = 10.sp,
+                                        ),
+                                    )
+                                }
+                                inner()
+                            }
+                        },
+                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.padding(top = 4.dp),
+                    ) {
+                        CompactButton(
+                            onClick = {
+                                if (pasteJson.isBlank()) {
+                                    error = "Paste the JSON first"
+                                    return@CompactButton
+                                }
+                                scope.launch {
+                                    busy = true
+                                    error = null
+                                    status = "Registering…"
+                                    try {
+                                        register(auth, pasteJson.trim())
+                                        onPaired()
+                                    } catch (e: Exception) {
+                                        error = e.message ?: "Registration failed"
+                                        status = "Scan QR to pair"
+                                    } finally {
+                                        busy = false
+                                    }
+                                }
+                            },
+                            enabled = !busy,
+                        ) {
+                            if (busy) CircularProgressIndicator(modifier = Modifier.size(16.dp))
+                            else Text("Register", style = MaterialTheme.typography.caption2)
+                        }
+                        CompactButton(
+                            onClick = { showPasteField = false; pasteJson = ""; error = null },
+                            enabled = !busy,
+                        ) {
+                            Text("Cancel", style = MaterialTheme.typography.caption2)
+                        }
+                    }
+                }
             }
         }
     }

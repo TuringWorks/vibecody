@@ -390,10 +390,34 @@ function RevokedSection({ devices }: { devices: WatchDevice[] }) {
 function QRModal({ pairing, onClose }: { pairing: PairingInfo; onClose: () => void }) {
   const payload = JSON.stringify(pairing);
   const expiresIn = Math.max(0, pairing.expires_at - Math.floor(Date.now() / 1000));
+  const [activeTab, setActiveTab] = useState<"qr" | "manual">("qr");
+  const [copied, setCopied] = useState(false);
 
   // Generate a simple QR code URL using a public QR API for display
   // (payload is non-sensitive — nonce + endpoint only, no keys)
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(payload)}`;
+
+  const copyJson = async () => {
+    try {
+      await navigator.clipboard.writeText(payload);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // fallback: select textarea
+    }
+  };
+
+  const tabStyle = (tab: "qr" | "manual") => ({
+    flex: 1,
+    padding: "6px 0",
+    background: activeTab === tab ? "var(--accent-color)" : "var(--bg-secondary)",
+    color: activeTab === tab ? "var(--btn-primary-fg)" : "var(--text-secondary)",
+    border: "1px solid var(--border-color)",
+    borderRadius: tab === "qr" ? "var(--radius-sm) 0 0 var(--radius-sm)" : "0 var(--radius-sm) var(--radius-sm) 0",
+    cursor: "pointer",
+    fontSize: "var(--font-size-xs)",
+    fontWeight: activeTab === tab ? 600 : 400,
+  });
 
   return (
     <div style={{
@@ -407,29 +431,82 @@ function QRModal({ pairing, onClose }: { pairing: PairingInfo; onClose: () => vo
         background: "var(--bg-primary)",
         borderRadius: "var(--radius-lg)",
         padding: "var(--spacing-xl)",
-        width: 280, maxWidth: "90vw",
+        width: 300, maxWidth: "90vw",
         textAlign: "center",
         boxShadow: "0 24px 64px rgba(0,0,0,0.4)",
       }}>
         <h3 style={{ margin: "0 0 var(--spacing-sm)", fontSize: "var(--font-size-md)" }}>
-          Scan with Watch App
+          Pair Watch
         </h3>
-        <p style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", margin: "0 0 var(--spacing-md)" }}>
-          Open VibeCody on your Apple Watch or Wear OS watch and scan this QR code.
-          Valid for {Math.floor(expiresIn / 60)}:{String(expiresIn % 60).padStart(2, "0")}.
-        </p>
-        <div style={{
-          background: "#fff", padding: 8,
-          borderRadius: "var(--radius-sm)",
-          display: "inline-block",
-          marginBottom: "var(--spacing-md)",
-        }}>
-          <img src={qrUrl} alt="Pairing QR" width={180} height={180} />
+
+        {/* Tab switcher */}
+        <div style={{ display: "flex", marginBottom: "var(--spacing-md)" }}>
+          <button style={tabStyle("qr")} onClick={() => setActiveTab("qr")}>QR Code</button>
+          <button style={tabStyle("manual")} onClick={() => setActiveTab("manual")}>Manual</button>
         </div>
-        <p style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", margin: "0 0 var(--spacing-md)" }}>
-          The watch uses its <strong>Secure Enclave</strong> (Apple) or <strong>StrongBox / TEE</strong> (Wear OS)
-          to generate a key pair during pairing. Your private key never leaves the device.
-        </p>
+
+        {activeTab === "qr" && (
+          <>
+            <p style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", margin: "0 0 var(--spacing-md)" }}>
+              Open VibeCody on your Apple Watch or Wear OS watch and scan this QR code.
+              Valid for {Math.floor(expiresIn / 60)}:{String(expiresIn % 60).padStart(2, "0")}.
+            </p>
+            <div style={{
+              background: "#fff", padding: 8,
+              borderRadius: "var(--radius-sm)",
+              display: "inline-block",
+              marginBottom: "var(--spacing-md)",
+            }}>
+              <img src={qrUrl} alt="Pairing QR" width={180} height={180} />
+            </div>
+            <p style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", margin: "0 0 var(--spacing-md)" }}>
+              The watch uses its <strong>Secure Enclave</strong> (Apple) or <strong>StrongBox / TEE</strong> (Wear OS)
+              to generate a key pair during pairing. Your private key never leaves the device.
+            </p>
+          </>
+        )}
+
+        {activeTab === "manual" && (
+          <>
+            <p style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", margin: "0 0 var(--spacing-sm)", textAlign: "left" }}>
+              Copy this JSON and paste it into the watch app's <strong>Manual Pairing</strong> field.
+            </p>
+            <textarea
+              readOnly
+              value={payload}
+              rows={6}
+              style={{
+                width: "100%",
+                fontFamily: "monospace",
+                fontSize: "var(--font-size-xs)",
+                background: "var(--bg-secondary)",
+                color: "var(--text-primary)",
+                border: "1px solid var(--border-color)",
+                borderRadius: "var(--radius-sm)",
+                padding: "var(--spacing-xs)",
+                resize: "none",
+                boxSizing: "border-box",
+                marginBottom: "var(--spacing-sm)",
+              }}
+            />
+            <button
+              onClick={copyJson}
+              style={{
+                width: "100%", padding: "var(--spacing-sm)",
+                background: copied ? "var(--success-color, #22c55e)" : "var(--accent-color)",
+                color: "var(--btn-primary-fg)",
+                border: "none",
+                borderRadius: "var(--radius-sm)",
+                cursor: "pointer", fontSize: "var(--font-size-sm)",
+                fontWeight: 500,
+                marginBottom: "var(--spacing-sm)",
+              }}
+            >
+              {copied ? "Copied!" : "Copy JSON"}
+            </button>
+          </>
+        )}
+
         <button
           onClick={onClose}
           style={{

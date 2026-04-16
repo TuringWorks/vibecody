@@ -1670,6 +1670,11 @@ function App() {
                     {label}
                   </button>
                 ))}
+                <div className="sidebar-section-title" style={{ marginTop: 8 }}>Devices</div>
+                <button className="sidebar-action-item"
+                  onClick={() => { setShowAIChat(true); setAiPanelTab("watch"); }}>
+                  Watch Devices
+                </button>
               </div>
             )}
 
