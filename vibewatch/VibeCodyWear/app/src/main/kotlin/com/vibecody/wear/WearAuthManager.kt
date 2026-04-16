@@ -34,6 +34,7 @@ private const val KEY_REFRESH_TOKEN = "refresh_token"
 private const val KEY_TOKEN_EXPIRES_AT = "token_expires_at"
 private const val KEY_DAEMON_URL = "daemon_url"
 private const val KEY_REGISTERED = "registered"
+private const val KEY_SIMPLE_MODE = "simple_mode"
 
 class WearAuthManager(private val context: Context) {
 
@@ -99,15 +100,30 @@ class WearAuthManager(private val context: Context) {
 
     val isRegistered: Boolean get() = prefs.getBoolean(KEY_REGISTERED, false)
 
+    /** True when paired via URL+token (Bearer) rather than full P256 challenge flow. */
+    val isSimpleMode: Boolean get() = prefs.getBoolean(KEY_SIMPLE_MODE, false)
+
     val deviceId: String get() = prefs.getString(KEY_DEVICE_ID, "") ?: ""
     val daemonUrl: String get() = prefs.getString(KEY_DAEMON_URL, "") ?: ""
 
     val accessToken: String? get() {
         val token = prefs.getString(KEY_ACCESS_TOKEN, null) ?: return null
+        if (isSimpleMode) return token          // Bearer tokens don't expire
         val expiresAt = prefs.getLong(KEY_TOKEN_EXPIRES_AT, 0L)
         return if (System.currentTimeMillis() / 1000 < expiresAt - 30) token else null
     }
     val refreshToken: String? get() = prefs.getString(KEY_REFRESH_TOKEN, null)
+
+    /** Pair via daemon URL + Bearer token — no P256 registration needed. */
+    fun saveSimpleAuth(daemonUrl: String, bearerToken: String) {
+        prefs.edit()
+            .putBoolean(KEY_REGISTERED, true)
+            .putBoolean(KEY_SIMPLE_MODE, true)
+            .putString(KEY_DAEMON_URL, daemonUrl.trimEnd('/'))
+            .putString(KEY_ACCESS_TOKEN, bearerToken)
+            .putString(KEY_DEVICE_ID, "simple-${System.currentTimeMillis()}")
+            .apply()
+    }
 
     fun saveRegistration(
         deviceId: String,

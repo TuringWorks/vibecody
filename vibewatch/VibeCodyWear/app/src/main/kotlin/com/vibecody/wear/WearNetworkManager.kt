@@ -45,6 +45,7 @@ class WearNetworkManager(
     private suspend fun validToken(): String {
         val cached = auth.accessToken
         if (cached != null) return cached
+        if (auth.isSimpleMode) throw IllegalStateException("Bearer token missing — re-pair via URL")
         return refreshAccessToken()
     }
 
@@ -81,9 +82,11 @@ class WearNetworkManager(
 
     private suspend fun watchRequest(url: String): Request.Builder {
         val token = validToken()
+        // Simple mode (URL+Bearer pairing): send Bearer auth — daemon accepts both
+        val authHeader = if (auth.isSimpleMode) "Bearer $token" else "Watch-Token $token"
         return Request.Builder()
             .url(url)
-            .header("Authorization", "Watch-Token $token")
+            .header("Authorization", authHeader)
     }
 
     // ── Sessions ──────────────────────────────────────────────────────────────

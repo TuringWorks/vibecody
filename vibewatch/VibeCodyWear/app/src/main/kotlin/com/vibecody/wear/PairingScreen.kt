@@ -1,24 +1,21 @@
-// PairingScreen.kt — QR-code pairing flow for Wear OS.
+// PairingScreen.kt — Pairing flow for Wear OS.
 //
-// The user scans the QR code shown in the VibeUI "Apple Watch" settings panel
-// (which also covers Wear OS — same /watch/challenge endpoint).  The QR payload
-// contains: endpoint, nonce, machine_id, expires_at, version.
-//
-// On Wear OS the camera scan uses the built-in QR scanner via an implicit
-// intent (supported on Pixel Watch, Galaxy Watch 7+, Fossil Gen 6+).
+// Two options:
+//   1. Scan QR — uses the ZXing intent, performs full P256 challenge registration
+//   2. Enter URL — enter daemon URL + Bearer token directly (simple mode, ideal for emulators)
 
 package com.vibecody.wear
 
-import android.app.Activity
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -33,11 +30,9 @@ import java.util.Base64
 @Composable
 fun PairingScreen(auth: WearAuthManager, onPaired: () -> Unit) {
     val scope = rememberCoroutineScope()
-    var status by remember { mutableStateOf("Scan QR to pair") }
+    var mode by remember { mutableStateOf<PairMode>(PairMode.Choose) }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
-    var showPasteField by remember { mutableStateOf(false) }
-    var pasteJson by remember { mutableStateOf("") }
 
     // QR scanner result launcher
     val qrLauncher = rememberLauncherForActivityResult(
@@ -45,18 +40,10 @@ fun PairingScreen(auth: WearAuthManager, onPaired: () -> Unit) {
     ) { result ->
         val qrData = result.data?.getStringExtra("SCAN_RESULT") ?: return@rememberLauncherForActivityResult
         scope.launch {
-            busy = true
-            error = null
-            status = "Registering…"
-            try {
-                register(auth, qrData)
-                onPaired()
-            } catch (e: Exception) {
-                error = e.message ?: "Registration failed"
-                status = "Scan QR to pair"
-            } finally {
-                busy = false
-            }
+            busy = true; error = null
+            try { register(auth, qrData); onPaired() }
+            catch (e: Exception) { error = e.message ?: "Registration failed" }
+            finally { busy = false }
         }
     }
 
@@ -71,14 +58,7 @@ fun PairingScreen(auth: WearAuthManager, onPaired: () -> Unit) {
                 textAlign = TextAlign.Center,
             )
         }
-        item {
-            Text(
-                status,
-                style = MaterialTheme.typography.body2,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 16.dp),
-            )
-        }
+
         if (error != null) {
             item {
                 Text(
@@ -86,97 +66,98 @@ fun PairingScreen(auth: WearAuthManager, onPaired: () -> Unit) {
                     color = MaterialTheme.colors.error,
                     style = MaterialTheme.typography.caption2,
                     textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(horizontal = 8.dp),
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                 )
             }
         }
-        item {
-            Button(
-                onClick = {
-                    // Launch QR scanner intent (ZXing / Google Code Scanner)
-                    val intent = Intent("com.google.zxing.client.android.SCAN").apply {
-                        putExtra("SCAN_MODE", "QR_CODE_MODE")
-                    }
-                    qrLauncher.launch(intent)
-                },
-                enabled = !busy,
-                modifier = Modifier.padding(top = 8.dp),
-            ) {
-                if (busy) CircularProgressIndicator(modifier = Modifier.size(20.dp))
-                else Text("Scan QR")
-            }
-        }
-        item {
-            // Manual paste fallback (for emulators without camera)
-            if (!showPasteField) {
-                CompactButton(
-                    onClick = { showPasteField = true; error = null },
-                    enabled = !busy,
-                    modifier = Modifier.padding(top = 4.dp),
-                ) {
-                    Text("Paste JSON", style = MaterialTheme.typography.caption2)
-                }
-            } else {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                ) {
+
+        when (val m = mode) {
+            PairMode.Choose -> {
+                item {
                     Text(
-                        "Paste pairing JSON:",
-                        style = MaterialTheme.typography.caption2,
-                        color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
-                        modifier = Modifier.padding(bottom = 4.dp),
+                        "Choose pairing method",
+                        style = MaterialTheme.typography.body2,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                     )
-                    BasicTextField(
-                        value = pasteJson,
-                        onValueChange = { pasteJson = it },
-                        textStyle = TextStyle(
-                            color = MaterialTheme.colors.onSurface,
-                            fontSize = 10.sp,
-                        ),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .defaultMinSize(minHeight = 60.dp)
-                            .padding(4.dp),
-                        decorationBox = { inner ->
-                            androidx.compose.foundation.layout.Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(4.dp),
-                            ) {
-                                if (pasteJson.isEmpty()) {
-                                    Text(
-                                        "{\"endpoint\":\"...\"}",
-                                        style = TextStyle(
-                                            color = MaterialTheme.colors.onSurface.copy(alpha = 0.4f),
-                                            fontSize = 10.sp,
-                                        ),
-                                    )
-                                }
-                                inner()
+                }
+                item {
+                    Button(
+                        onClick = {
+                            val intent = Intent("com.google.zxing.client.android.SCAN").apply {
+                                putExtra("SCAN_MODE", "QR_CODE_MODE")
                             }
+                            qrLauncher.launch(intent)
                         },
-                    )
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        enabled = !busy,
                         modifier = Modifier.padding(top = 4.dp),
                     ) {
-                        CompactButton(
+                        Text("Scan QR")
+                    }
+                }
+                item {
+                    CompactButton(
+                        onClick = { mode = PairMode.Url("", ""); error = null },
+                        enabled = !busy,
+                        modifier = Modifier.padding(top = 4.dp),
+                    ) {
+                        Text("Enter URL", style = MaterialTheme.typography.caption2)
+                    }
+                }
+            }
+
+            is PairMode.Url -> {
+                item {
+                    Text(
+                        "Daemon URL",
+                        style = MaterialTheme.typography.caption2,
+                        color = MaterialTheme.colors.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 8.dp, bottom = 2.dp),
+                    )
+                }
+                item {
+                    PairTextField(
+                        value = m.url,
+                        onValueChange = { mode = m.copy(url = it) },
+                        placeholder = "http://192.168.x.x:7878",
+                    )
+                }
+                item {
+                    Text(
+                        "API Token",
+                        style = MaterialTheme.typography.caption2,
+                        color = MaterialTheme.colors.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 8.dp, bottom = 2.dp),
+                    )
+                }
+                item {
+                    PairTextField(
+                        value = m.token,
+                        onValueChange = { mode = m.copy(token = it) },
+                        placeholder = "Bearer token from daemon",
+                    )
+                }
+                item {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.padding(top = 8.dp),
+                    ) {
+                        Button(
                             onClick = {
-                                if (pasteJson.isBlank()) {
-                                    error = "Paste the JSON first"
-                                    return@CompactButton
+                                val url = m.url.trim().trimEnd('/')
+                                val token = m.token.trim()
+                                if (url.isEmpty() || token.isEmpty()) {
+                                    error = "URL and token are required"; return@Button
                                 }
                                 scope.launch {
-                                    busy = true
-                                    error = null
-                                    status = "Registering…"
+                                    busy = true; error = null
                                     try {
-                                        register(auth, pasteJson.trim())
+                                        // Verify reachability before saving
+                                        verifyBearer(url, token)
+                                        auth.saveSimpleAuth(url, token)
                                         onPaired()
                                     } catch (e: Exception) {
-                                        error = e.message ?: "Registration failed"
-                                        status = "Scan QR to pair"
+                                        error = e.message ?: "Connection failed"
                                     } finally {
                                         busy = false
                                     }
@@ -185,13 +166,13 @@ fun PairingScreen(auth: WearAuthManager, onPaired: () -> Unit) {
                             enabled = !busy,
                         ) {
                             if (busy) CircularProgressIndicator(modifier = Modifier.size(16.dp))
-                            else Text("Register", style = MaterialTheme.typography.caption2)
+                            else Text("Connect")
                         }
                         CompactButton(
-                            onClick = { showPasteField = false; pasteJson = ""; error = null },
+                            onClick = { mode = PairMode.Choose; error = null },
                             enabled = !busy,
                         ) {
-                            Text("Cancel", style = MaterialTheme.typography.caption2)
+                            Text("Back", style = MaterialTheme.typography.caption2)
                         }
                     }
                 }
@@ -200,19 +181,65 @@ fun PairingScreen(auth: WearAuthManager, onPaired: () -> Unit) {
     }
 }
 
-// ── Registration flow ─────────────────────────────────────────────────────────
+@Composable
+private fun PairTextField(value: String, onValueChange: (String) -> Unit, placeholder: String) {
+    BasicTextField(
+        value = value,
+        onValueChange = onValueChange,
+        textStyle = TextStyle(color = MaterialTheme.colors.onSurface, fontSize = 11.sp),
+        singleLine = true,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp)
+            .background(MaterialTheme.colors.surface, RoundedCornerShape(6.dp))
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        decorationBox = { inner ->
+            if (value.isEmpty()) {
+                Text(
+                    placeholder,
+                    style = TextStyle(
+                        color = MaterialTheme.colors.onSurface.copy(alpha = 0.4f),
+                        fontSize = 11.sp,
+                    ),
+                )
+            }
+            inner()
+        },
+    )
+}
+
+private sealed class PairMode {
+    object Choose : PairMode()
+    data class Url(val url: String, val token: String) : PairMode()
+}
+
+// ── Simple verification — hit /watch/sessions with Bearer ─────────────────────
+
+private suspend fun verifyBearer(url: String, token: String) = withContext(Dispatchers.IO) {
+    val client = okhttp3.OkHttpClient.Builder()
+        .connectTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
+        .readTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
+        .build()
+    val req = okhttp3.Request.Builder()
+        .url("$url/watch/sessions")
+        .header("Authorization", "Bearer $token")
+        .build()
+    val resp = client.newCall(req).execute()
+    if (!resp.isSuccessful) {
+        val body = resp.body?.string() ?: ""
+        throw Exception("Daemon returned ${resp.code}: $body")
+    }
+}
+
+// ── Full P256 registration (QR path) ─────────────────────────────────────────
 
 private suspend fun register(auth: WearAuthManager, qrJson: String) = withContext(Dispatchers.IO) {
     val payload = JSONObject(qrJson)
     val endpoint = payload.getString("endpoint")
     val nonce = payload.getString("nonce")
-    val machineId = payload.optString("machine_id", "")
 
-    // Generate a stable device ID
     val deviceId = "wear-${auth.freshNonce()}"
     val issuedAt = System.currentTimeMillis() / 1000
-
-    // Build registration signature (matches watch_auth.rs verify_ed25519_signature)
     val signature = auth.buildRegistrationSignature(nonce, deviceId, issuedAt)
 
     val body = JSONObject().apply {
