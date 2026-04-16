@@ -144,6 +144,5 @@ private fun speechErrorMessage(code: Int) = when (code) {
     SpeechRecognizer.ERROR_NO_MATCH -> "No speech recognised"
     SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "Speech timeout"
     SpeechRecognizer.ERROR_NETWORK -> "Network error (enable offline mode)"
-    SpeechRecognizer.ERROR_NOT_SUPPORTED -> "Speech not supported on this device"
     else -> "Error ($code)"
 }

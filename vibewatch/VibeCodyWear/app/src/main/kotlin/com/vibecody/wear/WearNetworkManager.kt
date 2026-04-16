@@ -17,6 +17,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import okhttp3.*
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.sse.EventSource
 import okhttp3.sse.EventSourceListener
 import okhttp3.sse.EventSources
@@ -279,10 +281,4 @@ private suspend fun Call.awaitResponse(): Response = suspendCancellableCoroutine
     cont.invokeOnCancellation { cancel() }
 }
 
-private fun String.toRequestBody(mediaType: String) =
-    toByteArray().toRequestBody(mediaType.toMediaType())
-
-private fun ByteArray.toRequestBody(mediaType: String) =
-    okhttp3.RequestBody.create(mediaType.toMediaType(), this)
-
-private fun String.toMediaType() = okhttp3.MediaType.parse(this)!!
+private fun String.toReqBody() = toRequestBody("application/json".toMediaType())

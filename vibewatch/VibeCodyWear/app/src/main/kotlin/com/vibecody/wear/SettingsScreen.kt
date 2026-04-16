@@ -15,27 +15,42 @@ fun SettingsScreen(auth: WearAuthManager, onUnpaired: () -> Unit) {
     var showConfirm by remember { mutableStateOf(false) }
 
     if (showConfirm) {
-        Dialog(
-            showDialog = true,
-            onDismissRequest = { showConfirm = false },
+        // Confirmation screen: full-screen instead of dialog for Wear OS compatibility
+        ScalingLazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Alert(
-                title = { Text("Unpair?", textAlign = TextAlign.Center) },
-                message = { Text("This removes all tokens and keys from this device.", textAlign = TextAlign.Center) },
-                negativeButton = {
-                    Button(onClick = { showConfirm = false }, colors = ButtonDefaults.secondaryButtonColors()) {
-                        Text("Cancel")
-                    }
-                },
-                positiveButton = {
-                    Button(onClick = {
-                        auth.clearRegistration()
-                        onUnpaired()
-                    }, colors = ButtonDefaults.primaryButtonColors()) {
-                        Text("Unpair")
-                    }
-                },
-            )
+            item {
+                Text(
+                    "Unpair device?",
+                    style = MaterialTheme.typography.title3,
+                    textAlign = TextAlign.Center,
+                )
+            }
+            item {
+                Text(
+                    "This removes all tokens and keys from this device.",
+                    style = MaterialTheme.typography.caption2,
+                    color = MaterialTheme.colors.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 8.dp),
+                )
+            }
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = {
+                            auth.clearRegistration()
+                            onUnpaired()
+                        },
+                        colors = ButtonDefaults.primaryButtonColors(),
+                    ) { Text("Unpair") }
+                    Button(
+                        onClick = { showConfirm = false },
+                        colors = ButtonDefaults.secondaryButtonColors(),
+                    ) { Text("Cancel") }
+                }
+            }
         }
         return
     }

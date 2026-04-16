@@ -21,6 +21,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.material.*
 import kotlinx.coroutines.*
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.util.Base64
 
@@ -130,13 +132,13 @@ private suspend fun register(auth: WearAuthManager, qrJson: String) = withContex
     val client = okhttp3.OkHttpClient()
     val req = okhttp3.Request.Builder()
         .url("$endpoint/watch/register")
-        .post(okhttp3.RequestBody.create(okhttp3.MediaType.parse("application/json"), body))
+        .post(body.toRequestBody("application/json".toMediaType()))
         .build()
 
     val resp = client.newCall(req).execute()
-    val respJson = JSONObject(resp.body()?.string() ?: "{}")
+    val respJson = JSONObject(resp.body?.string() ?: "{}")
     if (!resp.isSuccessful) {
-        throw Exception(respJson.optString("error", "Registration failed (${resp.code()})"))
+        throw Exception(respJson.optString("error", "Registration failed (${resp.code})"))
     }
 
     auth.saveRegistration(

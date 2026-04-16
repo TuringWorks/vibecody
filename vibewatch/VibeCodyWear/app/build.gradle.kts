@@ -53,12 +53,9 @@ dependencies {
     implementation(libs.okhttp.sse)
     implementation(libs.moshi.kotlin)
 
-    // Security — Android Keystore (StrongBox)
-    // No external dep needed; uses system APIs
+    // Security — EncryptedSharedPreferences
+    implementation(libs.androidx.security.crypto)
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.play.services)
-
-    // Speech recognition
-    implementation(libs.androidx.speech.recognizer) // on-device
 }

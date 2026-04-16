@@ -98,7 +98,7 @@ fun SandboxStatusScreen(net: WearNetworkManager, onOpenSession: (String) -> Unit
                 item {
                     Text(
                         "CONTAINERS",
-                        style = MaterialTheme.typography.overline,
+                        style = MaterialTheme.typography.caption2,
                         color = MaterialTheme.colors.onSurfaceVariant,
                     )
                 }
@@ -184,12 +184,23 @@ private fun SandboxCard(sandbox: SandboxInfo, onControl: (String) -> Unit) {
 
 @Composable
 private fun ResourceBar(label: String, fraction: Float, desc: String) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically) {
         Text(label, style = MaterialTheme.typography.caption2, modifier = Modifier.width(28.dp))
-        LinearProgressIndicator(
-            progress = fraction.coerceIn(0f, 1f),
-            modifier = Modifier.weight(1f).height(4.dp).padding(horizontal = 4.dp),
-        )
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(4.dp)
+                .padding(horizontal = 4.dp)
+                .background(MaterialTheme.colors.onSurface.copy(alpha = 0.2f), RoundedCornerShape(2.dp))
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .fillMaxWidth(fraction.coerceIn(0f, 1f))
+                    .background(MaterialTheme.colors.primary, RoundedCornerShape(2.dp))
+            )
+        }
         Text(desc, style = MaterialTheme.typography.caption2, modifier = Modifier.width(36.dp))
     }
 }
