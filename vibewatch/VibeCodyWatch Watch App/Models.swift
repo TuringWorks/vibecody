@@ -130,6 +130,15 @@ struct WatchSandboxStatus: Codable, Identifiable {
     var memPct: Float { mem_limit_mb > 0 ? Float(mem_mb) / Float(mem_limit_mb) * 100 : 0 }
 }
 
+// MARK: - Messages polling (includes session status for completion detection)
+
+struct WatchMessagesPollingResponse: Codable {
+    let session_id: String
+    let messages: [WatchMessage]
+    let total: Int
+    let status: String   // "running" | "complete" | "failed" | "unknown"
+}
+
 // MARK: - Pairing QR payload
 
 struct WatchPairingPayload: Codable {

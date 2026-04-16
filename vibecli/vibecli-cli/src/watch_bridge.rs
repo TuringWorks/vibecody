@@ -347,6 +347,11 @@ async fn watch_session_messages(
         }
     };
     let messages = store.get_messages(&session_id).unwrap_or_default();
+    let session_status = store.get_session(&session_id)
+        .ok()
+        .flatten()
+        .map(|s| s.status)
+        .unwrap_or_else(|| "unknown".to_string());
     let watch_msgs: Vec<serde_json::Value> = messages
         .iter()
         .map(|m| {
@@ -364,6 +369,7 @@ async fn watch_session_messages(
         "session_id": session_id,
         "messages": watch_msgs,
         "total": total,
+        "status": session_status,
     })).into_response()
 }
 

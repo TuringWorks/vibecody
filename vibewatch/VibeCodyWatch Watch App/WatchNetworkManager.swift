@@ -153,6 +153,42 @@ final class WatchNetworkManager: NSObject, ObservableObject {
         isStreaming = false
     }
 
+    // MARK: - Poll for response (reliable fallback / complement to SSE)
+    //
+    // Polls GET /watch/sessions/{id}/messages every second until the session
+    // status becomes "complete" or "failed". Returns the full message list.
+    // Used after dispatch to guarantee the response appears even if SSE fails.
+
+    func pollForResponse(sessionId: String, timeoutSeconds: Int = 60) async -> [WatchMessage] {
+        guard let token = try? await auth.validAccessToken() else { return [] }
+        let url = URL(string: "\(auth.endpoint)/watch/sessions/\(sessionId)/messages")!
+        var elapsed = 0
+        var lastCount = 0
+        while elapsed < timeoutSeconds {
+            do {
+                let result: WatchMessagesPollingResponse = try await getJSON(url: url, token: token)
+                if result.messages.count > lastCount {
+                    lastCount = result.messages.count
+                }
+                // Done when we have an assistant message and session is complete
+                let hasAssistant = result.messages.contains { $0.role == "assistant" }
+                let isDone = result.status == "complete" || result.status == "failed"
+                if hasAssistant && isDone {
+                    return result.messages
+                }
+            } catch {
+                // Transient error — keep polling
+            }
+            try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+            elapsed += 1
+        }
+        // Timeout — return whatever we have
+        if let result = try? await getJSON(url: url, token: token) as WatchMessagesPollingResponse {
+            return result.messages
+        }
+        return []
+    }
+
     // MARK: - Beacon / discovery
 
     func discoverDaemon(tailscaleIP: String? = nil) async -> Bool {

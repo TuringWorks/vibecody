@@ -120,35 +120,37 @@ struct ConversationView: View {
         )
         messages.append(optimistic)
         streamingDelta = ""
+
         do {
             let resp = try await network.dispatch(content: text, sessionId: session.session_id)
-            // Start SSE stream — non-blocking fire-and-forget; events arrive via callback
+
+            // SSE streaming for live token-by-token display (non-blocking)
             network.startStreaming(sessionId: resp.session_id) { [self] event in
                 switch event.kind {
                 case "delta":
                     streamingDelta += event.delta ?? ""
-                case "done":
-                    // Commit accumulated streaming text as an assistant message
-                    if !streamingDelta.isEmpty {
-                        let msg = WatchMessage(
-                            id: Int(Date().timeIntervalSince1970 * 1000) + 1,
-                            role: "assistant",
-                            content: streamingDelta,
-                            created_at: Date().timeIntervalSince1970
-                        )
-                        messages.append(msg)
-                        streamingDelta = ""
-                    }
-                    // Reload from server to get the persisted message IDs
-                    Task { await self.loadMessages() }
-                case "error":
-                    self.error = event.error
+                case "done", "error":
                     streamingDelta = ""
                 default: break
                 }
             }
+
+            // Poll for the persisted response — reliable regardless of SSE health.
+            // Shows final response in the message list once the session completes.
+            let allMessages = await network.pollForResponse(sessionId: resp.session_id)
+            network.stopStreaming()
+            streamingDelta = ""
+
+            // Replace local message list with server truth (deduplicates optimistic msg)
+            if !allMessages.isEmpty {
+                messages = allMessages
+            } else {
+                await loadMessages()
+            }
         } catch {
             self.error = error.localizedDescription
+            streamingDelta = ""
+            network.stopStreaming()
         }
     }
 }
