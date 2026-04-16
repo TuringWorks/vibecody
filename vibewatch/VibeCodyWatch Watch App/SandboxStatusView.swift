@@ -44,21 +44,44 @@ struct SandboxStatusView: View {
                         .buttonStyle(.plain)
                     }
 
-                    // Container list
+                    // Container list — only show section header + empty state when
+                    // AI Chat is also visible, so the user understands containers
+                    // are separate from the sandbox chat.
                     if isLoading && sandboxes.isEmpty {
                         ProgressView()
-                            .frame(maxWidth: .infinity, minHeight: 60)
+                            .frame(maxWidth: .infinity, minHeight: 40)
                     } else if sandboxes.isEmpty {
-                        VStack(spacing: 8) {
-                            Image(systemName: "shippingbox")
-                                .font(.title2)
-                                .foregroundStyle(.secondary)
-                            Text("No active sandboxes")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                        // Only show full empty state when there's no AI Chat card either
+                        if sandboxChatSession == nil {
+                            VStack(spacing: 8) {
+                                Image(systemName: "shippingbox")
+                                    .font(.title2)
+                                    .foregroundStyle(.secondary)
+                                Text("No active sandboxes")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .frame(maxWidth: .infinity, minHeight: 80)
+                        } else {
+                            // AI Chat is active — show minimal containers hint
+                            Text("No containers running")
+                                .font(.system(size: 10))
+                                .foregroundStyle(.tertiary)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .padding(.top, 4)
                         }
-                        .frame(maxWidth: .infinity, minHeight: 60)
                     } else {
+                        // Separator when AI Chat card is also shown
+                        if sandboxChatSession != nil {
+                            HStack {
+                                Text("Containers")
+                                    .font(.system(size: 10, weight: .medium))
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                            }
+                            .padding(.horizontal, 4)
+                            .padding(.top, 4)
+                        }
                         ForEach(sandboxes) { sandbox in
                             SandboxCard(sandbox: sandbox, onControl: { action in
                                 Task { await sendControl(sandboxId: sandbox.container_id, action: action) }
