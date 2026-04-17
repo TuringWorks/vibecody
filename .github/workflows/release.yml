@@ -489,6 +489,137 @@ jobs:
           name: vibewatch-watchos
           path: dist/*
 
+  # ─── VibeCody Watch — watchOS signed IPA (TestFlight / Ad Hoc) ────────
+  #
+  # No-op unless APPLE_TEAM_ID is configured as a repo secret. To enable:
+  #
+  #   Required secrets:
+  #     APPLE_TEAM_ID                         10-char team ID
+  #     APPLE_CERT_P12_BASE64                 base64(distribution .p12)
+  #     APPLE_CERT_P12_PASSWORD               password for the .p12
+  #     APPLE_KEYCHAIN_PASSWORD               any random string (temp keychain)
+  #     APPLE_PROVISIONING_PROFILE_BASE64     base64(.mobileprovision)
+  #
+  #   Optional (enables auto-upload to TestFlight):
+  #     APPLE_ASC_KEY_ID                      App Store Connect API key ID
+  #     APPLE_ASC_ISSUER_ID                   App Store Connect issuer ID
+  #     APPLE_ASC_KEY_BASE64                  base64(AuthKey_<KEY_ID>.p8)
+  #
+  #   Optional repo variable:
+  #     WATCHOS_EXPORT_METHOD                 'app-store-connect' (default)
+  #                                           or 'release-testing' for Ad Hoc
+  build-watchos-signed:
+    name: Watch · watchOS (signed)
+    needs: audit
+    if: ${{ secrets.APPLE_TEAM_ID != '' }}
+    runs-on: macos-latest
+    env:
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      EXPORT_METHOD: ${{ vars.WATCHOS_EXPORT_METHOD || 'app-store-connect' }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Select Xcode 26
+        uses: maxim-lobanov/setup-xcode@1242409711ff5721add51979e9e11e23ebb7e5a4 # v1.7.0
+        with:
+          xcode-version: ^26.0
+
+      - name: Import signing certificate into temp keychain
+        env:
+          CERT_P12_BASE64: ${{ secrets.APPLE_CERT_P12_BASE64 }}
+          CERT_P12_PASSWORD: ${{ secrets.APPLE_CERT_P12_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.APPLE_KEYCHAIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          CERT_PATH="$RUNNER_TEMP/cert.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/signing.keychain-db"
+          echo -n "$CERT_P12_BASE64" | base64 --decode -o "$CERT_PATH"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -P "$CERT_P12_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" >/dev/null
+          security list-keychain -d user -s "$KEYCHAIN_PATH" $(security list-keychain -d user | tr -d '"')
+
+      - name: Install provisioning profile
+        env:
+          PROFILE_BASE64: ${{ secrets.APPLE_PROVISIONING_PROFILE_BASE64 }}
+        run: |
+          set -euo pipefail
+          PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$PROFILE_DIR"
+          PROFILE_PATH="$PROFILE_DIR/VibeCodyWatch.mobileprovision"
+          echo -n "$PROFILE_BASE64" | base64 --decode -o "$PROFILE_PATH"
+          UUID=$(security cms -D -i "$PROFILE_PATH" | plutil -extract UUID raw -)
+          echo "PROFILE_UUID=$UUID" >> "$GITHUB_ENV"
+
+      - name: Archive watchOS app (device)
+        working-directory: vibewatch
+        run: |
+          xcodebuild archive \
+            -project VibeCodyWatch.xcodeproj \
+            -scheme VibeCodyWatch \
+            -configuration Release \
+            -destination 'generic/platform=watchOS' \
+            -archivePath build/VibeCodyWatch.xcarchive \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            CODE_SIGN_STYLE=Manual \
+            PROVISIONING_PROFILE_SPECIFIER="$PROFILE_UUID"
+
+      - name: Write exportOptions.plist
+        run: |
+          cat > "$RUNNER_TEMP/exportOptions.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>${EXPORT_METHOD}</string>
+            <key>teamID</key><string>${APPLE_TEAM_ID}</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>stripSwiftSymbols</key><true/>
+          </dict>
+          </plist>
+          EOF
+
+      - name: Export signed IPA
+        working-directory: vibewatch
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath build/VibeCodyWatch.xcarchive \
+            -exportPath build/ipa \
+            -exportOptionsPlist "$RUNNER_TEMP/exportOptions.plist"
+
+      - name: Package IPA
+        run: |
+          TAG="${{ github.ref_name || github.event.inputs.tag }}"
+          mkdir -p dist
+          cp vibewatch/build/ipa/*.ipa "dist/VibeCody-WatchOS-${TAG}-signed.ipa"
+          ls -lh dist/
+
+      - name: Upload to TestFlight
+        if: ${{ secrets.APPLE_ASC_KEY_ID != '' }}
+        env:
+          ASC_KEY_ID: ${{ secrets.APPLE_ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APPLE_ASC_ISSUER_ID }}
+          ASC_KEY_BASE64: ${{ secrets.APPLE_ASC_KEY_BASE64 }}
+        run: |
+          set -euo pipefail
+          KEY_DIR="$HOME/.appstoreconnect/private_keys"
+          mkdir -p "$KEY_DIR"
+          echo -n "$ASC_KEY_BASE64" | base64 --decode -o "$KEY_DIR/AuthKey_${ASC_KEY_ID}.p8"
+          IPA=$(ls dist/VibeCody-WatchOS-*-signed.ipa | head -1)
+          xcrun altool --upload-app \
+            --type watchos \
+            --file "$IPA" \
+            --apiKey "$ASC_KEY_ID" \
+            --apiIssuer "$ASC_ISSUER_ID"
+
+      - name: Upload signed IPA artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: vibewatch-watchos-signed
+          path: dist/*
+
   # ─── Docker image ──────────────────────────────────────────────────────
   build-docker:
     name: Docker Image
