@@ -252,21 +252,30 @@ fn set_active_workspace(path: &str) {
 fn safe_resolve_path(workspace: &Workspace, path: &str) -> Result<PathBuf, String> {
     let path_buf = PathBuf::from(path);
 
-    // Reject obvious traversal attempts
-    if path.contains("..") {
+    // Reject traversal via a `..` path COMPONENT (not a substring match —
+    // "some..file.md" and drive names like "/Volumes/Backup..2025" are legal).
+    if path_buf
+        .components()
+        .any(|c| matches!(c, std::path::Component::ParentDir))
+    {
         return Err(format!("Path traversal blocked: '{}' contains '..'", path));
     }
 
-    // If the path is already absolute, validate it's inside a workspace folder
+    // If the path is already absolute, validate it's inside a workspace folder.
+    //
+    // macOS external drives (`/Volumes/...`) and network mounts can canonicalize
+    // asymmetrically: the file may resolve to `/private/var/automount/...`
+    // while the workspace root stays `/Volumes/...` (or vice-versa). Compare
+    // raw paths first — that handles the common case without touching the
+    // filesystem — then fall back to canonicalizing both sides consistently.
     if path_buf.is_absolute() {
-        let canonical = if path_buf.exists() {
-            path_buf.canonicalize().unwrap_or_else(|_| path_buf.clone())
-        } else {
-            path_buf.clone()
-        };
         for folder in workspace.folders() {
-            let root = folder.canonicalize().unwrap_or_else(|_| folder.clone());
-            if canonical.starts_with(&root) {
+            if path_buf.starts_with(folder) {
+                return Ok(path_buf);
+            }
+            let canonical_path = path_buf.canonicalize().unwrap_or_else(|_| path_buf.clone());
+            let canonical_root = folder.canonicalize().unwrap_or_else(|_| folder.clone());
+            if canonical_path.starts_with(&canonical_root) {
                 return Ok(path_buf);
             }
         }
