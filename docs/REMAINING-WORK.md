@@ -90,22 +90,14 @@ All P0 gaps across all FIT-GAP analyses (v1-v6) and roadmaps (v1-v4) are **close
 
 ---
 
-## Superseded Documentation (Archived)
+## Consolidated Documentation (2026-04-17)
 
-These docs are complete and superseded by newer versions. They can be archived but contain useful historical context:
+All prior roadmap and fit-gap iterations have been merged into exactly **two canonical documents**:
 
-| Document | Superseded By | Action |
-|----------|--------------|--------|
-| `ROADMAP.md` (v1, Feb 2026) | `ROADMAP-v5.md` | Archive — Phases 1-5 complete |
-| ~~`ROADMAP-v2.md`~~ | `ROADMAP-v5.md` | Removed — superseded (Phases 6-9) |
-| ~~`ROADMAP-v3.md`~~ | `ROADMAP-v5.md` | Removed — superseded (Phases 10-14) |
-| ~~`ROADMAP-v4.md`~~ | `ROADMAP-v5.md` | Removed — superseded (Phases 15-22) |
-| `FIT-GAP-ANALYSIS.md` (v1) | `FIT-GAP-ANALYSIS-v7.md` | Archive — all gaps closed |
-| ~~`FIT-GAP-ANALYSIS-v2.md`~~ | `FIT-GAP-ANALYSIS-v7.md` | Removed — superseded |
-| ~~`FIT-GAP-ANALYSIS-v3.md`~~ | `FIT-GAP-ANALYSIS-v7.md` | Removed — superseded |
-| ~~`FIT-GAP-ANALYSIS-v4.md`~~ | `FIT-GAP-ANALYSIS-v7.md` | Removed — superseded |
-| `FIT-GAP-ANALYSIS-v5.md` | `FIT-GAP-ANALYSIS-v7.md` | Archive — 12/12 gaps closed |
-| `FIT-GAP-ANALYSIS-v6.md` | `FIT-GAP-ANALYSIS-v7.md` | Archive — 19/19 gaps closed |
+| Canonical document | Absorbs |
+|--------------------|---------|
+| [`ROADMAP.md`](./ROADMAP.md) | ROADMAP-v2 through v6 (phases 1–39) — phase-level history in Appendices A and B |
+| [`FIT-GAP-ANALYSIS.md`](./FIT-GAP-ANALYSIS.md) | FIT-GAP-ANALYSIS v2–v12 (sequential iterations) plus AGENT-OS, PI-MONO, RL-OS, PAPERCLIP, and CODE-REVIEW-ARCHITECTURE deep-dives |
 
 ---
 

@@ -350,7 +350,7 @@ All notable changes to VibeCody are documented here. This project follows [Seman
   - SOC 2 compliance controls with audit trail, PII redaction, and retention policies.
   - Unified voice+vision+code multimodal agent.
 - 8 new VibeUI panels and 4 new REPL commands.
-- FIT-GAP-ANALYSIS-v5.md and ROADMAP-v3.md published.
+- 12 v5 fit-gap competitive gaps catalogued and Phases 10–14 planned (now consolidated into [Fit-Gap Analysis](./fit-gap-analysis/) and [Roadmap](./roadmap/)).
 - Workspace total: approximately 5,745 tests with 0 failures and 136+ panels.
 
 

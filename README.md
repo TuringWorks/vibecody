@@ -365,10 +365,8 @@ Full documentation is available at the [GitHub Pages site](https://vibecody.gith
 - [Architecture Overview](./docs/architecture.md)
 - [VibeCLI Reference](./docs/vibecli.md)
 - [VibeUI Reference](./docs/vibeui.md)
-- [Roadmap](./docs/ROADMAP.md)
-- [Roadmap v2 (Phases 6–9)](./docs/ROADMAP-v2.md)
-- [FIT-GAP Analysis v7](docs/FIT-GAP-ANALYSIS-v7.md) — Competitive analysis (35+ tools)
-- [Roadmap v5](docs/ROADMAP-v5.md) — Implementation phases 23-31
+- [Roadmap](./docs/ROADMAP.md) — consolidated roadmap (phases 1–39 history in appendices)
+- [Fit-Gap Analysis](./docs/FIT-GAP-ANALYSIS.md) — consolidated competitive catalogue (142 gaps, 8 iterations, 5 deep-dives)
 - [Configuration Guide](./docs/configuration.md)
 - [Contributing](./docs/contributing.md)
 

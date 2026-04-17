@@ -9,7 +9,7 @@ permalink: /roadmap/
 **Originally published:** February 2026 &middot; **Last refreshed:** 2026-04-17 (v0.5.5)
 **Scope:** VibeCody compared against **30+** competing AI coding products across terminal, editor, cloud-agent, code-review, completions-only, and mobile/watch categories.
 
-> The original roadmap (below) tracked the initial five-competitor delta (Codex CLI, Claude Code, Antigravity, Cursor, Windsurf) and is preserved as a historical record. See **[ROADMAP-v5](./ROADMAP-v5/)** and **[ROADMAP-v6](./ROADMAP-v6/)** for phases 23–32+. See **[FIT-GAP-ANALYSIS-v12](./fitgap-v12/)** for the current deep-dive.
+> This is now the **single canonical roadmap** — earlier iterations (v5, v6) and the 13 deep-dive fit-gap files are absorbed here and in the companion **[Fit-Gap Analysis](./fit-gap-analysis/)**. The original five-competitor delta (Codex CLI, Claude Code, Antigravity, Cursor, Windsurf) is preserved as a historical record below; phases 23–39 are summarised in the **History appendices** at the end of this document.
 
 ## 1. Competitive Landscape Summary
 
@@ -293,7 +293,7 @@ VibeCody has unique advantages to lean into — refreshed for v0.5.5:
 
 Organized into 5 phases. Each phase builds on the previous and targets specific gap areas.
 
-> **Status:** All 9 phases (1–5 in this document, 6–9 in [ROADMAP-v5](./ROADMAP-v5/)) are **complete** as of February 2026. VibeCody now has feature parity with Codex CLI, Claude Code, Cursor, Windsurf, and Antigravity across all critical capabilities.
+> **Status:** Phases 1–5 in this document are **complete** as of February 2026. Subsequent phases 6–39 (spanning the v5 and v6 cycles, March–April 2026) are summarised in the **History appendices** at the end of this document. VibeCody has feature parity with Codex CLI, Claude Code, Cursor, Windsurf, and Antigravity across all critical capabilities.
 
 ### Phase 1 — Agent Foundation Yes Complete
 
@@ -964,7 +964,7 @@ As of **v0.5.5 (April 2026)**, VibeCody is the only product in our 52-tool surve
 
 ### 9.3 Where we still have parity gaps to close
 
-The honest list (tracked in [FIT-GAP-ANALYSIS-v12](./fitgap-v12/) and [ROADMAP-v6](./ROADMAP-v6/)):
+The honest list (tracked in the consolidated [Fit-Gap Analysis](./fit-gap-analysis/)):
 
 - **Cursor's Tab model** — next-edit prediction quality is still best-in-class; we ship FIM completions but haven't matched their specialized model.
 - **Devin-level long-horizon autonomy** — Devin chains hours of work in a cloud VM; our agent loop tops out at ~50 steps.
@@ -977,3 +977,117 @@ The honest list (tracked in [FIT-GAP-ANALYSIS-v12](./fitgap-v12/) and [ROADMAP-v
 > **VibeCody is the only open-source AI developer toolchain that lets you work on the same coding session from a terminal, a desktop IDE, a phone, and a watch — all running against a self-hosted Rust daemon with 22 providers and zero-config networking.**
 
 Every competitor has a better story in *one* dimension; none of them ship a coherent answer across **all six** categories (terminal, editor, cloud, review, completions, mobile/watch) the way VibeCody does as of v0.5.5.
+
+---
+
+## Appendix A — History: Phases 23–32 (v5 cycle, March 2026)
+
+**Input:** 22 competitive gaps catalogued in the v7 fit-gap iteration (see [Fit-Gap Analysis](./fit-gap-analysis/)) plus six bonus modules in Phase 32.
+**Outcome:** All 22 gaps closed; 28 new Rust modules, 9,570 unit tests (0 failures), 187 panels, 568 skills, 100+ REPL commands. Completed 2026-03-29.
+
+### Phase 23 — Dual-Protocol Agent Communication (P0)
+
+- **23.1 A2A Protocol Support** — `a2a_protocol.rs` (agent card, server mode, client discovery, task lifecycle, SSE streaming, capability negotiation), `A2aPanel.tsx`, `/a2a card|serve|discover|call|tasks|status`, 55+ tests.
+- **23.2 Agent Skills Standard Compatibility** — `agent_skills_compat.rs` (cross-tool skills interop, import/export, registry client, dependency resolution), `/skills import|export|search|validate|publish`, 35+ tests.
+
+### Phase 24 — Parallel Agent Workers (P0)
+
+- **24.1 Worktree Pool** — `worktree_pool.rs` with N lightweight git-worktree agents, auto-merge orchestration, per-worktree cgroup/ulimit caps; `WorktreePoolPanel.tsx`; `/worktree spawn|list|merge|cleanup|config`; 50+ tests.
+- **24.2 Multi-Agent Terminal Host** — `agent_host.rs` hosts external CLI agents (Claude Code, Gemini CLI, Aider, …) with interleaved output and shared clipboard; `AgentHostPanel.tsx`; `/host add|list|route|remove|ask`; 40+ tests.
+
+### Phase 25 — Proactive Intelligence (P0)
+
+- **25.1 Proactive Agent** — `proactive_agent.rs` background scanner across performance/security/tech-debt/correctness/a11y/testing categories with learning store and digest mode; `ProactivePanel.tsx`; `/proactive scan|config|accept|reject|history|digest`; 45+ tests.
+- **25.2 Autonomous Issue Triage** — `issue_triage.rs` classifier + severity estimator + auto-labeler + draft-response generator with GitHub/Linear integration; `TriagePanel.tsx`; `/triage run|rules|labels|history|batch`; 40+ tests.
+
+### Phase 26 — Agent Grounding & Context (P0/P1)
+
+- **26.1 Web Search Grounding** — `web_grounding.rs` with Google/Bing/Brave/SearXNG/Tavily providers, citation tracking, privacy mode; `WebGroundingPanel.tsx`; `/search web|cache|providers|config`; 40+ tests.
+- **26.2 Deep Semantic Codebase Index** — `semantic_index.rs` with call-graph, type-hierarchy, import-chain, incremental updates; `SemanticIndexPanel.tsx`; `/index build|query|callers|callees|hierarchy|deps|stats`; 55+ tests.
+
+### Phase 27 — MCP Protocol Evolution (P1)
+
+- **27.1 Streamable HTTP + OAuth 2.1** — `mcp_streamable.rs` bidirectional streamable HTTP, PKCE OAuth client + server, SAML→OAuth bridge, connection pooling; `/mcp serve-http|oauth|tokens|remote`; 45+ tests.
+
+### Phase 28 — Smart Repair & Routing (P1/P2)
+
+- **28.1 MCTS Code Repair** — `mcts_repair.rs` Monte-Carlo Tree Search for code repair (UCB1, rollout tests, agentless mode, cost tracking, SWE-bench integration); `MctsRepairPanel.tsx`; `/repair mcts|agentless|compare|config`; 50+ tests.
+- **28.2 Cost-Optimized Agent Routing** — `cost_router.rs` task-complexity-aware model routing with budget enforcement and A/B tracking; `CostRouterPanel.tsx`; `/route cost|budget|model|stats|compare`; 40+ tests.
+
+### Phase 29 — Developer Experience (P1/P2)
+
+- **29.1 Visual Verification** — `visual_verify.rs` headless-Chrome screenshot + perceptual-diff + baseline mgmt + CI integration; `VisualVerifyPanel.tsx`; `/verify screenshot|diff|baseline|ci`; 35+ tests.
+- **29.2 Next-Task Prediction** — `next_task.rs` workflow-state-machine-driven suggestion engine; `NextTaskPanel.tsx`; `/nexttask suggest|accept|reject|learn|stats`; 40+ tests.
+- **29.3 Offline Voice Coding** — `voice_local.rs` whisper.cpp integration with model mgmt, VAD, streaming, fallback to Groq; `/voice local|model|download|config`; 30+ tests.
+- **29.4 Living Documentation Sync** — `doc_sync.rs` bidirectional spec↔code reconciliation with drift alerts; `DocSyncPanel.tsx`; `/docsync status|reconcile|watch|freshness`; 35+ tests.
+
+### Phase 30 — Enterprise & Ecosystem (P2/P3)
+
+- **30.1 Native Integration Connectors** — `native_connectors.rs` with 20 pre-built connectors (Stripe, Figma, Notion, Jira, Slack, PagerDuty, Datadog, Sentry, LaunchDarkly, Vercel, Netlify, Supabase, Firebase, AWS, GCP, Azure, GitHub, GitLab, Linear, Confluence); `ConnectorsPanel.tsx`; `/connect list|add|test|remove|webhook`; 50+ tests.
+- **30.2 Enterprise Agent Analytics** — `agent_analytics.rs` per-user/team/project metrics, ROI calculator, CSV/JSON/PDF export; `AnalyticsPanel.tsx`; `/analytics dashboard|export|roi|compare`; 40+ tests.
+- **30.3 Agent Trust Scoring** — `agent_trust.rs` 0-100 per-agent/per-domain trust with decay, auto-review thresholds, transparent explanations; `TrustPanel.tsx`; `/trust scores|history|config|explain`; 35+ tests.
+- **30.4 Agentic Package Manager** — `smart_deps.rs` dependency-graph analysis, CVE auto-patch, license compliance, monorepo-aware lockfile mgmt; `SmartDepsPanel.tsx`; `/deps resolve|compare|patch|audit|graph`; 40+ tests.
+
+### Phase 31 — Strategic Frontiers (P3)
+
+- **31.1 RLCEF Training Loop** — `rlcef_loop.rs` execution-based learning with outcome tracker, reward signals, mistake clustering, fine-tuning export (opt-in, local-only); `RlcefPanel.tsx`; `/rlcef train|eval|mistakes|patterns|reset|export`; 45+ tests.
+- **31.2 LangGraph Bridge** — `langgraph_bridge.rs` LangGraph-compatible REST API, checkpoint format interop, Python SDK wrapper; `LangGraphPanel.tsx`; `/langgraph serve|connect|status|checkpoint`; 35+ tests.
+- **31.3 Sketch Canvas** — `sketch_canvas.rs` freeform drawing → React/HTML/SwiftUI component generation, 3D scene export; `SketchCanvasPanel.tsx`; `/sketch new|recognize|generate|export`; 30+ tests.
+
+### Phase 32 — Advanced Agent Intelligence (Bonus)
+
+- **32.1** `context_protocol.rs` (streaming long-running context), `code_review_agent.rs` (rule-driven review), `diff_review.rs` (diff-aware review).
+- **32.2** `code_replay.rs` (reproducible past sessions), `speculative_exec.rs` (predictive path execution), `explainable_agent.rs` (interpretable reasoning).
+- **32.3** TurboQuant KV-cache compression (PolarQuant + QJL, ~3 bits/dim) with benchmark panel and REPL command.
+
+---
+
+## Appendix B — History: Phases 33–39 (v6 cycle, April 2026)
+
+**Input:** 18 competitive gaps catalogued in the v8 fit-gap iteration (see [Fit-Gap Analysis](./fit-gap-analysis/)).
+**Outcome:** All 18 gaps closed; 18 new Rust modules, ~13,270 unit tests (0 failures), 210+ panels, 122+ REPL commands, 212+ Rust modules under `vibecli-cli/src/`. Completed 2026-04-11.
+
+### Phase 33 — Cross-Environment Agent Execution (P0)
+
+- **33.1 Cross-Environment Parallel Dispatch** — `env_dispatch.rs` with `Local | GitWorktree | RemoteSSH | CloudVM` executors, pool pre-warming, unified progress aggregator, cost ticker; `EnvDispatchPanel.tsx`; `/dispatch local|worktree|ssh|cloud|status|pool`; 55+ tests.
+- **33.2 Recursive Nested Subagents** — `nested_agents.rs` DAG of parent/child agents with depth limiter, context-inheritance policies, merge strategies, real-time graph visualiser; `NestedAgentsPanel.tsx`; `/agents tree|spawn|depth|graph|cancel`; 50+ tests.
+- **33.3 A2A v0.3 Update** — `a2a_protocol.rs` extended with gRPC transport (tonic), Ed25519 security-card signing, v0.3 schema + v0.2 shim, Python-SDK interop tests; `/a2a grpc|sign|verify|compat`; 30+ tests.
+
+### Phase 34 — Active Desktop Computer Use (P0)
+
+- **34.1 Active Desktop Control Agent** — `desktop_agent.rs` with xdotool/AT-SPI (Linux), AXUIElement/CGEvent (macOS), UI Automation (Windows), CDP browser debugger, MJPEG live preview, video recording, allow-list safety; `DesktopAgentPanel.tsx`; `/desktop click|type|scroll|screenshot|record|stop|replay`; 45+ tests.
+
+### Phase 35 — Protocol Maturation (P1)
+
+- **35.1 MCP Enterprise Governance** — `mcp_governance.rs` with append-only audit log (SIEM-exportable), OIDC/SAML SSO, JSON-schema policy DSL for allow/deny + rate limits, versioned config portability; `McpGovernancePanel.tsx`; `/mcp audit|sso|gateway|config`; 50+ tests.
+- **35.2 Microsoft Agent Framework 1.0** — `msaf_compat.rs` MSAF manifest generation, Azure-AD token validation, MCP↔MSAF envelope shim, Azure Agent Catalog registration + heartbeat; `MsafPanel.tsx`; `/msaf register|manifest|catalog|health|token`; 35+ tests.
+
+### Phase 36 — Agent Intelligence Primitives (P1)
+
+- **36.1 Agent Await** — `agent_await.rs` first-class conditional-pause tool (`ProcessExit | LogPattern | FileChange | PortOpen | HttpReady | TimerElapsed | ManualResume`); tokio-select poller; `/await list|cancel|status`; 40+ tests.
+- **36.2 Streaming Thoughts** — `thought_stream.rs` parses `<thinking>` blocks from Claude/Gemini/GPT streams, categorises Planning/Reasoning/Uncertainty/Decision/Observation, tags confidence, exports annotated Markdown; `ThoughtStreamPanel.tsx`; `/thoughts live|history|export|filter`; 35+ tests.
+- **36.3 Codebase-Vocabulary Voice** — `voice_vocab.rs` mines identifiers from `semantic_index.rs`, injects them into Whisper as `initial_prompt` + hotwords, tracks WER improvement; `/voice vocab build|inject|stats|test`; 30+ tests.
+
+### Phase 37 — Context & Collaboration (P2)
+
+- **37.1 Ultra-Long Context Adapter (2M–10M tokens)** — `long_context.rs` with Gemini 3.1 Pro (2M), Llama 4 Scout (10M), Claude Opus 4.6 (1M) routing, semantic-boundary chunking, sliding-window pagination, cost estimator, monorepo ingestion; `LongContextPanel.tsx`; `/ctx route|estimate|ingest|window`; 45+ tests.
+- **37.2 Interactive Design Mode** — `design_mode.rs` SVG annotation canvas (Arrow/Region/TextLabel/BeforeAfter/ColorSwatch/Measurement) → structured natural-language instruction generator with design-token extraction; `DesignModePanel.tsx`; `/design screenshot|annotate|generate|history`; 40+ tests.
+- **37.3 VibeCLI ↔ VibeUI Context Bridge** — `ide_bridge.rs` (UDS on macOS/Linux, named pipe on Windows) publishing open files, cursor, test/build output, terminal tail; VibeCLI client auto-discovers and injects `<ide_context>` into the agent window; `IdeBridgePanel.tsx`; `/ide connect|status|sync|disconnect`; 35+ tests.
+
+### Phase 38 — Private & Robust Intelligence (P2)
+
+- **38.1 On-Device Private Inference** — `on_device.rs` with GGUF model registry (SHA-256 verified HF download), `llama-cpp-rs` FFI + `candle` fallback, Metal/CUDA/ROCm/AVX2 backends, hardware capability probe, `--local-only` network-isolation enforcement, benchmark runner; `OnDevicePanel.tsx`; `/ondevice download|list|run|bench|enforce|hardware`; 45+ tests.
+- **38.2 Hard Problem-Solving Strategy Engine** — `hard_problem.rs` with task decomposition + assumption surfacer + incremental hypothesis tester + ambiguity resolver + multi-file change planner + complexity estimator; `HardProblemPanel.tsx`; `/plan decompose|assume|hypothesize|clarify|estimate`; 40+ tests.
+
+### Phase 39 — Strategic Ecosystem (P3)
+
+- **39.1 Autonomous Deploy Pipeline Agent** — `auto_deploy.rs` closed-loop plan→build→test→stage→health-check→promote pipeline over `DockerCompose | Kubernetes | Serverless | StaticHosting`, health gates, auto-rollback, dry-run; `AutoDeployPanel.tsx`; `/deploy plan|dry-run|stage|promote|rollback|status`; 50+ tests.
+- **39.2 Claw Code Framework Compatibility** — `clawcode_compat.rs` JSON-RPC worker protocol, registry file interop, task-type routing, capability advertisement, bidirectional client/server; `/clawcode register|serve|workers|status|call`; 35+ tests.
+- **39.3 Team Onboarding Intelligence** — `team_onboarding.rs` new-member detector + usage-pattern analyzer + knowledge-gap report + auto-generated ramp-up guide + hotspot map + team admin view; `TeamOnboardingPanel.tsx`; `/onboard generate|track|guide|hotspots|team`; 35+ tests.
+- **39.4 Reproducibility-First Agent Architecture** — `repro_agent.rs` hermetic session snapshot (lockfiles + env hash + seed), deterministic replayer, session differ, CI reproducibility gate, non-determinism tagger, portable `repro-bundle.tar.gz`; `ReproAgentPanel.tsx`; `/repro snapshot|replay|diff|verify|export|import`; 40+ tests.
+
+---
+
+## Appendix C — Phases 40–52 and topic-specific deep-dives
+
+Iterations v10 (phases 40–43), v11 (phases 45–48), v12 (phases 49–52) and the five topic-specific fit-gaps (AgentOS, Pi-mono, RL-OS, Paperclip, Code-Review+Architecture) are fully absorbed into the [Fit-Gap Analysis](./fit-gap-analysis/). That document is the canonical source for the module-by-module ledger; this roadmap tracks competitive positioning and phase-level history only.

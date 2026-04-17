@@ -841,4 +841,4 @@ Modules added in the v12 gap-closure wave, targeting Devin 2.0, Claude Code 1.x,
 
 ---
 
-*For the quick matrix view see [FEATURE-MATRIX.md](FEATURE-MATRIX.md). For competitive analysis see [FIT-GAP-ANALYSIS-v7.md](FIT-GAP-ANALYSIS-v7.md).*
+*For the quick matrix view see [FEATURE-MATRIX.md](FEATURE-MATRIX.md). For competitive analysis see [FIT-GAP-ANALYSIS.md](FIT-GAP-ANALYSIS.md).*

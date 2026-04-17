@@ -38,7 +38,7 @@ But the modules **lack the actual I/O layer** (HTTP clients, process spawning, F
 
 ## RL-OS Subsystem — Entire Subsystem Overstated (P1)
 
-**FIT-GAP-RL-OS.md** claims:
+**FIT-GAP-ANALYSIS.md** (RL-OS deep-dive section, originally FIT-GAP-RL-OS.md) claims:
 - "30+ RL algorithms (PPO/SAC/DQN/TD3/CQL/IQL/MAPPO/QMIX/DreamerV3)"
 - "JIT-compiled env kernels on GPU/TPU"
 - "Rust-native core engine, Python bindings for ecosystem compat"
@@ -66,4 +66,4 @@ These modules have **real I/O** and are accurately represented:
 
 ## Roadmap Items
 
-`ROADMAP-v5.md` marks all Phase 23-31 items as `[x]` complete. The majority of "shipped" modules (a2a_protocol, worktree_pool, proactive_agent, web_grounding, mcp_streamable, cost_router, next_task, native_connectors, voice_local, doc_sync, langgraph_bridge, sketch_canvas, visual_verify, rlcef_loop) are data-structure-only implementations.
+`ROADMAP.md` (Appendix A, phases 23–31) marks all items as `[x]` complete. The majority of "shipped" modules (a2a_protocol, worktree_pool, proactive_agent, web_grounding, mcp_streamable, cost_router, next_task, native_connectors, voice_local, doc_sync, langgraph_bridge, sketch_canvas, visual_verify, rlcef_loop) are data-structure-only implementations.
