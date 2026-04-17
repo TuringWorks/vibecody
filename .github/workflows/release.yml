@@ -148,6 +148,11 @@ jobs:
             label: Linux-x64
             args: ""
 
+          # GitHub-hosted arm64 Linux runner (free for public repos).
+          - os: ubuntu-22.04-arm
+            label: Linux-arm64
+            args: ""
+
           - os: windows-latest
             label: Windows-x64
             args: ""
@@ -230,6 +235,11 @@ jobs:
 
           - os: ubuntu-22.04
             label: Linux-x64
+            args: ""
+
+          # GitHub-hosted arm64 Linux runner (free for public repos).
+          - os: ubuntu-22.04-arm
+            label: Linux-arm64
             args: ""
 
           - os: windows-latest
@@ -620,6 +630,50 @@ jobs:
           name: vibewatch-watchos-signed
           path: dist/*
 
+  # ─── Linux forward-compat smoke (Ubuntu 24.04 / webkit2gtk-4.1) ──────
+  #
+  # Ubuntu 26.04 LTS drops 2026-04-23. GitHub will eventually roll
+  # `ubuntu-latest` forward. This job validates that the Tauri crates
+  # still compile against the webkit2gtk-4.1 headers shipped by newer
+  # distros — purely informational; not in release.needs[] and flagged
+  # continue-on-error so a future distro regression never blocks a tag.
+  smoke-linux-next:
+    name: Smoke · Linux-next (Ubuntu 24.04)
+    needs: audit
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7 # stable
+
+      - name: Install Linux system dependencies
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2
+        with:
+          key: smoke-linux-next
+          workspaces: |
+            vibeui/src-tauri
+            vibeapp/src-tauri
+
+      - name: Check VibeUI Tauri crate
+        working-directory: vibeui/src-tauri
+        run: cargo check --release
+
+      - name: Check VibeCLI App Tauri crate
+        working-directory: vibeapp/src-tauri
+        run: cargo check --release
+
   # ─── Docker image ──────────────────────────────────────────────────────
   build-docker:
     name: Docker Image
@@ -702,6 +756,7 @@ jobs:
             | macOS (Apple Silicon) | `VibeUI-macOS-arm64.app.zip` / `.dmg` |
             | macOS (Intel) | `VibeUI-macOS-x64.app.zip` / `.dmg` |
             | Linux x64 | `.deb` / `.AppImage` |
+            | Linux arm64 | `.deb` / `.AppImage` |
             | Windows x64 | `.msi` / `.exe` installer |
 
             #### VibeCLI App — Desktop AI Assistant
@@ -709,7 +764,8 @@ jobs:
             | Platform | Download |
             |----------|----------|
             | macOS | `.dmg` |
-            | Linux | `.deb` / `.AppImage` |
+            | Linux x64 | `.deb` / `.AppImage` |
+            | Linux arm64 | `.deb` / `.AppImage` |
             | Windows | `.msi` / `.exe` installer |
 
             #### VibeCody Mobile — iOS & Android
@@ -783,8 +839,8 @@ jobs:
             | Product | macOS arm64 | macOS x64 | Linux x64 | Linux arm64 | Windows x64 | Android | iOS | watchOS | Wear OS | Docker |
             |---------|:-----------:|:---------:|:---------:|:-----------:|:-----------:|:-------:|:---:|:-------:|:-------:|:------:|
             | VibeCLI | x | x | x | x | x | | | | | x |
-            | VibeUI | x | x | x | | x | | | | | |
-            | VibeCLI App | x | x | x | | x | | | | | |
+            | VibeUI | x | x | x | x | x | | | | | |
+            | VibeCLI App | x | x | x | x | x | | | | | |
             | VibeCody Mobile | | | | | | x | x | | | |
             | VibeCody Watch | | | | | | | | x | x | |
           files: |
