@@ -143,14 +143,18 @@ struct ConversationView: View {
         do {
             let resp = try await network.dispatch(content: text, sessionId: session.session_id)
 
-            // SSE streaming for live token-by-token display (non-blocking)
-            network.startStreaming(sessionId: resp.session_id) { [self] event in
-                switch event.kind {
-                case "delta":
-                    streamingDelta += event.delta ?? ""
-                case "done", "error":
-                    streamingDelta = ""
-                default: break
+            // SSE streaming for live token-by-token display (non-blocking).
+            // Callback is @Sendable (runs off-main) — hop to MainActor to
+            // mutate the @State-backed streamingDelta safely.
+            network.startStreaming(sessionId: resp.session_id) { event in
+                Task { @MainActor in
+                    switch event.kind {
+                    case "delta":
+                        streamingDelta += event.delta ?? ""
+                    case "done", "error":
+                        streamingDelta = ""
+                    default: break
+                    }
                 }
             }
 
