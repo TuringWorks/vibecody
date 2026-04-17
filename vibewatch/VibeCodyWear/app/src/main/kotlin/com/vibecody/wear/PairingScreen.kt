@@ -1,8 +1,9 @@
 // PairingScreen.kt — Pairing flow for Wear OS.
 //
 // Two options:
-//   1. Scan QR — uses the ZXing intent, performs full P256 challenge registration
-//   2. Enter URL — enter daemon URL + Bearer token directly (simple mode, ideal for emulators)
+//   1. Scan QR — uses the ZXing intent (real devices with camera)
+//   2. Enter URL — enter daemon URL only; app fetches challenge and completes
+//      the full P256 registration automatically. No token required.
 
 package com.vibecody.wear
 
@@ -25,7 +26,7 @@ import kotlinx.coroutines.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
-import java.util.Base64
+import java.util.concurrent.TimeUnit
 
 @Composable
 fun PairingScreen(auth: WearAuthManager, onPaired: () -> Unit) {
@@ -34,16 +35,27 @@ fun PairingScreen(auth: WearAuthManager, onPaired: () -> Unit) {
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
-    // QR scanner result launcher
+    // QR scanner result launcher (real devices)
     val qrLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         val qrData = result.data?.getStringExtra("SCAN_RESULT") ?: return@rememberLauncherForActivityResult
         scope.launch {
             busy = true; error = null
-            try { register(auth, qrData); onPaired() }
-            catch (e: Exception) { error = e.message ?: "Registration failed" }
-            finally { busy = false }
+            try {
+                val payload = JSONObject(qrData)
+                registerWithChallenge(
+                    auth = auth,
+                    endpoint = payload.getString("endpoint"),
+                    nonce = payload.getString("nonce"),
+                    issuedAt = payload.getLong("issued_at"),
+                )
+                onPaired()
+            } catch (e: Exception) {
+                error = e.message ?: "Registration failed"
+            } finally {
+                busy = false
+            }
         }
     }
 
@@ -91,13 +103,11 @@ fun PairingScreen(auth: WearAuthManager, onPaired: () -> Unit) {
                         },
                         enabled = !busy,
                         modifier = Modifier.padding(top = 4.dp),
-                    ) {
-                        Text("Scan QR")
-                    }
+                    ) { Text("Scan QR") }
                 }
                 item {
                     CompactButton(
-                        onClick = { mode = PairMode.Url("", ""); error = null },
+                        onClick = { mode = PairMode.Url(""); error = null },
                         enabled = !busy,
                         modifier = Modifier.padding(top = 4.dp),
                     ) {
@@ -119,42 +129,32 @@ fun PairingScreen(auth: WearAuthManager, onPaired: () -> Unit) {
                     PairTextField(
                         value = m.url,
                         onValueChange = { mode = m.copy(url = it) },
-                        placeholder = "http://192.168.x.x:7878",
+                        placeholder = "http://10.0.2.2:7878",
                     )
                 }
                 item {
                     Text(
-                        "API Token",
+                        "App fetches a challenge\nand registers automatically.",
                         style = MaterialTheme.typography.caption2,
                         color = MaterialTheme.colors.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 8.dp, bottom = 2.dp),
-                    )
-                }
-                item {
-                    PairTextField(
-                        value = m.token,
-                        onValueChange = { mode = m.copy(token = it) },
-                        placeholder = "Bearer token from daemon",
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                     )
                 }
                 item {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.padding(top = 8.dp),
+                        modifier = Modifier.padding(top = 4.dp),
                     ) {
                         Button(
                             onClick = {
                                 val url = m.url.trim().trimEnd('/')
-                                val token = m.token.trim()
-                                if (url.isEmpty() || token.isEmpty()) {
-                                    error = "URL and token are required"; return@Button
-                                }
+                                if (url.isEmpty()) { error = "Enter the daemon URL"; return@Button }
                                 scope.launch {
                                     busy = true; error = null
                                     try {
-                                        // Verify reachability before saving
-                                        verifyBearer(url, token)
-                                        auth.saveSimpleAuth(url, token)
+                                        val (nonce, issuedAt) = fetchChallenge(url)
+                                        registerWithChallenge(auth, url, nonce, issuedAt)
                                         onPaired()
                                     } catch (e: Exception) {
                                         error = e.message ?: "Connection failed"
@@ -210,36 +210,44 @@ private fun PairTextField(value: String, onValueChange: (String) -> Unit, placeh
 
 private sealed class PairMode {
     object Choose : PairMode()
-    data class Url(val url: String, val token: String) : PairMode()
+    data class Url(val url: String) : PairMode()
 }
 
-// ── Simple verification — hit /watch/sessions with Bearer ─────────────────────
+// ── Step 1: fetch a registration challenge from the daemon (no auth needed) ───
 
-private suspend fun verifyBearer(url: String, token: String) = withContext(Dispatchers.IO) {
+private data class ChallengeResult(val nonce: String, val issuedAt: Long)
+
+private suspend fun fetchChallenge(url: String): ChallengeResult = withContext(Dispatchers.IO) {
     val client = okhttp3.OkHttpClient.Builder()
-        .connectTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
-        .readTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
+        .connectTimeout(8, TimeUnit.SECONDS)
+        .readTimeout(8, TimeUnit.SECONDS)
         .build()
     val req = okhttp3.Request.Builder()
-        .url("$url/watch/sessions")
-        .header("Authorization", "Bearer $token")
+        .url("$url/watch/challenge")
+        .post("{}".toRequestBody("application/json".toMediaType()))
         .build()
     val resp = client.newCall(req).execute()
+    val body = resp.body?.string() ?: "{}"
     if (!resp.isSuccessful) {
-        val body = resp.body?.string() ?: ""
-        throw Exception("Daemon returned ${resp.code}: $body")
+        val msg = runCatching { JSONObject(body).optString("error") }.getOrNull()
+        throw Exception(msg?.ifEmpty { null } ?: "Challenge failed (${resp.code})")
     }
+    val json = JSONObject(body)
+    ChallengeResult(
+        nonce = json.getString("nonce"),
+        issuedAt = json.getLong("issued_at"),
+    )
 }
 
-// ── Full P256 registration (QR path) ─────────────────────────────────────────
+// ── Step 2: register the device with the P256 key + challenge signature ───────
 
-private suspend fun register(auth: WearAuthManager, qrJson: String) = withContext(Dispatchers.IO) {
-    val payload = JSONObject(qrJson)
-    val endpoint = payload.getString("endpoint")
-    val nonce = payload.getString("nonce")
-
+private suspend fun registerWithChallenge(
+    auth: WearAuthManager,
+    endpoint: String,
+    nonce: String,
+    issuedAt: Long,
+) = withContext(Dispatchers.IO) {
     val deviceId = "wear-${auth.freshNonce()}"
-    val issuedAt = System.currentTimeMillis() / 1000
     val signature = auth.buildRegistrationSignature(nonce, deviceId, issuedAt)
 
     val body = JSONObject().apply {
@@ -248,12 +256,14 @@ private suspend fun register(auth: WearAuthManager, qrJson: String) = withContex
         put("model", "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}")
         put("os_version", android.os.Build.VERSION.RELEASE)
         put("nonce", nonce)
-        put("issued_at", issuedAt)
-        put("public_key", auth.publicKeyBase64)
-        put("signature", signature)
+        put("public_key_b64", auth.publicKeyBase64)
+        put("signature_b64", signature)
     }.toString()
 
-    val client = okhttp3.OkHttpClient()
+    val client = okhttp3.OkHttpClient.Builder()
+        .connectTimeout(10, TimeUnit.SECONDS)
+        .readTimeout(10, TimeUnit.SECONDS)
+        .build()
     val req = okhttp3.Request.Builder()
         .url("$endpoint/watch/register")
         .post(body.toRequestBody("application/json".toMediaType()))
@@ -265,12 +275,13 @@ private suspend fun register(auth: WearAuthManager, qrJson: String) = withContex
         throw Exception(respJson.optString("error", "Registration failed (${resp.code})"))
     }
 
+    val expiresIn = respJson.getLong("expires_in")
     auth.saveRegistration(
         deviceId = respJson.getString("device_id"),
         deviceName = android.os.Build.MODEL,
-        daemonUrl = endpoint,
+        daemonUrl = endpoint.trimEnd('/'),
         accessToken = respJson.getString("access_token"),
         refreshToken = respJson.getString("refresh_token"),
-        expiresAt = respJson.getLong("expires_at"),
+        expiresAt = System.currentTimeMillis() / 1000 + expiresIn,
     )
 }

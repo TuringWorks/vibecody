@@ -437,11 +437,11 @@ export default function AiCodeReviewPanel() {
           {/* Results */}
           {result && (
             <>
+              {/* Fixed summary + filters */}
               <SummaryBar result={result} />
 
-              {/* Filters */}
               {result.issues.length > 0 && (
-                <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
+                <div style={{ display: "flex", gap: 6, marginBottom: 8, flexWrap: "wrap", flexShrink: 0 }}>
                   {(["ALL", "BUG", "VULNERABILITY", "CODE_SMELL", "SECURITY_HOTSPOT"] as FilterType[]).map(t => (
                     <button
                       key={t}
@@ -464,29 +464,31 @@ export default function AiCodeReviewPanel() {
                 </div>
               )}
 
-              {/* Issue count */}
-              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 8 }}>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 6, flexShrink: 0 }}>
                 {filteredIssues.length} issue{filteredIssues.length !== 1 ? "s" : ""}
                 {(filterType !== "ALL" || filterSev !== "ALL") && ` (filtered from ${result.issues.length})`}
               </div>
 
-              {filteredIssues.length === 0 && (
-                <div className="panel-card" style={{ color: "var(--success-color)", textAlign: "center" }}>
-                  No issues found with current filters.
-                </div>
-              )}
+              {/* Scrollable issue list */}
+              <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+                {filteredIssues.length === 0 && (
+                  <div className="panel-card" style={{ color: "var(--success-color)", textAlign: "center" }}>
+                    No issues found with current filters.
+                  </div>
+                )}
 
-              {filteredIssues.map((issue, idx) => {
-                const uid = `${issue.rule_key}-${issue.line}-${idx}`;
-                return (
-                  <IssueCard
-                    key={uid}
-                    issue={issue}
-                    expanded={expandedIds.has(uid)}
-                    onToggle={() => toggleExpanded(uid)}
-                  />
-                );
-              })}
+                {filteredIssues.map((issue, idx) => {
+                  const uid = `${issue.rule_key}-${issue.line}-${idx}`;
+                  return (
+                    <IssueCard
+                      key={uid}
+                      issue={issue}
+                      expanded={expandedIds.has(uid)}
+                      onToggle={() => toggleExpanded(uid)}
+                    />
+                  );
+                })}
+              </div>
             </>
           )}
         </>
@@ -495,7 +497,8 @@ export default function AiCodeReviewPanel() {
       {/* ── RULES TAB ───────────────────────────────────────────────── */}
       {tab === "rules" && (
         <>
-          <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+          {/* Sticky toolbar — stays visible while the list scrolls */}
+          <div style={{ display: "flex", gap: 8, marginBottom: 8, flexShrink: 0 }}>
             <input
               className="panel-input"
               style={{ flex: 1 }}
@@ -508,55 +511,58 @@ export default function AiCodeReviewPanel() {
             </button>
           </div>
           {loadMsg && (
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--success-color)", marginBottom: 8 }}>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--success-color)", marginBottom: 6, flexShrink: 0 }}>
               {loadMsg}
             </div>
           )}
 
-          {filteredRules.length === 0 && (
-            <div className="panel-card" style={{ color: "var(--text-secondary)" }}>No rules match.</div>
-          )}
+          {/* Scrollable rules list */}
+          <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+            {filteredRules.length === 0 && (
+              <div className="panel-card" style={{ color: "var(--text-secondary)" }}>No rules match.</div>
+            )}
 
-          {filteredRules.map(rule => (
-            <div key={rule.key} className="panel-card" style={{ marginBottom: 6 }}>
-              <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 4 }}>
-                <TypeBadge type_={rule.issue_type} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-                    <span style={{ fontWeight: 600, fontSize: "var(--font-size-base)" }}>{rule.name}</span>
-                    <SeverityBadge severity={rule.severity} />
-                  </div>
-                  <div style={{ display: "flex", gap: 8, marginTop: 2 }}>
-                    <span style={{ fontSize: "var(--font-size-xs)", fontFamily: "monospace", color: "var(--text-secondary)" }}>
-                      {rule.key}
-                    </span>
-                    <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>
-                      {rule.language}
-                    </span>
-                    <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>
-                      {rule.effort_minutes}min
-                    </span>
+            {filteredRules.map(rule => (
+              <div key={rule.key} className="panel-card" style={{ marginBottom: 6 }}>
+                <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 4 }}>
+                  <TypeBadge type_={rule.issue_type} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                      <span style={{ fontWeight: 600, fontSize: "var(--font-size-base)" }}>{rule.name}</span>
+                      <SeverityBadge severity={rule.severity} />
+                    </div>
+                    <div style={{ display: "flex", gap: 8, marginTop: 2 }}>
+                      <span style={{ fontSize: "var(--font-size-xs)", fontFamily: "monospace", color: "var(--text-secondary)" }}>
+                        {rule.key}
+                      </span>
+                      <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>
+                        {rule.language}
+                      </span>
+                      <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>
+                        {rule.effort_minutes}min
+                      </span>
+                    </div>
                   </div>
                 </div>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 6 }}>
+                  {rule.description}
+                </div>
+                <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                  {rule.tags.map(tag => (
+                    <span key={tag} style={{
+                      fontSize: "var(--font-size-xs)", padding: "1px 6px",
+                      borderRadius: "var(--radius-xs-plus)",
+                      background: "var(--bg-tertiary, var(--bg-secondary))",
+                      color: "var(--text-secondary)",
+                      border: "1px solid var(--border-color)",
+                    }}>
+                      {tag}
+                    </span>
+                  ))}
+                </div>
               </div>
-              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 6 }}>
-                {rule.description}
-              </div>
-              <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                {rule.tags.map(tag => (
-                  <span key={tag} style={{
-                    fontSize: "var(--font-size-xs)", padding: "1px 6px",
-                    borderRadius: "var(--radius-xs-plus)",
-                    background: "var(--bg-tertiary, var(--bg-secondary))",
-                    color: "var(--text-secondary)",
-                    border: "1px solid var(--border-color)",
-                  }}>
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </>
       )}
     </div>

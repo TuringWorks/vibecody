@@ -49,7 +49,10 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
  setJobs(data);
  setDaemonOnline(true);
  } catch {
- setDaemonOnline(false);
+ // Do NOT set daemonOnline(false) here — useDaemonMonitor (via
+ // vibeui:daemon-status events) is the single source of truth for daemon
+ // reachability. A /jobs fetch failure (e.g. unimplemented route, transient
+ // error) must not override a health-check that already confirmed online.
  }
  };
 
@@ -62,8 +65,15 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
   if (online) fetchJobs();
  };
  window.addEventListener("vibeui:daemon-status", onStatus);
- // Fetch once on mount to populate immediately.
- fetchJobs();
+
+ // On mount: check /health first so daemonOnline reflects reality before
+ // fetchJobs() runs. This prevents a stale offline state when the panel
+ // mounts after useDaemonMonitor already confirmed the daemon is up.
+ fetch(`${daemonUrl}/health`, { signal: AbortSignal.timeout(4000) })
+  .then((r) => { if (r.ok) setDaemonOnline(true); })
+  .catch(() => { /* remain false until useDaemonMonitor next fires */ })
+  .finally(() => fetchJobs());
+
  return () => window.removeEventListener("vibeui:daemon-status", onStatus);
  // eslint-disable-next-line react-hooks/exhaustive-deps
  }, [daemonUrl]);

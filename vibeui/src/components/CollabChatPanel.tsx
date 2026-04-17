@@ -68,10 +68,25 @@ export function CollabChatPanel({ provider = "claude", daemonPort = 7878 }: Coll
   const [messages, setMessages] = useState<DisplayMsg[]>([]);
   const [input, setInput] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
+  const [daemonOnline, setDaemonOnline] = useState(false);
 
   const wsRef = useRef<WebSocket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const unlistenRefs = useRef<Array<() => void>>([]);
+
+  // Sync daemon reachability from app-level useDaemonMonitor events
+  useEffect(() => {
+    const onStatus = (e: Event) => {
+      const { online } = (e as CustomEvent<{ online: boolean }>).detail;
+      setDaemonOnline(online);
+    };
+    window.addEventListener("vibeui:daemon-status", onStatus);
+    // Seed on mount via a quick health check
+    fetch(`http://localhost:${daemonPort}/health`, { signal: AbortSignal.timeout(3000) })
+      .then((r) => { if (r.ok) setDaemonOnline(true); })
+      .catch(() => {});
+    return () => window.removeEventListener("vibeui:daemon-status", onStatus);
+  }, [daemonPort]);
 
   // Auto-scroll on new messages
   useEffect(() => {
@@ -356,19 +371,23 @@ export function CollabChatPanel({ provider = "claude", daemonPort = 7878 }: Coll
 
   if (!connected) {
     return (
-      <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12, flex: 1, minHeight: 0, overflow: "auto" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-          <Users size={16} style={{ color: "var(--text-secondary)" }} />
+      // Natural height (no flex:1) so the form doesn't create dead space below
+      <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <Users size={15} style={{ color: "var(--text-secondary)" }} />
           <span style={{ fontWeight: 600, fontSize: "var(--font-size-lg)" }}>Collaborative AI Chat</span>
         </div>
-        <p style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", margin: 0 }}>
+        <p style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", margin: 0 }}>
           Create or join a room to chat with AI together. All participants see messages and AI responses in real time.
-          Requires <code>vibecli --serve --port {daemonPort}</code>.
+          {daemonOnline
+            ? <span style={{ color: "var(--accent-green)", marginLeft: 4 }}>● Daemon connected on port {daemonPort}.</span>
+            : <> Requires <code>vibecli --serve --port {daemonPort}</code>.</>
+          }
         </p>
 
-        <label style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>Your name</label>
+        <label className="panel-label">Your name</label>
         <input
-          style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", padding: "6px 10px", fontSize: "var(--font-size-md)", color: "var(--text-primary)" }}
+          className="panel-input panel-input-full"
           value={userName}
           onChange={(e) => setUserName(e.target.value)}
           placeholder="Your display name"
@@ -377,19 +396,19 @@ export function CollabChatPanel({ provider = "claude", daemonPort = 7878 }: Coll
         <button
           onClick={handleCreate}
           disabled={loading || !userName.trim()}
-          style={{ background: "var(--accent)", color: "var(--btn-primary-fg)", border: "none", borderRadius: "var(--radius-sm)", padding: "8px 14px", cursor: "pointer", fontSize: "var(--font-size-md)", fontWeight: 500 }}
+          className="panel-btn panel-btn-primary"
         >
           {loading ? "Creating…" : "Create Room"}
         </button>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "2px 0" }}>
           <div style={{ flex: 1, height: 1, background: "var(--border-color)" }} />
-          <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)" }}>or join</span>
+          <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>or join</span>
           <div style={{ flex: 1, height: 1, background: "var(--border-color)" }} />
         </div>
 
         <input
-          style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", padding: "6px 10px", fontSize: "var(--font-size-md)", color: "var(--text-primary)" }}
+          className="panel-input panel-input-full"
           value={joinRoomId}
           onChange={(e) => setJoinRoomId(e.target.value)}
           placeholder="Room ID"
@@ -398,7 +417,7 @@ export function CollabChatPanel({ provider = "claude", daemonPort = 7878 }: Coll
         <button
           onClick={handleJoin}
           disabled={loading || !joinRoomId.trim() || !userName.trim()}
-          style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", padding: "8px 14px", cursor: "pointer", fontSize: "var(--font-size-md)" }}
+          className="panel-btn panel-btn-secondary"
         >
           {loading ? "Joining…" : "Join Room"}
         </button>

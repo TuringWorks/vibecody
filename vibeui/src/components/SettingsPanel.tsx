@@ -15,6 +15,7 @@ import {
   User, Palette, LogIn, Save, Key, X, Check, Upload, Download, RotateCcw,
   Sun, Moon, Eye, EyeOff, ChevronRight, CheckCircle, MinusCircle, AlertCircle,
   Loader2, Zap, Plug,
+  Mail, CalendarDays, ClipboardList, MessageSquare, Search, Mic, Home, Server,
 } from "lucide-react";
 
 /* ── Types ──────────────────────────────────────────────────────────── */
@@ -2848,11 +2849,11 @@ type IntegrationCategory = "email" | "calendar" | "projecttools" | "messaging" |
 interface IntegrationField { key: string; label: string; placeholder: string; url?: boolean }
 
 const INTEGRATION_CATEGORIES: {
-  id: IntegrationCategory; label: string; icon: string;
+  id: IntegrationCategory; label: string; icon: React.ReactNode;
   description: string; fields: IntegrationField[];
 }[] = [
   {
-    id: "email", label: "Email", icon: "✉️",
+    id: "email", label: "Email", icon: <Mail size={14} strokeWidth={1.5} />,
     description: "Gmail or Outlook access tokens for inbox, compose, and triage commands.",
     fields: [
       { key: "gmail_access_token", label: "Gmail Access Token", placeholder: "ya29.a0A..." },
@@ -2860,7 +2861,7 @@ const INTEGRATION_CATEGORIES: {
     ],
   },
   {
-    id: "calendar", label: "Calendar", icon: "📅",
+    id: "calendar", label: "Calendar", icon: <CalendarDays size={14} strokeWidth={1.5} />,
     description: "Google Calendar or Outlook Calendar tokens for event management.",
     fields: [
       { key: "google_access_token", label: "Google Calendar Token", placeholder: "ya29.a0A..." },
@@ -2868,7 +2869,7 @@ const INTEGRATION_CATEGORIES: {
     ],
   },
   {
-    id: "projecttools", label: "Project Tools", icon: "📋",
+    id: "projecttools", label: "Project Tools", icon: <ClipboardList size={14} strokeWidth={1.5} />,
     description: "Linear, Jira, Notion, Todoist API keys for issue tracking and task management.",
     fields: [
       { key: "linear_api_key", label: "Linear API Key", placeholder: "lin_api_..." },
@@ -2880,7 +2881,7 @@ const INTEGRATION_CATEGORIES: {
     ],
   },
   {
-    id: "messaging", label: "Messaging", icon: "💬",
+    id: "messaging", label: "Messaging", icon: <MessageSquare size={14} strokeWidth={1.5} />,
     description: "Tokens for Telegram, Slack, Discord, WhatsApp, Teams, and 20+ more messaging platforms.",
     fields: [
       { key: "telegram_token", label: "Telegram Bot Token", placeholder: "123456:ABC-DEF..." },
@@ -2903,7 +2904,7 @@ const INTEGRATION_CATEGORIES: {
     ],
   },
   {
-    id: "search", label: "Search & Web", icon: "🔍",
+    id: "search", label: "Search & Web", icon: <Search size={14} strokeWidth={1.5} />,
     description: "Tavily and Brave Search API keys for web-grounded AI responses.",
     fields: [
       { key: "tavily_api_key", label: "Tavily API Key", placeholder: "tvly-..." },
@@ -2911,7 +2912,7 @@ const INTEGRATION_CATEGORIES: {
     ],
   },
   {
-    id: "voice", label: "Voice & Audio", icon: "🎙️",
+    id: "voice", label: "Voice & Audio", icon: <Mic size={14} strokeWidth={1.5} />,
     description: "ElevenLabs API key for text-to-speech voice synthesis.",
     fields: [
       { key: "elevenlabs_api_key", label: "ElevenLabs API Key", placeholder: "sk_..." },
@@ -2919,7 +2920,7 @@ const INTEGRATION_CATEGORIES: {
     ],
   },
   {
-    id: "smarthome", label: "Smart Home", icon: "🏠",
+    id: "smarthome", label: "Smart Home", icon: <Home size={14} strokeWidth={1.5} />,
     description: "Home Assistant long-lived access token and instance URL.",
     fields: [
       { key: "home_assistant_url", label: "Home Assistant URL", placeholder: "http://homeassistant.local:8123", url: true },
@@ -2927,7 +2928,7 @@ const INTEGRATION_CATEGORIES: {
     ],
   },
   {
-    id: "infra", label: "Infrastructure", icon: "⚙️",
+    id: "infra", label: "Infrastructure", icon: <Server size={14} strokeWidth={1.5} />,
     description: "Container registry and OpenSandbox credentials.",
     fields: [
       { key: "github_token", label: "GitHub Token", placeholder: "ghp_..." },

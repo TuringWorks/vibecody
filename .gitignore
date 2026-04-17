@@ -47,3 +47,5 @@ docs/Gemfile.lock
 /jetbrains-plugin/.gradle
 /jetbrains-plugin/.intellijPlatform
 /jetbrains-plugin/bin
+*.class
+/vibewatch/VibeCodyWear/.gradle

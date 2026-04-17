@@ -198,8 +198,8 @@ const ProcessPanel: React.FC = () => {
  </table>
  </div>
 
- {/* Footer */}
- <div style={{ padding: "4px 12px", fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", borderTop: "1px solid var(--border)" }}>
+ {/* Footer — flex:none prevents the CSS auto-rule from growing this into dead space */}
+ <div style={{ flex: "none", padding: "4px 12px", fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", borderTop: "1px solid var(--border)" }}>
  {filtered.length} / {processes.length} processes shown · auto-refreshes every 5 s
  </div>
  </div>

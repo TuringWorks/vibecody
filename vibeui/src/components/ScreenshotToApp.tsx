@@ -1,5 +1,28 @@
 import { useState, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useModelRegistry } from "../hooks/useModelRegistry";
+
+/** Extract a human-readable message from raw API error strings. */
+function parseApiError(raw: string): string {
+  // Strip leading exception wrapper (e.g. "Error: ...")
+  const body = raw.replace(/^Error:\s*/i, "").trim();
+  // Try to pull the "error" field from embedded JSON
+  try {
+    const m = body.match(/\{[\s\S]*\}/);
+    if (m) {
+      const obj = JSON.parse(m[0]);
+      if (typeof obj.error === "string") return obj.error;
+      if (typeof obj.message === "string") return obj.message;
+    }
+  } catch { /* not JSON, use as-is */ }
+  return body;
+}
+
+/** Vision-capable provider keywords — used to show a hint when the selected model likely won't work. */
+const VISION_PROVIDERS = ["claude", "openai", "gpt", "gemini", "vertex", "bedrock", "azure"];
+function isVisionCapable(p: string) {
+  return VISION_PROVIDERS.some(k => p.toLowerCase().includes(k));
+}
 
 interface GeneratedFile {
   path: string;
@@ -15,8 +38,11 @@ const FRAMEWORKS = [
   { value: "html", label: "HTML / CSS / JS" },
 ];
 
-export function ScreenshotToApp({ workspacePath, provider }: { workspacePath: string | null; provider?: string }) {
+export function ScreenshotToApp({ workspacePath, provider: propProvider }: { workspacePath: string | null; provider?: string }) {
+  const { providers: PROVIDERS } = useModelRegistry();
   const [framework, setFramework] = useState("react");
+  // Local provider override — defaults to prop but can be changed in-panel
+  const [selectedProvider, setSelectedProvider] = useState(propProvider || "claude");
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
@@ -77,12 +103,12 @@ export function ScreenshotToApp({ workspacePath, provider }: { workspacePath: st
       const result = await invoke<GeneratedFile[]>("generate_app_from_image", {
         imageBase64,
         framework,
-        provider: provider || null,
+        provider: selectedProvider || null,
       });
       setFiles(result);
       if (result.length > 0) setExpandedIdx(0);
     } catch (e: unknown) {
-      setError(String(e));
+      setError(parseApiError(String(e)));
     } finally {
       setGenerating(false);
     }
@@ -214,6 +240,25 @@ export function ScreenshotToApp({ workspacePath, provider }: { workspacePath: st
           onChange={handleFileInput}
           style={{ display: "none" }}
         />
+      </div>
+
+      {/* Provider + framework row */}
+      <div style={{ display: "flex", gap: "8px", marginBottom: "10px", alignItems: "center", flexWrap: "wrap" }}>
+        <select
+          className="panel-select"
+          value={selectedProvider}
+          onChange={e => setSelectedProvider(e.target.value)}
+          title="AI provider — must support vision/image input"
+        >
+          {PROVIDERS.map(p => (
+            <option key={p} value={p}>{p}</option>
+          ))}
+        </select>
+        {!isVisionCapable(selectedProvider) && (
+          <span style={{ fontSize: "var(--font-size-xs)", color: "var(--warning-color)" }}>
+            ⚠ Select a vision-capable provider (Claude, GPT-4o, Gemini)
+          </span>
+        )}
       </div>
 
       {/* Framework picker */}

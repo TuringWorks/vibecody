@@ -11,11 +11,14 @@ package com.vibecody.wear
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.wear.compose.material.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -34,6 +37,8 @@ fun ConversationScreen(
     var activeSessionId by remember { mutableStateOf(sessionId) }
     var loading by remember { mutableStateOf(sessionId != null) }
     var showVoice by remember { mutableStateOf(false) }
+    var showText by remember { mutableStateOf(false) }
+    var textInput by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
     val listState = rememberScalingLazyListState()
 
@@ -120,37 +125,100 @@ fun ConversationScreen(
         }
     }
 
+    // Shared send logic reused by both voice and text paths
+    fun sendMessage(text: String) {
+        scope.launch {
+            try {
+                val resp = net.dispatch(text, activeSessionId)
+                if (activeSessionId == null) {
+                    activeSessionId = resp.optString("session_id").takeIf { it.isNotEmpty() }
+                }
+                val sid = activeSessionId ?: resp.optString("session_id")
+                val msgId = resp.optLong("message_id", -1)
+                messages = messages + WearMessage(msgId, "user", text)
+                streamingText = ""
+                isStreaming = true
+                val allMessages = net.pollForResponse(sid)
+                if (allMessages.isNotEmpty()) messages = allMessages
+                streamingText = null
+                isStreaming = false
+            } catch (e: Exception) {
+                error = e.message
+                isStreaming = false
+            }
+        }
+    }
+
     if (showVoice) {
         VoiceInputScreen(
             onDismiss = { showVoice = false },
-            onSend = { text ->
-                showVoice = false
-                scope.launch {
-                    try {
-                        val resp = net.dispatch(text, activeSessionId)
-                        if (activeSessionId == null) {
-                            activeSessionId = resp.optString("session_id").takeIf { it.isNotEmpty() }
-                        }
-                        val sid = activeSessionId ?: resp.optString("session_id")
-                        val msgId = resp.optLong("message_id", -1)
-                        messages = messages + WearMessage(msgId, "user", text)
-                        streamingText = ""
-                        isStreaming = true
+            onSend = { text -> showVoice = false; sendMessage(text) }
+        )
+        return
+    }
 
-                        // Polling fallback: guarantees response even if SSE misses it
-                        val allMessages = net.pollForResponse(sid)
-                        if (allMessages.isNotEmpty()) {
-                            messages = allMessages
+    if (showText) {
+        ScalingLazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            item {
+                Text(
+                    "Type message",
+                    style = MaterialTheme.typography.caption2,
+                    color = MaterialTheme.colors.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+                )
+            }
+            item {
+                BasicTextField(
+                    value = textInput,
+                    onValueChange = { textInput = it },
+                    textStyle = TextStyle(
+                        color = MaterialTheme.colors.onSurface,
+                        fontSize = 11.sp,
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp)
+                        .background(MaterialTheme.colors.surface, RoundedCornerShape(6.dp))
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                    decorationBox = { inner ->
+                        if (textInput.isEmpty()) {
+                            Text(
+                                "Ask anything…",
+                                style = TextStyle(
+                                    color = MaterialTheme.colors.onSurface.copy(alpha = 0.4f),
+                                    fontSize = 11.sp,
+                                ),
+                            )
                         }
-                        streamingText = null
-                        isStreaming = false
-                    } catch (e: Exception) {
-                        error = e.message
-                        isStreaming = false
-                    }
+                        inner()
+                    },
+                )
+            }
+            item {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.padding(top = 6.dp),
+                ) {
+                    Button(
+                        onClick = {
+                            val t = textInput.trim()
+                            if (t.isNotEmpty()) {
+                                textInput = ""
+                                showText = false
+                                sendMessage(t)
+                            }
+                        },
+                        enabled = textInput.isNotBlank(),
+                    ) { Text("Send") }
+                    CompactButton(
+                        onClick = { showText = false; textInput = "" },
+                    ) { Text("✕", style = MaterialTheme.typography.caption2) }
                 }
             }
-        )
+        }
         return
     }
 
@@ -182,13 +250,20 @@ fun ConversationScreen(
         }
 
         item {
-            Button(
-                onClick = { showVoice = true },
-                enabled = !isStreaming,
-                colors = ButtonDefaults.primaryButtonColors(),
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
                 modifier = Modifier.padding(top = 4.dp),
             ) {
-                Text(if (isStreaming) "…" else "🎤", textAlign = TextAlign.Center)
+                Button(
+                    onClick = { showVoice = true },
+                    enabled = !isStreaming,
+                    colors = ButtonDefaults.secondaryButtonColors(),
+                ) { Text(if (isStreaming) "…" else "🎤", textAlign = TextAlign.Center) }
+                Button(
+                    onClick = { showText = true },
+                    enabled = !isStreaming,
+                    colors = ButtonDefaults.primaryButtonColors(),
+                ) { Text("⌨", textAlign = TextAlign.Center) }
             }
         }
     }

@@ -14,7 +14,8 @@
         android:icon="@mipmap/ic_launcher"
         android:theme="@android:style/Theme.DeviceDefault"
         android:allowBackup="true"
-        android:supportsRtl="true">
+        android:supportsRtl="true"
+        android:usesCleartextTraffic="true">
 
         <uses-library
             android:name="com.google.android.wearable"
