@@ -5,7 +5,7 @@ permalink: /architecture/
 ---
 
 
-VibeCody is a Rust workspace (monorepo) with 9 crate members: three binary applications, five shared library crates, and a standalone indexing service, plus editor plugins, an agent SDK, and a skills library.
+VibeCody is a Rust workspace (monorepo) with 9 crate members: three binary applications, five shared library crates, and a standalone indexing service, plus editor plugins, an agent SDK, a skills library, a Flutter mobile companion, and native Apple Watch + Wear OS watch clients.
 
 ## Architecture Diagram
 
@@ -16,18 +16,26 @@ VibeCody is a Rust workspace (monorepo) with 9 crate members: three binary appli
 ```text
 vibecody/                          ← Cargo workspace root
 ├── vibecli/
-│   └── vibecli-cli/               ← Binary: terminal assistant
-│       └── skills/                ← 599 skill files (25+ categories)
+│   └── vibecli-cli/               ← Binary: terminal assistant + HTTP daemon
+│       ├── src/                   ← ~354 Rust modules
+│       ├── tests/                 ← 62+ BDD / integration harnesses
+│       └── skills/                ← 711 skill files (25+ categories)
 ├── vibeui/
-│   ├── src/                       ← React + TypeScript frontend (235+ panel components, plus 39 composites)
-│   ├── src-tauri/                 ← Binary: Tauri desktop app
+│   ├── src/                       ← React + TypeScript frontend (~293 panels + 42 composites)
+│   ├── src-tauri/                 ← Binary: Tauri desktop app (1,045+ Tauri commands)
 │   └── crates/
 │       ├── vibe-core/             ← Library: editor primitives
-│       ├── vibe-ai/               ← Library: AI provider + agent
+│       ├── vibe-ai/               ← Library: AI providers + agent (22 providers + openai_compat)
 │       ├── vibe-lsp/              ← Library: LSP client
 │       ├── vibe-extensions/       ← Library: WASM extensions
 │       └── vibe-collab/           ← Library: CRDT collaboration
-├── vibeapp/                       ← Alternate Tauri shell
+├── vibeapp/                       ← Secondary Tauri shell
+├── vibemobile/                    ← Flutter mobile companion (iOS, Android, desktop, web)
+├── vibewatch/                     ← Native watch clients
+│   ├── VibeCodyWatch Watch App/   ← Apple Watch (SwiftUI, watchOS 10+)
+│   ├── VibeCodyWatchCompanion/    ← iOS WatchConnectivity bridge
+│   ├── VibeCodyWear/              ← Wear OS (Kotlin/Compose, Wear OS 3+)
+│   └── VibeCodyWearCompanion/     ← Android Wearable Data Layer service
 ├── vibe-indexer/                  ← Standalone indexing service
 ├── vscode-extension/              ← VS Code extension
 ├── jetbrains-plugin/              ← JetBrains IDE plugin (Gradle)
@@ -210,7 +218,7 @@ let config = ProviderConfig::new("claude".into(), "claude-3-5-sonnet-20241022".i
 
 ### Provider Implementations
 
-All 22 providers follow the same pattern:
+All 22 providers follow the same pattern (with shared OpenAI-compat helpers extracted into `providers/openai_compat.rs`):
 
 1. Send HTTP request to provider API using `reqwest`
 2. For `chat()`: wait for full response
@@ -517,18 +525,20 @@ async fn ai_chat(
 
 ## Testing Strategy
 
-**~10,535 unit tests** across the workspace (0 failures).
+**11,000+ unit tests + 62 BDD / integration harnesses** across the workspace (0 failures in CI).
 
 | Crate | Tests | Key coverage areas |
 |-------|-------|--------------------|
-| `vibecli` | 5,262+ | session store, serve, config, review, workflow, REPL, redteam, gateway, channel daemon, branch agent, spec pipeline, VM orchestrator, transform, marketplace, background agents, TUI, security scan, automations, counsel, superbrain, web client, open memory, auto research, blue/purple team, IDP, all feature modules |
-| `vibe-ai` | 1,020+ | 22 providers, tools, trace, hooks, policy, skills, agent, multi-agent, MCP, agent teams |
+| `vibecli` | 5,500+ unit, 62+ BDD | session store, serve, config, review, workflow, REPL, redteam, gateway, channel daemon, branch agent, spec pipeline, VM orchestrator, transform, marketplace, background agents, TUI, security scan, automations, counsel, superbrain, web client, open memory, auto research, blue/purple team, IDP, watch auth / bridge / session relay, mDNS / Tailscale / ngrok, pairing, all feature modules |
+| `vibe-ai` | 1,020+ | 22 providers + openai_compat, tools, trace, hooks, policy, skills, agent, multi-agent, MCP, agent teams |
 | `vibe-core` | 370+ | buffer, git, diff, context, file system, workspace, search, terminal, index/embeddings, executor |
 | `vibe-ui` | 230+ | Tauri commands, coverage, cost, flow, agent executor, shadow workspace |
 | `vibe-lsp` | 74 | LSP client, features, manager |
 | `vibe-collab` | 53 | CRDT rooms, server registry, protocol, awareness |
 | `vibe-extensions` | 46 | loader, manifest, permissions |
-| TypeScript | — | `tsc --noEmit` type checking |
+| TypeScript | — | `tsc --noEmit` type checking (0 errors, 0 warnings) |
+
+Notable BDD harnesses added recently: `watch_auth_bdd`, `watch_bridge_bdd`, `watch_p256_auth_bdd`, `watch_session_relay_bdd`, `mdns_announce_bdd`, `tailscale_bdd`, `ngrok_bdd`.
 
 ## VS Code Extension
 
@@ -547,3 +557,78 @@ The `packages/agent-sdk/` TypeScript package (`@vibecody/agent-sdk`) provides a 
 - Start agent sessions, stream events
 - Chat and completion APIs
 - Typed event handling
+
+---
+
+## Mobile & Watch Surfaces
+
+VibeCLI's `--serve` daemon is the single backend for all remote clients. Every non-desktop surface authenticates through the same store (`ProfileStore` for API keys, `WorkspaceStore` for project secrets) and shares session history via `sessions.db`.
+
+### VibeMobile (Flutter)
+
+`vibemobile/lib/` is a cross-platform Flutter app (iOS, Android, macOS, Linux, Windows, Web):
+
+| Layer | Files | Role |
+|-------|-------|------|
+| `screens/` | 11 screens | Home, chat, sandbox chat, watch chat, pair, manual connect, machines, machine detail, sessions, settings, onboarding |
+| `services/` | 6 services | `api_client`, `auth_service`, `discovery_service` (mDNS), `handoff_service` (URL race), `notification_service` (push), `watch_sync_service` |
+| `models/` | – | Machine / device / session DTOs mirroring daemon JSON |
+
+The `HandoffService` never commits to a single URL — on startup and every 60 s it races every reachable candidate (stored `baseUrl`, beacon `lan_ips`, Tailscale IP, public URL, mDNS-discovered IPs) with a 3 s timeout on `/health`. The first success wins until the next probe. This makes the app silently adapt as the user moves between home Wi-Fi, a hotspot, and the office LAN.
+
+### VibeWatch (native)
+
+`vibewatch/` contains four sibling clients that share the Rust backend but are fully native per platform:
+
+```text
+┌───────────────────────────────────────────────────────────────────┐
+│  vibecli --serve                                                  │
+│  ┌──────────────┐  ┌──────────────────┐  ┌─────────────────────┐  │
+│  │ watch_auth   │  │ watch_session_   │  │ watch_bridge        │  │
+│  │ .rs          │  │ relay.rs         │  │ .rs                 │  │
+│  │ P256 ECDSA,  │  │ OLED-optimised   │  │ Axum /watch/* + SSE │  │
+│  │ JWT (HS256)  │  │ payload mapping  │  │ (11 routes)         │  │
+│  └──────┬───────┘  └────────┬─────────┘  └──────────┬──────────┘  │
+└─────────┼───────────────────┼────────────────────────┼────────────┘
+          │                   │                        │
+    ┌─────▼──────┐      ┌─────▼──────┐      ┌──────────▼──────────┐
+    │  Direct    │      │  Tailscale │      │  Phone relay        │
+    │  LAN       │      │  mesh      │      │  (WatchConnectivity │
+    │  (mDNS)    │      │            │      │   / Wearable DL)    │
+    └─────┬──────┘      └─────┬──────┘      └──────────┬──────────┘
+          └──────────┬────────┴────────────────────────┘
+                     │
+         ┌───────────┼────────────┐
+         │                        │
+  ┌──────▼─────────┐      ┌───────▼──────────┐
+  │ Apple Watch    │      │ Wear OS          │
+  │ SwiftUI        │      │ Jetpack Compose  │
+  │ Secure Enclave │      │ Android Keystore │
+  │ (P-256 only)   │      │ (StrongBox TEE)  │
+  └────────────────┘      └──────────────────┘
+```
+
+Key design notes:
+
+- **Algorithm choice — P256 ECDSA (secp256r1)**. Apple's Secure Enclave only supports P-256; for symmetry and code-reuse both Wear OS and Apple Watch generate P-256 device keys. Ed25519 was removed for the device-registration path in commit `3308278a`.
+- **JWT tokens** are HMAC-SHA256 signed with a 32-byte secret that lives in `ProfileStore`. Access tokens expire in 15 min; refresh tokens in 7 days.
+- **Wrist-off suspension**: a signed `WristActivityEvent` flips the session's `wrist_suspended` flag, which blocks tool execution until the watch is back on the wrist.
+- **Replay prevention**: the `NonceRegistry` rejects any request whose timestamp is outside a 30-second window or whose nonce has been seen.
+- **Nonce registry, broadcast fan-out, and 11 `/watch/*` routes** live in `watch_bridge.rs` as a standalone Axum router that the main daemon mounts.
+
+See [docs/WATCH-INTEGRATION.md](WATCH-INTEGRATION.md) for complete route tables, claims structure, TDD / BDD coverage, and the watch client implementation details.
+
+### Zero-config connectivity (mDNS / Tailscale / ngrok)
+
+Three independent modules in `vibecli/vibecli-cli/src/` build the beacon returned by `GET /mobile/beacon`:
+
+| Module | Responsibility |
+|--------|----------------|
+| `mdns_announce.rs` | Broadcasts `_vibecli._tcp.local.` PTR/SRV/TXT/A records every 60 s on `224.0.0.251:5353`; answers active PTR queries within <1 s. No external tools; works on any IP range. |
+| `tailscale.rs` | Shells out to `tailscale status --json` for the 100.x IP; optionally runs `tailscale funnel 7878` and polls for the public `https://<machine>.<tailnet>.ts.net` URL. |
+| `ngrok.rs` | Probes `localhost:4040/api/tunnels` on startup; with `ngrok_auto_start=true` spawns `ngrok http <port>` using the auth token and polls up to 15 s for the public URL. |
+| `pairing.rs` | Generates a 128-bit random token + pairing URL and renders an ASCII/Unicode QR for terminal display (used by `vibecli pair`). |
+
+The mobile / watch clients consume these paths through the URL race described above. No single path is required — the app silently uses whichever responds first.
+
+Full protocol + troubleshooting: [docs/connectivity.md](connectivity.md).

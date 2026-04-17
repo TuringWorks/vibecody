@@ -8,10 +8,11 @@
 
 | Project | Description | Status |
 |---------|-------------|--------|
-| [VibeCLI](./vibecli/) | AI coding assistant for the terminal (TUI + REPL) | Active |
+| [VibeCLI](./vibecli/) | AI coding assistant for the terminal (TUI + REPL + `--serve` daemon) | Active |
 | [VibeUI](./vibeui/) | AI-powered desktop code editor (Tauri + Monaco) | Active |
-| [VibeApp](./vibeapp/) | Secondary Tauri app | Active |
+| [VibeApp](./vibeapp/) | Secondary Tauri shell | Active |
 | [VibeMobile](./vibemobile/) | Mobile companion app (Flutter — iOS, Android, macOS, Linux, Windows, Web) | Active |
+| [VibeWatch](./vibewatch/) | Apple Watch (SwiftUI, watchOS 10+) + Wear OS (Kotlin/Compose) clients with companion relays | Active |
 
 ---
 
@@ -80,30 +81,41 @@ vibecody/
 ├── docker-compose.yml          # VibeCLI + Ollama sidecar (air-gapped)
 ├── install.sh                  # One-liner installer (SHA-256 verified)
 ├── vibecli/
-│   └── vibecli-cli/            # CLI binary (TUI + REPL)
-│       ├── src/
+│   └── vibecli-cli/            # CLI binary (TUI + REPL + HTTP daemon)
+│       ├── src/                # ~354 modules
 │       │   ├── main.rs         # Entry point, command routing
 │       │   ├── config.rs       # TOML config (~/.vibecli/config.toml)
-│       │   ├── serve.rs        # HTTP daemon for VS Code ext/SDK
+│       │   ├── serve.rs        # HTTP daemon for VS Code ext / SDK / mobile / watch
 │       │   ├── repl.rs         # Rustyline REPL helper
+│       │   ├── watch_auth.rs   # P256 ECDSA device registration + JWT lifecycle
+│       │   ├── watch_bridge.rs # Axum /watch/* routes (SSE streaming)
+│       │   ├── watch_session_relay.rs  # OLED-optimised payloads
+│       │   ├── mdns_announce.rs / tailscale.rs / ngrok.rs  # zero-config connectivity
+│       │   ├── pairing.rs      # one-time pairing URL + QR rendering
 │       │   └── tui/            # Ratatui TUI (app, ui, components)
-│       └── skills/             # 568 skill files (25+ categories)
+│       ├── tests/              # 62+ BDD / integration harnesses
+│       └── skills/             # 711 skill files (25+ categories)
 ├── vibeui/
 │   ├── src/                    # React + TypeScript frontend
 │   │   ├── App.tsx             # Root component
-│   │   └── components/         # 187 panel components (163 backend-wired + 24 utilities)
-│   ├── src-tauri/              # Tauri Rust backend
+│   │   └── components/         # 293 panels + 42 composite dashboards
+│   ├── src-tauri/              # Tauri Rust backend (1,045+ commands)
 │   └── crates/                 # Shared Rust library crates
 │       ├── vibe-core/          # Text buffer, FS, workspace, Git, index
-│       ├── vibe-ai/            # 23 AI providers, agents, hooks, planner
+│       ├── vibe-ai/            # 22 AI providers + shared openai_compat; agents, hooks, planner
 │       ├── vibe-lsp/           # Language Server Protocol client
 │       ├── vibe-extensions/    # WASM-based extension system
 │       └── vibe-collab/        # CRDT multiplayer collaboration
-├── vibeapp/                    # Secondary Tauri app
+├── vibeapp/                    # Secondary Tauri shell
 ├── vibemobile/                 # Flutter mobile companion app
-│   ├── lib/screens/            # 9 screens (home, chat, pair, machines, sessions, settings...)
-│   ├── lib/services/           # API client, auth, notifications
-│   └── lib/models/             # Machine/device models
+│   ├── lib/screens/            # 11 screens (home, chat, pair, machines, sessions, sandbox, watch…)
+│   ├── lib/services/           # api_client, auth, discovery, handoff, notifications, watch_sync
+│   └── lib/models/             # Machine / device models
+├── vibewatch/                  # Watch clients
+│   ├── VibeCodyWatch Watch App/        # SwiftUI (watchOS 10+, Secure Enclave P-256)
+│   ├── VibeCodyWatchCompanion/         # iOS WatchConnectivity bridge
+│   ├── VibeCodyWear/                   # Kotlin/Compose (Wear OS 3+, Android Keystore)
+│   └── VibeCodyWearCompanion/          # Android Wearable Data Layer bridge
 ├── vibe-indexer/               # Remote indexing service
 ├── vscode-extension/           # VS Code extension (chat + completions)
 ├── jetbrains-plugin/           # JetBrains IDE plugin
@@ -126,7 +138,7 @@ Core editor primitives — text buffer (rope-based), file system operations, wor
 
 ### `vibe-ai`
 
-Unified AI provider abstraction with agent loop, hooks, planner, multi-agent orchestration, skills, artifacts, admin policy, trace/session resume, and OpenTelemetry. Supports 23 providers:
+Unified AI provider abstraction with agent loop, hooks, planner, multi-agent orchestration, skills, artifacts, admin policy, trace/session resume, and OpenTelemetry. Supports 22 providers (plus a shared `openai_compat` helper module):
 
 - **Ollama** — Local/private models (default)
 - **Anthropic Claude** — Claude 4 Sonnet/Opus
@@ -217,7 +229,7 @@ model = "llama-3.3-70b-versatile"
 enabled = false
 model = "mistral-large-latest"
 
-# See docs/configuration.md for all 23 providers
+# See docs/configuration.md for all 22 providers
 
 [safety]
 require_approval_for_commands = true
@@ -232,10 +244,14 @@ VibeMobile (`vibemobile/`) is a Flutter app for remote management of VibeCody se
 
 **Features:**
 
-- QR code pairing with VibeCLI/VibeUI instances
-- Remote chat with AI providers
+- QR code **and** manual URL/JSON pairing (works without a camera)
+- Zero-config LAN discovery via mDNS — plus Tailscale and ngrok auto-detection for off-LAN access
+- Apple-Handoff-style session continuity between desktop and phone
+- Google-Docs-style bidirectional message sync (no truncation)
+- Remote chat with any configured AI provider
 - Machine management (register, monitor, heartbeat)
 - Session browser and management
+- Watch device browser + sandbox chat panel
 - Push notifications for agent task completion
 - Dark/light theme with Material Design 3
 
@@ -249,6 +265,27 @@ flutter run -d chrome  # Run in browser
 ```
 
 **Requirements:** Flutter SDK >=3.2.0, Dart >=3.2.0
+
+See [docs/connectivity.md](./docs/connectivity.md) for the full mDNS / Tailscale / ngrok URL race design.
+
+---
+
+## Watch Companions
+
+VibeCody extends to wrist-worn devices via two parallel native clients that share the same backend (`watch_auth.rs`, `watch_bridge.rs`, `watch_session_relay.rs`) exposed under `/watch/*`.
+
+| Platform | Path | Stack | Key storage |
+|----------|------|-------|-------------|
+| **Apple Watch** | `vibewatch/VibeCodyWatch Watch App/` | Swift / SwiftUI, watchOS 10+ | Secure Enclave **P-256 ECDSA** via CryptoKit; Keychain for tokens |
+| **Apple Watch companion** | `vibewatch/VibeCodyWatchCompanion/` | Swift, WatchConnectivity | Phone-side relay when watch is off-LAN |
+| **Wear OS** | `vibewatch/VibeCodyWear/` | Kotlin / Jetpack Compose for Wear, Wear OS 3+ | Android Keystore (StrongBox) P-256; EncryptedSharedPreferences |
+| **Wear OS companion** | `vibewatch/VibeCodyWearCompanion/` | Kotlin, Wearable Data Layer | Android phone relay service |
+
+**Pairing** happens with a single URL (or Bearer token for emulators) — no JSON copy required. The Watch Devices panel in VibeUI (`Governance → Watch Devices`) surfaces live device status, transport, and Secure Enclave / StrongBox attestation.
+
+**Transports (priority order)**: Direct LAN → Tailscale mesh → phone-relay (WatchConnectivity / Wearable Data Layer).
+
+See [docs/WATCH-INTEGRATION.md](./docs/WATCH-INTEGRATION.md) for the full architecture, auth flow, and TDD/BDD coverage.
 
 ---
 
@@ -293,7 +330,7 @@ sudo pacman -S webkit2gtk-4.1 gtk3 libappindicator-gtk3 librsvg patchelf openssl
 
 ## Running Tests
 
-**7,300+ unit tests** across the workspace.
+**11,000+ unit tests + 62 BDD/integration harnesses** across the workspace.
 
 ```bash
 make test          # All workspace tests

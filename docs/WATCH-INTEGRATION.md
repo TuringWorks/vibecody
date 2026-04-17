@@ -18,7 +18,7 @@ VibeCody extends its AI coding assistant to wrist-worn devices, giving developer
 │  │  watch_auth.rs  │  │ watch_session_   │  │ watch_bridge  │   │
 │  │  HMAC-SHA256    │  │ relay.rs         │  │ .rs           │   │
 │  │  JWT lifecycle  │  │ Compact payloads │  │ Axum /watch/* │   │
-│  │  Ed25519 reg    │  │ OLED-optimised   │  │ SSE streaming │   │
+│  │  P-256 ECDSA reg│  │ OLED-optimised   │  │ SSE streaming │   │
 │  └────────┬────────┘  └────────┬─────────┘  └──────┬────────┘   │
 │           │                    │                   │            │
 └───────────┼────────────────────┼───────────────────┼─-──────────┘
@@ -58,10 +58,10 @@ Provides challenge-response registration and JWT-based session security.
 |------|-------------|
 | `WatchAuthManager` | Main entry point; holds machine ID and JWT secret |
 | `RegistrationChallenge` | Single-use 32-char hex nonce with 5-minute TTL |
-| `WatchRegisterRequest` | Device public key + Ed25519 signature over challenge |
+| `WatchRegisterRequest` | Device public key (64-byte raw P-256) + P-256 ECDSA signature over `SHA-256(nonce ‖ device_id ‖ issued_at_be)` |
 | `WatchDevice` | Registered device record (ID, platform, public key, revocation) |
 | `WatchClaims` | JWT payload: `sub` (device ID), `machine_id`, `kind`, `exp` |
-| `WristActivityEvent` | On-wrist / off-wrist events with Ed25519 signature |
+| `WristActivityEvent` | On-wrist / off-wrist events with P-256 ECDSA signature over `SHA-256(device_id ‖ on_wrist_byte ‖ timestamp)` |
 | `NonceRegistry` (relay) | Replay-prevention map with 30-second timestamp window |
 
 **Token lifecycle:**
@@ -70,8 +70,9 @@ Provides challenge-response registration and JWT-based session security.
   [Watch] → GET /watch/challenge
   [Daemon] ← { nonce, machine_id, issued_at, expires_at }
 
-  [Watch] → POST /watch/register { device_id, platform, public_key_b64, nonce, signature_b64 }
-  [Daemon] verifies Ed25519(public_key, nonce_bytes) == signature
+  [Watch] → POST /watch/register { device_id, platform, public_key_b64, nonce, signature_b64, issued_at }
+  [Daemon] verifies P-256 ECDSA over SHA-256(nonce ‖ device_id ‖ issued_at_be)
+           using the provided 64-byte raw P-256 public key
   [Daemon] ← { access_token (15 min), refresh_token (7 days), device_id }
 
   [Watch] → GET /watch/sessions  (Authorization: Bearer <access_token>)
@@ -83,9 +84,9 @@ Provides challenge-response registration and JWT-based session security.
 **Security properties:**
 
 - JWT signed with HMAC-SHA256 (32-byte secret stored in `ProfileStore`)
-- Ed25519 device key pair — private key never leaves the device
-  - Apple Watch: Secure Enclave (P-256 bridged via CryptoKit)
-  - Wear OS: Android Keystore with StrongBox/TEE backing
+- **P-256 ECDSA (secp256r1)** device key pair — private key never leaves the device. Apple's Secure Enclave only supports P-256, so both watch platforms use the same curve for code reuse and symmetric verification (commit `3308278a` migrated away from Ed25519)
+  - Apple Watch: Secure Enclave via CryptoKit `SecureEnclave.P256.Signing`
+  - Wear OS: Android Keystore with StrongBox/TEE backing (`KeyProperties.KEY_ALGORITHM_EC` + `NIST P-256`)
 - Wrist-suspension lock: suspended sessions block tool execution
 - Replay prevention: nonces are single-use within a 5-minute window
 
@@ -149,7 +150,7 @@ pub type WatchEventStreams = Arc<Mutex<HashMap<String, broadcast::Sender<serde_j
 |--------|------|-------------|
 | `GET` | `/watch/health` | Unauthenticated health check |
 | `GET` | `/watch/challenge` | Issue registration challenge nonce |
-| `POST` | `/watch/register` | Register device (Ed25519 key exchange) |
+| `POST` | `/watch/register` | Register device (P-256 ECDSA key exchange) |
 | `POST` | `/watch/refresh` | Refresh expired access token |
 | `GET` | `/watch/sessions` | List active sessions (auth required) |
 | `GET` | `/watch/sessions/:id` | Session detail |
@@ -264,7 +265,7 @@ Navigation: **Governance → Watch Devices**
 - Refresh token has correct kind field
 - Token signed with wrong secret is rejected
 - Wrist event with stale timestamp is rejected
-- Ed25519 signature with wrong length is rejected
+- P-256 ECDSA signature with wrong length is rejected
 - WatchDevice serialises round-trip through JSON
 
 ### `tests/features/watch_session_relay.feature` — 15 scenarios / 57 steps
@@ -296,7 +297,7 @@ Navigation: **Governance → Watch Devices**
 | Stolen bearer token | Short 15-min access TTL; refresh token stored in Keychain/EncryptedSharedPreferences |
 | Token replay | Per-session nonce registry with 30-second window |
 | Man-in-the-middle | TLS required for all non-LAN transports; Tailscale adds mutual auth |
-| Rogue device pairing | Challenge nonce expires in 5 minutes; requires Ed25519 signature over nonce |
+| Rogue device pairing | Challenge nonce expires in 5 minutes; requires P-256 ECDSA signature over `SHA-256(nonce ‖ device_id ‖ issued_at)` from a hardware-backed key |
 | Wrist lift = session access | `wrist_suspended` flag blocks tool execution when watch is off wrist |
 | Voice audio exfiltration | `EXTRA_PREFER_OFFLINE=true` on Wear OS; voice processed on-device |
 | Session token in Data Layer | Companion phone uses its own bearer token; never sends watch token to daemon |

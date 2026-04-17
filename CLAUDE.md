@@ -12,14 +12,14 @@ See **[vibeui/design-system/README.md](./vibeui/design-system/README.md)** for t
 
 ```bash
 cargo build --release -p vibecli          # CLI binary
-cargo test --workspace                    # all tests (~10,535)
+cargo test --workspace                    # all workspace tests
 cargo check --workspace --exclude vibe-collab
 cd vibeui && npm install && npm run tauri:dev   # VibeUI dev
 ```
 
 ### Module declaration pattern
 
-Both `lib.rs` and `main.rs` in `vibecli/vibecli-cli/src/` must declare new modules. When adding a new `.rs` file, add `pub mod foo;` to **both** files.
+`vibecli/vibecli-cli/src/` currently holds ~354 `.rs` files. Both `lib.rs` (`pub mod foo;`) and `main.rs` (`mod foo;`) must declare a module before it can be used in its respective crate artifact. When adding a new `.rs` file, register it in the crate(s) that consume it.
 
 ### Key storage rules (summary — see AGENTS.md for full details)
 
@@ -81,11 +81,26 @@ Then add the frontend entry in `useModelRegistry.ts` as above.
 ## Repo Layout
 
 ```
-vibecli/vibecli-cli/src/   ← Rust CLI (~222 modules)
-vibeui/src/                ← React/TypeScript frontend
-vibeui/src-tauri/src/      ← Tauri backend + commands
-vibeui/crates/             ← vibe-core, vibe-ai, vibe-lsp, vibe-extensions, vibe-collab
-vibeapp/src-tauri/         ← Alternate Tauri shell
+vibecli/vibecli-cli/src/   ← Rust CLI (~354 modules, ~16 kloc in main.rs alone)
+vibecli/vibecli-cli/tests/ ← 62+ BDD/integration harnesses
+vibecli/vibecli-cli/skills/← 711 skill files (25+ categories)
+vibeui/src/                ← React/TypeScript frontend (~293 panels + 42 composites)
+vibeui/src-tauri/src/      ← Tauri backend + commands (1,045+ via generate_handler!)
+vibeui/crates/             ← vibe-core, vibe-ai (22 providers), vibe-lsp, vibe-extensions, vibe-collab
+vibeapp/                   ← Secondary Tauri shell
+vibemobile/                ← Flutter mobile companion (11 screens, 6 services)
+vibewatch/                 ← Apple Watch (SwiftUI) + Wear OS (Kotlin Compose) + companions
 vibe-indexer/              ← Standalone indexing service
+vscode-extension/          ← VS Code extension
+jetbrains-plugin/          ← JetBrains plugin
+neovim-plugin/             ← Neovim plugin
+packages/agent-sdk/        ← TypeScript Agent SDK
 docs/                      ← Jekyll GitHub Pages
 ```
+
+### Watch, mobile, and connectivity (recent additions)
+
+- **Watch integration** — `watch_auth.rs` (P256 ECDSA / Secure Enclave), `watch_bridge.rs` (Axum `/watch/*` routes), `watch_session_relay.rs` (OLED-optimised payloads). Full spec: [docs/WATCH-INTEGRATION.md](./docs/WATCH-INTEGRATION.md).
+- **Mobile pairing** — `pairing.rs` generates one-time pairing URLs; all platforms (Watch, iOS, Android, Wear OS) support URL/JSON manual pairing plus QR.
+- **Zero-config connectivity** — `mdns_announce.rs` (LAN), `tailscale.rs` (mesh + Funnel public HTTPS), `ngrok.rs` (auto-detect + auto-start). App races all reachable paths on `/mobile/beacon`. Full spec: [docs/connectivity.md](./docs/connectivity.md).
+- **Cryptography note**: watch registration uses **P256 ECDSA (secp256r1)** — the only algorithm Apple Secure Enclave supports. Do not reintroduce Ed25519 for device keys.
