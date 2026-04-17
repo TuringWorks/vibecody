@@ -105,9 +105,38 @@ packages/agent-sdk/        ← TypeScript Agent SDK
 docs/                      ← Jekyll GitHub Pages
 ```
 
-### Watch, mobile, and connectivity (recent additions)
+### Product Matrix (know every surface)
 
-- **Watch integration** — `watch_auth.rs` (P256 ECDSA / Secure Enclave), `watch_bridge.rs` (Axum `/watch/*` routes), `watch_session_relay.rs` (OLED-optimised payloads). Full spec: [docs/WATCH-INTEGRATION.md](./docs/WATCH-INTEGRATION.md).
-- **Mobile pairing** — `pairing.rs` generates one-time pairing URLs; all platforms (Watch, iOS, Android, Wear OS) support URL/JSON manual pairing plus QR.
-- **Zero-config connectivity** — `mdns_announce.rs` (LAN), `tailscale.rs` (mesh + Funnel public HTTPS), `ngrok.rs` (auto-detect + auto-start). App races all reachable paths on `/mobile/beacon`. Full spec: [docs/connectivity.md](./docs/connectivity.md).
-- **Cryptography note**: watch registration uses **P256 ECDSA (secp256r1)** — the only algorithm Apple Secure Enclave supports. Do not reintroduce Ed25519 for device keys.
+VibeCody is **13 clients talking to one Rust daemon**. Before a cross-cutting change (RPC, auth, pairing, settings, provider, artifact, OS floor), consult **[AGENTS.md → Product Matrix + Change-Surface Cookbook](./AGENTS.md)** — it's the authoritative "when I change X, I must also touch Y" checklist.
+
+| Client | Path | Stack |
+|--------|------|-------|
+| VibeCLI (daemon + TUI + REPL) | `vibecli/vibecli-cli/` | Rust · Axum · Ratatui |
+| VibeUI (desktop editor) | `vibeui/` | Tauri 2 + React |
+| VibeCLI App (secondary shell) | `vibeapp/` | Tauri 2 + React |
+| VibeMobile | `vibemobile/` | Flutter |
+| VibeCodyWatch + Companion | `vibewatch/VibeCodyWatch*/` | SwiftUI · watchOS 10+ |
+| VibeCodyWear + Companion | `vibewatch/VibeCodyWear*/` | Kotlin Compose · Wear OS 3+ |
+| VS Code / JetBrains / Neovim | `vscode-extension/` · `jetbrains-plugin/` · `neovim-plugin/` | TS · Kotlin · Lua |
+| Agent SDK | `packages/agent-sdk/` | TypeScript |
+| vibe-indexer | `vibe-indexer/` | Rust |
+
+The VibeCLI daemon is the **single source of truth** for protocol semantics. If a client disagrees with the daemon, the client is wrong.
+
+### Cross-cutting change checklist (quick — full list in AGENTS.md)
+
+| Type of change | Surfaces to touch |
+|---|---|
+| New HTTP/RPC route | `serve.rs` / `watch_bridge.rs` → Tauri wrapper (VibeUI + VibeApp) → Flutter `api_client.dart` → Swift `WatchNetworkManager.swift` → Wear Kotlin → VS Code `api-client.ts` → SDK `index.ts` → docs |
+| New Tauri command | `commands.rs` → `generate_handler!` in both `vibeui/src-tauri/src/lib.rs` and (if needed) `vibeapp/src-tauri/src/lib.rs` — no mobile/watch impact |
+| New AI provider | 6-file dance in "Adding / Updating Providers and Models" below — no mobile/watch/plugin impact |
+| New pairing / device flow | `pairing.rs` + `watch_auth.rs` + `/pair/*` routes + mobile `pair_screen.dart` + Swift/Kotlin pairing views + Governance panel + 4 docs files. **Keys MUST be P-256 ECDSA**, not Ed25519 (Secure Enclave constraint) |
+| New release artifact | `release.yml` (job + `release.needs[]`) + `Makefile` (`build-*`) + `docs/release.md` + `docs/CHANGELOG.md` + release-notes YAML matrix + root README make-targets list |
+| OS/SDK floor change | iOS → `project.pbxproj` (3×) + `AppFrameworkInfo.plist` + `Podfile`. watchOS → `vibewatch/project.yml`. Wear OS → `app/build.gradle.kts` + `libs.versions.toml`. macOS → both `tauri.conf.json` files (`bundle.macOS.minimumSystemVersion`). Xcode → `release.yml` `xcode-version` pin. Always update the corresponding `docs/*.md` platform-requirements table |
+| Version bump | `Cargo.toml` (workspace) → `vibeui/package.json` → `vibeapp/package.json` → both `tauri.conf.json` → `vibemobile/pubspec.yaml` → `docs/release.md` + `docs/CHANGELOG.md` + `RELEASE.md` |
+
+### Cross-cutting invariants
+
+- **Cryptography**: watch device keys are **P-256 ECDSA (secp256r1)**. Apple Secure Enclave supports no other algorithm. Never reintroduce Ed25519 for device keys.
+- **Connectivity**: mobile / watch clients race all reachable paths (mDNS LAN → Tailscale mesh → ngrok → phone-relay). New transports plug in via `mdns_announce.rs` / `tailscale.rs` / `ngrok.rs`. Full spec: [docs/connectivity.md](./docs/connectivity.md).
+- **Pairing**: URL-only / URL + Bearer works on **every** platform — never require QR codes as the only path (emulators have no cameras).

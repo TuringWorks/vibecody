@@ -4,6 +4,120 @@ This file instructs AI coding agents (Claude Code, Cursor, Windsurf, etc.) on co
 
 ---
 
+## Product Matrix — know every surface before you change code
+
+VibeCody is **not a single app**. It's a toolchain of ~13 clients that share one Rust daemon. Before editing anything that crosses a boundary (RPC, auth, pairing, settings, provider list, artifact name, OS floor), consult this table so you don't leave half the matrix broken.
+
+| # | Product | Path | Stack | Purpose | Talks to |
+|---|---------|------|-------|---------|----------|
+| 1 | **VibeCLI** (daemon + TUI + REPL) | `vibecli/vibecli-cli/` | Rust, Axum, Ratatui | Terminal AI assistant; `--serve` daemon is the **source of truth** for every other client. ~354 modules. | Providers direct · serves `/mobile/*` · `/watch/*` · `/api/*` |
+| 2 | **VibeUI** (desktop editor) | `vibeui/` | Tauri 2 + React/TS, Monaco | Full desktop code editor. **1,045+ Tauri commands**, ~293 panels + 42 composites. | Embeds VibeCLI crates · Tauri IPC to frontend |
+| 3 | **VibeCLI App** (secondary Tauri shell) | `vibeapp/` | Tauri 2 + React/TS | Lightweight desktop chat shell. | Same Tauri commands as VibeUI (subset) |
+| 4 | **VibeMobile** | `vibemobile/` | Flutter (Dart) | Phone / tablet / web companion. 11 screens, 6 services. | HTTPS/SSE to VibeCLI daemon `/mobile/*` + `/watch/*` relay |
+| 5 | **VibeCodyWatch** (Apple Watch) | `vibewatch/VibeCodyWatch Watch App/` | SwiftUI, watchOS 10+ | Wrist client. Secure Enclave P-256 keys. | HTTPS/SSE `/watch/*` or WatchConnectivity relay |
+| 6 | **VibeCodyWatchCompanion** (iOS) | `vibewatch/VibeCodyWatchCompanion/` | Swift, WatchConnectivity | Phone-side relay when watch is off-LAN. | Bridges watch ↔ VibeMobile ↔ daemon |
+| 7 | **VibeCodyWear** (Wear OS) | `vibewatch/VibeCodyWear/` | Kotlin / Compose, Wear OS 3+ | Wrist client. Android Keystore / StrongBox P-256. | HTTPS/SSE `/watch/*` or Wearable Data Layer |
+| 8 | **VibeCodyWearCompanion** (Android) | `vibewatch/VibeCodyWearCompanion/` | Kotlin, Wearable Data Layer | Phone-side relay when watch is off-LAN. | Bridges watch ↔ VibeMobile ↔ daemon |
+| 9 | **VS Code extension** | `vscode-extension/` | TypeScript | Inline chat, code actions, sidebar. | HTTP to VibeCLI daemon |
+| 10 | **JetBrains plugin** | `jetbrains-plugin/` | Kotlin, Gradle | IntelliJ / WebStorm / PyCharm integration. | HTTP to VibeCLI daemon |
+| 11 | **Neovim plugin** | `neovim-plugin/` | Lua | Neovim + Telescope integration. | HTTP to VibeCLI daemon |
+| 12 | **Agent SDK** | `packages/agent-sdk/` | TypeScript | Programmatic SDK for third-party integrations. | HTTP to VibeCLI daemon |
+| 13 | **vibe-indexer** | `vibe-indexer/` | Rust | Standalone code-indexing service (semantic search, embeddings). | Standalone HTTP service |
+
+**Shared crates** (`vibeui/crates/`): `vibe-core` (buffers/FS/Git), `vibe-ai` (22 providers), `vibe-lsp`, `vibe-extensions` (Wasmtime), `vibe-collab` (CRDT).
+
+**Single source of truth**: the VibeCLI Rust daemon. If a client has drifted from the daemon's API, the client is wrong. Never fork protocol semantics into a client.
+
+**Per-feature coverage** across VibeCLI / VibeUI / Mobile / Watch / plugins lives in:
+
+- [`docs/FEATURE-MATRIX.md`](./docs/FEATURE-MATRIX.md) — at-a-glance ✅/⚙️/🔬/❌ per capability
+- [`docs/FEATURE-REFERENCE.md`](./docs/FEATURE-REFERENCE.md) — detailed reference per feature
+- [`docs/FIT-GAP-ANALYSIS.md`](./docs/FIT-GAP-ANALYSIS.md) — competitive catalogue (142 gaps tracked across iterations)
+
+When you add a feature or close a gap, update whichever of those tables names the feature — otherwise the matrix drifts from reality.
+
+---
+
+## Change-Surface Cookbook — "when I change X, I also need to touch …"
+
+Use this table as a pre-flight checklist. Cross-cutting changes that miss a surface create silent drift that only surfaces weeks later.
+
+### Adding a new HTTP / RPC endpoint to the daemon
+
+| Also touch | Why |
+|------------|-----|
+| `vibecli/vibecli-cli/src/serve.rs` (or `watch_bridge.rs` for `/watch/*`) | Route registration |
+| `vibecli/vibecli-cli/tests/` | BDD harness for the endpoint |
+| `vibeui/src-tauri/src/commands.rs` | Tauri wrapper if VibeUI/VibeApp need it |
+| `vibeui/src-tauri/src/lib.rs` | Register the new command via `generate_handler!` |
+| `vibemobile/lib/services/api_client.dart` | Flutter client method |
+| `vibewatch/VibeCodyWatch Watch App/WatchNetworkManager.swift` | Swift client if wrist-relevant |
+| `vibewatch/VibeCodyWear/app/src/main/kotlin/com/vibecody/wear/` | Kotlin client if wrist-relevant |
+| `vscode-extension/src/api-client.ts` | VS Code if editor-relevant |
+| `packages/agent-sdk/src/index.ts` | SDK method if public-facing |
+| `docs/WATCH-INTEGRATION.md` / `docs/connectivity.md` / `docs/vibecli.md` | Docs for the new route |
+
+### Adding a new Tauri command
+
+`vibeui/src-tauri/src/commands.rs` (implementation) → `vibeui/src-tauri/src/lib.rs` (register in `tauri::generate_handler!`). VibeApp (`vibeapp/src-tauri/`) has its own `lib.rs` — register there too if the command is needed there. **Frontend consumers**: `vibeui/src/` panels call `invoke("your_command", …)` from TypeScript. No mobile/watch impact (mobile/watch don't speak Tauri IPC, only HTTP).
+
+### Adding or updating an AI provider
+
+Follow the 6-file dance in **"Adding / Updating Providers and Models"** below. **No changes needed** in VibeMobile, watch clients, plugins, or SDK — they use the provider through the CLI daemon's `/api/chat` route.
+
+### Adding a new device-pairing / auth flow
+
+| Also touch | Why |
+|------------|-----|
+| `vibecli/vibecli-cli/src/pairing.rs` | URL / bearer / QR generation |
+| `vibecli/vibecli-cli/src/watch_auth.rs` | If wrist-specific (P-256 ECDSA flow) |
+| `vibecli/vibecli-cli/src/serve.rs` + `watch_bridge.rs` | `/pair/*` routes |
+| `vibemobile/lib/screens/pair_screen.dart` + `manual_connect_screen.dart` | Phone pairing UI |
+| `vibewatch/VibeCodyWatch Watch App/` (PairingView.swift etc.) | Watch pairing UI |
+| `vibewatch/VibeCodyWear/app/src/main/kotlin/…/pair/` | Wear pairing UI |
+| `vibeui/src/panels/Governance/WatchDevices/` | Approval/revoke panel |
+| `docs/WATCH-INTEGRATION.md` + `docs/vibemobile.md` + `docs/watchos.md` + `docs/wearos.md` | Doc sync |
+| **Cryptography**: device keys MUST be **P-256 ECDSA (secp256r1)** — the only algorithm Apple Secure Enclave supports. Do not reintroduce Ed25519. |
+
+### Adding a new setting / config key
+
+1. Sensitive → `ProfileStore` (global) or `WorkspaceStore` (per-project). Never `config.toml`.
+2. Non-sensitive → `vibecli/vibecli-cli/src/config.rs` (`Config` struct).
+3. Surface it:
+   - CLI: `vibecli config` subcommands.
+   - VibeUI / VibeApp: `invoke("profile_global_set", …)` from a Settings panel.
+   - Mobile: add a field to `vibemobile/lib/services/` settings; expose in `settings_screen.dart`.
+   - Watch: most settings are *inherited* from the desktop; only add on-watch toggles when the watch needs to override (battery mode, relay prefer, …).
+4. Document it in `docs/configuration.md`.
+
+### Changing an OS / SDK floor
+
+| Target | File(s) |
+|--------|---------|
+| iOS deployment target | `vibemobile/ios/Runner.xcodeproj/project.pbxproj` (3× `IPHONEOS_DEPLOYMENT_TARGET`), `vibemobile/ios/Flutter/AppFrameworkInfo.plist` (`MinimumOSVersion`), `vibemobile/ios/Podfile` (commented `platform :ios, 'X.Y'`), `docs/vibemobile.md` Platform-requirements table |
+| watchOS deployment target | `vibewatch/project.yml` (`deploymentTarget.watchOS`), regenerate with `xcodegen`, `docs/watchos.md` |
+| Wear OS / Android `compileSdk` / `targetSdk` / `minSdk` | `vibewatch/VibeCodyWear/app/build.gradle.kts`, `vibewatch/VibeCodyWear/gradle/libs.versions.toml` (`compileSdk` / `minSdk`), `docs/wearos.md` |
+| macOS `minimumSystemVersion` | `vibeui/src-tauri/tauri.conf.json` and `vibeapp/src-tauri/tauri.conf.json` (`bundle.macOS.minimumSystemVersion`) |
+| Linux runner pin | `.github/workflows/release.yml` (`ubuntu-22.04`, `ubuntu-22.04-arm`, `smoke-linux-next` uses `ubuntu-24.04`) |
+| Xcode version | `.github/workflows/release.yml` — `maxim-lobanov/setup-xcode` `xcode-version` (currently `^26.0`, required for App Store submissions after **2026-04-28**) |
+
+### Adding a new release artifact
+
+| Also touch | Why |
+|------------|-----|
+| `.github/workflows/release.yml` | Add build job + include in `release.needs[]` |
+| `Makefile` | Add `build-*` target so local reproduction works |
+| `docs/release.md` | Download table entry |
+| `docs/CHANGELOG.md` | Entry in `[Unreleased]` (or current version section) |
+| Release-notes YAML body in `release.yml` | Platform matrix row |
+| Root `README.md` "All Make Targets" section | Public-facing target list |
+
+### Version bump
+
+`Cargo.toml` (`[workspace.package].version`) → `vibeui/package.json` → `vibeapp/package.json` → `vibeui/src-tauri/tauri.conf.json` → `vibeapp/src-tauri/tauri.conf.json` → `vibemobile/pubspec.yaml` (`version:`) → `docs/release.md` + `docs/CHANGELOG.md` + `RELEASE.md`. Watch apps inherit version from their project files (`vibewatch/project.yml`, `vibewatch/VibeCodyWear/app/build.gradle.kts` `versionName`). Keep them in lockstep.
+
+---
+
 ## Secure Settings Storage
 
 VibeCody uses **two encrypted SQLite databases** for all sensitive settings. Never write API keys, tokens, or secrets to plaintext files.

@@ -17,7 +17,7 @@ Every feature we build starts with a simple question: "How does this make the de
 
 ### **Universal Accessibility**
 
-Code understanding shouldn't be locked behind specific IDEs or platforms. Whether you're in VS Code, JetBrains, Neovim, or the terminal, Vibecody should be there.
+Code understanding shouldn't be locked behind specific IDEs or platforms. Whether you're in VS Code, JetBrains, Neovim, the terminal, a desktop editor, a phone, a tablet, a web browser, an Apple Watch, or a Wear OS device — Vibecody is there, speaking the same protocol against the same Rust daemon.
 
 ## Our North Star
 
@@ -27,9 +27,10 @@ Code understanding shouldn't be locked behind specific IDEs or platforms. Whethe
 
 ### In Our Codebase
 
-- **Modular Architecture**: Our Rust-based indexer (`vibe-indexer`) is designed for performance and reliability
-- **Multi-client Support**: Native apps (`vibeapp`), CLI tools (`vibecli`), and editor extensions ensure universal access
-- **Real-time Understanding**: We process and index code as you write it
+- **One daemon, many faces.** The VibeCLI Rust daemon (`vibecli/`) is the single source of truth for protocol, auth, pairing, and AI orchestration. Every other surface — `vibeui/` desktop editor, `vibeapp/` secondary shell, `vibemobile/` Flutter app, `vibewatch/` Apple Watch + Wear OS clients (with paired iOS / Android companions), `vscode-extension/`, `jetbrains-plugin/`, `neovim-plugin/`, `packages/agent-sdk/`, and the standalone `vibe-indexer/` — is a thin client over that one API. If a client disagrees with the daemon, the client is wrong.
+- **Modular Rust workspace.** `vibe-core` (buffers, FS, Git), `vibe-ai` (22 AI providers + failover), `vibe-lsp`, `vibe-extensions` (Wasmtime), and `vibe-collab` (CRDT) are shared crates reused across every Rust artifact.
+- **Cross-device continuity.** Apple-Handoff-style handoff between desktop, phone, and watch; Google-Docs-style full-content sync (no truncation); zero-config mDNS / Tailscale / ngrok connectivity so the experience follows you regardless of network.
+- **Real-time understanding.** We process and index code as you write it, and the understanding is accessible from every surface above.
 
 ### In Our Community
 
