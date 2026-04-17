@@ -57,17 +57,34 @@ make doctor    # Checks all required + optional tools
 ### All Make Targets
 
 ```bash
-make setup      Install all prerequisites
-make doctor     Verify dev environment is ready
-make ui         Run VibeUI in dev mode (Vite + Tauri)
-make cli        Build VibeCLI release binary
-make test       Run all workspace tests
-make test-fast  Run tests (excluding collab crate)
-make check      Fast type-check (Rust + TypeScript)
-make lint       Run clippy + TypeScript check
-make build      Build everything for production
-make clean      Remove build artifacts
-make docker     Build Docker image
+make setup              Install all prerequisites
+make doctor             Verify dev environment is ready
+make ui                 Run VibeUI in dev mode (Vite + Tauri)
+make cli                Build VibeCLI release binary
+make test               Run all workspace tests
+make test-fast          Run tests (excluding collab crate)
+make check              Fast type-check (Rust + TypeScript)
+make lint               Run clippy + TypeScript check
+make build              Build everything for production
+make clean              Remove build artifacts
+make docker             Build Docker image
+
+# Mobile (Flutter — iOS / Android)
+make mobile-setup       flutter pub get
+make mobile-ios         Build iOS .app (unsigned, simulator-friendly)
+make mobile-ios-ipa     Archive + export signed iOS .ipa (needs APPLE_TEAM_ID)
+make mobile-android     Release APK
+make mobile-android-bundle   Release AAB for Play Store
+make build-mobile       Everything above (platform-gated)
+
+# Watch (Xcode + Gradle)
+make watch-ios          Build watchOS app for Simulator (Xcode)
+make watch-ios-archive  Archive watchOS app for a real device
+make watch-wear         Wear OS release APK
+make watch-wear-bundle  Wear OS release AAB
+make build-watch        Everything above (platform-gated)
+
+make build-all          Rust + Tauri + Mobile + Watch (what CI builds)
 ```
 
 ---

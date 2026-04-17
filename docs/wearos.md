@@ -25,10 +25,12 @@ Introduced in **v0.5.5**.
 | Component | Minimum |
 |-----------|---------|
 | Watch | Wear OS 3 device (Pixel Watch, Galaxy Watch 4+, TicWatch Pro 5, …) |
-| Wear OS | 3.5+ (API 30+) |
+| Wear OS | 3.5+ (API 30+) runtime — latest tested: **Wear OS 6** on Android 16 |
 | Phone | Android 10+ with VibeMobile installed and paired |
 | Desktop | VibeCLI or VibeUI ≥ 0.5.5 running `--serve` |
 | ADB (for sideload) | latest |
+
+> **Build SDK** — `compileSdk = 36` and `targetSdk = 36` (Android 16 / Wear OS 6) as of v0.5.5; `minSdk = 30` preserves Wear OS 3 compatibility. AGP 8.7.3, Kotlin 2.1.0, JDK 17.
 
 ---
 

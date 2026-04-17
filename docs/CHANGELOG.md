@@ -8,6 +8,19 @@ permalink: /changelog/
 All notable changes to VibeCody are documented here. This project follows [Semantic Versioning](https://semver.org/).
 
 
+## [Unreleased]
+
+### Added
+
+- **Linux arm64 Tauri builds** — VibeUI and VibeCLI App now ship `.deb` / `.AppImage` for `aarch64` Linux via the GitHub-hosted `ubuntu-22.04-arm` runner (free for public repos). Matrix coverage now matches VibeCLI (which already had Linux arm64 via `cross`).
+- **Ubuntu 24.04 forward-compat smoke job** — new `smoke-linux-next` CI job runs `cargo check --release` on `vibeui/src-tauri` and `vibeapp/src-tauri` against webkit2gtk-4.1 on Ubuntu 24.04. `continue-on-error: true` and excluded from `release.needs[]`, so distro-drift regressions surface early but never block a tag. Foundation for the Ubuntu 26.04 LTS roll-forward (2026-04-23).
+
+### Changed
+
+- **Explicit macOS 12.0 floor** — both `vibeui/src-tauri/tauri.conf.json` and `vibeapp/src-tauri/tauri.conf.json` now set `bundle.macOS.minimumSystemVersion = "12.0"` (was the Tauri 2 default of 10.13). Matches Apple's current supported-OS cutoff.
+
+---
+
 ## [0.5.5] — 2026-04-17
 
 ### Added

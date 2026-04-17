@@ -26,10 +26,11 @@ Introduced in **v0.5.5**. Shares the `/watch/*` backend with the Wear OS client.
 | Component | Minimum |
 |-----------|---------|
 | watch | Apple Watch Series 6 or later (SE 2nd gen OK) |
-| watchOS | 10.0+ |
+| watchOS | 10.0+ (runtime) — latest tested: watchOS 26 |
 | iPhone | iOS 17+ with VibeMobile installed and paired |
 | Desktop | VibeCLI or VibeUI ≥ 0.5.5 running `--serve` |
 | Xcode (to sideload) | 15+ |
+| Xcode (to submit to App Store / TestFlight) | **26+** — Apple requires watchOS 26 / iOS 26 SDKs for App Store Connect submissions after **2026-04-28**. CI pins `xcode-version: ^26.0` accordingly. |
 
 > VibeWatch requires the companion iPhone app. Pair the desktop once from VibeMobile, and the watch inherits the pairing.
 
@@ -51,10 +52,12 @@ In Xcode: **Window → Devices and Simulators → Apple Watch → +** → select
 ### Option 2 — build from source
 
 ```bash
-# From repo root, on macOS with Xcode 15+:
+# From repo root, on macOS with Xcode 15+ (Xcode 26+ to submit to App Store):
 make watch-ios          # Release build for the simulator
 make watch-ios-archive  # Archive for a real device (requires signing)
 ```
+
+For TestFlight / Ad Hoc distribution from CI, populate the `APPLE_TEAM_ID`, `APPLE_CERT_P12_BASE64`, `APPLE_PROVISIONING_PROFILE_BASE64` (+ optional `APPLE_ASC_*`) repo secrets — the `Watch · watchOS (signed)` release-workflow job is otherwise a no-op.
 
 The Xcode project lives at `vibewatch/VibeCodyWatch.xcodeproj`. Open it directly if you want to run in the simulator with Cmd-R.
 

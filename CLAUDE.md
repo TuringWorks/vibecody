@@ -15,6 +15,13 @@ cargo build --release -p vibecli          # CLI binary
 cargo test --workspace                    # all workspace tests
 cargo check --workspace --exclude vibe-collab
 cd vibeui && npm install && npm run tauri:dev   # VibeUI dev
+
+# Mobile + watch (platform-gated — iOS/watchOS targets require macOS + Xcode)
+make mobile-ios                # Flutter iOS build (unsigned)
+make mobile-android            # Flutter Android APK + AAB
+make watch-ios                 # watchOS Simulator build (Xcode)
+make watch-wear                # Wear OS APK (gradlew)
+make build-all                 # what CI builds — Rust + Tauri + Mobile + Watch
 ```
 
 ### Module declaration pattern
