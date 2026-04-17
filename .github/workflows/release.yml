@@ -352,6 +352,12 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
+      # Pin Xcode 26 — iOS 26 SDK is the required build SDK from April 28, 2026.
+      - name: Select Xcode 26
+        uses: maxim-lobanov/setup-xcode@1242409711ff5721add51979e9e11e23ebb7e5a4 # v1.7.0
+        with:
+          xcode-version: ^26.0
+
       - name: Setup Flutter
         uses: subosito/flutter-action@e938fdf56512cc96ef2f93601a5a40bde3801046 # v2
         with:
@@ -446,8 +452,12 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - name: Select latest stable Xcode
-        run: sudo xcode-select -s /Applications/Xcode.app
+      # Pin Xcode 26 so builds link against the watchOS 26 SDK — required
+      # for App Store Connect submissions from April 28, 2026 onward.
+      - name: Select Xcode 26
+        uses: maxim-lobanov/setup-xcode@1242409711ff5721add51979e9e11e23ebb7e5a4 # v1.7.0
+        with:
+          xcode-version: ^26.0
 
       - name: Build watchOS app (Simulator, unsigned)
         working-directory: vibewatch
