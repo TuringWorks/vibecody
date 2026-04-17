@@ -257,12 +257,9 @@ pub struct InstalledPlugin {
     pub enabled: bool,
 }
 
+#[derive(Default)]
 pub struct InstallManager {
     installed: HashMap<String, InstalledPlugin>,
-}
-
-impl Default for InstallManager {
-    fn default() -> Self { Self { installed: HashMap::new() } }
 }
 
 impl InstallManager {

@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Agent capability discovery — dynamic advertisement and negotiation.
 //! FIT-GAP v11 Phase 48 — closes gap vs Cursor 4.0, Devin 2.0.
 

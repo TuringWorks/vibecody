@@ -177,11 +177,7 @@ impl CursorOverlay {
     pub fn cursors_near_line(&self, file_path: &str, line: usize, radius: usize) -> Vec<&PeerCursor> {
         self.cursors_in_file(file_path).into_iter()
             .filter(|c| {
-                let diff = if c.position.line >= line {
-                    c.position.line - line
-                } else {
-                    line - c.position.line
-                };
+                let diff = c.position.line.abs_diff(line);
                 diff <= radius
             })
             .collect()

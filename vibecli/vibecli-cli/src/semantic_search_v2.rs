@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Semantic search v2 — ranked multi-strategy code search with hybrid scoring.
 //! FIT-GAP v11 Phase 48 — closes gap vs all major competitors.
 

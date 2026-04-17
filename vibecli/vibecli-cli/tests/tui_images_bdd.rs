@@ -37,13 +37,13 @@ pub struct TuiImagesWorld {
 // ─── Given steps ─────────────────────────────────────────────────────────────
 
 #[given(expr = "the environment variable {string} is set to {string}")]
-fn set_env_var(world: &mut TuiImagesWorld, var: String, value: String) {
+fn set_env_var(_world: &mut TuiImagesWorld, var: String, value: String) {
     // Safety: tests run single-threaded in Cucumber's executor.
     unsafe { std::env::set_var(&var, &value) };
 }
 
 #[given(expr = "the environment variable {string} is unset")]
-fn unset_env_var(world: &mut TuiImagesWorld, var: String) {
+fn unset_env_var(_world: &mut TuiImagesWorld, var: String) {
     unsafe { std::env::remove_var(&var) };
 }
 

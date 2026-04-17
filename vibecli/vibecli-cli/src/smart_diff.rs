@@ -352,8 +352,7 @@ impl SemanticBlockDetector {
             ("pub type ", "type"),
         ];
         for (prefix, kind) in &patterns {
-            if line.starts_with(prefix) {
-                let rest = &line[prefix.len()..];
+            if let Some(rest) = line.strip_prefix(prefix) {
                 let name_end = rest
                     .find(|c: char| !c.is_alphanumeric() && c != '_')
                     .unwrap_or(rest.len());
@@ -546,8 +545,10 @@ pub struct DiffStats {
 
 impl DiffStats {
     pub fn compute(files: &[FileDiff]) -> Self {
-        let mut s = DiffStats::default();
-        s.files_changed = files.len();
+        let mut s = DiffStats {
+            files_changed: files.len(),
+            ..Default::default()
+        };
         for f in files {
             s.hunks += f.hunk_count();
             s.lines_added += f.total_added();

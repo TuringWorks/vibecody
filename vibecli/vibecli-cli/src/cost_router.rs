@@ -4,6 +4,8 @@
 //! quality requirements, and historical performance data. Supports multiple routing
 //! strategies including A/B testing for continuous optimization.
 
+#![allow(dead_code)]
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 

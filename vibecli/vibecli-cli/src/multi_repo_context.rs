@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Multi-repo context aggregation — cross-repo import graph and context.
 //! FIT-GAP v11 Phase 46 — closes gap vs Cursor 4.0, Copilot Workspace v2, Cody 6.0.
 

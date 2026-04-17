@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Agent persistence — serialize and restore running agent state across restarts.
 //! Matches Claude Code 1.x's background agent persistence and Cursor 4.0's
 //! session resume feature.

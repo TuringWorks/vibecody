@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Message queues for agent steering and follow-up injection.
 //! Pi-mono gap bridge: Phase A4.
 //!

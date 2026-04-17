@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Typed in-process lifecycle event bus for extensions.
 //! Pi-mono gap bridge: Phase C6.
 //!

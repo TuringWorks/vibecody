@@ -13,6 +13,7 @@ use std::collections::HashMap;
 // ─── Language Definitions ────────────────────────────────────────────────────
 
 /// Supported programming languages.
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Language {
     Rust,

@@ -1,11 +1,8 @@
-#![allow(dead_code)]
 //! Session HTML export + GitHub Gist sharing.
 //! Pi-mono gap bridge: Phase C3.
 //!
 //! Adds HTML rendering with syntax-highlighted code blocks and private
 //! GitHub Gist upload on top of the existing session_export.rs bundle.
-
-use std::collections::HashMap;
 
 // ---------------------------------------------------------------------------
 // Role
@@ -188,9 +185,9 @@ impl HtmlExporter {
         for raw_line in content.lines() {
             let trimmed = raw_line.trim_start();
             if !in_block {
-                if trimmed.starts_with("```") {
+                if let Some(rest) = trimmed.strip_prefix("```") {
                     in_block = true;
-                    lang = trimmed[3..].trim().to_string();
+                    lang = rest.trim().to_string();
                     if lang.is_empty() {
                         lang = "text".to_string();
                     }
@@ -602,7 +599,7 @@ impl GistClient {
         if status == 401 || status == 403 {
             return Err(GistError::AuthRequired);
         }
-        if status < 200 || status >= 300 {
+        if !(200..300).contains(&status) {
             let msg = extract_json_string(&body, "\"message\"")
                 .unwrap_or_else(|| body.chars().take(200).collect());
             return Err(GistError::ApiError {

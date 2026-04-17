@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Custom REPL macros — define, expand, and manage parameterized command macros.
 //! FIT-GAP v11 Phase 48 — closes gap vs Claude Code 1.x.
 

@@ -322,7 +322,7 @@ mod tests {
 
     #[tokio::test]
     async fn sequenced_queue_takes_priority_over_scenarios() {
-        let mut p = MockAIProvider::with_scenarios("m", vec![("any", "scenario response")]);
+        let p = MockAIProvider::with_scenarios("m", vec![("any", "scenario response")]);
         // Push one sequenced response into the queue manually by building
         // a with_responses provider and verifying queue beats scenario.
         // Simpler: build a provider that has BOTH. We compose manually.

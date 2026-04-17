@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Pluggable tool I/O — redirect built-in tools to SSH, Docker, or any backend.
 //! Pi-mono gap bridge: Phase B2.
 //!

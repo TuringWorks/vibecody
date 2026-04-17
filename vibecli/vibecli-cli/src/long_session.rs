@@ -9,18 +9,12 @@ pub struct TurnRecord {
 }
 
 /// Mutable state for an in-progress session.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct SessionState {
     pub id: String,
     pub started_at: u64,
     pub turns: Vec<TurnRecord>,
     pub total_tokens: u64,
-}
-
-impl Default for SessionState {
-    fn default() -> Self {
-        Self { id: String::new(), started_at: 0, turns: vec![], total_tokens: 0 }
-    }
 }
 
 impl SessionState {
@@ -80,15 +74,9 @@ impl Default for SessionConfig {
 }
 
 /// Evaluates session health and emits continuation decisions.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct SessionManager {
     pub config: SessionConfig,
-}
-
-impl Default for SessionManager {
-    fn default() -> Self {
-        Self { config: SessionConfig::default() }
-    }
 }
 
 impl SessionManager {

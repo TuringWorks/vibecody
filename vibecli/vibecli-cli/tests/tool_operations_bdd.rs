@@ -14,6 +14,7 @@ use vibecli_cli::tool_operations::{
 // ─── World ────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Default, World)]
+#[allow(dead_code)]
 pub struct ToWorld {
     // bash backends
     dry_run: Option<Arc<DryRunBashOps>>,

@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Inline image rendering — Kitty Graphics Protocol + iTerm2.
 //! Pi-mono gap bridge: Phase C1.
 //!
@@ -208,12 +207,10 @@ impl RenderResult {
 /// Returns `None` if the data is too short or the format is unrecognised.
 pub fn parse_image_dimensions(data: &[u8]) -> Option<(u32, u32)> {
     // PNG: IHDR chunk always starts at byte 16; width/height are 4-byte BE at 16/20.
-    if data.len() >= 8 && &data[..8] == b"\x89PNG\r\n\x1a\n" {
-        if data.len() >= 24 {
-            let w = u32::from_be_bytes([data[16], data[17], data[18], data[19]]);
-            let h = u32::from_be_bytes([data[20], data[21], data[22], data[23]]);
-            return Some((w, h));
-        }
+    if data.len() >= 8 && &data[..8] == b"\x89PNG\r\n\x1a\n" && data.len() >= 24 {
+        let w = u32::from_be_bytes([data[16], data[17], data[18], data[19]]);
+        let h = u32::from_be_bytes([data[20], data[21], data[22], data[23]]);
+        return Some((w, h));
     }
     // JPEG: scan for SOF markers (0xFFC0..0xFFC3, 0xFFC5..0xFFC7, 0xFFC9..0xFFCB).
     if data.len() >= 3 && &data[..3] == b"\xff\xd8\xff" {

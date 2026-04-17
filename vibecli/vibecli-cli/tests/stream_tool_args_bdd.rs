@@ -4,7 +4,7 @@
  */
 use cucumber::{World, given, then, when};
 use vibecli_cli::stream_tool_args::{
-    PartialHint, PartialParseResult, StreamingToolCallManager, ToolArgAccumulator, ToolCallDelta,
+    PartialParseResult, StreamingToolCallManager, ToolArgAccumulator, ToolCallDelta,
     render_partial_hint,
 };
 

@@ -6,6 +6,7 @@ use cucumber::{World, given, then, when};
 use vibecli_cli::alt_explore::{ExploreCandidate, Tournament, TournamentConfig, TournamentResult};
 
 #[derive(Debug, Default, World)]
+#[allow(dead_code)]
 pub struct AeWorld {
     candidates: Vec<ExploreCandidate>,
     scored: Option<ExploreCandidate>,

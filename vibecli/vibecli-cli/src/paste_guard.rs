@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Bracketed paste safety guard — collapse large pastes to markers.
 //! Pi-mono gap bridge: Phase C5.
 //!

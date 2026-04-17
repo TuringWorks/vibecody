@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Dependency update advisor — analyzes SemVer constraints, identifies outdated
 //! dependencies, and assesses update safety (breaking vs non-breaking).
 //! Matches Cody 6.0's dependency intelligence feature.

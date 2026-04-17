@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Code explanation depth levels — surface / deep / expert explanations.
 //! FIT-GAP v11 Phase 48 — closes gap vs Claude Code 1.x, Cody 6.0.
 
@@ -20,6 +19,7 @@ pub enum DepthLevel {
 }
 
 impl DepthLevel {
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "surface" | "1" => Some(Self::Surface),

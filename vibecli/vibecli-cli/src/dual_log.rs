@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Dual-file session logs: append-only log.jsonl + compacted context.jsonl.
 //! Pi-mono gap bridge: Phase B4.
 //!
@@ -37,6 +36,7 @@ impl LogRole {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         match s {
             "assistant" => LogRole::Assistant,

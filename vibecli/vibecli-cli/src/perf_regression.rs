@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Performance regression detection — baseline + threshold alerts.
 //! FIT-GAP v11 Phase 48 — closes gap vs Devin 2.0.
 

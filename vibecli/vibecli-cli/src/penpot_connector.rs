@@ -430,7 +430,7 @@ pub fn validate_penpot_config(cfg: &PenpotConfig) -> Result<(), DesignError> {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 fn to_pascal_case(s: &str) -> String {
-    s.split(|c: char| c == ' ' || c == '-' || c == '_')
+    s.split([' ', '-', '_'])
         .filter(|w| !w.is_empty())
         .map(|w| {
             let mut c = w.chars();

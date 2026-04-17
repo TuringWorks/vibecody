@@ -337,7 +337,7 @@ fn epoch_ms() -> u64 {
 pub fn tokens_to_css(tokens: &[DesignToken]) -> String {
     let mut css = String::from(":root {\n");
     for t in tokens {
-        let var_name = t.name.to_lowercase().replace(' ', "-").replace('/', "-");
+        let var_name = t.name.to_lowercase().replace([' ', '/'], "-");
         css.push_str(&format!("  --{}: {};\n", var_name, t.value));
     }
     css.push('}');
@@ -357,7 +357,7 @@ pub fn tokens_to_ts(tokens: &[DesignToken]) -> String {
     for (cat, toks) in &categories {
         ts.push_str(&format!("  {}: {{\n", cat));
         for t in toks {
-            let key = t.name.replace('-', "_").replace(' ', "_");
+            let key = t.name.replace(['-', ' '], "_");
             ts.push_str(&format!("    {}: \"{}\",\n", key, t.value));
         }
         ts.push_str("  },\n");

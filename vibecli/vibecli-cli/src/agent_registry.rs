@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Agent-OS registry — discovery and capability advertisement for the agent pool.
 //! Matches Devin 2.0's agent registry system.
 //!

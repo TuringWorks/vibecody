@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Dynamic agent recruiter — matches tasks to capable agents, manages hiring
 //! and releasing agents from the pool. Integrates with `agent_registry`.
 //! Matches Devin 2.0's agent recruitment system.

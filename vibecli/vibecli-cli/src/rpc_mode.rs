@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Bidirectional stdin/stdout JSONL RPC for embedding VibeCLI.
 //!
 //! Each message is a single UTF-8 line terminated with `\n` (LF only —
@@ -142,7 +141,7 @@ impl RpcFrame {
     /// Parse from a single line. Returns `Err` if the input is not valid JSON
     /// or if the `"type"` field is absent.
     pub fn from_line(line: &str) -> Result<Self, String> {
-        let trimmed = line.trim_end_matches(|c| c == '\r' || c == '\n');
+        let trimmed = line.trim_end_matches(['\r', '\n']);
         let value: serde_json::Value = serde_json::from_str(trimmed)
             .map_err(|e| format!("json parse error: {e}"))?;
         let obj = value

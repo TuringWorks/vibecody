@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Agent resource quotas — per-agent token, cost, time, and task quotas
 //! with soft-warn and hard-block enforcement. Matches Claude Code 1.x cost
 //! controls and Devin 2.0's resource budget system.

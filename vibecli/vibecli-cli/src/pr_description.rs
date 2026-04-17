@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! PR description generator — produces structured pull request titles and bodies
 //! from diff stats and commit history. Matches Claude Code 1.x, Cursor 4.0,
 //! and Copilot Workspace v2's PR description generation.
@@ -117,8 +116,7 @@ impl PrDescriptionGenerator {
                 .trim_start_matches("feat/")
                 .trim_start_matches("fix/")
                 .trim_start_matches("chore/")
-                .replace('-', " ")
-                .replace('_', " ");
+                .replace(['-', '_'], " ");
             let mut chars = name.chars();
             match chars.next() {
                 None => String::new(),

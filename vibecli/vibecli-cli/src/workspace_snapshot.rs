@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Workspace snapshot and restore — captures a point-in-time view of the
 //! working directory state (file hashes + git status) and can restore to it.
 //! Matches Cursor 4.0 and Devin 2.0's workspace checkpoint features.

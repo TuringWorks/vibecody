@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! IME/CJK input support — CURSOR_MARKER APC escape + wide-char handling.
 //! Pi-mono gap bridge: Phase C2.
 //!
@@ -399,6 +398,7 @@ pub fn truncate_to_width(s: &str, max_cols: usize) -> String {
 /// - Words are separated by ASCII space; long words are hard-wrapped by char.
 /// - ANSI SGR state is re-emitted at the start of continuation lines so colors
 ///   carry across line breaks.
+#[allow(unused_assignments)]
 pub fn wrap_to_width(s: &str, max_cols: usize) -> Vec<String> {
     if max_cols == 0 {
         return vec![];
@@ -498,7 +498,7 @@ pub fn wrap_to_width(s: &str, max_cols: usize) -> Vec<String> {
 
         // Space — word separator.
         if chars[i] == ' ' {
-            if current_width + 1 <= max_cols {
+            if current_width < max_cols {
                 current_line.push(' ');
                 current_width += 1;
             } else {

@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Session export/import — portable session bundles.
 //! FIT-GAP v11 Phase 48 — closes gap vs Claude Code 1.x.
 
@@ -26,6 +25,7 @@ impl Role {
             Role::Tool => "tool",
         }
     }
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         match s {
             "assistant" => Role::Assistant,
@@ -163,9 +163,9 @@ impl SessionImporter {
         let mut msg_counter = 0u64;
 
         for line in src.lines() {
-            if line.starts_with("# ") {
-                title = line[2..].to_string();
-            } else if line.starts_with("## ") {
+            if let Some(rest) = line.strip_prefix("# ") {
+                title = rest.to_string();
+            } else if let Some(header) = line.strip_prefix("## ") {
                 // Flush previous
                 if let Some(role) = current_role.take() {
                     let content = current_content.join("\n").trim().to_string();
@@ -173,7 +173,6 @@ impl SessionImporter {
                     msg_counter += 1;
                     current_content.clear();
                 }
-                let header = &line[3..];
                 let role_str = header.split('(').next().unwrap_or("USER").trim().to_lowercase();
                 current_role = Some(Role::from_str(&role_str));
             } else if current_role.is_some() {

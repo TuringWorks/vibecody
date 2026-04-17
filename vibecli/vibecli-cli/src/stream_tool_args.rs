@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Streaming partial tool call arguments via toolcall_delta events.
 //! Pi-mono gap bridge: Phase B3.
 //!
@@ -237,7 +236,7 @@ fn extract_string_value<'a>(buffer: &'a str, key: &str) -> Option<&'a str> {
             continue;
         }
         // Step past the opening quote.
-        let val_bytes = after_colon[1..].as_bytes();
+        let val_bytes = &after_colon.as_bytes()[1..];
         let mut end = 0;
         let mut closed = false;
         while end < val_bytes.len() {
@@ -335,7 +334,7 @@ fn extract_first_key_name(buffer: &str) -> Option<String> {
     if !inner.starts_with('"') {
         return None;
     }
-    let key_bytes = inner[1..].as_bytes();
+    let key_bytes = &inner.as_bytes()[1..];
     let mut end = 0;
     while end < key_bytes.len() {
         if key_bytes[end] == b'\\' {

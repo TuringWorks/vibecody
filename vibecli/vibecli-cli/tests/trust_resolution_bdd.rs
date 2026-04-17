@@ -4,7 +4,7 @@
  */
 use cucumber::{World, given, then, when};
 use vibecli_cli::trust_resolution::{
-    ContentSource, ContentTrustResolver, TrustDecision, TrustEvent, TrustLevel, TrustPolicy,
+    ContentSource, ContentTrustResolver, TrustDecision, TrustEvent, TrustPolicy,
     TrustResolver,
 };
 use std::path::PathBuf;

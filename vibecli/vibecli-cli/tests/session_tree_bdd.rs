@@ -25,6 +25,7 @@ pub struct StWorld {
 }
 
 impl StWorld {
+    #[allow(dead_code)]
     fn tree_ref(&self) -> &SessionTree {
         &self.tree
     }

@@ -359,7 +359,7 @@ fn scrub_prefixed_token(input: &str, prefix: &str, min_suffix_len: usize) -> Str
         // Make sure it's not in the middle of a longer prefix we already handled.
         let before = &remaining[..idx];
         // If the char immediately before is alphanumeric, this is not a token boundary.
-        if before.as_bytes().last().map_or(false, |b| b.is_ascii_alphanumeric() || *b == b'-') {
+        if before.as_bytes().last().is_some_and(|b| b.is_ascii_alphanumeric() || *b == b'-') {
             out.push_str(&remaining[..idx + prefix.len()]);
             remaining = &remaining[idx + prefix.len()..];
             continue;

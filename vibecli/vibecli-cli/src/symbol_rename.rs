@@ -177,6 +177,12 @@ pub struct RenameEngine {
     pub files: HashMap<PathBuf, String>,
 }
 
+impl Default for RenameEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RenameEngine {
     pub fn new() -> Self {
         Self {

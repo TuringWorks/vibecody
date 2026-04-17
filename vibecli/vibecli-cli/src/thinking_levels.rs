@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! 6-level thinking abstraction with per-level token budgets.
 //! Pi-mono gap bridge: Phase B5.
 //!
@@ -47,6 +46,7 @@ impl ThinkingLevel {
     }
 
     /// Parse from string — case-insensitive, also accepts "x-high" and "extra-high".
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s.to_ascii_lowercase().as_str() {
             "off" | "none" | "disabled" => Some(Self::Off),

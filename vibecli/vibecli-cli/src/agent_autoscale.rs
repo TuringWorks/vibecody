@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Agent auto-scaler — adjusts the active agent pool size based on queue depth,
 //! utilization metrics, and scaling policies. Matches Devin 2.0's auto-scaling.
 //!
@@ -142,35 +141,36 @@ impl AgentAutoScaler {
         let now = now_ms();
 
         // Scale up: queue overflow
-        if metrics.pending_tasks >= self.policy.queue_depth_threshold {
-            if self.current_size < self.policy.max_agents {
-                let elapsed = now.saturating_sub(self.last_scale_up_ms) / 1000;
-                if elapsed >= self.policy.scale_up_cooldown_secs {
-                    let add = self.policy.scale_step.min(self.policy.max_agents - self.current_size);
-                    return ScalingDecision::ScaleUp(add);
-                }
+        if metrics.pending_tasks >= self.policy.queue_depth_threshold
+            && self.current_size < self.policy.max_agents
+        {
+            let elapsed = now.saturating_sub(self.last_scale_up_ms) / 1000;
+            if elapsed >= self.policy.scale_up_cooldown_secs {
+                let add = self.policy.scale_step.min(self.policy.max_agents - self.current_size);
+                return ScalingDecision::ScaleUp(add);
             }
         }
 
         // Scale up: high utilization
-        if smooth_util > self.policy.scale_up_threshold {
-            if self.current_size < self.policy.max_agents {
-                let elapsed = now.saturating_sub(self.last_scale_up_ms) / 1000;
-                if elapsed >= self.policy.scale_up_cooldown_secs {
-                    let add = self.policy.scale_step.min(self.policy.max_agents - self.current_size);
-                    return ScalingDecision::ScaleUp(add);
-                }
+        if smooth_util > self.policy.scale_up_threshold
+            && self.current_size < self.policy.max_agents
+        {
+            let elapsed = now.saturating_sub(self.last_scale_up_ms) / 1000;
+            if elapsed >= self.policy.scale_up_cooldown_secs {
+                let add = self.policy.scale_step.min(self.policy.max_agents - self.current_size);
+                return ScalingDecision::ScaleUp(add);
             }
         }
 
         // Scale down: low utilization, no pending tasks
-        if smooth_util < self.policy.scale_down_threshold && metrics.pending_tasks == 0 {
-            if self.current_size > self.policy.min_agents {
-                let elapsed = now.saturating_sub(self.last_scale_down_ms) / 1000;
-                if elapsed >= self.policy.cooldown_secs {
-                    let remove = self.policy.scale_step.min(self.current_size - self.policy.min_agents);
-                    return ScalingDecision::ScaleDown(remove);
-                }
+        if smooth_util < self.policy.scale_down_threshold
+            && metrics.pending_tasks == 0
+            && self.current_size > self.policy.min_agents
+        {
+            let elapsed = now.saturating_sub(self.last_scale_down_ms) / 1000;
+            if elapsed >= self.policy.cooldown_secs {
+                let remove = self.policy.scale_step.min(self.current_size - self.policy.min_agents);
+                return ScalingDecision::ScaleDown(remove);
             }
         }
 

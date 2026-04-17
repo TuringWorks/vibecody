@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! vLLM GPU pod deployment manager.
 //! Pi-mono gap bridge: Phase D1.
 //!
@@ -51,6 +50,7 @@ impl GpuTier {
     }
 
     /// Parse a GPU identifier string into a `GpuTier`.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "t4" | "t4-16gb" | "t4_16gb" => Some(GpuTier::T4_16GB),
@@ -512,9 +512,7 @@ impl PodManager {
     /// the host path component.
     pub fn extract_models_path(mount_arg: &str) -> Option<String> {
         let parts: Vec<&str> = mount_arg.splitn(2, ':').collect();
-        if parts.len() == 2 && !parts[0].is_empty() {
-            Some(parts[0].to_string())
-        } else if parts.len() == 1 && !parts[0].is_empty() {
+        if !parts.is_empty() && !parts[0].is_empty() {
             Some(parts[0].to_string())
         } else {
             Option::None
@@ -555,7 +553,7 @@ pub fn assign_gpus(
     for model in models {
         // Minimum GPUs needed for this model (ceil division).
         let vram_with_overhead = (model.min_vram_gb as f64 * 1.20).ceil() as u32;
-        let gpus_needed = ((vram_with_overhead + vram_per_gpu - 1) / vram_per_gpu).max(1);
+        let gpus_needed = vram_with_overhead.div_ceil(vram_per_gpu).max(1);
 
         if next_index + gpus_needed > total_gpus {
             return Err(format!(
@@ -585,6 +583,7 @@ pub fn assign_gpus(
 
 #[cfg(test)]
 mod tests {
+    #[allow(unused_imports)]
     use super::*;
 
     // --- GpuTier::can_fit_model ---

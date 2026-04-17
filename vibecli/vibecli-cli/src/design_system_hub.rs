@@ -99,7 +99,7 @@ impl DesignSystem {
         let spacing = self.tokens_by_type(&DesignTokenType::Spacing);
 
         let color_entries: String = colors.iter().map(|t| {
-            let key = t.name.to_lowercase().replace(' ', "-").replace('/', "-");
+            let key = t.name.to_lowercase().replace([' ', '/'], "-");
             format!("      \"{}\": \"{}\",\n", key, t.value)
         }).collect();
 
@@ -130,7 +130,7 @@ module.exports = {{
         for ns in &self.namespaces {
             let mut ns_obj = serde_json::Map::new();
             for token in &ns.tokens {
-                let key = token.name.to_lowercase().replace(' ', "_").replace('-', "_");
+                let key = token.name.to_lowercase().replace([' ', '-'], "_");
                 ns_obj.insert(key, serde_json::json!({
                     "value": token.value,
                     "type": format!("{:?}", token.token_type).to_lowercase(),

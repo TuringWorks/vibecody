@@ -96,14 +96,9 @@ impl MergeSummary {
 // ---------------------------------------------------------------------------
 
 /// Parses a file with Git conflict markers into hunks + clean lines.
+#[derive(Default)]
 pub struct ConflictParser {
     pub prefer_longer: bool,
-}
-
-impl Default for ConflictParser {
-    fn default() -> Self {
-        Self { prefer_longer: false }
-    }
 }
 
 impl ConflictParser {

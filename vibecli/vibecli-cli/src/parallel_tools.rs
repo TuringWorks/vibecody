@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Parallel tool executor — concurrent dispatch with preflight hooks.
 //! Pi-mono gap bridge: Phase A2.
 //!
@@ -244,7 +243,7 @@ impl ParallelToolDispatcher {
 
         // Chunk allowed calls into batches of `max_concurrency`.
         // Blocked calls are inserted inline without spawning threads.
-        let mut thread_handles: Vec<thread::JoinHandle<()>> = Vec::new();
+        let thread_handles: Vec<thread::JoinHandle<()>> = Vec::new();
 
         // We process calls in original order but may run them in parallel
         // batches. A semaphore-like approach: collect all allowed indices, then

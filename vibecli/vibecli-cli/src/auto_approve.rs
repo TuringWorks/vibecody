@@ -83,8 +83,8 @@ pub struct AutoApprover {
 // ApprovalConfig impl
 // ---------------------------------------------------------------------------
 
-impl ApprovalConfig {
-    pub fn default() -> Self {
+impl Default for ApprovalConfig {
+    fn default() -> Self {
         Self {
             auto_approve_threshold: 0.2,
             auto_deny_threshold: 0.8,

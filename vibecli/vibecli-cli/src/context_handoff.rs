@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Cross-provider context handoff — serializable session context.
 //! Pi-mono gap bridge: Phase B1.
 //!

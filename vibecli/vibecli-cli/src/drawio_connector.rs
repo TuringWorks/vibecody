@@ -203,7 +203,7 @@ pub fn parse_drawio_xml(xml: &str) -> Result<ParsedDrawio, DesignError> {
     let diagram_chunks = split_between_tags(xml, "<diagram", "</diagram>");
     for chunk in &diagram_chunks {
         let name = extract_attr(chunk, "name").unwrap_or_else(|| "Page".to_string());
-        let id = extract_attr(chunk, "id").unwrap_or_else(|| uuid_short());
+        let id = extract_attr(chunk, "id").unwrap_or_else(uuid_short);
 
         let mut cells = Vec::new();
         let cell_chunks = split_between_tags(chunk, "<mxCell", "/>");
@@ -645,7 +645,7 @@ fn xml_unescape(s: &str) -> String {
 }
 
 /// Split XML into chunks delimited by tag start and end.
-fn split_between_tags<'a>(xml: &'a str, open: &str, close: &str) -> Vec<String> {
+fn split_between_tags(xml: &str, open: &str, close: &str) -> Vec<String> {
     let mut results = Vec::new();
     let mut remaining = xml;
     while let Some(start) = remaining.find(open) {

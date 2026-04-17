@@ -1985,7 +1985,7 @@ fn patterns() -> Vec<RulePattern> {
                 let bytes = line.as_bytes();
                 let len = bytes.len();
                 for i in 0..len.saturating_sub(1) {
-                    if (bytes[i] == b'=' && bytes[i+1] == b'=') || (bytes[i] == b'!' && bytes[i+1] == b'=') {
+                    if (bytes[i] == b'!' || bytes[i] == b'=') && bytes[i+1] == b'=' {
                         let is_strict = i + 2 < len && bytes[i+2] == b'=';
                         let is_preceded_by_excl_or_eq = i > 0 && (bytes[i-1] == b'!' || bytes[i-1] == b'=' || bytes[i-1] == b'<' || bytes[i-1] == b'>');
                         if !is_strict && !is_preceded_by_excl_or_eq {
@@ -2168,11 +2168,11 @@ fn patterns() -> Vec<RulePattern> {
             matcher: |line| {
                 let trimmed = line.trim();
                 if trimmed.starts_with('#') { return None; }
-                if trimmed.starts_with("def ") && trimmed.contains('(') {
-                    if trimmed.contains("=[") || trimmed.contains("={") {
-                        let col = line.find("def ").unwrap_or(0) as u32;
-                        return Some((col, "def".into(), "Mutable default argument — default mutable values are shared across all calls".into()));
-                    }
+                if trimmed.starts_with("def ") && trimmed.contains('(')
+                    && (trimmed.contains("=[") || trimmed.contains("={"))
+                {
+                    let col = line.find("def ").unwrap_or(0) as u32;
+                    return Some((col, "def".into(), "Mutable default argument — default mutable values are shared across all calls".into()));
                 }
                 None
             },

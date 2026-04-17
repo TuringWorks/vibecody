@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Token budget dashboard — real-time tracking of prompt/completion tokens.
 //! FIT-GAP v11 Phase 48 — closes gap vs Claude Code 1.x.
 

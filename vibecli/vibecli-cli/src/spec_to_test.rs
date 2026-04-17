@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Spec-to-test generator — BDD spec → test stub generator.
 //! FIT-GAP v11 Phase 47 — closes gap vs Copilot Workspace v2, Devin 2.0.
 
@@ -90,21 +89,21 @@ impl GherkinParser {
 
         for raw in text.lines() {
             let line = raw.trim();
-            if line.starts_with("Feature:") {
-                feature.name = line["Feature:".len()..].trim().to_string();
+            if let Some(rest) = line.strip_prefix("Feature:") {
+                feature.name = rest.trim().to_string();
             } else if line.starts_with("Scenario:") || line.starts_with("Scenario Outline:") {
                 if let Some(sc) = current.take() { feature.scenarios.push(sc); }
-                let title = if line.starts_with("Scenario Outline:") {
-                    line["Scenario Outline:".len()..].trim().to_string()
+                let title = if let Some(rest) = line.strip_prefix("Scenario Outline:") {
+                    rest.trim().to_string()
                 } else {
                     line["Scenario:".len()..].trim().to_string()
                 };
                 current = Some(GherkinScenario::new(title));
             } else if let Some(sc) = current.as_mut() {
-                if line.starts_with("Given") {
-                    sc.given.push(line["Given".len()..].trim().to_string());
-                } else if line.starts_with("When") {
-                    sc.when.push(line["When".len()..].trim().to_string());
+                if let Some(rest) = line.strip_prefix("Given") {
+                    sc.given.push(rest.trim().to_string());
+                } else if let Some(rest) = line.strip_prefix("When") {
+                    sc.when.push(rest.trim().to_string());
                 } else if line.starts_with("Then") || line.starts_with("And") {
                     sc.then.push(line[line.find(' ').map(|i| i+1).unwrap_or(line.len())..].trim().to_string());
                 }

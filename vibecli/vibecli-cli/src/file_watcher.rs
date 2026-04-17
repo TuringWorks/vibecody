@@ -7,7 +7,7 @@
 //! Matches Cursor 4.0 and Cody 6.0's sub-50ms reindex latency.
 
 use std::collections::{HashMap, HashSet, VecDeque};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -273,7 +273,7 @@ impl FileWatcher {
     }
 
     // Check if a path matches an ignore pattern (simple prefix/suffix match).
-    fn is_ignored(&self, path: &PathBuf) -> bool {
+    fn is_ignored(&self, path: &Path) -> bool {
         let path_str = path.to_string_lossy();
         for pattern in &self.config.ignore_patterns {
             let pat = pattern.trim_end_matches("/**").trim_end_matches("/*");

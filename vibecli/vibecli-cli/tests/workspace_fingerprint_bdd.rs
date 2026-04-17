@@ -3,7 +3,7 @@
  * Run with: cargo test --test workspace_fingerprint_bdd
  */
 use cucumber::{World, given, then, when};
-use vibecli_cli::workspace_fingerprint::{workspace_fingerprint, is_same_workspace};
+use vibecli_cli::workspace_fingerprint::workspace_fingerprint;
 
 #[derive(Debug, Default, World)]
 pub struct WfWorld {

@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Prompt version control — save, branch, diff, and restore prompt versions.
 //! FIT-GAP v11 Phase 48 — closes gap vs Cody 6.0.
 
@@ -205,15 +204,11 @@ impl PromptVcs {
     pub fn history(&self, from_id: &str) -> Vec<&PromptVersion> {
         let mut result = Vec::new();
         let mut current = from_id;
-        loop {
-            if let Some(v) = self.versions.get(current) {
-                result.push(v);
-                match &v.parent_id {
-                    Some(p) => current = p.as_str(),
-                    None => break,
-                }
-            } else {
-                break;
+        while let Some(v) = self.versions.get(current) {
+            result.push(v);
+            match &v.parent_id {
+                Some(p) => current = p.as_str(),
+                None => break,
             }
         }
         result

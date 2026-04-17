@@ -431,7 +431,7 @@ fn run_metering_command(args: &[String]) {
                         println!("  {:<20} {:>10} {:>14} {:>14} {:>12}",
                             "Provider", "Requests", "Input Tokens", "Output Tokens", "Cost (USD)");
                         println!("  {}", "─".repeat(74));
-                        for (_, p) in &report.by_provider {
+                        for p in report.by_provider.values() {
                             println!("  {:<20} {:>10} {:>14} {:>14} {:>12.4}",
                                 p.provider, p.request_count,
                                 p.input_tokens, p.output_tokens, p.cost_usd);
@@ -441,7 +441,7 @@ fn run_metering_command(args: &[String]) {
                         println!("  {:<30} {:>14} {:>14} {:>12}",
                             "Model", "Input Tokens", "Output Tokens", "Cost (USD)");
                         println!("  {}", "─".repeat(74));
-                        for (_, m) in &report.by_model {
+                        for m in report.by_model.values() {
                             println!("  {:<30} {:>14} {:>14} {:>12.4}",
                                 m.model, m.input_tokens, m.output_tokens, m.cost_usd);
                         }
@@ -450,7 +450,7 @@ fn run_metering_command(args: &[String]) {
                         println!("  {:<20} {:>10} {:>14} {:>12}",
                             "Task Type", "Count", "Total Tokens", "Cost (USD)");
                         println!("  {}", "─".repeat(62));
-                        for (_, t) in &report.by_task {
+                        for t in report.by_task.values() {
                             println!("  {:<20} {:>10} {:>14} {:>12.4}",
                                 t.task_type, t.count, t.total_tokens, t.cost_usd);
                         }
@@ -1077,7 +1077,7 @@ fn run_config_command(args: &[String]) {
             }
             // Write to config file using the dot-path notation
             match config::Config::load() {
-                Ok(mut cfg) => {
+                Ok(_cfg) => {
                     // Map dot-path keys to config fields
                     let _updated = true; // validate key before persisting in a real impl
                     {
@@ -1248,11 +1248,11 @@ fn run_proactive_command(args: &[String]) {
     let category_list: Vec<ScanCategory> = if categories == "all" {
         vec![ScanCategory::Security, ScanCategory::Performance, ScanCategory::Correctness]
     } else {
-        categories.split(',').filter_map(|c| match c.trim() {
-            "security"    => Some(ScanCategory::Security),
-            "performance" => Some(ScanCategory::Performance),
-            "tech-debt"   => Some(ScanCategory::TechDebt),
-            _             => Some(ScanCategory::Correctness),
+        categories.split(',').map(|c| match c.trim() {
+            "security"    => ScanCategory::Security,
+            "performance" => ScanCategory::Performance,
+            "tech-debt"   => ScanCategory::TechDebt,
+            _             => ScanCategory::Correctness,
         }).collect()
     };
 
@@ -1635,7 +1635,7 @@ fn run_smart_deps_command(args: &[String]) {
 
     if let Some(ref path) = export {
         let content = match format.as_str() {
-            "dot" => format!("digraph deps {{\n  // dependency graph\n}}\n"),
+            "dot" => "digraph deps {\n  // dependency graph\n}\n".to_string(),
             "cdx" => "<?xml version=\"1.0\"?><bom xmlns=\"http://cyclonedx.org/schema/bom/1.4\"/>\n".to_string(),
             _     => format!("# SBOM\n## Manifests: {}\n", detected.join(", ")),
         };
@@ -10694,7 +10694,7 @@ async fn main() -> Result<()> {
                                     println!("  /openmemory context [query]                  — Get layered agent context (L1+L2+L3)");
                                     println!("  /openmemory layered [query]                  — Same as context (explicit name)");
                                     println!("  /openmemory encrypt                          — Encryption setup info");
-                                    println!("");
+                                    println!();
                                     println!("  MemPalace techniques:");
                                     println!("  /openmemory chunk <text|file:<path>>         — Verbatim drawer ingest (no summarization)");
                                     println!("  /openmemory drawers                          — Show drawer store: Wing/Room breakdown");

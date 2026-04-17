@@ -3569,7 +3569,7 @@ pub async fn watch_get_session_messages(
     let all = store.get_messages(&session_id).map_err(|e| e.to_string())?;
     let filtered: Vec<serde_json::Value> = all
         .iter()
-        .filter(|m| after_id.map_or(true, |aid| m.id > aid))
+        .filter(|m| after_id.is_none_or(|aid| m.id > aid))
         .map(|m| serde_json::json!({
             "id":         m.id,
             "role":       m.role,
@@ -43195,7 +43195,7 @@ pub async fn handle_policy_command(args: String) -> Result<String, String> {
 /// Returns the number of rules loaded.
 #[tauri::command]
 pub async fn sonar_load_rules() -> Result<u32, String> {
-    tokio::task::spawn_blocking(|| crate::sonar_rules::load_rules_to_db())
+    tokio::task::spawn_blocking(crate::sonar_rules::load_rules_to_db)
         .await
         .map_err(|e| e.to_string())?
 }
@@ -43204,21 +43204,21 @@ pub async fn sonar_load_rules() -> Result<u32, String> {
 #[tauri::command]
 pub async fn sonar_get_rules(language: Option<String>) -> Result<Vec<crate::sonar_rules::SonarRule>, String> {
     let lang = language.clone();
-    Ok(tokio::task::spawn_blocking(move || {
+    tokio::task::spawn_blocking(move || {
         crate::sonar_rules::get_rules(lang.as_deref())
     })
     .await
-    .map_err(|e| e.to_string())?)
+    .map_err(|e| e.to_string())
 }
 
 /// Scan the given file content against all applicable SonarQube rules and return line-level issues.
 #[tauri::command]
 pub async fn sonar_scan_file(file_path: String, content: String) -> Result<crate::sonar_rules::SonarScanResult, String> {
-    Ok(tokio::task::spawn_blocking(move || {
+    tokio::task::spawn_blocking(move || {
         crate::sonar_rules::scan_content(&file_path, &content)
     })
     .await
-    .map_err(|e| e.to_string())?)
+    .map_err(|e| e.to_string())
 }
 
 #[tauri::command]

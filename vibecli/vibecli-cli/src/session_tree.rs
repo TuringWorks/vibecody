@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Session tree — in-file JSONL tree branching.
 //! Pi-mono gap bridge: Phase A1.
 //!
@@ -300,7 +299,7 @@ impl SessionTree {
                 let label = extract_str(&payload_str, "\"label\":").unwrap_or_default();
                 EntryKind::BranchSummary { label }
             }
-            "custom" | _ => {
+            _ => {
                 let type_name = extract_str(&payload_str, "\"type_name\":").unwrap_or_else(|| kind_tag.clone());
                 let payload = extract_str(&payload_str, "\"payload\":").unwrap_or_default();
                 EntryKind::Custom { type_name, payload }

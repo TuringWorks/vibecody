@@ -6,7 +6,6 @@ use cucumber::{World, given, then, when};
 use vibecli_cli::watch_session_relay::{
     to_watch_event_json, to_watch_message, to_watch_summary,
     truncate, MessageRowView, NonceRegistry, SessionRowView,
-    WatchSandboxStatus,
 };
 
 // ── World ─────────────────────────────────────────────────────────────────────

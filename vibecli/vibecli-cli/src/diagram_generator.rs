@@ -111,7 +111,7 @@ fn strip_markdown_fences(s: &str) -> &str {
         .trim_start_matches("```plantuml").trim_start_matches("```c4")
         .trim_start_matches("```xml").trim_start_matches("```svg")
         .trim_start_matches("```");
-    let s = if s.ends_with("```") { &s[..s.len() - 3] } else { s };
+    let s = s.strip_suffix("```").unwrap_or(s);
     s.trim()
 }
 

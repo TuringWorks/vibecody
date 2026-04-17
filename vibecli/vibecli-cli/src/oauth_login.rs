@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! OAuth login — subscription-based auth without API keys.
 //! Pi-mono gap bridge: Phase A3.
 //!
@@ -112,6 +111,7 @@ impl OAuthProvider {
     }
 
     /// Parse a provider from a case-insensitive string slug.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s.to_ascii_lowercase().as_str() {
             "anthropic" | "anthropic_claude" | "claude" => {

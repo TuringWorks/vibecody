@@ -5,6 +5,8 @@
  * scroll, key press). Stub execution for non-macOS environments.
  */
 
+#![allow(dead_code)]
+
 use serde::{Deserialize, Serialize};
 
 // ---------------------------------------------------------------------------
@@ -46,11 +48,10 @@ pub enum Action {
 impl Action {
     /// Returns true if the action mutates state (types text or presses Enter).
     pub fn is_destructive(&self) -> bool {
-        match self {
-            Action::Type { .. } => true,
-            Action::KeyPress { key: Key::Enter } => true,
-            _ => false,
-        }
+        matches!(
+            self,
+            Action::Type { .. } | Action::KeyPress { key: Key::Enter }
+        )
     }
 
     /// Human-readable description of the action.
@@ -174,6 +175,7 @@ impl ActionPlan {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn add(mut self, action: Action) -> Self {
         self.steps.push(action);
         self

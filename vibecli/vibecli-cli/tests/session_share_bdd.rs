@@ -5,7 +5,7 @@
 use cucumber::{World, given, then, when};
 use vibecli_cli::session_share::{
     GistClient, GistOptions, GistResult, HtmlExportOptions, HtmlExporter,
-    ShareMessage, ShareRole,
+    ShareMessage,
 };
 
 // ---------------------------------------------------------------------------

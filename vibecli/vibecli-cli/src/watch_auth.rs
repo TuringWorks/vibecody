@@ -487,6 +487,7 @@ impl WatchAuthManager {
 
 // ── Crypto helpers ────────────────────────────────────────────────────────────
 
+#[cfg(test)]
 fn sha256(data: &[u8]) -> Vec<u8> {
     use sha2::Digest;
     sha2::Sha256::digest(data).to_vec()
@@ -867,7 +868,6 @@ mod tests {
     #[test]
     fn verify_p256_valid_signature_accepted() {
         use p256::ecdsa::{signature::Signer, SigningKey};
-        use p256::ecdsa::signature::digest::Digest;
 
         // Generate a real P256 keypair
         let signing_key = SigningKey::random(&mut rand::thread_rng());

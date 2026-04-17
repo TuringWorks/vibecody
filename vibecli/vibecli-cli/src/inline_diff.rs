@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Inline diff accept/reject — hunk-level patch application with partial
 //! acceptance. Matches Claude Code 1.x, Cursor 4.0, and Copilot's inline diff UI.
 //!

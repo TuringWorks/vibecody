@@ -38,8 +38,10 @@ use crate::watch_auth::{
 };
 use crate::watch_session_relay::{
     to_watch_event_json, to_watch_message, to_watch_summary, MessageRowView,
-    NonceRegistry, SessionRowView, WatchDispatchRequest, WatchDispatchResponse,
+    NonceRegistry, SessionRowView, WatchDispatchRequest,
 };
+#[cfg(test)]
+use crate::watch_session_relay::WatchDispatchResponse;
 use tokio_stream::StreamExt as _;
 
 // ── Shared bridge state ───────────────────────────────────────────────────────
@@ -595,7 +597,7 @@ async fn watch_get_active_session(
     let authed = extract_watch_auth(&state, &headers).is_ok()
         || headers.get("Authorization")
                .and_then(|v| v.to_str().ok())
-               .map_or(false, |v| v == format!("Bearer {}", state.api_token));
+               .is_some_and(|v| v == format!("Bearer {}", state.api_token));
     if !authed {
         return (StatusCode::UNAUTHORIZED,
             Json(serde_json::json!({"error": "Auth required"}))).into_response();
@@ -663,7 +665,7 @@ async fn watch_get_sandbox_chat_session(
     let authed = extract_watch_auth(&state, &headers).is_ok()
         || headers.get("Authorization")
                .and_then(|v| v.to_str().ok())
-               .map_or(false, |v| v == format!("Bearer {}", state.api_token));
+               .is_some_and(|v| v == format!("Bearer {}", state.api_token));
     if !authed {
         return (StatusCode::UNAUTHORIZED,
             Json(serde_json::json!({"error": "Auth required"}))).into_response();

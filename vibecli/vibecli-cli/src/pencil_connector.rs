@@ -109,7 +109,7 @@ impl PencilDocument {
 
     /// Serialize to Pencil EP XML format (the .ep ZIP inner content.xml)
     pub fn to_ep_xml(&self) -> String {
-        let pages_xml: String = self.pages.iter().map(|p| page_to_xml(p)).collect::<Vec<_>>().join("\n");
+        let pages_xml: String = self.pages.iter().map(page_to_xml).collect::<Vec<_>>().join("\n");
         format!(
             r#"<?xml version="1.0" encoding="UTF-8"?>
 <Document xmlns="http://www.evolus.vn/Namespace/Pencil"

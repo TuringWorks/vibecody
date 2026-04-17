@@ -3,7 +3,6 @@
  * Run with: cargo test --test dual_log_bdd
  */
 use cucumber::{given, then, when, World};
-use std::path::PathBuf;
 use tempfile::TempDir;
 use vibecli_cli::dual_log::{DualLog, LogEntry, LogRole};
 
