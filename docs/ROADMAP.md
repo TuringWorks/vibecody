@@ -1,36 +1,124 @@
 ---
 layout: page
-title: Roadmap & Implementation Plan
+title: Competitive Landscape & Roadmap
 permalink: /roadmap/
 ---
 
 # Fit-Gap Analysis & Feature Implementation Roadmap
 
-**Date:** February 2026
-**Scope:** VibeCLI vs. OpenAI Codex CLI, Anthropic Claude Code — VibeUI vs. Google Antigravity, Cursor, Windsurf
+**Originally published:** February 2026 &middot; **Last refreshed:** 2026-04-17 (v0.5.5)
+**Scope:** VibeCody compared against **30+** competing AI coding products across terminal, editor, cloud-agent, code-review, completions-only, and mobile/watch categories.
+
+> The original roadmap (below) tracked the initial five-competitor delta (Codex CLI, Claude Code, Antigravity, Cursor, Windsurf) and is preserved as a historical record. See **[ROADMAP-v5](./ROADMAP-v5/)** and **[ROADMAP-v6](./ROADMAP-v6/)** for phases 23–32+. See **[FIT-GAP-ANALYSIS-v12](./fitgap-v12/)** for the current deep-dive.
 
 ## 1. Competitive Landscape Summary
 
-### VibeCLI Competitors
+AI-assisted development splits into six tool categories. VibeCody is the only project that ships a competitive entry in **every single one** of them from a shared Rust + TypeScript monorepo — plus two surfaces (Watch, Flutter Mobile) that have **no serious competitor** as of 0.5.5.
 
-| Tool | Owner | Stack | Standout Capability |
-|------|-------|-------|-------------------|
-| **OpenAI Codex CLI** | OpenAI / TuringWorks fork | Rust + TypeScript | Full agent loop, OS sandbox, approval tiers, MCP |
-| **Claude Code** | Anthropic | Node.js + CLI | Agentic multi-file edits, subagents, 300+ MCP integrations, hooks |
+### 1.1 Terminal / CLI agents
 
-### VibeUI Competitors
+| Tool | Owner | Stack | Standout capability |
+|------|-------|-------|---------------------|
+| **OpenAI Codex CLI** | OpenAI | Rust + TS | Reference agent loop, OS sandbox, approval tiers, MCP |
+| **Claude Code** | Anthropic | Node.js | Agentic multi-file edits, 300+ MCP integrations, subagents, hooks, skills |
+| **Gemini CLI** | Google | Node.js | Gemini-centric, built-in Google Search grounding, long-context |
+| **Aider** | Paul Gauthier (OSS) | Python | Git-aware pair programming, repo-map, very low-cost fastest iteration |
+| **Goose** | Block / Square (OSS) | Rust | MCP-native extensible agent, session replay, any-provider |
+| **OpenHands** (ex-OpenDevin) | All Hands AI (OSS) | Python + sandbox | Full browser + shell sandbox agent, SWE-bench benchmark leader |
+| **Cline** (ex-Claude Dev) | OSS | VS Code ext. | In-editor autonomous agent, plan/act toggle, tight terminal loop |
+| **Amp** | Sourcegraph | TS | Terminal companion to Cody, agent over an indexed monorepo |
+| **Plandex** | Plandex AI (OSS) | Go | Long-running planning + diff review, self-hosted |
+| **`llm`** | Simon Willison (OSS) | Python | Minimal provider-agnostic CLI, plugin ecosystem |
+| **Warp AI** | Warp | Rust terminal | AI-native terminal, command-suggest and block AI |
+| **Mentat** | AbanteAI (OSS) | Python | Interactive code-edit REPL with repo-map |
+| **VibeCLI** | TuringWorks (this project) | Rust | All of the above + 22 providers, TUI + REPL + `--serve` daemon, 711 skills, OpenTelemetry |
 
-| Tool | Owner | Stack | Standout Capability |
-|------|-------|-------|-------------------|
+### 1.2 AI-native IDE / editor
+
+| Tool | Owner | Stack | Standout capability |
+|------|-------|-------|---------------------|
+| **Cursor** | Anysphere | Electron + VS Code fork | Tab model (next-action prediction), 8 parallel agents in git worktrees, 200k-token indexing, BugBot |
+| **Windsurf** | Codeium | Electron + VS Code fork | Cascade agent with flow-awareness, planning agent, memory, checkpoints |
 | **Google Antigravity** | Google | Electron + Gemini | Agent-first IDE, Manager View (5 parallel agents), Artifacts, knowledge base |
-| **Cursor** | Anysphere | Electron + VS Code fork | Tab model (next-action prediction), 8 parallel agents in git worktrees, 200k-token codebase indexing |
-| **Windsurf** | Codeium | Electron + VS Code fork | Cascade agent with flow-awareness (tracks every edit/command), planning agent, memory system, checkpoints |
+| **GitHub Copilot Workspace** | GitHub / Microsoft | Web + VS Code | Spec → plan → implementation workflow, deep GitHub integration |
+| **JetBrains AI Assistant** | JetBrains | All JetBrains IDEs | Deep language tooling, on-prem option, Junie agent |
+| **Amazon Q Developer** | AWS | VS Code / JetBrains | AWS-aware completions, IAM/infra transformations |
+| **Zed** | Zed Industries | Rust + GPUI | Collaborative editor with multi-model AI panel, low latency |
+| **Cody** | Sourcegraph | VS Code / JetBrains / web | Repo-wide embeddings, enterprise graph, bring-your-own-LLM |
+| **Continue.dev** | OSS | VS Code / JetBrains | Open-source Copilot-style autocompletion + chat |
+| **Aide** | CodeStory (OSS) | VS Code fork | Open-source Cursor alternative |
+| **Void** | OSS | VS Code fork | Open-source agent editor |
+| **PearAI** | OSS | VS Code fork | Cursor-alternative with marketplace |
+| **Melty** | OSS | Electron | Structured agent + changelog first editor |
+| **Tabnine** | Tabnine | VS Code / JetBrains | Privacy-first completions, on-prem |
+| **VibeUI** (this project) | TuringWorks | Tauri + React + Rust | 293 panels + 42 composites, all 22 providers, CRDT multiplayer, hooks, skills, WASM extensions |
+
+### 1.3 Cloud / remote-agent products
+
+| Tool | Owner | Stack | Standout capability |
+|------|-------|-------|---------------------|
+| **Devin** | Cognition | Cloud + web | Fully hosted autonomous engineer, browser + shell in VM |
+| **Replit Agent** | Replit | Replit cloud | App-generation agent + hosted runtime, mobile companion |
+| **Bolt.new** | StackBlitz | Web (WebContainers) | "Prompt to full-stack app" running in the browser |
+| **v0** | Vercel | Web | Shadcn/Next.js UI generator; deep Vercel integration |
+| **Lovable** | Lovable | Web | Prompt-to-app with Supabase + Stripe scaffolds |
+| **Builder.io Visual Copilot** | Builder.io | Web | Figma-to-code + visual editor |
+| **Sweep AI** | Sweep | GitHub App | Issue → PR automation |
+| **VibeCLI `--serve` + VibeUI + agent-sdk** | TuringWorks | Self-hosted | Same capability, **self-hostable and open-source**; pair from any device over mDNS/Tailscale/ngrok |
+
+### 1.4 AI code review / CI bots
+
+| Tool | Owner | Integration | Standout capability |
+|------|-------|-------------|---------------------|
+| **CodeRabbit** | CodeRabbit | GitHub / GitLab | Line-by-line PR review, chat back to author |
+| **Qodo** (ex-Codium AI) | Qodo | GitHub / IDE | PR-Agent, tests generation, coverage |
+| **Greptile** | Greptile | GitHub App | Repo-aware review using a graph index |
+| **Cursor BugBot** | Anysphere | GitHub | Cursor-branded review bot |
+| **Ellipsis.dev** | Ellipsis | GitHub | Q&A + review across the repo |
+| **Graphite AI** | Graphite | GitHub stacked-PRs | AI review tuned for stacked-diff workflow |
+| **VibeCLI `/review` + VibeUI CIReviewPanel** | this project | GitHub App + CLI | Same capability, runs locally or in CI; red-team mode + Counsel multi-LLM deliberation |
+
+### 1.5 Completion-only / IDE helper
+
+| Tool | Owner | Integration | Standout capability |
+|------|-------|-------------|---------------------|
+| **GitHub Copilot** | GitHub / MS | All IDEs | Industry-default inline completions |
+| **Tabnine** | Tabnine | All IDEs | On-prem / privacy-first |
+| **Codeium** (free tier) | Codeium | All IDEs | Free Copilot-tier completions |
+| **Continue.dev** | OSS | VS Code / JetBrains | Self-hosted model completions |
+| **Supermaven** | Supermaven | VS Code / JetBrains | 1M-token context window completions |
+| **VibeUI inline completions** | this project | VS Code + Monaco | FIM-enabled local Ollama + any cloud provider |
+
+### 1.6 Mobile / Watch — no serious competitor
+
+| Tool | Owner | Platforms | Status |
+|------|-------|-----------|--------|
+| **Replit mobile** | Replit | iOS, Android | Replit-only; runs Replit cloud |
+| **Cursor mobile (preview)** | Anysphere | iOS | Early preview; read-only chat |
+| **Windsurf mobile** | Codeium | — | Announced, not shipped |
+| **Devin mobile web** | Cognition | Web PWA | Read-only session viewer |
+| **VibeMobile** | this project | iOS, Android, macOS, Linux, Windows, Web | Full-duplex pairing + chat + session control against any host |
+| **VibeWatch — Apple Watch** | this project | watchOS 10+ | **No peer** — native SwiftUI client with dictated reply + approval flow |
+| **VibeWatch — Wear OS** | this project | Wear OS 3+ | **No peer** — native Kotlin/Compose client with the same capability |
+
+### Coverage summary
+
+| Category | Total tools surveyed | VibeCody ships a competitive entry |
+|----------|----------------------|-------------------------------------|
+| Terminal / CLI agents | 13 | ✅ VibeCLI |
+| AI-native IDE / editor | 15 | ✅ VibeUI |
+| Cloud / remote-agent | 7 | ✅ `--serve` + agent-sdk (self-hosted) |
+| AI code review bots | 7 | ✅ `/review` + CIReviewPanel |
+| Completion-only | 6 | ✅ VibeUI inline completions (FIM) |
+| Mobile / watch | 4 mobile, 0 watch | ✅ VibeMobile + **first-class VibeWatch** |
+| **Total** | **52 tools across 6 categories** | **VibeCody is the only project that ships in all six — and the only one with a native watch client.** |
+
 
 ## 2. Current VibeCLI — Feature Inventory
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Multi-provider (17 providers) | Yes Done | All 17 providers implemented |
+| Multi-provider (22 providers) | Yes Done | All 22 providers implemented with failover |
 | TUI (Ratatui) | Yes Done | Chat, FileTree, DiffView, Agent screens |
 | REPL mode (rustyline) | Yes Done | History, tab completion, 14 slash commands |
 | Git context injection | Yes Done | Branch, status, diff in system prompt |
@@ -63,7 +151,7 @@ permalink: /roadmap/
 | Multi-workspace | Yes Done | Multiple root folders |
 | Git panel (status, diff, commit, push, pull) | Yes Done | git2; stash, branch list/switch, history |
 | Terminal panel (PTY) | Yes Done | portable-pty + xterm.js |
-| AI chat panel | Yes Done | All 17 providers; streaming |
+| AI chat panel | Yes Done | All 22 providers; streaming |
 | Command palette | Yes Done | fuse.js fuzzy search |
 | Dark/light theme | Yes Done | localStorage persistence |
 | LSP client (completions, hover, go-to-def) | Yes Done | Wired to Monaco; lazy-start per language |
@@ -87,75 +175,119 @@ permalink: /roadmap/
 
 ## 4. Fit-Gap Matrix
 
-### VibeCLI vs. Codex CLI / Claude Code
+### 4.1 VibeCLI vs. CLI agents (broad)
 
-| Capability | VibeCLI | Codex CLI | Claude Code | Gap Priority |
-|-----------|---------|-----------|-------------|-------------|
-| Agent loop (plan→act→observe) | Yes | Yes | Yes | Closed |
-| Structured tool use | Yes | Yes | Yes | Closed |
-| Streaming TUI responses | Yes | Yes | Yes | Closed |
-| Multi-file batch edits | Yes | Yes | Yes | Closed |
-| Approval tiers (3 levels) | Yes | Yes | Yes | Closed |
-| Codebase indexing | Yes | Yes | Yes | Closed |
-| OS sandbox | Yes | Yes | partial | Closed |
-| Project memory (AGENTS.md) | Yes | Yes | Yes | Closed |
-| MCP integration | Yes | Yes | Yes | Closed |
-| Multi-provider | Yes | Yes | partial | Fit (advantage) |
-| Git context | Yes | Yes | Yes | Fit |
-| Config file | Yes | Yes | Yes | Fit |
-| Non-interactive/CI mode | Yes | Yes | Yes | Closed |
-| Multimodal input | Yes | Yes | Yes | Closed |
-| Trace/audit log | Yes | Yes | partial | Closed (advantage) |
-| Hooks system | Yes | No | Yes | Closed |
-| Parallel multi-agent | Yes | experimental | Yes | Closed |
-| Plan Mode | Yes | No | Yes | Closed |
-| Session resume | Yes | Yes | Yes | Closed |
-| Web search tool | Yes | Yes | Yes | Closed |
-| Shell environment policy | Yes | Yes | No | Closed |
-| Code review agent | Yes | Yes | Yes | Closed |
-| GitHub Actions | Yes | Yes | Yes | Closed |
-| OpenTelemetry | Yes | Yes | No | Closed |
+`Y` = native; `P` = partial; `—` = not supported.
 
-### VibeUI vs. Antigravity / Cursor / Windsurf
+| Capability | VibeCLI | Codex CLI | Claude Code | Gemini CLI | Aider | Goose | OpenHands | Cline | Amp | Plandex |
+|-----------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| Full agent loop | **Y** | Y | Y | P | P | Y | Y | Y | Y | Y |
+| Streaming TUI | **Y** | Y | P | Y | Y | Y | P | — | — | Y |
+| Multi-file batch edits | **Y** | Y | Y | P | Y | Y | Y | Y | Y | Y |
+| Approval tiers (3-level) | **Y** | Y | Y | — | P | Y | Y | Y | P | Y |
+| Codebase indexing | **Y** | Y | P | P | P (repo-map) | P | P | P | Y | P |
+| OS sandbox | **Y** | Y | P | — | — | — | Y | — | — | — |
+| Project memory (`*.md`) | **Y** | Y | Y (CLAUDE.md) | — | P | P | — | P | Y | Y |
+| MCP integration | **Y** | Y | Y (300+) | — | — | Y | P | — | P | — |
+| Multi-provider (≥10) | **Y** (22) | P | — | — | Y | Y | Y | Y | Y | Y |
+| Hooks system | **Y** | — | Y | — | — | — | — | — | — | — |
+| Skills system | **Y** (711) | — | Y | — | — | — | — | — | — | — |
+| Parallel multi-agent | **Y** | P | Y | — | — | — | — | — | — | — |
+| Plan Mode | **Y** | — | Y | — | — | — | Y | Y | — | Y |
+| Session resume | **Y** | Y | Y | P | Y | Y | Y | Y | Y | Y |
+| Web search tool | **Y** | Y | Y | Y | — | Y | Y | — | Y | — |
+| Code review agent | **Y** | Y | Y | — | — | — | — | — | Y | — |
+| Red-team / pentest pipeline | **Y** | — | — | — | — | — | — | — | — | — |
+| Counsel (multi-LLM debate) | **Y** | — | — | — | — | — | — | — | — | — |
+| GitHub Actions integration | **Y** | Y | Y | — | — | — | — | — | — | — |
+| OpenTelemetry | **Y** | Y | — | — | — | — | — | — | — | — |
+| Daemon / REST + SSE server | **Y** | P | P | — | — | Y | — | — | Y | — |
+| Mobile companion | **Y** | — | — | — | — | — | — | — | — | — |
+| Watch companion | **Y** | — | — | — | — | — | — | — | — | — |
 
-| Capability | VibeUI | Antigravity | Cursor | Windsurf | Gap Priority |
-|-----------|--------|-------------|--------|----------|-------------|
-| Inline AI completions | Yes | Yes | Yes | Yes | Closed |
-| Agent mode (autonomous edits) | Yes | Yes | Yes | Yes | Closed |
-| Diff review before apply | Yes | Yes | Yes | Yes | Closed |
-| @ context system | Yes | partial | Yes | Yes | Closed |
-| Flow-awareness (tracking + injection) | Yes | partial | partial | Yes | Closed |
-| Memory / rules | Yes | Yes | Yes | Yes | Closed |
-| LSP integration | Yes | Yes | Yes | Yes | Closed |
-| Multi-file AI editing | Yes | Yes | Yes | Yes | Closed |
-| Extension system (WASM) | Yes | Yes | Yes | Yes | Closed |
-| Trace / audit log | Yes | No | No | No | Closed (advantage) |
-| Checkpoint / undo AI | Yes | Yes | partial | Yes | Closed |
-| Multimodal chat | Yes | partial | Yes | partial | Closed |
-| Codebase indexing (semantic) | Yes | Yes | Yes | Yes | Closed |
-| Planning agent | Yes | Yes | Yes | Yes | Closed |
-| Parallel agents | Yes | Yes (async) | Yes (8) | Yes | Closed |
-| Next-edit prediction (Tab/Supercomplete) | Yes | partial | Yes | Yes | Closed |
-| Manager View (orchestration UI) | Yes | Yes | No | No | Closed |
-| GitHub PR review (BugBot) | Yes | No | Yes | No | Closed |
-| Artifacts | Yes | Yes | No | No | Closed |
-| Monaco Editor | Yes | Yes | Yes | Yes | Fit |
-| Git panel | Yes | Yes | Yes | Yes | Fit |
-| Terminal | Yes | Yes | Yes | Yes | Fit |
-| Multi-provider | Yes | Yes | partial | partial | Fit (advantage) |
-| Rust native backend | Yes | partial | No | No | **Differentiator** |
-| Local/private AI (Ollama) | Yes | No | partial | partial | **Differentiator** |
-| Open source | Yes | No | No | No | **Differentiator** |
+### 4.2 VibeUI vs. IDE / editor competitors
+
+| Capability | VibeUI | Cursor | Windsurf | Antigravity | Copilot WS | JetBrains AI | Amazon Q | Zed | Cody | Continue | Aide | Void |
+|-----------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| Inline AI completions | **Y** | Y | Y | Y | Y | Y | Y | Y | P | Y | Y | Y |
+| Agent mode (multi-file) | **Y** | Y | Y | Y | Y | Y | P | P | P | P | Y | Y |
+| Diff review before apply | **Y** | Y | Y | Y | Y | Y | P | P | Y | Y | Y | Y |
+| @ context system | **Y** | Y | Y | P | P | Y | P | Y | Y | Y | Y | Y |
+| Flow-awareness | **Y** | P | Y | P | — | P | — | — | P | — | P | P |
+| Memory / rules | **Y** | Y | Y | Y | P | Y | — | — | Y | Y | Y | Y |
+| LSP | **Y** | Y | Y | Y | Y | Y | Y | Y | Y | Y | Y | Y |
+| WASM extension host | **Y** | — | — | — | — | — | — | — | — | — | — | — |
+| Trace / audit log | **Y** | — | — | — | — | — | P | — | — | — | — | — |
+| Checkpoint / undo | **Y** | P | Y | Y | P | P | — | — | — | P | Y | Y |
+| Multimodal chat | **Y** | Y | P | P | P | P | — | P | P | Y | Y | Y |
+| Semantic codebase index | **Y** | Y | Y | Y | Y | Y | P | — | Y | P | Y | Y |
+| Planning agent | **Y** | P | Y | Y | Y | Y | — | — | — | — | Y | Y |
+| Parallel agents | **Y** | Y (8) | Y | Y (5) | — | — | — | — | — | — | P | — |
+| Next-edit prediction (Tab) | **Y** | **Y** | Y | P | — | P | — | — | — | — | P | P |
+| Manager View (orchestration) | **Y** | — | — | Y | — | — | — | — | — | — | — | — |
+| CI review bot | **Y** | Y (BugBot) | — | — | — | — | — | — | — | — | — | — |
+| Artifacts | **Y** | — | — | Y | Y | — | — | — | — | — | — | — |
+| Multiplayer CRDT | **Y** | — | — | — | — | — | — | Y | — | — | — | — |
+| Rust native backend | **Y** | — | — | P | — | — | — | Y | — | — | — | — |
+| Local / private AI (Ollama) | **Y** | P | P | — | — | — | — | P | P | Y | Y | Y |
+| Open source | **Y** | — | — | — | — | — | — | **Y** | P | **Y** | **Y** | **Y** |
+| Mobile + watch companions | **Y** | P | — | — | — | — | — | — | — | — | — | — |
+
+### 4.3 VibeCLI `--serve` vs. cloud-agent products
+
+| Capability | VibeCLI + agent-sdk | Devin | Replit Agent | Bolt.new | v0 | Sweep AI |
+|-----------|:---:|:---:|:---:|:---:|:---:|:---:|
+| Self-hostable | **Y** | — | — | — | — | — |
+| Works offline (local model) | **Y** | — | — | — | — | — |
+| Bring-your-own-LLM | **Y** | — | — | — | — | — |
+| Full-stack code generation | P | Y | Y | Y | Y (UI only) | P |
+| Long-horizon autonomy (hrs) | P | **Y** | Y | P | P | P |
+| Browser / shell sandbox | Y | Y | Y | Y (WC) | — | — |
+| GitHub issue → PR automation | Y | Y | P | — | — | Y |
+| Mobile companion | **Y** | P | Y | — | — | — |
+| Open source | **Y** | — | — | — | — | P |
+
+### 4.4 VibeCLI `/review` vs. AI review bots
+
+| Capability | VibeCLI `/review` + CIReviewPanel | CodeRabbit | Qodo | Greptile | Cursor BugBot | Ellipsis |
+|-----------|:---:|:---:|:---:|:---:|:---:|:---:|
+| Inline PR comments | Y | **Y** | Y | Y | Y | Y |
+| Security-focused review | **Y** (red-team) | Y | P | P | P | P |
+| Self-hosted option | **Y** | — | P | — | — | — |
+| Bring-your-own-LLM | **Y** | — | — | — | — | — |
+| Runs locally from CLI | **Y** | — | — | — | — | — |
+| Multi-LLM deliberation (Counsel) | **Y** | — | — | — | — | — |
+| Cost metering / budgets | **Y** | — | — | — | — | — |
+| Compliance reporting | **Y** | — | Y | — | — | — |
+
+### 4.5 VibeMobile / VibeWatch vs. mobile + watch surfaces
+
+| Capability | VibeMobile + VibeWatch | Replit mobile | Cursor mobile (preview) | Devin web | Others |
+|-----------|:---:|:---:|:---:|:---:|:---:|
+| Native iOS | **Y** | Y | Y | PWA | — |
+| Native Android | **Y** | Y | — | PWA | — |
+| macOS / Linux / Windows / Web | **Y** | — | — | Web | — |
+| Apple Watch native | **Y** | — | — | — | — |
+| Wear OS native | **Y** | — | — | — | — |
+| Pairs with self-hosted host | **Y** | — | — | — | — |
+| Full-duplex session (not read-only) | **Y** | Y | P | P | — |
+| Zero-config LAN / Tailscale / ngrok | **Y** | — | — | — | — |
+| Handoff-style continuity | **Y** | — | — | P | — |
+| Dictated reply on watch | **Y** | — | — | — | — |
+| Open source | **Y** | — | — | — | — |
 
 ## 5. Differentiators to Exploit
 
-VibeCody has unique advantages to lean into:
+VibeCody has unique advantages to lean into — refreshed for v0.5.5:
 
-1. **Full Rust backend** — lower memory, faster startup, native performance vs. Electron apps
-2. **Ollama first-class** — Cursor/Windsurf treat local models as afterthoughts; VibeCody should be the best local-AI dev tool
-3. **Monorepo synergy** — VibeCLI and VibeUI share the same `vibe-ai` and `vibe-core`; agent work done once applies both
-4. **Privacy by design** — no telemetry, no cloud indexing, fully local option
-5. **Open source** — full transparency, extensibility, self-hostable
+1. **Full Rust backend** — lower memory, faster startup, native performance vs. Electron apps (Cursor, Windsurf, Antigravity, Continue, Aide, Void, Cline, PearAI).
+2. **Ollama first-class + 22 providers** — the widest provider catalog of any AI coding tool. Cursor/Windsurf treat local models as afterthoughts; Cody requires explicit configuration.
+3. **Monorepo synergy** — VibeCLI, VibeUI, VibeCLI App, VibeMobile, and VibeWatch share `vibe-ai` and `vibe-core`; one piece of agent work applies everywhere.
+4. **Privacy by design** — no telemetry, no cloud indexing, fully local option. Only OpenHands, Aider, Goose, and Cody offer a comparable story, and none of those ship a polished desktop IDE.
+5. **Open source** — full transparency, extensibility, self-hostable. Cursor, Windsurf, Antigravity, Copilot, JetBrains AI, Amazon Q, Devin, Replit, Bolt.new, v0 are all closed.
+6. **Wrist-to-terminal coverage** — the *only* product that lets a developer move from desktop → phone → watch within the same session. This is a category VibeCody effectively owns as of 0.5.5.
+7. **Zero-config networking** — mDNS, Tailscale Funnel, and ngrok auto-detection give developers a Dropbox-simple setup story no competitor matches.
+8. **Counsel + red-team pipelines** — native multi-LLM deliberation and security-focused review bake capabilities into the CLI that competitors position as separate paid products (CodeRabbit, Qodo).
 
 ## 6. Implementation Plan
 
@@ -771,28 +903,77 @@ packages/agent-sdk      (TypeScript SDK: @vibecody/agent-sdk)
 .github/actions/vibecli (GitHub Actions marketplace action)
 ```
 
-## 9. Key Differentiators (Current)
+## 9. Key Differentiators (Current — v0.5.5, April 2026)
 
-With all phases complete, VibeCody's competitive positioning:
+### 9.1 Broad feature matrix — 14 competitors
 
-| Dimension | VibeCody | Cursor | Windsurf | Antigravity |
-|-----------|---------|--------|----------|-------------|
-| Rust native backend | Yes | No | No | partial |
-| Local AI first (Ollama) | Yes | partial | partial | No |
-| Full agent loop | Yes | Yes | Yes | Yes |
-| Codebase indexing (semantic) | Yes | Yes | Yes | Yes |
-| Privacy (no telemetry) | Yes | No | No | No |
-| Open source | Yes | No | No | No |
-| CLI + GUI unified | Yes | partial | No | partial |
-| MCP | Yes | Yes | partial | Yes |
-| Multi-provider (5+) | Yes | partial | partial | partial |
-| OS sandbox | Yes | No | No | No |
-| Hooks system | Yes | No | No | No |
-| Parallel agents | Yes | Yes (8) | Yes | Yes |
-| Plan Mode | Yes | No | Yes | Yes |
-| Skills system | Yes | No | Yes | No |
-| Artifacts + Manager View | Yes | No | No | Yes |
-| VS Code extension | Yes | Yes | Yes | Yes |
-| Agent SDK | Yes | No | No | No |
+`Y` = native support; `P` = partial / limited; `—` = not supported. Ordered by the features we care about most.
 
-The clearest win: **VibeCody is the only fully open-source, privacy-first, local-AI-capable development toolchain that works both in the terminal and as a desktop IDE, with hooks, parallel agents, artifacts, and a VS Code extension.**
+| Dimension | VibeCody 0.5.5 | Cursor | Windsurf | Antigravity | Claude Code | Codex CLI | Aider | Goose | OpenHands | Cline | Cody | Copilot | JetBrains AI | Devin |
+|-----------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| Open source | **Y** | — | — | — | — | P | Y | Y | Y | Y | P | — | — | — |
+| Rust native backend | **Y** | — | — | P | — | Y | — | Y | — | — | — | — | — | — |
+| Local AI first (Ollama) | **Y** | P | P | — | — | P | Y | Y | P | Y | P | — | — | — |
+| Self-hostable daemon | **Y** | — | — | — | — | P | Y | Y | Y | Y | P | — | — | — |
+| CLI + GUI unified | **Y** | P | — | P | P | — | — | — | — | — | Y | — | P | — |
+| Terminal TUI | **Y** | — | — | — | P | Y | Y | Y | P | — | — | — | — | — |
+| Desktop IDE (Monaco) | **Y** | Y | Y | Y | — | — | — | — | — | — | Y | Y | Y | — |
+| Flutter mobile (6 platforms) | **Y** | P | — | — | — | — | — | — | — | — | — | — | — | P |
+| **Apple Watch native** | **Y** | — | — | — | — | — | — | — | — | — | — | — | — | — |
+| **Wear OS native** | **Y** | — | — | — | — | — | — | — | — | — | — | — | — | — |
+| Handoff-style continuity | **Y** | — | — | — | — | — | — | — | — | — | — | — | — | P |
+| mDNS / Tailscale / ngrok zero-config | **Y** | — | — | — | — | — | — | — | — | — | — | — | — | — |
+| Multi-provider (≥10) | **Y** (22) | P | P | P | — | P | Y | Y | Y | Y | Y | — | P | — |
+| Full agent loop | **Y** | Y | Y | Y | Y | Y | P | Y | Y | Y | P | P | Y | Y |
+| Parallel agents | **Y** | Y (8) | Y | Y (5) | Y | P | — | — | — | — | — | — | — | — |
+| Plan Mode | **Y** | — | Y | Y | Y | — | — | — | Y | Y | — | Y | Y | Y |
+| MCP integration | **Y** | Y | P | Y | Y (300+) | Y | — | Y | P | — | P | — | P | — |
+| Hooks system | **Y** | — | — | — | Y | — | — | — | — | — | — | — | — | — |
+| Skills system | **Y** (711) | — | Y | — | Y | — | — | — | — | — | — | — | — | — |
+| OS sandbox | **Y** | — | — | — | P | Y | — | — | Y | — | — | — | — | Y |
+| Inline completions (FIM) | **Y** | Y | Y | Y | — | — | — | — | — | — | P | Y | Y | — |
+| Semantic codebase index | **Y** | Y | Y | Y | P | Y | P | P | P | P | Y | P | P | Y |
+| Multi-file batch edits | **Y** | Y | Y | Y | Y | Y | Y | Y | Y | Y | P | P | Y | Y |
+| Diff review before apply | **Y** | Y | Y | Y | Y | Y | Y | Y | Y | Y | Y | P | Y | Y |
+| Checkpoint / rewind | **Y** | P | Y | Y | — | P | — | Y | P | — | — | — | — | Y |
+| Trace / audit log (JSONL) | **Y** | — | — | — | P | Y | — | Y | Y | — | — | — | — | P |
+| OpenTelemetry | **Y** | — | — | — | — | Y | — | — | — | — | — | — | — | — |
+| VS Code extension | **Y** | Y | Y | Y | Y | Y | — | — | — | Y | Y | Y | — | — |
+| JetBrains plugin | **Y** | — | Y | — | — | — | — | — | — | — | Y | Y | Y | — |
+| Neovim plugin | **Y** | — | — | — | — | — | — | — | — | — | P | Y | — | — |
+| Agent SDK (TypeScript) | **Y** | — | — | — | Y | P | — | Y | — | — | — | — | — | P |
+| Red-team security pipeline | **Y** | — | — | — | — | — | — | — | — | — | — | — | — | — |
+| Counsel (multi-LLM deliberation) | **Y** | — | — | — | — | — | — | — | — | — | — | — | — | — |
+| Artifacts + Manager View | **Y** | — | — | Y | — | — | — | — | — | — | — | — | — | Y |
+| Multiplayer CRDT collab | **Y** | — | — | — | — | — | — | — | — | — | — | — | — | — |
+| CRDT / real-time sync on mobile+watch | **Y** | — | — | — | — | — | — | — | — | — | — | — | — | — |
+
+### 9.2 Where VibeCody is **unique**
+
+As of **v0.5.5 (April 2026)**, VibeCody is the only product in our 52-tool survey that ships all of these simultaneously:
+
+1. **A native Apple Watch client** — SwiftUI, P-256 ECDSA via Secure Enclave, dictated reply.
+2. **A native Wear OS client** — Kotlin/Compose, Android Keystore / StrongBox attestation.
+3. **A 6-platform Flutter mobile companion** (iOS, Android, macOS, Linux, Windows, Web) with Handoff-style continuity.
+4. **Zero-config device discovery** — mDNS `_vibecli._tcp.local.` + Tailscale Funnel + ngrok, auto-raced.
+5. **A Rust-native, fully open-source, self-hostable daemon** that drives all of the above.
+6. **22 AI providers** behind a single abstraction with failover — the widest catalog of any AI coding tool.
+7. **A terminal (VibeCLI) + full desktop IDE (VibeUI) + chat desktop app (VibeCLI App) + mobile + watch** — every surface built on the same crates.
+8. **Counsel** — structured multi-LLM deliberation (expert / devil's advocate / skeptic / pragmatist) with a moderator synthesis; no other tool ships this.
+9. **Red-team security pipeline + compliance reporting** built into the CLI.
+
+### 9.3 Where we still have parity gaps to close
+
+The honest list (tracked in [FIT-GAP-ANALYSIS-v12](./fitgap-v12/) and [ROADMAP-v6](./ROADMAP-v6/)):
+
+- **Cursor's Tab model** — next-edit prediction quality is still best-in-class; we ship FIM completions but haven't matched their specialized model.
+- **Devin-level long-horizon autonomy** — Devin chains hours of work in a cloud VM; our agent loop tops out at ~50 steps.
+- **Claude Code's 300+ MCP servers** — we ship a compliant MCP client, but the community server catalog is still dominated by Anthropic.
+- **SWE-bench leaderboard** — OpenHands currently leads; we track this in the benchmark panel.
+- **Enterprise SSO / audit packaging** — Cody and Copilot for Business are further along on SOC 2, SSO, central policy.
+
+### 9.4 Headline positioning
+
+> **VibeCody is the only open-source AI developer toolchain that lets you work on the same coding session from a terminal, a desktop IDE, a phone, and a watch — all running against a self-hosted Rust daemon with 22 providers and zero-config networking.**
+
+Every competitor has a better story in *one* dimension; none of them ship a coherent answer across **all six** categories (terminal, editor, cloud, review, completions, mobile/watch) the way VibeCody does as of v0.5.5.
