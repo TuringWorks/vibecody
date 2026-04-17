@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag (e.g. v0.5.1)"
+        description: "Release tag (e.g. v0.5.5)"
         required: true
-        default: "v0.5.1"
+        default: "v0.5.5"
 
 permissions:
   contents: write
@@ -387,6 +387,98 @@ jobs:
           name: vibemobile-ios
           path: dist/*
 
+  # ─── VibeCody Watch — Wear OS (APK + AAB) ─────────────────────────────
+  build-wear:
+    name: Watch · Wear OS
+    needs: audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Java
+        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+        with:
+          packages: "platforms;android-35 build-tools;35.0.0"
+
+      - name: Cache Gradle
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-wear-${{ hashFiles('vibewatch/VibeCodyWear/**/*.gradle*', 'vibewatch/VibeCodyWear/**/gradle-wrapper.properties') }}
+
+      - name: Build Wear OS APK + AAB
+        working-directory: vibewatch/VibeCodyWear
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :app:assembleRelease :app:bundleRelease
+
+      - name: Collect Wear OS artifacts
+        run: |
+          TAG="${{ github.ref_name || github.event.inputs.tag }}"
+          mkdir -p dist
+          cp vibewatch/VibeCodyWear/app/build/outputs/apk/release/app-release*.apk \
+             "dist/VibeCody-Wear-${TAG}.apk" 2>/dev/null || \
+            cp vibewatch/VibeCodyWear/app/build/outputs/apk/release/app-release-unsigned.apk \
+               "dist/VibeCody-Wear-${TAG}.apk"
+          cp vibewatch/VibeCodyWear/app/build/outputs/bundle/release/app-release.aab \
+             "dist/VibeCody-Wear-${TAG}.aab"
+          ls -lh dist/
+
+      - name: Upload Wear OS artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: vibewatch-wear
+          path: dist/*
+
+  # ─── VibeCody Watch — watchOS (unsigned .app.zip) ─────────────────────
+  build-watchos:
+    name: Watch · watchOS
+    needs: audit
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Select latest stable Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Build watchOS app (Simulator, unsigned)
+        working-directory: vibewatch
+        run: |
+          xcodebuild \
+            -project VibeCodyWatch.xcodeproj \
+            -scheme VibeCodyWatch \
+            -configuration Release \
+            -destination 'generic/platform=watchOS Simulator' \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Package watchOS .app
+        run: |
+          TAG="${{ github.ref_name || github.event.inputs.tag }}"
+          mkdir -p dist
+          APP_DIR=$(find vibewatch/build/DerivedData -type d -name "VibeCodyWatch.app" | head -1)
+          if [ -z "$APP_DIR" ]; then
+            echo "✗ VibeCodyWatch.app not found"; exit 1
+          fi
+          cd "$(dirname "$APP_DIR")"
+          zip -r "$GITHUB_WORKSPACE/dist/VibeCody-WatchOS-${TAG}.app.zip" "VibeCodyWatch.app"
+          ls -lh "$GITHUB_WORKSPACE/dist/"
+
+      - name: Upload watchOS artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: vibewatch-watchos
+          path: dist/*
+
   # ─── Docker image ──────────────────────────────────────────────────────
   build-docker:
     name: Docker Image
@@ -414,7 +506,7 @@ jobs:
   # ─── Publish GitHub Release ────────────────────────────────────────────
   release:
     name: Publish GitHub Release
-    needs: [build-cli, build-vibeui, build-vibeapp, build-android, build-ios, build-docker]
+    needs: [build-cli, build-vibeui, build-vibeapp, build-android, build-ios, build-wear, build-watchos, build-docker]
     if: ${{ !cancelled() && !contains(needs.*.result, 'failure') }}
     runs-on: ubuntu-latest
     steps:
@@ -487,6 +579,14 @@ jobs:
             | Android (AAB) | `VibeCody-Mobile-*-android.aab` |
             | iOS (IPA) | `VibeCody-Mobile-*-ios.ipa` |
 
+            #### VibeCody Watch — watchOS & Wear OS
+
+            | Platform | Download |
+            |----------|----------|
+            | watchOS (Simulator .app, unsigned) | `VibeCody-WatchOS-*.app.zip` |
+            | Wear OS (APK) | `VibeCody-Wear-*.apk` |
+            | Wear OS (AAB) | `VibeCody-Wear-*.aab` |
+
             ---
 
             ### Quick Install
@@ -539,12 +639,13 @@ jobs:
 
             ### Full Platform Matrix
 
-            | Product | macOS arm64 | macOS x64 | Linux x64 | Linux arm64 | Windows x64 | Android | iOS | Docker |
-            |---------|:-----------:|:---------:|:---------:|:-----------:|:-----------:|:-------:|:---:|:------:|
-            | VibeCLI | x | x | x | x | x | | | x |
-            | VibeUI | x | x | x | | x | | | |
-            | VibeCLI App | x | x | x | | x | | | |
-            | VibeCody Mobile | | | | | | x | x | |
+            | Product | macOS arm64 | macOS x64 | Linux x64 | Linux arm64 | Windows x64 | Android | iOS | watchOS | Wear OS | Docker |
+            |---------|:-----------:|:---------:|:---------:|:-----------:|:-----------:|:-------:|:---:|:-------:|:-------:|:------:|
+            | VibeCLI | x | x | x | x | x | | | | | x |
+            | VibeUI | x | x | x | | x | | | | | |
+            | VibeCLI App | x | x | x | | x | | | | | |
+            | VibeCody Mobile | | | | | | x | x | | | |
+            | VibeCody Watch | | | | | | | | x | x | |
           files: |
             artifacts/**/*.tar.gz
             artifacts/**/*.zip
