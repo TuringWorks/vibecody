@@ -6,12 +6,12 @@ plugins {
 
 android {
     namespace = "com.vibecody.wear"
-    compileSdk = 35
+    compileSdk = 36          // Android 16 / Wear OS 6
 
     defaultConfig {
         applicationId = "com.vibecody.wear"
         minSdk = 30          // Wear OS 3.0
-        targetSdk = 35
+        targetSdk = 36       // Android 16 / Wear OS 6
         versionCode = 1
         versionName = "1.0"
     }
