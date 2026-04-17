@@ -8,6 +8,35 @@ permalink: /changelog/
 All notable changes to VibeCody are documented here. This project follows [Semantic Versioning](https://semver.org/).
 
 
+## [0.5.5] — 2026-04-17
+
+### Added
+
+- **Apple Watch client** (SwiftUI, watchOS 10+) and **Wear OS client** (Kotlin / Compose, Wear OS 3+) — native `VibeCodyWatch` / `VibeCodyWear` apps with pairing, session list, live transcript, and dictated reply; share a single `/watch/*` backend.
+- **`/watch/*` Axum routes** — `/watch/pair/challenge`, `/watch/pair/confirm`, `/watch/sessions`, `/watch/sessions/{id}/stream`, `/watch/sessions/{id}/reply`. New modules: `watch_auth`, `watch_bridge`, `watch_session_relay`.
+- **P-256 ECDSA (secp256r1) pairing** — replaces Ed25519 for Apple Secure Enclave compatibility; 64-byte raw public key, signature over `SHA-256(nonce ‖ device_id ‖ issued_at_be)`.
+- **URL-only / Bearer pairing everywhere** — no QR code or JSON clipboard required; emulator-friendly.
+- **Zero-config connectivity** — mDNS advertising (`_vibecli._tcp.local.`), Tailscale Funnel auto-detection, ngrok auto-detect + opt-in auto-start. Clients race all reachable paths.
+- **Apple-Handoff-style session continuity** — paired devices see live sessions in real time; VibeUI auto-switches to the Sandbox tab when a watch joins.
+- **Google-Docs-style real-time sync** — ID-based message reconciliation with content-window dedup; no more 80/512-char truncation.
+- **Watch Devices panel** in VibeUI (`Governance → Watch Devices`) to approve / rename / revoke devices.
+- **CI release artifacts** — `VibeCodyWatch-watchOS.app.zip` + `VibeCodyWear-wearos.apk` / `.aab` alongside existing binaries.
+- **Makefile targets** — `build-watch`, `watch-ios`, `watch-wear`, `watch-wear-bundle`, `build-all`.
+
+### Fixed
+
+- **80 / 512-char message truncation** — the legacy ring-buffer fallback was replaced with full-content sync.
+- **DMG bundling race on macOS 15** — hardened fallback against transient `hdiutil attach` failures under concurrent DiskImages2 load.
+- **Emulator pairing** — pairing now works with a pasted URL + Bearer token on Android emulators and watchOS simulators.
+
+### Changed
+
+- **Pairing algorithm**: Ed25519 → P-256 ECDSA. Previously-paired devices must re-pair once on v0.5.5.
+- **Watch / phone auth** — JWT (HS256), 32-byte secret in `ProfileStore`, 30-day default TTL.
+- Version bumped to 0.5.5 across all manifests.
+
+---
+
 ## [0.5.4] — 2026-04-03
 
 ### Added

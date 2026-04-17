@@ -5,6 +5,39 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.5.5] — 2026-04-17
+
+### Added
+
+- **Apple Watch client** (SwiftUI, watchOS 10+) — native `VibeCodyWatch` target with SwiftUI views for pairing, session list, live transcript, and dictated reply; uses Apple Secure Enclave (P-256) for attestation.
+- **Wear OS client** (Kotlin / Jetpack Compose, Wear OS 3+) — native `VibeCodyWear` app with identical feature set; signs with Android Keystore / StrongBox-backed P-256.
+- **`/watch/*` backend** — Axum routes shared by both clients: `/watch/pair/challenge`, `/watch/pair/confirm`, `/watch/sessions`, `/watch/sessions/{id}/stream`, `/watch/sessions/{id}/reply`. New crates/modules: `watch_auth.rs`, `watch_bridge.rs`, `watch_session_relay.rs`.
+- **P-256 ECDSA (secp256r1) device pairing** — replaces Ed25519 for Secure Enclave compatibility. 64-byte raw public key; signature over `SHA-256(nonce ‖ device_id ‖ issued_at_be)`.
+- **URL-only / Bearer pairing on every platform** — manual pairing works without QR codes or JSON clipboard. Emulator-friendly path exposes a dedicated "Paste URL + Bearer" affordance in VibeUI, VibeMobile, VibeWatch.
+- **mDNS LAN discovery** (`_vibecli._tcp.local.`) — zero-config host advertisement; mobile/watch clients join on any IP range. New `mdns_announce.rs` + BDD harness.
+- **Tailscale Funnel support** — automatic tailscale detection; optionally opens a public HTTPS funnel URL and prints the join link. New `tailscale.rs` + BDD harness.
+- **ngrok integration** — auto-detects an existing tunnel; opt-in auto-start flag creates one. New `ngrok.rs` + BDD harness.
+- **Apple-Handoff-style session continuity** — sessions are advertised to paired devices in real time; VibeUI auto-switches to the Sandbox tab when a watch opens a sandbox session; VibeMobile shows a Handoff banner.
+- **Google-Docs-style real-time sync** — ID-based message reconciliation with a content-window dedup filter; watch, phone, and desktop keep identical transcripts with no 80/512-char truncation.
+- **Watch Devices panel** (VibeUI → `Governance → Watch Devices`) — approve, rename, or revoke paired watches and phones.
+- **VibeWatch release artifacts** — CI now produces `VibeCodyWatch-watchOS.app.zip` (unsigned, Xcode-sideload) and `VibeCodyWear-wearos.apk` / `.aab` alongside the existing CLI / VibeUI / VibeCLI App / iOS / Android / Docker bundles.
+- **Makefile targets** — `make build-watch`, `make watch-ios`, `make watch-ios-archive`, `make watch-wear`, `make watch-wear-bundle`, `make build-all` (desktop + mobile + watch).
+
+### Fixed
+
+- **Message truncation at 80 / 512 chars** — legacy ring-buffer fallback replaced with full-content sync; watch and phone now show the complete transcript.
+- **DMG bundling race on macOS 15** — hardened `bundle_dmg.sh` fallback path against transient `hdiutil attach` failures under concurrent DiskImages2 load (iOS Simulator runtime images).
+- **Pairing UX on emulators** — removed the QR-only requirement so Android emulators and watchOS simulators can pair with a pasted URL + Bearer token.
+
+### Changed
+
+- **Pairing signature algorithm** — migrated from Ed25519 to P-256 ECDSA project-wide. Any previously-paired device must re-pair; new key material is generated in-place on first use of the v0.5.5 clients.
+- **Watch / phone auth** — JWT (HS256) issued on successful attestation, 32-byte secret stored in `ProfileStore`, 30-day default TTL.
+- **CI pipeline** — new matrix rows for `watchOS` (macOS runners) and `wearOS` (Linux runners with Android SDK). SHA-256 checksums now include the 3 new watch artifacts.
+- Version bumped to 0.5.5 across all manifests (Cargo, `vibeui`, `vibeapp`, `vibemobile`, `vibewatch/VibeCodyWatch`, `vibewatch/VibeCodyWear`).
+
+---
+
 ## [0.5.4] — 2026-04-03
 
 ### Added

@@ -10,7 +10,7 @@ permalink: /quickstart/
 
 ## What is VibeCody?
 
-VibeCody is an AI-powered developer toolchain built in Rust. It gives you two ways to work: **VibeCLI**, a terminal-first AI coding assistant with a rich TUI and REPL, and **VibeUI**, a full desktop code editor with Monaco and 187 AI panels. Both share the same backend crates, supporting 23 AI providers (local and cloud), an autonomous agent loop, code review, multi-agent orchestration, MCP integration, and 568 built-in skills. You can start with a local model and zero API keys.
+VibeCody is an AI-powered developer toolchain built in Rust. It gives you many ways to work: **VibeCLI** (terminal), **VibeUI** (desktop editor, 293+ panels), **VibeCLI App** (desktop chat), **VibeMobile** (Flutter, 6 platforms), and **VibeWatch** (native Apple Watch + Wear OS). All surfaces share the same backend crates, supporting 22 AI providers, an autonomous agent loop, code review, multi-agent orchestration, MCP integration, and 711 built-in skills. Start with a local model and zero API keys — and with zero-config mDNS / Tailscale / ngrok connectivity, your phone and watch find your desktop automatically.
 
 
 ## Choose Your Surface
@@ -84,7 +84,7 @@ vibecli
 You will see the prompt:
 
 ```
-VibeCLI v0.3.3 — AI coding assistant
+VibeCLI v0.5.5 — AI coding assistant
 Provider: ollama (qwen3-coder:480b-cloud)
 Type a message or /help for commands.
 
@@ -186,7 +186,7 @@ vibecli --provider claude
 Expected output:
 
 ```sh
-VibeCLI v0.3.3 — AI coding assistant
+VibeCLI v0.5.5 — AI coding assistant
 Provider: claude (claude-sonnet-4-6)
 
 vibecli>
@@ -268,6 +268,10 @@ You are up and running. Here is where to go next:
 | Configure VibeCLI fully | [Configuration Guide](/vibecody/configuration/) |
 | Set up the desktop editor | [VibeUI Reference](/vibecody/vibeui/) |
 | Full CLI reference | [VibeCLI Reference](/vibecody/vibecli/) |
+| Pair your phone | [VibeMobile](/vibecody/vibemobile/) |
+| Pair your Apple Watch | [watchOS guide](/vibecody/watchos/) |
+| Pair your Wear OS watch | [Wear OS guide](/vibecody/wearos/) |
+| Zero-config LAN / Internet | [Connectivity](/vibecody/connectivity/) |
 
 
 ## Common Issues

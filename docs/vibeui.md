@@ -6,7 +6,16 @@ permalink: /vibeui/
 
 # VibeUI
 
-**AI-powered desktop code editor built with Tauri 2 and Monaco.**VibeUI provides a VS Code-like editing experience with a native Rust backend, Monaco Editor frontend, integrated AI chat, autonomous agent mode, inline completions, terminal, Git panel, code review, and a WASM extension system.
+**AI-powered desktop code editor built with Tauri 2 and Monaco.** VibeUI provides a VS Code-like editing experience with a native Rust backend, Monaco Editor frontend, integrated AI chat, autonomous agent mode, inline completions, terminal, Git panel, code review, and a WASM extension system.
+
+### What's new in 0.5.5
+
+- **Watch Devices panel** — `Governance → Watch Devices` lets you approve, rename, or revoke paired Apple Watches and Wear OS devices.
+- **Handoff banner** — surfaces live sessions from paired phones and watches. Click to pull the stream onto the desktop.
+- **Sandbox auto-focus** — when a paired watch opens a sandbox session, VibeUI auto-switches to the Sandbox tab so you can observe the container output.
+- **Pairing panel refresh** — URL-only and URL + Bearer flows added alongside the existing QR code; emulator-friendly.
+- **293 panels + 42 composites** registered in the panel host (up from 187 in 0.5.4).
+- **Google-Docs-style sync** for chat and agent sessions — ID-based reconciliation with no 80/512-char truncation.
 
 ## Architecture Overview
 
@@ -90,7 +99,7 @@ The installer is placed in `src-tauri/target/release/bundle/`.
 
 ### AI Integration
 
-The AI chat panel supports all 23 providers via the shared `vibe-ai` crate:
+The AI chat panel supports all 22 providers via the shared `vibe-ai` crate:
 
 - **Local**: Ollama (default, no API key), LocalEdit
 - **Cloud**: Claude, OpenAI, Gemini, Grok, Groq, Mistral, Cerebras, DeepSeek, Zhipu, MiniMax
@@ -275,7 +284,7 @@ Press `Cmd+P` (macOS) / `Ctrl+P` (Windows/Linux) to open the Command Palette:
 
 ## AI Panel Tabs
 
-The AI panel (toggle with **AI Chat** in the header) has **162 panel components** across categories:
+The AI panel (toggle with **AI Chat** in the header) has **293 panel components + 42 composites** across categories:
 
 ### Core AI & Chat
 
@@ -351,6 +360,8 @@ The AI panel (toggle with **AI Chat** in the header) has **162 panel components*
 | **Agent Teams** | `AgentTeamsPanel` | Agent team hierarchy with role-based composition |
 | **Sub-Agent** | `SubAgentPanel` | Sub-agent role management and delegation |
 | **Team Govern** | `TeamGovernancePanel` | Team plugin marketplace governance and policies |
+| **Watch Devices** | `WatchDevicesPanel` | Approve / rename / revoke paired Apple Watch and Wear OS clients (new in 0.5.5) |
+| **Paired Mobiles** | `PairedMobilesPanel` | Manage paired VibeMobile devices; view JWT expiry, revoke (new in 0.5.5) |
 | **Branch Agent** | `BranchAgentPanel` | Branch-per-task agent execution with auto-merge |
 | **Cloud Autofix** | `CloudAutofixPanel` | Cloud-hosted BugBot autofix agents |
 | **GH Actions** | `GhActionsPanel` | GitHub Actions agent for CI/CD automation |

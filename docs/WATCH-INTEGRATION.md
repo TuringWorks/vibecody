@@ -1,6 +1,7 @@
 ---
-layout: default
+layout: page
 title: Watch Integration (watchOS + Wear OS)
+permalink: /watch-integration/
 nav_order: 25
 ---
 

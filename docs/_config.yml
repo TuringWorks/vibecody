@@ -54,6 +54,15 @@ sidebar:
   - title: VibeMobile
     icon: smartphone
     url: /vibemobile/
+  - title: VibeWatch
+    icon: watch
+    children:
+      - title: Apple Watch (watchOS)
+        url: /watchos/
+      - title: Wear OS
+        url: /wearos/
+      - title: Architecture
+        url: /watch-integration/
   - title: Connectivity
     icon: wifi
     url: /connectivity/
@@ -174,6 +183,9 @@ header_pages:
   - vibecli.md
   - vibeui.md
   - vibemobile.md
+  - watchos.md
+  - wearos.md
+  - WATCH-INTEGRATION.md
   - connectivity.md
   - providers/index.md
   - configuration.md

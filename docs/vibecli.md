@@ -8,7 +8,18 @@ permalink: /vibecli/
 
 **AI-powered coding assistant for the terminal.**
 
-VibeCLI provides two interaction modes: a rich **Terminal UI (TUI)** powered by Ratatui, and a **REPL** mode for quick, scriptable use.
+VibeCLI provides two interaction modes: a rich **Terminal UI (TUI)** powered by Ratatui, and a **REPL** mode for quick, scriptable use. It also runs as an HTTP daemon (`--serve`) that powers VibeUI, VibeMobile, and the new native VibeWatch clients.
+
+### What's new in 0.5.5
+
+- **Native watch clients** — Apple Watch (SwiftUI) and Wear OS (Compose) pair against `/watch/*` routes. See [watchOS](/vibecody/watchos/) and [Wear OS](/vibecody/wearos/) guides.
+- **Zero-config connectivity** — when `--serve` is running, VibeCLI advertises `_vibecli._tcp.local.` via mDNS, detects a Tailscale Funnel, and can auto-start an ngrok tunnel. See [Connectivity](/vibecody/connectivity/).
+- **URL-only pairing** — `/pair --url-only` and `/pair --show-bearer` remove the QR dependency; works against simulators.
+- **P-256 ECDSA device pairing** — Ed25519 is deprecated in favor of secp256r1 for Apple Secure Enclave compatibility. All clients (VibeMobile, VibeWatch) use P-256.
+- **Google-Docs-style transcript sync** — ID-based message reconciliation eliminates the prior 80/512-char truncation cap.
+- **Apple-Handoff-style continuity** — `/watch handoff` advertises active sessions to paired devices in real time.
+- **CI produces watch artifacts** — `VibeCodyWatch-watchOS.app.zip`, `VibeCodyWear-wearos.apk`, `VibeCodyWear-wearos.aab` alongside the usual binaries.
+
 
 ## Installation
 
@@ -68,8 +79,12 @@ vibecli --provider gemini
 | `--redteam-config <file>` | — | YAML config file for auth flows, scope, depth |
 | `--redteam-report <id>` | — | Generate pentest report from a previous session |
 | `--voice` | false | Enable voice input via Groq Whisper |
-| `--tailscale` | false | Enable Tailscale funnel for remote access |
-| `--serve` | false | Run as HTTP daemon (REST + SSE API) |
+| `--tailscale` | false | Enable Tailscale Funnel for public HTTPS remote access |
+| `--ngrok` | false | Auto-start an ngrok tunnel (requires `NGROK_AUTHTOKEN`) |
+| `--mdns` | true | Advertise `_vibecli._tcp.local.` for zero-config LAN discovery (set `--mdns=false` to disable) |
+| `--serve` | false | Run as HTTP daemon (REST + SSE API — powers VibeUI, VibeMobile, VibeWatch) |
+| `--port <n>` | `7878` | Port for `--serve` |
+| `--bind <addr>` | `127.0.0.1` | Bind address for `--serve`; use `0.0.0.0` to expose to LAN |
 
 ## TUI Commands
 
@@ -127,6 +142,14 @@ In REPL mode, the following slash commands are available:
 | `/voice` | Toggle voice input (Groq Whisper) |
 | `/discover` | Discover nearby VibeCLI instances via mDNS |
 | `/pair` | Generate QR code for device pairing |
+| `/pair --url-only` | Print a pairing URL (no QR) — useful over SSH or for emulators |
+| `/pair --show-bearer` | Print URL + bearer token for manual entry |
+| `/watch devices` | List paired Apple Watch / Wear OS devices |
+| `/watch revoke <id>` | Revoke a paired watch (JWT invalidates on next request) |
+| `/watch handoff` | Advertise the current session to paired devices (Apple Handoff-style) |
+| `/mdns status` | Show mDNS advertisement state and discovered peers |
+| `/tailscale status` | Show Tailscale / Funnel state, print the join URL if available |
+| `/ngrok start` | Start an ngrok tunnel (opt-in, requires `NGROK_AUTHTOKEN`) |
 | `/orchestrate status` | Show orchestration state (lessons, tasks, progress) |
 | `/orchestrate lesson <text>` | Record a lesson learned |
 | `/orchestrate todo <text>` | Add a todo item |
@@ -731,7 +754,15 @@ Endpoints:
 | GET | `/acp/v1/capabilities` | No | List ACP server capabilities |
 | POST | `/webhook/github` | No | GitHub App webhook receiver for CI review bot |
 | POST | `/webhook/skill/:skill_name` | No | Trigger a skill by webhook name |
-| GET | `/pair` | No | Device pairing endpoint — generates a one-time pairing URL |
+| GET | `/pair` | No | Device pairing landing page — generates a one-time URL / bearer |
+| POST | `/pair/challenge` | No | Issue a signed pairing nonce (used by mobile + watch) |
+| POST | `/pair/confirm` | No | Verify P-256 attestation; returns 30-day JWT |
+| POST | `/mobile/beacon` | Yes | Presence + Handoff heartbeat from VibeMobile |
+| POST | `/watch/pair/challenge` | No | Pairing challenge for Apple Watch / Wear OS |
+| POST | `/watch/pair/confirm` | No | Watch attestation (P-256) → JWT |
+| GET | `/watch/sessions` | Yes | List sessions accessible to the watch |
+| GET | `/watch/sessions/{id}/stream` | Yes | SSE stream for a watch-attached session |
+| POST | `/watch/sessions/{id}/reply` | Yes | Watch-authored reply (voice / template / keyboard) |
 
 ## Counsel (Multi-LLM Deliberation)
 

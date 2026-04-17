@@ -7,12 +7,16 @@ title: VibeCody Documentation
 
 **AI-powered developer toolchain built in Rust.**
 
-VibeCody is a monorepo that provides two complementary tools for AI-assisted development:
+VibeCody is a monorepo that provides a full family of AI-assisted development surfaces:
 
-- **[VibeCLI](./vibecli/)** — A terminal-first AI coding assistant with a rich TUI and REPL
-- **[VibeUI](./vibeui/)** — A full-featured AI-powered desktop code editor (Tauri + Monaco)
+- **[VibeCLI](./vibecli/)** — terminal-first AI coding assistant with a rich TUI + REPL
+- **[VibeUI](./vibeui/)** — AI-powered desktop code editor (Tauri + Monaco, 293+ panels)
+- **[VibeCLI App](./release/)** — dedicated desktop chat companion (Tauri)
+- **[VibeMobile](./vibemobile/)** — Flutter companion for iOS, Android, macOS, Linux, Windows, Web
+- **[VibeWatch](./watch-integration/)** — native Apple Watch (SwiftUI, watchOS 10+) and Wear OS (Compose, Wear OS 3+) clients
+- **[Zero-config connectivity](./connectivity/)** — mDNS LAN, Tailscale Funnel, ngrok auto-detect; devices race all reachable paths
 
-Both tools are backed by a shared set of Rust library crates for AI provider integration, text editing, Git operations, LSP, and extensions.
+All surfaces are backed by a shared set of Rust crates for AI providers, text editing, Git, LSP, and extensions.
 
 
 ## Navigation
@@ -32,7 +36,11 @@ Both tools are backed by a shared set of Rust library crates for AI provider int
 | [Architecture](./architecture/) | Crate structure, data flow, and design decisions |
 | [Roadmap v5](./ROADMAP-v5/) | Current roadmap and planned features |
 | [Plugin Development](./plugin-development/) | Build plugins, skills, hooks, WASM extensions, and MCP integrations |
-| [VibeMobile](vibemobile/) | Mobile companion app — Flutter, pairing, remote chat |
+| [VibeMobile](vibemobile/) | Mobile companion (Flutter) — pairing, Handoff, remote chat, sync |
+| [VibeWatch — watchOS](watchos/) | Apple Watch native client — pair, view transcripts, dictate reply |
+| [VibeWatch — Wear OS](wearos/) | Wear OS native client — same feature set, Keystore/StrongBox attestation |
+| [Connectivity](connectivity/) | mDNS, Tailscale Funnel, ngrok — zero-config device discovery |
+| [Watch Integration](watch-integration/) | Full architecture: P-256 pairing, `/watch/*` routes, sync model |
 | [Competitive Analysis](./shannon-comparison/) | Feature comparison with other AI coding tools |
 | [FIT-GAP v7](fit-gap-analysis-v7/) | Competitive analysis — 35+ agentic tools |
 | [Whitepapers](./whitepapers/) | In-depth comparisons: VibeCody vs OpenClaw, PicoClaw, NemoClaw, and 12+ alternatives |
