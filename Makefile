@@ -1,17 +1,33 @@
 # VibeCody — Developer Makefile
 #
 # Usage:
-#   make setup    — Install all prerequisites (Rust, Node, system libs)
-#   make ui       — Run VibeUI in dev mode
-#   make cli      — Build VibeCLI release binary
-#   make test     — Run all tests
-#   make check    — Fast type-check (Rust + TypeScript)
-#   make help     — Show all targets
+#   make setup           — Install all prerequisites (Rust, Node, system libs)
+#   make ui              — Run VibeUI in dev mode
+#   make cli             — Build VibeCLI release binary
+#   make build-mobile    — Build vibemobile (iPhone .app + Android APK)
+#   make build-watch     — Build vibewatch (watchOS + Wear OS)
+#   make build-all       — Build desktop + mobile + watch
+#   make test            — Run all tests
+#   make check           — Fast type-check (Rust + TypeScript)
+#   make help            — Show all targets
 
-.PHONY: help setup ui cli app test check lint clean build doctor
+.PHONY: help setup ui cli app test check lint clean build doctor \
+        mobile-setup mobile-ios mobile-ios-ipa mobile-android mobile-android-bundle \
+        mobile-clean watch-ios watch-ios-archive watch-wear watch-wear-bundle \
+        watch-clean build-mobile build-watch build-all
 
 # Ensure ~/.cargo/bin is in PATH (fixes npm rustup shadowing on Linux)
 export PATH := $(HOME)/.cargo/bin:$(PATH)
+
+# ── Mobile / Watch toolchain locations ────────────────────────────────────────
+FLUTTER          ?= flutter
+XCODEBUILD       ?= xcodebuild
+GRADLE_WEAR      := ./gradlew
+MOBILE_DIR       := vibemobile
+WATCH_IOS_DIR    := vibewatch
+WATCH_IOS_PROJ   := VibeCodyWatch.xcodeproj
+WATCH_IOS_SCHEME := VibeCodyWatch
+WATCH_WEAR_DIR   := vibewatch/VibeCodyWear
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*##' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -48,7 +64,7 @@ ui: ## Run VibeUI in dev mode (Vite + Tauri)
 	cd vibeui && npm run tauri:dev
 
 app: ## Run VibeCLI App in dev mode
-	cd vibeapp && npm run tauri dev
+	cd vibeapp && npm run tauri:dev
 
 cli: ## Build VibeCLI release binary → target/release/vibecli
 	cargo build --release -p vibecli
@@ -106,9 +122,91 @@ build-ui: ## Build VibeUI for production
 build-app: ## Build VibeCLI App for production
 	cd vibeapp && npm run tauri:build
 
+# ── Mobile (Flutter — iPhone + Android phone) ─────────────────────────────────
+
+mobile-setup: ## Install Flutter deps + CocoaPods for vibemobile
+	@command -v $(FLUTTER) >/dev/null || (echo "✗ Flutter not found — install from https://docs.flutter.dev/get-started/install" && exit 1)
+	cd $(MOBILE_DIR) && $(FLUTTER) pub get
+ifeq ($(shell uname -s),Darwin)
+	cd $(MOBILE_DIR)/ios && pod install
+endif
+
+mobile-ios: mobile-setup ## Build vibemobile iOS .app (release, unsigned) → vibemobile/build/ios
+	@[ "$$(uname -s)" = "Darwin" ] || (echo "✗ iOS builds require macOS" && exit 1)
+	cd $(MOBILE_DIR) && $(FLUTTER) build ios --release --no-codesign
+	@echo "✓ iOS .app: $(MOBILE_DIR)/build/ios/iphoneos/Runner.app"
+
+mobile-ios-ipa: ## Build signed .ipa for iPhone (delegates to vibemobile/Makefile)
+	$(MAKE) -C $(MOBILE_DIR) ios-ipa
+
+mobile-android: ## Build vibemobile Android APK (release) → vibemobile/build/app/outputs/flutter-apk
+	@command -v $(FLUTTER) >/dev/null || (echo "✗ Flutter not found" && exit 1)
+	cd $(MOBILE_DIR) && $(FLUTTER) pub get && $(FLUTTER) build apk --release
+	@echo "✓ APK: $(MOBILE_DIR)/build/app/outputs/flutter-apk/app-release.apk"
+
+mobile-android-bundle: ## Build Android App Bundle (.aab) for Play Store
+	@command -v $(FLUTTER) >/dev/null || (echo "✗ Flutter not found" && exit 1)
+	cd $(MOBILE_DIR) && $(FLUTTER) pub get && $(FLUTTER) build appbundle --release
+	@echo "✓ AAB: $(MOBILE_DIR)/build/app/outputs/bundle/release/app-release.aab"
+
+mobile-clean: ## Clean Flutter mobile build artifacts
+	cd $(MOBILE_DIR) && $(FLUTTER) clean
+
+# ── Watch — watchOS (Xcode) + Wear OS (Gradle) ────────────────────────────────
+
+watch-ios: ## Build watchOS app (release, simulator) — vibewatch/VibeCodyWatch
+	@[ "$$(uname -s)" = "Darwin" ] || (echo "✗ watchOS builds require macOS" && exit 1)
+	@command -v $(XCODEBUILD) >/dev/null || (echo "✗ xcodebuild not found — install Xcode" && exit 1)
+	cd $(WATCH_IOS_DIR) && $(XCODEBUILD) \
+	  -project $(WATCH_IOS_PROJ) \
+	  -scheme $(WATCH_IOS_SCHEME) \
+	  -configuration Release \
+	  -destination 'generic/platform=watchOS Simulator' \
+	  CODE_SIGNING_ALLOWED=NO \
+	  build
+	@echo "✓ watchOS app built"
+
+watch-ios-archive: ## Archive watchOS app for distribution (requires signing)
+	@[ "$$(uname -s)" = "Darwin" ] || (echo "✗ watchOS builds require macOS" && exit 1)
+	cd $(WATCH_IOS_DIR) && $(XCODEBUILD) archive \
+	  -project $(WATCH_IOS_PROJ) \
+	  -scheme $(WATCH_IOS_SCHEME) \
+	  -configuration Release \
+	  -destination 'generic/platform=watchOS' \
+	  -archivePath build/VibeCodyWatch.xcarchive
+	@echo "✓ Archive: $(WATCH_IOS_DIR)/build/VibeCodyWatch.xcarchive"
+
+watch-wear: ## Build Wear OS APK (release) — vibewatch/VibeCodyWear
+	@[ -x $(WATCH_WEAR_DIR)/gradlew ] || (echo "✗ gradlew missing — run setup" && exit 1)
+	cd $(WATCH_WEAR_DIR) && $(GRADLE_WEAR) :app:assembleRelease
+	@echo "✓ Wear OS APK: $(WATCH_WEAR_DIR)/app/build/outputs/apk/release/app-release.apk"
+
+watch-wear-bundle: ## Build Wear OS App Bundle (.aab)
+	@[ -x $(WATCH_WEAR_DIR)/gradlew ] || (echo "✗ gradlew missing" && exit 1)
+	cd $(WATCH_WEAR_DIR) && $(GRADLE_WEAR) :app:bundleRelease
+	@echo "✓ Wear OS AAB: $(WATCH_WEAR_DIR)/app/build/outputs/bundle/release/app-release.aab"
+
+watch-clean: ## Clean watchOS + Wear OS build artifacts
+	-cd $(WATCH_WEAR_DIR) && $(GRADLE_WEAR) clean
+	-rm -rf $(WATCH_IOS_DIR)/build
+
+# ── Aggregate mobile + watch builds ───────────────────────────────────────────
+
+build-mobile: mobile-android ## Build mobile binaries (Android always; iOS only on macOS)
+ifeq ($(shell uname -s),Darwin)
+	$(MAKE) mobile-ios
+endif
+
+build-watch: watch-wear ## Build watch binaries (Wear OS always; watchOS only on macOS)
+ifeq ($(shell uname -s),Darwin)
+	$(MAKE) watch-ios
+endif
+
+build-all: build build-mobile build-watch ## Build everything: desktop + mobile + watch
+
 # ── Cleanup ────────────────────────────────────────────────────────────────────
 
-clean: ## Remove build artifacts
+clean: mobile-clean watch-clean ## Remove build artifacts (Rust + UI + mobile + watch)
 	cargo clean
 	rm -rf vibeui/dist vibeui/node_modules/.vite
 	rm -rf vibeapp/dist vibeapp/node_modules/.vite
