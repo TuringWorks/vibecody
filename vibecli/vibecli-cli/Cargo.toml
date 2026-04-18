@@ -89,6 +89,12 @@ name = "a2a_http_bdd"
 path = "tests/a2a_http_bdd.rs"
 harness = false
 
+# US-003: real git worktree pool against real git CLI
+[[test]]
+name = "worktree_git_bdd"
+path = "tests/worktree_git_bdd.rs"
+harness = false
+
 # Claw-code parity BDD test harnesses — Wave 1
 [[test]]
 name = "workspace_fingerprint_bdd"

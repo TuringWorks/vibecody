@@ -15,6 +15,7 @@ pub mod web_grounding_backend;
 pub mod agent_host;
 #[allow(dead_code)]
 pub mod worktree_pool;
+pub mod worktree_git;
 pub mod proactive_agent;
 pub mod semantic_index;
 pub mod doc_sync;

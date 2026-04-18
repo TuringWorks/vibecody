@@ -2135,6 +2135,8 @@ mod web_grounding;
 mod web_grounding_backend;
 #[allow(dead_code)]
 mod worktree_pool;
+#[allow(dead_code)]
+mod worktree_git;
 mod mobile_gateway;
 mod proactive_agent;
 mod a2a_protocol;
