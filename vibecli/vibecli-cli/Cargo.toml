@@ -95,6 +95,12 @@ name = "worktree_git_bdd"
 path = "tests/worktree_git_bdd.rs"
 harness = false
 
+# US-004: real MCP Streamable HTTP + OAuth 2.1 PKCE
+[[test]]
+name = "mcp_http_bdd"
+path = "tests/mcp_http_bdd.rs"
+harness = false
+
 # Claw-code parity BDD test harnesses — Wave 1
 [[test]]
 name = "workspace_fingerprint_bdd"

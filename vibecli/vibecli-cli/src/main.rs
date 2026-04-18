@@ -2148,6 +2148,8 @@ mod visual_verify;
 #[allow(dead_code)]
 mod mcp_streamable;
 #[allow(dead_code)]
+mod mcp_http;
+#[allow(dead_code)]
 mod doc_sync;
 #[allow(dead_code)]
 mod next_task;
