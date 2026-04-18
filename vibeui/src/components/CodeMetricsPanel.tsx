@@ -148,7 +148,7 @@ export function CodeMetricsPanel({ workspacePath }: CodeMetricsPanelProps) {
       {error && (
         <div className="panel-error" style={{ margin: "8px 12px" }}>
           {error}
-          <button onClick={() => setError(null)}><X size={12} /></button>
+          <button onClick={() => setError(null)} aria-label="Dismiss error"><X size={12} /></button>
         </div>
       )}
 

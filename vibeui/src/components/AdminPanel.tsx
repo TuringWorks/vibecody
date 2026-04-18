@@ -141,7 +141,7 @@ export function AdminPanel() {
         </div>
       </div>
 
-      {error && <div className="panel-error" role="alert"><span>{error}</span><button onClick={() => setError(null)}><X size={12} /></button></div>}
+      {error && <div className="panel-error" role="alert"><span>{error}</span><button onClick={() => setError(null)} aria-label="Dismiss error"><X size={12} /></button></div>}
 
       {/* ── Team Members ── */}
       {tab === 'team' && !editingMember && (

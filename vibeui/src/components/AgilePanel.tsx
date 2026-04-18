@@ -2688,7 +2688,7 @@ function SAFeTab({ provider }: { provider?: string } = {}) {
                     {EPIC_COLUMNS.filter(c => c !== col).map(c => (
                       <button key={c} className="panel-btn panel-btn-secondary" style={{ padding: "1px 8px", fontSize: "var(--font-size-xs)" }} onClick={() => moveEpic(epic.id, c)}>→ {c}</button>
                     ))}
-                    <button className="panel-btn panel-btn-danger" style={{ padding: "1px 8px", fontSize: "var(--font-size-xs)" }} onClick={() => removeEpic(epic.id)}><X size={10} /></button>
+                    <button className="panel-btn panel-btn-danger" style={{ padding: "1px 8px", fontSize: "var(--font-size-xs)" }} onClick={() => removeEpic(epic.id)} aria-label={`Delete epic ${epic.title}`}><X size={10} /></button>
                   </div>
                 </div>
               ))}

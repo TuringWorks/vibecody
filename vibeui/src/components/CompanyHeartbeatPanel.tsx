@@ -118,7 +118,7 @@ export function CompanyHeartbeatPanel({ workspacePath: _wp }: CompanyHeartbeatPa
         {triggerResult && (
           <div style={{ marginTop: 8, fontSize: "var(--font-size-base)", padding: "8px 8px", background: "rgba(0,0,0,0.15)", borderRadius: "var(--radius-xs-plus)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span>{triggerResult}</span>
-            <button onClick={() => setTriggerResult(null)} style={{ cursor: "pointer", background: "none", border: "none", color: "var(--text-secondary)", display: "inline-flex" }}><X size={12} /></button>
+            <button onClick={() => setTriggerResult(null)} style={{ cursor: "pointer", background: "none", border: "none", color: "var(--text-secondary)", display: "inline-flex" }} aria-label="Dismiss message"><X size={12} /></button>
           </div>
         )}
       </div>

@@ -114,7 +114,7 @@ export default function HealthScorePanel() {
         {error && (
           <div className="panel-error" style={{ marginBottom: 10 }}>
             {error}
-            <button onClick={() => setError("")}><X size={12} /></button>
+            <button onClick={() => setError("")} aria-label="Dismiss error"><X size={12} /></button>
           </div>
         )}
 

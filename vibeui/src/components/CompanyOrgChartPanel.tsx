@@ -122,7 +122,7 @@ export function CompanyOrgChartPanel({ workspacePath: _wp }: CompanyOrgChartPane
       {actionMsg && (
         <div className="panel-card" style={{ marginBottom: 12, fontSize: "var(--font-size-base)" }}>
           {actionMsg}
-          <button onClick={() => setActionMsg(null)} style={{ marginLeft: 8, cursor: "pointer", background: "none", border: "none", color: "var(--text-secondary)", display: "inline-flex" }}><X size={12} /></button>
+          <button onClick={() => setActionMsg(null)} style={{ marginLeft: 8, cursor: "pointer", background: "none", border: "none", color: "var(--text-secondary)", display: "inline-flex" }} aria-label="Dismiss message"><X size={12} /></button>
         </div>
       )}
 

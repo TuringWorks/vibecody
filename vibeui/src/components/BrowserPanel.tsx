@@ -199,7 +199,7 @@ export function BrowserPanel() {
  title="Forward"
  style={navBtnStyle}
  >→</button>
- <button className="panel-btn" onClick={refresh} disabled={!iframeSrc} title="Refresh" style={navBtnStyle}><RefreshCw size={14} /></button>
+ <button className="panel-btn" onClick={refresh} disabled={!iframeSrc} title="Refresh" aria-label="Refresh" style={navBtnStyle}><RefreshCw size={14} /></button>
 
  <div style={{ width: '1px', height: '16px', background: 'var(--border-color)', margin: '0 4px' }} />
 

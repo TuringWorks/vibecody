@@ -421,7 +421,7 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
       {errorMsg && (
         <div className="panel-error" style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <AlertCircle size={13} /> {errorMsg}
-          <button onClick={() => setErrorMsg("")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--error-color)", marginLeft: "auto" }}><X size={12} /></button>
+          <button onClick={() => setErrorMsg("")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--error-color)", marginLeft: "auto" }} aria-label="Dismiss error"><X size={12} /></button>
         </div>
       )}
 

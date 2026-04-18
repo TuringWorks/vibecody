@@ -164,7 +164,7 @@ export function CompanyApprovalsPanel({ workspacePath: _wp }: CompanyApprovalsPa
       {cmdResult && (
         <div className="panel-card" style={{ fontSize: "var(--font-size-base)" }}>
           {cmdResult}
-          <button onClick={() => setCmdResult(null)} style={{ marginLeft: 8, cursor: "pointer", background: "none", border: "none", color: "var(--text-secondary)", display: "inline-flex" }}><X size={12} /></button>
+          <button onClick={() => setCmdResult(null)} style={{ marginLeft: 8, cursor: "pointer", background: "none", border: "none", color: "var(--text-secondary)", display: "inline-flex" }} aria-label="Dismiss message"><X size={12} /></button>
         </div>
       )}
       </div>
