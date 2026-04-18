@@ -17,6 +17,7 @@ pub mod agent_host;
 pub mod worktree_pool;
 pub mod worktree_git;
 pub mod proactive_agent;
+pub mod proactive_scanner;
 pub mod semantic_index;
 pub mod doc_sync;
 pub mod voice_local;

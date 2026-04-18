@@ -111,6 +111,12 @@ name = "voice_whisper_bdd"
 path = "tests/voice_whisper_bdd.rs"
 harness = false
 
+# US-006: real proactive scanner — walkdir + notify watcher
+[[test]]
+name = "proactive_scanner_bdd"
+path = "tests/proactive_scanner_bdd.rs"
+harness = false
+
 # Claw-code parity BDD test harnesses — Wave 1
 [[test]]
 name = "workspace_fingerprint_bdd"

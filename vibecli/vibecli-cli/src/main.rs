@@ -2139,6 +2139,8 @@ mod worktree_pool;
 mod worktree_git;
 mod mobile_gateway;
 mod proactive_agent;
+#[allow(dead_code)]
+mod proactive_scanner;
 mod a2a_protocol;
 mod a2a_http;
 #[allow(dead_code)]
