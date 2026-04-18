@@ -441,8 +441,8 @@ function QRModal({ pairing, onClose }: { pairing: PairingInfo; onClose: () => vo
 
         {/* Tab switcher */}
         <div style={{ display: "flex", marginBottom: "var(--spacing-md)" }}>
-          <button className="panel-btn" style={tabStyle("qr")} onClick={() => setActiveTab("qr")}>QR Code</button>
-          <button className="panel-btn" style={tabStyle("manual")} onClick={() => setActiveTab("manual")}>Manual</button>
+          <button className="panel-tab panel-btn" style={tabStyle("qr")} onClick={() => setActiveTab("qr")}>QR Code</button>
+          <button className="panel-tab panel-btn" style={tabStyle("manual")} onClick={() => setActiveTab("manual")}>Manual</button>
         </div>
 
         {activeTab === "qr" && (

@@ -324,6 +324,7 @@ const SessionBrowserPanel: React.FC = () => {
             !sessionsError &&
             filteredSessions.length === 0 && (
               <div
+                className="panel-empty"
                 style={{
                   textAlign: "center",
                   padding: 30,
@@ -567,6 +568,7 @@ const SessionBrowserPanel: React.FC = () => {
           </div>
           {sessions.length === 0 && (
             <div
+              className="panel-empty"
               style={{
                 textAlign: "center",
                 padding: 20,

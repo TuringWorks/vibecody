@@ -80,7 +80,7 @@ export default function IntentRefactorPanel() {
           {(["plan", "suggest"] as Tab[]).map(t => (
             <button
               key={t}
-              className={`panel-btn ${tab === t ? "panel-btn-primary" : "panel-btn-secondary"}`}
+              className={`panel-tab panel-btn ${tab === t ? "panel-btn-primary" : "panel-btn-secondary"}`}
               onClick={() => setTab(t)}
             >
               {t === "plan" ? "Plan" : "Suggest"}

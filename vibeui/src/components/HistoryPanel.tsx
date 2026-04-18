@@ -158,7 +158,7 @@ export function HistoryPanel() {
  Loading…
  </div>
  ) : entries.length === 0 ? (
- <div style={{ color: "var(--text-secondary)", textAlign: "center", marginTop: "24px" }}>
+ <div className="panel-empty" style={{ color: "var(--text-secondary)", textAlign: "center", marginTop: "24px" }}>
  No entries in this trace.
  </div>
  ) : (

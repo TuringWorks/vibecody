@@ -190,7 +190,7 @@ export default function RemoteControlPanel() {
       {/* Tab bar */}
       <div className="panel-header">
         {(["server", "clients", "events"] as Tab[]).map(t => (
-          <button key={t} onClick={() => setTab(t)} className={`panel-btn ${tab === t ? "panel-btn-primary" : "panel-btn-secondary"}`}>
+          <button key={t} onClick={() => setTab(t)} className={`panel-tab panel-btn ${tab === t ? "panel-btn-primary" : "panel-btn-secondary"}`}>
             {t[0].toUpperCase() + t.slice(1)}
           </button>
         ))}
@@ -286,7 +286,7 @@ export default function RemoteControlPanel() {
               </div>
             ))}
             {events.length === 0 && (
-              <div style={{ textAlign: "center", padding: 24, color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>
+              <div className="panel-empty" style={{ textAlign: "center", padding: 24, color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>
                 No events yet.
               </div>
             )}

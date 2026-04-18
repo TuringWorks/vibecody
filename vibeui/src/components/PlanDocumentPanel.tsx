@@ -157,7 +157,7 @@ export default function PlanDocumentPanel() {
       )}
       <div className="panel-header">
         {(["plans", "editor", "comments"] as Tab[]).map(t => (
-          <button key={t} onClick={() => setTab(t)} className={`panel-btn ${tab === t ? "panel-btn-primary" : "panel-btn-secondary"}`}>
+          <button key={t} onClick={() => setTab(t)} className={`panel-tab panel-btn ${tab === t ? "panel-btn-primary" : "panel-btn-secondary"}`}>
             {t[0].toUpperCase() + t.slice(1)}
             {t === "comments" && allUnresolved.length > 0 && (
               <span style={{ marginLeft: 4, fontSize: 9, padding: "0 4px", borderRadius: "var(--radius-sm)", background: "var(--error-color)", color: "var(--bg-primary)" }}>{allUnresolved.length}</span>
@@ -234,7 +234,7 @@ export default function PlanDocumentPanel() {
               {plan.markdown}
             </pre>
             {planComments.length > 0 && (
-              <button onClick={() => setTab("comments")}
+              <button className="panel-tab" onClick={() => setTab("comments")}
                 style={{ alignSelf: "flex-start", padding: "4px 12px", fontSize: "var(--font-size-sm)", background: "var(--bg-secondary)", border: "1px solid var(--text-warning)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-warning)", cursor: "pointer" }}>
                 View {planComments.length} comments
               </button>

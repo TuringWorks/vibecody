@@ -164,7 +164,7 @@ const CloudAutofixPanel: React.FC = () => {
       <h3 style={{ margin: "0 0 12px" }}>Cloud Autofix</h3>
       <div style={tabBar}>
         {["pipeline", "fixes", "stats"].map(t => (
-          <button className="panel-btn" key={t} style={tab(activeTab === t)} onClick={() => setActiveTab(t)}>
+          <button className="panel-tab panel-btn" key={t} style={tab(activeTab === t)} onClick={() => setActiveTab(t)}>
             {t.charAt(0).toUpperCase() + t.slice(1)}
           </button>
         ))}

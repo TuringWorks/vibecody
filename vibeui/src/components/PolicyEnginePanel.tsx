@@ -76,7 +76,7 @@ export default function PolicyEnginePanel() {
       <h2 style={headingStyle}>Policy Engine</h2>
       <div style={{ display: "flex", gap: 4, marginBottom: 12, flexWrap: "wrap" }}>
         {(["check", "policies", "test", "audit", "conflicts"] as Tab[]).map(t => (
-          <button key={t} className={`panel-btn ${tab === t ? "panel-btn-primary" : "panel-btn-secondary"}`} onClick={() => { setTab(t); if (t === "conflicts") doConflicts(); }}>
+          <button key={t} className={`panel-tab panel-btn ${tab === t ? "panel-btn-primary" : "panel-btn-secondary"}`} onClick={() => { setTab(t); if (t === "conflicts") doConflicts(); }}>
             {t === "check" ? "Check" : t === "policies" ? "Policies" : t === "test" ? "Test" : t === "audit" ? "Audit" : "Conflicts"}
           </button>
         ))}

@@ -608,7 +608,7 @@ export function MemoryPanel({ workspacePath }: MemoryPanelProps) {
  {/* Tab selector */}
  <div style={{ display: "flex", gap: "4px" }}>
  {tabs.map((t) => (
- <button
+ <button className="panel-tab"
  key={t.id}
  onClick={() => setActiveTab(t.id)}
  style={{

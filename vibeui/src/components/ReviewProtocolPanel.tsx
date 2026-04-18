@@ -77,7 +77,7 @@ export default function ReviewProtocolPanel() {
           {(["start", "stats"] as Tab[]).map(t => (
             <button
               key={t}
-              className={`panel-btn ${tab === t ? "panel-btn-primary" : "panel-btn-secondary"}`}
+              className={`panel-tab panel-btn ${tab === t ? "panel-btn-primary" : "panel-btn-secondary"}`}
               onClick={() => {
                 setTab(t);
                 if (t === "stats" && !stats) loadStats();

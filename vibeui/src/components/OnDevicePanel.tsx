@@ -129,7 +129,7 @@ export function OnDevicePanel() {
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
         {["models", "hardware", "benchmark", "privacy"].map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{ padding: "4px 12px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: tab === t ? "var(--accent-color)" : "var(--bg-secondary)", color: tab === t ? "var(--btn-primary-fg)" : "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>{t}</button>
+          <button className="panel-tab" key={t} onClick={() => setTab(t)} style={{ padding: "4px 12px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: tab === t ? "var(--accent-color)" : "var(--bg-secondary)", color: tab === t ? "var(--btn-primary-fg)" : "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>{t}</button>
         ))}
       </div>
 
@@ -263,7 +263,7 @@ export function OnDevicePanel() {
             </div>
             <div>
               <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, marginBottom: 8 }}>Blocked Providers</div>
-              {privacy.blocked_providers.length === 0 && <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-muted)" }}>No providers blocked.</div>}
+              {privacy.blocked_providers.length === 0 && <div className="panel-empty" style={{ fontSize: "var(--font-size-base)", color: "var(--text-muted)" }}>No providers blocked.</div>}
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                 {privacy.blocked_providers.map(p => (
                   <span key={p} style={{ padding: "3px 12px", borderRadius: 12, fontSize: "var(--font-size-sm)", background: "var(--error-color)22", color: "var(--error-color)", border: "1px solid var(--error-color)" }}>{p}</span>

@@ -86,8 +86,20 @@ const RULES = [
     severity: "med",
     label: "height: 100% (rule 1: use flex: 1, minHeight: 0)",
     test: (src) => {
-      const re = /height:\s*['"]?100%/g;
-      return (src.match(re) ?? []).length;
+      // Walk style={{…}} blocks. Only count if the SAME block has height:100%
+      // AND does NOT also have width:something% (which would mean it's a
+      // visual fill like a progress bar — legit, not a layout violation).
+      const styleRe = /style\s*=\s*\{\{([\s\S]*?)\}\}/g;
+      let count = 0;
+      let m;
+      while ((m = styleRe.exec(src)) !== null) {
+        const body = m[1];
+        if (!/height\s*:\s*['"]?100%/.test(body)) continue;
+        if (/width\s*:\s*[`'"]\$?\{?[^,]*%/.test(body)) continue;
+        if (/width\s*:\s*[`'"][^"'`]*%[^"'`]*[`'"]/.test(body)) continue;
+        count++;
+      }
+      return count;
     },
   },
   {
@@ -105,10 +117,16 @@ const RULES = [
     severity: "low",
     label: "'Loading…' text not wrapped in .panel-loading",
     test: (src) => {
-      // Heuristic: the strings `Loading…` / `Loading...` appear but the panel-loading class is never used.
-      const hasLoadingText = /Loading[…\.]/.test(src);
-      const hasLoadingClass = /className\s*=\s*["'][^"']*\bpanel-loading\b/.test(src);
-      return hasLoadingText && !hasLoadingClass ? 1 : 0;
+      // Only flag standalone loading states: <div ...>Loading…</div> with no panel-loading class.
+      // Button labels like {loading ? "Loading..." : "Refresh"} are intentional inline state, not panel loaders.
+      const standaloneLoading = /<div\b([^>]*)>\s*(?:\{[^}]*\?\s*)?["']Loading[…\.]+["']\s*(?::[^}]*\})?\s*<\/div>/g;
+      let count = 0;
+      let m;
+      while ((m = standaloneLoading.exec(src)) !== null) {
+        const attrs = m[1] ?? "";
+        if (!/\bpanel-loading\b/.test(attrs)) count++;
+      }
+      return count;
     },
   },
   {
@@ -116,9 +134,21 @@ const RULES = [
     severity: "low",
     label: "Empty/no-items text not wrapped in .panel-empty",
     test: (src) => {
-      const hasEmptyText = /No\s+(items|results|data|annotations|tokens|imports|sessions|tasks|jobs|messages)\b/i.test(src);
-      const hasEmptyClass = /className\s*=\s*["'][^"']*\bpanel-empty\b/.test(src);
-      return hasEmptyText && !hasEmptyClass ? 1 : 0;
+      // Only flag standalone empty states: <div ...>No items</div> with no panel-empty class.
+      // Inline copy in <td>, <span>, sentences with extra text are not empty-state panels.
+      // Skip nested children when the surrounding parent already carries panel-empty.
+      const standaloneEmpty = /<div\b([^>]*)>\s*No\s+(items|results|data|annotations|tokens|imports|sessions|tasks|jobs|messages|providers|connections|entries|records|files|logs|events)\b[^<]{0,40}<\/div>/gi;
+      let count = 0;
+      let m;
+      while ((m = standaloneEmpty.exec(src)) !== null) {
+        const attrs = m[1] ?? "";
+        if (/\bpanel-empty\b/.test(attrs)) continue;
+        // Skip if a parent within ~400 chars before us already has panel-empty.
+        const before = src.slice(Math.max(0, m.index - 400), m.index);
+        if (/\bpanel-empty\b/.test(before)) continue;
+        count++;
+      }
+      return count;
     },
   },
   {
@@ -170,7 +200,9 @@ const RULES = [
     test: (src) => {
       // Heuristic: file talks about tabs (a tabStyle helper / `setActiveTab`) but never uses panel-tab-bar.
       const looksTabby = /(tabStyle|setActiveTab|activeTab|tab\s*===?)/.test(src);
-      const usesClass = /className\s*=\s*["'][^"']*\bpanel-tab/.test(src);
+      // Accept className="panel-tab…", className='panel-tab…', or template
+      // literal className={`panel-tab…`} / className={"panel-tab…"}
+      const usesClass = /className\s*=\s*(?:["'`{][^"'`}]*\bpanel-tab|\{`[^`]*\bpanel-tab|\{"[^"]*\bpanel-tab)/.test(src);
       return looksTabby && !usesClass ? 1 : 0;
     },
   },

@@ -80,7 +80,7 @@ export function QaValidationPanel() {
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`panel-btn ${tab === t.key ? "panel-btn-primary" : "panel-btn-secondary"}`}
+            className={`panel-tab panel-btn ${tab === t.key ? "panel-btn-primary" : "panel-btn-secondary"}`}
           >
             {t.label}
           </button>

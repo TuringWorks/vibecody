@@ -70,7 +70,7 @@ export default function SkillDistillationPanel() {
       <h2 style={headingStyle}>Skill Distillation</h2>
       <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
         {(["overview", "patterns", "export"] as Tab[]).map(t => (
-          <button key={t} className={`panel-btn ${tab === t ? "panel-btn-primary" : "panel-btn-secondary"}`} onClick={() => { setTab(t); if (t === "patterns") loadPatterns(); if (t === "export") doExport(); }}>
+          <button key={t} className={`panel-tab panel-btn ${tab === t ? "panel-btn-primary" : "panel-btn-secondary"}`} onClick={() => { setTab(t); if (t === "patterns") loadPatterns(); if (t === "export") doExport(); }}>
             {t === "overview" ? "Overview" : t === "patterns" ? "Patterns" : "Export"}
           </button>
         ))}

@@ -279,7 +279,7 @@ export function UsageMeteringPanel() {
           </div>
           <div className="panel-card">
             {reportData[reportView].length === 0
-              ? <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>No data yet.</div>
+              ? <div className="panel-empty" style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>No data yet.</div>
               : renderTable(reportData[reportView])}
           </div>
         </div>

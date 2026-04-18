@@ -392,7 +392,7 @@ export default function AiCodeReviewPanel() {
       {/* Tab bar */}
       <div style={{ display: "flex", gap: 4, marginBottom: 14 }}>
         {(["scan", "rules"] as ActiveTab[]).map(t => (
-          <button key={t} className={`panel-btn ${tab === t ? "panel-btn-primary" : "panel-btn-secondary"}`} onClick={() => setTab(t)}>
+          <button key={t} className={`panel-tab panel-btn ${tab === t ? "panel-btn-primary" : "panel-btn-secondary"}`} onClick={() => setTab(t)}>
             {t === "scan" ? "Code Scan" : "Rule Library"}
           </button>
         ))}

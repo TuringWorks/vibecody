@@ -364,7 +364,7 @@ const LangGraphPanel: React.FC = () => {
       {!selectedPipeline ? (
         <div style={loadingStyle}>Select a pipeline to view events.</div>
       ) : loading && events.length === 0 ? renderLoading() : events.length === 0 ? (
-        <div style={loadingStyle}>No events for this pipeline.</div>
+        <div className="panel-empty" style={loadingStyle}>No events for this pipeline.</div>
       ) : (
         events.map((ev, i) => (
           <div key={i} className="panel-card" style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>

@@ -205,7 +205,7 @@ export function PencilPanel({ workspacePath, provider }: PencilPanelProps) {
               style={{ flex: 1, background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", padding: "8px 0", cursor: "pointer", color: "inherit", fontSize: "var(--font-size-base)" }}>
               Copy EP XML
             </button>
-            <button onClick={() => setActiveTab("export")}
+            <button className="panel-tab" onClick={() => setActiveTab("export")}
               style={{ flex: 1, background: "var(--accent-blue)", border: "none", borderRadius: "var(--radius-sm)", padding: "8px 0", cursor: "pointer", color: "var(--btn-primary-fg, #fff)", fontSize: "var(--font-size-base)", fontWeight: 600 }}>
               Export
             </button>
@@ -325,7 +325,7 @@ export function PencilPanel({ workspacePath, provider }: PencilPanelProps) {
     <div className="panel-container">
       <div className="panel-header" style={{ padding: 0, overflow: "auto", flexShrink: 0 }}>
         {TAB_DEFS.map(({ id, label }) => (
-          <button key={id} onClick={() => setActiveTab(id)} style={tabStyle(activeTab === id)}>{label}</button>
+          <button className="panel-tab" key={id} onClick={() => setActiveTab(id)} style={tabStyle(activeTab === id)}>{label}</button>
         ))}
         {statusMsg && <span style={{ marginLeft: "auto", marginRight: 12, fontSize: "var(--font-size-sm)", color: "var(--text-success)", lineHeight: "30px" }}>✓ {statusMsg}</span>}
       </div>

@@ -113,7 +113,7 @@ export function WebhookPanel() {
         <h3 style={{ margin: 0, fontSize: "var(--font-size-xl)" }}>Webhook Automations</h3>
         <div style={{ display: 'flex', gap: 6 }}>
           {(['config', 'logs'] as const).map(t => (
-            <button key={t} onClick={() => setTab(t)} className={`panel-btn ${tab === t ? 'panel-btn-primary' : 'panel-btn-secondary'}`}>
+            <button key={t} onClick={() => setTab(t)} className={`panel-tab panel-btn ${tab === t ? 'panel-btn-primary' : 'panel-btn-secondary'}`}>
               {t === 'config' ? 'Webhooks' : 'Activity Log'}
             </button>
           ))}

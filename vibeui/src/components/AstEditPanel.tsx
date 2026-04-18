@@ -138,7 +138,7 @@ export default function AstEditPanel() {
               aria-controls={`astpanel-${t}`}
               id={`asttab-${t}`}
               onClick={() => setTab(t)}
-              className={`panel-btn ${tab === t ? "panel-btn-primary" : "panel-btn-secondary"}`}
+              className={`panel-tab panel-btn ${tab === t ? "panel-btn-primary" : "panel-btn-secondary"}`}
             >
               {t[0].toUpperCase() + t.slice(1)}
             </button>

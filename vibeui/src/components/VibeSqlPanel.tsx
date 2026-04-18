@@ -236,7 +236,7 @@ export function VibeSqlPanel({ provider }: { workspacePath: string | null; provi
   // ── Tab button helper ───────────────────────────────────────────────────────
 
   const tabBtn = (id: string, lbl: string, disabled = false) => (
-    <button key={id} disabled={disabled} onClick={() => !disabled && setTab(id as typeof tab)} style={{
+    <button className="panel-tab" key={id} disabled={disabled} onClick={() => !disabled && setTab(id as typeof tab)} style={{
       padding: "4px 12px", fontSize: "var(--font-size-sm)", fontWeight: tab === id ? 600 : 400, cursor: disabled ? "not-allowed" : "pointer",
       background: tab === id ? "var(--accent-color)" : "transparent",
       color: tab === id ? "var(--btn-primary-fg, #fff)" : disabled ? "var(--text-secondary)" : "var(--text-primary)",

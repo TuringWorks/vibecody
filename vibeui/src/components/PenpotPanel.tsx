@@ -195,7 +195,7 @@ export function PenpotPanel({ workspacePath, provider }: PenpotPanelProps) {
       {!isConnected ? (
         <div style={{ textAlign: "center", padding: 32, color: "var(--text-secondary)", fontSize: "var(--font-size-md)" }}>
           Connect to Penpot first to browse projects.
-          <br /><button onClick={() => setActiveTab("connect")} style={{ marginTop: 12, background: "var(--accent-blue)", border: "none", borderRadius: "var(--radius-sm)", padding: "8px 16px", cursor: "pointer", color: "var(--btn-primary-fg, #fff)", fontSize: "var(--font-size-base)" }}>Connect</button>
+          <br /><button className="panel-tab" onClick={() => setActiveTab("connect")} style={{ marginTop: 12, background: "var(--accent-blue)", border: "none", borderRadius: "var(--radius-sm)", padding: "8px 16px", cursor: "pointer", color: "var(--btn-primary-fg, #fff)", fontSize: "var(--font-size-base)" }}>Connect</button>
         </div>
       ) : (
         <>
@@ -342,7 +342,7 @@ export function PenpotPanel({ workspacePath, provider }: PenpotPanelProps) {
     <div className="panel-container">
       <div className="panel-header" style={{ padding: 0, overflow: "auto", flexShrink: 0 }}>
         {TAB_DEFS.map(({ id, label }) => (
-          <button key={id} onClick={() => setActiveTab(id)} style={tabStyle(activeTab === id)}>
+          <button className="panel-tab" key={id} onClick={() => setActiveTab(id)} style={tabStyle(activeTab === id)}>
             {label}
             {id === "connect" && isConnected && <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "var(--text-success)", marginLeft: 6, verticalAlign: "middle" }} />}
           </button>

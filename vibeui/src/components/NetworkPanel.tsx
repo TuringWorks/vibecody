@@ -278,7 +278,7 @@ export function NetworkPanel() {
  )}
 
  {dnsRecords.length === 0 && !dnsLoading && !dnsError && dnsDomain && (
- <div style={{ textAlign: "center", padding: "20px 0", color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>
+ <div className="panel-empty" style={{ textAlign: "center", padding: "20px 0", color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>
  No records found for {dnsType} {dnsDomain}
  </div>
  )}

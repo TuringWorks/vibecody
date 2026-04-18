@@ -14,6 +14,21 @@ interface JobRecord {
  summary?: string;
 }
 
+interface JobManagerMetrics {
+ jobs_created: number;
+ jobs_completed: number;
+ jobs_failed: number;
+ jobs_cancelled: number;
+ quota_denied: number;
+ subprocesses_spawned: number;
+ events_published: number;
+ events_replayed: number;
+ webhooks_delivered: number;
+ webhooks_dead_lettered: number;
+ queued: number;
+ running: number;
+}
+
 interface BackgroundJobsPanelProps {
  /** URL of the vibecli daemon (default: http://localhost:7878) */
  daemonUrl?: string;
@@ -32,6 +47,7 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
  const { toasts, toast, dismiss } = useToast();
  const { providers: PROVIDERS } = useModelRegistry();
  const [jobs, setJobs] = useState<JobRecord[]>([]);
+ const [metrics, setMetrics] = useState<JobManagerMetrics | null>(null);
  const [daemonOnline, setDaemonOnline] = useState(false);
  const [expandedId, setExpandedId] = useState<string | null>(null);
  const [liveEvents, setLiveEvents] = useState<Record<string, string[]>>({});
@@ -56,13 +72,24 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
  }
  };
 
+ const fetchMetrics = async () => {
+ try {
+ const res = await fetch(`${daemonUrl}/v1/metrics/jobs`);
+ if (!res.ok) return;
+ const data: JobManagerMetrics = await res.json();
+ setMetrics(data);
+ } catch {
+ // Same rationale as fetchJobs — transient failure doesn't toggle status.
+ }
+ };
+
  // Sync daemon status from app-level useDaemonMonitor events so we don't
  // double-poll. Also keep a local 10-second job-list refresh while online.
  useEffect(() => {
  const onStatus = (e: Event) => {
   const { online } = (e as CustomEvent<{ online: boolean; checkedAt: number }>).detail;
   setDaemonOnline(online);
-  if (online) fetchJobs();
+  if (online) { fetchJobs(); fetchMetrics(); }
  };
  window.addEventListener("vibeui:daemon-status", onStatus);
 
@@ -72,7 +99,7 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
  fetch(`${daemonUrl}/health`, { signal: AbortSignal.timeout(4000) })
   .then((r) => { if (r.ok) setDaemonOnline(true); })
   .catch(() => { /* remain false until useDaemonMonitor next fires */ })
-  .finally(() => fetchJobs());
+  .finally(() => { fetchJobs(); fetchMetrics(); });
 
  return () => window.removeEventListener("vibeui:daemon-status", onStatus);
  // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -82,7 +109,7 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
  // itself is managed by useDaemonMonitor at app level every 30 s).
  useEffect(() => {
  if (!daemonOnline) return;
- const id = setInterval(fetchJobs, 10_000);
+ const id = setInterval(() => { fetchJobs(); fetchMetrics(); }, 10_000);
  return () => clearInterval(id);
  // eslint-disable-next-line react-hooks/exhaustive-deps
  }, [daemonOnline, daemonUrl]);
@@ -171,6 +198,38 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
  {!daemonOnline && (
  <div className="panel-error" role="alert">
  Daemon not running. Start it with: <code>vibecli --serve --port 7878</code>
+ </div>
+ )}
+
+ {/* Metrics strip */}
+ {metrics && (
+ <div
+ role="group"
+ aria-label="Job manager metrics"
+ style={{
+ display: 'flex', flexWrap: 'wrap', gap: '12px',
+ padding: '8px 12px', marginBottom: '12px',
+ borderRadius: '6px', background: 'var(--bg-secondary)',
+ border: '1px solid var(--border-color)',
+ fontSize: '11px', color: 'var(--text-secondary)',
+ }}
+ >
+ <span><strong style={{ color: 'var(--text-primary)' }}>{metrics.queued}</strong> queued</span>
+ <span><strong style={{ color: 'var(--text-warning)' }}>{metrics.running}</strong> running</span>
+ <span><strong style={{ color: 'var(--text-success)' }}>{metrics.jobs_completed}</strong> done</span>
+ <span><strong style={{ color: 'var(--text-danger)' }}>{metrics.jobs_failed}</strong> failed</span>
+ <span>{metrics.jobs_cancelled} cancelled</span>
+ <span>{metrics.jobs_created} total</span>
+ {metrics.quota_denied > 0 && (
+ <span title="Submissions rejected by quota">
+ <strong style={{ color: 'var(--text-danger)' }}>{metrics.quota_denied}</strong> quota-denied
+ </span>
+ )}
+ {metrics.webhooks_dead_lettered > 0 && (
+ <span title="Webhook deliveries that exhausted retries">
+ <strong style={{ color: 'var(--text-danger)' }}>{metrics.webhooks_dead_lettered}</strong> dead-letter
+ </span>
+ )}
  </div>
  )}
 

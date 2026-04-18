@@ -259,7 +259,7 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  ) : (
  <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
  {filteredFiles.length === 0 && (
- <div style={{ color: "var(--text-secondary)", textAlign: "center", padding: "20px" }}>
+ <div className="panel-empty" style={{ color: "var(--text-secondary)", textAlign: "center", padding: "20px" }}>
  No files match the filter.
  </div>
  )}

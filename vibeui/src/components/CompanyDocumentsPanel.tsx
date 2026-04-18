@@ -196,7 +196,7 @@ export function CompanyDocumentsPanel({ workspacePath: _wp }: CompanyDocumentsPa
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`panel-btn ${tab === t ? "panel-btn-primary" : "panel-btn-secondary"}`}
+              className={`panel-tab panel-btn ${tab === t ? "panel-btn-primary" : "panel-btn-secondary"}`}
               style={{ padding: "2px 8px" }}
             >
               {t === "list" ? "List" : t === "create" ? "+ New" : "Meeting Notes"}
@@ -294,7 +294,7 @@ export function CompanyDocumentsPanel({ workspacePath: _wp }: CompanyDocumentsPa
       {/* VIEW TAB */}
       {tab === "view" && (
         <div>
-          <button onClick={() => setTab("list")} className="panel-btn panel-btn-secondary" style={{ marginBottom: 12 }}>← Back</button>
+          <button onClick={() => setTab("list")} className="panel-tab panel-btn panel-btn-secondary" style={{ marginBottom: 12 }}>← Back</button>
           <div className="panel-card">
             <pre style={{ margin: 0, fontSize: "var(--font-size-base)", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
               {docOutput}

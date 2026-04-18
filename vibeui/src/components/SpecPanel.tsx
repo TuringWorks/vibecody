@@ -314,7 +314,7 @@ export function SpecPanel({ workspacePath, provider = "ollama" }: SpecPanelProps
  </span>
  </div>
  {selectedSpec.tasks.length === 0 && (
- <div style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>No tasks generated yet.</div>
+ <div className="panel-empty" style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>No tasks generated yet.</div>
  )}
  {selectedSpec.tasks.map(task => (
  <div
