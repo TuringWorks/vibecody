@@ -182,7 +182,48 @@ enum AppEvent {
     AgentComplete(String),
     /// Agent error.
     AgentError(String),
+    /// Periodic JobManager metrics snapshot from a reachable local daemon.
+    /// Silently skipped when the daemon is down.
+    MetricsTick(crate::job_manager::JobManagerMetrics),
     Error(String),
+}
+
+/// Poll `GET http://localhost:7878/v1/metrics/jobs` every 10 s and push the
+/// deserialized snapshot through `tx`. Fails silently when the daemon is not
+/// running or the token file is missing — the TUI just doesn't show a strip.
+fn spawn_metrics_poller(tx: mpsc::Sender<AppEvent>) {
+    tokio::spawn(async move {
+        let token_path = dirs::home_dir()
+            .unwrap_or_else(|| std::path::PathBuf::from("."))
+            .join(".vibecli")
+            .join("daemon.token");
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(3))
+            .build()
+            .ok();
+        let Some(client) = client else { return };
+        let url = "http://localhost:7878/v1/metrics/jobs";
+        let mut ticker = tokio::time::interval(std::time::Duration::from_secs(10));
+        ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+        loop {
+            ticker.tick().await;
+            let Ok(token) = std::fs::read_to_string(&token_path) else { continue };
+            let token = token.trim();
+            let Ok(resp) = client
+                .get(url)
+                .header("authorization", format!("Bearer {token}"))
+                .send()
+                .await
+            else { continue };
+            if !resp.status().is_success() { continue }
+            let Ok(snap) = resp.json::<crate::job_manager::JobManagerMetrics>().await
+            else { continue };
+            if tx.send(AppEvent::MetricsTick(snap)).await.is_err() {
+                // Main loop dropped the receiver — we're shutting down.
+                break;
+            }
+        }
+    });
 }
 
 async fn run_app<B: ratatui::backend::Backend>(
@@ -192,6 +233,7 @@ async fn run_app<B: ratatui::backend::Backend>(
 ) -> Result<()> {
     let (tx, mut rx) = mpsc::channel::<AppEvent>(200);
     let mut event_stream = event::EventStream::new();
+    spawn_metrics_poller(tx.clone());
 
     let workspace = std::env::current_dir()?;
     let tool_executor = Arc::new(ToolExecutor::new(workspace.clone(), false));
@@ -532,6 +574,11 @@ async fn run_app<B: ratatui::backend::Backend>(
 
                 AppEvent::Error(e) => {
                     app.messages.push(TuiMessage::Error(e));
+                }
+
+                AppEvent::MetricsTick(snap) => {
+                    app.job_metrics = Some(snap);
+                    app.last_metrics_tick = Some(std::time::Instant::now());
                 }
                 _ => {}
             }

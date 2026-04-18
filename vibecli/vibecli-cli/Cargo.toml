@@ -61,6 +61,8 @@ clap_complete = "4"
 zip = "2"
 handlebars = "6"
 socket2 = "0.5"
+snow = "0.9"
+libc = "0.2"
 
 # OpenTelemetry (OTLP/HTTP export)
 opentelemetry = { version = "0.27", features = ["trace"] }
@@ -284,6 +286,16 @@ harness = false
 [[test]]
 name = "message_queue_bdd"
 path = "tests/message_queue_bdd.rs"
+harness = false
+
+[[test]]
+name = "job_manager_bdd"
+path = "tests/job_manager_bdd.rs"
+harness = false
+
+[[test]]
+name = "subprocess_dispatch_bdd"
+path = "tests/subprocess_dispatch_bdd.rs"
 harness = false
 
 [[test]]

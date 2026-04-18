@@ -55,6 +55,10 @@ pub mod company_portability;
 pub mod company_orchestrator;
 pub mod profile_store;
 pub mod workspace_store;
+pub mod job_manager;
+#[cfg(unix)]
+pub mod subprocess_dispatch;
+pub mod webhook;
 // Phase 33-39: FIT-GAP v8
 pub mod env_dispatch;
 pub mod nested_agents;

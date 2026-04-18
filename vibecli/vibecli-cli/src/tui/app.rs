@@ -64,6 +64,47 @@ pub struct App {
     pub theme: Theme,
     /// Diagnostics pane (populated by /check command).
     pub diagnostics_panel: DiagnosticsComponent,
+    /// Latest JobManager metrics snapshot — populated by the event loop
+    /// (or a periodic tick) when a daemon is reachable. When `Some`, the
+    /// UI renders a compact single-line strip above the input area.
+    pub job_metrics: Option<crate::job_manager::JobManagerMetrics>,
+    /// Monotonic timestamp of the most recent metrics tick. Used to fade
+    /// the strip out when the daemon stops responding — see
+    /// `MetricsFreshness::classify`.
+    pub last_metrics_tick: Option<std::time::Instant>,
+}
+
+/// How fresh the last metrics snapshot is. Drives the strip's render mode.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MetricsFreshness {
+    /// Under `STALE_AFTER_MS`: render in full color.
+    Fresh,
+    /// Between `STALE_AFTER_MS` and `HIDE_AFTER_MS`: render dimmed so the
+    /// operator knows the numbers aren't live but can still read the last
+    /// known state.
+    Stale,
+    /// Over `HIDE_AFTER_MS`, or no tick ever received: don't render.
+    Hidden,
+}
+
+/// Fade the strip to dim after this many ms without a tick.
+pub const STALE_AFTER_MS: u128 = 30_000;
+/// Hide the strip entirely after this many ms without a tick. The last
+/// known snapshot is kept in memory so a returning daemon shows it
+/// immediately rather than waiting for the next tick.
+pub const HIDE_AFTER_MS: u128 = 90_000;
+
+impl MetricsFreshness {
+    /// Pure classifier — takes the elapsed time since the last tick in ms.
+    /// `None` means no tick has ever arrived.
+    pub fn classify(elapsed_ms: Option<u128>) -> Self {
+        match elapsed_ms {
+            None => MetricsFreshness::Hidden,
+            Some(ms) if ms < STALE_AFTER_MS => MetricsFreshness::Fresh,
+            Some(ms) if ms < HIDE_AFTER_MS => MetricsFreshness::Stale,
+            Some(_) => MetricsFreshness::Hidden,
+        }
+    }
 }
 
 impl App {
@@ -84,7 +125,18 @@ impl App {
             pending_approval: None,
             theme: get_theme(theme_name),
             diagnostics_panel: DiagnosticsComponent::new(),
+            job_metrics: None,
+            last_metrics_tick: None,
         }
+    }
+
+    /// Classify the current metrics freshness based on the monotonic
+    /// timestamp of the last tick.
+    pub fn metrics_freshness(&self) -> MetricsFreshness {
+        let elapsed = self
+            .last_metrics_tick
+            .map(|t| t.elapsed().as_millis());
+        MetricsFreshness::classify(elapsed)
     }
 
     pub fn on_key(&mut self, c: char) {
@@ -270,5 +322,52 @@ mod tests {
             TuiMessage::Assistant(s) => assert_eq!(s, "reply"),
             _ => panic!("wrong variant"),
         }
+    }
+
+    // ── MetricsFreshness::classify ──────────────────────────────────────────
+
+    #[test]
+    fn metrics_freshness_hidden_without_tick() {
+        assert_eq!(MetricsFreshness::classify(None), MetricsFreshness::Hidden);
+    }
+
+    #[test]
+    fn metrics_freshness_fresh_just_after_tick() {
+        assert_eq!(MetricsFreshness::classify(Some(0)), MetricsFreshness::Fresh);
+        assert_eq!(
+            MetricsFreshness::classify(Some(STALE_AFTER_MS - 1)),
+            MetricsFreshness::Fresh
+        );
+    }
+
+    #[test]
+    fn metrics_freshness_stale_at_stale_threshold() {
+        assert_eq!(
+            MetricsFreshness::classify(Some(STALE_AFTER_MS)),
+            MetricsFreshness::Stale
+        );
+        assert_eq!(
+            MetricsFreshness::classify(Some(HIDE_AFTER_MS - 1)),
+            MetricsFreshness::Stale
+        );
+    }
+
+    #[test]
+    fn metrics_freshness_hidden_at_hide_threshold() {
+        assert_eq!(
+            MetricsFreshness::classify(Some(HIDE_AFTER_MS)),
+            MetricsFreshness::Hidden
+        );
+        assert_eq!(
+            MetricsFreshness::classify(Some(HIDE_AFTER_MS * 10)),
+            MetricsFreshness::Hidden
+        );
+    }
+
+    #[test]
+    fn metrics_freshness_fresh_after_recording_tick() {
+        let mut app = App::new();
+        app.last_metrics_tick = Some(std::time::Instant::now());
+        assert_eq!(app.metrics_freshness(), MetricsFreshness::Fresh);
     }
 }

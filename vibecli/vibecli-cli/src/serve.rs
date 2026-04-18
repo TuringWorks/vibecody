@@ -58,13 +58,11 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::HashMap,
     convert::Infallible,
     path::PathBuf,
     sync::Arc,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
-use tokio::sync::{broadcast, Mutex};
 use rand::Rng;
 use tower_http::cors::CorsLayer;
 use tower_http::set_header::SetResponseHeaderLayer;
@@ -75,21 +73,10 @@ use vibe_ai::{AgentContext, AgentEvent, AgentLoop, ApprovalPolicy, Message, Mess
 use vibe_ai::provider::AIProvider;
 use vibe_collab::{CollabMessage, CollabServer, PeerInfo, SyncBroadcast};
 use crate::session_store::{SessionStore, render_session_html, render_sessions_index_html};
-
-// ── Job record (persisted to disk) ────────────────────────────────────────────
-
-/// A persistent record of a background agent job.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct JobRecord {
-    pub session_id: String,
-    pub task: String,
-    /// "running" | "complete" | "failed" | "cancelled"
-    pub status: String,
-    pub provider: String,
-    pub started_at: u64,
-    pub finished_at: Option<u64>,
-    pub summary: Option<String>,
-}
+use crate::job_manager::{JobManager, CreateJobReq, JobStatus};
+// Re-export so external callers that imported these via `crate::serve::*`
+// keep compiling. `JobManager` owns the canonical definitions now.
+pub use crate::job_manager::{JobRecord, AgentEventPayload};
 
 fn now_ms() -> u64 {
     SystemTime::now()
@@ -98,55 +85,18 @@ fn now_ms() -> u64 {
         .as_millis() as u64
 }
 
-fn persist_job(jobs_dir: &std::path::Path, record: &JobRecord) {
-    let path = jobs_dir.join(format!("{}.json", record.session_id));
-    match serde_json::to_string_pretty(record) {
-        Ok(json) => {
-            if let Err(e) = std::fs::write(&path, json) {
-                eprintln!("[serve] failed to persist job {}: {e}", record.session_id);
-            }
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::PermissionsExt;
-                if let Err(e) = std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)) {
-                    eprintln!("[serve] failed to set permissions on {}: {e}", path.display());
-                }
-            }
-        }
-        Err(e) => eprintln!("[serve] failed to serialize job {}: {e}", record.session_id),
-    }
-}
-
-fn load_job(jobs_dir: &std::path::Path, session_id: &str) -> Option<JobRecord> {
-    let path = jobs_dir.join(format!("{}.json", session_id));
-    std::fs::read_to_string(path)
-        .ok()
-        .and_then(|s| serde_json::from_str(&s).ok())
-}
-
-fn load_all_jobs(jobs_dir: &std::path::Path) -> Vec<JobRecord> {
-    let Ok(entries) = std::fs::read_dir(jobs_dir) else { return vec![] };
-    let mut jobs: Vec<JobRecord> = entries
-        .filter_map(|e| e.ok())
-        .filter(|e| e.path().extension().and_then(|x| x.to_str()) == Some("json"))
-        .filter_map(|e| std::fs::read_to_string(e.path()).ok())
-        .filter_map(|s| serde_json::from_str::<JobRecord>(&s).ok())
-        .collect();
-    jobs.sort_by(|a, b| b.started_at.cmp(&a.started_at));
-    jobs
-}
-
 // ── Shared server state ───────────────────────────────────────────────────────
-
-/// Live event streams keyed by session_id.
-type EventStreams = Arc<Mutex<HashMap<String, broadcast::Sender<AgentEventPayload>>>>;
 
 #[derive(Clone)]
 pub struct ServeState {
     pub provider: Arc<dyn AIProvider>,
     pub approval: ApprovalPolicy,
     pub workspace_root: PathBuf,
-    pub streams: EventStreams,
+    /// Durable job queue + live event streams (SQLite-backed, M1+).
+    pub job_manager: Arc<JobManager>,
+    /// Legacy directory kept for per-job side-car files (`{id}.feedback.json`,
+    /// `{id}.intervene.json`) and for machine_id hashing. Job records
+    /// themselves live in `~/.vibecli/jobs.db` via `job_manager`.
     pub jobs_dir: PathBuf,
     pub provider_name: String,
     /// Bearer token required on all non-health/non-viewer endpoints.
@@ -203,32 +153,6 @@ pub struct AgentRequest {
 #[derive(Debug, Serialize)]
 pub struct AgentStartResponse {
     pub session_id: String,
-}
-
-/// An agent event serialized for SSE.
-#[derive(Debug, Clone, Serialize)]
-pub struct AgentEventPayload {
-    #[serde(rename = "type")]
-    pub kind: String,
-    pub content: Option<String>,
-    pub step_num: Option<usize>,
-    pub tool_name: Option<String>,
-    pub success: Option<bool>,
-}
-
-impl AgentEventPayload {
-    fn chunk(text: String) -> Self {
-        Self { kind: "chunk".into(), content: Some(text), step_num: None, tool_name: None, success: None }
-    }
-    fn step(step_num: usize, tool: &str, success: bool) -> Self {
-        Self { kind: "step".into(), content: None, step_num: Some(step_num), tool_name: Some(tool.into()), success: Some(success) }
-    }
-    fn complete(summary: String) -> Self {
-        Self { kind: "complete".into(), content: Some(summary), step_num: None, tool_name: None, success: None }
-    }
-    fn error(msg: String) -> Self {
-        Self { kind: "error".into(), content: Some(msg), step_num: None, tool_name: None, success: None }
-    }
 }
 
 /// JSON error response helper — returns `{"error":"msg"}` with correct Content-Type.
@@ -432,27 +356,26 @@ async fn start_agent(
     State(state): State<ServeState>,
     Json(req): Json<AgentRequest>,
 ) -> Result<Json<AgentStartResponse>, (StatusCode, Json<serde_json::Value>)> {
-    // Use a cryptographically random 128-bit hex ID to prevent session enumeration.
-    let session_id = format!("{:032x}", rand::thread_rng().gen::<u128>());
+    let session_id = state
+        .job_manager
+        .create(CreateJobReq {
+            task: req.task.clone(),
+            provider: state.provider_name.clone(),
+            approval: req.approval.clone().unwrap_or_else(|| "auto".into()),
+            workspace_root: state.workspace_root.to_string_lossy().to_string(),
+            priority: 5,
+            webhook_url: None,
+            tags: vec![],
+            quota_bucket: None,
+        })
+        .await
+        .map_err(|e| json_error(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    // Persist initial job record
-    let mut record = JobRecord {
-        session_id: session_id.clone(),
-        task: req.task.clone(),
-        status: "running".to_string(),
-        provider: state.provider_name.clone(),
-        started_at: now_ms(),
-        finished_at: None,
-        summary: None,
-    };
-    persist_job(&state.jobs_dir, &record);
-
-    // Create broadcast channel for SSE fan-out
-    let (tx, _) = broadcast::channel::<AgentEventPayload>(256);
-    {
-        let mut streams = state.streams.lock().await;
-        streams.insert(session_id.clone(), tx.clone());
-    }
+    let _ = state.job_manager.mark_running(&session_id).await;
+    // Register the broadcast channel; events are persisted+fanned-out via
+    // `job_manager.publish_event` below so reconnecting SSE clients can
+    // replay with `?since_seq=N`.
+    let _ = state.job_manager.open_stream(&session_id).await;
 
     let approval = match &req.approval {
         Some(s) => ApprovalPolicy::from_str(s),
@@ -463,8 +386,7 @@ async fn start_agent(
     let sid = session_id.clone();
     let workspace_root = state.workspace_root.clone();
     let provider = state.provider.clone();
-    let streams = state.streams.clone();
-    let jobs_dir = state.jobs_dir.clone();
+    let job_manager = state.job_manager.clone();
 
     tokio::spawn(async move {
         use crate::tool_executor::ToolExecutor;
@@ -507,49 +429,45 @@ async fn start_agent(
                 }
                 AgentEvent::Complete(summary) => {
                     let p = AgentEventPayload::complete(summary.clone());
-                    // Persist completion
-                    record.status = "complete".to_string();
-                    record.finished_at = Some(now_ms());
-                    record.summary = Some(summary);
-                    persist_job(&jobs_dir, &record);
-                    // Broadcast final event before removing stream
-                    let _ = tx.send(p.clone());
-                    let mut s = streams.lock().await;
-                    s.remove(&sid);
+                    let _ = job_manager.publish_event(&sid, p).await;
+                    let _ = job_manager
+                        .mark_terminal(&sid, JobStatus::Complete, Some(summary), None)
+                        .await;
+                    job_manager.close_stream(&sid).await;
                     completed = true;
                     break;
                 }
                 AgentEvent::Error(msg) => {
                     let p = AgentEventPayload::error(msg.clone());
-                    // Persist failure
-                    record.status = "failed".to_string();
-                    record.finished_at = Some(now_ms());
-                    record.summary = Some(msg);
-                    persist_job(&jobs_dir, &record);
-                    // Broadcast error event before removing stream
-                    let _ = tx.send(p.clone());
-                    let mut s = streams.lock().await;
-                    s.remove(&sid);
+                    let _ = job_manager.publish_event(&sid, p).await;
+                    let _ = job_manager
+                        .mark_terminal(&sid, JobStatus::Failed, Some(msg), None)
+                        .await;
+                    job_manager.close_stream(&sid).await;
                     completed = true;
                     break;
                 }
                 _ => continue,
             };
-            let _ = tx.send(payload);
+            let _ = job_manager.publish_event(&sid, payload).await;
         }
 
         // Fallback: if the agent task exited without sending Complete or Error
         // (e.g., panic, unexpected return, dropped channel), ensure the SSE
         // stream gets a completion event so clients don't hang forever.
         if !completed {
-            if record.status == "running" {
-                record.status = "complete".to_string();
-                record.finished_at = Some(now_ms());
-                persist_job(&jobs_dir, &record);
-            }
-            let _ = tx.send(AgentEventPayload::complete("Agent finished.".into()));
-            let mut s = streams.lock().await;
-            s.remove(&sid);
+            let _ = job_manager
+                .publish_event(&sid, AgentEventPayload::complete("Agent finished.".into()))
+                .await;
+            let _ = job_manager
+                .mark_terminal(
+                    &sid,
+                    JobStatus::Complete,
+                    Some("Agent finished.".into()),
+                    None,
+                )
+                .await;
+            job_manager.close_stream(&sid).await;
         }
     });
 
@@ -561,14 +479,17 @@ async fn start_agent(
 async fn list_jobs(
     State(state): State<ServeState>,
 ) -> Json<Vec<JobRecord>> {
-    Json(load_all_jobs(&state.jobs_dir))
+    Json(state.job_manager.list().await)
 }
 
 async fn get_job(
     Path(id): Path<String>,
     State(state): State<ServeState>,
 ) -> Result<Json<JobRecord>, (StatusCode, Json<serde_json::Value>)> {
-    load_job(&state.jobs_dir, &id)
+    state
+        .job_manager
+        .get(&id)
+        .await
         .map(Json)
         .ok_or_else(|| json_error(StatusCode::NOT_FOUND, format!("Job '{}' not found", sanitize_user_input(&id))))
 }
@@ -577,39 +498,63 @@ async fn cancel_job(
     Path(id): Path<String>,
     State(state): State<ServeState>,
 ) -> Result<Json<JobRecord>, (StatusCode, Json<serde_json::Value>)> {
-    // Remove stream (ends SSE)
-    {
-        let mut streams = state.streams.lock().await;
-        streams.remove(&id);
-    }
-
-    // Update persisted record
-    let mut record = load_job(&state.jobs_dir, &id)
+    let record = state
+        .job_manager
+        .cancel(&id, Some("user requested".into()))
+        .await
         .ok_or_else(|| json_error(StatusCode::NOT_FOUND, format!("Job '{}' not found", sanitize_user_input(&id))))?;
-    if record.status == "running" {
-        record.status = "cancelled".to_string();
-        record.finished_at = Some(now_ms());
-        persist_job(&state.jobs_dir, &record);
-    }
     Ok(Json(record))
+}
+
+#[derive(Debug, Default, serde::Deserialize)]
+struct StreamQuery {
+    /// Replay events with `seq > since_seq` before switching to live.
+    /// Omit to get live only. Use `0` to replay from the beginning.
+    since_seq: Option<u64>,
 }
 
 async fn stream_agent(
     Path(session_id): Path<String>,
+    Query(q): Query<StreamQuery>,
     State(state): State<ServeState>,
 ) -> Result<Sse<impl futures::Stream<Item = Result<Event, Infallible>>>, (StatusCode, Json<serde_json::Value>)> {
     use tokio_stream::wrappers::BroadcastStream;
     use futures::StreamExt;
 
-    let rx = {
-        let streams = state.streams.lock().await;
-        let tx = streams
-            .get(&session_id)
-            .ok_or_else(|| json_error(StatusCode::NOT_FOUND, format!("Session '{}' not found", sanitize_user_input(&session_id))))?;
-        tx.subscribe()
+    // Replay first (if requested), so a client that reconnects with
+    // `since_seq=N` gets every event persisted after N before the live
+    // stream resumes. Running the replay query before subscribe() gives us
+    // a small window where a fresh event could land in the broadcast but
+    // not yet in our replayed snapshot — publish_event persists before it
+    // broadcasts, so the event's seq will be <= the max in replay OR will
+    // show up live, never lost. A reconnecting client that echoes the
+    // highest seq it received will never see duplicates.
+    let replay: Vec<AgentEventPayload> = match q.since_seq {
+        Some(n) => state
+            .job_manager
+            .replay_events(&session_id, n)
+            .await
+            .into_iter()
+            .map(|(_seq, p)| p)
+            .collect(),
+        None => Vec::new(),
     };
 
-    let stream = BroadcastStream::new(rx).filter_map(|item| async move {
+    // Subscribe to live *after* replay is fetched so we minimise the
+    // overlap window; publish_event's persist-then-broadcast order means
+    // any overlap shows up as a duplicate at worst — client tracks seq.
+    let rx = state
+        .job_manager
+        .subscribe(&session_id)
+        .await
+        .ok_or_else(|| json_error(StatusCode::NOT_FOUND, format!("Session '{}' not found", sanitize_user_input(&session_id))))?;
+
+    let replay_stream = futures::stream::iter(replay.into_iter().map(|payload| {
+        let json = serde_json::to_string(&payload).unwrap_or_default();
+        Ok::<_, Infallible>(Event::default().data(json))
+    }));
+
+    let live_stream = BroadcastStream::new(rx).filter_map(|item| async move {
         match item {
             Ok(payload) => {
                 let json = serde_json::to_string(&payload).ok()?;
@@ -618,6 +563,8 @@ async fn stream_agent(
             Err(_) => None,
         }
     });
+
+    let stream = replay_stream.chain(live_stream);
 
     Ok(Sse::new(stream).keep_alive(KeepAlive::new().interval(Duration::from_secs(15))))
 }
@@ -772,8 +719,34 @@ async fn acp_create_task(
     State(state): State<ServeState>,
     Json(req): Json<crate::acp::AcpTaskRequest>,
 ) -> impl IntoResponse {
-    // Reuse the existing agent infrastructure
-    let session_id = format!("acp-{:016x}", rand::thread_rng().gen::<u64>());
+    let workspace = req.context
+        .as_ref()
+        .and_then(|c| c.workspace_root.clone())
+        .unwrap_or_else(|| state.workspace_root.to_string_lossy().to_string());
+
+    let session_id = match state
+        .job_manager
+        .create(CreateJobReq {
+            task: req.task.clone(),
+            provider: state.provider_name.clone(),
+            approval: "auto".into(),
+            workspace_root: workspace.clone(),
+            priority: 5,
+            webhook_url: None,
+            tags: vec!["acp".into()],
+            quota_bucket: None,
+        })
+        .await
+    {
+        Ok(id) => id,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"error": e.to_string()})),
+            )
+                .into_response();
+        }
+    };
 
     let status = crate::acp::AcpTaskStatus {
         id: session_id.clone(),
@@ -783,29 +756,13 @@ async fn acp_create_task(
         steps_completed: 0,
     };
 
-    // Start agent in background (reuse existing start_agent pattern)
     let provider = state.provider.clone();
-    let workspace = req.context
-        .as_ref()
-        .and_then(|c| c.workspace_root.clone())
-        .unwrap_or_else(|| state.workspace_root.to_string_lossy().to_string());
-
     let task = req.task.clone();
     let sid = session_id.clone();
-    let jobs_dir = state.jobs_dir.clone();
-    let provider_name = state.provider_name.clone();
+    let job_manager = state.job_manager.clone();
 
     tokio::spawn(async move {
-        let record = JobRecord {
-            session_id: sid.clone(),
-            task: task.clone(),
-            status: "running".to_string(),
-            provider: provider_name,
-            started_at: now_ms(),
-            finished_at: None,
-            summary: None,
-        };
-        persist_job(&jobs_dir, &record);
+        let _ = job_manager.mark_running(&sid).await;
 
         let executor = crate::tool_executor::ToolExecutor::new(
             std::path::PathBuf::from(&workspace),
@@ -821,16 +778,19 @@ async fn acp_create_task(
             vibe_ai::ApprovalPolicy::FullAuto,
             Arc::new(executor) as Arc<dyn vibe_ai::ToolExecutorTrait>,
         );
-        let _result = agent.run(&task, context, event_tx).await;
+        let _ = agent.run(&task, context, event_tx).await;
 
-        let mut record = record;
-        record.status = "complete".to_string();
-        record.finished_at = Some(now_ms());
-        record.summary = Some("ACP task completed".to_string());
-        persist_job(&jobs_dir, &record);
+        let _ = job_manager
+            .mark_terminal(
+                &sid,
+                JobStatus::Complete,
+                Some("ACP task completed".into()),
+                None,
+            )
+            .await;
     });
 
-    (StatusCode::CREATED, Json(status))
+    (StatusCode::CREATED, Json(status)).into_response()
 }
 
 /// Get ACP task status.
@@ -838,14 +798,13 @@ async fn acp_get_task(
     State(state): State<ServeState>,
     Path(id): Path<String>,
 ) -> impl IntoResponse {
-    // Check job record
-    if let Some(job) = load_job(&state.jobs_dir, &id) {
+    if let Some(job) = state.job_manager.get(&id).await {
         let status = crate::acp::AcpTaskStatus {
             id: job.session_id,
             status: job.status,
             summary: job.summary,
             files_modified: Vec::new(),
-            steps_completed: 0,
+            steps_completed: job.steps_completed as usize,
         };
         (StatusCode::OK, Json(status)).into_response()
     } else {
@@ -952,42 +911,47 @@ async fn v1_create_task(
     State(state): State<ServeState>,
     Json(req): Json<V1TaskCreate>,
 ) -> impl IntoResponse {
-    let session_id = format!("v1-{:016x}", now_ms());
-    let mode = req.mode.as_deref().unwrap_or("smart");
+    let mode = req.mode.as_deref().unwrap_or("smart").to_string();
     let priority = req.priority.unwrap_or(5);
+    let workspace = req
+        .workspace
+        .clone()
+        .unwrap_or_else(|| state.workspace_root.to_string_lossy().to_string());
 
-    let record = JobRecord {
-        session_id: session_id.clone(),
-        task: req.task.clone(),
-        status: "queued".to_string(),
-        provider: state.provider_name.clone(),
-        started_at: now_ms(),
-        finished_at: None,
-        summary: None,
+    let session_id = match state
+        .job_manager
+        .create(CreateJobReq {
+            task: req.task.clone(),
+            provider: state.provider_name.clone(),
+            approval: req.approval.clone().unwrap_or_else(|| "auto".into()),
+            workspace_root: workspace.clone(),
+            priority,
+            webhook_url: req.webhook_url.clone(),
+            tags: req.tags.clone(),
+            quota_bucket: None,
+        })
+        .await
+    {
+        Ok(id) => id,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"error": e.to_string()})),
+            )
+                .into_response();
+        }
     };
-    persist_job(&state.jobs_dir, &record);
 
     // Spawn background agent
     let provider = state.provider.clone();
-    let workspace = req.workspace.unwrap_or_else(|| state.workspace_root.to_string_lossy().to_string());
     let task = req.task.clone();
     let sid = session_id.clone();
-    let jobs_dir = state.jobs_dir.clone();
-    let provider_name = state.provider_name.clone();
+    let job_manager = state.job_manager.clone();
     let webhook_url = req.webhook_url.clone();
     let timeout = req.timeout_secs.unwrap_or(300);
 
     tokio::spawn(async move {
-        let mut record = JobRecord {
-            session_id: sid.clone(),
-            task: task.clone(),
-            status: "running".to_string(),
-            provider: provider_name,
-            started_at: now_ms(),
-            finished_at: None,
-            summary: None,
-        };
-        persist_job(&jobs_dir, &record);
+        let _ = job_manager.mark_running(&sid).await;
 
         let executor = crate::tool_executor::ToolExecutor::new(
             std::path::PathBuf::from(&workspace),
@@ -1007,40 +971,34 @@ async fn v1_create_task(
         let result = tokio::time::timeout(
             std::time::Duration::from_secs(timeout),
             agent.run(&task, context, event_tx),
-        ).await;
+        )
+        .await;
 
-        match result {
-            Ok(Ok(())) => {
-                record.status = "completed".to_string();
-                record.summary = Some("Task completed successfully".to_string());
-            }
-            Ok(Err(e)) => {
-                record.status = "failed".to_string();
-                record.summary = Some(format!("Task failed: {e}"));
-            }
-            Err(_) => {
-                record.status = "failed".to_string();
-                record.summary = Some(format!("Task timed out after {timeout}s"));
-            }
-        }
-        record.finished_at = Some(now_ms());
-        persist_job(&jobs_dir, &record);
+        let (status, summary) = match result {
+            Ok(Ok(())) => (JobStatus::Complete, "Task completed successfully".to_string()),
+            Ok(Err(e)) => (JobStatus::Failed, format!("Task failed: {e}")),
+            Err(_) => (
+                JobStatus::Failed,
+                format!("Task timed out after {timeout}s"),
+            ),
+        };
+        let _ = job_manager
+            .mark_terminal(&sid, status, Some(summary.clone()), None)
+            .await;
 
-        // Fire webhook callback if configured
+        // Fire webhook callback if configured. Uses the retry loop in
+        // `JobManager::deliver_webhook` (exp-backoff up to 5 attempts,
+        // final outcome persisted to `webhook_deliveries` for the
+        // dead-letter queue).
         if let Some(url) = &webhook_url {
             let payload = serde_json::json!({
-                "event": format!("task.{}", record.status),
+                "event": format!("task.{}", status.as_str()),
                 "task_id": sid,
-                "status": record.status,
-                "summary": record.summary,
-                "finished_at": record.finished_at,
+                "status": status.as_str(),
+                "summary": summary,
+                "finished_at": now_ms(),
             });
-            let client = reqwest::Client::new();
-            let _ = client.post(url)
-                .json(&payload)
-                .timeout(std::time::Duration::from_secs(10))
-                .send()
-                .await;
+            let _ = job_manager.deliver_webhook(&sid, url, &payload).await;
         }
     });
 
@@ -1048,7 +1006,7 @@ async fn v1_create_task(
         id: session_id,
         status: "queued".to_string(),
         task: req.task,
-        mode: mode.to_string(),
+        mode,
         priority,
         tags: req.tags,
         created_at: now_ms(),
@@ -1059,14 +1017,14 @@ async fn v1_create_task(
         webhook_url: req.webhook_url,
     };
 
-    (StatusCode::CREATED, Json(status))
+    (StatusCode::CREATED, Json(status)).into_response()
 }
 
 /// GET /v1/tasks — List all tasks.
 async fn v1_list_tasks(
     State(state): State<ServeState>,
 ) -> impl IntoResponse {
-    let tasks = load_all_jobs(&state.jobs_dir);
+    let tasks = state.job_manager.list().await;
     let statuses: Vec<serde_json::Value> = tasks.iter().map(|j| {
         serde_json::json!({
             "id": j.session_id,
@@ -1086,7 +1044,7 @@ async fn v1_get_task(
     State(state): State<ServeState>,
     Path(id): Path<String>,
 ) -> impl IntoResponse {
-    match load_job(&state.jobs_dir, &id) {
+    match state.job_manager.get(&id).await {
         Some(job) => {
             let status = serde_json::json!({
                 "id": job.session_id,
@@ -1106,24 +1064,43 @@ async fn v1_get_task(
     }
 }
 
+/// GET /v1/metrics/jobs — JobManager counters + queue-depth gauges.
+async fn v1_jobs_metrics(State(state): State<ServeState>) -> impl IntoResponse {
+    let snap = state.job_manager.metrics_snapshot().await;
+    Json(snap)
+}
+
 /// POST /v1/tasks/:id/cancel — Cancel a running task.
 async fn v1_cancel_task(
     State(state): State<ServeState>,
     Path(id): Path<String>,
 ) -> impl IntoResponse {
-    match load_job(&state.jobs_dir, &id) {
-        Some(mut job) => {
-            if job.status == "running" || job.status == "queued" {
-                job.status = "cancelled".to_string();
-                job.finished_at = Some(now_ms());
-                job.summary = Some("Cancelled by API request".to_string());
-                persist_job(&state.jobs_dir, &job);
-                (StatusCode::OK, Json(serde_json::json!({"id": id, "status": "cancelled"}))).into_response()
-            } else {
-                (StatusCode::CONFLICT, Json(serde_json::json!({"error": format!("Task is already {}", job.status)}))).into_response()
-            }
+    let existing = match state.job_manager.get(&id).await {
+        Some(j) => j,
+        None => {
+            return (
+                StatusCode::NOT_FOUND,
+                Json(serde_json::json!({"error": "Task not found"})),
+            )
+                .into_response();
         }
-        None => (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "Task not found"}))).into_response(),
+    };
+    if existing.status == "running" || existing.status == "queued" {
+        let _ = state
+            .job_manager
+            .cancel(&id, Some("Cancelled by API request".into()))
+            .await;
+        (
+            StatusCode::OK,
+            Json(serde_json::json!({"id": id, "status": "cancelled"})),
+        )
+            .into_response()
+    } else {
+        (
+            StatusCode::CONFLICT,
+            Json(serde_json::json!({"error": format!("Task is already {}", existing.status)})),
+        )
+            .into_response()
     }
 }
 
@@ -1133,10 +1110,11 @@ async fn v1_task_feedback(
     Path(id): Path<String>,
     Json(feedback): Json<serde_json::Value>,
 ) -> impl IntoResponse {
-    match load_job(&state.jobs_dir, &id) {
+    match state.job_manager.get(&id).await {
         Some(_) => {
             // Persist feedback alongside the job
             let feedback_path = state.jobs_dir.join(format!("{id}.feedback.json"));
+            let _ = std::fs::create_dir_all(&state.jobs_dir);
             let _ = std::fs::write(&feedback_path, serde_json::to_string_pretty(&feedback).unwrap_or_default());
             (StatusCode::OK, Json(serde_json::json!({"status": "feedback_recorded"}))).into_response()
         }
@@ -1149,7 +1127,29 @@ async fn v1_create_browse(
     State(state): State<ServeState>,
     Json(req): Json<V1BrowseCreate>,
 ) -> impl IntoResponse {
-    let session_id = format!("browse-{:016x}", now_ms());
+    let session_id = match state
+        .job_manager
+        .create(CreateJobReq {
+            task: format!("[browse] {} — {}", req.url, req.task),
+            provider: state.provider_name.clone(),
+            approval: "auto".into(),
+            workspace_root: state.workspace_root.to_string_lossy().to_string(),
+            priority: 5,
+            webhook_url: req.webhook_url.clone(),
+            tags: vec!["browse".into()],
+            quota_bucket: None,
+        })
+        .await
+    {
+        Ok(id) => id,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"error": e.to_string()})),
+            )
+                .into_response();
+        }
+    };
 
     let status = V1BrowseStatus {
         id: session_id.clone(),
@@ -1164,19 +1164,7 @@ async fn v1_create_browse(
         summary: None,
     };
 
-    // Persist as a job record
-    let record = JobRecord {
-        session_id: session_id.clone(),
-        task: format!("[browse] {} — {}", req.url, req.task),
-        status: "queued".to_string(),
-        provider: state.provider_name.clone(),
-        started_at: now_ms(),
-        finished_at: None,
-        summary: None,
-    };
-    persist_job(&state.jobs_dir, &record);
-
-    (StatusCode::CREATED, Json(status))
+    (StatusCode::CREATED, Json(status)).into_response()
 }
 
 /// GET /v1/browse/:id — Get browse task status.
@@ -1184,7 +1172,7 @@ async fn v1_get_browse(
     State(state): State<ServeState>,
     Path(id): Path<String>,
 ) -> impl IntoResponse {
-    match load_job(&state.jobs_dir, &id) {
+    match state.job_manager.get(&id).await {
         Some(job) => {
             let status = V1BrowseStatus {
                 id: job.session_id,
@@ -1209,7 +1197,7 @@ async fn v1_browse_screenshots(
     State(state): State<ServeState>,
     Path(id): Path<String>,
 ) -> impl IntoResponse {
-    match load_job(&state.jobs_dir, &id) {
+    match state.job_manager.get(&id).await {
         Some(_) => {
             // Screenshots stored per-session in ~/.vibecli/recordings/{id}/
             let screenshots_dir = dirs::home_dir()
@@ -1250,10 +1238,11 @@ async fn v1_browse_intervene(
     Path(id): Path<String>,
     Json(action): Json<serde_json::Value>,
 ) -> impl IntoResponse {
-    match load_job(&state.jobs_dir, &id) {
+    match state.job_manager.get(&id).await {
         Some(_) => {
             // Store intervention action
             let intervene_path = state.jobs_dir.join(format!("{id}.intervene.json"));
+            let _ = std::fs::create_dir_all(&state.jobs_dir);
             let _ = std::fs::write(&intervene_path, serde_json::to_string_pretty(&action).unwrap_or_default());
             (StatusCode::OK, Json(serde_json::json!({"status": "intervention_recorded", "id": id}))).into_response()
         }
@@ -1397,6 +1386,7 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/v1/tasks/:id", get(v1_get_task))
         .route("/v1/tasks/:id/cancel", post(v1_cancel_task))
         .route("/v1/tasks/:id/feedback", post(v1_task_feedback))
+        .route("/v1/metrics/jobs", get(v1_jobs_metrics))
         .route("/v1/browse", post(v1_create_browse))
         .route("/v1/browse/:id", get(v1_get_browse))
         .route("/v1/browse/:id/screenshots", get(v1_browse_screenshots))
@@ -1524,12 +1514,39 @@ pub async fn serve(
     port: u16,
     host: String,
 ) -> Result<()> {
-    // Initialise persistent jobs directory at ~/.vibecli/jobs/
+    // Legacy jobs directory — kept for feedback/intervene side-car files and
+    // one-shot migration. Job records themselves now live in
+    // ~/.vibecli/jobs.db via `JobManager`.
     let jobs_dir = dirs::home_dir()
         .unwrap_or_else(|| PathBuf::from("."))
         .join(".vibecli")
         .join("jobs");
     std::fs::create_dir_all(&jobs_dir)?;
+
+    // Durable job queue (SQLite) + in-memory SSE fan-out. On boot we run a
+    // one-shot migration of any pre-M1 JSON records and sweep any rows left
+    // in queued/running from a prior process into the failed state.
+    let job_manager = Arc::new(
+        JobManager::new(&crate::job_manager::default_db_path())
+            .map_err(|e| anyhow::anyhow!("jobs db: {e}"))?,
+    );
+    match job_manager.migrate_json_jobs(&jobs_dir).await {
+        Ok(rep) if rep.imported > 0 => {
+            eprintln!(
+                "[jobs] migrated {} JSON record(s) into jobs.db (backup: {:?})",
+                rep.imported, rep.backed_up_dir
+            );
+        }
+        Ok(_) => {}
+        Err(e) => eprintln!("[jobs] migration warning: {e}"),
+    }
+    match job_manager.recover_interrupted().await {
+        Ok(n) if n > 0 => {
+            eprintln!("[jobs] recovered {n} interrupted job(s) → failed");
+        }
+        Ok(_) => {}
+        Err(e) => eprintln!("[jobs] recovery warning: {e}"),
+    }
 
     // Generate a random bearer token for this daemon session
     let api_token = format!("{:032x}", rand::thread_rng().gen::<u128>());
@@ -1560,7 +1577,7 @@ pub async fn serve(
         provider,
         approval,
         workspace_root,
-        streams: Arc::new(Mutex::new(HashMap::new())),
+        job_manager,
         jobs_dir,
         provider_name,
         api_token: api_token.clone(),
@@ -3136,7 +3153,7 @@ async fn mobile_beacon(State(state): State<ServeState>) -> Json<serde_json::Valu
     // Find active session: prefer "running", fall back to a recently finished
     // job (within the last 15 minutes = 900_000 ms).
     let active_session: Option<ActiveSessionInfo> = {
-        let jobs = load_all_jobs(&state.jobs_dir);
+        let jobs = state.job_manager.list().await;
         let now = now_ms();
         let fifteen_min_ms: u64 = 15 * 60 * 1_000;
 
@@ -3201,7 +3218,7 @@ struct MobileSessionRecord {
 /// Returns up to 50 sessions (most-recent first) with message previews,
 /// suitable for rendering a "pick up where you left off" list in the mobile app.
 async fn mobile_sessions(State(state): State<ServeState>) -> Json<serde_json::Value> {
-    let jobs = load_all_jobs(&state.jobs_dir);
+    let jobs = state.job_manager.list().await;
     let limited: Vec<&JobRecord> = jobs.iter().take(50).collect();
 
     // Open the session store once for all lookups (best-effort).
@@ -3335,140 +3352,13 @@ mod tests {
         assert!(t2 >= t1, "second call should be >= first");
     }
 
-    // ── persist_job / load_job / load_all_jobs ─────────────────────────────
-
-    fn make_job(id: &str, started_at: u64) -> JobRecord {
-        JobRecord {
-            session_id: id.to_string(),
-            task: format!("task for {id}"),
-            status: "running".to_string(),
-            provider: "ollama".to_string(),
-            started_at,
-            finished_at: None,
-            summary: None,
-        }
-    }
-
-    #[test]
-    fn persist_and_load_job_roundtrip() {
-        let dir = tempfile::tempdir().unwrap();
-        let job = make_job("abc123", 1_700_000_000_000);
-        persist_job(dir.path(), &job);
-
-        let loaded = load_job(dir.path(), "abc123");
-        assert!(loaded.is_some());
-        let loaded = loaded.unwrap();
-        assert_eq!(loaded.session_id, "abc123");
-        assert_eq!(loaded.task, "task for abc123");
-        assert_eq!(loaded.status, "running");
-        assert_eq!(loaded.provider, "ollama");
-        assert_eq!(loaded.started_at, 1_700_000_000_000);
-        assert!(loaded.finished_at.is_none());
-        assert!(loaded.summary.is_none());
-    }
-
-    #[test]
-    fn persist_and_load_job_with_optional_fields() {
-        let dir = tempfile::tempdir().unwrap();
-        let job = JobRecord {
-            session_id: "done1".to_string(),
-            task: "fix bug".to_string(),
-            status: "complete".to_string(),
-            provider: "claude".to_string(),
-            started_at: 1_700_000_000_000,
-            finished_at: Some(1_700_000_060_000),
-            summary: Some("Fixed the null pointer".to_string()),
-        };
-        persist_job(dir.path(), &job);
-
-        let loaded = load_job(dir.path(), "done1").unwrap();
-        assert_eq!(loaded.finished_at, Some(1_700_000_060_000));
-        assert_eq!(loaded.summary.as_deref(), Some("Fixed the null pointer"));
-    }
-
-    #[test]
-    fn load_job_nonexistent_returns_none() {
-        let dir = tempfile::tempdir().unwrap();
-        assert!(load_job(dir.path(), "nonexistent").is_none());
-    }
-
-    #[test]
-    fn load_all_jobs_empty_dir() {
-        let dir = tempfile::tempdir().unwrap();
-        let jobs = load_all_jobs(dir.path());
-        assert!(jobs.is_empty());
-    }
-
-    #[test]
-    fn load_all_jobs_nonexistent_dir() {
-        let jobs = load_all_jobs(std::path::Path::new("/tmp/vibecli_test_nonexistent_99999"));
-        assert!(jobs.is_empty());
-    }
-
-    #[test]
-    fn load_all_jobs_returns_sorted_by_started_at_desc() {
-        let dir = tempfile::tempdir().unwrap();
-        persist_job(dir.path(), &make_job("old", 1_000));
-        persist_job(dir.path(), &make_job("mid", 2_000));
-        persist_job(dir.path(), &make_job("new", 3_000));
-
-        let jobs = load_all_jobs(dir.path());
-        assert_eq!(jobs.len(), 3);
-        assert_eq!(jobs[0].session_id, "new");
-        assert_eq!(jobs[1].session_id, "mid");
-        assert_eq!(jobs[2].session_id, "old");
-    }
-
-    #[test]
-    fn load_all_jobs_ignores_non_json_files() {
-        let dir = tempfile::tempdir().unwrap();
-        persist_job(dir.path(), &make_job("real", 1_000));
-        // Write a non-json file
-        std::fs::write(dir.path().join("notes.txt"), "not a job").unwrap();
-        let jobs = load_all_jobs(dir.path());
-        assert_eq!(jobs.len(), 1);
-        assert_eq!(jobs[0].session_id, "real");
-    }
-
-    #[test]
-    fn persist_overwrites_existing_job() {
-        let dir = tempfile::tempdir().unwrap();
-        let mut job = make_job("sess1", 1_000);
-        persist_job(dir.path(), &job);
-
-        job.status = "complete".to_string();
-        job.finished_at = Some(2_000);
-        job.summary = Some("done".to_string());
-        persist_job(dir.path(), &job);
-
-        let loaded = load_job(dir.path(), "sess1").unwrap();
-        assert_eq!(loaded.status, "complete");
-        assert_eq!(loaded.finished_at, Some(2_000));
-    }
-
-    // ── JobRecord serde roundtrip ──────────────────────────────────────────
-
-    #[test]
-    fn job_record_serde_roundtrip() {
-        let job = JobRecord {
-            session_id: "s1".to_string(),
-            task: "deploy".to_string(),
-            status: "failed".to_string(),
-            provider: "openai".to_string(),
-            started_at: 999,
-            finished_at: Some(1001),
-            summary: Some("timeout".to_string()),
-        };
-        let json = serde_json::to_string(&job).unwrap();
-        let deserialized: JobRecord = serde_json::from_str(&json).unwrap();
-        assert_eq!(deserialized.session_id, job.session_id);
-        assert_eq!(deserialized.task, job.task);
-        assert_eq!(deserialized.status, job.status);
-        assert_eq!(deserialized.provider, job.provider);
-        assert_eq!(deserialized.started_at, job.started_at);
-        assert_eq!(deserialized.finished_at, job.finished_at);
-        assert_eq!(deserialized.summary, job.summary);
-    }
+    // ── JobRecord serde backward-compat ────────────────────────────────────
+    //
+    // The durable JSON-per-job format was replaced by the SQLite-backed
+    // `JobManager`. The tests below assert that a pre-M1 JobRecord JSON (the
+    // old 7-field shape) still deserialises cleanly thanks to `#[serde(default)]`
+    // on the new fields — the migration path in `JobManager::migrate_json_jobs`
+    // depends on this invariant.
 
     #[test]
     fn job_record_deserialize_with_missing_optionals() {
@@ -3476,6 +3366,29 @@ mod tests {
         let job: JobRecord = serde_json::from_str(json).unwrap();
         assert!(job.finished_at.is_none());
         assert!(job.summary.is_none());
+        // New fields fall back to serde defaults.
+        assert_eq!(job.priority, 5);
+        assert_eq!(job.queued_at, 0);
+        assert!(job.tags.is_empty());
+        assert_eq!(job.steps_completed, 0);
+    }
+
+    #[test]
+    fn job_record_deserialize_pre_m1_full_shape() {
+        let json = r#"{
+            "session_id": "abc123",
+            "task": "legacy",
+            "status": "complete",
+            "provider": "ollama",
+            "started_at": 1700000000000,
+            "finished_at": 1700000060000,
+            "summary": "done"
+        }"#;
+        let job: JobRecord = serde_json::from_str(json).unwrap();
+        assert_eq!(job.session_id, "abc123");
+        assert_eq!(job.status, "complete");
+        assert_eq!(job.finished_at, Some(1_700_000_060_000));
+        assert_eq!(job.summary.as_deref(), Some("done"));
     }
 
     // ── AgentEventPayload constructors ─────────────────────────────────────
@@ -3697,75 +3610,6 @@ mod tests {
         assert_eq!(p.success, Some(false));
     }
 
-    // ── JobRecord edge cases ────────────────────────────────────────────
-
-    #[test]
-    fn job_record_all_statuses_roundtrip() {
-        for status in &["running", "complete", "failed", "cancelled"] {
-            let job = JobRecord {
-                session_id: format!("s-{status}"),
-                task: "t".to_string(),
-                status: status.to_string(),
-                provider: "p".to_string(),
-                started_at: 100,
-                finished_at: None,
-                summary: None,
-            };
-            let json = serde_json::to_string(&job).unwrap();
-            let parsed: JobRecord = serde_json::from_str(&json).unwrap();
-            assert_eq!(parsed.status, *status);
-        }
-    }
-
-    #[test]
-    fn job_record_json_field_names() {
-        let job = make_job("field-test", 42);
-        let json = serde_json::to_value(&job).unwrap();
-        assert!(json.get("session_id").is_some());
-        assert!(json.get("task").is_some());
-        assert!(json.get("status").is_some());
-        assert!(json.get("provider").is_some());
-        assert!(json.get("started_at").is_some());
-        assert!(json.get("finished_at").is_some());
-        assert!(json.get("summary").is_some());
-        // Should have exactly 7 fields
-        assert_eq!(json.as_object().unwrap().len(), 7);
-    }
-
-    #[test]
-    fn load_all_jobs_ignores_malformed_json() {
-        let dir = tempfile::tempdir().unwrap();
-        persist_job(dir.path(), &make_job("good", 1_000));
-        // Write a malformed JSON file with .json extension
-        std::fs::write(dir.path().join("bad.json"), "not valid json {{{").unwrap();
-        let jobs = load_all_jobs(dir.path());
-        assert_eq!(jobs.len(), 1);
-        assert_eq!(jobs[0].session_id, "good");
-    }
-
-    #[test]
-    fn persist_job_creates_file_on_disk() {
-        let dir = tempfile::tempdir().unwrap();
-        let job = make_job("disk-check", 500);
-        persist_job(dir.path(), &job);
-        let path = dir.path().join("disk-check.json");
-        assert!(path.exists(), "persist_job should create a file");
-        let contents = std::fs::read_to_string(&path).unwrap();
-        assert!(contents.contains("disk-check"));
-        assert!(contents.contains("\"started_at\""));
-    }
-
-    #[test]
-    fn persist_job_writes_pretty_json() {
-        let dir = tempfile::tempdir().unwrap();
-        let job = make_job("pretty", 100);
-        persist_job(dir.path(), &job);
-        let contents = std::fs::read_to_string(dir.path().join("pretty.json")).unwrap();
-        // Pretty JSON should contain newlines and indentation
-        assert!(contents.contains('\n'), "should be pretty-printed");
-        assert!(contents.contains("  "), "should have indentation");
-    }
-
     // ── AgentStartResponse serde ────────────────────────────────────────
 
     #[test]
@@ -3888,11 +3732,16 @@ mod tests {
         /// references it.
         fn test_app(token: &str) -> (Router, tempfile::TempDir) {
             let tmp_dir = tempfile::tempdir().unwrap();
+            let db = crate::job_manager::JobsDb::open_with(
+                &tmp_dir.path().join("jobs.db"),
+                [42u8; 32],
+            )
+            .unwrap();
             let state = ServeState {
                 provider: Arc::new(MockProvider),
                 approval: ApprovalPolicy::FullAuto,
                 workspace_root: tmp_dir.path().to_path_buf(),
-                streams: Arc::new(Mutex::new(HashMap::new())),
+                job_manager: Arc::new(crate::job_manager::JobManager::new_with(db)),
                 jobs_dir: tmp_dir.path().to_path_buf(),
                 provider_name: "mock".to_string(),
                 api_token: token.to_string(),
@@ -4540,6 +4389,35 @@ mod tests {
             // The mock provider should still return a response
             assert_eq!(resp.status(), StatusCode::OK);
         }
+
+        // ── GET /v1/metrics/jobs ─────────────────────────────────────────
+
+        #[tokio::test]
+        async fn metrics_jobs_requires_auth() {
+            let (app, _tmp) = test_app("tok");
+            let req = Request::builder()
+                .uri("/v1/metrics/jobs")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+        }
+
+        #[tokio::test]
+        async fn metrics_jobs_returns_zero_snapshot_on_fresh_daemon() {
+            let (app, _tmp) = test_app("tok");
+            let req = Request::builder()
+                .uri("/v1/metrics/jobs")
+                .header("authorization", "Bearer tok")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::OK);
+            let body = body_string(resp.into_body()).await;
+            let snap: crate::job_manager::JobManagerMetrics =
+                serde_json::from_str(&body).expect("snapshot deserializes");
+            assert_eq!(snap, crate::job_manager::JobManagerMetrics::default());
+        }
     }
 
     // ── json_error unit tests (non-async) ────────────────────────────────
@@ -4577,42 +4455,6 @@ mod tests {
         assert_eq!(p.step_num, Some(usize::MAX));
         let json = serde_json::to_value(&p).unwrap();
         assert_eq!(json["type"], "step");
-    }
-
-    // ── JobRecord with special characters ────────────────────────────────
-
-    #[test]
-    fn job_record_with_unicode_task() {
-        let job = JobRecord {
-            session_id: "unicode-test".to_string(),
-            task: "Fix bug in \u{1F600} emoji handler \u{00E9}\u{00F1}".to_string(),
-            status: "complete".to_string(),
-            provider: "claude".to_string(),
-            started_at: 100,
-            finished_at: Some(200),
-            summary: Some("Resolved \u{2714}".to_string()),
-        };
-        let json = serde_json::to_string(&job).unwrap();
-        let parsed: JobRecord = serde_json::from_str(&json).unwrap();
-        assert!(parsed.task.contains('\u{1F600}'));
-        assert!(parsed.summary.as_deref().unwrap().contains('\u{2714}'));
-    }
-
-    #[test]
-    fn persist_and_load_job_with_unicode() {
-        let dir = tempfile::tempdir().unwrap();
-        let job = JobRecord {
-            session_id: "uni".to_string(),
-            task: "Handle caf\u{00E9} menu".to_string(),
-            status: "running".to_string(),
-            provider: "test".to_string(),
-            started_at: 1,
-            finished_at: None,
-            summary: None,
-        };
-        persist_job(dir.path(), &job);
-        let loaded = load_job(dir.path(), "uni").unwrap();
-        assert_eq!(loaded.task, "Handle caf\u{00E9} menu");
     }
 
     // ── RateLimiter thread safety ────────────────────────────────────────

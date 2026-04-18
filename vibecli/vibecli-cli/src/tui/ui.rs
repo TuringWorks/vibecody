@@ -6,19 +6,27 @@ use ratatui::{
     Frame,
 };
 
-use crate::tui::app::{App, CurrentScreen};
+use crate::tui::app::{App, CurrentScreen, MetricsFreshness};
 use crate::tui::components::agent_view::AgentStatus;
 use vibe_ai::agent::AgentStep;
 
 pub fn draw(f: &mut Frame, app: &App) {
     // Diagnostics pane is 4 lines tall; hide it when there are no items to save space.
     let diag_height = diag_panel_height(app.diagnostics_panel.items.len());
+    let metrics_freshness = app.metrics_freshness();
+    let metrics_height: u16 =
+        if app.job_metrics.is_some() && metrics_freshness != MetricsFreshness::Hidden {
+            1
+        } else {
+            0
+        };
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Min(1),
             Constraint::Length(diag_height),
+            Constraint::Length(metrics_height),
             Constraint::Length(3),
         ].as_ref())
         .split(f.area());
@@ -38,7 +46,82 @@ pub fn draw(f: &mut Frame, app: &App) {
     if diag_height > 0 {
         draw_diagnostics_panel(f, app, chunks[1]);
     }
-    draw_input_area(f, app, chunks[2]);
+    if metrics_height > 0 {
+        draw_metrics_strip(f, app, chunks[2], metrics_freshness);
+    }
+    draw_input_area(f, app, chunks[3]);
+}
+
+/// Render a compact single-line metrics bar above the input area. Only
+/// invoked when `app.job_metrics.is_some()` and `freshness` is not Hidden.
+/// When `freshness` is `Stale`, every span is rendered in the dim color so
+/// the operator knows the numbers aren't live anymore; a trailing `(stale)`
+/// marker makes it explicit.
+pub(crate) fn draw_metrics_strip(
+    f: &mut Frame,
+    app: &App,
+    area: Rect,
+    freshness: MetricsFreshness,
+) {
+    let t = &app.theme;
+    let Some(m) = &app.job_metrics else { return };
+    let stale = freshness == MetricsFreshness::Stale;
+
+    // When stale, override every accent color with t.dim. Colors still
+    // encode structure (bold vs. regular), but nothing draws the eye.
+    let col = |vivid: ratatui::style::Color| if stale { t.dim } else { vivid };
+
+    let mut spans: Vec<Span> = Vec::new();
+    spans.push(Span::raw(" "));
+    spans.push(Span::styled("Q=", Style::default().fg(t.dim)));
+    spans.push(Span::styled(
+        m.queued.to_string(),
+        Style::default().fg(col(t.text)).add_modifier(Modifier::BOLD),
+    ));
+    spans.push(Span::raw("  "));
+    spans.push(Span::styled("R=", Style::default().fg(t.dim)));
+    spans.push(Span::styled(
+        m.running.to_string(),
+        Style::default().fg(col(t.warning)).add_modifier(Modifier::BOLD),
+    ));
+    spans.push(Span::raw("  "));
+    spans.push(Span::styled(
+        format!("{} done", m.jobs_completed),
+        Style::default().fg(col(t.success)),
+    ));
+    spans.push(Span::raw("  "));
+    spans.push(Span::styled(
+        format!("{} failed", m.jobs_failed),
+        Style::default().fg(col(t.error)),
+    ));
+    spans.push(Span::raw("  "));
+    spans.push(Span::styled(
+        format!("{} cancelled", m.jobs_cancelled),
+        Style::default().fg(t.dim),
+    ));
+    if m.quota_denied > 0 {
+        spans.push(Span::raw("  "));
+        spans.push(Span::styled(
+            format!("quota={}", m.quota_denied),
+            Style::default().fg(col(t.error)),
+        ));
+    }
+    if m.webhooks_dead_lettered > 0 {
+        spans.push(Span::raw("  "));
+        spans.push(Span::styled(
+            format!("dl={}", m.webhooks_dead_lettered),
+            Style::default().fg(col(t.error)),
+        ));
+    }
+    if stale {
+        spans.push(Span::raw("  "));
+        spans.push(Span::styled(
+            "(stale)",
+            Style::default().fg(t.dim).add_modifier(Modifier::ITALIC),
+        ));
+    }
+    let line = Line::from(spans);
+    f.render_widget(Paragraph::new(line), area);
 }
 
 fn draw_file_tree(f: &mut Frame, app: &App, area: Rect) {
@@ -545,5 +628,125 @@ mod tests {
     fn diag_panel_height_some_items() {
         assert_eq!(diag_panel_height(1), 4);
         assert_eq!(diag_panel_height(100), 4);
+    }
+
+    // ── draw_metrics_strip ────────────────────────────────────────────────
+
+    #[test]
+    fn metrics_strip_renders_core_counters() {
+        use crate::job_manager::JobManagerMetrics;
+        use ratatui::backend::TestBackend;
+        use ratatui::Terminal;
+
+        let mut app = App::new();
+        app.job_metrics = Some(JobManagerMetrics {
+            jobs_created: 7,
+            jobs_completed: 3,
+            jobs_failed: 1,
+            jobs_cancelled: 2,
+            queued: 4,
+            running: 1,
+            ..Default::default()
+        });
+
+        let backend = TestBackend::new(120, 1);
+        let mut term = Terminal::new(backend).unwrap();
+        term.draw(|f| {
+            let area = f.area();
+            draw_metrics_strip(f, &app, area, MetricsFreshness::Fresh);
+        }).unwrap();
+
+        let buf = term.backend().buffer();
+        let rendered: String = (0..buf.area.width)
+            .map(|x| buf[(x, 0)].symbol().to_string())
+            .collect::<Vec<_>>()
+            .join("");
+        assert!(rendered.contains("Q=4"), "got {rendered:?}");
+        assert!(rendered.contains("R=1"), "got {rendered:?}");
+        assert!(rendered.contains("3 done"), "got {rendered:?}");
+        assert!(rendered.contains("1 failed"), "got {rendered:?}");
+        assert!(rendered.contains("2 cancelled"), "got {rendered:?}");
+        // quota/dl suppressed when zero
+        assert!(!rendered.contains("quota="), "got {rendered:?}");
+        assert!(!rendered.contains("dl="), "got {rendered:?}");
+        // fresh state has no stale marker
+        assert!(!rendered.contains("(stale)"), "got {rendered:?}");
+    }
+
+    #[test]
+    fn metrics_strip_shows_quota_and_dead_letter_when_nonzero() {
+        use crate::job_manager::JobManagerMetrics;
+        use ratatui::backend::TestBackend;
+        use ratatui::Terminal;
+
+        let mut app = App::new();
+        app.job_metrics = Some(JobManagerMetrics {
+            quota_denied: 5,
+            webhooks_dead_lettered: 2,
+            ..Default::default()
+        });
+
+        let backend = TestBackend::new(120, 1);
+        let mut term = Terminal::new(backend).unwrap();
+        term.draw(|f| {
+            let area = f.area();
+            draw_metrics_strip(f, &app, area, MetricsFreshness::Fresh);
+        }).unwrap();
+
+        let buf = term.backend().buffer();
+        let rendered: String = (0..buf.area.width)
+            .map(|x| buf[(x, 0)].symbol().to_string())
+            .collect::<Vec<_>>()
+            .join("");
+        assert!(rendered.contains("quota=5"), "got {rendered:?}");
+        assert!(rendered.contains("dl=2"), "got {rendered:?}");
+    }
+
+    #[test]
+    fn metrics_strip_stale_appends_marker_and_dims_accents() {
+        use crate::job_manager::JobManagerMetrics;
+        use ratatui::backend::TestBackend;
+        use ratatui::Terminal;
+
+        let mut app = App::new();
+        app.job_metrics = Some(JobManagerMetrics {
+            queued: 1,
+            running: 1,
+            jobs_completed: 1,
+            jobs_failed: 1,
+            ..Default::default()
+        });
+
+        let backend = TestBackend::new(120, 1);
+        let mut term = Terminal::new(backend).unwrap();
+        term.draw(|f| {
+            let area = f.area();
+            draw_metrics_strip(f, &app, area, MetricsFreshness::Stale);
+        }).unwrap();
+
+        let buf = term.backend().buffer();
+        let rendered: String = (0..buf.area.width)
+            .map(|x| buf[(x, 0)].symbol().to_string())
+            .collect::<Vec<_>>()
+            .join("");
+        assert!(rendered.contains("(stale)"), "got {rendered:?}");
+
+        // Every colored accent cell should use the dim color when stale. We
+        // spot-check one: the "1" right after "R=" — under Fresh that's the
+        // warning color, under Stale it must be the dim color.
+        // Find the column after "R=" in the rendered string.
+        let r_pos = rendered.find("R=").expect("R= present") + 2;
+        let cell = &buf[(r_pos as u16, 0)];
+        assert_eq!(cell.fg, app.theme.dim, "R= value should render dim when stale");
+    }
+
+    #[test]
+    fn draw_reserves_no_line_for_hidden_metrics() {
+        // When freshness is Hidden, the layout should not allocate the
+        // metrics row even if job_metrics is Some.
+        let mut app = App::new();
+        app.job_metrics = Some(crate::job_manager::JobManagerMetrics::default());
+        // last_metrics_tick is None → Hidden
+        assert_eq!(app.metrics_freshness(), MetricsFreshness::Hidden);
     }
 }

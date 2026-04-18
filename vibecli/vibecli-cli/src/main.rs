@@ -48,6 +48,13 @@ mod spec;
 mod workflow;
 mod background_agents;
 mod branch_agent;
+#[allow(dead_code)]
+mod job_manager;
+#[cfg(unix)]
+#[allow(dead_code)]
+mod subprocess_dispatch;
+#[allow(dead_code)]
+mod webhook;
 mod team;
 mod memory_auto;
 mod bugbot;
@@ -1531,6 +1538,173 @@ fn run_idp_command(args: &[String]) {
     }
 }
 
+/// `vibecli worker` — child-side entry point for subprocess dispatch.
+/// The parent daemon spawned us with a UDS socket on fd 3 and a PSK in
+/// `VIBECLI_WORKER_PSK`. We complete the Noise_NNpsk0 handshake as the
+/// responder and hand off to the agent loop selected by
+/// `VIBECLI_WORKER_MODE` (`real` = actual AI agent; `stub` = echo-style
+/// loop used by transport tests). Default is `real`.
+#[cfg(unix)]
+async fn run_worker_subcommand() -> Result<()> {
+    let mode = std::env::var("VIBECLI_WORKER_MODE").unwrap_or_else(|_| "real".into());
+    match mode.as_str() {
+        "stub" => subprocess_dispatch::run_worker(subprocess_dispatch::run_stub_agent_loop).await,
+        _ => subprocess_dispatch::run_worker(run_real_worker_agent_loop).await,
+    }
+}
+
+/// Real worker-side agent loop. Mirrors the in-process agent logic that
+/// previously lived inline in `serve.rs::start_agent`, but emits events
+/// as `DispatchFrame` over the Noise channel instead of pushing them
+/// into an in-process broadcast.
+#[cfg(unix)]
+async fn run_real_worker_agent_loop(
+    mut session: subprocess_dispatch::WorkerSession,
+) -> Result<()> {
+    use crate::job_manager::AgentEventPayload;
+    use subprocess_dispatch::DispatchFrame;
+
+    // 1) Receive the Run frame.
+    let (task, provider_name, approval_str, workspace_root_str) = match session.recv().await {
+        Some(DispatchFrame::Run {
+            task,
+            provider,
+            approval,
+            workspace_root,
+            ..
+        }) => (task, provider, approval, workspace_root),
+        Some(DispatchFrame::Cancel { reason }) => {
+            session
+                .send(DispatchFrame::Error {
+                    message: format!("cancelled before start: {reason}"),
+                })
+                .await;
+            return Ok(());
+        }
+        Some(other) => {
+            session
+                .send(DispatchFrame::Error {
+                    message: format!("expected Run, got {other:?}"),
+                })
+                .await;
+            return Ok(());
+        }
+        None => return Ok(()),
+    };
+
+    // 2) Build provider + executor + agent loop.
+    let workspace_root = std::path::PathBuf::from(&workspace_root_str);
+    let provider = match create_provider(&provider_name, None) {
+        Ok(p) => p,
+        Err(e) => {
+            session
+                .send(DispatchFrame::Error {
+                    message: format!("worker: build provider: {e}"),
+                })
+                .await;
+            return Ok(());
+        }
+    };
+    let executor = Arc::new(tool_executor::ToolExecutor::new(workspace_root.clone(), false));
+    let approval = ApprovalPolicy::from_str(&approval_str);
+    let agent = AgentLoop::new(provider, approval, executor);
+
+    let git_branch = vibe_core::git::get_current_branch(&workspace_root).ok();
+    let context = AgentContext {
+        workspace_root: workspace_root.clone(),
+        open_files: vec![],
+        git_branch,
+        git_diff_summary: None,
+        flow_context: None,
+        approved_plan: None,
+        extra_skill_dirs: vec![],
+        parent_session_id: None,
+        depth: 0,
+        active_agent_counter: None,
+        team_bus: None,
+        team_agent_id: None,
+        project_summary: None,
+        task_context_files: vec![],
+        memory_context: None,
+        auto_commit: false,
+    };
+
+    session.send(DispatchFrame::Ready).await;
+
+    // 3) Run agent, bridge AgentEvent → DispatchFrame.
+    // Hold the JoinHandle so we can .abort() on a Cancel frame.
+    let (event_tx, mut event_rx) = tokio::sync::mpsc::channel::<AgentEvent>(64);
+    let task_for_agent = task.clone();
+    let agent_handle = tokio::spawn(async move {
+        let _ = agent.run(&task_for_agent, context, event_tx).await;
+    });
+
+    let mut completed = false;
+    let mut cancelled = false;
+    loop {
+        tokio::select! {
+            maybe_event = event_rx.recv() => {
+                let Some(event) = maybe_event else { break };
+                match event {
+                    AgentEvent::StreamChunk(text) => {
+                        session
+                            .send(DispatchFrame::Event(AgentEventPayload::chunk(text)))
+                            .await;
+                    }
+                    AgentEvent::ToolCallExecuted(step) => {
+                        session
+                            .send(DispatchFrame::Event(AgentEventPayload::step(
+                                step.step_num,
+                                step.tool_call.name(),
+                                step.tool_result.success,
+                            )))
+                            .await;
+                    }
+                    AgentEvent::Complete(summary) => {
+                        session.send(DispatchFrame::Complete { summary }).await;
+                        completed = true;
+                        break;
+                    }
+                    AgentEvent::Error(msg) => {
+                        session.send(DispatchFrame::Error { message: msg }).await;
+                        completed = true;
+                        break;
+                    }
+                    _ => continue,
+                }
+            }
+            maybe_frame = session.recv() => {
+                match maybe_frame {
+                    Some(DispatchFrame::Cancel { reason }) => {
+                        agent_handle.abort();
+                        session
+                            .send(DispatchFrame::Error {
+                                message: format!("cancelled: {reason}"),
+                            })
+                            .await;
+                        cancelled = true;
+                        completed = true;
+                        break;
+                    }
+                    Some(_) => continue,
+                    None => break,
+                }
+            }
+        }
+    }
+
+    // Fallback if the agent task exits without a terminal event.
+    if !completed {
+        session
+            .send(DispatchFrame::Complete {
+                summary: "Agent finished.".into(),
+            })
+            .await;
+    }
+    let _ = cancelled;
+    Ok(())
+}
+
 /// `vibecli --doc-sync [--auto-fix] [--direction doc-to-code|code-to-doc]`
 fn run_doc_sync_command(args: &[String]) {
     use doc_sync::{DocSyncEngine, SpecSection};
@@ -2628,6 +2802,8 @@ async fn main() -> Result<()> {
             Some("--idp")           => { run_idp_command(&argv[1..]);           return Ok(()); }
             Some("--doc-sync")      => { run_doc_sync_command(&argv[1..]);      return Ok(()); }
             Some("--smart-deps")    => { run_smart_deps_command(&argv[1..]);    return Ok(()); }
+            #[cfg(unix)]
+            Some("worker") => { return run_worker_subcommand().await; }
             _ => {}
         }
     }
