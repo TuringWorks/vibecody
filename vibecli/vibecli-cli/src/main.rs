@@ -2132,6 +2132,7 @@ mod large_codebase_bench;
 mod jetbrains_hooks;
 mod spawn_agent;
 mod web_grounding;
+mod web_grounding_backend;
 #[allow(dead_code)]
 mod worktree_pool;
 mod mobile_gateway;

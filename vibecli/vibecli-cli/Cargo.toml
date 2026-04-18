@@ -77,6 +77,12 @@ cucumber = { version = "0.20", features = ["macros"] }
 tempfile = "3"
 tokio = { version = "1", features = ["macros", "rt", "rt-multi-thread"] }
 
+# US-001: real HTTP search backends for web grounding
+[[test]]
+name = "web_grounding_backend_bdd"
+path = "tests/web_grounding_backend_bdd.rs"
+harness = false
+
 # Claw-code parity BDD test harnesses — Wave 1
 [[test]]
 name = "workspace_fingerprint_bdd"

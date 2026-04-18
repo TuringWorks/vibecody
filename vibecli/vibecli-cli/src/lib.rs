@@ -10,6 +10,7 @@ pub mod superbrain;
 pub mod a2a_protocol;
 pub mod issue_triage;
 pub mod web_grounding;
+pub mod web_grounding_backend;
 pub mod agent_host;
 #[allow(dead_code)]
 pub mod worktree_pool;

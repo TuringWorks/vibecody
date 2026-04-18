@@ -16,7 +16,7 @@ But the modules **lack the actual I/O layer** (HTTP clients, process spawning, F
 
 | Module | Lines | FIT-GAP Claim | Reality |
 |--------|-------|---------------|---------|
-| `web_grounding.rs` | 1,277 | v7 Gap 4: Search provider abstraction (Google, Bing, Brave, SearXNG, Tavily), result ranking, citation tracking | No HTTP client. Tauri `web_search` command returns **hardcoded** "Result 1 for: {query}" |
+| ~~`web_grounding.rs`~~ | ~~1,277~~ | ~~v7 Gap 4~~ | **RESOLVED (US-001):** `web_grounding_backend.rs` now ships `SearxngBackend`, `BraveBackend`, `TavilyBackend` using real `reqwest` I/O. `WebGroundingEngine::search_async` routes through the cache + rate limiter + classifier. Tauri `web_search` calls the real engine with a provider chosen from env (`VIBECLI_SEARCH_PROVIDER`, `TAVILY_API_KEY`, `BRAVE_API_KEY`, `VIBECLI_SEARXNG_URL`). Covered by 8 unit tests + 4 BDD scenarios against an in-process axum mock server. |
 | `mcp_streamable.rs` | 1,511 | v7 Gap 7: Streamable HTTP transport, OAuth 2.1, PKCE flow, token refresh, connection pooling | No HTTP server/client, no OAuth flow, no PKCE. Pure data structures |
 | `a2a_protocol.rs` | 1,821 | v7 Gap 1: A2A server/client modes, SSE streaming, capability negotiation | No async, no HTTP server, no SSE. Data structures and in-memory state only |
 | `worktree_pool.rs` | 1,255 | v7 Gap 2: Full worktree pool with parallel agent dispatch, merge orchestration | No `git worktree` commands, no git2 usage, no process spawning |
@@ -66,4 +66,4 @@ These modules have **real I/O** and are accurately represented:
 
 ## Roadmap Items
 
-`ROADMAP.md` (Appendix A, phases 23–31) marks all items as `[x]` complete. The majority of "shipped" modules (a2a_protocol, worktree_pool, proactive_agent, web_grounding, mcp_streamable, cost_router, next_task, native_connectors, voice_local, doc_sync, langgraph_bridge, sketch_canvas, visual_verify, rlcef_loop) are data-structure-only implementations.
+`ROADMAP.md` (Appendix A, phases 23–31) marks all items as `[x]` complete. The majority of "shipped" modules (a2a_protocol, worktree_pool, proactive_agent, ~~web_grounding~~, mcp_streamable, cost_router, next_task, native_connectors, voice_local, doc_sync, langgraph_bridge, sketch_canvas, visual_verify, rlcef_loop) are data-structure-only implementations. (web_grounding was converted to real I/O in US-001.)
