@@ -228,7 +228,7 @@ export function JwtPanel() {
  <span>PAYLOAD</span>
  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
  {expiry && expiry.status !== "none" && (
- <span style={{ fontSize: 9, padding: "1px 6px", borderRadius: "var(--radius-md)", fontWeight: 700, background: expiry.status === "expired" ? "color-mix(in srgb, var(--accent-rose) 15%, transparent)" : "color-mix(in srgb, var(--accent-green) 15%, transparent)", border: `1px solid ${expiry.status === "expired" ? "var(--text-danger)" : "var(--text-success)"}`, color: expiry.status === "expired" ? "var(--text-danger)" : "var(--text-success)" }}>
+ <span style={{ fontSize: 9, padding: "1px 8px", borderRadius: "var(--radius-md)", fontWeight: 700, background: expiry.status === "expired" ? "color-mix(in srgb, var(--accent-rose) 15%, transparent)" : "color-mix(in srgb, var(--accent-green) 15%, transparent)", border: `1px solid ${expiry.status === "expired" ? "var(--text-danger)" : "var(--text-success)"}`, color: expiry.status === "expired" ? "var(--text-danger)" : "var(--text-success)" }}>
  {expiry.status === "expired" ? "✕ EXPIRED" : "✓ VALID"} · {expiry.remaining}
  </span>
  )}
@@ -283,11 +283,11 @@ export function JwtPanel() {
  <input type={showSecret ? "text" : "password"} value={secret} onChange={e => setSecret(e.target.value)}
  style={{ flex: 1, padding: "4px 8px", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none" }} />
  <button onClick={() => setShowSecret(v => !v)} style={{ fontSize: "var(--font-size-xs)", padding: "3px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-secondary)", cursor: "pointer" }}>{showSecret ? "Hide" : "Show"}</button>
- <button onClick={handleSign} disabled={signing} style={{ padding: "4px 14px", fontSize: "var(--font-size-sm)", fontWeight: 700, background: "color-mix(in srgb, var(--accent-blue) 20%, transparent)", border: "1px solid var(--accent-primary)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-info)", cursor: "pointer" }}>
+ <button className="panel-btn" onClick={handleSign} disabled={signing} style={{ padding: "4px 16px", fontSize: "var(--font-size-sm)", fontWeight: 700, background: "color-mix(in srgb, var(--accent-blue) 20%, transparent)", border: "1px solid var(--accent-primary)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-info)", cursor: "pointer" }}>
  {signing ? "Signing…" : "Sign"}
  </button>
  </div>
- {signError && <div style={{ padding: "6px 12px", fontSize: "var(--font-size-sm)", color: "var(--text-danger)", background: "color-mix(in srgb, var(--accent-rose) 6%, transparent)", borderBottom: "1px solid var(--border-color)" }}>{signError}</div>}
+ {signError && <div style={{ padding: "8px 12px", fontSize: "var(--font-size-sm)", color: "var(--text-danger)", background: "color-mix(in srgb, var(--accent-rose) 6%, transparent)", borderBottom: "1px solid var(--border-color)" }}>{signError}</div>}
  {/* Generated JWT */}
  {generated && (
  <div>
@@ -298,7 +298,7 @@ export function JwtPanel() {
  <button onClick={() => { setRawJwt(generated); setTab("decode"); }} style={{ fontSize: 9, padding: "2px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-secondary)", cursor: "pointer" }}>→ Decode</button>
  </div>
  </div>
- <div style={{ padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: "var(--font-size-sm)", color: "var(--text-accent)", wordBreak: "break-all", lineHeight: 1.8, background: "var(--bg-primary)" }}>
+ <div style={{ padding: "12px 12px", fontFamily: "var(--font-mono)", fontSize: "var(--font-size-sm)", color: "var(--text-accent)", wordBreak: "break-all", lineHeight: 1.8, background: "var(--bg-primary)" }}>
  {generated.split(".").map((part, i) => (
  <span key={i}>
  <span style={{ color: ["var(--accent-color)","var(--success-color)","var(--error-color)"][i] }}>{part}</span>
@@ -318,20 +318,20 @@ export function JwtPanel() {
  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
  <thead>
  <tr style={{ background: "var(--bg-secondary)" }}>
- <th style={{ padding: "6px 10px", textAlign: "left", fontSize: "var(--font-size-xs)", fontWeight: 700, color: "var(--text-secondary)", borderBottom: "1px solid var(--border-color)" }}>CLAIM</th>
- <th style={{ padding: "6px 10px", textAlign: "left", fontSize: "var(--font-size-xs)", fontWeight: 700, color: "var(--text-secondary)", borderBottom: "1px solid var(--border-color)" }}>DESCRIPTION</th>
+ <th style={{ padding: "8px 12px", textAlign: "left", fontSize: "var(--font-size-xs)", fontWeight: 700, color: "var(--text-secondary)", borderBottom: "1px solid var(--border-color)" }}>CLAIM</th>
+ <th style={{ padding: "8px 12px", textAlign: "left", fontSize: "var(--font-size-xs)", fontWeight: 700, color: "var(--text-secondary)", borderBottom: "1px solid var(--border-color)" }}>DESCRIPTION</th>
  </tr>
  </thead>
  <tbody>
  {Object.entries(KNOWN_CLAIMS).map(([k, v], i) => (
  <tr key={k} style={{ background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.02)", borderBottom: "1px solid var(--border-subtle)" }}>
- <td style={{ padding: "6px 10px", fontFamily: "var(--font-mono)", color: "var(--text-info)", fontWeight: 700, whiteSpace: "nowrap" }}>{k}</td>
- <td style={{ padding: "6px 10px", color: "var(--text-primary)" }}>{v}</td>
+ <td style={{ padding: "8px 12px", fontFamily: "var(--font-mono)", color: "var(--text-info)", fontWeight: 700, whiteSpace: "nowrap" }}>{k}</td>
+ <td style={{ padding: "8px 12px", color: "var(--text-primary)" }}>{v}</td>
  </tr>
  ))}
  </tbody>
  </table>
- <div style={{ marginTop: 16, padding: "10px 12px", background: "rgba(250,179,135,0.06)", border: "1px solid rgba(250,179,135,0.3)", borderRadius: "var(--radius-sm)", fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", lineHeight: 1.7 }}>
+ <div style={{ marginTop: 16, padding: "12px 12px", background: "rgba(250,179,135,0.06)", border: "1px solid rgba(250,179,135,0.3)", borderRadius: "var(--radius-sm)", fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", lineHeight: 1.7 }}>
  <strong style={{ color: "var(--text-warning-alt)" }}>Security note:</strong>JWT payloads are Base64-encoded, <em>not encrypted</em>. Anyone who holds the token can read its claims. Only put non-sensitive data in JWT payloads, and always validate the signature server-side before trusting any claim.
  </div>
  </div>

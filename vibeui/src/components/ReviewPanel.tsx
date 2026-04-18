@@ -192,7 +192,7 @@ export function ReviewPanel({ workspacePath, onOpenFile }: ReviewPanelProps) {
  key={sev}
  onClick={() => setFilterSev(sev)}
  style={{
- padding: '3px 10px', borderRadius: 12, border: '1px solid var(--border-color)',
+ padding: '3px 12px', borderRadius: 12, border: '1px solid var(--border-color)',
  background: active ? 'var(--border-color)' : 'transparent', color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
  fontSize: "var(--font-size-sm)", cursor: 'pointer',
  }}
@@ -228,18 +228,18 @@ export function ReviewPanel({ workspacePath, onOpenFile }: ReviewPanelProps) {
  overflow: 'hidden',
  }}
  >
- <div
- style={{ padding: '8px 10px', cursor: 'pointer', display: 'flex', gap: 8, alignItems: 'flex-start' }}
+ <div role="button" tabIndex={0}
+ style={{ padding: '8px 12px', cursor: 'pointer', display: 'flex', gap: 8, alignItems: 'flex-start' }}
  onClick={() => setExpanded(isOpen ? null : idx)}
  >
  <span style={{ fontSize: "var(--font-size-sm)" }}>{FOCUS_EMOJI[issue.category]}</span>
  <div style={{ flex: 1, minWidth: 0 }}>
  <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
  <span style={{
- fontSize: "var(--font-size-xs)", padding: '1px 6px', borderRadius: "var(--radius-md)",
+ fontSize: "var(--font-size-xs)", padding: '1px 8px', borderRadius: "var(--radius-md)",
  background: sty.badge.includes('red') ? 'var(--text-danger)'
  : sty.badge.includes('yellow') ? 'var(--text-warning)' : 'var(--text-info)',
- color: sty.badge.includes('yellow') ? '#000' : '#fff',
+ color: sty.badge.includes('yellow') ? 'var(--text-primary)' : 'var(--btn-primary-fg)',
  }}>
  {issue.severity}
  </span>
@@ -267,7 +267,7 @@ export function ReviewPanel({ workspacePath, onOpenFile }: ReviewPanelProps) {
  </div>
 
  {isOpen && issue.suggested_fix && (
- <div style={{ padding: '0 10px 10px', borderTop: '1px solid var(--border-color)', marginTop: 4 }}>
+ <div style={{ padding: '0 12px 12px', borderTop: '1px solid var(--border-color)', marginTop: 4 }}>
  <div style={{ fontSize: "var(--font-size-sm)", color: 'var(--text-secondary)', marginBottom: 4, paddingTop: 8 }}>
  Suggested fix:
  </div>

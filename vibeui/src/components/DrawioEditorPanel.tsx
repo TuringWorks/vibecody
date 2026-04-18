@@ -186,7 +186,7 @@ export function DrawioEditorPanel({ workspacePath, provider }: DrawioEditorPanel
 
   const renderEditor = () => (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" }}>
-      <div style={{ padding: "6px 12px", background: "var(--bg-secondary)", borderBottom: "1px solid var(--border-color)", display: "flex", gap: 8, flexShrink: 0 }}>
+      <div style={{ padding: "8px 12px", background: "var(--bg-secondary)", borderBottom: "1px solid var(--border-color)", display: "flex", gap: 8, flexShrink: 0 }}>
         <span style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", lineHeight: "28px" }}>
           Full draw.io editor — save with Ctrl+S or File → Save
         </span>
@@ -230,7 +230,7 @@ export function DrawioEditorPanel({ workspacePath, provider }: DrawioEditorPanel
           src={buildViewerSrc(previewXml)}
           title="Diagram Preview"
           sandbox="allow-scripts allow-same-origin"
-          style={{ flex: 1, border: "none", background: "#fff" }}
+          style={{ flex: 1, border: "none", background: "var(--btn-primary-fg)" }}
         />
       ) : (
         <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, color: "var(--text-secondary)" }}>
@@ -251,7 +251,7 @@ export function DrawioEditorPanel({ workspacePath, provider }: DrawioEditorPanel
       <select
         value={genKind}
         onChange={(e) => setGenKind(e.target.value)}
-        style={{ width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", color: "inherit", padding: "8px 10px", fontSize: "var(--font-size-md)", marginBottom: 14 }}
+        style={{ width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", color: "inherit", padding: "8px 12px", fontSize: "var(--font-size-md)", marginBottom: 14 }}
       >
         {DIAGRAM_KINDS.map((k) => (
           <option key={k} value={k}>{k.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}</option>
@@ -265,10 +265,10 @@ export function DrawioEditorPanel({ workspacePath, provider }: DrawioEditorPanel
         rows={6}
         style={{ width: "100%", resize: "vertical", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", color: "inherit", padding: 10, fontSize: "var(--font-size-md)", boxSizing: "border-box" }}
       />
-      <button
+      <button className="panel-btn"
         onClick={handleGenerate}
         disabled={isGenerating || !genDescription.trim()}
-        style={{ width: "100%", marginTop: 8, background: "var(--accent-blue)", color: "var(--btn-primary-fg, #fff)", border: "none", borderRadius: "var(--radius-sm)", padding: "10px 0", cursor: "pointer", fontWeight: 600, fontSize: "var(--font-size-lg)", opacity: isGenerating || !genDescription.trim() ? 0.5 : 1 }}
+        style={{ width: "100%", marginTop: 8, background: "var(--accent-blue)", color: "var(--btn-primary-fg, #fff)", border: "none", borderRadius: "var(--radius-sm)", padding: "12px 0", cursor: "pointer", fontWeight: 600, fontSize: "var(--font-size-lg)", opacity: isGenerating || !genDescription.trim() ? 0.5 : 1 }}
       >
         {isGenerating ? "Generating…" : "Generate Diagram"}
       </button>
@@ -276,7 +276,7 @@ export function DrawioEditorPanel({ workspacePath, provider }: DrawioEditorPanel
         <div style={{ marginTop: 16 }}>
           <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
             <button onClick={() => setActiveTab("preview")} style={{ flex: 1, background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", padding: "8px 0", cursor: "pointer", color: "inherit", fontSize: "var(--font-size-base)" }}>View Preview</button>
-            <button onClick={loadGeneratedInEditor} style={{ flex: 1, background: "var(--accent-blue)", border: "none", borderRadius: "var(--radius-sm)", padding: "8px 0", cursor: "pointer", color: "var(--btn-primary-fg, #fff)", fontSize: "var(--font-size-base)", fontWeight: 600 }}>Open in Editor</button>
+            <button className="panel-btn" onClick={loadGeneratedInEditor} style={{ flex: 1, background: "var(--accent-blue)", border: "none", borderRadius: "var(--radius-sm)", padding: "8px 0", cursor: "pointer", color: "var(--btn-primary-fg, #fff)", fontSize: "var(--font-size-base)", fontWeight: 600 }}>Open in Editor</button>
           </div>
           <pre style={{ fontSize: "var(--font-size-sm)", overflow: "auto", maxHeight: 300, whiteSpace: "pre", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: 10, border: "1px solid var(--border-color)", color: "var(--text-success)" }}>
             {generatedXml.slice(0, 800)}{generatedXml.length > 800 ? "\n…" : ""}
@@ -298,9 +298,9 @@ export function DrawioEditorPanel({ workspacePath, provider }: DrawioEditorPanel
               background: selectedTemplate === t.id ? "var(--accent-blue)" : "var(--bg-secondary)",
               border: `1px solid ${selectedTemplate === t.id ? "var(--accent-blue)" : "var(--border-color)"}`,
               borderRadius: "var(--radius-sm-alt)",
-              padding: "14px 16px",
+              padding: "16px 16px",
               cursor: "pointer",
-              color: selectedTemplate === t.id ? "#fff" : "inherit",
+              color: selectedTemplate === t.id ? "var(--btn-primary-fg)" : "inherit",
               textAlign: "left",
               transition: "all 0.15s",
             }}
@@ -328,9 +328,9 @@ export function DrawioEditorPanel({ workspacePath, provider }: DrawioEditorPanel
               background: mcpCommand === cmd ? "var(--accent-blue)" : "var(--bg-tertiary)",
               border: "1px solid var(--border-color)",
               borderRadius: "var(--radius-xs-plus)",
-              padding: "4px 10px",
+              padding: "4px 12px",
               cursor: "pointer",
-              color: mcpCommand === cmd ? "#fff" : "inherit",
+              color: mcpCommand === cmd ? "var(--btn-primary-fg)" : "inherit",
               fontSize: "var(--font-size-sm)",
               fontWeight: mcpCommand === cmd ? 600 : 400,
             }}
@@ -344,11 +344,11 @@ export function DrawioEditorPanel({ workspacePath, provider }: DrawioEditorPanel
         value={mcpFilePath}
         onChange={(e) => setMcpFilePath(e.target.value)}
         placeholder="/path/to/diagram.drawio"
-        style={{ width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", color: "inherit", padding: "8px 10px", fontSize: "var(--font-size-md)", marginBottom: 12, boxSizing: "border-box" }}
+        style={{ width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", color: "inherit", padding: "8px 12px", fontSize: "var(--font-size-md)", marginBottom: 12, boxSizing: "border-box" }}
       />
-      <button
+      <button className="panel-btn"
         onClick={executeMcpCommand}
-        style={{ width: "100%", background: "var(--accent-blue)", color: "var(--btn-primary-fg, #fff)", border: "none", borderRadius: "var(--radius-sm)", padding: "10px 0", cursor: "pointer", fontWeight: 600, fontSize: "var(--font-size-lg)" }}
+        style={{ width: "100%", background: "var(--accent-blue)", color: "var(--btn-primary-fg, #fff)", border: "none", borderRadius: "var(--radius-sm)", padding: "12px 0", cursor: "pointer", fontWeight: 600, fontSize: "var(--font-size-lg)" }}
       >
         Execute {mcpCommand}
       </button>

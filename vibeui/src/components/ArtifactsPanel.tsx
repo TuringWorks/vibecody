@@ -95,7 +95,7 @@ function TaskListBody({ items }: { items: TaskItem[] }) {
  </span>
  <span style={{ fontSize: "var(--font-size-base)", color: item.done ? "var(--text-secondary)" : "var(--text-primary)", textDecoration: item.done ? "line-through" : "none" }}>
  {item.description}
- {item.file && <span style={{ marginLeft: "6px", opacity: 0.6, fontStyle: "italic" }}>{item.file}</span>}
+ {item.file && <span style={{ marginLeft: "8px", opacity: 0.6, fontStyle: "italic" }}>{item.file}</span>}
  </span>
  </div>
  ))}
@@ -112,7 +112,7 @@ function ImplementationPlanBody({ steps, files }: { steps: PlanStep[]; files: st
  </div>
  )}
  {steps.map((step, i) => (
- <div key={step.id} style={{ display: "flex", gap: "8px", marginBottom: "6px", alignItems: "flex-start" }}>
+ <div key={step.id} style={{ display: "flex", gap: "8px", marginBottom: "8px", alignItems: "flex-start" }}>
  <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", minWidth: "20px", textAlign: "right" }}>
  {i + 1}.
  </span>
@@ -134,7 +134,7 @@ function FileChangeBody({ path, diff }: { path: string; diff: string }) {
  const lines = diff.split("\n").slice(0, 40);
  return (
  <div>
- <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: "6px" }}>{path}</div>
+ <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: "8px" }}>{path}</div>
  {diff ? (
  <pre style={{ fontSize: "var(--font-size-sm)", overflowX: "auto", maxHeight: "200px", overflowY: "auto", margin: 0, background: "var(--bg-primary)", padding: "8px", borderRadius: "var(--radius-xs-plus)", lineHeight: 1.4 }}>
  {lines.map((line, i) => (
@@ -154,7 +154,7 @@ function FileChangeBody({ path, diff }: { path: string; diff: string }) {
 function CommandOutputBody({ command, stdout, stderr, exit_code }: { command: string; stdout: string; stderr: string; exit_code: number }) {
  return (
  <div>
- <div style={{ fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", color: "var(--accent-blue)", marginBottom: "6px" }}>$ {command}</div>
+ <div style={{ fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", color: "var(--accent-blue)", marginBottom: "8px" }}>$ {command}</div>
  {stdout && (
  <pre style={{ fontSize: "var(--font-size-sm)", margin: "0 0 4px 0", maxHeight: "120px", overflowY: "auto", color: "var(--text-primary)" }}>
  {stdout.trim()}
@@ -198,10 +198,10 @@ function ReviewReportBody({ issues, summary, score }: { issues: ReviewIssueRef[]
  </div>
  {issues.map((issue, i) => (
  <div key={i} style={{ padding: "4px 0", borderTop: "1px solid var(--border-color)" }}>
- <span style={{ fontSize: "var(--font-size-sm)", color: severityColor(issue.severity), marginRight: "6px" }}>
+ <span style={{ fontSize: "var(--font-size-sm)", color: severityColor(issue.severity), marginRight: "8px" }}>
  {issue.severity}
  </span>
- <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginRight: "6px" }}>
+ <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginRight: "8px" }}>
  {issue.file}:{issue.line}
  </span>
  <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-primary)" }}>{issue.description}</span>
@@ -262,12 +262,12 @@ function ArtifactCard({
  overflow: "hidden",
  }}>
  {/* Header */}
- <div
+ <div role="button" tabIndex={0}
  onClick={() => setExpanded(!expanded)}
  style={{
  display: "flex",
  alignItems: "center",
- padding: "8px 10px",
+ padding: "8px 12px",
  cursor: "pointer",
  gap: "8px",
  background: "var(--bg-secondary)",
@@ -293,14 +293,14 @@ function ArtifactCard({
 
  {/* Body */}
  {expanded && (
- <div style={{ padding: "8px 10px", borderTop: "1px solid var(--border-color)" }}>
+ <div style={{ padding: "8px 12px", borderTop: "1px solid var(--border-color)" }}>
  <ArtifactBody artifact={artifact.artifact} />
 
  {/* Existing annotations */}
  {artifact.annotations.length > 0 && (
- <div style={{ marginTop: "10px", paddingTop: "8px", borderTop: "1px solid var(--border-color)" }}>
+ <div style={{ marginTop: "12px", paddingTop: "8px", borderTop: "1px solid var(--border-color)" }}>
  {artifact.annotations.map((ann, i) => (
- <div key={i} style={{ marginBottom: "4px", display: "flex", gap: "6px", alignItems: "flex-start" }}>
+ <div key={i} style={{ marginBottom: "4px", display: "flex", gap: "8px", alignItems: "flex-start" }}>
  <span style={{ fontSize: "var(--font-size-xs)", color: ann.applied ? "var(--success-color)" : "var(--warning-color)" }}>
  {ann.applied ? "✔" : ""}
  </span>
@@ -316,7 +316,7 @@ function ArtifactCard({
  {onAnnotate && (
  <div style={{ marginTop: "8px" }}>
  {showAnnotationForm ? (
- <div style={{ display: "flex", gap: "6px" }}>
+ <div style={{ display: "flex", gap: "8px" }}>
  <input
  type="text"
  value={annotationInput}
@@ -326,7 +326,7 @@ function ArtifactCard({
  autoFocus
  style={{
  flex: 1,
- padding: "4px 7px",
+ padding: "4px 8px",
  fontSize: "var(--font-size-sm)",
  background: "var(--bg-input, var(--bg-primary))",
  border: "1px solid var(--border-color)",
@@ -335,10 +335,10 @@ function ArtifactCard({
  outline: "none",
  }}
  />
- <button onClick={submitAnnotation} style={{ padding: "4px 8px", fontSize: "var(--font-size-sm)", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "3px", cursor: "pointer" }}>
+ <button className="panel-btn" onClick={submitAnnotation} style={{ padding: "4px 8px", fontSize: "var(--font-size-sm)", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "3px", cursor: "pointer" }}>
  Add
  </button>
- <button onClick={() => setShowAnnotationForm(false)} style={{ padding: "4px 6px", fontSize: "var(--font-size-sm)", background: "none", border: "1px solid var(--border-color)", borderRadius: "3px", color: "var(--text-secondary)", cursor: "pointer" }}>
+ <button onClick={() => setShowAnnotationForm(false)} style={{ padding: "4px 8px", fontSize: "var(--font-size-sm)", background: "none", border: "1px solid var(--border-color)", borderRadius: "3px", color: "var(--text-secondary)", cursor: "pointer" }}>
  ✕
  </button>
  </div>
@@ -363,7 +363,7 @@ function ArtifactCard({
 export function ArtifactsPanel({ artifacts = [], onAnnotate }: Partial<ArtifactsPanelProps>) {
  if (!artifacts || artifacts.length === 0) {
  return (
- <div style={{ padding: "24px 16px", color: "var(--text-secondary)", fontSize: "var(--font-size-md)", textAlign: "center" }}>
+ <div className="panel-container" style={{ padding: "24px 16px", color: "var(--text-secondary)", fontSize: "var(--font-size-md)", textAlign: "center" }}>
  <div style={{ fontSize: "24px", marginBottom: "8px" }}></div>
  <div>No artifacts yet.</div>
  <div style={{ fontSize: "var(--font-size-sm)", marginTop: "4px", opacity: 0.7 }}>
@@ -374,7 +374,7 @@ export function ArtifactsPanel({ artifacts = [], onAnnotate }: Partial<Artifacts
  }
 
  return (
- <div style={{ padding: "8px", overflowY: "auto", height: "100%" }}>
+ <div style={{ padding: "8px", overflowY: "auto", flex: 1, minHeight: 0 }}>
  <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-secondary)", marginBottom: "8px", padding: "4px 2px" }}>
  {artifacts.length} Artifact{artifacts.length !== 1 ? "s" : ""}
  </div>

@@ -164,22 +164,22 @@ const DiscussionModePanel: React.FC = () => {
 
   const renderMessageCard = (m: DiscussionMessage) => (
     <div key={m.id} className="panel-card">
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
         <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
           <strong>{m.author}</strong>
           <span style={badgeStyle(typeColors[m.type] || "var(--text-secondary)")}>{m.type}</span>
         </div>
         <span style={{ fontSize: "var(--font-size-sm)", opacity: 0.6 }}>{m.timestamp}</span>
       </div>
-      <div style={{ marginBottom: "6px" }}>{m.text}</div>
+      <div style={{ marginBottom: "8px" }}>{m.text}</div>
       <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
         {Object.entries(m.reactions).map(([key, count]) => (
-          <button key={key} style={{ ...reactionBtnStyle, display: "inline-flex", alignItems: "center", gap: "4px" }} onClick={() => handleReaction(m.id, key)}>
+          <button className="panel-btn" key={key} style={{ ...reactionBtnStyle, display: "inline-flex", alignItems: "center", gap: "4px" }} onClick={() => handleReaction(m.id, key)}>
             {reactionIconMap[key] ?? key} {count}
           </button>
         ))}
         {reactionKeys.filter(k => !(k in m.reactions)).slice(0, 2).map(key => (
-          <button key={key} style={{ ...reactionBtnStyle, opacity: 0.5, display: "inline-flex", alignItems: "center" }}
+          <button className="panel-btn" key={key} style={{ ...reactionBtnStyle, opacity: 0.5, display: "inline-flex", alignItems: "center" }}
             onClick={() => handleReaction(m.id, key)}>{reactionIconMap[key]}</button>
         ))}
       </div>
@@ -195,7 +195,7 @@ const DiscussionModePanel: React.FC = () => {
         <button className="panel-btn panel-btn-primary" onClick={handleCreateThread}>New Thread</button>
       </div>
       {threads.map(t => (
-        <div key={t.id} className="panel-card" style={{
+        <div role="button" tabIndex={0} key={t.id} className="panel-card" style={{
           cursor: "pointer",
           border: activeThread?.id === t.id ? "1px solid var(--accent-color)" : "1px solid var(--border-color)",
           display: "flex", justifyContent: "space-between", alignItems: "center",
@@ -267,7 +267,7 @@ const DiscussionModePanel: React.FC = () => {
         <div style={{ display: "flex", gap: "4px" }}>
           {(["Building", "Discussing", "Paused"] as const).map(s => (
             <button key={s} onClick={() => setBuildState(s)}
-              style={{ padding: "4px 10px", fontSize: "var(--font-size-base)", cursor: "pointer", borderRadius: "var(--radius-xs-plus)",
+              style={{ padding: "4px 12px", fontSize: "var(--font-size-base)", cursor: "pointer", borderRadius: "var(--radius-xs-plus)",
                 backgroundColor: buildState === s ? stateColors[s] : "transparent",
                 color: "var(--text-primary)",
                 border: `1px solid ${stateColors[s]}` }}>

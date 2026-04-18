@@ -194,7 +194,7 @@ mermaid.initialize({ startOnLoad: true, theme: 'dark' });
               <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                 {(Object.keys(KIND_LABELS) as DiagKind[]).map((k) => (
                   <button key={k} onClick={() => setKind(k)}
-                    style={{ background: kind === k ? "var(--accent-blue)" : "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: "3px 8px", cursor: "pointer", color: kind === k ? "#fff" : "inherit", fontSize: "var(--font-size-sm)", fontWeight: kind === k ? 600 : 400 }}
+                    style={{ background: kind === k ? "var(--accent-blue)" : "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: "3px 8px", cursor: "pointer", color: kind === k ? "var(--btn-primary-fg)" : "inherit", fontSize: "var(--font-size-sm)", fontWeight: kind === k ? 600 : 400 }}
                   >{KIND_LABELS[k]}</button>
                 ))}
               </div>
@@ -206,7 +206,7 @@ mermaid.initialize({ startOnLoad: true, theme: 'dark' });
               <div style={{ display: "flex", gap: 4 }}>
                 {(Object.keys(FORMAT_LABELS) as DiagFormat[]).map((f) => (
                   <button key={f} onClick={() => setFormat(f)}
-                    style={{ background: format === f ? "var(--accent-blue)" : "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: "3px 8px", cursor: "pointer", color: format === f ? "#fff" : "inherit", fontSize: "var(--font-size-sm)", fontWeight: format === f ? 600 : 400 }}
+                    style={{ background: format === f ? "var(--accent-blue)" : "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: "3px 8px", cursor: "pointer", color: format === f ? "var(--btn-primary-fg)" : "inherit", fontSize: "var(--font-size-sm)", fontWeight: format === f ? 600 : 400 }}
                   >{FORMAT_LABELS[f]}</button>
                 ))}
               </div>
@@ -225,15 +225,15 @@ mermaid.initialize({ startOnLoad: true, theme: 'dark' });
             </div>
 
             {error && (
-              <div style={{ marginBottom: 12, padding: "8px 10px", background: "var(--bg-secondary)", border: "1px solid var(--error-color, #f85149)", borderRadius: "var(--radius-sm)", fontSize: "var(--font-size-base)", color: "var(--error-color, #f85149)" }}>
+              <div style={{ marginBottom: 12, padding: "8px 12px", background: "var(--bg-secondary)", border: "1px solid var(--error-color, #f85149)", borderRadius: "var(--radius-sm)", fontSize: "var(--font-size-base)", color: "var(--error-color, #f85149)" }}>
                 {error}
               </div>
             )}
 
-            <button
+            <button className="panel-btn"
               onClick={handleGenerate}
               disabled={isGenerating || !description.trim()}
-              style={{ width: "100%", background: "var(--accent-blue)", color: "var(--btn-primary-fg, #fff)", border: "none", borderRadius: "var(--radius-sm)", padding: "10px 0", cursor: "pointer", fontWeight: 600, fontSize: "var(--font-size-lg)", opacity: isGenerating || !description.trim() ? 0.5 : 1 }}
+              style={{ width: "100%", background: "var(--accent-blue)", color: "var(--btn-primary-fg, #fff)", border: "none", borderRadius: "var(--radius-sm)", padding: "12px 0", cursor: "pointer", fontWeight: 600, fontSize: "var(--font-size-lg)", opacity: isGenerating || !description.trim() ? 0.5 : 1 }}
             >
               {isGenerating ? "Generating…" : "Generate Diagram"}
             </button>
@@ -243,7 +243,7 @@ mermaid.initialize({ startOnLoad: true, theme: 'dark' });
               <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 6, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>Examples</div>
               {SAMPLE_PROMPTS.map((p, i) => (
                 <button key={i} onClick={() => applySamplePrompt(p)}
-                  style={{ display: "block", width: "100%", textAlign: "left", background: "none", border: "none", borderBottom: "1px solid var(--border-color)", padding: "6px 0", cursor: "pointer", color: "var(--text-secondary)", fontSize: "var(--font-size-base)", lineHeight: 1.5 }}
+                  style={{ display: "block", width: "100%", textAlign: "left", background: "none", border: "none", borderBottom: "1px solid var(--border-color)", padding: "8px 0", cursor: "pointer", color: "var(--text-secondary)", fontSize: "var(--font-size-base)", lineHeight: 1.5 }}
                 >
                   <span style={{ color: "var(--accent-blue)", marginRight: 6 }}>[{KIND_LABELS[p.kind]}]</span>
                   {p.text.slice(0, 60)}{p.text.length > 60 ? "…" : ""}
@@ -258,13 +258,13 @@ mermaid.initialize({ startOnLoad: true, theme: 'dark' });
           {output ? (
             <>
               {/* Toolbar */}
-              <div style={{ padding: "6px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 6, flexShrink: 0 }}>
+              <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 6, flexShrink: 0 }}>
                 <span style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", lineHeight: "26px" }}>{FORMAT_LABELS[format]} • {KIND_LABELS[kind]}</span>
                 <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
-                  <button onClick={copyOutput}
+                  <button className="panel-btn" onClick={copyOutput}
                     style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: "3px 8px", cursor: "pointer", color: "inherit", fontSize: "var(--font-size-sm)" }}>Copy</button>
                   {workspacePath && (
-                    <button onClick={saveToWorkspace}
+                    <button className="panel-btn" onClick={saveToWorkspace}
                       style={{ background: "var(--accent-blue)", border: "none", borderRadius: "var(--radius-xs-plus)", padding: "3px 8px", cursor: "pointer", color: "var(--btn-primary-fg, #fff)", fontSize: "var(--font-size-sm)", fontWeight: 600 }}>Save</button>
                   )}
                 </div>
@@ -304,9 +304,9 @@ mermaid.initialize({ startOnLoad: true, theme: 'dark' });
         {/* History sidebar */}
         {showHistory && (
           <div style={{ width: 240, borderLeft: "1px solid var(--border-color)", overflow: "auto" }}>
-            <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border-color)", fontWeight: 600, fontSize: "var(--font-size-md)" }}>History</div>
+            <div style={{ padding: "12px 12px", borderBottom: "1px solid var(--border-color)", fontWeight: 600, fontSize: "var(--font-size-md)" }}>History</div>
             {history.map((h) => (
-              <div key={h.id} onClick={() => loadFromHistory(h)}
+              <div role="button" tabIndex={0} key={h.id} onClick={() => loadFromHistory(h)}
                 style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", cursor: "pointer", fontSize: "var(--font-size-base)" }}
               >
                 <div style={{ fontWeight: 600, marginBottom: 2 }}>{KIND_LABELS[h.kind]}</div>

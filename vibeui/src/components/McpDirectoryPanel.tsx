@@ -237,7 +237,7 @@ export function McpDirectoryPanel() {
                         <span style={{ fontWeight: 600 }}>{p.name}</span>
                         <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>v{p.version}</span>
                         <span style={{
-                          fontSize: "var(--font-size-xs)", padding: "1px 6px", borderRadius: "var(--radius-sm-alt)",
+                          fontSize: "var(--font-size-xs)", padding: "1px 8px", borderRadius: "var(--radius-sm-alt)",
                           background: p.updatable ? "var(--warning-color, #cca700)" : "var(--accent-green)",
                           color: "var(--btn-primary-fg)",
                         }}>

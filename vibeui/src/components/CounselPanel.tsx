@@ -271,7 +271,7 @@ export function CounselPanel() {
       {/* Sidebar */}
       <div style={S.sidebar}>
         <div style={{ marginBottom: 12 }}>
-          <button style={{ ...S.btn, width: "100%", fontSize: "var(--font-size-base)" }} onClick={newSession}>
+          <button className="panel-btn" style={{ ...S.btn, width: "100%", fontSize: "var(--font-size-base)" }} onClick={newSession}>
             + New Session
           </button>
         </div>
@@ -282,7 +282,7 @@ export function CounselPanel() {
             style={{ ...S.sidebarItem(activeSession?.id === s.id), display: "flex", alignItems: "center", gap: 4 }}
             title={s.topic}
           >
-            <div style={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => loadSession(s.id)}>
+            <div role="button" tabIndex={0} style={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => loadSession(s.id)}>
               <div style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis" }}>{s.topic.slice(0, 28)}{s.topic.length > 28 ? "..." : ""}</div>
               <div style={{ fontSize: "var(--font-size-xs)", opacity: 0.7 }}>
                 {s.round_count} rounds, {s.participant_count} participants
@@ -298,7 +298,7 @@ export function CounselPanel() {
           </div>
         ))}
         {sessionList.length === 0 && (
-          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", padding: 8 }}>
+          <div className="panel-empty" style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", padding: 8 }}>
             No sessions yet
           </div>
         )}
@@ -331,7 +331,7 @@ export function CounselPanel() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <h3 style={S.h3}>Participants</h3>
               {selectedParticipants.size > 0 && (
-                <button style={{ ...S.btnSecondary, fontSize: "var(--font-size-sm)", padding: "3px 8px", color: "var(--accent-rose, var(--error-color))" }} onClick={removeSelectedParticipants}>
+                <button className="panel-btn" style={{ ...S.btnSecondary, fontSize: "var(--font-size-sm)", padding: "3px 8px", color: "var(--accent-rose, var(--error-color))" }} onClick={removeSelectedParticipants}>
                   Remove {selectedParticipants.size} selected
                 </button>
               )}
@@ -372,13 +372,13 @@ export function CounselPanel() {
                 <select style={{ ...S.select, flex: "1 1 90px", minWidth: 80 }} value={p.role} onChange={e => updateParticipant(i, "role", e.target.value)}>
                   {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
                 </select>
-                <button style={{ ...S.voteBtn, flexShrink: 0 }} onClick={() => removeParticipant(i)} title="Remove">x</button>
+                <button className="panel-btn" style={{ ...S.voteBtn, flexShrink: 0 }} onClick={() => removeParticipant(i)} title="Remove">x</button>
               </div>
               );
             })}
             <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
-              <button style={S.btnSecondary} onClick={addParticipant}>+ Add Participant</button>
-              <button
+              <button className="panel-btn" style={S.btnSecondary} onClick={addParticipant}>+ Add Participant</button>
+              <button className="panel-btn"
                 style={{ ...S.btn, opacity: (!topic.trim() || participants.length === 0) ? 0.5 : 1 }}
                 disabled={!topic.trim() || participants.length === 0}
                 onClick={startSession}
@@ -472,9 +472,9 @@ export function CounselPanel() {
                           {resp.content}
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <button style={S.voteBtn} onClick={() => vote(ri, resp.participant_index, 1)}>&#9650;</button>
+                          <button className="panel-btn" style={S.voteBtn} onClick={() => vote(ri, resp.participant_index, 1)}>&#9650;</button>
                           <span style={{ fontSize: "var(--font-size-md)", fontWeight: 600, minWidth: 20, textAlign: "center" }}>{resp.votes}</span>
-                          <button style={S.voteBtn} onClick={() => vote(ri, resp.participant_index, -1)}>&#9660;</button>
+                          <button className="panel-btn" style={S.voteBtn} onClick={() => vote(ri, resp.participant_index, -1)}>&#9660;</button>
                           {resp.tokens != null && (
                             <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginLeft: 8 }}>{resp.tokens} tok</span>
                           )}
@@ -502,7 +502,7 @@ export function CounselPanel() {
                   onChange={e => setInterjection(e.target.value)}
                   onKeyDown={e => e.key === "Enter" && injectMessage()}
                 />
-                <button style={S.btnSecondary} onClick={injectMessage} disabled={!interjection.trim()}>
+                <button className="panel-btn" style={S.btnSecondary} onClick={injectMessage} disabled={!interjection.trim()}>
                   Add Context
                 </button>
               </div>
@@ -511,7 +511,7 @@ export function CounselPanel() {
             {/* Action buttons */}
             {!activeSession.synthesis && (
               <div style={{ display: "flex", gap: 10 }}>
-                <button
+                <button className="panel-btn"
                   style={{ ...S.btn, opacity: deliberating ? 0.5 : 1 }}
                   disabled={deliberating}
                   onClick={runRound}
@@ -519,7 +519,7 @@ export function CounselPanel() {
                   {deliberating ? "Deliberating..." : `Run Round ${(activeSession.rounds.length || 0) + 1}`}
                 </button>
                 {activeSession.rounds.length > 0 && (
-                  <button
+                  <button className="panel-btn"
                     style={{ ...S.btn, background: "var(--accent-indigo)", opacity: synthesizing ? 0.5 : 1 }}
                     disabled={synthesizing}
                     onClick={synthesize}

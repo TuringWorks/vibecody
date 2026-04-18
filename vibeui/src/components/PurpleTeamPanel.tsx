@@ -361,7 +361,7 @@ export function PurpleTeamPanel({ provider }: { provider?: string } = {}) {
                   <div style={{ marginBottom: 8 }}>
                     <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: 4 }}>Attack Simulations ({aiPlan.simulations.length})</div>
                     {aiPlan.simulations.map((sim: any, i: number) => (
-                      <div key={i} style={{ padding: "6px 10px", marginBottom: 4, borderRadius: "var(--radius-xs-plus)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
+                      <div key={i} style={{ padding: "8px 12px", marginBottom: 4, borderRadius: "var(--radius-xs-plus)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
                         <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 2 }}>
                           <span style={{ fontFamily: "var(--font-mono)", fontSize: "var(--font-size-xs)", color: "var(--accent-color)" }}>{sim.technique_id}</span>
                           <span style={{ fontWeight: 500, fontSize: "var(--font-size-base)" }}>{sim.technique_name}</span>
@@ -443,7 +443,7 @@ export function PurpleTeamPanel({ provider }: { provider?: string } = {}) {
               <span>Date: {ex.date}</span>
               <span>Techniques: {ex.technique_count}</span>
             </div>
-            {ex.description && <p style={{ margin: "6px 0 0", fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>{ex.description}</p>}
+            {ex.description && <p style={{ margin: "8px 0 0", fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>{ex.description}</p>}
           </div>
         ))}
       </div>
@@ -493,7 +493,7 @@ export function PurpleTeamPanel({ provider }: { provider?: string } = {}) {
               <tr>
                 <th style={{ ...thStyle, position: "sticky", left: 0, background: "var(--bg-primary)", zIndex: 1 }}>Technique</th>
                 {TACTICS.map((t) => (
-                  <th key={t} style={{ ...thStyle, textAlign: "center", fontSize: "var(--font-size-xs)", minWidth: 70, writingMode: "vertical-lr", transform: "rotate(180deg)", padding: "10px 4px" }}>{t}</th>
+                  <th key={t} style={{ ...thStyle, textAlign: "center", fontSize: "var(--font-size-xs)", minWidth: 70, writingMode: "vertical-lr", transform: "rotate(180deg)", padding: "12px 4px" }}>{t}</th>
                 ))}
               </tr>
             </thead>
@@ -629,7 +629,7 @@ export function PurpleTeamPanel({ provider }: { provider?: string } = {}) {
               {sim.detection_time_seconds != null && <span>Detection: {sim.detection_time_seconds}s</span>}
               {sim.detection_source && <span>Source: {sim.detection_source}</span>}
             </div>
-            {sim.notes && <p style={{ margin: "6px 0 0", fontSize: "var(--font-size-base)", color: "var(--text-secondary)", fontStyle: "italic" }}>{sim.notes}</p>}
+            {sim.notes && <p style={{ margin: "8px 0 0", fontSize: "var(--font-size-base)", color: "var(--text-secondary)", fontStyle: "italic" }}>{sim.notes}</p>}
           </div>
         ))}
       </div>
@@ -642,7 +642,7 @@ export function PurpleTeamPanel({ provider }: { provider?: string } = {}) {
 
     return (
       <div>
-        <h3 style={{ margin: "0 0 14px", fontSize: "var(--font-size-xl)" }}>Coverage Gaps (sorted by priority)</h3>
+        <h3 style={{ margin: "0 0 16px", fontSize: "var(--font-size-xl)" }}>Coverage Gaps (sorted by priority)</h3>
         {sortedGaps.length === 0 && <p style={{ color: "var(--text-secondary)", textAlign: "center" }}>No coverage gaps identified. Run an ATT&CK matrix assessment first.</p>}
         <table style={tableStyle}>
           <thead>
@@ -683,7 +683,7 @@ export function PurpleTeamPanel({ provider }: { provider?: string } = {}) {
   function renderReports() {
     return (
       <div>
-        <h3 style={{ margin: "0 0 14px", fontSize: "var(--font-size-xl)" }}>Exercise Reports</h3>
+        <h3 style={{ margin: "0 0 16px", fontSize: "var(--font-size-xl)" }}>Exercise Reports</h3>
         <div className="panel-card">
           <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
             <div style={{ ...formGroup, flex: 1, marginBottom: 0 }}>
@@ -761,7 +761,7 @@ export function PurpleTeamPanel({ provider }: { provider?: string } = {}) {
         {error && (
           <div className="panel-error" style={{ marginBottom: 12, display: "flex", justifyContent: "space-between" }}>
             <span>{error}</span>
-            <button style={{ background: "none", border: "none", color: "var(--error-color)", cursor: "pointer", fontSize: "var(--font-size-lg)" }} onClick={() => setError(null)}>x</button>
+            <button className="panel-btn" style={{ background: "none", border: "none", color: "var(--error-color)", cursor: "pointer", fontSize: "var(--font-size-lg)" }} onClick={() => setError(null)}>x</button>
           </div>
         )}
         {loading && <div className="panel-loading">Loading...</div>}

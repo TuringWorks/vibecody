@@ -56,7 +56,10 @@ const tabDefs: { id: DesignTab; label: string }[] = [
   { id: "pencil", label: "Pencil" },
   { id: "penpot", label: "Penpot" },
   { id: "diagrams", label: "Diagrams" },
-  { id: "figma", label: "Figma" },
+  // The "figma" tab moved to the unified DesignHubPanel ("Hub" tab in DesignComposite).
+  // The renderFigma() / handleFigmaImport() machinery below is kept for now so the
+  // "Import from Figma" empty-state CTA still has somewhere to land — but the tab
+  // is no longer reachable from the tab bar.
 ];
 
 const tabStyle = (active: boolean): React.CSSProperties => ({
@@ -398,12 +401,7 @@ try {
           >
             Generate Component
           </button>
-          <button
-            onClick={() => setActiveTab("figma")}
-            style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", padding: "8px 14px", color: "var(--text-primary)", cursor: "pointer", fontSize: "var(--font-size-base)" }}
-          >
-            Import from Figma
-          </button>
+          {/* "Import from Figma" CTA removed: Figma now lives in DesignHubPanel ("Hub" tab in DesignComposite). */}
         </div>
       </div>
     </div>

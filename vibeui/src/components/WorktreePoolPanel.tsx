@@ -139,7 +139,7 @@ export function WorktreePoolPanel() {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>{a.filesChanged} files changed | Started {a.startedAt}</div>
                 {a.status === "running" && (
-                  <button className="panel-btn panel-btn-primary" style={{ fontSize: "var(--font-size-sm)", padding: "4px 10px" }} onClick={() => handleMerge(a.id)} disabled={actionLoading === a.id}>
+                  <button className="panel-btn panel-btn-primary" style={{ fontSize: "var(--font-size-sm)", padding: "4px 12px" }} onClick={() => handleMerge(a.id)} disabled={actionLoading === a.id}>
                     {actionLoading === a.id ? "..." : "Merge"}
                   </button>
                 )}

@@ -68,11 +68,11 @@ export function NestedAgentsPanel() {
     const connector = isLast ? "└─ " : "├─ ";
     const childPrefix = prefix + (isLast ? "   " : "│  ");
     return (
-      <div key={node.id}>
+      <div className="panel-container" key={node.id}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "3px 0" }}>
           <span style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)", whiteSpace: "pre", fontSize: "var(--font-size-base)" }}>{prefix}{connector}</span>
           <span style={{ fontSize: "var(--font-size-base)", color: "var(--text-primary)" }}>{node.name}</span>
-          <span style={{ fontSize: "var(--font-size-xs)", padding: "1px 7px", borderRadius: "var(--radius-sm-alt)", background: statusColor(node.status) + "22", color: statusColor(node.status), border: `1px solid ${statusColor(node.status)}` }}>{node.status}</span>
+          <span style={{ fontSize: "var(--font-size-xs)", padding: "1px 8px", borderRadius: "var(--radius-sm-alt)", background: statusColor(node.status) + "22", color: statusColor(node.status), border: `1px solid ${statusColor(node.status)}` }}>{node.status}</span>
           <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)" }}>{node.model}</span>
         </div>
         {(node.children ?? []).map((child, i) =>
@@ -83,16 +83,16 @@ export function NestedAgentsPanel() {
   };
 
   return (
-    <div style={{ padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-mono)", height: "100%", overflowY: "auto" }}>
+    <div style={{ padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-mono)", flex: 1, minHeight: 0, overflowY: "auto" }}>
       <div style={{ fontSize: "var(--font-size-xl)", fontWeight: 700, marginBottom: 12 }}>Nested Agents</div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         {["tree", "nodes", "config"].map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{ padding: "4px 12px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: tab === t ? "var(--accent-color)" : "var(--bg-secondary)", color: tab === t ? "#fff" : "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>{t}</button>
+          <button key={t} onClick={() => setTab(t)} style={{ padding: "4px 12px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: tab === t ? "var(--accent-color)" : "var(--bg-secondary)", color: tab === t ? "var(--btn-primary-fg)" : "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>{t}</button>
         ))}
       </div>
 
-      {loading && <div style={{ color: "var(--text-muted)" }}>Loading...</div>}
+      {loading && <div className="panel-loading" style={{ color: "var(--text-muted)" }}>Loading...</div>}
       {error && <div style={{ color: "var(--error-color)", marginBottom: 8 }}>{error}</div>}
 
       {!loading && tab === "tree" && (
@@ -106,16 +106,16 @@ export function NestedAgentsPanel() {
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {flatNodes.length === 0 && <div style={{ color: "var(--text-muted)" }}>No nodes found.</div>}
           {flatNodes.map(node => (
-            <div key={node.id} style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm-alt)", padding: "10px 14px", display: "flex", alignItems: "center", gap: 12 }}>
+            <div key={node.id} style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm-alt)", padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
               <div style={{ width: node.depth * 16, flexShrink: 0 }} />
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: "var(--font-size-md)", fontWeight: 600 }}>{node.name}</div>
                 <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)" }}>depth {node.depth} · {node.model} · id: {node.id.slice(0, 10)}…</div>
               </div>
-              <span style={{ fontSize: "var(--font-size-sm)", padding: "2px 10px", borderRadius: "var(--radius-md)", background: statusColor(node.status) + "22", color: statusColor(node.status), border: `1px solid ${statusColor(node.status)}` }}>{node.status}</span>
+              <span style={{ fontSize: "var(--font-size-sm)", padding: "2px 12px", borderRadius: "var(--radius-md)", background: statusColor(node.status) + "22", color: statusColor(node.status), border: `1px solid ${statusColor(node.status)}` }}>{node.status}</span>
               <div style={{ display: "flex", gap: 6 }}>
                 <button onClick={() => invoke("nested_agents_cancel", { nodeId: node.id })}
-                  style={{ padding: "3px 10px", borderRadius: 5, cursor: "pointer", background: "var(--error-color)", color: "var(--btn-primary-fg, #fff)", border: "none", fontSize: "var(--font-size-sm)" }}>
+                  style={{ padding: "3px 12px", borderRadius: 5, cursor: "pointer", background: "var(--error-color)", color: "var(--btn-primary-fg, #fff)", border: "none", fontSize: "var(--font-size-sm)" }}>
                   Cancel
                 </button>
               </div>
@@ -137,7 +137,7 @@ export function NestedAgentsPanel() {
           <div style={{ marginBottom: 20 }}>
             <label style={{ display: "block", fontSize: "var(--font-size-base)", color: "var(--text-muted)", marginBottom: 6 }}>Merge Strategy</label>
             <select value={mergeStrategy} onChange={e => setMergeStrategy(e.target.value)}
-              style={{ width: "100%", padding: "6px 10px", borderRadius: "var(--radius-sm)", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>
+              style={{ width: "100%", padding: "8px 12px", borderRadius: "var(--radius-sm)", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>
               <option value="last_write_wins">Last Write Wins</option>
               <option value="first_write_wins">First Write Wins</option>
               <option value="merge_all">Merge All</option>

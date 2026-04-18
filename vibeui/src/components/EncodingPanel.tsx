@@ -126,7 +126,7 @@ function OutputRow({ label, value, colour = "var(--text-primary)" }: { label: st
  <span>{label}</span>
  <CopyButton text={value} />
  </div>
- <div style={{ padding: "6px 12px", fontFamily: "var(--font-mono)", fontSize: "var(--font-size-base)", color: colour, wordBreak: "break-all", lineHeight: 1.6, background: "var(--bg-primary)" }}>{value || <span style={{ color: "var(--text-secondary)", fontStyle: "italic" }}>—</span>}</div>
+ <div style={{ padding: "8px 12px", fontFamily: "var(--font-mono)", fontSize: "var(--font-size-base)", color: colour, wordBreak: "break-all", lineHeight: 1.6, background: "var(--bg-primary)" }}>{value || <span style={{ color: "var(--text-secondary)", fontStyle: "italic" }}>—</span>}</div>
  </div>
  );
 }
@@ -184,7 +184,7 @@ export function EncodingPanel() {
  <div style={{ borderBottom: "1px solid var(--border-color)" }}>
  <div style={{ padding: "4px 12px", fontSize: "var(--font-size-xs)", fontWeight: 700, color: "var(--text-secondary)", background: "var(--bg-secondary)", display: "flex", gap: 8, alignItems: "center" }}>
  <span>INPUT</span>
- <button onClick={pasteClipboard} style={{ fontSize: 9, background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}>Paste</button>
+ <button className="panel-btn" onClick={pasteClipboard} style={{ fontSize: 9, background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}>Paste</button>
  <button onClick={() => setInput("")} style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 3, fontSize: 9 }}><X size={9} /> Clear</button>
  <span style={{ marginLeft: "auto", fontSize: 9, color: "var(--text-secondary)" }}>{input.length} chars</span>
  </div>
@@ -234,7 +234,7 @@ export function EncodingPanel() {
  <OutputRow key={algo} label={algo} value={hashes[algo] ?? "computing…"} colour={algo === "SHA-256" ? "var(--success-color)" : algo === "SHA-512" ? "var(--accent-color)" : "var(--error-color)"} />
  ))
  }
- <div style={{ padding: "10px 12px", fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", lineHeight: 1.7, background: "var(--bg-secondary)", borderTop: "1px solid var(--border-color)" }}>
+ <div style={{ padding: "12px 12px", fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", lineHeight: 1.7, background: "var(--bg-secondary)", borderTop: "1px solid var(--border-color)" }}>
  <strong style={{ color: "var(--text-warning-alt)" }}>Note:</strong>MD5 is not available in Web Crypto (deprecated for security). Use SHA-256 or higher for any security-sensitive purpose.
  </div>
  </div>
@@ -247,11 +247,11 @@ export function EncodingPanel() {
  const result = input ? fn(input) : "";
  return (
  <div key={label} style={{ borderBottom: "1px solid var(--border-color)", display: "flex", alignItems: "center" }}>
- <span style={{ width: 140, flexShrink: 0, padding: "6px 12px", fontSize: "var(--font-size-xs)", fontWeight: 700, color: "var(--text-secondary)", fontFamily: "var(--font-mono)", background: "var(--bg-secondary)", alignSelf: "stretch", display: "flex", alignItems: "center" }}>{label}</span>
- <div style={{ flex: 1, padding: "6px 12px", fontFamily: "var(--font-mono)", fontSize: "var(--font-size-base)", color: "var(--text-primary)", wordBreak: "break-all" }}>{result || <span style={{ color: "var(--text-secondary)", fontStyle: "italic" }}>—</span>}</div>
+ <span style={{ width: 140, flexShrink: 0, padding: "8px 12px", fontSize: "var(--font-size-xs)", fontWeight: 700, color: "var(--text-secondary)", fontFamily: "var(--font-mono)", background: "var(--bg-secondary)", alignSelf: "stretch", display: "flex", alignItems: "center" }}>{label}</span>
+ <div style={{ flex: 1, padding: "8px 12px", fontFamily: "var(--font-mono)", fontSize: "var(--font-size-base)", color: "var(--text-primary)", wordBreak: "break-all" }}>{result || <span style={{ color: "var(--text-secondary)", fontStyle: "italic" }}>—</span>}</div>
  {result && (
  <div style={{ paddingRight: 10, flexShrink: 0 }}>
- <button onClick={() => setInput(result)} style={{ fontSize: 9, padding: "2px 6px", background: "none", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-secondary)", cursor: "pointer", marginRight: 4 }}>↑ Use</button>
+ <button onClick={() => setInput(result)} style={{ fontSize: 9, padding: "2px 8px", background: "none", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-secondary)", cursor: "pointer", marginRight: 4 }}>↑ Use</button>
  <CopyButton text={result} />
  </div>
  )}
@@ -274,7 +274,7 @@ export function EncodingPanel() {
  { label: "Sentences", value: stats.sentences, colour: "var(--warning-color)" },
  { label: "Paragraphs", value: stats.paragraphs, colour: "var(--error-color)" },
  ].map(({ label, value, colour }) => (
- <div key={label} style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", padding: "8px 10px", textAlign: "center" }}>
+ <div key={label} style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", padding: "8px 12px", textAlign: "center" }}>
  <div style={{ fontSize: 20, fontWeight: 700, color: colour, fontFamily: "var(--font-mono)" }}>{value.toLocaleString()}</div>
  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginTop: 2 }}>{label}</div>
  </div>

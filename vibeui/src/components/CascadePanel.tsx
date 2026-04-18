@@ -112,7 +112,7 @@ export function CascadePanel({ onInjectContext }: CascadePanelProps) {
  </div>
 
  {/* ── Filter bar ────────────────────────────────────────────────────── */}
- <div className="panel-tab-bar" style={{ padding: "6px 10px", flexWrap: "wrap" }}>
+ <div className="panel-tab-bar" style={{ padding: "8px 12px", flexWrap: "wrap" }}>
  {filters.map((f) => (
  <button
  key={f}
@@ -184,11 +184,11 @@ function FlowEventRow({
  return (
  <div style={{
  borderBottom: "1px solid var(--border-color)",
- padding: "6px 12px",
+ padding: "8px 12px",
  cursor: hasDetail ? "pointer" : "default",
  }}>
  {/* ── Row header ── */}
- <div
+ <div role="button" tabIndex={0}
  style={{ display: "flex", alignItems: "flex-start", gap: 8 }}
  onClick={hasDetail ? onToggle : undefined}
  >
@@ -239,7 +239,7 @@ function FlowEventRow({
  {expanded && event.detail && (
  <pre style={{
  marginTop: 6,
- padding: "6px 8px",
+ padding: "8px 8px",
  background: "var(--bg-tertiary)",
  borderRadius: "var(--radius-xs-plus)",
  fontSize: "var(--font-size-sm)",

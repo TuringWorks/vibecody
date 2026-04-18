@@ -193,7 +193,7 @@ const ImageGenPanel: React.FC = () => {
               <button key={p.model} disabled={!p.available} title={p.available ? p.description : `${p.description} — API key not configured`}
                 onClick={() => p.available && setModel(p.model)}
                 style={{
-                  padding: "5px 12px", fontSize: "var(--font-size-sm)", borderRadius: "var(--radius-sm)", cursor: p.available ? "pointer" : "not-allowed",
+                  padding: "4px 12px", fontSize: "var(--font-size-sm)", borderRadius: "var(--radius-sm)", cursor: p.available ? "pointer" : "not-allowed",
                   background: model === p.model ? "var(--accent-color)" : p.available ? "var(--bg-tertiary)" : "var(--bg-secondary)",
                   color: model === p.model ? "var(--btn-primary-fg, #fff)" : p.available ? "var(--text-primary)" : "var(--text-secondary)",
                   border: `1px solid ${model === p.model ? "var(--accent-color)" : "var(--border-color)"}`,
@@ -261,7 +261,7 @@ const ImageGenPanel: React.FC = () => {
         <span style={{ fontSize: "var(--font-size-md)", fontWeight: 700, fontFamily: "var(--font-mono, monospace)" }}>${costEstimate.toFixed(2)}</span>
       </div>
 
-      <button style={{ ...btnPrimary, width: "100%", opacity: loading ? 0.6 : 1 }}
+      <button className="panel-btn" style={{ ...btnPrimary, width: "100%", opacity: loading ? 0.6 : 1 }}
         onClick={handleGenerate} disabled={loading}>
         {loading ? "Generating..." : "Generate Image"}
       </button>
@@ -309,11 +309,11 @@ const ImageGenPanel: React.FC = () => {
             <div style={{ display: "flex", gap: 6 }}>
               {imageDataCache[img.id] && (
                 <a href={imageDataCache[img.id]} download={`${img.id}.png`}
-                  style={{ ...btnPrimary, padding: "3px 10px", fontSize: "var(--font-size-sm)", textDecoration: "none", background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-color)" }}>
+                  style={{ ...btnPrimary, padding: "3px 12px", fontSize: "var(--font-size-sm)", textDecoration: "none", background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-color)" }}>
                   Save
                 </a>
               )}
-              <button style={{ ...btnPrimary, padding: "3px 10px", fontSize: "var(--font-size-sm)", background: "var(--error-color)" }}
+              <button className="panel-btn" style={{ ...btnPrimary, padding: "3px 12px", fontSize: "var(--font-size-sm)", background: "var(--error-color)" }}
                 onClick={() => handleDelete(img.id)}>Delete</button>
             </div>
           </div>
@@ -349,19 +349,19 @@ const ImageGenPanel: React.FC = () => {
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-sm)" }}>
                 <thead>
                   <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
-                    <th style={{ textAlign: "left", padding: "4px 6px", color: "var(--text-secondary)", fontWeight: 600 }}>Prompt</th>
-                    <th style={{ textAlign: "left", padding: "4px 6px", color: "var(--text-secondary)", fontWeight: 600 }}>Model</th>
-                    <th style={{ textAlign: "right", padding: "4px 6px", color: "var(--text-secondary)", fontWeight: 600 }}>Size</th>
-                    <th style={{ textAlign: "right", padding: "4px 6px", color: "var(--text-secondary)", fontWeight: 600 }}>Cost</th>
+                    <th style={{ textAlign: "left", padding: "4px 8px", color: "var(--text-secondary)", fontWeight: 600 }}>Prompt</th>
+                    <th style={{ textAlign: "left", padding: "4px 8px", color: "var(--text-secondary)", fontWeight: 600 }}>Model</th>
+                    <th style={{ textAlign: "right", padding: "4px 8px", color: "var(--text-secondary)", fontWeight: 600 }}>Size</th>
+                    <th style={{ textAlign: "right", padding: "4px 8px", color: "var(--text-secondary)", fontWeight: 600 }}>Cost</th>
                   </tr>
                 </thead>
                 <tbody>
                   {gallery.slice(0, 20).map(img => (
                     <tr key={img.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
-                      <td style={{ padding: "4px 6px", maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={img.prompt}>{img.prompt}</td>
-                      <td style={{ padding: "4px 6px", color: "var(--text-secondary)" }}>{img.model}</td>
-                      <td style={{ padding: "4px 6px", textAlign: "right", fontFamily: "var(--font-mono, monospace)", color: "var(--text-secondary)" }}>{img.width}x{img.height}</td>
-                      <td style={{ padding: "4px 6px", textAlign: "right", fontFamily: "var(--font-mono, monospace)", fontWeight: 600 }}>${img.cost.toFixed(2)}</td>
+                      <td style={{ padding: "4px 8px", maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={img.prompt}>{img.prompt}</td>
+                      <td style={{ padding: "4px 8px", color: "var(--text-secondary)" }}>{img.model}</td>
+                      <td style={{ padding: "4px 8px", textAlign: "right", fontFamily: "var(--font-mono, monospace)", color: "var(--text-secondary)" }}>{img.width}x{img.height}</td>
+                      <td style={{ padding: "4px 8px", textAlign: "right", fontFamily: "var(--font-mono, monospace)", fontWeight: 600 }}>${img.cost.toFixed(2)}</td>
                     </tr>
                   ))}
                 </tbody>

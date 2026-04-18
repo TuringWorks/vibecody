@@ -165,7 +165,7 @@ export default function CanvasPanel() {
  background: NODE_COLORS[type] + "22",
  border: `1px solid ${NODE_COLORS[type]}`,
  color: NODE_COLORS[type],
- padding: "6px 12px",
+ padding: "8px 12px",
  borderRadius: "var(--radius-xs-plus)",
  cursor: "pointer",
  textAlign: "left",

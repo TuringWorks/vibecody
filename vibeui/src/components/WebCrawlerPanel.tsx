@@ -250,9 +250,9 @@ export function WebCrawlerPanel() {
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)" }}>
                     <thead>
                       <tr style={{ background: "var(--bg-secondary)" }}>
-                        <th style={{ padding: "6px 8px", textAlign: "left", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>URL</th>
-                        <th style={{ padding: "6px 8px", textAlign: "center", borderBottom: "1px solid var(--border)", fontWeight: 600, width: 60 }}>Status</th>
-                        <th style={{ padding: "6px 8px", textAlign: "left", borderBottom: "1px solid var(--border)", fontWeight: 600, width: 120 }}>Content-Type</th>
+                        <th style={{ padding: "8px 8px", textAlign: "left", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>URL</th>
+                        <th style={{ padding: "8px 8px", textAlign: "center", borderBottom: "1px solid var(--border)", fontWeight: 600, width: 60 }}>Status</th>
+                        <th style={{ padding: "8px 8px", textAlign: "left", borderBottom: "1px solid var(--border)", fontWeight: 600, width: 120 }}>Content-Type</th>
                       </tr>
                     </thead>
                     <tbody>

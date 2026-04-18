@@ -237,7 +237,7 @@ export function SpecPanel({ workspacePath, provider = "ollama" }: SpecPanelProps
  key={spec.name}
  onClick={() => openSpec(spec.name)}
  className="panel-card"
- style={{ marginBottom: "6px", cursor: "pointer", transition: "background 0.15s" }}
+ style={{ marginBottom: "8px", cursor: "pointer", transition: "background 0.15s" }}
  onMouseEnter={e => (e.currentTarget.style.background = "var(--bg-hover)")}
  onMouseLeave={e => (e.currentTarget.style.background = "")}
  role="button"
@@ -247,7 +247,7 @@ export function SpecPanel({ workspacePath, provider = "ollama" }: SpecPanelProps
  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
  <span style={{ fontSize: "16px" }}>{STATUS_ICONS[spec.status] ?? ""}</span>
  <span style={{ fontWeight: 600 }}>{spec.name.replace(/_/g, " ")}</span>
- <span style={{ marginLeft: "auto", padding: "2px 6px", borderRadius: "var(--radius-md)", fontSize: "var(--font-size-xs)", background: STATUS_COLORS[spec.status] + "33", color: STATUS_COLORS[spec.status] }}>
+ <span style={{ marginLeft: "auto", padding: "2px 8px", borderRadius: "var(--radius-md)", fontSize: "var(--font-size-xs)", background: STATUS_COLORS[spec.status] + "33", color: STATUS_COLORS[spec.status] }}>
  {spec.status}
  </span>
  </div>
@@ -283,11 +283,11 @@ export function SpecPanel({ workspacePath, provider = "ollama" }: SpecPanelProps
  {selectedSpec.status}
  </span>
  <div style={{ flex: 1 }} />
- <button
+ <button className="panel-btn"
  onClick={runSpec}
  disabled={loading || pendingCount === 0}
  style={{
- padding: "5px 12px", fontSize: "var(--font-size-sm)", background: pendingCount > 0 ? "var(--accent-color)" : "var(--bg-secondary)",
+ padding: "4px 12px", fontSize: "var(--font-size-sm)", background: pendingCount > 0 ? "var(--accent-color)" : "var(--bg-secondary)",
  color: pendingCount > 0 ? "var(--text-primary)" : "var(--text-secondary)", border: "none", borderRadius: "var(--radius-xs-plus)",
  cursor: pendingCount > 0 ? "pointer" : "not-allowed", opacity: loading ? 0.6 : 1,
  }}
@@ -299,7 +299,7 @@ export function SpecPanel({ workspacePath, provider = "ollama" }: SpecPanelProps
 
  {/* Requirements */}
  {selectedSpec.requirements && (
- <div style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: "10px 12px", borderLeft: "3px solid var(--accent-color)" }}>
+ <div style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: "12px 12px", borderLeft: "3px solid var(--accent-color)" }}>
  <div style={{ fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Requirements</div>
  <div style={{ fontSize: "var(--font-size-base)" }}>{selectedSpec.requirements}</div>
  </div>
@@ -321,8 +321,8 @@ export function SpecPanel({ workspacePath, provider = "ollama" }: SpecPanelProps
  key={task.id}
  onClick={() => toggleTask(task.id)}
  style={{
- display: "flex", alignItems: "flex-start", gap: "10px",
- padding: "8px 10px", marginBottom: "4px", borderRadius: "5px",
+ display: "flex", alignItems: "flex-start", gap: "12px",
+ padding: "8px 12px", marginBottom: "4px", borderRadius: "5px",
  background: task.done ? "var(--bg-secondary)" : "transparent",
  border: "1px solid var(--border-color)",
  cursor: "pointer", opacity: task.done ? 0.7 : 1,
@@ -349,7 +349,7 @@ export function SpecPanel({ workspacePath, provider = "ollama" }: SpecPanelProps
 
  {/* Body (collapsible) */}
  {selectedSpec.body && (
- <details style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: "10px 12px" }}>
+ <details style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: "12px 12px" }}>
  <summary style={{ fontSize: "var(--font-size-base)", fontWeight: 600, cursor: "pointer", color: "var(--text-secondary)" }}>
  Full Spec Document
  </summary>

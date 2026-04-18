@@ -98,18 +98,18 @@ export function DesktopAgentPanel() {
               <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
                 <div>
                   <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>X</span>
-                  <input type="number" value={mouseX} onChange={e => setMouseX(+e.target.value)} style={{ ...mono, width: 60, padding: "3px 6px", border: "1px solid var(--border-color)", borderRadius: 3, background: "var(--bg-tertiary)", color: "var(--text-primary)", marginLeft: 4 }} />
+                  <input type="number" value={mouseX} onChange={e => setMouseX(+e.target.value)} style={{ ...mono, width: 60, padding: "3px 8px", border: "1px solid var(--border-color)", borderRadius: 3, background: "var(--bg-tertiary)", color: "var(--text-primary)", marginLeft: 4 }} />
                 </div>
                 <div>
                   <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Y</span>
-                  <input type="number" value={mouseY} onChange={e => setMouseY(+e.target.value)} style={{ ...mono, width: 60, padding: "3px 6px", border: "1px solid var(--border-color)", borderRadius: 3, background: "var(--bg-tertiary)", color: "var(--text-primary)", marginLeft: 4 }} />
+                  <input type="number" value={mouseY} onChange={e => setMouseY(+e.target.value)} style={{ ...mono, width: 60, padding: "3px 8px", border: "1px solid var(--border-color)", borderRadius: 3, background: "var(--bg-tertiary)", color: "var(--text-primary)", marginLeft: 4 }} />
                 </div>
               </div>
               <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                <button className="panel-btn panel-btn-primary" style={{ fontSize: "var(--font-size-sm)", padding: "4px 10px" }} onClick={() => runAction("mouse_move", { x: mouseX, y: mouseY })}>Move</button>
-                <button className="panel-btn panel-btn-primary" style={{ fontSize: "var(--font-size-sm)", padding: "4px 10px" }} onClick={() => runAction("mouse_click", { x: mouseX, y: mouseY })}>Click</button>
-                <button className="panel-btn panel-btn-primary" style={{ fontSize: "var(--font-size-sm)", padding: "4px 10px" }} onClick={() => runAction("mouse_double_click", { x: mouseX, y: mouseY })}>Double-Click</button>
-                <button className="panel-btn panel-btn-primary" style={{ fontSize: "var(--font-size-sm)", padding: "4px 10px" }} onClick={() => runAction("mouse_right_click", { x: mouseX, y: mouseY })}>Right-Click</button>
+                <button className="panel-btn panel-btn-primary" style={{ fontSize: "var(--font-size-sm)", padding: "4px 12px" }} onClick={() => runAction("mouse_move", { x: mouseX, y: mouseY })}>Move</button>
+                <button className="panel-btn panel-btn-primary" style={{ fontSize: "var(--font-size-sm)", padding: "4px 12px" }} onClick={() => runAction("mouse_click", { x: mouseX, y: mouseY })}>Click</button>
+                <button className="panel-btn panel-btn-primary" style={{ fontSize: "var(--font-size-sm)", padding: "4px 12px" }} onClick={() => runAction("mouse_double_click", { x: mouseX, y: mouseY })}>Double-Click</button>
+                <button className="panel-btn panel-btn-primary" style={{ fontSize: "var(--font-size-sm)", padding: "4px 12px" }} onClick={() => runAction("mouse_right_click", { x: mouseX, y: mouseY })}>Right-Click</button>
               </div>
             </div>
 
@@ -119,12 +119,12 @@ export function DesktopAgentPanel() {
                 <input className="panel-mono" style={{ width: "100%", padding: "4px 8px", border: "1px solid var(--border-color)", borderRadius: 3, background: "var(--bg-tertiary)", color: "var(--text-primary)", boxSizing: "border-box" }} value={typeText} onChange={e => setTypeText(e.target.value)} placeholder="Text to type..." />
               </div>
               <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
-                <button className="panel-btn panel-btn-primary" style={{ fontSize: "var(--font-size-sm)", padding: "4px 10px" }} onClick={() => runAction("type_text", { text: typeText })}>Type Text</button>
+                <button className="panel-btn panel-btn-primary" style={{ fontSize: "var(--font-size-sm)", padding: "4px 12px" }} onClick={() => runAction("type_text", { text: typeText })}>Type Text</button>
               </div>
               <div style={{ marginBottom: 4 }}>
                 <input className="panel-mono" style={{ width: "100%", padding: "4px 8px", border: "1px solid var(--border-color)", borderRadius: 3, background: "var(--bg-tertiary)", color: "var(--text-primary)", boxSizing: "border-box" }} value={keyCombo} onChange={e => setKeyCombo(e.target.value)} placeholder="e.g., ctrl+shift+p" />
               </div>
-              <button className="panel-btn panel-btn-primary" style={{ fontSize: "var(--font-size-sm)", padding: "4px 10px" }} onClick={() => runAction("key_combo", { combo: keyCombo })}>Press Key Combo</button>
+              <button className="panel-btn panel-btn-primary" style={{ fontSize: "var(--font-size-sm)", padding: "4px 12px" }} onClick={() => runAction("key_combo", { combo: keyCombo })}>Press Key Combo</button>
             </div>
           </div>
 
@@ -132,7 +132,7 @@ export function DesktopAgentPanel() {
             <div style={{ fontSize: "var(--font-size-md)", fontWeight: 600, marginBottom: 8 }}>Quick Actions</div>
             <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
               {["screenshot", "get_mouse_position", "get_screen_size", "get_active_window"].map(a => (
-                <button key={a} onClick={() => runAction(a, {})} className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-sm)", padding: "4px 10px" }}>
+                <button key={a} onClick={() => runAction(a, {})} className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-sm)", padding: "4px 12px" }}>
                   {a.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
                 </button>
               ))}
@@ -157,7 +157,7 @@ export function DesktopAgentPanel() {
                 <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>{w.app}</div>
               </div>
               <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                {w.focused && <span style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px", borderRadius: 3, background: "var(--success-bg)", color: "var(--accent-green)" }}>Focused</span>}
+                {w.focused && <span style={{ fontSize: "var(--font-size-xs)", padding: "1px 8px", borderRadius: 3, background: "var(--success-bg)", color: "var(--accent-green)" }}>Focused</span>}
                 <button className="panel-btn panel-btn-primary" style={{ fontSize: "var(--font-size-xs)", padding: "3px 8px" }} onClick={() => runAction("focus_window", { id: w.id, app: w.app })}>Focus</button>
               </div>
             </div>

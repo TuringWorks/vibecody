@@ -249,7 +249,7 @@ export function DesignCanvasPanel() {
         <button className={`panel-tab ${tab === "code" ? "active" : ""}`} onClick={() => setTab("code")}>Code</button>
         <button className={`panel-tab ${tab === "ai" ? "active" : ""}`} onClick={() => setTab("ai")}>AI Generate</button>
         <button className={`panel-tab ${tab === "export" ? "active" : ""}`} onClick={() => setTab("export")}>Export</button>
-        <span style={{ marginLeft: "auto", padding: "6px 12px", fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
+        <span style={{ marginLeft: "auto", padding: "8px 12px", fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
           {components.length} components
         </span>
       </div>
@@ -279,14 +279,14 @@ export function DesignCanvasPanel() {
                   onDragStart={() => setDragType(item.type)}
                   onDragEnd={() => setDragType(null)}
                 >
-                  <span style={{ marginRight: "6px", fontFamily: "var(--font-mono)" }}>{item.icon}</span>
+                  <span style={{ marginRight: "8px", fontFamily: "var(--font-mono)" }}>{item.icon}</span>
                   {item.label}
                 </div>
               ))}
             </div>
 
             {/* Canvas area */}
-            <div
+            <div role="button" tabIndex={0}
               ref={canvasRef}
               style={{
                 flex: 1,
@@ -307,7 +307,7 @@ export function DesignCanvasPanel() {
               onClick={() => setSelectedId(null)}
             >
               {components.map((comp) => (
-                <div
+                <div role="button" tabIndex={0}
                   key={comp.id}
                   style={{
                     position: "absolute",
@@ -462,7 +462,7 @@ export function DesignCanvasPanel() {
               style={{
                 flex: 1,
                 maxHeight: "200px",
-                padding: "10px",
+                padding: "12px",
                 fontSize: "var(--font-size-md)",
                 background: "var(--bg-secondary)",
                 color: "var(--text-primary)",

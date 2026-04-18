@@ -299,6 +299,54 @@ Then update `useModelRegistry.ts` as described above.
 
 ---
 
+## Design System — mandatory for every panel, tab, and UI feature
+
+VibeUI ships its own token-based design system at **`vibeui/design-system/`**. It is **not optional**. Every new panel, tab, dialog, modal, popover, or in-line widget that you add to `vibeui/src/components/` must consume tokens and CSS classes from there. Reviewers will reject a PR that introduces hard-coded colors, ad-hoc spacing, reinvented toast/empty/loading states, or `<div onClick>` where a `<button>` belongs.
+
+### Read first
+
+| File | Read when |
+|---|---|
+| [`vibeui/design-system/README.md`](./vibeui/design-system/README.md) | Always. Has the 10 rules every panel must follow + minimal panel template + color/spacing/font quick-pick. |
+| `vibeui/design-system/tokens.css` | Looking up a CSS variable. |
+| `vibeui/design-system/foundations/{color,typography,spacing,elevation,motion}.md` | Picking semantic colors / sizing / shadows. |
+| `vibeui/design-system/components/{panel,button,input,card,badge-tag,progress,table,tabs}.md` | Implementing a primitive. Use the documented `panel-*` class — do not roll your own. |
+| `vibeui/design-system/patterns/{data-states,forms}.md` | Loading/empty/error states or any form. |
+
+### Hard rules
+
+1. **Never write hex colors** (`#fff`, `#4caf50`, etc.) — always `var(--text-primary)`, `var(--success-color)`, etc. The only legal exception is icon assets that already carry `currentColor`.
+2. **Never write a panel without the `panel-container` → `panel-header` → `panel-body` (→ `panel-footer`) skeleton.** The minimal template at the bottom of `vibeui/design-system/README.md` is the starting point.
+3. **Use `panel-btn panel-btn-{primary|secondary|ghost|…}`** for buttons. Inline-style buttons get rejected.
+4. **Loading/empty/error are `panel-loading` / `panel-empty` / `panel-error`** — do not invent your own status banner with `setStatusMsg + setTimeout`. Use `useToast()` from `src/hooks/useToast.ts` for transient feedback.
+5. **Tabs use `panel-tab-bar` + `panel-tab`** with `role="tablist"` / `role="tab"` / `aria-selected`.
+6. **Cards use `panel-card`.** Tags use `panel-tag panel-tag-{intent}`. Progress uses `progress-bar` + `progress-bar-fill` + `progress-bar-{color}`.
+7. **Spacing is multiples of 4px** sourced from `--space-{1..8}`. Don't invent `padding: "13px 17px"`.
+8. **Interactive elements are `<button>`/`<a>`** — never `<div onClick>`. Add `aria-label` when the button is icon-only.
+9. **Persist UI state** (active tab, expanded panels, last-used inputs) via the `panel_settings_*` Tauri commands, not `localStorage`. Sensitive values (API keys, tokens) must use `profile_api_key_*` (see [Secure Settings Storage](#secure-settings-storage)).
+10. **Run the existing visual smoke** before claiming a panel is done: open it in `npm run tauri:dev`, exercise the loading/empty/error paths, verify dark + light themes.
+
+### Test discipline (red/green TDD + BDD)
+
+Panels live or die on cross-component invariants — keyboard nav, error handling, focus management. Use the colocated `__tests__/` folder:
+
+- **`*.test.tsx`** — focused unit tests against React Testing Library. Mock `@tauri-apps/api/core` `invoke`.
+- **`*.bdd.test.tsx`** — scenario-style tests with a header comment listing the BDD scenarios (see `AgentPanel.bdd.test.tsx`, `BackgroundJobsPanel.bdd.test.tsx`).
+
+The workflow when adding a panel feature:
+
+1. **Red.** Add the failing scenario to `*.bdd.test.tsx` first (or create one). Run `npm test --prefix vibeui -- --run <PanelName>` and confirm it fails for the *expected* reason.
+2. **Green.** Implement the smallest change that passes. Use the design-system classes — do not stub with inline styles "for now" intending to refactor later.
+3. **Refactor.** Extract repeated markup into a shared component in `src/components/composite/` or a sub-component file.
+
+Backend changes that span the daemon use the cucumber-style feature files in `vibecli/vibecli-cli/tests/features/*.feature` paired with a `*_bdd.rs` step file. Frontend-only changes stay in `*.bdd.test.tsx`.
+
+### When you are unsure
+
+Open an existing well-formed panel as your reference: `SettingsPanel.tsx`, `CostPanel.tsx`, `BackgroundJobsPanel.tsx`, `DiffReviewPanel.tsx`, `DesignHubPanel.tsx`, `DesignAnnotationsPanel.tsx`, or `DesignImportPanel.tsx` (the design-panel cluster was migrated to the design system in April 2026 — see `vibeui/src/components/__tests__/DesignHubPanel.bdd.test.tsx` for the BDD scenarios that lock in the contract). **Do not** copy from `DesignMode.tsx` — it still predates the design system and is being migrated.
+
+---
+
 ## Codebase Layout
 
 ```

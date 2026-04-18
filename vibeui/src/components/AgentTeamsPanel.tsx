@@ -216,12 +216,12 @@ const AgentTeamsPanel: React.FC = () => {
           display: "flex", alignItems: "center", gap: 8,
         }}>
           <span style={{ flex: 1 }}>{error}</span>
-          <button onClick={() => setError(null)} className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-xs)", padding: "2px 6px" }}>Dismiss</button>
+          <button onClick={() => setError(null)} className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px" }}>Dismiss</button>
         </div>
       )}
 
       {/* Content area */}
-      <div className="panel-body" style={{ padding: "10px 12px" }}>
+      <div className="panel-body" style={{ padding: "12px 12px" }}>
 
         {/* TEAM TAB */}
         {tab === "team" && !team && (
@@ -238,7 +238,7 @@ const AgentTeamsPanel: React.FC = () => {
                 onChange={(e) => setGoal(e.target.value)}
                 rows={4}
                 placeholder="e.g., Refactor the authentication module to use JWT tokens with refresh rotation..."
-                style={{ padding: "6px 10px", fontSize: "var(--font-size-base)", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)", outline: "none", resize: "vertical", fontFamily: "inherit", width: "100%", boxSizing: "border-box" }}
+                style={{ padding: "8px 12px", fontSize: "var(--font-size-base)", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)", outline: "none", resize: "vertical", fontFamily: "inherit", width: "100%", boxSizing: "border-box" }}
               />
             </div>
             <div>
@@ -269,7 +269,7 @@ const AgentTeamsPanel: React.FC = () => {
         {tab === "team" && team && (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {/* Goal */}
-            <div style={{ padding: "10px 12px", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)" }}>
+            <div style={{ padding: "12px 12px", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)" }}>
               <div style={{ fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-secondary)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Goal</div>
               <div style={{ fontSize: "var(--font-size-base)" }}>{team.goal}</div>
             </div>
@@ -302,7 +302,7 @@ const AgentTeamsPanel: React.FC = () => {
                   const inProgress = agentTasks.filter(t => t.status === "InProgress").length;
                   return (
                     <div key={id} style={{
-                      padding: "6px 10px", borderRadius: "var(--radius-sm)", minWidth: 120,
+                      padding: "8px 12px", borderRadius: "var(--radius-sm)", minWidth: 120,
                       background: isLead ? "color-mix(in srgb, var(--accent-blue) 10%, transparent)" : "var(--bg-secondary)",
                       border: `1px solid ${isLead ? "var(--accent-color)" : "var(--border-color)"}`,
                     }}>
@@ -338,14 +338,14 @@ const AgentTeamsPanel: React.FC = () => {
             )}
             {team.tasks.map((t) => (
               <div key={t.id} style={{
-                padding: "8px 10px", borderRadius: "var(--radius-sm)",
+                padding: "8px 12px", borderRadius: "var(--radius-sm)",
                 border: "1px solid var(--border-color)",
                 background: "var(--bg-secondary)",
                 borderLeft: `3px solid ${statusColor[t.status] ?? "var(--text-secondary)"}`,
               }}>
                 <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}>
                   <span style={{
-                    fontSize: 9, padding: "1px 6px", borderRadius: 3, fontWeight: 700,
+                    fontSize: 9, padding: "1px 8px", borderRadius: 3, fontWeight: 700,
                     background: `${statusColor[t.status] ?? "var(--text-secondary)"}22`,
                     color: statusColor[t.status] ?? "var(--text-secondary)",
                   }}>
@@ -358,7 +358,7 @@ const AgentTeamsPanel: React.FC = () => {
                 <div style={{ fontSize: "var(--font-size-base)", marginBottom: t.result ? 6 : 0 }}>{t.description}</div>
                 {t.generated_files?.length > 0 && (
                   <div style={{
-                    fontSize: "var(--font-size-sm)", marginTop: 4, padding: "6px 8px",
+                    fontSize: "var(--font-size-sm)", marginTop: 4, padding: "8px 8px",
                     background: "rgba(52,211,153,0.08)", borderRadius: "var(--radius-xs-plus)",
                     border: "1px solid rgba(52,211,153,0.2)",
                   }}>
@@ -379,7 +379,7 @@ const AgentTeamsPanel: React.FC = () => {
                     </summary>
                     <div style={{
                       fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 4,
-                      padding: "6px 8px", background: "var(--bg-primary)", borderRadius: "var(--radius-xs-plus)",
+                      padding: "8px 8px", background: "var(--bg-primary)", borderRadius: "var(--radius-xs-plus)",
                       lineHeight: 1.4, whiteSpace: "pre-wrap", maxHeight: 300, overflowY: "auto",
                     }}>
                       {t.result}
@@ -401,13 +401,13 @@ const AgentTeamsPanel: React.FC = () => {
         {tab === "messages" && team && (
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             {team.messages.length === 0 && (
-              <div style={{ textAlign: "center", padding: 30, color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>
+              <div className="panel-empty" style={{ textAlign: "center", padding: 30, color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>
                 No messages yet. Agents will communicate as they work.
               </div>
             )}
             {team.messages.map((m, i) => (
               <div key={i} style={{
-                padding: "6px 10px", borderRadius: "var(--radius-xs-plus)",
+                padding: "8px 12px", borderRadius: "var(--radius-xs-plus)",
                 borderLeft: `3px solid ${msgTypeColor[m.msg_type] ?? "var(--text-secondary)"}`,
                 background: "var(--bg-secondary)",
               }}>
@@ -441,13 +441,13 @@ const AgentTeamsPanel: React.FC = () => {
             )}
             {history.map((h) => (
               <div key={h.id} style={{
-                padding: "8px 10px", borderRadius: "var(--radius-sm)",
+                padding: "8px 12px", borderRadius: "var(--radius-sm)",
                 border: "1px solid var(--border-color)",
                 background: "var(--bg-secondary)",
               }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                   <span style={{
-                    fontSize: 9, padding: "1px 6px", borderRadius: 3, fontWeight: 700,
+                    fontSize: 9, padding: "1px 8px", borderRadius: 3, fontWeight: 700,
                     background: (statusBadge[h.status] ?? statusBadge.complete).bg,
                     color: (statusBadge[h.status] ?? statusBadge.complete).color,
                   }}>
@@ -487,7 +487,7 @@ const AgentTeamsPanel: React.FC = () => {
             onChange={(e) => setUserMsg(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
             placeholder="Send a message to the team..."
-            style={{ padding: "6px 10px", fontSize: "var(--font-size-base)", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)", outline: "none", flex: 1 }}
+            style={{ padding: "8px 12px", fontSize: "var(--font-size-base)", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)", outline: "none", flex: 1 }}
           />
           <button onClick={handleSendMessage} disabled={!userMsg.trim()} className="panel-btn panel-btn-primary" style={{
             opacity: !userMsg.trim() ? 0.5 : 1,

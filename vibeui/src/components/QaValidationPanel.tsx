@@ -89,7 +89,7 @@ export function QaValidationPanel() {
 
       <div className="panel-body">
         {loading && (
-          <div style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-base)", textAlign: "center", marginTop: 32 }}>Loading...</div>
+          <div className="panel-loading" style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-base)", textAlign: "center", marginTop: 32 }}>Loading...</div>
         )}
 
         {!loading && tab === "validate" && (
@@ -163,12 +163,12 @@ export function QaValidationPanel() {
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
                   <thead>
                     <tr style={{ background: "var(--bg-secondary)" }}>
-                      <th style={{ padding: "6px 8px", textAlign: "left", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>Timestamp</th>
-                      <th style={{ padding: "6px 8px", textAlign: "center", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>Status</th>
-                      <th style={{ padding: "6px 8px", textAlign: "center", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>Passed</th>
-                      <th style={{ padding: "6px 8px", textAlign: "center", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>Failed</th>
-                      <th style={{ padding: "6px 8px", textAlign: "center", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>Total</th>
-                      <th style={{ padding: "6px 8px", textAlign: "center", borderBottom: "1px solid var(--border)", fontWeight: 600, width: 60 }}></th>
+                      <th style={{ padding: "8px 8px", textAlign: "left", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>Timestamp</th>
+                      <th style={{ padding: "8px 8px", textAlign: "center", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>Status</th>
+                      <th style={{ padding: "8px 8px", textAlign: "center", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>Passed</th>
+                      <th style={{ padding: "8px 8px", textAlign: "center", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>Failed</th>
+                      <th style={{ padding: "8px 8px", textAlign: "center", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>Total</th>
+                      <th style={{ padding: "8px 8px", textAlign: "center", borderBottom: "1px solid var(--border)", fontWeight: 600, width: 60 }}></th>
                     </tr>
                   </thead>
                   <tbody>

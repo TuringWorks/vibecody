@@ -160,7 +160,7 @@ const GhActionsPanel: React.FC = () => {
               <h4 style={{ margin: "0 0 12px" }}>Workflow Configuration</h4>
               <div style={{ marginBottom: "12px" }}>
                 <label className="panel-label">Workflow Name</label>
-                <input style={{ padding: "6px 10px", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", backgroundColor: "var(--bg-secondary)", color: "var(--text-primary)", boxSizing: "border-box", width: "100%" }} value={workflowName} onChange={e => setWorkflowName(e.target.value)} />
+                <input style={{ padding: "8px 12px", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", backgroundColor: "var(--bg-secondary)", color: "var(--text-primary)", boxSizing: "border-box", width: "100%" }} value={workflowName} onChange={e => setWorkflowName(e.target.value)} />
               </div>
               <div style={{ marginBottom: "12px" }}>
                 <label className="panel-label">Triggers</label>
@@ -175,7 +175,7 @@ const GhActionsPanel: React.FC = () => {
               </div>
               <div style={{ marginBottom: "12px" }}>
                 <label className="panel-label">Jobs (comma-separated)</label>
-                <input style={{ padding: "6px 10px", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", backgroundColor: "var(--bg-secondary)", color: "var(--text-primary)", boxSizing: "border-box", width: "100%" }} value={jobs} onChange={e => setJobs(e.target.value)} />
+                <input style={{ padding: "8px 12px", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", backgroundColor: "var(--bg-secondary)", color: "var(--text-primary)", boxSizing: "border-box", width: "100%" }} value={jobs} onChange={e => setJobs(e.target.value)} />
               </div>
               <div style={{ display: "flex", gap: "8px" }}>
                 <button className="panel-btn panel-btn-primary" onClick={generateYaml}>Generate YAML</button>
@@ -225,7 +225,7 @@ const GhActionsPanel: React.FC = () => {
               <div key={i} className="panel-card" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div>
                   <strong>{s.name}</strong>
-                  {s.required && <span style={{ marginLeft: "6px", fontSize: "var(--font-size-sm)", color: "var(--error-color)" }}>required</span>}
+                  {s.required && <span style={{ marginLeft: "8px", fontSize: "var(--font-size-sm)", color: "var(--error-color)" }}>required</span>}
                   <div style={{ opacity: 0.7, fontSize: "var(--font-size-base)", marginTop: "2px" }}>{s.description}</div>
                 </div>
               </div>
@@ -233,8 +233,8 @@ const GhActionsPanel: React.FC = () => {
             <div className="panel-card" style={{ marginTop: "16px" }}>
               <h4 style={{ margin: "0 0 8px" }}>Add Secret</h4>
               <div style={{ display: "flex", gap: "8px" }}>
-                <input style={{ flex: 1, padding: "6px 10px", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", backgroundColor: "var(--bg-secondary)", color: "var(--text-primary)", boxSizing: "border-box" }} placeholder="SECRET_NAME" value={newSecretName} onChange={e => setNewSecretName(e.target.value)} />
-                <input style={{ flex: 2, padding: "6px 10px", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", backgroundColor: "var(--bg-secondary)", color: "var(--text-primary)", boxSizing: "border-box" }} placeholder="Description" value={newSecretDesc} onChange={e => setNewSecretDesc(e.target.value)} />
+                <input style={{ flex: 1, padding: "8px 12px", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", backgroundColor: "var(--bg-secondary)", color: "var(--text-primary)", boxSizing: "border-box" }} placeholder="SECRET_NAME" value={newSecretName} onChange={e => setNewSecretName(e.target.value)} />
+                <input style={{ flex: 2, padding: "8px 12px", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", backgroundColor: "var(--bg-secondary)", color: "var(--text-primary)", boxSizing: "border-box" }} placeholder="Description" value={newSecretDesc} onChange={e => setNewSecretDesc(e.target.value)} />
                 <button className="panel-btn panel-btn-primary" onClick={addSecret}>Add</button>
               </div>
             </div>
@@ -256,7 +256,7 @@ const GhActionsPanel: React.FC = () => {
                 </div>
                 <button
                   className="panel-btn panel-btn-secondary"
-                  style={{ fontSize: "var(--font-size-sm)", padding: "4px 10px" }}
+                  style={{ fontSize: "var(--font-size-sm)", padding: "4px 12px" }}
                   onClick={() => { setYamlPreview(h.yaml || ""); setWorkflowName(h.name); setActiveTab("workflows"); }}
                 >
                   View YAML

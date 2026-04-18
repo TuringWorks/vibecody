@@ -164,7 +164,7 @@ const CloudAutofixPanel: React.FC = () => {
       <h3 style={{ margin: "0 0 12px" }}>Cloud Autofix</h3>
       <div style={tabBar}>
         {["pipeline", "fixes", "stats"].map(t => (
-          <button key={t} style={tab(activeTab === t)} onClick={() => setActiveTab(t)}>
+          <button className="panel-btn" key={t} style={tab(activeTab === t)} onClick={() => setActiveTab(t)}>
             {t.charAt(0).toUpperCase() + t.slice(1)}
           </button>
         ))}
@@ -176,7 +176,7 @@ const CloudAutofixPanel: React.FC = () => {
             <h4 style={{ margin: "0 0 12px" }}>Analyze Pull Request</h4>
             <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
               <input style={{ ...input, flex: 1 }} placeholder="PR number (e.g., 123)" value={prNumber} onChange={e => setPrNumber(e.target.value)} />
-              <button style={btn} onClick={handleAnalyze} disabled={analyzing}>
+              <button className="panel-btn" style={btn} onClick={handleAnalyze} disabled={analyzing}>
                 {analyzing ? "Analyzing..." : "Analyze"}
               </button>
             </div>
@@ -200,7 +200,7 @@ const CloudAutofixPanel: React.FC = () => {
               </div>
             </div>
             <div style={{ marginTop: "12px", display: "flex", justifyContent: "flex-end" }}>
-              <button style={btn} onClick={handleSaveConfig}>Save Config</button>
+              <button className="panel-btn" style={btn} onClick={handleSaveConfig}>Save Config</button>
             </div>
           </div>
         </div>
@@ -234,9 +234,9 @@ const CloudAutofixPanel: React.FC = () => {
                 <span style={{ opacity: 0.6 }}>{f.filesChanged} file{f.filesChanged > 1 ? "s" : ""}</span>
               </div>
               {f.status === "pending" && (
-                <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end" }}>
-                  <button style={{ ...btn, backgroundColor: "var(--error-color)" }} onClick={() => handleReject(f.id)}>Reject</button>
-                  <button style={{ ...btn, backgroundColor: "var(--success-color)" }} onClick={() => handleMerge(f.id)}>Merge</button>
+                <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+                  <button className="panel-btn" style={{ ...btn, backgroundColor: "var(--error-color)" }} onClick={() => handleReject(f.id)}>Reject</button>
+                  <button className="panel-btn" style={{ ...btn, backgroundColor: "var(--success-color)" }} onClick={() => handleMerge(f.id)}>Merge</button>
                 </div>
               )}
             </div>
@@ -273,7 +273,7 @@ const CloudAutofixPanel: React.FC = () => {
             <h4 style={{ margin: "0 0 8px" }}>Fix Strategy</h4>
             <div style={{ display: "flex", gap: "8px" }}>
               {["Direct", "Minimal", "Comprehensive"].map(s => (
-                <button key={s} style={{ ...btn, backgroundColor: strategy === s ? "var(--accent-color)" : "var(--bg-secondary)", color: strategy === s ? "white" : "var(--text-primary)" }} onClick={() => setStrategy(s)}>
+                <button className="panel-btn" key={s} style={{ ...btn, backgroundColor: strategy === s ? "var(--accent-color)" : "var(--bg-secondary)", color: strategy === s ? "white" : "var(--text-primary)" }} onClick={() => setStrategy(s)}>
                   {s}
                 </button>
               ))}

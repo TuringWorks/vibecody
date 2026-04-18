@@ -237,7 +237,7 @@ export function VibeSqlPanel({ provider }: { workspacePath: string | null; provi
 
   const tabBtn = (id: string, lbl: string, disabled = false) => (
     <button key={id} disabled={disabled} onClick={() => !disabled && setTab(id as typeof tab)} style={{
-      padding: "5px 12px", fontSize: "var(--font-size-sm)", fontWeight: tab === id ? 600 : 400, cursor: disabled ? "not-allowed" : "pointer",
+      padding: "4px 12px", fontSize: "var(--font-size-sm)", fontWeight: tab === id ? 600 : 400, cursor: disabled ? "not-allowed" : "pointer",
       background: tab === id ? "var(--accent-color)" : "transparent",
       color: tab === id ? "var(--btn-primary-fg, #fff)" : disabled ? "var(--text-secondary)" : "var(--text-primary)",
       border: `1px solid ${tab === id ? "var(--accent-color)" : "var(--border-color)"}`,
@@ -348,7 +348,7 @@ export function VibeSqlPanel({ provider }: { workspacePath: string | null; provi
   const selectedTableInfo = tables.find(t => t.name === selectedTable);
 
   const renderBrowser = () => (
-    <div style={{ display: "flex", gap: 10, height: "100%", minHeight: 300 }}>
+    <div style={{ display: "flex", gap: 10, flex: 1, minHeight: 300 }}>
       {/* Table list */}
       <div style={{ width: 180, flexShrink: 0, borderRight: "1px solid var(--border-color)", paddingRight: 8, overflowY: "auto" }}>
         <div className="panel-label" style={{ marginBottom: 6 }}>Tables ({tables.length})</div>
@@ -356,7 +356,7 @@ export function VibeSqlPanel({ provider }: { workspacePath: string | null; provi
           <div key={t.name} role="button" tabIndex={0}
             onClick={() => setSelectedTable(t.name)} onKeyDown={e => e.key === "Enter" && setSelectedTable(t.name)}
             style={{
-              padding: "6px 8px", borderRadius: "var(--radius-sm)", cursor: "pointer", marginBottom: 2, fontSize: "var(--font-size-base)",
+              padding: "8px 8px", borderRadius: "var(--radius-sm)", cursor: "pointer", marginBottom: 2, fontSize: "var(--font-size-base)",
               background: selectedTable === t.name ? "var(--accent-color)" : "transparent",
               color: selectedTable === t.name ? "var(--btn-primary-fg, #fff)" : "var(--text-primary)",
             }}>
@@ -462,7 +462,7 @@ export function VibeSqlPanel({ provider }: { workspacePath: string | null; provi
                 <thead>
                   <tr style={{ background: "var(--bg-tertiary)" }}>
                     {queryResult.columns.map(c => (
-                      <th key={c} style={{ textAlign: "left", padding: "6px 8px", fontWeight: 600, borderBottom: "1px solid var(--border-color)", whiteSpace: "nowrap" }}>{c}</th>
+                      <th key={c} style={{ textAlign: "left", padding: "8px 8px", fontWeight: 600, borderBottom: "1px solid var(--border-color)", whiteSpace: "nowrap" }}>{c}</th>
                     ))}
                   </tr>
                 </thead>

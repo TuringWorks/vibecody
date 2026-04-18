@@ -114,7 +114,7 @@ function ResolutionBadge({ ruleId, mode, onChange }: { ruleId: string; mode: Res
               key={m}
               onClick={() => { onChange(ruleId, m); setOpen(false); }}
               style={{
-                display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px',
+                display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px',
                 background: m === mode ? RESOLUTION_MODE_BG[m] : 'transparent',
                 color: RESOLUTION_MODE_COLORS[m], border: 'none', cursor: 'pointer', fontSize: "var(--font-size-base)",
               }}
@@ -333,7 +333,7 @@ const AutomationsPanel: React.FC = () => {
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
                 <span style={{
-                  display: 'inline-block', padding: '2px 6px', borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-sm)",
+                  display: 'inline-block', padding: '2px 8px', borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-sm)",
                   fontWeight: 700, background: 'var(--accent-color)', color: 'var(--text-primary)',
                 }}>{triggerIcons[rule.trigger]}</span>
                 <strong>{rule.name}</strong>
@@ -379,7 +379,7 @@ const AutomationsPanel: React.FC = () => {
       {!loading && tab === 'tasks' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {tasks.length === 0 && (
-            <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-secondary)' }}>
+            <div className="panel-empty" style={{ textAlign: 'center', padding: 24, color: 'var(--text-secondary)' }}>
               No tasks yet. Tasks appear here when automation rules fire.
             </div>
           )}
@@ -390,7 +390,7 @@ const AutomationsPanel: React.FC = () => {
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                 <span style={{
-                  fontSize: "var(--font-size-sm)", padding: '1px 6px', borderRadius: 3,
+                  fontSize: "var(--font-size-sm)", padding: '1px 8px', borderRadius: 3,
                   background: statusColors[task.status], color: 'var(--text-primary)', fontWeight: 600,
                 }}>{task.status}</span>
                 <span style={{ fontSize: "var(--font-size-base)", fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>{task.taskId}</span>

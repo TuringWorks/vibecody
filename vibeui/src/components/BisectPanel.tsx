@@ -173,7 +173,7 @@ export function BisectPanel({ workspacePath, provider }: BisectPanelProps) {
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {/* Current commit */}
             <div style={{
-              padding: "8px 10px", borderRadius: "var(--radius-sm)",
+              padding: "8px 12px", borderRadius: "var(--radius-sm)",
               background: "var(--bg-primary)", border: "1px solid var(--border-color)",
             }}>
               <div style={{ fontSize: "var(--font-size-xs)", fontWeight: 600, opacity: 0.6, marginBottom: 4 }}>Current Commit</div>
@@ -254,7 +254,7 @@ export function BisectPanel({ workspacePath, provider }: BisectPanelProps) {
         {view === "done" && current && (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <div style={{
-              padding: "12px 14px", borderRadius: "var(--radius-sm)", textAlign: "center",
+              padding: "12px 16px", borderRadius: "var(--radius-sm)", textAlign: "center",
               background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", border: "1px solid rgba(243,139,168,0.3)",
             }}>
               <div style={{ fontSize: "var(--font-size-md)", fontWeight: 700, color: "var(--text-danger)" }}>Culprit Found!</div>

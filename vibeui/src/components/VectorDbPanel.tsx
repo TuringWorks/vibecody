@@ -297,12 +297,12 @@ collection = client.create_collection(
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
                   <thead>
                     <tr style={{ background: "var(--bg-secondary)" }}>
-                      <th style={{ padding: "6px 8px", textAlign: "left", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>Name</th>
-                      <th style={{ padding: "6px 8px", textAlign: "center", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>Dim</th>
-                      <th style={{ padding: "6px 8px", textAlign: "center", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>Metric</th>
-                      <th style={{ padding: "6px 8px", textAlign: "center", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>Vectors</th>
-                      <th style={{ padding: "6px 8px", textAlign: "center", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>HNSW</th>
-                      <th style={{ padding: "6px 8px", textAlign: "center", borderBottom: "1px solid var(--border)", fontWeight: 600, width: 60 }}></th>
+                      <th style={{ padding: "8px 8px", textAlign: "left", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>Name</th>
+                      <th style={{ padding: "8px 8px", textAlign: "center", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>Dim</th>
+                      <th style={{ padding: "8px 8px", textAlign: "center", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>Metric</th>
+                      <th style={{ padding: "8px 8px", textAlign: "center", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>Vectors</th>
+                      <th style={{ padding: "8px 8px", textAlign: "center", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>HNSW</th>
+                      <th style={{ padding: "8px 8px", textAlign: "center", borderBottom: "1px solid var(--border)", fontWeight: 600, width: 60 }}></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -372,9 +372,9 @@ collection = client.create_collection(
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
                   <thead>
                     <tr style={{ background: "var(--bg-secondary)" }}>
-                      <th style={{ padding: "6px 8px", textAlign: "left", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>ID</th>
-                      <th style={{ padding: "6px 8px", textAlign: "center", borderBottom: "1px solid var(--border)", fontWeight: 600, width: 80 }}>Score</th>
-                      <th style={{ padding: "6px 8px", textAlign: "left", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>Payload</th>
+                      <th style={{ padding: "8px 8px", textAlign: "left", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>ID</th>
+                      <th style={{ padding: "8px 8px", textAlign: "center", borderBottom: "1px solid var(--border)", fontWeight: 600, width: 80 }}>Score</th>
+                      <th style={{ padding: "8px 8px", textAlign: "left", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>Payload</th>
                     </tr>
                   </thead>
                   <tbody>

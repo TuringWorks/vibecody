@@ -342,7 +342,7 @@ function ConnectionWizard({ workspacePath, onClose, onSaved, toast }: WizardProp
         {/* Header */}
         <div
           style={{
-            padding: "14px 20px",
+            padding: "16px 20px",
             borderBottom: "1px solid var(--border-color, #3a3a5c)",
             display: "flex",
             alignItems: "center",
@@ -352,7 +352,7 @@ function ConnectionWizard({ workspacePath, onClose, onSaved, toast }: WizardProp
           <h2 style={{ margin: 0, fontSize: "var(--font-size-xl)", fontWeight: 600, color: "var(--text-primary)" }}>
             {step === 1 ? "Select Database Type" : `Configure ${selectedDriver ? catalogEntry(selectedDriver).label : ""}`}
           </h2>
-          <button
+          <button className="panel-btn"
             onClick={onClose}
             aria-label="Close wizard"
             style={{
@@ -403,7 +403,7 @@ function ConnectionWizard({ workspacePath, onClose, onSaved, toast }: WizardProp
                           display: "flex",
                           alignItems: "center",
                           gap: 8,
-                          padding: "9px 12px",
+                          padding: "8px 12px",
                           background: "var(--bg-secondary, #2a2a3e)",
                           border: "1px solid var(--border-color, #3a3a5c)",
                           borderRadius: "var(--radius-sm)",
@@ -471,7 +471,7 @@ function ConnectionWizard({ workspacePath, onClose, onSaved, toast }: WizardProp
                               background: params.filepath === f.path ? "var(--bg-tertiary)" : "var(--bg-secondary)",
                               border: "1px solid var(--border-color)",
                               borderRadius: "var(--radius-xs-plus)",
-                              padding: "5px 10px",
+                              padding: "4px 12px",
                               fontSize: "var(--font-size-sm)",
                               color: "var(--text-primary)",
                               cursor: "pointer",
@@ -622,7 +622,7 @@ function ConnectionWizard({ workspacePath, onClose, onSaved, toast }: WizardProp
 
             {/* Test result banner */}
             {testStatus === "ok" && (
-              <div style={{ background: "rgba(34,197,94,0.15)", border: "1px solid #22c55e", borderRadius: "var(--radius-sm)", padding: "8px 12px", fontSize: "var(--font-size-base)", color: "var(--success-color)" }}>
+              <div style={{ background: "rgba(34,197,94,0.15)", border: "1px solid var(--success-color)", borderRadius: "var(--radius-sm)", padding: "8px 12px", fontSize: "var(--font-size-base)", color: "var(--success-color)" }}>
                 <Check size={12} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} /> {testMessage}
               </div>
             )}
@@ -720,12 +720,12 @@ function SchemaTree({ tables, selectedTable, onTableClick }: SchemaTreeProps) {
         const isSelected = selectedTable === tbl.name;
         return (
           <div key={tbl.name}>
-            <div
+            <div role="button" tabIndex={0}
               style={{
                 display: "flex",
                 alignItems: "center",
                 gap: 4,
-                padding: "4px 10px",
+                padding: "4px 12px",
                 background: isSelected ? "var(--bg-tertiary)" : "transparent",
                 cursor: "pointer",
                 fontSize: "var(--font-size-base)",
@@ -984,7 +984,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
       >
         <div
           style={{
-            padding: "10px 12px 8px",
+            padding: "12px 12px 8px",
             borderBottom: "1px solid var(--border-color)",
             fontSize: "var(--font-size-sm)",
             fontWeight: 700,
@@ -996,7 +996,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
           Connections
         </div>
 
-        <div style={{ flex: 1, overflowY: "auto", padding: "6px 4px" }}>
+        <div style={{ flex: 1, overflowY: "auto", padding: "8px 4px" }}>
           {!profilesLoaded && (
             <div style={{ padding: 12, display: "flex", justifyContent: "center" }}>
               <Loader2 size={14} style={{ animation: "spin 1s linear infinite", opacity: 0.5 }} />
@@ -1012,13 +1012,13 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
             const isActive = activeConn?.profile.id === p.id;
             const status: ConnectionStatus = isActive ? (activeConn?.status ?? "disconnected") : "disconnected";
             return (
-              <div
+              <div role="button" tabIndex={0}
                 key={p.id}
                 style={{
                   display: "flex",
                   alignItems: "center",
                   gap: 6,
-                  padding: "6px 8px",
+                  padding: "8px 8px",
                   borderRadius: 5,
                   background: isActive ? "var(--bg-tertiary)" : "transparent",
                   cursor: "pointer",
@@ -1094,7 +1094,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
       >
         <div
           style={{
-            padding: "10px 12px 8px",
+            padding: "12px 12px 8px",
             borderBottom: "1px solid var(--border-color)",
             display: "flex",
             alignItems: "center",
@@ -1127,7 +1127,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
             </div>
           )}
           {activeConn?.status === "error" && (
-            <div className="panel-error" style={{ margin: 8, fontSize: "var(--font-size-sm)", padding: "6px 10px" }} role="alert">
+            <div className="panel-error" style={{ margin: 8, fontSize: "var(--font-size-sm)", padding: "8px 12px" }} role="alert">
               Connection error. Click to retry.
             </div>
           )}
@@ -1152,7 +1152,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
         {/* NL query bar */}
         <div
           style={{
-            padding: "10px 12px 8px",
+            padding: "12px 12px 8px",
             borderBottom: "1px solid var(--border-color)",
             display: "flex",
             gap: 8,
@@ -1265,7 +1265,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
                         textAlign: "left",
                         background: "none",
                         border: "none",
-                        padding: "7px 12px",
+                        padding: "8px 12px",
                         fontSize: "var(--font-size-sm)",
                         fontFamily: "var(--font-mono)",
                         color: "var(--text-primary)",
@@ -1329,7 +1329,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
                 flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
-                height: "100%",
+                flex: 1, minHeight: 0,
                 opacity: 0.5,
                 gap: 12,
               }}
@@ -1417,7 +1417,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
                             key={col}
                             scope="col"
                             style={{
-                              padding: "4px 10px",
+                              padding: "4px 12px",
                               textAlign: "left",
                               borderBottom: "1px solid var(--border-color)",
                               fontWeight: 600,
@@ -1455,7 +1455,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
                               <td
                                 key={col}
                                 style={{
-                                  padding: "3px 10px",
+                                  padding: "3px 12px",
                                   borderBottom: "1px solid var(--border-color)",
                                   opacity: isNull ? 0.35 : 1,
                                   maxWidth: 240,

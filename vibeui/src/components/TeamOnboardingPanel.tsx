@@ -89,16 +89,16 @@ export function TeamOnboardingPanel() {
   const maxAccess = Math.max(...hotspots.map(h => h.access_count), 1);
 
   return (
-    <div style={{ padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-mono)", height: "100%", overflowY: "auto" }}>
+    <div className="panel-container" style={{ padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-mono)", flex: 1, minHeight: 0, overflowY: "auto" }}>
       <div style={{ fontSize: "var(--font-size-xl)", fontWeight: 700, marginBottom: 12 }}>Team Onboarding</div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
         {["members", "gaps", "guide", "hotspots"].map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{ padding: "4px 12px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: tab === t ? "var(--accent-color)" : "var(--bg-secondary)", color: tab === t ? "#fff" : "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>{t}</button>
+          <button key={t} onClick={() => setTab(t)} style={{ padding: "4px 12px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: tab === t ? "var(--accent-color)" : "var(--bg-secondary)", color: tab === t ? "var(--btn-primary-fg)" : "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>{t}</button>
         ))}
       </div>
 
-      {loading && <div style={{ color: "var(--text-muted)" }}>Loading...</div>}
+      {loading && <div className="panel-loading" style={{ color: "var(--text-muted)" }}>Loading...</div>}
       {error && <div style={{ color: "var(--error-color)", marginBottom: 8 }}>{error}</div>}
 
       {!loading && tab === "members" && (
@@ -107,7 +107,7 @@ export function TeamOnboardingPanel() {
             <thead>
               <tr style={{ background: "var(--bg-secondary)" }}>
                 {["User", "Email", "Sessions", "Status", "Joined"].map(h => (
-                  <th key={h} style={{ padding: "6px 10px", textAlign: "left", borderBottom: "1px solid var(--border-color)", color: "var(--text-muted)", fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>
+                  <th key={h} style={{ padding: "8px 12px", textAlign: "left", borderBottom: "1px solid var(--border-color)", color: "var(--text-muted)", fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -117,17 +117,17 @@ export function TeamOnboardingPanel() {
               )}
               {members.map(m => (
                 <tr key={m.user_id} style={{ borderBottom: "1px solid var(--border-color)" }}>
-                  <td style={{ padding: "6px 10px", fontWeight: 600 }}>{m.name}</td>
-                  <td style={{ padding: "6px 10px", color: "var(--text-muted)" }}>{m.email}</td>
-                  <td style={{ padding: "6px 10px" }}>{m.sessions}</td>
-                  <td style={{ padding: "6px 10px" }}>
+                  <td style={{ padding: "8px 12px", fontWeight: 600 }}>{m.name}</td>
+                  <td style={{ padding: "8px 12px", color: "var(--text-muted)" }}>{m.email}</td>
+                  <td style={{ padding: "8px 12px" }}>{m.sessions}</td>
+                  <td style={{ padding: "8px 12px" }}>
                     {m.is_new_member ? (
                       <span style={{ fontSize: "var(--font-size-sm)", padding: "2px 8px", borderRadius: "var(--radius-md)", background: "var(--accent-color)22", color: "var(--accent-color)", fontWeight: 600 }}>New</span>
                     ) : (
                       <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)" }}>Member</span>
                     )}
                   </td>
-                  <td style={{ padding: "6px 10px", color: "var(--text-muted)", whiteSpace: "nowrap" }}>{m.joined_at}</td>
+                  <td style={{ padding: "8px 12px", color: "var(--text-muted)", whiteSpace: "nowrap" }}>{m.joined_at}</td>
                 </tr>
               ))}
             </tbody>
@@ -139,7 +139,7 @@ export function TeamOnboardingPanel() {
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {gaps.length === 0 && <div style={{ color: "var(--text-muted)" }}>No knowledge gaps identified.</div>}
           {gaps.sort((a, b) => b.impact_score - a.impact_score).map(gap => (
-            <div key={gap.id} style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", border: "1px solid var(--border-color)", borderLeft: `3px solid ${impactColor(gap.impact)}`, padding: "12px 14px" }}>
+            <div key={gap.id} style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", border: "1px solid var(--border-color)", borderLeft: `3px solid ${impactColor(gap.impact)}`, padding: "12px 16px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                 <span style={{ fontSize: "var(--font-size-md)", fontWeight: 600 }}>{gap.topic}</span>
                 <span style={{ fontSize: "var(--font-size-sm)", padding: "1px 8px", borderRadius: "var(--radius-sm-alt)", background: impactColor(gap.impact) + "22", color: impactColor(gap.impact), fontWeight: 600 }}>{gap.impact}</span>
@@ -166,11 +166,11 @@ export function TeamOnboardingPanel() {
           <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 14 }}>
             <label style={{ fontSize: "var(--font-size-base)", color: "var(--text-muted)" }}>User:</label>
             <select value={selectedUser} onChange={e => setSelectedUser(e.target.value)}
-              style={{ flex: 1, padding: "5px 10px", borderRadius: "var(--radius-sm)", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>
+              style={{ flex: 1, padding: "4px 12px", borderRadius: "var(--radius-sm)", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>
               {members.map(m => <option key={m.user_id} value={m.user_id}>{m.name}</option>)}
             </select>
             <button onClick={() => loadGuide(selectedUser)} disabled={loadingGuide || !selectedUser}
-              style={{ padding: "5px 14px", borderRadius: "var(--radius-sm)", cursor: loadingGuide || !selectedUser ? "not-allowed" : "pointer", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)", opacity: loadingGuide ? 0.6 : 1 }}>
+              style={{ padding: "4px 16px", borderRadius: "var(--radius-sm)", cursor: loadingGuide || !selectedUser ? "not-allowed" : "pointer", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)", opacity: loadingGuide ? 0.6 : 1 }}>
               {loadingGuide ? "Loading…" : "Refresh"}
             </button>
           </div>
@@ -184,7 +184,7 @@ export function TeamOnboardingPanel() {
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {hotspots.length === 0 && <div style={{ color: "var(--text-muted)" }}>No hotspots data available.</div>}
           {hotspots.sort((a, b) => b.access_count - a.access_count).map((h, i) => (
-            <div key={h.file_path} style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", border: "1px solid var(--border-color)", padding: "10px 14px" }}>
+            <div key={h.file_path} style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", border: "1px solid var(--border-color)", padding: "12px 16px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                 <span style={{ fontSize: "var(--font-size-base)", color: "var(--text-muted)", minWidth: 22 }}>#{i + 1}</span>
                 <code style={{ fontSize: "var(--font-size-base)", color: "var(--text-primary)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{h.file_path}</code>

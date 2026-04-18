@@ -175,7 +175,7 @@ export default function CicdPanel({ workspacePath }: CicdPanelProps) {
  key={bt.id}
  onClick={() => setBuildType(bt.id)}
  style={{
- padding: "4px 10px",
+ padding: "4px 12px",
  fontSize: "var(--font-size-base)",
  borderRadius: 12,
  border: "1px solid",
@@ -201,7 +201,7 @@ export default function CicdPanel({ workspacePath }: CicdPanelProps) {
  onClick={() => setPlatform(p.id)}
  title={p.label}
  style={{
- padding: "6px 12px",
+ padding: "8px 12px",
  fontSize: "var(--font-size-base)",
  borderRadius: "var(--radius-sm)",
  border: "1px solid",
@@ -218,12 +218,12 @@ export default function CicdPanel({ workspacePath }: CicdPanelProps) {
  </div>
 
  {/* Generate button */}
- <button
+ <button className="panel-btn"
  onClick={handleGenerate}
  disabled={loading || !workspacePath}
  style={{
  alignSelf: "flex-start",
- padding: "7px 16px",
+ padding: "8px 16px",
  fontSize: "var(--font-size-md)",
  background: "var(--accent-color)",
  color: "var(--text-primary)",
@@ -295,7 +295,7 @@ export default function CicdPanel({ workspacePath }: CicdPanelProps) {
  key={bt.id}
  onClick={() => setBuildType(bt.id)}
  style={{
- padding: "4px 10px", fontSize: "var(--font-size-base)", borderRadius: 12, border: "1px solid",
+ padding: "4px 12px", fontSize: "var(--font-size-base)", borderRadius: 12, border: "1px solid",
  borderColor: buildType === bt.id ? "var(--accent-color)" : "var(--border-color)",
  background: buildType === bt.id ? "var(--accent-color)" : "transparent",
  color: buildType === bt.id ? "var(--text-primary)" : "var(--text-secondary)",
@@ -323,11 +323,11 @@ export default function CicdPanel({ workspacePath }: CicdPanelProps) {
  </div>
  </div>
 
- <button
+ <button className="panel-btn"
  onClick={handleGenerateRelease}
  disabled={loading || !workspacePath || releaseTargets.size === 0}
  style={{
- alignSelf: "flex-start", padding: "7px 16px", fontSize: "var(--font-size-md)",
+ alignSelf: "flex-start", padding: "8px 16px", fontSize: "var(--font-size-md)",
  background: "var(--accent-color)", color: "var(--text-primary)", border: "none",
  borderRadius: "var(--radius-sm)", cursor: loading ? "wait" : "pointer", opacity: loading ? 0.7 : 1,
  }}
@@ -367,7 +367,7 @@ export default function CicdPanel({ workspacePath }: CicdPanelProps) {
  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
  {PLATFORMS.map((p) => (
  <button key={p.id} onClick={() => setPlatform(p.id)} style={{
- padding: "4px 10px", fontSize: "var(--font-size-base)", borderRadius: 12, border: "1px solid",
+ padding: "4px 12px", fontSize: "var(--font-size-base)", borderRadius: 12, border: "1px solid",
  borderColor: platform === p.id ? "var(--accent-color)" : "var(--border-color)",
  background: platform === p.id ? "var(--accent-color)" : "transparent",
  color: platform === p.id ? "var(--text-primary)" : "var(--text-secondary)",
@@ -401,7 +401,7 @@ export default function CicdPanel({ workspacePath }: CicdPanelProps) {
  ))}
  </div>
 
- <div style={{ marginTop: 8, padding: "10px 12px", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", fontSize: "var(--font-size-base)", color: "var(--text-secondary)", lineHeight: 1.6 }}>
+ <div style={{ marginTop: 8, padding: "12px 12px", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", fontSize: "var(--font-size-base)", color: "var(--text-secondary)", lineHeight: 1.6 }}>
  <strong>How to add secrets:</strong><br />
  • <strong>GitHub</strong>: Settings → Secrets and variables → Actions → New repository secret<br />
  • <strong>GitLab</strong>: Settings → CI/CD → Variables → Add variable<br />

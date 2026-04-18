@@ -144,14 +144,14 @@ export function RegexPanel() {
  // ── Render ───────────────────────────────────────────────────────────────────
 
  return (
- <div style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden", flexDirection: "row" }}>
+ <div className="panel-container" style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden", flexDirection: "row" }}>
 
  {/* Sidebar: common patterns */}
  <div style={{ width: 180, flexShrink: 0, borderRight: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
- <div style={{ padding: "8px 10px", fontSize: "var(--font-size-xs)", fontWeight: 700, color: "var(--text-secondary)", borderBottom: "1px solid var(--border-color)", letterSpacing: "0.05em" }}>COMMON PATTERNS</div>
+ <div style={{ padding: "8px 12px", fontSize: "var(--font-size-xs)", fontWeight: 700, color: "var(--text-secondary)", borderBottom: "1px solid var(--border-color)", letterSpacing: "0.05em" }}>COMMON PATTERNS</div>
  <div style={{ flex: 1, overflow: "auto" }}>
  {COMMON_PATTERNS.map((p, i) => (
- <button key={i} onClick={() => loadLibEntry(i)} style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 10px", fontSize: "var(--font-size-sm)", background: activeLib === i ? "color-mix(in srgb, var(--accent-blue) 15%, transparent)" : "transparent", color: activeLib === i ? "var(--text-info)" : "var(--text-primary)", border: "none", borderBottom: "1px solid var(--border-subtle)", cursor: "pointer", lineHeight: 1.4 }}>
+ <button key={i} onClick={() => loadLibEntry(i)} style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 12px", fontSize: "var(--font-size-sm)", background: activeLib === i ? "color-mix(in srgb, var(--accent-blue) 15%, transparent)" : "transparent", color: activeLib === i ? "var(--text-info)" : "var(--text-primary)", border: "none", borderBottom: "1px solid var(--border-subtle)", cursor: "pointer", lineHeight: 1.4 }}>
  <div style={{ fontWeight: 600 }}>{p.name}</div>
  <div style={{ fontSize: 9, color: "var(--text-secondary)", marginTop: 1 }}>{p.description}</div>
  </button>
@@ -189,12 +189,12 @@ export function RegexPanel() {
  <button key={f} onClick={() => toggleFlag(f)} style={{ padding: "2px 8px", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", fontWeight: 700, borderRadius: "var(--radius-xs-plus)", border: `1px solid ${flags.includes(f) ? "var(--accent-primary)" : "var(--border-color)"}`, background: flags.includes(f) ? "color-mix(in srgb, var(--accent-blue) 20%, transparent)" : "var(--bg-primary)", color: flags.includes(f) ? "var(--text-info)" : "var(--text-secondary)", cursor: "pointer" }}>{f}</button>
  ))}
  {/* Replace toggle */}
- <button onClick={() => setShowReplace(v => !v)} style={{ padding: "3px 10px", fontSize: "var(--font-size-xs)", borderRadius: "var(--radius-xs-plus)", border: `1px solid ${showReplace ? "var(--text-warning-alt)" : "var(--border-color)"}`, background: showReplace ? "rgba(250,179,135,0.1)" : "var(--bg-primary)", color: showReplace ? "var(--text-warning-alt)" : "var(--text-secondary)", cursor: "pointer" }}>⇄ Replace</button>
+ <button onClick={() => setShowReplace(v => !v)} style={{ padding: "3px 12px", fontSize: "var(--font-size-xs)", borderRadius: "var(--radius-xs-plus)", border: `1px solid ${showReplace ? "var(--text-warning-alt)" : "var(--border-color)"}`, background: showReplace ? "rgba(250,179,135,0.1)" : "var(--bg-primary)", color: showReplace ? "var(--text-warning-alt)" : "var(--text-secondary)", cursor: "pointer" }}>⇄ Replace</button>
  </div>
 
  {/* Replace row */}
  {showReplace && (
- <div style={{ padding: "6px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 8, alignItems: "center" }}>
+ <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 8, alignItems: "center" }}>
  <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", flexShrink: 0 }}>Replace with:</span>
  <input value={replaceStr} onChange={e => setReplaceStr(e.target.value)} placeholder="replacement (use $1, $2 for groups)" spellCheck={false} style={{ flex: 1, padding: "3px 8px", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none" }} />
  </div>
@@ -249,9 +249,9 @@ export function RegexPanel() {
  <div>
  <div style={{ padding: "4px 12px", fontSize: "var(--font-size-xs)", fontWeight: 700, color: "var(--text-secondary)", background: "var(--bg-secondary)" }}>MATCHES ({matches.length})</div>
  {matches.map(m => (
- <div key={m.index} style={{ borderBottom: "1px solid var(--border-subtle)", padding: "6px 12px", display: "flex", gap: 10, alignItems: "flex-start", background: m.index % 2 === 0 ? "transparent" : "rgba(255,255,255,0.015)" }}>
+ <div key={m.index} style={{ borderBottom: "1px solid var(--border-subtle)", padding: "8px 12px", display: "flex", gap: 10, alignItems: "flex-start", background: m.index % 2 === 0 ? "transparent" : "rgba(255,255,255,0.015)" }}>
  {/* Index badge */}
- <span style={{ fontSize: 9, fontWeight: 700, color: MATCH_BORDERS[m.index % MATCH_BORDERS.length], background: MATCH_COLOURS[m.index % MATCH_COLOURS.length], border: `1px solid ${MATCH_BORDERS[m.index % MATCH_BORDERS.length]}`, borderRadius: "var(--radius-md)", padding: "1px 6px", flexShrink: 0, minWidth: 20, textAlign: "center" }}>
+ <span style={{ fontSize: 9, fontWeight: 700, color: MATCH_BORDERS[m.index % MATCH_BORDERS.length], background: MATCH_COLOURS[m.index % MATCH_COLOURS.length], border: `1px solid ${MATCH_BORDERS[m.index % MATCH_BORDERS.length]}`, borderRadius: "var(--radius-md)", padding: "1px 8px", flexShrink: 0, minWidth: 20, textAlign: "center" }}>
  {m.index + 1}
  </span>
  <div style={{ flex: 1, minWidth: 0 }}>
@@ -263,7 +263,7 @@ export function RegexPanel() {
  {m.groups.length > 0 && (
  <div style={{ marginTop: 4, display: "flex", flexWrap: "wrap", gap: 4 }}>
  {m.groups.map((g, gi) => (
- <span key={gi} style={{ fontSize: "var(--font-size-xs)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: "1px 6px", color: "var(--text-secondary)" }}>
+ <span key={gi} style={{ fontSize: "var(--font-size-xs)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: "1px 8px", color: "var(--text-secondary)" }}>
  <span style={{ color: "var(--text-info)" }}>${gi + 1}</span> = <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{g ?? <em>undefined</em>}</span>
  </span>
  ))}
@@ -273,7 +273,7 @@ export function RegexPanel() {
  {m.namedGroups && Object.keys(m.namedGroups).length > 0 && (
  <div style={{ marginTop: 4, display: "flex", flexWrap: "wrap", gap: 4 }}>
  {Object.entries(m.namedGroups).map(([k, v]) => (
- <span key={k} style={{ fontSize: "var(--font-size-xs)", background: "color-mix(in srgb, var(--accent-blue) 8%, transparent)", border: "1px solid var(--accent-primary)", borderRadius: "var(--radius-xs-plus)", padding: "1px 6px" }}>
+ <span key={k} style={{ fontSize: "var(--font-size-xs)", background: "color-mix(in srgb, var(--accent-blue) 8%, transparent)", border: "1px solid var(--accent-primary)", borderRadius: "var(--radius-xs-plus)", padding: "1px 8px" }}>
  <span style={{ color: "var(--text-info)" }}>{k}</span> = <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{v ?? <em>undefined</em>}</span>
  </span>
  ))}

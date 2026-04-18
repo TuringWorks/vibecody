@@ -224,7 +224,7 @@ export function MockServerPanel() {
             {/* Add route form */}
             <div style={{
               display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap",
-              padding: "6px 8px", borderRadius: "var(--radius-xs-plus)", background: "var(--bg-primary)",
+              padding: "8px 8px", borderRadius: "var(--radius-xs-plus)", background: "var(--bg-primary)",
             }}>
               <select value={addMethod} onChange={(e) => setAddMethod(e.target.value)} style={selectStyle}>
                 {METHOD_OPTIONS.map((m) => <option key={m} value={m}>{m}</option>)}
@@ -243,11 +243,11 @@ export function MockServerPanel() {
             {/* Route list */}
             {routes.map((r) => (
               <div key={r.id} style={{
-                display: "flex", gap: 8, alignItems: "center", padding: "4px 6px",
+                display: "flex", gap: 8, alignItems: "center", padding: "4px 8px",
                 borderBottom: "1px solid var(--border-color)", fontSize: "var(--font-size-sm)",
               }}>
                 <span style={{
-                  padding: "1px 6px", borderRadius: 3, fontWeight: 700, fontSize: "var(--font-size-xs)",
+                  padding: "1px 8px", borderRadius: 3, fontWeight: 700, fontSize: "var(--font-size-xs)",
                   color: "var(--bg-tertiary)", background: methodColor[r.method] || "var(--text-secondary)",
                 }}>
                   {r.method}
@@ -284,14 +284,14 @@ export function MockServerPanel() {
             )}
             {requestLog.map((r, i) => (
               <div key={i} style={{
-                display: "flex", gap: 8, alignItems: "center", padding: "4px 6px",
+                display: "flex", gap: 8, alignItems: "center", padding: "4px 8px",
                 borderBottom: "1px solid var(--border-color)", fontSize: "var(--font-size-sm)",
               }}>
                 <span style={{ fontSize: 9, opacity: 0.4, fontFamily: "var(--font-mono)" }}>
                   {new Date(r.timestamp).toLocaleTimeString()}
                 </span>
                 <span style={{
-                  padding: "1px 5px", borderRadius: 3, fontWeight: 700, fontSize: 9,
+                  padding: "1px 4px", borderRadius: 3, fontWeight: 700, fontSize: 9,
                   color: "var(--bg-tertiary)", background: methodColor[r.method] || "var(--text-secondary)",
                 }}>
                   {r.method}
@@ -299,7 +299,7 @@ export function MockServerPanel() {
                 <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-info)" }}>{r.path}</span>
                 <div style={{ flex: 1 }} />
                 <span style={{
-                  fontSize: 9, padding: "1px 6px", borderRadius: 3,
+                  fontSize: 9, padding: "1px 8px", borderRadius: 3,
                   background: r.matched_route_id ? "color-mix(in srgb, var(--accent-green) 15%, transparent)" : "color-mix(in srgb, var(--accent-rose) 15%, transparent)",
                   color: r.matched_route_id ? "var(--success-color)" : "var(--error-color)",
                 }}>

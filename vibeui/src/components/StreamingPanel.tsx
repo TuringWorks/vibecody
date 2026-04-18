@@ -312,12 +312,12 @@ export function StreamingPanel() {
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)" }}>
                   <thead>
                     <tr style={{ background: "var(--bg-secondary)" }}>
-                      <th style={{ padding: "6px 8px", textAlign: "left", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>Name</th>
-                      <th style={{ padding: "6px 8px", textAlign: "right", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>Partitions</th>
-                      <th style={{ padding: "6px 8px", textAlign: "right", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>Replication</th>
-                      <th style={{ padding: "6px 8px", textAlign: "left", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>Cleanup</th>
-                      <th style={{ padding: "6px 8px", textAlign: "left", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>CLI Command</th>
-                      <th style={{ padding: "6px 8px", textAlign: "center", borderBottom: "1px solid var(--border)", fontWeight: 600 }}></th>
+                      <th style={{ padding: "8px 8px", textAlign: "left", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>Name</th>
+                      <th style={{ padding: "8px 8px", textAlign: "right", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>Partitions</th>
+                      <th style={{ padding: "8px 8px", textAlign: "right", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>Replication</th>
+                      <th style={{ padding: "8px 8px", textAlign: "left", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>Cleanup</th>
+                      <th style={{ padding: "8px 8px", textAlign: "left", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>CLI Command</th>
+                      <th style={{ padding: "8px 8px", textAlign: "center", borderBottom: "1px solid var(--border)", fontWeight: 600 }}></th>
                     </tr>
                   </thead>
                   <tbody>

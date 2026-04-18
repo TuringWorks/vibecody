@@ -243,8 +243,8 @@ export function SoulPanel({ workspacePath }: { workspacePath?: string | null }) 
                       ["Has README", signals.has_readme ? "Yes" : "No"],
                     ].map(([label, value]) => (
                       <tr key={label} style={{ borderBottom: "1px solid var(--border-color)" }}>
-                        <td style={{ padding: "6px 12px 6px 0", fontWeight: 600, color: "var(--text-primary)", whiteSpace: "nowrap" }}>{label}</td>
-                        <td style={{ padding: "6px 0", color: "var(--text-secondary)" }}>{value}</td>
+                        <td style={{ padding: "8px 12px 8px 0", fontWeight: 600, color: "var(--text-primary)", whiteSpace: "nowrap" }}>{label}</td>
+                        <td style={{ padding: "8px 0", color: "var(--text-secondary)" }}>{value}</td>
                       </tr>
                     ))}
                   </tbody>

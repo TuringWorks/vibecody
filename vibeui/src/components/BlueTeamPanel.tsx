@@ -571,7 +571,7 @@ export function BlueTeamPanel() {
                 {rule.enabled ? "Enabled" : "Disabled"}
               </label>
             </div>
-            {rule.description && <p style={{ margin: "6px 0 0", fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>{rule.description}</p>}
+            {rule.description && <p style={{ margin: "8px 0 0", fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>{rule.description}</p>}
           </div>
         ))}
       </div>
@@ -581,7 +581,7 @@ export function BlueTeamPanel() {
   function renderForensics() {
     return (
       <div>
-        <h3 style={{ margin: "0 0 14px", fontSize: "var(--font-size-xl)" }}>Forensic Cases</h3>
+        <h3 style={{ margin: "0 0 16px", fontSize: "var(--font-size-xl)" }}>Forensic Cases</h3>
         {cases.length === 0 && <p style={{ color: "var(--text-secondary)", textAlign: "center" }}>No forensic cases. Cases are created from incident investigations.</p>}
         <table className="panel-table">
           <thead>
@@ -671,7 +671,7 @@ export function BlueTeamPanel() {
   function renderPlaybooks() {
     return (
       <div>
-        <h3 style={{ margin: "0 0 14px", fontSize: "var(--font-size-xl)" }}>Incident Response Playbooks</h3>
+        <h3 style={{ margin: "0 0 16px", fontSize: "var(--font-size-xl)" }}>Incident Response Playbooks</h3>
         {playbooks.length === 0 && <p style={{ color: "var(--text-secondary)", textAlign: "center" }}>No playbooks defined.</p>}
         {playbooks.map((pb) => (
           <div key={pb.id} className="panel-card">
@@ -794,7 +794,7 @@ export function BlueTeamPanel() {
         {error && (
           <div className="panel-error" style={{ marginBottom: 12, display: "flex", justifyContent: "space-between" }}>
             <span>{error}</span>
-            <button aria-label="Dismiss error" style={{ background: "none", border: "none", color: "var(--error-color)", cursor: "pointer", display: "flex", alignItems: "center" }} onClick={() => setError(null)}><X size={14} /></button>
+            <button className="panel-btn" aria-label="Dismiss error" style={{ background: "none", border: "none", color: "var(--error-color)", cursor: "pointer", display: "flex", alignItems: "center" }} onClick={() => setError(null)}><X size={14} /></button>
           </div>
         )}
         {loading && <div className="panel-loading">Loading...</div>}

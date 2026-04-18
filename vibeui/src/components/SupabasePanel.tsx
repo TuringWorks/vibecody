@@ -117,12 +117,12 @@ export function SupabasePanel({ workspacePath, provider }: { workspacePath: stri
  <div className="panel-container">
  <div className="panel-header">
  <h3>Supabase</h3>
- <span style={{ fontSize: "var(--font-size-sm)", padding: "2px 6px", borderRadius: "var(--radius-md)", background: connected ? "rgba(76,175,80,0.15)" : "color-mix(in srgb, var(--accent-rose) 15%, transparent)", color: connected ? "var(--success-color)" : "var(--error-color)" }}>
+ <span style={{ fontSize: "var(--font-size-sm)", padding: "2px 8px", borderRadius: "var(--radius-md)", background: connected ? "rgba(76,175,80,0.15)" : "color-mix(in srgb, var(--accent-rose) 15%, transparent)", color: connected ? "var(--success-color)" : "var(--error-color)" }}>
  {connected ? "Connected" : "Disconnected"}
  </span>
  </div>
  {!connected && (
- <div style={{ marginTop: "8px", display: "flex", flexDirection: "column", gap: "6px" }}>
+ <div style={{ marginTop: "8px", display: "flex", flexDirection: "column", gap: "8px" }}>
  <input className="panel-input panel-input-full" placeholder="Project URL (https://xxx.supabase.co)" value={config.url} onChange={e => setConfig(c => ({ ...c, url: e.target.value }))} />
  <input className="panel-input panel-input-full" placeholder="Anon key (public)" type="password" value={config.anon_key} onChange={e => setConfig(c => ({ ...c, anon_key: e.target.value }))} />
  <button className="panel-btn panel-btn-primary" onClick={saveConfig} disabled={loading}>Connect</button>
@@ -175,7 +175,7 @@ export function SupabasePanel({ workspacePath, provider }: { workspacePath: stri
  <thead><tr>{queryResult.columns.map(c => <th key={c}>{c}</th>)}</tr></thead>
  <tbody>{queryResult.rows.map((row, i) => <tr key={i}>{row.map((cell, j) => <td key={j}>{cell}</td>)}</tr>)}</tbody>
  </table>
- <div style={{ marginTop: "6px", color: "var(--text-secondary)", fontSize: "var(--font-size-sm)" }}>{queryResult.rows.length} row(s)</div>
+ <div style={{ marginTop: "8px", color: "var(--text-secondary)", fontSize: "var(--font-size-sm)" }}>{queryResult.rows.length} row(s)</div>
  </div>
  )}
  </div>
@@ -187,13 +187,13 @@ export function SupabasePanel({ workspacePath, provider }: { workspacePath: stri
  <textarea className="panel-input panel-textarea panel-input-full" style={{ height: "80px", resize: "vertical" }} placeholder="Show me all users who signed up in the last 7 days" value={naturalQuery} onChange={e => setNaturalQuery(e.target.value)} />
  <button className="panel-btn panel-btn-primary" onClick={generateQuery} disabled={loading || !naturalQuery.trim()}>Generate SQL</button>
  <div style={{ marginTop: "8px" }}>
- <p style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-sm)", margin: "0 0 6px" }}>Quick queries:</p>
+ <p style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-sm)", margin: "0 0 8px" }}>Quick queries:</p>
  {[
  "Count rows in each table",
  "Show latest 20 records from selected table",
  "Find tables with most rows",
  ].map(q => (
- <div key={q} onClick={() => setNaturalQuery(q)} className="panel-card" style={{ cursor: "pointer" }}>{q}</div>
+ <div role="button" tabIndex={0} key={q} onClick={() => setNaturalQuery(q)} className="panel-card" style={{ cursor: "pointer" }}>{q}</div>
  ))}
  </div>
  </div>

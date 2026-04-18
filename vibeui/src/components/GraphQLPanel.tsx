@@ -214,7 +214,7 @@ export function GraphQLPanel() {
  list="gql-urls"
  placeholder="https://api.example.com/graphql"
  style={{
- flex: 1, padding: "5px 9px", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)",
+ flex: 1, padding: "4px 8px", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)",
  background: "var(--bg-primary)", border: "1px solid var(--border-color)",
  borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none",
  }}
@@ -222,22 +222,22 @@ export function GraphQLPanel() {
  <datalist id="gql-urls">
  {PRESET_URLS.map((u) => <option key={u} value={u} />)}
  </datalist>
- <button
+ <button className="panel-btn"
  onClick={introspect}
  disabled={introspecting || !url}
  style={{
- padding: "5px 12px", fontSize: "var(--font-size-sm)", cursor: "pointer",
+ padding: "4px 12px", fontSize: "var(--font-size-sm)", cursor: "pointer",
  background: "var(--bg-secondary)", border: "1px solid var(--border-color)",
  borderRadius: "var(--radius-xs-plus)", color: "var(--text-secondary)",
  }}
  >
  {introspecting ? "" : "Schema"}
  </button>
- <button
+ <button className="panel-btn"
  onClick={runQuery}
  disabled={running || !url || !query.trim()}
  style={{
- padding: "5px 14px", fontSize: "var(--font-size-sm)", fontWeight: 600, cursor: "pointer",
+ padding: "4px 16px", fontSize: "var(--font-size-sm)", fontWeight: 600, cursor: "pointer",
  background: running ? "var(--bg-secondary)" : "var(--accent-color)",
  color: running ? "var(--text-secondary)" : "var(--text-primary)",
  border: "none", borderRadius: "var(--radius-xs-plus)",
@@ -265,7 +265,7 @@ export function GraphQLPanel() {
  </div>
  </div>
 
- {error && <div className="panel-error" style={{ margin: "6px 12px" }}>{error}</div>}
+ {error && <div className="panel-error" style={{ margin: "8px 12px" }}>{error}</div>}
 
  {/* Sub-tabs */}
  <div className="panel-tab-bar">
@@ -279,7 +279,7 @@ export function GraphQLPanel() {
  <div style={{ flex: 1, overflow: "hidden", display: "flex", gap: 0 }}>
  {/* Left: editor pane */}
  <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", borderRight: "1px solid var(--border-color)" }}>
- <div style={{ padding: "4px 10px", fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-secondary)", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
+ <div style={{ padding: "4px 12px", fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-secondary)", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
  QUERY / MUTATION
  </div>
  <textarea
@@ -288,7 +288,7 @@ export function GraphQLPanel() {
  onChange={(e) => setQuery(e.target.value)}
  onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); runQuery(); } }}
  style={{
- flex: 1, padding: "10px", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)",
+ flex: 1, padding: "12px", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)",
  background: "var(--bg-primary)", border: "none", color: "var(--text-primary)",
  outline: "none", resize: "none", lineHeight: 1.6,
  }}
@@ -296,14 +296,14 @@ export function GraphQLPanel() {
 
  {/* Variables */}
  <div style={{ borderTop: "1px solid var(--border-color)" }}>
- <div style={{ padding: "3px 10px", fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-secondary)", background: "var(--bg-secondary)", display: "flex", gap: 8, alignItems: "center" }}>
+ <div style={{ padding: "3px 12px", fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-secondary)", background: "var(--bg-secondary)", display: "flex", gap: 8, alignItems: "center" }}>
  <span>VARIABLES</span>
  {operationName !== undefined && (
  <input
  value={operationName}
  onChange={(e) => setOperationName(e.target.value)}
  placeholder="operationName (optional)"
- style={{ marginLeft: "auto", padding: "2px 6px", fontSize: "var(--font-size-xs)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 3, color: "var(--text-secondary)", width: 180, outline: "none" }}
+ style={{ marginLeft: "auto", padding: "2px 8px", fontSize: "var(--font-size-xs)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 3, color: "var(--text-secondary)", width: 180, outline: "none" }}
  />
  )}
  </div>
@@ -313,7 +313,7 @@ export function GraphQLPanel() {
  rows={3}
  style={{
  width: "100%", boxSizing: "border-box",
- padding: "6px 10px", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)",
+ padding: "8px 12px", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)",
  background: "var(--bg-secondary)", border: "none",
  color: "var(--text-secondary)", outline: "none", resize: "none",
  }}
@@ -322,7 +322,7 @@ export function GraphQLPanel() {
 
  {/* Headers */}
  <div style={{ borderTop: "1px solid var(--border-color)" }}>
- <div style={{ padding: "3px 10px", fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-secondary)", background: "var(--bg-secondary)" }}>
+ <div style={{ padding: "3px 12px", fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-secondary)", background: "var(--bg-secondary)" }}>
  HEADERS (JSON)
  </div>
  <textarea
@@ -332,7 +332,7 @@ export function GraphQLPanel() {
  placeholder='{"Authorization": "Bearer TOKEN"}'
  style={{
  width: "100%", boxSizing: "border-box",
- padding: "6px 10px", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)",
+ padding: "8px 12px", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)",
  background: "var(--bg-secondary)", border: "none",
  color: "var(--text-secondary)", outline: "none", resize: "none",
  }}
@@ -342,12 +342,12 @@ export function GraphQLPanel() {
 
  {/* Right: result pane */}
  <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
- <div style={{ display: "flex", alignItems: "center", padding: "4px 10px", background: "var(--bg-secondary)", borderBottom: "1px solid var(--border-color)", gap: 6 }}>
+ <div style={{ display: "flex", alignItems: "center", padding: "4px 12px", background: "var(--bg-secondary)", borderBottom: "1px solid var(--border-color)", gap: 6 }}>
  <span style={{ fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-secondary)", marginRight: 4 }}>RESPONSE</span>
  {result && (
  <>
  <span style={{
- fontSize: "var(--font-size-xs)", fontWeight: 600, padding: "1px 6px", borderRadius: "var(--radius-md)",
+ fontSize: "var(--font-size-xs)", fontWeight: 600, padding: "1px 8px", borderRadius: "var(--radius-md)",
  background: result.errors ? "color-mix(in srgb, var(--accent-rose) 15%, transparent)" : "color-mix(in srgb, var(--accent-green) 15%, transparent)",
  color: result.errors ? "var(--error-color)" : "var(--success-color)",
  }}>
@@ -391,7 +391,7 @@ export function GraphQLPanel() {
  <pre style={{ margin: 0 }}>{JSON.stringify(result.errors, null, 2)}</pre>
  {Boolean(result.data) && (
  <>
- <div style={{ color: "var(--text-warning)", fontWeight: 600, margin: "10px 0 6px" }}>Partial Data:</div>
+ <div style={{ color: "var(--text-warning)", fontWeight: 600, margin: "12px 0 8px" }}>Partial Data:</div>
  <pre style={{ margin: 0 }}>{JSON.stringify(result.data, null, 2)}</pre>
  </>
  )}
@@ -431,17 +431,17 @@ export function GraphQLPanel() {
  </div>
 
  {/* Type list */}
- <div style={{ flex: 1, overflow: "auto", padding: "6px 10px", display: "flex", flexDirection: "column", gap: 3 }}>
+ <div style={{ flex: 1, overflow: "auto", padding: "8px 12px", display: "flex", flexDirection: "column", gap: 3 }}>
  {filteredTypes.map((t) => (
  <div key={t.name} style={{ borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", overflow: "hidden" }}>
- <div
+ <div role="button" tabIndex={0}
  onClick={() => setExpandedType(expandedType === t.name ? null : t.name)}
  style={{
- padding: "6px 10px", display: "flex", alignItems: "center", gap: 8,
+ padding: "8px 12px", display: "flex", alignItems: "center", gap: 8,
  background: "var(--bg-secondary)", cursor: "pointer",
  }}
  >
- <span style={{ fontSize: "var(--font-size-xs)", fontWeight: 700, padding: "1px 5px", borderRadius: 3, background: KIND_COLORS[t.kind] ? `${KIND_COLORS[t.kind]}22` : "transparent", color: KIND_COLORS[t.kind] ?? "var(--text-secondary)" }}>
+ <span style={{ fontSize: "var(--font-size-xs)", fontWeight: 700, padding: "1px 4px", borderRadius: 3, background: KIND_COLORS[t.kind] ? `${KIND_COLORS[t.kind]}22` : "transparent", color: KIND_COLORS[t.kind] ?? "var(--text-secondary)" }}>
  {t.kind}
  </span>
  <span style={{ fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)", fontWeight: 600 }}>{t.name}</span>
@@ -471,7 +471,7 @@ export function GraphQLPanel() {
  {tab === "history" && (
  <div style={{ flex: 1, overflow: "auto", padding: "8px 12px", display: "flex", flexDirection: "column", gap: 5 }}>
  {history.length === 0 && (
- <div style={{ textAlign: "center", padding: "30px 0", color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>
+ <div style={{ textAlign: "center", padding: "32px 0", color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>
  No query history yet. Run a query first.
  </div>
  )}
@@ -481,11 +481,11 @@ export function GraphQLPanel() {
  </div>
  )}
  {history.map((entry, i) => (
- <div
+ <div role="button" tabIndex={0}
  key={i}
  onClick={() => loadFromHistory(entry)}
  style={{
- padding: "8px 10px", borderRadius: 5, cursor: "pointer",
+ padding: "8px 12px", borderRadius: 5, cursor: "pointer",
  background: "var(--bg-secondary)", border: "1px solid var(--border-color)",
  }}
  >

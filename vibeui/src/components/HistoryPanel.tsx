@@ -121,7 +121,7 @@ export function HistoryPanel() {
  )}
 
  <button
- className="btn-secondary"
+ className="panel-btn btn-secondary"
  onClick={loadSessions}
  style={{ marginTop: "8px", width: "100%", fontSize: "var(--font-size-base)" }}
  >
@@ -150,11 +150,11 @@ export function HistoryPanel() {
  fontSize: "var(--font-size-sm)",
  display: "flex",
  flexDirection: "column",
- gap: "6px",
+ gap: "8px",
  }}
  >
  {loading ? (
- <div style={{ color: "var(--text-secondary)", textAlign: "center", marginTop: "24px" }}>
+ <div className="panel-loading" style={{ color: "var(--text-secondary)", textAlign: "center", marginTop: "24px" }}>
  Loading…
  </div>
  ) : entries.length === 0 ? (
@@ -165,7 +165,7 @@ export function HistoryPanel() {
  entries.map((e, i) => (
  <div
  key={i}
- style={{ borderBottom: "1px solid var(--border-color)", paddingBottom: "6px" }}
+ style={{ borderBottom: "1px solid var(--border-color)", paddingBottom: "8px" }}
  >
  <div
  style={{

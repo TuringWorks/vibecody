@@ -142,7 +142,7 @@ export function MigrationsPanel({ workspacePath }: MigrationsPanelProps) {
 
  <div className="panel-body" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
  {error && (
- <div className="panel-error" style={{ padding: "7px 10px", fontSize: "var(--font-size-base)" }}>
+ <div className="panel-error" style={{ padding: "8px 12px", fontSize: "var(--font-size-base)" }}>
  {error}
  </div>
  )}
@@ -155,7 +155,7 @@ export function MigrationsPanel({ workspacePath }: MigrationsPanelProps) {
  onClick={() => runAction("migrate")}
  disabled={!!actionLoading || status.pending.length === 0}
  style={{
- padding: "6px 12px", fontSize: "var(--font-size-base)", fontWeight: 600,
+ padding: "8px 12px", fontSize: "var(--font-size-base)", fontWeight: 600,
  background: status.pending.length > 0 ? "var(--accent-color)" : "var(--bg-secondary)",
  color: status.pending.length > 0 ? "var(--text-primary)" : "var(--text-secondary)",
  border: "none", borderRadius: "var(--radius-xs-plus)", cursor: status.pending.length > 0 ? "pointer" : "default",
@@ -168,7 +168,7 @@ export function MigrationsPanel({ workspacePath }: MigrationsPanelProps) {
  onClick={() => { if (confirm("Rollback the last migration?")) runAction("rollback"); }}
  disabled={!!actionLoading || status.applied.length === 0}
  style={{
- padding: "6px 12px", fontSize: "var(--font-size-base)",
+ padding: "8px 12px", fontSize: "var(--font-size-base)",
  background: "color-mix(in srgb, var(--accent-rose) 15%, transparent)", color: "var(--error-color)",
  border: "1px solid var(--error-color)", borderRadius: "var(--radius-xs-plus)",
  cursor: status.applied.length > 0 ? "pointer" : "default",
@@ -180,7 +180,7 @@ export function MigrationsPanel({ workspacePath }: MigrationsPanelProps) {
  <button
  onClick={() => runAction("status")}
  disabled={!!actionLoading}
- style={{ padding: "6px 12px", fontSize: "var(--font-size-base)", background: "var(--bg-secondary)", color: "var(--text-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", cursor: "pointer" }}
+ style={{ padding: "8px 12px", fontSize: "var(--font-size-base)", background: "var(--bg-secondary)", color: "var(--text-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", cursor: "pointer" }}
  >
  {actionLoading === "status" ? "" : "Status"}
  </button>
@@ -194,15 +194,15 @@ export function MigrationsPanel({ workspacePath }: MigrationsPanelProps) {
  onKeyDown={(e) => e.key === "Enter" && handleGenerate()}
  placeholder="Migration name (e.g. add_users_table)"
  style={{
- flex: 1, padding: "5px 8px", fontSize: "var(--font-size-base)",
+ flex: 1, padding: "4px 8px", fontSize: "var(--font-size-base)",
  background: "var(--bg-secondary)", border: "1px solid var(--border-color)",
  borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none",
  }}
  />
- <button
+ <button className="panel-btn"
  onClick={handleGenerate}
  disabled={!!actionLoading || !newMigName.trim()}
- style={{ padding: "5px 12px", fontSize: "var(--font-size-base)", background: "var(--bg-secondary)", color: "var(--text-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", cursor: "pointer" }}
+ style={{ padding: "4px 12px", fontSize: "var(--font-size-base)", background: "var(--bg-secondary)", color: "var(--text-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", cursor: "pointer" }}
  >
  {actionLoading === "generate" ? "" : "+ Generate"}
  </button>
@@ -233,7 +233,7 @@ export function MigrationsPanel({ workspacePath }: MigrationsPanelProps) {
  key={m.name}
  style={{
  display: "flex", alignItems: "center", gap: 10,
- padding: "7px 10px", borderRadius: 5,
+ padding: "8px 12px", borderRadius: 5,
  background: "var(--bg-secondary)", border: "1px solid var(--border-color)",
  fontSize: "var(--font-size-base)",
  }}

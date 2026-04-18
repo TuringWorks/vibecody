@@ -79,16 +79,16 @@ export function MsafPanel() {
   };
 
   return (
-    <div style={{ padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-mono)", height: "100%", overflowY: "auto" }}>
+    <div className="panel-container" style={{ padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-mono)", flex: 1, minHeight: 0, overflowY: "auto" }}>
       <div style={{ fontSize: "var(--font-size-xl)", fontWeight: 700, marginBottom: 12 }}>MSAF — Multi-Agent Standard Framework</div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         {["manifest", "catalog", "tokens"].map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{ padding: "4px 12px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: tab === t ? "var(--accent-color)" : "var(--bg-secondary)", color: tab === t ? "#fff" : "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>{t}</button>
+          <button key={t} onClick={() => setTab(t)} style={{ padding: "4px 12px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: tab === t ? "var(--accent-color)" : "var(--bg-secondary)", color: tab === t ? "var(--btn-primary-fg)" : "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>{t}</button>
         ))}
       </div>
 
-      {loading && <div style={{ color: "var(--text-muted)" }}>Loading...</div>}
+      {loading && <div className="panel-loading" style={{ color: "var(--text-muted)" }}>Loading...</div>}
       {error && <div style={{ color: "var(--error-color)", marginBottom: 8 }}>{error}</div>}
 
       {!loading && tab === "manifest" && (
@@ -114,7 +114,7 @@ export function MsafPanel() {
                 <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-muted)", marginBottom: 8 }}>Capabilities</div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                   {(manifest.capabilities ?? []).map(cap => (
-                    <span key={cap} style={{ padding: "3px 10px", borderRadius: 12, fontSize: "var(--font-size-sm)", background: "var(--accent-color)22", color: "var(--accent-color)", border: "1px solid var(--accent-color)" }}>{cap}</span>
+                    <span key={cap} style={{ padding: "3px 12px", borderRadius: 12, fontSize: "var(--font-size-sm)", background: "var(--accent-color)22", color: "var(--accent-color)", border: "1px solid var(--accent-color)" }}>{cap}</span>
                   ))}
                 </div>
               </div>
@@ -129,7 +129,7 @@ export function MsafPanel() {
             <thead>
               <tr style={{ background: "var(--bg-secondary)" }}>
                 {["Name", "Version", "Status", "Heartbeat", "Endpoint"].map(h => (
-                  <th key={h} style={{ padding: "6px 10px", textAlign: "left", borderBottom: "1px solid var(--border-color)", color: "var(--text-muted)", fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>
+                  <th key={h} style={{ padding: "8px 12px", textAlign: "left", borderBottom: "1px solid var(--border-color)", color: "var(--text-muted)", fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -139,13 +139,13 @@ export function MsafPanel() {
               )}
               {catalog.map(entry => (
                 <tr key={entry.agent_id} style={{ borderBottom: "1px solid var(--border-color)" }}>
-                  <td style={{ padding: "6px 10px", fontWeight: 600 }}>{entry.name}</td>
-                  <td style={{ padding: "6px 10px", color: "var(--text-muted)" }}>{entry.version}</td>
-                  <td style={{ padding: "6px 10px" }}>
+                  <td style={{ padding: "8px 12px", fontWeight: 600 }}>{entry.name}</td>
+                  <td style={{ padding: "8px 12px", color: "var(--text-muted)" }}>{entry.version}</td>
+                  <td style={{ padding: "8px 12px" }}>
                     <span style={{ padding: "2px 8px", borderRadius: "var(--radius-md)", fontSize: "var(--font-size-sm)", background: statusColor(entry.status) + "22", color: statusColor(entry.status) }}>{entry.status}</span>
                   </td>
-                  <td style={{ padding: "6px 10px", color: "var(--text-muted)", whiteSpace: "nowrap" }}>{entry.heartbeat_at}</td>
-                  <td style={{ padding: "6px 10px", color: "var(--text-muted)", maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{entry.endpoint}</td>
+                  <td style={{ padding: "8px 12px", color: "var(--text-muted)", whiteSpace: "nowrap" }}>{entry.heartbeat_at}</td>
+                  <td style={{ padding: "8px 12px", color: "var(--text-muted)", maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{entry.endpoint}</td>
                 </tr>
               ))}
             </tbody>
@@ -159,9 +159,9 @@ export function MsafPanel() {
             <label style={{ display: "block", fontSize: "var(--font-size-base)", color: "var(--text-muted)", marginBottom: 6 }}>Paste agent token to validate</label>
             <textarea value={tokenInput} onChange={e => setTokenInput(e.target.value)}
               placeholder="eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
-              style={{ width: "100%", height: 80, padding: "8px 10px", borderRadius: "var(--radius-sm)", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", resize: "vertical", boxSizing: "border-box" }} />
+              style={{ width: "100%", height: 80, padding: "8px 12px", borderRadius: "var(--radius-sm)", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", resize: "vertical", boxSizing: "border-box" }} />
           </div>
-          <button onClick={validateToken} disabled={validating}
+          <button className="panel-btn" onClick={validateToken} disabled={validating}
             style={{ padding: "8px 20px", borderRadius: "var(--radius-sm)", cursor: validating ? "not-allowed" : "pointer", background: "var(--accent-color)", color: "var(--btn-primary-fg, #fff)", border: "none", fontSize: "var(--font-size-md)", fontWeight: 600, opacity: validating ? 0.6 : 1, marginBottom: 16 }}>
             {validating ? "Validating…" : "Validate Token"}
           </button>

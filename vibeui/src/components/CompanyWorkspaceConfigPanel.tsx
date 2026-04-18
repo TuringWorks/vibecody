@@ -87,7 +87,7 @@ export function CompanyWorkspaceConfigPanel() {
 
         {/* Info box */}
         <div style={{
-          marginBottom: 16, padding: "10px 14px",
+          marginBottom: 16, padding: "12px 16px",
           background: "rgba(74,158,255,0.08)", border: "1px solid rgba(74,158,255,0.25)",
           borderRadius: "var(--radius-sm)", fontSize: "var(--font-size-base)", color: "var(--text-secondary)", lineHeight: 1.6,
         }}>
@@ -132,7 +132,7 @@ export function CompanyWorkspaceConfigPanel() {
         {/* Toast */}
         {toast && (
           <div style={{
-            marginTop: 12, padding: "8px 14px", borderRadius: "var(--radius-sm)", fontSize: "var(--font-size-base)",
+            marginTop: 12, padding: "8px 16px", borderRadius: "var(--radius-sm)", fontSize: "var(--font-size-base)",
             background: toast.startsWith("Error") ? "rgba(231,76,60,0.15)" : "rgba(39,174,96,0.15)",
             color: toast.startsWith("Error") ? "var(--accent-rose)" : "var(--accent-green)",
             border: `1px solid ${toast.startsWith("Error") ? "var(--accent-rose)" : "var(--accent-green)"}`,

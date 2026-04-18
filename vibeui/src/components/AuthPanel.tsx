@@ -267,7 +267,7 @@ export function AuthPanel({ workspacePath, provider }: { workspacePath: string |
   return (
     <div className="panel-container" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, fontSize: "var(--font-size-md)" }}>
       {/* Header */}
-      <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
+      <div style={{ padding: "12px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
         <span style={{ fontSize: "var(--font-size-lg)", fontWeight: 600 }}>Authorization Scaffolding</span>
         <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginLeft: 8 }}>
           {allProviders.length} auth providers | {FRAMEWORKS.length} frameworks | {LANGUAGES.length} languages
@@ -320,7 +320,7 @@ export function AuthPanel({ workspacePath, provider }: { workspacePath: string |
             {filteredFrameworks.map(f => (
               <button key={f.value} onClick={() => setConfig(c => ({ ...c, framework: f.value }))}
                 style={{
-                  padding: "5px 8px", fontSize: "var(--font-size-sm)", border: `1px solid ${config.framework === f.value ? "var(--accent-color)" : "var(--border-color)"}`,
+                  padding: "4px 8px", fontSize: "var(--font-size-sm)", border: `1px solid ${config.framework === f.value ? "var(--accent-color)" : "var(--border-color)"}`,
                   borderRadius: "var(--radius-xs-plus)", cursor: "pointer", textAlign: "left",
                   background: config.framework === f.value ? "rgba(0,122,204,0.15)" : "transparent",
                   color: config.framework === f.value ? "var(--accent-color)" : "var(--text-primary)",
@@ -368,7 +368,7 @@ export function AuthPanel({ workspacePath, provider }: { workspacePath: string |
               <div style={labelStyle}>Save to workspace</div>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <input className="panel-input" style={{ flex: 1 }} value={targetPath} onChange={e => setTargetPath(e.target.value)} />
-                <button onClick={saveToWorkspace} disabled={loading}
+                <button className="panel-btn" onClick={saveToWorkspace} disabled={loading}
                   style={{ padding: "8px 16px", background: "var(--accent-color)", color: "var(--btn-primary-fg, #fff)", border: "none", borderRadius: "var(--radius-xs-plus)", cursor: "pointer", fontSize: "var(--font-size-base)", fontWeight: 600, whiteSpace: "nowrap" }}>
                   {saved ? "Saved" : "Save Files"}
                 </button>

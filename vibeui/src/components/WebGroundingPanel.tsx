@@ -108,7 +108,7 @@ export function WebGroundingPanel() {
             <div key={r.id} className="panel-card">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <strong style={{ fontSize: "var(--font-size-md)" }}>{r.title}</strong>
-                <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", background: "var(--bg-primary)", padding: "2px 6px", borderRadius: "var(--radius-xs-plus)" }}>{(r.relevance * 100).toFixed(0)}%</span>
+                <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", background: "var(--bg-primary)", padding: "2px 8px", borderRadius: "var(--radius-xs-plus)" }}>{(r.relevance * 100).toFixed(0)}%</span>
               </div>
               <div style={{ fontSize: "var(--font-size-base)", color: "var(--accent-color)", marginTop: 2 }}>{r.url}</div>
               <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginTop: 4 }}>{r.snippet}</div>

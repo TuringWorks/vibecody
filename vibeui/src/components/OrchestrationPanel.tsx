@@ -225,7 +225,7 @@ export function OrchestrationPanel({ workspacePath: _workspacePath }: Orchestrat
                     onChange={e => setNewTodo(e.target.value)}
                     onKeyDown={e => e.key === "Enter" && addTodo()}
                     placeholder="Add a task item..."
-                    style={{ flex: 1, padding: "6px 8px", background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-md)" }}
+                    style={{ flex: 1, padding: "8px 8px", background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-md)" }}
                   />
                   <button onClick={addTodo} className="panel-btn panel-btn-primary">Add</button>
                 </div>
@@ -244,9 +244,9 @@ export function OrchestrationPanel({ workspacePath: _workspacePath }: Orchestrat
             )}
 
             {lessons.map(lesson => (
-              <div key={lesson.id} className="panel-card" style={{ marginBottom: "6px" }}>
+              <div key={lesson.id} className="panel-card" style={{ marginBottom: "8px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontSize: "var(--font-size-sm)", padding: "1px 6px", background: "var(--border-color)", borderRadius: "2px", color: "var(--text-secondary)" }}>{lesson.category}</span>
+                  <span style={{ fontSize: "var(--font-size-sm)", padding: "1px 8px", background: "var(--border-color)", borderRadius: "2px", color: "var(--text-secondary)" }}>{lesson.category}</span>
                   <button onClick={() => deleteLesson(lesson.id)} style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: "var(--font-size-sm)" }}>x</button>
                 </div>
                 <div style={{ fontSize: "var(--font-size-md)", marginTop: "4px" }}>
@@ -258,9 +258,9 @@ export function OrchestrationPanel({ workspacePath: _workspacePath }: Orchestrat
             ))}
 
             {/* Add lesson form */}
-            <div style={{ marginTop: "12px", display: "flex", flexDirection: "column", gap: "6px" }}>
+            <div style={{ marginTop: "12px", display: "flex", flexDirection: "column", gap: "8px" }}>
               <div style={{ display: "flex", gap: "8px" }}>
-                <select value={newCategory} onChange={e => setNewCategory(e.target.value)} style={{ padding: "6px", background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-base)" }}>
+                <select value={newCategory} onChange={e => setNewCategory(e.target.value)} style={{ padding: "8px", background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-base)" }}>
                   <option value="general">general</option>
                   <option value="rust">rust</option>
                   <option value="typescript">typescript</option>
@@ -269,7 +269,7 @@ export function OrchestrationPanel({ workspacePath: _workspacePath }: Orchestrat
                   <option value="performance">performance</option>
                   <option value="architecture">architecture</option>
                 </select>
-                <input value={newPattern} onChange={e => setNewPattern(e.target.value)} placeholder="Pattern / mistake..." style={{ flex: 1, padding: "6px 8px", background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-md)" }} />
+                <input value={newPattern} onChange={e => setNewPattern(e.target.value)} placeholder="Pattern / mistake..." style={{ flex: 1, padding: "8px 8px", background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-md)" }} />
               </div>
               <div style={{ display: "flex", gap: "8px" }}>
                 <input
@@ -277,7 +277,7 @@ export function OrchestrationPanel({ workspacePath: _workspacePath }: Orchestrat
                   onChange={e => setNewRule(e.target.value)}
                   onKeyDown={e => e.key === "Enter" && addLesson()}
                   placeholder="Rule to prevent recurrence..."
-                  style={{ flex: 1, padding: "6px 8px", background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-md)" }}
+                  style={{ flex: 1, padding: "8px 8px", background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-md)" }}
                 />
                 <button onClick={addLesson} className="panel-btn panel-btn-primary">Add</button>
               </div>

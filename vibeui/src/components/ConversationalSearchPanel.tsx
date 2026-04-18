@@ -134,7 +134,7 @@ const ConversationalSearchPanel: React.FC = () => {
                 <strong style={{ fontSize: "var(--font-size-md)" }}>{r.file}:{r.line}</strong>
                 <span style={{ fontSize: "var(--font-size-sm)", opacity: 0.7 }}>{(r.relevance * 100).toFixed(0)}%</span>
               </div>
-              <code style={{ fontSize: "var(--font-size-base)", opacity: 0.85, display: "block", whiteSpace: "pre-wrap", marginBottom: "6px" }}>{r.snippet}</code>
+              <code style={{ fontSize: "var(--font-size-base)", opacity: 0.85, display: "block", whiteSpace: "pre-wrap", marginBottom: "8px" }}>{r.snippet}</code>
               <div style={{ background: "var(--border-color)", borderRadius: "2px", height: "4px" }}>
                 <div style={relevanceBar(r.relevance)} />
               </div>
@@ -145,7 +145,7 @@ const ConversationalSearchPanel: React.FC = () => {
           )}
           {followUps.length > 0 && (
             <div style={{ marginTop: "12px" }}>
-              <div style={{ fontSize: "var(--font-size-base)", opacity: 0.6, marginBottom: "6px" }}>Follow-up suggestions:</div>
+              <div style={{ fontSize: "var(--font-size-base)", opacity: 0.6, marginBottom: "8px" }}>Follow-up suggestions:</div>
               {followUps.map((f, i) => (
                 <button key={i} className="panel-btn panel-btn-secondary" style={{ display: "block", marginBottom: "4px", textAlign: "left" }} onClick={() => setQuery(f)}>
                   {f}
@@ -184,11 +184,11 @@ const ConversationalSearchPanel: React.FC = () => {
       {activeTab === "settings" && (
         <div>
           <div className="panel-card">
-            <div style={{ marginBottom: "10px" }}>
+            <div style={{ marginBottom: "12px" }}>
               <label className="panel-label">File Types</label>
               <input className="panel-input panel-input-full" value={filters.fileTypes} onChange={(e) => setFilters({ ...filters, fileTypes: e.target.value })} placeholder="*.rs, *.ts, *.tsx" />
             </div>
-            <div style={{ marginBottom: "10px" }}>
+            <div style={{ marginBottom: "12px" }}>
               <label className="panel-label">Paths</label>
               <input className="panel-input panel-input-full" value={filters.paths} onChange={(e) => setFilters({ ...filters, paths: e.target.value })} placeholder="src/" />
             </div>

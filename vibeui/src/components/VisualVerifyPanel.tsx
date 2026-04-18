@@ -136,7 +136,7 @@ export function VisualVerifyPanel() {
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <strong>{b.name}</strong>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={badgeStyle("#6366f1")}>{b.viewport}</span>
+                      <span style={badgeStyle("var(--accent-indigo)")}>{b.viewport}</span>
                       <button
                         onClick={() => handleDeleteBaseline(b.id)}
                         style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: "var(--font-size-lg)" }}

@@ -29,7 +29,7 @@ function ResponseCard({ resp, side }: { resp: ModelResponse; side: "A" | "B" }) 
  minWidth: 0,
  }}>
  <div style={{
- padding: "6px 12px",
+ padding: "8px 12px",
  background: "var(--bg-secondary)",
  display: "flex",
  alignItems: "center",
@@ -48,7 +48,7 @@ function ResponseCard({ resp, side }: { resp: ModelResponse; side: "A" | "B" }) 
  </span>
  )}
  </div>
- <div style={{ flex: 1, overflowY: "auto", padding: "10px 12px" }}>
+ <div style={{ flex: 1, overflowY: "auto", padding: "12px 12px" }}>
  {isError ? (
  <span style={{ color: "var(--error-color)" }}>{resp.error}</span>
  ) : (
@@ -135,7 +135,7 @@ export function MultiModelPanel() {
 
  <div className="panel-body" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
  {/* Provider selectors */}
- <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+ <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
  <ProviderSelector label="A" provider={providerA} model={modelA} onProvider={setProviderA} onModel={setModelA} />
  <ProviderSelector label="B" provider={providerB} model={modelB} onProvider={setProviderB} onModel={setModelB} />
  </div>
@@ -166,7 +166,7 @@ export function MultiModelPanel() {
 
  {/* Side-by-side responses */}
  {result && (
- <div style={{ display: "flex", gap: "10px", flex: 1, overflow: "hidden", minHeight: "200px" }}>
+ <div style={{ display: "flex", gap: "12px", flex: 1, overflow: "hidden", minHeight: "200px" }}>
  <ResponseCard resp={result.a} side="A" />
  <ResponseCard resp={result.b} side="B" />
  </div>

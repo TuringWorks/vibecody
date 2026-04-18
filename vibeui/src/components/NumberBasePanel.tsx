@@ -207,7 +207,7 @@ export function NumberBasePanel() {
  <div className="panel-header" style={{ flexWrap: "wrap" }}>
  <h3>Number Bases</h3>
  {(["convert","bitwise","float32"] as SubTab[]).map(t => (
- <button key={t} onClick={() => setSubTab(t)} style={{ padding: "2px 10px", fontSize: "var(--font-size-xs)", borderRadius: "var(--radius-md)", background: subTab === t ? "color-mix(in srgb, var(--accent-blue) 20%, transparent)" : "var(--bg-primary)", border: `1px solid ${subTab === t ? "var(--accent-color)" : "var(--border-color)"}`, color: subTab === t ? "var(--info-color)" : "var(--text-secondary)", cursor: "pointer", fontWeight: subTab === t ? 700 : 400 }}>
+ <button key={t} onClick={() => setSubTab(t)} style={{ padding: "2px 12px", fontSize: "var(--font-size-xs)", borderRadius: "var(--radius-md)", background: subTab === t ? "color-mix(in srgb, var(--accent-blue) 20%, transparent)" : "var(--bg-primary)", border: `1px solid ${subTab === t ? "var(--accent-color)" : "var(--border-color)"}`, color: subTab === t ? "var(--info-color)" : "var(--text-secondary)", cursor: "pointer", fontWeight: subTab === t ? 700 : 400 }}>
  {t === "convert" ? "Convert" : t === "bitwise" ? "Bitwise" : "Float32"}
  </button>
  ))}
@@ -279,11 +279,11 @@ export function NumberBasePanel() {
  ["A << 4", bitwiseOps.SHL4, "var(--warning-color)"],
  ["A >> 4", bitwiseOps.SHR4, "var(--warning-color)"],
  ] as [string, bigint, string][]).map(([label, result, colour]) => (
- <div key={label} style={{ borderBottom: "1px solid var(--border-color)", padding: "5px 0", display: "flex", gap: 10, alignItems: "center" }}>
+ <div key={label} style={{ borderBottom: "1px solid var(--border-color)", padding: "4px 0", display: "flex", gap: 10, alignItems: "center" }}>
  <span style={{ width: 80, fontSize: "var(--font-size-sm)", fontWeight: 700, color: "var(--text-secondary)", flexShrink: 0, fontFamily: "var(--font-mono)" }}>{label}</span>
  <span style={{ fontFamily: "var(--font-mono)", fontSize: "var(--font-size-sm)", color: colour, flex: 1 }}>0x{result.toString(16).toUpperCase().padStart(bits / 4, "0")}</span>
  <span style={{ fontFamily: "var(--font-mono)", fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>{result.toString(10)}</span>
- <button onClick={() => { setDecInput(result.toString(10)); setSource("dec"); syncFrom(result, "dec"); setSubTab("convert"); }} style={{ fontSize: 9, padding: "1px 6px", background: "none", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-secondary)", cursor: "pointer" }}>→</button>
+ <button onClick={() => { setDecInput(result.toString(10)); setSource("dec"); syncFrom(result, "dec"); setSubTab("convert"); }} style={{ fontSize: 9, padding: "1px 8px", background: "none", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-secondary)", cursor: "pointer" }}>→</button>
  </div>
  ))}
  </div>
@@ -305,7 +305,7 @@ export function NumberBasePanel() {
  {f32 !== null && (
  <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 4 }}>
  {/* Float value */}
- <div style={{ padding: "10px 12px", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", textAlign: "center" }}>
+ <div style={{ padding: "12px 12px", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", textAlign: "center" }}>
  <div style={{ fontSize: 24, fontWeight: 700, fontFamily: "var(--font-mono)", color: f32.isNaN ? "var(--error-color)" : f32.isInf ? "var(--warning-color)" : "var(--accent-color)" }}>
  {f32.isNaN ? "NaN" : f32.isInf ? (f32.sign ? "-∞" : "+∞") : f32.float.toPrecision(8)}
  </div>

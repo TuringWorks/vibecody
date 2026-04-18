@@ -269,7 +269,7 @@ export function TransformPanel({ provider }: TransformPanelProps) {
     <div className="panel-container" style={{ flexDirection: "row" }}>
       {/* ── Left: Transform picker ──────────────────────────────── */}
       <div style={{ width: 310, flexShrink: 0, borderRight: "1px solid var(--border-color)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        <div style={{ padding: "12px 14px", borderBottom: "1px solid var(--border-color)", flexShrink: 0 }}>
+        <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-color)", flexShrink: 0 }}>
           <div style={{ fontWeight: 600, fontSize: "var(--font-size-xl)", marginBottom: 8 }}>Code Transforms</div>
           <input
             value={search}
@@ -290,7 +290,7 @@ export function TransformPanel({ provider }: TransformPanelProps) {
             <button
               onClick={() => setPasteMode(!pasteMode)}
               style={{
-                width: "100%", padding: "6px 0",
+                width: "100%", padding: "8px 0",
                 background: pasteMode ? "var(--accent-color)" : "var(--bg-tertiary)",
                 border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)",
                 color: "var(--text-primary)", cursor: "pointer", fontSize: "var(--font-size-base)", fontWeight: 500,
@@ -301,7 +301,7 @@ export function TransformPanel({ provider }: TransformPanelProps) {
           </div>
         </div>
 
-        <div style={{ flex: 1, overflow: "auto", padding: "8px 14px" }}>
+        <div style={{ flex: 1, overflow: "auto", padding: "8px 16px" }}>
           {loading ? (
             <div style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-base)", padding: 12 }}>Scanning workspace...</div>
           ) : grouped.length === 0 ? (
@@ -318,11 +318,11 @@ export function TransformPanel({ provider }: TransformPanelProps) {
                   {group.transforms.map(t => {
                     const active = selectedTransform === t.id;
                     return (
-                      <div
+                      <div role="button" tabIndex={0}
                         key={t.id}
                         onClick={() => { setSelectedTransform(t.id); setPlan(null); setExecResult(null); setError(""); setTransformedCode(""); }}
                         style={{
-                          padding: "10px 14px",
+                          padding: "12px 16px",
                           background: active ? "var(--accent-color)" : "var(--bg-secondary)",
                           border: `1px solid ${active ? "var(--accent-color)" : "var(--border-color)"}`,
                           borderRadius: "var(--radius-sm-alt)", cursor: "pointer",
@@ -332,7 +332,7 @@ export function TransformPanel({ provider }: TransformPanelProps) {
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                           <span style={{ fontSize: "var(--font-size-md)", fontWeight: 600 }}>{t.label}</span>
                           {detectedIds.includes(t.id) && (
-                            <span style={{ fontSize: 9, background: "var(--success-color)", color: "var(--bg-primary)", borderRadius: "var(--radius-xs-plus)", padding: "1px 5px", fontWeight: 600 }}>DETECTED</span>
+                            <span style={{ fontSize: 9, background: "var(--success-color)", color: "var(--bg-primary)", borderRadius: "var(--radius-xs-plus)", padding: "1px 4px", fontWeight: 600 }}>DETECTED</span>
                           )}
                         </div>
                         <div style={{ fontSize: "var(--font-size-sm)", color: active ? "rgba(255,255,255,0.8)" : "var(--text-secondary)", lineHeight: 1.4 }}>
@@ -364,7 +364,7 @@ export function TransformPanel({ provider }: TransformPanelProps) {
               setLocalProvider(p);
               setLocalModel(p ? (PROVIDER_DEFAULT_MODEL[p] || "") : "");
             }}
-            style={{ fontSize: "var(--font-size-sm)", padding: "3px 6px", background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", cursor: "pointer" }}
+            style={{ fontSize: "var(--font-size-sm)", padding: "3px 8px", background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", cursor: "pointer" }}
           >
             <option value="">Use main UI ({provider || "none"})</option>
             {ALL_PROVIDERS.map(p => (
@@ -375,7 +375,7 @@ export function TransformPanel({ provider }: TransformPanelProps) {
             <select
               value={localModel}
               onChange={e => setLocalModel(e.target.value)}
-              style={{ fontSize: "var(--font-size-sm)", padding: "3px 6px", background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", cursor: "pointer", minWidth: 180 }}
+              style={{ fontSize: "var(--font-size-sm)", padding: "3px 8px", background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", cursor: "pointer", minWidth: 180 }}
             >
               {(STATIC_MODELS[localProvider] || []).map(m => (
                 <option key={m} value={m}>{m}</option>
@@ -383,7 +383,7 @@ export function TransformPanel({ provider }: TransformPanelProps) {
             </select>
           )}
           {localProvider === "claude-code" && (
-            <span style={{ fontSize: "var(--font-size-xs)", color: "var(--success-color)", background: "var(--success-bg)", padding: "2px 6px", borderRadius: "var(--radius-xs-plus)", whiteSpace: "nowrap" }}>
+            <span style={{ fontSize: "var(--font-size-xs)", color: "var(--success-color)", background: "var(--success-bg)", padding: "2px 8px", borderRadius: "var(--radius-xs-plus)", whiteSpace: "nowrap" }}>
               No API credits needed
             </span>
           )}
@@ -398,7 +398,7 @@ export function TransformPanel({ provider }: TransformPanelProps) {
           </div>
         ) : pasteMode ? (
           /* ── Paste & Transform ─────────────────────────────── */
-          <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+          <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
             <div style={{ fontWeight: 600, fontSize: "var(--font-size-xl)", marginBottom: 4 }}>{selectedDef?.label}</div>
             <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 12 }}>{selectedDef?.description}</div>
 
@@ -419,10 +419,10 @@ export function TransformPanel({ provider }: TransformPanelProps) {
 
               {/* Arrow + Button */}
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, flexShrink: 0 }}>
-                <button
+                <button className="panel-btn"
                   onClick={handlePasteTransform}
                   disabled={pasteTransforming || !sourceCode.trim()}
-                  style={{ background: "var(--accent-color)", border: "none", borderRadius: "var(--radius-sm-alt)", padding: "10px 16px", color: "var(--text-primary)", cursor: "pointer", fontWeight: 600, fontSize: "var(--font-size-md)", opacity: pasteTransforming || !sourceCode.trim() ? 0.5 : 1, whiteSpace: "nowrap" }}
+                  style={{ background: "var(--accent-color)", border: "none", borderRadius: "var(--radius-sm-alt)", padding: "12px 16px", color: "var(--text-primary)", cursor: "pointer", fontWeight: 600, fontSize: "var(--font-size-md)", opacity: pasteTransforming || !sourceCode.trim() ? 0.5 : 1, whiteSpace: "nowrap" }}
                 >
                   {pasteTransforming ? "..." : "Transform \u2192"}
                 </button>
@@ -443,13 +443,13 @@ export function TransformPanel({ provider }: TransformPanelProps) {
               <div style={{ marginTop: 12, display: "flex", gap: 8, flexShrink: 0 }}>
                 <button
                   onClick={() => navigator.clipboard.writeText(transformedCode)}
-                  style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", padding: "6px 14px", color: "var(--text-primary)", cursor: "pointer", fontSize: "var(--font-size-base)" }}
+                  style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", padding: "8px 16px", color: "var(--text-primary)", cursor: "pointer", fontSize: "var(--font-size-base)" }}
                 >
                   Copy Output
                 </button>
                 <button
                   onClick={() => { setSourceCode(transformedCode); setTransformedCode(""); }}
-                  style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", padding: "6px 14px", color: "var(--text-primary)", cursor: "pointer", fontSize: "var(--font-size-base)" }}
+                  style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", padding: "8px 16px", color: "var(--text-primary)", cursor: "pointer", fontSize: "var(--font-size-base)" }}
                 >
                   Use as Input (chain transforms)
                 </button>
@@ -505,7 +505,7 @@ export function TransformPanel({ provider }: TransformPanelProps) {
 
                 <div style={{ maxHeight: 300, overflow: "auto", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm-alt)", marginBottom: 12 }}>
                   {plan.files.map((item, i) => (
-                    <div
+                    <div role="button" tabIndex={0}
                       key={item.file}
                       onClick={() => toggleFile(item.file)}
                       style={{
@@ -527,10 +527,10 @@ export function TransformPanel({ provider }: TransformPanelProps) {
                 </div>
 
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <button
+                  <button className="panel-btn"
                     onClick={handleExecute}
                     disabled={executing || selectedFiles.size === 0}
-                    style={{ background: "var(--accent-color)", border: "none", borderRadius: "var(--radius-sm)", padding: "10px 24px", color: "var(--btn-primary-fg)", cursor: "pointer", fontWeight: 600, fontSize: "var(--font-size-lg)", opacity: executing || selectedFiles.size === 0 ? 0.5 : 1 }}
+                    style={{ background: "var(--accent-color)", border: "none", borderRadius: "var(--radius-sm)", padding: "12px 24px", color: "var(--btn-primary-fg)", cursor: "pointer", fontWeight: 600, fontSize: "var(--font-size-lg)", opacity: executing || selectedFiles.size === 0 ? 0.5 : 1 }}
                   >
                     {executing
                       ? (progress ? `Transforming ${progress.current}/${progress.total}...` : "Transforming...")
@@ -538,7 +538,7 @@ export function TransformPanel({ provider }: TransformPanelProps) {
                   </button>
                   <button
                     onClick={() => { setPlan(null); setExecResult(null); }}
-                    style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", padding: "10px 16px", color: "var(--text-primary)", cursor: "pointer", fontSize: "var(--font-size-md)" }}
+                    style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", padding: "12px 16px", color: "var(--text-primary)", cursor: "pointer", fontSize: "var(--font-size-md)" }}
                   >
                     Re-plan
                   </button>

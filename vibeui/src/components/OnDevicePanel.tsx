@@ -124,16 +124,16 @@ export function OnDevicePanel() {
   const formatMb = (mb: number) => mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${mb} MB`;
 
   return (
-    <div style={{ padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-mono)", height: "100%", overflowY: "auto" }}>
+    <div className="panel-container" style={{ padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-mono)", flex: 1, minHeight: 0, overflowY: "auto" }}>
       <div style={{ fontSize: "var(--font-size-xl)", fontWeight: 700, marginBottom: 12 }}>On-Device Models</div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
         {["models", "hardware", "benchmark", "privacy"].map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{ padding: "4px 12px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: tab === t ? "var(--accent-color)" : "var(--bg-secondary)", color: tab === t ? "#fff" : "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>{t}</button>
+          <button key={t} onClick={() => setTab(t)} style={{ padding: "4px 12px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: tab === t ? "var(--accent-color)" : "var(--bg-secondary)", color: tab === t ? "var(--btn-primary-fg)" : "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>{t}</button>
         ))}
       </div>
 
-      {loading && <div style={{ color: "var(--text-muted)" }}>Loading...</div>}
+      {loading && <div className="panel-loading" style={{ color: "var(--text-muted)" }}>Loading...</div>}
       {error && <div style={{ color: "var(--error-color)", marginBottom: 8 }}>{error}</div>}
 
       {!loading && tab === "models" && (
@@ -142,7 +142,7 @@ export function OnDevicePanel() {
             <thead>
               <tr style={{ background: "var(--bg-secondary)" }}>
                 {["Name", "Format", "Quant", "Size", "Actions"].map(h => (
-                  <th key={h} style={{ padding: "6px 10px", textAlign: "left", borderBottom: "1px solid var(--border-color)", color: "var(--text-muted)", fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>
+                  <th key={h} style={{ padding: "8px 12px", textAlign: "left", borderBottom: "1px solid var(--border-color)", color: "var(--text-muted)", fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -152,22 +152,22 @@ export function OnDevicePanel() {
               )}
               {models.map(m => (
                 <tr key={m.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
-                  <td style={{ padding: "6px 10px", fontWeight: 600 }}>{m.name}</td>
-                  <td style={{ padding: "6px 10px", color: "var(--text-muted)" }}>{m.format}</td>
-                  <td style={{ padding: "6px 10px" }}>
-                    <span style={{ padding: "1px 7px", borderRadius: "var(--radius-sm)", fontSize: "var(--font-size-sm)", background: "var(--accent-color)22", color: "var(--accent-color)" }}>{m.quant}</span>
+                  <td style={{ padding: "8px 12px", fontWeight: 600 }}>{m.name}</td>
+                  <td style={{ padding: "8px 12px", color: "var(--text-muted)" }}>{m.format}</td>
+                  <td style={{ padding: "8px 12px" }}>
+                    <span style={{ padding: "1px 8px", borderRadius: "var(--radius-sm)", fontSize: "var(--font-size-sm)", background: "var(--accent-color)22", color: "var(--accent-color)" }}>{m.quant}</span>
                   </td>
-                  <td style={{ padding: "6px 10px", color: "var(--text-muted)", whiteSpace: "nowrap" }}>{formatMb(m.size_mb)}</td>
-                  <td style={{ padding: "6px 10px" }}>
+                  <td style={{ padding: "8px 12px", color: "var(--text-muted)", whiteSpace: "nowrap" }}>{formatMb(m.size_mb)}</td>
+                  <td style={{ padding: "8px 12px" }}>
                     <div style={{ display: "flex", gap: 6 }}>
                       {!m.downloaded ? (
                         <button onClick={() => downloadModel(m.id)} disabled={downloading.has(m.id)}
-                          style={{ padding: "3px 10px", borderRadius: 5, cursor: downloading.has(m.id) ? "not-allowed" : "pointer", background: "var(--accent-color)", color: "var(--btn-primary-fg, #fff)", border: "none", fontSize: "var(--font-size-sm)", opacity: downloading.has(m.id) ? 0.6 : 1 }}>
+                          style={{ padding: "3px 12px", borderRadius: 5, cursor: downloading.has(m.id) ? "not-allowed" : "pointer", background: "var(--accent-color)", color: "var(--btn-primary-fg, #fff)", border: "none", fontSize: "var(--font-size-sm)", opacity: downloading.has(m.id) ? 0.6 : 1 }}>
                           {downloading.has(m.id) ? "Downloading…" : "Download"}
                         </button>
                       ) : (
                         <button onClick={() => deleteModel(m.id)} disabled={deleting.has(m.id)}
-                          style={{ padding: "3px 10px", borderRadius: 5, cursor: deleting.has(m.id) ? "not-allowed" : "pointer", background: "var(--error-color)", color: "var(--btn-primary-fg, #fff)", border: "none", fontSize: "var(--font-size-sm)", opacity: deleting.has(m.id) ? 0.6 : 1 }}>
+                          style={{ padding: "3px 12px", borderRadius: 5, cursor: deleting.has(m.id) ? "not-allowed" : "pointer", background: "var(--error-color)", color: "var(--btn-primary-fg, #fff)", border: "none", fontSize: "var(--font-size-sm)", opacity: deleting.has(m.id) ? 0.6 : 1 }}>
                           {deleting.has(m.id) ? "Deleting…" : "Delete"}
                         </button>
                       )}
@@ -209,14 +209,14 @@ export function OnDevicePanel() {
         <div>
           <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 16, flexWrap: "wrap" }}>
             <select value={selectedModel} onChange={e => setSelectedModel(e.target.value)}
-              style={{ padding: "6px 10px", borderRadius: "var(--radius-sm)", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)", flex: 1, minWidth: 200 }}>
+              style={{ padding: "8px 12px", borderRadius: "var(--radius-sm)", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)", flex: 1, minWidth: 200 }}>
               {models.filter(m => m.downloaded).map(m => (
                 <option key={m.id} value={m.id}>{m.name}</option>
               ))}
               {models.filter(m => m.downloaded).length === 0 && <option value="">No downloaded models</option>}
             </select>
-            <button onClick={runBenchmark} disabled={benchRunning || !selectedModel}
-              style={{ padding: "6px 18px", borderRadius: "var(--radius-sm)", cursor: benchRunning || !selectedModel ? "not-allowed" : "pointer", background: "var(--accent-color)", color: "var(--btn-primary-fg, #fff)", border: "none", fontSize: "var(--font-size-base)", fontWeight: 600, opacity: benchRunning || !selectedModel ? 0.6 : 1 }}>
+            <button className="panel-btn" onClick={runBenchmark} disabled={benchRunning || !selectedModel}
+              style={{ padding: "8px 20px", borderRadius: "var(--radius-sm)", cursor: benchRunning || !selectedModel ? "not-allowed" : "pointer", background: "var(--accent-color)", color: "var(--btn-primary-fg, #fff)", border: "none", fontSize: "var(--font-size-base)", fontWeight: 600, opacity: benchRunning || !selectedModel ? 0.6 : 1 }}>
               {benchRunning ? "Running…" : "Run Benchmark"}
             </button>
           </div>
@@ -224,7 +224,7 @@ export function OnDevicePanel() {
             <thead>
               <tr style={{ background: "var(--bg-secondary)" }}>
                 {["Model", "TPS", "TTFT (ms)", "Tokens", "Run At"].map(h => (
-                  <th key={h} style={{ padding: "6px 10px", textAlign: "left", borderBottom: "1px solid var(--border-color)", color: "var(--text-muted)", fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>
+                  <th key={h} style={{ padding: "8px 12px", textAlign: "left", borderBottom: "1px solid var(--border-color)", color: "var(--text-muted)", fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -234,11 +234,11 @@ export function OnDevicePanel() {
               )}
               {benchResults.map((r, i) => (
                 <tr key={i} style={{ borderBottom: "1px solid var(--border-color)" }}>
-                  <td style={{ padding: "6px 10px", fontWeight: 600 }}>{r.model_name}</td>
-                  <td style={{ padding: "6px 10px", color: "var(--success-color)" }}>{r.tokens_per_second.toFixed(1)}</td>
-                  <td style={{ padding: "6px 10px" }}>{r.time_to_first_token_ms}</td>
-                  <td style={{ padding: "6px 10px", color: "var(--text-muted)" }}>{r.total_tokens}</td>
-                  <td style={{ padding: "6px 10px", color: "var(--text-muted)", whiteSpace: "nowrap" }}>{r.ran_at}</td>
+                  <td style={{ padding: "8px 12px", fontWeight: 600 }}>{r.model_name}</td>
+                  <td style={{ padding: "8px 12px", color: "var(--success-color)" }}>{r.tokens_per_second.toFixed(1)}</td>
+                  <td style={{ padding: "8px 12px" }}>{r.time_to_first_token_ms}</td>
+                  <td style={{ padding: "8px 12px", color: "var(--text-muted)" }}>{r.total_tokens}</td>
+                  <td style={{ padding: "8px 12px", color: "var(--text-muted)", whiteSpace: "nowrap" }}>{r.ran_at}</td>
                 </tr>
               ))}
             </tbody>
@@ -266,7 +266,7 @@ export function OnDevicePanel() {
               {privacy.blocked_providers.length === 0 && <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-muted)" }}>No providers blocked.</div>}
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                 {privacy.blocked_providers.map(p => (
-                  <span key={p} style={{ padding: "3px 10px", borderRadius: 12, fontSize: "var(--font-size-sm)", background: "var(--error-color)22", color: "var(--error-color)", border: "1px solid var(--error-color)" }}>{p}</span>
+                  <span key={p} style={{ padding: "3px 12px", borderRadius: 12, fontSize: "var(--font-size-sm)", background: "var(--error-color)22", color: "var(--error-color)", border: "1px solid var(--error-color)" }}>{p}</span>
                 ))}
               </div>
             </div>

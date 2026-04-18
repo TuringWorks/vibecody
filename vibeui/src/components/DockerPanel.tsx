@@ -232,11 +232,11 @@ export function DockerPanel({ workspacePath }: DockerPanelProps) {
  ) : (
  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
  {containers.map((c) => (
- <div
+ <div role="button" tabIndex={0}
  key={c.id}
  onClick={() => setSelectedContainer(selectedContainer === c.id ? null : c.id)}
  style={{
- padding: "8px 10px",
+ padding: "8px 12px",
  background: selectedContainer === c.id ? "var(--bg-selected)" : "var(--bg-secondary)",
  border: `1px solid ${selectedContainer === c.id ? "var(--accent-color)" : "var(--border-color)"}`,
  borderRadius: "var(--radius-sm)", cursor: "pointer",
@@ -256,7 +256,7 @@ export function DockerPanel({ workspacePath }: DockerPanelProps) {
 
  {/* Action buttons when selected */}
  {selectedContainer === c.id && (
- <div style={{ display: "flex", gap: 5, marginTop: 8, flexWrap: "wrap" }}
+ <div role="button" tabIndex={0} style={{ display: "flex", gap: 5, marginTop: 8, flexWrap: "wrap" }}
  onClick={(e) => e.stopPropagation()}>
  {c.status.toLowerCase().startsWith("exited") ? (
  <button onClick={() => runAction(c.id, "start")} disabled={actionLoading} className="panel-btn panel-btn-primary">Start</button>
@@ -319,7 +319,7 @@ export function DockerPanel({ workspacePath }: DockerPanelProps) {
  {images.map((img) => (
  <div key={img.id} style={{
  display: "flex", alignItems: "center", gap: 10,
- padding: "7px 10px",
+ padding: "8px 12px",
  background: "var(--bg-secondary)", border: "1px solid var(--border-color)",
  borderRadius: "var(--radius-sm)", fontSize: "var(--font-size-base)",
  }}>

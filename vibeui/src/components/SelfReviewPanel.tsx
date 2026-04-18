@@ -115,7 +115,7 @@ const SelfReviewPanel: React.FC = () => {
       {/* Status banner */}
       {iterations.length === 0 ? (
         <div style={{
-          padding: '10px 16px', borderRadius: "var(--radius-sm-alt)", marginBottom: 16,
+          padding: '12px 16px', borderRadius: "var(--radius-sm-alt)", marginBottom: 16,
           background: 'rgba(107, 114, 128, 0.1)',
           border: '1px solid var(--text-secondary)',
           display: 'flex', alignItems: 'center', gap: 12,
@@ -128,7 +128,7 @@ const SelfReviewPanel: React.FC = () => {
         </div>
       ) : (
         <div style={{
-          padding: '10px 16px', borderRadius: "var(--radius-sm-alt)", marginBottom: 16,
+          padding: '12px 16px', borderRadius: "var(--radius-sm-alt)", marginBottom: 16,
           background: latestIteration?.passed ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
           border: `1px solid ${latestIteration?.passed ? 'var(--success-color)' : 'var(--error-color)'}`,
           display: 'flex', alignItems: 'center', gap: 12,
@@ -153,7 +153,7 @@ const SelfReviewPanel: React.FC = () => {
           { label: 'Checks', value: config.checks.length },
           { label: 'Findings', value: totalFindings },
         ].map((s) => (
-          <div key={s.label} style={{ background: 'var(--bg-secondary)', padding: '6px 14px', borderRadius: "var(--radius-sm)", textAlign: 'center' }}>
+          <div key={s.label} style={{ background: 'var(--bg-secondary)', padding: '8px 16px', borderRadius: "var(--radius-sm)", textAlign: 'center' }}>
             <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "var(--font-mono)", color: 'var(--accent-color)' }}>{s.value}</div>
             <div style={{ fontSize: "var(--font-size-sm)", color: 'var(--text-secondary)' }}>{s.label}</div>
           </div>
@@ -164,7 +164,7 @@ const SelfReviewPanel: React.FC = () => {
       <div style={{ display: 'flex', gap: 4, marginBottom: 12, borderBottom: '1px solid var(--border-color)' }}>
         {(['results', 'config', 'report'] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)} style={{
-            padding: '6px 16px', border: 'none', cursor: 'pointer', fontSize: "var(--font-size-md)",
+            padding: '8px 16px', border: 'none', cursor: 'pointer', fontSize: "var(--font-size-md)",
             background: tab === t ? 'var(--accent-color)' : 'transparent',
             color: tab === t ? 'white' : 'var(--text-secondary)', borderRadius: '6px 6px 0 0',
           }}>
@@ -270,7 +270,7 @@ const SelfReviewPanel: React.FC = () => {
           <h4 style={{ margin: '16px 0 8px' }}>Active Checks</h4>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {['build', 'lint', 'test', 'security', 'format', 'typecheck', 'diff_review'].map((check) => (
-              <label key={check} style={{ fontSize: "var(--font-size-base)", display: 'flex', alignItems: 'center', gap: 4, background: 'var(--bg-primary)', padding: '4px 10px', borderRadius: "var(--radius-xs-plus)" }}>
+              <label key={check} style={{ fontSize: "var(--font-size-base)", display: 'flex', alignItems: 'center', gap: 4, background: 'var(--bg-primary)', padding: '4px 12px', borderRadius: "var(--radius-xs-plus)" }}>
                 <input type="checkbox" checked={config.checks.includes(check)} onChange={(e) => {
                   const newConfig = e.target.checked
                     ? { ...config, checks: [...config.checks, check] }

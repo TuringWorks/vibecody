@@ -196,17 +196,17 @@ export function HealthMonitorPanel() {
  )}
  </div>
 
- <button
+ <button className="panel-btn"
  onClick={checkAll}
  disabled={checking || monitors.length === 0}
- style={{ padding: "4px 14px", fontSize: "var(--font-size-sm)", fontWeight: 700, background: checking ? "var(--bg-secondary)" : "var(--accent-primary)", color: checking ? "var(--text-secondary)" : "var(--text-on-accent)", border: "none", borderRadius: "var(--radius-xs-plus)", cursor: checking ? "not-allowed" : "pointer" }}
+ style={{ padding: "4px 16px", fontSize: "var(--font-size-sm)", fontWeight: 700, background: checking ? "var(--bg-secondary)" : "var(--accent-primary)", color: checking ? "var(--text-secondary)" : "var(--text-on-accent)", border: "none", borderRadius: "var(--radius-xs-plus)", cursor: checking ? "not-allowed" : "pointer" }}
  >
  {checking ? "Checking…" : "Check All"}
  </button>
 
  <button
  onClick={() => setShowAdd(v => !v)}
- style={{ padding: "4px 10px", fontSize: "var(--font-size-sm)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", cursor: "pointer" }}
+ style={{ padding: "4px 12px", fontSize: "var(--font-size-sm)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", cursor: "pointer" }}
  >
  + Add
  </button>
@@ -214,7 +214,7 @@ export function HealthMonitorPanel() {
 
  {/* Add monitor form */}
  {showAdd && (
- <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
+ <div style={{ padding: "12px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
  <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
  <label style={{ fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-secondary)" }}>Label</label>
  <input value={newLabel} onChange={e => setNewLabel(e.target.value)} placeholder="My API" style={{ padding: "4px 8px", fontSize: "var(--font-size-base)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none", width: 120 }} />
@@ -225,12 +225,12 @@ export function HealthMonitorPanel() {
  </div>
  <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
  <label style={{ fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-secondary)" }}>Timeout</label>
- <select value={newTimeout} onChange={e => setNewTimeout(Number(e.target.value))} style={{ padding: "4px 6px", fontSize: "var(--font-size-sm)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)" }}>
+ <select value={newTimeout} onChange={e => setNewTimeout(Number(e.target.value))} style={{ padding: "4px 8px", fontSize: "var(--font-size-sm)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)" }}>
  {[2000, 5000, 10000, 30000].map(t => <option key={t} value={t}>{t / 1000}s</option>)}
  </select>
  </div>
- <button onClick={addMonitor} disabled={!newLabel || !newUrl} style={{ padding: "5px 14px", fontSize: "var(--font-size-sm)", fontWeight: 700, background: "var(--accent-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", color: "var(--text-on-accent)", cursor: "pointer", height: 28 }}>Add</button>
- <button onClick={() => setShowAdd(false)} style={{ padding: "5px 10px", fontSize: "var(--font-size-sm)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-secondary)", cursor: "pointer", height: 28 }}>Cancel</button>
+ <button className="panel-btn" onClick={addMonitor} disabled={!newLabel || !newUrl} style={{ padding: "4px 16px", fontSize: "var(--font-size-sm)", fontWeight: 700, background: "var(--accent-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", color: "var(--text-on-accent)", cursor: "pointer", height: 28 }}>Add</button>
+ <button onClick={() => setShowAdd(false)} style={{ padding: "4px 12px", fontSize: "var(--font-size-sm)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-secondary)", cursor: "pointer", height: 28 }}>Cancel</button>
  </div>
  )}
 
@@ -247,7 +247,7 @@ export function HealthMonitorPanel() {
  const r = results[m.id];
  const hist = history[m.id] ?? [];
  return (
- <div key={m.id} style={{ padding: "10px 14px", borderBottom: "1px solid var(--border-color)", display: "flex", alignItems: "center", gap: 12 }}>
+ <div key={m.id} style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-color)", display: "flex", alignItems: "center", gap: 12 }}>
  {/* Status dot */}
  <div style={{
  width: 10, height: 10, borderRadius: "50%", flexShrink: 0,
@@ -303,7 +303,7 @@ export function HealthMonitorPanel() {
 
  {/* Footer — last check time */}
  {checkedCount > 0 && (
- <div style={{ padding: "6px 14px", borderTop: "1px solid var(--border-color)", background: "var(--bg-secondary)", fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", flexShrink: 0 }}>
+ <div style={{ padding: "8px 16px", borderTop: "1px solid var(--border-color)", background: "var(--bg-secondary)", fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", flexShrink: 0 }}>
  Last check: {new Date(Math.max(...Object.values(results).map(r => r.timestamp)) * 1000).toLocaleTimeString()}
  {autoRefresh && <span style={{ marginLeft: 8 }}>· Auto-refresh every {intervalSec}s</span>}
  </div>

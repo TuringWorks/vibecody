@@ -95,16 +95,16 @@ export function HardProblemPanel() {
   }
 
   return (
-    <div style={{ padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-mono)", height: "100%", overflowY: "auto" }}>
+    <div className="panel-container" style={{ padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-mono)", flex: 1, minHeight: 0, overflowY: "auto" }}>
       <div style={{ fontSize: "var(--font-size-xl)", fontWeight: 700, marginBottom: 12 }}>Hard Problem Decomposer</div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         {["decompose", "assumptions", "questions"].map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{ padding: "4px 12px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: tab === t ? "var(--accent-color)" : "var(--bg-secondary)", color: tab === t ? "#fff" : "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>{t}</button>
+          <button key={t} onClick={() => setTab(t)} style={{ padding: "4px 12px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: tab === t ? "var(--accent-color)" : "var(--bg-secondary)", color: tab === t ? "var(--btn-primary-fg)" : "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>{t}</button>
         ))}
       </div>
 
-      {loading && <div style={{ color: "var(--text-muted)" }}>Loading...</div>}
+      {loading && <div className="panel-loading" style={{ color: "var(--text-muted)" }}>Loading...</div>}
       {error && <div style={{ color: "var(--error-color)", marginBottom: 8 }}>{error}</div>}
 
       {tab === "decompose" && (
@@ -113,9 +113,9 @@ export function HardProblemPanel() {
             <label style={{ display: "block", fontSize: "var(--font-size-base)", color: "var(--text-muted)", marginBottom: 6 }}>Problem Description</label>
             <textarea value={description} onChange={e => setDescription(e.target.value)}
               placeholder="Describe the hard problem to decompose..."
-              style={{ width: "100%", height: 120, padding: "10px", borderRadius: "var(--radius-sm)", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)", resize: "vertical", boxSizing: "border-box" }} />
+              style={{ width: "100%", height: 120, padding: "12px", borderRadius: "var(--radius-sm)", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)", resize: "vertical", boxSizing: "border-box" }} />
           </div>
-          <button onClick={analyze} disabled={analyzing || !description.trim()}
+          <button className="panel-btn" onClick={analyze} disabled={analyzing || !description.trim()}
             style={{ padding: "8px 24px", borderRadius: "var(--radius-sm)", cursor: analyzing || !description.trim() ? "not-allowed" : "pointer", background: "var(--accent-color)", color: "var(--btn-primary-fg, #fff)", border: "none", fontSize: "var(--font-size-md)", fontWeight: 600, opacity: analyzing || !description.trim() ? 0.6 : 1, marginBottom: 20 }}>
             {analyzing ? "Analyzing…" : "Analyze"}
           </button>
@@ -124,7 +124,7 @@ export function HardProblemPanel() {
               <div style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-md)", border: "1px solid var(--border-color)", padding: 16, marginBottom: 14 }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                   <span style={{ fontSize: "var(--font-size-md)", fontWeight: 600 }}>Problem Summary</span>
-                  <span style={{ fontSize: "var(--font-size-sm)", padding: "2px 10px", borderRadius: "var(--radius-sm-alt)", fontWeight: 700, background: COMPLEXITY_COLORS[decomposeResult.overall_complexity] + "22", color: COMPLEXITY_COLORS[decomposeResult.overall_complexity] }}>
+                  <span style={{ fontSize: "var(--font-size-sm)", padding: "2px 12px", borderRadius: "var(--radius-sm-alt)", fontWeight: 700, background: COMPLEXITY_COLORS[decomposeResult.overall_complexity] + "22", color: COMPLEXITY_COLORS[decomposeResult.overall_complexity] }}>
                     {decomposeResult.overall_complexity} complexity
                   </span>
                 </div>
@@ -132,10 +132,10 @@ export function HardProblemPanel() {
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {decomposeResult.subsystems.map(sub => (
-                  <div key={sub.name} style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", border: "1px solid var(--border-color)", borderLeft: `3px solid ${COMPLEXITY_COLORS[sub.complexity]}`, padding: "10px 14px" }}>
+                  <div key={sub.name} style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", border: "1px solid var(--border-color)", borderLeft: `3px solid ${COMPLEXITY_COLORS[sub.complexity]}`, padding: "12px 16px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                       <span style={{ fontSize: "var(--font-size-md)", fontWeight: 600 }}>{sub.name}</span>
-                      <span style={{ fontSize: "var(--font-size-xs)", padding: "1px 7px", borderRadius: "var(--radius-sm-alt)", background: COMPLEXITY_COLORS[sub.complexity] + "22", color: COMPLEXITY_COLORS[sub.complexity] }}>{sub.complexity}</span>
+                      <span style={{ fontSize: "var(--font-size-xs)", padding: "1px 8px", borderRadius: "var(--radius-sm-alt)", background: COMPLEXITY_COLORS[sub.complexity] + "22", color: COMPLEXITY_COLORS[sub.complexity] }}>{sub.complexity}</span>
                     </div>
                     <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-muted)", marginBottom: 6 }}>{sub.description}</div>
                     {sub.dependencies.length > 0 && (
@@ -156,7 +156,7 @@ export function HardProblemPanel() {
           {assumptions.length === 0 && <div style={{ color: "var(--text-muted)" }}>No assumptions surfaced yet. Run analysis first.</div>}
           {assumptions.map(assumption => (
             <div key={assumption.id} style={{
-              background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", border: "1px solid var(--border-color)", padding: "12px 14px",
+              background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", border: "1px solid var(--border-color)", padding: "12px 16px",
               borderLeft: `3px solid ${assumption.status === "confirmed" ? "var(--success-color)" : assumption.status === "rejected" ? "var(--error-color)" : "var(--text-muted)"}`
             }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
@@ -171,11 +171,11 @@ export function HardProblemPanel() {
               {assumption.status === "unconfirmed" && (
                 <div style={{ display: "flex", gap: 8 }}>
                   <button onClick={() => confirmAssumption(assumption.id, true)}
-                    style={{ padding: "4px 14px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: "var(--success-color)", color: "var(--btn-primary-fg, #fff)", border: "none", fontSize: "var(--font-size-base)" }}>
+                    style={{ padding: "4px 16px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: "var(--success-color)", color: "var(--btn-primary-fg, #fff)", border: "none", fontSize: "var(--font-size-base)" }}>
                     Confirm
                   </button>
                   <button onClick={() => confirmAssumption(assumption.id, false)}
-                    style={{ padding: "4px 14px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: "var(--error-color)", color: "var(--btn-primary-fg, #fff)", border: "none", fontSize: "var(--font-size-base)" }}>
+                    style={{ padding: "4px 16px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: "var(--error-color)", color: "var(--btn-primary-fg, #fff)", border: "none", fontSize: "var(--font-size-base)" }}>
                     Reject
                   </button>
                 </div>
@@ -189,7 +189,7 @@ export function HardProblemPanel() {
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {questions.length === 0 && <div style={{ color: "var(--text-muted)" }}>No clarifying questions generated. Run analysis first.</div>}
           {questions.map(q => (
-            <div key={q.id} style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", border: "1px solid var(--border-color)", padding: "12px 14px" }}>
+            <div key={q.id} style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", border: "1px solid var(--border-color)", padding: "12px 16px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                 <span style={{ fontSize: "var(--font-size-sm)", padding: "1px 8px", borderRadius: "var(--radius-sm-alt)", background: IMPACT_COLORS[q.impact] + "22", color: IMPACT_COLORS[q.impact], fontWeight: 600 }}>
                   {q.impact} impact

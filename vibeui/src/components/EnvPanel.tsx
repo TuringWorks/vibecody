@@ -330,7 +330,7 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
             <div
               key={entry.key}
               style={{
-                display: "flex", alignItems: "center", gap: 8, padding: "6px 0",
+                display: "flex", alignItems: "center", gap: 8, padding: "8px 0",
                 borderBottom: "1px solid var(--border-color)", fontSize: "var(--font-size-base)",
               }}
             >

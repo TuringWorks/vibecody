@@ -214,7 +214,7 @@ const TeamGovernancePanel: React.FC = () => {
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <span style={{ opacity: 0.7 }}>Visibility: {p.visibility}</span>
-                <div style={{ marginLeft: "auto", display: "flex", gap: "6px" }}>
+                <div style={{ marginLeft: "auto", display: "flex", gap: "8px" }}>
                   <button className="panel-btn panel-btn-primary" style={{ backgroundColor: "var(--success-color)" }} disabled={loading} onClick={() => handleApprove(p.id)}>Approve</button>
                   <button className="panel-btn panel-btn-danger" disabled={loading} onClick={() => handleReject(p.id)}>Reject</button>
                 </div>
@@ -249,19 +249,19 @@ const TeamGovernancePanel: React.FC = () => {
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ borderBottom: "1px solid var(--border-color)", textAlign: "left" }}>
-                <th style={{ padding: "6px 8px" }}>Timestamp</th>
-                <th style={{ padding: "6px 8px" }}>Action</th>
-                <th style={{ padding: "6px 8px" }}>User</th>
-                <th style={{ padding: "6px 8px" }}>Detail</th>
+                <th style={{ padding: "8px 8px" }}>Timestamp</th>
+                <th style={{ padding: "8px 8px" }}>Action</th>
+                <th style={{ padding: "8px 8px" }}>User</th>
+                <th style={{ padding: "8px 8px" }}>Detail</th>
               </tr>
             </thead>
             <tbody>
               {auditLog.map((entry, i) => (
                 <tr key={i} style={{ borderBottom: "1px solid var(--border-color)" }}>
-                  <td style={{ padding: "6px 8px", opacity: 0.7 }}>{entry.timestamp}</td>
-                  <td style={{ padding: "6px 8px" }}>{entry.action}</td>
-                  <td style={{ padding: "6px 8px" }}>{entry.user}</td>
-                  <td style={{ padding: "6px 8px", opacity: 0.8 }}>{entry.detail}</td>
+                  <td style={{ padding: "8px 8px", opacity: 0.7 }}>{entry.timestamp}</td>
+                  <td style={{ padding: "8px 8px" }}>{entry.action}</td>
+                  <td style={{ padding: "8px 8px" }}>{entry.user}</td>
+                  <td style={{ padding: "8px 8px", opacity: 0.8 }}>{entry.detail}</td>
                 </tr>
               ))}
             </tbody>

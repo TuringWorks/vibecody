@@ -73,16 +73,16 @@ export function McpGovernancePanel() {
   };
 
   return (
-    <div style={{ padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-mono)", height: "100%", overflowY: "auto" }}>
+    <div className="panel-container" style={{ padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-mono)", flex: 1, minHeight: 0, overflowY: "auto" }}>
       <div style={{ fontSize: "var(--font-size-xl)", fontWeight: 700, marginBottom: 12 }}>MCP Governance</div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
         {["audit", "sso", "gateway", "config"].map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{ padding: "4px 12px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: tab === t ? "var(--accent-color)" : "var(--bg-secondary)", color: tab === t ? "#fff" : "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>{t}</button>
+          <button key={t} onClick={() => setTab(t)} style={{ padding: "4px 12px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: tab === t ? "var(--accent-color)" : "var(--bg-secondary)", color: tab === t ? "var(--btn-primary-fg)" : "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>{t}</button>
         ))}
       </div>
 
-      {loading && <div style={{ color: "var(--text-muted)" }}>Loading...</div>}
+      {loading && <div className="panel-loading" style={{ color: "var(--text-muted)" }}>Loading...</div>}
       {error && <div style={{ color: "var(--error-color)", marginBottom: 8 }}>{error}</div>}
 
       {!loading && tab === "audit" && (
@@ -91,7 +91,7 @@ export function McpGovernancePanel() {
             <thead>
               <tr style={{ background: "var(--bg-secondary)", position: "sticky", top: 0 }}>
                 {["Timestamp", "Tool", "Caller", "Outcome", "Reason"].map(h => (
-                  <th key={h} style={{ padding: "6px 10px", textAlign: "left", borderBottom: "1px solid var(--border-color)", color: "var(--text-muted)", fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>
+                  <th key={h} style={{ padding: "8px 12px", textAlign: "left", borderBottom: "1px solid var(--border-color)", color: "var(--text-muted)", fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -101,13 +101,13 @@ export function McpGovernancePanel() {
               )}
               {auditLog.map(entry => (
                 <tr key={entry.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
-                  <td style={{ padding: "6px 10px", color: "var(--text-muted)", whiteSpace: "nowrap" }}>{entry.timestamp}</td>
-                  <td style={{ padding: "6px 10px", fontWeight: 600 }}>{entry.tool}</td>
-                  <td style={{ padding: "6px 10px", color: "var(--text-muted)" }}>{entry.caller}</td>
-                  <td style={{ padding: "6px 10px" }}>
+                  <td style={{ padding: "8px 12px", color: "var(--text-muted)", whiteSpace: "nowrap" }}>{entry.timestamp}</td>
+                  <td style={{ padding: "8px 12px", fontWeight: 600 }}>{entry.tool}</td>
+                  <td style={{ padding: "8px 12px", color: "var(--text-muted)" }}>{entry.caller}</td>
+                  <td style={{ padding: "8px 12px" }}>
                     <span style={{ padding: "2px 8px", borderRadius: "var(--radius-md)", fontSize: "var(--font-size-sm)", background: outcomeColor(entry.outcome) + "22", color: outcomeColor(entry.outcome) }}>{entry.outcome}</span>
                   </td>
-                  <td style={{ padding: "6px 10px", color: "var(--text-muted)", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{entry.reason ?? "—"}</td>
+                  <td style={{ padding: "8px 12px", color: "var(--text-muted)", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{entry.reason ?? "—"}</td>
                 </tr>
               ))}
             </tbody>
@@ -121,25 +121,25 @@ export function McpGovernancePanel() {
             <label style={{ display: "block", fontSize: "var(--font-size-base)", color: "var(--text-muted)", marginBottom: 4 }}>Issuer URL</label>
             <input value={issuerUrl} onChange={e => setIssuerUrl(e.target.value)}
               placeholder="https://auth.example.com"
-              style={{ width: "100%", padding: "7px 10px", borderRadius: "var(--radius-sm)", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)", boxSizing: "border-box" }} />
+              style={{ width: "100%", padding: "8px 12px", borderRadius: "var(--radius-sm)", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)", boxSizing: "border-box" }} />
           </div>
           <div style={{ marginBottom: 14 }}>
             <label style={{ display: "block", fontSize: "var(--font-size-base)", color: "var(--text-muted)", marginBottom: 4 }}>Client ID</label>
             <input value={clientId} onChange={e => setClientId(e.target.value)}
               placeholder="mcp-client-id"
-              style={{ width: "100%", padding: "7px 10px", borderRadius: "var(--radius-sm)", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)", boxSizing: "border-box" }} />
+              style={{ width: "100%", padding: "8px 12px", borderRadius: "var(--radius-sm)", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)", boxSizing: "border-box" }} />
           </div>
           <div style={{ marginBottom: 14 }}>
             <label style={{ display: "block", fontSize: "var(--font-size-base)", color: "var(--text-muted)", marginBottom: 4 }}>Groups (comma-separated)</label>
             <input value={groups} onChange={e => setGroups(e.target.value)}
               placeholder="admins, developers, readonly"
-              style={{ width: "100%", padding: "7px 10px", borderRadius: "var(--radius-sm)", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)", boxSizing: "border-box" }} />
+              style={{ width: "100%", padding: "8px 12px", borderRadius: "var(--radius-sm)", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)", boxSizing: "border-box" }} />
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
             <input type="checkbox" checked={ssoConfig.enabled} onChange={e => setSsoConfig(s => ({ ...s, enabled: e.target.checked }))} id="sso-enabled" />
             <label htmlFor="sso-enabled" style={{ fontSize: "var(--font-size-base)", color: "var(--text-muted)" }}>Enable SSO</label>
           </div>
-          <button style={{ padding: "8px 20px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: "var(--accent-color)", color: "var(--btn-primary-fg, #fff)", border: "none", fontSize: "var(--font-size-md)", fontWeight: 600 }}>
+          <button className="panel-btn" style={{ padding: "8px 20px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: "var(--accent-color)", color: "var(--btn-primary-fg, #fff)", border: "none", fontSize: "var(--font-size-md)", fontWeight: 600 }}>
             Save SSO Config
           </button>
         </div>
@@ -150,9 +150,9 @@ export function McpGovernancePanel() {
           {gatewayRules.length === 0 && <div style={{ color: "var(--text-muted)" }}>No gateway rules configured.</div>}
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {gatewayRules.sort((a, b) => a.priority - b.priority).map(rule => (
-              <div key={rule.id} style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm-alt)", padding: "10px 14px", display: "flex", alignItems: "center", gap: 12 }}>
+              <div key={rule.id} style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm-alt)", padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
                 <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", minWidth: 30 }}>#{rule.priority}</span>
-                <span style={{ padding: "2px 10px", borderRadius: "var(--radius-md)", fontSize: "var(--font-size-sm)", fontWeight: 600, background: rule.action === "allow" ? "var(--success-color)22" : "var(--error-color)22", color: rule.action === "allow" ? "var(--success-color)" : "var(--error-color)", border: `1px solid ${rule.action === "allow" ? "var(--success-color)" : "var(--error-color)"}` }}>{rule.action}</span>
+                <span style={{ padding: "2px 12px", borderRadius: "var(--radius-md)", fontSize: "var(--font-size-sm)", fontWeight: 600, background: rule.action === "allow" ? "var(--success-color)22" : "var(--error-color)22", color: rule.action === "allow" ? "var(--success-color)" : "var(--error-color)", border: `1px solid ${rule.action === "allow" ? "var(--success-color)" : "var(--error-color)"}` }}>{rule.action}</span>
                 <code style={{ flex: 1, fontSize: "var(--font-size-base)", color: "var(--text-primary)", background: "var(--bg-primary)", padding: "2px 8px", borderRadius: "var(--radius-xs-plus)" }}>{rule.pattern}</code>
                 <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{rule.description}</span>
               </div>
@@ -165,9 +165,9 @@ export function McpGovernancePanel() {
         <div>
           <div style={{ marginBottom: 10, fontSize: "var(--font-size-base)", color: "var(--text-muted)" }}>Server configuration (JSON export/import)</div>
           <textarea value={configExport} onChange={e => setConfigExport(e.target.value)}
-            style={{ width: "100%", height: 300, padding: "10px", borderRadius: "var(--radius-sm)", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", resize: "vertical", boxSizing: "border-box" }} />
+            style={{ width: "100%", height: 300, padding: "12px", borderRadius: "var(--radius-sm)", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", resize: "vertical", boxSizing: "border-box" }} />
           <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
-            <button style={{ padding: "8px 20px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: "var(--accent-color)", color: "var(--btn-primary-fg, #fff)", border: "none", fontSize: "var(--font-size-md)", fontWeight: 600 }}>Import</button>
+            <button className="panel-btn" style={{ padding: "8px 20px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: "var(--accent-color)", color: "var(--btn-primary-fg, #fff)", border: "none", fontSize: "var(--font-size-md)", fontWeight: 600 }}>Import</button>
             <button onClick={() => navigator.clipboard?.writeText(configExport)}
               style={{ padding: "8px 20px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-md)" }}>Copy</button>
           </div>

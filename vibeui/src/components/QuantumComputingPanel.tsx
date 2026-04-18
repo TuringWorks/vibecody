@@ -1869,7 +1869,7 @@ export function QuantumComputingPanel() {
                 <br />
                 <input type="number" value={cbNewClassical} onChange={(e) => setCbNewClassical(+e.target.value)} min={0} max={20} style={{ ...inputStyle, width: 50 }} />
               </label>
-              <button onClick={createNewCircuit} style={btnPrimary}>
+              <button className="panel-btn" onClick={createNewCircuit} style={btnPrimary}>
                 New Circuit
               </button>
               {selectedCircuitIdx !== null && (
@@ -2002,7 +2002,7 @@ export function QuantumComputingPanel() {
                   {selectedGate && (
                     <div
                       style={{
-                        padding: "4px 10px",
+                        padding: "4px 12px",
                         marginBottom: 6,
                         borderRadius: "var(--radius-xs-plus)",
                         background: "var(--accent-primary-10)",
@@ -2025,7 +2025,7 @@ export function QuantumComputingPanel() {
                   <div
                     style={{
                       marginTop: 8,
-                      padding: "6px 12px",
+                      padding: "8px 12px",
                       borderRadius: "var(--radius-sm)",
                       background: "var(--bg-secondary)",
                       border: "1px solid var(--border-color)",
@@ -2072,7 +2072,7 @@ export function QuantumComputingPanel() {
                   style={{ ...inputStyle, width: 80 }}
                 />
               </label>
-              <button onClick={runSimulation} disabled={simCircuitIdx === null || simRunning} style={{ ...btnPrimary, opacity: simCircuitIdx === null || simRunning ? 0.5 : 1 }}>
+              <button className="panel-btn" onClick={runSimulation} disabled={simCircuitIdx === null || simRunning} style={{ ...btnPrimary, opacity: simCircuitIdx === null || simRunning ? 0.5 : 1 }}>
                 {simRunning ? "Simulating..." : "Simulate"}
               </button>
             </div>
@@ -2127,7 +2127,7 @@ export function QuantumComputingPanel() {
             <h3 style={{ margin: "0 0 12px", color: "var(--text-primary)" }}>Circuit Optimizer</h3>
             <div style={{ display: "flex", gap: 12, alignItems: "flex-end", marginBottom: 16, flexWrap: "wrap" }}>
               <CircuitSelect value={optCircuitIdx} onChange={setOptCircuitIdx} />
-              <button onClick={runOptimizer} disabled={optCircuitIdx === null || optRunning} style={{ ...btnPrimary, opacity: optCircuitIdx === null || optRunning ? 0.5 : 1 }}>
+              <button className="panel-btn" onClick={runOptimizer} disabled={optCircuitIdx === null || optRunning} style={{ ...btnPrimary, opacity: optCircuitIdx === null || optRunning ? 0.5 : 1 }}>
                 {optRunning ? "Optimizing..." : "Optimize"}
               </button>
             </div>
@@ -2199,7 +2199,7 @@ export function QuantumComputingPanel() {
                   style={{ ...inputStyle, width: 80 }}
                 />
               </label>
-              <button onClick={runCostEstimate} disabled={costCircuitIdx === null || costRunning} style={{ ...btnPrimary, opacity: costCircuitIdx === null || costRunning ? 0.5 : 1 }}>
+              <button className="panel-btn" onClick={runCostEstimate} disabled={costCircuitIdx === null || costRunning} style={{ ...btnPrimary, opacity: costCircuitIdx === null || costRunning ? 0.5 : 1 }}>
                 {costRunning ? "Estimating..." : "Estimate Cost"}
               </button>
             </div>
@@ -2289,7 +2289,7 @@ export function QuantumComputingPanel() {
                       <button
                         onClick={() => loadTemplate(tpl.name)}
                         disabled={tplLoading === tpl.name}
-                        style={{ ...btnPrimary, fontSize: "var(--font-size-sm)", padding: "4px 10px", opacity: tplLoading === tpl.name ? 0.5 : 1 }}
+                        style={{ ...btnPrimary, fontSize: "var(--font-size-sm)", padding: "4px 12px", opacity: tplLoading === tpl.name ? 0.5 : 1 }}
                       >
                         {tplLoading === tpl.name ? "Loading..." : "Load Template"}
                       </button>
@@ -2326,7 +2326,7 @@ export function QuantumComputingPanel() {
                 <br />
                 <input type="number" value={scafQubits} onChange={(e) => setScafQubits(+e.target.value)} min={1} max={100} style={{ ...inputStyle, width: 60 }} />
               </label>
-              <button onClick={runScaffold} disabled={scafRunning || !scafName.trim()} style={{ ...btnPrimary, opacity: scafRunning || !scafName.trim() ? 0.5 : 1 }}>
+              <button className="panel-btn" onClick={runScaffold} disabled={scafRunning || !scafName.trim()} style={{ ...btnPrimary, opacity: scafRunning || !scafName.trim() ? 0.5 : 1 }}>
                 {scafRunning ? "Generating..." : "Generate"}
               </button>
             </div>
@@ -2338,7 +2338,7 @@ export function QuantumComputingPanel() {
                 </div>
                 {scafFiles.map((f) => (
                   <div key={f.path} className="panel-card" style={{ marginBottom: 8 }}>
-                    <div
+                    <div role="button" tabIndex={0}
                       style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}
                       onClick={() => toggleScafExpand(f.path)}
                     >
@@ -2436,7 +2436,7 @@ export function QuantumComputingPanel() {
             <h3 style={{ margin: "0 0 12px", color: "var(--text-primary)" }}>Quantum Programming Languages (20)</h3>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 12 }}>
               {languages.map((l) => (
-                <div
+                <div role="button" tabIndex={0}
                   key={l.name}
                   onClick={() => loadHelloCircuit(l.name)}
                   style={{
@@ -2558,7 +2558,7 @@ export function QuantumComputingPanel() {
                 <br />
                 <input value={npDesc} onChange={(e) => setNpDesc(e.target.value)} style={{ ...inputStyle, width: 200 }} />
               </label>
-              <button onClick={createProject} style={btnPrimary}>
+              <button className="panel-btn" onClick={createProject} style={btnPrimary}>
                 Create Project
               </button>
             </div>
@@ -2605,7 +2605,7 @@ export function QuantumComputingPanel() {
               const examples = ALGORITHM_EXAMPLES[a.name];
               return (
                 <div key={a.name} className="panel-card" style={{ marginBottom: 8 }}>
-                  <div
+                  <div role="button" tabIndex={0}
                     style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}
                     onClick={() => setAlgoExpanded(isExpanded ? null : a.name)}
                   >

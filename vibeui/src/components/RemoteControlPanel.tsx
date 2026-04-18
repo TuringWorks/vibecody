@@ -209,8 +209,8 @@ export default function RemoteControlPanel() {
                 <label style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Port:</label>
                 <input type="number" value={port} onChange={e => setPort(Number(e.target.value))}
                   style={{ width: 80, padding: "4px 8px", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)" }} />
-                <button onClick={handleToggleServer}
-                  style={{ padding: "6px 16px", fontSize: "var(--font-size-sm)", fontWeight: 600, borderRadius: "var(--radius-xs-plus)", border: "none", cursor: "pointer",
+                <button className="panel-btn" onClick={handleToggleServer}
+                  style={{ padding: "8px 16px", fontSize: "var(--font-size-sm)", fontWeight: 600, borderRadius: "var(--radius-xs-plus)", border: "none", cursor: "pointer",
                     background: serverRunning ? "var(--text-danger)" : "var(--text-success)",
                     color: "var(--bg-primary)" }}>
                   {serverRunning ? "Stop Server" : "Start Server"}
@@ -239,9 +239,9 @@ export default function RemoteControlPanel() {
             <div style={{ padding: 14, background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)" }}>
               <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, marginBottom: 8 }}>Pairing Token</div>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <code style={{ flex: 1, padding: "6px 10px", background: "var(--bg-primary)", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-md)", fontFamily: "var(--font-mono)", color: "var(--accent-color)", letterSpacing: 1 }}>{token || "---"}</code>
+                <code style={{ flex: 1, padding: "8px 12px", background: "var(--bg-primary)", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-md)", fontFamily: "var(--font-mono)", color: "var(--accent-color)", letterSpacing: 1 }}>{token || "---"}</code>
                 <button onClick={() => token && navigator.clipboard.writeText(token)}
-                  style={{ padding: "5px 12px", fontSize: "var(--font-size-xs)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-secondary)", cursor: "pointer" }}>Copy</button>
+                  style={{ padding: "4px 12px", fontSize: "var(--font-size-xs)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-secondary)", cursor: "pointer" }}>Copy</button>
               </div>
             </div>
           </>
@@ -262,7 +262,7 @@ export default function RemoteControlPanel() {
             </span>
             {c.connected && (
               <button onClick={() => handleDisconnectClient(c.id)}
-                style={{ padding: "4px 10px", fontSize: "var(--font-size-xs)", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-secondary)", cursor: "pointer" }}>
+                style={{ padding: "4px 12px", fontSize: "var(--font-size-xs)", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-secondary)", cursor: "pointer" }}>
                 Disconnect
               </button>
             )}
@@ -278,7 +278,7 @@ export default function RemoteControlPanel() {
         {tab === "events" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             {events.map(e => (
-              <div key={e.id} style={{ display: "flex", gap: 10, padding: "6px 10px", background: "var(--bg-secondary)", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)" }}>
+              <div key={e.id} style={{ display: "flex", gap: 10, padding: "8px 12px", background: "var(--bg-secondary)", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)" }}>
                 <span style={{ color: "var(--text-secondary)", minWidth: 60 }}>{e.timestamp}</span>
                 <span style={{ color: "var(--accent-color)", minWidth: 80 }}>{e.action}</span>
                 <span style={{ color: "var(--text-primary)", flex: 1 }}>{e.detail}</span>

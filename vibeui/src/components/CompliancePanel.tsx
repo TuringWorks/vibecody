@@ -64,30 +64,30 @@ export function CompliancePanel() {
  };
 
  return (
- <div style={{ padding: 16, color: "var(--text-primary)", fontSize: "var(--font-size-md)" }}>
+ <div className="panel-container" style={{ padding: 16, color: "var(--text-primary)", fontSize: "var(--font-size-md)" }}>
  <h3 style={{ margin: "0 0 12px 0", fontSize: "var(--font-size-xl)" }}>Compliance Report</h3>
 
  <div style={{ display: "flex", gap: 8, marginBottom: 16, alignItems: "center" }}>
  <select
  value={framework}
  onChange={(e) => setFramework(e.target.value)}
- style={{ padding: "5px 10px", background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-base)" }}
+ style={{ padding: "4px 12px", background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-base)" }}
  >
  {FRAMEWORKS.map((f) => (
  <option key={f} value={f}>{f}</option>
  ))}
  </select>
- <button
+ <button className="panel-btn"
  onClick={generate}
  disabled={loading}
- style={{ padding: "5px 14px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-base)", cursor: "pointer" }}
+ style={{ padding: "4px 16px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-base)", cursor: "pointer" }}
  >
  {loading ? "Generating..." : "Generate Report"}
  </button>
  {report && (
- <button
+ <button className="panel-btn"
  onClick={exportMarkdown}
- style={{ padding: "5px 14px", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-base)", cursor: "pointer" }}
+ style={{ padding: "4px 16px", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-base)", cursor: "pointer" }}
  >
  Copy Markdown
  </button>
@@ -143,9 +143,9 @@ export function CompliancePanel() {
  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
  <thead>
  <tr>
- <th style={{ textAlign: "left", padding: "6px 8px", borderBottom: "2px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-secondary)", fontSize: "var(--font-size-sm)" }}>ID</th>
- <th style={{ textAlign: "left", padding: "6px 8px", borderBottom: "2px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-secondary)", fontSize: "var(--font-size-sm)" }}>Control</th>
- <th style={{ textAlign: "left", padding: "6px 8px", borderBottom: "2px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-secondary)", fontSize: "var(--font-size-sm)" }}>Status</th>
+ <th style={{ textAlign: "left", padding: "8px 8px", borderBottom: "2px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-secondary)", fontSize: "var(--font-size-sm)" }}>ID</th>
+ <th style={{ textAlign: "left", padding: "8px 8px", borderBottom: "2px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-secondary)", fontSize: "var(--font-size-sm)" }}>Control</th>
+ <th style={{ textAlign: "left", padding: "8px 8px", borderBottom: "2px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-secondary)", fontSize: "var(--font-size-sm)" }}>Status</th>
  </tr>
  </thead>
  <tbody>
@@ -157,8 +157,8 @@ export function CompliancePanel() {
  style={{ cursor: "pointer", background: expanded === ctrl.id ? "rgba(124,58,237,0.1)" : undefined }}
  onClick={() => setExpanded(expanded === ctrl.id ? null : ctrl.id)}
  >
- <td style={{ padding: "5px 8px", borderBottom: "1px solid var(--border-color)", fontFamily: "var(--font-mono)" }}>{ctrl.id}</td>
- <td style={{ padding: "5px 8px", borderBottom: "1px solid var(--border-color)" }}>
+ <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border-color)", fontFamily: "var(--font-mono)" }}>{ctrl.id}</td>
+ <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border-color)" }}>
  {ctrl.name}
  {expanded === ctrl.id && (
  <div style={{ marginTop: 6, fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
@@ -167,7 +167,7 @@ export function CompliancePanel() {
  </div>
  )}
  </td>
- <td style={{ padding: "5px 8px", borderBottom: "1px solid var(--border-color)", color: badge.color }}>{badge.label}</td>
+ <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border-color)", color: badge.color }}>{badge.label}</td>
  </tr>
  );
  })}

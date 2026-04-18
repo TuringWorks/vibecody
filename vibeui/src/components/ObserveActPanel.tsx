@@ -167,7 +167,7 @@ export function ObserveActPanel() {
                   <span style={{ fontWeight: 600 }}>Step {s.num}</span>
                   <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                     <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>{s.durationMs}ms</span>
-                    <span style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px", borderRadius: 3, background: s.verified ? "var(--success-bg)" : "var(--error-bg)", color: s.verified ? "var(--accent-green)" : "var(--accent-rose)" }}>
+                    <span style={{ fontSize: "var(--font-size-xs)", padding: "1px 8px", borderRadius: 3, background: s.verified ? "var(--success-bg)" : "var(--error-bg)", color: s.verified ? "var(--accent-green)" : "var(--accent-rose)" }}>
                       {s.verified ? "Verified" : "Failed"}
                     </span>
                   </div>
@@ -175,7 +175,7 @@ export function ObserveActPanel() {
                 <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 4 }}>{s.reasoning}</div>
                 <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                   {s.actions.map((a, i) => (
-                    <span key={i} className="panel-mono" style={{ fontSize: "var(--font-size-xs)", padding: "2px 6px", borderRadius: 3, background: "var(--bg-tertiary)" }}>{a}</span>
+                    <span key={i} className="panel-mono" style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px", borderRadius: 3, background: "var(--bg-tertiary)" }}>{a}</span>
                   ))}
                 </div>
               </div>

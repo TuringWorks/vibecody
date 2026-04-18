@@ -660,7 +660,7 @@ export function TrainingPanel() {
                   <span style={{
                     fontSize: "var(--font-size-xs)", fontWeight: 600, padding: "2px 8px", borderRadius: "var(--radius-md)",
                     background: j.status === "running" ? "var(--accent-green)" : j.status === "queued" ? "var(--warning-color)" : "var(--bg-tertiary)",
-                    color: j.status === "running" || j.status === "queued" ? "#fff" : "var(--text-secondary)",
+                    color: j.status === "running" || j.status === "queued" ? "var(--btn-primary-fg)" : "var(--text-secondary)",
                   }}>{j.status}</span>
                 </div>
                 <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>

@@ -117,7 +117,7 @@ export function BrowserAgentPanel() {
                   <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{s.url}</div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ fontSize: "var(--font-size-sm)", padding: "2px 8px", borderRadius: "var(--radius-xs-plus)", background: s.status === "completed" ? "var(--success-bg)" : s.status === "running" ? "#2196f322" : "#ff980022", color: s.status === "completed" ? "var(--accent-green)" : s.status === "running" ? "var(--accent-blue)" : "var(--accent-gold)" }}>{s.status}</span>
+                  <span style={{ fontSize: "var(--font-size-sm)", padding: "2px 8px", borderRadius: "var(--radius-xs-plus)", background: s.status === "completed" ? "var(--success-bg)" : s.status === "running" ? "color-mix(in srgb, var(--accent-blue) 13%, transparent)" : "color-mix(in srgb, var(--accent-gold) 13%, transparent)", color: s.status === "completed" ? "var(--accent-green)" : s.status === "running" ? "var(--accent-blue)" : "var(--accent-gold)" }}>{s.status}</span>
                   {s.status === "running" && (
                     <button className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-sm)", padding: "2px 8px" }}
                       onClick={() => invoke("browser_close_session", { sessionId: s.id }).then(fetchSessions).catch(() => {})}>

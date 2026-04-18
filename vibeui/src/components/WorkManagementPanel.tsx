@@ -161,7 +161,7 @@ export default function WorkManagementPanel({ provider }: { provider?: string } 
           {scope.teamId && ` / ${teams.find(t => t.id === scope.teamId)?.name || ""}`}
           {scope.workspaceId && ` / ${workspaces.find(w => w.id === scope.workspaceId)?.name || ""}`}
         </span>}
-        {scope.orgId && <button style={{ ...btnS, fontSize: "var(--font-size-xs)", padding: "2px 6px", marginLeft: "auto" }} onClick={() => setScope({})}>Clear scope</button>}
+        {scope.orgId && <button className="panel-btn" style={{ ...btnS, fontSize: "var(--font-size-xs)", padding: "2px 8px", marginLeft: "auto" }} onClick={() => setScope({})}>Clear scope</button>}
       </div>
 
       {/* Tabs */}
@@ -171,7 +171,7 @@ export default function WorkManagementPanel({ provider }: { provider?: string } 
         ))}
       </div>
 
-      {error && <div className="panel-error">{error}<button style={{ float: "right", ...btnS, fontSize: "var(--font-size-xs)", padding: "1px 6px" }} onClick={() => setError("")}>x</button></div>}
+      {error && <div className="panel-error">{error}<button className="panel-btn" style={{ float: "right", ...btnS, fontSize: "var(--font-size-xs)", padding: "1px 8px" }} onClick={() => setError("")}>x</button></div>}
 
       <div className="panel-body">
         {tab === "hierarchy" && <HierarchyTab orgs={orgs} groups={groups} teams={teams} workspaces={workspaces} scope={scope} setScope={setScope} onRefresh={refreshAll} setError={setError} />}
@@ -266,10 +266,10 @@ function HierarchyTab({ orgs, groups, teams, workspaces, scope, setScope, onRefr
     <div style={{ marginBottom: 16 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
         <span style={{ fontSize: "var(--font-size-sm)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-secondary)" }}>{label} ({items.length})</span>
-        {createType && <button style={{ ...btnS, fontSize: "var(--font-size-xs)", padding: "2px 8px" }} onClick={() => setCreating(createType)}>+</button>}
+        {createType && <button className="panel-btn" style={{ ...btnS, fontSize: "var(--font-size-xs)", padding: "2px 8px" }} onClick={() => setCreating(createType)}>+</button>}
       </div>
       {items.map(item => (
-        <div key={item.id} onClick={() => onSelect(item.id)} style={{
+        <div role="button" tabIndex={0} key={item.id} onClick={() => onSelect(item.id)} style={{
           ...cardS, cursor: "pointer", padding: "8px 12px",
           borderLeft: selectedId === item.id ? "3px solid var(--accent-color)" : "3px solid transparent",
           background: selectedId === item.id ? "var(--accent-bg)" : "var(--bg-elevated)",
@@ -283,14 +283,14 @@ function HierarchyTab({ orgs, groups, teams, workspaces, scope, setScope, onRefr
             <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
               <button
                 onClick={(e) => { e.stopPropagation(); startEdit(createType, item); }}
-                style={{ ...btnS, fontSize: 9, padding: "2px 6px" }}
+                style={{ ...btnS, fontSize: 9, padding: "2px 8px" }}
                 title={`Edit ${createType}`}
               >
                 Edit
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); handleDelete(createType, item.id, item.name); }}
-                style={{ ...btnS, fontSize: 9, padding: "2px 6px", color: "var(--error-color)", borderColor: "var(--error-color)", background: "transparent" }}
+                style={{ ...btnS, fontSize: 9, padding: "2px 8px", color: "var(--error-color)", borderColor: "var(--error-color)", background: "transparent" }}
                 title={`Delete ${createType}`}
               >
                 Delete
@@ -312,8 +312,8 @@ function HierarchyTab({ orgs, groups, teams, workspaces, scope, setScope, onRefr
           <input style={{ ...inpS, marginBottom: 6 }} placeholder="Description" value={desc} onChange={e => setDesc(e.target.value)} />
           {creating === "workspace" && <input style={{ ...inpS, marginBottom: 6 }} placeholder="ID Prefix (e.g. PROJ)" value={prefix} onChange={e => setPrefix(e.target.value)} />}
           <div style={{ display: "flex", gap: 6 }}>
-            <button style={btnP} onClick={handleCreate}>Create</button>
-            <button style={btnS} onClick={() => { setCreating(null); setName(""); setDesc(""); setPrefix(""); }}>Cancel</button>
+            <button className="panel-btn" style={btnP} onClick={handleCreate}>Create</button>
+            <button className="panel-btn" style={btnS} onClick={() => { setCreating(null); setName(""); setDesc(""); setPrefix(""); }}>Cancel</button>
           </div>
         </div>
       )}
@@ -325,8 +325,8 @@ function HierarchyTab({ orgs, groups, teams, workspaces, scope, setScope, onRefr
           <input style={{ ...inpS, marginBottom: 6 }} placeholder="Description" value={desc} onChange={e => setDesc(e.target.value)} />
           {editing.type === "workspace" && <input style={{ ...inpS, marginBottom: 6 }} placeholder="ID Prefix" value={prefix} onChange={e => setPrefix(e.target.value)} />}
           <div style={{ display: "flex", gap: 6 }}>
-            <button style={btnP} onClick={handleSaveEdit}>Save</button>
-            <button style={btnS} onClick={() => { setEditing(null); setName(""); setDesc(""); setPrefix(""); }}>Cancel</button>
+            <button className="panel-btn" style={btnP} onClick={handleSaveEdit}>Save</button>
+            <button className="panel-btn" style={btnS} onClick={() => { setEditing(null); setName(""); setDesc(""); setPrefix(""); }}>Cancel</button>
           </div>
         </div>
       )}
@@ -339,7 +339,7 @@ function HierarchyTab({ orgs, groups, teams, workspaces, scope, setScope, onRefr
             Create an organizational hierarchy to track work items across your teams.<br />
             Organization &rarr; Group/Division &rarr; Team &rarr; Workspace/Project
           </div>
-          <button style={btnP} onClick={() => setCreating("org")}>Create Your First Organization</button>
+          <button className="panel-btn" style={btnP} onClick={() => setCreating("org")}>Create Your First Organization</button>
         </div>
       )}
 
@@ -489,8 +489,8 @@ function ItemsTab({ items, scope, onRefresh, setError, provider }: {
         <div style={{ ...cardS, marginBottom: 12 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
             <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)" }}>Create Work Item</div>
-            <button
-              style={{ ...btnS, background: showAiPrompt ? "var(--accent-color)" : "var(--bg-secondary)", color: showAiPrompt ? "var(--btn-primary-fg)" : "var(--text-primary)", fontSize: "var(--font-size-sm)", padding: "3px 10px", display: "flex", alignItems: "center", gap: 4 }}
+            <button className="panel-btn"
+              style={{ ...btnS, background: showAiPrompt ? "var(--accent-color)" : "var(--bg-secondary)", color: showAiPrompt ? "var(--btn-primary-fg)" : "var(--text-primary)", fontSize: "var(--font-size-sm)", padding: "3px 12px", display: "flex", alignItems: "center", gap: 4 }}
               onClick={() => setShowAiPrompt(v => !v)}
             >
               ✦ AI Generate
@@ -512,7 +512,7 @@ function ItemsTab({ items, scope, onRefresh, setError, provider }: {
                   onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleAiGenerate(); } }}
                   autoFocus
                 />
-                <button
+                <button className="panel-btn"
                   style={{ ...btnP, opacity: aiGenerating || !aiPrompt.trim() ? 0.5 : 1, whiteSpace: "nowrap" }}
                   onClick={handleAiGenerate}
                   disabled={aiGenerating || !aiPrompt.trim()}
@@ -539,13 +539,13 @@ function ItemsTab({ items, scope, onRefresh, setError, provider }: {
             <input style={{ ...inpS, width: 100 }} placeholder="Parent ID" value={newItem.parentId} onChange={e => setNewItem({ ...newItem, parentId: e.target.value })} />
           </div>
           <div style={{ display: "flex", gap: 6 }}>
-            <button style={btnP} onClick={handleCreate}>Create</button>
-            <button style={btnS} onClick={() => { setCreating(false); setShowAiPrompt(false); setAiPrompt(""); }}>Cancel</button>
+            <button className="panel-btn" style={btnP} onClick={handleCreate}>Create</button>
+            <button className="panel-btn" style={btnS} onClick={() => { setCreating(false); setShowAiPrompt(false); setAiPrompt(""); }}>Cancel</button>
           </div>
         </div>
       ) : (
         <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-          <button style={btnP} onClick={() => setCreating(true)}>+ Create Item</button>
+          <button className="panel-btn" style={btnP} onClick={() => setCreating(true)}>+ Create Item</button>
         </div>
       )}
 
@@ -570,14 +570,14 @@ function ItemsTab({ items, scope, onRefresh, setError, provider }: {
           <input style={{ ...inpS, marginBottom: 6 }} value={editingItem.assignee || ""} onChange={e => setEditingItem({ ...editingItem, assignee: e.target.value })} placeholder="Assignee" />
           <input style={{ ...inpS, marginBottom: 6 }} value={editingItem.labels.join(", ")} onChange={e => setEditingItem({ ...editingItem, labels: e.target.value.split(",").map(s => s.trim()).filter(Boolean) })} placeholder="Labels (comma-separated)" />
           <div style={{ display: "flex", gap: 6 }}>
-            <button style={btnP} onClick={async () => {
+            <button className="panel-btn" style={btnP} onClick={async () => {
               try {
                 await invoke("wm_update_item", { item: editingItem });
                 setEditingItem(null);
                 onRefresh();
               } catch (e: any) { setError(String(e)); }
             }}>Save</button>
-            <button style={btnS} onClick={() => setEditingItem(null)}>Cancel</button>
+            <button className="panel-btn" style={btnS} onClick={() => setEditingItem(null)}>Cancel</button>
           </div>
         </div>
       )}
@@ -607,13 +607,13 @@ function ItemsTab({ items, scope, onRefresh, setError, provider }: {
             {item.storyPoints !== undefined && item.storyPoints > 0 && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>{item.storyPoints} pts</span>}
             {item.parentId && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>parent: {item.parentId}</span>}
             <div style={{ flex: 1 }} />
-            <button style={{ ...btnS, fontSize: "var(--font-size-xs)", padding: "2px 6px" }} onClick={() => setEditingItem(item)}>Edit</button>
+            <button className="panel-btn" style={{ ...btnS, fontSize: "var(--font-size-xs)", padding: "2px 8px" }} onClick={() => setEditingItem(item)}>Edit</button>
             {["initiative", "epic", "feature", "story"].includes(item.type) && (
-              <button style={{ ...btnS, fontSize: "var(--font-size-xs)", padding: "2px 6px" }} onClick={() => handleAiBreakdown(item)} disabled={aiBreaking === item.displayId}>
+              <button className="panel-btn" style={{ ...btnS, fontSize: "var(--font-size-xs)", padding: "2px 8px" }} onClick={() => handleAiBreakdown(item)} disabled={aiBreaking === item.displayId}>
                 {aiBreaking === item.displayId ? "Breaking down..." : "AI Breakdown"}
               </button>
             )}
-            <button style={{ ...btnS, fontSize: "var(--font-size-xs)", padding: "2px 6px", color: "var(--error-color)", borderColor: "var(--error-color)", background: "transparent" }}
+            <button className="panel-btn" style={{ ...btnS, fontSize: "var(--font-size-xs)", padding: "2px 8px", color: "var(--error-color)", borderColor: "var(--error-color)", background: "transparent" }}
               onClick={async () => {
                 if (!confirm(`Delete ${item.displayId}?`)) return;
                 try { await invoke("wm_delete_item", { displayId: item.displayId }); onRefresh(); }
@@ -709,7 +709,7 @@ function BoardTab({ items, onRefresh, setError }: {
   return (
     <div>
       {/* Toolbar */}
-      <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10, padding: "6px 0", borderBottom: "1px solid var(--border-color)", flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10, padding: "8px 0", borderBottom: "1px solid var(--border-color)", flexWrap: "wrap" }}>
         <input
           className="panel-input"
           style={{ width: 160, fontSize: "var(--font-size-sm)", padding: "4px 8px" }}
@@ -771,7 +771,7 @@ function BoardTab({ items, onRefresh, setError }: {
                     <div style={{ display: "flex", gap: 4, marginBottom: 4, alignItems: "center" }}>
                       <span style={{ fontFamily: "var(--font-mono)", fontSize: "var(--font-size-xs)", color: "var(--accent-color)" }}>{item.displayId}</span>
                       <span style={badge(PRIORITY_COLORS[item.priority] || "var(--bg-tertiary)", "var(--btn-primary-fg)")}>{item.priority}</span>
-                      <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", background: "var(--bg-tertiary)", padding: "1px 5px", borderRadius: 3 }}>{item.type}</span>
+                      <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", background: "var(--bg-tertiary)", padding: "1px 4px", borderRadius: 3 }}>{item.type}</span>
                     </div>
                     <div style={{ fontWeight: 500, fontSize: "var(--font-size-md)", color: "var(--text-primary)", marginBottom: 6 }}>{item.title}</div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 3, marginBottom: item.assignee ? 4 : 0 }}>
@@ -838,7 +838,7 @@ function RelationshipsTab({ items, onRefresh, setError }: { items: WorkItem[]; o
             {REL_TYPES.map(r => <option key={r} value={r}>{r.replace("_", " ")}</option>)}
           </select>
           <input style={{ ...inpS, width: 100 }} placeholder="Target ID" value={targetId} onChange={e => setTargetId(e.target.value)} />
-          <button style={btnP} onClick={handleAdd}>Link</button>
+          <button className="panel-btn" style={btnP} onClick={handleAdd}>Link</button>
         </div>
       </div>
 
@@ -852,7 +852,7 @@ function RelationshipsTab({ items, onRefresh, setError }: { items: WorkItem[]; o
             <div key={i} style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", padding: "2px 0", display: "flex", alignItems: "center", gap: 6 }}>
               <span style={badge("var(--bg-tertiary)", "var(--text-secondary)")}>{r.type.replace("_", " ")}</span>
               <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--accent-color)" }}>{r.targetId}</span>
-              <button style={{ ...btnS, fontSize: 9, padding: "1px 4px", marginLeft: "auto" }} onClick={async () => {
+              <button className="panel-btn" style={{ ...btnS, fontSize: 9, padding: "1px 4px", marginLeft: "auto" }} onClick={async () => {
                 try { await invoke("wm_remove_relationship", { sourceId: item.displayId, targetId: r.targetId, relType: r.type }); onRefresh(); } catch (e: any) { setError(String(e)); }
               }}>x</button>
             </div>
@@ -1015,7 +1015,7 @@ function DashboardTab({ items }: { items: WorkItem[] }) {
     <div key={label} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
       <span style={{ fontSize: "var(--font-size-sm)", width: 80, textAlign: "right", color: "var(--text-secondary)" }}>{label}</span>
       <div style={{ flex: 1, height: 14, background: "var(--bg-tertiary)", borderRadius: 3, overflow: "hidden" }}>
-        <div style={{ width: total > 0 ? `${(count / total) * 100}%` : "0%", height: "100%", background: color, borderRadius: 3 }} />
+        <div style={{ width: total > 0 ? `${(count / total) * 100}%` : "0%", flex: 1, minHeight: 0, background: color, borderRadius: 3 }} />
       </div>
       <span style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, width: 30, color: "var(--text-primary)" }}>{count}</span>
     </div>
@@ -1033,7 +1033,7 @@ function DashboardTab({ items }: { items: WorkItem[] }) {
           { label: "Open Risks", value: items.filter(i => i.type === "risk" && !["Resolved", "Accepted"].includes(i.status)).length },
           { label: "Open Bugs", value: items.filter(i => i.type === "bug" && !["Closed", "Wont Fix", "Verified"].includes(i.status)).length },
         ].map(({ label, value }) => (
-          <div key={label} style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: "10px 12px", border: "1px solid var(--border-color)" }}>
+          <div key={label} style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: "12px 12px", border: "1px solid var(--border-color)" }}>
             <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</div>
             <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{value}</div>
           </div>

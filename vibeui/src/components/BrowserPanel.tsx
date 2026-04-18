@@ -187,7 +187,7 @@ export function BrowserPanel() {
  padding: '4px 8px', borderBottom: '1px solid var(--border-color)',
  background: 'var(--bg-secondary)', flexShrink: 0,
  }}>
- <button
+ <button className="panel-btn"
  onClick={goBack}
  disabled={histIdx <= 0}
  title="Back"
@@ -199,7 +199,7 @@ export function BrowserPanel() {
  title="Forward"
  style={navBtnStyle}
  >→</button>
- <button onClick={refresh} disabled={!iframeSrc} title="Refresh" style={navBtnStyle}><RefreshCw size={14} /></button>
+ <button className="panel-btn" onClick={refresh} disabled={!iframeSrc} title="Refresh" style={navBtnStyle}><RefreshCw size={14} /></button>
 
  <div style={{ width: '1px', height: '16px', background: 'var(--border-color)', margin: '0 4px' }} />
 
@@ -217,16 +217,16 @@ export function BrowserPanel() {
  />
  <button
  onClick={() => navigate(urlInput)}
- style={{ ...navBtnStyle, padding: '3px 10px', fontSize: '12px' }}
+ style={{ ...navBtnStyle, padding: '3px 12px', fontSize: '12px' }}
  >Go</button>
- <button
+ <button className="panel-btn"
  onClick={openExternal}
  title="Open in system browser"
  style={{ ...navBtnStyle, fontSize: '11px', padding: '3px 8px' }}
  >↗</button>
 
  <div style={{ width: '1px', height: '16px', background: 'var(--border-color)', margin: '0 4px' }} />
- <button
+ <button className="panel-btn"
  onClick={toggleInspect}
  disabled={!iframeSrc}
  title={inspectMode ? "Disable Inspect" : "Enable Inspect"}
@@ -237,7 +237,7 @@ export function BrowserPanel() {
  color: inspectMode ? 'var(--accent-color)' : 'var(--text-primary)',
  }}
  ></button>
- <button
+ <button className="panel-btn"
  onClick={connectCdp}
  title="Connect Chrome DevTools Protocol"
  style={{
@@ -252,13 +252,13 @@ export function BrowserPanel() {
  onClick={() => setShowCdp(!showCdp)}
  disabled={!cdpConnected}
  title="Toggle CDP targets panel"
- style={{ ...navBtnStyle, fontSize: '11px', padding: '3px 6px' }}
+ style={{ ...navBtnStyle, fontSize: '11px', padding: '3px 8px' }}
  >{showCdp ? 'Hide' : 'Show'} Targets</button>
  </div>
 
  {/* Quick-launch chips */}
  <div style={{
- display: 'flex', gap: '6px', padding: '4px 8px',
+ display: 'flex', gap: '8px', padding: '4px 8px',
  borderBottom: '1px solid var(--border-color)',
  background: 'var(--bg-secondary)', flexShrink: 0,
  }}>
@@ -280,14 +280,14 @@ export function BrowserPanel() {
  {/* CDP targets panel */}
  {showCdp && cdpConnected && cdpTargets.length > 0 && (
  <div style={{
- padding: '6px 8px', borderBottom: '1px solid var(--border-color)',
+ padding: '8px 8px', borderBottom: '1px solid var(--border-color)',
  background: 'var(--bg-secondary)', flexShrink: 0, maxHeight: 120, overflowY: 'auto',
  }}>
  <div style={{ fontSize: "var(--font-size-sm)", color: 'var(--text-secondary)', marginBottom: 4 }}>
  Chrome DevTools Targets ({cdpTargets.length})
  </div>
  {cdpTargets.filter((t: CdpTarget) => t.type === 'page').map((t: CdpTarget) => (
- <div key={t.id} style={{
+ <div role="button" tabIndex={0} key={t.id} style={{
  display: 'flex', gap: 6, alignItems: 'center', padding: '2px 4px',
  fontSize: "var(--font-size-sm)", borderRadius: 3, cursor: 'pointer',
  }} onClick={() => { setUrlInput(t.url); navigate(t.url); }}>
@@ -320,7 +320,7 @@ export function BrowserPanel() {
  ) : (
  <div style={{
  display: 'flex', alignItems: 'center', justifyContent: 'center',
- height: '100%', flexDirection: 'column', gap: '12px',
+ flex: 1, minHeight: 0, flexDirection: 'column', gap: '12px',
  color: 'var(--text-secondary)', fontSize: '13px',
  }}>
  <div style={{ fontSize: '32px' }}></div>
@@ -343,20 +343,20 @@ export function BrowserPanel() {
  </span>
  )}
  </span>
- <div style={{ display: 'flex', gap: '6px' }}>
+ <div style={{ display: 'flex', gap: '8px' }}>
  <button
  onClick={() => setEditMode(true)}
  style={{
  background: 'var(--accent-color)', color: 'var(--text-primary)',
- border: 'none', borderRadius: '4px', padding: '3px 10px',
+ border: 'none', borderRadius: '4px', padding: '3px 12px',
  cursor: 'pointer', fontSize: '11px', fontWeight: 600,
  }}
  >Edit</button>
- <button
+ <button className="panel-btn"
  onClick={sendToChat}
  style={{
  background: 'var(--accent-color)', color: 'var(--text-primary)',
- border: 'none', borderRadius: '4px', padding: '3px 10px',
+ border: 'none', borderRadius: '4px', padding: '3px 12px',
  cursor: 'pointer', fontSize: '11px',
  }}
  >Send to Chat</button>
@@ -371,7 +371,7 @@ export function BrowserPanel() {
  </div>
  )}
  <pre style={{
- margin: '4px 0 0 0', padding: '6px', background: 'var(--bg-tertiary)',
+ margin: '4px 0 0 0', padding: '8px', background: 'var(--bg-tertiary)',
  borderRadius: '3px', fontSize: '11px', whiteSpace: 'pre-wrap',
  maxHeight: '80px', overflowY: 'auto', color: 'var(--text-primary)',
  }}>

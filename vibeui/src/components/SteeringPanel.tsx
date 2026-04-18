@@ -169,7 +169,7 @@ export default function SteeringPanel({ workspaceRoot }: SteeringPanelProps) {
  <div style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", padding: 8, display: "flex", gap: 6, flexWrap: "wrap" }}>
  <span style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-sm)", width: "100%" }}>Choose a template to get started:</span>
  {TEMPLATES.map((tpl) => (
- <button key={tpl.label} onClick={() => applyTemplate(tpl)} className="panel-btn panel-btn-secondary" style={{ padding: "4px 10px" }}>
+ <button key={tpl.label} onClick={() => applyTemplate(tpl)} className="panel-btn panel-btn-secondary" style={{ padding: "4px 12px" }}>
  {tpl.label}
  </button>
  ))}
@@ -185,14 +185,14 @@ export default function SteeringPanel({ workspaceRoot }: SteeringPanelProps) {
  </div>
  )}
  {files.map((f) => (
- <div
+ <div role="button" tabIndex={0}
  key={f.filename}
  onClick={() => selectFile(f)}
  style={{
  display: "flex",
  alignItems: "center",
  justifyContent: "space-between",
- padding: "5px 6px",
+ padding: "4px 8px",
  borderRadius: "var(--radius-xs-plus)",
  cursor: "pointer",
  background: selected?.filename === f.filename ? "var(--bg-secondary)" : "transparent",

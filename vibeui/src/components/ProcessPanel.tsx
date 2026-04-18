@@ -113,7 +113,7 @@ const ProcessPanel: React.FC = () => {
  role="status"
  aria-live="polite"
  style={{
- padding: "6px 12px",
+ padding: "8px 12px",
  background: killFeedback.ok ? "var(--success-bg)" : "var(--error-bg)",
  color: killFeedback.ok ? "var(--success-fg)" : "var(--error-fg)",
  fontSize: "var(--font-size-base)",

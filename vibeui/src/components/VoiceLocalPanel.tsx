@@ -87,9 +87,9 @@ export function VoiceLocalPanel() {
       <div className="panel-body">
         {tab === "record" && (
           <div style={{ textAlign: "center" }}>
-            <button onClick={toggleRecording} disabled={actionLoading && !recording} style={{
+            <button className="panel-btn" onClick={toggleRecording} disabled={actionLoading && !recording} style={{
               width: 72, height: 72, borderRadius: "50%", border: "none", cursor: "pointer",
-              background: recording ? "var(--error-color)" : "var(--error-color)", boxShadow: recording ? "0 0 0 8px #ef444440" : "none",
+              background: recording ? "var(--error-color)" : "var(--error-color)", boxShadow: recording ? "0 0 0 8px color-mix(in srgb, var(--error-color) 25%, transparent)" : "none",
               marginBottom: 20, transition: "box-shadow 0.3s",
             }}>
               <div style={{ width: 24, height: 24, borderRadius: recording ? 4 : 12, background: "var(--btn-primary-fg, #fff)", margin: "auto" }} />

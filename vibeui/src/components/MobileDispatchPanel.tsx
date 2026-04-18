@@ -167,7 +167,7 @@ function DispatchesTab() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={badgeStyle(DISPATCH_STATUS_COLORS[d.status] || "var(--text-secondary)")}>{d.status}</span>
-              <span style={{ fontSize: "var(--font-size-sm)", padding: "2px 6px", borderRadius: "var(--radius-xs-plus)", background: "var(--bg-tertiary)" }}>{d.type}</span>
+              <span style={{ fontSize: "var(--font-size-sm)", padding: "2px 8px", borderRadius: "var(--radius-xs-plus)", background: "var(--bg-tertiary)" }}>{d.type}</span>
             </div>
             <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{d.time}</span>
           </div>
@@ -209,7 +209,7 @@ function PairingTab() {
         <div style={{ fontWeight: 600, marginBottom: 12 }}>How to Pair</div>
         <ol style={{ margin: 0, paddingLeft: 20, fontSize: "var(--font-size-md)", lineHeight: 1.8 }}>
           <li>Install <strong>VibeCody Mobile</strong> from App Store or Play Store</li>
-          <li>Run <code style={{ padding: "2px 6px", borderRadius: "var(--radius-xs-plus)", background: "var(--bg-tertiary)" }}>vibecli --serve --host 0.0.0.0 --port 7878</code> on your machine</li>
+          <li>Run <code style={{ padding: "2px 8px", borderRadius: "var(--radius-xs-plus)", background: "var(--bg-tertiary)" }}>vibecli --serve --host 0.0.0.0 --port 7878</code> on your machine</li>
           <li>Open the mobile app and tap <strong>Scan QR Code</strong> or enter the 6-digit PIN</li>
           <li>Start managing your sessions remotely!</li>
         </ol>

@@ -139,15 +139,15 @@ export function DiffToolPanel() {
 
  {/* View mode */}
  {(["split", "inline", "unified"] as ViewMode[]).map(v => (
- <button key={v} onClick={() => setMode(v)} style={{ padding: "2px 10px", fontSize: "var(--font-size-xs)", borderRadius: "var(--radius-md)", background: mode === v ? "color-mix(in srgb, var(--accent-blue) 20%, transparent)" : "var(--bg-primary)", border: `1px solid ${mode === v ? "var(--accent-color)" : "var(--border-color)"}`, color: mode === v ? "var(--info-color)" : "var(--text-secondary)", cursor: "pointer", fontWeight: mode === v ? 700 : 400 }}>
+ <button key={v} onClick={() => setMode(v)} style={{ padding: "2px 12px", fontSize: "var(--font-size-xs)", borderRadius: "var(--radius-md)", background: mode === v ? "color-mix(in srgb, var(--accent-blue) 20%, transparent)" : "var(--bg-primary)", border: `1px solid ${mode === v ? "var(--accent-color)" : "var(--border-color)"}`, color: mode === v ? "var(--info-color)" : "var(--text-secondary)", cursor: "pointer", fontWeight: mode === v ? 700 : 400 }}>
  {v}
  </button>
  ))}
 
- <button onClick={swap} style={{ fontSize: "var(--font-size-xs)", padding: "3px 10px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-secondary)", cursor: "pointer" }}>⇄ Swap</button>
- <button onClick={clear} style={{ fontSize: "var(--font-size-xs)", padding: "3px 10px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-secondary)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 3 }}><X size={10} /> Clear</button>
+ <button className="panel-btn" onClick={swap} style={{ fontSize: "var(--font-size-xs)", padding: "3px 12px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-secondary)", cursor: "pointer" }}>⇄ Swap</button>
+ <button className="panel-btn" onClick={clear} style={{ fontSize: "var(--font-size-xs)", padding: "3px 12px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-secondary)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 3 }}><X size={10} /> Clear</button>
  {mode === "unified" && (
- <button onClick={copyUnified} style={{ fontSize: "var(--font-size-xs)", padding: "3px 10px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-secondary)", cursor: "pointer" }}>
+ <button className="panel-btn" onClick={copyUnified} style={{ fontSize: "var(--font-size-xs)", padding: "3px 12px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-secondary)", cursor: "pointer" }}>
  {copied ? <><Check size={10} /> Copied</> : "Copy patch"}
  </button>
  )}
@@ -158,7 +158,7 @@ export function DiffToolPanel() {
  <div style={{ display: "flex", borderBottom: "1px solid var(--border-color)", height: 180, flexShrink: 0 }}>
  {[{ label: "Original (A)", value: left, setter: setLeft }, { label: "Modified (B)", value: right, setter: setRight }].map(({ label, value, setter }, idx) => (
  <div key={idx} style={{ flex: 1, display: "flex", flexDirection: "column", borderRight: idx === 0 ? "1px solid var(--border-color)" : "none" }}>
- <div style={{ padding: "4px 10px", background: "var(--bg-secondary)", fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-secondary)", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between" }}>
+ <div style={{ padding: "4px 12px", background: "var(--bg-secondary)", fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-secondary)", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between" }}>
  <span>{label}</span>
  <button onClick={() => { navigator.clipboard.readText().then(t => setter(t)).catch(() => {}); }} style={{ fontSize: 9, background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}>Paste</button>
  </div>
@@ -166,7 +166,7 @@ export function DiffToolPanel() {
  value={value}
  onChange={e => setter(e.target.value)}
  spellCheck={false}
- style={{ flex: 1, resize: "none", padding: "8px 10px", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)", lineHeight: 1.6, background: "var(--bg-primary)", color: "var(--text-primary)", border: "none", outline: "none" }}
+ style={{ flex: 1, resize: "none", padding: "8px 12px", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)", lineHeight: 1.6, background: "var(--bg-primary)", color: "var(--text-primary)", border: "none", outline: "none" }}
  />
  </div>
  ))}
@@ -178,16 +178,16 @@ export function DiffToolPanel() {
 
  {/* Unified patch */}
  {mode === "unified" && (
- <div style={{ padding: "10px 12px", display: "flex", flexDirection: "column", gap: 4 }}>
+ <div style={{ padding: "12px 12px", display: "flex", flexDirection: "column", gap: 4 }}>
  <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
  {[{ label: "Original (A)", value: left, setter: setLeft }, { label: "Modified (B)", value: right, setter: setRight }].map(({ label, value, setter }, idx) => (
  <div key={idx} style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
  <label style={{ fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-secondary)" }}>{label}</label>
- <textarea value={value} onChange={e => setter(e.target.value)} rows={5} spellCheck={false} style={{ resize: "vertical", padding: "6px 8px", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none" }} />
+ <textarea value={value} onChange={e => setter(e.target.value)} rows={5} spellCheck={false} style={{ resize: "vertical", padding: "8px 8px", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none" }} />
  </div>
  ))}
  </div>
- <pre style={{ margin: 0, padding: "12px 14px", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)", lineHeight: 1.6, color: "var(--text-primary)", overflowX: "auto", whiteSpace: "pre" }}>
+ <pre style={{ margin: 0, padding: "12px 16px", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)", lineHeight: 1.6, color: "var(--text-primary)", overflowX: "auto", whiteSpace: "pre" }}>
  {unified || "(no differences)"}
  </pre>
  </div>

@@ -118,11 +118,11 @@ export function TriagePanel() {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                 <strong>{i.title}</strong>
                 <div>
-                  <span style={badgeStyle("#6366f1")}>{i.classification}</span>
+                  <span style={badgeStyle("var(--accent-indigo)")}>{i.classification}</span>
                   <span style={badgeStyle(sevColor[i.severity])}>{i.severity}</span>
                 </div>
               </div>
-              <div style={{ marginBottom: 6 }}>{(i.suggestedLabels || []).map((l) => <span key={l} style={badgeStyle("#374151")}>{l}</span>)}</div>
+              <div style={{ marginBottom: 6 }}>{(i.suggestedLabels || []).map((l) => <span key={l} style={badgeStyle("var(--border-color)")}>{l}</span>)}</div>
               <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", fontStyle: "italic", padding: 8, background: "var(--bg-primary)", borderRadius: "var(--radius-xs-plus)" }}>{i.draftResponse}</div>
               <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 4 }}>Confidence: {i.confidence}%</div>
             </div>
@@ -165,7 +165,7 @@ export function TriagePanel() {
             <div key={h.id || idx} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <strong>{h.issueTitle}</strong>
-                <span style={{ ...badgeStyle("#6366f1"), marginLeft: 8 }}>{h.classification}</span>
+                <span style={{ ...badgeStyle("var(--accent-indigo)"), marginLeft: 8 }}>{h.classification}</span>
               </div>
               <span style={badgeStyle(h.correct ? "var(--success-color)" : "var(--error-color)")}>{h.correct ? "correct" : "wrong"}</span>
             </div>

@@ -83,7 +83,7 @@ export function MarketplacePanel() {
       </div>
 
       {/* Search */}
-      <div style={{ padding: "6px 12px", display: "flex", gap: 6 }}>
+      <div style={{ padding: "8px 12px", display: "flex", gap: 6 }}>
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -107,7 +107,7 @@ export function MarketplacePanel() {
 
       <div className="panel-body">
         {loading ? (
-          <div style={{ padding: 16, textAlign: "center", opacity: 0.5, fontSize: "var(--font-size-sm)" }}>
+          <div className="panel-loading" style={{ padding: 16, textAlign: "center", opacity: 0.5, fontSize: "var(--font-size-sm)" }}>
             Loading...
           </div>
         ) : filtered.length === 0 ? (
@@ -118,7 +118,7 @@ export function MarketplacePanel() {
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {filtered.map((p) => (
               <div key={p.name} style={{
-                padding: "8px 10px", borderRadius: "var(--radius-sm)",
+                padding: "8px 12px", borderRadius: "var(--radius-sm)",
                 border: "1px solid var(--border-color)",
                 background: "var(--bg-primary)",
               }}>
@@ -146,7 +146,7 @@ export function MarketplacePanel() {
                   <span style={{ fontSize: 9, opacity: 0.5 }}>by {p.author}</span>
                   {p.tags.slice(0, 4).map((tag) => (
                     <span key={tag} style={{
-                      fontSize: 8, padding: "1px 5px", borderRadius: 3,
+                      fontSize: 8, padding: "1px 4px", borderRadius: 3,
                       background: "color-mix(in srgb, var(--accent-blue) 10%, transparent)", color: "var(--text-info)",
                     }}>
                       {tag}

@@ -137,7 +137,7 @@ const AgentModesPanel: React.FC = () => {
       {!loading && activeTab === "modes" && (
         <div>
           {modes.map((m) => (
-            <div
+            <div role="button" tabIndex={0}
               key={m.id}
               className="panel-card"
               style={{
@@ -147,7 +147,7 @@ const AgentModesPanel: React.FC = () => {
               }}
               onClick={() => handleSetMode(m.id)}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "6px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "8px" }}>
                 <div style={{ width: "32px", height: "32px", borderRadius: "50%", backgroundColor: "var(--accent-color)", color: "var(--btn-primary-fg)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>
                   {m.icon}
                 </div>
@@ -157,7 +157,7 @@ const AgentModesPanel: React.FC = () => {
                 </div>
               </div>
               <p style={{ margin: "4px 0 8px", fontSize: "var(--font-size-base)", opacity: 0.8 }}>{m.description}</p>
-              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                 {m.traits.map((t) => (
                   <span key={t} style={{ padding: "2px 8px", borderRadius: "var(--radius-md)", fontSize: "var(--font-size-sm)", backgroundColor: "var(--bg-tertiary)", color: "var(--btn-primary-fg)" }}>{t}</span>
                 ))}
@@ -173,7 +173,7 @@ const AgentModesPanel: React.FC = () => {
             <thead>
               <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
                 {["Mode", "Invocations", "Avg Tokens", "Last Used"].map((h) => (
-                  <th key={h} style={{ padding: "6px 8px", textAlign: "left", fontSize: "var(--font-size-base)", opacity: 0.7 }}>{h}</th>
+                  <th key={h} style={{ padding: "8px 8px", textAlign: "left", fontSize: "var(--font-size-base)", opacity: 0.7 }}>{h}</th>
                 ))}
               </tr>
             </thead>

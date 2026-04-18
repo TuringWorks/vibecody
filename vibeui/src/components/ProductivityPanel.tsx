@@ -250,7 +250,7 @@ export function ProductivityPanel() {
         {TABS.map((t) => (
           <button
             key={t.key}
-            className={`panel-tab${activeTab === t.key ? " active" : ""}`}
+            className={`panel-btn panel-tab${activeTab === t.key ? " active" : ""}`}
             style={{ display: "flex", alignItems: "center", gap: 5 }}
             onClick={() => setActiveTab(t.key)}
           >

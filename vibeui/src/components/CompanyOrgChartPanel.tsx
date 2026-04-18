@@ -171,7 +171,7 @@ export function CompanyOrgChartPanel({ workspacePath: _wp }: CompanyOrgChartPane
                       <span style={{ color, fontSize: "var(--font-size-sm)" }}>{badge}</span>
                       <span style={{ fontWeight: 500 }}>{name}</span>
                       <span style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-sm)" }}>{title}</span>
-                      <span style={{ fontSize: "var(--font-size-xs)", padding: "1px 5px", borderRadius: 3, background: "var(--bg-tertiary)", color: "var(--text-secondary)" }}>{role}</span>
+                      <span style={{ fontSize: "var(--font-size-xs)", padding: "1px 4px", borderRadius: 3, background: "var(--bg-tertiary)", color: "var(--text-secondary)" }}>{role}</span>
                     </div>
                   );
                 })}

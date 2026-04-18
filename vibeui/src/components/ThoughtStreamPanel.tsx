@@ -78,7 +78,7 @@ export function ThoughtStreamPanel() {
   const ThoughtCard = ({ thought }: { thought: ThoughtEntry }) => {
     const color = CATEGORY_COLORS[thought.category] ?? "var(--text-muted)";
     return (
-      <div style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", border: `1px solid ${color}44`, borderLeft: `3px solid ${color}`, padding: "10px 14px", marginBottom: 8 }}>
+      <div className="panel-container" style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", border: `1px solid ${color}44`, borderLeft: `3px solid ${color}`, padding: "12px 16px", marginBottom: 8 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
           <span style={{ fontSize: "var(--font-size-sm)", padding: "1px 8px", borderRadius: "var(--radius-sm-alt)", background: color + "22", color, fontWeight: 600 }}>{thought.category}</span>
           <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)" }}>{thought.timestamp}</span>
@@ -92,12 +92,12 @@ export function ThoughtStreamPanel() {
   };
 
   return (
-    <div style={{ padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-mono)", height: "100%", display: "flex", flexDirection: "column" }}>
+    <div style={{ padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-mono)", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
       <div style={{ fontSize: "var(--font-size-xl)", fontWeight: 700, marginBottom: 12 }}>Thought Stream</div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         {["live", "history", "export"].map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{ padding: "4px 12px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: tab === t ? "var(--accent-color)" : "var(--bg-secondary)", color: tab === t ? "#fff" : "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>{t}</button>
+          <button key={t} onClick={() => setTab(t)} style={{ padding: "4px 12px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: tab === t ? "var(--accent-color)" : "var(--bg-secondary)", color: tab === t ? "var(--btn-primary-fg)" : "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>{t}</button>
         ))}
         {tab === "live" && (
           <span style={{ marginLeft: "auto", fontSize: "var(--font-size-sm)", color: "var(--success-color)", display: "flex", alignItems: "center", gap: 4 }}>
@@ -107,7 +107,7 @@ export function ThoughtStreamPanel() {
         )}
       </div>
 
-      {loading && <div style={{ color: "var(--text-muted)" }}>Loading...</div>}
+      {loading && <div className="panel-loading" style={{ color: "var(--text-muted)" }}>Loading...</div>}
       {error && <div style={{ color: "var(--error-color)", marginBottom: 8 }}>{error}</div>}
 
       {!loading && tab === "live" && (
@@ -121,7 +121,7 @@ export function ThoughtStreamPanel() {
         <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
           <div style={{ marginBottom: 12 }}>
             <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)}
-              style={{ padding: "5px 10px", borderRadius: "var(--radius-sm)", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>
+              style={{ padding: "4px 12px", borderRadius: "var(--radius-sm)", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>
               <option value="All">All Categories</option>
               {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
@@ -138,8 +138,8 @@ export function ThoughtStreamPanel() {
         <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <span style={{ fontSize: "var(--font-size-base)", color: "var(--text-muted)" }}>Markdown export preview</span>
-            <button onClick={copyExport}
-              style={{ padding: "4px 14px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: copied ? "var(--success-color)" : "var(--bg-secondary)", color: copied ? "#fff" : "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>
+            <button className="panel-btn" onClick={copyExport}
+              style={{ padding: "4px 16px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: copied ? "var(--success-color)" : "var(--bg-secondary)", color: copied ? "var(--btn-primary-fg)" : "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>
               {copied ? "Copied!" : "Copy"}
             </button>
           </div>

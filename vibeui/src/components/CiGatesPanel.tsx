@@ -74,7 +74,7 @@ const CiGatesPanel: React.FC = () => {
               </div>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <span style={badgeStyle(STATUS_COLORS[r.severity] || "var(--text-secondary)")}>{r.severity}</span>
-                <button
+                <button className="panel-btn"
                   style={{ fontSize: "var(--font-size-sm)", color: r.enabled ? "var(--success-color)" : "var(--text-secondary)", background: "none", border: "none", cursor: "pointer" }}
                   onClick={() => handleToggle(r.name)}
                 >{r.enabled ? "ON" : "OFF"}</button>

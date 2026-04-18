@@ -80,7 +80,7 @@ export function CloudAgentPanel() {
   };
 
   return (
-    <div style={{ padding: 16, height: "100%", overflowY: "auto", color: "var(--text-primary)" }}>
+    <div className="panel-container" style={{ padding: 16, flex: 1, minHeight: 0, overflowY: "auto", color: "var(--text-primary)" }}>
       <h3 style={{ margin: "0 0 12px 0", fontSize: "var(--font-size-xl)" }}>Cloud Agent (Docker)</h3>
       <p style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 16 }}>
         Run agent tasks inside isolated Docker containers. Requires Docker to be installed and running.
@@ -115,7 +115,7 @@ export function CloudAgentPanel() {
           placeholder="docker image (e.g. ubuntu:22.04)"
           style={{
             width: "100%",
-            padding: "6px 8px",
+            padding: "8px 8px",
             fontSize: "var(--font-size-base)",
             background: "var(--bg-primary)",
             color: "var(--text-primary)",
@@ -138,7 +138,7 @@ export function CloudAgentPanel() {
           placeholder="/path/to/your/project"
           style={{
             width: "100%",
-            padding: "6px 8px",
+            padding: "8px 8px",
             fontSize: "var(--font-size-base)",
             background: "var(--bg-primary)",
             color: "var(--text-primary)",
@@ -159,7 +159,7 @@ export function CloudAgentPanel() {
           rows={3}
           style={{
             width: "100%",
-            padding: "6px 8px",
+            padding: "8px 8px",
             fontSize: "var(--font-size-base)",
             background: "var(--bg-primary)",
             color: "var(--text-primary)",
@@ -174,11 +174,11 @@ export function CloudAgentPanel() {
 
       {/* Launch button */}
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-        <button
+        <button className="panel-btn"
           onClick={handleLaunch}
           disabled={launching || !task.trim()}
           style={{
-            padding: "6px 16px",
+            padding: "8px 16px",
             fontSize: "var(--font-size-base)",
             background: launching ? "var(--bg-secondary)" : "var(--accent-color)",
             color: "var(--text-primary)",
@@ -191,10 +191,10 @@ export function CloudAgentPanel() {
           {launching ? "Launching..." : "Launch Container"}
         </button>
         {status && (
-          <button
+          <button className="panel-btn"
             onClick={handleCheckStatus}
             style={{
-              padding: "6px 12px",
+              padding: "8px 12px",
               fontSize: "var(--font-size-base)",
               background: "var(--bg-secondary)",
               color: "var(--text-primary)",

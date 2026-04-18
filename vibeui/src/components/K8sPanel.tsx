@@ -322,7 +322,7 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
  key={cmd}
  onClick={() => { setKubectlCmd(cmd); handleRunKubectl(cmd); }}
  style={{
- padding: "3px 9px", fontSize: "var(--font-size-sm)",
+ padding: "3px 8px", fontSize: "var(--font-size-sm)",
  background: "var(--bg-secondary)", color: "var(--text-secondary)",
  border: "1px solid var(--border-color)", borderRadius: 12,
  cursor: "pointer",
@@ -476,7 +476,7 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
  </div>
  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
  {contexts.map((ctx) => (
- <div
+ <div role="button" tabIndex={0}
  key={ctx}
  onClick={() => { setSelectedContext(ctx); setSubTab("deploy"); }}
  style={{

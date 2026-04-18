@@ -218,7 +218,7 @@ export default function KnowledgeGraphPanel() {
        <label style={{ fontSize: "var(--font-size-base)" }}>Workspace:</label>
        <input value={workspace} onChange={e => setWorkspace(e.target.value)}
          style={{ flex: 1, padding: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-base)" }} />
-       <button onClick={loadGraph} disabled={loading} style={{ padding: "4px 10px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", cursor: "pointer", fontSize: "var(--font-size-base)" }}>
+       <button className="panel-btn" onClick={loadGraph} disabled={loading} style={{ padding: "4px 12px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", cursor: "pointer", fontSize: "var(--font-size-base)" }}>
          Load
        </button>
      </div>
@@ -226,7 +226,7 @@ export default function KnowledgeGraphPanel() {
      {/* Repo Registration */}
      <div style={{ marginBottom: 12, padding: 10, border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)" }}>
        <strong>Registered Repos</strong>
-       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, margin: "6px 0" }}>
+       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, margin: "8px 0" }}>
          {repos.map(r => (
            <span key={r.name} style={{
              padding: "2px 8px", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-base)",
@@ -243,7 +243,7 @@ export default function KnowledgeGraphPanel() {
            style={{ flex: 1, padding: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)" }} />
          <input value={newRepoPath} onChange={e => setNewRepoPath(e.target.value)} placeholder="Path"
            style={{ flex: 2, padding: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)" }} />
-         <button onClick={addRepo} style={{ padding: "4px 10px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", cursor: "pointer" }}>Add</button>
+         <button className="panel-btn" onClick={addRepo} style={{ padding: "4px 12px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", cursor: "pointer" }}>Add</button>
        </div>
      </div>
 
@@ -283,8 +283,8 @@ export default function KnowledgeGraphPanel() {
                Depth: {depth}
              </label>
            )}
-           <button onClick={handleSearch} disabled={loading} style={{
-             padding: "4px 10px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", cursor: "pointer",
+           <button className="panel-btn" onClick={handleSearch} disabled={loading} style={{
+             padding: "4px 12px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", cursor: "pointer",
            }}>Search</button>
          </div>
 
@@ -452,7 +452,7 @@ export default function KnowledgeGraphPanel() {
          </pre>
          <button onClick={() => {
            navigator.clipboard.writeText(dotExport()).catch(() => {});
-         }} style={{ marginTop: 8, padding: "6px 12px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", cursor: "pointer" }}>
+         }} style={{ marginTop: 8, padding: "8px 12px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", cursor: "pointer" }}>
            Copy to Clipboard
          </button>
        </div>

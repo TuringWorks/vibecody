@@ -156,7 +156,7 @@ export function AdminPanel() {
                     <span style={{ fontWeight: 600 }}>{m.name}</span>
                     <span style={{ marginLeft: 8, color: 'var(--text-secondary)', fontSize: "var(--font-size-sm)" }}>{m.email}</span>
                     <span style={{
-                      marginLeft: 8, padding: '1px 6px', borderRadius: 3, fontSize: "var(--font-size-xs)",
+                      marginLeft: 8, padding: '1px 8px', borderRadius: 3, fontSize: "var(--font-size-xs)",
                       background: `${ROLE_COLORS[m.role]}22`, color: ROLE_COLORS[m.role], fontWeight: 600,
                     }}>{m.role}</span>
                   </div>
@@ -198,7 +198,7 @@ export function AdminPanel() {
             <div style={{ display: 'flex', gap: 8 }}>
               {(Object.keys(ROLE_COLORS) as Role[]).map(role => (
                 <button key={role} onClick={() => setEditingMember({ ...editingMember, role })} style={{
-                  padding: '6px 16px', fontSize: "var(--font-size-base)", borderRadius: "var(--radius-xs-plus)", cursor: 'pointer', flex: 1,
+                  padding: '8px 16px', fontSize: "var(--font-size-base)", borderRadius: "var(--radius-xs-plus)", cursor: 'pointer', flex: 1,
                   background: editingMember.role === role ? `${ROLE_COLORS[role]}22` : 'var(--bg-tertiary)',
                   color: editingMember.role === role ? ROLE_COLORS[role] : 'var(--text-secondary)',
                   border: `1px solid ${editingMember.role === role ? ROLE_COLORS[role] : 'var(--border-color)'}`,
@@ -225,13 +225,13 @@ export function AdminPanel() {
           </div>
           <div style={{ display: 'grid', gap: 4 }}>
             {filteredAudit.map(entry => (
-              <div key={entry.id} className="panel-card" style={{ padding: '6px 8px', fontSize: "var(--font-size-base)", display: 'flex', gap: 8, alignItems: 'center' }}>
+              <div key={entry.id} className="panel-card" style={{ padding: '8px 8px', fontSize: "var(--font-size-base)", display: 'flex', gap: 8, alignItems: 'center' }}>
                 <span style={{ color: 'var(--text-secondary)', fontSize: "var(--font-size-xs)", minWidth: 70 }}>
                   {new Date(entry.timestamp).toLocaleTimeString()}
                 </span>
                 <span style={{ fontWeight: 500, minWidth: 100 }}>{entry.actor}</span>
                 <span style={{
-                  padding: '1px 6px', borderRadius: 3, fontSize: "var(--font-size-xs)", fontWeight: 600,
+                  padding: '1px 8px', borderRadius: 3, fontSize: "var(--font-size-xs)", fontWeight: 600,
                   background: entry.action.includes('delete') || entry.action.includes('remove')
                     ? 'color-mix(in srgb, var(--accent-rose) 15%, transparent)' : 'rgba(59,130,246,0.15)',
                   color: entry.action.includes('delete') || entry.action.includes('remove')
@@ -270,7 +270,7 @@ export function AdminPanel() {
                   <div style={{ display: 'flex', gap: 4 }}>
                     {p.roles.map(r => (
                       <span key={r} style={{
-                        padding: '1px 5px', borderRadius: 3, fontSize: "var(--font-size-xs)",
+                        padding: '1px 4px', borderRadius: 3, fontSize: "var(--font-size-xs)",
                         background: `${ROLE_COLORS[r]}22`, color: ROLE_COLORS[r],
                       }}>{r}</span>
                     ))}

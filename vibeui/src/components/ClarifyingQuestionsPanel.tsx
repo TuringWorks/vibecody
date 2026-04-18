@@ -103,7 +103,7 @@ const ClarifyingQuestionsPanel: React.FC = () => {
           )}
           {questions.map((q) => (
             <div key={q.id} className="panel-card" style={{ opacity: q.skipped ? 0.5 : 1 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
                 <strong style={{ fontSize: "var(--font-size-md)" }}>{q.question}</strong>
                 <span style={{ fontSize: "var(--font-size-sm)", color: priorityColor(q.priority) }}>{q.priority}</span>
               </div>
@@ -128,7 +128,7 @@ const ClarifyingQuestionsPanel: React.FC = () => {
             </div>
           ) : (
             <>
-              <div style={{ marginBottom: "10px", fontSize: "var(--font-size-base)", opacity: 0.7 }}>
+              <div style={{ marginBottom: "12px", fontSize: "var(--font-size-base)", opacity: 0.7 }}>
                 MegaPlan: {planSteps.length} steps | Est. total: {totalEffort} hrs
               </div>
               {planSteps.map((step, i) => (
@@ -140,9 +140,9 @@ const ClarifyingQuestionsPanel: React.FC = () => {
                     </span>
                   </div>
                   <div style={{ fontSize: "var(--font-size-base)", opacity: 0.7, marginBottom: "4px" }}>Effort: {step.effort}</div>
-                  <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                  <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                     {step.files.map((f) => (
-                      <span key={f} style={{ padding: "2px 6px", borderRadius: "3px", fontSize: "var(--font-size-sm)", backgroundColor: "var(--bg-tertiary)", color: "var(--btn-primary-fg)" }}>
+                      <span key={f} style={{ padding: "2px 8px", borderRadius: "3px", fontSize: "var(--font-size-sm)", backgroundColor: "var(--bg-tertiary)", color: "var(--btn-primary-fg)" }}>
                         {f}
                       </span>
                     ))}

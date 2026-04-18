@@ -172,7 +172,7 @@ const SessionBrowserPanel: React.FC = () => {
       {status && (
         <div
           style={{
-            padding: "6px 10px",
+            padding: "8px 12px",
             marginBottom: 10,
             borderRadius: "var(--radius-xs-plus)",
             background: "var(--bg-tertiary)",
@@ -225,7 +225,7 @@ const SessionBrowserPanel: React.FC = () => {
           {sessionsError && (
             <div
               style={{
-                padding: "8px 10px",
+                padding: "8px 12px",
                 marginBottom: 10,
                 borderRadius: "var(--radius-xs-plus)",
                 background: "var(--bg-secondary)",
@@ -244,7 +244,7 @@ const SessionBrowserPanel: React.FC = () => {
               <div
                 key={s.id}
                 style={{
-                  padding: "8px 10px",
+                  padding: "8px 12px",
                   marginBottom: 6,
                   borderRadius: "var(--radius-xs-plus)",
                   background: "var(--bg-secondary)",
@@ -283,13 +283,13 @@ const SessionBrowserPanel: React.FC = () => {
                       color: "var(--error-color)",
                       cursor: "pointer",
                       fontSize: "var(--font-size-base)",
-                      padding: "2px 6px",
+                      padding: "2px 8px",
                     }}
                   >
                     Delete
                   </button>
                 </div>
-                <div
+                <div role="button" tabIndex={0}
                   style={{
                     display: "flex",
                     gap: 12,
@@ -373,7 +373,7 @@ const SessionBrowserPanel: React.FC = () => {
               {messagesError && (
                 <div
                   style={{
-                    padding: "8px 10px",
+                    padding: "8px 12px",
                     marginBottom: 10,
                     borderRadius: "var(--radius-xs-plus)",
                     background: "var(--bg-secondary)",
@@ -442,7 +442,7 @@ const SessionBrowserPanel: React.FC = () => {
                     <div
                       key={i}
                       style={{
-                        padding: "8px 10px",
+                        padding: "8px 12px",
                         marginBottom: 6,
                         borderRadius: "var(--radius-xs-plus)",
                         background:
@@ -489,7 +489,7 @@ const SessionBrowserPanel: React.FC = () => {
               {!messagesLoading &&
                 !messagesError &&
                 messages.length === 0 && (
-                  <div
+                  <div className="panel-empty"
                     style={{
                       textAlign: "center",
                       padding: 30,
@@ -534,7 +534,7 @@ const SessionBrowserPanel: React.FC = () => {
                 key={label}
                 style={{
                   background: "var(--bg-secondary)",
-                  padding: "10px 16px",
+                  padding: "12px 16px",
                   borderRadius: "var(--radius-sm)",
                   textAlign: "center",
                   minWidth: 90,

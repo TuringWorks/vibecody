@@ -133,7 +133,7 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
       {/* Manager badge + Scan button */}
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <div style={{
-          background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: "6px 12px",
+          background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: "8px 12px",
           border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)", fontWeight: 600,
         }}>
           {manager ? managerLabel[manager] || manager : "No package manager detected"}
@@ -206,7 +206,7 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
               {/* Header */}
               <div style={{
                 display: "grid", gridTemplateColumns: "1fr 80px 80px 80px 90px 60px",
-                gap: 4, padding: "6px 8px", fontSize: "var(--font-size-sm)", fontWeight: 600,
+                gap: 4, padding: "8px 8px", fontSize: "var(--font-size-sm)", fontWeight: 600,
                 borderBottom: "1px solid var(--border-color)", opacity: 0.7,
               }}>
                 <span>Package</span>
@@ -222,7 +222,7 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
                   key={dep.name}
                   style={{
                     display: "grid", gridTemplateColumns: "1fr 80px 80px 80px 90px 60px",
-                    gap: 4, padding: "5px 8px", fontSize: "var(--font-size-sm)",
+                    gap: 4, padding: "4px 8px", fontSize: "var(--font-size-sm)",
                     borderBottom: "1px solid var(--border-color)",
                     background: dep.is_vulnerable ? "color-mix(in srgb, var(--accent-rose) 5%, transparent)" : "transparent",
                   }}
@@ -251,7 +251,7 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
                         title={`Upgrade to ${dep.latest}`}
                         style={{
                           background: "none", border: "1px solid var(--border-color)",
-                          borderRadius: "var(--radius-xs-plus)", padding: "1px 6px", fontSize: "var(--font-size-xs)",
+                          borderRadius: "var(--radius-xs-plus)", padding: "1px 8px", fontSize: "var(--font-size-xs)",
                           color: "var(--text-info)", cursor: "pointer",
                         }}
                       >

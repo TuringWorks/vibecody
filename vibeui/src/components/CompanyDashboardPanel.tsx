@@ -201,7 +201,7 @@ export function CompanyDashboardPanel({ workspacePath: _wp }: CompanyDashboardPa
               {c.active && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--accent, #4a9eff)", fontWeight: 700 }}>ACTIVE</span>}
               <span style={{ fontWeight: 600, fontSize: "var(--font-size-md)" }}>{c.name}</span>
               <span style={{
-                fontSize: "var(--font-size-xs)", padding: "1px 5px", borderRadius: 3,
+                fontSize: "var(--font-size-xs)", padding: "1px 4px", borderRadius: 3,
                 background: "var(--bg-tertiary)", color: "var(--text-secondary)",
               }}>{c.status}</span>
             </div>

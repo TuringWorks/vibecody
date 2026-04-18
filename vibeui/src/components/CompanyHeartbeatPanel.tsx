@@ -116,7 +116,7 @@ export function CompanyHeartbeatPanel({ workspacePath: _wp }: CompanyHeartbeatPa
           </button>
         </div>
         {triggerResult && (
-          <div style={{ marginTop: 8, fontSize: "var(--font-size-base)", padding: "6px 8px", background: "rgba(0,0,0,0.15)", borderRadius: "var(--radius-xs-plus)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ marginTop: 8, fontSize: "var(--font-size-base)", padding: "8px 8px", background: "rgba(0,0,0,0.15)", borderRadius: "var(--radius-xs-plus)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span>{triggerResult}</span>
             <button onClick={() => setTriggerResult(null)} style={{ cursor: "pointer", background: "none", border: "none", color: "var(--text-secondary)", display: "inline-flex" }}><X size={12} /></button>
           </div>
@@ -159,7 +159,7 @@ export function CompanyHeartbeatPanel({ workspacePath: _wp }: CompanyHeartbeatPa
               return (
                 <div key={run.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
                   {/* Row */}
-                  <div
+                  <div role="button" tabIndex={0}
                     onClick={() => setExpandedId(expanded ? null : run.id)}
                     style={{
                       display: "flex", alignItems: "center", gap: 10, padding: "8px 12px",
@@ -178,7 +178,7 @@ export function CompanyHeartbeatPanel({ workspacePath: _wp }: CompanyHeartbeatPa
                   {/* Inspector */}
                   {expanded && (
                     <div style={{
-                      padding: "10px 16px 14px", background: "var(--bg-tertiary)",
+                      padding: "12px 16px 16px", background: "var(--bg-tertiary)",
                       fontSize: "var(--font-size-base)", borderTop: "1px solid var(--border-color)",
                     }}>
                       {run.summary && (

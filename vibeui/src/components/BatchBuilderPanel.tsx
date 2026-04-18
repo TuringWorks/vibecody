@@ -709,7 +709,7 @@ const BatchBuilderPanel: React.FC = () => {
                   border: `1px solid ${priority === p ? PRIORITY_COLORS[p] : "var(--border-color)"}`,
                   textTransform: "capitalize",
                   fontSize: "var(--font-size-sm)",
-                  padding: "4px 6px",
+                  padding: "4px 8px",
                 }}
               >
                 {p}
@@ -732,7 +732,7 @@ const BatchBuilderPanel: React.FC = () => {
         <button className="panel-btn panel-btn-primary" onClick={addRequirement}>Add</button>
       </div>
       {requirements.map((r) => (
-        <div key={r.id} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 12px" }}>
+        <div key={r.id} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px" }}>
           <span style={{ fontSize: "var(--font-size-md)" }}>{r.text}</span>
           <button className="panel-btn panel-btn-danger" style={{ padding: "2px 8px", fontSize: "var(--font-size-sm)" }} onClick={() => removeRequirement(r.id)}>Remove</button>
         </div>
@@ -810,7 +810,7 @@ const BatchBuilderPanel: React.FC = () => {
                   <td>{f.name}</td>
                   <td>{f.type}</td>
                   <td>{f.required ? "Yes" : "No"}</td>
-                  <td><button className="panel-btn panel-btn-danger" style={{ padding: "2px 6px", fontSize: "var(--font-size-sm)" }} onClick={() => removeField(f.id)}>X</button></td>
+                  <td><button className="panel-btn panel-btn-danger" style={{ padding: "2px 8px", fontSize: "var(--font-size-sm)" }} onClick={() => removeField(f.id)}>X</button></td>
                 </tr>
               ))}
             </tbody>
@@ -1244,7 +1244,7 @@ const BatchBuilderPanel: React.FC = () => {
           {MIGRATION_PHASES.map((phase, i) => (
             <React.Fragment key={phase}>
               <div style={{
-                padding: "6px 12px",
+                padding: "8px 12px",
                 borderRadius: "var(--radius-xs-plus)",
                 fontSize: "var(--font-size-sm)",
                 fontWeight: i <= migPhaseIndex ? 600 : 400,
@@ -1315,7 +1315,7 @@ const BatchBuilderPanel: React.FC = () => {
             className="panel-btn panel-btn-secondary"
             style={{
               fontSize: "var(--font-size-sm)",
-              padding: "4px 10px",
+              padding: "4px 12px",
               background: historyFilter === f ? "var(--accent-color)" : "var(--bg-secondary)",
               color: historyFilter === f ? "white" : "var(--text-primary)",
               textTransform: "capitalize",

@@ -112,7 +112,7 @@ export function AutofixPanel({ workspacePath }: { workspacePath: string | null }
  const diffLines = result?.diff.split("\n") ?? [];
 
  return (
- <div style={{ padding: "12px", fontFamily: "var(--font-family)", fontSize: "var(--font-size-md)", height: "100%", overflowY: "auto" }}>
+ <div className="panel-container" style={{ padding: "12px", fontFamily: "var(--font-family)", fontSize: "var(--font-size-md)", flex: 1, minHeight: 0, overflowY: "auto" }}>
  <div style={{ fontWeight: "bold", marginBottom: "12px" }}>Codemod & Auto-Fix</div>
 
  {/* Framework selector */}
@@ -133,7 +133,7 @@ export function AutofixPanel({ workspacePath }: { workspacePath: string | null }
  </span>
  )}
  {running ? (
- <button
+ <button className="panel-btn"
  onClick={handleSuspend}
  style={{
  background: "var(--error-color)",
@@ -144,7 +144,7 @@ export function AutofixPanel({ workspacePath }: { workspacePath: string | null }
  Suspend
  </button>
  ) : (
- <button
+ <button className="panel-btn"
  onClick={handleRun}
  disabled={!workspacePath}
  style={{
@@ -160,7 +160,7 @@ export function AutofixPanel({ workspacePath }: { workspacePath: string | null }
 
  {/* Info box */}
  {!result && !running && !error && (
- <div style={{ background: "var(--bg-secondary)", padding: "10px", borderRadius: "var(--radius-xs-plus)", color: "var(--text-secondary)", fontSize: "var(--font-size-base)", marginBottom: "12px" }}>
+ <div style={{ background: "var(--bg-secondary)", padding: "12px", borderRadius: "var(--radius-xs-plus)", color: "var(--text-secondary)", fontSize: "var(--font-size-base)", marginBottom: "12px" }}>
  <div style={{ marginBottom: "4px", fontWeight: "bold", color: "var(--text-secondary)" }}>What this does:</div>
  <ul style={{ margin: 0, paddingLeft: "16px", lineHeight: "1.6" }}>
  <li><b>clippy</b>: runs <code>cargo clippy --fix</code></li>
@@ -169,7 +169,7 @@ export function AutofixPanel({ workspacePath }: { workspacePath: string | null }
  <li><b>gofmt</b>: runs <code>gofmt -w .</code></li>
  <li><b>prettier</b>: runs <code>npx prettier --write .</code></li>
  </ul>
- <div style={{ marginTop: "6px" }}>After running, review the diff and choose Apply or Revert.</div>
+ <div style={{ marginTop: "8px" }}>After running, review the diff and choose Apply or Revert.</div>
  </div>
  )}
 
@@ -188,8 +188,8 @@ export function AutofixPanel({ workspacePath }: { workspacePath: string | null }
  {result && (
  <div>
  {/* Summary */}
- <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "10px" }}>
- <div style={{ background: "var(--bg-secondary)", padding: "6px 12px", borderRadius: "var(--radius-xs-plus)" }}>
+ <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
+ <div style={{ background: "var(--bg-secondary)", padding: "8px 12px", borderRadius: "var(--radius-xs-plus)" }}>
  <span style={{ color: result.files_changed > 0 ? "var(--success-color)" : "var(--text-secondary)", fontWeight: "bold" }}>
  {result.files_changed} file{result.files_changed !== 1 ? "s" : ""} changed
  </span>
@@ -199,17 +199,17 @@ export function AutofixPanel({ workspacePath }: { workspacePath: string | null }
  </div>
  {result.files_changed > 0 && (
  <>
- <button
+ <button className="panel-btn"
  onClick={handleApply}
  disabled={applying}
- style={{ background: "var(--success-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", padding: "5px 14px", cursor: "pointer", fontSize: "var(--font-size-base)" }}
+ style={{ background: "var(--success-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", padding: "4px 16px", cursor: "pointer", fontSize: "var(--font-size-base)" }}
  >
  {applying ? "…" : "✓ Apply & Stage"}
  </button>
- <button
+ <button className="panel-btn"
  onClick={handleRevert}
  disabled={reverting}
- style={{ background: "var(--error-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", padding: "5px 14px", cursor: "pointer", fontSize: "var(--font-size-base)" }}
+ style={{ background: "var(--error-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", padding: "4px 16px", cursor: "pointer", fontSize: "var(--font-size-base)" }}
  >
  {reverting ? "…" : "✕ Revert"}
  </button>
@@ -224,7 +224,7 @@ export function AutofixPanel({ workspacePath }: { workspacePath: string | null }
  </div>
 
  {result.files_changed === 0 && (
- <div style={{ color: "var(--success-color)", fontSize: "var(--font-size-base)", marginBottom: "10px" }}>
+ <div style={{ color: "var(--success-color)", fontSize: "var(--font-size-base)", marginBottom: "12px" }}>
  ✓ No issues found — code is already clean!
  </div>
  )}

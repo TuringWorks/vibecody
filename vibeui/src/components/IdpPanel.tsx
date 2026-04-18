@@ -601,7 +601,7 @@ spec:
     return (
       <div>
         <h3 style={{ margin: "0 0 8px", fontSize: "var(--font-size-xl)" }}>Service Scorecards</h3>
-        <p style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", margin: "0 0 14px" }}>
+        <p style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", margin: "0 0 16px" }}>
           Evaluate services against quality, governance, standards, and DORA metrics. Scores are computed from service metadata and can be improved by completing recommendations.
         </p>
 
@@ -620,7 +620,7 @@ spec:
             <button className="panel-btn panel-btn-primary" onClick={() => scorecardServiceId && evaluateScorecard(scorecardServiceId)} disabled={!scorecardServiceId}>Evaluate</button>
           </div>
           {services.length === 0 && (
-            <p style={{ margin: "10px 0 0", fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Register services in the Service Catalog tab first.</p>
+            <p style={{ margin: "12px 0 0", fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Register services in the Service Catalog tab first.</p>
           )}
         </div>
 
@@ -635,7 +635,7 @@ spec:
                 <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, marginTop: 4 }}>{scorecard.overall_score}/100</div>
               </div>
               <div style={{ flex: 1 }}>
-                <h4 style={{ margin: "0 0 10px", fontSize: "var(--font-size-lg)" }}>{scorecard.service_name} — Metrics</h4>
+                <h4 style={{ margin: "0 0 12px", fontSize: "var(--font-size-lg)" }}>{scorecard.service_name} — Metrics</h4>
                 {scorecard.metrics.map((metric) => (
                   <div key={metric.name} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
                     <span style={{ fontSize: "var(--font-size-base)", minWidth: 180, color: "var(--text-secondary)" }}>
@@ -840,7 +840,7 @@ spec:
     return (
       <div>
         <h3 style={{ margin: "0 0 8px", fontSize: "var(--font-size-xl)" }}>IDP Platforms ({platforms.filter(p => p.enabled).length} enabled)</h3>
-        <p style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", margin: "0 0 14px" }}>
+        <p style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", margin: "0 0 16px" }}>
           Enable and configure supported Internal Developer Platforms. Toggle platforms on/off and view their feature sets.
         </p>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
@@ -870,12 +870,12 @@ spec:
     return (
       <div>
         <h3 style={{ margin: "0 0 8px", fontSize: "var(--font-size-xl)" }}>Backstage Integration</h3>
-        <p style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", margin: "0 0 14px" }}>
+        <p style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", margin: "0 0 16px" }}>
           Generate Backstage-compatible <code>catalog-info.yaml</code> files for your registered services. These can be committed to your repos for automatic Backstage discovery.
         </p>
 
         <div className="panel-card">
-          <h4 style={{ margin: "0 0 10px", fontSize: "var(--font-size-lg)" }}>Generate catalog-info.yaml</h4>
+          <h4 style={{ margin: "0 0 12px", fontSize: "var(--font-size-lg)" }}>Generate catalog-info.yaml</h4>
           <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
             <div style={{ ...formGroup, flex: 1, marginBottom: 0 }}>
               <label className="panel-label">Select Service</label>
@@ -891,7 +891,7 @@ spec:
             }} disabled={!backstageServiceId}>Generate</button>
           </div>
           {services.length === 0 && (
-            <p style={{ margin: "10px 0 0", fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Register services in the Service Catalog tab first.</p>
+            <p style={{ margin: "12px 0 0", fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Register services in the Service Catalog tab first.</p>
           )}
         </div>
 
@@ -918,7 +918,7 @@ spec:
         )}
 
         <div style={{ marginTop: 20 }}>
-          <h4 style={{ margin: "0 0 10px", fontSize: "var(--font-size-lg)" }}>Registered Components</h4>
+          <h4 style={{ margin: "0 0 12px", fontSize: "var(--font-size-lg)" }}>Registered Components</h4>
           {services.length === 0 ? (
             <p style={{ color: "var(--text-secondary)", textAlign: "center" }}>No components registered. Register services in the Service Catalog tab first.</p>
           ) : (
@@ -984,13 +984,13 @@ spec:
         {successMsg && (
           <div style={{ padding: "8px 12px", marginBottom: 12, background: "color-mix(in srgb, var(--success-color) 13%, transparent)", border: "1px solid var(--success-color)", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-base)", color: "var(--success-color)", display: "flex", justifyContent: "space-between" }}>
             <span>{successMsg}</span>
-            <button style={{ background: "none", border: "none", color: "var(--success-color)", cursor: "pointer", fontSize: "var(--font-size-lg)" }} onClick={() => setSuccessMsg(null)}>x</button>
+            <button className="panel-btn" style={{ background: "none", border: "none", color: "var(--success-color)", cursor: "pointer", fontSize: "var(--font-size-lg)" }} onClick={() => setSuccessMsg(null)}>x</button>
           </div>
         )}
         {error && (
           <div style={{ padding: "8px 12px", marginBottom: 12, background: "color-mix(in srgb, var(--error-color) 13%, transparent)", border: "1px solid var(--error-color)", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-base)", color: "var(--error-color)", display: "flex", justifyContent: "space-between" }}>
             <span>{error}</span>
-            <button style={{ background: "none", border: "none", color: "var(--error-color)", cursor: "pointer", fontSize: "var(--font-size-lg)" }} onClick={() => setError(null)}>x</button>
+            <button className="panel-btn" style={{ background: "none", border: "none", color: "var(--error-color)", cursor: "pointer", fontSize: "var(--font-size-lg)" }} onClick={() => setError(null)}>x</button>
           </div>
         )}
         {loading && <div className="panel-loading">Loading...</div>}

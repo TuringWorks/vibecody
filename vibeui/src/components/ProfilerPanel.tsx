@@ -104,7 +104,7 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
       {/* Tool badge */}
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <div style={{
-          background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: "6px 12px",
+          background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: "8px 12px",
           border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)", fontWeight: 600,
         }}>
           {tool ? toolLabel[tool] || tool : "No profiler detected"}
@@ -122,17 +122,17 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
           onChange={(e) => setTarget(e.target.value)}
           placeholder={tool === "cargo-flamegraph" ? "target binary (optional)" : tool === "py-spy" ? "script.py" : tool === "clinic" ? "server.js" : "target (optional)"}
           style={{
-            flex: 1, padding: "8px 10px", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)",
+            flex: 1, padding: "8px 12px", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)",
             background: "var(--bg-secondary)",
             border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)",
             color: "var(--text-primary)", outline: "none",
           }}
         />
         {running ? (
-          <button
+          <button className="panel-btn"
             onClick={handleSuspend}
             style={{
-              padding: "8px 18px", fontSize: "var(--font-size-md)", fontWeight: 700,
+              padding: "8px 20px", fontSize: "var(--font-size-md)", fontWeight: 700,
               background: "var(--error-color)",
               color: "var(--btn-primary-fg)", border: "none", borderRadius: "var(--radius-sm)",
               cursor: "pointer",
@@ -142,11 +142,11 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
             Suspend
           </button>
         ) : (
-          <button
+          <button className="panel-btn"
             onClick={handleRun}
             disabled={!tool}
             style={{
-              padding: "8px 18px", fontSize: "var(--font-size-md)", fontWeight: 700,
+              padding: "8px 20px", fontSize: "var(--font-size-md)", fontWeight: 700,
               background: "var(--accent-color)",
               color: "var(--btn-primary-fg)", border: "none", borderRadius: "var(--radius-sm)",
               cursor: !tool ? "not-allowed" : "pointer",
@@ -189,7 +189,7 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
               {/* Header */}
               <div style={{
                 display: "grid", gridTemplateColumns: "1fr 70px 70px 80px",
-                gap: 4, padding: "6px 8px", fontSize: "var(--font-size-sm)", fontWeight: 600,
+                gap: 4, padding: "8px 8px", fontSize: "var(--font-size-sm)", fontWeight: 600,
                 borderBottom: "1px solid var(--border-color)", opacity: 0.7,
               }}>
                 <span>Function</span>
@@ -203,7 +203,7 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
                   key={i}
                   style={{
                     display: "grid", gridTemplateColumns: "1fr 70px 70px 80px",
-                    gap: 4, padding: "5px 8px", fontSize: "var(--font-size-sm)",
+                    gap: 4, padding: "4px 8px", fontSize: "var(--font-size-sm)",
                     borderBottom: "1px solid var(--border-color)",
                     background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.02)",
                   }}

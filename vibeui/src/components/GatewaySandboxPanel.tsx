@@ -385,7 +385,7 @@ export function GatewaySandboxPanel({ provider: defaultProvider = "claude" }: Ga
         <MessageSquare size={14} style={{ color: "var(--text-secondary)" }} />
         <span style={{ fontWeight: 600, fontSize: "var(--font-size-md)", flex: 1 }}>Messaging Gateway → Sandbox</span>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ width: 8, height: 8, borderRadius: "50%", background: status.active ? "var(--success-color)" : "#666", display: "inline-block" }} />
+          <span style={{ width: 8, height: 8, borderRadius: "50%", background: status.active ? "var(--success-color)" : "var(--text-muted)", display: "inline-block" }} />
           <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
             {status.active ? `Active · ${status.message_count} msgs` : "Stopped"}
           </span>
@@ -420,12 +420,12 @@ export function GatewaySandboxPanel({ provider: defaultProvider = "claude" }: Ga
                           onClick={() => !status.active && setPlatform(p.id)}
                           disabled={status.active}
                           style={{
-                            padding: "4px 9px",
+                            padding: "4px 8px",
                             borderRadius: "var(--radius-sm)",
                             fontSize: "var(--font-size-sm)",
                             cursor: status.active ? "default" : "pointer",
                             background: isSelected ? "var(--accent)" : "var(--bg-secondary)",
-                            color: isSelected ? "#fff" : "var(--text-primary)",
+                            color: isSelected ? "var(--btn-primary-fg)" : "var(--text-primary)",
                             border: `1px solid ${isSelected ? "var(--accent)" : "var(--border-color)"}`,
                             display: "flex",
                             alignItems: "center",
@@ -459,7 +459,7 @@ export function GatewaySandboxPanel({ provider: defaultProvider = "claude" }: Ga
 
           {/* CLI-only notice */}
           {def.mode === "cli" && (
-            <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(136,136,136,0.1)", border: "1px solid rgba(136,136,136,0.3)", borderRadius: "var(--radius-sm)", padding: "6px 10px", fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(136,136,136,0.1)", border: "1px solid rgba(136,136,136,0.3)", borderRadius: "var(--radius-sm)", padding: "8px 12px", fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>
               <AlertCircle size={13} />
               <span>CLI-only platform.</span>
               <button className="panel-btn panel-btn-secondary panel-btn-sm" onClick={() => runGatewayCli(platform)} title={`vibecli --gateway ${platform}`} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Play size={12} /> Launch Gateway</button>
@@ -493,7 +493,7 @@ export function GatewaySandboxPanel({ provider: defaultProvider = "claude" }: Ga
                 disabled={status.active}
                 style={{ ...inputStyle, flex: 1 }}
               />
-              <button
+              <button className="panel-btn"
                 onClick={handlePickFolder}
                 disabled={status.active}
                 title="Browse"
@@ -537,10 +537,10 @@ export function GatewaySandboxPanel({ provider: defaultProvider = "claude" }: Ga
           {/* Start / Stop */}
           <div style={{ display: "flex", gap: 8 }}>
             {!status.active ? (
-              <button
+              <button className="panel-btn"
                 onClick={handleStart}
                 disabled={starting || def.mode === "cli"}
-                style={{ flex: 1, background: def.mode === "cli" ? "var(--bg-secondary)" : "var(--accent)", color: def.mode === "cli" ? "var(--text-muted)" : "#fff", border: "none", borderRadius: "var(--radius-sm-alt)", padding: "8px 14px", cursor: def.mode === "cli" ? "default" : "pointer", fontSize: "var(--font-size-md)", fontWeight: 500, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+                style={{ flex: 1, background: def.mode === "cli" ? "var(--bg-secondary)" : "var(--accent)", color: def.mode === "cli" ? "var(--text-muted)" : "var(--btn-primary-fg)", border: "none", borderRadius: "var(--radius-sm-alt)", padding: "8px 16px", cursor: def.mode === "cli" ? "default" : "pointer", fontSize: "var(--font-size-md)", fontWeight: 500, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
               >
                 {starting ? <RefreshCw size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Send size={14} />}
                 {starting ? "Starting…" : def.mode === "cli" ? "Use vibecli CLI" : "Start Gateway"}
@@ -575,7 +575,7 @@ export function GatewaySandboxPanel({ provider: defaultProvider = "claude" }: Ga
 
       {/* Status footer */}
       {status.active && sandboxPath && (
-        <div style={{ padding: "6px 12px", borderTop: "1px solid var(--border-color)", fontSize: "var(--font-size-sm)", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+        <div style={{ padding: "8px 12px", borderTop: "1px solid var(--border-color)", fontSize: "var(--font-size-sm)", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
           <CheckCircle size={12} style={{ color: "var(--success-color)" }} />
           Sandbox: <span style={{ color: "var(--text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{sandboxPath}</span>
           · Provider: {provider}
@@ -606,7 +606,7 @@ function LogBubble({ entry }: { entry: LogEntry }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: isIncoming ? "flex-start" : "flex-end", gap: 2 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-        {isIncoming ? <User size={11} style={{ color: "var(--text-muted)" }} /> : <Bot size={11} style={{ color: "#4f9cf9" }} />}
+        {isIncoming ? <User size={11} style={{ color: "var(--text-muted)" }} /> : <Bot size={11} style={{ color: "var(--accent-blue)" }} />}
         <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)" }}>
           {isIncoming ? `@${entry.user}` : "AI"} · {time}
         </span>
@@ -616,7 +616,7 @@ function LogBubble({ entry }: { entry: LogEntry }) {
         background: isIncoming ? "var(--bg-secondary)" : "var(--bg-tertiary, var(--bg-secondary))",
         border: `1px solid ${isIncoming ? "var(--border-color)" : "rgba(79,156,249,0.3)"}`,
         borderRadius: isIncoming ? "4px 12px 12px 12px" : "12px 4px 12px 12px",
-        padding: "6px 10px",
+        padding: "8px 12px",
         fontSize: "var(--font-size-base)",
         lineHeight: 1.5,
         whiteSpace: "pre-wrap",

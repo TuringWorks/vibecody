@@ -175,14 +175,14 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
  )}
 
  {/* Submit form */}
- <div className="panel-card" style={{ marginBottom: '10px' }}>
+ <div className="panel-card" style={{ marginBottom: '12px' }}>
  <textarea
  value={task}
  onChange={(e) => setTask(e.target.value)}
  placeholder="Describe a background agent task…"
  rows={2}
  className="panel-input panel-input-full"
- style={{ resize: 'vertical', marginBottom: '6px' }}
+ style={{ resize: 'vertical', marginBottom: '8px' }}
  />
  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
  <select
@@ -213,17 +213,17 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
  {/* Job list */}
  <div>
  {jobs.length === 0 && daemonOnline && (
- <p style={{ fontSize: '12px', color: 'var(--text-secondary)', textAlign: 'center', marginTop: '20px' }}>
+ <p className="panel-empty" style={{ fontSize: '12px', color: 'var(--text-secondary)', textAlign: 'center', marginTop: '20px' }}>
  No jobs yet. Submit one above.
  </p>
  )}
  {jobs.map((job) => (
  <div key={job.session_id} style={{
- marginBottom: '6px', borderRadius: '6px',
+ marginBottom: '8px', borderRadius: '6px',
  background: 'var(--bg-secondary)', border: '1px solid var(--border-color)',
  }}>
  {/* Job row */}
- <div
+ <div role="button" tabIndex={0}
  onClick={() => setExpandedId(expandedId === job.session_id ? null : job.session_id)}
  style={{ padding: '8px 12px', cursor: 'pointer', display: 'flex', alignItems: 'flex-start', gap: '8px' }}
  >
@@ -239,7 +239,7 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
  {job.status === 'running' && (
  <button
  onClick={(e) => { e.stopPropagation(); cancelJob(job.session_id); }}
- style={{ fontSize: '10px', padding: '2px 6px', border: 'none', borderRadius: '3px', background: 'var(--text-danger)', color: 'white', cursor: 'pointer', flexShrink: 0 }}
+ style={{ fontSize: '10px', padding: '2px 8px', border: 'none', borderRadius: '3px', background: 'var(--text-danger)', color: 'white', cursor: 'pointer', flexShrink: 0 }}
  >
  Cancel
  </button>
@@ -250,14 +250,14 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
  {expandedId === job.session_id && (
  <div style={{ borderTop: '1px solid var(--border-color)', padding: '8px 12px' }}>
  {job.summary && (
- <div style={{ fontSize: '11px', marginBottom: '6px', whiteSpace: 'pre-wrap' }}>
+ <div style={{ fontSize: '11px', marginBottom: '8px', whiteSpace: 'pre-wrap' }}>
  <strong>Summary:</strong> {job.summary}
  </div>
  )}
  {job.status === 'running' && (
  <button
  onClick={() => streamLive(job.session_id)}
- style={{ fontSize: '11px', padding: '2px 8px', border: '1px solid var(--border-color)', borderRadius: '3px', background: 'none', color: 'var(--accent-blue)', cursor: 'pointer', marginBottom: '6px' }}
+ style={{ fontSize: '11px', padding: '2px 8px', border: '1px solid var(--border-color)', borderRadius: '3px', background: 'none', color: 'var(--accent-blue)', cursor: 'pointer', marginBottom: '8px' }}
  >
  {esRefs.current[job.session_id] ? ' Stop stream' : ' Stream live'}
  </button>
@@ -265,7 +265,7 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
  {liveEvents[job.session_id] && liveEvents[job.session_id].length > 0 && (
  <div style={{
  fontSize: '10px', fontFamily: 'var(--font-mono)', maxHeight: '120px',
- overflowY: 'auto', background: 'var(--bg-tertiary)', padding: '4px 6px',
+ overflowY: 'auto', background: 'var(--bg-tertiary)', padding: '4px 8px',
  borderRadius: '4px', color: 'var(--text-secondary)',
  }}>
  {liveEvents[job.session_id].map((line, i) => (

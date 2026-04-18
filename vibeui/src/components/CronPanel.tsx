@@ -205,7 +205,7 @@ export function CronPanel() {
  onClick={() => setExpr(p.expr)}
  style={{
  display: "block", width: "100%", textAlign: "left",
- padding: "7px 10px", cursor: "pointer",
+ padding: "8px 12px", cursor: "pointer",
  background: expr === p.expr ? "var(--accent-bg, color-mix(in srgb, var(--accent-blue) 15%, transparent))" : "transparent",
  border: "none", borderBottom: "1px solid var(--border-color)",
  color: "var(--text-primary)",
@@ -235,7 +235,7 @@ export function CronPanel() {
  borderRadius: "var(--radius-sm)", color: error ? "var(--text-danger)" : "var(--text-info)", outline: "none",
  }}
  />
- <button onClick={copy} style={{ padding: "8px 14px", fontSize: "var(--font-size-sm)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", color: "var(--text-secondary)", cursor: "pointer", display: "inline-flex", alignItems: "center" }}>
+ <button className="panel-btn" onClick={copy} style={{ padding: "8px 16px", fontSize: "var(--font-size-sm)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", color: "var(--text-secondary)", cursor: "pointer", display: "inline-flex", alignItems: "center" }}>
  {copied ? <Check size={14} strokeWidth={1.5} /> : <Copy size={14} strokeWidth={1.5} />}
  </button>
  </div>
@@ -258,7 +258,7 @@ export function CronPanel() {
  onChange={e => setPart(i, e.target.value)}
  spellCheck={false}
  style={{
- padding: "5px 8px", fontSize: "var(--font-size-md)", fontFamily: "var(--font-mono)", fontWeight: 600, textAlign: "center",
+ padding: "4px 8px", fontSize: "var(--font-size-md)", fontFamily: "var(--font-mono)", fontWeight: 600, textAlign: "center",
  background: "var(--bg-secondary)", border: `1px solid ${parts[i] && !validatePart(parts[i], f) ? "var(--text-danger)" : "var(--border-color)"}`,
  borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none",
  }}
@@ -272,7 +272,7 @@ export function CronPanel() {
  <button
  key={chip}
  onClick={() => setPart(i, chip)}
- style={{ padding: "1px 5px", fontSize: 9, borderRadius: "var(--radius-xs-plus)", background: parts[i] === chip ? "color-mix(in srgb, var(--accent-blue) 25%, transparent)" : "var(--bg-primary)", border: `1px solid ${parts[i] === chip ? "var(--accent-primary)" : "var(--border-color)"}`, color: parts[i] === chip ? "var(--text-info)" : "var(--text-secondary)", cursor: "pointer" }}
+ style={{ padding: "1px 4px", fontSize: 9, borderRadius: "var(--radius-xs-plus)", background: parts[i] === chip ? "color-mix(in srgb, var(--accent-blue) 25%, transparent)" : "var(--bg-primary)", border: `1px solid ${parts[i] === chip ? "var(--accent-primary)" : "var(--border-color)"}`, color: parts[i] === chip ? "var(--text-info)" : "var(--text-secondary)", cursor: "pointer" }}
  >
  {chip}
  </button>
@@ -281,7 +281,7 @@ export function CronPanel() {
  <button
  key={name}
  onClick={() => setPart(i, String(f.min + ni))}
- style={{ padding: "1px 5px", fontSize: 9, borderRadius: "var(--radius-xs-plus)", background: parts[i] === String(f.min + ni) ? "color-mix(in srgb, var(--accent-blue) 25%, transparent)" : "var(--bg-primary)", border: `1px solid ${parts[i] === String(f.min + ni) ? "var(--accent-primary)" : "var(--border-color)"}`, color: parts[i] === String(f.min + ni) ? "var(--text-info)" : "var(--text-secondary)", cursor: "pointer" }}
+ style={{ padding: "1px 4px", fontSize: 9, borderRadius: "var(--radius-xs-plus)", background: parts[i] === String(f.min + ni) ? "color-mix(in srgb, var(--accent-blue) 25%, transparent)" : "var(--bg-primary)", border: `1px solid ${parts[i] === String(f.min + ni) ? "var(--accent-primary)" : "var(--border-color)"}`, color: parts[i] === String(f.min + ni) ? "var(--text-info)" : "var(--text-secondary)", cursor: "pointer" }}
  >
  {name}
  </button>
@@ -292,7 +292,7 @@ export function CronPanel() {
  </div>
 
  {/* Field reference */}
- <div style={{ padding: "10px 14px", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)" }}>
+ <div style={{ padding: "12px 16px", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)" }}>
  <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, marginBottom: 8 }}>Syntax Reference</div>
  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 20px", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)" }}>
  {[
@@ -317,7 +317,7 @@ export function CronPanel() {
  <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, marginBottom: 8 }}>Next {runs.length} Scheduled Runs</div>
  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
  {runs.map((d, i) => (
- <div key={i} style={{ display: "flex", gap: 12, padding: "5px 10px", background: i === 0 ? "color-mix(in srgb, var(--accent-blue) 10%, transparent)" : "var(--bg-secondary)", borderRadius: "var(--radius-xs-plus)", border: `1px solid ${i === 0 ? "var(--accent-primary)" : "var(--border-color)"}`, fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)" }}>
+ <div key={i} style={{ display: "flex", gap: 12, padding: "4px 12px", background: i === 0 ? "color-mix(in srgb, var(--accent-blue) 10%, transparent)" : "var(--bg-secondary)", borderRadius: "var(--radius-xs-plus)", border: `1px solid ${i === 0 ? "var(--accent-primary)" : "var(--border-color)"}`, fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)" }}>
  <span style={{ color: "var(--text-secondary)", minWidth: 20 }}>#{i + 1}</span>
  <span style={{ color: i === 0 ? "var(--text-info)" : "var(--text-primary)", fontWeight: i === 0 ? 600 : 400 }}>
  {d.toLocaleString([], { weekday: "short", year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}

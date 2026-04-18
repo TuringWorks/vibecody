@@ -138,7 +138,7 @@ export function WebhookPanel() {
                 <div>
                   <span style={{ fontWeight: 600 }}>{wh.name || 'Unnamed'}</span>
                   <span style={{
-                    marginLeft: 8, padding: '1px 6px', borderRadius: 3, fontSize: "var(--font-size-xs)",
+                    marginLeft: 8, padding: '1px 8px', borderRadius: 3, fontSize: "var(--font-size-xs)",
                     background: wh.enabled ? 'rgba(34,197,94,0.15)' : 'color-mix(in srgb, var(--accent-rose) 15%, transparent)',
                     color: wh.enabled ? 'var(--success-color)' : 'var(--error-color)',
                   }}>{wh.enabled ? 'Active' : 'Disabled'}</span>
@@ -155,7 +155,7 @@ export function WebhookPanel() {
               <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 6 }}>
                 {wh.events.map(ev => (
                   <span key={ev} style={{
-                    padding: '1px 6px', borderRadius: 3, fontSize: "var(--font-size-xs)",
+                    padding: '1px 8px', borderRadius: 3, fontSize: "var(--font-size-xs)",
                     background: 'color-mix(in srgb, var(--accent-blue) 15%, transparent)', color: 'var(--accent-color)',
                   }}>{ev}</span>
                 ))}
@@ -218,12 +218,12 @@ export function WebhookPanel() {
             </div>
           )}
           {logs.map(log => (
-            <div key={log.id} className="panel-card" style={{ cursor: 'pointer' }}
+            <div role="button" tabIndex={0} key={log.id} className="panel-card" style={{ cursor: 'pointer' }}
               onClick={() => setExpandedLog(expandedLog === log.id ? null : log.id)}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   <span style={{
-                    padding: '1px 6px', borderRadius: 3, fontSize: "var(--font-size-xs)", fontWeight: 600,
+                    padding: '1px 8px', borderRadius: 3, fontSize: "var(--font-size-xs)", fontWeight: 600,
                     background: log.status < 300 ? 'rgba(34,197,94,0.15)' : 'color-mix(in srgb, var(--accent-rose) 15%, transparent)',
                     color: log.status < 300 ? 'var(--success-color)' : 'var(--error-color)',
                   }}>{log.status}</span>

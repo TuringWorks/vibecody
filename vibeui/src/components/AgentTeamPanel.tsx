@@ -139,7 +139,7 @@ export function AgentTeamPanel() {
               onChange={(e) => setGoal(e.target.value)}
               rows={3}
               placeholder="Describe the goal for the team..."
-              style={{ padding: "5px 8px", fontSize: "var(--font-size-sm)", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)", outline: "none", resize: "vertical", fontFamily: "inherit", width: "100%", boxSizing: "border-box" }}
+              style={{ padding: "4px 8px", fontSize: "var(--font-size-sm)", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)", outline: "none", resize: "vertical", fontFamily: "inherit", width: "100%", boxSizing: "border-box" }}
             />
           </div>
           <div>
@@ -165,7 +165,7 @@ export function AgentTeamPanel() {
         /* Team view */
         <>
           {/* Sub-tabs */}
-          <div className="panel-tab-bar" style={{ padding: "6px 12px" }}>
+          <div className="panel-tab-bar" style={{ padding: "8px 12px" }}>
             {(["overview", "tasks", "messages"] as const).map((t) => (
               <button
                 key={t}
@@ -182,7 +182,7 @@ export function AgentTeamPanel() {
             {tab === "overview" && (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600 }}>Goal</div>
-                <div style={{ fontSize: "var(--font-size-sm)", padding: "6px 8px", background: "var(--bg-primary)", borderRadius: "var(--radius-xs-plus)" }}>
+                <div style={{ fontSize: "var(--font-size-sm)", padding: "8px 8px", background: "var(--bg-primary)", borderRadius: "var(--radius-xs-plus)" }}>
                   {team.goal}
                 </div>
                 <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600 }}>Members ({team.member_ids.length})</div>
@@ -208,7 +208,7 @@ export function AgentTeamPanel() {
                     ))}
                   </div>
                 ) : (
-                  <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.5 }}>No tasks decomposed yet</div>
+                  <div className="panel-empty" style={{ fontSize: "var(--font-size-sm)", opacity: 0.5 }}>No tasks decomposed yet</div>
                 )}
               </div>
             )}
@@ -218,13 +218,13 @@ export function AgentTeamPanel() {
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {team.tasks.map((t) => (
                   <div key={t.id} style={{
-                    padding: "6px 8px", borderRadius: "var(--radius-xs-plus)",
+                    padding: "8px 8px", borderRadius: "var(--radius-xs-plus)",
                     border: "1px solid var(--border-color)",
                     background: "var(--bg-primary)",
                   }}>
                     <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}>
                       <span style={{
-                        fontSize: 9, padding: "1px 6px", borderRadius: 3, fontWeight: 700,
+                        fontSize: 9, padding: "1px 8px", borderRadius: 3, fontWeight: 700,
                         background: statusColor[t.status] || "var(--text-secondary)", color: "var(--bg-tertiary)",
                       }}>
                         {t.status}

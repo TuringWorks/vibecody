@@ -102,7 +102,7 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
 
   if (!workspacePath) {
     return (
-      <div style={{ padding: 16, opacity: 0.6, textAlign: "center" }}>
+      <div className="panel-container" style={{ padding: 16, opacity: 0.6, textAlign: "center" }}>
         <p>Open a workspace folder to view logs.</p>
       </div>
     );
@@ -160,7 +160,7 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
           value={selectedSource}
           onChange={(e) => { setSelectedSource(e.target.value); setCustomPath(""); }}
           style={{
-            flex: 1, minWidth: 180, padding: "5px 8px", fontSize: "var(--font-size-base)",
+            flex: 1, minWidth: 180, padding: "4px 8px", fontSize: "var(--font-size-base)",
             background: "var(--bg-secondary)", color: "var(--text-primary)",
             border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)",
           }}
@@ -178,16 +178,16 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
           value={customPath}
           onChange={(e) => setCustomPath(e.target.value)}
           style={{
-            flex: 1, minWidth: 150, padding: "5px 8px", fontSize: "var(--font-size-base)",
+            flex: 1, minWidth: 150, padding: "4px 8px", fontSize: "var(--font-size-base)",
             background: "var(--bg-secondary)", color: "var(--text-primary)",
             border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)",
           }}
         />
-        <button
+        <button className="panel-btn"
           onClick={handleTail}
           disabled={loading}
           style={{
-            padding: "5px 14px", fontSize: "var(--font-size-base)", fontWeight: 600,
+            padding: "4px 16px", fontSize: "var(--font-size-base)", fontWeight: 600,
             background: loading ? "var(--bg-tertiary)" : "var(--accent-color)",
             color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-sm)",
             cursor: loading ? "not-allowed" : "pointer",
@@ -203,7 +203,7 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
           value={lineCount}
           onChange={(e) => setLineCount(Number(e.target.value))}
           style={{
-            padding: "4px 6px", fontSize: "var(--font-size-sm)",
+            padding: "4px 8px", fontSize: "var(--font-size-sm)",
             background: "var(--bg-secondary)", color: "var(--text-primary)",
             border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)",
           }}
@@ -220,7 +220,7 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
             key={lv}
             onClick={() => setLevelFilter(lv)}
             style={{
-              padding: "3px 10px", fontSize: "var(--font-size-sm)", borderRadius: 12,
+              padding: "3px 12px", fontSize: "var(--font-size-sm)", borderRadius: 12,
               background: levelFilter === lv ? (lv === "all" ? "var(--accent-color)" : levelColor[lv]) : "var(--bg-secondary)",
               border: `1px solid ${levelFilter === lv ? "transparent" : "var(--border-color)"}`,
               color: levelFilter === lv ? "var(--text-primary)" : "var(--text-primary)",
@@ -266,7 +266,7 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
       {result && (
         <div style={{
           display: "flex", gap: 12, fontSize: "var(--font-size-base)",
-          background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: "6px 10px",
+          background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: "8px 12px",
           border: "1px solid var(--border-color)",
         }}>
           <span>Lines: <strong>{result.total_lines}</strong></span>
@@ -278,11 +278,11 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
           </span>
           <span>Showing: <strong>{filtered.length}</strong></span>
           <div style={{ flex: 1 }} />
-          <button
+          <button className="panel-btn"
             onClick={handleAnalyze}
             disabled={analyzing || filtered.length === 0}
             style={{
-              padding: "2px 10px", fontSize: "var(--font-size-sm)", fontWeight: 600,
+              padding: "2px 12px", fontSize: "var(--font-size-sm)", fontWeight: 600,
               background: analyzing ? "var(--bg-tertiary)" : "var(--success-color)",
               color: "var(--bg-tertiary)", border: "none", borderRadius: "var(--radius-xs-plus)",
               cursor: analyzing ? "not-allowed" : "pointer",
@@ -325,7 +325,7 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
             <div
               key={entry.line_number}
               style={{
-                padding: "1px 6px", display: "flex", gap: 6,
+                padding: "1px 8px", display: "flex", gap: 6,
                 background: entry.level === "error" ? "color-mix(in srgb, var(--accent-rose) 6%, transparent)"
                   : entry.level === "warn" ? "rgba(250,179,135,0.04)"
                   : "transparent",

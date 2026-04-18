@@ -146,9 +146,9 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  const barWidth = (pct: number) => `${Math.max(2, Math.min(100, pct))}%`;
 
  return (
- <div style={{ padding: "12px", fontFamily: "var(--font-family)", fontSize: "var(--font-size-md)", height: "100%", overflowY: "auto" }}>
+ <div className="panel-container" style={{ padding: "12px", fontFamily: "var(--font-family)", fontSize: "var(--font-size-md)", flex: 1, minHeight: 0, overflowY: "auto" }}>
  {/* Header */}
- <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px", flexWrap: "wrap" }}>
+ <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px", flexWrap: "wrap" }}>
  <span style={{ fontWeight: "bold", display: "flex", alignItems: "center", gap: 6 }}><FlaskConical size={16} strokeWidth={1.5} />Coverage</span>
  {tool && (
  <span style={{ background: "var(--bg-secondary)", padding: "2px 8px", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-sm)" }}>
@@ -162,7 +162,7 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  <span style={{ color: "var(--text-secondary)" }}>No coverage tool detected</span>
  )}
  {running ? (
- <button
+ <button className="panel-btn"
  onClick={handleSuspend}
  style={{
  marginLeft: "auto",
@@ -174,7 +174,7 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  <Loader2 size={14} strokeWidth={1.5} style={{ display: "inline" }} />Suspend
  </button>
  ) : (
- <button
+ <button className="panel-btn"
  onClick={handleRun}
  disabled={!tool || !workspacePath}
  style={{
@@ -197,7 +197,7 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
 
  {/* Live log — shown while running; after completion visible via Raw button */}
  {(running || (!result && logs.length > 0)) && (
-   <div style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-xs-plus)", padding: "10px", fontFamily: "var(--font-mono, monospace)", fontSize: "var(--font-size-sm)", lineHeight: 1.5, overflowY: "auto", overflowX: "auto", maxHeight: "calc(100vh - 160px)", color: "var(--text-secondary)" }}>
+   <div style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-xs-plus)", padding: "12px", fontFamily: "var(--font-mono, monospace)", fontSize: "var(--font-size-sm)", lineHeight: 1.5, overflowY: "auto", overflowX: "auto", maxHeight: "calc(100vh - 160px)", color: "var(--text-secondary)" }}>
      {logs.map((line, i) => (
        <div key={i} style={{ whiteSpace: "pre", minWidth: "max-content" }}>{line || "\u00A0"}</div>
      ))}
@@ -208,7 +208,7 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  {result && (
  <>
  {/* Summary bar */}
- <div style={{ marginBottom: "14px" }}>
+ <div style={{ marginBottom: "16px" }}>
  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
  <span style={{ color: pctColor(result.total_pct), fontWeight: "bold", fontSize: "16px" }}>
  {result.total_pct.toFixed(1)}%
@@ -218,12 +218,12 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  </span>
  </div>
  <div style={{ background: "var(--bg-secondary)", borderRadius: "3px", height: "6px", overflow: "hidden" }}>
- <div style={{ background: pctColor(result.total_pct), width: barWidth(result.total_pct), height: "100%", transition: "width 0.4s" }} />
+ <div style={{ background: pctColor(result.total_pct), width: barWidth(result.total_pct), flex: 1, minHeight: 0, transition: "width 0.4s" }} />
  </div>
  </div>
 
  {/* Filter tabs */}
- <div style={{ display: "flex", gap: "6px", marginBottom: "10px" }}>
+ <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
  {(["all", "partial", "uncovered"] as Filter[]).map(f => (
  <button
  key={f}
@@ -231,7 +231,7 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  style={{
  background: filter === f ? "var(--accent-blue)" : "var(--bg-secondary)",
  color: filter === f ? "var(--text-primary)" : "var(--text-secondary)",
- border: "none", borderRadius: "var(--radius-xs-plus)", padding: "2px 10px",
+ border: "none", borderRadius: "var(--radius-xs-plus)", padding: "2px 12px",
  cursor: "pointer", fontSize: "var(--font-size-sm)",
  }}
  >
@@ -244,7 +244,7 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  marginLeft: "auto",
  background: showRaw ? "var(--accent-blue)" : "var(--bg-secondary)",
  color: showRaw ? "var(--text-primary)" : "var(--text-secondary)",
- border: "none", borderRadius: "var(--radius-xs-plus)", padding: "2px 10px",
+ border: "none", borderRadius: "var(--radius-xs-plus)", padding: "2px 12px",
  cursor: "pointer", fontSize: "var(--font-size-sm)",
  }}
  >
@@ -253,7 +253,7 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  </div>
 
  {showRaw ? (
- <pre style={{ background: "var(--bg-secondary)", padding: "10px", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-sm)", overflow: "auto", maxHeight: "400px", whiteSpace: "pre-wrap", fontFamily: "var(--font-mono, monospace)" }}>
+ <pre style={{ background: "var(--bg-secondary)", padding: "12px", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-sm)", overflow: "auto", maxHeight: "400px", whiteSpace: "pre-wrap", fontFamily: "var(--font-mono, monospace)" }}>
  {logs.length > 0 ? logs.join("\n") : result.raw_output || "(no output)"}
  </pre>
  ) : (
@@ -268,9 +268,9 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  const shortPath = file.path.split("/").slice(-3).join("/");
  return (
  <div key={file.path} style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-xs-plus)", overflow: "hidden" }}>
- <div
+ <div role="button" tabIndex={0}
  onClick={() => toggleExpand(file.path)}
- style={{ padding: "6px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: "8px" }}
+ style={{ padding: "8px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: "8px" }}
  >
  <span style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-xs)" }}>{isExpanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />}</span>
  <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--text-secondary)" }} title={file.path}>
@@ -283,11 +283,11 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  {file.covered}/{file.total} lines
  </span>
  <div style={{ width: "80px", background: "var(--bg-primary)", borderRadius: "2px", height: "4px", overflow: "hidden" }}>
- <div style={{ background: pctColor(file.pct), width: barWidth(file.pct), height: "100%" }} />
+ <div style={{ background: pctColor(file.pct), width: barWidth(file.pct), flex: 1, minHeight: 0 }} />
  </div>
  </div>
  {isExpanded && file.uncovered_lines.length > 0 && (
- <div style={{ padding: "6px 10px 8px 28px", borderTop: "1px solid var(--bg-primary)" }}>
+ <div style={{ padding: "8px 12px 8px 28px", borderTop: "1px solid var(--bg-primary)" }}>
  <span style={{ color: "var(--error-color)", fontSize: "var(--font-size-sm)" }}>
  Uncovered lines: {file.uncovered_lines.slice(0, 30).join(", ")}
  {file.uncovered_lines.length > 30 && ` … +${file.uncovered_lines.length - 30} more`}
@@ -295,7 +295,7 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  </div>
  )}
  {isExpanded && file.uncovered_lines.length === 0 && (
- <div style={{ padding: "6px 10px 8px 28px", borderTop: "1px solid var(--bg-primary)", color: "var(--success-color)", fontSize: "var(--font-size-sm)" }}>
+ <div style={{ padding: "8px 12px 8px 28px", borderTop: "1px solid var(--bg-primary)", color: "var(--success-color)", fontSize: "var(--font-size-sm)" }}>
  <CircleCheck size={14} strokeWidth={1.5} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />All lines covered
  </div>
  )}

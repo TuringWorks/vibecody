@@ -123,7 +123,7 @@ export function BookmarkPanel({ workspacePath }: BookmarkPanelProps) {
       </div>
 
       {error && (
-        <div style={{ padding: "6px 12px", fontSize: "var(--font-size-sm)", color: "var(--text-danger)", background: "color-mix(in srgb, var(--accent-rose) 5%, transparent)" }}>
+        <div style={{ padding: "8px 12px", fontSize: "var(--font-size-sm)", color: "var(--text-danger)", background: "color-mix(in srgb, var(--accent-rose) 5%, transparent)" }}>
           {error}
         </div>
       )}
@@ -144,7 +144,7 @@ export function BookmarkPanel({ workspacePath }: BookmarkPanelProps) {
             <span style={{ fontSize: "var(--font-size-xs)", opacity: 0.5 }}>{filteredMarkers.length} results</span>
           </div>
           {/* Type filter chips */}
-          <div style={{ display: "flex", gap: 4, padding: "0 12px 6px", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 4, padding: "0 12px 8px", flexWrap: "wrap" }}>
             {MARKER_TYPES.map((t) => (
               <button
                 key={t}
@@ -163,17 +163,17 @@ export function BookmarkPanel({ workspacePath }: BookmarkPanelProps) {
           {/* Results */}
           <div style={{ flex: 1, overflowY: "auto", padding: "0 12px" }}>
             {filteredMarkers.map((m, i) => (
-              <div
+              <div role="button" tabIndex={0}
                 key={`${m.file}:${m.line}:${i}`}
                 onClick={() => openFile(m.file, m.line)}
                 style={{
-                  display: "flex", gap: 8, alignItems: "center", padding: "4px 6px",
+                  display: "flex", gap: 8, alignItems: "center", padding: "4px 8px",
                   borderBottom: "1px solid var(--border-color)", cursor: "pointer",
                   fontSize: "var(--font-size-sm)",
                 }}
               >
                 <span style={{
-                  padding: "1px 5px", borderRadius: 3, fontWeight: 600, fontSize: 9,
+                  padding: "1px 4px", borderRadius: 3, fontWeight: 600, fontSize: 9,
                   background: markerColor[m.marker_type] || "var(--text-secondary)", color: "var(--bg-tertiary)",
                   whiteSpace: "nowrap",
                 }}>
@@ -216,11 +216,11 @@ export function BookmarkPanel({ workspacePath }: BookmarkPanelProps) {
               </div>
             )}
             {bookmarks.map((b) => (
-              <div
+              <div role="button" tabIndex={0}
                 key={b.id}
                 onClick={() => openFile(b.file, b.line)}
                 style={{
-                  display: "flex", gap: 8, alignItems: "center", padding: "4px 6px",
+                  display: "flex", gap: 8, alignItems: "center", padding: "4px 8px",
                   borderBottom: "1px solid var(--border-color)", cursor: "pointer",
                   fontSize: "var(--font-size-sm)",
                 }}

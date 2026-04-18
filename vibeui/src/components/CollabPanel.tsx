@@ -111,7 +111,7 @@ export function CollabPanel({
   // Connected state — show room info + peer list
   if (connected && roomId) {
     return (
-      <div style={{ padding: "12px", fontSize: "var(--font-size-md)", height: "100%", overflow: "auto" }}>
+      <div className="panel-container" style={{ padding: "12px", fontSize: "var(--font-size-md)", flex: 1, minHeight: 0, overflow: "auto" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
           <span
             style={{
@@ -136,9 +136,9 @@ export function CollabPanel({
           }}
         >
           <div style={{ color: "var(--text-secondary)", marginBottom: "4px" }}>Room ID</div>
-          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <code style={{ flex: 1, wordBreak: "break-all" }}>{roomId}</code>
-            <button
+            <button className="panel-btn"
               onClick={handleCopyInvite}
               style={{
                 padding: "2px 8px",
@@ -195,10 +195,10 @@ export function CollabPanel({
           )}
         </div>
 
-        <button
+        <button className="panel-btn"
           onClick={handleLeave}
           style={{
-            padding: "6px 16px",
+            padding: "8px 16px",
             background: "var(--error-color)",
             color: "var(--btn-primary-fg)",
             border: "none",
@@ -215,7 +215,7 @@ export function CollabPanel({
 
   // Disconnected state — create or join
   return (
-    <div style={{ padding: "12px", fontSize: "var(--font-size-md)", height: "100%", overflow: "auto" }}>
+    <div style={{ padding: "12px", fontSize: "var(--font-size-md)", flex: 1, minHeight: 0, overflow: "auto" }}>
       <div style={{ fontWeight: 600, marginBottom: "12px" }}>Multiplayer Collaboration</div>
       <p style={{ color: "var(--text-secondary)", marginBottom: "16px", fontSize: "var(--font-size-base)" }}>
         Real-time collaborative editing powered by CRDTs. Create a new session or join an existing
@@ -248,7 +248,7 @@ export function CollabPanel({
           placeholder="Enter your name..."
           style={{
             width: "100%",
-            padding: "6px 8px",
+            padding: "8px 8px",
             fontSize: "var(--font-size-base)",
             background: "var(--bg-tertiary)",
             color: "var(--text-primary)",
@@ -260,7 +260,7 @@ export function CollabPanel({
       </div>
 
       <div style={{ display: "flex", gap: "8px", marginBottom: "20px" }}>
-        <button
+        <button className="panel-btn"
           onClick={handleCreate}
           disabled={loading || !userName.trim()}
           style={{
@@ -296,7 +296,7 @@ export function CollabPanel({
             placeholder="Paste Room ID..."
             style={{
               flex: 1,
-              padding: "6px 8px",
+              padding: "8px 8px",
               fontSize: "var(--font-size-base)",
               background: "var(--bg-tertiary)",
               color: "var(--text-primary)",
@@ -304,11 +304,11 @@ export function CollabPanel({
               borderRadius: "var(--radius-xs-plus)",
             }}
           />
-          <button
+          <button className="panel-btn"
             onClick={handleJoin}
             disabled={loading || !joinRoomId.trim() || !userName.trim()}
             style={{
-              padding: "6px 16px",
+              padding: "8px 16px",
               background: "var(--success-color)",
               color: "var(--btn-primary-fg)",
               border: "none",

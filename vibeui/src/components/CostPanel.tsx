@@ -113,13 +113,13 @@ export function CostPanel() {
  {metrics && (
  <>
  {/* Summary row */}
- <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginBottom: "14px" }}>
+ <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginBottom: "16px" }}>
  {[
  { label: "Total Cost", value: fmt(metrics.total_cost_usd) },
  { label: "Total Tokens", value: fmtTokens(metrics.total_tokens) },
  { label: "AI Calls", value: String(metrics.entries.length) },
  ].map(({ label, value }) => (
- <div key={label} style={{ background: "var(--bg-secondary)", padding: "8px 14px", borderRadius: "var(--radius-sm)", textAlign: "center", minWidth: "100px" }}>
+ <div key={label} style={{ background: "var(--bg-secondary)", padding: "8px 16px", borderRadius: "var(--radius-sm)", textAlign: "center", minWidth: "100px" }}>
  <div style={{ fontSize: "18px", fontWeight: "bold", color: "var(--accent-color)" }}>{value}</div>
  <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: "2px" }}>{label}</div>
  </div>
@@ -127,8 +127,8 @@ export function CostPanel() {
  </div>
 
  {/* Budget */}
- <div style={{ background: "var(--bg-secondary)", padding: "10px", borderRadius: "var(--radius-sm)", marginBottom: "14px" }}>
- <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: "6px" }}>Monthly Budget Limit</div>
+ <div style={{ background: "var(--bg-secondary)", padding: "12px", borderRadius: "var(--radius-sm)", marginBottom: "16px" }}>
+ <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: "8px" }}>Monthly Budget Limit</div>
  <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
  <span style={{ color: "var(--text-secondary)" }}>$</span>
  <input
@@ -140,7 +140,7 @@ export function CostPanel() {
  placeholder="e.g. 10.00 (blank = no limit)"
  style={{ flex: 1, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: "4px 8px", fontFamily: "inherit", fontSize: "var(--font-size-base)" }}
  />
- <button
+ <button className="panel-btn"
  onClick={handleSetBudget}
  disabled={savingBudget}
  style={{ background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", padding: "4px 12px", cursor: "pointer", fontSize: "var(--font-size-base)" }}
@@ -170,9 +170,9 @@ export function CostPanel() {
 
  {/* By provider */}
  {metrics.by_provider.length > 0 && (
- <div style={{ marginBottom: "14px" }}>
- <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: "6px" }}>Cost by Provider</div>
- <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+ <div style={{ marginBottom: "16px" }}>
+ <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: "8px" }}>Cost by Provider</div>
+ <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
  {metrics.by_provider.map(p => (
  <div key={p.provider} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
  <span style={{ minWidth: "70px", color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>{p.provider}</span>
@@ -180,7 +180,7 @@ export function CostPanel() {
  <div style={{
  background: "var(--accent-color)",
  width: maxProviderCost > 0 ? `${(p.total_cost_usd / maxProviderCost) * 100}%` : "0%",
- height: "100%",
+ flex: 1, minHeight: 0,
  }} />
  </div>
  <span style={{ minWidth: "60px", textAlign: "right", color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>{fmt(p.total_cost_usd)}</span>
@@ -195,9 +195,9 @@ export function CostPanel() {
  {/* Recent calls */}
  {metrics.entries.length > 0 && (
  <div>
- <div style={{ display: "flex", alignItems: "center", marginBottom: "6px" }}>
+ <div style={{ display: "flex", alignItems: "center", marginBottom: "8px" }}>
  <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Recent Calls</span>
- <button
+ <button className="panel-btn"
  onClick={handleClear}
  disabled={clearing}
  style={{ marginLeft: "auto", background: "none", color: "var(--error-color)", border: "none", cursor: "pointer", fontSize: "var(--font-size-sm)", padding: "0" }}
@@ -207,7 +207,7 @@ export function CostPanel() {
  </div>
  <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
  {visibleEntries.map((e, i) => (
- <div key={i} style={{ background: "var(--bg-secondary)", padding: "5px 8px", borderRadius: "var(--radius-xs-plus)", display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+ <div key={i} style={{ background: "var(--bg-secondary)", padding: "4px 8px", borderRadius: "var(--radius-xs-plus)", display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
  <span style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-xs)", minWidth: "110px" }}>{fmtTime(e.timestamp_ms)}</span>
  <span style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-sm)" }}>{e.provider}</span>
  <span style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-xs)" }}>{e.model}</span>

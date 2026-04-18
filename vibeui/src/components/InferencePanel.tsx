@@ -579,7 +579,7 @@ export function InferencePanel() {
                     style={inputStyle}
                   />
                 </div>
-                <button onClick={addBenchmark} className="panel-btn panel-btn-primary" style={{ padding: "5px 12px" }}>Add</button>
+                <button onClick={addBenchmark} className="panel-btn panel-btn-primary" style={{ padding: "4px 12px" }}>Add</button>
               </div>
             </div>
 
@@ -593,13 +593,13 @@ export function InferencePanel() {
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)" }}>
                   <thead>
                     <tr style={{ background: "var(--bg-secondary)" }}>
-                      <th style={{ padding: "6px 8px", textAlign: "center", borderBottom: "1px solid var(--border-color)", fontWeight: 600, width: 36 }}>Cmp</th>
-                      <th style={{ padding: "6px 8px", textAlign: "left", borderBottom: "1px solid var(--border-color)", fontWeight: 600 }}>Backend</th>
-                      <th style={{ padding: "6px 8px", textAlign: "left", borderBottom: "1px solid var(--border-color)", fontWeight: 600 }}>Model</th>
-                      <th style={{ padding: "6px 8px", textAlign: "right", borderBottom: "1px solid var(--border-color)", fontWeight: 600 }}>TTFT (ms)</th>
-                      <th style={{ padding: "6px 8px", textAlign: "right", borderBottom: "1px solid var(--border-color)", fontWeight: 600 }}>Tokens/s</th>
-                      <th style={{ padding: "6px 8px", textAlign: "right", borderBottom: "1px solid var(--border-color)", fontWeight: 600 }}>VRAM (GB)</th>
-                      <th style={{ padding: "6px 8px", textAlign: "center", borderBottom: "1px solid var(--border-color)", fontWeight: 600, width: 40 }}></th>
+                      <th style={{ padding: "8px 8px", textAlign: "center", borderBottom: "1px solid var(--border-color)", fontWeight: 600, width: 36 }}>Cmp</th>
+                      <th style={{ padding: "8px 8px", textAlign: "left", borderBottom: "1px solid var(--border-color)", fontWeight: 600 }}>Backend</th>
+                      <th style={{ padding: "8px 8px", textAlign: "left", borderBottom: "1px solid var(--border-color)", fontWeight: 600 }}>Model</th>
+                      <th style={{ padding: "8px 8px", textAlign: "right", borderBottom: "1px solid var(--border-color)", fontWeight: 600 }}>TTFT (ms)</th>
+                      <th style={{ padding: "8px 8px", textAlign: "right", borderBottom: "1px solid var(--border-color)", fontWeight: 600 }}>Tokens/s</th>
+                      <th style={{ padding: "8px 8px", textAlign: "right", borderBottom: "1px solid var(--border-color)", fontWeight: 600 }}>VRAM (GB)</th>
+                      <th style={{ padding: "8px 8px", textAlign: "center", borderBottom: "1px solid var(--border-color)", fontWeight: 600, width: 40 }}></th>
                     </tr>
                   </thead>
                   <tbody>

@@ -132,7 +132,7 @@ export function GitHubSyncPanel({ workspacePath }: { workspacePath: string | nul
  )}
  </div>
  {status?.has_remote && (
- <div style={{ display: "flex", gap: "8px", marginTop: "6px" }}>
+ <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
  <span style={{ padding: "2px 8px", borderRadius: "var(--radius-md)", fontSize: "var(--font-size-sm)", background: statusBadgeBg(status.ahead, "ahead"), color: statusBadgeFg(status.ahead, "ahead") }}>↑ {status.ahead} ahead</span>
  <span style={{ padding: "2px 8px", borderRadius: "var(--radius-md)", fontSize: "var(--font-size-sm)", background: statusBadgeBg(status.behind, "behind"), color: statusBadgeFg(status.behind, "behind") }}>↓ {status.behind} behind</span>
  <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>branch: {status.branch}</span>
@@ -141,9 +141,9 @@ export function GitHubSyncPanel({ workspacePath }: { workspacePath: string | nul
  </div>
 
  {!tokenSaved && (
- <div style={{ padding: "10px 12px", background: "var(--warning-bg)", borderBottom: "1px solid var(--border-color)" }}>
- <div style={{ fontSize: "var(--font-size-base)", marginBottom: "6px", color: "var(--warning-color)" }}>GITHUB_TOKEN required for sync</div>
- <div style={{ display: "flex", gap: "6px" }}>
+ <div style={{ padding: "12px 12px", background: "var(--warning-bg)", borderBottom: "1px solid var(--border-color)" }}>
+ <div style={{ fontSize: "var(--font-size-base)", marginBottom: "8px", color: "var(--warning-color)" }}>GITHUB_TOKEN required for sync</div>
+ <div style={{ display: "flex", gap: "8px" }}>
  <input className="panel-input" style={{ flex: 1 }} type="password" placeholder="ghp_..." value={token} onChange={e => setToken(e.target.value)} />
  <button className="panel-btn panel-btn-primary" onClick={saveToken}>Save</button>
  </div>
@@ -161,7 +161,7 @@ export function GitHubSyncPanel({ workspacePath }: { workspacePath: string | nul
  {(error || success) && (
  <div className={error ? "panel-error" : "panel-section"} style={{ color: error ? "var(--error-color)" : "var(--success-color)", background: error ? "var(--error-bg)" : "var(--success-bg)" }}>
  {error || success}
- <button aria-label="Dismiss" style={{ float: "right", background: "none", border: "none", cursor: "pointer", color: "inherit", display: "inline-flex", alignItems: "center" }} onClick={() => { setError(null); setSuccess(null); }}><X size={14} /></button>
+ <button className="panel-btn" aria-label="Dismiss" style={{ float: "right", background: "none", border: "none", cursor: "pointer", color: "inherit", display: "inline-flex", alignItems: "center" }} onClick={() => { setError(null); setSuccess(null); }}><X size={14} /></button>
  </div>
  )}
 
@@ -171,7 +171,7 @@ export function GitHubSyncPanel({ workspacePath }: { workspacePath: string | nul
  {!status?.has_remote && (
  <div className="panel-empty">
  No remote configured. Create a repo or link an existing one.
- <button className="panel-btn panel-btn-primary" style={{ display: "block", margin: "10px auto 0" }} onClick={() => setActiveTab("create")}>Create Repository</button>
+ <button className="panel-btn panel-btn-primary" style={{ display: "block", margin: "12px auto 0" }} onClick={() => setActiveTab("create")}>Create Repository</button>
  </div>
  )}
  {status?.has_remote && (
@@ -201,10 +201,10 @@ export function GitHubSyncPanel({ workspacePath }: { workspacePath: string | nul
  <div>
  {repos.length === 0 && !loading && <div className="panel-empty">Click "Repos" tab to load your repositories</div>}
  {repos.map(r => (
- <div key={r.full_name} style={{ padding: "8px 10px", borderRadius: "var(--radius-xs-plus)", marginBottom: "4px", background: "var(--bg-secondary)" }}>
+ <div key={r.full_name} style={{ padding: "8px 12px", borderRadius: "var(--radius-xs-plus)", marginBottom: "4px", background: "var(--bg-secondary)" }}>
  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
  <span style={{ fontWeight: 600 }}> {r.name}</span>
- <span style={{ fontSize: "var(--font-size-xs)", padding: "2px 6px", borderRadius: "var(--radius-md)", background: r.private ? "var(--warning-bg)" : "var(--success-bg)", color: r.private ? "var(--warning-color)" : "var(--success-color)" }}>{r.private ? "Private" : "Public"}</span>
+ <span style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px", borderRadius: "var(--radius-md)", background: r.private ? "var(--warning-bg)" : "var(--success-bg)", color: r.private ? "var(--warning-color)" : "var(--success-color)" }}>{r.private ? "Private" : "Public"}</span>
  </div>
  <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: "2px" }}>branch: {r.default_branch} · {r.url}</div>
  </div>
@@ -213,7 +213,7 @@ export function GitHubSyncPanel({ workspacePath }: { workspacePath: string | nul
  )}
 
  {activeTab === "create" && (
- <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+ <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
  <div>
  <label style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", display: "block", marginBottom: "4px" }}>Repository name</label>
  <input className="panel-input panel-input-full" placeholder="my-project" value={newRepoName} onChange={e => setNewRepoName(e.target.value)} />

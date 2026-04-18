@@ -525,7 +525,7 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
             </div>
           ))}
           {experiments.length === 0 && (
-            <div style={{ color: "var(--text-secondary)", textAlign: "center", padding: 20 }}>No data yet</div>
+            <div className="panel-empty" style={{ color: "var(--text-secondary)", textAlign: "center", padding: 20 }}>No data yet</div>
           )}
         </div>
 
@@ -593,7 +593,7 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
         {lessons.map(l => (
           <div key={l.id} style={{ padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={tagStyle(l.confidence === "High" ? "var(--accent-green)" : l.confidence === "Medium" ? "var(--accent-gold)" : "#9e9e9e")}>
+              <span style={tagStyle(l.confidence === "High" ? "var(--accent-green)" : l.confidence === "Medium" ? "var(--accent-gold)" : "var(--text-muted)")}>
                 {l.confidence}
               </span>
               <span>{l.description}</span>

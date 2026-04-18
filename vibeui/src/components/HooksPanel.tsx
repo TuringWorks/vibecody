@@ -64,17 +64,17 @@ function HookRow({
  <div style={{
  border: "1px solid var(--border-color)",
  borderRadius: "5px",
- marginBottom: "6px",
+ marginBottom: "8px",
  background: "var(--bg-secondary)",
  overflow: "hidden",
  }}>
  {/* Header row */}
- <div
+ <div role="button" tabIndex={0}
  onClick={() => setExpanded(!expanded)}
  style={{
  display: "flex",
  alignItems: "center",
- padding: "8px 10px",
+ padding: "8px 12px",
  cursor: "pointer",
  gap: "8px",
  userSelect: "none",
@@ -85,7 +85,7 @@ function HookRow({
  <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, color: "var(--text-primary)" }}>
  {hook.event}
  {hook.tools.length > 0 && (
- <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginLeft: "6px" }}>
+ <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginLeft: "8px" }}>
  [{hook.tools.join(", ")}]
  </span>
  )}
@@ -96,7 +96,7 @@ function HookRow({
  : hook.handler_type === "http"
  ? hook.http_url || "(no URL)"
  : hook.prompt.slice(0, 50) || "(no prompt)"}
- {hook.async_exec && <span style={{ marginLeft: "6px", color: "var(--accent-color)" }}>async</span>}
+ {hook.async_exec && <span style={{ marginLeft: "8px", color: "var(--accent-color)" }}>async</span>}
  </div>
  </div>
  <button
@@ -110,9 +110,9 @@ function HookRow({
 
  {/* Expanded editor */}
  {expanded && (
- <div style={{ padding: "10px", borderTop: "1px solid var(--border-color)", display: "flex", flexDirection: "column", gap: "10px" }}>
+ <div style={{ padding: "12px", borderTop: "1px solid var(--border-color)", display: "flex", flexDirection: "column", gap: "12px" }}>
  {/* Event + Handler type row */}
- <div style={{ display: "flex", gap: "10px" }}>
+ <div style={{ display: "flex", gap: "12px" }}>
  <div style={{ flex: 1 }}>
  <label className="panel-label">Event</label>
  <select
@@ -174,7 +174,7 @@ function HookRow({
  </div>
  ) : hook.handler_type === "http" ? (
  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
- <div style={{ display: "flex", gap: "10px" }}>
+ <div style={{ display: "flex", gap: "12px" }}>
  <div style={{ flex: 1 }}>
  <label className="panel-label">Webhook URL</label>
  <input
@@ -335,7 +335,7 @@ export function HooksPanel({ workspacePath }: HooksPanelProps) {
  <div className="panel-body">
  {saveMsg && (
  <div style={{
- padding: "6px 10px",
+ padding: "8px 12px",
  marginBottom: "8px",
  fontSize: "var(--font-size-sm)",
  color: saveMsg.startsWith("Error") ? "var(--error-color)" : "var(--success-color)",
@@ -376,7 +376,7 @@ export function HooksPanel({ workspacePath }: HooksPanelProps) {
 
  {/* Hook reference */}
  {hooks.length > 0 && (
- <div style={{ marginTop: "12px", padding: "10px", background: "var(--bg-secondary)", borderRadius: "5px", fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>
+ <div style={{ marginTop: "12px", padding: "12px", background: "var(--bg-secondary)", borderRadius: "5px", fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>
  <div style={{ fontWeight: 600, marginBottom: "4px" }}>Hook Protocol</div>
  <div><b>Shell:</b>Exit 0 → allow, Exit 2 → block, stdout JSON → context injection</div>
  <div><b>LLM:</b>Prompt receives event JSON, reply {`{"ok": true/false}`}</div>

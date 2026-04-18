@@ -82,24 +82,24 @@ export function VoiceVocabPanel() {
   const maxFreq = Math.max(...symbols.map(s => s.frequency), 1);
 
   return (
-    <div style={{ padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-mono)", height: "100%", overflowY: "auto" }}>
+    <div className="panel-container" style={{ padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-mono)", flex: 1, minHeight: 0, overflowY: "auto" }}>
       <div style={{ fontSize: "var(--font-size-xl)", fontWeight: 700, marginBottom: 12 }}>Voice Vocab Injector</div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         {["vocab", "inject", "metrics"].map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{ padding: "4px 12px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: tab === t ? "var(--accent-color)" : "var(--bg-secondary)", color: tab === t ? "#fff" : "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>{t}</button>
+          <button key={t} onClick={() => setTab(t)} style={{ padding: "4px 12px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: tab === t ? "var(--accent-color)" : "var(--bg-secondary)", color: tab === t ? "var(--btn-primary-fg)" : "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>{t}</button>
         ))}
       </div>
 
-      {loading && <div style={{ color: "var(--text-muted)" }}>Loading...</div>}
+      {loading && <div className="panel-loading" style={{ color: "var(--text-muted)" }}>Loading...</div>}
       {error && <div style={{ color: "var(--error-color)", marginBottom: 8 }}>{error}</div>}
 
       {!loading && tab === "vocab" && (
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
             <span style={{ fontSize: "var(--font-size-base)", color: "var(--text-muted)" }}>{symbols.length} symbols indexed</span>
-            <button onClick={rebuildVocab} disabled={building}
-              style={{ padding: "4px 14px", borderRadius: "var(--radius-sm)", cursor: building ? "not-allowed" : "pointer", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)", opacity: building ? 0.6 : 1 }}>
+            <button className="panel-btn" onClick={rebuildVocab} disabled={building}
+              style={{ padding: "4px 16px", borderRadius: "var(--radius-sm)", cursor: building ? "not-allowed" : "pointer", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)", opacity: building ? 0.6 : 1 }}>
               {building ? "Building…" : "Rebuild"}
             </button>
           </div>
@@ -108,7 +108,7 @@ export function VoiceVocabPanel() {
               <thead>
                 <tr style={{ background: "var(--bg-secondary)" }}>
                   {["Symbol", "Kind", "Frequency", "Phonetic", "File"].map(h => (
-                    <th key={h} style={{ padding: "6px 10px", textAlign: "left", borderBottom: "1px solid var(--border-color)", color: "var(--text-muted)", fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>
+                    <th key={h} style={{ padding: "8px 12px", textAlign: "left", borderBottom: "1px solid var(--border-color)", color: "var(--text-muted)", fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -120,13 +120,13 @@ export function VoiceVocabPanel() {
                   const kindColor = KIND_COLORS[s.kind] ?? "var(--text-muted)";
                   return (
                     <tr key={i} style={{ borderBottom: "1px solid var(--border-color)" }}>
-                      <td style={{ padding: "6px 10px" }}>
+                      <td style={{ padding: "8px 12px" }}>
                         <code style={{ color: "var(--text-primary)" }}>{s.name}</code>
                       </td>
-                      <td style={{ padding: "6px 10px" }}>
+                      <td style={{ padding: "8px 12px" }}>
                         <span style={{ fontSize: "var(--font-size-sm)", padding: "1px 8px", borderRadius: "var(--radius-sm-alt)", background: kindColor + "22", color: kindColor }}>{s.kind}</span>
                       </td>
-                      <td style={{ padding: "6px 10px" }}>
+                      <td style={{ padding: "8px 12px" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                           <div style={{ width: 50, height: 4, background: "var(--bg-primary)", borderRadius: 2 }}>
                             <div style={{ height: "100%", width: `${(s.frequency / maxFreq) * 100}%`, background: "var(--accent-color)", borderRadius: 2 }} />
@@ -134,15 +134,15 @@ export function VoiceVocabPanel() {
                           <span style={{ color: "var(--text-muted)" }}>{s.frequency}</span>
                         </div>
                       </td>
-                      <td style={{ padding: "6px 10px", color: "var(--text-muted)" }}>{s.phonetic ?? "—"}</td>
-                      <td style={{ padding: "6px 10px", color: "var(--text-muted)", maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.file_path ?? "—"}</td>
+                      <td style={{ padding: "8px 12px", color: "var(--text-muted)" }}>{s.phonetic ?? "—"}</td>
+                      <td style={{ padding: "8px 12px", color: "var(--text-muted)", maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.file_path ?? "—"}</td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
             {symbols.length > 100 && (
-              <div style={{ padding: "8px 10px", fontSize: "var(--font-size-sm)", color: "var(--text-muted)", textAlign: "center" }}>
+              <div style={{ padding: "8px 12px", fontSize: "var(--font-size-sm)", color: "var(--text-muted)", textAlign: "center" }}>
                 Showing top 100 of {symbols.length} symbols
               </div>
             )}
@@ -203,7 +203,7 @@ export function VoiceVocabPanel() {
                   { label: "WER After", value: `${(metrics.wer_after * 100).toFixed(1)}%`, color: "var(--warning-color)" },
                   { label: "Improvement", value: `${metrics.improvement_pct.toFixed(1)}%`, color: "var(--success-color)" },
                 ].map(stat => (
-                  <div key={stat.label} style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", border: "1px solid var(--border-color)", padding: "14px 12px", textAlign: "center" }}>
+                  <div key={stat.label} style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", border: "1px solid var(--border-color)", padding: "16px 12px", textAlign: "center" }}>
                     <div style={{ fontSize: 22, fontWeight: 700, color: stat.color }}>{stat.value}</div>
                     <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)", marginTop: 4 }}>{stat.label}</div>
                   </div>

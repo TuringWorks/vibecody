@@ -149,7 +149,7 @@ function TryIt({ endpoint, serverUrl }: { endpoint: Endpoint; serverUrl: string 
  <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
  {serverUrl.replace(/\/$/, "")}{endpoint.path}
  </span>
- <button
+ <button className="panel-btn"
  onClick={run}
  disabled={loading}
  style={{
@@ -187,7 +187,7 @@ function EndpointRow({ endpoint, serverUrl }: { endpoint: Endpoint; serverUrl: s
  border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)",
  overflow: "hidden", marginBottom: 4,
  }}>
- <div
+ <div role="button" tabIndex={0}
  onClick={() => setOpen((p) => !p)}
  style={{
  display: "flex", alignItems: "center", gap: 10,
@@ -202,7 +202,7 @@ function EndpointRow({ endpoint, serverUrl }: { endpoint: Endpoint; serverUrl: s
  </div>
 
  {open && (
- <div style={{ padding: "10px 12px", borderTop: "1px solid var(--border-color)", background: "var(--bg-primary)", display: "flex", flexDirection: "column", gap: 10 }}>
+ <div style={{ padding: "12px 12px", borderTop: "1px solid var(--border-color)", background: "var(--bg-primary)", display: "flex", flexDirection: "column", gap: 10 }}>
  {op.description && <p style={{ margin: 0, fontSize: "var(--font-size-base)", color: "var(--text-secondary)", lineHeight: 1.5 }}>{op.description}</p>}
 
  {/* Parameters */}
@@ -254,7 +254,7 @@ function EndpointRow({ endpoint, serverUrl }: { endpoint: Endpoint; serverUrl: s
  <button
  onClick={() => setTryIt((p) => !p)}
  style={{
- padding: "4px 10px", fontSize: "var(--font-size-sm)", background: tryIt ? "var(--accent-color)" : "var(--bg-secondary)",
+ padding: "4px 12px", fontSize: "var(--font-size-sm)", background: tryIt ? "var(--accent-color)" : "var(--bg-secondary)",
  color: tryIt ? "var(--text-primary)" : "var(--text-primary)", border: "1px solid var(--border-color)",
  borderRadius: "var(--radius-xs-plus)", cursor: "pointer",
  }}
@@ -396,7 +396,7 @@ export function ApiDocsPanel({ workspacePath }: ApiDocsPanelProps) {
  return (
  <div className="panel-container">
  {/* Header: Load spec */}
- <div className="panel-header" style={{ padding: "10px 12px", flexDirection: "column", alignItems: "stretch" }}>
+ <div className="panel-header" style={{ padding: "12px 12px", flexDirection: "column", alignItems: "stretch" }}>
  <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
  {(["file", "url"] as const).map((s) => (
  <button
@@ -413,7 +413,7 @@ export function ApiDocsPanel({ workspacePath }: ApiDocsPanelProps) {
  <div style={{ display: "flex", gap: 6 }}>
  <div style={{ position: "relative", flex: 1 }}>
  <input
- style={{ padding: "5px 8px", fontSize: "var(--font-size-base)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none", width: "100%", boxSizing: "border-box" }}
+ style={{ padding: "4px 8px", fontSize: "var(--font-size-base)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none", width: "100%", boxSizing: "border-box" }}
  value={filePath}
  onChange={(e) => setFilePath(e.target.value)}
  placeholder="openapi.json / openapi.yaml"
@@ -423,10 +423,10 @@ export function ApiDocsPanel({ workspacePath }: ApiDocsPanelProps) {
  {specFiles.map((f) => <option key={f} value={f} />)}
  </datalist>
  </div>
- <button
+ <button className="panel-btn"
  onClick={handleLoadFile}
  disabled={loading || !filePath || !workspacePath}
- style={{ padding: "5px 12px", fontSize: "var(--font-size-base)", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", cursor: "pointer" }}
+ style={{ padding: "4px 12px", fontSize: "var(--font-size-base)", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", cursor: "pointer" }}
  >
  {loading ? "" : "Load"}
  </button>
@@ -434,16 +434,16 @@ export function ApiDocsPanel({ workspacePath }: ApiDocsPanelProps) {
  ) : (
  <div style={{ display: "flex", gap: 6 }}>
  <input
- style={{ padding: "5px 8px", fontSize: "var(--font-size-base)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none", flex: 1 }}
+ style={{ padding: "4px 8px", fontSize: "var(--font-size-base)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none", flex: 1 }}
  value={urlInput}
  onChange={(e) => setUrlInput(e.target.value)}
  onKeyDown={(e) => e.key === "Enter" && handleLoadUrl()}
  placeholder="http://localhost:3000/openapi.json"
  />
- <button
+ <button className="panel-btn"
  onClick={handleLoadUrl}
  disabled={loading || !urlInput}
- style={{ padding: "5px 12px", fontSize: "var(--font-size-base)", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", cursor: "pointer" }}
+ style={{ padding: "4px 12px", fontSize: "var(--font-size-base)", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", cursor: "pointer" }}
  >
  {loading ? "" : "Fetch"}
  </button>
@@ -456,17 +456,17 @@ export function ApiDocsPanel({ workspacePath }: ApiDocsPanelProps) {
  {spec && (
  <>
  {/* Spec info bar */}
- <div style={{ padding: "6px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", flexShrink: 0, display: "flex", alignItems: "center", gap: 10 }}>
+ <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", flexShrink: 0, display: "flex", alignItems: "center", gap: 10 }}>
  <strong style={{ fontSize: "var(--font-size-md)" }}>{spec.info.title}</strong>
  <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>v{spec.info.version}</span>
  <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginLeft: "auto" }}>{endpoints.length} endpoints</span>
  </div>
 
  {/* Server URL */}
- <div style={{ padding: "6px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", flexShrink: 0, display: "flex", gap: 6, alignItems: "center" }}>
+ <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", flexShrink: 0, display: "flex", gap: 6, alignItems: "center" }}>
  <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", flexShrink: 0 }}>Base URL</span>
  <input
- style={{ padding: "5px 8px", fontSize: "var(--font-size-sm)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none", flex: 1 }}
+ style={{ padding: "4px 8px", fontSize: "var(--font-size-sm)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none", flex: 1 }}
  value={serverUrl}
  onChange={(e) => setServerUrl(e.target.value)}
  />
@@ -475,7 +475,7 @@ export function ApiDocsPanel({ workspacePath }: ApiDocsPanelProps) {
  {/* Filters */}
  <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", flexShrink: 0, display: "flex", gap: 8, alignItems: "center" }}>
  <input
- style={{ padding: "5px 8px", fontSize: "var(--font-size-base)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none", flex: 1 }}
+ style={{ padding: "4px 8px", fontSize: "var(--font-size-base)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none", flex: 1 }}
  value={search}
  onChange={(e) => setSearch(e.target.value)}
  placeholder="Filter endpoints…"
@@ -513,7 +513,7 @@ export function ApiDocsPanel({ workspacePath }: ApiDocsPanelProps) {
  </div>
  ))}
  {filtered.length === 0 && (
- <div style={{ textAlign: "center", padding: "30px 0", color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>
+ <div style={{ textAlign: "center", padding: "32px 0", color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>
  No endpoints match your filter.
  </div>
  )}

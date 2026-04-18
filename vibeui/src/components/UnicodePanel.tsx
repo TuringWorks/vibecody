@@ -140,7 +140,7 @@ function InfoPanel({ info, toggleFavorite, isFav }: InfoPanelProps) {
           <div style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)" }}>U+{cpToHex(info.cp)} · dec {info.cp}</div>
         </div>
         <button onClick={() => toggleFavorite(info)}
-          style={{ marginLeft: "auto", background: "none", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: "4px 8px", cursor: "pointer", color: isFav(info.cp) ? "#f5a623" : "var(--text-secondary)", fontSize: 16 }}>
+          style={{ marginLeft: "auto", background: "none", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: "4px 8px", cursor: "pointer", color: isFav(info.cp) ? "var(--warning-color)" : "var(--text-secondary)", fontSize: 16 }}>
           {isFav(info.cp) ? "★" : "☆"}
         </button>
       </div>
@@ -153,7 +153,7 @@ function InfoPanel({ info, toggleFavorite, isFav }: InfoPanelProps) {
           { label: "UTF-8 hex", value: Array.from(new TextEncoder().encode(info.char)).map(b => b.toString(16).toUpperCase().padStart(2, "0")).join(" ") },
           { label: "Percent-encoded", value: encodeURIComponent(info.char) },
         ].map(({ label, value }) => (
-          <div key={label} style={{ background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: "5px 8px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>
+          <div key={label} style={{ background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: "4px 8px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>
             <div>
               <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>{label}</div>
               <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--font-size-base)" }}>{value}</div>
@@ -256,7 +256,7 @@ export function UnicodePanel() {
           <div style={{ width: 190, borderRight: "1px solid var(--border-color)", overflowY: "auto", flexShrink: 0 }}>
             {BLOCKS.map(([, , label], i) => (
               <button key={i} onClick={() => { setBlockIdx(i); setSelected(null); }}
-                style={{ display: "block", width: "100%", padding: "7px 10px", border: "none", textAlign: "left", background: blockIdx === i ? "rgba(var(--accent-rgb,99,102,241),0.15)" : "none", color: blockIdx === i ? "var(--accent-color)" : "var(--text-secondary)", cursor: "pointer", fontSize: "var(--font-size-sm)", borderLeft: blockIdx === i ? "3px solid var(--accent-color)" : "3px solid transparent" }}>
+                style={{ display: "block", width: "100%", padding: "8px 12px", border: "none", textAlign: "left", background: blockIdx === i ? "rgba(var(--accent-rgb,99,102,241),0.15)" : "none", color: blockIdx === i ? "var(--accent-color)" : "var(--text-secondary)", cursor: "pointer", fontSize: "var(--font-size-sm)", borderLeft: blockIdx === i ? "3px solid var(--accent-color)" : "3px solid transparent" }}>
                 {label}
               </button>
             ))}
@@ -335,18 +335,18 @@ export function UnicodePanel() {
                 <thead>
                   <tr>
                     {["Char", "Code Point", "Name", "HTML Entity", "UTF-8"].map(h => (
-                      <th key={h} style={{ padding: "5px 10px", textAlign: "left", borderBottom: "2px solid var(--accent-blue)", color: "var(--text-secondary)", fontSize: "var(--font-size-sm)" }}>{h}</th>
+                      <th key={h} style={{ padding: "4px 12px", textAlign: "left", borderBottom: "2px solid var(--accent-blue)", color: "var(--text-secondary)", fontSize: "var(--font-size-sm)" }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {inputAnalysis.map((info, i) => (
                     <tr key={i} style={{ background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.02)", cursor: "pointer" }} onClick={() => setSelected(info)}>
-                      <td style={{ padding: "4px 10px", fontSize: 20, fontFamily: "var(--font-mono)" }}>{info.char}</td>
-                      <td style={{ padding: "4px 10px", fontFamily: "var(--font-mono)", color: "var(--accent-color)" }}>U+{cpToHex(info.cp)}</td>
-                      <td style={{ padding: "4px 10px", color: "var(--text-secondary)" }}>{info.name}</td>
-                      <td style={{ padding: "4px 10px", fontFamily: "var(--font-mono)" }}>{htmlEntity(info.cp)}</td>
-                      <td style={{ padding: "4px 10px", fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{Array.from(new TextEncoder().encode(info.char)).map(b => b.toString(16).padStart(2, "0").toUpperCase()).join(" ")}</td>
+                      <td style={{ padding: "4px 12px", fontSize: 20, fontFamily: "var(--font-mono)" }}>{info.char}</td>
+                      <td style={{ padding: "4px 12px", fontFamily: "var(--font-mono)", color: "var(--accent-color)" }}>U+{cpToHex(info.cp)}</td>
+                      <td style={{ padding: "4px 12px", color: "var(--text-secondary)" }}>{info.name}</td>
+                      <td style={{ padding: "4px 12px", fontFamily: "var(--font-mono)" }}>{htmlEntity(info.cp)}</td>
+                      <td style={{ padding: "4px 12px", fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{Array.from(new TextEncoder().encode(info.char)).map(b => b.toString(16).padStart(2, "0").toUpperCase()).join(" ")}</td>
                     </tr>
                   ))}
                 </tbody>

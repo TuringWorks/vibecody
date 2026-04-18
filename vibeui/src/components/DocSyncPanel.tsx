@@ -74,7 +74,7 @@ export function DocSyncPanel({ workspacePath }: Props) {
           <button key={t} className={`panel-tab ${tab === t ? "active" : ""}`} onClick={() => setTab(t)}>
             {t.charAt(0).toUpperCase() + t.slice(1)}
             {t === "alerts" && alerts.length > 0 && (
-              <span style={{ marginLeft: 4, background: "var(--error-color)", color: "var(--btn-primary-fg, #fff)", borderRadius: "var(--radius-sm-alt)", padding: "0 5px", fontSize: "var(--font-size-xs)" }}>
+              <span style={{ marginLeft: 4, background: "var(--error-color)", color: "var(--btn-primary-fg, #fff)", borderRadius: "var(--radius-sm-alt)", padding: "0 4px", fontSize: "var(--font-size-xs)" }}>
                 {alerts.length}
               </span>
             )}
@@ -185,7 +185,7 @@ export function DocSyncPanel({ workspacePath }: Props) {
             {watchPatterns.map((p, i) => (
               <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "2px 0" }}>
                 <span style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>{p}</span>
-                <button className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-sm)", padding: "1px 6px" }}
+                <button className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-sm)", padding: "1px 8px" }}
                   onClick={() => setWatchPatterns((prev) => prev.filter((_, j) => j !== i))}><X size={11} strokeWidth={1.5} style={{ display: "block" }} /></button>
               </div>
             ))}

@@ -61,7 +61,7 @@ export function ChatMemoryPanel({
   };
 
   return (
-    <div style={{
+    <div className="panel-container" style={{
       borderTop: isDialog ? "none" : "1px solid var(--border-color)",
       flexShrink: 0,
       background: "var(--bg-secondary)",
@@ -79,8 +79,8 @@ export function ChatMemoryPanel({
             {total > 0 && (
               <span style={{
                 background: pinnedFacts.length > 0 ? "var(--accent-blue, #3b82f6)" : "var(--bg-tertiary)",
-                color: pinnedFacts.length > 0 ? "#fff" : "var(--text-secondary)",
-                borderRadius: "var(--radius-md)", padding: "0 5px", fontSize: "var(--font-size-xs)", lineHeight: "16px",
+                color: pinnedFacts.length > 0 ? "var(--btn-primary-fg)" : "var(--text-secondary)",
+                borderRadius: "var(--radius-md)", padding: "0 4px", fontSize: "var(--font-size-xs)", lineHeight: "16px",
               }}>
                 {total}
               </span>
@@ -92,7 +92,7 @@ export function ChatMemoryPanel({
                 {pinnedFacts.length} pinned · in every message
               </span>
             )}
-            <button
+            <button className="panel-btn"
               onClick={onClose}
               title="Close"
               style={{
@@ -111,7 +111,7 @@ export function ChatMemoryPanel({
           onClick={() => setOpen((p) => !p)}
           style={{
             width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
-            padding: "5px 10px", background: "none", border: "none",
+            padding: "4px 12px", background: "none", border: "none",
             color: total > 0 ? "var(--text-primary)" : "var(--text-secondary)",
             cursor: "pointer", fontSize: "var(--font-size-sm)", textAlign: "left",
           }}
@@ -122,8 +122,8 @@ export function ChatMemoryPanel({
             {total > 0 && (
               <span style={{
                 background: pinnedFacts.length > 0 ? "var(--accent-blue, #3b82f6)" : "var(--bg-tertiary)",
-                color: pinnedFacts.length > 0 ? "#fff" : "var(--text-secondary)",
-                borderRadius: "var(--radius-md)", padding: "0 5px", fontSize: "var(--font-size-xs)", lineHeight: "16px",
+                color: pinnedFacts.length > 0 ? "var(--btn-primary-fg)" : "var(--text-secondary)",
+                borderRadius: "var(--radius-md)", padding: "0 4px", fontSize: "var(--font-size-xs)", lineHeight: "16px",
               }}>
                 {total}
               </span>
@@ -190,7 +190,7 @@ export function ChatMemoryPanel({
           )}
 
           {total === 0 && (
-            <div style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-sm)", padding: "6px 2px", opacity: 0.7 }}>
+            <div style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-sm)", padding: "8px 2px", opacity: 0.7 }}>
               No facts yet. Facts are picked up from AI responses automatically.
             </div>
           )}
@@ -204,11 +204,11 @@ export function ChatMemoryPanel({
               placeholder="Add a note to memory..."
               style={{
                 flex: 1, background: "var(--bg-primary)", border: "1px solid var(--border-color)",
-                color: "var(--text-primary)", borderRadius: 3, padding: "3px 6px",
+                color: "var(--text-primary)", borderRadius: 3, padding: "3px 8px",
                 fontSize: "var(--font-size-sm)", outline: "none",
               }}
             />
-            <button
+            <button className="panel-btn"
               onClick={handleAddManual}
               disabled={!newText.trim()}
               style={{

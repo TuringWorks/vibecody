@@ -297,7 +297,7 @@ function StoryDetailModal({ story, onSave, onDelete, onClose, title }: StoryDeta
   }, [onClose]);
 
   return (
-    <div
+    <div role="button" tabIndex={0}
       style={{
         position: "fixed", inset: 0, zIndex: 9999,
         background: "rgba(0,0,0,0.55)", backdropFilter: "blur(2px)",
@@ -306,7 +306,7 @@ function StoryDetailModal({ story, onSave, onDelete, onClose, title }: StoryDeta
       }}
       onClick={onClose}
     >
-      <div
+      <div role="button" tabIndex={0}
         style={{
           background: "var(--bg-elevated)", borderRadius: "var(--radius-lg)",
           border: "1px solid var(--border-color)", boxShadow: "var(--elevation-3, 0 8px 32px rgba(0,0,0,0.4))",
@@ -317,7 +317,7 @@ function StoryDetailModal({ story, onSave, onDelete, onClose, title }: StoryDeta
       >
         {/* ── Modal header ── */}
         <div style={{
-          display: "flex", alignItems: "center", gap: 10, padding: "14px 18px",
+          display: "flex", alignItems: "center", gap: 10, padding: "16px 20px",
           borderBottom: "1px solid var(--border-color)", flexShrink: 0,
         }}>
           <span style={badgeStyle(PRIORITY_COLORS[draft.priority])}>{draft.priority}</span>
@@ -326,21 +326,21 @@ function StoryDetailModal({ story, onSave, onDelete, onClose, title }: StoryDeta
             {title ?? "Story"}
           </span>
           <div style={{ flex: 1 }} />
-          <button
+          <button className="panel-btn"
             onClick={onClose}
             style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", lineHeight: 1, padding: "0 4px", display: "flex", alignItems: "center" }}
           ><X size={16} /></button>
         </div>
 
         {/* ── Scrollable body ── */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "18px 20px", display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ flex: 1, overflowY: "auto", padding: "20px 20px", display: "flex", flexDirection: "column", gap: 16 }}>
 
           {/* Title */}
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
               <label style={{ ...fieldLabel, margin: 0 }}>User Story</label>
               <span style={{
-                fontSize: "var(--font-size-xs)", padding: "1px 7px", borderRadius: "var(--radius-md)", fontWeight: 600,
+                fontSize: "var(--font-size-xs)", padding: "1px 8px", borderRadius: "var(--radius-md)", fontWeight: 600,
                 background: followsFormat ? "color-mix(in srgb, var(--accent-green) 15%, transparent)" : "color-mix(in srgb, var(--accent-gold) 15%, transparent)",
                 color: followsFormat ? "var(--text-success)" : "var(--text-warning)",
                 border: `1px solid ${followsFormat ? "var(--success-color)" : "var(--warning-color)"}`,
@@ -358,7 +358,7 @@ function StoryDetailModal({ story, onSave, onDelete, onClose, title }: StoryDeta
             {/* Parsed story card — shown when format is valid */}
             {parsedStory && (
               <div style={{
-                marginTop: 8, padding: "10px 14px", borderRadius: "var(--radius-sm)",
+                marginTop: 8, padding: "12px 16px", borderRadius: "var(--radius-sm)",
                 background: "color-mix(in srgb, var(--accent-blue) 6%, transparent)",
                 border: "1px solid color-mix(in srgb, var(--accent-blue) 25%, transparent)",
                 display: "flex", flexDirection: "column", gap: 4,
@@ -732,8 +732,8 @@ function BoardTab({ provider }: { provider?: string } = {}) {
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginBottom: 10, padding: "8px 0", borderBottom: "1px solid var(--border-color)" }}>
         {/* Board mode toggle */}
         <div style={{ display: "flex", borderRadius: "var(--radius-sm)", overflow: "hidden", border: "1px solid var(--border-color)" }}>
-          <button className={`panel-tab ${boardMode === "kanban" ? "active" : ""}`} style={{ border: "none", borderRadius: 0, fontSize: "var(--font-size-sm)", padding: "4px 10px" }} onClick={() => setBoardMode("kanban")}>Kanban</button>
-          <button className={`panel-tab ${boardMode === "sprint" ? "active" : ""}`} style={{ border: "none", borderRadius: 0, fontSize: "var(--font-size-sm)", padding: "4px 10px" }} onClick={() => setBoardMode("sprint")}>Sprint Board</button>
+          <button className={`panel-btn panel-tab ${boardMode === "kanban" ? "active" : ""}`} style={{ border: "none", borderRadius: 0, fontSize: "var(--font-size-sm)", padding: "4px 12px" }} onClick={() => setBoardMode("kanban")}>Kanban</button>
+          <button className={`panel-btn panel-tab ${boardMode === "sprint" ? "active" : ""}`} style={{ border: "none", borderRadius: 0, fontSize: "var(--font-size-sm)", padding: "4px 12px" }} onClick={() => setBoardMode("sprint")}>Sprint Board</button>
         </div>
 
         {boardMode === "sprint" && (
@@ -784,7 +784,7 @@ function BoardTab({ provider }: { provider?: string } = {}) {
       {lanes.map(lane => (
         <div key={lane.key}>
           {lane.label && (
-            <div style={{ padding: "6px 8px", margin: "8px 0 4px", background: "var(--bg-tertiary)", borderRadius: "var(--radius-sm)", fontWeight: 600, fontSize: "var(--font-size-base)", color: "var(--text-primary)", display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ padding: "8px 8px", margin: "8px 0 4px", background: "var(--bg-tertiary)", borderRadius: "var(--radius-sm)", fontWeight: 600, fontSize: "var(--font-size-base)", color: "var(--text-primary)", display: "flex", alignItems: "center", gap: 8 }}>
               {swimlane === "assignee" && <AvatarBadge name={lane.label} size={20} />}
               {swimlane === "priority" && <span style={badgeStyle(PRIORITY_COLORS[lane.label as Priority] || "var(--bg-tertiary)")}>{lane.label}</span>}
               {(swimlane === "epic" || swimlane === "assignee") && <span>{lane.label}</span>}
@@ -817,7 +817,7 @@ function BoardTab({ provider }: { provider?: string } = {}) {
                     const aging = agingColor(age);
                     const isDragging = dragCardId === card.id;
                     return (
-                      <div
+                      <div role="button" tabIndex={0}
                         key={card.id} draggable
                         onDragStart={e => onDragStart(e, card.id)} onDragEnd={onDragEnd}
                         style={{
@@ -844,7 +844,7 @@ function BoardTab({ provider }: { provider?: string } = {}) {
                           </div>
                           {age > 3 && <span style={{ fontSize: "var(--font-size-xs)", color: aging || "var(--text-secondary)" }} title="Card age">{age}d</span>}
                         </div>
-                        <div style={{ display: "flex", gap: 4, marginTop: 6 }} onClick={e => e.stopPropagation()}>
+                        <div role="button" tabIndex={0} style={{ display: "flex", gap: 4, marginTop: 6 }} onClick={e => e.stopPropagation()}>
                           {colIdx(col) > 0 && <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 8px", fontSize: "var(--font-size-sm)" }} onClick={() => moveCard(card.id, COLUMNS[colIdx(col) - 1])}>&larr;</button>}
                           {colIdx(col) < COLUMNS.length - 1 && <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 8px", fontSize: "var(--font-size-sm)" }} onClick={() => moveCard(card.id, COLUMNS[colIdx(col) + 1])}>&rarr;</button>}
                         </div>
@@ -874,13 +874,13 @@ function BoardTab({ provider }: { provider?: string } = {}) {
 
       {/* ── Card Edit Modal (Jira-style detail) ── */}
       {editingCard && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }} onClick={() => setEditingCard(null)}>
-          <div style={{ background: "var(--bg-primary)", borderRadius: "var(--radius-md)", padding: 24, width: 540, maxHeight: "85vh", overflowY: "auto", border: "1px solid var(--border-color)", boxShadow: "var(--elevation-2)" }} onClick={e => e.stopPropagation()}>
+        <div role="button" tabIndex={0} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }} onClick={() => setEditingCard(null)}>
+          <div role="button" tabIndex={0} style={{ background: "var(--bg-primary)", borderRadius: "var(--radius-md)", padding: 24, width: 540, maxHeight: "85vh", overflowY: "auto", border: "1px solid var(--border-color)", boxShadow: "var(--elevation-2)" }} onClick={e => e.stopPropagation()}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
               <h3 style={{ margin: 0, color: "var(--text-primary)", fontSize: 16 }}>Edit Card</h3>
               <div style={{ display: "flex", gap: 6 }}>
-                <button className="panel-btn panel-btn-danger" style={{ padding: "4px 10px", fontSize: "var(--font-size-sm)" }} onClick={() => { if (confirm("Delete this card?")) deleteCard(editingCard.id); }}>Delete</button>
-                <button className="panel-btn panel-btn-secondary" style={{ padding: "4px 10px", fontSize: "var(--font-size-sm)" }} onClick={() => setEditingCard(null)}>Close</button>
+                <button className="panel-btn panel-btn-danger" style={{ padding: "4px 12px", fontSize: "var(--font-size-sm)" }} onClick={() => { if (confirm("Delete this card?")) deleteCard(editingCard.id); }}>Delete</button>
+                <button className="panel-btn panel-btn-secondary" style={{ padding: "4px 12px", fontSize: "var(--font-size-sm)" }} onClick={() => setEditingCard(null)}>Close</button>
               </div>
             </div>
             <label style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>Title</label>
@@ -937,7 +937,7 @@ function BoardTab({ provider }: { provider?: string } = {}) {
               {editingCard.acceptanceCriteria.map((ac, i) => (
                 <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
                   <span style={{ flex: 1, fontSize: "var(--font-size-base)", color: "var(--text-primary)" }}>{ac}</span>
-                  <button style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }} onClick={() => {
+                  <button className="panel-btn" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }} onClick={() => {
                     setEditingCard({ ...editingCard, acceptanceCriteria: editingCard.acceptanceCriteria.filter((_, j) => j !== i) });
                   }}>x</button>
                 </div>
@@ -955,8 +955,8 @@ function BoardTab({ provider }: { provider?: string } = {}) {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                 <label style={{ fontSize: "var(--font-size-md)", fontWeight: 600, color: "var(--text-primary)" }}>Subtasks ({(editingCard.subtasks || []).length})</label>
                 <div style={{ display: "flex", gap: 4 }}>
-                  <button className="panel-btn panel-btn-secondary" style={{ padding: "3px 10px", fontSize: "var(--font-size-sm)" }} onClick={addSubtask}>+ Add</button>
-                  <button className="panel-btn panel-btn-primary" style={{ padding: "3px 10px", fontSize: "var(--font-size-sm)" }} onClick={aiGenerateSubtasks} disabled={subtaskLoading}>
+                  <button className="panel-btn panel-btn-secondary" style={{ padding: "3px 12px", fontSize: "var(--font-size-sm)" }} onClick={addSubtask}>+ Add</button>
+                  <button className="panel-btn panel-btn-primary" style={{ padding: "3px 12px", fontSize: "var(--font-size-sm)" }} onClick={aiGenerateSubtasks} disabled={subtaskLoading}>
                     {subtaskLoading ? "Generating..." : "AI Generate"}
                   </button>
                 </div>
@@ -965,7 +965,7 @@ function BoardTab({ provider }: { provider?: string } = {}) {
                 <div key={sub.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", borderBottom: "1px solid var(--border-color)" }}>
                   <input type="checkbox" checked={sub.done} onChange={() => toggleSubtask(sub.id)} />
                   <span style={{ flex: 1, fontSize: "var(--font-size-base)", textDecoration: sub.done ? "line-through" : "none", color: sub.done ? "var(--text-secondary)" : "var(--text-primary)" }}>{sub.title}</span>
-                  <button style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }} onClick={() => removeSubtask(sub.id)}>x</button>
+                  <button className="panel-btn" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }} onClick={() => removeSubtask(sub.id)}>x</button>
                 </div>
               ))}
               {(editingCard.subtasks || []).length > 0 && <SubtaskProgress subtasks={editingCard.subtasks} />}
@@ -1113,7 +1113,7 @@ function SprintTab() {
               { label: "Planned", value: `${current.plannedPoints} pts` },
               { label: "Completed", value: `${current.completedPoints} pts` },
             ].map(({ label, value }) => (
-              <div key={label} style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: "8px 14px", border: "1px solid var(--border-color)" }}>
+              <div key={label} style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: "8px 16px", border: "1px solid var(--border-color)" }}>
                 <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{label}</div>
                 <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--text-primary)" }}>{value}</div>
               </div>
@@ -1127,18 +1127,18 @@ function SprintTab() {
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
                   {["Story", "Points", "Assignee", "Status", "Priority"].map(h => (
-                    <th key={h} style={{ textAlign: "left", padding: "6px 10px", color: "var(--text-secondary)", fontWeight: 500, fontSize: "var(--font-size-base)" }}>{h}</th>
+                    <th key={h} style={{ textAlign: "left", padding: "8px 12px", color: "var(--text-secondary)", fontWeight: 500, fontSize: "var(--font-size-base)" }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {(current.cards || []).map(c => (
                   <tr key={c.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
-                    <td style={{ padding: "6px 10px", color: "var(--text-primary)" }}>{c.title}</td>
-                    <td style={{ padding: "6px 10px" }}><span style={badgeStyle("var(--accent-purple)")}>{c.storyPoints}</span></td>
-                    <td style={{ padding: "6px 10px", color: "var(--text-secondary)" }}>{c.assignee || "-"}</td>
-                    <td style={{ padding: "6px 10px" }}><span style={badgeStyle("var(--accent-blue)")}>{c.column}</span></td>
-                    <td style={{ padding: "6px 10px" }}><span style={badgeStyle(PRIORITY_COLORS[c.priority])}>{c.priority}</span></td>
+                    <td style={{ padding: "8px 12px", color: "var(--text-primary)" }}>{c.title}</td>
+                    <td style={{ padding: "8px 12px" }}><span style={badgeStyle("var(--accent-purple)")}>{c.storyPoints}</span></td>
+                    <td style={{ padding: "8px 12px", color: "var(--text-secondary)" }}>{c.assignee || "-"}</td>
+                    <td style={{ padding: "8px 12px" }}><span style={badgeStyle("var(--accent-blue)")}>{c.column}</span></td>
+                    <td style={{ padding: "8px 12px" }}><span style={badgeStyle(PRIORITY_COLORS[c.priority])}>{c.priority}</span></td>
                   </tr>
                 ))}
                 {(current.cards || []).length === 0 && (
@@ -1154,7 +1154,7 @@ function SprintTab() {
               <div style={sectionTitle}>Add from Backlog ({availableBacklog.length} available)</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 200, overflowY: "auto" }}>
                 {availableBacklog.map(item => (
-                  <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)" }}>
+                  <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)" }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: "var(--font-size-base)", fontWeight: 500, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.title}</div>
                       <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{item.priority} · {item.storyPoints} pts</div>
@@ -1506,7 +1506,7 @@ function BacklogTab({ provider }: { provider?: string } = {}) {
                     >
                       <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
                         {/* Accept checkbox */}
-                        <div
+                        <div role="button" tabIndex={0}
                           style={{
                             width: 20, height: 20, borderRadius: "var(--radius-xs-plus)", flexShrink: 0, marginTop: 2, cursor: "pointer",
                             background: s._accepted ? "var(--accent-color)" : "var(--bg-tertiary)",
@@ -1519,7 +1519,7 @@ function BacklogTab({ provider }: { provider?: string } = {}) {
                           {s._accepted ? "\u2713" : ""}
                         </div>
                         {/* Main content — click opens detail */}
-                        <div
+                        <div role="button" tabIndex={0}
                           style={{ flex: 1, minWidth: 0, cursor: "pointer" }}
                           onClick={() => setDetailSuggIdx(idx)}
                         >
@@ -1618,7 +1618,7 @@ function BacklogTab({ provider }: { provider?: string } = {}) {
         </select>
         <input className="panel-input" style={{ width: 140 }} placeholder="Label" value={filterLabel} onChange={e => setFilterLabel(e.target.value)} />
         <input className="panel-input" style={{ width: 140 }} placeholder="Assignee" value={filterAssignee} onChange={e => setFilterAssignee(e.target.value)} />
-        <button className="panel-btn panel-btn-primary" style={{ fontSize: "var(--font-size-sm)", padding: "4px 10px", marginLeft: "auto" }} onClick={async () => {
+        <button className="panel-btn panel-btn-primary" style={{ fontSize: "var(--font-size-sm)", padding: "4px 12px", marginLeft: "auto" }} onClick={async () => {
           const unestimated = items.filter(c => c.storyPoints === 0);
           if (unestimated.length === 0) { setError("All stories already have estimates."); setTimeout(() => setError(""), 3000); return; }
           try {
@@ -1643,7 +1643,7 @@ function BacklogTab({ provider }: { provider?: string } = {}) {
 
       {/* Backlog list */}
       {filtered.map(item => (
-        <div
+        <div role="button" tabIndex={0}
           key={item.id}
           style={{ ...cardBaseStyle, cursor: "pointer" }}
           onClick={() => setDetailCard(item)}
@@ -1667,7 +1667,7 @@ function BacklogTab({ provider }: { provider?: string } = {}) {
               </div>
             </div>
             {/* Quick inline controls */}
-            <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+            <div role="button" tabIndex={0} style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }} onClick={e => e.stopPropagation()}>
               <select
                 className="panel-input" style={{ width: 60, fontSize: "var(--font-size-sm)" }}
                 value={item.priority}
@@ -1989,7 +1989,7 @@ function MetricsTab() {
           { label: "Scope Creep", value: `${metrics.scopeCreepPct.toFixed(0)}%`, color: metrics.scopeCreepPct > 20 ? "var(--error-color)" : "var(--success-color)" },
           { label: "Capacity", value: `${(metrics.capacityUtilization * 100).toFixed(0)}%`, color: "var(--accent-gold)" },
         ].map(({ label, value, color }) => (
-          <div key={label} style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "12px 18px", border: "1px solid var(--border-color)", minWidth: 130, boxShadow: "var(--card-shadow)" }}>
+          <div key={label} style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "12px 20px", border: "1px solid var(--border-color)", minWidth: 130, boxShadow: "var(--card-shadow)" }}>
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{label}</div>
             <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)", color }}>{value}</div>
           </div>
@@ -2394,7 +2394,7 @@ function AiCoachTab({ provider }: { provider?: string } = {}) {
                 const count = analysis.recommendations.filter(r => r.risk === level).length;
                 return (
                   <div key={level} style={{ ...cardBaseStyle, flex: 1, textAlign: "center" }}>
-                    <div style={{ width: 24, height: 24, borderRadius: "50%", background: riskColor(level), margin: "0 auto 6px" }} />
+                    <div style={{ width: 24, height: 24, borderRadius: "50%", background: riskColor(level), margin: "0 auto 8px" }} />
                     <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{count}</div>
                     <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", textTransform: "capitalize" }}>{level}</div>
                   </div>
@@ -2535,7 +2535,7 @@ function SAFeTab({ provider }: { provider?: string } = {}) {
               <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)" }}>{pi.name}</div>
               <div style={{ display: "flex", gap: 4 }}>
                 {PI_STATUSES.map(s => (
-                  <button key={s} className={`panel-tab ${pi.status === s ? "active" : ""}`} style={{ padding: "2px 8px", fontSize: "var(--font-size-sm)" }} onClick={() => updatePIStatus(pi.id, s)}>{s}</button>
+                  <button key={s} className={`panel-btn panel-tab ${pi.status === s ? "active" : ""}`} style={{ padding: "2px 8px", fontSize: "var(--font-size-sm)" }} onClick={() => updatePIStatus(pi.id, s)}>{s}</button>
                 ))}
               </div>
             </div>
@@ -2553,8 +2553,8 @@ function SAFeTab({ provider }: { provider?: string } = {}) {
               {showFeatureForm === pi.id && (
                 <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
                   <input className="panel-input panel-input-full" style={{ fontSize: "var(--font-size-base)" }} placeholder="Feature title" value={featureTitle} onChange={e => setFeatureTitle(e.target.value)} onKeyDown={e => e.key === "Enter" && addFeature(pi.id)} autoFocus />
-                  <button className="panel-btn panel-btn-primary" style={{ padding: "2px 10px", fontSize: "var(--font-size-sm)" }} onClick={() => addFeature(pi.id)}>Add</button>
-                  <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 10px", fontSize: "var(--font-size-sm)" }} onClick={() => { setShowFeatureForm(null); setFeatureTitle(""); }}>Cancel</button>
+                  <button className="panel-btn panel-btn-primary" style={{ padding: "2px 12px", fontSize: "var(--font-size-sm)" }} onClick={() => addFeature(pi.id)}>Add</button>
+                  <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 12px", fontSize: "var(--font-size-sm)" }} onClick={() => { setShowFeatureForm(null); setFeatureTitle(""); }}>Cancel</button>
                 </div>
               )}
               {pi.features.sort((a, b) => wsjf(b) - wsjf(a)).map(f => (
@@ -2572,8 +2572,8 @@ function SAFeTab({ provider }: { provider?: string } = {}) {
               {showObjectiveForm === pi.id && (
                 <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
                   <input className="panel-input panel-input-full" style={{ fontSize: "var(--font-size-base)" }} placeholder="PI Objective description" value={objectiveDesc} onChange={e => setObjectiveDesc(e.target.value)} onKeyDown={e => e.key === "Enter" && addObjective(pi.id)} autoFocus />
-                  <button className="panel-btn panel-btn-primary" style={{ padding: "2px 10px", fontSize: "var(--font-size-sm)" }} onClick={() => addObjective(pi.id)}>Add</button>
-                  <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 10px", fontSize: "var(--font-size-sm)" }} onClick={() => { setShowObjectiveForm(null); setObjectiveDesc(""); }}>Cancel</button>
+                  <button className="panel-btn panel-btn-primary" style={{ padding: "2px 12px", fontSize: "var(--font-size-sm)" }} onClick={() => addObjective(pi.id)}>Add</button>
+                  <button className="panel-btn panel-btn-secondary" style={{ padding: "2px 12px", fontSize: "var(--font-size-sm)" }} onClick={() => { setShowObjectiveForm(null); setObjectiveDesc(""); }}>Cancel</button>
                 </div>
               )}
               {pi.objectives.map(obj => (
@@ -2686,9 +2686,9 @@ function SAFeTab({ provider }: { provider?: string } = {}) {
                   {epic.wsjfScore > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 4 }}>WSJF: {epic.wsjfScore}</div>}
                   <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                     {EPIC_COLUMNS.filter(c => c !== col).map(c => (
-                      <button key={c} className="panel-btn panel-btn-secondary" style={{ padding: "1px 6px", fontSize: "var(--font-size-xs)" }} onClick={() => moveEpic(epic.id, c)}>→ {c}</button>
+                      <button key={c} className="panel-btn panel-btn-secondary" style={{ padding: "1px 8px", fontSize: "var(--font-size-xs)" }} onClick={() => moveEpic(epic.id, c)}>→ {c}</button>
                     ))}
-                    <button className="panel-btn panel-btn-danger" style={{ padding: "1px 6px", fontSize: "var(--font-size-xs)" }} onClick={() => removeEpic(epic.id)}><X size={10} /></button>
+                    <button className="panel-btn panel-btn-danger" style={{ padding: "1px 8px", fontSize: "var(--font-size-xs)" }} onClick={() => removeEpic(epic.id)}><X size={10} /></button>
                   </div>
                 </div>
               ))}
@@ -2731,7 +2731,7 @@ function SAFeTab({ provider }: { provider?: string } = {}) {
                     return (
                       <td key={iter} style={{ padding: 4, borderBottom: "1px solid var(--border-color)", verticalAlign: "top" }}>
                         {features.map(f => (
-                          <div key={f.id} style={{ padding: "2px 6px", borderRadius: "var(--radius-xs-plus)", background: "var(--accent-blue)", color: "var(--btn-primary-fg)", fontSize: "var(--font-size-xs)", marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={`${f.title} (WSJF: ${wsjf(f).toFixed(1)})`}>
+                          <div key={f.id} style={{ padding: "2px 8px", borderRadius: "var(--radius-xs-plus)", background: "var(--accent-blue)", color: "var(--btn-primary-fg)", fontSize: "var(--font-size-xs)", marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={`${f.title} (WSJF: ${wsjf(f).toFixed(1)})`}>
                             {f.title}
                           </div>
                         ))}
@@ -2760,7 +2760,7 @@ function SAFeTab({ provider }: { provider?: string } = {}) {
     <div>
       <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
         {SUB_VIEWS.map(sv => (
-          <button key={sv.key} className={`panel-tab ${subView === sv.key ? "active" : ""}`} style={{ fontSize: "var(--font-size-base)" }} onClick={() => setSubView(sv.key)}>
+          <button key={sv.key} className={`panel-btn panel-tab ${subView === sv.key ? "active" : ""}`} style={{ fontSize: "var(--font-size-base)" }} onClick={() => setSubView(sv.key)}>
             {sv.label}
           </button>
         ))}

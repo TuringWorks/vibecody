@@ -173,11 +173,11 @@ export function PenpotPanel({ workspacePath, provider }: PenpotPanelProps) {
       <input value={host} onChange={(e) => setHost(e.target.value)} placeholder="https://design.penpot.app" style={inputStyle} />
       <label style={{ display: "block", fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 4 }}>Personal Access Token</label>
       <input type="password" value={token} onChange={(e) => setToken(e.target.value)} placeholder="Enter your access token" style={inputStyle} />
-      {error && <div style={{ fontSize: "var(--font-size-base)", color: "var(--error-color, #f85149)", marginBottom: 12, padding: "8px 10px", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)" }}>{error}</div>}
-      <button
+      {error && <div style={{ fontSize: "var(--font-size-base)", color: "var(--error-color, #f85149)", marginBottom: 12, padding: "8px 12px", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)" }}>{error}</div>}
+      <button className="panel-btn"
         onClick={handleConnect}
         disabled={isLoading || !host.trim() || !token.trim()}
-        style={{ width: "100%", background: "var(--accent-blue)", color: "var(--btn-primary-fg, #fff)", border: "none", borderRadius: "var(--radius-sm)", padding: "10px 0", cursor: "pointer", fontWeight: 600, fontSize: "var(--font-size-lg)", opacity: isLoading ? 0.5 : 1 }}
+        style={{ width: "100%", background: "var(--accent-blue)", color: "var(--btn-primary-fg, #fff)", border: "none", borderRadius: "var(--radius-sm)", padding: "12px 0", cursor: "pointer", fontWeight: 600, fontSize: "var(--font-size-lg)", opacity: isLoading ? 0.5 : 1 }}
       >
         {isLoading ? "Connecting…" : "Connect"}
       </button>
@@ -202,17 +202,17 @@ export function PenpotPanel({ workspacePath, provider }: PenpotPanelProps) {
           <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)", marginBottom: 12 }}>Projects ({projects.length})</div>
           {projects.map((p) => (
             <div key={p.id} style={{ marginBottom: 12 }}>
-              <div
+              <div role="button" tabIndex={0}
                 onClick={() => loadProjectFiles(p.id)}
-                style={{ padding: "10px 14px", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", border: "1px solid var(--border-color)", cursor: "pointer", fontWeight: 600, fontSize: "var(--font-size-md)" }}
+                style={{ padding: "12px 16px", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", border: "1px solid var(--border-color)", cursor: "pointer", fontWeight: 600, fontSize: "var(--font-size-md)" }}
               >
                 {p.name}
               </div>
               {files.filter((f) => f.project_id === p.id).map((f) => (
-                <div
+                <div role="button" tabIndex={0}
                   key={f.id}
                   onClick={() => loadFileComponents(f.id)}
-                  style={{ marginTop: 4, marginLeft: 16, padding: "8px 12px", background: selectedFile === f.id ? "var(--accent-blue)" : "var(--bg-tertiary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", cursor: "pointer", fontSize: "var(--font-size-base)", color: selectedFile === f.id ? "#fff" : "inherit" }}
+                  style={{ marginTop: 4, marginLeft: 16, padding: "8px 12px", background: selectedFile === f.id ? "var(--accent-blue)" : "var(--bg-tertiary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", cursor: "pointer", fontSize: "var(--font-size-base)", color: selectedFile === f.id ? "var(--btn-primary-fg)" : "inherit" }}
                 >
                   {f.name}
                 </div>
@@ -235,10 +235,10 @@ export function PenpotPanel({ workspacePath, provider }: PenpotPanelProps) {
           <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)", marginBottom: 12 }}>Components ({components.length})</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 8 }}>
             {components.map((c) => (
-              <div
+              <div role="button" tabIndex={0}
                 key={c.id}
                 onClick={() => { setSelectedComponent(c.id); setActiveTab("export"); }}
-                style={{ padding: "10px 12px", background: selectedComponent === c.id ? "var(--accent-blue)" : "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", border: `1px solid ${selectedComponent === c.id ? "transparent" : "var(--border-color)"}`, cursor: "pointer", color: selectedComponent === c.id ? "#fff" : "inherit" }}
+                style={{ padding: "12px 12px", background: selectedComponent === c.id ? "var(--accent-blue)" : "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", border: `1px solid ${selectedComponent === c.id ? "transparent" : "var(--border-color)"}`, cursor: "pointer", color: selectedComponent === c.id ? "var(--btn-primary-fg)" : "inherit" }}
               >
                 <div style={{ fontWeight: 600, fontSize: "var(--font-size-base)" }}>{c.name}</div>
                 {c.description && <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.75, marginTop: 2 }}>{c.description}</div>}
@@ -257,11 +257,11 @@ export function PenpotPanel({ workspacePath, provider }: PenpotPanelProps) {
         <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
           {["css", "tailwind", "json", "typescript"].map((f) => (
             <button key={f} onClick={() => setTokenFormat(f)}
-              style={{ background: tokenFormat === f ? "var(--accent-blue)" : "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: "3px 8px", cursor: "pointer", color: tokenFormat === f ? "#fff" : "inherit", fontSize: "var(--font-size-sm)", fontWeight: tokenFormat === f ? 600 : 400 }}
+              style={{ background: tokenFormat === f ? "var(--accent-blue)" : "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: "3px 8px", cursor: "pointer", color: tokenFormat === f ? "var(--btn-primary-fg)" : "inherit", fontSize: "var(--font-size-sm)", fontWeight: tokenFormat === f ? 600 : 400 }}
             >{f}</button>
           ))}
-          <button onClick={exportTokens}
-            style={{ background: "var(--accent-blue)", border: "none", borderRadius: "var(--radius-xs-plus)", padding: "3px 10px", cursor: "pointer", color: "var(--btn-primary-fg, #fff)", fontSize: "var(--font-size-sm)", fontWeight: 600 }}
+          <button className="panel-btn" onClick={exportTokens}
+            style={{ background: "var(--accent-blue)", border: "none", borderRadius: "var(--radius-xs-plus)", padding: "3px 12px", cursor: "pointer", color: "var(--btn-primary-fg, #fff)", fontSize: "var(--font-size-sm)", fontWeight: 600 }}
           >Export</button>
         </div>
       </div>
@@ -270,7 +270,7 @@ export function PenpotPanel({ workspacePath, provider }: PenpotPanelProps) {
       ) : (
         <div>
           {tokens.slice(0, 30).map((t, i) => (
-            <div key={i} style={{ display: "flex", gap: 12, alignItems: "center", padding: "6px 0", borderBottom: "1px solid var(--border-color)" }}>
+            <div key={i} style={{ display: "flex", gap: 12, alignItems: "center", padding: "8px 0", borderBottom: "1px solid var(--border-color)" }}>
               {t.token_type === "color" && (
                 <div style={{ width: 20, height: 20, background: t.value, borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", flexShrink: 0 }} />
               )}
@@ -310,14 +310,14 @@ export function PenpotPanel({ workspacePath, provider }: PenpotPanelProps) {
           <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
             {FRAMEWORKS.map((f) => (
               <button key={f} onClick={() => setExportFramework(f)}
-                style={{ background: exportFramework === f ? "var(--accent-blue)" : "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: "4px 10px", cursor: "pointer", color: exportFramework === f ? "#fff" : "inherit", fontSize: "var(--font-size-base)", fontWeight: exportFramework === f ? 600 : 400 }}
+                style={{ background: exportFramework === f ? "var(--accent-blue)" : "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: "4px 12px", cursor: "pointer", color: exportFramework === f ? "var(--btn-primary-fg)" : "inherit", fontSize: "var(--font-size-base)", fontWeight: exportFramework === f ? 600 : 400 }}
               >{f}</button>
             ))}
           </div>
-          <button
+          <button className="panel-btn"
             onClick={exportComponent}
             disabled={isLoading}
-            style={{ width: "100%", background: "var(--accent-blue)", color: "var(--btn-primary-fg, #fff)", border: "none", borderRadius: "var(--radius-sm)", padding: "10px 0", cursor: "pointer", fontWeight: 600, fontSize: "var(--font-size-lg)", opacity: isLoading ? 0.5 : 1 }}
+            style={{ width: "100%", background: "var(--accent-blue)", color: "var(--btn-primary-fg, #fff)", border: "none", borderRadius: "var(--radius-sm)", padding: "12px 0", cursor: "pointer", fontWeight: 600, fontSize: "var(--font-size-lg)", opacity: isLoading ? 0.5 : 1 }}
           >
             {isLoading ? "Generating…" : "Generate Component Code"}
           </button>

@@ -156,11 +156,11 @@ export function SnippetPanel({ workspacePath: _workspacePath }: SnippetPanelProp
 
         <div style={{ flex: 1, overflowY: "auto" }}>
           {filtered.map((s) => (
-            <div
+            <div role="button" tabIndex={0}
               key={s.name}
               onClick={() => selectSnippet(s.name)}
               style={{
-                padding: "6px 8px", cursor: "pointer", fontSize: "var(--font-size-sm)",
+                padding: "8px 8px", cursor: "pointer", fontSize: "var(--font-size-sm)",
                 borderBottom: "1px solid var(--border-color)",
                 background: selected === s.name ? "color-mix(in srgb, var(--accent-blue) 10%, transparent)" : "transparent",
               }}
@@ -217,7 +217,7 @@ export function SnippetPanel({ workspacePath: _workspacePath }: SnippetPanelProp
               <button onClick={() => handleDelete(selected)} className="panel-btn panel-btn-danger">Delete</button>
             </div>
             <pre style={{
-              flex: 1, margin: 0, padding: "8px 10px", overflowY: "auto",
+              flex: 1, margin: 0, padding: "8px 12px", overflowY: "auto",
               fontFamily: "var(--font-mono)", fontSize: "var(--font-size-base)", lineHeight: 1.5,
               background: "var(--bg-primary)", color: "var(--text-primary)",
               whiteSpace: "pre-wrap", wordBreak: "break-all",
@@ -229,7 +229,7 @@ export function SnippetPanel({ workspacePath: _workspacePath }: SnippetPanelProp
 
         {/* Create view */}
         {creating && (
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "auto", padding: "8px 10px", gap: 8 }}>
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "auto", padding: "8px 12px", gap: 8 }}>
             <div style={{ display: "flex", gap: 6 }}>
               <input placeholder="Snippet name..." value={newName} onChange={(e) => setNewName(e.target.value)} className="panel-input" style={{ flex: 1 }} />
               <select value={newLang} onChange={(e) => setNewLang(e.target.value)} className="panel-select">

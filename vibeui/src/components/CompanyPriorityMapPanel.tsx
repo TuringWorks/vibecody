@@ -88,7 +88,7 @@ export function CompanyPriorityMapPanel() {
             const cfg = URGENCY_CONFIG[u];
             return (
               <span key={u} style={{
-                padding: "2px 10px", borderRadius: "var(--radius-md)", fontSize: "var(--font-size-sm)", fontWeight: 600,
+                padding: "2px 12px", borderRadius: "var(--radius-md)", fontSize: "var(--font-size-sm)", fontWeight: 600,
                 color: cfg.color, background: cfg.bg, border: `1px solid ${cfg.color}`,
               }}>
                 {cfg.label} {cfg.desc}
@@ -114,7 +114,7 @@ export function CompanyPriorityMapPanel() {
                   key={entry.program}
                   style={{
                     display: "grid", gridTemplateColumns: "110px 1fr 1fr", gap: 8,
-                    alignItems: "center", padding: "8px 10px",
+                    alignItems: "center", padding: "8px 12px",
                     background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)",
                     border: "1px solid var(--border-color)",
                   }}
@@ -175,7 +175,7 @@ export function CompanyPriorityMapPanel() {
 
         {toast && (
           <div style={{
-            marginTop: 12, padding: "8px 14px", borderRadius: "var(--radius-sm)", fontSize: "var(--font-size-base)",
+            marginTop: 12, padding: "8px 16px", borderRadius: "var(--radius-sm)", fontSize: "var(--font-size-base)",
             background: toast.startsWith("Error") ? "rgba(231,76,60,0.15)" : "rgba(39,174,96,0.15)",
             color: toast.startsWith("Error") ? "var(--accent-rose)" : "var(--accent-green)",
             border: `1px solid ${toast.startsWith("Error") ? "var(--accent-rose)" : "var(--accent-green)"}`,

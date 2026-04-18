@@ -206,11 +206,11 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  ) : (
  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
  {profiles.map((p) => (
- <div
+ <div role="button" tabIndex={0}
  key={p.id}
  onClick={() => { setSelectedId(p.id); setEditingProfile(null); }}
  style={{
- padding: "9px 12px", borderRadius: "var(--radius-sm)", cursor: "pointer",
+ padding: "8px 12px", borderRadius: "var(--radius-sm)", cursor: "pointer",
  background: selectedId === p.id ? "color-mix(in srgb, var(--accent-blue) 12%, transparent)" : "var(--bg-secondary)",
  border: `1px solid ${selectedId === p.id ? "var(--accent-color)" : "var(--border-color)"}`,
  display: "flex", alignItems: "center", gap: 10,
@@ -226,7 +226,7 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  </div>
  <button
  onClick={(e) => { e.stopPropagation(); setSelectedId(p.id); setTab("run"); }}
- style={{ padding: "3px 10px", fontSize: "var(--font-size-xs)", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", cursor: "pointer" }}
+ style={{ padding: "3px 12px", fontSize: "var(--font-size-xs)", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", cursor: "pointer" }}
  >
  Connect →
  </button>
@@ -341,7 +341,7 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  {/* Result summary */}
  {result && (
  <div style={{
- padding: "5px 10px", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-sm)", fontWeight: 600,
+ padding: "4px 12px", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-sm)", fontWeight: 600,
  background: result.success ? "color-mix(in srgb, var(--accent-green) 10%, transparent)" : "color-mix(in srgb, var(--accent-rose) 10%, transparent)",
  color: result.success ? "var(--success-color)" : "var(--error-color)",
  border: `1px solid ${result.success ? "var(--success-color)" : "var(--error-color)"}`,
@@ -357,7 +357,7 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  <div
  ref={logRef}
  style={{
- background: "var(--bg-primary)", borderRadius: "var(--radius-sm)", padding: "8px 10px",
+ background: "var(--bg-primary)", borderRadius: "var(--radius-sm)", padding: "8px 12px",
  fontFamily: "var(--font-mono)", fontSize: "var(--font-size-sm)", lineHeight: 1.5,
  overflow: "auto", maxHeight: 320,
  border: "1px solid var(--border-color)",

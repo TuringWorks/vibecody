@@ -130,7 +130,7 @@ type SubTab = "convert" | "tints" | "contrast" | "snippets";
 
 function FmtRow({ label, value }: { label: string; value: string }) {
  return (
- <div style={{ display: "flex", alignItems: "center", borderBottom: "1px solid var(--border-subtle)", padding: "5px 12px", gap: 10 }}>
+ <div style={{ display: "flex", alignItems: "center", borderBottom: "1px solid var(--border-subtle)", padding: "4px 12px", gap: 10 }}>
  <span style={{ width: 100, flexShrink: 0, fontSize: "var(--font-size-xs)", fontWeight: 700, color: "var(--text-secondary)" }}>{label}</span>
  <span style={{ flex: 1, fontFamily: "var(--font-mono)", fontSize: "var(--font-size-base)", color: "var(--text-primary)", wordBreak: "break-all" }}>{value}</span>
  <CopyBtn text={value} />
@@ -144,7 +144,7 @@ function ContrastBadge({ ratio, bg, hexNorm }: ContrastBadgeProps) {
  const { aa, aaa, aaLg, aaaLg } = wcagGrade(ratio);
  const isLightBg = luminance(bg) > 0.5;
  return (
- <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "10px 12px", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)" }}>
+ <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "12px 12px", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)" }}>
  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
  <div style={{ width: 48, height: 28, background: rgbToHex(bg), border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", display: "flex", alignItems: "center", justifyContent: "center" }}>
  <span style={{ fontSize: "var(--font-size-base)", fontWeight: 700, color: hexNorm }}>Aa</span>
@@ -155,7 +155,7 @@ function ContrastBadge({ ratio, bg, hexNorm }: ContrastBadgeProps) {
  </div>
  <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
  {([["AA", aa],["AAA", aaa],["AA-lg", aaLg],["AAA-lg", aaaLg]] as [string,boolean][]).map(([label, pass]) => (
- <span key={label} style={{ fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: "var(--radius-xs-plus)", background: pass ? "color-mix(in srgb, var(--accent-green) 15%, transparent)" : "color-mix(in srgb, var(--accent-rose) 10%, transparent)", border: `1px solid ${pass ? "var(--success-color, #a6e3a1)" : "var(--accent-rose)"}`, color: pass ? "var(--success-color, #a6e3a1)" : "var(--accent-rose)" }}>{pass ? "✓" : "✕"} {label}</span>
+ <span key={label} style={{ fontSize: 9, fontWeight: 700, padding: "1px 4px", borderRadius: "var(--radius-xs-plus)", background: pass ? "color-mix(in srgb, var(--accent-green) 15%, transparent)" : "color-mix(in srgb, var(--accent-rose) 10%, transparent)", border: `1px solid ${pass ? "var(--success-color, #a6e3a1)" : "var(--accent-rose)"}`, color: pass ? "var(--success-color, #a6e3a1)" : "var(--accent-rose)" }}>{pass ? "✓" : "✕"} {label}</span>
  ))}
  </div>
  </div>
@@ -232,7 +232,7 @@ export function ColorConverterPanel() {
  </div>
 
  {/* Picker row */}
- <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+ <div style={{ padding: "12px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
  {/* Color swatch + native picker */}
  <div style={{ position: "relative", width: 40, height: 40, flexShrink: 0 }}>
  <div style={{ width: 40, height: 40, background: hexNorm, borderRadius: "var(--radius-sm)", border: "2px solid var(--border-color)" }} />
@@ -241,7 +241,7 @@ export function ColorConverterPanel() {
  </div>
  {/* Hex input */}
  <input value={hex} onChange={e => handleHexInput(e.target.value)} maxLength={7} spellCheck={false}
- style={{ width: 100, padding: "5px 8px", fontSize: "var(--font-size-md)", fontFamily: "var(--font-mono)", fontWeight: 700, background: "var(--bg-primary)", border: `1px solid ${hexToRgb(hex) ? "var(--border-color)" : "var(--accent-rose)"}`, borderRadius: "var(--radius-xs-plus)", color: hexNorm, outline: "none", letterSpacing: "0.05em" }} />
+ style={{ width: 100, padding: "4px 8px", fontSize: "var(--font-size-md)", fontFamily: "var(--font-mono)", fontWeight: 700, background: "var(--bg-primary)", border: `1px solid ${hexToRgb(hex) ? "var(--border-color)" : "var(--accent-rose)"}`, borderRadius: "var(--radius-xs-plus)", color: hexNorm, outline: "none", letterSpacing: "0.05em" }} />
  {/* Alpha */}
  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
  <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>α:</span>
@@ -253,7 +253,7 @@ export function ColorConverterPanel() {
  {/* Luminance */}
  <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginLeft: "auto" }}>
  L: <span style={{ fontFamily: "var(--font-mono)" }}>{luminance(rgb).toFixed(3)}</span>
- <span style={{ marginLeft: 8, fontSize: 9, padding: "1px 6px", borderRadius: "var(--radius-md)", background: luminance(rgb) > 0.5 ? "rgba(249,226,175,0.15)" : "rgba(30,30,46,0.5)", border: "1px solid var(--border-color)", color: luminance(rgb) > 0.5 ? "var(--warning-color, #f9e2af)" : "var(--info-color, #89b4fa)" }}>
+ <span style={{ marginLeft: 8, fontSize: 9, padding: "1px 8px", borderRadius: "var(--radius-md)", background: luminance(rgb) > 0.5 ? "rgba(249,226,175,0.15)" : "rgba(30,30,46,0.5)", border: "1px solid var(--border-color)", color: luminance(rgb) > 0.5 ? "var(--warning-color, #f9e2af)" : "var(--info-color, #89b4fa)" }}>
  {luminance(rgb) > 0.5 ? "light" : "dark"}
  </span>
  </span>
@@ -324,11 +324,11 @@ export function ColorConverterPanel() {
  style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%", height: "100%" }} />
  </div>
  <input value={bgHex} onChange={e => setBgHex(e.target.value)} maxLength={7}
- style={{ width: 90, padding: "3px 6px", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none" }} />
+ style={{ width: 90, padding: "3px 8px", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none" }} />
  </div>
  <ContrastBadge ratio={contrastCustom} bg={bgRgb} hexNorm={hexNorm} />
 
- <div style={{ padding: "10px 12px", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-sm)", lineHeight: 1.8, color: "var(--text-secondary)" }}>
+ <div style={{ padding: "12px 12px", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-sm)", lineHeight: 1.8, color: "var(--text-secondary)" }}>
  <strong style={{ color: "var(--text-info, #89b4fa)" }}>WCAG 2.1 thresholds:</strong><br/>
  AA normal text: ≥ 4.5:1 · AAA normal text: ≥ 7:1<br/>
  AA large text (18pt / 14pt bold): ≥ 3:1 · AAA large: ≥ 4.5:1

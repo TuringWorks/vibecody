@@ -239,7 +239,7 @@ export function CompanyTaskBoardPanel({ workspacePath: _wp }: CompanyTaskBoardPa
                             <span style={ownerBadge(task.owner)}>{task.owner}</span>
                             <span style={programBadge(task.program)}>{task.program}</span>
                             {task.recurrence && (
-                              <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", padding: "1px 5px", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)" }}>
+                              <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", padding: "1px 4px", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)" }}>
                                 {task.recurrence}
                               </span>
                             )}

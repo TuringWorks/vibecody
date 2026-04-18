@@ -367,9 +367,9 @@ const OpenMemoryPanel: React.FC = () => {
               {stats.sectors.map(s => (
                 <div key={s.sector} style={{
                   background: 'var(--bg-tertiary)', borderRadius: "var(--radius-sm-alt)", padding: 12,
-                  borderLeft: `3px solid ${SECTOR_COLORS[s.sector as SectorName] || '#666'}`,
+                  borderLeft: `3px solid ${SECTOR_COLORS[s.sector as SectorName] || 'var(--text-muted)'}`,
                 }}>
-                  <div style={{ fontSize: "var(--font-size-sm)", textTransform: 'uppercase', color: SECTOR_COLORS[s.sector as SectorName] || '#666', marginBottom: 4 }}>
+                  <div style={{ fontSize: "var(--font-size-sm)", textTransform: 'uppercase', color: SECTOR_COLORS[s.sector as SectorName] || 'var(--text-muted)', marginBottom: 4 }}>
                     {SECTOR_ICONS[s.sector as SectorName] || '?'} {s.sector}
                   </div>
                   <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)' }}>{s.count}</div>
@@ -403,7 +403,7 @@ const OpenMemoryPanel: React.FC = () => {
                   background: 'var(--bg-tertiary)', color: 'var(--text-primary)', fontSize: "var(--font-size-md)",
                 }}
               />
-              <button onClick={handleAdd} style={{
+              <button className="panel-btn panel-btn-primary" onClick={handleAdd} style={{
                 padding: '8px 16px', borderRadius: "var(--radius-sm)", border: 'none', cursor: 'pointer',
                 background: 'var(--accent-blue)', color: 'var(--btn-primary-fg)', fontSize: "var(--font-size-md)", fontWeight: 600,
               }}>Add</button>
@@ -411,9 +411,9 @@ const OpenMemoryPanel: React.FC = () => {
 
             {/* Actions */}
             <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-              <button onClick={handleRunDecay} style={actionBtnStyle}>Run Decay</button>
-              <button onClick={handleConsolidate} style={actionBtnStyle}>Consolidate</button>
-              <button onClick={handleExport} style={actionBtnStyle}>Export Markdown</button>
+              <button className="panel-btn panel-btn-secondary" onClick={handleRunDecay} style={actionBtnStyle}>Run Decay</button>
+              <button className="panel-btn panel-btn-secondary" onClick={handleConsolidate} style={actionBtnStyle}>Consolidate</button>
+              <button className="panel-btn panel-btn-secondary" onClick={handleExport} style={actionBtnStyle}>Export Markdown</button>
             </div>
           </div>
         )}
@@ -428,7 +428,7 @@ const OpenMemoryPanel: React.FC = () => {
                   <option key={s} value={s}>{s}</option>
                 ))}
               </select>
-              <button onClick={loadMemories} style={actionBtnStyle}>Refresh</button>
+              <button className="panel-btn" onClick={loadMemories} style={actionBtnStyle}>Refresh</button>
             </div>
 
             {memories.length === 0 ? (
@@ -440,13 +440,13 @@ const OpenMemoryPanel: React.FC = () => {
                 {memories.map(m => (
                   <div key={m.id} style={{
                     background: 'var(--bg-tertiary)', borderRadius: "var(--radius-sm-alt)", padding: 12,
-                    borderLeft: `3px solid ${SECTOR_COLORS[m.sector as SectorName] || '#666'}`,
+                    borderLeft: `3px solid ${SECTOR_COLORS[m.sector as SectorName] || 'var(--text-muted)'}`,
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                         <span style={{
                           fontSize: "var(--font-size-sm)", textTransform: 'uppercase', fontWeight: 600,
-                          color: SECTOR_COLORS[m.sector as SectorName] || '#666',
+                          color: SECTOR_COLORS[m.sector as SectorName] || 'var(--text-muted)',
                         }}>{m.sector}</span>
                         <span style={{ fontSize: "var(--font-size-sm)", color: salienceColor(m.effective_salience) }}>
                           {(m.effective_salience * 100).toFixed(0)}%
@@ -509,7 +509,7 @@ const OpenMemoryPanel: React.FC = () => {
                   <option key={s} value={s}>{s}</option>
                 ))}
               </select>
-              <button onClick={handleQuery} style={{
+              <button className="panel-btn panel-btn-primary" onClick={handleQuery} style={{
                 padding: '8px 16px', borderRadius: "var(--radius-sm)", border: 'none', cursor: 'pointer',
                 background: 'var(--accent-blue)', color: 'var(--btn-primary-fg)', fontSize: "var(--font-size-md)", fontWeight: 600,
               }}>Search</button>
@@ -520,7 +520,7 @@ const OpenMemoryPanel: React.FC = () => {
                 {queryResults.map((r, i) => (
                   <div key={r.memory.id} style={{
                     background: 'var(--bg-tertiary)', borderRadius: "var(--radius-sm-alt)", padding: 12,
-                    borderLeft: `3px solid ${SECTOR_COLORS[r.memory.sector as SectorName] || '#666'}`,
+                    borderLeft: `3px solid ${SECTOR_COLORS[r.memory.sector as SectorName] || 'var(--text-muted)'}`,
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                       <span style={{ fontSize: "var(--font-size-base)", fontWeight: 600, color: 'var(--accent-blue)' }}>
@@ -528,7 +528,7 @@ const OpenMemoryPanel: React.FC = () => {
                       </span>
                       <span style={{
                         fontSize: "var(--font-size-sm)", textTransform: 'uppercase',
-                        color: SECTOR_COLORS[r.memory.sector as SectorName] || '#666',
+                        color: SECTOR_COLORS[r.memory.sector as SectorName] || 'var(--text-muted)',
                       }}>{r.memory.sector}</span>
                     </div>
                     <div style={{ fontSize: "var(--font-size-md)", color: 'var(--text-primary)', marginBottom: 8 }}>
@@ -577,7 +577,7 @@ const OpenMemoryPanel: React.FC = () => {
                 <h4 style={{ color: 'var(--text-primary)', marginBottom: 8 }}>Wing Distribution (Projects)</h4>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   {drawerStats.wings.sort((a, b) => b.count - a.count).map(w => (
-                    <div key={w.wing} style={{ display: 'flex', justifyContent: 'space-between', background: 'var(--bg-tertiary)', borderRadius: "var(--radius-sm)", padding: '6px 12px' }}>
+                    <div key={w.wing} style={{ display: 'flex', justifyContent: 'space-between', background: 'var(--bg-tertiary)', borderRadius: "var(--radius-sm)", padding: '8px 12px' }}>
                       <span style={{ fontSize: "var(--font-size-md)", color: 'var(--text-primary)', fontFamily: 'monospace' }}>{w.wing}</span>
                       <span style={{ fontSize: "var(--font-size-base)", color: 'var(--accent-blue)' }}>{w.count} drawers</span>
                     </div>
@@ -593,10 +593,10 @@ const OpenMemoryPanel: React.FC = () => {
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {drawerStats.rooms.map(r => (
                     <div key={r.room} style={{
-                      background: 'var(--bg-tertiary)', borderRadius: "var(--radius-sm)", padding: '6px 12px',
-                      borderLeft: `3px solid ${SECTOR_COLORS[r.room as SectorName] || '#666'}`,
+                      background: 'var(--bg-tertiary)', borderRadius: "var(--radius-sm)", padding: '8px 12px',
+                      borderLeft: `3px solid ${SECTOR_COLORS[r.room as SectorName] || 'var(--text-muted)'}`,
                     }}>
-                      <span style={{ fontSize: "var(--font-size-base)", color: SECTOR_COLORS[r.room as SectorName] || '#666', textTransform: 'uppercase' }}>{r.room}</span>
+                      <span style={{ fontSize: "var(--font-size-base)", color: SECTOR_COLORS[r.room as SectorName] || 'var(--text-muted)', textTransform: 'uppercase' }}>{r.room}</span>
                       <span style={{ fontSize: "var(--font-size-base)", color: 'var(--text-secondary)', marginLeft: 8 }}>{r.count}</span>
                     </div>
                   ))}
@@ -648,7 +648,7 @@ const OpenMemoryPanel: React.FC = () => {
                     </div>
                     {layeredCtx.l2_scoped.map((m, i) => (
                       <div key={i} style={{ fontSize: "var(--font-size-base)", color: 'var(--text-primary)', marginBottom: 4 }}>
-                        <span style={{ color: SECTOR_COLORS[m.sector as SectorName] || '#666', marginRight: 8 }}>[{m.sector}]</span>
+                        <span style={{ color: SECTOR_COLORS[m.sector as SectorName] || 'var(--text-muted)', marginRight: 8 }}>[{m.sector}]</span>
                         {m.content.length > 150 ? m.content.slice(0, 150) + '…' : m.content}
                       </div>
                     ))}
@@ -686,7 +686,7 @@ const OpenMemoryPanel: React.FC = () => {
               <div style={{ marginTop: 16, background: 'var(--bg-tertiary)', borderRadius: "var(--radius-sm-alt)", padding: 16, fontSize: "var(--font-size-md)", color: 'var(--text-secondary)' }}>
                 No verbatim drawers yet. Drawers are automatically created when the agent completes tasks
                 (session summaries are ingested as raw chunks). You can also use the REPL command:
-                <code style={{ display: 'block', marginTop: 8, padding: '6px 10px', background: 'var(--bg-primary)', borderRadius: "var(--radius-xs-plus)", fontFamily: 'monospace', fontSize: "var(--font-size-base)" }}>
+                <code style={{ display: 'block', marginTop: 8, padding: '8px 12px', background: 'var(--bg-primary)', borderRadius: "var(--radius-xs-plus)", fontFamily: 'monospace', fontSize: "var(--font-size-base)" }}>
                   /openmemory chunk "raw text to store" session-123
                 </code>
               </div>
@@ -706,12 +706,12 @@ const OpenMemoryPanel: React.FC = () => {
                   <input
                     type="number" min={1} max={20} value={benchK}
                     onChange={e => setBenchK(Math.max(1, parseInt(e.target.value) || 5))}
-                    style={{ width: 48, padding: '3px 6px', borderRadius: "var(--radius-xs-plus)", border: '1px solid var(--border-subtle)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: "var(--font-size-base)", textAlign: 'center' }}
+                    style={{ width: 48, padding: '3px 8px', borderRadius: "var(--radius-xs-plus)", border: '1px solid var(--border-subtle)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: "var(--font-size-base)", textAlign: 'center' }}
                   />
-                  <button
+                  <button className="panel-btn"
                     onClick={handleRunBenchmark}
                     disabled={benchRunning}
-                    style={{ padding: '5px 14px', borderRadius: "var(--radius-sm)", border: 'none', background: 'var(--accent-blue)', color: '#fff', fontSize: "var(--font-size-base)", cursor: benchRunning ? 'not-allowed' : 'pointer', opacity: benchRunning ? 0.6 : 1 }}
+                    style={{ padding: '4px 16px', borderRadius: "var(--radius-sm)", border: 'none', background: 'var(--accent-blue)', color: 'var(--btn-primary-fg)', fontSize: "var(--font-size-base)", cursor: benchRunning ? 'not-allowed' : 'pointer', opacity: benchRunning ? 0.6 : 1 }}
                   >
                     {benchRunning ? 'Running…' : 'Run'}
                   </button>
@@ -727,7 +727,7 @@ const OpenMemoryPanel: React.FC = () => {
                       { label: 'Verbatim (L3)', value: benchResult.recall_verbatim, color: 'var(--accent-green)' },
                       { label: 'Combined', value: benchResult.recall_combined, color: 'var(--accent-purple, #a855f7)' },
                     ].map(({ label, value, color }) => (
-                      <div key={label} style={{ background: 'var(--bg-tertiary)', borderRadius: "var(--radius-sm-alt)", padding: '12px 14px', textAlign: 'center' }}>
+                      <div key={label} style={{ background: 'var(--bg-tertiary)', borderRadius: "var(--radius-sm-alt)", padding: '12px 16px', textAlign: 'center' }}>
                         <div style={{ fontSize: 22, fontWeight: 700, color }}>{(value * 100).toFixed(0)}%</div>
                         <div style={{ fontSize: "var(--font-size-sm)", color: 'var(--text-secondary)', marginTop: 2 }}>Recall@{benchResult.k} — {label}</div>
                         <div style={{ marginTop: 6, height: 4, borderRadius: 2, background: 'var(--bg-secondary)' }}>
@@ -746,7 +746,7 @@ const OpenMemoryPanel: React.FC = () => {
                   {/* Per-case table */}
                   <div style={{ fontSize: "var(--font-size-base)" }}>
                     {benchResult.cases.map((c, i) => (
-                      <div key={i} style={{ display: 'grid', gridTemplateColumns: '80px 1fr 90px 90px', gap: 8, padding: '6px 0', borderBottom: '1px solid var(--border-subtle)', alignItems: 'center' }}>
+                      <div key={i} style={{ display: 'grid', gridTemplateColumns: '80px 1fr 90px 90px', gap: 8, padding: '8px 0', borderBottom: '1px solid var(--border-subtle)', alignItems: 'center' }}>
                         <span style={{ color: 'var(--accent-blue)', fontFamily: 'monospace', fontSize: "var(--font-size-sm)" }}>{c.sector}</span>
                         <span style={{ color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={c.query}>{c.query}</span>
                         <span style={{ textAlign: 'center', color: c.found_cognitive ? 'var(--accent-green)' : 'var(--text-muted, #6b7280)', fontSize: "var(--font-size-sm)" }}>
@@ -787,7 +787,7 @@ const OpenMemoryPanel: React.FC = () => {
                 placeholder="Object" className="panel-input" style={{flex:1}}
                 onKeyDown={e => e.key === 'Enter' && handleAddFact()}
               />
-              <button onClick={handleAddFact} style={{
+              <button className="panel-btn" onClick={handleAddFact} style={{
                 padding: '8px 16px', borderRadius: "var(--radius-sm)", border: 'none', cursor: 'pointer',
                 background: 'var(--accent-green)', color: 'var(--btn-primary-fg)', fontSize: "var(--font-size-md)", fontWeight: 600,
               }}>Add Fact</button>
@@ -1036,7 +1036,7 @@ const ForceGraph: React.FC<{ memories: MemoryNode[] }> = ({ memories }) => {
         const ly = height / 2 + Math.sin(angle) * 180;
         return (
           <text key={`label-${s}`} x={lx} y={ly}
-            textAnchor="middle" fontSize={10} fontWeight={600} fill={SECTOR_COLORS[s as SectorName] || '#666'}
+            textAnchor="middle" fontSize={10} fontWeight={600} fill={SECTOR_COLORS[s as SectorName] || 'var(--text-muted)'}
             opacity={0.6}
           >{s.toUpperCase()}</text>
         );
@@ -1052,7 +1052,7 @@ const ForceGraph: React.FC<{ memories: MemoryNode[] }> = ({ memories }) => {
             style={{ cursor: 'pointer' }}
           >
             <circle cx={n.x} cy={n.y} r={r}
-              fill={SECTOR_COLORS[n.sector] || '#666'}
+              fill={SECTOR_COLORS[n.sector] || 'var(--text-muted)'}
               fillOpacity={0.7 + n.salience * 0.3}
               stroke={isHovered ? '#fff' : 'none'}
               strokeWidth={isHovered ? 2 : 0}

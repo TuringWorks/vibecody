@@ -387,8 +387,8 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  const changedFiles = Object.entries(gitStatus.file_statuses);
 
  return (
- <div className="panel-container" style={{ padding: '10px' }}>
- <div style={{ marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+ <div className="panel-container" style={{ padding: '12px' }}>
+ <div style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
  <strong>Branch:</strong>
  <select
  value={gitStatus.branch}
@@ -403,19 +403,19 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  </select>
  </div>
 
- <div style={{ marginBottom: '10px', display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
- <button className="btn-primary" onClick={handlePull} disabled={isLoading} style={{ fontSize: '12px', padding: '4px 8px' }}>
+ <div style={{ marginBottom: '12px', display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+ <button className="panel-btn btn-primary" onClick={handlePull} disabled={isLoading} style={{ fontSize: '12px', padding: '4px 8px' }}>
  Pull
  </button>
- <button className="btn-primary" onClick={handlePush} disabled={isLoading} style={{ fontSize: '12px', padding: '4px 8px' }}>
+ <button className="panel-btn btn-primary" onClick={handlePush} disabled={isLoading} style={{ fontSize: '12px', padding: '4px 8px' }}>
  Push
  </button>
- <button className="btn-secondary" onClick={handleShowHistory} style={{ fontSize: '12px', padding: '4px 8px' }}>
+ <button className="panel-btn btn-secondary" onClick={handleShowHistory} style={{ fontSize: '12px', padding: '4px 8px' }}>
  History
  </button>
  </div>
 
- <div style={{ flex: 1, overflowY: 'auto', marginBottom: '10px' }}>
+ <div style={{ flex: 1, overflowY: 'auto', marginBottom: '12px' }}>
  {showHistory ? (
  <div>
  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
@@ -429,9 +429,9 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  <div style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>{selectedCommit.hash.substring(0, 7)} • {selectedCommit.author}</div>
  <div style={{ fontSize: '12px', marginTop: '4px' }}>{selectedCommit.message}</div>
  </div>
- <h4 style={{ fontSize: '11px', marginBottom: '6px', color: 'var(--text-secondary)' }}>Files Changed</h4>
+ <h4 style={{ fontSize: '11px', marginBottom: '8px', color: 'var(--text-secondary)' }}>Files Changed</h4>
  {commitFiles.map(file => (
- <div key={file} style={{ padding: '6px', background: 'var(--bg-secondary)', borderRadius: '4px', marginBottom: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+ <div key={file} style={{ padding: '8px', background: 'var(--bg-secondary)', borderRadius: '4px', marginBottom: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
  <span style={{ fontSize: '11px' }}>{file}</span>
  <button onClick={() => handleCompareCommitFile(file)} style={{ background: 'none', border: 'none', color: 'var(--accent-blue)', cursor: 'pointer', fontSize: '10px' }}>Diff</button>
  </div>
@@ -439,12 +439,12 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  </div>
  ) : (
  history.map(commit => (
- <div
+ <div role="button" tabIndex={0}
  key={commit.hash}
  onClick={() => handleSelectCommit(commit)}
  style={{
  padding: '8px',
- marginBottom: '6px',
+ marginBottom: '8px',
  background: 'var(--bg-tertiary)',
  borderRadius: '4px',
  cursor: 'pointer',
@@ -462,7 +462,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  </div>
  ) : (
  <div>
- <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+ <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
  {changedFiles.length > 0 && (
  <input
  type="checkbox"
@@ -486,13 +486,13 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  <div
  key={file}
  style={{
- padding: '6px',
+ padding: '8px',
  background: selectedFiles.includes(file) ? 'var(--bg-tertiary)' : 'transparent',
  borderRadius: '4px',
  marginBottom: '4px',
  display: 'flex',
  alignItems: 'center',
- gap: '6px',
+ gap: '8px',
  }}
  >
  <input
@@ -555,15 +555,15 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  onChange={(e) => setCommitMessage(e.target.value)}
  placeholder="Commit message..."
  className="panel-input panel-textarea panel-input-full"
- style={{ minHeight: '50px', paddingRight: '60px', marginBottom: '6px', fontFamily: 'inherit' }}
+ style={{ minHeight: '50px', paddingRight: '64px', marginBottom: '8px', fontFamily: 'inherit' }}
  />
- <button
+ <button className="panel-btn"
  onClick={handleGenerateMsg}
  disabled={generatingMsg}
  title="Generate commit message with AI"
  style={{
  position: 'absolute', top: '4px', right: '4px',
- padding: '2px 7px', fontSize: '10px', fontWeight: 600,
+ padding: '2px 8px', fontSize: '10px', fontWeight: 600,
  background: generatingMsg ? 'var(--bg-secondary)' : 'var(--accent-bg)',
  color: generatingMsg ? 'var(--text-secondary)' : 'var(--accent-color)',
  border: '1px solid var(--border-color)', borderRadius: '3px',
@@ -574,7 +574,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  </button>
  </div>
  <button
- className="btn-primary"
+ className="panel-btn btn-primary"
  onClick={handleCommit}
  disabled={isLoading || !commitMessage || selectedFiles.length === 0}
  style={{ width: '100%', fontSize: '12px' }}
@@ -588,7 +588,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  <button
  onClick={() => setShowReview(!showReview)}
  style={{
- width: '100%', textAlign: 'left', padding: '6px 8px',
+ width: '100%', textAlign: 'left', padding: '8px 8px',
  background: showReview ? 'var(--bg-tertiary)' : 'transparent',
  border: 'none', borderRadius: "var(--radius-xs-plus)", cursor: 'pointer',
  color: 'var(--text-primary)', fontSize: "var(--font-size-base)",
@@ -622,9 +622,9 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  onChange={e => setBranchTask(e.target.value)}
  onKeyDown={e => e.key === 'Enter' && handleSuggestBranch()}
  placeholder="Describe the task…"
- style={{ flex: 1, background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '3px 6px', fontFamily: 'inherit', fontSize: "var(--font-size-sm)" }}
+ style={{ flex: 1, background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '3px 8px', fontFamily: 'inherit', fontSize: "var(--font-size-sm)" }}
  />
- <button
+ <button className="panel-btn"
  onClick={handleSuggestBranch}
  disabled={suggestingBranch || !branchTask.trim()}
  style={{ background: 'var(--accent-bg)', color: 'var(--accent-color)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '3px 8px', cursor: 'pointer', fontSize: "var(--font-size-sm)" }}
@@ -649,7 +649,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  <div style={{ marginBottom: 10 }}>
  <button
  onClick={() => setShowChangelog(c => !c)}
- style={{ width: '100%', textAlign: 'left', padding: '5px 0', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-primary)', fontSize: "var(--font-size-base)", display: 'flex', alignItems: 'center', gap: 6 }}
+ style={{ width: '100%', textAlign: 'left', padding: '4px 0', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-primary)', fontSize: "var(--font-size-base)", display: 'flex', alignItems: 'center', gap: 6 }}
  >
  {showChangelog && <ChevronDown size={12} />}
  <span>Generate Changelog</span>
@@ -661,9 +661,9 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  value={changelogRef}
  onChange={e => setChangelogRef(e.target.value)}
  placeholder="since (e.g. HEAD~10 or v1.2.0)"
- style={{ flex: 1, background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '3px 6px', fontFamily: 'inherit', fontSize: "var(--font-size-sm)" }}
+ style={{ flex: 1, background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '3px 8px', fontFamily: 'inherit', fontSize: "var(--font-size-sm)" }}
  />
- <button
+ <button className="panel-btn"
  onClick={handleGenerateChangelog}
  disabled={generatingChangelog}
  style={{ background: 'var(--accent-bg)', color: 'var(--accent-color)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '3px 8px', cursor: 'pointer', fontSize: "var(--font-size-sm)" }}
@@ -681,7 +681,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  />
  <button
  onClick={() => { navigator.clipboard.writeText(changelog).then(() => toast.success('Copied!')).catch(() => {}); }}
- style={{ position: 'absolute', top: 4, right: 4, background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 3, padding: '2px 6px', cursor: 'pointer', fontSize: "var(--font-size-xs)", color: 'var(--text-secondary)' }}
+ style={{ position: 'absolute', top: 4, right: 4, background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 3, padding: '2px 8px', cursor: 'pointer', fontSize: "var(--font-size-xs)", color: 'var(--text-secondary)' }}
  >
  
  </button>
@@ -695,7 +695,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  <div>
  <button
  onClick={() => setShowConflictModal(c => !c)}
- style={{ width: '100%', textAlign: 'left', padding: '5px 0', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-primary)', fontSize: "var(--font-size-base)", display: 'flex', alignItems: 'center', gap: 6 }}
+ style={{ width: '100%', textAlign: 'left', padding: '4px 0', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-primary)', fontSize: "var(--font-size-base)", display: 'flex', alignItems: 'center', gap: 6 }}
  >
  {showConflictModal && <ChevronDown size={12} />}
  <span>Resolve Merge Conflict</span>
@@ -706,7 +706,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  value={conflictFile}
  onChange={e => setConflictFile(e.target.value)}
  placeholder="File path (e.g. src/main.rs)"
- style={{ width: '100%', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '3px 6px', fontFamily: 'inherit', fontSize: "var(--font-size-sm)", marginBottom: 5, boxSizing: 'border-box' }}
+ style={{ width: '100%', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '3px 8px', fontFamily: 'inherit', fontSize: "var(--font-size-sm)", marginBottom: 5, boxSizing: 'border-box' }}
  />
  <textarea
  value={conflictText}
@@ -715,7 +715,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  rows={6}
  style={{ width: '100%', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: 6, fontFamily: 'inherit', fontSize: "var(--font-size-sm)", marginBottom: 5, boxSizing: 'border-box' }}
  />
- <button
+ <button className="panel-btn"
  onClick={handleResolveConflict}
  disabled={resolvingConflict || !conflictText.trim()}
  style={{ width: '100%', background: 'var(--accent-bg)', color: 'var(--accent-color)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '4px 0', cursor: 'pointer', fontSize: "var(--font-size-sm)", marginBottom: 5 }}
@@ -732,7 +732,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  />
  <button
  onClick={() => { navigator.clipboard.writeText(conflictResolution).then(() => toast.success('Copied!')).catch(() => {}); }}
- style={{ position: 'absolute', top: 4, right: 4, background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 3, padding: '2px 6px', cursor: 'pointer', fontSize: "var(--font-size-xs)", color: 'var(--text-secondary)' }}
+ style={{ position: 'absolute', top: 4, right: 4, background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 3, padding: '2px 8px', cursor: 'pointer', fontSize: "var(--font-size-xs)", color: 'var(--text-secondary)' }}
  >
  Copy resolution
  </button>
@@ -748,7 +748,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  <button
  onClick={() => setShowGitSettings(!showGitSettings)}
  style={{
- width: '100%', textAlign: 'left', padding: '6px 8px',
+ width: '100%', textAlign: 'left', padding: '8px 8px',
  background: showGitSettings ? 'var(--bg-tertiary)' : 'transparent',
  border: 'none', borderRadius: "var(--radius-xs-plus)", cursor: 'pointer',
  color: 'var(--text-primary)', fontSize: "var(--font-size-base)",
@@ -757,7 +757,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  >
  {showGitSettings ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
  <span>Git Settings</span>
- {sshAvailable && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: 'var(--success-bg)', color: 'var(--success-color)' }}>SSH</span>}
+ {sshAvailable && <span style={{ fontSize: 9, padding: '1px 4px', borderRadius: 3, background: 'var(--success-bg)', color: 'var(--success-color)' }}>SSH</span>}
  </button>
  {showGitSettings && (
  <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -769,15 +769,15 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  value={gitUserName}
  onChange={e => setGitUserName(e.target.value)}
  placeholder="User name"
- style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '3px 6px', fontSize: "var(--font-size-sm)", fontFamily: 'inherit' }}
+ style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '3px 8px', fontSize: "var(--font-size-sm)", fontFamily: 'inherit' }}
  />
  <input
  value={gitUserEmail}
  onChange={e => setGitUserEmail(e.target.value)}
  placeholder="Email"
- style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '3px 6px', fontSize: "var(--font-size-sm)", fontFamily: 'inherit' }}
+ style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '3px 8px', fontSize: "var(--font-size-sm)", fontFamily: 'inherit' }}
  />
- <button
+ <button className="panel-btn"
  onClick={saveGitConfig}
  disabled={!gitUserName && !gitUserEmail}
  style={{ alignSelf: 'flex-start', background: 'var(--accent-bg)', color: 'var(--accent-color)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '3px 8px', cursor: 'pointer', fontSize: "var(--font-size-sm)" }}
@@ -790,7 +790,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  {/* Remote & SSH info */}
  <div>
  <div style={{ fontSize: "var(--font-size-sm)", color: 'var(--text-secondary)', marginBottom: 4 }}>Remote</div>
- <div style={{ fontSize: "var(--font-size-sm)", padding: '4px 6px', background: 'var(--bg-tertiary)', borderRadius: "var(--radius-xs-plus)", wordBreak: 'break-all' }}>
+ <div style={{ fontSize: "var(--font-size-sm)", padding: '4px 8px', background: 'var(--bg-tertiary)', borderRadius: "var(--radius-xs-plus)", wordBreak: 'break-all' }}>
  {remoteUrl || 'No remote configured'}
  </div>
  <div style={{ marginTop: 4, fontSize: "var(--font-size-xs)", color: sshAvailable ? 'var(--success-color)' : 'var(--text-secondary)' }}>
@@ -807,22 +807,22 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  value={gitCredUrl}
  onChange={e => setGitCredUrl(e.target.value)}
  placeholder="Repository URL (e.g. https://github.com/user/repo)"
- style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '3px 6px', fontSize: "var(--font-size-sm)", fontFamily: 'inherit' }}
+ style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '3px 8px', fontSize: "var(--font-size-sm)", fontFamily: 'inherit' }}
  />
  <input
  value={gitCredUser}
  onChange={e => setGitCredUser(e.target.value)}
  placeholder="Username"
- style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '3px 6px', fontSize: "var(--font-size-sm)", fontFamily: 'inherit' }}
+ style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '3px 8px', fontSize: "var(--font-size-sm)", fontFamily: 'inherit' }}
  />
  <input
  type="password"
  value={gitCredToken}
  onChange={e => setGitCredToken(e.target.value)}
  placeholder="Personal access token / password"
- style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '3px 6px', fontSize: "var(--font-size-sm)", fontFamily: 'inherit' }}
+ style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '3px 8px', fontSize: "var(--font-size-sm)", fontFamily: 'inherit' }}
  />
- <button
+ <button className="panel-btn"
  onClick={saveGitCredentials}
  disabled={!gitCredUrl || !gitCredUser || !gitCredToken}
  style={{ alignSelf: 'flex-start', background: 'var(--accent-bg)', color: 'var(--accent-color)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '3px 8px', cursor: 'pointer', fontSize: "var(--font-size-sm)" }}

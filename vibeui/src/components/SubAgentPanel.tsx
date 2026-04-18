@@ -225,7 +225,7 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
               <button
                 onClick={handleClearCompleted}
                 className="panel-btn panel-btn-secondary"
-                style={{ fontSize: "var(--font-size-sm)", padding: "4px 10px" }}
+                style={{ fontSize: "var(--font-size-sm)", padding: "4px 12px" }}
               >
                 Clear completed
               </button>
@@ -239,7 +239,7 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
           )}
 
           {agents.map((agent) => (
-            <div
+            <div role="button" tabIndex={0}
               key={agent.id}
               onClick={() => setExpandedAgent(expandedAgent === agent.id ? null : agent.id)}
               className="panel-card"
@@ -270,7 +270,7 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
                     <>
                       <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 6, marginBottom: 4 }}>Context Files:</div>
                       {agent.context_files.map((f) => (
-                        <div key={f} style={{ fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", padding: "2px 6px", marginBottom: 2, background: "var(--bg-primary)", borderRadius: 3 }}>{f}</div>
+                        <div key={f} style={{ fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", padding: "2px 8px", marginBottom: 2, background: "var(--bg-primary)", borderRadius: 3 }}>{f}</div>
                       ))}
                     </>
                   )}
@@ -285,7 +285,7 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
                     <button
                       onClick={(e) => { e.stopPropagation(); handleDismiss(agent.id); }}
                       className="panel-btn panel-btn-secondary"
-                      style={{ marginTop: 8, fontSize: "var(--font-size-sm)", padding: "4px 10px" }}
+                      style={{ marginTop: 8, fontSize: "var(--font-size-sm)", padding: "4px 12px" }}
                     >
                       Dismiss
                     </button>
@@ -347,7 +347,7 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
                   <div style={{ marginTop: 6 }}>
                     <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Modified: </span>
                     {agent.files_modified.map((f) => (
-                      <span key={f} style={{ fontSize: "var(--font-size-xs)", fontFamily: "var(--font-mono)", padding: "1px 5px", borderRadius: 3, background: "var(--bg-primary)", marginLeft: 4 }}>{f}</span>
+                      <span key={f} style={{ fontSize: "var(--font-size-xs)", fontFamily: "var(--font-mono)", padding: "1px 4px", borderRadius: 3, background: "var(--bg-primary)", marginLeft: 4 }}>{f}</span>
                     ))}
                   </div>
                 )}
@@ -366,7 +366,7 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
             </div>
           )}
           {spawnSuccess && (
-            <div style={{ padding: "8px 10px", marginBottom: 8, borderRadius: "var(--radius-xs-plus)", background: "var(--success-color)", color: "var(--btn-primary-fg)", fontSize: "var(--font-size-base)" }}>
+            <div style={{ padding: "8px 12px", marginBottom: 8, borderRadius: "var(--radius-xs-plus)", background: "var(--success-color)", color: "var(--btn-primary-fg)", fontSize: "var(--font-size-base)" }}>
               {spawnSuccess}
             </div>
           )}

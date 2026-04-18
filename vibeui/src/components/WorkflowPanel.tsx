@@ -241,7 +241,7 @@ export function WorkflowPanel({ workspacePath, provider = "ollama" }: WorkflowPa
  {/* Workflow List */}
  {view === "list" && (
  <div style={{ padding: "8px" }}>
- {loading && <div style={{ color: "var(--text-secondary)", padding: "20px", textAlign: "center" }}>Loading...</div>}
+ {loading && <div className="panel-loading" style={{ color: "var(--text-secondary)", padding: "20px", textAlign: "center" }}>Loading...</div>}
  {!loading && workflows.length === 0 && (
  <div style={{ color: "var(--text-secondary)", padding: "24px", textAlign: "center" }}>
  <div style={{ fontSize: "32px", marginBottom: "8px" }}></div>
@@ -250,11 +250,11 @@ export function WorkflowPanel({ workspacePath, provider = "ollama" }: WorkflowPa
  </div>
  )}
  {workflows.map((w) => (
- <div
+ <div role="button" tabIndex={0}
  key={w.name}
  onClick={() => openWorkflow(w.name)}
  style={{
- padding: "10px 12px", marginBottom: "6px", borderRadius: "var(--radius-sm)",
+ padding: "12px 12px", marginBottom: "8px", borderRadius: "var(--radius-sm)",
  background: "var(--bg-secondary)", border: "1px solid var(--border-color)",
  cursor: "pointer", transition: "background 0.15s",
  }}
@@ -315,7 +315,7 @@ export function WorkflowPanel({ workspacePath, provider = "ollama" }: WorkflowPa
  const border = isActive ? "2px solid var(--accent-color)" : `2px solid ${s.status === "not-started" ? "var(--border-color)" : bg}`;
  return (
  <div key={i} style={{ display: "flex", alignItems: "center" }}>
- <div
+ <div role="button" tabIndex={0}
  onClick={() => setActiveStage(i)}
  style={{
  width: "32px", height: "32px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
@@ -344,7 +344,7 @@ export function WorkflowPanel({ workspacePath, provider = "ollama" }: WorkflowPa
  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
  <span style={{ fontSize: "16px" }}>{STAGE_ICONS[activeStage]}</span>
  <span style={{ fontWeight: 600, fontSize: "var(--font-size-md)" }}>{stage.label}</span>
- <span style={{ padding: "2px 6px", borderRadius: "var(--radius-md)", fontSize: "var(--font-size-xs)", background: (STATUS_COLORS[stage.status] || "var(--text-secondary)") + "33", color: STATUS_COLORS[stage.status] || "var(--text-secondary)" }}>
+ <span style={{ padding: "2px 8px", borderRadius: "var(--radius-md)", fontSize: "var(--font-size-xs)", background: (STATUS_COLORS[stage.status] || "var(--text-secondary)") + "33", color: STATUS_COLORS[stage.status] || "var(--text-secondary)" }}>
  {stage.status}
  </span>
  {stageTotal > 0 && (
@@ -356,7 +356,7 @@ export function WorkflowPanel({ workspacePath, provider = "ollama" }: WorkflowPa
 
  {/* Stage progress bar */}
  {stageTotal > 0 && (
- <div style={{ height: "3px", background: "var(--border-color)", borderRadius: "2px", marginBottom: "10px" }}>
+ <div style={{ height: "3px", background: "var(--border-color)", borderRadius: "2px", marginBottom: "12px" }}>
  <div style={{ width: `${stageTotal > 0 ? (stageChecked / stageTotal) * 100 : 0}%`, height: "100%", background: stageChecked === stageTotal ? "var(--success-color)" : "var(--warning-color)", borderRadius: "2px", transition: "width 0.3s" }} />
  </div>
  )}
@@ -368,12 +368,12 @@ export function WorkflowPanel({ workspacePath, provider = "ollama" }: WorkflowPa
  </div>
  )}
  {stage.checklist.map((item) => (
- <div
+ <div role="button" tabIndex={0}
  key={item.id}
  onClick={() => toggleItem(activeStage, item.id)}
  style={{
- display: "flex", alignItems: "flex-start", gap: "10px",
- padding: "6px 8px", marginBottom: "3px", borderRadius: "var(--radius-xs-plus)",
+ display: "flex", alignItems: "flex-start", gap: "12px",
+ padding: "8px 8px", marginBottom: "3px", borderRadius: "var(--radius-xs-plus)",
  background: item.done ? "rgba(76,175,80,0.08)" : "transparent",
  cursor: "pointer", opacity: item.done ? 0.75 : 1,
  }}
@@ -391,12 +391,12 @@ export function WorkflowPanel({ workspacePath, provider = "ollama" }: WorkflowPa
  ))}
 
  {/* Action buttons */}
- <div style={{ display: "flex", gap: "8px", marginTop: "10px" }}>
+ <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
  <button
  onClick={() => generateChecklist(activeStage)}
  disabled={generating}
  style={{
- padding: "5px 12px", fontSize: "var(--font-size-sm)",
+ padding: "4px 12px", fontSize: "var(--font-size-sm)",
  background: "var(--accent-color)", color: "var(--btn-primary-fg)",
  border: "none", borderRadius: "var(--radius-xs-plus)", cursor: "pointer",
  opacity: generating ? 0.6 : 1,
@@ -405,10 +405,10 @@ export function WorkflowPanel({ workspacePath, provider = "ollama" }: WorkflowPa
  {generating ? "Generating..." : "Generate Checklist"}
  </button>
  {canAdvance && activeStage === selected.current_stage && (
- <button
+ <button className="panel-btn"
  onClick={advanceStage}
  style={{
- padding: "5px 12px", fontSize: "var(--font-size-sm)",
+ padding: "4px 12px", fontSize: "var(--font-size-sm)",
  background: "var(--success-color)", color: "var(--btn-primary-fg)",
  border: "none", borderRadius: "var(--radius-xs-plus)", cursor: "pointer",
  }}
@@ -422,7 +422,7 @@ export function WorkflowPanel({ workspacePath, provider = "ollama" }: WorkflowPa
 
  {/* Stage body / notes */}
  {stage?.body && (
- <details style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: "10px 12px" }}>
+ <details style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: "12px 12px" }}>
  <summary style={{ fontSize: "var(--font-size-base)", fontWeight: 600, cursor: "pointer", color: "var(--text-secondary)" }}>
  Notes
  </summary>

@@ -55,7 +55,7 @@ export function NotebookPanel({ workspacePath, provider }: NotebookPanelProps) {
 
  if (!workspacePath) {
  return (
- <div style={{ padding: 16, opacity: 0.6, textAlign: "center" }}>
+ <div className="panel-container" style={{ padding: 16, opacity: 0.6, textAlign: "center" }}>
  <p>Open a workspace folder to use the notebook.</p>
  </div>
  );
@@ -199,7 +199,7 @@ export function NotebookPanel({ workspacePath, provider }: NotebookPanelProps) {
  fontSize: "var(--font-size-sm)",
  }}>
  <span style={{
- padding: "1px 6px", borderRadius: "var(--radius-xs-plus)", fontWeight: 600, fontSize: "var(--font-size-xs)",
+ padding: "1px 8px", borderRadius: "var(--radius-xs-plus)", fontWeight: 600, fontSize: "var(--font-size-xs)",
  background: cell.type === "code" ? (langColor[cell.language] || "var(--text-secondary)") : "var(--accent-purple)",
  color: "var(--bg-tertiary)",
  }}>
@@ -269,7 +269,7 @@ export function NotebookPanel({ workspacePath, provider }: NotebookPanelProps) {
  }
  }}
  style={{
- width: "100%", minHeight: 60, padding: "8px 10px",
+ width: "100%", minHeight: 60, padding: "8px 12px",
  fontFamily: "var(--font-mono)", fontSize: "var(--font-size-base)", lineHeight: 1.5,
  background: "var(--bg-primary)", color: "var(--text-primary)",
  border: "none", outline: "none", resize: "vertical",
@@ -283,7 +283,7 @@ export function NotebookPanel({ workspacePath, provider }: NotebookPanelProps) {
  onBlur={() => updateCell(cell.id, { editing: false })}
  placeholder="Enter markdown..."
  style={{
- width: "100%", minHeight: 40, padding: "8px 10px",
+ width: "100%", minHeight: 40, padding: "8px 12px",
  fontFamily: "inherit", fontSize: "var(--font-size-base)", lineHeight: 1.5,
  background: "var(--bg-primary)", color: "var(--text-primary)",
  border: "none", outline: "none", resize: "vertical",
@@ -291,10 +291,10 @@ export function NotebookPanel({ workspacePath, provider }: NotebookPanelProps) {
  }}
  />
  ) : (
- <div
+ <div role="button" tabIndex={0}
  onClick={() => updateCell(cell.id, { editing: true })}
  style={{
- padding: "8px 10px", fontSize: "var(--font-size-base)", lineHeight: 1.6,
+ padding: "8px 12px", fontSize: "var(--font-size-base)", lineHeight: 1.6,
  cursor: "text", minHeight: 30,
  color: "var(--text-primary)",
  whiteSpace: "pre-wrap",
@@ -308,7 +308,7 @@ export function NotebookPanel({ workspacePath, provider }: NotebookPanelProps) {
  {cell.output && (
  <div style={{
  borderTop: "1px solid var(--border-color)",
- padding: "6px 10px", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)",
+ padding: "8px 12px", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)",
  maxHeight: 200, overflowY: "auto",
  background: cell.output.exit_code !== 0 ? "color-mix(in srgb, var(--accent-rose) 5%, transparent)" : "rgba(166,227,161,0.05)",
  }}>

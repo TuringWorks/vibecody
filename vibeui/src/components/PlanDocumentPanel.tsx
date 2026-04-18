@@ -151,7 +151,7 @@ export default function PlanDocumentPanel() {
   return (
     <div className="panel-container">
       {error && (
-        <div className="panel-error" style={{ cursor: "pointer" }} onClick={() => setError(null)}>
+        <div role="button" tabIndex={0} className="panel-error" style={{ cursor: "pointer" }} onClick={() => setError(null)}>
           {error} (click to dismiss)
         </div>
       )}
@@ -170,19 +170,19 @@ export default function PlanDocumentPanel() {
         {tab === "plans" && (
           <>
             <button onClick={() => setShowNewPlan(!showNewPlan)}
-              style={{ alignSelf: "flex-start", padding: "5px 12px", fontSize: "var(--font-size-sm)", background: "var(--accent-bg)", border: "1px solid var(--accent-primary)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-info)", cursor: "pointer", fontWeight: 600 }}>
+              style={{ alignSelf: "flex-start", padding: "4px 12px", fontSize: "var(--font-size-sm)", background: "var(--accent-bg)", border: "1px solid var(--accent-primary)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-info)", cursor: "pointer", fontWeight: 600 }}>
               {showNewPlan ? "Cancel" : "+ New Plan"}
             </button>
             {showNewPlan && (
               <div style={{ padding: 10, background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", display: "flex", flexDirection: "column", gap: 6 }}>
                 <input value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="Plan title"
-                  style={{ padding: "5px 8px", fontSize: "var(--font-size-sm)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)" }} />
+                  style={{ padding: "4px 8px", fontSize: "var(--font-size-sm)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)" }} />
                 <input value={newAuthor} onChange={e => setNewAuthor(e.target.value)} placeholder="Author"
-                  style={{ padding: "5px 8px", fontSize: "var(--font-size-sm)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)" }} />
+                  style={{ padding: "4px 8px", fontSize: "var(--font-size-sm)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)" }} />
                 <textarea value={newMarkdown} onChange={e => setNewMarkdown(e.target.value)} placeholder="Markdown content (optional)" rows={4}
-                  style={{ padding: "5px 8px", fontSize: "var(--font-size-sm)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", fontFamily: "var(--font-mono)", resize: "vertical" }} />
-                <button onClick={createPlan}
-                  style={{ alignSelf: "flex-start", padding: "5px 12px", fontSize: "var(--font-size-sm)", background: "var(--text-success)", border: "none", borderRadius: "var(--radius-xs-plus)", color: "var(--bg-primary)", cursor: "pointer", fontWeight: 600 }}>
+                  style={{ padding: "4px 8px", fontSize: "var(--font-size-sm)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", fontFamily: "var(--font-mono)", resize: "vertical" }} />
+                <button className="panel-btn" onClick={createPlan}
+                  style={{ alignSelf: "flex-start", padding: "4px 12px", fontSize: "var(--font-size-sm)", background: "var(--text-success)", border: "none", borderRadius: "var(--radius-xs-plus)", color: "var(--bg-primary)", cursor: "pointer", fontWeight: 600 }}>
                   Create Plan
                 </button>
               </div>
@@ -195,7 +195,7 @@ export default function PlanDocumentPanel() {
                 style={{ padding: 10, background: selectedPlan === p.id ? "var(--accent-bg)" : "var(--bg-secondary)", borderRadius: "var(--radius-sm)", border: `1px solid ${selectedPlan === p.id ? "var(--accent-primary)" : "var(--border-color)"}`, cursor: "pointer" }}>
                 <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}>
                   <span style={{ fontSize: "var(--font-size-base)", fontWeight: 600, color: "var(--text-primary)" }}>{p.title}</span>
-                  <span style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px", borderRadius: "var(--radius-md)", background: `${statusColors[p.status]}22`, color: statusColors[p.status], fontWeight: 600 }}>{p.status}</span>
+                  <span style={{ fontSize: "var(--font-size-xs)", padding: "1px 8px", borderRadius: "var(--radius-md)", background: `${statusColors[p.status]}22`, color: statusColors[p.status], fontWeight: 600 }}>{p.status}</span>
                 </div>
                 <div style={{ display: "flex", gap: 12, fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>
                   <span>v{p.version}</span>
@@ -216,7 +216,7 @@ export default function PlanDocumentPanel() {
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <span style={{ fontSize: "var(--font-size-md)", fontWeight: 600, color: "var(--text-primary)" }}>{plan.title}</span>
-              <span style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px", borderRadius: "var(--radius-md)", background: `${statusColors[plan.status]}22`, color: statusColors[plan.status] }}>{plan.status}</span>
+              <span style={{ fontSize: "var(--font-size-xs)", padding: "1px 8px", borderRadius: "var(--radius-md)", background: `${statusColors[plan.status]}22`, color: statusColors[plan.status] }}>{plan.status}</span>
               <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginLeft: "auto" }}>v{plan.version} by {plan.author}</span>
             </div>
             <div style={{ display: "flex", gap: 4 }}>
@@ -235,7 +235,7 @@ export default function PlanDocumentPanel() {
             </pre>
             {planComments.length > 0 && (
               <button onClick={() => setTab("comments")}
-                style={{ alignSelf: "flex-start", padding: "5px 12px", fontSize: "var(--font-size-sm)", background: "var(--bg-secondary)", border: "1px solid var(--text-warning)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-warning)", cursor: "pointer" }}>
+                style={{ alignSelf: "flex-start", padding: "4px 12px", fontSize: "var(--font-size-sm)", background: "var(--bg-secondary)", border: "1px solid var(--text-warning)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-warning)", cursor: "pointer" }}>
                 View {planComments.length} comments
               </button>
             )}
@@ -246,8 +246,8 @@ export default function PlanDocumentPanel() {
               <input value={newCommentText} onChange={e => setNewCommentText(e.target.value)} placeholder="Add a comment..."
                 onKeyDown={e => { if (e.key === "Enter") addComment(); }}
                 style={{ flex: 1, padding: "4px 8px", fontSize: "var(--font-size-xs)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)" }} />
-              <button onClick={addComment}
-                style={{ padding: "4px 10px", fontSize: "var(--font-size-xs)", borderRadius: "var(--radius-xs-plus)", border: "none", background: "var(--accent-primary)", color: "var(--bg-primary)", cursor: "pointer", fontWeight: 600 }}>
+              <button className="panel-btn" onClick={addComment}
+                style={{ padding: "4px 12px", fontSize: "var(--font-size-xs)", borderRadius: "var(--radius-xs-plus)", border: "none", background: "var(--accent-primary)", color: "var(--bg-primary)", cursor: "pointer", fontWeight: 600 }}>
                 Post
               </button>
             </div>

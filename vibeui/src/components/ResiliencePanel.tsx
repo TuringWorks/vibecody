@@ -100,8 +100,8 @@ function CategoryBadge({ category }: { category: string }) {
     ServerError: "var(--accent-rose)",
     AuthError: "var(--error-color)",
     NetworkError: "var(--info-color)",
-    InvalidResponse: "#795548",
-    StreamInterrupted: "#607d8b",
+    InvalidResponse: "var(--text-muted)",
+    StreamInterrupted: "var(--text-secondary)",
     Unknown: "var(--text-secondary)",
   };
   return <span style={badge(colors[category] || "var(--text-secondary)")}>{category}</span>;

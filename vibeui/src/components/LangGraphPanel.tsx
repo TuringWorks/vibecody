@@ -220,7 +220,7 @@ const LangGraphPanel: React.FC = () => {
     error ? <div className="panel-error">{error}</div> : null;
 
   const renderLoading = () => (
-    <div style={loadingStyle}>Loading...</div>
+    <div className="panel-loading" style={loadingStyle}>Loading...</div>
   );
 
   const renderPipelines = () => (
@@ -236,7 +236,7 @@ const LangGraphPanel: React.FC = () => {
         <div style={loadingStyle}>No pipelines yet. Create one to get started.</div>
       ) : (
         pipelines.map((p) => (
-          <div
+          <div role="button" tabIndex={0}
             key={p.id}
             className="panel-card"
             style={{
@@ -289,7 +289,7 @@ const LangGraphPanel: React.FC = () => {
                 </div>
                 {n.isEntry && (
                   <span style={{
-                    fontSize: "var(--font-size-xs)", padding: "2px 6px", borderRadius: "var(--radius-xs-plus)",
+                    fontSize: "var(--font-size-xs)", padding: "2px 8px", borderRadius: "var(--radius-xs-plus)",
                     background: "var(--accent-blue)", color: "var(--btn-primary-fg, #fff)", fontWeight: 600,
                   }}>
                     ENTRY

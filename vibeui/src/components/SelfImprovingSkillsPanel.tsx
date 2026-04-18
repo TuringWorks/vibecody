@@ -95,7 +95,7 @@ function StatusBar({ status }: { status: SisStatus }) {
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
       {cards.map(c => (
-        <div key={c.label} className="panel-card" style={{ padding: "10px 12px", textAlign: "center" }}>
+        <div key={c.label} className="panel-card" style={{ padding: "12px 12px", textAlign: "center" }}>
           <div style={{ fontSize: 20, fontWeight: 700, color: c.color }}>{c.value}</div>
           <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 2 }}>{c.label}</div>
         </div>
@@ -118,29 +118,29 @@ function MetricsTable({ metrics }: { metrics: SkillMetrics[] }) {
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
         <thead>
           <tr style={{ borderBottom: "1px solid var(--border-color)", color: "var(--text-secondary)", textAlign: "left" }}>
-            <th style={{ padding: "6px 8px" }}>Skill</th>
-            <th style={{ padding: "6px 8px" }}>Health</th>
-            <th style={{ padding: "6px 8px", textAlign: "right" }}>Activations</th>
-            <th style={{ padding: "6px 8px", textAlign: "right" }}>Success</th>
-            <th style={{ padding: "6px 8px", textAlign: "right" }}>Rejected</th>
-            <th style={{ padding: "6px 8px", textAlign: "right" }}>Corrected</th>
+            <th style={{ padding: "8px 8px" }}>Skill</th>
+            <th style={{ padding: "8px 8px" }}>Health</th>
+            <th style={{ padding: "8px 8px", textAlign: "right" }}>Activations</th>
+            <th style={{ padding: "8px 8px", textAlign: "right" }}>Success</th>
+            <th style={{ padding: "8px 8px", textAlign: "right" }}>Rejected</th>
+            <th style={{ padding: "8px 8px", textAlign: "right" }}>Corrected</th>
           </tr>
         </thead>
         <tbody>
           {sorted.map(m => (
             <tr key={m.skill_name} style={{ borderBottom: "1px solid var(--border-color)" }}>
-              <td style={{ padding: "7px 8px", fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{m.skill_name}</td>
-              <td style={{ padding: "7px 8px" }}>
-                <span style={{ fontSize: "var(--font-size-sm)", padding: "2px 6px", borderRadius: 3,
+              <td style={{ padding: "8px 8px", fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{m.skill_name}</td>
+              <td style={{ padding: "8px 8px" }}>
+                <span style={{ fontSize: "var(--font-size-sm)", padding: "2px 8px", borderRadius: 3,
                   background: `color-mix(in srgb, ${healthColor(m.health)} 18%, transparent)`,
                   color: healthColor(m.health), fontWeight: 600 }}>
                   {m.health}
                 </span>
               </td>
-              <td style={{ padding: "7px 8px", textAlign: "right", color: "var(--text-secondary)" }}>{m.total_activations}</td>
-              <td style={{ padding: "7px 8px", textAlign: "right", color: "var(--success-color, #34d399)", fontWeight: 600 }}>{pct(m.success_rate)}</td>
-              <td style={{ padding: "7px 8px", textAlign: "right", color: "var(--error-color, #ef4444)" }}>{m.rejected}</td>
-              <td style={{ padding: "7px 8px", textAlign: "right", color: "var(--warning-color, #f5c542)" }}>{m.corrected}</td>
+              <td style={{ padding: "8px 8px", textAlign: "right", color: "var(--text-secondary)" }}>{m.total_activations}</td>
+              <td style={{ padding: "8px 8px", textAlign: "right", color: "var(--success-color, #34d399)", fontWeight: 600 }}>{pct(m.success_rate)}</td>
+              <td style={{ padding: "8px 8px", textAlign: "right", color: "var(--error-color, #ef4444)" }}>{m.rejected}</td>
+              <td style={{ padding: "8px 8px", textAlign: "right", color: "var(--warning-color, #f5c542)" }}>{m.corrected}</td>
             </tr>
           ))}
         </tbody>
@@ -162,7 +162,7 @@ function EvolutionCard({
   return (
     <div className="panel-card" style={{ marginBottom: 8 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span style={{ fontSize: "var(--font-size-sm)", padding: "2px 6px", borderRadius: 3,
+        <span style={{ fontSize: "var(--font-size-sm)", padding: "2px 8px", borderRadius: 3,
           background: `color-mix(in srgb, ${kindColor(ev.kind)} 18%, transparent)`,
           color: kindColor(ev.kind), fontWeight: 600 }}>
           {kindLabel(ev.kind)}
@@ -175,7 +175,7 @@ function EvolutionCard({
           )}
         </span>
       </div>
-      <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", margin: "6px 0" }}>{ev.rationale}</div>
+      <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", margin: "8px 0" }}>{ev.rationale}</div>
       {ev.proposed_content && (
         <button
           onClick={() => setExpanded(v => !v)}
@@ -192,10 +192,10 @@ function EvolutionCard({
         </pre>
       )}
       <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-        <button className="panel-btn panel-btn-primary" style={{ fontSize: "var(--font-size-sm)", padding: "3px 10px" }} onClick={() => onApply(ev.id)}>
+        <button className="panel-btn panel-btn-primary" style={{ fontSize: "var(--font-size-sm)", padding: "3px 12px" }} onClick={() => onApply(ev.id)}>
           Apply
         </button>
-        <button className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-sm)", padding: "3px 10px" }} onClick={() => onDismiss(ev.id)}>
+        <button className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-sm)", padding: "3px 12px" }} onClick={() => onDismiss(ev.id)}>
           Dismiss
         </button>
       </div>
@@ -317,7 +317,7 @@ export function SelfImprovingSkillsPanel() {
       </div>
 
       {feedback && (
-        <div style={{ padding: "6px 14px", fontSize: "var(--font-size-base)", color: "var(--success-color, #34d399)",
+        <div style={{ padding: "8px 16px", fontSize: "var(--font-size-base)", color: "var(--success-color, #34d399)",
           borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
           {feedback}
           <button onClick={() => setFeedback("")} style={{ marginLeft: 8, fontSize: "var(--font-size-sm)", background: "none",

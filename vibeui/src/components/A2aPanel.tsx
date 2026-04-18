@@ -318,7 +318,7 @@ export function A2aPanel() {
         {error && (
           <div className="panel-error" role="alert" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span>{error}</span>
-            <button
+            <button className="panel-btn"
               style={{ marginLeft: 8, background: "transparent", border: "none", color: "inherit", cursor: "pointer", fontWeight: 600 }}
               onClick={() => setError(null)}
             >
@@ -571,7 +571,7 @@ export function A2aPanel() {
                             display: "flex",
                             alignItems: "center",
                             gap: 4,
-                            padding: "4px 10px",
+                            padding: "4px 12px",
                             borderRadius: "var(--border-radius, 4px)",
                             background: checked ? (capBadgeColors[cap] || "var(--accent)") : "var(--bg-tertiary)",
                             color: checked ? "var(--btn-primary-fg, #fff)" : "var(--text-secondary)",

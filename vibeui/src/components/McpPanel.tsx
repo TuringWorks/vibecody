@@ -357,7 +357,7 @@ export function McpPanel() {
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ fontSize: "var(--font-size-md)", fontWeight: 600, flex: 1 }}>
                     {srv.name}
-                    {tokenStatus[srv.name] && <span style={{ marginLeft: 6, fontSize: "var(--font-size-xs)", color: "var(--success-color)", background: "color-mix(in srgb, var(--accent-green) 15%, transparent)", padding: "1px 5px", borderRadius: 3 }}>OAuth</span>}
+                    {tokenStatus[srv.name] && <span style={{ marginLeft: 6, fontSize: "var(--font-size-xs)", color: "var(--success-color)", background: "color-mix(in srgb, var(--accent-green) 15%, transparent)", padding: "1px 4px", borderRadius: 3 }}>OAuth</span>}
                   </span>
                   <button onClick={() => testServer(idx)} disabled={testing === idx} className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-sm)", padding: "2px 8px" }}>{testing === idx ? "..." : "Test"}</button>
                   <button onClick={() => startOAuth(srv.name)} className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-sm)", padding: "2px 8px" }}>OAuth</button>
@@ -426,7 +426,7 @@ export function McpPanel() {
               </div>
 
               {/* Built-in Agent Tools */}
-              <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, margin: "12px 0 6px", color: "var(--text-secondary)" }}>BUILT-IN AGENT TOOLS</div>
+              <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, margin: "12px 0 8px", color: "var(--text-secondary)" }}>BUILT-IN AGENT TOOLS</div>
               {BUILTIN_TOOLS.map(t => (
                 <div key={t.name} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderLeft: "3px solid var(--success-color)" }}>
                   <div style={{ flex: 1 }}>
@@ -481,7 +481,7 @@ export function McpPanel() {
 
                 return (
                   <>
-                    <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, margin: "16px 0 6px", color: "var(--text-secondary)", display: "flex", justifyContent: "space-between" }}>
+                    <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, margin: "16px 0 8px", color: "var(--text-secondary)", display: "flex", justifyContent: "space-between" }}>
                       <span>MCP SERVER TOOLS</span>
                       {serverToolsLoading && <span style={{ fontWeight: 400, fontSize: "var(--font-size-sm)" }}>Discovering tools from {servers.length} server{servers.length !== 1 ? "s" : ""}...</span>}
                       {!serverToolsLoading && <span style={{ fontWeight: 400, fontSize: "var(--font-size-sm)" }}>{totalServerTools} tool{totalServerTools !== 1 ? "s" : ""} across {serverNames.length} server{serverNames.length !== 1 ? "s" : ""}</span>}
@@ -580,7 +580,7 @@ export function McpPanel() {
 
                 return (
                   <>
-                    <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, margin: "16px 0 6px", color: "var(--text-secondary)" }}>
+                    <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, margin: "16px 0 8px", color: "var(--text-secondary)" }}>
                       INSTALLED PLUGINS ({installed.length}) — click to see tools
                     </div>
                     {installed.map(p => {
@@ -588,7 +588,7 @@ export function McpPanel() {
                       const tools = pluginTools[p.id] ?? [];
                       return (
                         <div key={`plugin-${p.id}`}>
-                          <div
+                          <div role="button" tabIndex={0}
                             onClick={() => togglePlugin(p.id)}
                             className="panel-card"
                             style={{
@@ -624,7 +624,7 @@ export function McpPanel() {
                               ) : (
                                 tools.map(t => (
                                   <div key={t.name} style={{
-                                    padding: "6px 16px 6px 28px",
+                                    padding: "8px 16px 8px 28px",
                                     display: "flex", justifyContent: "space-between", alignItems: "center",
                                     borderBottom: "1px solid var(--border-color)",
                                     fontSize: "var(--font-size-base)",
@@ -637,7 +637,7 @@ export function McpPanel() {
                                   </div>
                                 ))
                               )}
-                              <div style={{ padding: "6px 16px", fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>
+                              <div style={{ padding: "8px 16px", fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>
                                 Config: <span style={{ fontFamily: "var(--font-mono)" }}>~/.vibecli/mcp/{p.id}/config.json</span>
                               </div>
                             </div>
@@ -744,11 +744,11 @@ export function McpPanel() {
                       <div style={{ flex: 1 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                           <span style={{ fontWeight: 600, fontSize: "var(--font-size-lg)" }}>{p.name}</span>
-                          <span style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px", borderRadius: "var(--radius-sm-alt)", background: "var(--bg-tertiary)", color: "var(--text-secondary)" }}>
+                          <span style={{ fontSize: "var(--font-size-xs)", padding: "1px 8px", borderRadius: "var(--radius-sm-alt)", background: "var(--bg-tertiary)", color: "var(--text-secondary)" }}>
                             v{p.version}
                           </span>
                           <span style={{
-                            fontSize: "var(--font-size-xs)", padding: "1px 6px", borderRadius: "var(--radius-sm-alt)",
+                            fontSize: "var(--font-size-xs)", padding: "1px 8px", borderRadius: "var(--radius-sm-alt)",
                             background: p.updatable ? "var(--warning-color)" : "var(--success-color)",
                             color: "var(--btn-primary-fg)",
                           }}>
@@ -874,7 +874,7 @@ export function McpPanel() {
             </>) : (
               <label style={{ fontSize: "var(--font-size-base)", display: "flex", flexDirection: "column", gap: 3 }}>Authorization Code<input autoFocus type="text" value={oauthForm.authCode} onChange={e => setOauthForm(f => f && { ...f, authCode: e.target.value })} style={inputStyle} /></label>
             )}
-            {oauthForm.msg && <div style={{ fontSize: "var(--font-size-sm)", padding: "6px 8px", borderRadius: "var(--radius-xs-plus)", background: oauthForm.msg.startsWith("Error") ? "color-mix(in srgb, var(--accent-rose) 15%, transparent)" : "color-mix(in srgb, var(--accent-green) 15%, transparent)", color: oauthForm.msg.startsWith("Error") ? "var(--error-color)" : "var(--success-color)" }}>{oauthForm.msg}</div>}
+            {oauthForm.msg && <div style={{ fontSize: "var(--font-size-sm)", padding: "8px 8px", borderRadius: "var(--radius-xs-plus)", background: oauthForm.msg.startsWith("Error") ? "color-mix(in srgb, var(--accent-rose) 15%, transparent)" : "color-mix(in srgb, var(--accent-green) 15%, transparent)", color: oauthForm.msg.startsWith("Error") ? "var(--error-color)" : "var(--success-color)" }}>{oauthForm.msg}</div>}
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
               <button onClick={() => setOauthForm(null)} className="panel-btn panel-btn-secondary">Cancel</button>
               {oauthForm.step === "config" ? (

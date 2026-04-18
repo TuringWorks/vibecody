@@ -220,7 +220,7 @@ const DataAnalysisPanel: React.FC = () => {
       {error && (
         <div className="panel-error" style={{ padding: "8px 16px", fontSize: "var(--font-size-base)" }}>
           {error}
-          <button style={{ marginLeft: 12, background: "transparent", border: "none", color: "inherit", cursor: "pointer", fontSize: "var(--font-size-base)" }} onClick={() => setError(null)}>Dismiss</button>
+          <button className="panel-btn" style={{ marginLeft: 12, background: "transparent", border: "none", color: "inherit", cursor: "pointer", fontSize: "var(--font-size-base)" }} onClick={() => setError(null)}>Dismiss</button>
         </div>
       )}
       <div className="panel-body" role="tabpanel" aria-label={tab}>

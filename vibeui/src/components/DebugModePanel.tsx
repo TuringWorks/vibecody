@@ -208,7 +208,7 @@ const DebugModePanel: React.FC = () => {
           )}
 
           {sessions.map((s) => (
-            <div
+            <div role="button" tabIndex={0}
               key={s.id}
               className="panel-card"
               style={{
@@ -307,16 +307,16 @@ const DebugModePanel: React.FC = () => {
 
               {analysis.map((a, i) => (
                 <div key={i} className="panel-card" style={{ marginBottom: "8px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
                     <strong>Hypothesis {i + 1}</strong>
                     <span style={{ fontSize: "var(--font-size-base)", opacity: 0.7 }}>Confidence: {(a.confidence * 100).toFixed(0)}%</span>
                   </div>
                   <p style={{ margin: "4px 0" }}>{a.hypothesis}</p>
-                  <div style={{ marginTop: "8px", padding: "6px 8px", borderRadius: "3px", backgroundColor: "var(--bg-secondary)" }}>
+                  <div style={{ marginTop: "8px", padding: "8px 8px", borderRadius: "3px", backgroundColor: "var(--bg-secondary)" }}>
                     <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, marginBottom: "2px" }}>Root Cause</div>
                     <div style={{ fontSize: "var(--font-size-base)" }}>{a.rootCause}</div>
                   </div>
-                  <div style={{ marginTop: "6px", padding: "6px 8px", borderRadius: "3px", backgroundColor: "var(--bg-secondary)" }}>
+                  <div style={{ marginTop: "8px", padding: "8px 8px", borderRadius: "3px", backgroundColor: "var(--bg-secondary)" }}>
                     <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, marginBottom: "2px" }}>Auto-Fix Suggestion</div>
                     <div style={{ fontSize: "var(--font-size-base)" }}>{a.autoFix}</div>
                   </div>

@@ -364,7 +364,7 @@ export function ModelWizardPanel() {
           </div>
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
             <input value={configName} onChange={e => setConfigName(e.target.value)} placeholder="Config name..." style={{ padding: "4px 8px", fontSize: "var(--font-size-sm)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", background: "var(--bg-tertiary)", color: "var(--text-primary)", width: 120 }} />
-            <button onClick={saveConfig} style={{ padding: "4px 10px", fontSize: "var(--font-size-sm)", fontWeight: 600, borderRadius: "var(--radius-xs-plus)", border: "none", background: "var(--accent-color)", color: "var(--btn-primary-fg, #fff)", cursor: "pointer" }}>Save</button>
+            <button className="panel-btn" onClick={saveConfig} style={{ padding: "4px 12px", fontSize: "var(--font-size-sm)", fontWeight: 600, borderRadius: "var(--radius-xs-plus)", border: "none", background: "var(--accent-color)", color: "var(--btn-primary-fg, #fff)", cursor: "pointer" }}>Save</button>
             {savedConfigs.length > 0 && (
               <select onChange={e => { const idx = parseInt(e.target.value); if (!isNaN(idx)) loadConfig(savedConfigs[idx]); }} defaultValue="" style={{ padding: "4px 8px", fontSize: "var(--font-size-sm)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", background: "var(--bg-tertiary)", color: "var(--text-primary)" }}>
                 <option value="" disabled>Load saved...</option>
@@ -376,10 +376,10 @@ export function ModelWizardPanel() {
       </div>
 
       {/* Step indicator */}
-      <div style={{ display: "flex", padding: "10px 16px", gap: 4, borderBottom: "1px solid var(--border-color)", flexShrink: 0, overflowX: "auto" }}>
+      <div style={{ display: "flex", padding: "12px 16px", gap: 4, borderBottom: "1px solid var(--border-color)", flexShrink: 0, overflowX: "auto" }}>
         {STEPS.map(s => (
           <button key={s.id} onClick={() => goTo(s.id)} style={{
-            padding: "4px 10px", borderRadius: 12, border: "none", fontSize: "var(--font-size-sm)", cursor: "pointer",
+            padding: "4px 12px", borderRadius: 12, border: "none", fontSize: "var(--font-size-sm)", cursor: "pointer",
             background: step === s.id ? "var(--accent-primary, #7c6aef)" : s.id < step ? "var(--accent-green)" : "var(--bg-tertiary)",
             color: step === s.id || s.id < step ? "var(--btn-primary-fg, #fff)" : "var(--text-secondary)",
             fontWeight: step === s.id ? 600 : 400, whiteSpace: "nowrap" as const,
@@ -403,7 +403,7 @@ export function ModelWizardPanel() {
                 { v: "ollama", l: "Ollama Library" },
                 { v: "local", l: "Local Checkpoint" },
               ].map(o => (
-                <button key={o.v} style={optionBtn(config.modelSource === o.v)} onClick={() => set("modelSource", o.v)}>{o.l}</button>
+                <button className="panel-btn" key={o.v} style={optionBtn(config.modelSource === o.v)} onClick={() => set("modelSource", o.v)}>{o.l}</button>
               ))}
             </div>
 
@@ -460,7 +460,7 @@ export function ModelWizardPanel() {
                 { v: "documents", l: "Documents (PDF/MD)", d: "Process with MinerU or built-in" },
                 { v: "existing", l: "Existing JSONL file", d: "Pre-prepared dataset" },
               ].map(o => (
-                <button key={o.v} style={{ ...optionBtn(config.dataSource === o.v), textAlign: "left" as const }} onClick={() => set("dataSource", o.v)}>
+                <button className="panel-btn" key={o.v} style={{ ...optionBtn(config.dataSource === o.v), textAlign: "left" as const }} onClick={() => set("dataSource", o.v)}>
                   <div style={{ fontWeight: 600, fontSize: "var(--font-size-base)" }}>{o.l}</div>
                   <div style={{ fontSize: "var(--font-size-xs)", opacity: 0.7, marginTop: 2 }}>{o.d}</div>
                 </button>
@@ -509,7 +509,7 @@ export function ModelWizardPanel() {
                 { v: "peft", l: "PEFT", d: "LoRA, AdaLoRA, IA3" },
                 { v: "deepspeed", l: "DeepSpeed", d: "Multi-GPU distributed" },
               ].map(o => (
-                <button key={o.v} style={{ ...optionBtn(config.library === o.v), textAlign: "left" as const }} onClick={() => set("library", o.v)}>
+                <button className="panel-btn" key={o.v} style={{ ...optionBtn(config.library === o.v), textAlign: "left" as const }} onClick={() => set("library", o.v)}>
                   <div style={{ fontWeight: 600, fontSize: "var(--font-size-base)" }}>{o.l}</div>
                   <div style={{ fontSize: "var(--font-size-xs)", opacity: 0.7, marginTop: 2 }}>{o.d}</div>
                 </button>
@@ -576,7 +576,7 @@ export function ModelWizardPanel() {
                 { v: "local", l: "Local Machine", d: "Your GPU(s) — no upload needed", cost: "Free" },
                 { v: "runpod", l: "RunPod / Lambda", d: "A100 80GB, H100, on demand", cost: "$1-4/hr" },
               ].map(o => (
-                <button key={o.v} style={{ ...optionBtn(config.environment === o.v), textAlign: "left" as const }} onClick={() => set("environment", o.v)}>
+                <button className="panel-btn" key={o.v} style={{ ...optionBtn(config.environment === o.v), textAlign: "left" as const }} onClick={() => set("environment", o.v)}>
                   <div style={{ display: "flex", justifyContent: "space-between" }}>
                     <span style={{ fontWeight: 600, fontSize: "var(--font-size-base)" }}>{o.l}</span>
                     <span style={{ fontSize: "var(--font-size-xs)", color: o.cost === "Free" ? "var(--success-color)" : "var(--text-secondary)" }}>{o.cost}</span>
@@ -614,7 +614,7 @@ export function ModelWizardPanel() {
                   { v: "int8", l: "Int8", d: "8-bit quantization. Good balance. bitsandbytes.", size: "~8 GB for 8B" },
                   { v: "fp16", l: "FP16", d: "Half precision. No quality loss. GPU only.", size: "~16 GB for 8B" },
                 ].map(o => (
-                  <button key={o.v} style={{ ...optionBtn(config.quantMethod === o.v), textAlign: "left" as const }} onClick={() => set("quantMethod", o.v)}>
+                  <button className="panel-btn" key={o.v} style={{ ...optionBtn(config.quantMethod === o.v), textAlign: "left" as const }} onClick={() => set("quantMethod", o.v)}>
                     <div style={{ fontWeight: 600, fontSize: "var(--font-size-base)" }}>{o.l}</div>
                     <div style={{ fontSize: "var(--font-size-xs)", opacity: 0.7, marginTop: 2 }}>{o.d}</div>
                     <div style={{ fontSize: "var(--font-size-xs)", color: "var(--accent-primary)", marginTop: 2 }}>{o.size}</div>
@@ -639,7 +639,7 @@ export function ModelWizardPanel() {
                 { v: "triton", l: "Triton", d: "NVIDIA. Multi-model. Enterprise." },
                 { v: "onnx", l: "ONNX Runtime", d: "Cross-platform. CPU/GPU/NPU." },
               ].map(o => (
-                <button key={o.v} style={{ ...optionBtn(config.inferenceBackend === o.v), textAlign: "left" as const }} onClick={() => set("inferenceBackend", o.v)}>
+                <button className="panel-btn" key={o.v} style={{ ...optionBtn(config.inferenceBackend === o.v), textAlign: "left" as const }} onClick={() => set("inferenceBackend", o.v)}>
                   <div style={{ fontWeight: 600, fontSize: "var(--font-size-base)" }}>{o.l}</div>
                   <div style={{ fontSize: "var(--font-size-xs)", opacity: 0.7, marginTop: 2 }}>{o.d}</div>
                 </button>
@@ -654,7 +654,7 @@ export function ModelWizardPanel() {
                 { v: "k8s", l: "Kubernetes", d: "Auto-scaling, production-grade" },
                 { v: "edge", l: "Edge / IoT Device", d: "Raspberry Pi, Jetson, ARM" },
               ].map(o => (
-                <button key={o.v} style={{ ...optionBtn(config.deployTarget === o.v), textAlign: "left" as const }} onClick={() => set("deployTarget", o.v)}>
+                <button className="panel-btn" key={o.v} style={{ ...optionBtn(config.deployTarget === o.v), textAlign: "left" as const }} onClick={() => set("deployTarget", o.v)}>
                   <div style={{ fontWeight: 600, fontSize: "var(--font-size-base)" }}>{o.l}</div>
                   <div style={{ fontSize: "var(--font-size-xs)", opacity: 0.7, marginTop: 2 }}>{o.d}</div>
                 </button>
@@ -710,7 +710,7 @@ export function ModelWizardPanel() {
       </div>
 
       {/* Navigation footer */}
-      <div style={{ padding: "10px 16px", borderTop: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", flexShrink: 0 }}>
+      <div style={{ padding: "12px 16px", borderTop: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", flexShrink: 0 }}>
         <button className="panel-btn panel-btn-secondary" onClick={prev} disabled={step === 1}>Back</button>
         <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", alignSelf: "center" }}>Step {step} of 7</div>
         {step < 7 ? (

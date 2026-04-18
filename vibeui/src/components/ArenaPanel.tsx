@@ -85,7 +85,7 @@ function BlindResponseCard({ content, side, error }: { content: string; side: "A
       minWidth: 0,
     }}>
       <div style={{
-        padding: "6px 12px",
+        padding: "8px 12px",
         background: "var(--bg-secondary)",
         display: "flex",
         alignItems: "center",
@@ -98,7 +98,7 @@ function BlindResponseCard({ content, side, error }: { content: string; side: "A
           (identity hidden)
         </span>
       </div>
-      <div style={{ flex: 1, overflowY: "auto", padding: "10px 12px" }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: "12px 12px" }}>
         {isError ? (
           <span style={{ color: "var(--error-color)" }}>{error}</span>
         ) : (
@@ -225,7 +225,7 @@ export function ArenaPanel() {
   const sortedStats = [...stats].sort((a, b) => b.win_rate - a.win_rate);
 
   return (
-    <div className="panel-container" style={{ padding: "12px", gap: "10px" }}>
+    <div className="panel-container" style={{ padding: "12px", gap: "12px" }}>
       {/* Header */}
       <div style={{ fontWeight: "bold", marginBottom: "2px", display: "flex", alignItems: "center", gap: "8px" }}>
         <span>Arena Mode</span>
@@ -235,7 +235,7 @@ export function ArenaPanel() {
       </div>
 
       {/* Provider selectors */}
-      <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
         <ProviderSelector label="A" provider={providerA} model={modelA} onProvider={setProviderA} onModel={setModelA} />
         <ProviderSelector label="B" provider={providerB} model={modelB} onProvider={setProviderB} onModel={setModelB} />
       </div>
@@ -266,7 +266,7 @@ export function ArenaPanel() {
 
       {/* Side-by-side blind responses */}
       {result && (
-        <div style={{ display: "flex", gap: "10px", flex: 1, overflow: "hidden", minHeight: "150px", flexGrow: 1 }}>
+        <div style={{ display: "flex", gap: "12px", flex: 1, overflow: "hidden", minHeight: "150px", flexGrow: 1 }}>
           <BlindResponseCard
             content={result.a.content}
             side="A"
@@ -296,10 +296,10 @@ export function ArenaPanel() {
         <div style={{
           border: "1px solid var(--border-color)",
           borderRadius: "var(--radius-sm)",
-          padding: "10px 14px",
+          padding: "12px 16px",
           background: "var(--bg-secondary)",
         }}>
-          <div style={{ fontWeight: "bold", marginBottom: "6px" }}>
+          <div style={{ fontWeight: "bold", marginBottom: "8px" }}>
             Reveal
             {voteChoice === "a" && " -- Model A wins!"}
             {voteChoice === "b" && " -- Model B wins!"}
@@ -311,7 +311,7 @@ export function ArenaPanel() {
               <span style={{ color: "var(--info-color)", fontWeight: "bold" }}>Model A: </span>
               <span>{result.a.provider}/{result.a.model}</span>
               {result.a.duration_ms > 0 && (
-                <span style={{ color: "var(--text-secondary)", marginLeft: "6px" }}>
+                <span style={{ color: "var(--text-secondary)", marginLeft: "8px" }}>
                   {result.a.duration_ms}ms{result.a.tokens != null && ` / ${result.a.tokens} tok`}
                 </span>
               )}
@@ -320,7 +320,7 @@ export function ArenaPanel() {
               <span style={{ color: "var(--accent-color)", fontWeight: "bold" }}>Model B: </span>
               <span>{result.b.provider}/{result.b.model}</span>
               {result.b.duration_ms > 0 && (
-                <span style={{ color: "var(--text-secondary)", marginLeft: "6px" }}>
+                <span style={{ color: "var(--text-secondary)", marginLeft: "8px" }}>
                   {result.b.duration_ms}ms{result.b.tokens != null && ` / ${result.b.tokens} tok`}
                 </span>
               )}
@@ -351,23 +351,23 @@ export function ArenaPanel() {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
             <thead>
               <tr style={{ borderBottom: "1px solid var(--border-color)", color: "var(--text-secondary)" }}>
-                <th style={{ textAlign: "left", padding: "3px 6px" }}>Provider</th>
-                <th style={{ textAlign: "right", padding: "3px 6px" }}>Wins</th>
-                <th style={{ textAlign: "right", padding: "3px 6px" }}>Losses</th>
-                <th style={{ textAlign: "right", padding: "3px 6px" }}>Ties</th>
-                <th style={{ textAlign: "right", padding: "3px 6px" }}>Total</th>
-                <th style={{ textAlign: "right", padding: "3px 6px" }}>Win Rate</th>
+                <th style={{ textAlign: "left", padding: "3px 8px" }}>Provider</th>
+                <th style={{ textAlign: "right", padding: "3px 8px" }}>Wins</th>
+                <th style={{ textAlign: "right", padding: "3px 8px" }}>Losses</th>
+                <th style={{ textAlign: "right", padding: "3px 8px" }}>Ties</th>
+                <th style={{ textAlign: "right", padding: "3px 8px" }}>Total</th>
+                <th style={{ textAlign: "right", padding: "3px 8px" }}>Win Rate</th>
               </tr>
             </thead>
             <tbody>
               {sortedStats.map(s => (
                 <tr key={s.provider} style={{ borderBottom: "1px solid var(--border-color)" }}>
-                  <td style={{ padding: "3px 6px", fontWeight: "bold" }}>{s.provider}</td>
-                  <td style={{ textAlign: "right", padding: "3px 6px", color: "var(--success-color)" }}>{s.wins}</td>
-                  <td style={{ textAlign: "right", padding: "3px 6px", color: "var(--error-color)" }}>{s.losses}</td>
-                  <td style={{ textAlign: "right", padding: "3px 6px", color: "var(--warning-color)" }}>{s.ties}</td>
-                  <td style={{ textAlign: "right", padding: "3px 6px" }}>{s.total}</td>
-                  <td style={{ textAlign: "right", padding: "3px 6px", color: "var(--info-color)" }}>
+                  <td style={{ padding: "3px 8px", fontWeight: "bold" }}>{s.provider}</td>
+                  <td style={{ textAlign: "right", padding: "3px 8px", color: "var(--success-color)" }}>{s.wins}</td>
+                  <td style={{ textAlign: "right", padding: "3px 8px", color: "var(--error-color)" }}>{s.losses}</td>
+                  <td style={{ textAlign: "right", padding: "3px 8px", color: "var(--warning-color)" }}>{s.ties}</td>
+                  <td style={{ textAlign: "right", padding: "3px 8px" }}>{s.total}</td>
+                  <td style={{ textAlign: "right", padding: "3px 8px", color: "var(--info-color)" }}>
                     {(s.win_rate * 100).toFixed(1)}%
                   </td>
                 </tr>

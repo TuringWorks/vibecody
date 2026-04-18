@@ -155,7 +155,7 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
  <div className="panel-header">
  <h3>Test Runner</h3>
  {framework && (
- <span style={{ fontSize: "var(--font-size-xs)", padding: "2px 6px", background: "color-mix(in srgb, var(--accent-blue) 20%, transparent)", color: "var(--text-info)", borderRadius: 3 }}>
+ <span style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px", background: "color-mix(in srgb, var(--accent-blue) 20%, transparent)", color: "var(--text-info)", borderRadius: 3 }}>
  {framework}
  </span>
  )}
@@ -165,7 +165,7 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
  <button onClick={runTests} className="panel-btn panel-btn-primary" style={{ marginLeft: "auto" }}>Run Tests</button>
  )}
  </div>
- <div className="panel-body" style={{ gap: "10px" }}>
+ <div className="panel-body" style={{ gap: "12px" }}>
  {/* Custom command override */}
  <input
  type="text"
@@ -178,7 +178,7 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
 
  {/* Summary bar */}
  {result && !running && (
- <div style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: "10px 12px", display: "flex", gap: 16, alignItems: "center" }}>
+ <div style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: "12px 12px", display: "flex", gap: 16, alignItems: "center" }}>
  {/* Pass-rate ring (simple colored bar) */}
  <div style={{ flex: 1 }}>
  <div style={{ height: 4, borderRadius: 2, background: "var(--bg-tertiary)", overflow: "hidden" }}>
@@ -206,7 +206,7 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
  key={f}
  onClick={() => setFilter(f)}
  style={{
- padding: "2px 10px", fontSize: "var(--font-size-sm)", borderRadius: 3, cursor: "pointer",
+ padding: "2px 12px", fontSize: "var(--font-size-sm)", borderRadius: 3, cursor: "pointer",
  background: filter === f ? "var(--accent-blue)" : "var(--bg-secondary)",
  color: filter === f ? "var(--text-primary)" : "var(--text-secondary)",
  border: "1px solid var(--border-color)",
@@ -221,10 +221,10 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
  {/* Test list */}
  <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 3 }}>
  {visibleTests.map((t) => (
- <div
+ <div role="button" tabIndex={0}
  key={t.name}
  style={{
- borderRadius: "var(--radius-xs-plus)", padding: "5px 8px",
+ borderRadius: "var(--radius-xs-plus)", padding: "4px 8px",
  background: t.status === "failed" ? "color-mix(in srgb, var(--accent-rose) 8%, transparent)" : "var(--bg-secondary)",
  border: `1px solid ${t.status === "failed" ? "rgba(243,139,168,0.3)" : "var(--border-color)"}`,
  cursor: t.output ? "pointer" : "default",
@@ -253,7 +253,7 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
  )}
  </div>
  {expanded.has(t.name) && t.output && (
- <pre style={{ margin: "4px 0 0 14px", fontSize: "var(--font-size-xs)", color: "var(--text-danger)", whiteSpace: "pre-wrap", wordBreak: "break-all", maxHeight: 200, overflowY: "auto" }}>
+ <pre style={{ margin: "4px 0 0 16px", fontSize: "var(--font-size-xs)", color: "var(--text-danger)", whiteSpace: "pre-wrap", wordBreak: "break-all", maxHeight: 200, overflowY: "auto" }}>
  {t.output}
  </pre>
  )}
@@ -262,7 +262,7 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
 
  {/* Live log during run */}
  {running && liveLog.length > 0 && (
- <div style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-xs-plus)", padding: "6px 8px", maxHeight: 160, overflowY: "auto", fontFamily: "var(--font-mono)", fontSize: "var(--font-size-xs)" }}>
+ <div style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-xs-plus)", padding: "8px 8px", maxHeight: 160, overflowY: "auto", fontFamily: "var(--font-mono)", fontSize: "var(--font-size-xs)" }}>
  {liveLog.map((line, i) => (
  <div key={i} style={{ color: "var(--text-secondary)" }}>{line}</div>
  ))}

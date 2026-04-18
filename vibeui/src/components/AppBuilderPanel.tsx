@@ -837,7 +837,7 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
                       display: "flex",
                       alignItems: "center",
                       gap: 8,
-                      padding: "8px 10px",
+                      padding: "8px 12px",
                       borderRadius: "var(--radius-xs-plus)",
                       border: "1px solid var(--border)",
                       background: "var(--bg-primary)",

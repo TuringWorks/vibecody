@@ -471,7 +471,7 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
 
   // ── Shared mini-components ────────────────────────────────────────────────
   const Badge = ({ label, color }: { label: string; color: string }) => (
-    <span style={{ fontSize: "var(--font-size-xs)", padding: "2px 7px", borderRadius: "var(--radius-md)", border: `1px solid ${color}`, color, whiteSpace: "nowrap" }}>
+    <span style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px", borderRadius: "var(--radius-md)", border: `1px solid ${color}`, color, whiteSpace: "nowrap" }}>
       {label}
     </span>
   );
@@ -555,13 +555,13 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
         <table style={{ width: "100%", fontSize: "var(--font-size-sm)", borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ borderBottom: "1px solid var(--border-color)", color: "var(--text-secondary)" }}>
-              <th style={{ textAlign: "left", padding: "3px 6px" }}>Date</th>
-              <th style={{ textAlign: "right", padding: "3px 6px" }}>Scan #</th>
-              <th style={{ textAlign: "right", padding: "3px 6px" }}>TOGAF</th>
-              <th style={{ textAlign: "right", padding: "3px 6px" }}>C4</th>
-              <th style={{ textAlign: "right", padding: "3px 6px" }}>ADRs</th>
-              <th style={{ textAlign: "right", padding: "3px 6px" }}>Rules</th>
-              <th style={{ padding: "3px 6px" }}></th>
+              <th style={{ textAlign: "left", padding: "3px 8px" }}>Date</th>
+              <th style={{ textAlign: "right", padding: "3px 8px" }}>Scan #</th>
+              <th style={{ textAlign: "right", padding: "3px 8px" }}>TOGAF</th>
+              <th style={{ textAlign: "right", padding: "3px 8px" }}>C4</th>
+              <th style={{ textAlign: "right", padding: "3px 8px" }}>ADRs</th>
+              <th style={{ textAlign: "right", padding: "3px 8px" }}>Rules</th>
+              <th style={{ padding: "3px 8px" }}></th>
             </tr>
           </thead>
           <tbody>
@@ -570,16 +570,16 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
                 borderBottom: "1px solid var(--border-color)",
                 background: s.current ? "color-mix(in srgb, var(--accent-color) 8%, transparent)" : undefined,
               }}>
-                <td style={{ padding: "3px 6px" }}>{new Date(s.timestamp * 1000).toLocaleString()}</td>
-                <td style={{ textAlign: "right", padding: "3px 6px" }}>{s.scan_count}</td>
-                <td style={{ textAlign: "right", padding: "3px 6px" }}>{s.togaf_artifacts}</td>
-                <td style={{ textAlign: "right", padding: "3px 6px" }}>{s.c4_elements}</td>
-                <td style={{ textAlign: "right", padding: "3px 6px" }}>{s.adr_count}</td>
-                <td style={{ textAlign: "right", padding: "3px 6px" }}>{s.governance_rules}</td>
-                <td style={{ padding: "3px 6px" }}>
+                <td style={{ padding: "3px 8px" }}>{new Date(s.timestamp * 1000).toLocaleString()}</td>
+                <td style={{ textAlign: "right", padding: "3px 8px" }}>{s.scan_count}</td>
+                <td style={{ textAlign: "right", padding: "3px 8px" }}>{s.togaf_artifacts}</td>
+                <td style={{ textAlign: "right", padding: "3px 8px" }}>{s.c4_elements}</td>
+                <td style={{ textAlign: "right", padding: "3px 8px" }}>{s.adr_count}</td>
+                <td style={{ textAlign: "right", padding: "3px 8px" }}>{s.governance_rules}</td>
+                <td style={{ padding: "3px 8px" }}>
                   {s.current
                     ? <span style={{ fontSize: "var(--font-size-xs)", color: "var(--accent-green)" }}>current</span>
-                    : <button className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px" }}
+                    : <button className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-xs)", padding: "1px 8px" }}
                         onClick={() => loadHistoricalScan(s.timestamp)}>Load</button>
                   }
                 </td>
@@ -643,7 +643,7 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
       <ScanHistoryPanel />
 
       {!workspacePath && <div className="panel-card" style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-md)" }}>Open a workspace folder to enable architecture tracking.</div>}
-      {loading && <div className="panel-label" style={{ padding: 8 }}>Loading…</div>}
+      {loading && <div className="panel-loading panel-label" style={{ padding: 8 }}>Loading…</div>}
 
       <div style={{ overflowY: "auto", maxHeight: "calc(100vh - 280px)" }}>
         {TOGAF_PHASES.map(phase => {
@@ -652,8 +652,8 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
           const open = expandedPhase === phase.key;
           return (
             <div key={phase.key} style={{ marginBottom: 4 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center",
-                padding: "6px 0", borderBottom: "1px solid var(--border-color)", cursor: arts.length ? "pointer" : "default" }}
+              <div role="button" tabIndex={0} style={{ display: "flex", justifyContent: "space-between", alignItems: "center",
+                padding: "8px 0", borderBottom: "1px solid var(--border-color)", cursor: arts.length ? "pointer" : "default" }}
                 onClick={() => arts.length && setExpandedPhase(open ? null : phase.key)}>
                 <span style={{ fontSize: "var(--font-size-md)" }}>
                   {arts.length > 0 && (open
@@ -665,9 +665,9 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
                 <ProgBar pct={pct} total={arts.length} />
               </div>
               {open && (
-                <div style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", margin: "4px 0 8px", padding: "6px 10px" }}>
+                <div style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", margin: "4px 0 8px", padding: "8px 12px" }}>
                   {arts.map(art => (
-                    <div key={art.id} style={{ padding: "10px 0", borderBottom: "1px solid var(--border-color)" }}>
+                    <div key={art.id} style={{ padding: "12px 0", borderBottom: "1px solid var(--border-color)" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
@@ -693,7 +693,7 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
                             onChange={e => patchArtifact(art.id, "content", e.target.value)}
                             rows={6}
                             style={{
-                              width: "100%", fontFamily: "monospace", fontSize: "var(--font-size-sm)", padding: "6px 8px",
+                              width: "100%", fontFamily: "monospace", fontSize: "var(--font-size-sm)", padding: "8px 8px",
                               resize: "vertical", background: "var(--bg-tertiary)", color: "var(--text-primary)",
                               border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", boxSizing: "border-box",
                             }}
@@ -774,7 +774,7 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
                 onChange={e => patchZachmanCell(editingCell, "content", e.target.value)}
                 rows={5}
                 style={{
-                  width: "100%", fontSize: "var(--font-size-base)", padding: "6px 8px", resize: "vertical",
+                  width: "100%", fontSize: "var(--font-size-base)", padding: "8px 8px", resize: "vertical",
                   background: "var(--bg-tertiary)", color: "var(--text-primary)",
                   border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", boxSizing: "border-box", marginBottom: 8,
                 }}
@@ -799,9 +799,9 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
               </colgroup>
               <thead>
                 <tr>
-                  <th style={{ padding: "6px 8px", border: "1px solid var(--border-color)", background: "var(--bg-secondary)", textAlign: "left", position: "sticky", top: 0, zIndex: 2 }} />
+                  <th style={{ padding: "8px 8px", border: "1px solid var(--border-color)", background: "var(--bg-secondary)", textAlign: "left", position: "sticky", top: 0, zIndex: 2 }} />
                   {ZACHMAN_ASPECTS.map(a => (
-                    <th key={a} style={{ padding: "6px 8px", border: "1px solid var(--border-color)", background: "var(--bg-secondary)", fontSize: "var(--font-size-xs)", fontWeight: 600, textAlign: "center", position: "sticky", top: 0, zIndex: 2 }}>
+                    <th key={a} style={{ padding: "8px 8px", border: "1px solid var(--border-color)", background: "var(--bg-secondary)", fontSize: "var(--font-size-xs)", fontWeight: 600, textAlign: "center", position: "sticky", top: 0, zIndex: 2 }}>
                       {a}
                     </th>
                   ))}
@@ -810,7 +810,7 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
               <tbody>
                 {ZACHMAN_PERSPECTIVES.map((p, pi) => (
                   <tr key={p}>
-                    <td style={{ padding: "6px 8px", border: "1px solid var(--border-color)", fontWeight: 600, background: "var(--bg-secondary)", whiteSpace: "nowrap", position: "sticky", left: 0, zIndex: 1 }}>{p}</td>
+                    <td style={{ padding: "8px 8px", border: "1px solid var(--border-color)", fontWeight: 600, background: "var(--bg-secondary)", whiteSpace: "nowrap", position: "sticky", left: 0, zIndex: 1 }}>{p}</td>
                     {ZACHMAN_ASPECTS.map((a, ai) => {
                       const key = `${pi}:${ai}`;
                       const cell = cells[key];
@@ -818,7 +818,7 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
                       const isEditing = editingCell === key;
                       return (
                         <td key={a} style={{
-                          padding: "5px 7px", border: "1px solid var(--border-color)",
+                          padding: "4px 8px", border: "1px solid var(--border-color)",
                           background: isEditing ? "var(--bg-tertiary)" : cell?.content ? "var(--bg-secondary)" : "var(--bg-tertiary)",
                           verticalAlign: "top", cursor: "pointer", minHeight: 60,
                           outline: isEditing ? "2px solid var(--accent-color)" : "none",
@@ -874,7 +874,7 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
           <div style={{ fontWeight: 600, fontSize: "var(--font-size-base)", marginBottom: 6, color: "var(--text-secondary)" }}>{label}</div>
           {items.map(el => (
             <div key={el.id} style={{ padding: "8px 0", borderBottom: "1px solid var(--border-color)" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", cursor: "pointer", marginBottom: 4 }}
+              <div role="button" tabIndex={0} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", cursor: "pointer", marginBottom: 4 }}
                 onClick={() => setExpandedC4(expandedC4 === el.id ? null : el.id)}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ fontWeight: 600, fontSize: "var(--font-size-base)" }}>{el.name}</span>
@@ -991,7 +991,7 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
                             value={adr.title}
                             onChange={e => patchAdr(adr.id, "title", e.target.value)}
                             style={{
-                              fontSize: "var(--font-size-base)", fontWeight: 600, padding: "2px 6px", flex: 1,
+                              fontSize: "var(--font-size-base)", fontWeight: 600, padding: "2px 8px", flex: 1,
                               background: "var(--bg-tertiary)", color: "var(--text-primary)",
                               border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", boxSizing: "border-box",
                             }}
@@ -1034,7 +1034,7 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
                         />
                         {adr.tags.length > 0 && (
                           <div style={{ marginTop: 6, display: "flex", gap: 4, flexWrap: "wrap" }}>
-                            {adr.tags.map(t => <span key={t} className="panel-label" style={{ fontSize: 9, padding: "1px 5px", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm-alt)" }}>{t}</span>)}
+                            {adr.tags.map(t => <span key={t} className="panel-label" style={{ fontSize: 9, padding: "1px 4px", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm-alt)" }}>{t}</span>)}
                           </div>
                         )}
                       </div>
@@ -1116,7 +1116,7 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
             <div key={cat} style={{ marginBottom: 12 }}>
               <div style={{ fontWeight: 600, fontSize: "var(--font-size-sm)", textTransform: "uppercase", letterSpacing: 1, color: "var(--text-secondary)", marginBottom: 6 }}>{cat}</div>
               {catRules.map(rule => (
-                <div key={rule.id} className="panel-card" style={{ marginBottom: 6, padding: "10px 10px" }}>
+                <div key={rule.id} className="panel-card" style={{ marginBottom: 6, padding: "12px 12px" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                     <Badge label={rule.severity} color={SEV_COLOR[rule.severity]} />
                     <span style={{ fontWeight: 600, fontSize: "var(--font-size-base)" }}>{rule.name}</span>

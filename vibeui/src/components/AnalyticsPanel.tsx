@@ -234,7 +234,7 @@ export function AnalyticsPanel() {
     <div className="panel-container">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
         <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 12, color: "var(--text-primary)" }}>Enterprise Agent Analytics</h2>
-        <button onClick={loadData} className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-sm)", padding: "4px 10px" }}>Refresh</button>
+        <button onClick={loadData} className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-sm)", padding: "4px 12px" }}>Refresh</button>
       </div>
       <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 12 }}>
         {sessions.length} total sessions | {(costMetrics?.entries.length ?? 0)} AI calls tracked | Est. {MINS_SAVED_PER_TASK} min saved/task @ ${HOURLY_RATE_USD}/hr

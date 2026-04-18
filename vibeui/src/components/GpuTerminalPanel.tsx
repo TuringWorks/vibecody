@@ -250,7 +250,7 @@ export default function GpuTerminalPanel() {
            borderRadius: "var(--radius-sm)", display: "flex", flexWrap: "wrap", gap: 2,
          }}>
            {glyphs.split("").map((ch, i) => (
-             <div key={i} onClick={() => setSelectedGlyph(ch)} style={{
+             <div role="button" tabIndex={0} key={i} onClick={() => setSelectedGlyph(ch)} style={{
                width: 22, height: 24, display: "flex", alignItems: "center", justifyContent: "center",
                fontFamily: "var(--font-mono)", fontSize: "var(--font-size-md)", cursor: "pointer", borderRadius: 2,
                background: selectedGlyph === ch ? "var(--accent-color)" : "var(--bg-secondary)",
@@ -312,7 +312,7 @@ export default function GpuTerminalPanel() {
 
      {tab === "benchmark" && (
        <>
-         <button onClick={runBenchmark} disabled={benchmarkRunning} style={{
+         <button className="panel-btn" onClick={runBenchmark} disabled={benchmarkRunning} style={{
            padding: "8px 16px", background: benchmarkRunning ? "var(--border-color)" : "var(--accent-color)", color: "var(--btn-primary-fg)", border: "none",
            borderRadius: "var(--radius-xs-plus)", cursor: benchmarkRunning ? "not-allowed" : "pointer", marginBottom: 12,
          }}>{benchmarkRunning ? "Running..." : "Run Benchmark (100 frames)"}</button>

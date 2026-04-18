@@ -223,12 +223,12 @@ export function CompanyRoutinesPanel({ workspacePath: _wp }: CompanyRoutinesPane
           ) : (
             <div style={{ display: "flex", flexDirection: "column" }}>
               {routines.map((r) => (
-                <div key={r.id} style={{ padding: "10px 12px", borderBottom: "1px solid var(--border-color)" }}>
+                <div key={r.id} style={{ padding: "12px 12px", borderBottom: "1px solid var(--border-color)" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                     <strong style={{ fontSize: "var(--font-size-md)" }}>{r.name}</strong>
                     <span style={deliveryBadgeStyle(r.delivery_mode)}>{r.delivery_mode}</span>
                     {r.skill_name && (
-                      <span style={{ fontSize: "var(--font-size-xs)", padding: '1px 6px', borderRadius: "var(--radius-md)", background: 'rgba(128,128,128,0.15)', color: 'var(--text-secondary)', border: '1px solid var(--border-color)' }}>
+                      <span style={{ fontSize: "var(--font-size-xs)", padding: '1px 8px', borderRadius: "var(--radius-md)", background: 'rgba(128,128,128,0.15)', color: 'var(--text-secondary)', border: '1px solid var(--border-color)' }}>
                         skill: {r.skill_name}
                       </span>
                     )}

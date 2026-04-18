@@ -162,7 +162,7 @@ export function CodeMetricsPanel({ workspacePath }: CodeMetricsPanelProps) {
             { label: "Blank", value: fmt(metrics.total_blank_lines), sub: `${pct(metrics.total_blank_lines, metrics.total_lines)}%` },
             { label: "Files", value: fmt(metrics.total_files), sub: `${metrics.languages.length} langs` },
           ].map(({ label, value, sub }) => (
-            <div key={label} className="panel-stat" style={{ padding: "6px 4px" }}>
+            <div key={label} className="panel-stat" style={{ padding: "8px 4px" }}>
               <div style={{ fontSize: "var(--font-size-lg)", fontWeight: "var(--font-bold)" }}>{value}</div>
               <div className="panel-stat-label">{label}</div>
               <div className="panel-stat-sub">{sub}</div>
@@ -263,7 +263,7 @@ export function CodeMetricsPanel({ workspacePath }: CodeMetricsPanelProps) {
                 : f.complexity > maxC * 0.4 ? "var(--warning-color)"
                 : "var(--success-color)";
               return (
-                <div key={f.path} style={{ padding: "6px 0", borderBottom: "1px solid var(--border-subtle)" }}>
+                <div key={f.path} style={{ padding: "8px 0", borderBottom: "1px solid var(--border-subtle)" }}>
                   <div className="panel-row" style={{ marginBottom: 4 }}>
                     <span className="panel-mono" style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "var(--font-size-sm)" }} title={f.path}>
                       <span style={{ color: "var(--text-muted)", marginRight: 6 }}>{i + 1}.</span>{f.path}

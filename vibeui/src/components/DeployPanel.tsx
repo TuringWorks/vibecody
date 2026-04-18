@@ -168,7 +168,7 @@ export function DeployPanel({ workspacePath }: DeployPanelProps) {
  background: selectedTarget === t.id ? "var(--accent-color)" : "var(--bg-secondary)",
  border: `1px solid ${selectedTarget === t.id ? "var(--accent-color)" : "var(--border-color)"}`,
  borderRadius: "var(--radius-sm)",
- padding: "7px 6px",
+ padding: "8px 8px",
  cursor: "pointer",
  color: "var(--text-primary)",
  fontSize: "var(--font-size-sm)",
@@ -255,7 +255,7 @@ export function DeployPanel({ workspacePath }: DeployPanelProps) {
  <div>
  <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, marginBottom: 8 }}>History</div>
  {history.slice(0, 5).map((rec) => (
- <div key={rec.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>
+ <div key={rec.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>
  <span>{rec.status === "success" ? "" : rec.status === "running" ? "" : ""}</span>
  <span style={{ opacity: 0.7 }}>{rec.target}</span>
  {rec.url && <a href={rec.url} target="_blank" rel="noopener noreferrer" style={{ color: "var(--text-info)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{rec.url}</a>}

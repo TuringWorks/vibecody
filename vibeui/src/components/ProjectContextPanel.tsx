@@ -150,7 +150,7 @@ export function ProjectContextPanel({ workspacePath }: { workspacePath?: string 
         <button className={`panel-tab${tab === "commands" ? " active" : ""}`} onClick={() => setTab("commands")}>Commands</button>
         <button className={`panel-tab${tab === "files" ? " active" : ""}`} onClick={() => setTab("files")}>Key Files</button>
         <button className={`panel-tab${tab === "context" ? " active" : ""}`} onClick={() => setTab("context")}>AI Context</button>
-        <div style={{ marginLeft: "auto", padding: "6px 12px" }}>
+        <div style={{ marginLeft: "auto", padding: "8px 12px" }}>
           <button onClick={rescan} className="panel-btn panel-btn-secondary" style={{ background: "transparent", color: "var(--text-secondary)" }}>
             Rescan
           </button>
@@ -215,7 +215,7 @@ export function ProjectContextPanel({ workspacePath }: { workspacePath?: string 
               <div style={{ marginBottom: "16px" }}>
                 <h4 style={{ margin: "0 0 8px 0" }}>Build</h4>
                 {profile.build_commands.map((cmd, i) => (
-                  <div key={i} style={{ display: "flex", alignItems: "center", marginBottom: "6px" }}>
+                  <div key={i} style={{ display: "flex", alignItems: "center", marginBottom: "8px" }}>
                     <code style={{ flex: 1, fontSize: "var(--font-size-base)" }}>{cmd.command}</code>
                     <button className="panel-btn panel-btn-primary" style={{ marginLeft: "8px" }} onClick={() => runCommand(cmd.command)}>Run</button>
                   </div>
@@ -227,7 +227,7 @@ export function ProjectContextPanel({ workspacePath }: { workspacePath?: string 
               <div style={{ marginBottom: "16px" }}>
                 <h4 style={{ margin: "0 0 8px 0" }}>Test</h4>
                 {profile.test_commands.map((cmd, i) => (
-                  <div key={i} style={{ display: "flex", alignItems: "center", marginBottom: "6px" }}>
+                  <div key={i} style={{ display: "flex", alignItems: "center", marginBottom: "8px" }}>
                     <code style={{ flex: 1, fontSize: "var(--font-size-base)" }}>{cmd.command}</code>
                     <span style={{ ...badgeStyle, marginLeft: "8px" }}>{cmd.framework}</span>
                     <button className="panel-btn panel-btn-primary" style={{ marginLeft: "8px" }} onClick={() => runCommand(cmd.command)}>Run</button>
@@ -240,7 +240,7 @@ export function ProjectContextPanel({ workspacePath }: { workspacePath?: string 
               <div style={{ marginBottom: "16px" }}>
                 <h4 style={{ margin: "0 0 8px 0" }}>Lint / Format</h4>
                 {profile.lint_commands.map((cmd, i) => (
-                  <div key={i} style={{ display: "flex", alignItems: "center", marginBottom: "6px" }}>
+                  <div key={i} style={{ display: "flex", alignItems: "center", marginBottom: "8px" }}>
                     <code style={{ flex: 1, fontSize: "var(--font-size-base)" }}>{cmd.command}</code>
                     <button className="panel-btn panel-btn-primary" style={{ marginLeft: "8px" }} onClick={() => runCommand(cmd.command)}>Run</button>
                   </div>

@@ -67,7 +67,7 @@ export function EnvDispatchPanel() {
   };
 
   return (
-    <div style={{ padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-mono)", height: "100%", overflowY: "auto" }}>
+    <div className="panel-container" style={{ padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-mono)", flex: 1, minHeight: 0, overflowY: "auto" }}>
       <div style={{ fontSize: "var(--font-size-xl)", fontWeight: 700, marginBottom: 12 }}>Env Dispatch</div>
 
       {status && (
@@ -78,7 +78,7 @@ export function EnvDispatchPanel() {
             { label: "Queued", value: status.queued_tasks, color: "var(--warning-color)" },
             { label: "Failed", value: status.failed_tasks, color: "var(--error-color)" },
           ].map(s => (
-            <div key={s.label} style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", padding: "8px 14px", border: "1px solid var(--border-color)", minWidth: 80, textAlign: "center" }}>
+            <div key={s.label} style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", padding: "8px 16px", border: "1px solid var(--border-color)", minWidth: 80, textAlign: "center" }}>
               <div style={{ fontSize: 20, fontWeight: 700, color: s.color ?? "var(--text-primary)" }}>{s.value}</div>
               <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)" }}>{s.label}</div>
             </div>
@@ -88,11 +88,11 @@ export function EnvDispatchPanel() {
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         {["environments", "tasks", "config"].map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{ padding: "4px 12px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: tab === t ? "var(--accent-color)" : "var(--bg-secondary)", color: tab === t ? "#fff" : "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>{t}</button>
+          <button key={t} onClick={() => setTab(t)} style={{ padding: "4px 12px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: tab === t ? "var(--accent-color)" : "var(--bg-secondary)", color: tab === t ? "var(--btn-primary-fg)" : "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>{t}</button>
         ))}
       </div>
 
-      {loading && <div style={{ color: "var(--text-muted)" }}>Loading...</div>}
+      {loading && <div className="panel-loading" style={{ color: "var(--text-muted)" }}>Loading...</div>}
       {error && <div style={{ color: "var(--error-color)", marginBottom: 8 }}>{error}</div>}
 
       {!loading && tab === "environments" && (
@@ -106,7 +106,7 @@ export function EnvDispatchPanel() {
               </div>
               <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)", marginBottom: 4 }}>Type: {env.env_type}</div>
               {env.current_task && (
-                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-primary)", marginBottom: 6, padding: "3px 6px", background: "var(--bg-primary)", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)" }}>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-primary)", marginBottom: 6, padding: "3px 8px", background: "var(--bg-primary)", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)" }}>
                   Task: {env.current_task}
                 </div>
               )}
@@ -135,7 +135,7 @@ export function EnvDispatchPanel() {
             <thead>
               <tr style={{ background: "var(--bg-secondary)" }}>
                 {["Task ID", "Env", "Description", "Status", "Started", "Finished"].map(h => (
-                  <th key={h} style={{ padding: "6px 10px", textAlign: "left", borderBottom: "1px solid var(--border-color)", color: "var(--text-muted)", fontWeight: 600 }}>{h}</th>
+                  <th key={h} style={{ padding: "8px 12px", textAlign: "left", borderBottom: "1px solid var(--border-color)", color: "var(--text-muted)", fontWeight: 600 }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -145,14 +145,14 @@ export function EnvDispatchPanel() {
               )}
               {tasks.map(task => (
                 <tr key={task.task_id} style={{ borderBottom: "1px solid var(--border-color)" }}>
-                  <td style={{ padding: "6px 10px", fontFamily: "var(--font-mono)", fontSize: "var(--font-size-sm)" }}>{task.task_id.slice(0, 8)}…</td>
-                  <td style={{ padding: "6px 10px" }}>{task.env_id}</td>
-                  <td style={{ padding: "6px 10px", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{task.description}</td>
-                  <td style={{ padding: "6px 10px" }}>
+                  <td style={{ padding: "8px 12px", fontFamily: "var(--font-mono)", fontSize: "var(--font-size-sm)" }}>{task.task_id.slice(0, 8)}…</td>
+                  <td style={{ padding: "8px 12px" }}>{task.env_id}</td>
+                  <td style={{ padding: "8px 12px", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{task.description}</td>
+                  <td style={{ padding: "8px 12px" }}>
                     <span style={{ padding: "2px 8px", borderRadius: "var(--radius-md)", fontSize: "var(--font-size-sm)", background: statusColor(task.status) + "22", color: statusColor(task.status) }}>{task.status}</span>
                   </td>
-                  <td style={{ padding: "6px 10px", color: "var(--text-muted)" }}>{task.started_at}</td>
-                  <td style={{ padding: "6px 10px", color: "var(--text-muted)" }}>{task.finished_at ?? "—"}</td>
+                  <td style={{ padding: "8px 12px", color: "var(--text-muted)" }}>{task.started_at}</td>
+                  <td style={{ padding: "8px 12px", color: "var(--text-muted)" }}>{task.finished_at ?? "—"}</td>
                 </tr>
               ))}
             </tbody>
@@ -178,7 +178,7 @@ export function EnvDispatchPanel() {
               <span>$1</span><span>$500</span>
             </div>
           </div>
-          <button style={{ padding: "8px 20px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: "var(--accent-color)", color: "var(--btn-primary-fg, #fff)", border: "none", fontSize: "var(--font-size-md)", fontWeight: 600 }}>
+          <button className="panel-btn" style={{ padding: "8px 20px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: "var(--accent-color)", color: "var(--btn-primary-fg, #fff)", border: "none", fontSize: "var(--font-size-md)", fontWeight: 600 }}>
             Apply Config
           </button>
         </div>

@@ -286,7 +286,7 @@ export default function SpawnAgentPanel() {
         </div>
       ) : (
         activeAgents.map(a => (
-          <div key={a.id} className="panel-card" style={{
+          <div role="button" tabIndex={0} key={a.id} className="panel-card" style={{
             borderLeft: `3px solid ${statusColor(a.status)}`,
             cursor: "pointer",
           }} onClick={() => setSelectedAgent(a.id)}>
@@ -475,7 +475,7 @@ export default function SpawnAgentPanel() {
 
           {aggregatedResult.conflicts.length > 0 && (
             <div style={{ marginBottom: 12 }}>
-              <h4 style={{ color: "var(--warning-color)", margin: "0 0 6px" }}>
+              <h4 style={{ color: "var(--warning-color)", margin: "0 0 8px" }}>
                 Conflicts ({aggregatedResult.conflicts.length})
               </h4>
               {aggregatedResult.conflicts.map((c, i) => (
@@ -486,7 +486,7 @@ export default function SpawnAgentPanel() {
             </div>
           )}
 
-          <h4 style={{ margin: "0 0 6px" }}>Agent Summaries</h4>
+          <h4 style={{ margin: "0 0 8px" }}>Agent Summaries</h4>
           {aggregatedResult.summaries.map(s => (
             <div key={s.agent_id} className="panel-card" style={{
               borderLeft: `3px solid ${statusColor(s.status)}`,

@@ -124,7 +124,7 @@ const Card: React.FC<{ label: string; value: string; color?: string }> = ({ labe
 
 const Badge: React.FC<{ label: string; value: string; ok: boolean }> = ({ label, value, ok }) => (
   <span style={{
-    padding: "3px 10px",
+    padding: "3px 12px",
     borderRadius: 12,
     fontSize: "var(--font-size-sm)",
     background: ok ? "rgba(76,175,80,0.15)" : "color-mix(in srgb, var(--accent-rose) 15%, transparent)",

@@ -401,7 +401,7 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  </select>
 
  {/* Turbo Mode toggle */}
- <button
+ <button className="panel-btn"
  onClick={toggleTurbo}
  disabled={isRunning}
  title={turboMode ? "Turbo Mode ON — click to disable full-auto" : "Turbo Mode OFF — click to enable full-auto (no approval prompts)"}
@@ -443,7 +443,7 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  </button>
 
  <button
- className="btn-primary"
+ className="panel-btn btn-primary"
  onClick={startAgent}
  disabled={!task.trim() || !provider || isRunning}
  style={{ whiteSpace: "nowrap" }}
@@ -483,7 +483,7 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  </button>
  )}
  {(status === "complete" || status === "error" || status === "partial") && (
- <button className="btn-secondary" onClick={reset} style={{ whiteSpace: "nowrap" }}>
+ <button className="panel-btn btn-secondary" onClick={reset} style={{ whiteSpace: "nowrap" }}>
  <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><RotateCcw size={11} /> Reset</span>
  </button>
  )}
@@ -537,7 +537,7 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  )}
 
  {!provider && (
- <div style={{ fontSize: "var(--font-size-base)", color: "var(--warning-color)", padding: "6px", background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", borderRadius: "var(--radius-xs-plus)" }}>
+ <div style={{ fontSize: "var(--font-size-base)", color: "var(--warning-color)", padding: "8px", background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", borderRadius: "var(--radius-xs-plus)" }}>
  Select an AI provider in the header first.
  </div>
  )}
@@ -554,7 +554,7 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  fontSize: "var(--font-size-base)",
  display: "flex",
  flexDirection: "column",
- gap: "6px",
+ gap: "8px",
  }}
  >
  {steps.length === 0 && !streaming && !pending && (
@@ -576,9 +576,9 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  return (
  <div
  key={i}
- style={{ borderBottom: "1px solid var(--border-color)", paddingBottom: "6px" }}
+ style={{ borderBottom: "1px solid var(--border-color)", paddingBottom: "8px" }}
  >
- <div style={{ display: "flex", alignItems: "flex-start", gap: "6px" }}>
+ <div style={{ display: "flex", alignItems: "flex-start", gap: "8px" }}>
  <div style={{ flex: 1, color: step.success ? "var(--accent-green)" : "var(--text-danger)", fontWeight: 500 }}>
  {step.success ? "" : ""} {step.tool_summary}
  </div>
@@ -687,7 +687,7 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  background: "var(--bg-secondary)",
  border: "1px solid var(--accent-color)",
  borderRadius: "var(--radius-sm)",
- padding: "10px",
+ padding: "12px",
  }}
  >
  <div style={{ fontWeight: 600, marginBottom: "4px" }}>
@@ -697,7 +697,7 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  style={{
  display: "block",
  background: "var(--bg-tertiary)",
- padding: "6px",
+ padding: "8px",
  borderRadius: "var(--radius-xs-plus)",
  marginBottom: "8px",
  fontSize: "var(--font-size-base)",
@@ -708,14 +708,14 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  </code>
  <div style={{ display: "flex", gap: "8px" }}>
  <button
- className="btn-primary"
+ className="panel-btn btn-primary"
  onClick={approve}
  style={{ background: "var(--success-color)" }}
  >
  <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Check size={12} /> Approve</span>
  </button>
  <button
- className="btn-secondary"
+ className="panel-btn btn-secondary"
  onClick={reject}
  style={{ background: "var(--error-color)", color: "var(--text-primary)" }}
  >

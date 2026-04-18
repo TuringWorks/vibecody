@@ -57,15 +57,15 @@ const statBox = (label: string, value: string, color = "var(--text-secondary)") 
 );
 
 const btn = (label: string, onClick: () => void, disabled = false, accent = false) => (
-  <button
+  <button className="panel-btn"
     onClick={onClick}
     disabled={disabled}
     style={{
-      padding: "6px 14px",
+      padding: "8px 16px",
       borderRadius: "var(--radius-sm)",
       border: accent ? "none" : "1px solid var(--border-color)",
       background: accent ? "var(--accent-color)" : "var(--bg-secondary)",
-      color: accent ? "#fff" : "var(--text-primary)",
+      color: accent ? "var(--btn-primary-fg)" : "var(--text-primary)",
       cursor: disabled ? "not-allowed" : "pointer",
       opacity: disabled ? 0.5 : 1,
       fontSize: "var(--font-size-base)",
@@ -186,7 +186,7 @@ export function TurboQuantPanel() {
       {/* ── Overview ──────────────────────────────────────────────────── */}
       {tab === "overview" && (
         <div>
-          {loading && <div style={{ color: "var(--text-tertiary)" }}>Loading...</div>}
+          {loading && <div className="panel-loading" style={{ color: "var(--text-tertiary)" }}>Loading...</div>}
           {stats && (
             <>
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
@@ -240,7 +240,7 @@ export function TurboQuantPanel() {
             value={compressId}
             onChange={e => setCompressId(e.target.value)}
             placeholder="auto-generated if empty"
-            style={{ padding: "6px 10px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontFamily: "inherit", fontSize: "var(--font-size-base)" }}
+            style={{ padding: "8px 12px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontFamily: "inherit", fontSize: "var(--font-size-base)" }}
           />
           <label style={{ fontSize: "var(--font-size-sm)", color: "var(--text-tertiary)" }}>Vector (comma-separated floats)</label>
           <textarea
@@ -248,7 +248,7 @@ export function TurboQuantPanel() {
             onChange={e => setCompressVector(e.target.value)}
             rows={4}
             placeholder="0.12, -0.45, 0.78, ..."
-            style={{ padding: "6px 10px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontFamily: "inherit", fontSize: "var(--font-size-base)", resize: "vertical" }}
+            style={{ padding: "8px 12px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontFamily: "inherit", fontSize: "var(--font-size-base)", resize: "vertical" }}
           />
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             {btn("Compress & Insert", handleCompress, !compressVector.trim(), true)}
@@ -266,7 +266,7 @@ export function TurboQuantPanel() {
             onChange={e => setSearchVector(e.target.value)}
             rows={3}
             placeholder="query: 0.12, -0.45, 0.78, ..."
-            style={{ padding: "6px 10px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontFamily: "inherit", fontSize: "var(--font-size-base)", resize: "vertical" }}
+            style={{ padding: "8px 12px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontFamily: "inherit", fontSize: "var(--font-size-base)", resize: "vertical" }}
           />
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <label style={{ fontSize: "var(--font-size-sm)", color: "var(--text-tertiary)" }}>Top-K:</label>
@@ -280,17 +280,17 @@ export function TurboQuantPanel() {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border-color)", color: "var(--text-tertiary)" }}>
-                  <th style={{ textAlign: "left", padding: "6px 8px" }}>Rank</th>
-                  <th style={{ textAlign: "left", padding: "6px 8px" }}>ID</th>
-                  <th style={{ textAlign: "right", padding: "6px 8px" }}>Score</th>
+                  <th style={{ textAlign: "left", padding: "8px 8px" }}>Rank</th>
+                  <th style={{ textAlign: "left", padding: "8px 8px" }}>ID</th>
+                  <th style={{ textAlign: "right", padding: "8px 8px" }}>Score</th>
                 </tr>
               </thead>
               <tbody>
                 {searchResults.map((r, i) => (
                   <tr key={r.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
-                    <td style={{ padding: "6px 8px", color: "var(--text-tertiary)" }}>{i + 1}</td>
-                    <td style={{ padding: "6px 8px" }}>{r.id}</td>
-                    <td style={{ padding: "6px 8px", textAlign: "right", color: r.score > 0.8 ? "var(--success-color)" : "var(--text-secondary)" }}>
+                    <td style={{ padding: "8px 8px", color: "var(--text-tertiary)" }}>{i + 1}</td>
+                    <td style={{ padding: "8px 8px" }}>{r.id}</td>
+                    <td style={{ padding: "8px 8px", textAlign: "right", color: r.score > 0.8 ? "var(--success-color)" : "var(--text-secondary)" }}>
                       {r.score.toFixed(4)}
                     </td>
                   </tr>

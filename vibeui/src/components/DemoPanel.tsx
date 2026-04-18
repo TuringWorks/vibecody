@@ -293,7 +293,7 @@ export function DemoPanel() {
           )}
 
           {demos.map((demo) => (
-            <div
+            <div role="button" tabIndex={0}
               key={demo.id}
               className="panel-card"
               style={{
@@ -320,7 +320,7 @@ export function DemoPanel() {
                   <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
                     <button
                       className="panel-btn panel-btn-secondary"
-                      style={{ fontSize: "var(--font-size-sm)", padding: "4px 10px" }}
+                      style={{ fontSize: "var(--font-size-sm)", padding: "4px 12px" }}
                       onClick={(e) => {
                         e.stopPropagation();
                         exportDemo(demo.id, "html");
@@ -330,7 +330,7 @@ export function DemoPanel() {
                     </button>
                     <button
                       className="panel-btn panel-btn-secondary"
-                      style={{ fontSize: "var(--font-size-sm)", padding: "4px 10px" }}
+                      style={{ fontSize: "var(--font-size-sm)", padding: "4px 12px" }}
                       onClick={(e) => {
                         e.stopPropagation();
                         exportDemo(demo.id, "markdown");
@@ -508,7 +508,7 @@ export function DemoPanel() {
                   <span>
                     {i + 1}. {stepSummary(s)}
                   </span>
-                  <button
+                  <button className="panel-btn"
                     style={{
                       background: "none",
                       border: "none",
@@ -527,7 +527,7 @@ export function DemoPanel() {
 
           <button
             className="panel-btn panel-btn-primary"
-            style={{ width: "100%", padding: "10px 0", fontSize: "var(--font-size-lg)" }}
+            style={{ width: "100%", padding: "12px 0", fontSize: "var(--font-size-lg)" }}
             disabled={!demoName || steps.length === 0 || loading}
             onClick={() => runDemo(demoName, demoDesc, steps)}
           >
@@ -588,7 +588,7 @@ export function DemoPanel() {
                 <div
                   key={i}
                   style={{
-                    padding: "6px 10px",
+                    padding: "8px 12px",
                     background: "var(--bg-secondary)",
                     borderRadius: "var(--radius-xs-plus)",
                     marginBottom: 4,
@@ -600,7 +600,7 @@ export function DemoPanel() {
               ))}
               <button
                 className="panel-btn panel-btn-primary"
-                style={{ width: "100%", padding: "10px 0", fontSize: "var(--font-size-lg)", marginTop: 10 }}
+                style={{ width: "100%", padding: "12px 0", fontSize: "var(--font-size-lg)", marginTop: 10 }}
                 disabled={loading}
                 onClick={() =>
                   runDemo(

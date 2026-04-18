@@ -86,16 +86,16 @@ export function AutoDeployPanel() {
   };
 
   return (
-    <div style={{ padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-mono)", height: "100%", overflowY: "auto" }}>
+    <div className="panel-container" style={{ padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-mono)", flex: 1, minHeight: 0, overflowY: "auto" }}>
       <div style={{ fontSize: "var(--font-size-xl)", fontWeight: 700, marginBottom: 12 }}>Auto Deploy</div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         {["pipeline", "gates", "history"].map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{ padding: "4px 12px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: tab === t ? "var(--accent-color)" : "var(--bg-secondary)", color: tab === t ? "#fff" : "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>{t}</button>
+          <button key={t} onClick={() => setTab(t)} style={{ padding: "4px 12px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: tab === t ? "var(--accent-color)" : "var(--bg-secondary)", color: tab === t ? "var(--btn-primary-fg)" : "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>{t}</button>
         ))}
       </div>
 
-      {loading && <div style={{ color: "var(--text-muted)" }}>Loading...</div>}
+      {loading && <div className="panel-loading" style={{ color: "var(--text-muted)" }}>Loading...</div>}
       {error && <div style={{ color: "var(--error-color)", marginBottom: 8 }}>{error}</div>}
 
       {!loading && tab === "pipeline" && (
@@ -115,7 +115,7 @@ export function AutoDeployPanel() {
                       <div style={{ width: 2, flex: 1, minHeight: 16, background: "var(--border-color)", margin: "4px 0" }} />
                     )}
                   </div>
-                  <div style={{ flex: 1, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderLeft: `3px solid ${statusColor}`, borderRadius: "var(--radius-sm-alt)", padding: "12px 14px", marginBottom: 8 }}>
+                  <div style={{ flex: 1, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderLeft: `3px solid ${statusColor}`, borderRadius: "var(--radius-sm-alt)", padding: "12px 16px", marginBottom: 8 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                       <span style={{ fontSize: "var(--font-size-md)", fontWeight: 600 }}>{stage.name}</span>
                       <span style={{ fontSize: "var(--font-size-sm)", padding: "1px 8px", borderRadius: "var(--radius-sm-alt)", background: kindColor + "22", color: kindColor, fontWeight: 600 }}>{stage.kind}</span>
@@ -152,10 +152,10 @@ export function AutoDeployPanel() {
           {gates.map(gate => {
             const gateColor = gate.passed === null ? "var(--text-muted)" : gate.passed ? "var(--success-color)" : "var(--error-color)";
             return (
-              <div key={gate.id} style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", border: "1px solid var(--border-color)", borderLeft: `3px solid ${gateColor}`, padding: "12px 14px" }}>
+              <div key={gate.id} style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", border: "1px solid var(--border-color)", borderLeft: `3px solid ${gateColor}`, padding: "12px 16px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                   <span style={{ fontSize: "var(--font-size-md)", fontWeight: 600 }}>{gate.name}</span>
-                  <span style={{ fontSize: "var(--font-size-sm)", padding: "2px 10px", borderRadius: "var(--radius-md)", background: gateColor + "22", color: gateColor, fontWeight: 700, marginLeft: "auto" }}>
+                  <span style={{ fontSize: "var(--font-size-sm)", padding: "2px 12px", borderRadius: "var(--radius-md)", background: gateColor + "22", color: gateColor, fontWeight: 700, marginLeft: "auto" }}>
                     {gate.passed === null ? "pending" : gate.passed ? "passed" : "failed"}
                   </span>
                 </div>
@@ -178,7 +178,7 @@ export function AutoDeployPanel() {
             <thead>
               <tr style={{ background: "var(--bg-secondary)" }}>
                 {["Plan ID", "Created", "Target Env", "Triggered By", "Status", "Progress"].map(h => (
-                  <th key={h} style={{ padding: "6px 10px", textAlign: "left", borderBottom: "1px solid var(--border-color)", color: "var(--text-muted)", fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>
+                  <th key={h} style={{ padding: "8px 12px", textAlign: "left", borderBottom: "1px solid var(--border-color)", color: "var(--text-muted)", fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -188,14 +188,14 @@ export function AutoDeployPanel() {
               )}
               {history.map(plan => (
                 <tr key={plan.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
-                  <td style={{ padding: "6px 10px", fontFamily: "var(--font-mono)", fontSize: "var(--font-size-sm)" }}>{plan.id.slice(0, 8)}…</td>
-                  <td style={{ padding: "6px 10px", color: "var(--text-muted)", whiteSpace: "nowrap" }}>{plan.created_at}</td>
-                  <td style={{ padding: "6px 10px" }}>{plan.target_env}</td>
-                  <td style={{ padding: "6px 10px", color: "var(--text-muted)" }}>{plan.triggered_by}</td>
-                  <td style={{ padding: "6px 10px" }}>
+                  <td style={{ padding: "8px 12px", fontFamily: "var(--font-mono)", fontSize: "var(--font-size-sm)" }}>{plan.id.slice(0, 8)}…</td>
+                  <td style={{ padding: "8px 12px", color: "var(--text-muted)", whiteSpace: "nowrap" }}>{plan.created_at}</td>
+                  <td style={{ padding: "8px 12px" }}>{plan.target_env}</td>
+                  <td style={{ padding: "8px 12px", color: "var(--text-muted)" }}>{plan.triggered_by}</td>
+                  <td style={{ padding: "8px 12px" }}>
                     <span style={{ padding: "2px 8px", borderRadius: "var(--radius-md)", fontSize: "var(--font-size-sm)", background: planStatusColor(plan.status) + "22", color: planStatusColor(plan.status) }}>{plan.status}</span>
                   </td>
-                  <td style={{ padding: "6px 10px" }}>
+                  <td style={{ padding: "8px 12px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                       <div style={{ width: 60, height: 5, background: "var(--bg-primary)", borderRadius: 3 }}>
                         <div style={{ height: "100%", width: `${plan.stages_total > 0 ? (plan.stages_passed / plan.stages_total) * 100 : 0}%`, background: "var(--success-color)", borderRadius: 3 }} />

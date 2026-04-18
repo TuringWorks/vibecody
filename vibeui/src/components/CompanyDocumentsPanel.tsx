@@ -254,7 +254,7 @@ export function CompanyDocumentsPanel({ workspacePath: _wp }: CompanyDocumentsPa
                                 onClick={() => changeRole(doc.id, r)}
                                 style={{
                                   display: "block", width: "100%", textAlign: "left",
-                                  padding: "6px 12px", background: r === doc.role ? "rgba(128,128,128,0.1)" : "transparent",
+                                  padding: "8px 12px", background: r === doc.role ? "rgba(128,128,128,0.1)" : "transparent",
                                   border: "none", cursor: "pointer", fontSize: "var(--font-size-base)",
                                 }}
                               >
@@ -344,7 +344,7 @@ export function CompanyDocumentsPanel({ workspacePath: _wp }: CompanyDocumentsPa
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                     {meetingTasks.map((t, i) => (
-                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)" }}>
+                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)" }}>
                         <input
                           type="checkbox"
                           checked={t.checked}
@@ -376,7 +376,7 @@ export function CompanyDocumentsPanel({ workspacePath: _wp }: CompanyDocumentsPa
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                     {meetingApprovals.map((a, i) => (
-                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)" }}>
+                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)" }}>
                         <span style={{ flex: 1, fontSize: "var(--font-size-base)" }}><strong>{a.subject}</strong> — {a.decision_text}</span>
                         <button
                           onClick={() => createApproval(a)}
@@ -401,10 +401,10 @@ export function CompanyDocumentsPanel({ workspacePath: _wp }: CompanyDocumentsPa
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                     {meetingFollowups.map((f, i) => (
-                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)" }}>
+                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)" }}>
                         <span style={{ flex: 1, fontSize: "var(--font-size-base)" }}>{f.text}</span>
                         {f.due_date && (
-                          <span style={{ fontSize: "var(--font-size-xs)", color: "var(--accent-gold)", padding: "1px 6px", background: "rgba(255,193,7,0.12)", borderRadius: "var(--radius-sm)" }}>
+                          <span style={{ fontSize: "var(--font-size-xs)", color: "var(--accent-gold)", padding: "1px 8px", background: "rgba(255,193,7,0.12)", borderRadius: "var(--radius-sm)" }}>
                             due: {f.due_date}
                           </span>
                         )}

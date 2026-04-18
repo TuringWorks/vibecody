@@ -103,7 +103,7 @@ export function DocumentIngestPanel() {
                 value={filePath}
                 onChange={(e) => setFilePath(e.target.value)}
                 placeholder="/path/to/document.pdf or /path/to/directory"
-                style={{ width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", padding: "6px 8px", fontSize: "var(--font-size-base)", boxSizing: "border-box" }}
+                style={{ width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", padding: "8px 8px", fontSize: "var(--font-size-base)", boxSizing: "border-box" }}
               />
             </div>
 
@@ -113,7 +113,7 @@ export function DocumentIngestPanel() {
               <select
                 value={format}
                 onChange={(e) => setFormat(e.target.value as Format)}
-                style={{ width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", padding: "6px 8px", fontSize: "var(--font-size-base)", boxSizing: "border-box" }}
+                style={{ width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", padding: "8px 8px", fontSize: "var(--font-size-base)", boxSizing: "border-box" }}
               >
                 <option value="auto">Auto-detect</option>
                 <option value="plain">Plain Text</option>
@@ -227,7 +227,7 @@ export function DocumentIngestPanel() {
                 max={512}
                 value={config.minChunkSize}
                 onChange={(e) => setConfig((c) => ({ ...c, minChunkSize: Number(e.target.value) }))}
-                style={{ width: 120, background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", padding: "6px 8px", fontSize: "var(--font-size-base)" }}
+                style={{ width: 120, background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", padding: "8px 8px", fontSize: "var(--font-size-base)" }}
               />
             </div>
 

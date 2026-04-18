@@ -78,7 +78,7 @@ function severityColor(sev: string): string {
 function severityIcon(sev: string): React.ReactNode {
   switch (sev.toLowerCase()) {
     case "critical": return <CircleAlert size={14} strokeWidth={1.5} style={{ color: "var(--error-color)" }} />;
-    case "high": return <CircleAlert size={14} strokeWidth={1.5} style={{ color: "#e5a844" }} />;
+    case "high": return <CircleAlert size={14} strokeWidth={1.5} style={{ color: "var(--accent-gold)" }} />;
     case "medium": return <AlertTriangle size={14} strokeWidth={1.5} style={{ color: "var(--warning-color)" }} />;
     case "low": return <Info size={14} strokeWidth={1.5} style={{ color: "var(--accent-blue)" }} />;
     default: return <Info size={14} strokeWidth={1.5} style={{ color: "var(--text-secondary)" }} />;
@@ -371,10 +371,10 @@ export function RedTeamPanel({ workspacePath, onOpenFile }: Props) {
           const isExpanded = expandedStage === ss.stage;
           return (
             <div key={ss.stage} style={{ marginBottom: 4 }}>
-              <div
+              <div role="button" tabIndex={0}
                 onClick={() => setExpandedStage(isExpanded ? null : ss.stage)}
                 style={{
-                  display: "flex", alignItems: "center", gap: 8, padding: "6px 10px",
+                  display: "flex", alignItems: "center", gap: 8, padding: "8px 12px",
                   background: ss.status === "running" ? "color-mix(in srgb, var(--accent-blue) 8%, transparent)" : "var(--bg-secondary)",
                   borderRadius: "var(--radius-xs-plus)", cursor: "pointer", fontSize: "var(--font-size-base)",
                   borderLeft: `3px solid ${
@@ -428,7 +428,7 @@ export function RedTeamPanel({ workspacePath, onOpenFile }: Props) {
 
               {/* Expanded details */}
               {isExpanded && ss.details.length > 0 && (
-                <div style={{ marginLeft: 29, padding: "4px 10px", fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
+                <div style={{ marginLeft: 29, padding: "4px 12px", fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
                   {ss.details.map((d, j) => (
                     <div key={j} style={{ display: "flex", gap: 6, alignItems: "center", padding: "2px 0" }}>
                       <span style={{ color: "var(--success-color)" }}>&#10003;</span>
@@ -480,7 +480,7 @@ export function RedTeamPanel({ workspacePath, onOpenFile }: Props) {
           background: "var(--bg-secondary)", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-base)", alignItems: "center",
         }}>
           <span style={{ color: "var(--error-color)", fontWeight: 600 }}>{critical} Critical</span>
-          <span style={{ color: "#e5a844", fontWeight: 600 }}>{high} High</span>
+          <span style={{ color: "var(--accent-gold)", fontWeight: 600 }}>{high} High</span>
           <span style={{ color: "var(--warning-color)", fontWeight: 600 }}>{medium} Medium</span>
           <span style={{ color: "var(--accent-blue)", fontWeight: 600 }}>{low} Low</span>
           <span style={{ flex: 1 }} />
@@ -498,7 +498,7 @@ export function RedTeamPanel({ workspacePath, onOpenFile }: Props) {
         <div style={{ marginBottom: 16 }}>
           <h4 style={{ margin: "0 0 8px", fontSize: "var(--font-size-md)" }}>Findings ({findings.length})</h4>
           {findings.sort((a, b) => b.cvss_score - a.cvss_score).map((f) => (
-            <div key={f.id} style={{
+            <div role="button" tabIndex={0} key={f.id} style={{
               marginBottom: 8, padding: "8px 12px", borderRadius: "var(--radius-xs-plus)",
               background: "var(--bg-secondary)", borderLeft: `3px solid ${severityColor(f.severity)}`,
               cursor: "pointer",
@@ -507,13 +507,13 @@ export function RedTeamPanel({ workspacePath, onOpenFile }: Props) {
                 <span style={{ display: "inline-flex" }}>{severityIcon(f.severity)}</span>
                 <span style={{ fontSize: "var(--font-size-base)", fontWeight: 600, flex: 1 }}>{f.title}</span>
                 <span style={{
-                  fontSize: "var(--font-size-xs)", padding: "2px 6px", borderRadius: 3,
+                  fontSize: "var(--font-size-xs)", padding: "2px 8px", borderRadius: 3,
                   background: severityColor(f.severity), color: "var(--btn-primary-fg, #fff)", fontWeight: 600,
                 }}>
                   CVSS {f.cvss_score.toFixed(1)}
                 </span>
                 {f.confirmed && (
-                  <span style={{ fontSize: "var(--font-size-xs)", padding: "2px 6px", borderRadius: 3, background: "var(--error-color)", color: "var(--btn-primary-fg, #fff)" }}>
+                  <span style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px", borderRadius: 3, background: "var(--error-color)", color: "var(--btn-primary-fg, #fff)" }}>
                     CONFIRMED
                   </span>
                 )}
@@ -566,9 +566,9 @@ export function RedTeamPanel({ workspacePath, onOpenFile }: Props) {
         <div>
           <h4 style={{ margin: "0 0 8px", fontSize: "var(--font-size-md)" }}>Previous Sessions</h4>
           {sessions.map((s) => (
-            <div key={s.id} style={{
+            <div role="button" tabIndex={0} key={s.id} style={{
               display: "flex", alignItems: "center", gap: 8,
-              padding: "6px 10px", marginBottom: 4, borderRadius: "var(--radius-xs-plus)",
+              padding: "8px 12px", marginBottom: 4, borderRadius: "var(--radius-xs-plus)",
               background: "var(--bg-secondary)", fontSize: "var(--font-size-base)", cursor: "pointer",
             }} onClick={async () => {
               try {

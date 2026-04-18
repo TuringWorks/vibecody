@@ -134,7 +134,7 @@ export function CostRouterPanel() {
                 <strong style={{ fontSize: "var(--font-size-md)" }}>{d.query}</strong>
                 <span style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>{d.timestamp}</span>
               </div>
-              <div style={{ fontSize: "var(--font-size-md)" }}>Routed to: <span style={badgeStyle("#6366f1")}>{d.chosenModel || d.chosen_model}</span></div>
+              <div style={{ fontSize: "var(--font-size-md)" }}>Routed to: <span style={badgeStyle("var(--accent-indigo)")}>{d.chosenModel || d.chosen_model}</span></div>
               <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginTop: 4, fontStyle: "italic" }}>{d.reason}</div>
             </div>
           ))}

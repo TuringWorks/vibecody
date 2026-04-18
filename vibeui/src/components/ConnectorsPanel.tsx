@@ -106,7 +106,7 @@ export function ConnectorsPanel() {
                 <span style={{ fontSize: "var(--font-size-md)" }}>{name}</span>
                 <button
                   className={`panel-btn ${isConnected ? "panel-btn-secondary" : "panel-btn-primary"}`}
-                  style={{ fontSize: "var(--font-size-sm)", padding: "4px 10px" }}
+                  style={{ fontSize: "var(--font-size-sm)", padding: "4px 12px" }}
                   onClick={() => !isConnected && handleSetup(name)}
                   disabled={isConnected}
                 >
@@ -162,7 +162,7 @@ export function ConnectorsPanel() {
                 </div>
                 <button
                   className="panel-btn panel-btn-primary"
-                  style={{ fontSize: "var(--font-size-sm)", padding: "4px 10px" }}
+                  style={{ fontSize: "var(--font-size-sm)", padding: "4px 12px" }}
                   onClick={() => handleSetup(d.type)}
                 >
                   Connect

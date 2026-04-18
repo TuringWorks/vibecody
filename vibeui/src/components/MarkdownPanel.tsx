@@ -146,20 +146,20 @@ export function MarkdownPanel({ workspacePath }: { workspacePath: string | null 
  const filtered = files.filter(f => !filter || f.name.toLowerCase().includes(filter.toLowerCase()));
 
  return (
- <div style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
+ <div className="panel-container" style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
  {/* File sidebar */}
  <div style={{ width: 190, borderRight: "1px solid var(--border-color)", display: "flex", flexDirection: "column", flexShrink: 0 }}>
- <div style={{ padding: "8px 10px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", alignItems: "center", gap: 6 }}>
+ <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", alignItems: "center", gap: 6 }}>
  <span style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, flex: 1 }}>Files</span>
- <button onClick={newFile} title="New file" style={{ fontSize: "var(--font-size-md)", background: "none", border: "none", color: "var(--accent-primary)", cursor: "pointer", fontWeight: 700, lineHeight: 1 }}>+</button>
- <button onClick={loadFiles} title="Refresh" style={{ fontSize: "var(--font-size-sm)", background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}>↺</button>
+ <button className="panel-btn" onClick={newFile} title="New file" style={{ fontSize: "var(--font-size-md)", background: "none", border: "none", color: "var(--accent-primary)", cursor: "pointer", fontWeight: 700, lineHeight: 1 }}>+</button>
+ <button className="panel-btn" onClick={loadFiles} title="Refresh" style={{ fontSize: "var(--font-size-sm)", background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}>↺</button>
  </div>
- <div style={{ padding: "6px 8px", borderBottom: "1px solid var(--border-color)" }}>
+ <div style={{ padding: "8px 8px", borderBottom: "1px solid var(--border-color)" }}>
  <input
  value={filter}
  onChange={e => setFilter(e.target.value)}
  placeholder="Filter files…"
- style={{ width: "100%", padding: "3px 7px", fontSize: "var(--font-size-xs)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }}
+ style={{ width: "100%", padding: "3px 8px", fontSize: "var(--font-size-xs)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }}
  />
  </div>
  <div style={{ flex: 1, overflowY: "auto" }}>
@@ -172,7 +172,7 @@ export function MarkdownPanel({ workspacePath }: { workspacePath: string | null 
  onClick={() => openFile(f)}
  style={{
  display: "block", width: "100%", textAlign: "left",
- padding: "7px 10px", cursor: "pointer", fontSize: "var(--font-size-sm)",
+ padding: "8px 12px", cursor: "pointer", fontSize: "var(--font-size-sm)",
  background: filePath === f.path ? "var(--accent-bg, color-mix(in srgb, var(--accent-blue) 15%, transparent))" : "transparent",
  border: "none", borderBottom: "1px solid var(--border-color)",
  color: "var(--text-primary)",
@@ -191,22 +191,22 @@ export function MarkdownPanel({ workspacePath }: { workspacePath: string | null 
  {/* Editor area */}
  <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
  {/* Toolbar */}
- <div style={{ padding: "6px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+ <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
  <span style={{ fontSize: "var(--font-size-base)", fontWeight: 600, flex: 1, color: dirty ? "var(--warning-color)" : "var(--text-primary)" }}>
  {fileName}{dirty ? " •" : ""}
  </span>
 
  {/* View toggle */}
  {(["split", "editor", "preview"] as View[]).map(v => (
- <button key={v} onClick={() => setView(v)} style={{ padding: "2px 10px", fontSize: "var(--font-size-xs)", borderRadius: "var(--radius-md)", background: view === v ? "color-mix(in srgb, var(--accent-blue) 25%, transparent)" : "var(--bg-primary)", border: `1px solid ${view === v ? "var(--accent-color)" : "var(--border-color)"}`, color: view === v ? "var(--accent-color)" : "var(--text-secondary)", cursor: "pointer", fontWeight: view === v ? 700 : 400 }}>
+ <button key={v} onClick={() => setView(v)} style={{ padding: "2px 12px", fontSize: "var(--font-size-xs)", borderRadius: "var(--radius-md)", background: view === v ? "color-mix(in srgb, var(--accent-blue) 25%, transparent)" : "var(--bg-primary)", border: `1px solid ${view === v ? "var(--accent-color)" : "var(--border-color)"}`, color: view === v ? "var(--accent-color)" : "var(--text-secondary)", cursor: "pointer", fontWeight: view === v ? 700 : 400 }}>
  {v === "split" ? "Split" : v === "editor" ? "Edit" : "Preview"}
  </button>
  ))}
 
- <button onClick={save} disabled={saving} style={{ padding: "3px 12px", fontSize: "var(--font-size-sm)", fontWeight: 700, background: "var(--accent-color)", border: "none", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", cursor: saving ? "not-allowed" : "pointer" }}>
+ <button className="panel-btn" onClick={save} disabled={saving} style={{ padding: "3px 12px", fontSize: "var(--font-size-sm)", fontWeight: 700, background: "var(--accent-color)", border: "none", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", cursor: saving ? "not-allowed" : "pointer" }}>
  {saving ? "" : "Save"}
  </button>
- <button onClick={exportHtml} style={{ padding: "3px 10px", fontSize: "var(--font-size-sm)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-secondary)", cursor: "pointer" }}>
+ <button className="panel-btn" onClick={exportHtml} style={{ padding: "3px 12px", fontSize: "var(--font-size-sm)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-secondary)", cursor: "pointer" }}>
  ↗ HTML
  </button>
  </div>
@@ -242,14 +242,14 @@ export function MarkdownPanel({ workspacePath }: { workspacePath: string | null 
  }}
  spellCheck={false}
  style={{
- flex: 1, resize: "none", padding: "14px 16px",
+ flex: 1, resize: "none", padding: "16px 16px",
  fontSize: "var(--font-size-md)", fontFamily: "var(--font-mono)", lineHeight: 1.7,
  background: "var(--bg-primary)", color: "var(--text-primary)",
  border: "none", outline: "none",
  }}
  />
  {/* Stats footer */}
- <div style={{ padding: "3px 14px", borderTop: "1px solid var(--border-color)", background: "var(--bg-secondary)", fontSize: 9, color: "var(--text-secondary)", display: "flex", gap: 12 }}>
+ <div style={{ padding: "3px 16px", borderTop: "1px solid var(--border-color)", background: "var(--bg-secondary)", fontSize: 9, color: "var(--text-secondary)", display: "flex", gap: 12 }}>
  <span>{words} words</span>
  <span>{chars} chars</span>
  <span>{readingTime(words)}</span>
@@ -270,23 +270,23 @@ export function MarkdownPanel({ workspacePath }: { workspacePath: string | null 
  h1: ({ children }) => <h1 style={{ fontSize: 28, fontWeight: 700, borderBottom: "1px solid var(--border-color)", paddingBottom: 8, marginBottom: 16 }}>{children}</h1>,
  h2: ({ children }) => <h2 style={{ fontSize: 22, fontWeight: 600, marginTop: 28, marginBottom: 10 }}>{children}</h2>,
  h3: ({ children }) => <h3 style={{ fontSize: 18, fontWeight: 600, marginTop: 20, marginBottom: 8 }}>{children}</h3>,
- p: ({ children }) => <p style={{ margin: "0 0 14px" }}>{children}</p>,
+ p: ({ children }) => <p style={{ margin: "0 0 16px" }}>{children}</p>,
  code: ({ className, children }) => {
  const isBlock = className?.startsWith("language-");
  return isBlock
- ? <code style={{ display: "block", background: "var(--bg-secondary)", padding: "14px 16px", borderRadius: "var(--radius-sm)", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)", overflowX: "auto", margin: "12px 0", whiteSpace: "pre" }}>{children}</code>
- : <code style={{ background: "var(--bg-secondary)", padding: "1px 5px", borderRadius: 3, fontSize: "0.9em", fontFamily: "var(--font-mono)" }}>{children}</code>;
+ ? <code style={{ display: "block", background: "var(--bg-secondary)", padding: "16px 16px", borderRadius: "var(--radius-sm)", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)", overflowX: "auto", margin: "12px 0", whiteSpace: "pre" }}>{children}</code>
+ : <code style={{ background: "var(--bg-secondary)", padding: "1px 4px", borderRadius: 3, fontSize: "0.9em", fontFamily: "var(--font-mono)" }}>{children}</code>;
  },
  pre: ({ children }) => <>{children}</>,
  blockquote: ({ children }) => <blockquote style={{ borderLeft: "3px solid var(--accent-color)", margin: "16px 0", paddingLeft: 16, color: "var(--text-secondary)", fontStyle: "italic" }}>{children}</blockquote>,
- ul: ({ children }) => <ul style={{ paddingLeft: 24, margin: "10px 0" }}>{children}</ul>,
- ol: ({ children }) => <ol style={{ paddingLeft: 24, margin: "10px 0" }}>{children}</ol>,
+ ul: ({ children }) => <ul style={{ paddingLeft: 24, margin: "12px 0" }}>{children}</ul>,
+ ol: ({ children }) => <ol style={{ paddingLeft: 24, margin: "12px 0" }}>{children}</ol>,
  li: ({ children }) => <li style={{ marginBottom: 4 }}>{children}</li>,
  a: ({ href, children }) => <a href={href} target="_blank" rel="noreferrer" style={{ color: "var(--text-info)" }}>{children}</a>,
  hr: () => <hr style={{ border: "none", borderTop: "1px solid var(--border-color)", margin: "24px 0" }} />,
  table: ({ children }) => <table style={{ borderCollapse: "collapse", width: "100%", margin: "16px 0" }}>{children}</table>,
- th: ({ children }) => <th style={{ border: "1px solid var(--border-color)", padding: "6px 12px", background: "var(--bg-secondary)", fontWeight: 600 }}>{children}</th>,
- td: ({ children }) => <td style={{ border: "1px solid var(--border-color)", padding: "6px 12px" }}>{children}</td>,
+ th: ({ children }) => <th style={{ border: "1px solid var(--border-color)", padding: "8px 12px", background: "var(--bg-secondary)", fontWeight: 600 }}>{children}</th>,
+ td: ({ children }) => <td style={{ border: "1px solid var(--border-color)", padding: "8px 12px" }}>{children}</td>,
  img: ({ src, alt }) => <img src={src} alt={alt ?? ""} style={{ maxWidth: "100%", borderRadius: "var(--radius-sm)" }} />,
  }}
  >

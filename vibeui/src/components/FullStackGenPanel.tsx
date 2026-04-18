@@ -195,7 +195,7 @@ const FullStackGenPanel: React.FC = () => {
         </div>
       </div>
       {error && <div className="panel-error" style={{ marginBottom: 8 }}>{error}</div>}
-      <button className="panel-btn panel-btn-primary" style={{ width: "100%", padding: "10px", opacity: generating ? 0.6 : 1 }}
+      <button className="panel-btn panel-btn-primary" style={{ width: "100%", padding: "12px", opacity: generating ? 0.6 : 1 }}
         onClick={handleGenerate} disabled={generating}>
         {generating ? "Generating project files..." : "Generate Full Stack"}
       </button>
@@ -215,14 +215,14 @@ const FullStackGenPanel: React.FC = () => {
       </div>
       {groupedFiles.map(({ layer, files: layerFiles }) => (
         <div key={layer} style={{ marginBottom: "8px" }}>
-          <div style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: "8px",
-            padding: "6px 0", fontWeight: 600 }} onClick={() => toggleLayer(layer)}>
+          <div role="button" tabIndex={0} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: "8px",
+            padding: "8px 0", fontWeight: 600 }} onClick={() => toggleLayer(layer)}>
             <span>{expandedLayers.has(layer) ? "\u25BC" : "\u25B6"}</span>
             <span style={badgeStyle(layerColors[layer] || "var(--border-color)")}>{layer}</span>
             <span style={{ opacity: 0.6, fontSize: "var(--font-size-base)" }}>({layerFiles.length} files)</span>
           </div>
           {expandedLayers.has(layer) && layerFiles.map(f => (
-            <div key={f.path} style={{ display: "flex", justifyContent: "space-between", alignItems: "center",
+            <div role="button" tabIndex={0} key={f.path} style={{ display: "flex", justifyContent: "space-between", alignItems: "center",
               padding: "4px 0 4px 24px", fontSize: "var(--font-size-base)", borderBottom: "1px solid var(--border-color)",
               cursor: "pointer" }}
               onClick={() => openFile(f)}>
@@ -263,7 +263,7 @@ const FullStackGenPanel: React.FC = () => {
               flex: 1, width: "100%", boxSizing: "border-box",
               backgroundColor: "var(--bg-tertiary)", color: "var(--text-primary)",
               border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)",
-              fontFamily: "var(--font-mono)", fontSize: "var(--font-size-base)", padding: "10px",
+              fontFamily: "var(--font-mono)", fontSize: "var(--font-size-base)", padding: "12px",
               resize: "none", lineHeight: 1.5,
             }}
             value={editContent}

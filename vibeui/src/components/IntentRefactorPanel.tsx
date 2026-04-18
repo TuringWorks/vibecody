@@ -135,7 +135,7 @@ export default function IntentRefactorPanel() {
                   Session: {plan.sessionId} · {plan.steps.length} step{plan.steps.length !== 1 ? "s" : ""}
                 </div>
                 {plan.steps.map((s, i) => (
-                  <div key={i} className="panel-row" style={{ padding: "5px 0", borderBottom: "1px solid var(--border-subtle)" }}>
+                  <div key={i} className="panel-row" style={{ padding: "4px 0", borderBottom: "1px solid var(--border-subtle)" }}>
                     <span style={{ width: 20, textAlign: "right", color: "var(--text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>
                       {i + 1}.
                     </span>
@@ -179,7 +179,7 @@ export default function IntentRefactorPanel() {
                   Suggestions
                 </div>
                 {suggestions.map((s, i) => (
-                  <div key={i} className="panel-row" style={{ padding: "5px 0", borderBottom: "1px solid var(--border-subtle)" }}>
+                  <div key={i} className="panel-row" style={{ padding: "4px 0", borderBottom: "1px solid var(--border-subtle)" }}>
                     <span style={{ flex: 1, fontSize: "var(--font-size-base)" }}>{s.intent}</span>
                     <span style={{ color: confColor(s.confidence), fontWeight: "var(--font-semibold)", fontSize: "var(--font-size-sm)" }}>
                       {(s.confidence * 100).toFixed(0)}%

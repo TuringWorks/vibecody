@@ -1,17 +1,23 @@
 /**
  * DesignHubPanel — unified multi-provider design hub.
  *
- * Replaces and extends the Figma-only tab in DesignMode.
- * Tabs: Providers | Tokens | Audit | Figma (legacy) | Settings
+ * Tabs: Providers | Tokens | Audit | Figma | Settings
  * - Providers: Switch between Figma, Penpot, Pencil, Draw.io, Mermaid, Built-in
- * - Tokens: Cross-provider token browser with CSS/Tailwind/JSON export
+ * - Tokens: Cross-provider token browser with CSS/Tailwind/JSON export + filter
  * - Audit: Design system health check and drift detection
- * - Figma: Preserved Figma import (legacy)
+ * - Figma: Figma import — token persisted in ProfileStore (NOT localStorage)
  * - Settings: Per-provider credentials and preferences
+ *
+ * Security: the Figma personal access token is stored via Tauri profile_api_key_*
+ * commands, which write through the encrypted ProfileStore. We never touch
+ * localStorage for credential material — see AGENTS.md "Secure Settings Storage".
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Icon } from "./Icon";
+import { useToast } from "../hooks/useToast";
+import { usePanelSettings } from "../hooks/usePanelSettings";
+import { Toaster } from "./Toaster";
 
 interface DesignHubPanelProps {
   workspacePath: string | null;
@@ -19,6 +25,9 @@ interface DesignHubPanelProps {
 }
 
 type HubTab = "providers" | "tokens" | "audit" | "figma" | "settings";
+
+const PROFILE_ID = "default";
+const FIGMA_KEY_PROVIDER = "figma";
 
 const TAB_DEFS: { id: HubTab; label: string }[] = [
   { id: "providers", label: "Providers" },
@@ -29,49 +38,78 @@ const TAB_DEFS: { id: HubTab; label: string }[] = [
 ];
 
 const PROVIDERS = [
-  { id: "penpot", label: "Penpot", icon: "palette", desc: "Open-source Figma alternative", status: "active" },
-  { id: "figma", label: "Figma", icon: "pen-tool", desc: "Figma design import (API token required)", status: "active" },
-  { id: "pencil", label: "Pencil", icon: "edit", desc: "Evolus Pencil .ep wireframes", status: "active" },
-  { id: "drawio", label: "Draw.io", icon: "chart-bar", desc: "Draw.io / diagrams.net editor", status: "active" },
-  { id: "mermaid", label: "Mermaid", icon: "git-graph", desc: "AI-generated Mermaid diagrams", status: "active" },
-  { id: "inhouse", label: "Built-in", icon: "zap", desc: "VibeCody built-in design system", status: "active" },
+  { id: "penpot", label: "Penpot", icon: "palette", desc: "Open-source Figma alternative" },
+  { id: "figma", label: "Figma", icon: "pen-tool", desc: "Figma design import (API token required)" },
+  { id: "pencil", label: "Pencil", icon: "edit", desc: "Evolus Pencil .ep wireframes" },
+  { id: "drawio", label: "Draw.io", icon: "chart-bar", desc: "Draw.io / diagrams.net editor" },
+  { id: "mermaid", label: "Mermaid", icon: "git-graph", desc: "AI-generated Mermaid diagrams" },
+  { id: "inhouse", label: "Built-in", icon: "zap", desc: "VibeCody built-in design system" },
 ] as const;
-
-const tabStyle = (active: boolean): React.CSSProperties => ({
-  padding: "7px 14px",
-  fontSize: "var(--font-size-base)",
-  fontWeight: active ? 600 : 400,
-  cursor: "pointer",
-  border: "none",
-  borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent",
-  background: "transparent",
-  color: active ? "var(--text-primary)" : "var(--text-secondary)",
-  whiteSpace: "nowrap",
-});
 
 interface DesignToken { name: string; token_type: string; value: string; provider: string; }
 interface AuditIssue { severity: string; code: string; message: string; }
 interface AuditReport { score: number; summary: string; issues: AuditIssue[]; }
 
 export function DesignHubPanel({ workspacePath, provider }: DesignHubPanelProps) {
-  const [activeTab, setActiveTab] = useState<HubTab>("providers");
-  const [activeProviders, setActiveProviders] = useState<string[]>(["inhouse"]);
+  const { toasts, toast, dismiss } = useToast();
+  const { settings, setSetting, loading: settingsLoading } = usePanelSettings("design-hub");
+  const [activeTab, setActiveTabState] = useState<HubTab>("providers");
+  const [activeProviders, setActiveProvidersState] = useState<string[]>(["inhouse"]);
+  const [hydrated, setHydrated] = useState(false);
+
+  // Hydrate from panel_settings_get_all once it has resolved.
+  useEffect(() => {
+    if (settingsLoading || hydrated) return;
+    const tab = settings.activeTab as HubTab | undefined;
+    const provs = settings.activeProviders as string[] | undefined;
+    if (tab && TAB_DEFS.some((t) => t.id === tab)) setActiveTabState(tab);
+    if (Array.isArray(provs) && provs.length > 0) setActiveProvidersState(provs);
+    setHydrated(true);
+  }, [settings, settingsLoading, hydrated]);
+
+  const setActiveTab = (next: HubTab) => {
+    setActiveTabState(next);
+    void setSetting("activeTab", next);
+  };
+
+  const setActiveProviders = (updater: (prev: string[]) => string[]) => {
+    setActiveProvidersState((prev) => {
+      const next = updater(prev);
+      void setSetting("activeProviders", next);
+      return next;
+    });
+  };
   const [tokens, setTokens] = useState<DesignToken[]>([]);
+  const [tokenFilter, setTokenFilter] = useState("");
   const [auditReport, setAuditReport] = useState<AuditReport | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [tokenExportFormat, setTokenExportFormat] = useState("css");
   const [tokenExportResult, setTokenExportResult] = useState("");
   const [figmaUrl, setFigmaUrl] = useState("");
-  const [figmaToken, setFigmaToken] = useState(() => localStorage.getItem("figma_token") ?? "");
-  const [figmaSaveToken, setFigmaSaveToken] = useState(() => !!localStorage.getItem("figma_token"));
+  const [figmaToken, setFigmaToken] = useState("");
+  const [figmaSaveToken, setFigmaSaveToken] = useState(false);
   const [figmaResult, setFigmaResult] = useState<Array<{ path: string; content: string }>>([]);
   const [figmaExpandedFile, setFigmaExpandedFile] = useState<string | null>(null);
-  const [statusMsg, setStatusMsg] = useState("");
 
-  const showStatus = (msg: string) => {
-    setStatusMsg(msg);
-    setTimeout(() => setStatusMsg(""), 3000);
-  };
+  // Hydrate the Figma token from the encrypted ProfileStore on mount.
+  useEffect(() => {
+    let cancelled = false;
+    invoke<string | null>("profile_api_key_get", {
+      profile_id: PROFILE_ID, profileId: PROFILE_ID,
+      provider: FIGMA_KEY_PROVIDER,
+    })
+      .then((value) => {
+        if (cancelled) return;
+        if (typeof value === "string" && value.length > 0) {
+          setFigmaToken(value);
+          setFigmaSaveToken(true);
+        }
+      })
+      .catch((e) => toast.error(`Failed to load Figma token: ${e}`));
+    return () => { cancelled = true; };
+    // toast is reconstructed each render; we deliberately want this to fire once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const toggleProvider = (id: string) => {
     setActiveProviders((prev) =>
@@ -85,9 +123,12 @@ export function DesignHubPanel({ workspacePath, provider }: DesignHubPanelProps)
       const result = await invoke<{ tokens: DesignToken[] }>("load_design_system_tokens", {
         providers: activeProviders,
         workspacePath,
-      }).catch(() => ({ tokens: [] }));
+        workspace_path: workspacePath,
+      });
       setTokens(result.tokens);
-      showStatus(`Loaded ${result.tokens.length} token(s)`);
+      toast.success(`Loaded ${result.tokens.length} token(s)`);
+    } catch (e) {
+      toast.error(`Failed to load tokens: ${e}`);
     } finally {
       setIsLoading(false);
     }
@@ -100,8 +141,12 @@ export function DesignHubPanel({ workspacePath, provider }: DesignHubPanelProps)
         tokens,
         format: tokenExportFormat,
         systemName: "VibeCody Design System",
-      }).catch((e: unknown) => String(e));
+        system_name: "VibeCody Design System",
+      });
       setTokenExportResult(result);
+      toast.success(`Exported ${tokens.length} token(s) as ${tokenExportFormat.toUpperCase()}`);
+    } catch (e) {
+      toast.error(`Export failed: ${e}`);
     } finally {
       setIsLoading(false);
     }
@@ -111,65 +156,104 @@ export function DesignHubPanel({ workspacePath, provider }: DesignHubPanelProps)
     setIsLoading(true);
     try {
       const result = await invoke<AuditReport>("audit_design_system_tokens", {
-        tokens,
-        systemName: "VibeCody",
-      }).catch(() => null);
-      if (result) {
-        setAuditReport(result);
-        showStatus(`Audit complete — score: ${result.score}/100`);
-      }
+        tokens, systemName: "VibeCody", system_name: "VibeCody",
+      });
+      setAuditReport(result);
+      toast.success(`Audit complete — score: ${result.score}/100`);
+    } catch (e) {
+      toast.error(`Audit failed: ${e}`);
     } finally {
       setIsLoading(false);
     }
   };
 
+  const persistFigmaToken = async () => {
+    try {
+      if (figmaSaveToken) {
+        await invoke("profile_api_key_set", {
+          profile_id: PROFILE_ID, profileId: PROFILE_ID,
+          provider: FIGMA_KEY_PROVIDER,
+          api_key: figmaToken, apiKey: figmaToken,
+        });
+      } else {
+        await invoke("profile_api_key_delete", {
+          profile_id: PROFILE_ID, profileId: PROFILE_ID,
+          provider: FIGMA_KEY_PROVIDER,
+        });
+      }
+    } catch (e) {
+      toast.error(`Failed to persist Figma token: ${e}`);
+    }
+  };
+
   const handleFigmaImport = async () => {
     if (!figmaUrl.trim() || !figmaToken.trim()) return;
-    if (figmaSaveToken) localStorage.setItem("figma_token", figmaToken);
-    else localStorage.removeItem("figma_token");
+    await persistFigmaToken();
     setIsLoading(true);
     setFigmaResult([]);
     setFigmaExpandedFile(null);
     try {
       const files = await invoke<Array<{ path: string; content: string }>>("import_figma", {
-        url: figmaUrl, token: figmaToken, workspacePath, provider,
-      }).catch(() => []);
+        url: figmaUrl, token: figmaToken,
+        workspacePath, workspace_path: workspacePath,
+        provider,
+      });
       setFigmaResult(files);
-      showStatus(`${files.length} component(s) generated`);
+      toast.success(`${files.length} component(s) generated`);
+    } catch (e) {
+      toast.error(`Figma import failed: ${e}`);
     } finally {
       setIsLoading(false);
     }
   };
 
   const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text).then(() => showStatus("Copied!")).catch(() => {});
+    navigator.clipboard.writeText(text)
+      .then(() => toast.info("Copied to clipboard"))
+      .catch((e) => toast.error(`Copy failed: ${e}`));
   };
+
+  const filteredTokens = tokenFilter.trim() === ""
+    ? tokens
+    : tokens.filter((t) => {
+        const q = tokenFilter.toLowerCase();
+        return t.name.toLowerCase().includes(q) || t.value.toLowerCase().includes(q);
+      });
 
   // ── Render ────────────────────────────────────────────────────────────
 
   const renderProviders = () => (
-    <div style={{ flex: 1, overflow: "auto", padding: 16 }}>
-      <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)", marginBottom: 4 }}>Design Providers</div>
-      <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 16, lineHeight: 1.6 }}>
+    <div style={{ flex: 1, overflow: "auto", padding: "var(--space-4)" }}>
+      <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)", marginBottom: "var(--space-1)" }}>
+        Design Providers
+      </div>
+      <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: "var(--space-4)", lineHeight: 1.6 }}>
         Enable providers to aggregate tokens and components across design tools.
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 10, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: "var(--space-2)", marginBottom: "var(--space-5)" }}>
         {PROVIDERS.map((p) => {
           const enabled = activeProviders.includes(p.id);
           return (
-            <div
+            <button
               key={p.id}
+              type="button"
               onClick={() => toggleProvider(p.id)}
+              aria-pressed={enabled}
+              aria-label={`${p.label} provider — ${enabled ? "enabled" : "disabled"}`}
+              className="panel-card"
               style={{
-                padding: "14px 16px",
-                background: enabled ? "var(--bg-elevated)" : "var(--bg-secondary)",
+                padding: "var(--space-3) var(--space-4)",
+                background: enabled ? "var(--bg-elevated, var(--bg-secondary))" : "var(--bg-secondary)",
                 border: `1px solid ${enabled ? "var(--accent-blue)" : "var(--border-color)"}`,
                 borderRadius: "var(--radius-md)",
                 cursor: "pointer",
                 display: "flex",
-                gap: 12,
+                gap: "var(--space-3)",
                 alignItems: "flex-start",
-                transition: "all 0.15s",
+                textAlign: "left",
+                font: "inherit",
+                color: "inherit",
+                width: "100%",
               }}
             >
               <Icon name={p.icon} size={20} style={{ flexShrink: 0, marginTop: 2 }} />
@@ -177,24 +261,24 @@ export function DesignHubPanel({ workspacePath, provider }: DesignHubPanelProps)
                 <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", marginBottom: 2 }}>{p.label}</div>
                 <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", lineHeight: 1.4 }}>{p.desc}</div>
               </div>
-              <div style={{
+              <div aria-hidden style={{
                 width: 16, height: 16, borderRadius: "50%", border: "2px solid var(--border-color)",
                 background: enabled ? "var(--accent-blue)" : "transparent",
                 flexShrink: 0, marginTop: 2,
               }} />
-            </div>
+            </button>
           );
         })}
       </div>
       <button
+        className="panel-btn panel-btn-primary"
         onClick={loadTokens}
         disabled={isLoading || activeProviders.length === 0}
-        style={{ background: "var(--accent-blue)", color: "var(--btn-primary-fg, #fff)", border: "none", borderRadius: "var(--radius-sm)", padding: "10px 24px", cursor: "pointer", fontWeight: 600, fontSize: "var(--font-size-lg)", opacity: isLoading || activeProviders.length === 0 ? 0.5 : 1 }}
       >
         {isLoading ? "Loading…" : "Load Design Tokens"}
       </button>
       {tokens.length > 0 && (
-        <div style={{ marginTop: 12, fontSize: "var(--font-size-base)", color: "var(--text-success)" }}>
+        <div style={{ marginTop: "var(--space-3)", fontSize: "var(--font-size-base)", color: "var(--text-success)" }}>
           ✓ {tokens.length} token(s) loaded from {activeProviders.length} provider(s)
         </div>
       )}
@@ -203,48 +287,64 @@ export function DesignHubPanel({ workspacePath, provider }: DesignHubPanelProps)
 
   const renderTokens = () => (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-      <div style={{ padding: "8px 16px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
-        <span style={{ fontSize: "var(--font-size-base)", fontWeight: 600 }}>Tokens ({tokens.length})</span>
-        <div style={{ marginLeft: "auto", display: "flex", gap: 4 }}>
+      <div style={{ padding: "var(--space-2) var(--space-4)", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: "var(--space-2)", alignItems: "center", flexShrink: 0, flexWrap: "wrap" }}>
+        <span style={{ fontSize: "var(--font-size-base)", fontWeight: 600 }}>Tokens ({filteredTokens.length}/{tokens.length})</span>
+        <input
+          aria-label="Filter tokens"
+          placeholder="Filter tokens…"
+          value={tokenFilter}
+          onChange={(e) => setTokenFilter(e.target.value)}
+          className="panel-input"
+          style={{ flex: 1, minWidth: 160, padding: "4px 8px", fontSize: "var(--font-size-sm)" }}
+        />
+        <div style={{ display: "flex", gap: "var(--space-1)" }}>
           {["css", "tailwind", "typescript", "json"].map((f) => (
-            <button key={f} onClick={() => setTokenExportFormat(f)}
-              style={{ background: tokenExportFormat === f ? "var(--accent-blue)" : "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: "3px 8px", cursor: "pointer", color: tokenExportFormat === f ? "#fff" : "inherit", fontSize: "var(--font-size-sm)", fontWeight: tokenExportFormat === f ? 600 : 400 }}
-            >{f.toUpperCase()}</button>
+            <button
+              key={f}
+              type="button"
+              onClick={() => setTokenExportFormat(f)}
+              className={`panel-btn panel-btn-sm ${tokenExportFormat === f ? "panel-btn-primary" : "panel-btn-secondary"}`}
+            >
+              {f.toUpperCase()}
+            </button>
           ))}
-          <button onClick={exportTokens} disabled={tokens.length === 0}
-            style={{ background: "var(--accent-blue)", border: "none", borderRadius: "var(--radius-xs-plus)", padding: "3px 8px", cursor: "pointer", color: "var(--btn-primary-fg, #fff)", fontSize: "var(--font-size-sm)", fontWeight: 600 }}
-          >Export</button>
-          <button onClick={runAudit} disabled={tokens.length === 0}
-            style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: "3px 8px", cursor: "pointer", color: "inherit", fontSize: "var(--font-size-sm)" }}
-          >Audit</button>
+          <button type="button" onClick={exportTokens} disabled={tokens.length === 0} className="panel-btn panel-btn-primary panel-btn-sm">Export</button>
+          <button type="button" onClick={runAudit} disabled={tokens.length === 0} className="panel-btn panel-btn-secondary panel-btn-sm">Audit</button>
         </div>
       </div>
-      <div style={{ flex: 1, overflow: "auto", padding: 16 }}>
+      <div style={{ flex: 1, overflow: "auto", padding: "var(--space-4)" }}>
         {tokens.length === 0 ? (
-          <div style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-md)", textAlign: "center", padding: 32 }}>
+          <div className="panel-empty">
             Enable providers and click "Load Design Tokens".
+          </div>
+        ) : filteredTokens.length === 0 ? (
+          <div className="panel-empty">
+            No tokens match "{tokenFilter}".
           </div>
         ) : (
           <>
-            {tokens.slice(0, 50).map((t, i) => (
-              <div key={i} style={{ display: "flex", gap: 12, alignItems: "center", padding: "6px 0", borderBottom: "1px solid var(--border-color)" }}>
+            {filteredTokens.map((t, i) => (
+              <div key={`${t.provider}:${t.name}:${i}`} style={{ display: "flex", gap: "var(--space-3)", alignItems: "center", padding: "var(--space-2) 0", borderBottom: "1px solid var(--border-color)" }}>
                 {t.token_type === "color" && (
                   <div style={{ width: 20, height: 20, background: t.value, borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", flexShrink: 0 }} />
                 )}
                 <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--font-size-base)", flex: 1 }}>{t.name}</div>
-                <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>{t.value.slice(0, 30)}</div>
+                <div
+                  title={t.value}
+                  style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                >
+                  {t.value}
+                </div>
                 <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", minWidth: 60, textAlign: "right" }}>{t.provider}</div>
               </div>
             ))}
-            {tokens.length > 50 && <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", padding: "8px 0" }}>…and {tokens.length - 50} more</div>}
             {tokenExportResult && (
-              <div style={{ marginTop: 16 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+              <div style={{ marginTop: "var(--space-4)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "var(--space-2)" }}>
                   <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)" }}>Exported ({tokenExportFormat.toUpperCase()})</div>
-                  <button onClick={() => copyToClipboard(tokenExportResult)}
-                    style={{ background: "none", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: "2px 8px", cursor: "pointer", color: "inherit", fontSize: "var(--font-size-sm)" }}>Copy</button>
+                  <button type="button" onClick={() => copyToClipboard(tokenExportResult)} className="panel-btn panel-btn-secondary panel-btn-sm">Copy</button>
                 </div>
-                <pre style={{ fontSize: "var(--font-size-sm)", overflow: "auto", maxHeight: 400, background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: 12, border: "1px solid var(--border-color)", whiteSpace: "pre-wrap" }}>
+                <pre style={{ fontSize: "var(--font-size-sm)", overflow: "auto", maxHeight: 400, background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: "var(--space-3)", border: "1px solid var(--border-color)", whiteSpace: "pre-wrap" }}>
                   {tokenExportResult}
                 </pre>
               </div>
@@ -256,34 +356,44 @@ export function DesignHubPanel({ workspacePath, provider }: DesignHubPanelProps)
   );
 
   const renderAudit = () => (
-    <div style={{ flex: 1, overflow: "auto", padding: 16 }}>
-      <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)", marginBottom: 4 }}>Design System Audit</div>
+    <div style={{ flex: 1, overflow: "auto", padding: "var(--space-4)" }}>
+      <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)", marginBottom: "var(--space-1)" }}>Design System Audit</div>
       {!auditReport ? (
-        <div style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-md)" }}>
+        <div className="panel-empty">
           Load tokens first, then run audit from the Tokens tab.
         </div>
       ) : (
         <>
-          <div style={{ display: "flex", gap: 16, marginBottom: 20 }}>
-            <div style={{ padding: 20, background: "var(--bg-secondary)", borderRadius: "var(--radius-md)", border: "1px solid var(--border-color)", textAlign: "center", minWidth: 100 }}>
-              <div style={{ fontSize: 36, fontWeight: 800, color: auditReport.score >= 80 ? "var(--text-success)" : auditReport.score >= 60 ? "var(--warning-color)" : "var(--error-color, #f85149)" }}>
+          <div style={{ display: "flex", gap: "var(--space-4)", marginBottom: "var(--space-5)" }}>
+            <div style={{ padding: "var(--space-5)", background: "var(--bg-secondary)", borderRadius: "var(--radius-md)", border: "1px solid var(--border-color)", textAlign: "center", minWidth: 100 }}>
+              <div style={{
+                fontSize: "var(--font-size-3xl)",
+                fontWeight: 800,
+                color: auditReport.score >= 80 ? "var(--text-success)" : auditReport.score >= 60 ? "var(--warning-color)" : "var(--error-color)",
+              }}>
                 {auditReport.score}
               </div>
               <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 4 }}>out of 100</div>
             </div>
-            <div style={{ flex: 1, padding: "12px 0" }}>
-              <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)", marginBottom: 4 }}>Summary</div>
+            <div style={{ flex: 1, padding: "var(--space-3) 0" }}>
+              <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)", marginBottom: "var(--space-1)" }}>Summary</div>
               <div style={{ fontSize: "var(--font-size-md)", lineHeight: 1.6 }}>{auditReport.summary}</div>
             </div>
           </div>
           {auditReport.issues.map((issue, i) => (
-            <div key={i} style={{ marginBottom: 8, padding: "10px 14px", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", borderLeft: `3px solid ${issue.severity === "Error" ? "var(--error-color, #f85149)" : issue.severity === "Warning" ? "var(--warning-color)" : "var(--accent-blue)"}` }}>
+            <div key={i} style={{
+              marginBottom: "var(--space-2)",
+              padding: "var(--space-3) var(--space-4)",
+              background: "var(--bg-secondary)",
+              borderRadius: "var(--radius-sm-alt)",
+              borderLeft: `3px solid ${issue.severity === "Error" ? "var(--error-color)" : issue.severity === "Warning" ? "var(--warning-color)" : "var(--accent-blue)"}`,
+            }}>
               <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", marginBottom: 2 }}>{issue.code}</div>
               <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>{issue.message}</div>
             </div>
           ))}
           {auditReport.issues.length === 0 && (
-            <div style={{ padding: 20, textAlign: "center", color: "var(--text-success)", fontSize: "var(--font-size-lg)", fontWeight: 600 }}>
+            <div style={{ padding: "var(--space-5)", textAlign: "center", color: "var(--text-success)", fontSize: "var(--font-size-lg)", fontWeight: 600 }}>
               ✓ All checks passed!
             </div>
           )}
@@ -297,9 +407,9 @@ export function DesignHubPanel({ workspacePath, provider }: DesignHubPanelProps)
     const currentStep = figmaResult.length > 0 ? 2 : isLoading ? 1 : 0;
     const btnDisabled = isLoading || !figmaUrl.trim() || !figmaToken.trim();
     return (
-      <div style={{ flex: 1, overflow: "auto", padding: "14px 16px" }}>
+      <div style={{ flex: 1, overflow: "auto", padding: "var(--space-4)" }}>
         {/* Workflow steps */}
-        <div style={{ display: "flex", alignItems: "center", marginBottom: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", marginBottom: "var(--space-4)" }}>
           {steps.map((s, i) => (
             <div key={s} style={{ display: "flex", alignItems: "center", flex: i < steps.length - 1 ? 1 : undefined }}>
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
@@ -307,10 +417,10 @@ export function DesignHubPanel({ workspacePath, provider }: DesignHubPanelProps)
                   width: 20, height: 20, borderRadius: "50%", fontSize: "var(--font-size-xs)", fontWeight: 700,
                   display: "flex", alignItems: "center", justifyContent: "center",
                   background: i <= currentStep ? "var(--accent-blue)" : "var(--bg-secondary)",
-                  color: i <= currentStep ? "#fff" : "var(--text-secondary)",
+                  color: i <= currentStep ? "var(--btn-primary-fg, var(--text-primary))" : "var(--text-secondary)",
                   border: `1px solid ${i <= currentStep ? "var(--accent-blue)" : "var(--border-color)"}`,
                 }}>{i + 1}</div>
-                <div style={{ fontSize: 9, color: i <= currentStep ? "var(--text-primary)" : "var(--text-secondary)", whiteSpace: "nowrap" }}>{s}</div>
+                <div style={{ fontSize: "var(--font-size-xs)", color: i <= currentStep ? "var(--text-primary)" : "var(--text-secondary)", whiteSpace: "nowrap" }}>{s}</div>
               </div>
               {i < steps.length - 1 && (
                 <div style={{ flex: 1, height: 1, background: i < currentStep ? "var(--accent-blue)" : "var(--border-color)", margin: "0 4px", marginBottom: 12 }} />
@@ -320,45 +430,51 @@ export function DesignHubPanel({ workspacePath, provider }: DesignHubPanelProps)
         </div>
 
         {/* Form card */}
-        <div style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", border: "1px solid var(--border-color)", padding: "12px 14px", marginBottom: 10 }}>
-          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 10, lineHeight: 1.5 }}>
-            Get your token from <em>Figma → Settings → Personal access tokens</em>
+        <div className="panel-card" style={{ padding: "var(--space-3) var(--space-4)", marginBottom: "var(--space-3)" }}>
+          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: "var(--space-3)", lineHeight: 1.5 }}>
+            Get your token from <em>Figma → Settings → Personal access tokens</em>. Stored encrypted in your VibeCody profile.
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
             <div>
-              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 3 }}>Figma File URL</div>
+              <label htmlFor="figma-url" style={{ display: "block", fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 3 }}>Figma File URL</label>
               <input
+                id="figma-url"
+                className="panel-input"
                 value={figmaUrl}
                 onChange={(e) => setFigmaUrl(e.target.value)}
                 placeholder="https://www.figma.com/file/…"
-                style={{ width: "100%", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: 5, color: "inherit", padding: "5px 8px", fontSize: "var(--font-size-base)", boxSizing: "border-box" as const }}
+                style={{ width: "100%", boxSizing: "border-box" }}
               />
             </div>
             <div>
-              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 3 }}>Personal Access Token</div>
+              <label htmlFor="figma-token" style={{ display: "block", fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 3 }}>Personal Access Token</label>
               <input
+                id="figma-token"
+                className="panel-input"
                 type="password"
                 value={figmaToken}
                 onChange={(e) => setFigmaToken(e.target.value)}
                 placeholder="figd_…"
-                style={{ width: "100%", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: 5, color: "inherit", padding: "5px 8px", fontSize: "var(--font-size-base)", boxSizing: "border-box" as const }}
+                style={{ width: "100%", boxSizing: "border-box" }}
               />
             </div>
-            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", cursor: "pointer" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", cursor: "pointer" }}>
               <input
                 type="checkbox"
                 checked={figmaSaveToken}
                 onChange={(e) => setFigmaSaveToken(e.target.checked)}
               />
-              Remember token on this device
+              Remember token (encrypted in profile)
             </label>
           </div>
         </div>
 
         <button
+          type="button"
+          className="panel-btn panel-btn-primary"
           onClick={handleFigmaImport}
           disabled={btnDisabled}
-          style={{ width: "100%", background: "var(--accent-blue)", color: "var(--btn-primary-fg, #fff)", border: "none", borderRadius: "var(--radius-sm)", padding: "8px 0", cursor: btnDisabled ? "not-allowed" : "pointer", fontWeight: 600, fontSize: "var(--font-size-md)", opacity: btnDisabled ? 0.5 : 1, marginBottom: 14 }}
+          style={{ width: "100%", marginBottom: "var(--space-4)" }}
         >
           {isLoading ? "Importing…" : "Import & Generate Components"}
         </button>
@@ -366,35 +482,32 @@ export function DesignHubPanel({ workspacePath, provider }: DesignHubPanelProps)
         {/* Results */}
         {figmaResult.length > 0 && (
           <div>
-            <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-success)", fontWeight: 600, marginBottom: 8 }}>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-success)", fontWeight: 600, marginBottom: "var(--space-2)" }}>
               <Icon name="check" size={12} style={{ verticalAlign: "middle", marginRight: 4 }} />
               {figmaResult.length} component{figmaResult.length > 1 ? "s" : ""} generated — click a file to preview
             </div>
             {figmaResult.map((f) => (
-              <div key={f.path} style={{ marginBottom: 6, borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", overflow: "hidden" }}>
-                <div
+              <div key={f.path} style={{ marginBottom: "var(--space-2)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", overflow: "hidden" }}>
+                <button
+                  type="button"
                   onClick={() => setFigmaExpandedFile(figmaExpandedFile === f.path ? null : f.path)}
-                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "var(--bg-secondary)", cursor: "pointer" }}
+                  style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", padding: "8px 12px", background: "var(--bg-secondary)", cursor: "pointer", width: "100%", border: "none", color: "inherit", font: "inherit", textAlign: "left" }}
                 >
                   <Icon name="file-code" size={12} style={{ flexShrink: 0, color: "var(--text-secondary)" }} />
                   <span style={{ flex: 1, fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.path}</span>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(f.content); showStatus("Copied!"); }}
-                    title="Copy code"
-                    style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: "var(--font-size-xs)", padding: "2px 6px", borderRadius: 3 }}
+                  <span
+                    role="button"
+                    aria-label={`Copy ${f.path}`}
+                    tabIndex={0}
+                    onClick={(e) => { e.stopPropagation(); copyToClipboard(f.content); }}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); copyToClipboard(f.content); } }}
+                    style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px", borderRadius: 3, color: "var(--text-secondary)" }}
                   >
                     Copy
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); copyToClipboard(f.content); }}
-                    title="Preview component"
-                    style={{ background: "none", border: "1px solid var(--accent-blue)", color: "var(--accent-blue)", cursor: "pointer", fontSize: "var(--font-size-xs)", padding: "2px 6px", borderRadius: 3 }}
-                  >
-                    Open
-                  </button>
-                </div>
+                  </span>
+                </button>
                 {figmaExpandedFile === f.path && (
-                  <pre style={{ margin: 0, padding: "10px 12px", fontSize: "var(--font-size-xs)", lineHeight: 1.5, overflow: "auto", maxHeight: 220, background: "var(--bg-tertiary)", color: "var(--text-primary)" }}>
+                  <pre style={{ margin: 0, padding: "var(--space-3) var(--space-4)", fontSize: "var(--font-size-xs)", lineHeight: 1.5, overflow: "auto", maxHeight: 220, background: "var(--bg-tertiary)", color: "var(--text-primary)" }}>
                     <code>{f.content}</code>
                   </pre>
                 )}
@@ -407,14 +520,16 @@ export function DesignHubPanel({ workspacePath, provider }: DesignHubPanelProps)
   };
 
   const renderSettings = () => (
-    <div style={{ flex: 1, overflow: "auto", padding: 16 }}>
-      <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)", marginBottom: 12 }}>Provider Settings</div>
+    <div style={{ flex: 1, overflow: "auto", padding: "var(--space-4)" }}>
+      <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)", marginBottom: "var(--space-3)" }}>Provider Settings</div>
       {PROVIDERS.map((p) => (
-        <div key={p.id} style={{ marginBottom: 12, padding: "12px 14px", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", border: "1px solid var(--border-color)" }}>
-          <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}><Icon name={p.icon} size={14} /> {p.label}</div>
-          <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 8 }}>{p.desc}</div>
+        <div key={p.id} className="panel-card" style={{ marginBottom: "var(--space-3)", padding: "var(--space-3) var(--space-4)" }}>
+          <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", marginBottom: "var(--space-1)", display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+            <Icon name={p.icon} size={14} /> {p.label}
+          </div>
+          <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: "var(--space-2)" }}>{p.desc}</div>
           {p.id === "penpot" && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Configure via the Penpot tab</div>}
-          {p.id === "figma" && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Configure via the Figma tab (API token per-import)</div>}
+          {p.id === "figma" && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Token is stored encrypted in your VibeCody profile.</div>}
           {(p.id === "pencil" || p.id === "drawio" || p.id === "mermaid" || p.id === "inhouse") && (
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-success)" }}>✓ No authentication required</div>
           )}
@@ -425,19 +540,28 @@ export function DesignHubPanel({ workspacePath, provider }: DesignHubPanelProps)
 
   return (
     <div className="panel-container">
-      <div className="panel-header" style={{ padding: 0, overflow: "auto", flexShrink: 0 }}>
+      <div className="panel-tab-bar" role="tablist" aria-label="Design hub tabs" style={{ flexShrink: 0 }}>
         {TAB_DEFS.map(({ id, label }) => (
-          <button key={id} onClick={() => setActiveTab(id)} style={tabStyle(activeTab === id)}>{label}</button>
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === id}
+            onClick={() => setActiveTab(id)}
+            className={`panel-tab ${activeTab === id ? "active" : ""}`}
+          >
+            {label}
+          </button>
         ))}
-        {statusMsg && <span style={{ marginLeft: "auto", marginRight: 12, fontSize: "var(--font-size-sm)", color: "var(--text-success)", lineHeight: "30px" }}>✓ {statusMsg}</span>}
       </div>
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <div role="tabpanel" aria-label={activeTab} style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         {activeTab === "providers" && renderProviders()}
         {activeTab === "tokens" && renderTokens()}
         {activeTab === "audit" && renderAudit()}
         {activeTab === "figma" && renderFigma()}
         {activeTab === "settings" && renderSettings()}
       </div>
+      <Toaster toasts={toasts} onDismiss={dismiss} />
     </div>
   );
 }

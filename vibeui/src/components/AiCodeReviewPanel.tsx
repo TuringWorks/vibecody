@@ -79,7 +79,7 @@ function SeverityBadge({ severity }: { severity: string }) {
   return (
     <span style={{
       display: "inline-block",
-      padding: "1px 7px",
+      padding: "1px 8px",
       borderRadius: "var(--radius-xs-plus)",
       fontSize: "var(--font-size-xs)",
       fontWeight: 600,
@@ -105,7 +105,7 @@ function TypeBadge({ type_ }: { type_: string }) {
       fontSize: 10,
       fontWeight: 700,
       background: TYPE_COLOR[type_] ?? "var(--text-secondary)",
-      color: "#fff",
+      color: "var(--btn-primary-fg)",
       flexShrink: 0,
     }}>
       {TYPE_ICON[type_] ?? "?"}
@@ -180,7 +180,7 @@ function IssueCard({ issue, expanded, onToggle }: {
   const shortFile = issue.file.split(/[/\\]/).slice(-2).join("/");
 
   return (
-    <div
+    <div role="button" tabIndex={0}
       className="panel-card"
       style={{
         borderLeft: `3px solid ${sev.color}`,
@@ -219,8 +219,8 @@ function IssueCard({ issue, expanded, onToggle }: {
 
       {/* Expanded detail */}
       {expanded && (
-        <div
-          style={{ borderTop: "1px solid var(--border-color)", padding: "10px 12px" }}
+        <div role="button" tabIndex={0}
+          style={{ borderTop: "1px solid var(--border-color)", padding: "12px 12px" }}
           onClick={e => e.stopPropagation()}
         >
           {/* Code block */}
@@ -286,7 +286,7 @@ function SummaryBar({ result }: { result: SonarScanResult }) {
   return (
     <div style={{
       display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12,
-      padding: "10px 12px",
+      padding: "12px 12px",
       background: "var(--bg-secondary)",
       borderRadius: "var(--radius-xs-plus)",
       border: "1px solid var(--border-color)",
@@ -296,7 +296,7 @@ function SummaryBar({ result }: { result: SonarScanResult }) {
           <span style={{
             display: "inline-flex", alignItems: "center", justifyContent: "center",
             width: 20, height: 20, borderRadius: 3,
-            background: color, color: "#fff", fontSize: 10, fontWeight: 700,
+            background: color, color: "var(--btn-primary-fg)", fontSize: 10, fontWeight: 700,
           }}>{icon}</span>
           <span style={{ fontWeight: 700, fontSize: "var(--font-size-xl)", color: value > 0 ? color : "var(--text-secondary)" }}>
             {value}
@@ -550,7 +550,7 @@ export default function AiCodeReviewPanel() {
                 <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                   {rule.tags.map(tag => (
                     <span key={tag} style={{
-                      fontSize: "var(--font-size-xs)", padding: "1px 6px",
+                      fontSize: "var(--font-size-xs)", padding: "1px 8px",
                       borderRadius: "var(--radius-xs-plus)",
                       background: "var(--bg-tertiary, var(--bg-secondary))",
                       color: "var(--text-secondary)",

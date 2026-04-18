@@ -337,7 +337,7 @@ export function SuperBrainPanel() {
             const Icon = m.icon;
             const active = mode === m.id;
             return (
-              <div
+              <div role="button" tabIndex={0}
                 key={m.id}
                 style={S.modeCard(active, m.color)}
                 onClick={() => { setMode(m.id); setResult(null); }}
@@ -432,7 +432,7 @@ export function SuperBrainPanel() {
         </div>
 
         <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 24 }}>
-          <button
+          <button className="panel-btn"
             style={{ ...S.btn, opacity: (thinking || !prompt.trim()) ? 0.45 : 1 }}
             disabled={thinking || !prompt.trim()}
             onClick={doQuery}

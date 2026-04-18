@@ -39,7 +39,7 @@ const LANG_COLORS: Record<string, string> = {
 function LangBadge({ lang }: { lang: string }) {
  const color = LANG_COLORS[lang] ?? "var(--text-secondary)";
  return (
- <span style={{ padding: "1px 7px", borderRadius: "var(--radius-md)", background: color + "33", border: `1px solid ${color}`, color, fontSize: "var(--font-size-xs)", fontWeight: 600 }}>
+ <span style={{ padding: "1px 8px", borderRadius: "var(--radius-md)", background: color + "33", border: `1px solid ${color}`, color, fontSize: "var(--font-size-xs)", fontWeight: 600 }}>
  {lang}
  </span>
  );
@@ -119,7 +119,7 @@ export function ScaffoldPanel({ workspacePath }: { workspacePath: string | null 
  <div className="panel-container" style={{ flexDirection: "row" }}>
  {/* Template list */}
  <div style={{ width: 220, borderRight: "1px solid var(--border-color)", display: "flex", flexDirection: "column", flexShrink: 0 }}>
- <div style={{ padding: "10px 10px 6px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
+ <div style={{ padding: "12px 12px 8px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
  <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, marginBottom: 6 }}>Scaffold</div>
  <input
  value={filter}
@@ -135,7 +135,7 @@ export function ScaffoldPanel({ workspacePath }: { workspacePath: string | null 
  onClick={() => handleSelect(t)}
  style={{
  display: "block", width: "100%", textAlign: "left",
- padding: "8px 10px", cursor: "pointer",
+ padding: "8px 12px", cursor: "pointer",
  background: selected?.id === t.id ? "var(--accent-bg)" : "transparent",
  border: "none", borderBottom: "1px solid var(--border-color)",
  color: "var(--text-primary)",
@@ -158,7 +158,7 @@ export function ScaffoldPanel({ workspacePath }: { workspacePath: string | null 
  ) : (
  <>
  {/* Config bar */}
- <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
+ <div style={{ padding: "12px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
  <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
  <label style={{ fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-secondary)" }}>Project Name</label>
  <input
@@ -176,28 +176,28 @@ export function ScaffoldPanel({ workspacePath }: { workspacePath: string | null 
  style={{ padding: "4px 8px", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none" }}
  />
  </div>
- <button
+ <button className="panel-btn"
  onClick={handlePreview}
  disabled={generating || !projectName}
- style={{ padding: "5px 14px", fontSize: "var(--font-size-sm)", fontWeight: 600, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-secondary)", cursor: "pointer", height: 28 }}
+ style={{ padding: "4px 16px", fontSize: "var(--font-size-sm)", fontWeight: 600, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-secondary)", cursor: "pointer", height: 28 }}
  >
  Preview
  </button>
- <button
+ <button className="panel-btn"
  onClick={handleWrite}
  disabled={generating || !projectName || !outputDir.trim()}
- style={{ padding: "5px 14px", fontSize: "var(--font-size-sm)", fontWeight: 700, background: generating ? "var(--bg-secondary)" : "var(--accent-color)", border: "none", borderRadius: "var(--radius-xs-plus)", color: generating ? "var(--text-secondary)" : "var(--text-primary)", cursor: generating || !outputDir.trim() ? "not-allowed" : "pointer", height: 28 }}
+ style={{ padding: "4px 16px", fontSize: "var(--font-size-sm)", fontWeight: 700, background: generating ? "var(--bg-secondary)" : "var(--accent-color)", border: "none", borderRadius: "var(--radius-xs-plus)", color: generating ? "var(--text-secondary)" : "var(--text-primary)", cursor: generating || !outputDir.trim() ? "not-allowed" : "pointer", height: 28 }}
  >
  {generating ? "Writing…" : written ? "Written" : "Write Files"}
  </button>
  </div>
 
  {error && (
- <div style={{ padding: "6px 12px", background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", color: "var(--text-danger)", fontSize: "var(--font-size-sm)", borderBottom: "1px solid var(--border-color)" }}> {error}</div>
+ <div style={{ padding: "8px 12px", background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", color: "var(--text-danger)", fontSize: "var(--font-size-sm)", borderBottom: "1px solid var(--border-color)" }}> {error}</div>
  )}
 
  {written && (
- <div style={{ padding: "6px 12px", background: "color-mix(in srgb, var(--accent-green) 10%, transparent)", color: "var(--text-success)", fontSize: "var(--font-size-sm)", borderBottom: "1px solid var(--border-color)" }}>
+ <div style={{ padding: "8px 12px", background: "color-mix(in srgb, var(--accent-green) 10%, transparent)", color: "var(--text-success)", fontSize: "var(--font-size-sm)", borderBottom: "1px solid var(--border-color)" }}>
  Scaffold written to <code style={{ fontFamily: "var(--font-mono)" }}>{outputDir}</code>
  {preview?.install_command && <> — run <code style={{ fontFamily: "var(--font-mono)" }}>{preview.install_command}</code></>}
  </div>
@@ -214,7 +214,7 @@ export function ScaffoldPanel({ workspacePath }: { workspacePath: string | null 
  onClick={() => setPreviewFile(f)}
  style={{
  display: "block", width: "100%", textAlign: "left",
- padding: "6px 10px", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)",
+ padding: "8px 12px", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)",
  background: previewFile?.path === f.path ? "var(--accent-bg)" : "transparent",
  border: "none", borderBottom: "1px solid var(--border-color)",
  color: "var(--text-primary)", cursor: "pointer",
@@ -225,7 +225,7 @@ export function ScaffoldPanel({ workspacePath }: { workspacePath: string | null 
  </button>
  ))}
  {/* Commands */}
- <div style={{ padding: "10px 10px", fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", borderTop: "1px solid var(--border-color)" }}>
+ <div style={{ padding: "12px 12px", fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", borderTop: "1px solid var(--border-color)" }}>
  {preview.install_command && <div><b>Install:</b> {preview.install_command}</div>}
  {preview.dev_command && <div style={{ marginTop: 4 }}><b>Dev:</b> {preview.dev_command}</div>}
  {preview.notes && <div style={{ marginTop: 6, lineHeight: 1.4 }}>{preview.notes}</div>}
@@ -236,10 +236,10 @@ export function ScaffoldPanel({ workspacePath }: { workspacePath: string | null 
  <div style={{ flex: 1, overflow: "auto" }}>
  {previewFile ? (
  <>
- <div style={{ padding: "6px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>
+ <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>
  {previewFile.path}
  </div>
- <pre style={{ margin: 0, padding: "12px 14px", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", lineHeight: 1.6, color: "var(--text-primary)", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+ <pre style={{ margin: 0, padding: "12px 16px", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", lineHeight: 1.6, color: "var(--text-primary)", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
  {previewFile.content}
  </pre>
  </>

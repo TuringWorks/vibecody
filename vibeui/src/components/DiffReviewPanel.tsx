@@ -267,9 +267,9 @@ export function DiffReviewPanel({ original, modified, filePath, onApply }: DiffR
  <div className="panel-header" style={{ minHeight: 32 }}>
    {/* Action buttons — anchored left, always visible */}
    <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
-     <button onClick={handleApply} style={btnStyle("var(--accent-primary, #6366f1)")}>Apply ({acceptedCount})</button>
-     <button onClick={acceptAll}   style={btnStyle("var(--success-color, #4ade80)")}>Accept All</button>
-     <button onClick={rejectAll}   style={btnStyle("var(--error-color, #f87171)")}>Reject All</button>
+     <button className="panel-btn" onClick={handleApply} style={btnStyle("var(--accent-primary, #6366f1)")}>Apply ({acceptedCount})</button>
+     <button className="panel-btn" onClick={acceptAll}   style={btnStyle("var(--success-color, #4ade80)")}>Accept All</button>
+     <button className="panel-btn" onClick={rejectAll}   style={btnStyle("var(--error-color, #f87171)")}>Reject All</button>
      <button onClick={() => onApply(null)} style={btnStyle("var(--text-secondary, #888)")}>Cancel</button>
    </div>
    {/* Divider */}
@@ -320,12 +320,12 @@ const HunkBlock = React.memo(function HunkBlock({ hunk, onToggle }: { hunk: Diff
  {/* Hunk header */}
  <div style={{
  display: "flex", alignItems: "center", gap: 8,
- padding: "4px 10px", background: "var(--bg-secondary)", fontSize: "var(--font-size-sm)",
+ padding: "4px 12px", background: "var(--bg-secondary)", fontSize: "var(--font-size-sm)",
  }}>
  <button
  onClick={() => onToggle(hunk.id)}
  style={{
- padding: "2px 10px", borderRadius: 3,
+ padding: "2px 12px", borderRadius: 3,
  border: `1px solid ${hunk.accepted ? "var(--success-color, #4ade80)" : "var(--error-color, #f87171)"}`,
  background: "transparent",
  color: hunk.accepted ? "var(--success-color, #4ade80)" : "var(--error-color, #f87171)",
@@ -359,7 +359,7 @@ const HunkBlock = React.memo(function HunkBlock({ hunk, onToggle }: { hunk: Diff
  >
  {/* Gutter */}
  <span style={{
- width: 70, flexShrink: 0, textAlign: "right", padding: "0 6px",
+ width: 70, flexShrink: 0, textAlign: "right", padding: "0 8px",
  color: "var(--text-secondary)", userSelect: "none", fontSize: "var(--font-size-xs)",
  }}>
  {line.origLine ?? ""}
@@ -370,7 +370,7 @@ const HunkBlock = React.memo(function HunkBlock({ hunk, onToggle }: { hunk: Diff
  </span>
  {/* Content */}
  <pre style={{
- margin: 0, padding: "0 6px", flex: 1,
+ margin: 0, padding: "0 8px", flex: 1,
  whiteSpace: "pre-wrap", wordBreak: "break-all",
  color: line.kind === "insert"
  ? "var(--success-color)"
@@ -423,7 +423,7 @@ export class DiffReviewErrorBoundary extends Component<EBProps, EBState> {
     return (
       <div style={{
         display: "flex", flexDirection: "column", alignItems: "center",
-        justifyContent: "center", height: "100%", gap: 12,
+        justifyContent: "center", flex: 1, minHeight: 0, gap: 12,
         background: "var(--bg-primary)", color: "var(--text-primary)",
         fontFamily: "var(--font-mono)", fontSize: "var(--font-size-md)", padding: 24,
       }}>
@@ -433,7 +433,7 @@ export class DiffReviewErrorBoundary extends Component<EBProps, EBState> {
         <span style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-sm)", maxWidth: 400, textAlign: "center" }}>
           {this.state.message || "An unexpected error occurred."}
         </span>
-        <button
+        <button className="panel-btn"
           onClick={this.props.onDismiss}
           style={btnStyle("var(--accent-primary, #6366f1)")}
         >

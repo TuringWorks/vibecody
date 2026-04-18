@@ -420,7 +420,7 @@ export function SketchCanvasPanel() {
       <div style={{ display: tab === "canvas" ? "block" : "none" }}>
         <div style={{ display: "flex", gap: 8, marginBottom: 12, alignItems: "center", flexWrap: "wrap" }}>
           {tools.map((t) => (
-            <button key={t.id} style={toolBtnStyle(activeTool === t.id)} onClick={() => setActiveTool(t.id)}>
+            <button className="panel-btn" key={t.id} style={toolBtnStyle(activeTool === t.id)} onClick={() => setActiveTool(t.id)}>
               {t.label}
             </button>
           ))}
@@ -477,7 +477,7 @@ export function SketchCanvasPanel() {
                 color: activeColor,
                 border: `1px solid ${activeColor}`,
                 borderRadius: 3,
-                padding: "2px 6px",
+                padding: "2px 8px",
                 fontSize: "var(--font-size-lg)",
                 fontFamily: "var(--font-family, sans-serif)",
                 outline: "none",

@@ -162,10 +162,10 @@ export function PencilPanel({ workspacePath, provider }: PencilPanelProps) {
               background: selectedTemplate === t.id && generatedWireframe ? "var(--accent-blue)" : "var(--bg-secondary)",
               border: `1px solid ${selectedTemplate === t.id && generatedWireframe ? "var(--accent-blue)" : "var(--border-color)"}`,
               borderRadius: "var(--radius-sm-alt)",
-              padding: "14px 16px",
+              padding: "16px 16px",
               cursor: "pointer",
               textAlign: "left",
-              color: selectedTemplate === t.id && generatedWireframe ? "#fff" : "inherit",
+              color: selectedTemplate === t.id && generatedWireframe ? "var(--btn-primary-fg)" : "inherit",
               opacity: isLoading && selectedTemplate === t.id ? 0.5 : 1,
             }}
           >
@@ -182,13 +182,13 @@ export function PencilPanel({ workspacePath, provider }: PencilPanelProps) {
           value={customTitle}
           onChange={(e) => setCustomTitle(e.target.value)}
           placeholder="Leave blank to use template name"
-          style={{ width: "100%", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", color: "inherit", padding: "6px 10px", fontSize: "var(--font-size-base)", marginBottom: 10, boxSizing: "border-box" as const }}
+          style={{ width: "100%", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", color: "inherit", padding: "8px 12px", fontSize: "var(--font-size-base)", marginBottom: 10, boxSizing: "border-box" as const }}
         />
         <label style={{ display: "block", fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 4 }}>Dashboard Sections (comma-separated)</label>
         <input
           value={customSections}
           onChange={(e) => setCustomSections(e.target.value)}
-          style={{ width: "100%", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", color: "inherit", padding: "6px 10px", fontSize: "var(--font-size-base)", boxSizing: "border-box" as const }}
+          style={{ width: "100%", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", color: "inherit", padding: "8px 12px", fontSize: "var(--font-size-base)", boxSizing: "border-box" as const }}
         />
       </div>
       {generatedWireframe && (
@@ -201,7 +201,7 @@ export function PencilPanel({ workspacePath, provider }: PencilPanelProps) {
             </div>
           ))}
           <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
-            <button onClick={copyEpXml}
+            <button className="panel-btn" onClick={copyEpXml}
               style={{ flex: 1, background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", padding: "8px 0", cursor: "pointer", color: "inherit", fontSize: "var(--font-size-base)" }}>
               Copy EP XML
             </button>
@@ -228,10 +228,10 @@ export function PencilPanel({ workspacePath, provider }: PencilPanelProps) {
         rows={12}
         style={{ width: "100%", resize: "vertical", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", color: "inherit", padding: 10, fontSize: "var(--font-size-base)", boxSizing: "border-box" as const, fontFamily: "var(--font-mono)" }}
       />
-      <button
+      <button className="panel-btn"
         onClick={parseEpXml}
         disabled={isLoading || !importXml.trim()}
-        style={{ width: "100%", marginTop: 8, background: "var(--accent-blue)", color: "var(--btn-primary-fg, #fff)", border: "none", borderRadius: "var(--radius-sm)", padding: "10px 0", cursor: "pointer", fontWeight: 600, fontSize: "var(--font-size-lg)", opacity: isLoading || !importXml.trim() ? 0.5 : 1 }}
+        style={{ width: "100%", marginTop: 8, background: "var(--accent-blue)", color: "var(--btn-primary-fg, #fff)", border: "none", borderRadius: "var(--radius-sm)", padding: "12px 0", cursor: "pointer", fontWeight: 600, fontSize: "var(--font-size-lg)", opacity: isLoading || !importXml.trim() ? 0.5 : 1 }}
       >
         {isLoading ? "Parsing…" : "Parse EP XML"}
       </button>
@@ -252,7 +252,7 @@ export function PencilPanel({ workspacePath, provider }: PencilPanelProps) {
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
         {["get_editor_state", "open_document", "batch_get", "get_guidelines", "get_screenshot"].map((op) => (
           <button key={op} onClick={() => setMcpOp(op)}
-            style={{ background: mcpOp === op ? "var(--accent-blue)" : "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: "4px 10px", cursor: "pointer", color: mcpOp === op ? "#fff" : "inherit", fontSize: "var(--font-size-sm)", fontWeight: mcpOp === op ? 600 : 400 }}
+            style={{ background: mcpOp === op ? "var(--accent-blue)" : "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: "4px 12px", cursor: "pointer", color: mcpOp === op ? "var(--btn-primary-fg)" : "inherit", fontSize: "var(--font-size-sm)", fontWeight: mcpOp === op ? 600 : 400 }}
           >{op}</button>
         ))}
       </div>
@@ -265,14 +265,14 @@ export function PencilPanel({ workspacePath, provider }: PencilPanelProps) {
             value={mcpPath}
             onChange={(e) => setMcpPath(e.target.value)}
             placeholder={mcpOp === "open_document" ? "/path/to/design.pen" : "**"}
-            style={{ width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", color: "inherit", padding: "8px 10px", fontSize: "var(--font-size-md)", marginBottom: 12, boxSizing: "border-box" as const }}
+            style={{ width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", color: "inherit", padding: "8px 12px", fontSize: "var(--font-size-md)", marginBottom: 12, boxSizing: "border-box" as const }}
           />
         </>
       )}
-      <button
+      <button className="panel-btn"
         onClick={executeMcpOp}
         disabled={isLoading}
-        style={{ width: "100%", background: "var(--accent-blue)", color: "var(--btn-primary-fg, #fff)", border: "none", borderRadius: "var(--radius-sm)", padding: "10px 0", cursor: "pointer", fontWeight: 600, fontSize: "var(--font-size-lg)", opacity: isLoading ? 0.5 : 1 }}
+        style={{ width: "100%", background: "var(--accent-blue)", color: "var(--btn-primary-fg, #fff)", border: "none", borderRadius: "var(--radius-sm)", padding: "12px 0", cursor: "pointer", fontWeight: 600, fontSize: "var(--font-size-lg)", opacity: isLoading ? 0.5 : 1 }}
       >
         {isLoading ? "Executing…" : `Execute ${mcpOp}`}
       </button>
@@ -305,14 +305,14 @@ export function PencilPanel({ workspacePath, provider }: PencilPanelProps) {
               { id: "html", label: "HTML/CSS" },
             ].map((f) => (
               <button key={f.id} onClick={() => setExportFormat(f.id)}
-                style={{ background: exportFormat === f.id ? "var(--accent-blue)" : "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: "6px 12px", cursor: "pointer", color: exportFormat === f.id ? "#fff" : "inherit", fontSize: "var(--font-size-base)", fontWeight: exportFormat === f.id ? 600 : 400 }}
+                style={{ background: exportFormat === f.id ? "var(--accent-blue)" : "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: "8px 12px", cursor: "pointer", color: exportFormat === f.id ? "var(--btn-primary-fg)" : "inherit", fontSize: "var(--font-size-base)", fontWeight: exportFormat === f.id ? 600 : 400 }}
               >{f.label}</button>
             ))}
           </div>
-          <button
+          <button className="panel-btn"
             onClick={exportWireframe}
             disabled={isLoading}
-            style={{ width: "100%", background: "var(--accent-blue)", color: "var(--btn-primary-fg, #fff)", border: "none", borderRadius: "var(--radius-sm)", padding: "10px 0", cursor: "pointer", fontWeight: 600, fontSize: "var(--font-size-lg)" }}
+            style={{ width: "100%", background: "var(--accent-blue)", color: "var(--btn-primary-fg, #fff)", border: "none", borderRadius: "var(--radius-sm)", padding: "12px 0", cursor: "pointer", fontWeight: 600, fontSize: "var(--font-size-lg)" }}
           >
             {isLoading ? "Exporting…" : "Download Export"}
           </button>

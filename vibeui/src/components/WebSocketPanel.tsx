@@ -171,14 +171,14 @@ export function WebSocketPanel() {
  <div className="panel-container" style={{ flexDirection: "row" }}>
  {/* Sidebar — saved configs */}
  <div style={{ width: 200, borderRight: "1px solid var(--border-color)", display: "flex", flexDirection: "column", flexShrink: 0 }}>
- <div style={{ padding: "10px 10px 6px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", fontSize: "var(--font-size-sm)", fontWeight: 600 }}>
+ <div style={{ padding: "12px 12px 8px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", fontSize: "var(--font-size-sm)", fontWeight: 600 }}>
  Saved
  </div>
  <div style={{ flex: 1, overflowY: "auto" }}>
  {saved.map(c => (
- <div
+ <div role="button" tabIndex={0}
  key={c.id}
- style={{ padding: "7px 10px", borderBottom: "1px solid var(--border-color)", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+ style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
  onClick={() => loadConfig(c)}
  >
  <div style={{ flex: 1, minWidth: 0 }}>
@@ -193,7 +193,7 @@ export function WebSocketPanel() {
  ))}
  </div>
  {/* Save form */}
- <div style={{ padding: "8px 10px", borderTop: "1px solid var(--border-color)", display: "flex", flexDirection: "column", gap: 4 }}>
+ <div style={{ padding: "8px 12px", borderTop: "1px solid var(--border-color)", display: "flex", flexDirection: "column", gap: 4 }}>
  <input
  value={label}
  onChange={e => setLabel(e.target.value)}
@@ -213,7 +213,7 @@ export function WebSocketPanel() {
  {/* Main panel */}
  <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
  {/* Connection bar */}
- <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+ <div style={{ padding: "12px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
  <div style={{ width: 8, height: 8, borderRadius: "50%", background: statusColor, boxShadow: status === "open" ? `0 0 6px ${statusColor}` : "none", flexShrink: 0 }} />
  <input
  value={url}
@@ -246,9 +246,9 @@ export function WebSocketPanel() {
  </div>
 
  {/* Filter bar */}
- <div style={{ padding: "5px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 6, alignItems: "center" }}>
+ <div style={{ padding: "4px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 6, alignItems: "center" }}>
  {(["all", "sent", "received", "system", "error"] as const).map(d => (
- <button key={d} onClick={() => setFilterDir(d)} style={{ padding: "2px 10px", fontSize: "var(--font-size-xs)", borderRadius: "var(--radius-md)", background: filterDir === d ? "color-mix(in srgb, var(--accent-blue) 25%, transparent)" : "var(--bg-primary)", border: `1px solid ${filterDir === d ? "var(--accent-color)" : "var(--border-color)"}`, color: d === "all" ? "var(--text-primary)" : DIR_COLORS[d as MsgDirection], cursor: "pointer", fontWeight: filterDir === d ? 700 : 400 }}>
+ <button key={d} onClick={() => setFilterDir(d)} style={{ padding: "2px 12px", fontSize: "var(--font-size-xs)", borderRadius: "var(--radius-md)", background: filterDir === d ? "color-mix(in srgb, var(--accent-blue) 25%, transparent)" : "var(--bg-primary)", border: `1px solid ${filterDir === d ? "var(--accent-color)" : "var(--border-color)"}`, color: d === "all" ? "var(--text-primary)" : DIR_COLORS[d as MsgDirection], cursor: "pointer", fontWeight: filterDir === d ? 700 : 400 }}>
  {d === "all" ? "All" : `${DIR_ICONS[d as MsgDirection]} ${d}`}
  </button>
  ))}
@@ -265,7 +265,7 @@ export function WebSocketPanel() {
  </div>
 
  {/* Message log */}
- <div ref={logRef} style={{ flex: 1, overflowY: "auto", padding: "6px 0", fontFamily: "var(--font-mono)" }}>
+ <div ref={logRef} style={{ flex: 1, overflowY: "auto", padding: "8px 0", fontFamily: "var(--font-mono)" }}>
  {filtered.length === 0 && (
  <div style={{ padding: 24, textAlign: "center", color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>
  {status === "idle" ? "Enter a WebSocket URL and click Connect" : "No messages yet"}

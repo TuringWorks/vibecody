@@ -195,7 +195,7 @@ export function BugBotPanel({ workspacePath, provider, onOpenFile }: BugBotPanel
  key={c}
  onClick={() => setFilterCategory(c)}
  style={{
- padding: "2px 7px",
+ padding: "2px 8px",
  borderRadius: "var(--radius-xs-plus)",
  border: "1px solid var(--border-color)",
  background: filterCategory === c ? "var(--bg-secondary)" : "transparent",
@@ -237,18 +237,18 @@ export function BugBotPanel({ workspacePath, provider, onOpenFile }: BugBotPanel
  }}
  >
  {/* Issue header */}
- <div
+ <div role="button" tabIndex={0}
  onClick={() => setExpanded(expanded === report.id ? null : report.id)}
- style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "8px 10px", cursor: "pointer" }}
+ style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "8px 12px", cursor: "pointer" }}
  >
  <span style={{ fontSize: "var(--font-size-lg)", flexShrink: 0, marginTop: 1 }}>{SEVERITY_ICON[report.severity]}</span>
  <div style={{ flex: 1, minWidth: 0 }}>
  <div style={{ fontWeight: 600, fontSize: "var(--font-size-base)" }}>{report.title}</div>
  <div style={{ display: "flex", gap: 6, marginTop: 3, flexWrap: "wrap" }}>
- <span style={{ fontSize: "var(--font-size-xs)", padding: "1px 5px", borderRadius: 3, background: `${SEVERITY_COLOR[report.severity]}22`, color: SEVERITY_COLOR[report.severity], fontWeight: 600 }}>
+ <span style={{ fontSize: "var(--font-size-xs)", padding: "1px 4px", borderRadius: 3, background: `${SEVERITY_COLOR[report.severity]}22`, color: SEVERITY_COLOR[report.severity], fontWeight: 600 }}>
  {report.severity.toUpperCase()}
  </span>
- <span style={{ fontSize: "var(--font-size-xs)", padding: "1px 5px", borderRadius: 3, background: "var(--bg-secondary)", color: "var(--text-secondary)" }}>
+ <span style={{ fontSize: "var(--font-size-xs)", padding: "1px 4px", borderRadius: 3, background: "var(--bg-secondary)", color: "var(--text-secondary)" }}>
  {CATEGORY_LABEL[report.category] || report.category}
  </span>
  {report.file_path && (
@@ -277,7 +277,7 @@ export function BugBotPanel({ workspacePath, provider, onOpenFile }: BugBotPanel
 
  {/* Expanded detail */}
  {expanded === report.id && (
- <div style={{ borderTop: "1px solid var(--bg-secondary)", padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
+ <div style={{ borderTop: "1px solid var(--bg-secondary)", padding: "12px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
  <div>
  <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, color: "var(--text-secondary)", marginBottom: 3 }}>PROBLEM</div>
  <div style={{ fontSize: "var(--font-size-base)", lineHeight: 1.6 }}>{report.description}</div>

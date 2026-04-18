@@ -111,7 +111,7 @@ export function AgentRecordingPanel() {
       )}
 
       {recordings.map((rec) => (
-        <div
+        <div role="button" tabIndex={0}
           key={rec.session_id}
           style={{
             ...sessionCardStyle,

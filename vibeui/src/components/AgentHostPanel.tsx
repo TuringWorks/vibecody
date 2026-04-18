@@ -139,7 +139,7 @@ export function AgentHostPanel() {
         <button className={`panel-tab ${tab === "context" ? "active" : ""}`} onClick={() => setTab("context")}>
           Context
           {clipboard.length > 0 && (
-            <span style={{ marginLeft: 4, background: "var(--accent-color)", color: "var(--btn-primary-fg, #fff)", borderRadius: "var(--radius-sm-alt)", padding: "0 5px", fontSize: "var(--font-size-xs)" }}>
+            <span style={{ marginLeft: 4, background: "var(--accent-color)", color: "var(--btn-primary-fg, #fff)", borderRadius: "var(--radius-sm-alt)", padding: "0 4px", fontSize: "var(--font-size-xs)" }}>
               {clipboard.length}
             </span>
           )}
@@ -155,7 +155,7 @@ export function AgentHostPanel() {
             <div key={a.id} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <strong>{a.name}</strong>
-                <span style={{ ...badgeStyle("#6366f1"), marginLeft: 8 }}>{a.type}</span>
+                <span style={{ ...badgeStyle("var(--accent-indigo)"), marginLeft: 8 }}>{a.type}</span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={{ width: 8, height: 8, borderRadius: "50%", background: statusColor[a.status], display: "inline-block" }} />

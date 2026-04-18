@@ -108,7 +108,7 @@ export function CheckpointPanel({ workspacePath }: CheckpointPanelProps) {
         </div>
 
         {/* Create new checkpoint */}
-        <div style={{ display: "flex", gap: "6px" }}>
+        <div style={{ display: "flex", gap: "8px" }}>
           <input
             type="text"
             value={label}
@@ -117,7 +117,7 @@ export function CheckpointPanel({ workspacePath }: CheckpointPanelProps) {
             placeholder="Checkpoint label…"
             style={{
               flex: 1,
-              padding: "5px 8px",
+              padding: "4px 8px",
               fontSize: "var(--font-size-base)",
               background: "var(--bg-input, var(--bg-primary))",
               border: "1px solid var(--border-color)",
@@ -141,7 +141,7 @@ export function CheckpointPanel({ workspacePath }: CheckpointPanelProps) {
         </div>
 
         {error && (
-          <div style={{ marginTop: "8px", padding: "6px 8px", background: "color-mix(in srgb, var(--accent-rose) 15%, transparent)", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-base)", color: "var(--error-color)" }}>
+          <div style={{ marginTop: "8px", padding: "8px 8px", background: "color-mix(in srgb, var(--accent-rose) 15%, transparent)", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-base)", color: "var(--error-color)" }}>
             {error}
           </div>
         )}
@@ -214,7 +214,7 @@ export function CheckpointPanel({ workspacePath }: CheckpointPanelProps) {
               disabled={deleting === cp.index || restoring === cp.index}
               title="Delete checkpoint"
               className="panel-btn panel-btn-danger"
-              style={{ flexShrink: 0, lineHeight: 1, padding: "3px 7px" }}
+              style={{ flexShrink: 0, lineHeight: 1, padding: "3px 8px" }}
             >
               {deleting === cp.index ? <Loader2 size={12} className="spin" /> : <X size={12} />}
             </button>
@@ -241,7 +241,7 @@ export function CheckpointPanel({ workspacePath }: CheckpointPanelProps) {
             maxWidth: "320px",
             width: "90%",
           }}>
-            <div style={{ fontSize: "var(--font-size-md)", fontWeight: 600, marginBottom: "10px", color: "var(--text-primary)" }}>
+            <div style={{ fontSize: "var(--font-size-md)", fontWeight: 600, marginBottom: "12px", color: "var(--text-primary)" }}>
               Delete Checkpoint?
             </div>
             <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: "16px", lineHeight: 1.5 }}>
@@ -286,7 +286,7 @@ export function CheckpointPanel({ workspacePath }: CheckpointPanelProps) {
             maxWidth: "320px",
             width: "90%",
           }}>
-            <div style={{ fontSize: "var(--font-size-md)", fontWeight: 600, marginBottom: "10px", color: "var(--text-primary)" }}>
+            <div style={{ fontSize: "var(--font-size-md)", fontWeight: 600, marginBottom: "12px", color: "var(--text-primary)" }}>
               Restore Checkpoint?
             </div>
             <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: "16px", lineHeight: 1.5 }}>

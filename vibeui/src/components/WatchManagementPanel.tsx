@@ -20,7 +20,7 @@ function PlatformBadge({ model }: { model: string }) {
   return (
     <span style={{
       fontSize: 10, fontWeight: 600, color, background: `${color}20`,
-      borderRadius: 4, padding: "1px 5px", letterSpacing: "0.03em",
+      borderRadius: 4, padding: "1px 4px", letterSpacing: "0.03em",
     }}>
       {label}
     </span>
@@ -107,7 +107,7 @@ export function WatchManagementPanel() {
   const revokedDevices = devices.filter(d => d.revoked);
 
   return (
-    <div style={{ padding: "var(--spacing-md)", maxWidth: 640, margin: "0 auto" }}>
+    <div className="panel-container" style={{ padding: "var(--spacing-md)", maxWidth: 640, margin: "0 auto" }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: "var(--spacing-sm)", marginBottom: "var(--spacing-lg)" }}>
         <Watch size={20} style={{ color: "var(--accent-color)" }} />
@@ -115,7 +115,7 @@ export function WatchManagementPanel() {
           Watches
         </h2>
         <div style={{ flex: 1 }} />
-        <button
+        <button className="panel-btn"
           onClick={loadDevices}
           disabled={loading}
           style={{
@@ -183,7 +183,7 @@ export function WatchManagementPanel() {
       </div>
 
       {/* Add watch button */}
-      <button
+      <button className="panel-btn"
         onClick={startPairing}
         disabled={pairingLoading}
         style={{
@@ -323,9 +323,9 @@ function DeviceCard({
             <button
               onClick={() => { onRevoke(); setShowConfirm(false); }}
               style={{
-                background: "var(--error-color)", color: "#fff",
+                background: "var(--error-color)", color: "var(--btn-primary-fg)",
                 border: "none", borderRadius: "var(--radius-xs-plus)",
-                padding: "2px 10px", cursor: "pointer", fontSize: "var(--font-size-xs)",
+                padding: "2px 12px", cursor: "pointer", fontSize: "var(--font-size-xs)",
               }}
             >Revoke</button>
             <button
@@ -333,7 +333,7 @@ function DeviceCard({
               style={{
                 background: "var(--bg-primary)", color: "var(--text-secondary)",
                 border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)",
-                padding: "2px 10px", cursor: "pointer", fontSize: "var(--font-size-xs)",
+                padding: "2px 12px", cursor: "pointer", fontSize: "var(--font-size-xs)",
               }}
             >Cancel</button>
           </div>
@@ -420,7 +420,7 @@ function QRModal({ pairing, onClose }: { pairing: PairingInfo; onClose: () => vo
   });
 
   return (
-    <div style={{
+    <div role="button" tabIndex={0} style={{
       position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)",
       display: "flex", alignItems: "center", justifyContent: "center",
       zIndex: 1000,
@@ -441,8 +441,8 @@ function QRModal({ pairing, onClose }: { pairing: PairingInfo; onClose: () => vo
 
         {/* Tab switcher */}
         <div style={{ display: "flex", marginBottom: "var(--spacing-md)" }}>
-          <button style={tabStyle("qr")} onClick={() => setActiveTab("qr")}>QR Code</button>
-          <button style={tabStyle("manual")} onClick={() => setActiveTab("manual")}>Manual</button>
+          <button className="panel-btn" style={tabStyle("qr")} onClick={() => setActiveTab("qr")}>QR Code</button>
+          <button className="panel-btn" style={tabStyle("manual")} onClick={() => setActiveTab("manual")}>Manual</button>
         </div>
 
         {activeTab === "qr" && (
@@ -452,7 +452,7 @@ function QRModal({ pairing, onClose }: { pairing: PairingInfo; onClose: () => vo
               Valid for {Math.floor(expiresIn / 60)}:{String(expiresIn % 60).padStart(2, "0")}.
             </p>
             <div style={{
-              background: "#fff", padding: 8,
+              background: "var(--btn-primary-fg)", padding: 8,
               borderRadius: "var(--radius-sm)",
               display: "inline-block",
               marginBottom: "var(--spacing-md)",
@@ -489,7 +489,7 @@ function QRModal({ pairing, onClose }: { pairing: PairingInfo; onClose: () => vo
                 marginBottom: "var(--spacing-sm)",
               }}
             />
-            <button
+            <button className="panel-btn"
               onClick={copyJson}
               style={{
                 width: "100%", padding: "var(--spacing-sm)",
@@ -507,7 +507,7 @@ function QRModal({ pairing, onClose }: { pairing: PairingInfo; onClose: () => vo
           </>
         )}
 
-        <button
+        <button className="panel-btn"
           onClick={onClose}
           style={{
             width: "100%", padding: "var(--spacing-sm)",

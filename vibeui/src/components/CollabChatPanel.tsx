@@ -434,24 +434,24 @@ export function CollabChatPanel({ provider = "claude", daemonPort = 7878 }: Coll
   // ── Connected view ─────────────────────────────────────────────────────────
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+    <div className="panel-container" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
       {/* Header */}
       <div className="panel-header">
         <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--success-color)", flexShrink: 0 }} />
         <span style={{ fontSize: "var(--font-size-base)", fontWeight: 500, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           Room: {roomId}
         </span>
-        <button onClick={handleCopy} title="Copy room ID" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", padding: 2 }}>
+        <button className="panel-btn" onClick={handleCopy} title="Copy room ID" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", padding: 2 }}>
           {copied ? <Check size={14} style={{ color: "var(--success-color)" }} /> : <Copy size={14} />}
         </button>
-        <button onClick={handleLeave} title="Leave room" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", padding: 2 }}>
+        <button className="panel-btn" onClick={handleLeave} title="Leave room" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", padding: 2 }}>
           <LogOut size={14} />
         </button>
       </div>
 
       {/* Peer avatars */}
       {peers.length > 0 && (
-        <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderBottom: "1px solid var(--border-color)", flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", borderBottom: "1px solid var(--border-color)", flexShrink: 0 }}>
           <Users size={12} style={{ color: "var(--text-muted)" }} />
           {[{ peerId: myPeerId || "me", name: userName, color: myColor }, ...peers].map((p) => (
             <span key={p.peerId} title={p.name} style={{ width: 22, height: 22, borderRadius: "50%", background: p.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "var(--font-size-xs)", color: "var(--btn-primary-fg)", fontWeight: 700, flexShrink: 0 }}>
@@ -484,9 +484,9 @@ export function CollabChatPanel({ provider = "claude", daemonPort = 7878 }: Coll
           placeholder="Message the AI… (Enter to send)"
           disabled={aiLoading}
           rows={2}
-          style={{ flex: 1, resize: "none", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm-alt)", padding: "8px 10px", fontSize: "var(--font-size-md)", color: "var(--text-primary)", fontFamily: "inherit" }}
+          style={{ flex: 1, resize: "none", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm-alt)", padding: "8px 12px", fontSize: "var(--font-size-md)", color: "var(--text-primary)", fontFamily: "inherit" }}
         />
-        <button
+        <button className="panel-btn"
           onClick={send}
           disabled={aiLoading || !input.trim()}
           title="Send"
@@ -497,7 +497,7 @@ export function CollabChatPanel({ provider = "claude", daemonPort = 7878 }: Coll
       </div>
 
       {!connected && (
-        <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", fontSize: "var(--font-size-sm)", color: "var(--warning-color)", background: "rgba(249,123,34,0.1)" /* TODO: tokenize background */}}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", fontSize: "var(--font-size-sm)", color: "var(--warning-color)", background: "rgba(249,123,34,0.1)" /* TODO: tokenize background */}}>
           <WifiOff size={12} /> Disconnected
         </div>
       )}

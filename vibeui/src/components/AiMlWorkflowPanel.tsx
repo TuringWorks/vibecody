@@ -265,7 +265,7 @@ export function AiMlWorkflowPanel() {
               opacity: stage.status === "pending" ? 0.6 : 1,
             }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                <div style={{ flex: 1, cursor: "pointer" }} onClick={() => setSelectedStage(selectedStage === stage.id ? null : stage.id)}>
+                <div role="button" tabIndex={0} style={{ flex: 1, cursor: "pointer" }} onClick={() => setSelectedStage(selectedStage === stage.id ? null : stage.id)}>
                   <div style={{ fontWeight: 600 }}>{stage.label}</div>
                   <div className="panel-label">{stage.description}</div>
                 </div>
@@ -430,7 +430,7 @@ export function AiMlWorkflowPanel() {
           </div>
 
           {EXAMPLE_WORKFLOWS.map((ex, idx) => (
-            <div key={idx} className="panel-card" style={{ cursor: "pointer" }} onClick={() => setExpandedExample(expandedExample === idx ? null : idx)}>
+            <div role="button" tabIndex={0} key={idx} className="panel-card" style={{ cursor: "pointer" }} onClick={() => setExpandedExample(expandedExample === idx ? null : idx)}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)" }}>{ex.title}</div>

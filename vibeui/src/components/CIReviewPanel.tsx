@@ -68,7 +68,7 @@ export function CIReviewPanel() {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+    <div className="panel-container" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
       {/* Header */}
       <div style={{
         padding: "8px 12px", borderBottom: "1px solid var(--border-color)",
@@ -171,7 +171,7 @@ export function CIReviewPanel() {
         <div style={{ marginBottom: 16 }}>
           <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, marginBottom: 6 }}>Setup Instructions</div>
           <div style={{
-            fontSize: "var(--font-size-xs)", padding: "8px 10px", borderRadius: "var(--radius-xs-plus)",
+            fontSize: "var(--font-size-xs)", padding: "8px 12px", borderRadius: "var(--radius-xs-plus)",
             background: "var(--bg-primary)", lineHeight: 1.6,
           }}>
             1. Create a GitHub App at github.com/settings/apps/new<br />
@@ -188,7 +188,7 @@ export function CIReviewPanel() {
         <div style={{ marginBottom: 16 }}>
           <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, marginBottom: 6 }}>CLI CI Mode</div>
           <div style={{
-            fontSize: "var(--font-size-xs)", padding: "8px 10px", borderRadius: "var(--radius-xs-plus)",
+            fontSize: "var(--font-size-xs)", padding: "8px 12px", borderRadius: "var(--radius-xs-plus)",
             background: "var(--bg-primary)", fontFamily: "var(--font-mono)",
           }}>
             vibecli --review --ci-mode --base $BASE_SHA<br />
@@ -209,13 +209,13 @@ export function CIReviewPanel() {
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {reviews.map((r, i) => (
                 <div key={i} style={{
-                  padding: "6px 8px", borderRadius: "var(--radius-xs-plus)",
+                  padding: "8px 8px", borderRadius: "var(--radius-xs-plus)",
                   border: "1px solid var(--border-color)",
                   background: "var(--bg-primary)",
                 }}>
                   <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4 }}>
                     <span style={{
-                      fontSize: 9, padding: "1px 6px", borderRadius: 3, fontWeight: 700,
+                      fontSize: 9, padding: "1px 8px", borderRadius: 3, fontWeight: 700,
                       background: r.status === "success" ? "var(--success-color)" : "var(--error-color)",
                       color: "var(--bg-tertiary)",
                     }}>

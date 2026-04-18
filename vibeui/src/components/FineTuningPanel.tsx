@@ -193,7 +193,7 @@ export default function FineTuningPanel() {
            <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
              {(["codebase", "git", "conversations"] as const).map(s => (
                <button key={s} onClick={() => setDataSource(s)} style={{
-                 padding: "6px 14px", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", cursor: "pointer",
+                 padding: "8px 16px", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", cursor: "pointer",
                  background: dataSource === s ? "var(--accent-color)" : "transparent",
                  color: dataSource === s ? "var(--text-primary)" : "var(--text-primary)",
                }}>{s === "git" ? "Git History" : s.charAt(0).toUpperCase() + s.slice(1)}</button>
@@ -244,13 +244,13 @@ export default function FineTuningPanel() {
          )}
 
          <div style={{ display: "flex", gap: 6, marginTop: 12 }}>
-           <button onClick={loadStats} style={{ padding: "6px 14px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", cursor: "pointer" }}>
+           <button className="panel-btn" onClick={loadStats} style={{ padding: "8px 16px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", cursor: "pointer" }}>
              Build Dataset
            </button>
-           <button style={{ padding: "6px 14px", background: "transparent", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", cursor: "pointer" }}>
+           <button className="panel-btn" style={{ padding: "8px 16px", background: "transparent", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", cursor: "pointer" }}>
              Export JSONL
            </button>
-           <button style={{ padding: "6px 14px", background: "transparent", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", cursor: "pointer" }}>
+           <button className="panel-btn" style={{ padding: "8px 16px", background: "transparent", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", cursor: "pointer" }}>
              Deduplicate
            </button>
          </div>
@@ -306,7 +306,7 @@ export default function FineTuningPanel() {
            </div>
          </div>
 
-         <button onClick={handleCreateJob} disabled={loading} style={{ marginTop: 12, padding: "8px 20px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", cursor: "pointer", fontWeight: 600, opacity: loading ? 0.6 : 1 }}>
+         <button className="panel-btn" onClick={handleCreateJob} disabled={loading} style={{ marginTop: 12, padding: "8px 20px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", cursor: "pointer", fontWeight: 600, opacity: loading ? 0.6 : 1 }}>
            {loading ? "Creating..." : "Launch Training Job"}
          </button>
        </div>
@@ -391,7 +391,7 @@ export default function FineTuningPanel() {
              </tbody>
            </table>
          )}
-         <button style={{ marginTop: 12, padding: "6px 14px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", cursor: "pointer" }}>
+         <button className="panel-btn" style={{ marginTop: 12, padding: "8px 16px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", cursor: "pointer" }}>
            Run Evaluation
          </button>
        </>
@@ -423,15 +423,15 @@ export default function FineTuningPanel() {
                    <td style={{ padding: 6, textAlign: "right" }}>{a.rank}</td>
                    <td style={{ padding: 6, textAlign: "right" }}>{a.size_mb} MB</td>
                    <td style={{ padding: 6, textAlign: "right" }}>
-                     <button style={{ padding: "2px 8px", background: "transparent", color: "var(--accent-color)", border: "1px solid var(--accent-color)", borderRadius: "var(--radius-xs-plus)", cursor: "pointer", marginRight: 4, fontSize: "var(--font-size-sm)" }}>Merge</button>
-                     <button style={{ padding: "2px 8px", background: "transparent", color: "var(--error-color)", border: "1px solid var(--error-color)", borderRadius: "var(--radius-xs-plus)", cursor: "pointer", fontSize: "var(--font-size-sm)" }}>Delete</button>
+                     <button className="panel-btn" style={{ padding: "2px 8px", background: "transparent", color: "var(--accent-color)", border: "1px solid var(--accent-color)", borderRadius: "var(--radius-xs-plus)", cursor: "pointer", marginRight: 4, fontSize: "var(--font-size-sm)" }}>Merge</button>
+                     <button className="panel-btn" style={{ padding: "2px 8px", background: "transparent", color: "var(--error-color)", border: "1px solid var(--error-color)", borderRadius: "var(--radius-xs-plus)", cursor: "pointer", fontSize: "var(--font-size-sm)" }}>Delete</button>
                    </td>
                  </tr>
                ))}
              </tbody>
            </table>
          )}
-         <button onClick={handleCreateAdapter} style={{ marginTop: 12, padding: "6px 14px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", cursor: "pointer" }}>
+         <button className="panel-btn" onClick={handleCreateAdapter} style={{ marginTop: 12, padding: "8px 16px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", cursor: "pointer" }}>
            Create Adapter
          </button>
        </>

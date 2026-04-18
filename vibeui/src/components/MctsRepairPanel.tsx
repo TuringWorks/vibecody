@@ -158,7 +158,7 @@ export function MctsRepairPanel() {
         <div>
           {sessions.length === 0 && <div className="panel-empty">No repair sessions yet. Create one from the New tab.</div>}
           {sessions.map((s) => (
-            <div key={s.id} className="panel-card"
+            <div role="button" tabIndex={0} key={s.id} className="panel-card"
               style={{ cursor: "pointer", outline: s.id === selectedId ? "2px solid var(--accent-color)" : "none" }}
               onClick={() => setSelectedId(s.id)}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>

@@ -35,7 +35,7 @@ const PRESETS = [
 
 function StatCard({ label, value, unit, color }: { label: string; value: string | number; unit?: string; color?: string }) {
  return (
- <div style={{ flex: 1, padding: "8px 10px", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", textAlign: "center" }}>
+ <div style={{ flex: 1, padding: "8px 12px", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", textAlign: "center" }}>
  <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "var(--font-mono)", color: color ?? "var(--text-primary)" }}>
  {typeof value === "number" ? value.toFixed(value < 10 ? 1 : 0) : value}
  {unit && <span style={{ fontSize: "var(--font-size-sm)", fontWeight: 400, marginLeft: 2 }}>{unit}</span>}
@@ -127,7 +127,7 @@ export function LoadTestPanel() {
 
  <div className="panel-body" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
  {error && (
- <div style={{ padding: "6px 10px", background: "var(--error-bg)", color: "var(--error-color)", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-sm)" }}> {error}</div>
+ <div style={{ padding: "8px 12px", background: "var(--error-bg)", color: "var(--error-color)", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-sm)" }}> {error}</div>
  )}
 
  {/* URL + method */}
@@ -135,7 +135,7 @@ export function LoadTestPanel() {
  <select
  value={method}
  onChange={(e) => setMethod(e.target.value)}
- style={{ padding: "6px 8px", fontSize: "var(--font-size-sm)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none", fontWeight: 600 }}
+ style={{ padding: "8px 8px", fontSize: "var(--font-size-sm)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none", fontWeight: 600 }}
  >
  {METHODS.map((m) => <option key={m}>{m}</option>)}
  </select>
@@ -143,7 +143,7 @@ export function LoadTestPanel() {
  value={url}
  onChange={(e) => setUrl(e.target.value)}
  placeholder="https://api.example.com/endpoint"
- style={{ flex: 1, padding: "6px 10px", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none" }}
+ style={{ flex: 1, padding: "8px 12px", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none" }}
  />
  </div>
 
@@ -153,7 +153,7 @@ export function LoadTestPanel() {
  <button
  key={p.label}
  onClick={() => { setTotal(p.total); setConcurrency(p.concurrency); }}
- style={{ padding: "3px 9px", fontSize: "var(--font-size-xs)", borderRadius: "var(--radius-md)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", color: "var(--text-secondary)", cursor: "pointer" }}
+ style={{ padding: "3px 8px", fontSize: "var(--font-size-xs)", borderRadius: "var(--radius-md)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", color: "var(--text-secondary)", cursor: "pointer" }}
  >
  {p.label}
  </button>
@@ -171,16 +171,16 @@ export function LoadTestPanel() {
  <input
  type="number" min={min} max={max} value={value}
  onChange={(e) => setter(Math.max(min, Math.min(max, Number(e.target.value))))}
- style={{ padding: "5px 8px", fontSize: "var(--font-size-base)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none" }}
+ style={{ padding: "4px 8px", fontSize: "var(--font-size-base)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none" }}
  />
  </div>
  ))}
 
  {running ? (
- <button
+ <button className="panel-btn"
  onClick={handleSuspend}
  style={{
- padding: "6px 20px", fontSize: "var(--font-size-base)", fontWeight: 700, alignSelf: "flex-end",
+ padding: "8px 20px", fontSize: "var(--font-size-base)", fontWeight: 700, alignSelf: "flex-end",
  background: "var(--error-color)",
  color: "var(--btn-primary-fg)",
  border: "none", borderRadius: "var(--radius-xs-plus)", cursor: "pointer",
@@ -190,11 +190,11 @@ export function LoadTestPanel() {
  Suspend ({progress}/{total})
  </button>
  ) : (
- <button
+ <button className="panel-btn"
  onClick={run}
  disabled={!url}
  style={{
- padding: "6px 20px", fontSize: "var(--font-size-base)", fontWeight: 700, alignSelf: "flex-end",
+ padding: "8px 20px", fontSize: "var(--font-size-base)", fontWeight: 700, alignSelf: "flex-end",
  background: "var(--accent-color)",
  color: "var(--btn-primary-fg)",
  border: "none", borderRadius: "var(--radius-xs-plus)", cursor: !url ? "not-allowed" : "pointer",
@@ -215,7 +215,7 @@ export function LoadTestPanel() {
  onChange={(e) => setBody(e.target.value)}
  rows={3}
  placeholder='{"key": "value"}'
- style={{ padding: "6px 10px", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none", resize: "vertical" }}
+ style={{ padding: "8px 12px", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none", resize: "vertical" }}
  />
  </div>
  )}
@@ -226,7 +226,7 @@ export function LoadTestPanel() {
  value={headersText}
  onChange={(e) => setHeadersText(e.target.value)}
  placeholder='{"Authorization": "Bearer TOKEN"}'
- style={{ padding: "5px 10px", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-secondary)", outline: "none" }}
+ style={{ padding: "4px 12px", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-secondary)", outline: "none" }}
  />
  </div>
 
@@ -258,24 +258,24 @@ export function LoadTestPanel() {
 
  {/* Success / failure */}
  <div style={{ display: "flex", gap: 6 }}>
- <div style={{ flex: 1, padding: "8px 10px", background: "color-mix(in srgb, var(--accent-green) 10%, transparent)", border: "1px solid var(--success-color)", borderRadius: "var(--radius-sm)", textAlign: "center" }}>
+ <div style={{ flex: 1, padding: "8px 12px", background: "color-mix(in srgb, var(--accent-green) 10%, transparent)", border: "1px solid var(--success-color)", borderRadius: "var(--radius-sm)", textAlign: "center" }}>
  <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--success-color)" }}>{result.success}</div>
  <div style={{ fontSize: 9, color: "var(--success-color)", fontWeight: 600 }}>SUCCESS ({successRate}%)</div>
  </div>
  {result.failed > 0 && (
- <div style={{ flex: 1, padding: "8px 10px", background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", border: "1px solid var(--error-color)", borderRadius: "var(--radius-sm)", textAlign: "center" }}>
+ <div style={{ flex: 1, padding: "8px 12px", background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", border: "1px solid var(--error-color)", borderRadius: "var(--radius-sm)", textAlign: "center" }}>
  <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--error-color)" }}>{result.failed}</div>
  <div style={{ fontSize: 9, color: "var(--error-color)", fontWeight: 600 }}>FAILED ({100 - (successRate ?? 0)}%)</div>
  </div>
  )}
- <div style={{ flex: 1, padding: "8px 10px", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", textAlign: "center" }}>
+ <div style={{ flex: 1, padding: "8px 12px", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", textAlign: "center" }}>
  <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{(result.duration_ms / 1000).toFixed(2)}s</div>
  <div style={{ fontSize: 9, color: "var(--text-secondary)", fontWeight: 600 }}>TOTAL TIME</div>
  </div>
  </div>
 
  {/* Latency bar chart (visual) */}
- <div style={{ padding: "10px 12px", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)" }}>
+ <div style={{ padding: "12px 12px", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)" }}>
  <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, marginBottom: 8 }}>Latency Distribution</div>
  <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 50 }}>
  {[
@@ -309,7 +309,7 @@ export function LoadTestPanel() {
  const c = Number(code);
  const color = c === 0 ? "var(--error-color)" : c < 300 ? "var(--success-color)" : c < 400 ? "var(--warning-color)" : "var(--error-color)";
  return (
- <div key={code} style={{ padding: "5px 12px", borderRadius: 20, border: `1px solid ${color}`, background: `${color}22`, fontSize: "var(--font-size-sm)" }}>
+ <div key={code} style={{ padding: "4px 12px", borderRadius: 20, border: `1px solid ${color}`, background: `${color}22`, fontSize: "var(--font-size-sm)" }}>
  <span style={{ color, fontWeight: 700 }}>{code === "0" ? "ERR" : code}</span>
  <span style={{ color: "var(--text-secondary)", marginLeft: 6 }}>×{count}</span>
  </div>

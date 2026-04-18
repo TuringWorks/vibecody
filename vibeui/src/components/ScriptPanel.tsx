@@ -179,7 +179,7 @@ export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
  key={cat}
  onClick={() => setFilter(cat)}
  style={{
- padding: "3px 10px", fontSize: "var(--font-size-sm)", borderRadius: 12,
+ padding: "3px 12px", fontSize: "var(--font-size-sm)", borderRadius: 12,
  background: filter === cat ? (CATEGORY_COLORS[cat] ?? "var(--accent-color)") : "var(--bg-secondary)",
  border: `1px solid ${filter === cat ? (CATEGORY_COLORS[cat] ?? "var(--accent-color)") : "var(--border-color)"}`,
  color: filter === cat ? "var(--bg-primary)" : "var(--text-secondary)",
@@ -223,7 +223,7 @@ export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
  key={`${script.category}:${script.name}`}
  style={{
  display: "flex", alignItems: "center", gap: 10,
- padding: "8px 10px", borderRadius: "var(--radius-sm)",
+ padding: "8px 12px", borderRadius: "var(--radius-sm)",
  background: isRunning ? "color-mix(in srgb, var(--accent-blue) 12%, transparent)" : "var(--bg-secondary)",
  border: `1px solid ${isRunning ? "var(--accent-color)" : "var(--border-color)"}`,
  transition: "border-color 0.15s",
@@ -304,7 +304,7 @@ export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
  {/* Result header */}
  {result && (
  <div style={{
- padding: "6px 12px", fontSize: "var(--font-size-sm)", fontWeight: 600,
+ padding: "8px 12px", fontSize: "var(--font-size-sm)", fontWeight: 600,
  background: result.success ? "color-mix(in srgb, var(--accent-green) 10%, transparent)" : "color-mix(in srgb, var(--accent-rose) 10%, transparent)",
  color: result.success ? "var(--success-color)" : "var(--error-color)",
  borderBottom: "1px solid var(--border-color)",
