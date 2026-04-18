@@ -37754,6 +37754,43 @@ pub async fn openmemory_benchmark(k: Option<usize>) -> Result<serde_json::Value,
     }))
 }
 
+/// Regenerate the MEMORY.md (project tier) and USER.md (user tier)
+/// projections of OpenMemory and return the paths + rendered bodies so the
+/// UI can display them immediately without a round-trip read. Idempotent:
+/// repeated calls with no state change produce identical bytes.
+#[tauri::command]
+pub async fn memory_projections_refresh(
+    workspace: String,
+) -> Result<serde_json::Value, String> {
+    let workspace_path = std::path::PathBuf::from(&workspace);
+    if !workspace_path.is_dir() {
+        return Err(format!(
+            "workspace path is not a directory: {}",
+            workspace_path.display()
+        ));
+    }
+    let home = dirs::home_dir();
+    let paths = vibecli_cli::memory_projections::write_projections(
+        home.as_deref(),
+        &workspace_path,
+    )
+    .map_err(|e| format!("write_projections failed: {}", e))?;
+
+    let memory_body = std::fs::read_to_string(&paths.memory_md)
+        .map_err(|e| format!("read MEMORY.md: {}", e))?;
+    let user_body = match paths.user_md.as_ref() {
+        Some(p) => std::fs::read_to_string(p).ok(),
+        None => None,
+    };
+
+    Ok(serde_json::json!({
+        "memory_md_path": paths.memory_md.to_string_lossy(),
+        "memory_md_body": memory_body,
+        "user_md_path": paths.user_md.as_ref().map(|p| p.to_string_lossy().to_string()),
+        "user_md_body": user_body,
+    }))
+}
+
 /// List memories with optional sector filter.
 #[tauri::command]
 pub async fn openmemory_list(offset: Option<usize>, limit: Option<usize>, sector: Option<String>) -> Result<serde_json::Value, String> {

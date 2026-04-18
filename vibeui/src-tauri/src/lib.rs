@@ -1234,6 +1234,7 @@ pub fn run() {
             commands::openmemory_layered_context,
             commands::openmemory_drawer_stats,
             commands::openmemory_benchmark,
+            commands::memory_projections_refresh,
             // FIT-GAP v10 — Phase 40-43 commands
             commands::parallel_tool_scheduler_status,
             commands::context_budget_status,

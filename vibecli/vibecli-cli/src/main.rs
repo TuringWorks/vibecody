@@ -13584,11 +13584,34 @@ async fn run_agent_repl_with_context(
         .into_iter()
         .collect::<Vec<_>>();
 
-    // Auto-detect project context for always-on understanding
-    let project_profile = project_init::get_or_scan_profile(&workspace);
-    let project_summary = Some(project_profile.to_system_prompt_context());
+    // Route project profile + OpenMemory through the Context Assembler so the
+    // CodingAgent per-section budget applies. task_context_files stays outside
+    // because agent.rs consumes the structured (path, preview) Vec directly —
+    // the assembler's flat `task_files` string would lose that shape.
+    let assembled = context_assembler::assemble_context(
+        &workspace,
+        &context_assembler::ContextPolicy::Agent {
+            task: task.to_string(),
+            job_id: None,
+        },
+        &context_assembler::ContextBudget::for_kind(
+            context_assembler::AgentKind::CodingAgent,
+        ),
+        &context_assembler::MemoryToggles {
+            openmemory_enabled: config.memory.openmemory.enabled,
+            openmemory_auto_inject: config.memory.openmemory.auto_inject,
+            jobs_db_path: None,
+        },
+    );
+    let project_summary = assembled
+        .get("project_profile")
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string());
+    let memory_context = assembled
+        .get("open_memory")
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string());
 
-    // Auto-gather relevant files based on the task description
     let relevant_paths = project_init::extract_relevant_files_for_task(&workspace, task);
     let task_context_files: Vec<(String, String)> = relevant_paths.iter()
         .filter_map(|rel_path| {
@@ -13597,7 +13620,6 @@ async fn run_agent_repl_with_context(
                 std::fs::read_to_string(&full_path)
                     .ok()
                     .map(|content| {
-                        // Limit preview to first 80 lines
                         let preview: String = content.lines().take(80).collect::<Vec<_>>().join("\n");
                         (rel_path.clone(), preview)
                     })
@@ -13605,18 +13627,8 @@ async fn run_agent_repl_with_context(
                 None
             }
         })
-        .take(5) // Max 5 files to avoid bloating context
+        .take(5)
         .collect();
-
-    // OpenMemory: inject relevant memories into agent system prompt (config-gated).
-    // Uses MemPalace-style layered loading: L1 essential story + L2 scoped search + L3 verbatim drawers.
-    let memory_context = if config.memory.openmemory.enabled && config.memory.openmemory.auto_inject {
-        let store = open_memory::project_scoped_store(&workspace);
-        let ctx = store.get_layered_context_default(task);
-        if ctx.is_empty() { None } else { Some(ctx) }
-    } else {
-        None
-    };
 
     let context = AgentContext {
         workspace_root: workspace.clone(),
