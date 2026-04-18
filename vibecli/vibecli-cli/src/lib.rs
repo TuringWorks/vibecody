@@ -155,6 +155,15 @@ pub mod cursor_overlay;
 pub mod plugin_marketplace;
 // MemPalace techniques — LongMemEval benchmark
 pub mod open_memory;
+// Memory-as-infrastructure redesign — Phase 2: single context assembler
+// (depends on memory, workflow_orchestration, project_init below).
+pub mod memory;
+pub mod workflow_orchestration;
+pub mod project_init;
+pub mod context_assembler;
+// Memory-as-infrastructure redesign — Phase 6: USER.md / MEMORY.md
+// projections rendered from OpenMemory state.
+pub mod memory_projections;
 pub mod mem_benchmark;
 // FIT-GAP v11 — Phase 48: P3 Gaps (closed)
 pub mod token_dashboard;

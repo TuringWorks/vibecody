@@ -188,6 +188,21 @@ path = "tests/autodream_bdd.rs"
 harness = false
 
 [[test]]
+name = "session_fts_bdd"
+path = "tests/session_fts_bdd.rs"
+harness = false
+
+[[test]]
+name = "context_assembler_bdd"
+path = "tests/context_assembler_bdd.rs"
+harness = false
+
+[[test]]
+name = "memory_projections_bdd"
+path = "tests/memory_projections_bdd.rs"
+harness = false
+
+[[test]]
 name = "prompt_cache_bdd"
 path = "tests/prompt_cache_bdd.rs"
 harness = false

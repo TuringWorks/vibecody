@@ -29,6 +29,8 @@ mod diff_viewer;
 mod tool_executor;
 mod memory;
 mod memory_recorder;
+mod context_assembler;
+mod memory_projections;
 mod ci;
 mod review;
 mod serve;
@@ -56,7 +58,6 @@ mod subprocess_dispatch;
 #[allow(dead_code)]
 mod webhook;
 mod team;
-mod memory_auto;
 mod bugbot;
 mod redteam;
 mod scheduler;
@@ -4132,41 +4133,52 @@ async fn main() -> Result<()> {
     let mut active_model = effective_model.clone();
     let session_tokens = TokenUsage::default();
 
-    // Load project memory (VIBECLI.md / AGENTS.md / CLAUDE.md) and inject as system context
+    // Seed the REPL with project memory + orchestration via the single
+    // Context Assembler (Phase 2). Behavior is identical to the pre-assembler
+    // code: two separate System messages, same user-facing status lines.
     let cwd = std::env::current_dir()?;
     let memory = ProjectMemory::load(&cwd);
     if !memory.is_empty() {
         println!("{}", memory.summary());
     }
 
+    let assembled = crate::context_assembler::assemble_context(
+        &cwd,
+        &crate::context_assembler::ContextPolicy::Chat,
+        &crate::context_assembler::ContextBudget::default(),
+        &crate::context_assembler::MemoryToggles::default(),
+    );
+
     let mut messages: Vec<Message> = Vec::new();
-    // Seed system message with memory if available
-    if let Some(mem_content) = memory.combined() {
+    if let Some(mem_content) = assembled.get("project_memory") {
         messages.push(Message {
             role: MessageRole::System,
-            content: mem_content,
+            content: mem_content.to_string(),
+        });
+    }
+    if let Some(orch) = assembled.get("orchestration") {
+        messages.push(Message {
+            role: MessageRole::System,
+            content: orch.to_string(),
         });
     }
 
-    // Load orchestration lessons and inject into system context
+    // Preserve the user-facing status lines. Loading lessons/todo a second
+    // time is cheap and avoids threading them out of the assembler.
     {
-        use crate::workflow_orchestration::{LessonsStore, TodoStore, orchestration_system_prompt};
-        let lessons_store = LessonsStore::for_workspace(&cwd);
-        let todo_store = TodoStore::for_workspace(&cwd);
-        let lessons = lessons_store.load();
-        let current_task = todo_store.load();
-        let orch_ctx = orchestration_system_prompt(&lessons, current_task.as_ref());
-        if !orch_ctx.is_empty() {
-            messages.push(Message {
-                role: MessageRole::System,
-                content: orch_ctx,
-            });
-        }
+        use crate::workflow_orchestration::{LessonsStore, TodoStore};
+        let lessons = LessonsStore::for_workspace(&cwd).load();
+        let current_task = TodoStore::for_workspace(&cwd).load();
         if !lessons.is_empty() {
             println!("Loaded {} orchestration lessons", lessons.len());
         }
         if let Some(ref task) = current_task {
-            println!("Active task: {} ({}/{} done)", task.goal, task.completed(), task.todos.len());
+            println!(
+                "Active task: {} ({}/{} done)",
+                task.goal,
+                task.completed(),
+                task.todos.len()
+            );
         }
     }
     let mut conversation_active = false;
@@ -10548,9 +10560,14 @@ async fn main() -> Result<()> {
                                             if file_path.is_empty() && format != "auto" {
                                                 println!("Usage: /openmemory import {} <file.json>\n", format);
                                             } else {
-                                                let mut store = open_memory::project_scoped_store(&std::env::current_dir().unwrap_or_default());
+                                                let cwd = std::env::current_dir().unwrap_or_default();
+                                                let mut store = open_memory::project_scoped_store(&cwd);
                                                 let result = if format == "auto" {
-                                                    open_memory::sync_auto_memories(&mut store)
+                                                    open_memory::sync_auto_memories_for(
+                                                        &mut store,
+                                                        &cwd,
+                                                        dirs::home_dir().as_deref(),
+                                                    )
                                                 } else {
                                                     std::fs::read_to_string(file_path)
                                                         .map_err(|e| anyhow::anyhow!("read error: {e}"))
@@ -10599,6 +10616,25 @@ async fn main() -> Result<()> {
                                     let removed = store.remove_duplicates(threshold);
                                     let _ = store.save();
                                     println!("Removed {} duplicate memories (threshold: {:.0}%).\n", removed, threshold * 100.0);
+                                }
+                                "project" => {
+                                    let cwd = std::env::current_dir().unwrap_or_default();
+                                    match memory_projections::write_projections(
+                                        dirs::home_dir().as_deref(),
+                                        &cwd,
+                                    ) {
+                                        Ok(paths) => {
+                                            println!("Wrote projections:");
+                                            println!("  MEMORY.md → {}", paths.memory_md.display());
+                                            if let Some(u) = paths.user_md {
+                                                println!("  USER.md   → {}", u.display());
+                                            }
+                                            println!();
+                                        }
+                                        Err(e) => {
+                                            println!("Failed to write projections: {}\n", e);
+                                        }
+                                    }
                                 }
                                 "health" => {
                                     let store = open_memory::project_scoped_store(&std::env::current_dir().unwrap_or_default());

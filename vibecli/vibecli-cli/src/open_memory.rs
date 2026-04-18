@@ -1229,6 +1229,11 @@ impl OpenMemoryStore {
         self.project_id = Some(project_id.into());
     }
 
+    /// Current project scope, if any.
+    pub fn project_id(&self) -> Option<&str> {
+        self.project_id.as_deref()
+    }
+
     /// Set scoring weights.
     pub fn set_scoring_weights(&mut self, weights: ScoringWeights) {
         self.scoring_weights = weights;
@@ -2031,7 +2036,7 @@ impl OpenMemoryStore {
     // ── Deduplication ────────────────────────────────────────────────────
 
     /// Check if content is a near-duplicate of an existing memory.
-    /// Uses word-overlap similarity (same approach as memory_auto.rs).
+    /// Uses word-overlap similarity over lowercase token sets.
     pub fn is_duplicate(&self, content: &str, threshold: f64) -> bool {
         let new_lower = content.to_lowercase();
         let new_words: std::collections::HashSet<&str> = new_lower.split_whitespace().collect();
@@ -2588,8 +2593,8 @@ impl OpenMemoryStore {
     ///
     /// Stores raw 800-char overlapping chunks without LLM summarization.
     /// Wing is inferred from the current `project_id`; Room from the text's
-    /// primary sector. Use alongside `add()` / `memory_auto` extraction for
-    /// complementary lossy+lossless storage.
+    /// primary sector. Use alongside `add()` for complementary
+    /// lossy+lossless storage.
     pub fn ingest_conversation_chunks(&mut self, text: &str, source: &str) -> usize {
         let wing = self
             .project_id
@@ -2956,8 +2961,11 @@ pub fn import_from_zep(store: &mut OpenMemoryStore, json: &str) -> Result<usize>
     Ok(count)
 }
 
-/// Import from VibeCody's existing auto-memory system (memory_auto.rs MemoryFact format).
-/// Reads ~/.vibecli/auto-memory.json and project-level .vibecli/auto-memory.json
+/// Parse a legacy auto-memory JSON blob (the old `memory_auto::MemoryFact`
+/// format — kept for backwards-compatible migration of on-disk
+/// `.vibecli/auto-memory.json` files) and insert each fact into this store.
+/// High-confidence facts set `salience = confidence`; pinned facts are
+/// carried over. Low-confidence facts (< 0.5) are skipped.
 pub fn import_from_auto_memory(store: &mut OpenMemoryStore, json: &str) -> Result<usize> {
     let facts: Vec<serde_json::Value> = serde_json::from_str(json)?;
     let mut count = 0;
@@ -3000,29 +3008,58 @@ pub fn import_from_auto_memory(store: &mut OpenMemoryStore, json: &str) -> Resul
     Ok(count)
 }
 
-/// Sync: load auto-memory facts from default locations and import into OpenMemory.
-pub fn sync_auto_memories(store: &mut OpenMemoryStore) -> Result<usize> {
+/// Sync auto-memory facts from the user tier (`<home>/.vibecli/auto-memory.json`)
+/// and project tier (`<workspace>/.vibecli/auto-memory.json`) into OpenMemory.
+///
+/// Idempotent: after a successful import each source file is renamed to
+/// `auto-memory.json.synced` so subsequent calls don't double-import. Pass
+/// `home_dir = None` to skip the user tier (useful in tests and when the
+/// user has no home directory).
+pub fn sync_auto_memories_for(
+    store: &mut OpenMemoryStore,
+    workspace: &std::path::Path,
+    home_dir: Option<&std::path::Path>,
+) -> Result<usize> {
     let mut total = 0;
-
-    // Global auto-memory
-    if let Some(home) = dirs::home_dir() {
-        let global_path = home.join(".vibecli").join("auto-memory.json");
-        if global_path.exists() {
-            if let Ok(json) = std::fs::read_to_string(&global_path) {
-                total += import_from_auto_memory(store, &json).unwrap_or(0);
-            }
-        }
+    if let Some(home) = home_dir {
+        total += import_and_mark_synced(
+            store,
+            &home.join(".vibecli").join("auto-memory.json"),
+        );
     }
-
-    // Project auto-memory (current directory)
-    let project_path = PathBuf::from(".vibecli").join("auto-memory.json");
-    if project_path.exists() {
-        if let Ok(json) = std::fs::read_to_string(&project_path) {
-            total += import_from_auto_memory(store, &json).unwrap_or(0);
-        }
-    }
-
+    total += import_and_mark_synced(
+        store,
+        &workspace.join(".vibecli").join("auto-memory.json"),
+    );
     Ok(total)
+}
+
+/// Legacy entry point — calls [`sync_auto_memories_for`] with CWD as the
+/// workspace and `dirs::home_dir()` as the user tier. Callers that know
+/// their workspace should prefer the explicit form.
+pub fn sync_auto_memories(store: &mut OpenMemoryStore) -> Result<usize> {
+    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    sync_auto_memories_for(store, &cwd, dirs::home_dir().as_deref())
+}
+
+fn import_and_mark_synced(
+    store: &mut OpenMemoryStore,
+    path: &std::path::Path,
+) -> usize {
+    if !path.exists() {
+        return 0;
+    }
+    let json = match std::fs::read_to_string(path) {
+        Ok(s) => s,
+        Err(_) => return 0,
+    };
+    let imported = import_from_auto_memory(store, &json).unwrap_or(0);
+    if imported > 0 {
+        // Rename to .synced so re-running the command doesn't re-import.
+        let target = path.with_extension("json.synced");
+        let _ = std::fs::rename(path, &target);
+    }
+    imported
 }
 
 // ─── Data Source Connectors ──────────────────────────────────────────────────
@@ -5221,5 +5258,107 @@ mod tests {
         assert_eq!(loaded.len(), ds.len());
 
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // ── Workspace-aware auto-memory sync (Phase 5) ───────────────────────
+
+    fn write_auto_memory(path: &std::path::Path, facts: &str) {
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).unwrap();
+        }
+        std::fs::write(path, facts).unwrap();
+    }
+
+    fn sample_facts() -> &'static str {
+        r#"[
+            {"id":"x","fact":"Fact A","confidence":0.9,"tags":["t"]},
+            {"id":"y","fact":"Fact B","confidence":0.8,"tags":["t"]}
+        ]"#
+    }
+
+    #[test]
+    fn sync_auto_memories_for_reads_explicit_workspace_and_home() {
+        // Both user-tier and project-tier files should be picked up when the
+        // caller hands us explicit paths — no CWD / HOME leakage.
+        let mut store = test_store();
+        let home = tempfile::TempDir::new().unwrap();
+        let workspace = tempfile::TempDir::new().unwrap();
+        write_auto_memory(
+            &home.path().join(".vibecli").join("auto-memory.json"),
+            sample_facts(),
+        );
+        write_auto_memory(
+            &workspace.path().join(".vibecli").join("auto-memory.json"),
+            sample_facts(),
+        );
+
+        let n = sync_auto_memories_for(
+            &mut store,
+            workspace.path(),
+            Some(home.path()),
+        )
+        .expect("sync");
+        assert_eq!(n, 4, "2 facts × 2 sources");
+    }
+
+    #[test]
+    fn sync_auto_memories_for_is_idempotent_across_runs() {
+        // Re-running sync must not re-import the same facts. The source
+        // files are renamed to `.synced` after a successful import so the
+        // second call sees nothing.
+        let mut store = test_store();
+        let home = tempfile::TempDir::new().unwrap();
+        let workspace = tempfile::TempDir::new().unwrap();
+        let src = workspace.path().join(".vibecli").join("auto-memory.json");
+        write_auto_memory(&src, sample_facts());
+
+        let first = sync_auto_memories_for(
+            &mut store,
+            workspace.path(),
+            Some(home.path()),
+        )
+        .expect("sync1");
+        assert_eq!(first, 2);
+        assert!(!src.exists(), "source should be renamed after sync");
+        assert!(
+            src.with_extension("json.synced").exists(),
+            "expected .synced sidecar"
+        );
+
+        let second = sync_auto_memories_for(
+            &mut store,
+            workspace.path(),
+            Some(home.path()),
+        )
+        .expect("sync2");
+        assert_eq!(second, 0, "second sync must be a no-op");
+    }
+
+    #[test]
+    fn sync_auto_memories_for_returns_zero_when_nothing_present() {
+        let mut store = test_store();
+        let home = tempfile::TempDir::new().unwrap();
+        let workspace = tempfile::TempDir::new().unwrap();
+        let n = sync_auto_memories_for(
+            &mut store,
+            workspace.path(),
+            Some(home.path()),
+        )
+        .expect("sync");
+        assert_eq!(n, 0);
+    }
+
+    #[test]
+    fn sync_auto_memories_for_tolerates_missing_home() {
+        let mut store = test_store();
+        let workspace = tempfile::TempDir::new().unwrap();
+        write_auto_memory(
+            &workspace.path().join(".vibecli").join("auto-memory.json"),
+            sample_facts(),
+        );
+        let n = sync_auto_memories_for(&mut store, workspace.path(), None)
+            .expect("sync");
+        // Project-tier facts still import even with no home provided.
+        assert_eq!(n, 2);
     }
 }

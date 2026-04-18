@@ -205,6 +205,17 @@ pub struct CreateJobReq {
     pub quota_bucket: Option<String>,
 }
 
+/// A single entry in the per-job scratchpad — durable working state keyed
+/// by `(session_id, key)`. Phase 3 of the memory-as-infrastructure
+/// redesign; surfaced to agents via the Context Assembler's
+/// `"agent_scratchpad"` section.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ScratchpadEntry {
+    pub key: String,
+    pub value: String,
+    pub updated_at: u64,
+}
+
 /// Summary returned by `migrate_json_jobs`.
 #[derive(Debug, Default, Clone)]
 pub struct MigrationReport {
@@ -355,7 +366,23 @@ fn open_conn(path: &Path) -> Result<Connection, String> {
              last_attempt_at  INTEGER NOT NULL
          );
          CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_status
-             ON webhook_deliveries(status, last_attempt_at DESC);",
+             ON webhook_deliveries(status, last_attempt_at DESC);
+
+         -- Phase 3 (memory-as-infrastructure): durable agent scratchpad.
+         -- A per-session key/value store for an agent's working state —
+         -- plans, hypotheses, file-location notes — so a long-running
+         -- agent can pick up where it left off after a restart or pause.
+         -- Values are encrypted because they frequently contain excerpts
+         -- of the task / source code.
+         CREATE TABLE IF NOT EXISTS job_scratchpad (
+             session_id       TEXT    NOT NULL,
+             key              TEXT    NOT NULL,
+             encrypted_value  BLOB    NOT NULL,
+             updated_at       INTEGER NOT NULL,
+             PRIMARY KEY (session_id, key)
+         );
+         CREATE INDEX IF NOT EXISTS idx_job_scratchpad_sid_updated
+             ON job_scratchpad(session_id, updated_at DESC);",
     )
     .map_err(|e| e.to_string())?;
     Ok(conn)
@@ -723,6 +750,118 @@ impl JobsDb {
             });
         }
         Ok(out)
+    }
+
+    // ── Scratchpad (Phase 3) ───────────────────────────────────────────
+
+    /// Upsert a scratchpad entry for (session_id, key). Values are
+    /// encrypted at rest.
+    pub fn scratchpad_set(
+        &self,
+        session_id: &str,
+        key: &str,
+        value: &str,
+    ) -> Result<(), String> {
+        let blob = encrypt(&self.key, value)?;
+        self.conn
+            .execute(
+                "INSERT INTO job_scratchpad (session_id, key, encrypted_value, updated_at)
+                 VALUES (?1, ?2, ?3, ?4)
+                 ON CONFLICT(session_id, key)
+                 DO UPDATE SET encrypted_value = excluded.encrypted_value,
+                               updated_at      = excluded.updated_at",
+                params![session_id, key, blob, now_ms() as i64],
+            )
+            .map_err(|e| e.to_string())?;
+        Ok(())
+    }
+
+    /// Read a single scratchpad entry. Returns `None` when missing.
+    pub fn scratchpad_get(
+        &self,
+        session_id: &str,
+        key: &str,
+    ) -> Result<Option<String>, String> {
+        let mut stmt = self
+            .conn
+            .prepare(
+                "SELECT encrypted_value FROM job_scratchpad
+                 WHERE session_id = ?1 AND key = ?2",
+            )
+            .map_err(|e| e.to_string())?;
+        let mut rows = stmt
+            .query(params![session_id, key])
+            .map_err(|e| e.to_string())?;
+        if let Some(row) = rows.next().map_err(|e| e.to_string())? {
+            let blob: Vec<u8> = row.get(0).map_err(|e| e.to_string())?;
+            Ok(Some(decrypt(&self.key, &blob)?))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// List all scratchpad entries for a session, newest first.
+    pub fn scratchpad_list(
+        &self,
+        session_id: &str,
+    ) -> Result<Vec<ScratchpadEntry>, String> {
+        let mut stmt = self
+            .conn
+            .prepare(
+                "SELECT key, encrypted_value, updated_at FROM job_scratchpad
+                 WHERE session_id = ?1
+                 ORDER BY updated_at DESC, key ASC",
+            )
+            .map_err(|e| e.to_string())?;
+        let rows = stmt
+            .query_map(params![session_id], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, Vec<u8>>(1)?,
+                    row.get::<_, i64>(2)?,
+                ))
+            })
+            .map_err(|e| e.to_string())?;
+        let mut out = Vec::new();
+        for r in rows {
+            let (key, blob, updated_at) = r.map_err(|e| e.to_string())?;
+            let value = decrypt(&self.key, &blob)?;
+            out.push(ScratchpadEntry {
+                key,
+                value,
+                updated_at: updated_at as u64,
+            });
+        }
+        Ok(out)
+    }
+
+    /// Delete a single scratchpad entry. Returns `true` iff a row was
+    /// removed (i.e., the entry existed).
+    pub fn scratchpad_delete(
+        &self,
+        session_id: &str,
+        key: &str,
+    ) -> Result<bool, String> {
+        let n = self
+            .conn
+            .execute(
+                "DELETE FROM job_scratchpad WHERE session_id = ?1 AND key = ?2",
+                params![session_id, key],
+            )
+            .map_err(|e| e.to_string())?;
+        Ok(n > 0)
+    }
+
+    /// Clear every scratchpad entry for a session. Returns the row count.
+    pub fn scratchpad_clear(&self, session_id: &str) -> Result<usize, String> {
+        let n = self
+            .conn
+            .execute(
+                "DELETE FROM job_scratchpad WHERE session_id = ?1",
+                params![session_id],
+            )
+            .map_err(|e| e.to_string())?;
+        Ok(n)
     }
 
     pub fn meta_set(&self, key: &str, value: &str) -> Result<(), String> {
@@ -2028,5 +2167,92 @@ mod tests {
         assert_eq!(s.running, 0);
         // subprocess path is cfg(unix) and not exercised here.
         assert_eq!(s.subprocesses_spawned, 0);
+    }
+
+    // ── Scratchpad (Phase 3 of the memory-as-infrastructure redesign) ─────
+
+    fn db() -> (JobsDb, tempfile::TempDir) {
+        let tmp = tempdir().unwrap();
+        let db = JobsDb::open_with(&tmp.path().join("jobs.db"), [42u8; 32]).unwrap();
+        (db, tmp)
+    }
+
+    #[test]
+    fn scratchpad_set_then_get_roundtrips_utf8() {
+        let (db, _t) = db();
+        db.scratchpad_set("sid-1", "plan", "1. read\n2. write\n3. verify")
+            .unwrap();
+        assert_eq!(
+            db.scratchpad_get("sid-1", "plan").unwrap().as_deref(),
+            Some("1. read\n2. write\n3. verify")
+        );
+    }
+
+    #[test]
+    fn scratchpad_get_missing_returns_none() {
+        let (db, _t) = db();
+        assert!(db.scratchpad_get("sid-ghost", "nope").unwrap().is_none());
+    }
+
+    #[test]
+    fn scratchpad_set_overwrites_existing_key() {
+        let (db, _t) = db();
+        db.scratchpad_set("sid-1", "k", "first").unwrap();
+        db.scratchpad_set("sid-1", "k", "second").unwrap();
+        assert_eq!(
+            db.scratchpad_get("sid-1", "k").unwrap().as_deref(),
+            Some("second")
+        );
+    }
+
+    #[test]
+    fn scratchpad_list_returns_entries_newest_first() {
+        let (db, _t) = db();
+        db.scratchpad_set("sid-1", "alpha", "A").unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(3));
+        db.scratchpad_set("sid-1", "beta", "B").unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(3));
+        db.scratchpad_set("sid-1", "gamma", "C").unwrap();
+        let entries = db.scratchpad_list("sid-1").unwrap();
+        assert_eq!(entries.len(), 3);
+        assert_eq!(entries[0].key, "gamma");
+        assert_eq!(entries[0].value, "C");
+        assert_eq!(entries[2].key, "alpha");
+    }
+
+    #[test]
+    fn scratchpad_delete_removes_single_entry_and_returns_true_first_time() {
+        let (db, _t) = db();
+        db.scratchpad_set("sid-1", "k", "v").unwrap();
+        assert!(db.scratchpad_delete("sid-1", "k").unwrap());
+        assert!(!db.scratchpad_delete("sid-1", "k").unwrap());
+        assert!(db.scratchpad_get("sid-1", "k").unwrap().is_none());
+    }
+
+    #[test]
+    fn scratchpad_clear_removes_all_entries_for_session() {
+        let (db, _t) = db();
+        db.scratchpad_set("sid-1", "a", "1").unwrap();
+        db.scratchpad_set("sid-1", "b", "2").unwrap();
+        db.scratchpad_set("sid-2", "c", "3").unwrap();
+        assert_eq!(db.scratchpad_clear("sid-1").unwrap(), 2);
+        assert!(db.scratchpad_list("sid-1").unwrap().is_empty());
+        // Other sessions untouched.
+        assert_eq!(db.scratchpad_list("sid-2").unwrap().len(), 1);
+    }
+
+    #[test]
+    fn scratchpad_isolated_between_sessions() {
+        let (db, _t) = db();
+        db.scratchpad_set("sid-A", "plan", "alpha-plan").unwrap();
+        db.scratchpad_set("sid-B", "plan", "beta-plan").unwrap();
+        assert_eq!(
+            db.scratchpad_get("sid-A", "plan").unwrap().as_deref(),
+            Some("alpha-plan")
+        );
+        assert_eq!(
+            db.scratchpad_get("sid-B", "plan").unwrap().as_deref(),
+            Some("beta-plan")
+        );
     }
 }

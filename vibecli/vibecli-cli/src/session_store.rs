@@ -31,6 +31,34 @@ pub struct SessionRow {
     pub parent_session_id: Option<String>,
     /// Nesting depth (0 for root sessions).
     pub depth: i64,
+    /// Absolute path of the workspace this session ran against. Enables
+    /// project-scoped FTS5 search for long-running agent self-recall.
+    #[serde(default)]
+    pub project_path: Option<String>,
+}
+
+/// Scope filter for [`SessionStore::search_fts`].
+#[derive(Debug, Clone)]
+pub enum SearchScope {
+    /// Limit hits to sessions whose `project_path` matches exactly.
+    Project(String),
+    /// Search every session regardless of project.
+    All,
+}
+
+/// One hit from the message-level FTS5 index.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FtsHit {
+    pub session_id: String,
+    pub message_id: i64,
+    pub role: String,
+    pub content: String,
+    /// FTS5 `snippet()` output with `<mark>` highlight markers.
+    pub snippet: String,
+    /// FTS5 bm25 rank (lower = better match).
+    pub rank: f64,
+    pub created_at: u64,
+    pub project_path: Option<String>,
 }
 
 /// A tree node for recursive subagent visualization.
@@ -138,10 +166,64 @@ impl SessionStore {
         // Migration: add parent_session_id and depth columns (idempotent).
         self.maybe_add_column("sessions", "parent_session_id", "TEXT")?;
         self.maybe_add_column("sessions", "depth", "INTEGER NOT NULL DEFAULT 0")?;
+        // Phase 1: project scoping for long-running agent self-recall.
+        self.maybe_add_column("sessions", "project_path", "TEXT")?;
         // Index for tree queries.
         let _ = self.conn.execute_batch(
-            "CREATE INDEX IF NOT EXISTS idx_sessions_parent ON sessions(parent_session_id);"
+            "CREATE INDEX IF NOT EXISTS idx_sessions_parent ON sessions(parent_session_id);\n             CREATE INDEX IF NOT EXISTS idx_sessions_project ON sessions(project_path);"
         );
+
+        // Phase 1: FTS5 over message content (external-content pattern, no duplicate storage).
+        // Triggers keep the index in lockstep with the `messages` table so ON DELETE CASCADE
+        // from `sessions` flows through to FTS automatically.
+        self.conn.execute_batch(
+            r#"
+            CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(
+                content,
+                content='messages',
+                content_rowid='id',
+                tokenize='porter unicode61'
+            );
+
+            CREATE TRIGGER IF NOT EXISTS messages_ai AFTER INSERT ON messages BEGIN
+                INSERT INTO messages_fts(rowid, content) VALUES (new.id, new.content);
+            END;
+            CREATE TRIGGER IF NOT EXISTS messages_ad AFTER DELETE ON messages BEGIN
+                INSERT INTO messages_fts(messages_fts, rowid, content)
+                VALUES ('delete', old.id, old.content);
+            END;
+            CREATE TRIGGER IF NOT EXISTS messages_au AFTER UPDATE ON messages BEGIN
+                INSERT INTO messages_fts(messages_fts, rowid, content)
+                VALUES ('delete', old.id, old.content);
+                INSERT INTO messages_fts(rowid, content) VALUES (new.id, new.content);
+            END;
+            "#,
+        )?;
+
+        self.backfill_fts_if_needed()?;
+
+        Ok(())
+    }
+
+    /// If the FTS index is empty but `messages` already has rows (true migration case),
+    /// populate the index from existing messages.
+    fn backfill_fts_if_needed(&self) -> Result<()> {
+        let fts_count: i64 = self
+            .conn
+            .query_row("SELECT COUNT(*) FROM messages_fts", [], |r| r.get(0))?;
+        if fts_count > 0 {
+            return Ok(());
+        }
+        let msg_count: i64 = self
+            .conn
+            .query_row("SELECT COUNT(*) FROM messages", [], |r| r.get(0))?;
+        if msg_count == 0 {
+            return Ok(());
+        }
+        self.conn.execute(
+            "INSERT INTO messages_fts(rowid, content) SELECT id, content FROM messages",
+            [],
+        )?;
         Ok(())
     }
 
@@ -184,6 +266,34 @@ impl SessionStore {
              VALUES (?1, ?2, ?3, ?4, ?5, 'running', ?6, ?7)",
             params![id, task, provider, model, now, parent_session_id, depth as i64],
         )?;
+        Ok(())
+    }
+
+    /// Insert a new session bound to a workspace path. Used by long-running agents
+    /// so [`search_fts`](Self::search_fts) can scope recall to the current project.
+    pub fn insert_session_with_project(
+        &self,
+        id: &str,
+        task: &str,
+        provider: &str,
+        model: &str,
+        project_path: &str,
+    ) -> Result<()> {
+        let now = now_ms();
+        self.conn.execute(
+            "INSERT OR IGNORE INTO sessions
+             (id, task, provider, model, started_at, status, parent_session_id, depth, project_path)
+             VALUES (?1, ?2, ?3, ?4, ?5, 'running', NULL, 0, ?6)",
+            params![id, task, provider, model, now, project_path],
+        )?;
+        Ok(())
+    }
+
+    /// Delete a session and all of its messages and steps. FK cascade handles the
+    /// child rows; the `messages_ad` trigger propagates to the FTS index.
+    pub fn delete_session(&self, id: &str) -> Result<()> {
+        self.conn
+            .execute("DELETE FROM sessions WHERE id = ?1", params![id])?;
         Ok(())
     }
 
@@ -239,7 +349,7 @@ impl SessionStore {
     /// List the most recent sessions (newest first).
     pub fn list_sessions(&self, limit: usize) -> Result<Vec<SessionRow>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, task, provider, model, started_at, finished_at, status, summary, step_count, parent_session_id, depth
+            "SELECT id, task, provider, model, started_at, finished_at, status, summary, step_count, parent_session_id, depth, project_path
              FROM sessions ORDER BY started_at DESC LIMIT ?1",
         )?;
         let rows = stmt.query_map(params![limit as i64], row_to_session)?;
@@ -249,7 +359,7 @@ impl SessionStore {
     /// Get a single session by ID.
     pub fn get_session(&self, id: &str) -> Result<Option<SessionRow>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, task, provider, model, started_at, finished_at, status, summary, step_count, parent_session_id, depth
+            "SELECT id, task, provider, model, started_at, finished_at, status, summary, step_count, parent_session_id, depth, project_path
              FROM sessions WHERE id = ?1",
         )?;
         let mut rows = stmt.query_map(params![id], row_to_session)?;
@@ -305,6 +415,60 @@ impl SessionStore {
                 Ok(Some(SessionDetail { session, messages, steps }))
             }
         }
+    }
+
+    /// FTS5-backed message search with optional project scope. Returns ranked hits
+    /// (best match first) with `<mark>`-highlighted snippets — the primary self-recall
+    /// surface for long-running agents. `query` is an FTS5 MATCH expression.
+    pub fn search_fts(
+        &self,
+        query: &str,
+        scope: SearchScope,
+        limit: usize,
+    ) -> Result<Vec<FtsHit>> {
+        let trimmed = query.trim();
+        if trimmed.is_empty() {
+            return Ok(Vec::new());
+        }
+        let project_filter: Option<String> = match scope {
+            SearchScope::Project(p) => Some(p),
+            SearchScope::All => None,
+        };
+
+        let mut stmt = self.conn.prepare(
+            r#"SELECT
+                m.session_id,
+                m.id,
+                m.role,
+                m.content,
+                m.created_at,
+                s.project_path,
+                snippet(messages_fts, 0, '<mark>', '</mark>', '…', 16),
+                bm25(messages_fts)
+             FROM messages_fts
+             JOIN messages  m ON m.id = messages_fts.rowid
+             JOIN sessions  s ON s.id = m.session_id
+             WHERE messages_fts MATCH ?1
+               AND (?2 IS NULL OR s.project_path = ?2)
+             ORDER BY bm25(messages_fts)
+             LIMIT ?3"#,
+        )?;
+        let rows = stmt.query_map(
+            params![trimmed, project_filter, limit as i64],
+            |row| {
+                Ok(FtsHit {
+                    session_id: row.get(0)?,
+                    message_id: row.get(1)?,
+                    role: row.get(2)?,
+                    content: row.get(3)?,
+                    created_at: row.get::<_, i64>(4)? as u64,
+                    project_path: row.get(5)?,
+                    snippet: row.get(6)?,
+                    rank: row.get(7)?,
+                })
+            },
+        )?;
+        Ok(rows.filter_map(|r| r.ok()).collect())
     }
 
     /// Full-text search: sessions whose task, steps, or messages contain all keywords.
@@ -372,7 +536,7 @@ impl SessionStore {
     /// Get all direct children of a session.
     pub fn get_children(&self, parent_id: &str) -> Result<Vec<SessionRow>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, task, provider, model, started_at, finished_at, status, summary, step_count, parent_session_id, depth
+            "SELECT id, task, provider, model, started_at, finished_at, status, summary, step_count, parent_session_id, depth, project_path
              FROM sessions WHERE parent_session_id = ?1 ORDER BY started_at ASC",
         )?;
         let rows = stmt.query_map(params![parent_id], row_to_session)?;
@@ -405,7 +569,7 @@ impl SessionStore {
     /// List root sessions (no parent) from the last 24 hours with child counts.
     pub fn list_root_sessions(&self, limit: usize) -> Result<Vec<SessionRow>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, task, provider, model, started_at, finished_at, status, summary, step_count, parent_session_id, depth
+            "SELECT id, task, provider, model, started_at, finished_at, status, summary, step_count, parent_session_id, depth, project_path
              FROM sessions WHERE parent_session_id IS NULL ORDER BY started_at DESC LIMIT ?1",
         )?;
         let rows = stmt.query_map(params![limit as i64], row_to_session)?;
@@ -466,6 +630,7 @@ fn row_to_session(row: &rusqlite::Row) -> rusqlite::Result<SessionRow> {
         step_count: row.get(8)?,
         parent_session_id: row.get(9).unwrap_or(None),
         depth: row.get(10).unwrap_or(0),
+        project_path: row.get::<_, Option<String>>(11).unwrap_or(None),
     })
 }
 
@@ -1023,6 +1188,7 @@ mod tests {
                 step_count: 3,
                 parent_session_id: None,
                 depth: 0,
+                project_path: None,
             },
         ];
         let html = render_sessions_index_html(&sessions);
@@ -1049,13 +1215,13 @@ mod tests {
                 id: "s1".into(), task: "Task 1".into(), provider: "p".into(),
                 model: "m".into(), started_at: 1_700_000_000_000, finished_at: None,
                 status: "running".into(), summary: None, step_count: 0,
-                parent_session_id: None, depth: 0,
+                parent_session_id: None, depth: 0, project_path: None,
             },
             SessionRow {
                 id: "s2".into(), task: "Task 2".into(), provider: "p".into(),
                 model: "m".into(), started_at: 1_700_000_001_000, finished_at: None,
                 status: "failed".into(), summary: None, step_count: 1,
-                parent_session_id: None, depth: 0,
+                parent_session_id: None, depth: 0, project_path: None,
             },
         ];
         let html = render_sessions_index_html(&sessions);
@@ -1077,6 +1243,7 @@ mod tests {
                 step_count: 2,
                 parent_session_id: None,
                 depth: 0,
+                project_path: None,
             },
             messages: vec![
                 MessageRow {
@@ -1126,7 +1293,7 @@ mod tests {
                 id: "f1".into(), task: "Fail task".into(), provider: "p".into(),
                 model: "m".into(), started_at: 1_000_000, finished_at: Some(2_000_000),
                 status: "failed".into(), summary: None, step_count: 0,
-                parent_session_id: None, depth: 0,
+                parent_session_id: None, depth: 0, project_path: None,
             },
             messages: vec![],
             steps: vec![],
@@ -1142,7 +1309,7 @@ mod tests {
                 id: "r1".into(), task: "Running".into(), provider: "p".into(),
                 model: "m".into(), started_at: 1_000_000, finished_at: None,
                 status: "running".into(), summary: None, step_count: 0,
-                parent_session_id: None, depth: 0,
+                parent_session_id: None, depth: 0, project_path: None,
             },
             messages: vec![],
             steps: vec![],
@@ -1228,6 +1395,7 @@ mod tests {
             step_count: 5,
             parent_session_id: Some("parent-1".into()),
             depth: 2,
+            project_path: None,
         };
         let json = serde_json::to_string(&row).unwrap();
         let deserialized: SessionRow = serde_json::from_str(&json).unwrap();
@@ -1283,7 +1451,7 @@ mod tests {
                 id: "tree-root".into(), task: "Root".into(), provider: "p".into(),
                 model: "m".into(), started_at: 100, finished_at: None,
                 status: "running".into(), summary: None, step_count: 0,
-                parent_session_id: None, depth: 0,
+                parent_session_id: None, depth: 0, project_path: None,
             },
             children: vec![
                 AgentTreeNode {
@@ -1291,7 +1459,7 @@ mod tests {
                         id: "tree-child".into(), task: "Child".into(), provider: "p".into(),
                         model: "m".into(), started_at: 200, finished_at: None,
                         status: "running".into(), summary: None, step_count: 0,
-                        parent_session_id: Some("tree-root".into()), depth: 1,
+                        parent_session_id: Some("tree-root".into()), depth: 1, project_path: None,
                     },
                     children: vec![],
                 },
@@ -1602,6 +1770,7 @@ mod tests {
             step_count: 0,
             parent_session_id: None,
             depth: 0,
+            project_path: None,
         }];
         let html = render_sessions_index_html(&sessions);
         assert!(!html.contains("<img"), "XSS payload in task must be escaped in index HTML");
@@ -1622,6 +1791,7 @@ mod tests {
             step_count: 0,
             parent_session_id: None,
             depth: 0,
+            project_path: None,
         }];
         let html = render_sessions_index_html(&sessions);
         assert!(!html.contains("<script>"), "XSS payload in provider must be escaped");
@@ -1642,6 +1812,7 @@ mod tests {
             step_count: 0,
             parent_session_id: None,
             depth: 0,
+            project_path: None,
         }];
         let html = render_sessions_index_html(&sessions);
         // The task should be truncated to 80 chars in the index view
@@ -1695,6 +1866,7 @@ mod tests {
                 step_count: 0,
                 parent_session_id: None,
                 depth: 0,
+                project_path: None,
             },
             messages: vec![],
             steps: vec![],
@@ -1721,6 +1893,7 @@ mod tests {
                 step_count: 1,
                 parent_session_id: None,
                 depth: 0,
+                project_path: None,
             },
             messages: vec![],
             steps: vec![],
@@ -1862,7 +2035,7 @@ mod tests {
                 provider: "p".into(), model: "m".into(),
                 started_at: 1_700_000_000_000, finished_at: Some(1_700_000_010_000),
                 status: "complete".into(), summary: None,
-                step_count: 1, parent_session_id: None, depth: 0,
+                step_count: 1, parent_session_id: None, depth: 0, project_path: None,
             },
             messages: vec![],
             steps: vec![StepRow {
@@ -1886,7 +2059,7 @@ mod tests {
                 provider: "p".into(), model: "m".into(),
                 started_at: 1_700_000_000_000, finished_at: Some(1_700_000_010_000),
                 status: "complete".into(), summary: None,
-                step_count: 0, parent_session_id: None, depth: 0,
+                step_count: 0, parent_session_id: None, depth: 0, project_path: None,
             },
             messages: vec![MessageRow {
                 id: 1, session_id: "sysm1".into(), role: "system".into(),
@@ -1908,19 +2081,19 @@ mod tests {
                 id: "c1".into(), task: "Complete".into(), provider: "p".into(),
                 model: "m".into(), started_at: 1_700_000_003_000, finished_at: Some(1_700_000_010_000),
                 status: "complete".into(), summary: None, step_count: 0,
-                parent_session_id: None, depth: 0,
+                parent_session_id: None, depth: 0, project_path: None,
             },
             SessionRow {
                 id: "f1".into(), task: "Failed".into(), provider: "p".into(),
                 model: "m".into(), started_at: 1_700_000_002_000, finished_at: Some(1_700_000_010_000),
                 status: "failed".into(), summary: None, step_count: 0,
-                parent_session_id: None, depth: 0,
+                parent_session_id: None, depth: 0, project_path: None,
             },
             SessionRow {
                 id: "r1".into(), task: "Running".into(), provider: "p".into(),
                 model: "m".into(), started_at: 1_700_000_001_000, finished_at: None,
                 status: "running".into(), summary: None, step_count: 0,
-                parent_session_id: None, depth: 0,
+                parent_session_id: None, depth: 0, project_path: None,
             },
         ];
         let html = render_sessions_index_html(&sessions);
@@ -1976,6 +2149,136 @@ mod tests {
         let store = open_temp();
         let steps = store.get_steps("no_such_session").unwrap();
         assert!(steps.is_empty());
+    }
+
+    // ── Phase 1: FTS5 + project scoping ───────────────────────────────────
+    // These tests drive the new API. They reference `SearchScope`, `FtsHit`,
+    // `insert_session_with_project`, `search_fts`, and `delete_session` —
+    // all of which are introduced alongside the FTS5 virtual table.
+
+    #[test]
+    fn test_insert_session_with_project_stores_path() {
+        let store = open_temp();
+        store
+            .insert_session_with_project(
+                "s1",
+                "refactor auth module",
+                "claude",
+                "claude-3",
+                "/Users/me/projects/app",
+            )
+            .unwrap();
+        let s = store.get_session("s1").unwrap().unwrap();
+        assert_eq!(s.project_path.as_deref(), Some("/Users/me/projects/app"));
+    }
+
+    #[test]
+    fn test_fts_search_finds_message_by_content() {
+        let store = open_temp();
+        store
+            .insert_session_with_project("s1", "task", "claude", "claude-3", "/p/a")
+            .unwrap();
+        store
+            .insert_message("s1", "user", "please refactor the authentication flow")
+            .unwrap();
+        store
+            .insert_message("s1", "assistant", "I'll start with the login module")
+            .unwrap();
+
+        let hits = store.search_fts("authentication", SearchScope::All, 10).unwrap();
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].session_id, "s1");
+        assert!(hits[0].content.contains("authentication"));
+    }
+
+    #[test]
+    fn test_fts_search_scoped_to_project() {
+        let store = open_temp();
+        store
+            .insert_session_with_project("s1", "t", "c", "m", "/p/alpha")
+            .unwrap();
+        store
+            .insert_session_with_project("s2", "t", "c", "m", "/p/beta")
+            .unwrap();
+        store.insert_message("s1", "user", "deploy the service").unwrap();
+        store.insert_message("s2", "user", "deploy the service").unwrap();
+
+        let hits_alpha = store
+            .search_fts("deploy", SearchScope::Project("/p/alpha".into()), 10)
+            .unwrap();
+        assert_eq!(hits_alpha.len(), 1);
+        assert_eq!(hits_alpha[0].session_id, "s1");
+
+        let hits_all = store.search_fts("deploy", SearchScope::All, 10).unwrap();
+        assert_eq!(hits_all.len(), 2);
+    }
+
+    #[test]
+    fn test_fts_cascade_on_session_delete() {
+        let store = open_temp();
+        store
+            .insert_session_with_project("s1", "t", "c", "m", "/p/x")
+            .unwrap();
+        store
+            .insert_message("s1", "user", "searchable unique phrase xyzzy")
+            .unwrap();
+        assert_eq!(
+            store.search_fts("xyzzy", SearchScope::All, 10).unwrap().len(),
+            1,
+            "message should be in FTS before delete"
+        );
+
+        store.delete_session("s1").unwrap();
+
+        assert_eq!(
+            store.search_fts("xyzzy", SearchScope::All, 10).unwrap().len(),
+            0,
+            "FTS rows should be cleaned up when the session is deleted"
+        );
+    }
+
+    #[test]
+    fn test_fts_snippet_contains_highlight_markers() {
+        let store = open_temp();
+        store
+            .insert_session_with_project("s1", "t", "c", "m", "/p/x")
+            .unwrap();
+        store
+            .insert_message(
+                "s1",
+                "user",
+                "the quick brown fox jumped over the lazy dog many times",
+            )
+            .unwrap();
+
+        let hits = store.search_fts("fox", SearchScope::All, 10).unwrap();
+        assert_eq!(hits.len(), 1);
+        assert!(
+            hits[0].snippet.contains("<mark>"),
+            "snippet should contain highlight markers, got: {}",
+            hits[0].snippet
+        );
+    }
+
+    #[test]
+    fn test_fts_backfills_existing_messages_on_migration() {
+        // A fresh store inserts messages normally. Re-opening must not lose FTS rows.
+        let f = tempfile::NamedTempFile::new().unwrap();
+        let path = f.path().to_owned();
+        std::mem::forget(f);
+        {
+            let store = SessionStore::open(&path).unwrap();
+            store
+                .insert_session_with_project("s1", "t", "c", "m", "/p/x")
+                .unwrap();
+            store
+                .insert_message("s1", "user", "persistent content here")
+                .unwrap();
+        }
+        // Re-open — migration/index must survive.
+        let store = SessionStore::open(&path).unwrap();
+        let hits = store.search_fts("persistent", SearchScope::All, 10).unwrap();
+        assert_eq!(hits.len(), 1, "FTS entries must persist across open()");
     }
 }
 
