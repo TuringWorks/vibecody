@@ -20,6 +20,7 @@ pub mod proactive_agent;
 pub mod semantic_index;
 pub mod doc_sync;
 pub mod voice_local;
+pub mod voice_whisper;
 pub mod native_connectors;
 pub mod agent_analytics;
 pub mod agent_trust;

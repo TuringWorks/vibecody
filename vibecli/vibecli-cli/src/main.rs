@@ -2156,6 +2156,8 @@ mod next_task;
 #[allow(dead_code)]
 mod voice_local;
 #[allow(dead_code)]
+mod voice_whisper;
+#[allow(dead_code)]
 mod native_connectors;
 #[allow(dead_code)]
 mod agent_analytics;

@@ -8,6 +8,9 @@ license.workspace = true
 
 [features]
 testing = []
+# Enables the real whisper.cpp FFI backend (WhisperTranscriber). Off by
+# default so the standard build doesn't require cmake + a C++ toolchain.
+voice-whisper = ["dep:whisper-rs"]
 
 [lib]
 name = "vibecli_cli"
@@ -63,6 +66,7 @@ handlebars = "6"
 socket2 = "0.5"
 snow = "0.9"
 libc = "0.2"
+whisper-rs = { version = "0.13", optional = true }
 
 # OpenTelemetry (OTLP/HTTP export)
 opentelemetry = { version = "0.27", features = ["trace"] }
@@ -99,6 +103,12 @@ harness = false
 [[test]]
 name = "mcp_http_bdd"
 path = "tests/mcp_http_bdd.rs"
+harness = false
+
+# US-005: real local voice I/O — model download + WAV parsing + Transcriber trait
+[[test]]
+name = "voice_whisper_bdd"
+path = "tests/voice_whisper_bdd.rs"
 harness = false
 
 # Claw-code parity BDD test harnesses — Wave 1
