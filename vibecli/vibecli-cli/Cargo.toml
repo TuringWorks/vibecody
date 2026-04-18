@@ -83,6 +83,12 @@ name = "web_grounding_backend_bdd"
 path = "tests/web_grounding_backend_bdd.rs"
 harness = false
 
+# US-002: real HTTP + SSE for A2A protocol
+[[test]]
+name = "a2a_http_bdd"
+path = "tests/a2a_http_bdd.rs"
+harness = false
+
 # Claw-code parity BDD test harnesses — Wave 1
 [[test]]
 name = "workspace_fingerprint_bdd"

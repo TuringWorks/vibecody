@@ -2138,6 +2138,7 @@ mod worktree_pool;
 mod mobile_gateway;
 mod proactive_agent;
 mod a2a_protocol;
+mod a2a_http;
 #[allow(dead_code)]
 mod semantic_index;
 #[allow(dead_code)]

@@ -8,6 +8,7 @@ pub mod browser_agent;
 pub mod counsel;
 pub mod superbrain;
 pub mod a2a_protocol;
+pub mod a2a_http;
 pub mod issue_triage;
 pub mod web_grounding;
 pub mod web_grounding_backend;
