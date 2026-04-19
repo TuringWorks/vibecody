@@ -769,6 +769,7 @@ const BatchBuilderPanel: React.FC = () => {
         <button className="panel-btn panel-btn-primary" onClick={addEndpoint}>Add</button>
       </div>
       {endpoints.length > 0 && (
+        <div style={{ overflowX: "auto" }}>
         <table className="panel-table">
           <thead>
             <tr><th scope="col">Method</th><th scope="col">Path</th><th scope="col">Description</th><th scope="col">Auth</th><th scope="col"></th></tr>
@@ -785,6 +786,7 @@ const BatchBuilderPanel: React.FC = () => {
             ))}
           </tbody>
         </table>
+        </div>
       )}
 
       {/* Data Models */}
@@ -802,6 +804,7 @@ const BatchBuilderPanel: React.FC = () => {
           <button className="panel-btn panel-btn-primary" onClick={addField}>+ Field</button>
         </div>
         {modelFields.length > 0 && (
+          <div style={{ overflowX: "auto" }}>
           <table className="panel-table" style={{ marginBottom: 8 }}>
             <thead><tr><th scope="col">Name</th><th scope="col">Type</th><th scope="col">Required</th><th scope="col"></th></tr></thead>
             <tbody>
@@ -815,6 +818,7 @@ const BatchBuilderPanel: React.FC = () => {
               ))}
             </tbody>
           </table>
+          </div>
         )}
         <button className="panel-btn panel-btn-primary" onClick={addModel}>Add Model</button>
       </div>
@@ -1075,6 +1079,7 @@ const BatchBuilderPanel: React.FC = () => {
 
         {/* Cross-validation */}
         <div style={sectionTitle}>Cross-Validation</div>
+        <div style={{ overflowX: "auto" }}>
         <table className="panel-table">
           <thead>
             <tr>
@@ -1097,6 +1102,7 @@ const BatchBuilderPanel: React.FC = () => {
             ))}
           </tbody>
         </table>
+        </div>
 
         {/* Run another round */}
         {overallScore < 90 && (
@@ -1146,6 +1152,7 @@ const BatchBuilderPanel: React.FC = () => {
 
         {/* Component list */}
         <div style={sectionTitle}>Components</div>
+        <div style={{ overflowX: "auto" }}>
         <table className="panel-table">
           <thead>
             <tr>
@@ -1172,6 +1179,7 @@ const BatchBuilderPanel: React.FC = () => {
             ))}
           </tbody>
         </table>
+        </div>
 
         {/* Service boundary visualization */}
         <div style={sectionTitle}>Service Boundaries</div>
@@ -1197,6 +1205,7 @@ const BatchBuilderPanel: React.FC = () => {
 
         {/* Translation rules */}
         <div style={sectionTitle}>Translation Rules</div>
+        <div style={{ overflowX: "auto" }}>
         <table className="panel-table">
           <thead>
             <tr>
@@ -1217,6 +1226,7 @@ const BatchBuilderPanel: React.FC = () => {
             ))}
           </tbody>
         </table>
+        </div>
 
         {/* Risk assessment */}
         <div style={sectionTitle}>Risk Assessment</div>
@@ -1327,6 +1337,7 @@ const BatchBuilderPanel: React.FC = () => {
       </div>
 
       {/* Runs table */}
+      <div style={{ overflowX: "auto" }}>
       <table className="panel-table">
         <thead>
           <tr>
@@ -1390,6 +1401,7 @@ const BatchBuilderPanel: React.FC = () => {
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 

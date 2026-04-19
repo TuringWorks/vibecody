@@ -166,6 +166,7 @@ const AgentModesPanel: React.FC = () => {
 
       {!loading && activeTab === "stats" && (
         <div>
+          <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
@@ -185,6 +186,7 @@ const AgentModesPanel: React.FC = () => {
               ))}
             </tbody>
           </table>
+          </div>
           <div style={{ marginTop: "12px", fontSize: "var(--font-size-base)", opacity: 0.6 }}>
             Total invocations: {stats.reduce((a, s) => a + s.invocations, 0)}
           </div>
