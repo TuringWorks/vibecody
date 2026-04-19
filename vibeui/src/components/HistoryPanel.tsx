@@ -96,6 +96,7 @@ export function HistoryPanel() {
  sessions.map((s) => (
  <div
  key={s.session_id}
+ className="panel-card--clickable"
  role="button"
  tabIndex={0}
  onClick={() => loadTrace(s.session_id)}
@@ -106,7 +107,6 @@ export function HistoryPanel() {
  borderRadius: "var(--radius-xs-plus)",
  background: "var(--bg-tertiary)",
  border: "1px solid var(--border-color)",
- cursor: "pointer",
  fontSize: "var(--font-size-base)",
  }}
  >
