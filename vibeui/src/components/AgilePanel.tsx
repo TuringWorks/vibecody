@@ -1127,7 +1127,7 @@ function SprintTab() {
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
                   {["Story", "Points", "Assignee", "Status", "Priority"].map(h => (
-                    <th key={h} style={{ textAlign: "left", padding: "8px 12px", color: "var(--text-secondary)", fontWeight: 500, fontSize: "var(--font-size-base)" }}>{h}</th>
+                    <th key={h} scope="col" style={{ textAlign: "left", padding: "8px 12px", color: "var(--text-secondary)", fontWeight: 500, fontSize: "var(--font-size-base)" }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -2181,8 +2181,8 @@ function MethodologyTab() {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
             <thead>
               <tr style={{ borderBottom: "2px solid var(--border-color)" }}>
-                <th style={{ textAlign: "left", padding: 6, color: "var(--text-secondary)" }}>Aspect</th>
-                {METHODOLOGIES.map(m => <th key={m.name} style={{ textAlign: "center", padding: 6, color: m.name === selected ? "var(--accent-blue)" : "var(--text-secondary)" }}>{m.name}</th>)}
+                <th scope="col" style={{ textAlign: "left", padding: 6, color: "var(--text-secondary)" }}>Aspect</th>
+                {METHODOLOGIES.map(m => <th key={m.name} scope="col" style={{ textAlign: "center", padding: 6, color: m.name === selected ? "var(--accent-blue)" : "var(--text-secondary)" }}>{m.name}</th>)}
               </tr>
             </thead>
             <tbody>
@@ -2714,9 +2714,9 @@ function SAFeTab({ provider }: { provider?: string } = {}) {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
             <thead>
               <tr>
-                <th style={{ padding: 6, borderBottom: "2px solid var(--border-color)", textAlign: "left" }}>Team</th>
+                <th scope="col" style={{ padding: 6, borderBottom: "2px solid var(--border-color)", textAlign: "left" }}>Team</th>
                 {iterationNums.map(i => (
-                  <th key={i} style={{ padding: 6, borderBottom: "2px solid var(--border-color)", textAlign: "center" }}>
+                  <th key={i} scope="col" style={{ padding: 6, borderBottom: "2px solid var(--border-color)", textAlign: "center" }}>
                     {i <= pi.iterations ? `Iter ${i}` : "IP"}
                   </th>
                 ))}

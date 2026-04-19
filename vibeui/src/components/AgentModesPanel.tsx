@@ -170,7 +170,7 @@ const AgentModesPanel: React.FC = () => {
             <thead>
               <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
                 {["Mode", "Invocations", "Avg Tokens", "Last Used"].map((h) => (
-                  <th key={h} style={{ padding: "8px 8px", textAlign: "left", fontSize: "var(--font-size-base)", opacity: 0.7 }}>{h}</th>
+                  <th key={h} scope="col" style={{ padding: "8px 8px", textAlign: "left", fontSize: "var(--font-size-base)", opacity: 0.7 }}>{h}</th>
                 ))}
               </tr>
             </thead>

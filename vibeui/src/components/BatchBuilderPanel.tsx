@@ -771,7 +771,7 @@ const BatchBuilderPanel: React.FC = () => {
       {endpoints.length > 0 && (
         <table className="panel-table">
           <thead>
-            <tr><th>Method</th><th>Path</th><th>Description</th><th>Auth</th><th></th></tr>
+            <tr><th scope="col">Method</th><th scope="col">Path</th><th scope="col">Description</th><th scope="col">Auth</th><th scope="col"></th></tr>
           </thead>
           <tbody>
             {endpoints.map((ep) => (
@@ -803,7 +803,7 @@ const BatchBuilderPanel: React.FC = () => {
         </div>
         {modelFields.length > 0 && (
           <table className="panel-table" style={{ marginBottom: 8 }}>
-            <thead><tr><th>Name</th><th>Type</th><th>Required</th><th></th></tr></thead>
+            <thead><tr><th scope="col">Name</th><th scope="col">Type</th><th scope="col">Required</th><th scope="col"></th></tr></thead>
             <tbody>
               {modelFields.map((f) => (
                 <tr key={f.id}>
@@ -1046,13 +1046,13 @@ const BatchBuilderPanel: React.FC = () => {
           <table className="panel-table">
             <thead>
               <tr>
-                <th>Severity</th>
-                <th>File</th>
-                <th>Line</th>
-                <th>Message</th>
-                <th>Suggestion</th>
-                <th>Auto-Fix</th>
-                <th>Resolved</th>
+                <th scope="col">Severity</th>
+                <th scope="col">File</th>
+                <th scope="col">Line</th>
+                <th scope="col">Message</th>
+                <th scope="col">Suggestion</th>
+                <th scope="col">Auto-Fix</th>
+                <th scope="col">Resolved</th>
               </tr>
             </thead>
             <tbody>
@@ -1078,11 +1078,11 @@ const BatchBuilderPanel: React.FC = () => {
         <table className="panel-table">
           <thead>
             <tr>
-              <th>Agent A</th>
-              <th>Agent B</th>
-              <th>Confidence</th>
-              <th>Agreements</th>
-              <th>Disagreements</th>
+              <th scope="col">Agent A</th>
+              <th scope="col">Agent B</th>
+              <th scope="col">Confidence</th>
+              <th scope="col">Agreements</th>
+              <th scope="col">Disagreements</th>
             </tr>
           </thead>
           <tbody>
@@ -1149,13 +1149,13 @@ const BatchBuilderPanel: React.FC = () => {
         <table className="panel-table">
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Type</th>
-              <th>Language</th>
-              <th>Lines</th>
-              <th>Complexity</th>
-              <th>Risk</th>
-              <th>Status</th>
+              <th scope="col">Name</th>
+              <th scope="col">Type</th>
+              <th scope="col">Language</th>
+              <th scope="col">Lines</th>
+              <th scope="col">Complexity</th>
+              <th scope="col">Risk</th>
+              <th scope="col">Status</th>
             </tr>
           </thead>
           <tbody>
@@ -1200,10 +1200,10 @@ const BatchBuilderPanel: React.FC = () => {
         <table className="panel-table">
           <thead>
             <tr>
-              <th>Source Pattern</th>
-              <th>Target Pattern</th>
-              <th>Confidence</th>
-              <th>Example</th>
+              <th scope="col">Source Pattern</th>
+              <th scope="col">Target Pattern</th>
+              <th scope="col">Confidence</th>
+              <th scope="col">Example</th>
             </tr>
           </thead>
           <tbody>
@@ -1330,14 +1330,14 @@ const BatchBuilderPanel: React.FC = () => {
       <table className="panel-table">
         <thead>
           <tr>
-            <th>ID</th>
-            <th>Title</th>
-            <th>Status</th>
-            <th>Files</th>
-            <th>Lines</th>
-            <th>Duration</th>
-            <th>Agents</th>
-            <th>Date</th>
+            <th scope="col">ID</th>
+            <th scope="col">Title</th>
+            <th scope="col">Status</th>
+            <th scope="col">Files</th>
+            <th scope="col">Lines</th>
+            <th scope="col">Duration</th>
+            <th scope="col">Agents</th>
+            <th scope="col">Date</th>
           </tr>
         </thead>
         <tbody>
