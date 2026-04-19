@@ -208,7 +208,7 @@ const STATUS_COLORS: Record<RunStatus, string> = {
   Planning: "var(--info-color)",
   Generating: "var(--warning-color)",
   Validating: "var(--accent-purple)",
-  Compiling: "#00bcd4",
+  Compiling: "var(--accent-cyan)",
   Testing: "var(--warning-color)",
   Completed: "var(--success-color)",
   Failed: "var(--error-color)",

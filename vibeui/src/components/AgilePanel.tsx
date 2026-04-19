@@ -515,7 +515,7 @@ const defaultCard = (column: Column): Card => ({
    ═══════════════════════════════════════════════════════════════════════ */
 
 /* Assignee avatar (colored initials circle) */
-const AVATAR_COLORS = ["var(--accent-blue)", "var(--error-color)", "#14b8a6", "var(--warning-color)", "var(--accent-purple)", "var(--error-color)", "#06b6d4", "#84cc16"];
+const AVATAR_COLORS = ["var(--accent-blue)", "var(--error-color)", "var(--accent-green)", "var(--warning-color)", "var(--accent-purple)", "var(--accent-rose)", "var(--accent-cyan)", "var(--success-color)"];
 function AvatarBadge({ name, size = 24 }: { name: string; size?: number }) {
   if (!name) return null;
   const initials = name.split(/\s+/).map(w => w[0]?.toUpperCase() || "").join("").slice(0, 2);

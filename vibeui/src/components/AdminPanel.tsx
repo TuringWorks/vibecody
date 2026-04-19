@@ -33,7 +33,7 @@ interface PolicyRule {
 const ROLE_COLORS: Record<Role, string> = {
   admin: "var(--error-color)",
   developer: "var(--info-color)",
-  viewer: '#6b7280',
+  viewer: "var(--text-secondary)",
 };
 
 const ROLE_DESCRIPTIONS: Record<Role, string> = {
