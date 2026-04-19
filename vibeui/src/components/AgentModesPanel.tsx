@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { PanelError } from "./shared/PanelError";
 
 interface ModeInfo {
   id: string;
@@ -118,11 +119,7 @@ const AgentModesPanel: React.FC = () => {
   return (
     <div className="panel-container">
       <div className="panel-header">Agent Modes</div>
-      {error && (
-        <div className="panel-error" style={{ margin: "8px 16px 0" }}>
-          {error}
-        </div>
-      )}
+      <PanelError style={{ margin: "8px 16px 0" }}>{error}</PanelError>
       <div className="panel-tab-bar" role="tablist">
         {tabs.map((t) => (
           <button key={t} role="tab" aria-selected={activeTab === t} className={`panel-tab ${activeTab === t ? "active" : ""}`} onClick={() => setActiveTab(t)}>
@@ -169,11 +166,12 @@ const AgentModesPanel: React.FC = () => {
 
       {!loading && activeTab === "stats" && (
         <div>
+          <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
                 {["Mode", "Invocations", "Avg Tokens", "Last Used"].map((h) => (
-                  <th key={h} style={{ padding: "8px 8px", textAlign: "left", fontSize: "var(--font-size-base)", opacity: 0.7 }}>{h}</th>
+                  <th key={h} scope="col" style={{ padding: "8px 8px", textAlign: "left", fontSize: "var(--font-size-base)", opacity: 0.7 }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -188,6 +186,7 @@ const AgentModesPanel: React.FC = () => {
               ))}
             </tbody>
           </table>
+          </div>
           <div style={{ marginTop: "12px", fontSize: "var(--font-size-base)", opacity: 0.6 }}>
             Total invocations: {stats.reduce((a, s) => a + s.invocations, 0)}
           </div>

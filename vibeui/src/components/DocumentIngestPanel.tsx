@@ -109,8 +109,9 @@ export function DocumentIngestPanel() {
 
             {/* Format dropdown */}
             <div>
-              <label style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Format</label>
+              <label htmlFor="doc-ingest-format" style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Format</label>
               <select
+                id="doc-ingest-format"
                 value={format}
                 onChange={(e) => setFormat(e.target.value as Format)}
                 style={{ width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", padding: "8px 8px", fontSize: "var(--font-size-base)", boxSizing: "border-box" }}
@@ -180,11 +181,12 @@ export function DocumentIngestPanel() {
 
             {/* Max tokens slider */}
             <div>
-              <label style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+              <label htmlFor="doc-ingest-max-tokens" style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                 <span>Max Tokens per Chunk</span>
                 <span style={{ fontFamily: "var(--font-mono)" }}>{config.maxTokens}</span>
               </label>
               <input
+                id="doc-ingest-max-tokens"
                 type="range"
                 min={128}
                 max={2048}
@@ -200,11 +202,12 @@ export function DocumentIngestPanel() {
 
             {/* Overlap slider */}
             <div>
-              <label style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+              <label htmlFor="doc-ingest-overlap" style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                 <span>Overlap (tokens)</span>
                 <span style={{ fontFamily: "var(--font-mono)" }}>{config.overlap}</span>
               </label>
               <input
+                id="doc-ingest-overlap"
                 type="range"
                 min={0}
                 max={200}
@@ -220,8 +223,9 @@ export function DocumentIngestPanel() {
 
             {/* Min chunk size */}
             <div>
-              <label style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Min Chunk Size (tokens)</label>
+              <label htmlFor="doc-ingest-min-chunk" style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Min Chunk Size (tokens)</label>
               <input
+                id="doc-ingest-min-chunk"
                 type="number"
                 min={1}
                 max={512}

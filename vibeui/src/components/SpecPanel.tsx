@@ -236,10 +236,8 @@ export function SpecPanel({ workspacePath, provider = "ollama" }: SpecPanelProps
  <div
  key={spec.name}
  onClick={() => openSpec(spec.name)}
- className="panel-card"
- style={{ marginBottom: "8px", cursor: "pointer", transition: "background 0.15s" }}
- onMouseEnter={e => (e.currentTarget.style.background = "var(--bg-hover)")}
- onMouseLeave={e => (e.currentTarget.style.background = "")}
+ className="panel-card panel-card--clickable"
+ style={{ marginBottom: "8px" }}
  role="button"
  tabIndex={0}
  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openSpec(spec.name); } }}

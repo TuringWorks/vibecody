@@ -297,7 +297,7 @@ function StoryDetailModal({ story, onSave, onDelete, onClose, title }: StoryDeta
   }, [onClose]);
 
   return (
-    <div role="button" tabIndex={0}
+    <div aria-hidden="true"
       style={{
         position: "fixed", inset: 0, zIndex: 9999,
         background: "var(--overlay-bg)", backdropFilter: "blur(2px)",
@@ -306,7 +306,7 @@ function StoryDetailModal({ story, onSave, onDelete, onClose, title }: StoryDeta
       }}
       onClick={onClose}
     >
-      <div role="button" tabIndex={0}
+      <div role="dialog" aria-modal="true" aria-label="Edit user story"
         style={{
           background: "var(--bg-elevated)", borderRadius: "var(--radius-lg)",
           border: "1px solid var(--border-color)", boxShadow: "var(--elevation-3, 0 8px 32px rgba(0,0,0,0.4))",
@@ -874,10 +874,10 @@ function BoardTab({ provider }: { provider?: string } = {}) {
 
       {/* ── Card Edit Modal (Jira-style detail) ── */}
       {editingCard && (
-        <div role="button" tabIndex={0} style={{ position: "fixed", inset: 0, background: "var(--overlay-bg)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }} onClick={() => setEditingCard(null)}>
-          <div role="button" tabIndex={0} style={{ background: "var(--bg-primary)", borderRadius: "var(--radius-md)", padding: 24, width: 540, maxHeight: "85vh", overflowY: "auto", border: "1px solid var(--border-color)", boxShadow: "var(--elevation-2)" }} onClick={e => e.stopPropagation()}>
+        <div aria-hidden="true" style={{ position: "fixed", inset: 0, background: "var(--overlay-bg)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }} onClick={() => setEditingCard(null)}>
+          <div role="dialog" aria-modal="true" aria-labelledby="agile-edit-card-title" style={{ background: "var(--bg-primary)", borderRadius: "var(--radius-md)", padding: 24, width: 540, maxHeight: "85vh", overflowY: "auto", border: "1px solid var(--border-color)", boxShadow: "var(--elevation-2)" }} onClick={e => e.stopPropagation()}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <h3 style={{ margin: 0, color: "var(--text-primary)", fontSize: 16 }}>Edit Card</h3>
+              <h3 id="agile-edit-card-title" style={{ margin: 0, color: "var(--text-primary)", fontSize: 16 }}>Edit Card</h3>
               <div style={{ display: "flex", gap: 6 }}>
                 <button className="panel-btn panel-btn-danger" style={{ padding: "4px 12px", fontSize: "var(--font-size-sm)" }} onClick={() => { if (confirm("Delete this card?")) deleteCard(editingCard.id); }}>Delete</button>
                 <button className="panel-btn panel-btn-secondary" style={{ padding: "4px 12px", fontSize: "var(--font-size-sm)" }} onClick={() => setEditingCard(null)}>Close</button>
@@ -1127,7 +1127,7 @@ function SprintTab() {
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
                   {["Story", "Points", "Assignee", "Status", "Priority"].map(h => (
-                    <th key={h} style={{ textAlign: "left", padding: "8px 12px", color: "var(--text-secondary)", fontWeight: 500, fontSize: "var(--font-size-base)" }}>{h}</th>
+                    <th key={h} scope="col" style={{ textAlign: "left", padding: "8px 12px", color: "var(--text-secondary)", fontWeight: 500, fontSize: "var(--font-size-base)" }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -2181,8 +2181,8 @@ function MethodologyTab() {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
             <thead>
               <tr style={{ borderBottom: "2px solid var(--border-color)" }}>
-                <th style={{ textAlign: "left", padding: 6, color: "var(--text-secondary)" }}>Aspect</th>
-                {METHODOLOGIES.map(m => <th key={m.name} style={{ textAlign: "center", padding: 6, color: m.name === selected ? "var(--accent-blue)" : "var(--text-secondary)" }}>{m.name}</th>)}
+                <th scope="col" style={{ textAlign: "left", padding: 6, color: "var(--text-secondary)" }}>Aspect</th>
+                {METHODOLOGIES.map(m => <th key={m.name} scope="col" style={{ textAlign: "center", padding: 6, color: m.name === selected ? "var(--accent-blue)" : "var(--text-secondary)" }}>{m.name}</th>)}
               </tr>
             </thead>
             <tbody>
@@ -2714,9 +2714,9 @@ function SAFeTab({ provider }: { provider?: string } = {}) {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
             <thead>
               <tr>
-                <th style={{ padding: 6, borderBottom: "2px solid var(--border-color)", textAlign: "left" }}>Team</th>
+                <th scope="col" style={{ padding: 6, borderBottom: "2px solid var(--border-color)", textAlign: "left" }}>Team</th>
                 {iterationNums.map(i => (
-                  <th key={i} style={{ padding: 6, borderBottom: "2px solid var(--border-color)", textAlign: "center" }}>
+                  <th key={i} scope="col" style={{ padding: 6, borderBottom: "2px solid var(--border-color)", textAlign: "center" }}>
                     {i <= pi.iterations ? `Iter ${i}` : "IP"}
                   </th>
                 ))}

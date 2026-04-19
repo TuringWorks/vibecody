@@ -106,6 +106,7 @@ function ResolutionBadge({ ruleId, mode, onChange }: { ruleId: string; mode: Res
       {open && (
         <div style={{
           position: 'absolute', top: '110%', left: 0, zIndex: 50, minWidth: 180,
+          maxHeight: "min(400px, 60vh)", overflowY: "auto",
           background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-sm)",
           boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
         }}>
