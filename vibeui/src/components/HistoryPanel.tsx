@@ -88,9 +88,9 @@ export function HistoryPanel() {
  // Session list view
  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
  {sessions.length === 0 ? (
- <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", textAlign: "center", marginTop: "24px" }}>
- No agent sessions yet.
- <br />Run an agent task to see history here.
+ <div className="panel-empty-state" style={{ fontSize: "var(--font-size-base)" }}>
+ <span>No agent sessions yet.</span>
+ <span>Run an agent task to see history here.</span>
  </div>
  ) : (
  sessions.map((s) => (
