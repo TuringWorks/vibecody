@@ -45,8 +45,8 @@ export interface CollabChatPanelProps {
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const PEER_COLORS = [
-  "#4f9cf9", "#f97b22", "var(--success-color)", "var(--error-color)",
-  "#9c27b0", "#00bcd4", "var(--warning-color)", "#795548",
+  "var(--peer-color-1)", "var(--peer-color-2)", "var(--peer-color-3)", "var(--peer-color-4)",
+  "var(--peer-color-5)", "var(--peer-color-6)", "var(--peer-color-7)", "var(--peer-color-8)",
 ];
 
 // ── Component ─────────────────────────────────────────────────────────────────

@@ -318,7 +318,7 @@ export function AcpPanel() {
           {messages.map((msg) => (
             <div key={msg.id} className="panel-card" style={{ padding: 8 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
                   <span style={badgeStyle(msg.direction)}>{msg.direction === "sent" ? "OUT" : "IN"}</span>
                   <span style={{ fontWeight: 600, fontSize: "var(--font-size-base)" }}>{msg.method}</span>
                   <span style={badgeStyle(msg.status)}>{msg.status}</span>

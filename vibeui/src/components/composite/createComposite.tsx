@@ -1,10 +1,16 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { lazy, Suspense, type ComponentType } from "react";
+import { lazy, Suspense, type ComponentType, type ReactNode } from "react";
 import { TabbedPanel } from "../TabbedPanel";
 
 const Loading = () => (
   <div style={{ padding: 16, color: "var(--text-secondary)", fontSize: "var(--font-size-md)" }}>Loading...</div>
 );
+
+/** Options applied to every tab in a composite. */
+export interface CompositeOptions {
+  /** Optional banner rendered above each tab's content (e.g. Simulation Mode notice). */
+  banner?: ReactNode;
+}
 
 /** Definition for a single tab in a composite panel */
 export interface TabDef {
@@ -36,7 +42,7 @@ export interface CompositeProps {
  * ]);
  * ```
  */
-export function createComposite(tabs: TabDef[]) {
+export function createComposite(tabs: TabDef[], options: CompositeOptions = {}) {
   // Pre-create lazy components once (not on every render)
   const lazyComponents = tabs.map((tab) => {
     const LazyComp = lazy(() =>
@@ -63,14 +69,19 @@ export function createComposite(tabs: TabDef[]) {
           id: t.id,
           label: t.label,
           content: (
-            <Suspense fallback={<Loading />}>
-              <t.LazyComp
-                workspacePath={wp}
-                provider={props.provider}
-                onOpenFile={props.onOpenFile}
-                {...(t.extraProps || {})}
-              />
-            </Suspense>
+            <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+              {options.banner}
+              <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+                <Suspense fallback={<Loading />}>
+                  <t.LazyComp
+                    workspacePath={wp}
+                    provider={props.provider}
+                    onOpenFile={props.onOpenFile}
+                    {...(t.extraProps || {})}
+                  />
+                </Suspense>
+              </div>
+            </div>
           ),
         }))}
       />

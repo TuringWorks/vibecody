@@ -126,6 +126,20 @@ const SessionBrowserPanel: React.FC = () => {
     [workspace, selectedSession],
   );
 
+  const forkSession = useCallback(
+    async (sessionId: string) => {
+      try {
+        const newId = await invoke<string>("fork_session", { workspace, sessionId });
+        setStatus(`Forked → ${newId}`);
+        await loadSessions();
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        setStatus(`Fork failed: ${msg}`);
+      }
+    },
+    [workspace, loadSessions],
+  );
+
   // Load sessions on mount and when workspace changes
   useEffect(() => {
     loadSessions();
@@ -274,8 +288,27 @@ const SessionBrowserPanel: React.FC = () => {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
+                      forkSession(s.id);
+                    }}
+                    aria-label={`Fork session ${s.id}`}
+                    title="Fork session"
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: "var(--accent-color)",
+                      cursor: "pointer",
+                      fontSize: "var(--font-size-base)",
+                      padding: "2px 8px",
+                    }}
+                  >
+                    Fork
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
                       deleteSession(s.id);
                     }}
+                    aria-label={`Delete session ${s.id}`}
                     title="Delete session"
                     style={{
                       background: "none",

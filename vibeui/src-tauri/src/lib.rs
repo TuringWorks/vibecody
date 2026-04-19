@@ -361,6 +361,9 @@ pub fn run() {
             commands::list_sessions,
             commands::get_session_detail,
             commands::delete_session,
+            commands::fork_session,
+            commands::get_sandbox_status,
+            commands::set_sandbox_enabled,
             // Phase 7.3 commands — Next-Edit Prediction
             commands::predict_next_edit,
             commands::inline_edit,
