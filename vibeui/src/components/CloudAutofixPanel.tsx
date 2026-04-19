@@ -184,8 +184,8 @@ const CloudAutofixPanel: React.FC = () => {
             <h4 style={{ margin: "0 0 12px" }}>Sandbox Configuration</h4>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
               <div>
-                <label htmlFor="cloud-autofix-image" style={{ display: "block", marginBottom: "4px", fontWeight: 600 }}>Container Image</label>
-                <input id="cloud-autofix-image" style={{ ...input, width: "100%" }} value={containerImage} onChange={e => setContainerImage(e.target.value)} />
+                <label htmlFor="cloud-autofix-container-image" style={{ display: "block", marginBottom: "4px", fontWeight: 600 }}>Container Image</label>
+                <input id="cloud-autofix-container-image" style={{ ...input, width: "100%" }} value={containerImage} onChange={e => setContainerImage(e.target.value)} />
               </div>
               <div>
                 <label htmlFor="cloud-autofix-timeout" style={{ display: "block", marginBottom: "4px", fontWeight: 600 }}>Timeout (min)</label>

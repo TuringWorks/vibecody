@@ -8,6 +8,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { PanelError } from "./shared/PanelError";
 
 type Tab = "team" | "messages" | "tasks" | "history";
 
@@ -212,15 +213,9 @@ const AgentTeamsPanel: React.FC = () => {
       </div>
 
       {/* Error banner */}
-      {error && (
-        <div className="panel-error" style={{
-          borderBottom: "1px solid var(--error-color)",
-          display: "flex", alignItems: "center", gap: 8,
-        }}>
-          <span style={{ flex: 1 }}>{error}</span>
-          <button onClick={() => setError(null)} className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px" }}>Dismiss</button>
-        </div>
-      )}
+      <PanelError onDismiss={() => setError(null)} style={{ borderBottom: "1px solid var(--error-color)" }}>
+        {error}
+      </PanelError>
 
       {/* Content area */}
       <div className="panel-body" style={{ padding: "12px 12px" }}>

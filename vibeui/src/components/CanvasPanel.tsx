@@ -155,7 +155,7 @@ export default function CanvasPanel() {
  <div className="panel-container" style={{ flexDirection: "row" }}>
  {/* Palette sidebar */}
  {showPalette && (
- <div style={{ width: 180, borderRight: "1px solid var(--border-color)", padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+ <div style={{ width: 180, flexShrink: 0, borderRight: "1px solid var(--border-color)", padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
  <div style={{ fontWeight: 600, marginBottom: 8 }}>Node Palette</div>
  {(["provider", "skill", "tool", "gateway", "transform"] as CanvasNode["type"][]).map(type => (
  <button
