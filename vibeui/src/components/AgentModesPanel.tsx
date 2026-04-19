@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { PanelError } from "./shared/PanelError";
 
 interface ModeInfo {
   id: string;
@@ -118,11 +119,7 @@ const AgentModesPanel: React.FC = () => {
   return (
     <div className="panel-container">
       <div className="panel-header">Agent Modes</div>
-      {error && (
-        <div className="panel-error" style={{ margin: "8px 16px 0" }}>
-          {error}
-        </div>
-      )}
+      <PanelError style={{ margin: "8px 16px 0" }}>{error}</PanelError>
       <div className="panel-tab-bar" role="tablist">
         {tabs.map((t) => (
           <button key={t} role="tab" aria-selected={activeTab === t} className={`panel-tab ${activeTab === t ? "active" : ""}`} onClick={() => setActiveTab(t)}>
