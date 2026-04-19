@@ -300,7 +300,7 @@ function StoryDetailModal({ story, onSave, onDelete, onClose, title }: StoryDeta
     <div role="button" tabIndex={0}
       style={{
         position: "fixed", inset: 0, zIndex: 9999,
-        background: "rgba(0,0,0,0.55)", backdropFilter: "blur(2px)",
+        background: "var(--overlay-bg)", backdropFilter: "blur(2px)",
         display: "flex", alignItems: "center", justifyContent: "center",
         padding: 24,
       }}
@@ -874,7 +874,7 @@ function BoardTab({ provider }: { provider?: string } = {}) {
 
       {/* ── Card Edit Modal (Jira-style detail) ── */}
       {editingCard && (
-        <div role="button" tabIndex={0} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }} onClick={() => setEditingCard(null)}>
+        <div role="button" tabIndex={0} style={{ position: "fixed", inset: 0, background: "var(--overlay-bg)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }} onClick={() => setEditingCard(null)}>
           <div role="button" tabIndex={0} style={{ background: "var(--bg-primary)", borderRadius: "var(--radius-md)", padding: 24, width: 540, maxHeight: "85vh", overflowY: "auto", border: "1px solid var(--border-color)", boxShadow: "var(--elevation-2)" }} onClick={e => e.stopPropagation()}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
               <h3 style={{ margin: 0, color: "var(--text-primary)", fontSize: 16 }}>Edit Card</h3>
