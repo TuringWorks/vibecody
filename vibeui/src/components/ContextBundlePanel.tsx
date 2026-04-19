@@ -7,6 +7,7 @@
  */
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { ToggleSwitch } from "./shared/ToggleSwitch";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -22,11 +23,6 @@ interface ContextBundle {
 }
 
 const MODEL_OPTIONS = ["claude-opus-4-20250514", "claude-sonnet-4-20250514", "gpt-4o", "gpt-4o-mini", "gemini-2.0-pro", "ollama/llama3"];
-
-// ── Styles ────────────────────────────────────────────────────────────────────
-
-const toggleStyle = (on: boolean): React.CSSProperties => ({ display: "inline-block", width: 36, height: 18, borderRadius: 9, background: on ? "var(--success-color)" : "var(--bg-tertiary)", position: "relative", cursor: "pointer", border: "1px solid var(--border-color)", transition: "background 0.2s" });
-const toggleDot = (on: boolean): React.CSSProperties => ({ position: "absolute", top: 2, left: on ? 18 : 2, width: 12, height: 12, borderRadius: "50%", background: "white", transition: "left 0.2s" });
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -150,9 +146,11 @@ export function ContextBundlePanel() {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                 <div style={{ fontWeight: 600 }}>{b.name}</div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <div role="switch" aria-checked={b.active} tabIndex={0} style={toggleStyle(b.active)} onClick={() => toggleActive(b.id)} onKeyDown={e => e.key === "Enter" && toggleActive(b.id)}>
-                    <div style={toggleDot(b.active)} />
-                  </div>
+                  <ToggleSwitch
+                    checked={b.active}
+                    onChange={() => toggleActive(b.id)}
+                    label={`${b.active ? "Deactivate" : "Activate"} bundle ${b.name}`}
+                  />
                   <span style={{ fontSize: "var(--font-size-xs)", color: b.active ? "var(--success-color)" : "var(--text-secondary)" }}>{b.active ? "Active" : "Inactive"}</span>
                 </div>
               </div>
