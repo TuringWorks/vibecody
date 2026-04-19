@@ -964,6 +964,15 @@ textarea::placeholder {
 .panel-tab.active { color: var(--accent-color); border-bottom-color: var(--accent-color); }
 /* Primary nav: composite-level navigation (larger, heavier than sub-tabs) */
 .panel-tab-bar--primary .panel-tab { font-size: 13px; padding: 7px 16px; letter-spacing: 0.01em; }
+
+/* ── US-009 / WCAG 2.4.7: visible keyboard focus rings ── */
+.panel-btn:focus-visible,
+.panel-input:focus-visible,
+.panel-select:focus-visible,
+.panel-tab:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
+}
 /* Section title used inside panel-body (replaces ad-hoc h3 inline styles) */
 .panel-section-title { font-size: 13px; font-weight: 600; color: var(--text-primary); margin: 0 0 8px; }
 .panel-badge {
