@@ -183,20 +183,20 @@ const CloudAutofixPanel: React.FC = () => {
             <h4 style={{ margin: "0 0 12px" }}>Sandbox Configuration</h4>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
               <div>
-                <label style={{ display: "block", marginBottom: "4px", fontWeight: 600 }}>Container Image</label>
-                <input style={{ ...input, width: "100%" }} value={containerImage} onChange={e => setContainerImage(e.target.value)} />
+                <label htmlFor="cloud-autofix-container-image" style={{ display: "block", marginBottom: "4px", fontWeight: 600 }}>Container Image</label>
+                <input id="cloud-autofix-container-image" style={{ ...input, width: "100%" }} value={containerImage} onChange={e => setContainerImage(e.target.value)} />
               </div>
               <div>
-                <label style={{ display: "block", marginBottom: "4px", fontWeight: 600 }}>Timeout (min)</label>
-                <input style={{ ...input, width: "100%" }} type="number" value={timeoutMinutes} onChange={e => setTimeoutMinutes(Number(e.target.value))} />
+                <label htmlFor="cloud-autofix-timeout" style={{ display: "block", marginBottom: "4px", fontWeight: 600 }}>Timeout (min)</label>
+                <input id="cloud-autofix-timeout" style={{ ...input, width: "100%" }} type="number" value={timeoutMinutes} onChange={e => setTimeoutMinutes(Number(e.target.value))} />
               </div>
               <div>
-                <label style={{ display: "block", marginBottom: "4px", fontWeight: 600 }}>CPU Limit</label>
-                <input style={{ ...input, width: "100%" }} value={cpuLimit} onChange={e => setCpuLimit(e.target.value)} />
+                <label htmlFor="cloud-autofix-cpu" style={{ display: "block", marginBottom: "4px", fontWeight: 600 }}>CPU Limit</label>
+                <input id="cloud-autofix-cpu" style={{ ...input, width: "100%" }} value={cpuLimit} onChange={e => setCpuLimit(e.target.value)} />
               </div>
               <div>
-                <label style={{ display: "block", marginBottom: "4px", fontWeight: 600 }}>Memory Limit</label>
-                <input style={{ ...input, width: "100%" }} value={memoryLimit} onChange={e => setMemoryLimit(e.target.value)} />
+                <label htmlFor="cloud-autofix-memory" style={{ display: "block", marginBottom: "4px", fontWeight: 600 }}>Memory Limit</label>
+                <input id="cloud-autofix-memory" style={{ ...input, width: "100%" }} value={memoryLimit} onChange={e => setMemoryLimit(e.target.value)} />
               </div>
             </div>
             <div style={{ marginTop: "12px", display: "flex", justifyContent: "flex-end" }}>
