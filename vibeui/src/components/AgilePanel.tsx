@@ -297,7 +297,7 @@ function StoryDetailModal({ story, onSave, onDelete, onClose, title }: StoryDeta
   }, [onClose]);
 
   return (
-    <div role="button" tabIndex={0}
+    <div aria-hidden="true"
       style={{
         position: "fixed", inset: 0, zIndex: 9999,
         background: "var(--overlay-bg)", backdropFilter: "blur(2px)",
@@ -306,7 +306,7 @@ function StoryDetailModal({ story, onSave, onDelete, onClose, title }: StoryDeta
       }}
       onClick={onClose}
     >
-      <div role="button" tabIndex={0}
+      <div role="dialog" aria-modal="true" aria-label="Edit user story"
         style={{
           background: "var(--bg-elevated)", borderRadius: "var(--radius-lg)",
           border: "1px solid var(--border-color)", boxShadow: "var(--elevation-3, 0 8px 32px rgba(0,0,0,0.4))",
@@ -874,10 +874,10 @@ function BoardTab({ provider }: { provider?: string } = {}) {
 
       {/* ── Card Edit Modal (Jira-style detail) ── */}
       {editingCard && (
-        <div role="button" tabIndex={0} style={{ position: "fixed", inset: 0, background: "var(--overlay-bg)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }} onClick={() => setEditingCard(null)}>
-          <div role="button" tabIndex={0} style={{ background: "var(--bg-primary)", borderRadius: "var(--radius-md)", padding: 24, width: 540, maxHeight: "85vh", overflowY: "auto", border: "1px solid var(--border-color)", boxShadow: "var(--elevation-2)" }} onClick={e => e.stopPropagation()}>
+        <div aria-hidden="true" style={{ position: "fixed", inset: 0, background: "var(--overlay-bg)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }} onClick={() => setEditingCard(null)}>
+          <div role="dialog" aria-modal="true" aria-labelledby="agile-edit-card-title" style={{ background: "var(--bg-primary)", borderRadius: "var(--radius-md)", padding: 24, width: 540, maxHeight: "85vh", overflowY: "auto", border: "1px solid var(--border-color)", boxShadow: "var(--elevation-2)" }} onClick={e => e.stopPropagation()}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <h3 style={{ margin: 0, color: "var(--text-primary)", fontSize: 16 }}>Edit Card</h3>
+              <h3 id="agile-edit-card-title" style={{ margin: 0, color: "var(--text-primary)", fontSize: 16 }}>Edit Card</h3>
               <div style={{ display: "flex", gap: 6 }}>
                 <button className="panel-btn panel-btn-danger" style={{ padding: "4px 12px", fontSize: "var(--font-size-sm)" }} onClick={() => { if (confirm("Delete this card?")) deleteCard(editingCard.id); }}>Delete</button>
                 <button className="panel-btn panel-btn-secondary" style={{ padding: "4px 12px", fontSize: "var(--font-size-sm)" }} onClick={() => setEditingCard(null)}>Close</button>
