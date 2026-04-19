@@ -3123,7 +3123,7 @@ export function SettingsPanel({ onClose }: { onClose?: () => void }) {
       }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 8px", marginBottom: 12 }}>
           <span style={{ fontWeight: 700, fontSize: "var(--font-size-lg)", color: "var(--accent-color)" }}>Settings</span>
-          {onClose && <button className="panel-btn" onClick={onClose} style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}><X size={16} /></button>}
+          {onClose && <button className="panel-btn" onClick={onClose} style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }} aria-label="Close settings"><X size={16} /></button>}
         </div>
         {SECTIONS.map(s => (
           <button className="panel-btn" key={s.key} style={sectionBtnStyle(section === s.key)} onClick={() => setSection(s.key)}>

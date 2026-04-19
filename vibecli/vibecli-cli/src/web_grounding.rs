@@ -450,6 +450,66 @@ impl WebGroundingEngine {
         Ok(results)
     }
 
+    /// Execute a search through a live [`SearchBackend`] over the network.
+    ///
+    /// Reuses the cache, rate limiter, classifier, and metrics pipeline from the
+    /// sync `search` method. This is the entry point real callers (Tauri, REPL)
+    /// should use once a backend is configured.
+    pub async fn search_async(
+        &mut self,
+        query: &str,
+        backend: &dyn crate::web_grounding_backend::SearchBackend,
+    ) -> Result<Vec<SearchResult>, String> {
+        if query.trim().is_empty() {
+            return Err("Search query must not be empty".to_string());
+        }
+
+        let now = self.now;
+
+        if !self.rate_limiter.can_request(now) {
+            self.metrics.rate_limited_count += 1;
+            return Err("Rate limit exceeded — try again shortly".to_string());
+        }
+
+        if let Some(cached) = self.cache.get(query, now) {
+            let results = cached.to_vec();
+            self.metrics.cache_hits += 1;
+            self.metrics.total_searches += 1;
+            self.update_avg(results.len());
+            self.search_history.push(SearchRecord {
+                query: self.maybe_redact(query),
+                provider: self.config.provider.clone(),
+                results_count: results.len(),
+                cached: true,
+                timestamp: now,
+            });
+            return Ok(results);
+        }
+
+        self.metrics.cache_misses += 1;
+        self.rate_limiter.record_request(now);
+
+        let mut results = backend.search(query, &self.config).await?;
+
+        for r in &mut results {
+            r.content_type = Self::classify_result(&r.url, &r.title);
+        }
+        results.truncate(self.config.max_results as usize);
+        self.cache.put(query, results.clone(), now);
+
+        self.metrics.total_searches += 1;
+        self.update_avg(results.len());
+        self.search_history.push(SearchRecord {
+            query: self.maybe_redact(query),
+            provider: self.config.provider.clone(),
+            results_count: results.len(),
+            cached: false,
+            timestamp: now,
+        });
+
+        Ok(results)
+    }
+
     /// Execute a search with context-aware relevance ranking.
     pub fn search_with_context(
         &mut self,

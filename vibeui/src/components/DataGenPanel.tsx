@@ -309,7 +309,7 @@ export function DataGenPanel() {
  style={{ flex: 1, padding: "2px 4px", fontSize: "var(--font-size-xs)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 3, color: "var(--text-primary)", outline: "none" }}>
  {FAKE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
  </select>
- <button onClick={() => removeField(f.id)} style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", padding: "0 2px", display: "flex", alignItems: "center" }}><X size={10} /></button>
+ <button onClick={() => removeField(f.id)} style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", padding: "0 2px", display: "flex", alignItems: "center" }} aria-label={`Delete field ${f.name || f.id}`}><X size={10} /></button>
  </div>
  ))}
  </div>

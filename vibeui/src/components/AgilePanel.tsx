@@ -300,7 +300,7 @@ function StoryDetailModal({ story, onSave, onDelete, onClose, title }: StoryDeta
     <div role="button" tabIndex={0}
       style={{
         position: "fixed", inset: 0, zIndex: 9999,
-        background: "rgba(0,0,0,0.55)", backdropFilter: "blur(2px)",
+        background: "var(--overlay-bg)", backdropFilter: "blur(2px)",
         display: "flex", alignItems: "center", justifyContent: "center",
         padding: 24,
       }}
@@ -515,7 +515,7 @@ const defaultCard = (column: Column): Card => ({
    ═══════════════════════════════════════════════════════════════════════ */
 
 /* Assignee avatar (colored initials circle) */
-const AVATAR_COLORS = ["var(--accent-blue)", "var(--error-color)", "#14b8a6", "var(--warning-color)", "var(--accent-purple)", "var(--error-color)", "#06b6d4", "#84cc16"];
+const AVATAR_COLORS = ["var(--accent-blue)", "var(--error-color)", "var(--accent-green)", "var(--warning-color)", "var(--accent-purple)", "var(--accent-rose)", "var(--accent-cyan)", "var(--success-color)"];
 function AvatarBadge({ name, size = 24 }: { name: string; size?: number }) {
   if (!name) return null;
   const initials = name.split(/\s+/).map(w => w[0]?.toUpperCase() || "").join("").slice(0, 2);
@@ -874,7 +874,7 @@ function BoardTab({ provider }: { provider?: string } = {}) {
 
       {/* ── Card Edit Modal (Jira-style detail) ── */}
       {editingCard && (
-        <div role="button" tabIndex={0} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }} onClick={() => setEditingCard(null)}>
+        <div role="button" tabIndex={0} style={{ position: "fixed", inset: 0, background: "var(--overlay-bg)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }} onClick={() => setEditingCard(null)}>
           <div role="button" tabIndex={0} style={{ background: "var(--bg-primary)", borderRadius: "var(--radius-md)", padding: 24, width: 540, maxHeight: "85vh", overflowY: "auto", border: "1px solid var(--border-color)", boxShadow: "var(--elevation-2)" }} onClick={e => e.stopPropagation()}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
               <h3 style={{ margin: 0, color: "var(--text-primary)", fontSize: 16 }}>Edit Card</h3>
@@ -2688,7 +2688,7 @@ function SAFeTab({ provider }: { provider?: string } = {}) {
                     {EPIC_COLUMNS.filter(c => c !== col).map(c => (
                       <button key={c} className="panel-btn panel-btn-secondary" style={{ padding: "1px 8px", fontSize: "var(--font-size-xs)" }} onClick={() => moveEpic(epic.id, c)}>→ {c}</button>
                     ))}
-                    <button className="panel-btn panel-btn-danger" style={{ padding: "1px 8px", fontSize: "var(--font-size-xs)" }} onClick={() => removeEpic(epic.id)}><X size={10} /></button>
+                    <button className="panel-btn panel-btn-danger" style={{ padding: "1px 8px", fontSize: "var(--font-size-xs)" }} onClick={() => removeEpic(epic.id)} aria-label={`Delete epic ${epic.title}`}><X size={10} /></button>
                   </div>
                 </div>
               ))}

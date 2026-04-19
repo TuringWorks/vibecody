@@ -101,7 +101,7 @@ function Swatch({ token, onEdit, onRemove }: {
  <div role="button" tabIndex={0} style={{ borderRadius: "var(--radius-sm-alt)", overflow: "hidden", border: "1px solid var(--border-color)", cursor: "pointer" }} onClick={copy}>
  <div style={{ background: token.value, height: 56, display: "flex", alignItems: "flex-end", justifyContent: "flex-end", padding: "4px 8px", gap: 4 }}>
  <button onClick={e => { e.stopPropagation(); onEdit(token); }} style={{ background: "rgba(0,0,0,0.4)", border: "none", borderRadius: 3, color: "var(--text-primary)", fontSize: 9, padding: "1px 4px", cursor: "pointer" }}></button>
- <button onClick={e => { e.stopPropagation(); onRemove(); }} style={{ background: "rgba(0,0,0,0.4)", border: "none", borderRadius: 3, color: "var(--accent-rose)", padding: "1px 4px", cursor: "pointer", display: "flex", alignItems: "center" }}><X size={9} /></button>
+ <button onClick={e => { e.stopPropagation(); onRemove(); }} style={{ background: "rgba(0,0,0,0.4)", border: "none", borderRadius: 3, color: "var(--accent-rose)", padding: "1px 4px", cursor: "pointer", display: "flex", alignItems: "center" }} aria-label={`Delete color token ${token.name}`}><X size={9} /></button>
  </div>
  <div style={{ padding: "4px 8px", background: "var(--bg-secondary)" }}>
  <div style={{ fontSize: 9, fontWeight: 700, fontFamily: "var(--font-mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{copied ? "Copied!" : token.value}</div>
@@ -232,7 +232,7 @@ export function ColorPalettePanel({ workspacePath }: { workspacePath: string | n
  ))}
  </div>
  <div style={{ fontSize: "var(--font-size-xs)", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{p.name}</div>
- <button onClick={e => { e.stopPropagation(); removePalette(p.id); }} style={{ background: "none", border: "none", color: "var(--accent-rose)", cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center" }}><X size={9} /></button>
+ <button onClick={e => { e.stopPropagation(); removePalette(p.id); }} style={{ background: "none", border: "none", color: "var(--accent-rose)", cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center" }} aria-label={`Delete palette ${p.name}`}><X size={9} /></button>
  </div>
  ))}
  </div>
@@ -314,7 +314,7 @@ export function ColorPalettePanel({ workspacePath }: { workspacePath: string | n
  <span style={{ fontSize: "var(--font-size-sm)", fontWeight: 600 }}>{EXPORT_FORMATS.find(f => f.value === exportFmt)?.label} output</span>
  <div style={{ display: "flex", gap: 6 }}>
  <button className="panel-btn" onClick={copyExport} style={{ fontSize: "var(--font-size-xs)", padding: "2px 12px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-secondary)", cursor: "pointer" }}>Copy</button>
- <button onClick={() => setShowExport(false)} style={{ padding: "2px 8px", background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", display: "flex", alignItems: "center" }}><X size={10} /></button>
+ <button onClick={() => setShowExport(false)} style={{ padding: "2px 8px", background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", display: "flex", alignItems: "center" }} aria-label="Close export panel"><X size={10} /></button>
  </div>
  </div>
  <pre style={{ flex: 1, overflowY: "auto", margin: 0, padding: "12px 16px", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", lineHeight: 1.6, color: "var(--text-primary)", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>

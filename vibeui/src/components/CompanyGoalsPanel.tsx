@@ -77,7 +77,7 @@ export function CompanyGoalsPanel({ workspacePath: _wp }: CompanyGoalsPanelProps
       {cmdResult && (
         <div className="panel-card" style={{ marginBottom: 12, fontSize: "var(--font-size-base)" }}>
           {cmdResult}
-          <button onClick={() => setCmdResult(null)} style={{ marginLeft: 8, cursor: "pointer", background: "none", border: "none", color: "var(--text-secondary)", display: "inline-flex" }}><X size={12} /></button>
+          <button onClick={() => setCmdResult(null)} style={{ marginLeft: 8, cursor: "pointer", background: "none", border: "none", color: "var(--text-secondary)", display: "inline-flex" }} aria-label="Dismiss message"><X size={12} /></button>
         </div>
       )}
 

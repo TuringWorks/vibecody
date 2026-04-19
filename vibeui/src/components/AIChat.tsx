@@ -724,20 +724,36 @@ function ThinkingBlock({ text }: { text: string }) {
 
 function ToolCallCard({ call }: { call: ToolCallInfo }) {
   const [expanded, setExpanded] = useState(false);
+  const canExpand = Boolean(call.output);
+  const headerChildren = (
+    <>
+      <span className="tool-card-icon"><ToolIcon tool={call.tool} /></span>
+      <span className="tool-card-label">{toolLabel(call.tool, call.path)}</span>
+      {call.path && <span className="tool-card-path" title={call.path}>{call.path}</span>}
+      <span className="tool-card-status"><ToolStatusIcon status={call.status} /></span>
+      {call.duration_ms != null && (
+        <span className="tool-card-duration">{call.duration_ms}ms</span>
+      )}
+      {canExpand && (
+        <span className="tool-card-expand">{expanded ? "\u25BE" : "\u25B8"}</span>
+      )}
+    </>
+  );
   return (
     <div className={`tool-card tool-card-${call.status}`}>
-      <div className="tool-card-header" onClick={() => call.output && setExpanded(!expanded)}>
-        <span className="tool-card-icon"><ToolIcon tool={call.tool} /></span>
-        <span className="tool-card-label">{toolLabel(call.tool, call.path)}</span>
-        {call.path && <span className="tool-card-path" title={call.path}>{call.path}</span>}
-        <span className="tool-card-status"><ToolStatusIcon status={call.status} /></span>
-        {call.duration_ms != null && (
-          <span className="tool-card-duration">{call.duration_ms}ms</span>
-        )}
-        {call.output && (
-          <span className="tool-card-expand">{expanded ? "\u25BE" : "\u25B8"}</span>
-        )}
-      </div>
+      {canExpand ? (
+        <button
+          type="button"
+          className="tool-card-header"
+          onClick={() => setExpanded(!expanded)}
+          aria-expanded={expanded}
+          aria-label={`Tool ${toolLabel(call.tool, call.path)}, toggle output`}
+        >
+          {headerChildren}
+        </button>
+      ) : (
+        <div className="tool-card-header">{headerChildren}</div>
+      )}
       {expanded && call.output && (
         <pre className="tool-card-output">{call.output}</pre>
       )}

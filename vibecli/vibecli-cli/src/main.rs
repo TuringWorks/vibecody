@@ -2132,11 +2132,17 @@ mod large_codebase_bench;
 mod jetbrains_hooks;
 mod spawn_agent;
 mod web_grounding;
+mod web_grounding_backend;
 #[allow(dead_code)]
 mod worktree_pool;
+#[allow(dead_code)]
+mod worktree_git;
 mod mobile_gateway;
 mod proactive_agent;
+#[allow(dead_code)]
+mod proactive_scanner;
 mod a2a_protocol;
+mod a2a_http;
 #[allow(dead_code)]
 mod semantic_index;
 #[allow(dead_code)]
@@ -2144,11 +2150,15 @@ mod visual_verify;
 #[allow(dead_code)]
 mod mcp_streamable;
 #[allow(dead_code)]
+mod mcp_http;
+#[allow(dead_code)]
 mod doc_sync;
 #[allow(dead_code)]
 mod next_task;
 #[allow(dead_code)]
 mod voice_local;
+#[allow(dead_code)]
+mod voice_whisper;
 #[allow(dead_code)]
 mod native_connectors;
 #[allow(dead_code)]

@@ -33,7 +33,7 @@ interface PolicyRule {
 const ROLE_COLORS: Record<Role, string> = {
   admin: "var(--error-color)",
   developer: "var(--info-color)",
-  viewer: '#6b7280',
+  viewer: "var(--text-secondary)",
 };
 
 const ROLE_DESCRIPTIONS: Record<Role, string> = {
@@ -132,16 +132,16 @@ export function AdminPanel() {
     <div className="panel-container" style={{ fontSize: "var(--font-size-md)" }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <h3 style={{ margin: 0, fontSize: "var(--font-size-xl)" }}>Admin Console</h3>
-        <div style={{ display: 'flex', gap: 4 }}>
+        <div className="panel-tab-bar" role="tablist" style={{ display: 'flex', gap: 4 }}>
           {tabs.map(t => (
-            <button key={t.key} onClick={() => setTab(t.key)} className={`panel-tab ${tab === t.key ? "active" : ""}`}>
+            <button key={t.key} role="tab" aria-selected={tab === t.key} onClick={() => setTab(t.key)} className={`panel-tab ${tab === t.key ? "active" : ""}`}>
               {t.label}
             </button>
           ))}
         </div>
       </div>
 
-      {error && <div className="panel-error" role="alert"><span>{error}</span><button onClick={() => setError(null)}><X size={12} /></button></div>}
+      {error && <div className="panel-error" role="alert"><span>{error}</span><button onClick={() => setError(null)} aria-label="Dismiss error"><X size={12} /></button></div>}
 
       {/* ── Team Members ── */}
       {tab === 'team' && !editingMember && (

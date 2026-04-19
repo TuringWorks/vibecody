@@ -154,6 +154,11 @@ pub struct AppState {
     pub web_search_results: Arc<Mutex<Vec<serde_json::Value>>>,
     pub web_citations: Arc<Mutex<Vec<serde_json::Value>>>,
     pub web_cache: Arc<Mutex<serde_json::Value>>,
+    /// Real-HTTP grounding engine (US-001). Configured once at startup and
+    /// re-used across `web_search` calls so cache + rate limiter state persist.
+    pub web_grounding_engine:
+        Arc<Mutex<vibecli_cli::web_grounding::WebGroundingEngine>>,
+    pub web_http_client: reqwest::Client,
     pub semindex_symbols: Arc<Mutex<Vec<serde_json::Value>>>,
     pub semindex_stats: Arc<Mutex<serde_json::Value>>,
     // Phase 27-28: MCP HTTP + MCTS Repair + Cost Router
@@ -39379,38 +39384,132 @@ pub async fn triage_get_metrics(
 
 // ── Web Grounding ──
 
+/// Build the initial [`SearchConfig`] for the web-grounding engine on startup.
+///
+/// Picks a provider from environment overrides in order:
+/// 1. `VIBECLI_SEARCH_PROVIDER` (tavily | brave | searxng). If set, uses the
+///    matching `VIBECLI_*_API_KEY` / `VIBECLI_SEARXNG_URL`.
+/// 2. If `TAVILY_API_KEY` is set, default to Tavily.
+/// 3. If `BRAVE_API_KEY` is set, default to Brave.
+/// 4. Otherwise default to SearXNG pointing at `VIBECLI_SEARXNG_URL` if set,
+///    else the SearXNG default endpoint (no key, works out-of-box against a
+///    self-hosted instance).
+pub fn initial_search_config() -> vibecli_cli::web_grounding::SearchConfig {
+    use vibecli_cli::web_grounding::{SearchConfig, SearchProvider};
+    let explicit = std::env::var("VIBECLI_SEARCH_PROVIDER").ok();
+    let (provider, api_key, base_url) = match explicit.as_deref() {
+        Some("tavily") => (
+            SearchProvider::Tavily,
+            std::env::var("TAVILY_API_KEY").ok(),
+            None,
+        ),
+        Some("brave") => (
+            SearchProvider::Brave,
+            std::env::var("BRAVE_API_KEY").ok(),
+            None,
+        ),
+        Some("searxng") => (
+            SearchProvider::SearXNG,
+            None,
+            std::env::var("VIBECLI_SEARXNG_URL").ok(),
+        ),
+        _ => {
+            if let Ok(key) = std::env::var("TAVILY_API_KEY") {
+                (SearchProvider::Tavily, Some(key), None)
+            } else if let Ok(key) = std::env::var("BRAVE_API_KEY") {
+                (SearchProvider::Brave, Some(key), None)
+            } else {
+                (
+                    SearchProvider::SearXNG,
+                    None,
+                    std::env::var("VIBECLI_SEARXNG_URL").ok(),
+                )
+            }
+        }
+    };
+    SearchConfig {
+        provider,
+        api_key,
+        base_url,
+        ..SearchConfig::default()
+    }
+}
+
 #[tauri::command]
 pub async fn web_search(
     query: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
     let now = chrono::Utc::now().timestamp();
-    // Check cache
-    let mut cache = state.web_cache.lock().await;
-    let hits = cache.get("hit_count").and_then(|v| v.as_i64()).unwrap_or(0);
-    let misses = cache.get("miss_count").and_then(|v| v.as_i64()).unwrap_or(0);
-    let mut results = state.web_search_results.lock().await;
-    let cached = results.iter().find(|r| r.get("query").and_then(|v| v.as_str()) == Some(&query));
-    if let Some(cached_result) = cached {
-        cache["hit_count"] = serde_json::json!(hits + 1);
-        return Ok(serde_json::json!({ "query": query, "results": cached_result.get("results"), "cached": true }));
+
+    let (config, provider) = {
+        let engine = state.web_grounding_engine.lock().await;
+        (engine.config.clone(), engine.config.provider.clone())
+    };
+
+    let backend = vibecli_cli::web_grounding_backend::backend_for(
+        &config,
+        state.web_http_client.clone(),
+    )?;
+
+    let (results, was_cached) = {
+        let mut engine = state.web_grounding_engine.lock().await;
+        engine.now = now as u64;
+        let hits_before = engine.metrics.cache_hits;
+        let results = engine.search_async(&query, backend.as_ref()).await?;
+        let was_cached = engine.metrics.cache_hits > hits_before;
+        (results, was_cached)
+    };
+
+    let results_json: Vec<serde_json::Value> = results
+        .iter()
+        .map(|r| {
+            serde_json::json!({
+                "title": r.title,
+                "url": r.url,
+                "snippet": r.snippet,
+                "source": format!("{:?}", r.source).to_lowercase(),
+                "relevance_score": r.relevance_score,
+                "content_type": format!("{:?}", r.content_type).to_lowercase(),
+                "timestamp": now,
+            })
+        })
+        .collect();
+
+    // Mirror into legacy state fields so existing frontend queries still work.
+    {
+        let mut cache = state.web_cache.lock().await;
+        let total = cache.get("total_entries").and_then(|v| v.as_i64()).unwrap_or(0);
+        let hits = cache.get("hit_count").and_then(|v| v.as_i64()).unwrap_or(0);
+        let misses = cache.get("miss_count").and_then(|v| v.as_i64()).unwrap_or(0);
+        if was_cached {
+            cache["hit_count"] = serde_json::json!(hits + 1);
+        } else {
+            cache["miss_count"] = serde_json::json!(misses + 1);
+            cache["total_entries"] = serde_json::json!(total + 1);
+        }
     }
-    cache["miss_count"] = serde_json::json!(misses + 1);
-    // Simulate search results
-    let simulated = serde_json::json!([
-        { "title": format!("Result 1 for: {}", query), "url": format!("https://example.com/search?q={}", query.replace(' ', "+")), "snippet": format!("Relevant information about {} from documentation.", query), "source": "web", "timestamp": now },
-        { "title": format!("Stack Overflow: {}", query), "url": format!("https://stackoverflow.com/q/{}", query.replace(' ', "-")), "snippet": format!("Community answer regarding {} with code examples.", query), "source": "stackoverflow", "timestamp": now },
-    ]);
-    let entry = serde_json::json!({ "query": query, "results": simulated, "searched_at": now });
-    results.push(entry);
-    let total = cache.get("total_entries").and_then(|v| v.as_i64()).unwrap_or(0);
-    cache["total_entries"] = serde_json::json!(total + 1);
-    // Add citations
-    drop(results);
-    drop(cache);
-    let mut citations = state.web_citations.lock().await;
-    citations.push(serde_json::json!({ "query": query, "count": 2, "timestamp": now }));
-    Ok(serde_json::json!({ "query": query, "results": simulated, "cached": false }))
+    if !was_cached {
+        let mut history = state.web_search_results.lock().await;
+        history.push(serde_json::json!({
+            "query": query,
+            "results": results_json,
+            "searched_at": now,
+        }));
+        let mut citations = state.web_citations.lock().await;
+        citations.push(serde_json::json!({
+            "query": query,
+            "count": results_json.len(),
+            "timestamp": now,
+        }));
+    }
+
+    Ok(serde_json::json!({
+        "query": query,
+        "provider": format!("{:?}", provider).to_lowercase(),
+        "results": results_json,
+        "cached": was_cached,
+    }))
 }
 
 #[tauri::command]

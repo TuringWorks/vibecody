@@ -138,7 +138,7 @@ export default function EditPredictionPanel() {
         {error && (
           <div className="panel-error">
             {error}
-            <button onClick={() => setError(null)}><X size={12} /></button>
+            <button onClick={() => setError(null)} aria-label="Dismiss error"><X size={12} /></button>
           </div>
         )}
 

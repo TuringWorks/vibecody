@@ -221,6 +221,12 @@ pub fn run() {
             web_search_results: Arc::new(Mutex::new(Vec::new())),
             web_citations: Arc::new(Mutex::new(Vec::new())),
             web_cache: Arc::new(Mutex::new(serde_json::json!({ "total_entries": 0, "hit_count": 0, "miss_count": 0 }))),
+            web_grounding_engine: Arc::new(Mutex::new(
+                vibecli_cli::web_grounding::WebGroundingEngine::new(
+                    commands::initial_search_config(),
+                ),
+            )),
+            web_http_client: reqwest::Client::new(),
             semindex_symbols: Arc::new(Mutex::new(Vec::new())),
             semindex_stats: Arc::new(Mutex::new(serde_json::json!({ "total_symbols": 0, "total_call_edges": 0, "total_files": 0 }))),
             // Phase 27-28: MCP HTTP + MCTS Repair + Cost Router

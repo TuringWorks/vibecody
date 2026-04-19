@@ -602,7 +602,7 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
     <div className="panel-card" style={{ marginTop: 10 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
         <span style={{ fontWeight: 600, fontSize: "var(--font-size-base)" }}>{reportLabel}</span>
-        <button className="panel-btn panel-btn-secondary panel-btn-sm" onClick={() => setReport("")}><X size={12} strokeWidth={1.5} style={{ display: "inline", verticalAlign: "middle" }} /></button>
+        <button className="panel-btn panel-btn-secondary panel-btn-sm" onClick={() => setReport("")} aria-label="Close report"><X size={12} strokeWidth={1.5} style={{ display: "inline", verticalAlign: "middle" }} /></button>
       </div>
       <textarea
         value={report}
@@ -765,7 +765,7 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
             <div className="panel-card" style={{ marginBottom: 10, border: "1px solid var(--accent-color)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                 <span style={{ fontWeight: 600, fontSize: "var(--font-size-md)" }}>Edit Cell: {p} / {a}</span>
-                <button className="panel-btn panel-btn-secondary panel-btn-sm" onClick={() => setEditingCell(null)}><X size={12} strokeWidth={1.5} style={{ display: "inline", verticalAlign: "middle" }} /></button>
+                <button className="panel-btn panel-btn-secondary panel-btn-sm" onClick={() => setEditingCell(null)} aria-label="Close cell editor"><X size={12} strokeWidth={1.5} style={{ display: "inline", verticalAlign: "middle" }} /></button>
               </div>
               <div className="panel-label" style={{ marginBottom: 4 }}>Content</div>
               <textarea
