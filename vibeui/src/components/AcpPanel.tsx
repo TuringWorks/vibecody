@@ -180,10 +180,10 @@ export function AcpPanel() {
         </div>
       )}
 
-      <div className="panel-tab-bar" style={{ marginBottom: 12 }}>
-        <button className={`panel-tab ${tab === "server" ? "active" : ""}`} onClick={() => setTab("server")}>Server</button>
-        <button className={`panel-tab ${tab === "client" ? "active" : ""}`} onClick={() => setTab("client")}>Client</button>
-        <button className={`panel-tab ${tab === "protocol" ? "active" : ""}`} onClick={() => setTab("protocol")}>Protocol</button>
+      <div className="panel-tab-bar" role="tablist" style={{ marginBottom: 12 }}>
+        <button role="tab" aria-selected={tab === "server"} className={`panel-tab ${tab === "server" ? "active" : ""}`} onClick={() => setTab("server")}>Server</button>
+        <button role="tab" aria-selected={tab === "client"} className={`panel-tab ${tab === "client" ? "active" : ""}`} onClick={() => setTab("client")}>Client</button>
+        <button role="tab" aria-selected={tab === "protocol"} className={`panel-tab ${tab === "protocol" ? "active" : ""}`} onClick={() => setTab("protocol")}>Protocol</button>
       </div>
 
       {tab === "server" && (

@@ -165,10 +165,12 @@ export function AgentTeamPanel() {
         /* Team view */
         <>
           {/* Sub-tabs */}
-          <div className="panel-tab-bar" style={{ padding: "8px 12px" }}>
+          <div className="panel-tab-bar" role="tablist" style={{ padding: "8px 12px" }}>
             {(["overview", "tasks", "messages"] as const).map((t) => (
               <button
                 key={t}
+                role="tab"
+                aria-selected={tab === t}
                 onClick={() => setTab(t)}
                 className={`panel-tab ${tab === t ? "active" : ""}`}
               >

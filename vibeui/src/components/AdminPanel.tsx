@@ -132,9 +132,9 @@ export function AdminPanel() {
     <div className="panel-container" style={{ fontSize: "var(--font-size-md)" }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <h3 style={{ margin: 0, fontSize: "var(--font-size-xl)" }}>Admin Console</h3>
-        <div style={{ display: 'flex', gap: 4 }}>
+        <div className="panel-tab-bar" role="tablist" style={{ display: 'flex', gap: 4 }}>
           {tabs.map(t => (
-            <button key={t.key} onClick={() => setTab(t.key)} className={`panel-tab ${tab === t.key ? "active" : ""}`}>
+            <button key={t.key} role="tab" aria-selected={tab === t.key} onClick={() => setTab(t.key)} className={`panel-tab ${tab === t.key ? "active" : ""}`}>
               {t.label}
             </button>
           ))}

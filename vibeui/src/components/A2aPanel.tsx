@@ -327,11 +327,11 @@ export function A2aPanel() {
           </div>
         )}
 
-        <div className="panel-tab-bar">
-          <button className={`panel-tab ${tab === "agents" ? "active" : ""}`} onClick={() => setTab("agents")}>Agents</button>
-          <button className={`panel-tab ${tab === "tasks" ? "active" : ""}`} onClick={() => setTab("tasks")}>Tasks</button>
-          <button className={`panel-tab ${tab === "card" ? "active" : ""}`} onClick={() => setTab("card")}>Agent Card</button>
-          <button className={`panel-tab ${tab === "metrics" ? "active" : ""}`} onClick={() => setTab("metrics")}>Metrics</button>
+        <div className="panel-tab-bar" role="tablist">
+          <button role="tab" aria-selected={tab === "agents"} className={`panel-tab ${tab === "agents" ? "active" : ""}`} onClick={() => setTab("agents")}>Agents</button>
+          <button role="tab" aria-selected={tab === "tasks"} className={`panel-tab ${tab === "tasks" ? "active" : ""}`} onClick={() => setTab("tasks")}>Tasks</button>
+          <button role="tab" aria-selected={tab === "card"} className={`panel-tab ${tab === "card" ? "active" : ""}`} onClick={() => setTab("card")}>Agent Card</button>
+          <button role="tab" aria-selected={tab === "metrics"} className={`panel-tab ${tab === "metrics" ? "active" : ""}`} onClick={() => setTab("metrics")}>Metrics</button>
         </div>
 
         {/* ── Agents Tab ─────────────────────────────────────────────────────── */}

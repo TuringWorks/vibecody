@@ -192,7 +192,7 @@ const AgentTeamsPanel: React.FC = () => {
       </div>
 
       {/* Tab bar */}
-      <div className="panel-tab-bar">
+      <div className="panel-tab-bar" role="tablist">
         {([
           ["team", "Team"],
           ["tasks", `Tasks${team ? ` (${totalTasks})` : ""}`],
@@ -201,6 +201,8 @@ const AgentTeamsPanel: React.FC = () => {
         ] as [Tab, string][]).map(([id, label]) => (
           <button
             key={id}
+            role="tab"
+            aria-selected={tab === id}
             onClick={() => setTab(id)}
             className={`panel-tab ${tab === id ? "active" : ""}`}
           >

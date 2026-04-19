@@ -133,10 +133,10 @@ export function AgentHostPanel() {
   return (
     <div className="panel-container">
       <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 12, color: "var(--text-primary)" }}>Multi-Agent Terminal Host</h2>
-      <div className="panel-tab-bar" style={{ marginBottom: 16 }}>
-        <button className={`panel-tab ${tab === "agents" ? "active" : ""}`} onClick={() => setTab("agents")}>Agents</button>
-        <button className={`panel-tab ${tab === "output" ? "active" : ""}`} onClick={() => setTab("output")}>Output</button>
-        <button className={`panel-tab ${tab === "context" ? "active" : ""}`} onClick={() => setTab("context")}>
+      <div className="panel-tab-bar" role="tablist" style={{ marginBottom: 16 }}>
+        <button role="tab" aria-selected={tab === "agents"} className={`panel-tab ${tab === "agents" ? "active" : ""}`} onClick={() => setTab("agents")}>Agents</button>
+        <button role="tab" aria-selected={tab === "output"} className={`panel-tab ${tab === "output" ? "active" : ""}`} onClick={() => setTab("output")}>Output</button>
+        <button role="tab" aria-selected={tab === "context"} className={`panel-tab ${tab === "context" ? "active" : ""}`} onClick={() => setTab("context")}>
           Context
           {clipboard.length > 0 && (
             <span style={{ marginLeft: 4, background: "var(--accent-color)", color: "var(--btn-primary-fg, #fff)", borderRadius: "var(--radius-sm-alt)", padding: "0 4px", fontSize: "var(--font-size-xs)" }}>
@@ -144,7 +144,7 @@ export function AgentHostPanel() {
             </span>
           )}
         </button>
-        <button className={`panel-tab ${tab === "config" ? "active" : ""}`} onClick={() => setTab("config")}>Config</button>
+        <button role="tab" aria-selected={tab === "config"} className={`panel-tab ${tab === "config" ? "active" : ""}`} onClick={() => setTab("config")}>Config</button>
       </div>
 
       {tab === "agents" && (

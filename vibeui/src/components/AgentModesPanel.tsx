@@ -123,9 +123,9 @@ const AgentModesPanel: React.FC = () => {
           {error}
         </div>
       )}
-      <div className="panel-tab-bar">
+      <div className="panel-tab-bar" role="tablist">
         {tabs.map((t) => (
-          <button key={t} className={`panel-tab ${activeTab === t ? "active" : ""}`} onClick={() => setActiveTab(t)}>
+          <button key={t} role="tab" aria-selected={activeTab === t} className={`panel-tab ${activeTab === t ? "active" : ""}`} onClick={() => setActiveTab(t)}>
             {t === "modes" ? "Mode Select" : t.charAt(0).toUpperCase() + t.slice(1)}
           </button>
         ))}
