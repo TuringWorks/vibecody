@@ -28,6 +28,18 @@
   --accent-rose:   #f472b6;
   --accent-indigo: #6366f1;
   --accent-cyan:   #06b6d4;
+  --accent-orange: #f97b22;
+  --accent-brown:  #795548;
+
+  /* ── Peer / participant palette (charts, multi-user views) ─────────────── */
+  --peer-color-1: var(--accent-blue);
+  --peer-color-2: var(--accent-orange);
+  --peer-color-3: var(--success-color);
+  --peer-color-4: var(--error-color);
+  --peer-color-5: var(--accent-purple);
+  --peer-color-6: var(--accent-cyan);
+  --peer-color-7: var(--warning-color);
+  --peer-color-8: var(--accent-brown);
 
   /* ── Surfaces ─────────────────────────────────────────────────────────── */
   --glass-bg:    rgba(22, 24, 33, 0.75);
@@ -158,6 +170,8 @@
   --accent-rose:   #ec4899;
   --accent-indigo: #6366f1;
   --accent-cyan:   #06b6d4;
+  --accent-orange: #ea580c;
+  --accent-brown:  #6d4c41;
 
   --glass-bg:    rgba(255, 255, 255, 0.72);
   --glass-border: rgba(0, 0, 0, 0.06);

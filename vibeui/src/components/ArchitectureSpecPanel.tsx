@@ -99,19 +99,26 @@ type NavTab = "togaf" | "zachman" | "c4" | "adr" | "governance";
 
 const ARTIFACT_STATUS_COLOR: Record<ArtifactStatus, string> = {
   Draft: "var(--text-secondary)", Review: "var(--warning-color)",
-  Approved: "var(--accent-green,#22c55e)", Deprecated: "#555",
+  Approved: "var(--accent-green)", Deprecated: "var(--text-tertiary)",
 };
 
 const ADR_STATUS_COLOR: Record<string, string> = {
-  Proposed: "var(--warning-color)", Accepted: "var(--accent-green,#22c55e)", Deprecated: "#555",
+  Proposed: "var(--warning-color)", Accepted: "var(--accent-green)", Deprecated: "var(--text-tertiary)",
 };
 
 const SEV_COLOR: Record<GovernanceSev, string> = {
   Info: "var(--text-secondary)", Warning: "var(--warning-color)", Error: "var(--error-color)", Critical: "var(--error-color)",
 };
 
-/* TODO: tokenize — data visualization gradient from empty to full maturity */
-const MATURITY_COLOR = ["#333", "#4f4","#3b3","#2a2","#1a1","#0f0"];
+/* Maturity gradient: empty → full, using semantic tokens */
+const MATURITY_COLOR = [
+  "var(--bg-tertiary)",
+  "color-mix(in srgb, var(--accent-green) 30%, transparent)",
+  "color-mix(in srgb, var(--accent-green) 50%, transparent)",
+  "color-mix(in srgb, var(--accent-green) 70%, transparent)",
+  "color-mix(in srgb, var(--accent-green) 85%, transparent)",
+  "var(--accent-green)",
+];
 
 // ── Props ─────────────────────────────────────────────────────────────────
 
@@ -479,7 +486,7 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
   const ProgBar = ({ pct, total }: { pct: number; total: number }) => (
     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
       <div style={{ width: 60, height: 4, background: "var(--bg-tertiary)", borderRadius: 2, overflow: "hidden" }}>
-        <div style={{ width: `${pct}%`, height: "100%", borderRadius: 2, background: pct === 100 ? "var(--accent-green,#22c55e)" : "var(--accent-color,#4f8ef7)" }} />
+        <div style={{ width: `${pct}%`, height: "100%", borderRadius: 2, background: pct === 100 ? "var(--accent-green)" : "var(--accent-color)" }} />
       </div>
       <span className="panel-label" style={{ fontSize: "var(--font-size-xs)" }}>{total === 0 ? "0 artifacts" : `${Math.round(pct / 100 * total)}/${total} approved`}</span>
     </div>
@@ -702,7 +709,7 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 4, flexShrink: 0 }}>
                           {art.status !== "Approved" && (
-                            <button className="panel-btn panel-btn-sm" style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px", color: "var(--accent-green,#22c55e)", borderColor: "var(--accent-green,#22c55e)" }}
+                            <button className="panel-btn panel-btn-sm" style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px", color: "var(--accent-green)", borderColor: "var(--accent-green)" }}
                               disabled={statusBusy === art.id} onClick={() => setArtifactStatus(art.id, "Approved")}><Check size={11} strokeWidth={2} style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }} />Approve</button>
                           )}
                           {art.status !== "Review" && art.status !== "Approved" && (
@@ -1040,7 +1047,7 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
                       </div>
                       <div style={{ display: "flex", flexDirection: "column", gap: 4, flexShrink: 0 }}>
                         {statusLabel !== "Accepted" && (
-                          <button className="panel-btn panel-btn-sm" style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px", color: "var(--accent-green,#22c55e)", borderColor: "var(--accent-green,#22c55e)" }}
+                          <button className="panel-btn panel-btn-sm" style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px", color: "var(--accent-green)", borderColor: "var(--accent-green)" }}
                             disabled={statusBusy === adr.id} onClick={() => setAdrStatus(adr.id, "Accepted")}><Check size={11} strokeWidth={2} style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }} />Accept</button>
                         )}
                         {statusLabel !== "Deprecated" && statusLabel !== "Accepted" && (

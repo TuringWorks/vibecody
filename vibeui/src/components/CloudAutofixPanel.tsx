@@ -175,7 +175,8 @@ const CloudAutofixPanel: React.FC = () => {
           <div style={card}>
             <h4 style={{ margin: "0 0 12px" }}>Analyze Pull Request</h4>
             <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
-              <input style={{ ...input, flex: 1 }} placeholder="PR number (e.g., 123)" value={prNumber} onChange={e => setPrNumber(e.target.value)} />
+              <label htmlFor="cloud-autofix-pr" style={{ position: "absolute", left: "-10000px", width: 1, height: 1, overflow: "hidden" }}>PR number</label>
+              <input id="cloud-autofix-pr" style={{ ...input, flex: 1 }} placeholder="PR number (e.g., 123)" value={prNumber} onChange={e => setPrNumber(e.target.value)} />
               <button className="panel-btn" style={btn} onClick={handleAnalyze} disabled={analyzing}>
                 {analyzing ? "Analyzing..." : "Analyze"}
               </button>

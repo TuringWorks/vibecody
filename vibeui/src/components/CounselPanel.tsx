@@ -72,7 +72,7 @@ const S = {
   container: { display: "flex", flex: 1, minHeight: 0, fontFamily: "var(--font-family, system-ui, sans-serif)", color: "var(--text-primary)", background: "var(--bg-primary)" } as const,
   sidebar: { width: 220, borderRight: "1px solid var(--border-color)", padding: 12, overflowY: "auto", flexShrink: 0 } as const,
   main: { flex: 1, padding: 20, overflowY: "auto" } as const,
-  btn: { padding: "8px 16px", border: "none", borderRadius: "var(--radius-sm)", cursor: "pointer", fontSize: "var(--font-size-md)", fontWeight: 600, background: "var(--accent-blue)", color: "var(--btn-primary-fg, #fff)" } as const,
+  btn: { padding: "8px 16px", border: "none", borderRadius: "var(--radius-sm)", cursor: "pointer", fontSize: "var(--font-size-md)", fontWeight: 600, background: "var(--accent-blue)", color: "var(--btn-primary-fg)" } as const,
   btnSecondary: { padding: "6px 12px", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", cursor: "pointer", fontSize: "var(--font-size-base)", background: "transparent", color: "var(--text-primary)" } as const,
   input: { width: "100%", padding: "8px 10px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: "var(--font-size-md)", boxSizing: "border-box" } as const,
   textarea: { width: "100%", padding: "10px 12px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: "var(--font-size-md)", resize: "vertical", minHeight: 80, boxSizing: "border-box", fontFamily: "inherit" } as const,
@@ -472,9 +472,13 @@ export function CounselPanel() {
                           {resp.content}
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <button className="panel-btn" style={S.voteBtn} onClick={() => vote(ri, resp.participant_index, 1)}>&#9650;</button>
+                          <button className="panel-btn" style={S.voteBtn} aria-label="Upvote response" onClick={() => vote(ri, resp.participant_index, 1)}>
+                            <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><polygon points="5,1 9,8 1,8" fill="currentColor"/></svg>
+                          </button>
                           <span style={{ fontSize: "var(--font-size-md)", fontWeight: 600, minWidth: 20, textAlign: "center" }}>{resp.votes}</span>
-                          <button className="panel-btn" style={S.voteBtn} onClick={() => vote(ri, resp.participant_index, -1)}>&#9660;</button>
+                          <button className="panel-btn" style={S.voteBtn} aria-label="Downvote response" onClick={() => vote(ri, resp.participant_index, -1)}>
+                            <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><polygon points="1,2 9,2 5,9" fill="currentColor"/></svg>
+                          </button>
                           {resp.tokens != null && (
                             <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginLeft: 8 }}>{resp.tokens} tok</span>
                           )}

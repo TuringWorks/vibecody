@@ -7652,6 +7652,43 @@ pub async fn delete_session(
     Ok(())
 }
 
+/// Fork a session: copy its trace + sidecars into a new session id whose
+/// filename records the parent. Used by the Session Browser "Fork" action so
+/// users can branch off an existing conversation without losing the original.
+#[tauri::command]
+pub async fn fork_session(
+    workspace: String,
+    session_id: String,
+) -> Result<String, String> {
+    if session_id.contains("..") || session_id.contains('/') || session_id.contains('\\') {
+        return Err("Invalid session ID".to_string());
+    }
+    let dir = vibecli_trace_dir(&workspace);
+    let src_jsonl = dir.join(format!("{}.jsonl", session_id));
+    if !src_jsonl.exists() {
+        return Err(format!("Session {} not found", session_id));
+    }
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let new_id = format!("fork-{}-{}", session_id, ts);
+    let dst_jsonl = dir.join(format!("{}.jsonl", new_id));
+    std::fs::copy(&src_jsonl, &dst_jsonl)
+        .map_err(|e| format!("Failed to copy trace: {}", e))?;
+    let src_messages = dir.join(format!("{}-messages.json", session_id));
+    if src_messages.exists() {
+        let dst_messages = dir.join(format!("{}-messages.json", new_id));
+        let _ = std::fs::copy(&src_messages, &dst_messages);
+    }
+    let src_context = dir.join(format!("{}-context.json", session_id));
+    if src_context.exists() {
+        let dst_context = dir.join(format!("{}-context.json", new_id));
+        let _ = std::fs::copy(&src_context, &dst_context);
+    }
+    Ok(new_id)
+}
+
 // ── Phase 8 (extra) — Hooks Config UI ─────────────────────────────────────────
 
 /// A simplified hook config descriptor for the UI (avoids exposing internal enum variants).
@@ -45605,4 +45642,63 @@ pub async fn revoke_watch_device(device_id: String) -> Result<(), String> {
     } else {
         Err(format!("Revoke failed: {}", resp.status()))
     }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// US-026 — OS-level agent sandbox toggle
+// ══════════════════════════════════════════════════════════════════════════════
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SandboxStatus {
+    /// True when the agent sandbox is active (from config.safety.sandbox).
+    pub enabled: bool,
+    /// True when this host OS has a supported sandbox backend compiled in.
+    pub supported: bool,
+    /// Human-readable backend name: "sandbox-exec", "bwrap", or "unsupported".
+    pub backend: String,
+    /// Optional custom profile path.
+    pub profile_path: Option<String>,
+}
+
+fn detect_backend() -> (&'static str, bool) {
+    if cfg!(target_os = "macos") {
+        ("sandbox-exec", true)
+    } else if cfg!(target_os = "linux") {
+        ("bwrap", true)
+    } else {
+        ("unsupported", false)
+    }
+}
+
+/// Report whether the VibeCLI agent sandbox is enabled and available on this host.
+#[tauri::command]
+pub async fn get_sandbox_status() -> Result<SandboxStatus, String> {
+    let (backend, supported) = detect_backend();
+    let (enabled, profile_path) = match vibecli_cli::config::Config::load() {
+        Ok(cfg) => (cfg.safety.sandbox, cfg.safety.sandbox_profile.clone()),
+        Err(_) => (false, None),
+    };
+    Ok(SandboxStatus {
+        enabled,
+        supported,
+        backend: backend.to_string(),
+        profile_path,
+    })
+}
+
+/// Toggle the VibeCLI agent sandbox. Writes `safety.sandbox` to the global
+/// config file so the next daemon / agent run picks it up.
+#[tauri::command]
+pub async fn set_sandbox_enabled(enabled: bool) -> Result<SandboxStatus, String> {
+    let mut cfg = vibecli_cli::config::Config::load()
+        .map_err(|e| format!("Failed to load config: {e}"))?;
+    cfg.safety.sandbox = enabled;
+    cfg.save().map_err(|e| format!("Failed to save config: {e}"))?;
+    let (backend, supported) = detect_backend();
+    Ok(SandboxStatus {
+        enabled,
+        supported,
+        backend: backend.to_string(),
+        profile_path: cfg.safety.sandbox_profile,
+    })
 }
