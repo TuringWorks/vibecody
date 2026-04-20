@@ -4421,6 +4421,39 @@ mod tests {
                 serde_json::from_str(&body).expect("snapshot deserializes");
             assert_eq!(snap, crate::job_manager::JobManagerMetrics::default());
         }
+
+        // ── GET /memory/stats includes TurboQuant index info ─────────────
+        // Locks the contract added in 3a57b789 so mobile/watch/SDK clients
+        // can rely on these fields being present.
+        #[tokio::test]
+        async fn memory_stats_includes_turboquant_index_fields() {
+            let (app, _tmp) = test_app("tok");
+            let req = Request::builder()
+                .uri("/memory/stats")
+                .header("authorization", "Bearer tok")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::OK);
+            let body = body_string(resp.into_body()).await;
+            let v: serde_json::Value =
+                serde_json::from_str(&body).expect("response is JSON");
+
+            let dim = v.get("embedding_dim").and_then(|x| x.as_u64())
+                .expect("embedding_dim field present and numeric");
+            assert!(dim > 0, "embedding_dim should be positive, got {dim}");
+
+            let ratio = v.get("embedding_compression_ratio").and_then(|x| x.as_f64())
+                .expect("embedding_compression_ratio field present and numeric");
+            assert!(
+                ratio > 1.0,
+                "compression ratio should beat raw f32, got {ratio}"
+            );
+
+            let backend = v.get("embedding_backend").and_then(|x| x.as_str())
+                .expect("embedding_backend field present and string");
+            assert_eq!(backend, "turboquant");
+        }
     }
 
     // ── json_error unit tests (non-async) ────────────────────────────────
