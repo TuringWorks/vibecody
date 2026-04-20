@@ -26,6 +26,11 @@ All notable changes to VibeCody are documented here. This project follows [Seman
 
 - **Bump `rand` 0.8 → 0.9** across `vibecli/vibecli-cli`, `vibeui/src-tauri`, `vibeui/crates/vibe-core`, and `vibeui/crates/vibe-collab` to pick up GHSA-cq8v-f236-94qc (low severity; unsound interaction between `rand::rng()` and custom `log` implementations invoking RNG during reseed). Call sites updated to the 0.9 API (`thread_rng` → `rng`, `.gen::<T>()` → `.random::<T>()`, `.gen_range(…)` → `.random_range(…)`). `p256 0.13` SigningKey::random call-sites now use `p256::elliptic_curve::rand_core::OsRng` to pin the rand_core 0.6 RNG the crate's signature bound requires.
 
+### Added (inference)
+
+- **Mistral.rs backend in `vibe-infer`** (Phase 1 of the Rust-inference runtime plan). New `vibe-infer::mistral::MistralGenerator` implements `TextGenerator` on top of the `mistralrs 0.8` crate (PagedAttention, ISQ, LoRA, OpenAI-compat types, candle 0.10.x transitively). Feature-gated behind `mistralrs` (CPU) / `mistralrs-cuda` / `mistralrs-metal` / `mistralrs-flash-attn`; defaults unchanged so baseline builds stay fast. Smoke example at `examples/generate.rs` exercises Qwen/Qwen2.5-0.5B-Instruct end-to-end.
+- **`KvCacheBackend` trait + `KvCacheMethod` enum in `vibe-infer::kv_cache`** (Phase 2 — experimentation harness). Declarative surface for swapping attention KV-storage strategies: `Fp16 | Fp8 | Int8 | TurboQuant | Custom(name)`. Each variant carries a CLI-flag name and a bytes-per-element estimate so pod-sizing heuristics agree across backends. `KvCacheReport` is the harness record — tokens/sec prefill + decode, resident bytes, optional perplexity / recall@k. No runtime effect yet; the actual KV-cache kernel work lands in Phase 3 as a `mistralrs-quant` contribution.
+
 ---
 
 ## [0.5.5] — 2026-04-17

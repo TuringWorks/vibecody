@@ -141,6 +141,11 @@ impl TextGenerator for StubBackend {
 #[cfg(feature = "candle")]
 pub mod minilm;
 
+#[cfg(feature = "mistralrs")]
+pub mod mistral;
+
+pub mod kv_cache;
+
 #[cfg(test)]
 mod tests {
     use super::*;
