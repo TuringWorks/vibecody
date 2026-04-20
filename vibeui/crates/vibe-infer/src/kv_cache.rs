@@ -68,9 +68,12 @@ impl KvCacheMethod {
             Self::Fp16 => 2.0,
             Self::Fp8 => 1.0,
             Self::Int8 => 1.0,
-            // PolarQuant 2-bit code + QJL 1-bit residual ≈ 3 bits; amortise
-            // the per-group rotation matrix overhead to ~0.375 bytes/element.
-            Self::TurboQuant => 0.375,
+            // PolarQuant 2-bit code + QJL 1-bit residual ≈ 3 bits/dim asymptotic.
+            // Phase 3 measured 0.4375 B/el at head_dim=128 once the per-vector
+            // scalar overhead (4B radius + 4B residual_norm) is amortised:
+            // 3 bits/dim + 8 B / 128 dim = 0.4375 B/el → ~4.57× vs fp16. See
+            // `kv_cache_tq::tests::compression_ratio_matches_spike_finding_for_head_dim_128`.
+            Self::TurboQuant => 0.4375,
             // No way to know for a Custom method — callers should supply the
             // number directly via the benchmark harness.
             Self::Custom(_) => f32::NAN,
@@ -130,8 +133,9 @@ mod tests {
     }
 
     #[test]
-    fn turboquant_estimates_three_eighths_byte_per_element() {
-        assert_eq!(KvCacheMethod::TurboQuant.bytes_per_element(), 0.375);
+    fn turboquant_estimate_matches_phase3_spike() {
+        // 3 bits/dim + 8 B per-vector scalar overhead at head_dim=128.
+        assert_eq!(KvCacheMethod::TurboQuant.bytes_per_element(), 0.4375);
     }
 
     #[test]
@@ -140,13 +144,12 @@ mod tests {
     }
 
     #[test]
-    fn memory_estimate_turboquant_roughly_5x_smaller_than_fp16() {
-        // 32K context × 32 layers × 8 KV heads × 128 head_dim
+    fn memory_estimate_turboquant_4x_to_5x_smaller_than_fp16() {
+        // 32K context × 32 layers × 8 KV heads × 128 head_dim.
+        // Phase-3-measured ratio at head_dim=128: 2.0 / 0.4375 ≈ 4.57×.
         let fp16 = KvCacheReport::estimate_memory(&KvCacheMethod::Fp16, 32_768, 32, 8, 128);
         let tq = KvCacheReport::estimate_memory(&KvCacheMethod::TurboQuant, 32_768, 32, 8, 128);
-        // fp16 = 2.0 B/el, turboquant = 0.375 B/el → 2.0 / 0.375 ≈ 5.33×
         let ratio = (fp16 as f32) / (tq as f32);
-        assert!(ratio > 5.0);
-        assert!(ratio < 6.0);
+        assert!(ratio > 4.4 && ratio < 4.8, "ratio = {ratio:.2}×");
     }
 }

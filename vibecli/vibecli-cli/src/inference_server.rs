@@ -20,6 +20,19 @@ pub enum InferenceBackend {
     Onnxruntime,
     LlamaCpp,
     TrtLlm,
+    /// Mistral.rs — in-process Rust runtime (`vibe-infer::mistral`). No
+    /// sidecar container; runs inside the VibeCLI daemon with PagedAttention
+    /// and in-situ quantization.
+    MistralRs,
+}
+
+impl InferenceBackend {
+    /// True when this backend runs **inside** the VibeCLI daemon (no
+    /// separate container / process). Today only Mistral.rs qualifies;
+    /// callers use this to hide Docker / K8s surfaces that don't apply.
+    pub fn is_in_process(&self) -> bool {
+        matches!(self, InferenceBackend::MistralRs)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -259,6 +272,44 @@ pub fn build_ollama_command(_config: &ServingConfig) -> Vec<String> {
     ]
 }
 
+/// Build the shell command that reproduces the deployment with Mistral.rs's
+/// in-process backend via `vibe-infer`. Emits the `cargo run ... --example
+/// generate` form we document in `vibeui/crates/vibe-infer/examples/generate.rs`.
+///
+/// Mistral.rs does not ship as a Docker sidecar — the emitted command runs
+/// inside whatever VibeCLI is embedded in. Pick the feature flag closest to
+/// the target host: `mistralrs-metal` on Apple Silicon, `mistralrs-cuda` on
+/// NVIDIA, plain `mistralrs` for CPU.
+pub fn build_mistralrs_command(config: &ServingConfig) -> Vec<String> {
+    let feature = if config.gpu_count == 0 {
+        "mistralrs"
+    } else {
+        // Can't tell CUDA vs Metal from ServingConfig alone — default to
+        // `mistralrs` and let the operator flip the flag. We surface this
+        // in the UI where the distinction is available.
+        "mistralrs"
+    };
+    let model = if config.model_path.is_empty() {
+        "Qwen/Qwen2.5-0.5B-Instruct".to_string()
+    } else {
+        config.model_path.clone()
+    };
+    vec![
+        format!("VIBE_INFER_MODEL={model}"),
+        "cargo".to_string(),
+        "run".to_string(),
+        "--release".to_string(),
+        "-p".to_string(),
+        "vibe-infer".to_string(),
+        "--features".to_string(),
+        feature.to_string(),
+        "--example".to_string(),
+        "generate".to_string(),
+        "--".to_string(),
+        "\"Say hi in one word.\"".to_string(),
+    ]
+}
+
 // ---------------------------------------------------------------------------
 // Config generators
 // ---------------------------------------------------------------------------
@@ -370,6 +421,11 @@ pub fn generate_k8s_inference_deployment(config: &ServingConfig, replicas: u32) 
         InferenceBackend::Vllm => "vllm/vllm-openai:latest",
         InferenceBackend::Tgi => "ghcr.io/huggingface/text-generation-inference:latest",
         InferenceBackend::LlamaCpp => "ghcr.io/ggerganov/llama.cpp:server",
+        // Mistral.rs is in-process — there is no standalone image, so we
+        // fall through to the VibeCLI daemon container that already
+        // embeds vibe-infer. Callers who deploy Mistral.rs to K8s use the
+        // daemon image and enable the `mistralrs` feature at build time.
+        InferenceBackend::MistralRs => "vibecody/vibecli-daemon:latest",
         _ => "custom-inference:latest",
     };
     format!(
@@ -593,6 +649,53 @@ mod tests {
         let cmd = build_ollama_command(&default_config());
         assert!(cmd.contains(&"ollama".to_string()));
         assert!(cmd.contains(&"serve".to_string()));
+    }
+
+    #[test]
+    fn test_build_mistralrs_command() {
+        let mut config = default_config();
+        config.model_path = "Qwen/Qwen2.5-3B-Instruct".to_string();
+        let cmd = build_mistralrs_command(&config);
+        assert!(cmd.iter().any(|s| s == "cargo"));
+        assert!(cmd.iter().any(|s| s == "vibe-infer"));
+        assert!(cmd.iter().any(|s| s == "generate"));
+        assert!(cmd.iter().any(|s| s.starts_with("VIBE_INFER_MODEL=")));
+        assert!(cmd.iter().any(|s| s.contains("Qwen2.5-3B-Instruct")));
+    }
+
+    #[test]
+    fn test_build_mistralrs_command_defaults_small_model() {
+        let mut config = default_config();
+        config.model_path = String::new();
+        let cmd = build_mistralrs_command(&config);
+        assert!(
+            cmd.iter().any(|s| s.contains("Qwen2.5-0.5B-Instruct")),
+            "expected small default model when model_path is empty"
+        );
+    }
+
+    #[test]
+    fn test_mistralrs_is_in_process() {
+        assert!(InferenceBackend::MistralRs.is_in_process());
+        assert!(!InferenceBackend::Vllm.is_in_process());
+        assert!(!InferenceBackend::Tgi.is_in_process());
+    }
+
+    #[test]
+    fn test_mistralrs_backend_serialization() {
+        let b = InferenceBackend::MistralRs;
+        let json = serde_json::to_string(&b).unwrap();
+        assert_eq!(json, "\"mistral_rs\"");
+        let back: InferenceBackend = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, InferenceBackend::MistralRs);
+    }
+
+    #[test]
+    fn test_k8s_deployment_uses_daemon_image_for_mistralrs() {
+        let mut config = default_config();
+        config.backend = InferenceBackend::MistralRs;
+        let yaml = generate_k8s_inference_deployment(&config, 1);
+        assert!(yaml.contains("vibecody/vibecli-daemon"));
     }
 
     #[test]

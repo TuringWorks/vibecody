@@ -11,6 +11,11 @@
 //! is ~1 GB) into `~/.cache/huggingface`. Override the model via
 //! `VIBE_INFER_MODEL=<hf-repo-id>`; default is a small model for fast iteration.
 //!
+//! Swap the KV-cache codec with `VIBE_INFER_KV_CACHE=turboquant` to install
+//! the PolarQuant + QJL codec on every attention layer at load time.
+//! `VIBE_INFER_KV_CACHE_SEED` and `VIBE_INFER_KV_CACHE_QJL_DIM` fine-tune the
+//! codec; see `KvCacheMode::from_env` for the full list.
+//!
 //! Without `--features mistralrs` the example refuses to compile — the stub
 //! backend would produce no meaningful output and mislead the smoke-tester.
 

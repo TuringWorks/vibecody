@@ -145,6 +145,10 @@ pub mod minilm;
 pub mod mistral;
 
 pub mod kv_cache;
+pub mod kv_cache_tq;
+
+#[cfg(feature = "mistralrs")]
+pub mod kv_cache_codec;
 
 #[cfg(test)]
 mod tests {

@@ -9,9 +9,26 @@
 import { useState } from "react";
 
 type Tab = "deploy" | "benchmark" | "scaling";
-type Backend = "vllm" | "tgi" | "triton" | "llama.cpp" | "ollama";
+type Backend = "vllm" | "tgi" | "triton" | "llama.cpp" | "ollama" | "mistralrs";
+type MistralAccel = "cpu" | "metal" | "cuda" | "flash-attn";
+/**
+ * KV-cache storage mode for the in-process Mistral.rs backend. `fp16` is
+ * the upstream default (bit-exact). `turboquant` installs the PolarQuant +
+ * QJL codec on every attention layer — values pass through reconstruction
+ * on every write. Surfaces as a `VIBE_INFER_KV_CACHE` env var on the
+ * generated cargo invocation; mistralrs-only.
+ */
+type MistralKvCache = "fp16" | "turboquant";
 type Quantization = "none" | "fp16" | "bf16" | "int8" | "int4" | "gptq" | "awq" | "gguf";
 type LBStrategy = "round-robin" | "least-connections" | "weighted-random";
+
+/**
+ * Backends that run *inside* the VibeCLI daemon — no sidecar container, no
+ * separate port, no K8s deployment required. The Deploy tab hides
+ * Docker/K8s sections when one of these is selected and shows the in-
+ * process `cargo run` invocation instead.
+ */
+const IN_PROCESS_BACKENDS: ReadonlySet<Backend> = new Set(["mistralrs"]);
 
 interface DeployConfig {
   modelPath: string;
@@ -22,6 +39,10 @@ interface DeployConfig {
   quantization: Quantization;
   maxBatchSize: number;
   gpuMemUtil: number;
+  /** Mistral.rs build feature — picks the `--features` flag at compile time. */
+  mistralAccel: MistralAccel;
+  /** Mistral.rs KV-cache storage mode (mistralrs backend only). */
+  mistralKvCache: MistralKvCache;
 }
 
 interface BenchmarkEntry {
@@ -50,10 +71,27 @@ interface LBConfig {
 
 const BACKENDS: { value: Backend; label: string }[] = [
   { value: "vllm", label: "vLLM" },
+  { value: "mistralrs", label: "Mistral.rs (in-process)" },
   { value: "tgi", label: "TGI" },
   { value: "triton", label: "Triton" },
   { value: "llama.cpp", label: "llama.cpp" },
   { value: "ollama", label: "Ollama" },
+];
+
+const MISTRAL_ACCELS: { value: MistralAccel; label: string; feature: string }[] = [
+  { value: "cpu", label: "CPU", feature: "mistralrs" },
+  { value: "metal", label: "Apple Metal", feature: "mistralrs-metal" },
+  { value: "cuda", label: "NVIDIA CUDA", feature: "mistralrs-cuda" },
+  { value: "flash-attn", label: "CUDA + FlashAttn-2", feature: "mistralrs-flash-attn" },
+];
+
+const MISTRAL_KV_CACHES: { value: MistralKvCache; label: string; hint: string }[] = [
+  { value: "fp16", label: "FP16 (default)", hint: "Bit-exact with upstream mistral.rs." },
+  {
+    value: "turboquant",
+    label: "TurboQuant (experimental)",
+    hint: "PolarQuant + QJL reconstruction. Lossy; measures fidelity-vs-savings.",
+  },
 ];
 
 const QUANTIZATIONS: { value: Quantization; label: string }[] = [
@@ -149,16 +187,39 @@ function generateCliCommand(c: DeployConfig): string {
         `OLLAMA_HOST=0.0.0.0:${c.port} ollama serve`,
         `# Then: ollama run ${c.modelPath || "<model>"}`,
       ].join("\n");
+    case "mistralrs": {
+      const feat = MISTRAL_ACCELS.find((a) => a.value === c.mistralAccel)?.feature ?? "mistralrs";
+      const kvCacheLine = c.mistralKvCache !== "fp16"
+        ? `VIBE_INFER_KV_CACHE=${c.mistralKvCache} \\`
+        : null;
+      return [
+        "# Mistral.rs runs in-process via vibe-infer — no sidecar, no port.",
+        `# Smoke-test it against the real weights with the bundled example:`,
+        `VIBE_INFER_MODEL=${c.modelPath || "Qwen/Qwen2.5-0.5B-Instruct"} \\`,
+        kvCacheLine,
+        `  cargo run --release -p vibe-infer --features ${feat} \\`,
+        `  --example generate -- "Say hi in one word."`,
+      ].filter(Boolean).join("\n");
+    }
   }
 }
 
 function generateDockerCompose(c: DeployConfig): string {
+  if (IN_PROCESS_BACKENDS.has(c.backend)) {
+    return [
+      "# Mistral.rs is embedded inside the VibeCLI daemon — there is no",
+      "# standalone docker image. Deploy the daemon itself with the",
+      "# `mistralrs` (or `mistralrs-cuda` / `mistralrs-metal`) feature",
+      "# enabled at build time. See vibeui/crates/vibe-infer/Cargo.toml.",
+    ].join("\n");
+  }
   const image: Record<Backend, string> = {
     vllm: "vllm/vllm-openai:latest",
     tgi: "ghcr.io/huggingface/text-generation-inference:latest",
     triton: "nvcr.io/nvidia/tritonserver:24.01-py3",
     "llama.cpp": "ghcr.io/ggerganov/llama.cpp:server",
     ollama: "ollama/ollama:latest",
+    mistralrs: "vibecody/vibecli-daemon:latest",
   };
 
   const gpuSection = c.gpuCount > 0
@@ -285,6 +346,8 @@ export function InferencePanel() {
     quantization: "none",
     maxBatchSize: 256,
     gpuMemUtil: 90,
+    mistralAccel: "cpu",
+    mistralKvCache: "fp16",
   });
   const [generatedCli, setGeneratedCli] = useState<string | null>(null);
   const [generatedCompose, setGeneratedCompose] = useState<string | null>(null);
@@ -379,7 +442,7 @@ export function InferencePanel() {
               />
             </div>
 
-            {/* Backend + Port */}
+            {/* Backend + (Port | Accelerator) */}
             <div style={fieldRow}>
               <div>
                 <label className="panel-label">Backend</label>
@@ -393,82 +456,121 @@ export function InferencePanel() {
                   ))}
                 </select>
               </div>
-              <div>
-                <label className="panel-label">Port</label>
-                <input
-                  type="number"
-                  value={deploy.port}
-                  onChange={(e) => updateDeploy("port", Number(e.target.value))}
-                  style={inputStyle}
-                />
-              </div>
+              {deploy.backend === "mistralrs" ? (
+                <div>
+                  <label className="panel-label">Accelerator</label>
+                  <select
+                    value={deploy.mistralAccel}
+                    onChange={(e) => updateDeploy("mistralAccel", e.target.value as MistralAccel)}
+                    style={selectStyle}
+                  >
+                    {MISTRAL_ACCELS.map((a) => (
+                      <option key={a.value} value={a.value}>{a.label}</option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <div>
+                  <label className="panel-label">Port</label>
+                  <input
+                    type="number"
+                    value={deploy.port}
+                    onChange={(e) => updateDeploy("port", Number(e.target.value))}
+                    style={inputStyle}
+                  />
+                </div>
+              )}
             </div>
 
-            {/* GPU Count + Tensor Parallel */}
-            <div style={fieldRow}>
-              <div>
-                <label className="panel-label">GPU Count</label>
-                <input
-                  type="number"
-                  min={0}
-                  value={deploy.gpuCount}
-                  onChange={(e) => updateDeploy("gpuCount", Number(e.target.value))}
-                  style={inputStyle}
-                />
-              </div>
-              <div>
-                <label className="panel-label">Tensor Parallel</label>
-                <input
-                  type="number"
-                  min={1}
-                  value={deploy.tensorParallel}
-                  onChange={(e) => updateDeploy("tensorParallel", Number(e.target.value))}
-                  style={inputStyle}
-                />
-              </div>
-            </div>
-
-            {/* Quantization + Max Batch Size */}
-            <div style={fieldRow}>
-              <div>
-                <label className="panel-label">Quantization</label>
+            {/* Mistral.rs KV-cache mode — only surfaced for the in-process
+                backend, where we can actually install the codec on load. */}
+            {deploy.backend === "mistralrs" && (
+              <div style={{ marginBottom: 12 }}>
+                <label className="panel-label">KV Cache</label>
                 <select
-                  value={deploy.quantization}
-                  onChange={(e) => updateDeploy("quantization", e.target.value as Quantization)}
+                  value={deploy.mistralKvCache}
+                  onChange={(e) => updateDeploy("mistralKvCache", e.target.value as MistralKvCache)}
                   style={selectStyle}
                 >
-                  {QUANTIZATIONS.map((q) => (
-                    <option key={q.value} value={q.value}>{q.label}</option>
+                  {MISTRAL_KV_CACHES.map((k) => (
+                    <option key={k.value} value={k.value}>{k.label}</option>
                   ))}
                 </select>
+                <div style={{ fontSize: "var(--font-size-xs)", opacity: 0.6, marginTop: 4 }}>
+                  {MISTRAL_KV_CACHES.find((k) => k.value === deploy.mistralKvCache)?.hint}
+                </div>
               </div>
-              <div>
-                <label className="panel-label">Max Batch Size</label>
-                <input
-                  type="number"
-                  min={1}
-                  value={deploy.maxBatchSize}
-                  onChange={(e) => updateDeploy("maxBatchSize", Number(e.target.value))}
-                  style={inputStyle}
-                />
-              </div>
-            </div>
+            )}
 
-            {/* GPU Memory Utilization slider */}
-            <div style={{ marginBottom: 16 }}>
-              <label className="panel-label">GPU Memory Utilization: {deploy.gpuMemUtil}%</label>
-              <input
-                type="range"
-                min={10}
-                max={100}
-                value={deploy.gpuMemUtil}
-                onChange={(e) => updateDeploy("gpuMemUtil", Number(e.target.value))}
-                style={{ width: "100%", accentColor: "var(--accent-color)" }}
-              />
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--font-size-xs)", opacity: 0.5 }}>
-                <span>10%</span><span>100%</span>
-              </div>
-            </div>
+            {/* GPU / batching fields — hidden for in-process backends (Mistral.rs
+                runs inside the daemon process and picks its device via the
+                selected build feature, not runtime flags). */}
+            {!IN_PROCESS_BACKENDS.has(deploy.backend) && (
+              <>
+                <div style={fieldRow}>
+                  <div>
+                    <label className="panel-label">GPU Count</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={deploy.gpuCount}
+                      onChange={(e) => updateDeploy("gpuCount", Number(e.target.value))}
+                      style={inputStyle}
+                    />
+                  </div>
+                  <div>
+                    <label className="panel-label">Tensor Parallel</label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={deploy.tensorParallel}
+                      onChange={(e) => updateDeploy("tensorParallel", Number(e.target.value))}
+                      style={inputStyle}
+                    />
+                  </div>
+                </div>
+
+                <div style={fieldRow}>
+                  <div>
+                    <label className="panel-label">Quantization</label>
+                    <select
+                      value={deploy.quantization}
+                      onChange={(e) => updateDeploy("quantization", e.target.value as Quantization)}
+                      style={selectStyle}
+                    >
+                      {QUANTIZATIONS.map((q) => (
+                        <option key={q.value} value={q.value}>{q.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="panel-label">Max Batch Size</label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={deploy.maxBatchSize}
+                      onChange={(e) => updateDeploy("maxBatchSize", Number(e.target.value))}
+                      style={inputStyle}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: 16 }}>
+                  <label className="panel-label">GPU Memory Utilization: {deploy.gpuMemUtil}%</label>
+                  <input
+                    type="range"
+                    min={10}
+                    max={100}
+                    value={deploy.gpuMemUtil}
+                    onChange={(e) => updateDeploy("gpuMemUtil", Number(e.target.value))}
+                    style={{ width: "100%", accentColor: "var(--accent-color)" }}
+                  />
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--font-size-xs)", opacity: 0.5 }}>
+                    <span>10%</span><span>100%</span>
+                  </div>
+                </div>
+              </>
+            )}
 
             {/* Action buttons */}
             <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
@@ -478,12 +580,14 @@ export function InferencePanel() {
               >
                 Generate Command
               </button>
-              <button
-                className="panel-btn panel-btn-secondary"
-                onClick={() => { setGeneratedCompose(generateDockerCompose(deploy)); setGeneratedCli(null); }}
-              >
-                Generate Docker Compose
-              </button>
+              {!IN_PROCESS_BACKENDS.has(deploy.backend) && (
+                <button
+                  className="panel-btn panel-btn-secondary"
+                  onClick={() => { setGeneratedCompose(generateDockerCompose(deploy)); setGeneratedCli(null); }}
+                >
+                  Generate Docker Compose
+                </button>
+              )}
             </div>
 
             {/* Output */}

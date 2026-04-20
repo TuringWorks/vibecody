@@ -27,7 +27,15 @@ tokio = { workspace = true, optional = true }
 # OpenAI-compat types). Pulls candle 0.10.x transitively; unifies with the
 # `candle` feature's direct deps. Gated because it's a heavy compile (~2 min
 # cold). Enable one of `mistralrs-cuda` / `mistralrs-metal` for GPU inference.
-mistralrs = { version = "0.8", optional = true }
+#
+# Pinned to the TuringWorks fork on branch `vibe/kv-cache-codec`, which lands
+# the `KvCacheCodec` trait + `PassthroughCodec` default on `SingleCache` /
+# `RotatingCache`. The hook is opt-in (`codec: None` is bit-exact with
+# upstream), so the pin is safe to track on mainline. Bump `rev` when the
+# fork advances; we explicitly pin a SHA rather than tracking a branch so
+# local, CI, and release builds stay reproducible. Upstream base at time of
+# pin: `v0.8.1` (upstream SHA 2d4ba4f1).
+mistralrs = { git = "https://github.com/TuringWorks/mistral.rs", rev = "3d422fdeb2deb361861e02a65991fc4acb4b7be4", optional = true }
 futures = { version = "0.3", optional = true }
 
 [features]
@@ -49,8 +57,14 @@ candle-metal = ["candle", "candle-core?/metal", "candle-nn?/metal", "candle-tran
 
 # Mistral.rs full-LLM text-generation backend. CPU-only by default; add one of
 # the acceleration features below.
+#
+# `candle-core` is a direct dep here (not just transitive) so the
+# `kv_cache_codec` module can use `candle_core::{DType, Device, Tensor,
+# bail!}` by name. Mistralrs already pulls the same 0.10.x series, so
+# cargo unifies to one build.
 mistralrs = [
     "dep:anyhow",
+    "dep:candle-core",
     "dep:mistralrs",
     "dep:tokio",
     "dep:futures",
