@@ -113,6 +113,7 @@ const OpenMemoryPanel: React.FC = () => {
   const [stats, setStats] = useState<{ total_memories: number; total_waypoints: number; total_facts: number; total_drawers: number; sectors: SectorStats[] }>({
     total_memories: 0, total_waypoints: 0, total_facts: 0, total_drawers: 0, sectors: [],
   });
+  const [indexStats, setIndexStats] = useState<{ embedding_dim: number; compression_ratio: number; indexed_count: number; backend: string } | null>(null);
   const [memories, setMemories] = useState<MemoryNode[]>([]);
   const [queryText, setQueryText] = useState('');
   const [queryResults, setQueryResults] = useState<QueryResult[]>([]);
@@ -147,6 +148,15 @@ const OpenMemoryPanel: React.FC = () => {
     }
   }, []);
 
+  const loadIndexStats = useCallback(async () => {
+    try {
+      const s = await invoke<NonNullable<typeof indexStats>>('openmemory_index_stats');
+      if (s) setIndexStats(s);
+    } catch (err) {
+      console.error('Failed to load index stats:', err);
+    }
+  }, []);
+
   const loadMemories = useCallback(async () => {
     try {
       const m = await invoke<MemoryNode[]>('openmemory_list', {
@@ -169,7 +179,8 @@ const OpenMemoryPanel: React.FC = () => {
 
   useEffect(() => {
     loadStats();
-  }, [loadStats]);
+    loadIndexStats();
+  }, [loadStats, loadIndexStats]);
 
   useEffect(() => {
     if (tab === 'memories') loadMemories();
@@ -341,7 +352,7 @@ const OpenMemoryPanel: React.FC = () => {
               Cognitive Memory Engine
             </h3>
             <p style={{ color: 'var(--text-secondary)', fontSize: "var(--font-size-md)", marginBottom: 16 }}>
-              Bio-inspired 5-sector memory with decay, reinforcement, multi-waypoint graph, HNSW vector search, and temporal knowledge graph.
+              Bio-inspired 5-sector memory with decay, reinforcement, multi-waypoint graph, TurboQuant compressed vector search (~3 bits/dim), and temporal knowledge graph.
             </p>
 
             {/* Summary Cards */}
@@ -360,6 +371,32 @@ const OpenMemoryPanel: React.FC = () => {
                 </div>
               ))}
             </div>
+
+            {/* Embedding Index */}
+            {indexStats && (
+              <div style={{
+                background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-sm-alt)', padding: 12, marginBottom: 20,
+                display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12,
+                borderLeft: '3px solid var(--accent-blue)',
+              }}>
+                <div>
+                  <div style={{ fontSize: 'var(--font-size-sm)', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Index</div>
+                  <div style={{ fontSize: 'var(--font-size-md)', fontWeight: 600, color: 'var(--text-primary)' }}>{indexStats.backend}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 'var(--font-size-sm)', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Dim</div>
+                  <div style={{ fontSize: 'var(--font-size-md)', fontWeight: 600, color: 'var(--text-primary)' }}>{indexStats.embedding_dim}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 'var(--font-size-sm)', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Compression</div>
+                  <div style={{ fontSize: 'var(--font-size-md)', fontWeight: 600, color: 'var(--accent-green)' }}>{indexStats.compression_ratio.toFixed(2)}× vs f32</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 'var(--font-size-sm)', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Indexed</div>
+                  <div style={{ fontSize: 'var(--font-size-md)', fontWeight: 600, color: 'var(--text-primary)' }}>{indexStats.indexed_count}</div>
+                </div>
+              </div>
+            )}
 
             {/* Sector Breakdown */}
             <h4 style={{ color: 'var(--text-primary)', marginBottom: 8 }}>Sector Distribution</h4>
