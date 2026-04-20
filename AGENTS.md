@@ -365,7 +365,14 @@ vibeui/src/hooks/
 
 vibeui/src/constants/
 └── ollamaModels.ts      ← Ollama static fallback model list
+
+vibeui/crates/vibe-infer/
+├── src/lib.rs           ← Embedder + TextGenerator traits, StubBackend (default)
+├── src/minilm.rs        ← candle BERT MiniLM-L6-v2 backend (feature: candle)
+└── examples/embed.rs    ← end-to-end candle smoke-test
 ```
+
+`vibe-infer` is the in-process inference layer (see also "Adding / Updating Providers and Models" — it complements the sidecar-based providers in `vibeui/crates/vibe-ai/`). Default builds pull no ML deps; opt in with `--features candle` (or `candle-metal` on macOS for GPU). `LocalEmbeddingEngine` in `vibecli/vibecli-cli/src/open_memory.rs` implements `vibe_infer::Embedder`, so async sites can take `&dyn vibe_infer::Embedder` and swap backends without touching OpenMemory.
 
 ---
 
