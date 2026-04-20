@@ -805,6 +805,11 @@ async fn call_tool(
             let stats = store.sector_stats();
             let mut lines = vec![format!("Memories: {} | Waypoints: {} | Facts: {}",
                 store.total_memories(), store.total_waypoints(), store.total_facts())];
+            lines.push(format!(
+                "Index: TurboQuant {}-dim, ~{:.1}× compression",
+                store.embedding_dim(),
+                store.embedding_compression_ratio(),
+            ));
             for s in &stats {
                 if s.count > 0 {
                     lines.push(format!("  {} — {} memories, avg sal {:.0}%, {} pinned",

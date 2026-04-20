@@ -634,9 +634,14 @@ All three endpoints return `{"ok": false, "error": "memory not found"}` when the
     { "sector": "Procedural", "count": 11, "avg_salience": 0.75, "pinned_count": 2 },
     { "sector": "Reflective", "count":  3, "avg_salience": 0.90, "pinned_count": 3 },
     { "sector": "Emotional",  "count":  1, "avg_salience": 0.45, "pinned_count": 0 }
-  ]
+  ],
+  "embedding_dim": 512,
+  "embedding_compression_ratio": 10.7,
+  "embedding_backend": "turboquant"
 }
 ```
+
+The `embedding_*` fields describe the in-process vector index. `embedding_backend` is currently always `"turboquant"` (~3 bits/dim compressed); clients should treat the field as opaque so future backends (e.g. `"hnsw_f32"`, `"candle_bert"`) can be added without breaking parsers.
 
 **`/memory/benchmark` response:**
 
