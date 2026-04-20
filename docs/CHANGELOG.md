@@ -12,6 +12,9 @@ All notable changes to VibeCody are documented here. This project follows [Seman
 
 ### Added
 
+- **TurboQuant-compressed OpenMemory index** — `CompressedMemoryIndex` replaces the legacy f32 HNSW with a ~3 bits/dim PolarQuant + QJL backing store (≥ 8× smaller on disk, same insert/query API). Ships behind no feature flag — every memory write benefits.
+- **`/memory/stats` exposes index telemetry** — response now includes `embedding_dim`, `embedding_compression_ratio`, and `embedding_backend` (always `"turboquant"` today; treat as opaque). Surfaced in the VibeUI OpenMemory panel, the `openmemory_index_stats` Tauri command, and the MCP `memory_stats` tool.
+- **`vibe-infer` crate** — pure-Rust local inference traits (`Embedder`, `TextGenerator`) with a stub backend by default and an opt-in `candle` feature that loads `sentence-transformers/all-MiniLM-L6-v2` (384-dim, mean-pooled + L2-normalized) via candle 0.10 + hf-hub. `candle-metal` adds Apple GPU acceleration. Default workspace builds pull no ML deps.
 - **Linux arm64 Tauri builds** — VibeUI and VibeCLI App now ship `.deb` / `.AppImage` for `aarch64` Linux via the GitHub-hosted `ubuntu-22.04-arm` runner (free for public repos). Matrix coverage now matches VibeCLI (which already had Linux arm64 via `cross`).
 - **Ubuntu 24.04 forward-compat smoke job** — new `smoke-linux-next` CI job runs `cargo check --release` on `vibeui/src-tauri` and `vibeapp/src-tauri` against webkit2gtk-4.1 on Ubuntu 24.04. `continue-on-error: true` and excluded from `release.needs[]`, so distro-drift regressions surface early but never block a tag. Foundation for the Ubuntu 26.04 LTS roll-forward (2026-04-23).
 
