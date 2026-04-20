@@ -243,6 +243,26 @@ path = "tests/memory_projections_bdd.rs"
 harness = false
 
 [[test]]
+name = "compressed_memory_bdd"
+path = "tests/compressed_memory_bdd.rs"
+harness = false
+
+[[test]]
+name = "embedding_engine_bdd"
+path = "tests/embedding_engine_bdd.rs"
+harness = false
+
+[[test]]
+name = "embedding_dim_migration_bdd"
+path = "tests/embedding_dim_migration_bdd.rs"
+harness = false
+
+[[test]]
+name = "compressed_memory_store_bdd"
+path = "tests/compressed_memory_store_bdd.rs"
+harness = false
+
+[[test]]
 name = "prompt_cache_bdd"
 path = "tests/prompt_cache_bdd.rs"
 harness = false

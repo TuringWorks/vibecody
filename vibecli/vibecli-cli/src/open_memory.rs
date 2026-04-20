@@ -6,7 +6,7 @@
 //! |----------------------------|--------------------|----------------------------|
 //! | Sector classification      | Regex patterns     | TF-IDF + keyword scoring   |
 //! | Associative graph          | Single-link only   | Multi-waypoint (top-K)     |
-//! | Vector index               | Brute-force cosine | HNSW approximate NN        |
+//! | Vector index               | Brute-force cosine | TurboQuant ~3 bits/dim     |
 //! | Encryption at rest         | Not implemented    | AES-256-GCM                |
 //! | Memory consolidation       | None               | Sleep-cycle merging         |
 //! | Cross-session learning     | Basic reinforcement| Decay + reinforce + merge  |
@@ -20,6 +20,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
+
+use crate::compressed_hnsw::CompressedMemoryIndex;
 
 // ─── Memory Sectors ──────────────────────────────────────────────────────────
 
@@ -416,30 +418,44 @@ impl Default for SectorClassifier {
 
 // ─── Local Embedding Engine ──────────────────────────────────────────────────
 
-/// Zero-dependency TF-IDF embedding engine.
-/// Unlike OpenMemory which requires external API calls, this runs fully local.
+/// Zero-dependency feature-hashed TF-IDF embedding engine.
+///
+/// Tokens are hashed into a fixed number of buckets (`embedding_dim`), so
+/// every vector returned by [`Self::embed`] has the same length regardless of
+/// vocabulary growth. This is the only safe shape for cosine similarity once
+/// vectors are persisted, and it is a precondition for swapping the backing
+/// index for a fixed-dim quantizer like `CompressedMemoryIndex`.
 pub struct LocalEmbeddingEngine {
-    /// Vocabulary → index mapping.
-    vocab: HashMap<String, usize>,
-    /// IDF values for each vocab term.
-    idf: Vec<f64>,
-    /// Next available vocab index.
-    next_idx: usize,
-    /// Document frequency counts.
+    /// Number of feature-hash buckets — also the dimension of every emitted vector.
+    embedding_dim: usize,
+    /// Document frequency counts (used for IDF, computed on demand at embed time).
     df: HashMap<String, u64>,
     /// Total documents processed.
     doc_count: u64,
 }
 
 impl LocalEmbeddingEngine {
+    /// Default embedding dimension. Sized to match the compressed-memory BDD
+    /// harness and typical paraphrase-style text models.
+    pub const DEFAULT_DIM: usize = 512;
+
     pub fn new() -> Self {
+        Self::with_dim(Self::DEFAULT_DIM)
+    }
+
+    /// Construct an engine that always emits vectors of length `dim`.
+    pub fn with_dim(dim: usize) -> Self {
+        assert!(dim > 0, "embedding dimension must be > 0");
         Self {
-            vocab: HashMap::new(),
-            idf: Vec::new(),
-            next_idx: 0,
+            embedding_dim: dim,
             df: HashMap::new(),
             doc_count: 0,
         }
+    }
+
+    /// Embedding dimensionality (constant for the life of the engine).
+    pub fn dim(&self) -> usize {
+        self.embedding_dim
     }
 
     /// Tokenize text into lowercase terms.
@@ -451,64 +467,62 @@ impl LocalEmbeddingEngine {
             .collect()
     }
 
-    /// Add a document to the vocabulary (train).
+    /// FNV-1a 64-bit → bucket in `[0, embedding_dim)`. Stable and seedless so
+    /// the same token always maps to the same bucket across runs.
+    fn bucket(&self, token: &str) -> usize {
+        const FNV_OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
+        const FNV_PRIME: u64 = 0x100_0000_01b3;
+        let mut h = FNV_OFFSET;
+        for b in token.as_bytes() {
+            h ^= *b as u64;
+            h = h.wrapping_mul(FNV_PRIME);
+        }
+        (h as usize) % self.embedding_dim
+    }
+
+    /// Add a document to the corpus statistics.
     pub fn add_document(&mut self, text: &str) {
         self.doc_count += 1;
         let tokens = Self::tokenize(text);
         let mut seen = std::collections::HashSet::new();
-
         for token in &tokens {
-            // Add to vocabulary
-            if !self.vocab.contains_key(token) {
-                self.vocab.insert(token.clone(), self.next_idx);
-                self.idf.push(0.0);
-                self.next_idx += 1;
-            }
-            // Count document frequency (once per doc)
             if seen.insert(token.clone()) {
                 *self.df.entry(token.clone()).or_default() += 1;
             }
         }
-
-        // Recompute IDF
-        for (term, &idx) in &self.vocab {
-            let df = self.df.get(term).copied().unwrap_or(1) as f64;
-            self.idf[idx] = ((self.doc_count as f64 + 1.0) / (df + 1.0)).ln() + 1.0;
-        }
     }
 
-    /// Generate a TF-IDF embedding vector for text.
+    /// Generate a fixed-dim, L2-normalized TF-IDF embedding for `text`.
+    /// Always returns a `Vec<f32>` of length [`Self::dim`] (zero-filled if
+    /// `text` has no tokens).
     pub fn embed(&self, text: &str) -> Vec<f32> {
-        if self.vocab.is_empty() {
-            return Vec::new();
+        let mut vec = vec![0.0f32; self.embedding_dim];
+        let tokens = Self::tokenize(text);
+        if tokens.is_empty() {
+            return vec;
         }
 
-        let tokens = Self::tokenize(text);
         let mut tf: HashMap<&str, f64> = HashMap::new();
         for t in &tokens {
             *tf.entry(t.as_str()).or_default() += 1.0;
         }
         let max_tf = tf.values().cloned().fold(0.0_f64, f64::max).max(1.0);
 
-        let dim = self.vocab.len();
-        let mut vec = vec![0.0f32; dim];
-
         for (term, count) in &tf {
-            if let Some(&idx) = self.vocab.get(*term) {
-                let normalized_tf = 0.5 + 0.5 * (*count / max_tf);
-                let idf = self.idf.get(idx).copied().unwrap_or(1.0);
-                vec[idx] = (normalized_tf * idf) as f32;
-            }
+            let normalized_tf = 0.5 + 0.5 * (*count / max_tf);
+            // Unseen tokens use df=0 → highest IDF, matching standard TF-IDF.
+            let df = self.df.get(*term).copied().unwrap_or(0) as f64;
+            let idf = ((self.doc_count as f64 + 1.0) / (df + 1.0)).ln() + 1.0;
+            let bucket = self.bucket(term);
+            vec[bucket] += (normalized_tf * idf) as f32;
         }
 
-        // L2 normalize
         let norm: f32 = vec.iter().map(|x| x * x).sum::<f32>().sqrt();
         if norm > 0.0 {
             for v in &mut vec {
                 *v /= norm;
             }
         }
-
         vec
     }
 
@@ -524,10 +538,6 @@ impl LocalEmbeddingEngine {
             return 0.0;
         }
         dot / (norm_a * norm_b)
-    }
-
-    pub fn vocab_size(&self) -> usize {
-        self.vocab.len()
     }
 }
 
@@ -1171,8 +1181,10 @@ pub struct OpenMemoryStore {
     classifier: SectorClassifier,
     /// Embedding engine.
     embedding_engine: LocalEmbeddingEngine,
-    /// HNSW vector index.
-    hnsw_index: HnswIndex,
+    /// TurboQuant-compressed embedding index (~3 bits/dim, ≥8× smaller than
+    /// raw f32). Drop-in replacement for the legacy `HnswIndex` — same insert
+    /// / query / delete shape, decompresses on the fly during search.
+    hnsw_index: CompressedMemoryIndex,
     /// Optional encryption.
     encryption: Option<MemoryEncryption>,
     /// Scoring weights.
@@ -1205,7 +1217,7 @@ impl OpenMemoryStore {
             temporal_facts: Vec::new(),
             classifier: SectorClassifier::new(),
             embedding_engine: LocalEmbeddingEngine::new(),
-            hnsw_index: HnswIndex::new(),
+            hnsw_index: CompressedMemoryIndex::new(LocalEmbeddingEngine::DEFAULT_DIM),
             encryption: None,
             scoring_weights: ScoringWeights::default(),
             data_dir: data_dir.into(),
@@ -1222,6 +1234,18 @@ impl OpenMemoryStore {
     /// Enable encryption with a passphrase.
     pub fn enable_encryption(&mut self, passphrase: &str) {
         self.encryption = Some(MemoryEncryption::from_passphrase(passphrase));
+    }
+
+    /// Compression ratio of the backing embedding index — raw f32 bytes /
+    /// compressed bytes. With the TurboQuant-backed index this lands ≥ 8×.
+    pub fn embedding_compression_ratio(&self) -> f64 {
+        self.hnsw_index.compression_ratio()
+    }
+
+    /// Dimension of the embedding engine — useful for tooling that needs to
+    /// surface store characteristics (e.g. `/memory stats`).
+    pub fn embedding_dim(&self) -> usize {
+        self.embedding_engine.dim()
     }
 
     /// Set project scope.
@@ -1288,8 +1312,8 @@ impl OpenMemoryStore {
 
         let id = node.id.clone();
 
-        // Insert into HNSW index
-        self.hnsw_index.insert(&id, embedding.clone());
+        // Insert into the compressed embedding index.
+        self.hnsw_index.insert(id.clone(), &embedding, HashMap::new());
 
         // Create multi-waypoint links (top-K most similar)
         let similar = self.hnsw_index.query(&embedding, self.max_waypoints_per_node + 1);
@@ -1305,7 +1329,7 @@ impl OpenMemoryStore {
 
             // Bidirectional
             let wp_rev = Waypoint::new(other_id, &id, *sim, cross_sector);
-            self.waypoints.entry(other_id.clone()).or_default().push(wp_rev);
+            self.waypoints.entry(other_id.to_string()).or_default().push(wp_rev);
         }
 
         // Prune waypoints to max_waypoints_per_node
@@ -1347,7 +1371,7 @@ impl OpenMemoryStore {
         node.encrypted = self.encryption.is_some();
 
         let id = node.id.clone();
-        self.hnsw_index.insert(&id, embedding);
+        self.hnsw_index.insert(id.clone(), &embedding, HashMap::new());
         self.memories.insert(id.clone(), node);
         id
     }
@@ -1384,7 +1408,7 @@ impl OpenMemoryStore {
             for entry in self.waypoints.values_mut() {
                 entry.retain(|wp| wp.dst_id != id);
             }
-            self.hnsw_index.remove(id);
+            self.hnsw_index.delete(id);
             true
         } else {
             false
@@ -1697,7 +1721,7 @@ impl OpenMemoryStore {
             }
 
             // Insert consolidated
-            self.hnsw_index.insert(&new_id, new_embedding);
+            self.hnsw_index.insert(new_id.clone(), &new_embedding, HashMap::new());
             results.push(ConsolidationResult {
                 merged_ids: cluster,
                 consolidated: consolidated.clone(),
@@ -1809,18 +1833,31 @@ impl OpenMemoryStore {
         let user_id = user_id.into();
         let mut store = Self::new(&data_dir, &user_id);
 
-        // Load memories
+        // Load memories. We do this in two passes so the embedding engine has
+        // its full document-frequency stats before any embedding is regenerated:
+        //   pass 1: feed all content to the engine so IDF reflects the corpus;
+        //   pass 2: migrate any embedding whose dimension doesn't match the
+        //           current engine, then index + insert.
+        // Without pass-1 priming, freshly-migrated embeddings would be biased
+        // by partial corpus statistics. Migration is needed because the older
+        // variable-dim TF-IDF wrote vectors whose length tracked vocab size,
+        // and `cosine_similarity` short-circuits to 0.0 on length mismatch —
+        // so a stale embedding silently makes every query miss.
         let memories_path = data_dir.join("memories.json");
         if memories_path.exists() {
             let json = std::fs::read_to_string(&memories_path)?;
             let memories: Vec<MemoryNode> = serde_json::from_str(&json)?;
-            for m in memories {
-                // Rebuild HNSW index
-                if !m.embedding.is_empty() {
-                    store.hnsw_index.insert(&m.id, m.embedding.clone());
-                }
-                // Rebuild embedding engine vocabulary
+            for m in &memories {
                 store.embedding_engine.add_document(&m.content);
+            }
+            let target_dim = store.embedding_engine.dim();
+            for mut m in memories {
+                if m.embedding.len() != target_dim {
+                    m.embedding = store.embedding_engine.embed(&m.content);
+                }
+                if !m.embedding.is_empty() {
+                    store.hnsw_index.insert(m.id.clone(), &m.embedding, HashMap::new());
+                }
                 store.memories.insert(m.id.clone(), m);
             }
         }
@@ -3441,18 +3478,23 @@ mod tests {
 
     #[test]
     fn embedding_engine_empty() {
+        // Feature hashing means there is no "empty vocab" state — every embed
+        // returns a fixed-dim vector. Untrained engines just emit zero-IDF
+        // weights against an empty df table.
         let engine = LocalEmbeddingEngine::new();
         let vec = engine.embed("hello world");
-        assert!(vec.is_empty()); // No vocab yet
+        assert_eq!(vec.len(), engine.dim());
     }
 
     #[test]
     fn embedding_engine_basic() {
-        let mut engine = LocalEmbeddingEngine::new();
+        let mut engine = LocalEmbeddingEngine::with_dim(256);
         engine.add_document("hello world");
         let vec = engine.embed("hello world");
-        assert!(!vec.is_empty());
-        assert_eq!(vec.len(), engine.vocab_size());
+        assert_eq!(vec.len(), 256);
+        // L2-normalized → unit length (within fp tolerance).
+        let norm = vec.iter().map(|x| x * x).sum::<f32>().sqrt();
+        assert!((norm - 1.0).abs() < 1e-3, "norm = {norm}");
     }
 
     #[test]

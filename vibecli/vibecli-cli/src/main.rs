@@ -2080,6 +2080,8 @@ mod quantum_computing;
 #[allow(dead_code)]
 mod auto_research;
 #[allow(dead_code)]
+mod compressed_hnsw;
+#[allow(dead_code)]
 mod open_memory;
 #[allow(dead_code)]
 mod vulnerability_db;

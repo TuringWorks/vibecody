@@ -238,3 +238,6 @@ pub mod watch_auth;
 pub mod watch_session_relay;
 pub mod watch_bridge;
 pub mod session_store;
+
+// TurboQuant-backed embedding index for OpenMemory.
+pub mod compressed_hnsw;
