@@ -8,6 +8,10 @@
 //! allow callers to obtain a fresh token on each request without re-running
 //! the full OAuth flow.
 
+// In-progress scaffolding (Phase A3): provider metadata accessors, error
+// variants, and retention helpers aren't wired into the CLI flow yet.
+#![allow(dead_code)]
+
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 

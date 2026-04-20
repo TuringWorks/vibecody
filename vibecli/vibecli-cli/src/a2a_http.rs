@@ -15,6 +15,9 @@
 //! in-process code (REPL, Tauri, worktree dispatcher) and remote peers both
 //! see the same task queue + event stream.
 
+// In-progress scaffolding (US-002): items here aren't wired into the binary yet.
+#![allow(dead_code)]
+
 use crate::a2a_protocol::{A2aEvent, A2aServer, A2aTask, AgentCard, TaskInput};
 use axum::{
     Json, Router,

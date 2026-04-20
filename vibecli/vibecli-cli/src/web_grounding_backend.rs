@@ -5,6 +5,9 @@
 //! [`SearchResult`] type. Tests can inject a [`StubBackend`] so the engine can be
 //! exercised without network access.
 
+// In-progress scaffolding: backends aren't wired into the runtime engine yet.
+#![allow(dead_code)]
+
 use crate::web_grounding::{ResultContentType, SearchConfig, SearchProvider, SearchResult};
 use async_trait::async_trait;
 use serde::Deserialize;

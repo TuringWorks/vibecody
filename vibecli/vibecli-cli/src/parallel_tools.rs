@@ -5,6 +5,10 @@
 //! higher-level execution layer: sequential preflight → concurrent dispatch →
 //! results emitted in original call order.
 
+// In-progress scaffolding (Phase A2): helpers + test fixtures aren't wired into
+// the agent dispatcher yet.
+#![allow(dead_code)]
+
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use std::thread;

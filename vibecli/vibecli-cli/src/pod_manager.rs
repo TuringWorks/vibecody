@@ -6,6 +6,9 @@
 //! `--tool-call-parser` per model family, supports multiple build variants
 //! (release/nightly/gpt-oss), and auto-assigns models to GPU devices.
 
+// In-progress scaffolding (Phase D1): pod deployment paths aren't wired yet.
+#![allow(dead_code)]
+
 // ---------------------------------------------------------------------------
 // GPU / VRAM
 // ---------------------------------------------------------------------------
