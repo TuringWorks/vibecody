@@ -37,7 +37,7 @@ impl std::fmt::Debug for CmWorld {
 /* ── Helpers ────────────────────────────────────────────────────────────── */
 
 fn random_unit_vec(rng: &mut StdRng, dim: usize) -> Vec<f32> {
-    let mut v: Vec<f32> = (0..dim).map(|_| rng.gen_range(-1.0_f32..1.0)).collect();
+    let mut v: Vec<f32> = (0..dim).map(|_| rng.random_range(-1.0_f32..1.0)).collect();
     let norm = v.iter().map(|x| x * x).sum::<f32>().sqrt();
     if norm > 0.0 {
         for x in &mut v {
@@ -86,7 +86,7 @@ fn given_clustered(w: &mut CmWorld, dim: usize, k_clusters: usize, per_cluster: 
         for j in 0..per_cluster {
             let mut v: Vec<f32> = centroid
                 .iter()
-                .map(|x| x + rng.gen_range(-noise_sigma..noise_sigma))
+                .map(|x| x + rng.random_range(-noise_sigma..noise_sigma))
                 .collect();
             let norm = v.iter().map(|x| x * x).sum::<f32>().sqrt();
             if norm > 0.0 {
@@ -157,12 +157,12 @@ fn when_noisy_seed_queries(w: &mut CmWorld, n_queries: usize, k: usize) {
     let mut hits = 0_usize;
     assert!(!w.truth.is_empty(), "no truth seeded");
     for _ in 0..n_queries {
-        let pick = rng.gen_range(0..w.truth.len());
+        let pick = rng.random_range(0..w.truth.len());
         let target_id = w.truth[pick].0.clone();
         let base = &w.truth[pick].1;
         let mut q: Vec<f32> = base
             .iter()
-            .map(|x| x + rng.gen_range(-query_noise..query_noise))
+            .map(|x| x + rng.random_range(-query_noise..query_noise))
             .collect();
         let norm = q.iter().map(|x| x * x).sum::<f32>().sqrt();
         if norm > 0.0 {

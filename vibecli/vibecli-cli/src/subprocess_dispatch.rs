@@ -104,7 +104,7 @@ pub fn build_responder(psk: &[u8; 32]) -> Result<HandshakeState> {
 pub fn generate_psk() -> [u8; 32] {
     use rand::RngCore;
     let mut buf = [0u8; 32];
-    rand::thread_rng().fill_bytes(&mut buf);
+    rand::rng().fill_bytes(&mut buf);
     buf
 }
 

@@ -60,7 +60,7 @@ fn derive_key(workspace_path: &str) -> [u8; 32] {
 
 fn encrypt(key: &[u8; 32], plaintext: &str) -> Result<Vec<u8>, String> {
     let mut nonce_bytes = [0u8; 12];
-    rand::thread_rng().fill(&mut nonce_bytes);
+    rand::rng().fill(&mut nonce_bytes);
     let cipher = ChaCha20Poly1305::new(key.into());
     let nonce = Nonce::from_slice(&nonce_bytes);
     let mut ct = cipher

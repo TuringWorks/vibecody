@@ -160,7 +160,7 @@ impl WatchAuthManager {
         let secret = match store.get_api_key("default", "watch.jwt_secret").ok().flatten() {
             Some(s) if !s.is_empty() => hex::decode(&s)?,
             _ => {
-                let bytes: Vec<u8> = rand::thread_rng().gen::<[u8; 32]>().to_vec();
+                let bytes: Vec<u8> = rand::rng().random::<[u8; 32]>().to_vec();
                 store.set_api_key("default", "watch.jwt_secret", &hex::encode(&bytes))
                     .map_err(|e| anyhow::anyhow!("{}", e))?;
                 bytes
@@ -173,7 +173,7 @@ impl WatchAuthManager {
 
     /// Generate a single-use registration nonce.  Returns the challenge JSON.
     pub fn issue_challenge(&mut self) -> Result<RegistrationChallenge> {
-        let nonce: String = format!("{:032x}", rand::thread_rng().gen::<u128>());
+        let nonce: String = format!("{:032x}", rand::rng().random::<u128>());
         let now = now_unix();
         let expires_at = now + NONCE_TTL_SECS;
         self.pending_nonces.insert(nonce.clone(), (now, String::new()));
@@ -251,7 +251,7 @@ impl WatchAuthManager {
     pub fn issue_access_token(&self, device_id: &str) -> Result<(String, u64)> {
         let now = now_unix();
         let exp = now + ACCESS_TOKEN_TTL_SECS;
-        let jti: String = format!("{:016x}", rand::thread_rng().gen::<u64>());
+        let jti: String = format!("{:016x}", rand::rng().random::<u64>());
         let claims = WatchClaims {
             sub: device_id.to_string(),
             iat: now,
@@ -266,7 +266,7 @@ impl WatchAuthManager {
     pub fn issue_refresh_token(&self, device_id: &str) -> Result<String> {
         let now = now_unix();
         let exp = now + REFRESH_TOKEN_TTL_SECS;
-        let jti: String = format!("{:016x}", rand::thread_rng().gen::<u64>());
+        let jti: String = format!("{:016x}", rand::rng().random::<u64>());
         let claims = WatchClaims {
             sub: device_id.to_string(),
             iat: now,
@@ -870,7 +870,7 @@ mod tests {
         use p256::ecdsa::{signature::Signer, SigningKey};
 
         // Generate a real P256 keypair
-        let signing_key = SigningKey::random(&mut rand::thread_rng());
+        let signing_key = SigningKey::random(&mut p256::elliptic_curve::rand_core::OsRng);
         let verifying_key = signing_key.verifying_key();
 
         // Swift uses: SHA256.hash(data: msg) → sign the hash directly.
@@ -894,7 +894,7 @@ mod tests {
     fn verify_p256_wrong_message_rejected() {
         use p256::ecdsa::{signature::Signer, SigningKey};
 
-        let signing_key = SigningKey::random(&mut rand::thread_rng());
+        let signing_key = SigningKey::random(&mut p256::elliptic_curve::rand_core::OsRng);
         let verifying_key = signing_key.verifying_key();
 
         let msg = b"correct message";
@@ -911,8 +911,8 @@ mod tests {
     fn verify_p256_wrong_key_rejected() {
         use p256::ecdsa::{signature::Signer, SigningKey};
 
-        let signing_key = SigningKey::random(&mut rand::thread_rng());
-        let wrong_key = SigningKey::random(&mut rand::thread_rng());
+        let signing_key = SigningKey::random(&mut p256::elliptic_curve::rand_core::OsRng);
+        let wrong_key = SigningKey::random(&mut p256::elliptic_curve::rand_core::OsRng);
         let wrong_verifying = wrong_key.verifying_key();
 
         let msg = b"some message";
@@ -934,7 +934,7 @@ mod tests {
         let ch = mgr.issue_challenge().unwrap();
 
         // Simulate what Swift does: generate key, build message, sign
-        let signing_key = SigningKey::random(&mut rand::thread_rng());
+        let signing_key = SigningKey::random(&mut p256::elliptic_curve::rand_core::OsRng);
         let verifying_key = signing_key.verifying_key();
         let device_id = "deadbeef12345678deadbeef12345678";
 

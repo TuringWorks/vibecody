@@ -258,7 +258,7 @@ fn derive_key() -> [u8; 32] {
 
 fn encrypt(key: &[u8; 32], plaintext: &str) -> Result<Vec<u8>, String> {
     let mut nonce = [0u8; 12];
-    rand::thread_rng().fill(&mut nonce);
+    rand::rng().fill(&mut nonce);
     let cipher = ChaCha20Poly1305::new(key.into());
     let mut ct = cipher
         .encrypt(Nonce::from_slice(&nonce), plaintext.as_bytes())
@@ -1142,7 +1142,7 @@ impl JobManager {
             }
         }
 
-        let session_id = format!("{:032x}", rand::thread_rng().gen::<u128>());
+        let session_id = format!("{:032x}", rand::rng().random::<u128>());
         let now = now_ms();
         let record = JobRecord {
             session_id: session_id.clone(),

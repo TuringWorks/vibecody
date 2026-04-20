@@ -1446,7 +1446,7 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
             .and_then(|s| s.get_api_key("default", "watch.machine_id").ok().flatten())
             .filter(|s| !s.is_empty())
             .unwrap_or_else(|| {
-                let id = format!("{:016x}", rand::thread_rng().gen::<u64>());
+                let id = format!("{:016x}", rand::rng().random::<u64>());
                 if let Ok(s) = crate::profile_store::ProfileStore::new() {
                     let _ = s.set_api_key("default", "watch.machine_id", &id);
                 }
@@ -1549,7 +1549,7 @@ pub async fn serve(
     }
 
     // Generate a random bearer token for this daemon session
-    let api_token = format!("{:032x}", rand::thread_rng().gen::<u128>());
+    let api_token = format!("{:032x}", rand::rng().random::<u128>());
 
     let collab_server = Arc::new(CollabServer::new(20));
 
@@ -1712,7 +1712,7 @@ pub async fn serve(
     // the mobile app discovers this daemon on any LAN without special flags.
     {
         let machine_id = std::env::var("VIBECLI_MACHINE_ID")
-            .unwrap_or_else(|_| format!("{:016x}", rand::thread_rng().gen::<u64>()));
+            .unwrap_or_else(|_| format!("{:016x}", rand::rng().random::<u64>()));
         crate::mdns_announce::start(port, machine_id);
         eprintln!("[vibecli serve] mDNS announcing _vibecli._tcp.local. on port {port}");
     }
@@ -1743,7 +1743,7 @@ async fn create_collab_room(
 ) -> Json<RoomInfo> {
     let room_id = req
         .room_id
-        .unwrap_or_else(|| format!("{:016x}", rand::thread_rng().gen::<u64>()));
+        .unwrap_or_else(|| format!("{:016x}", rand::rng().random::<u64>()));
     let room = state.collab_server.get_or_create_room(&room_id);
     let peer_count = room.peer_count().await;
     Json(RoomInfo { room_id, peer_count })
@@ -1800,7 +1800,7 @@ async fn handle_collab_ws(
 ) {
 
     // Generate a peer ID and add to room
-    let peer_id = format!("{:016x}", rand::thread_rng().gen::<u64>());
+    let peer_id = format!("{:016x}", rand::rng().random::<u64>());
     let peer = match room.add_peer(peer_id.clone(), name).await {
         Ok(p) => p,
         Err(e) => {

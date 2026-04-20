@@ -53,7 +53,7 @@ fn a_fresh_manager(world: &mut P256World) {
 
 #[given("a P256 signing key is generated")]
 fn generate_p256_key(world: &mut P256World) {
-    world.signing_key = Some(SigningKey::random(&mut rand::thread_rng()));
+    world.signing_key = Some(SigningKey::random(&mut p256::elliptic_curve::rand_core::OsRng));
 }
 
 #[given("a registration challenge is issued")]

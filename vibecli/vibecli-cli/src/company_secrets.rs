@@ -49,7 +49,7 @@ fn legacy_key_path(company_id: &str) -> std::path::PathBuf {
 
 fn generate_key() -> [u8; 32] {
     let mut key = [0u8; 32];
-    rand::thread_rng().fill(&mut key[..]);
+    rand::rng().fill(&mut key[..]);
     key
 }
 
@@ -230,7 +230,7 @@ impl<'a> SecretStore<'a> {
     ) -> Result<CompanySecret> {
         let master_key = get_or_create_master_key(company_id)?;
         let mut nonce = [0u8; 16];
-        rand::thread_rng().fill(&mut nonce[..]);
+        rand::rng().fill(&mut nonce[..]);
         let ciphertext = encrypt(&master_key, &nonce, key_name, plaintext.as_bytes());
         let enc_b64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &ciphertext);
         let nonce_hex = hex::encode(nonce);

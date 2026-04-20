@@ -65,7 +65,7 @@ pub struct PkceChallengeV2 {
 impl PkceChallengeV2 {
     pub fn generate() -> Self {
         let mut bytes = [0u8; 32];
-        rand::rngs::OsRng.fill_bytes(&mut bytes);
+        rand::rng().fill_bytes(&mut bytes);
         let verifier = B64_URL_NO_PAD.encode(bytes);
         let challenge = Self::s256(&verifier);
         Self {

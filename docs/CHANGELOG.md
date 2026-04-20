@@ -22,6 +22,10 @@ All notable changes to VibeCody are documented here. This project follows [Seman
 
 - **Explicit macOS 12.0 floor** — both `vibeui/src-tauri/tauri.conf.json` and `vibeapp/src-tauri/tauri.conf.json` now set `bundle.macOS.minimumSystemVersion = "12.0"` (was the Tauri 2 default of 10.13). Matches Apple's current supported-OS cutoff.
 
+### Security
+
+- **Bump `rand` 0.8 → 0.9** across `vibecli/vibecli-cli`, `vibeui/src-tauri`, `vibeui/crates/vibe-core`, and `vibeui/crates/vibe-collab` to pick up GHSA-cq8v-f236-94qc (low severity; unsound interaction between `rand::rng()` and custom `log` implementations invoking RNG during reseed). Call sites updated to the 0.9 API (`thread_rng` → `rng`, `.gen::<T>()` → `.random::<T>()`, `.gen_range(…)` → `.random_range(…)`). `p256 0.13` SigningKey::random call-sites now use `p256::elliptic_curve::rand_core::OsRng` to pin the rand_core 0.6 RNG the crate's signature bound requires.
+
 ---
 
 ## [0.5.5] — 2026-04-17

@@ -51,7 +51,7 @@ impl BackoffStrategy {
                 let secs = base.as_secs_f64() * multiplier.powi(attempt as i32);
                 let capped = secs.min(max.as_secs_f64());
                 // Deterministic jitter: use attempt as seed substitute.
-                // In production this would use rand::thread_rng().
+                // In production this would use rand::rng().
                 let jitter_factor = simple_jitter(attempt);
                 Duration::from_secs_f64(capped * jitter_factor)
             }
