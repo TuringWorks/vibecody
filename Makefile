@@ -47,15 +47,38 @@ doctor: ## Verify development environment is ready
 	@printf "  %-20s" "Git:" && (git --version 2>/dev/null || echo "MISSING")
 	@printf "  %-20s" "Ollama:" && (ollama --version 2>/dev/null || echo "not installed (optional)")
 	@printf "  %-20s" "Docker:" && (docker --version 2>/dev/null || echo "not installed (optional)")
+	@printf "  %-20s" "JDK (watch-wear):" && \
+		if [ -f vibewatch/VibeCodyWear/.java-version ]; then \
+			pin=$$(cat vibewatch/VibeCodyWear/.java-version | tr -d '[:space:]'); \
+			pin_major=$$(echo "$$pin" | cut -d. -f1); \
+			if [ "$$pin_major" = "17" ] || [ "$$pin_major" = "21" ]; then \
+				echo "pinned to $$pin via .java-version (compatible with AGP 8.7.3)"; \
+			else \
+				echo "pinned to $$pin — INCOMPATIBLE with AGP 8.7.3; run: cd vibewatch/VibeCodyWear && jenv local 21"; \
+			fi; \
+		else \
+			ver=$$(java -version 2>&1 | awk -F'"' '/version/{print $$2}' | cut -d. -f1); \
+			if [ -z "$$ver" ]; then \
+				echo "MISSING — install: brew install openjdk@21 && cd vibewatch/VibeCodyWear && jenv local 21"; \
+			elif [ "$$ver" = "17" ] || [ "$$ver" = "21" ]; then \
+				echo "no pin; current java is $$ver (compatible)"; \
+			else \
+				echo "no pin; current java is $$ver — INCOMPATIBLE with AGP 8.7.3; run: cd vibewatch/VibeCodyWear && jenv local 21"; \
+			fi; \
+		fi
+	@printf "  %-20s" "Flutter:" && (flutter --version 2>/dev/null | head -1 || echo "not installed (needed for mobile-*)")
 	@echo ""
 	@echo "Required: Rust, Cargo, Node.js, npm, Git"
-	@echo "Optional: Ollama (local AI), Docker (container sandbox)"
+	@echo "Optional: Ollama (local AI), Docker (container sandbox), JDK 17/21 (watch-wear), Flutter (mobile-*)"
 ifeq ($(shell uname -s),Linux)
 	@echo ""
 	@echo "Linux — checking Tauri system dependencies..."
 	@for dep in libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev; do \
 		printf "  %-36s" "$$dep:" && (dpkg -s $$dep 2>/dev/null | grep -q "ok installed" && echo "OK" || echo "MISSING — run: make setup"); \
 	done
+endif
+ifeq ($(shell uname -s),Darwin)
+	@printf "  %-20s" "Xcode:" && (xcodebuild -version 2>/dev/null | head -1 || echo "not installed (needed for watch-ios + mobile-ios)")
 endif
 
 # ── Development ────────────────────────────────────────────────────────────────

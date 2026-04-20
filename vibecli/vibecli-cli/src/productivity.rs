@@ -169,6 +169,49 @@ impl NotionClient {
         if content.is_empty() { content = "(empty page)".to_string(); }
         Ok(content)
     }
+
+    async fn append_text(&self, page_id: &str, text: &str) -> Result<()> {
+        let children: Vec<serde_json::Value> = text
+            .split('\n')
+            .map(|line| serde_json::json!({
+                "object": "block",
+                "type": "paragraph",
+                "paragraph": {
+                    "rich_text": [{
+                        "type": "text",
+                        "text": { "content": line }
+                    }]
+                }
+            }))
+            .collect();
+        let payload = serde_json::json!({ "children": children });
+        let api_key = self.api_key.clone();
+        let client = self.client.clone();
+        let url = format!("{}/blocks/{}/children", NOTION_API, page_id);
+        let payload_c = payload.clone();
+        let resp = retry_async(&RetryConfig::default(), "notion-append", || {
+            let client = client.clone();
+            let api_key = api_key.clone();
+            let url = url.clone();
+            let payload = payload_c.clone();
+            async move {
+                client.patch(&url)
+                    .header("Authorization", format!("Bearer {}", api_key))
+                    .header("Notion-Version", "2022-06-28")
+                    .json(&payload)
+                    .send()
+                    .await
+                    .map_err(Into::into)
+            }
+        }).await?;
+
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let body = resp.text().await.unwrap_or_default();
+            anyhow::bail!("Notion append failed ({}): {}", status, body);
+        }
+        Ok(())
+    }
 }
 
 async fn handle_notion(args: &str) -> String {
@@ -262,7 +305,22 @@ impl TodoistClient {
     }
 
     async fn add_task(&self, content: &str) -> Result<TodoistTask> {
-        let payload = serde_json::json!({ "content": content });
+        self.add_task_full(content, None, None).await
+    }
+
+    async fn add_task_full(
+        &self,
+        content: &str,
+        due_string: Option<&str>,
+        priority: Option<u8>,
+    ) -> Result<TodoistTask> {
+        let mut payload = serde_json::json!({ "content": content });
+        if let Some(d) = due_string.filter(|s| !s.is_empty()) {
+            payload["due_string"] = serde_json::Value::String(d.to_string());
+        }
+        if let Some(p) = priority.filter(|p| (1..=4).contains(p)) {
+            payload["priority"] = serde_json::Value::Number(p.into());
+        }
         let api_key = self.api_key.clone();
         let client = self.client.clone();
         let resp = retry_async(&RetryConfig::default(), "todoist-add", || {
@@ -570,6 +628,214 @@ pub async fn handle_productivity_command(args: &str) -> String {
               /notion search|page     — Notion integration\n\
               /todo list|add|complete — Todoist task management\n\
               /jira list|create       — Jira issue tracking\n".to_string(),
+    }
+}
+
+// ── UI wrapper API (for typed Tauri commands) ───────────────────────────────
+
+use crate::email_client::ProviderStatus;
+
+// Notion
+pub async fn ui_notion_search(query: &str) -> std::result::Result<Vec<NotionPage>, String> {
+    let c = NotionClient::from_env_or_config()
+        .ok_or_else(|| "Notion not configured. Set NOTION_API_KEY.".to_string())?;
+    c.search(query).await.map_err(|e| e.to_string())
+}
+
+pub async fn ui_notion_page(id: &str) -> std::result::Result<String, String> {
+    let c = NotionClient::from_env_or_config()
+        .ok_or_else(|| "Notion not configured. Set NOTION_API_KEY.".to_string())?;
+    c.get_page(id).await.map_err(|e| e.to_string())
+}
+
+pub async fn ui_notion_append(page_id: &str, text: &str) -> std::result::Result<(), String> {
+    let c = NotionClient::from_env_or_config()
+        .ok_or_else(|| "Notion not configured. Set NOTION_API_KEY.".to_string())?;
+    c.append_text(page_id, text).await.map_err(|e| e.to_string())
+}
+
+pub async fn ui_notion_status() -> ProviderStatus {
+    let Some(c) = NotionClient::from_env_or_config() else {
+        return ProviderStatus {
+            connected: false,
+            provider: None,
+            account: None,
+            message: Some("Not signed in".to_string()),
+        };
+    };
+    // Probe /users/me to confirm the token works and fetch an identifier.
+    let resp = c
+        .client
+        .get(format!("{}/users/me", NOTION_API))
+        .header("Authorization", format!("Bearer {}", c.api_key))
+        .header("Notion-Version", "2022-06-28")
+        .send()
+        .await;
+    match resp {
+        Ok(r) if r.status().is_success() => {
+            let v: serde_json::Value = r.json().await.unwrap_or_default();
+            let name = v["name"]
+                .as_str()
+                .or_else(|| v["bot"]["owner"]["user"]["name"].as_str())
+                .map(String::from);
+            ProviderStatus {
+                connected: true,
+                provider: Some("notion".to_string()),
+                account: name,
+                message: None,
+            }
+        }
+        Ok(r) => ProviderStatus {
+            connected: false,
+            provider: Some("notion".to_string()),
+            account: None,
+            message: Some(format!("HTTP {}", r.status())),
+        },
+        Err(e) => ProviderStatus {
+            connected: false,
+            provider: Some("notion".to_string()),
+            account: None,
+            message: Some(e.to_string()),
+        },
+    }
+}
+
+// Todoist
+pub async fn ui_todoist_list(filter: &str) -> std::result::Result<Vec<TodoistTask>, String> {
+    let c = TodoistClient::from_env_or_config()
+        .ok_or_else(|| "Todoist not configured. Set TODOIST_API_KEY.".to_string())?;
+    c.list_tasks(filter).await.map_err(|e| e.to_string())
+}
+
+pub async fn ui_todoist_add(content: &str) -> std::result::Result<TodoistTask, String> {
+    let c = TodoistClient::from_env_or_config()
+        .ok_or_else(|| "Todoist not configured. Set TODOIST_API_KEY.".to_string())?;
+    c.add_task(content).await.map_err(|e| e.to_string())
+}
+
+pub async fn ui_todoist_add_full(
+    content: &str,
+    due: Option<&str>,
+    priority: Option<u8>,
+) -> std::result::Result<TodoistTask, String> {
+    let c = TodoistClient::from_env_or_config()
+        .ok_or_else(|| "Todoist not configured. Set TODOIST_API_KEY.".to_string())?;
+    c.add_task_full(content, due, priority)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+pub async fn ui_todoist_close(id: &str) -> std::result::Result<(), String> {
+    let c = TodoistClient::from_env_or_config()
+        .ok_or_else(|| "Todoist not configured. Set TODOIST_API_KEY.".to_string())?;
+    c.close_task(id).await.map_err(|e| e.to_string())
+}
+
+pub async fn ui_todoist_status() -> ProviderStatus {
+    let Some(c) = TodoistClient::from_env_or_config() else {
+        return ProviderStatus {
+            connected: false,
+            provider: None,
+            account: None,
+            message: Some("Not signed in".to_string()),
+        };
+    };
+    // Probe by listing projects (small payload).
+    let resp = c
+        .client
+        .get(format!("{}/projects", TODOIST_API))
+        .header("Authorization", format!("Bearer {}", c.api_key))
+        .send()
+        .await;
+    match resp {
+        Ok(r) if r.status().is_success() => ProviderStatus {
+            connected: true,
+            provider: Some("todoist".to_string()),
+            account: None,
+            message: None,
+        },
+        Ok(r) => ProviderStatus {
+            connected: false,
+            provider: Some("todoist".to_string()),
+            account: None,
+            message: Some(format!("HTTP {}", r.status())),
+        },
+        Err(e) => ProviderStatus {
+            connected: false,
+            provider: Some("todoist".to_string()),
+            account: None,
+            message: Some(e.to_string()),
+        },
+    }
+}
+
+// Jira
+pub async fn ui_jira_list() -> std::result::Result<Vec<JiraIssue>, String> {
+    let c = JiraClient::from_env_or_config().ok_or_else(|| {
+        "Jira not configured. Set JIRA_URL, JIRA_EMAIL, JIRA_API_TOKEN.".to_string()
+    })?;
+    c.list_issues().await.map_err(|e| e.to_string())
+}
+
+pub async fn ui_jira_create(
+    project: &str,
+    summary: &str,
+) -> std::result::Result<JiraIssue, String> {
+    let c = JiraClient::from_env_or_config().ok_or_else(|| {
+        "Jira not configured. Set JIRA_URL, JIRA_EMAIL, JIRA_API_TOKEN.".to_string()
+    })?;
+    c.create_issue(project, summary).await.map_err(|e| e.to_string())
+}
+
+pub async fn ui_jira_comment(key: &str, text: &str) -> std::result::Result<(), String> {
+    let c = JiraClient::from_env_or_config().ok_or_else(|| {
+        "Jira not configured. Set JIRA_URL, JIRA_EMAIL, JIRA_API_TOKEN.".to_string()
+    })?;
+    c.add_comment(key, text).await.map_err(|e| e.to_string())
+}
+
+pub async fn ui_jira_status() -> ProviderStatus {
+    let Some(c) = JiraClient::from_env_or_config() else {
+        return ProviderStatus {
+            connected: false,
+            provider: None,
+            account: None,
+            message: Some("Not signed in".to_string()),
+        };
+    };
+    let url = format!("{}/rest/api/3/myself", c.base_url);
+    let resp = c
+        .client
+        .get(&url)
+        .header("Authorization", format!("Basic {}", c.auth))
+        .send()
+        .await;
+    match resp {
+        Ok(r) if r.status().is_success() => {
+            let v: serde_json::Value = r.json().await.unwrap_or_default();
+            let account = v["displayName"]
+                .as_str()
+                .or_else(|| v["emailAddress"].as_str())
+                .map(String::from);
+            ProviderStatus {
+                connected: true,
+                provider: Some("jira".to_string()),
+                account,
+                message: None,
+            }
+        }
+        Ok(r) => ProviderStatus {
+            connected: false,
+            provider: Some("jira".to_string()),
+            account: None,
+            message: Some(format!("HTTP {}", r.status())),
+        },
+        Err(e) => ProviderStatus {
+            connected: false,
+            provider: Some("jira".to_string()),
+            account: None,
+            message: Some(e.to_string()),
+        },
     }
 }
 

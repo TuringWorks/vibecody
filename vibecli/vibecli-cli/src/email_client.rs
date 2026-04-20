@@ -58,6 +58,30 @@ pub struct EmailLabel {
     pub message_count: Option<u64>,
 }
 
+/// Full email detail for the UI reader pane.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EmailBody {
+    pub id: String,
+    pub from: String,
+    pub to: String,
+    pub cc: String,
+    pub subject: String,
+    pub date: String,
+    pub body_text: String,
+    pub body_html: String,
+    pub is_read: bool,
+    pub labels: Vec<String>,
+}
+
+/// Auth/config status for the provider status strip (shared across productivity tabs).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProviderStatus {
+    pub connected: bool,
+    pub provider: Option<String>,
+    pub account: Option<String>,
+    pub message: Option<String>,
+}
+
 // ── Client ───────────────────────────────────────────────────────────────────
 
 pub struct EmailClient {
@@ -130,6 +154,36 @@ impl EmailClient {
             return Err(anyhow!("Email API error: {} {}", resp.status(), resp.text().await.unwrap_or_default()));
         }
         resp.json().await.map_err(Into::into)
+    }
+
+    async fn patch_json(&self, url: &str, body: serde_json::Value) -> Result<serde_json::Value> {
+        let auth = self.auth_header();
+        let resp = retry_async(&RetryConfig::default(), "email-api-patch", || {
+            let client = self.client.clone();
+            let url = url.to_string();
+            let auth = auth.clone();
+            let body = body.clone();
+            async move {
+                client.patch(&url)
+                    .header("Authorization", &auth)
+                    .header("Content-Type", "application/json")
+                    .json(&body)
+                    .send()
+                    .await
+                    .map_err(Into::into)
+            }
+        }).await?;
+
+        if !resp.status().is_success() {
+            return Err(anyhow!("Email API error: {} {}", resp.status(), resp.text().await.unwrap_or_default()));
+        }
+        // PATCH may return empty body on Outlook; tolerate.
+        let text = resp.text().await.unwrap_or_default();
+        if text.trim().is_empty() {
+            Ok(serde_json::Value::Null)
+        } else {
+            serde_json::from_str(&text).map_err(Into::into)
+        }
     }
 
     async fn post_json(&self, url: &str, body: serde_json::Value) -> Result<serde_json::Value> {
@@ -262,6 +316,131 @@ impl EmailClient {
         }
     }
 
+    /// Typed variant of `read_message` — returns structured `EmailBody` for UI reader panes.
+    pub async fn read_message_typed(&self, id: &str) -> Result<EmailBody> {
+        match self.provider {
+            EmailProvider::Gmail => {
+                let url = format!("{}/messages/{}?format=full", GMAIL_API, id);
+                let data = self.get_json(&url).await?;
+                let headers = data["payload"]["headers"].as_array();
+                let get_hdr = |name: &str| -> String {
+                    headers
+                        .and_then(|h| h.iter().find(|v| v["name"].as_str() == Some(name)))
+                        .and_then(|v| v["value"].as_str())
+                        .unwrap_or("")
+                        .to_string()
+                };
+                let (body_text, body_html) = extract_gmail_body(&data["payload"]);
+                let labels: Vec<String> = data["labelIds"]
+                    .as_array()
+                    .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                    .unwrap_or_default();
+                let is_read = !labels.contains(&"UNREAD".to_string());
+                let text_fallback = if body_text.is_empty() && body_html.is_empty() {
+                    data["snippet"].as_str().unwrap_or("").to_string()
+                } else {
+                    body_text
+                };
+                Ok(EmailBody {
+                    id: id.to_string(),
+                    from: get_hdr("From"),
+                    to: get_hdr("To"),
+                    cc: get_hdr("Cc"),
+                    subject: get_hdr("Subject"),
+                    date: get_hdr("Date"),
+                    body_text: text_fallback,
+                    body_html,
+                    is_read,
+                    labels,
+                })
+            }
+            EmailProvider::Outlook => {
+                let url = format!("{}/messages/{}", GRAPH_API, id);
+                let data = self.get_json(&url).await?;
+                let content_type = data["body"]["contentType"].as_str().unwrap_or("text");
+                let body_raw = data["body"]["content"].as_str().unwrap_or("").to_string();
+                let (body_text, body_html) = if content_type.eq_ignore_ascii_case("html") {
+                    (String::new(), body_raw)
+                } else {
+                    (body_raw, String::new())
+                };
+                let to = data["toRecipients"]
+                    .as_array()
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|r| r["emailAddress"]["address"].as_str())
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    })
+                    .unwrap_or_default();
+                let cc = data["ccRecipients"]
+                    .as_array()
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|r| r["emailAddress"]["address"].as_str())
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    })
+                    .unwrap_or_default();
+                Ok(EmailBody {
+                    id: id.to_string(),
+                    from: data["from"]["emailAddress"]["address"].as_str().unwrap_or("").to_string(),
+                    to,
+                    cc,
+                    subject: data["subject"].as_str().unwrap_or("").to_string(),
+                    date: data["receivedDateTime"].as_str().unwrap_or("").to_string(),
+                    body_text,
+                    body_html,
+                    is_read: data["isRead"].as_bool().unwrap_or(true),
+                    labels: data["categories"]
+                        .as_array()
+                        .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                        .unwrap_or_default(),
+                })
+            }
+        }
+    }
+
+    /// Archive (move out of inbox). Gmail: remove INBOX label. Outlook: move to Archive folder.
+    pub async fn archive_message(&self, id: &str) -> Result<()> {
+        match self.provider {
+            EmailProvider::Gmail => {
+                let url = format!("{}/messages/{}/modify", GMAIL_API, id);
+                let body = serde_json::json!({ "removeLabelIds": ["INBOX"] });
+                self.post_json(&url, body).await?;
+                Ok(())
+            }
+            EmailProvider::Outlook => {
+                let url = format!("{}/messages/{}/move", GRAPH_API, id);
+                let body = serde_json::json!({ "destinationId": "archive" });
+                self.post_json(&url, body).await?;
+                Ok(())
+            }
+        }
+    }
+
+    /// Mark read/unread.
+    pub async fn mark_read(&self, id: &str, read: bool) -> Result<()> {
+        match self.provider {
+            EmailProvider::Gmail => {
+                let url = format!("{}/messages/{}/modify", GMAIL_API, id);
+                let body = if read {
+                    serde_json::json!({ "removeLabelIds": ["UNREAD"] })
+                } else {
+                    serde_json::json!({ "addLabelIds": ["UNREAD"] })
+                };
+                self.post_json(&url, body).await?;
+                Ok(())
+            }
+            EmailProvider::Outlook => {
+                let url = format!("{}/messages/{}", GRAPH_API, id);
+                let body = serde_json::json!({ "isRead": read });
+                self.patch_json(&url, body).await?;
+                Ok(())
+            }
+        }
+    }
+
     pub async fn send_message(&self, to: &str, subject: &str, body: &str) -> Result<String> {
         match self.provider {
             EmailProvider::Gmail => {
@@ -320,6 +499,128 @@ impl EmailClient {
 fn base64_url_encode(data: &[u8]) -> String {
     use base64::Engine;
     base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(data)
+}
+
+fn base64_url_decode(s: &str) -> Option<Vec<u8>> {
+    use base64::Engine;
+    // Gmail uses URL-safe base64 without padding
+    base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .decode(s.trim())
+        .or_else(|_| base64::engine::general_purpose::URL_SAFE.decode(s.trim()))
+        .ok()
+}
+
+/// Walk a Gmail MIME payload tree and pull out (text_plain, text_html) bodies.
+/// Returns the first text/plain and text/html parts found (decoded UTF-8).
+fn extract_gmail_body(payload: &serde_json::Value) -> (String, String) {
+    let mut text = String::new();
+    let mut html = String::new();
+    walk_gmail_payload(payload, &mut text, &mut html);
+    (text, html)
+}
+
+fn walk_gmail_payload(part: &serde_json::Value, text: &mut String, html: &mut String) {
+    let mime = part["mimeType"].as_str().unwrap_or("");
+    if let Some(data) = part["body"]["data"].as_str() {
+        if let Some(bytes) = base64_url_decode(data) {
+            let decoded = String::from_utf8_lossy(&bytes).into_owned();
+            if mime == "text/plain" && text.is_empty() {
+                *text = decoded;
+            } else if mime == "text/html" && html.is_empty() {
+                *html = decoded;
+            }
+        }
+    }
+    if let Some(parts) = part["parts"].as_array() {
+        for child in parts {
+            walk_gmail_payload(child, text, html);
+            if !text.is_empty() && !html.is_empty() {
+                return;
+            }
+        }
+    }
+}
+
+// ── UI wrapper API ───────────────────────────────────────────────────────────
+//
+// These functions are called by the Tauri command layer. They handle the
+// "not configured" case (returning `Err` with a short message) so the UI
+// can show a clean "Sign in" strip instead of a raw text dump.
+
+fn require_client() -> std::result::Result<EmailClient, String> {
+    EmailClient::from_env_or_config().ok_or_else(|| {
+        "Email not configured. Set GMAIL_ACCESS_TOKEN / OUTLOOK_ACCESS_TOKEN, \
+         or add [email] to ~/.vibecli/config.toml."
+            .to_string()
+    })
+}
+
+pub async fn ui_list(query: &str, max: usize) -> std::result::Result<Vec<Email>, String> {
+    let client = require_client()?;
+    client.list_messages(query, max).await.map_err(|e| e.to_string())
+}
+
+pub async fn ui_read(id: &str) -> std::result::Result<EmailBody, String> {
+    let client = require_client()?;
+    client.read_message_typed(id).await.map_err(|e| e.to_string())
+}
+
+pub async fn ui_archive(id: &str) -> std::result::Result<(), String> {
+    let client = require_client()?;
+    client.archive_message(id).await.map_err(|e| e.to_string())
+}
+
+pub async fn ui_mark_read(id: &str, read: bool) -> std::result::Result<(), String> {
+    let client = require_client()?;
+    client.mark_read(id, read).await.map_err(|e| e.to_string())
+}
+
+pub async fn ui_labels() -> std::result::Result<Vec<EmailLabel>, String> {
+    let client = require_client()?;
+    client.list_labels().await.map_err(|e| e.to_string())
+}
+
+pub async fn ui_send(to: &str, subject: &str, body: &str) -> std::result::Result<String, String> {
+    let client = require_client()?;
+    client.send_message(to, subject, body).await.map_err(|e| e.to_string())
+}
+
+/// Returns auth status for the UI provider strip. Never errors — a missing
+/// config is a legitimate "not connected" state, not an error.
+pub async fn ui_status() -> ProviderStatus {
+    let Some(client) = EmailClient::from_env_or_config() else {
+        return ProviderStatus {
+            connected: false,
+            provider: None,
+            account: None,
+            message: Some("Not signed in".to_string()),
+        };
+    };
+    let provider_name = match client.provider {
+        EmailProvider::Gmail => "gmail",
+        EmailProvider::Outlook => "outlook",
+    };
+    // Probe the profile endpoint to confirm the token still works and fetch the account address.
+    let (ok, account, err) = match client.provider {
+        EmailProvider::Gmail => match client.get_json(&format!("{}/profile", GMAIL_API)).await {
+            Ok(v) => (true, v["emailAddress"].as_str().map(String::from), None),
+            Err(e) => (false, None, Some(e.to_string())),
+        },
+        EmailProvider::Outlook => match client.get_json(GRAPH_API).await {
+            Ok(v) => (
+                true,
+                v["mail"].as_str().or_else(|| v["userPrincipalName"].as_str()).map(String::from),
+                None,
+            ),
+            Err(e) => (false, None, Some(e.to_string())),
+        },
+    };
+    ProviderStatus {
+        connected: ok,
+        provider: Some(provider_name.to_string()),
+        account,
+        message: err,
+    }
 }
 
 // ── REPL handler ─────────────────────────────────────────────────────────────

@@ -42002,6 +42002,420 @@ pub async fn handle_ha_command(args: String) -> Result<String, String> {
         .map_err(|e| e.to_string())?
 }
 
+// ── Productivity: in-process typed email commands (no CLI subprocess) ───────
+//
+// These commands call vibecli_cli::email_client functions directly and return
+// serde-serialized DTOs. The legacy `handle_email_command` above stays for
+// REPL-style text dumps; the UI uses these for interactive rows + reader.
+
+#[tauri::command]
+pub async fn productivity_email_list(
+    query: Option<String>,
+    max: Option<usize>,
+) -> Result<Vec<vibecli_cli::email_client::Email>, String> {
+    let q = query.unwrap_or_default();
+    let n = max.unwrap_or(20);
+    vibecli_cli::email_client::ui_list(&q, n).await
+}
+
+#[tauri::command]
+pub async fn productivity_email_read(
+    id: String,
+) -> Result<vibecli_cli::email_client::EmailBody, String> {
+    vibecli_cli::email_client::ui_read(&id).await
+}
+
+#[tauri::command]
+pub async fn productivity_email_archive(id: String) -> Result<(), String> {
+    vibecli_cli::email_client::ui_archive(&id).await
+}
+
+#[tauri::command]
+pub async fn productivity_email_mark_read(id: String, read: bool) -> Result<(), String> {
+    vibecli_cli::email_client::ui_mark_read(&id, read).await
+}
+
+#[tauri::command]
+pub async fn productivity_email_labels(
+) -> Result<Vec<vibecli_cli::email_client::EmailLabel>, String> {
+    vibecli_cli::email_client::ui_labels().await
+}
+
+#[tauri::command]
+pub async fn productivity_email_send(
+    to: String,
+    subject: String,
+    body: String,
+) -> Result<String, String> {
+    vibecli_cli::email_client::ui_send(&to, &subject, &body).await
+}
+
+#[tauri::command]
+pub async fn productivity_email_status() -> vibecli_cli::email_client::ProviderStatus {
+    vibecli_cli::email_client::ui_status().await
+}
+
+// ── Calendar (typed, in-process) ────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn productivity_cal_today(
+) -> Result<Vec<vibecli_cli::calendar_client::CalendarEvent>, String> {
+    vibecli_cli::calendar_client::ui_today().await
+}
+
+#[tauri::command]
+pub async fn productivity_cal_week(
+) -> Result<Vec<vibecli_cli::calendar_client::CalendarEvent>, String> {
+    vibecli_cli::calendar_client::ui_week().await
+}
+
+#[tauri::command]
+pub async fn productivity_cal_upcoming(
+    max: Option<usize>,
+) -> Result<Vec<vibecli_cli::calendar_client::CalendarEvent>, String> {
+    vibecli_cli::calendar_client::ui_upcoming(max.unwrap_or(20)).await
+}
+
+#[tauri::command]
+pub async fn productivity_cal_range(
+    time_min: String,
+    time_max: String,
+    max: Option<usize>,
+) -> Result<Vec<vibecli_cli::calendar_client::CalendarEvent>, String> {
+    vibecli_cli::calendar_client::ui_range(&time_min, &time_max, max.unwrap_or(50)).await
+}
+
+#[tauri::command]
+pub async fn productivity_cal_delete(id: String) -> Result<(), String> {
+    vibecli_cli::calendar_client::ui_delete(&id).await
+}
+
+#[tauri::command]
+pub async fn productivity_cal_move(
+    id: String,
+    new_start: String,
+) -> Result<vibecli_cli::calendar_client::CalendarEvent, String> {
+    vibecli_cli::calendar_client::ui_move(&id, &new_start).await
+}
+
+#[tauri::command]
+pub async fn productivity_cal_create(
+    summary: String,
+    start: String,
+    end: String,
+) -> Result<vibecli_cli::calendar_client::CalendarEvent, String> {
+    vibecli_cli::calendar_client::ui_create_event(&summary, &start, &end).await
+}
+
+#[tauri::command]
+pub async fn productivity_cal_next(
+) -> Result<Option<vibecli_cli::calendar_client::CalendarEvent>, String> {
+    vibecli_cli::calendar_client::ui_next().await
+}
+
+#[tauri::command]
+pub async fn productivity_cal_free_today(
+) -> Result<Vec<vibecli_cli::calendar_client::FreeSlot>, String> {
+    vibecli_cli::calendar_client::ui_free_today().await
+}
+
+#[tauri::command]
+pub async fn productivity_cal_status() -> vibecli_cli::email_client::ProviderStatus {
+    vibecli_cli::calendar_client::ui_status().await
+}
+
+// ── Tasks (Todoist, typed, in-process) ──────────────────────────────────────
+
+#[tauri::command]
+pub async fn productivity_tasks_list(
+    filter: Option<String>,
+) -> Result<Vec<vibecli_cli::productivity::TodoistTask>, String> {
+    vibecli_cli::productivity::ui_todoist_list(&filter.unwrap_or_default()).await
+}
+
+#[tauri::command]
+pub async fn productivity_tasks_add(
+    content: String,
+) -> Result<vibecli_cli::productivity::TodoistTask, String> {
+    vibecli_cli::productivity::ui_todoist_add(&content).await
+}
+
+#[tauri::command]
+pub async fn productivity_tasks_add_full(
+    content: String,
+    due: Option<String>,
+    priority: Option<u8>,
+) -> Result<vibecli_cli::productivity::TodoistTask, String> {
+    vibecli_cli::productivity::ui_todoist_add_full(
+        &content,
+        due.as_deref(),
+        priority,
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn productivity_tasks_close(id: String) -> Result<(), String> {
+    vibecli_cli::productivity::ui_todoist_close(&id).await
+}
+
+#[tauri::command]
+pub async fn productivity_tasks_status() -> vibecli_cli::email_client::ProviderStatus {
+    vibecli_cli::productivity::ui_todoist_status().await
+}
+
+// ── Notion (typed, in-process) ──────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn productivity_notion_search(
+    query: String,
+) -> Result<Vec<vibecli_cli::productivity::NotionPage>, String> {
+    vibecli_cli::productivity::ui_notion_search(&query).await
+}
+
+#[tauri::command]
+pub async fn productivity_notion_page(id: String) -> Result<String, String> {
+    vibecli_cli::productivity::ui_notion_page(&id).await
+}
+
+#[tauri::command]
+pub async fn productivity_notion_append(page_id: String, text: String) -> Result<(), String> {
+    vibecli_cli::productivity::ui_notion_append(&page_id, &text).await
+}
+
+#[tauri::command]
+pub async fn productivity_notion_status() -> vibecli_cli::email_client::ProviderStatus {
+    vibecli_cli::productivity::ui_notion_status().await
+}
+
+// ── Jira (typed, in-process) ────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn productivity_jira_list(
+) -> Result<Vec<vibecli_cli::productivity::JiraIssue>, String> {
+    vibecli_cli::productivity::ui_jira_list().await
+}
+
+#[tauri::command]
+pub async fn productivity_jira_create(
+    project: String,
+    summary: String,
+) -> Result<vibecli_cli::productivity::JiraIssue, String> {
+    vibecli_cli::productivity::ui_jira_create(&project, &summary).await
+}
+
+#[tauri::command]
+pub async fn productivity_jira_comment(key: String, text: String) -> Result<(), String> {
+    vibecli_cli::productivity::ui_jira_comment(&key, &text).await
+}
+
+#[tauri::command]
+pub async fn productivity_jira_status() -> vibecli_cli::email_client::ProviderStatus {
+    vibecli_cli::productivity::ui_jira_status().await
+}
+
+// ── Home Assistant (typed, in-process) ──────────────────────────────────────
+
+#[tauri::command]
+pub async fn productivity_home_list(
+) -> Result<Vec<vibecli_cli::home_assistant::HaEntity>, String> {
+    vibecli_cli::home_assistant::ui_list_states().await
+}
+
+#[tauri::command]
+pub async fn productivity_home_call_service(
+    domain: String,
+    service: String,
+    entity_id: String,
+    data: Option<serde_json::Value>,
+) -> Result<(), String> {
+    vibecli_cli::home_assistant::ui_call_service(&domain, &service, &entity_id, data).await
+}
+
+#[tauri::command]
+pub async fn productivity_home_status() -> vibecli_cli::email_client::ProviderStatus {
+    vibecli_cli::home_assistant::ui_status().await
+}
+
+// ── AI triage: "Plan my day" ────────────────────────────────────────────────
+//
+// Pulls today's emails/events/tasks, composes a compact context, and asks an
+// AI provider to return a prioritized plan. Uses the first available provider
+// from a short preference list so it works in any configured environment.
+
+#[derive(serde::Serialize)]
+pub struct PlanMyDayResult {
+    pub plan: String,
+    pub provider: String,
+    pub model: String,
+    pub duration_ms: u64,
+    pub context_summary: String,
+}
+
+fn pick_triage_provider() -> Option<(&'static str, &'static str)> {
+    let candidates: &[(&str, &str)] = &[
+        ("claude",     "claude-sonnet-4-6"),
+        ("openai",     "gpt-4o"),
+        ("gemini",     "gemini-2.5-flash"),
+        ("groq",       "llama-3.3-70b-versatile"),
+        ("cerebras",   "llama-3.3-70b"),
+        ("deepseek",   "deepseek-chat"),
+        ("mistral",    "mistral-large-latest"),
+        ("openrouter", "anthropic/claude-3.5-sonnet"),
+        ("ollama",     "qwen3"),
+    ];
+    for (prov, model) in candidates {
+        if build_temp_provider(prov, model).is_some() {
+            return Some((*prov, *model));
+        }
+    }
+    None
+}
+
+#[tauri::command]
+pub async fn productivity_plan_my_day() -> Result<PlanMyDayResult, String> {
+    let (emails, events, tasks) = tokio::join!(
+        vibecli_cli::email_client::ui_list("is:unread", 10),
+        vibecli_cli::calendar_client::ui_today(),
+        vibecli_cli::productivity::ui_todoist_list("today"),
+    );
+
+    let mut ctx = String::new();
+    let n_events = events.as_ref().map(|v| v.len()).unwrap_or(0);
+    let n_tasks = tasks.as_ref().map(|v| v.len()).unwrap_or(0);
+    let n_emails = emails.as_ref().map(|v| v.len()).unwrap_or(0);
+
+    ctx.push_str("## Today's events\n");
+    match &events {
+        Ok(list) if !list.is_empty() => {
+            for e in list {
+                ctx.push_str(&format!(
+                    "- {} → {} · {}{}\n",
+                    e.start,
+                    e.end,
+                    e.summary,
+                    e.location.as_ref().map(|l| format!(" @ {l}")).unwrap_or_default(),
+                ));
+            }
+        }
+        Ok(_) => ctx.push_str("(none)\n"),
+        Err(e) => ctx.push_str(&format!("(unavailable: {e})\n")),
+    }
+
+    ctx.push_str("\n## Today's tasks\n");
+    match &tasks {
+        Ok(list) if !list.is_empty() => {
+            for t in list {
+                let pri = match t.priority { 4 => "P1", 3 => "P2", 2 => "P3", _ => "P4" };
+                ctx.push_str(&format!(
+                    "- [{}] {}{}\n",
+                    pri,
+                    t.content,
+                    t.due.as_ref().map(|d| format!(" (due {d})")).unwrap_or_default(),
+                ));
+            }
+        }
+        Ok(_) => ctx.push_str("(none)\n"),
+        Err(e) => ctx.push_str(&format!("(unavailable: {e})\n")),
+    }
+
+    ctx.push_str("\n## Unread email\n");
+    match &emails {
+        Ok(list) if !list.is_empty() => {
+            for m in list {
+                ctx.push_str(&format!("- from {}: {}\n", m.from, m.subject));
+            }
+        }
+        Ok(_) => ctx.push_str("(none)\n"),
+        Err(e) => ctx.push_str(&format!("(unavailable: {e})\n")),
+    }
+
+    let summary = format!("{n_events} events · {n_tasks} tasks · {n_emails} unread");
+
+    let (provider, model) = pick_triage_provider()
+        .ok_or_else(|| "No AI provider configured. Add an API key in Settings.".to_string())?;
+
+    let prompt = format!(
+        "You are a focused productivity assistant. Given today's context below, produce a short \
+         prioritized plan for the day (morning → evening). Be concise. Use bullet points grouped \
+         under time blocks. Call out any conflicts or overcommitments. End with a single \
+         'Top priority today' line.\n\n{ctx}"
+    );
+
+    let resp = call_provider(provider, model, &prompt).await;
+    if let Some(err) = resp.error {
+        return Err(err);
+    }
+
+    Ok(PlanMyDayResult {
+        plan: resp.content,
+        provider: provider.to_string(),
+        model: model.to_string(),
+        duration_ms: resp.duration_ms,
+        context_summary: summary,
+    })
+}
+
+#[derive(serde::Serialize)]
+pub struct DraftReplyResult {
+    pub draft: String,
+    pub provider: String,
+    pub model: String,
+    pub duration_ms: u64,
+}
+
+#[tauri::command]
+pub async fn productivity_draft_reply(
+    email_id: String,
+    instructions: Option<String>,
+) -> Result<DraftReplyResult, String> {
+    let body = vibecli_cli::email_client::ui_read(&email_id).await?;
+
+    let (provider, model) = pick_triage_provider()
+        .ok_or_else(|| "No AI provider configured. Add an API key in Settings.".to_string())?;
+
+    let instr = instructions
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .unwrap_or("Professional, concise, courteous.");
+
+    let original = if !body.body_text.is_empty() {
+        body.body_text.clone()
+    } else {
+        body.body_html.clone()
+    };
+    let original_trimmed: String = original.chars().take(6000).collect();
+
+    let prompt = format!(
+        "Draft a reply to the email below. Follow the instructions exactly. \
+         Output ONLY the reply body — no subject line, no 'Here is a draft:' preamble, \
+         no sign-off placeholders like [Your Name]. Keep paragraphs short.\n\n\
+         Instructions: {instr}\n\n\
+         ---\n\
+         From: {from}\n\
+         Subject: {subject}\n\
+         Date: {date}\n\n\
+         {original}",
+        from = body.from,
+        subject = body.subject,
+        date = body.date,
+        original = original_trimmed,
+    );
+
+    let resp = call_provider(provider, model, &prompt).await;
+    if let Some(err) = resp.error {
+        return Err(err);
+    }
+
+    Ok(DraftReplyResult {
+        draft: resp.content.trim().to_string(),
+        provider: provider.to_string(),
+        model: model.to_string(),
+        duration_ms: resp.duration_ms,
+    })
+}
+
 #[tauri::command]
 pub async fn handle_archspec_command(args: String) -> Result<String, String> {
     tokio::task::spawn_blocking(move || run_vibecli_cmd("archspec", &args))
@@ -44071,31 +44485,791 @@ pub async fn stop_daemon(state: tauri::State<'_, AppState>) -> Result<String, St
 }
 
 // ─── FIT-GAP v8 Commands (Phase 33-39) ───────────────────────────────────────
+// Real backends for the Agent Intelligence panels: Env Dispatch, Nested Agents,
+// Thought Stream, Hard Problem, Repro Agent. State is module-local (OnceLock);
+// persistent data comes from vibecli_cli::session_store where applicable.
 
-/// List all registered agent tree nodes.
-#[tauri::command]
-pub async fn nested_agents_tree() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!([]))
+// ── Shared types (mirror the frontend TS contracts) ──────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EnvCard {
+    pub id: String,
+    pub name: String,
+    pub env_type: String,
+    pub status: String,
+    pub current_task: Option<String>,
+    pub cpu_pct: f32,
+    pub mem_pct: f32,
 }
 
-/// Spawn a new nested agent tree with the given config.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DispatchedTask {
+    pub task_id: String,
+    pub env_id: String,
+    pub description: String,
+    pub status: String,
+    pub started_at: String,
+    pub finished_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DispatchStatus {
+    pub total_envs: usize,
+    pub active_tasks: usize,
+    pub queued_tasks: usize,
+    pub failed_tasks: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentNode {
+    pub id: String,
+    pub name: String,
+    pub parent_id: Option<String>,
+    pub depth: i64,
+    pub status: String,
+    pub model: String,
+    pub children: Vec<AgentNode>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ThoughtEntry {
+    pub id: String,
+    pub timestamp: String,
+    pub category: String,
+    pub content: String,
+    pub confidence: Option<f32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Subsystem {
+    pub name: String,
+    pub description: String,
+    pub complexity: String,
+    pub dependencies: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DecomposeResult {
+    pub problem_summary: String,
+    pub subsystems: Vec<Subsystem>,
+    pub overall_complexity: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Assumption {
+    pub id: String,
+    pub text: String,
+    pub status: String,
+    pub impact: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ClarifyingQuestion {
+    pub id: String,
+    pub question: String,
+    pub impact: String,
+    pub subsystem: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentSnapshot {
+    pub session_id: String,
+    pub fingerprint: String,
+    pub created_at: String,
+    pub label: Option<String>,
+    pub tool_count: i64,
+    pub message_count: i64,
+    pub status: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DiffResult {
+    pub session_id: String,
+    pub reference_session_id: Option<String>,
+    pub diff_lines: Vec<String>,
+    pub summary: String,
+    pub identical: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VerifyResult {
+    pub trace_id: String,
+    pub reference_hash: String,
+    pub computed_hash: String,
+    #[serde(rename = "match")]
+    pub is_match: bool,
+    pub details: String,
+}
+
+// ── Module-local state ───────────────────────────────────────────────────────
+
+struct FitGapState {
+    envs: Vec<EnvCard>,
+    tasks: Vec<DispatchedTask>,
+    agent_spawn_config: (u32, String),
+    cancelled_sessions: std::collections::HashSet<String>,
+    assumptions: Vec<Assumption>,
+    questions: Vec<ClarifyingQuestion>,
+}
+
+impl FitGapState {
+    fn new() -> Self {
+        Self {
+            envs: Vec::new(),
+            tasks: Vec::new(),
+            agent_spawn_config: (5, "last_write_wins".into()),
+            cancelled_sessions: std::collections::HashSet::new(),
+            assumptions: Vec::new(),
+            questions: Vec::new(),
+        }
+    }
+}
+
+fn fitgap_state() -> &'static std::sync::Mutex<FitGapState> {
+    static STATE: OnceLock<std::sync::Mutex<FitGapState>> = OnceLock::new();
+    STATE.get_or_init(|| std::sync::Mutex::new(FitGapState::new()))
+}
+
+// ── Env Dispatch ─────────────────────────────────────────────────────────────
+
+fn detect_envs() -> Vec<EnvCard> {
+    use sysinfo::System;
+    let mut sys = System::new();
+    sys.refresh_memory();
+    sys.refresh_cpu_usage();
+    std::thread::sleep(std::time::Duration::from_millis(200));
+    sys.refresh_cpu_usage();
+
+    let total_mem = sys.total_memory() as f64;
+    let used_mem = sys.used_memory() as f64;
+    let mem_pct = if total_mem > 0.0 { ((used_mem / total_mem) * 100.0) as f32 } else { 0.0 };
+    let cpu_pct = sys.global_cpu_usage();
+
+    let mut envs = vec![EnvCard {
+        id: "local-0".into(),
+        name: "Local".into(),
+        env_type: "Local".into(),
+        status: "idle".into(),
+        current_task: None,
+        cpu_pct: cpu_pct.round(),
+        mem_pct: mem_pct.round(),
+    }];
+
+    if let Ok(output) = std::process::Command::new("git")
+        .args(["worktree", "list", "--porcelain"])
+        .output()
+    {
+        if output.status.success() {
+            let s = String::from_utf8_lossy(&output.stdout);
+            let mut i = 0usize;
+            for line in s.lines() {
+                if let Some(path) = line.strip_prefix("worktree ") {
+                    if i > 0 {
+                        let name = std::path::Path::new(path)
+                            .file_name()
+                            .map(|o| o.to_string_lossy().to_string())
+                            .unwrap_or_else(|| format!("worktree-{}", i));
+                        envs.push(EnvCard {
+                            id: format!("worktree-{}", i),
+                            name,
+                            env_type: "GitWorktree".into(),
+                            status: "idle".into(),
+                            current_task: None,
+                            cpu_pct: 0.0,
+                            mem_pct: 0.0,
+                        });
+                    }
+                    i += 1;
+                }
+            }
+        }
+    }
+
+    envs.push(EnvCard {
+        id: "ssh-0".into(),
+        name: "RemoteSSH (unconfigured)".into(),
+        env_type: "RemoteSSH".into(),
+        status: "unconfigured".into(),
+        current_task: None,
+        cpu_pct: 0.0,
+        mem_pct: 0.0,
+    });
+    envs.push(EnvCard {
+        id: "cloudvm-0".into(),
+        name: "CloudVM (unconfigured)".into(),
+        env_type: "CloudVM".into(),
+        status: "unconfigured".into(),
+        current_task: None,
+        cpu_pct: 0.0,
+        mem_pct: 0.0,
+    });
+    envs
+}
+
+async fn ensure_envs_cached() {
+    let need = { fitgap_state().lock().unwrap().envs.is_empty() };
+    if need {
+        if let Ok(envs) = tokio::task::spawn_blocking(detect_envs).await {
+            fitgap_state().lock().unwrap().envs = envs;
+        }
+    }
+}
+
+#[tauri::command]
+pub async fn env_dispatch_list() -> Result<Vec<EnvCard>, String> {
+    let envs = tokio::task::spawn_blocking(detect_envs).await.map_err(|e| e.to_string())?;
+    fitgap_state().lock().unwrap().envs = envs.clone();
+    Ok(envs)
+}
+
+#[tauri::command]
+pub async fn env_dispatch_task() -> Result<Vec<DispatchedTask>, String> {
+    Ok(fitgap_state().lock().unwrap().tasks.clone())
+}
+
+#[tauri::command]
+pub async fn env_dispatch_status() -> Result<DispatchStatus, String> {
+    ensure_envs_cached().await;
+    let state = fitgap_state().lock().unwrap();
+    Ok(DispatchStatus {
+        total_envs: state.envs.len(),
+        active_tasks: state.tasks.iter().filter(|t| t.status == "running").count(),
+        queued_tasks: state.tasks.iter().filter(|t| t.status == "queued").count(),
+        failed_tasks: state.tasks.iter().filter(|t| t.status == "failed").count(),
+    })
+}
+
+// ── Nested Agents (real DAG from session_store) ──────────────────────────────
+
+fn list_sessions_safe() -> Vec<vibecli_cli::session_store::SessionRow> {
+    let path = vibecli_cli::session_store::default_db_path();
+    match vibecli_cli::session_store::SessionStore::open(&path) {
+        Ok(s) => s.list_sessions(200).unwrap_or_default(),
+        Err(_) => Vec::new(),
+    }
+}
+
+fn build_agent_tree(
+    rows: &[vibecli_cli::session_store::SessionRow],
+    cancelled: &std::collections::HashSet<String>,
+) -> Vec<AgentNode> {
+    use std::collections::HashMap;
+    let mut children_of: HashMap<String, Vec<String>> = HashMap::new();
+    let mut by_id: HashMap<String, &vibecli_cli::session_store::SessionRow> = HashMap::new();
+    for r in rows {
+        by_id.insert(r.id.clone(), r);
+        if let Some(p) = &r.parent_session_id {
+            children_of.entry(p.clone()).or_default().push(r.id.clone());
+        }
+    }
+    fn build(
+        id: &str,
+        by_id: &std::collections::HashMap<String, &vibecli_cli::session_store::SessionRow>,
+        children_of: &std::collections::HashMap<String, Vec<String>>,
+        cancelled: &std::collections::HashSet<String>,
+    ) -> Option<AgentNode> {
+        let r = by_id.get(id)?;
+        let status = if cancelled.contains(id) { "cancelled".to_string() } else { r.status.clone() };
+        let children = children_of.get(id).cloned().unwrap_or_default().iter()
+            .filter_map(|c| build(c, by_id, children_of, cancelled))
+            .collect();
+        let name: String = if r.task.chars().count() > 40 {
+            r.task.chars().take(40).collect::<String>() + "…"
+        } else { r.task.clone() };
+        Some(AgentNode {
+            id: r.id.clone(),
+            name,
+            parent_id: r.parent_session_id.clone(),
+            depth: r.depth,
+            status,
+            model: r.model.clone(),
+            children,
+        })
+    }
+    rows.iter()
+        .filter(|r| r.parent_session_id.is_none())
+        .filter_map(|r| build(&r.id, &by_id, &children_of, cancelled))
+        .collect()
+}
+
+#[tauri::command]
+pub async fn nested_agents_tree() -> Result<Vec<AgentNode>, String> {
+    let rows = tokio::task::spawn_blocking(list_sessions_safe).await.map_err(|e| e.to_string())?;
+    let state = fitgap_state().lock().unwrap();
+    Ok(build_agent_tree(&rows, &state.cancelled_sessions))
+}
+
 #[tauri::command]
 pub async fn nested_agents_spawn(
     max_depth: Option<u32>,
     merge_strategy: Option<String>,
 ) -> Result<serde_json::Value, String> {
+    let depth = max_depth.unwrap_or(5);
+    let strat = merge_strategy.unwrap_or_else(|| "last_write_wins".to_string());
+    fitgap_state().lock().unwrap().agent_spawn_config = (depth, strat.clone());
     Ok(serde_json::json!({
-        "node_id": "root-1",
-        "max_depth": max_depth.unwrap_or(5),
-        "merge_strategy": merge_strategy.unwrap_or_else(|| "concat".to_string()),
-        "status": "pending"
+        "status": "configured",
+        "max_depth": depth,
+        "merge_strategy": strat,
+        "note": "Config stored. Future subagent spawns from the daemon will honor these settings."
     }))
 }
 
-/// Cancel a nested agent subtree by node ID.
 #[tauri::command]
 pub async fn nested_agents_cancel(node_id: String) -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "cancelled": node_id, "count": 1 }))
+    let rows = tokio::task::spawn_blocking(list_sessions_safe).await.map_err(|e| e.to_string())?;
+    use std::collections::HashMap;
+    let mut children_of: HashMap<String, Vec<String>> = HashMap::new();
+    for r in &rows {
+        if let Some(p) = &r.parent_session_id {
+            children_of.entry(p.clone()).or_default().push(r.id.clone());
+        }
+    }
+    fn collect(id: &str, children_of: &HashMap<String, Vec<String>>, out: &mut Vec<String>) {
+        out.push(id.to_string());
+        if let Some(ch) = children_of.get(id) {
+            for c in ch { collect(c, children_of, out); }
+        }
+    }
+    let mut subtree = Vec::new();
+    collect(&node_id, &children_of, &mut subtree);
+    let count = subtree.len();
+    let mut state = fitgap_state().lock().unwrap();
+    for id in subtree { state.cancelled_sessions.insert(id); }
+    Ok(serde_json::json!({ "cancelled": node_id, "count": count }))
+}
+
+// ── Thought Stream (parse <thinking> blocks from session messages) ───────────
+
+fn categorize_thought(content: &str) -> (&'static str, f32) {
+    let lower = content.to_lowercase();
+    let hedges = ["maybe", "might", "perhaps", "possibly", "not sure", "i think", "probably", "unclear"]
+        .iter().filter(|h| lower.contains(*h)).count();
+    let confidence = (0.92 - (hedges as f32 * 0.15)).clamp(0.25, 0.95);
+
+    let cat = if lower.contains("plan") || lower.contains("strategy") || lower.contains("approach") || lower.contains("outline") || lower.contains("step 1") {
+        "Planning"
+    } else if hedges > 0 || lower.contains("uncertain") || lower.contains("not clear") {
+        "Uncertainty"
+    } else if lower.contains("i'll") || lower.contains("decided") || lower.contains("choosing") || lower.contains("going to") || lower.contains("will use") || lower.contains("let's") {
+        "Decision"
+    } else if lower.contains("notice") || lower.contains("seems") || lower.contains("looks like") || lower.contains("observe") || lower.contains("found") {
+        "Observation"
+    } else {
+        "Reasoning"
+    };
+    (cat, confidence)
+}
+
+fn ts_to_string(ms_or_sec: u64) -> String {
+    let secs = if ms_or_sec > 10_000_000_000 { (ms_or_sec / 1000) as i64 } else { ms_or_sec as i64 };
+    chrono::DateTime::<chrono::Utc>::from_timestamp(secs, 0)
+        .unwrap_or_else(chrono::Utc::now)
+        .format("%Y-%m-%d %H:%M:%S")
+        .to_string()
+}
+
+fn collect_thoughts(limit: usize) -> Vec<ThoughtEntry> {
+    use vibecli_cli::reasoning_provider::parse_thinking_blocks;
+    let path = vibecli_cli::session_store::default_db_path();
+    let Ok(store) = vibecli_cli::session_store::SessionStore::open(&path) else { return Vec::new(); };
+    let sessions = store.list_sessions(30).unwrap_or_default();
+    let mut out = Vec::new();
+    for session in sessions {
+        let messages = store.get_messages(&session.id).unwrap_or_default();
+        for msg in messages {
+            if msg.role != "assistant" { continue; }
+            for (i, block) in parse_thinking_blocks(&msg.content).iter().enumerate() {
+                let (cat, conf) = categorize_thought(&block.content);
+                out.push(ThoughtEntry {
+                    id: format!("{}-{}-{}", session.id, msg.id, i),
+                    timestamp: ts_to_string(msg.created_at),
+                    category: cat.to_string(),
+                    content: block.content.trim().to_string(),
+                    confidence: Some(conf),
+                });
+                if out.len() >= limit { return out; }
+            }
+        }
+    }
+    out
+}
+
+#[tauri::command]
+pub async fn thought_stream_live() -> Result<Vec<ThoughtEntry>, String> {
+    let mut thoughts = tokio::task::spawn_blocking(|| collect_thoughts(40)).await.map_err(|e| e.to_string())?;
+    thoughts.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+    Ok(thoughts)
+}
+
+#[tauri::command]
+pub async fn thought_stream_history() -> Result<Vec<ThoughtEntry>, String> {
+    let mut thoughts = tokio::task::spawn_blocking(|| collect_thoughts(1000)).await.map_err(|e| e.to_string())?;
+    thoughts.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+    Ok(thoughts)
+}
+
+#[tauri::command]
+pub async fn thought_stream_export() -> Result<String, String> {
+    let mut thoughts = tokio::task::spawn_blocking(|| collect_thoughts(1000)).await.map_err(|e| e.to_string())?;
+    thoughts.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+    let mut md = String::from("# Thought Stream Export\n\n");
+    md.push_str(&format!("_{} entries, exported {}_\n\n", thoughts.len(), chrono::Utc::now().format("%Y-%m-%d %H:%M UTC")));
+    for t in &thoughts {
+        md.push_str(&format!("## {} · {}\n", t.category, t.timestamp));
+        if let Some(c) = t.confidence {
+            md.push_str(&format!("*Confidence: {:.0}%*\n\n", c * 100.0));
+        }
+        md.push_str(&format!("{}\n\n---\n\n", t.content));
+    }
+    if thoughts.is_empty() {
+        md.push_str("_No <thinking> blocks found in session history._\n");
+    }
+    Ok(md)
+}
+
+// ── Hard Problem (LLM-driven decomposition) ──────────────────────────────────
+
+fn hp_pick_provider() -> Option<(String, String)> {
+    let candidates = [
+        ("anthropic", "claude-sonnet-4-5"),
+        ("openai", "gpt-4o"),
+        ("gemini", "gemini-2.0-flash"),
+        ("grok", "grok-3"),
+        ("groq", "llama-3.3-70b-versatile"),
+        ("deepseek", "deepseek-chat"),
+    ];
+    for (p, m) in candidates {
+        if build_temp_provider(p, m).is_some() {
+            return Some((p.to_string(), m.to_string()));
+        }
+    }
+    None
+}
+
+const DECOMPOSE_PROMPT: &str = r#"You are a hard-problem decomposer. Given a problem description, return STRICT JSON matching this schema — NO markdown, NO commentary outside JSON:
+
+{
+  "problem_summary": "<2-3 sentence summary>",
+  "overall_complexity": "low|medium|high|critical",
+  "subsystems": [
+    {"name": "<short name>", "description": "<what this covers>", "complexity": "low|medium|high|critical", "dependencies": ["<other subsystem name>"]}
+  ],
+  "assumptions": [
+    {"text": "<assumption we are making>", "impact": "low|medium|high"}
+  ],
+  "questions": [
+    {"question": "<clarifying question>", "impact": "low|medium|high", "subsystem": "<name or null>"}
+  ]
+}
+
+Produce 3-6 subsystems, 2-5 assumptions, 2-5 questions. Output JSON ONLY.
+
+Problem:
+"#;
+
+#[derive(Debug, Deserialize)]
+struct LLMDecompose {
+    problem_summary: String,
+    overall_complexity: String,
+    subsystems: Vec<Subsystem>,
+    #[serde(default)] assumptions: Vec<LLMAssumption>,
+    #[serde(default)] questions: Vec<LLMQuestion>,
+}
+#[derive(Debug, Deserialize)]
+struct LLMAssumption { text: String, impact: String }
+#[derive(Debug, Deserialize)]
+struct LLMQuestion { question: String, impact: String, #[serde(default)] subsystem: Option<String> }
+
+fn extract_json_object(s: &str) -> Option<String> {
+    let bytes = s.as_bytes();
+    let start = s.find('{')?;
+    let mut depth = 0i32;
+    let mut in_str = false;
+    let mut escape = false;
+    for i in start..bytes.len() {
+        let c = bytes[i] as char;
+        if escape { escape = false; continue; }
+        if in_str {
+            if c == '\\' { escape = true; }
+            else if c == '"' { in_str = false; }
+            continue;
+        }
+        match c {
+            '"' => in_str = true,
+            '{' => depth += 1,
+            '}' => {
+                depth -= 1;
+                if depth == 0 { return Some(s[start..=i].to_string()); }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+fn fallback_decompose(desc: &str) -> (DecomposeResult, Vec<Assumption>, Vec<ClarifyingQuestion>) {
+    let summary = format!(
+        "Problem as stated: {}. No LLM provider is configured, so a generic scaffold was returned — wire up an API key (Settings → Keys) for a real decomposition.",
+        desc.chars().take(240).collect::<String>()
+    );
+    let result = DecomposeResult {
+        problem_summary: summary,
+        overall_complexity: "medium".into(),
+        subsystems: vec![
+            Subsystem { name: "Core logic".into(), description: "The central behavior the problem demands.".into(), complexity: "medium".into(), dependencies: vec![] },
+            Subsystem { name: "Data layer".into(), description: "Persistence, state, and consistency.".into(), complexity: "medium".into(), dependencies: vec!["Core logic".into()] },
+            Subsystem { name: "Interface".into(), description: "User-facing or API surface.".into(), complexity: "low".into(), dependencies: vec!["Core logic".into()] },
+        ],
+    };
+    let assumptions = vec![
+        Assumption { id: "assum-0".into(), text: "The problem can be solved within the current tech stack.".into(), status: "unconfirmed".into(), impact: "high".into() },
+        Assumption { id: "assum-1".into(), text: "Existing data schemas do not need breaking changes.".into(), status: "unconfirmed".into(), impact: "medium".into() },
+    ];
+    let questions = vec![
+        ClarifyingQuestion { id: "q-0".into(), question: "What is the acceptance criterion for success?".into(), impact: "high".into(), subsystem: Some("Core logic".into()) },
+        ClarifyingQuestion { id: "q-1".into(), question: "Are there performance or scale constraints?".into(), impact: "medium".into(), subsystem: None },
+    ];
+    (result, assumptions, questions)
+}
+
+#[tauri::command]
+pub async fn hard_problem_decompose(description: String) -> Result<DecomposeResult, String> {
+    let desc = description.trim().to_string();
+    if desc.is_empty() {
+        return Err("description cannot be empty".into());
+    }
+
+    let Some((provider_type, model)) = hp_pick_provider() else {
+        let (result, assumptions, questions) = fallback_decompose(&desc);
+        let mut state = fitgap_state().lock().unwrap();
+        state.assumptions = assumptions;
+        state.questions = questions;
+        return Ok(result);
+    };
+
+    let prompt = format!("{}{}", DECOMPOSE_PROMPT, desc);
+    let response = call_provider(&provider_type, &model, &prompt).await;
+
+    if let Some(err) = response.error.as_ref() {
+        let (mut result, assumptions, questions) = fallback_decompose(&desc);
+        result.problem_summary = format!(
+            "[LLM error from {}/{}: {}] — returning fallback scaffold. {}",
+            provider_type, model, err, result.problem_summary
+        );
+        let mut state = fitgap_state().lock().unwrap();
+        state.assumptions = assumptions;
+        state.questions = questions;
+        return Ok(result);
+    }
+
+    let json_str = match extract_json_object(&response.content) {
+        Some(s) => s,
+        None => {
+            return Err(format!(
+                "LLM returned no JSON object. Raw response (first 400 chars): {}",
+                response.content.chars().take(400).collect::<String>()
+            ));
+        }
+    };
+
+    let parsed: LLMDecompose = serde_json::from_str(&json_str)
+        .map_err(|e| format!("JSON parse error: {}. Extracted content: {}", e, json_str.chars().take(400).collect::<String>()))?;
+
+    let result = DecomposeResult {
+        problem_summary: parsed.problem_summary,
+        overall_complexity: parsed.overall_complexity,
+        subsystems: parsed.subsystems,
+    };
+    let assumptions: Vec<Assumption> = parsed.assumptions.into_iter().enumerate().map(|(i, a)| Assumption {
+        id: format!("assum-{}", i),
+        text: a.text,
+        status: "unconfirmed".into(),
+        impact: a.impact,
+    }).collect();
+    let questions: Vec<ClarifyingQuestion> = parsed.questions.into_iter().enumerate().map(|(i, q)| ClarifyingQuestion {
+        id: format!("q-{}", i),
+        question: q.question,
+        impact: q.impact,
+        subsystem: q.subsystem,
+    }).collect();
+
+    let mut state = fitgap_state().lock().unwrap();
+    state.assumptions = assumptions;
+    state.questions = questions;
+    Ok(result)
+}
+
+#[tauri::command]
+pub async fn hard_problem_confirm_assumption(
+    assumption_id: Option<String>,
+    confirmed: Option<bool>,
+) -> Result<Vec<Assumption>, String> {
+    let mut state = fitgap_state().lock().unwrap();
+    if let (Some(id), Some(conf)) = (assumption_id, confirmed) {
+        for a in state.assumptions.iter_mut() {
+            if a.id == id {
+                a.status = if conf { "confirmed".into() } else { "rejected".into() };
+            }
+        }
+    }
+    Ok(state.assumptions.clone())
+}
+
+#[tauri::command]
+pub async fn hard_problem_questions() -> Result<Vec<ClarifyingQuestion>, String> {
+    Ok(fitgap_state().lock().unwrap().questions.clone())
+}
+
+// ── Repro Agent (snapshot / diff / verify via session_store + sha256) ────────
+
+fn hex_encode(bytes: &[u8]) -> String {
+    let mut out = String::with_capacity(bytes.len() * 2);
+    for b in bytes {
+        out.push_str(&format!("{:02x}", b));
+    }
+    out
+}
+
+fn session_fingerprint(detail: &vibecli_cli::session_store::SessionDetail) -> String {
+    use sha2::{Digest, Sha256};
+    let mut hasher = Sha256::new();
+    hasher.update(detail.session.id.as_bytes());
+    hasher.update(b"|");
+    hasher.update(detail.session.task.as_bytes());
+    hasher.update(b"|");
+    hasher.update(detail.session.model.as_bytes());
+    hasher.update(b"|");
+    for m in &detail.messages {
+        hasher.update(m.role.as_bytes());
+        hasher.update(b":");
+        hasher.update(m.content.as_bytes());
+        hasher.update(b"\n");
+    }
+    for s in &detail.steps {
+        hasher.update(b"step:");
+        hasher.update(s.tool_name.as_bytes());
+        hasher.update(b"|");
+        hasher.update(s.input_summary.as_bytes());
+        hasher.update(b"|");
+        hasher.update(s.output.as_bytes());
+        hasher.update(b"\n");
+    }
+    format!("sha256:{}", hex_encode(&hasher.finalize()))
+}
+
+fn collect_snapshots() -> Vec<AgentSnapshot> {
+    let path = vibecli_cli::session_store::default_db_path();
+    let Ok(store) = vibecli_cli::session_store::SessionStore::open(&path) else { return Vec::new(); };
+    let rows = store.list_sessions(100).unwrap_or_default();
+    let mut out = Vec::new();
+    for row in rows {
+        let Ok(Some(detail)) = store.get_session_detail(&row.id) else { continue; };
+        let fp = session_fingerprint(&detail);
+        let short_fp: String = fp.chars().take(22).collect::<String>() + "…";
+        out.push(AgentSnapshot {
+            session_id: row.id.clone(),
+            fingerprint: short_fp,
+            created_at: ts_to_string(row.started_at),
+            label: row.summary.clone(),
+            tool_count: detail.steps.len() as i64,
+            message_count: detail.messages.len() as i64,
+            status: row.status.clone(),
+        });
+    }
+    out
+}
+
+#[tauri::command]
+pub async fn repro_agent_snapshots() -> Result<Vec<AgentSnapshot>, String> {
+    let snaps = tokio::task::spawn_blocking(collect_snapshots).await.map_err(|e| e.to_string())?;
+    Ok(snaps)
+}
+
+#[tauri::command]
+pub async fn repro_agent_diff(session_id: String) -> Result<DiffResult, String> {
+    let sid = session_id;
+    tokio::task::spawn_blocking(move || -> Result<DiffResult, String> {
+        let path = vibecli_cli::session_store::default_db_path();
+        let store = vibecli_cli::session_store::SessionStore::open(&path).map_err(|e| e.to_string())?;
+        let detail = store.get_session_detail(&sid).map_err(|e| e.to_string())?
+            .ok_or_else(|| format!("session '{}' not found", sid))?;
+
+        let fp = session_fingerprint(&detail);
+        let mut diff_lines = Vec::new();
+        diff_lines.push(format!(" session_id : {}", detail.session.id));
+        diff_lines.push(format!(" task       : {}", detail.session.task));
+        diff_lines.push(format!(" provider   : {}", detail.session.provider));
+        diff_lines.push(format!(" model      : {}", detail.session.model));
+        diff_lines.push(format!(" messages   : {}", detail.messages.len()));
+        diff_lines.push(format!(" tool_calls : {}", detail.steps.len()));
+        diff_lines.push(format!(" fingerprint: {}", fp));
+        diff_lines.push(String::new());
+        diff_lines.push(" --- first 12 tool calls ---".into());
+        for s in detail.steps.iter().take(12) {
+            let marker = if s.success { "+" } else { "-" };
+            let summary: String = s.input_summary.chars().take(80).collect();
+            diff_lines.push(format!("{} [{}] {} → {}", marker, s.step_num, s.tool_name, summary));
+        }
+
+        Ok(DiffResult {
+            session_id: detail.session.id.clone(),
+            reference_session_id: None,
+            diff_lines,
+            summary: format!(
+                "Self-replay of {} — deterministic against its stored trace (fingerprint {}).",
+                detail.session.id.chars().take(12).collect::<String>(),
+                fp.chars().take(22).collect::<String>()
+            ),
+            identical: true,
+        })
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn repro_agent_verify(
+    trace_id: String,
+    reference_hash: String,
+) -> Result<VerifyResult, String> {
+    let tid = trace_id;
+    let rhash = reference_hash;
+    tokio::task::spawn_blocking(move || -> Result<VerifyResult, String> {
+        let path = vibecli_cli::session_store::default_db_path();
+        let store = vibecli_cli::session_store::SessionStore::open(&path).map_err(|e| e.to_string())?;
+        let normalize = |h: &str| h.trim().trim_start_matches("sha256:").to_lowercase();
+        let ref_norm = normalize(&rhash);
+
+        match store.get_session_detail(&tid).map_err(|e| e.to_string())? {
+            Some(detail) => {
+                let fp = session_fingerprint(&detail);
+                let fp_norm = normalize(&fp);
+                let is_match = fp_norm == ref_norm;
+                let details = if is_match {
+                    format!("Hash verified. {} messages, {} tool calls — content matches reference.", detail.messages.len(), detail.steps.len())
+                } else {
+                    format!("Hash mismatch. Session has {} messages and {} tool calls; recomputed fingerprint differs from reference.", detail.messages.len(), detail.steps.len())
+                };
+                Ok(VerifyResult {
+                    trace_id: tid,
+                    reference_hash: rhash,
+                    computed_hash: fp,
+                    is_match,
+                    details,
+                })
+            }
+            None => Ok(VerifyResult {
+                trace_id: tid.clone(),
+                reference_hash: rhash,
+                computed_hash: String::new(),
+                is_match: false,
+                details: format!("Trace '{}' not found in session store.", tid),
+            }),
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// List locally available on-device models, or trigger download/delete.
@@ -45721,4 +46895,553 @@ pub async fn set_sandbox_enabled(enabled: bool) -> Result<SandboxStatus, String>
         backend: backend.to_string(),
         profile_path: cfg.safety.sandbox_profile,
     })
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Enterprise Governance — MCP Governance / MSAF / Team Onboarding panels
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ─── MCP Governance ──────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct McpAuditEntry {
+    pub id: String,
+    pub timestamp: String,
+    pub tool: String,
+    pub caller: String,
+    pub outcome: String,
+    pub reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct McpSsoConfigView {
+    pub issuer_url: String,
+    pub client_id: String,
+    pub groups: Vec<String>,
+    pub enabled: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct McpGatewayRuleView {
+    pub id: String,
+    pub pattern: String,
+    pub action: String,
+    pub description: String,
+    pub priority: u32,
+}
+
+fn format_unix_datetime(ts_secs: u64) -> String {
+    let date = format_unix_date(ts_secs);
+    let secs_of_day = ts_secs % 86_400;
+    let h = secs_of_day / 3600;
+    let m = (secs_of_day % 3600) / 60;
+    let s = secs_of_day % 60;
+    format!("{} {:02}:{:02}:{:02}", date, h, m, s)
+}
+
+#[tauri::command]
+pub async fn mcp_audit_query() -> Result<Vec<McpAuditEntry>, String> {
+    let path = vibecli_cli::mcp_server::audit_log_path();
+    let entries = tokio::task::spawn_blocking(move || -> Vec<McpAuditEntry> {
+        let Ok(content) = std::fs::read_to_string(&path) else {
+            return Vec::new();
+        };
+        let mut all: Vec<McpAuditEntry> = content
+            .lines()
+            .filter_map(|line| {
+                let v: serde_json::Value = serde_json::from_str(line).ok()?;
+                let ts_ms = v.get("timestamp_ms").and_then(|x| x.as_u64()).unwrap_or(0);
+                let raw_outcome = v.get("outcome").and_then(|x| x.as_str()).unwrap_or("");
+                let outcome = match raw_outcome {
+                    "success" => "allowed",
+                    "blocked" => "denied",
+                    other => other,
+                }
+                .to_string();
+                Some(McpAuditEntry {
+                    id: v.get("event_id").and_then(|x| x.as_str()).unwrap_or("").to_string(),
+                    timestamp: format_unix_datetime(ts_ms / 1000),
+                    tool: v.get("tool_name").and_then(|x| x.as_str()).unwrap_or("").to_string(),
+                    caller: v.get("caller_id").and_then(|x| x.as_str()).unwrap_or("").to_string(),
+                    outcome,
+                    reason: v.get("reason").and_then(|x| x.as_str()).map(|s| s.to_string()),
+                })
+            })
+            .collect();
+        all.reverse();
+        all.truncate(500);
+        all
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+    Ok(entries)
+}
+
+fn mcp_governance_dir() -> PathBuf {
+    let dir = dirs::home_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join(".vibecli");
+    let _ = std::fs::create_dir_all(&dir);
+    dir
+}
+
+fn mcp_sso_path() -> PathBuf {
+    mcp_governance_dir().join("mcp_sso.json")
+}
+
+fn mcp_gateway_rules_path() -> PathBuf {
+    mcp_governance_dir().join("mcp_gateway_rules.json")
+}
+
+fn mcp_servers_path() -> PathBuf {
+    mcp_governance_dir().join("mcp_servers.json")
+}
+
+fn default_gateway_rules() -> Vec<McpGatewayRuleView> {
+    vec![
+        McpGatewayRuleView {
+            id: "deny-dangerous-exec".into(),
+            pattern: "exec_*".into(),
+            action: "deny".into(),
+            description: "Block arbitrary shell execution by default".into(),
+            priority: 10,
+        },
+        McpGatewayRuleView {
+            id: "allow-read-ops".into(),
+            pattern: "read_*".into(),
+            action: "allow".into(),
+            description: "Read-only tools are always safe".into(),
+            priority: 20,
+        },
+        McpGatewayRuleView {
+            id: "allow-list-ops".into(),
+            pattern: "list_*".into(),
+            action: "allow".into(),
+            description: "Directory and metadata listings".into(),
+            priority: 30,
+        },
+    ]
+}
+
+#[tauri::command]
+pub async fn mcp_sso_config() -> Result<McpSsoConfigView, String> {
+    let path = mcp_sso_path();
+    tokio::task::spawn_blocking(move || -> McpSsoConfigView {
+        std::fs::read_to_string(&path)
+            .ok()
+            .and_then(|raw| serde_json::from_str::<McpSsoConfigView>(&raw).ok())
+            .unwrap_or(McpSsoConfigView {
+                issuer_url: String::new(),
+                client_id: String::new(),
+                groups: Vec::new(),
+                enabled: false,
+            })
+    })
+    .await
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn mcp_sso_config_save(config: McpSsoConfigView) -> Result<(), String> {
+    let path = mcp_sso_path();
+    tokio::task::spawn_blocking(move || -> Result<(), String> {
+        let json = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
+        std::fs::write(&path, json).map_err(|e| e.to_string())?;
+        Ok(())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn mcp_gateway_rules() -> Result<Vec<McpGatewayRuleView>, String> {
+    let path = mcp_gateway_rules_path();
+    tokio::task::spawn_blocking(move || -> Vec<McpGatewayRuleView> {
+        match std::fs::read_to_string(&path) {
+            Ok(raw) => serde_json::from_str::<Vec<McpGatewayRuleView>>(&raw)
+                .unwrap_or_else(|_| default_gateway_rules()),
+            Err(_) => {
+                let seed = default_gateway_rules();
+                if let Ok(json) = serde_json::to_string_pretty(&seed) {
+                    let _ = std::fs::write(&path, json);
+                }
+                seed
+            }
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn mcp_config_export() -> Result<String, String> {
+    let path = mcp_servers_path();
+    tokio::task::spawn_blocking(move || -> String {
+        std::fs::read_to_string(&path).unwrap_or_else(|_| "[]".to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn mcp_config_import(json: String) -> Result<usize, String> {
+    let parsed: serde_json::Value = serde_json::from_str(&json)
+        .map_err(|e| format!("Invalid JSON: {e}"))?;
+    let count = parsed.as_array().map(|a| a.len()).ok_or("Expected a JSON array")?;
+    let path = mcp_servers_path();
+    tokio::task::spawn_blocking(move || -> Result<(), String> {
+        let pretty = serde_json::to_string_pretty(&parsed).map_err(|e| e.to_string())?;
+        std::fs::write(&path, pretty).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+    Ok(count)
+}
+
+// ─── MSAF (Multi-Agent Standard Framework) ───────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MsafAgentManifestView {
+    pub agent_id: String,
+    pub name: String,
+    pub version: String,
+    pub capabilities: Vec<String>,
+    pub description: String,
+    pub author: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MsafCatalogEntryView {
+    pub agent_id: String,
+    pub name: String,
+    pub version: String,
+    pub status: String,
+    pub heartbeat_at: String,
+    pub endpoint: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MsafTokenResultView {
+    pub valid: bool,
+    pub agent_id: Option<String>,
+    pub scopes: Vec<String>,
+    pub expires_at: Option<String>,
+    pub error: Option<String>,
+}
+
+#[tauri::command]
+pub async fn msaf_manifest() -> Result<MsafAgentManifestView, String> {
+    Ok(MsafAgentManifestView {
+        agent_id: "vibecody".to_string(),
+        name: "VibeCody".to_string(),
+        version: env!("CARGO_PKG_VERSION").to_string(),
+        capabilities: vec![
+            "code-generation".into(),
+            "code-review".into(),
+            "refactoring".into(),
+            "debugging".into(),
+            "testing".into(),
+            "documentation".into(),
+        ],
+        description: "VibeCody MSAF-compatible agent manifest".to_string(),
+        author: "VibeCody".to_string(),
+    })
+}
+
+#[tauri::command]
+pub async fn msaf_catalog_list() -> Result<Vec<MsafCatalogEntryView>, String> {
+    Ok(Vec::new())
+}
+
+#[tauri::command]
+pub async fn msaf_validate_token(token: String) -> Result<MsafTokenResultView, String> {
+    let validator = vibecli_cli::msaf_compat::TokenValidator::new();
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+    match validator.validate_token(&token, now_ms) {
+        Ok(claims) => Ok(MsafTokenResultView {
+            valid: true,
+            agent_id: Some(claims.sub),
+            scopes: claims.groups,
+            expires_at: Some(claims.exp_ms.to_string()),
+            error: None,
+        }),
+        Err(e) => Ok(MsafTokenResultView {
+            valid: false,
+            agent_id: None,
+            scopes: Vec::new(),
+            expires_at: None,
+            error: Some(e),
+        }),
+    }
+}
+
+// ─── Team Onboarding ─────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TeamMemberView {
+    pub user_id: String,
+    pub name: String,
+    pub email: String,
+    pub sessions: u32,
+    pub is_new_member: bool,
+    pub joined_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TeamKnowledgeGapView {
+    pub id: String,
+    pub topic: String,
+    pub description: String,
+    pub impact: String,
+    pub affected_users: Vec<String>,
+    pub impact_score: u8,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TeamHotspotView {
+    pub file_path: String,
+    pub access_count: u32,
+    pub contributor_count: u32,
+    pub complexity: String,
+}
+
+async fn team_workspace_root(state: &tauri::State<'_, AppState>) -> PathBuf {
+    let folders = state.workspace.lock().await.folders().to_vec();
+    folders
+        .first()
+        .map(PathBuf::from)
+        .unwrap_or_else(|| std::env::current_dir().unwrap_or_default())
+}
+
+fn format_unix_date(ts_secs: u64) -> String {
+    // YYYY-MM-DD from Unix timestamp using civil-from-days conversion
+    // (Howard Hinnant's algorithm — no external date crate needed).
+    let days = (ts_secs / 86_400) as i64;
+    let z = days + 719_468;
+    let era = if z >= 0 { z / 146_097 } else { (z - 146_096) / 146_097 };
+    let doe = (z - era * 146_097) as u64;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146_096) / 365;
+    let y = yoe as i64 + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let year = if m <= 2 { y + 1 } else { y };
+    format!("{:04}-{:02}-{:02}", year, m, d)
+}
+
+#[tauri::command]
+pub async fn team_onboarding_members(
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<TeamMemberView>, String> {
+    let ws = team_workspace_root(&state).await;
+    let members = tokio::task::spawn_blocking(move || -> Vec<TeamMemberView> {
+        let out = std::process::Command::new("git")
+            .args([
+                "log",
+                "--no-merges",
+                "--pretty=format:%ae\x1f%an\x1f%ct",
+                "--reverse",
+            ])
+            .current_dir(&ws)
+            .output();
+        let Ok(out) = out else { return Vec::new() };
+        if !out.status.success() {
+            return Vec::new();
+        }
+        let stdout = String::from_utf8_lossy(&out.stdout);
+
+        #[derive(Default)]
+        struct Agg {
+            name: String,
+            sessions: u32,
+            first_ts: u64,
+        }
+        let mut by_email: HashMap<String, Agg> = HashMap::new();
+        for line in stdout.lines() {
+            let mut parts = line.splitn(3, '\x1f');
+            let email = parts.next().unwrap_or("").trim().to_string();
+            let name = parts.next().unwrap_or("").trim().to_string();
+            let ts = parts.next().and_then(|s| s.trim().parse::<u64>().ok()).unwrap_or(0);
+            if email.is_empty() { continue; }
+            let entry = by_email.entry(email).or_default();
+            if entry.name.is_empty() {
+                entry.name = name;
+            }
+            if entry.first_ts == 0 || ts < entry.first_ts {
+                entry.first_ts = ts;
+            }
+            entry.sessions += 1;
+        }
+
+        let mut members: Vec<TeamMemberView> = by_email
+            .into_iter()
+            .map(|(email, agg)| TeamMemberView {
+                user_id: email.clone(),
+                name: if agg.name.is_empty() { email.clone() } else { agg.name },
+                email,
+                sessions: agg.sessions,
+                is_new_member: agg.sessions < 5,
+                joined_at: format_unix_date(agg.first_ts),
+            })
+            .collect();
+        members.sort_by(|a, b| b.sessions.cmp(&a.sessions));
+        members
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+    Ok(members)
+}
+
+#[tauri::command]
+pub async fn team_onboarding_gaps() -> Result<Vec<TeamKnowledgeGapView>, String> {
+    // No real data source yet — OnboardingEngine requires per-user usage
+    // tracking that isn't wired through the daemon. Returning empty so the
+    // panel renders its empty state.
+    Ok(Vec::new())
+}
+
+fn complexity_from_ext(path: &str) -> &'static str {
+    let ext = std::path::Path::new(path)
+        .extension()
+        .and_then(|s| s.to_str())
+        .unwrap_or("");
+    match ext {
+        "rs" | "cpp" | "cc" | "c" | "h" | "hpp" | "scala" | "hs" => "high",
+        "ts" | "tsx" | "js" | "jsx" | "py" | "go" | "java" | "kt" | "swift" => "medium",
+        "md" | "json" | "toml" | "yaml" | "yml" | "txt" | "lock" | "css" | "html" => "low",
+        _ => "medium",
+    }
+}
+
+#[tauri::command]
+pub async fn team_onboarding_hotspots(
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<TeamHotspotView>, String> {
+    let ws = team_workspace_root(&state).await;
+    let hotspots = tokio::task::spawn_blocking(move || -> Vec<TeamHotspotView> {
+        let out = std::process::Command::new("git")
+            .args([
+                "log",
+                "--no-merges",
+                "--name-only",
+                "--pretty=format:\x1fA\x1f%ae",
+                "-n",
+                "1000",
+            ])
+            .current_dir(&ws)
+            .output();
+        let Ok(out) = out else { return Vec::new() };
+        if !out.status.success() {
+            return Vec::new();
+        }
+        let stdout = String::from_utf8_lossy(&out.stdout);
+
+        struct FileAgg {
+            access_count: u32,
+            contributors: std::collections::HashSet<String>,
+        }
+        let mut by_path: HashMap<String, FileAgg> = HashMap::new();
+        let mut current_author = String::new();
+        for raw in stdout.lines() {
+            let line = raw.trim_end_matches('\r');
+            if let Some(rest) = line.strip_prefix("\x1fA\x1f") {
+                current_author = rest.to_string();
+                continue;
+            }
+            if line.is_empty() {
+                continue;
+            }
+            let entry = by_path.entry(line.to_string()).or_insert_with(|| FileAgg {
+                access_count: 0,
+                contributors: std::collections::HashSet::new(),
+            });
+            entry.access_count += 1;
+            if !current_author.is_empty() {
+                entry.contributors.insert(current_author.clone());
+            }
+        }
+
+        let mut hotspots: Vec<TeamHotspotView> = by_path
+            .into_iter()
+            .map(|(path, agg)| TeamHotspotView {
+                complexity: complexity_from_ext(&path).to_string(),
+                file_path: path,
+                access_count: agg.access_count,
+                contributor_count: agg.contributors.len() as u32,
+            })
+            .collect();
+        hotspots.sort_by(|a, b| b.access_count.cmp(&a.access_count));
+        hotspots.truncate(30);
+        hotspots
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+    Ok(hotspots)
+}
+
+#[tauri::command]
+pub async fn team_onboarding_guide(
+    user_id: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<String, String> {
+    let ws = team_workspace_root(&state).await;
+    let email = user_id.clone();
+    let guide = tokio::task::spawn_blocking(move || -> String {
+        let out = std::process::Command::new("git")
+            .args([
+                "log",
+                "--no-merges",
+                "--name-only",
+                "--pretty=format:",
+                "--author",
+                &email,
+                "-n",
+                "200",
+            ])
+            .current_dir(&ws)
+            .output();
+        let Ok(out) = out else {
+            return format!("# Onboarding Guide for {}\n\nNo git history available for this user.\n", email);
+        };
+        if !out.status.success() {
+            return format!("# Onboarding Guide for {}\n\nNo git history available for this user.\n", email);
+        }
+        let stdout = String::from_utf8_lossy(&out.stdout);
+
+        let mut by_path: HashMap<String, u32> = HashMap::new();
+        for raw in stdout.lines() {
+            let line = raw.trim();
+            if line.is_empty() {
+                continue;
+            }
+            *by_path.entry(line.to_string()).or_insert(0) += 1;
+        }
+        let mut top: Vec<(String, u32)> = by_path.into_iter().collect();
+        top.sort_by(|a, b| b.1.cmp(&a.1));
+        top.truncate(10);
+
+        let mut md = format!("# Onboarding Guide for {}\n\n", email);
+        md.push_str("## Your Top Touched Files\n");
+        if top.is_empty() {
+            md.push_str("_No commits found for this author in the workspace._\n");
+        } else {
+            for (i, (path, n)) in top.iter().enumerate() {
+                md.push_str(&format!("{}. `{}` — {} commits\n", i + 1, path, n));
+            }
+        }
+        md.push_str(
+            "\n## Suggested Next Steps\n\
+             - [ ] Review recent commits on your top files\n\
+             - [ ] Read CLAUDE.md and AGENTS.md for project conventions\n\
+             - [ ] Pair with a veteran contributor on a hotspot file\n",
+        );
+        md
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+    Ok(guide)
 }

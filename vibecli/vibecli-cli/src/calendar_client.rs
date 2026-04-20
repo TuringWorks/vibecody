@@ -583,6 +583,103 @@ impl CalendarClient {
     }
 }
 
+// ── UI wrapper API ───────────────────────────────────────────────────────────
+
+fn require_calendar() -> std::result::Result<CalendarClient, String> {
+    CalendarClient::from_env_or_config().ok_or_else(|| {
+        "Calendar not configured. Set GOOGLE_CALENDAR_TOKEN / OUTLOOK_ACCESS_TOKEN, \
+         or add [calendar] to ~/.vibecli/config.toml."
+            .to_string()
+    })
+}
+
+pub async fn ui_today() -> std::result::Result<Vec<CalendarEvent>, String> {
+    let c = require_calendar()?;
+    c.today_events().await.map_err(|e| e.to_string())
+}
+
+pub async fn ui_week() -> std::result::Result<Vec<CalendarEvent>, String> {
+    let c = require_calendar()?;
+    c.week_events().await.map_err(|e| e.to_string())
+}
+
+pub async fn ui_upcoming(max: usize) -> std::result::Result<Vec<CalendarEvent>, String> {
+    let c = require_calendar()?;
+    c.list_upcoming(max).await.map_err(|e| e.to_string())
+}
+
+pub async fn ui_range(
+    time_min: &str,
+    time_max: &str,
+    max: usize,
+) -> std::result::Result<Vec<CalendarEvent>, String> {
+    let c = require_calendar()?;
+    c.list_events(time_min, time_max, max)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+pub async fn ui_delete(id: &str) -> std::result::Result<(), String> {
+    let c = require_calendar()?;
+    c.delete_event(id).await.map_err(|e| e.to_string())
+}
+
+pub async fn ui_create_event(
+    summary: &str,
+    start: &str,
+    end: &str,
+) -> std::result::Result<CalendarEvent, String> {
+    let c = require_calendar()?;
+    c.create_event(summary, start, end)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+pub async fn ui_move(id: &str, new_start: &str) -> std::result::Result<CalendarEvent, String> {
+    let c = require_calendar()?;
+    c.move_event(id, new_start).await.map_err(|e| e.to_string())
+}
+
+pub async fn ui_next() -> std::result::Result<Option<CalendarEvent>, String> {
+    let c = require_calendar()?;
+    c.next_event().await.map_err(|e| e.to_string())
+}
+
+pub async fn ui_free_today() -> std::result::Result<Vec<FreeSlot>, String> {
+    let c = require_calendar()?;
+    let events = c.today_events().await.map_err(|e| e.to_string())?;
+    let date = chrono::Local::now().date_naive();
+    Ok(compute_free_slots(&events, date))
+}
+
+pub async fn ui_status() -> crate::email_client::ProviderStatus {
+    let Some(client) = CalendarClient::from_env_or_config() else {
+        return crate::email_client::ProviderStatus {
+            connected: false,
+            provider: None,
+            account: None,
+            message: Some("Not signed in".to_string()),
+        };
+    };
+    let provider_name = match client.provider {
+        CalendarProvider::Google => "google",
+        CalendarProvider::Outlook => "outlook",
+    };
+    // Probe by listing a minimal range — if token is valid, this succeeds quickly.
+    let now = chrono::Utc::now().to_rfc3339();
+    let soon = (chrono::Utc::now() + chrono::Duration::hours(1)).to_rfc3339();
+    let (ok, err) = match client.list_events(&now, &soon, 1).await {
+        Ok(_) => (true, None),
+        Err(e) => (false, Some(e.to_string())),
+    };
+    crate::email_client::ProviderStatus {
+        connected: ok,
+        provider: Some(provider_name.to_string()),
+        account: None,
+        message: err,
+    }
+}
+
 // ── Free-slot calculation ────────────────────────────────────────────────────
 
 /// Compute free slots between events during work hours (9am–6pm).

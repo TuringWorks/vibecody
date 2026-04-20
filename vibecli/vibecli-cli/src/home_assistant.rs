@@ -224,6 +224,60 @@ impl HomeAssistantClient {
     }
 }
 
+// ── UI wrapper API ───────────────────────────────────────────────────────────
+
+fn require_ha() -> std::result::Result<HomeAssistantClient, String> {
+    HomeAssistantClient::from_env_or_config().ok_or_else(|| {
+        "Home Assistant not configured. Set HOMEASSISTANT_URL + HOMEASSISTANT_TOKEN, \
+         or add [home_assistant] to ~/.vibecli/config.toml."
+            .to_string()
+    })
+}
+
+pub async fn ui_list_states() -> std::result::Result<Vec<HaEntity>, String> {
+    let c = require_ha()?;
+    c.get_states().await.map_err(|e| e.to_string())
+}
+
+pub async fn ui_call_service(
+    domain: &str,
+    service: &str,
+    entity_id: &str,
+    data: Option<serde_json::Value>,
+) -> std::result::Result<(), String> {
+    let c = require_ha()?;
+    c.call_service(domain, service, entity_id, data)
+        .await
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+
+pub async fn ui_status() -> crate::email_client::ProviderStatus {
+    let Some(c) = HomeAssistantClient::from_env_or_config() else {
+        return crate::email_client::ProviderStatus {
+            connected: false,
+            provider: None,
+            account: None,
+            message: Some("Not configured".to_string()),
+        };
+    };
+    // Probe /api/ (cheap config endpoint).
+    match c.get_states().await {
+        Ok(_) => crate::email_client::ProviderStatus {
+            connected: true,
+            provider: Some("home_assistant".to_string()),
+            account: Some(c.base_url.clone()),
+            message: None,
+        },
+        Err(e) => crate::email_client::ProviderStatus {
+            connected: false,
+            provider: Some("home_assistant".to_string()),
+            account: Some(c.base_url.clone()),
+            message: Some(e.to_string()),
+        },
+    }
+}
+
 // ── REPL handler ─────────────────────────────────────────────────────────────
 
 /// Run the `/ha` REPL command.

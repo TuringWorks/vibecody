@@ -19,6 +19,7 @@ import {
   BookOpen,
   Ticket,
   Home,
+  Sparkles,
   // Email quick actions
   MailOpen,
   Inbox,
@@ -49,9 +50,18 @@ import {
   Loader2,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { EmailTab } from "./productivity/EmailTab";
+import { CalendarTab } from "./productivity/CalendarTab";
+import { TasksTab } from "./productivity/TasksTab";
+import { NotionTab } from "./productivity/NotionTab";
+import { JiraTab } from "./productivity/JiraTab";
+import { HomeTab } from "./productivity/HomeTab";
+import { TodayTab } from "./productivity/TodayTab";
+import type { TodayNavTarget } from "./productivity/TodayTab";
 
 /* ── Shared types ─────────────────────────────────────────────────────────── */
-type Tab = "email" | "calendar" | "tasks" | "notion" | "jira" | "home";
+type Tab = "today" | "email" | "calendar" | "tasks" | "notion" | "jira" | "home";
+type CommandTab = Exclude<Tab, "today">;
 
 interface OutputLine {
   id: number;
@@ -81,6 +91,7 @@ function Ico({
 
 /* ── Tab definitions ─────────────────────────────────────────────────────── */
 const TABS: { key: Tab; label: string; icon: LucideIcon }[] = [
+  { key: "today",    label: "Today",    icon: Sparkles },
   { key: "email",    label: "Email",    icon: Mail },
   { key: "calendar", label: "Calendar", icon: Calendar },
   { key: "tasks",    label: "Tasks",    icon: ListTodo },
@@ -90,7 +101,7 @@ const TABS: { key: Tab; label: string; icon: LucideIcon }[] = [
 ];
 
 /* ── Quick command sets per tab ──────────────────────────────────────────── */
-const QUICK: Record<Tab, { label: string; cmd: string; icon: LucideIcon }[]> = {
+const QUICK: Record<CommandTab, { label: string; cmd: string; icon: LucideIcon }[]> = {
   email: [
     { label: "Unread",  cmd: "unread",  icon: MailOpen },
     { label: "Inbox",   cmd: "inbox",   icon: Inbox },
@@ -124,7 +135,7 @@ const QUICK: Record<Tab, { label: string; cmd: string; icon: LucideIcon }[]> = {
   ],
 };
 
-const PLACEHOLDER: Record<Tab, string> = {
+const PLACEHOLDER: Record<CommandTab, string> = {
   email:    "unread | inbox | read <id> | send <to> <subject> <body> | search <q> | triage | archive <id>",
   calendar: "today | week | list [days] | create <title> <start> <end> | free [date] | move <id> <start> | next",
   tasks:    "todo today | todo list | todo add <task> due:today p:1 | todo close <id>",
@@ -134,7 +145,7 @@ const PLACEHOLDER: Record<Tab, string> = {
 };
 
 /* ── Tauri invoke mapping ─────────────────────────────────────────────────── */
-async function runCommand(tab: Tab, cmd: string): Promise<string> {
+async function runCommand(tab: CommandTab, cmd: string): Promise<string> {
   const c = cmd.trim();
   try {
     switch (tab) {
@@ -157,7 +168,7 @@ async function runCommand(tab: Tab, cmd: string): Promise<string> {
 }
 
 /* ── Tab content component ─────────────────────────────────────────────────── */
-function TabContent({ tab }: { tab: Tab }) {
+function TabContent({ tab }: { tab: CommandTab }) {
   const [cmd, setCmd] = useState("");
   const [lines, setLines] = useState<OutputLine[]>([]);
   const [loading, setLoading] = useState(false);
@@ -241,10 +252,32 @@ function TabContent({ tab }: { tab: Tab }) {
 
 /* ── Main export ──────────────────────────────────────────────────────────── */
 export function ProductivityPanel() {
-  const [activeTab, setActiveTab] = useState<Tab>("email");
+  const [activeTab, setActiveTab] = useState<Tab>("today");
+  const [initialEmailId, setInitialEmailId] = useState<string | undefined>(undefined);
+  const [initialEventId, setInitialEventId] = useState<string | undefined>(undefined);
+
+  const handleTodayNav = useCallback((target: TodayNavTarget) => {
+    if (target.tab === "email") {
+      setInitialEmailId(target.emailId);
+      setInitialEventId(undefined);
+    } else if (target.tab === "calendar") {
+      setInitialEventId(target.eventId);
+      setInitialEmailId(undefined);
+    }
+    setActiveTab(target.tab);
+  }, []);
+
+  const switchTab = useCallback((t: Tab) => {
+    setInitialEmailId(undefined);
+    setInitialEventId(undefined);
+    setActiveTab(t);
+  }, []);
 
   return (
-    <div className="panel-container" style={{ fontFamily: "var(--font-mono, monospace)" }}>
+    <div
+      className="panel-container"
+      style={{ fontFamily: "var(--font-mono, monospace)", position: "relative" }}
+    >
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
       <div className="panel-tab-bar">
         {TABS.map((t) => (
@@ -252,14 +285,30 @@ export function ProductivityPanel() {
             key={t.key}
             className={`panel-btn panel-tab${activeTab === t.key ? " active" : ""}`}
             style={{ display: "flex", alignItems: "center", gap: 5 }}
-            onClick={() => setActiveTab(t.key)}
+            onClick={() => switchTab(t.key)}
           >
             <Ico icon={t.icon} size={13} />
             {t.label}
           </button>
         ))}
       </div>
-      <TabContent key={activeTab} tab={activeTab} />
+      {activeTab === "today" ? (
+        <TodayTab onNavigate={handleTodayNav} />
+      ) : activeTab === "email" ? (
+        <EmailTab initialEmailId={initialEmailId} />
+      ) : activeTab === "calendar" ? (
+        <CalendarTab initialEventId={initialEventId} />
+      ) : activeTab === "tasks" ? (
+        <TasksTab />
+      ) : activeTab === "notion" ? (
+        <NotionTab />
+      ) : activeTab === "jira" ? (
+        <JiraTab />
+      ) : activeTab === "home" ? (
+        <HomeTab />
+      ) : (
+        <TabContent key={activeTab} tab={activeTab} />
+      )}
     </div>
   );
 }
