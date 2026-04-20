@@ -547,6 +547,24 @@ impl Default for LocalEmbeddingEngine {
     }
 }
 
+/// Bridge to the [`vibe_infer::Embedder`] trait so OpenMemory's built-in
+/// feature-hashed engine satisfies the same interface as the candle-backed
+/// MiniLM embedder. Existing sync callers keep using the inherent `embed`;
+/// new async sites (REPL slash commands, future remote embedders) can take
+/// `&dyn vibe_infer::Embedder` and swap backends without touching this file.
+#[async_trait::async_trait]
+impl vibe_infer::Embedder for LocalEmbeddingEngine {
+    fn dim(&self) -> usize {
+        self.embedding_dim
+    }
+
+    async fn embed(&self, text: &str) -> vibe_infer::Result<Vec<f32>> {
+        // UFCS to the inherent (sync) method — `self.embed(text)` would be
+        // ambiguous with the trait method we're currently defining.
+        Ok(LocalEmbeddingEngine::embed(self, text))
+    }
+}
+
 // ─── HNSW Index ──────────────────────────────────────────────────────────────
 
 /// Hierarchical Navigable Small World graph for approximate nearest neighbor search.
@@ -3495,6 +3513,20 @@ mod tests {
         // L2-normalized → unit length (within fp tolerance).
         let norm = vec.iter().map(|x| x * x).sum::<f32>().sqrt();
         assert!((norm - 1.0).abs() < 1e-3, "norm = {norm}");
+    }
+
+    #[tokio::test]
+    async fn local_engine_satisfies_vibe_infer_embedder_trait() {
+        // Lock the bridge: callers must be able to take `&dyn vibe_infer::Embedder`
+        // and get the same vector that the inherent sync embed produces.
+        let mut engine = LocalEmbeddingEngine::with_dim(256);
+        engine.add_document("hello world");
+        let trait_obj: &dyn vibe_infer::Embedder = &engine;
+        assert_eq!(trait_obj.dim(), 256);
+
+        let async_vec = trait_obj.embed("hello world").await.expect("embed via trait");
+        let sync_vec = engine.embed("hello world");
+        assert_eq!(async_vec, sync_vec);
     }
 
     #[test]
