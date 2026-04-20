@@ -36,6 +36,43 @@ export function McpGovernancePanel() {
   const [issuerUrl, setIssuerUrl] = useState("");
   const [clientId, setClientId] = useState("");
   const [groups, setGroups] = useState("");
+  const [ssoSaving, setSsoSaving] = useState(false);
+  const [ssoSavedMsg, setSsoSavedMsg] = useState<string | null>(null);
+  const [configImporting, setConfigImporting] = useState(false);
+  const [configMsg, setConfigMsg] = useState<string | null>(null);
+
+  async function saveSso() {
+    setSsoSaving(true);
+    setSsoSavedMsg(null);
+    try {
+      const next: SsoConfig = {
+        issuer_url: issuerUrl.trim(),
+        client_id: clientId.trim(),
+        groups: groups.split(",").map(g => g.trim()).filter(Boolean),
+        enabled: ssoConfig.enabled,
+      };
+      await invoke("mcp_sso_config_save", { config: next });
+      setSsoConfig(next);
+      setSsoSavedMsg("Saved.");
+    } catch (e) {
+      setSsoSavedMsg(`Error: ${e}`);
+    } finally {
+      setSsoSaving(false);
+    }
+  }
+
+  async function importConfig() {
+    setConfigImporting(true);
+    setConfigMsg(null);
+    try {
+      const count = await invoke<number>("mcp_config_import", { json: configExport });
+      setConfigMsg(`Imported ${count} server(s).`);
+    } catch (e) {
+      setConfigMsg(`Error: ${e}`);
+    } finally {
+      setConfigImporting(false);
+    }
+  }
 
   useEffect(() => {
     async function load() {
@@ -73,17 +110,16 @@ export function McpGovernancePanel() {
   };
 
   return (
-    <div className="panel-container" style={{ padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-mono)", flex: 1, minHeight: 0, overflowY: "auto" }}>
-      <div style={{ fontSize: "var(--font-size-xl)", fontWeight: 700, marginBottom: 12 }}>MCP Governance</div>
-
-      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+    <div className="panel-container">
+      <div className="panel-header"><h3>MCP Governance</h3></div>
+      <div className="panel-tab-bar" style={{ flexWrap: "wrap" }}>
         {["audit", "sso", "gateway", "config"].map(t => (
-          <button className="panel-tab" key={t} onClick={() => setTab(t)} style={{ padding: "4px 12px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: tab === t ? "var(--accent-color)" : "var(--bg-secondary)", color: tab === t ? "var(--btn-primary-fg)" : "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>{t}</button>
+          <button className={`panel-tab${tab === t ? " active" : ""}`} key={t} onClick={() => setTab(t)}>{t}</button>
         ))}
       </div>
-
-      {loading && <div className="panel-loading" style={{ color: "var(--text-muted)" }}>Loading...</div>}
-      {error && <div style={{ color: "var(--error-color)", marginBottom: 8 }}>{error}</div>}
+      <div className="panel-body">
+      {loading && <div className="panel-loading">Loading...</div>}
+      {error && <div className="panel-error"><span>{error}</span></div>}
 
       {!loading && tab === "audit" && (
         <div style={{ maxHeight: 500, overflowY: "auto" }}>
@@ -139,9 +175,15 @@ export function McpGovernancePanel() {
             <input type="checkbox" checked={ssoConfig.enabled} onChange={e => setSsoConfig(s => ({ ...s, enabled: e.target.checked }))} id="sso-enabled" />
             <label htmlFor="sso-enabled" style={{ fontSize: "var(--font-size-base)", color: "var(--text-muted)" }}>Enable SSO</label>
           </div>
-          <button className="panel-btn" style={{ padding: "8px 20px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: "var(--accent-color)", color: "var(--btn-primary-fg, #fff)", border: "none", fontSize: "var(--font-size-md)", fontWeight: 600 }}>
-            Save SSO Config
+          <button className="panel-btn" onClick={saveSso} disabled={ssoSaving}
+            style={{ padding: "8px 20px", borderRadius: "var(--radius-sm)", cursor: ssoSaving ? "not-allowed" : "pointer", background: "var(--accent-color)", color: "var(--btn-primary-fg, #fff)", border: "none", fontSize: "var(--font-size-md)", fontWeight: 600, opacity: ssoSaving ? 0.6 : 1 }}>
+            {ssoSaving ? "Saving…" : "Save SSO Config"}
           </button>
+          {ssoSavedMsg && (
+            <div style={{ marginTop: 10, fontSize: "var(--font-size-sm)", color: ssoSavedMsg.startsWith("Error") ? "var(--error-color)" : "var(--success-color)" }}>
+              {ssoSavedMsg}
+            </div>
+          )}
         </div>
       )}
 
@@ -167,12 +209,20 @@ export function McpGovernancePanel() {
           <textarea value={configExport} onChange={e => setConfigExport(e.target.value)}
             style={{ width: "100%", height: 300, padding: "12px", borderRadius: "var(--radius-sm)", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", resize: "vertical", boxSizing: "border-box" }} />
           <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
-            <button className="panel-btn" style={{ padding: "8px 20px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: "var(--accent-color)", color: "var(--btn-primary-fg, #fff)", border: "none", fontSize: "var(--font-size-md)", fontWeight: 600 }}>Import</button>
-            <button onClick={() => navigator.clipboard?.writeText(configExport)}
-              style={{ padding: "8px 20px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-md)" }}>Copy</button>
+            <button className="panel-btn" onClick={importConfig} disabled={configImporting}
+              style={{ padding: "8px 20px", borderRadius: "var(--radius-sm)", cursor: configImporting ? "not-allowed" : "pointer", background: "var(--accent-color)", color: "var(--btn-primary-fg, #fff)", border: "none", fontSize: "var(--font-size-md)", fontWeight: 600, opacity: configImporting ? 0.6 : 1 }}>
+              {configImporting ? "Importing…" : "Import"}
+            </button>
+            <button className="panel-btn panel-btn-secondary" onClick={() => navigator.clipboard?.writeText(configExport)}>Copy</button>
           </div>
+          {configMsg && (
+            <div style={{ marginTop: 10, fontSize: "var(--font-size-sm)", color: configMsg.startsWith("Error") ? "var(--error-color)" : "var(--success-color)" }}>
+              {configMsg}
+            </div>
+          )}
         </div>
       )}
+      </div>
     </div>
   );
 }

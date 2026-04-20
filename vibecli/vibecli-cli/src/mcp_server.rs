@@ -197,7 +197,15 @@ async fn dispatch(
             let p = params.unwrap_or_default();
             let name = p["name"].as_str().unwrap_or("").to_string();
             let args = p["arguments"].clone();
-            call_tool(&name, args, workspace_root, provider, approval, sandbox).await
+            let start = std::time::Instant::now();
+            let result = call_tool(&name, args, workspace_root, provider, approval, sandbox).await;
+            let latency_ms = start.elapsed().as_millis() as u64;
+            let (outcome, reason) = match &result {
+                Ok(_) => ("success", None),
+                Err(e) => ("error", Some(e.to_string())),
+            };
+            append_audit_event(&name, "mcp-stdio", outcome, reason, latency_ms);
+            result
         }
 
         _ => Err(anyhow::anyhow!("Method not found: {}", method)),
@@ -1216,6 +1224,69 @@ fn resolve(root: &Path, path: &str) -> PathBuf {
         p
     } else {
         root.join(p)
+    }
+}
+
+// ── Audit log ─────────────────────────────────────────────────────────────────
+//
+// Every `tools/call` dispatch appends a single JSON line to
+// `~/.vibecli/mcp_audit.jsonl`. VibeUI's MCP Governance panel tails this
+// file via the `mcp_audit_query` Tauri command.
+
+/// Path to the MCP audit log (`~/.vibecli/mcp_audit.jsonl`).
+pub fn audit_log_path() -> PathBuf {
+    dirs::home_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join(".vibecli")
+        .join("mcp_audit.jsonl")
+}
+
+/// Size at which the audit log rotates to `mcp_audit.jsonl.1`. 10 MiB.
+const AUDIT_LOG_MAX_BYTES: u64 = 10 * 1024 * 1024;
+
+fn maybe_rotate_audit_log(path: &Path) {
+    let Ok(meta) = std::fs::metadata(path) else { return };
+    if meta.len() < AUDIT_LOG_MAX_BYTES {
+        return;
+    }
+    // Single-generation rotation: current → .1, old .1 is overwritten.
+    let rotated = path.with_extension("jsonl.1");
+    let _ = std::fs::rename(path, rotated);
+}
+
+fn append_audit_event(
+    tool_name: &str,
+    caller_id: &str,
+    outcome: &str,
+    reason: Option<String>,
+    latency_ms: u64,
+) {
+    use std::io::Write;
+    let path = audit_log_path();
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    maybe_rotate_audit_log(&path);
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+    let entry = serde_json::json!({
+        "event_id": format!("evt-{:x}", now_ms),
+        "tool_name": tool_name,
+        "caller_id": caller_id,
+        "outcome": outcome,
+        "reason": reason,
+        "latency_ms": latency_ms,
+        "timestamp_ms": now_ms,
+    });
+    if let Ok(mut f) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)
+    {
+        // Best-effort — never surface audit-write errors into the RPC path.
+        let _ = writeln!(f, "{}", entry);
     }
 }
 
