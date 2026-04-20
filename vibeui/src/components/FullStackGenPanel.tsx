@@ -42,8 +42,8 @@ const FullStackGenPanel: React.FC = () => {
 
 
   const layerColors: Record<string, string> = {
-    Frontend: "#1565c0", Backend: "#2e7d32", Database: "var(--accent-purple)",
-    Infra: "#e65100", Testing: "#c62828", Docs: "#757575",
+    Frontend: "var(--accent-blue)", Backend: "var(--accent-green)", Database: "var(--accent-purple)",
+    Infra: "var(--warning-color)", Testing: "var(--error-color)", Docs: "var(--text-secondary)",
   };
   const badgeStyle = (color: string): React.CSSProperties => ({
     display: "inline-block", padding: "2px 8px", borderRadius: "var(--radius-md)",

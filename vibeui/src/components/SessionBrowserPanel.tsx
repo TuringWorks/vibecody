@@ -225,31 +225,11 @@ const SessionBrowserPanel: React.FC = () => {
           />
 
           {sessionsLoading && (
-            <div
-              style={{
-                textAlign: "center",
-                padding: 30,
-                color: "var(--text-secondary)",
-              }}
-            >
-              Loading sessions...
-            </div>
+            <div className="panel-loading">Loading sessions...</div>
           )}
 
           {sessionsError && (
-            <div
-              style={{
-                padding: "8px 12px",
-                marginBottom: 10,
-                borderRadius: "var(--radius-xs-plus)",
-                background: "var(--bg-secondary)",
-                borderLeft: "3px solid var(--error-color)",
-                color: "var(--error-color)",
-                fontSize: "var(--font-size-base)",
-              }}
-            >
-              Error: {sessionsError}
-            </div>
+            <div className="panel-error"><span>Error: {sessionsError}</span></div>
           )}
 
           {!sessionsLoading &&
@@ -286,38 +266,24 @@ const SessionBrowserPanel: React.FC = () => {
                     {s.id}
                   </span>
                   <button
+                    className="panel-btn panel-btn-secondary panel-btn-xs"
                     onClick={(e) => {
                       e.stopPropagation();
                       forkSession(s.id);
                     }}
                     aria-label={`Fork session ${s.id}`}
                     title="Fork session"
-                    style={{
-                      background: "none",
-                      border: "none",
-                      color: "var(--accent-color)",
-                      cursor: "pointer",
-                      fontSize: "var(--font-size-base)",
-                      padding: "2px 8px",
-                    }}
                   >
                     Fork
                   </button>
                   <button
+                    className="panel-btn panel-btn-danger panel-btn-xs"
                     onClick={(e) => {
                       e.stopPropagation();
                       deleteSession(s.id);
                     }}
                     aria-label={`Delete session ${s.id}`}
                     title="Delete session"
-                    style={{
-                      background: "none",
-                      border: "none",
-                      color: "var(--error-color)",
-                      cursor: "pointer",
-                      fontSize: "var(--font-size-base)",
-                      padding: "2px 8px",
-                    }}
                   >
                     Delete
                   </button>
@@ -356,14 +322,7 @@ const SessionBrowserPanel: React.FC = () => {
           {!sessionsLoading &&
             !sessionsError &&
             filteredSessions.length === 0 && (
-              <div
-                className="panel-empty"
-                style={{
-                  textAlign: "center",
-                  padding: 30,
-                  color: "var(--text-secondary)",
-                }}
-              >
+              <div className="panel-empty">
                 {sessions.length === 0
                   ? "No sessions found in .vibecli/traces/"
                   : "No sessions match your search."}
@@ -393,72 +352,33 @@ const SessionBrowserPanel: React.FC = () => {
               </div>
 
               {messagesLoading && (
-                <div
-                  style={{
-                    textAlign: "center",
-                    padding: 30,
-                    color: "var(--text-secondary)",
-                  }}
-                >
-                  Loading messages...
-                </div>
+                <div className="panel-loading">Loading messages...</div>
               )}
 
               {messagesError && (
-                <div
-                  style={{
-                    padding: "8px 12px",
-                    marginBottom: 10,
-                    borderRadius: "var(--radius-xs-plus)",
-                    background: "var(--bg-secondary)",
-                    borderLeft: "3px solid var(--error-color)",
-                    color: "var(--error-color)",
-                    fontSize: "var(--font-size-base)",
-                  }}
-                >
-                  Error: {messagesError}
-                </div>
+                <div className="panel-error"><span>Error: {messagesError}</span></div>
               )}
 
               {!messagesLoading && !messagesError && messages.length > 0 && (
                 <>
-                  <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                  <div style={{ display: "flex", gap: 8, marginBottom: 12, alignItems: "center" }}>
                     <button
+                      className="panel-btn panel-btn-secondary panel-btn-xs"
                       onClick={() =>
                         setReplayIndex(Math.max(0, replayIndex - 1))
                       }
                       disabled={replayIndex === 0}
-                      style={{
-                        padding: "4px 12px",
-                        fontSize: "var(--font-size-sm)",
-                        borderRadius: "var(--radius-xs-plus)",
-                        border: "1px solid var(--border-color)",
-                        background: "none",
-                        color: "var(--text-primary)",
-                        cursor: replayIndex === 0 ? "not-allowed" : "pointer",
-                      }}
                     >
                       Prev
                     </button>
                     <button
+                      className="panel-btn panel-btn-secondary panel-btn-xs"
                       onClick={() =>
                         setReplayIndex(
                           Math.min(messages.length - 1, replayIndex + 1),
                         )
                       }
                       disabled={replayIndex >= messages.length - 1}
-                      style={{
-                        padding: "4px 12px",
-                        fontSize: "var(--font-size-sm)",
-                        borderRadius: "var(--radius-xs-plus)",
-                        border: "1px solid var(--border-color)",
-                        background: "none",
-                        color: "var(--text-primary)",
-                        cursor:
-                          replayIndex >= messages.length - 1
-                            ? "not-allowed"
-                            : "pointer",
-                      }}
                     >
                       Next
                     </button>
@@ -466,7 +386,6 @@ const SessionBrowserPanel: React.FC = () => {
                       style={{
                         fontSize: "var(--font-size-sm)",
                         color: "var(--text-secondary)",
-                        lineHeight: "28px",
                       }}
                     >
                       Step {replayIndex + 1} / {messages.length}
@@ -523,27 +442,11 @@ const SessionBrowserPanel: React.FC = () => {
               {!messagesLoading &&
                 !messagesError &&
                 messages.length === 0 && (
-                  <div className="panel-empty"
-                    style={{
-                      textAlign: "center",
-                      padding: 30,
-                      color: "var(--text-secondary)",
-                    }}
-                  >
-                    No messages found for this session.
-                  </div>
+                  <div className="panel-empty">No messages found for this session.</div>
                 )}
             </>
           ) : (
-            <div
-              style={{
-                textAlign: "center",
-                padding: 30,
-                color: "var(--text-secondary)",
-              }}
-            >
-              Select a session from the Sessions tab to replay it.
-            </div>
+            <div className="panel-empty">Select a session from the Sessions tab to replay it.</div>
           )}
         </div>
       )}
@@ -551,47 +454,15 @@ const SessionBrowserPanel: React.FC = () => {
       {/* Stats Tab */}
       {tab === "Stats" && (
         <div>
-          <div
-            style={{
-              display: "flex",
-              gap: 12,
-              flexWrap: "wrap",
-              marginBottom: 16,
-            }}
-          >
+          <div className="panel-stats-grid-3" style={{ marginBottom: 16 }}>
             {[
               { label: "Total Sessions", value: String(sessions.length) },
               { label: "Total Messages", value: String(totalMessages) },
               { label: "Total Size", value: formatFileSize(totalSize) },
             ].map(({ label, value }) => (
-              <div
-                key={label}
-                style={{
-                  background: "var(--bg-secondary)",
-                  padding: "12px 16px",
-                  borderRadius: "var(--radius-sm)",
-                  textAlign: "center",
-                  minWidth: 90,
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 20,
-                    fontWeight: 700,
-                    color: "var(--accent-color)",
-                  }}
-                >
-                  {value}
-                </div>
-                <div
-                  style={{
-                    fontSize: "var(--font-size-sm)",
-                    color: "var(--text-secondary)",
-                    marginTop: 2,
-                  }}
-                >
-                  {label}
-                </div>
+              <div key={label} className="panel-stat">
+                <div className="panel-stat-value">{value}</div>
+                <div className="panel-stat-label">{label}</div>
               </div>
             ))}
           </div>
@@ -600,16 +471,7 @@ const SessionBrowserPanel: React.FC = () => {
             Sessions by Size
           </div>
           {sessions.length === 0 && (
-            <div
-              className="panel-empty"
-              style={{
-                textAlign: "center",
-                padding: 20,
-                color: "var(--text-secondary)",
-              }}
-            >
-              No sessions to display.
-            </div>
+            <div className="panel-empty">No sessions to display.</div>
           )}
           {[...sessions]
             .sort((a, b) => b.file_size - a.file_size)
@@ -639,23 +501,8 @@ const SessionBrowserPanel: React.FC = () => {
                   >
                     {s.id}
                   </span>
-                  <div
-                    style={{
-                      flex: 1,
-                      background: "var(--bg-secondary)",
-                      borderRadius: 3,
-                      height: 10,
-                      overflow: "hidden",
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: `${pct}%`,
-                        height: "100%",
-                        background: "var(--accent-color)",
-                        borderRadius: 3,
-                      }}
-                    />
+                  <div className="progress-bar" style={{ flex: 1 }}>
+                    <div className="progress-bar-fill progress-bar-accent" style={{ width: `${pct}%` }} />
                   </div>
                   <span
                     style={{

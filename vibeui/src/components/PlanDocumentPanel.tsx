@@ -155,9 +155,9 @@ export default function PlanDocumentPanel() {
           {error} (click to dismiss)
         </div>
       )}
-      <div className="panel-header">
+      <div className="panel-tab-bar">
         {(["plans", "editor", "comments"] as Tab[]).map(t => (
-          <button key={t} onClick={() => setTab(t)} className={`panel-tab panel-btn ${tab === t ? "panel-btn-primary" : "panel-btn-secondary"}`}>
+          <button key={t} onClick={() => setTab(t)} className={`panel-tab${tab === t ? " active" : ""}`}>
             {t[0].toUpperCase() + t.slice(1)}
             {t === "comments" && allUnresolved.length > 0 && (
               <span style={{ marginLeft: 4, fontSize: 9, padding: "0 4px", borderRadius: "var(--radius-sm)", background: "var(--error-color)", color: "var(--bg-primary)" }}>{allUnresolved.length}</span>
@@ -234,8 +234,8 @@ export default function PlanDocumentPanel() {
               {plan.markdown}
             </pre>
             {planComments.length > 0 && (
-              <button className="panel-tab" onClick={() => setTab("comments")}
-                style={{ alignSelf: "flex-start", padding: "4px 12px", fontSize: "var(--font-size-sm)", background: "var(--bg-secondary)", border: "1px solid var(--text-warning)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-warning)", cursor: "pointer" }}>
+              <button className="panel-btn panel-btn-secondary panel-btn-sm" onClick={() => setTab("comments")}
+                style={{ alignSelf: "flex-start", borderColor: "var(--text-warning)", color: "var(--text-warning)" }}>
                 View {planComments.length} comments
               </button>
             )}

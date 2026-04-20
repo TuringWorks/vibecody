@@ -66,7 +66,7 @@ const EVENT_COLORS: Record<string, string> = {
   NodeEnter: "var(--accent-blue)",
   NodeExit: "var(--success-color)",
   EdgeTraversal: "var(--warning-color)",
-  CheckpointSaved: "#9b59b6",
+  CheckpointSaved: "var(--accent-purple)",
   StateUpdated: "var(--text-secondary)",
   Error: "var(--error-color)",
 };
@@ -75,7 +75,7 @@ const NODE_TYPE_COLORS: Record<string, string> = {
   Tool: "var(--accent-blue)",
   Agent: "var(--success-color)",
   Router: "var(--warning-color)",
-  Checkpoint: "#9b59b6",
+  Checkpoint: "var(--accent-purple)",
   End: "var(--error-color)",
 };
 

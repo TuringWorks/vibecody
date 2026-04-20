@@ -82,16 +82,15 @@ export function VoiceVocabPanel() {
   const maxFreq = Math.max(...symbols.map(s => s.frequency), 1);
 
   return (
-    <div className="panel-container" style={{ padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-mono)", flex: 1, minHeight: 0, overflowY: "auto" }}>
-      <div style={{ fontSize: "var(--font-size-xl)", fontWeight: 700, marginBottom: 12 }}>Voice Vocab Injector</div>
-
-      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+    <div className="panel-container">
+      <div className="panel-header"><h3>Voice Vocab Injector</h3></div>
+      <div className="panel-tab-bar">
         {["vocab", "inject", "metrics"].map(t => (
-          <button className="panel-tab" key={t} onClick={() => setTab(t)} style={{ padding: "4px 12px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: tab === t ? "var(--accent-color)" : "var(--bg-secondary)", color: tab === t ? "var(--btn-primary-fg)" : "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>{t}</button>
+          <button className={`panel-tab${tab === t ? " active" : ""}`} key={t} onClick={() => setTab(t)}>{t}</button>
         ))}
       </div>
-
-      {loading && <div className="panel-loading" style={{ color: "var(--text-muted)" }}>Loading...</div>}
+      <div className="panel-body">
+      {loading && <div className="panel-loading">Loading...</div>}
       {error && <div style={{ color: "var(--error-color)", marginBottom: 8 }}>{error}</div>}
 
       {!loading && tab === "vocab" && (
@@ -240,6 +239,7 @@ export function VoiceVocabPanel() {
           )}
         </div>
       )}
+      </div>
     </div>
   );
 }

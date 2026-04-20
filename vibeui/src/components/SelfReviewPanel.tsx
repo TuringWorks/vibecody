@@ -161,13 +161,9 @@ const SelfReviewPanel: React.FC = () => {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 12, borderBottom: '1px solid var(--border-color)' }}>
+      <div className="panel-tab-bar" style={{ marginBottom: 12 }}>
         {(['results', 'config', 'report'] as const).map((t) => (
-          <button className="panel-tab" key={t} onClick={() => setTab(t)} style={{
-            padding: '8px 16px', border: 'none', cursor: 'pointer', fontSize: "var(--font-size-md)",
-            background: tab === t ? 'var(--accent-color)' : 'transparent',
-            color: tab === t ? 'white' : 'var(--text-secondary)', borderRadius: '6px 6px 0 0',
-          }}>
+          <button className={`panel-tab${tab === t ? " active" : ""}`} key={t} onClick={() => setTab(t)}>
             {t.charAt(0).toUpperCase() + t.slice(1)}
           </button>
         ))}

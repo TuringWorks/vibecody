@@ -7,7 +7,7 @@
  * Listens for "vibeui-theme-change" custom events dispatched by applyThemeById().
  */
 import { useState, useEffect, useRef, useCallback } from "react";
-import { THEMES, type ThemeDef } from "../components/SettingsPanel";
+import { THEMES, type ThemeDef } from "../theme/themes";
 import type { editor } from "monaco-editor";
 
 /** Monaco theme name prefix */

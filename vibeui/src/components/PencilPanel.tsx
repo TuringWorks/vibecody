@@ -34,17 +34,6 @@ const WIREFRAME_TEMPLATES = [
   { id: "data_table", label: "Data Table", icon: "clipboard-list", description: "Filterable sortable data table view" },
 ] as const;
 
-const tabStyle = (active: boolean): React.CSSProperties => ({
-  padding: "7px 14px",
-  fontSize: "var(--font-size-base)",
-  fontWeight: active ? 600 : 400,
-  cursor: "pointer",
-  border: "none",
-  borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent",
-  background: "transparent",
-  color: active ? "var(--text-primary)" : "var(--text-secondary)",
-  whiteSpace: "nowrap",
-});
 
 interface GeneratedWireframe {
   title: string;
@@ -205,8 +194,7 @@ export function PencilPanel({ workspacePath, provider }: PencilPanelProps) {
               style={{ flex: 1, background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", padding: "8px 0", cursor: "pointer", color: "inherit", fontSize: "var(--font-size-base)" }}>
               Copy EP XML
             </button>
-            <button className="panel-tab" onClick={() => setActiveTab("export")}
-              style={{ flex: 1, background: "var(--accent-blue)", border: "none", borderRadius: "var(--radius-sm)", padding: "8px 0", cursor: "pointer", color: "var(--btn-primary-fg, #fff)", fontSize: "var(--font-size-base)", fontWeight: 600 }}>
+            <button className="panel-btn panel-btn-primary" onClick={() => setActiveTab("export")} style={{ flex: 1 }}>
               Export
             </button>
           </div>
@@ -323,9 +311,9 @@ export function PencilPanel({ workspacePath, provider }: PencilPanelProps) {
 
   return (
     <div className="panel-container">
-      <div className="panel-header" style={{ padding: 0, overflow: "auto", flexShrink: 0 }}>
+      <div className="panel-tab-bar" style={{ overflow: "auto" }}>
         {TAB_DEFS.map(({ id, label }) => (
-          <button className="panel-tab" key={id} onClick={() => setActiveTab(id)} style={tabStyle(activeTab === id)}>{label}</button>
+          <button className={`panel-tab${activeTab === id ? " active" : ""}`} key={id} onClick={() => setActiveTab(id)}>{label}</button>
         ))}
         {statusMsg && <span style={{ marginLeft: "auto", marginRight: 12, fontSize: "var(--font-size-sm)", color: "var(--text-success)", lineHeight: "30px" }}>✓ {statusMsg}</span>}
       </div>

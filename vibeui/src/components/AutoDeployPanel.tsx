@@ -40,12 +40,12 @@ const STAGE_STATUS_COLORS: Record<string, string> = {
 };
 
 const KIND_COLORS: Record<string, string> = {
-  build: "#4a9eff",
-  test: "#9c6fe0",
-  deploy: "#4caf7d",
-  validate: "#f0a050",
-  rollback: "#e85d8a",
-  notify: "#50c8e8",
+  build: "var(--accent-blue)",
+  test: "var(--accent-purple)",
+  deploy: "var(--accent-green)",
+  validate: "var(--warning-color)",
+  rollback: "var(--accent-rose)",
+  notify: "var(--info-color)",
 };
 
 export function AutoDeployPanel() {
@@ -86,17 +86,16 @@ export function AutoDeployPanel() {
   };
 
   return (
-    <div className="panel-container" style={{ padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-mono)", flex: 1, minHeight: 0, overflowY: "auto" }}>
-      <div style={{ fontSize: "var(--font-size-xl)", fontWeight: 700, marginBottom: 12 }}>Auto Deploy</div>
-
-      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+    <div className="panel-container">
+      <div className="panel-header"><h3>Auto Deploy</h3></div>
+      <div className="panel-tab-bar">
         {["pipeline", "gates", "history"].map(t => (
-          <button className="panel-tab" key={t} onClick={() => setTab(t)} style={{ padding: "4px 12px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: tab === t ? "var(--accent-color)" : "var(--bg-secondary)", color: tab === t ? "var(--btn-primary-fg)" : "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>{t}</button>
+          <button className={`panel-tab${tab === t ? " active" : ""}`} key={t} onClick={() => setTab(t)}>{t}</button>
         ))}
       </div>
-
-      {loading && <div className="panel-loading" style={{ color: "var(--text-muted)" }}>Loading...</div>}
-      {error && <div style={{ color: "var(--error-color)", marginBottom: 8 }}>{error}</div>}
+      <div className="panel-body">
+      {loading && <div className="panel-loading">Loading...</div>}
+      {error && <div className="panel-error"><span>{error}</span></div>}
 
       {!loading && tab === "pipeline" && (
         <div style={{ position: "relative" }}>
@@ -209,6 +208,7 @@ export function AutoDeployPanel() {
           </table>
         </div>
       )}
+      </div>
     </div>
   );
 }

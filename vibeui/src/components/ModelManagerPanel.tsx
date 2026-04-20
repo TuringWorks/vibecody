@@ -116,25 +116,9 @@ export function ModelManagerPanel() {
   }, [providers, modelsForProvider, filter]);
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-        color: "var(--text-primary)",
-        background: "var(--bg-primary)",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "var(--space-2)",
-          padding: "var(--space-3) var(--space-4)",
-          borderBottom: "1px solid var(--border-color)",
-        }}
-      >
-        <h3 style={{ margin: 0, fontSize: "var(--font-size-lg)" }}>Model Manager</h3>
+    <div className="panel-container">
+      <div className="panel-header">
+        <h3>Model Manager</h3>
         <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginLeft: "var(--space-2)" }}>
           {lastUpdated ? `updated ${new Date(lastUpdated).toLocaleTimeString()}` : "not loaded"}
         </span>
@@ -209,7 +193,7 @@ export function ModelManagerPanel() {
         </div>
       )}
 
-      <div style={{ flex: 1, overflowY: "auto", padding: "var(--space-3)" }}>
+      <div className="panel-body">
         {visibleProviders.map((provider) => {
           const models = modelsForProvider(provider);
           const isOpen = expanded === provider;

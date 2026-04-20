@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Sun, Moon } from 'lucide-react';
-import { getPairedTheme, applyThemeById } from './SettingsPanel';
+import { getPairedTheme, applyThemeById } from '../theme/themes';
 
 export const ThemeToggle = () => {
     const [mode, setMode] = useState<'dark' | 'light'>('dark');

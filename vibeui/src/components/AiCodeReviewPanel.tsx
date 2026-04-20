@@ -54,7 +54,7 @@ interface SonarRule {
 
 const SEVERITY_CONFIG: Record<string, { color: string; bg: string; label: string }> = {
   BLOCKER:  { color: "var(--error-color)",   bg: "color-mix(in srgb, var(--error-color) 12%, transparent)",   label: "Blocker"  },
-  CRITICAL: { color: "#ff5722",              bg: "color-mix(in srgb, #ff5722 12%, transparent)",              label: "Critical" },
+  CRITICAL: { color: "var(--accent-rose)",   bg: "color-mix(in srgb, var(--accent-rose) 12%, transparent)",   label: "Critical" },
   MAJOR:    { color: "var(--warning-color)", bg: "color-mix(in srgb, var(--warning-color) 12%, transparent)", label: "Major"    },
   MINOR:    { color: "var(--info-color)",    bg: "color-mix(in srgb, var(--info-color) 12%, transparent)",    label: "Minor"    },
   INFO:     { color: "var(--text-secondary)", bg: "transparent",                                               label: "Info"     },
@@ -69,9 +69,9 @@ const TYPE_ICON: Record<string, string> = {
 
 const TYPE_COLOR: Record<string, string> = {
   BUG:              "var(--error-color)",
-  VULNERABILITY:    "#ff5722",
+  VULNERABILITY:    "var(--accent-rose)",
   CODE_SMELL:       "var(--warning-color)",
-  SECURITY_HOTSPOT: "#e91e63",
+  SECURITY_HOTSPOT: "var(--accent-purple)",
 };
 
 function SeverityBadge({ severity }: { severity: string }) {

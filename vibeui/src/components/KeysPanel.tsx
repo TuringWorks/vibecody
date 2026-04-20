@@ -157,26 +157,9 @@ export function KeysPanel() {
   }, [rows, filter]);
 
   return (
-    <div
-      className="panel"
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-        color: "var(--text-primary)",
-        background: "var(--bg-primary)",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "var(--space-2)",
-          padding: "var(--space-3) var(--space-4)",
-          borderBottom: "1px solid var(--border-color)",
-        }}
-      >
-        <h3 style={{ margin: 0, fontSize: "var(--font-size-lg)" }}>API Keys</h3>
+    <div className="panel-container">
+      <div className="panel-header">
+        <h3>API Keys</h3>
         <span
           style={{
             fontSize: "var(--font-size-xs)",
@@ -243,7 +226,7 @@ export function KeysPanel() {
         </div>
       )}
 
-      <div style={{ flex: 1, overflowY: "auto", padding: "var(--space-3)" }}>
+      <div className="panel-body">
         {list.length === 0 && !loading && (
           <div
             style={{

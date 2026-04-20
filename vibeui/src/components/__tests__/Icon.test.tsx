@@ -78,7 +78,7 @@ describe('Icon — className and style', () => {
 
   it('forwards style object to <svg>', () => {
     const { container } = render(<Icon name="search" style={{ opacity: 0.5 }} />);
-    expect((container.querySelector('svg') as HTMLElement).style.opacity).toBe('0.5');
+    expect(container.querySelector('svg')?.style.opacity).toBe('0.5');
   });
 });
 

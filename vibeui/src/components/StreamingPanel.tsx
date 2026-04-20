@@ -74,19 +74,6 @@ export function StreamingPanel() {
     loadTopics();
   }, []);
 
-  const inputStyle: React.CSSProperties = {
-    width: "100%",
-    background: "var(--bg-secondary)",
-    border: "1px solid var(--border)",
-    borderRadius: "var(--radius-xs-plus)",
-    color: "var(--text-primary)",
-    padding: "5px 8px",
-    fontSize: "var(--font-size-base)",
-    boxSizing: "border-box",
-  };
-
-  const selectStyle: React.CSSProperties = { ...inputStyle };
-
   const codeBlock: React.CSSProperties = {
     background: "var(--bg-secondary)",
     border: "1px solid var(--border)",
@@ -261,7 +248,7 @@ export function StreamingPanel() {
                   value={topicName}
                   onChange={(e) => setTopicName(e.target.value)}
                   placeholder="my-events"
-                  style={inputStyle}
+                  className="panel-input"
                   onKeyDown={(e) => e.key === "Enter" && handleAddTopic()}
                 />
               </div>
@@ -272,7 +259,7 @@ export function StreamingPanel() {
                   min={1}
                   value={partitions}
                   onChange={(e) => setPartitions(Number(e.target.value))}
-                  style={inputStyle}
+                  className="panel-input"
                 />
               </div>
               <div>
@@ -282,7 +269,7 @@ export function StreamingPanel() {
                   min={1}
                   value={replicationFactor}
                   onChange={(e) => setReplicationFactor(Number(e.target.value))}
-                  style={inputStyle}
+                  className="panel-input"
                 />
               </div>
               <div>
@@ -290,7 +277,7 @@ export function StreamingPanel() {
                 <select
                   value={cleanupPolicy}
                   onChange={(e) => setCleanupPolicy(e.target.value as CleanupPolicy)}
-                  style={selectStyle}
+                  className="panel-select"
                 >
                   <option value="delete">delete</option>
                   <option value="compact">compact</option>
@@ -351,19 +338,19 @@ export function StreamingPanel() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
               <div>
                 <label className="panel-label">Bootstrap Servers</label>
-                <input value={brokers} onChange={(e) => setBrokers(e.target.value)} placeholder="localhost:9092" style={inputStyle} />
+                <input value={brokers} onChange={(e) => setBrokers(e.target.value)} placeholder="localhost:9092" className="panel-input" />
               </div>
               <div>
                 <label className="panel-label">Topic</label>
-                <input value={pcTopic} onChange={(e) => setPcTopic(e.target.value)} placeholder="my-topic" style={inputStyle} />
+                <input value={pcTopic} onChange={(e) => setPcTopic(e.target.value)} placeholder="my-topic" className="panel-input" />
               </div>
               <div>
                 <label className="panel-label">Group ID</label>
-                <input value={groupId} onChange={(e) => setGroupId(e.target.value)} placeholder="my-group" style={inputStyle} />
+                <input value={groupId} onChange={(e) => setGroupId(e.target.value)} placeholder="my-group" className="panel-input" />
               </div>
               <div>
                 <label className="panel-label">Compression</label>
-                <select value={compression} onChange={(e) => setCompression(e.target.value as Compression)} style={selectStyle}>
+                <select value={compression} onChange={(e) => setCompression(e.target.value as Compression)} className="panel-select">
                   <option value="none">none</option>
                   <option value="gzip">gzip</option>
                   <option value="snappy">snappy</option>
@@ -373,7 +360,7 @@ export function StreamingPanel() {
               </div>
               <div>
                 <label className="panel-label">Acks</label>
-                <select value={acks} onChange={(e) => setAcks(e.target.value as Acks)} style={selectStyle}>
+                <select value={acks} onChange={(e) => setAcks(e.target.value as Acks)} className="panel-select">
                   <option value="all">all</option>
                   <option value="1">1</option>
                   <option value="0">0</option>
@@ -417,7 +404,8 @@ export function StreamingPanel() {
                   max={9}
                   value={numBrokers}
                   onChange={(e) => setNumBrokers(Math.max(1, Math.min(9, Number(e.target.value))))}
-                  style={{ ...inputStyle, width: 80 }}
+                  className="panel-input"
+                  style={{ width: 80 }}
                 />
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 6, paddingBottom: 2 }}>
@@ -455,23 +443,23 @@ export function StreamingPanel() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
               <div>
                 <label className="panel-label">Connector Name</label>
-                <input value={connector.name} onChange={(e) => setConnector({ ...connector, name: e.target.value })} style={inputStyle} />
+                <input value={connector.name} onChange={(e) => setConnector({ ...connector, name: e.target.value })} className="panel-input" />
               </div>
               <div>
                 <label className="panel-label">Connector Class</label>
-                <input value={connector.connectorClass} onChange={(e) => setConnector({ ...connector, connectorClass: e.target.value })} style={inputStyle} />
+                <input value={connector.connectorClass} onChange={(e) => setConnector({ ...connector, connectorClass: e.target.value })} className="panel-input" />
               </div>
               <div>
                 <label className="panel-label">Tasks Max</label>
-                <input type="number" min={1} value={connector.tasksMax} onChange={(e) => setConnector({ ...connector, tasksMax: Number(e.target.value) })} style={inputStyle} />
+                <input type="number" min={1} value={connector.tasksMax} onChange={(e) => setConnector({ ...connector, tasksMax: Number(e.target.value) })} className="panel-input" />
               </div>
               <div>
                 <label className="panel-label">Topics</label>
-                <input value={connector.topics} onChange={(e) => setConnector({ ...connector, topics: e.target.value })} placeholder="topic-a,topic-b" style={inputStyle} />
+                <input value={connector.topics} onChange={(e) => setConnector({ ...connector, topics: e.target.value })} placeholder="topic-a,topic-b" className="panel-input" />
               </div>
               <div style={{ gridColumn: "1 / -1" }}>
                 <label className="panel-label">Connection URL</label>
-                <input value={connector.connectionUrl} onChange={(e) => setConnector({ ...connector, connectionUrl: e.target.value })} style={inputStyle} />
+                <input value={connector.connectionUrl} onChange={(e) => setConnector({ ...connector, connectionUrl: e.target.value })} className="panel-input" />
               </div>
             </div>
 

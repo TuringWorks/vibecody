@@ -15,7 +15,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { RegexPanel } from '../RegexPanel';
 
 // navigator.clipboard is unavailable in jsdom — stub it
@@ -82,7 +82,6 @@ describe('RegexPanel — pattern input', () => {
     fireEvent.change(patternInput, { target: { value: '[invalid' } });
     // Error text should appear (it contains "SyntaxError" or similar)
     const container = patternInput.closest('.panel-container')!;
-    const header = container.querySelector('div');
     // The error appears in the header area — check error color styling is present
     expect(container.textContent).toContain('Invalid');
   });
@@ -166,7 +165,7 @@ describe('RegexPanel — flags', () => {
   it('toggles "m" flag on/off when the m button is clicked', () => {
     render(<RegexPanel />);
     // Default flags are "gi" — "m" is not active
-    const mBtn = screen.getByRole('button', { name: 'm', exact: true });
+    const mBtn = screen.getByRole('button', { name: /^m$/ });
     fireEvent.click(mBtn); // add m → flags contain m
     fireEvent.click(mBtn); // remove m → flags do not contain m
     // No error thrown = correct toggle cycle

@@ -124,16 +124,15 @@ export function OnDevicePanel() {
   const formatMb = (mb: number) => mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${mb} MB`;
 
   return (
-    <div className="panel-container" style={{ padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-mono)", flex: 1, minHeight: 0, overflowY: "auto" }}>
-      <div style={{ fontSize: "var(--font-size-xl)", fontWeight: 700, marginBottom: 12 }}>On-Device Models</div>
-
-      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+    <div className="panel-container">
+      <div className="panel-header"><h3>On-Device Models</h3></div>
+      <div className="panel-tab-bar" style={{ flexWrap: "wrap" }}>
         {["models", "hardware", "benchmark", "privacy"].map(t => (
-          <button className="panel-tab" key={t} onClick={() => setTab(t)} style={{ padding: "4px 12px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: tab === t ? "var(--accent-color)" : "var(--bg-secondary)", color: tab === t ? "var(--btn-primary-fg)" : "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>{t}</button>
+          <button className={`panel-tab${tab === t ? " active" : ""}`} key={t} onClick={() => setTab(t)}>{t}</button>
         ))}
       </div>
-
-      {loading && <div className="panel-loading" style={{ color: "var(--text-muted)" }}>Loading...</div>}
+      <div className="panel-body">
+      {loading && <div className="panel-loading">Loading...</div>}
       {error && <div style={{ color: "var(--error-color)", marginBottom: 8 }}>{error}</div>}
 
       {!loading && tab === "models" && (
@@ -273,6 +272,7 @@ export function OnDevicePanel() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

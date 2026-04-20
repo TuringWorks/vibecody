@@ -68,7 +68,7 @@ const STAGE_DESCRIPTIONS: Record<string, string> = {
 function severityColor(sev: string): string {
   switch (sev.toLowerCase()) {
     case "critical": return "var(--error-color)";
-    case "high": return "#e5a844";
+    case "high": return "var(--accent-gold)";
     case "medium": return "var(--warning-color)";
     case "low": return "var(--accent-blue)";
     default: return "var(--text-secondary)";

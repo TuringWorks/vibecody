@@ -1,0 +1,1667 @@
+/**
+ * Theme registry + applier.
+ *
+ * Extracted from SettingsPanel.tsx so the panel module exports only React
+ * components (required for Vite Fast Refresh — see HMR warning before extraction).
+ *
+ * Public API:
+ *   • ThemeDef           — shape of one theme entry
+ *   • THEMES             — array of every theme (post-processed for contrast)
+ *   • getPairedTheme     — flip dark↔light within a pair
+ *   • applyThemeById     — apply CSS vars to <html>, persist to localStorage,
+ *                          notify Monaco
+ */
+
+/* ── Types ──────────────────────────────────────────────────────────── */
+
+export interface ThemeDef {
+  id: string;
+  name: string;
+  category: "standard" | "high-contrast" | "color-blind" | "supercar";
+  mode: "dark" | "light";
+  pairId: string; // links dark/light counterparts
+  preview: { bg: string; fg: string; accent: string; secondary: string };
+  vars: Record<string, string>;
+}
+
+/* ── Theme definitions ─────────────────────────────────────────────── */
+
+// Each theme has a pairId linking its dark/light counterpart
+export const THEMES: ThemeDef[] = [
+  // ── Pair: Default (Midnight Blue / Clean White) ──
+  {
+    id: "dark-default", name: "Default", category: "standard", mode: "dark", pairId: "default",
+    preview: { bg: "#0f1117", fg: "#e2e4ea", accent: "#6c8cff", secondary: "#161821" },
+    vars: {
+      "--bg-primary": "#0f1117", "--bg-secondary": "#161821", "--bg-tertiary": "#1c1f2b", "--bg-elevated": "#222638",
+      "--text-primary": "#e2e4ea", "--text-secondary": "#6e7491", "--accent-blue": "#6c8cff", "--accent-green": "#34d399",
+      "--accent-purple": "#a78bfa", "--accent-gold": "#f5c542", "--accent-rose": "#f472b6",
+      "--border-color": "rgba(255, 255, 255, 0.06)", "--error-color": "#ef4444",
+    },
+  },
+  {
+    id: "light-default", name: "Default", category: "standard", mode: "light", pairId: "default",
+    preview: { bg: "#fafbfd", fg: "#1a1d2e", accent: "#4f6df5", secondary: "#f0f1f5" },
+    vars: {
+      "--bg-primary": "#fafbfd", "--bg-secondary": "#f0f1f5", "--bg-tertiary": "#e6e8ef", "--bg-elevated": "#ffffff",
+      "--text-primary": "#1a1d2e", "--text-secondary": "#6b7089", "--accent-blue": "#4f6df5", "--accent-green": "#10b981",
+      "--accent-purple": "#8b5cf6", "--accent-gold": "#d4a017", "--accent-rose": "#ec4899",
+      "--border-color": "rgba(0, 0, 0, 0.08)", "--error-color": "#dc2626",
+    },
+  },
+  // ── Pair: Charcoal / Silver ──
+  {
+    id: "dark-charcoal", name: "Charcoal", category: "standard", mode: "dark", pairId: "charcoal",
+    preview: { bg: "#1a1a1a", fg: "#d4d4d4", accent: "#569cd6", secondary: "#252526" },
+    vars: {
+      "--bg-primary": "#1a1a1a", "--bg-secondary": "#252526", "--bg-tertiary": "#2d2d30", "--bg-elevated": "#333337",
+      "--text-primary": "#d4d4d4", "--text-secondary": "#808080", "--accent-blue": "#569cd6", "--accent-green": "#6a9955",
+      "--accent-purple": "#c586c0", "--accent-gold": "#dcdcaa", "--accent-rose": "#d7ba7d",
+      "--border-color": "rgba(255, 255, 255, 0.05)", "--error-color": "#f14c4c",
+    },
+  },
+  {
+    id: "light-charcoal", name: "Charcoal", category: "standard", mode: "light", pairId: "charcoal",
+    preview: { bg: "#f3f3f3", fg: "#1e1e1e", accent: "#005fb8", secondary: "#e8e8e8" },
+    vars: {
+      "--bg-primary": "#f3f3f3", "--bg-secondary": "#e8e8e8", "--bg-tertiary": "#d6d6d6", "--bg-elevated": "#ffffff",
+      "--text-primary": "#1e1e1e", "--text-secondary": "#616161", "--accent-blue": "#005fb8", "--accent-green": "#388a34",
+      "--accent-purple": "#8839a1", "--accent-gold": "#bf8803", "--accent-rose": "#c72e49",
+      "--border-color": "rgba(0, 0, 0, 0.08)", "--error-color": "#cd3131",
+    },
+  },
+  // ── Pair: Warm (Warm Dusk / Warm Sand) ──
+  {
+    id: "dark-warm", name: "Warm", category: "standard", mode: "dark", pairId: "warm",
+    preview: { bg: "#1a1410", fg: "#e6ddd0", accent: "#d4a373", secondary: "#2a2118" },
+    vars: {
+      "--bg-primary": "#1a1410", "--bg-secondary": "#2a2118", "--bg-tertiary": "#3a2e22", "--bg-elevated": "#453828",
+      "--text-primary": "#e6ddd0", "--text-secondary": "#a89880", "--accent-blue": "#d4a373", "--accent-green": "#859900",
+      "--accent-purple": "#b58db6", "--accent-gold": "#d4a373", "--accent-rose": "#d33682",
+      "--border-color": "rgba(255, 255, 255, 0.06)", "--error-color": "#dc322f",
+    },
+  },
+  {
+    id: "light-warm", name: "Warm", category: "standard", mode: "light", pairId: "warm",
+    preview: { bg: "#fdf6e3", fg: "#073642", accent: "#268bd2", secondary: "#eee8d5" },
+    vars: {
+      "--bg-primary": "#fdf6e3", "--bg-secondary": "#eee8d5", "--bg-tertiary": "#e0dbc7", "--bg-elevated": "#fffdf5",
+      "--text-primary": "#073642", "--text-secondary": "#586e75", "--accent-blue": "#268bd2", "--accent-green": "#859900",
+      "--accent-purple": "#6c71c4", "--accent-gold": "#b58900", "--accent-rose": "#d33682",
+      "--border-color": "rgba(0, 0, 0, 0.07)", "--error-color": "#dc322f",
+    },
+  },
+  // ── Pair: Ocean (Deep Ocean / Coastal Light) ──
+  {
+    id: "dark-ocean", name: "Ocean", category: "standard", mode: "dark", pairId: "ocean",
+    preview: { bg: "#0d1b2a", fg: "#e0e1dd", accent: "#48cae4", secondary: "#1b2838" },
+    vars: {
+      "--bg-primary": "#0d1b2a", "--bg-secondary": "#1b2838", "--bg-tertiary": "#233345", "--bg-elevated": "#2b3e50",
+      "--text-primary": "#e0e1dd", "--text-secondary": "#778da9", "--accent-blue": "#48cae4", "--accent-green": "#52b788",
+      "--accent-purple": "#b392f0", "--accent-gold": "#ffb703", "--accent-rose": "#ff6b6b",
+      "--border-color": "rgba(255, 255, 255, 0.05)", "--error-color": "#ff6b6b",
+    },
+  },
+  {
+    id: "light-ocean", name: "Ocean", category: "standard", mode: "light", pairId: "ocean",
+    preview: { bg: "#f0f8ff", fg: "#0d1b2a", accent: "#0077b6", secondary: "#e0f0fa" },
+    vars: {
+      "--bg-primary": "#f0f8ff", "--bg-secondary": "#e0f0fa", "--bg-tertiary": "#c8e3f5", "--bg-elevated": "#ffffff",
+      "--text-primary": "#0d1b2a", "--text-secondary": "#415a77", "--accent-blue": "#0077b6", "--accent-green": "#2d9f6f",
+      "--accent-purple": "#7c5cbf", "--accent-gold": "#d4960a", "--accent-rose": "#d94e5c",
+      "--border-color": "rgba(0, 0, 0, 0.07)", "--error-color": "#d94e5c",
+    },
+  },
+  // ── Pair: Rose (Rose Night / Rose Garden) ──
+  {
+    id: "dark-rose", name: "Rose", category: "standard", mode: "dark", pairId: "rose",
+    preview: { bg: "#1a0f10", fg: "#f0dde0", accent: "#f43f5e", secondary: "#2a1a1c" },
+    vars: {
+      "--bg-primary": "#1a0f10", "--bg-secondary": "#2a1a1c", "--bg-tertiary": "#3a2528", "--bg-elevated": "#452e32",
+      "--text-primary": "#f0dde0", "--text-secondary": "#a88b8e", "--accent-blue": "#f43f5e", "--accent-green": "#059669",
+      "--accent-purple": "#a78bfa", "--accent-gold": "#ca8a04", "--accent-rose": "#f43f5e",
+      "--border-color": "rgba(255, 255, 255, 0.06)", "--error-color": "#f43f5e",
+    },
+  },
+  {
+    id: "light-rose", name: "Rose", category: "standard", mode: "light", pairId: "rose",
+    preview: { bg: "#fff5f5", fg: "#2d1b1b", accent: "#e11d48", secondary: "#ffe4e6" },
+    vars: {
+      "--bg-primary": "#fff5f5", "--bg-secondary": "#ffe4e6", "--bg-tertiary": "#fecdd3", "--bg-elevated": "#ffffff",
+      "--text-primary": "#2d1b1b", "--text-secondary": "#9f6b6b", "--accent-blue": "#e11d48", "--accent-green": "#059669",
+      "--accent-purple": "#8b5cf6", "--accent-gold": "#ca8a04", "--accent-rose": "#e11d48",
+      "--border-color": "rgba(0, 0, 0, 0.06)", "--error-color": "#e11d48",
+    },
+  },
+  // ── Pair: High Contrast ──
+  {
+    id: "hc-dark", name: "High Contrast", category: "high-contrast", mode: "dark", pairId: "hc",
+    preview: { bg: "#000000", fg: "#ffffff", accent: "#00e0ff", secondary: "#0a0a0a" },
+    vars: {
+      "--bg-primary": "#000000", "--bg-secondary": "#0a0a0a", "--bg-tertiary": "#141414", "--bg-elevated": "#1e1e1e",
+      "--text-primary": "#ffffff", "--text-secondary": "#cccccc", "--accent-blue": "#00e0ff", "--accent-green": "#00ff88",
+      "--accent-purple": "#d0a0ff", "--accent-gold": "#ffdd00", "--accent-rose": "#ff6699",
+      "--border-color": "rgba(255, 255, 255, 0.25)", "--error-color": "#ff3333",
+    },
+  },
+  {
+    id: "hc-light", name: "High Contrast", category: "high-contrast", mode: "light", pairId: "hc",
+    preview: { bg: "#ffffff", fg: "#000000", accent: "#0033cc", secondary: "#f0f0f0" },
+    vars: {
+      "--bg-primary": "#ffffff", "--bg-secondary": "#f0f0f0", "--bg-tertiary": "#e0e0e0", "--bg-elevated": "#ffffff",
+      "--text-primary": "#000000", "--text-secondary": "#333333", "--accent-blue": "#0033cc", "--accent-green": "#006633",
+      "--accent-purple": "#6600cc", "--accent-gold": "#996600", "--accent-rose": "#cc0044",
+      "--border-color": "rgba(0, 0, 0, 0.3)", "--error-color": "#cc0000",
+    },
+  },
+  // ── Pair: Deuteranopia ──
+  {
+    id: "cb-deuteranopia-dark", name: "Deuteranopia", category: "color-blind", mode: "dark", pairId: "deuteranopia",
+    preview: { bg: "#0f1117", fg: "#e2e4ea", accent: "#648fff", secondary: "#161821" },
+    vars: {
+      "--bg-primary": "#0f1117", "--bg-secondary": "#161821", "--bg-tertiary": "#1c1f2b", "--bg-elevated": "#222638",
+      "--text-primary": "#e2e4ea", "--text-secondary": "#6e7491", "--accent-blue": "#648fff", "--accent-green": "#ffb000",
+      "--accent-purple": "#dc267f", "--accent-gold": "#ffb000", "--accent-rose": "#dc267f",
+      "--border-color": "rgba(255, 255, 255, 0.06)", "--error-color": "#fe6100",
+      "--success-color": "#ffb000", "--warning-color": "#fe6100",
+    },
+  },
+  {
+    id: "cb-deuteranopia-light", name: "Deuteranopia", category: "color-blind", mode: "light", pairId: "deuteranopia",
+    preview: { bg: "#fafbfd", fg: "#1a1d2e", accent: "#3949ab", secondary: "#f0f1f5" },
+    vars: {
+      "--bg-primary": "#fafbfd", "--bg-secondary": "#f0f1f5", "--bg-tertiary": "#e6e8ef", "--bg-elevated": "#ffffff",
+      "--text-primary": "#1a1d2e", "--text-secondary": "#6b7089", "--accent-blue": "#3949ab", "--accent-green": "#e68a00",
+      "--accent-purple": "#ad1457", "--accent-gold": "#e68a00", "--accent-rose": "#ad1457",
+      "--border-color": "rgba(0, 0, 0, 0.08)", "--error-color": "#d84315",
+      "--success-color": "#e68a00", "--warning-color": "#d84315",
+    },
+  },
+  // ── Pair: Protanopia ──
+  {
+    id: "cb-protanopia-dark", name: "Protanopia", category: "color-blind", mode: "dark", pairId: "protanopia",
+    preview: { bg: "#0f1117", fg: "#e2e4ea", accent: "#785ef0", secondary: "#161821" },
+    vars: {
+      "--bg-primary": "#0f1117", "--bg-secondary": "#161821", "--bg-tertiary": "#1c1f2b", "--bg-elevated": "#222638",
+      "--text-primary": "#e2e4ea", "--text-secondary": "#6e7491", "--accent-blue": "#785ef0", "--accent-green": "#ffb000",
+      "--accent-purple": "#648fff", "--accent-gold": "#ffb000", "--accent-rose": "#dc267f",
+      "--border-color": "rgba(255, 255, 255, 0.06)", "--error-color": "#fe6100",
+      "--success-color": "#ffb000", "--warning-color": "#fe6100",
+    },
+  },
+  {
+    id: "cb-protanopia-light", name: "Protanopia", category: "color-blind", mode: "light", pairId: "protanopia",
+    preview: { bg: "#fafbfd", fg: "#1a1d2e", accent: "#5c41c9", secondary: "#f0f1f5" },
+    vars: {
+      "--bg-primary": "#fafbfd", "--bg-secondary": "#f0f1f5", "--bg-tertiary": "#e6e8ef", "--bg-elevated": "#ffffff",
+      "--text-primary": "#1a1d2e", "--text-secondary": "#6b7089", "--accent-blue": "#5c41c9", "--accent-green": "#e68a00",
+      "--accent-purple": "#3d5afe", "--accent-gold": "#e68a00", "--accent-rose": "#ad1457",
+      "--border-color": "rgba(0, 0, 0, 0.08)", "--error-color": "#d84315",
+      "--success-color": "#e68a00", "--warning-color": "#d84315",
+    },
+  },
+  // ── Pair: Tritanopia ──
+  {
+    id: "cb-tritanopia-dark", name: "Tritanopia", category: "color-blind", mode: "dark", pairId: "tritanopia",
+    preview: { bg: "#0f1117", fg: "#e2e4ea", accent: "#e8384f", secondary: "#161821" },
+    vars: {
+      "--bg-primary": "#0f1117", "--bg-secondary": "#161821", "--bg-tertiary": "#1c1f2b", "--bg-elevated": "#222638",
+      "--text-primary": "#e2e4ea", "--text-secondary": "#6e7491", "--accent-blue": "#e8384f", "--accent-green": "#37a862",
+      "--accent-purple": "#e8384f", "--accent-gold": "#37a862", "--accent-rose": "#e8384f",
+      "--border-color": "rgba(255, 255, 255, 0.06)", "--error-color": "#e8384f",
+      "--success-color": "#37a862", "--warning-color": "#e8a537",
+    },
+  },
+  {
+    id: "cb-tritanopia-light", name: "Tritanopia", category: "color-blind", mode: "light", pairId: "tritanopia",
+    preview: { bg: "#fafbfd", fg: "#1a1d2e", accent: "#c62038", secondary: "#f0f1f5" },
+    vars: {
+      "--bg-primary": "#fafbfd", "--bg-secondary": "#f0f1f5", "--bg-tertiary": "#e6e8ef", "--bg-elevated": "#ffffff",
+      "--text-primary": "#1a1d2e", "--text-secondary": "#6b7089", "--accent-blue": "#c62038", "--accent-green": "#2a8a4e",
+      "--accent-purple": "#c62038", "--accent-gold": "#2a8a4e", "--accent-rose": "#c62038",
+      "--border-color": "rgba(0, 0, 0, 0.08)", "--error-color": "#c62038",
+      "--success-color": "#2a8a4e", "--warning-color": "#c69425",
+    },
+  },
+
+  // ═══════════════════════════════════════════════════════════════════
+  //  Popular Developer & Organization Themes
+  // ═══════════════════════════════════════════════════════════════════
+
+  // ── Pair: Monokai ──
+  {
+    id: "dark-monokai", name: "Monokai", category: "standard", mode: "dark", pairId: "monokai",
+    preview: { bg: "#272822", fg: "#f8f8f2", accent: "#a6e22e", secondary: "#3e3d32" },
+    vars: {
+      "--bg-primary": "#272822", "--bg-secondary": "#3e3d32", "--bg-tertiary": "#49483e", "--bg-elevated": "#555449",
+      "--text-primary": "#f8f8f2", "--text-secondary": "#a5a08a", "--accent-blue": "#66d9ef", "--accent-green": "#a6e22e",
+      "--accent-purple": "#ae81ff", "--accent-gold": "#e6db74", "--accent-rose": "#f92672",
+      "--border-color": "rgba(255, 255, 255, 0.07)", "--error-color": "#f92672",
+    },
+  },
+  {
+    id: "light-monokai", name: "Monokai", category: "standard", mode: "light", pairId: "monokai",
+    preview: { bg: "#fafafa", fg: "#272822", accent: "#629755", secondary: "#eeeee8" },
+    vars: {
+      "--bg-primary": "#fafafa", "--bg-secondary": "#eeeee8", "--bg-tertiary": "#e0e0d8", "--bg-elevated": "#ffffff",
+      "--text-primary": "#272822", "--text-secondary": "#605c46", "--accent-blue": "#1290bf", "--accent-green": "#629755",
+      "--accent-purple": "#7a3ea0", "--accent-gold": "#b58900", "--accent-rose": "#c4265e",
+      "--border-color": "rgba(0, 0, 0, 0.08)", "--error-color": "#c4265e",
+    },
+  },
+  // ── Pair: Dracula ──
+  {
+    id: "dark-dracula", name: "Dracula", category: "standard", mode: "dark", pairId: "dracula",
+    preview: { bg: "#282a36", fg: "#f8f8f2", accent: "#bd93f9", secondary: "#44475a" },
+    vars: {
+      "--bg-primary": "#282a36", "--bg-secondary": "#44475a", "--bg-tertiary": "#4e5166", "--bg-elevated": "#555770",
+      "--text-primary": "#f8f8f2", "--text-secondary": "#8a96c0", "--accent-blue": "#8be9fd", "--accent-green": "#50fa7b",
+      "--accent-purple": "#bd93f9", "--accent-gold": "#f1fa8c", "--accent-rose": "#ff79c6",
+      "--border-color": "rgba(255, 255, 255, 0.08)", "--error-color": "#ff5555",
+    },
+  },
+  {
+    id: "light-dracula", name: "Dracula", category: "standard", mode: "light", pairId: "dracula",
+    preview: { bg: "#f8f8f2", fg: "#282a36", accent: "#7c3aed", secondary: "#ededec" },
+    vars: {
+      "--bg-primary": "#f8f8f2", "--bg-secondary": "#ededec", "--bg-tertiary": "#e0dfe0", "--bg-elevated": "#ffffff",
+      "--text-primary": "#282a36", "--text-secondary": "#4e5a7e", "--accent-blue": "#0891b2", "--accent-green": "#16a34a",
+      "--accent-purple": "#7c3aed", "--accent-gold": "#a16207", "--accent-rose": "#db2777",
+      "--border-color": "rgba(0, 0, 0, 0.08)", "--error-color": "#dc2626",
+    },
+  },
+  // ── Pair: Nord ──
+  {
+    id: "dark-nord", name: "Nord", category: "standard", mode: "dark", pairId: "nord",
+    preview: { bg: "#2e3440", fg: "#eceff4", accent: "#88c0d0", secondary: "#3b4252" },
+    vars: {
+      "--bg-primary": "#2e3440", "--bg-secondary": "#3b4252", "--bg-tertiary": "#434c5e", "--bg-elevated": "#4c566a",
+      "--text-primary": "#eceff4", "--text-secondary": "#9aa4b8", "--accent-blue": "#88c0d0", "--accent-green": "#a3be8c",
+      "--accent-purple": "#b48ead", "--accent-gold": "#ebcb8b", "--accent-rose": "#bf616a",
+      "--border-color": "rgba(255, 255, 255, 0.06)", "--error-color": "#bf616a",
+    },
+  },
+  {
+    id: "light-nord", name: "Nord", category: "standard", mode: "light", pairId: "nord",
+    preview: { bg: "#eceff4", fg: "#2e3440", accent: "#5e81ac", secondary: "#e5e9f0" },
+    vars: {
+      "--bg-primary": "#eceff4", "--bg-secondary": "#e5e9f0", "--bg-tertiary": "#d8dee9", "--bg-elevated": "#f8fafc",
+      "--text-primary": "#2e3440", "--text-secondary": "#4c566a", "--accent-blue": "#5e81ac", "--accent-green": "#689d6a",
+      "--accent-purple": "#8f6594", "--accent-gold": "#c08b30", "--accent-rose": "#a3373e",
+      "--border-color": "rgba(0, 0, 0, 0.07)", "--error-color": "#a3373e",
+    },
+  },
+  // ── Pair: One (Atom) ──
+  {
+    id: "dark-one", name: "One", category: "standard", mode: "dark", pairId: "one",
+    preview: { bg: "#282c34", fg: "#abb2bf", accent: "#61afef", secondary: "#21252b" },
+    vars: {
+      "--bg-primary": "#282c34", "--bg-secondary": "#21252b", "--bg-tertiary": "#2c313a", "--bg-elevated": "#333842",
+      "--text-primary": "#abb2bf", "--text-secondary": "#838994", "--accent-blue": "#61afef", "--accent-green": "#98c379",
+      "--accent-purple": "#c678dd", "--accent-gold": "#e5c07b", "--accent-rose": "#e06c75",
+      "--border-color": "rgba(255, 255, 255, 0.06)", "--error-color": "#e06c75",
+    },
+  },
+  {
+    id: "light-one", name: "One", category: "standard", mode: "light", pairId: "one",
+    preview: { bg: "#fafafa", fg: "#383a42", accent: "#4078f2", secondary: "#f0f0f0" },
+    vars: {
+      "--bg-primary": "#fafafa", "--bg-secondary": "#f0f0f0", "--bg-tertiary": "#e5e5e6", "--bg-elevated": "#ffffff",
+      "--text-primary": "#383a42", "--text-secondary": "#696a70", "--accent-blue": "#4078f2", "--accent-green": "#50a14f",
+      "--accent-purple": "#a626a4", "--accent-gold": "#c18401", "--accent-rose": "#e45649",
+      "--border-color": "rgba(0, 0, 0, 0.08)", "--error-color": "#e45649",
+    },
+  },
+  // ── Pair: GitHub ──
+  {
+    id: "dark-github", name: "GitHub", category: "standard", mode: "dark", pairId: "github",
+    preview: { bg: "#0d1117", fg: "#e6edf3", accent: "#58a6ff", secondary: "#161b22" },
+    vars: {
+      "--bg-primary": "#0d1117", "--bg-secondary": "#161b22", "--bg-tertiary": "#21262d", "--bg-elevated": "#30363d",
+      "--text-primary": "#e6edf3", "--text-secondary": "#8b929a", "--accent-blue": "#58a6ff", "--accent-green": "#3fb950",
+      "--accent-purple": "#bc8cff", "--accent-gold": "#d29922", "--accent-rose": "#f85149",
+      "--border-color": "rgba(255, 255, 255, 0.06)", "--error-color": "#f85149",
+    },
+  },
+  {
+    id: "light-github", name: "GitHub", category: "standard", mode: "light", pairId: "github",
+    preview: { bg: "#ffffff", fg: "#1f2328", accent: "#0969da", secondary: "#f6f8fa" },
+    vars: {
+      "--bg-primary": "#ffffff", "--bg-secondary": "#f6f8fa", "--bg-tertiary": "#eaeef2", "--bg-elevated": "#ffffff",
+      "--text-primary": "#1f2328", "--text-secondary": "#656d76", "--accent-blue": "#0969da", "--accent-green": "#1a7f37",
+      "--accent-purple": "#8250df", "--accent-gold": "#9a6700", "--accent-rose": "#cf222e",
+      "--border-color": "rgba(0, 0, 0, 0.08)", "--error-color": "#cf222e",
+    },
+  },
+  // ── Pair: Catppuccin (Mocha/Latte) ──
+  {
+    id: "dark-catppuccin", name: "Catppuccin", category: "standard", mode: "dark", pairId: "catppuccin",
+    preview: { bg: "#1e1e2e", fg: "#cdd6f4", accent: "#89b4fa", secondary: "#313244" },
+    vars: {
+      "--bg-primary": "#1e1e2e", "--bg-secondary": "#313244", "--bg-tertiary": "#45475a", "--bg-elevated": "#585b70",
+      "--text-primary": "#cdd6f4", "--text-secondary": "#9399b2", "--accent-blue": "#89b4fa", "--accent-green": "#a6e3a1",
+      "--accent-purple": "#cba6f7", "--accent-gold": "#f9e2af", "--accent-rose": "#f38ba8",
+      "--border-color": "rgba(255, 255, 255, 0.06)", "--error-color": "#f38ba8",
+    },
+  },
+  {
+    id: "light-catppuccin", name: "Catppuccin", category: "standard", mode: "light", pairId: "catppuccin",
+    preview: { bg: "#eff1f5", fg: "#4c4f69", accent: "#1e66f5", secondary: "#e6e9ef" },
+    vars: {
+      "--bg-primary": "#eff1f5", "--bg-secondary": "#e6e9ef", "--bg-tertiary": "#ccd0da", "--bg-elevated": "#ffffff",
+      "--text-primary": "#4c4f69", "--text-secondary": "#5c5f73", "--accent-blue": "#1e66f5", "--accent-green": "#40a02b",
+      "--accent-purple": "#8839ef", "--accent-gold": "#df8e1d", "--accent-rose": "#d20f39",
+      "--border-color": "rgba(0, 0, 0, 0.08)", "--error-color": "#d20f39",
+    },
+  },
+  // ── Pair: Gruvbox ──
+  {
+    id: "dark-gruvbox", name: "Gruvbox", category: "standard", mode: "dark", pairId: "gruvbox",
+    preview: { bg: "#282828", fg: "#ebdbb2", accent: "#fabd2f", secondary: "#3c3836" },
+    vars: {
+      "--bg-primary": "#282828", "--bg-secondary": "#3c3836", "--bg-tertiary": "#504945", "--bg-elevated": "#665c54",
+      "--text-primary": "#ebdbb2", "--text-secondary": "#a89b8c", "--accent-blue": "#83a598", "--accent-green": "#b8bb26",
+      "--accent-purple": "#d3869b", "--accent-gold": "#fabd2f", "--accent-rose": "#fb4934",
+      "--border-color": "rgba(255, 255, 255, 0.06)", "--error-color": "#fb4934",
+    },
+  },
+  {
+    id: "light-gruvbox", name: "Gruvbox", category: "standard", mode: "light", pairId: "gruvbox",
+    preview: { bg: "#fbf1c7", fg: "#3c3836", accent: "#b57614", secondary: "#ebdbb2" },
+    vars: {
+      "--bg-primary": "#fbf1c7", "--bg-secondary": "#ebdbb2", "--bg-tertiary": "#d5c4a1", "--bg-elevated": "#fffbef",
+      "--text-primary": "#3c3836", "--text-secondary": "#5e5448", "--accent-blue": "#076678", "--accent-green": "#79740e",
+      "--accent-purple": "#8f3f71", "--accent-gold": "#b57614", "--accent-rose": "#9d0006",
+      "--border-color": "rgba(0, 0, 0, 0.08)", "--error-color": "#9d0006",
+    },
+  },
+  // ── Pair: Tokyo Night ──
+  {
+    id: "dark-tokyo", name: "Tokyo", category: "standard", mode: "dark", pairId: "tokyo",
+    preview: { bg: "#1a1b26", fg: "#c0caf5", accent: "#7aa2f7", secondary: "#24283b" },
+    vars: {
+      "--bg-primary": "#1a1b26", "--bg-secondary": "#24283b", "--bg-tertiary": "#2f3347", "--bg-elevated": "#3b3f54",
+      "--text-primary": "#c0caf5", "--text-secondary": "#7a82a8", "--accent-blue": "#7aa2f7", "--accent-green": "#9ece6a",
+      "--accent-purple": "#bb9af7", "--accent-gold": "#e0af68", "--accent-rose": "#f7768e",
+      "--border-color": "rgba(255, 255, 255, 0.06)", "--error-color": "#f7768e",
+    },
+  },
+  {
+    id: "light-tokyo", name: "Tokyo", category: "standard", mode: "light", pairId: "tokyo",
+    preview: { bg: "#d5d6db", fg: "#343b58", accent: "#34548a", secondary: "#c8c8ce" },
+    vars: {
+      "--bg-primary": "#d5d6db", "--bg-secondary": "#c8c8ce", "--bg-tertiary": "#b8b8c0", "--bg-elevated": "#e5e5ea",
+      "--text-primary": "#343b58", "--text-secondary": "#4a5880", "--accent-blue": "#34548a", "--accent-green": "#485e30",
+      "--accent-purple": "#7847bd", "--accent-gold": "#8f5e15", "--accent-rose": "#8c4351",
+      "--border-color": "rgba(0, 0, 0, 0.08)", "--error-color": "#8c4351",
+    },
+  },
+  // ── Pair: Material ──
+  {
+    id: "dark-material", name: "Material", category: "standard", mode: "dark", pairId: "material",
+    preview: { bg: "#212121", fg: "#eeffff", accent: "#82aaff", secondary: "#303030" },
+    vars: {
+      "--bg-primary": "#212121", "--bg-secondary": "#303030", "--bg-tertiary": "#3a3a3a", "--bg-elevated": "#424242",
+      "--text-primary": "#eeffff", "--text-secondary": "#8a8a8a", "--accent-blue": "#82aaff", "--accent-green": "#c3e88d",
+      "--accent-purple": "#c792ea", "--accent-gold": "#ffcb6b", "--accent-rose": "#f07178",
+      "--border-color": "rgba(255, 255, 255, 0.05)", "--error-color": "#f07178",
+    },
+  },
+  {
+    id: "light-material", name: "Material", category: "standard", mode: "light", pairId: "material",
+    preview: { bg: "#fafafa", fg: "#546e7a", accent: "#6182b8", secondary: "#eaeaea" },
+    vars: {
+      "--bg-primary": "#fafafa", "--bg-secondary": "#eaeaea", "--bg-tertiary": "#d4d4d4", "--bg-elevated": "#ffffff",
+      "--text-primary": "#546e7a", "--text-secondary": "#5e7680", "--accent-blue": "#6182b8", "--accent-green": "#91b859",
+      "--accent-purple": "#7c4dff", "--accent-gold": "#f6a434", "--accent-rose": "#e53935",
+      "--border-color": "rgba(0, 0, 0, 0.07)", "--error-color": "#e53935",
+    },
+  },
+  // ── Pair: Solarized ──
+  {
+    id: "dark-solarized", name: "Solarized", category: "standard", mode: "dark", pairId: "solarized",
+    preview: { bg: "#002b36", fg: "#839496", accent: "#268bd2", secondary: "#073642" },
+    vars: {
+      "--bg-primary": "#002b36", "--bg-secondary": "#073642", "--bg-tertiary": "#0a4050", "--bg-elevated": "#0d4f5e",
+      "--text-primary": "#93a1a1", "--text-secondary": "#6d8388", "--accent-blue": "#268bd2", "--accent-green": "#859900",
+      "--accent-purple": "#6c71c4", "--accent-gold": "#b58900", "--accent-rose": "#dc322f",
+      "--border-color": "rgba(255, 255, 255, 0.06)", "--error-color": "#dc322f",
+    },
+  },
+  {
+    id: "light-solarized", name: "Solarized", category: "standard", mode: "light", pairId: "solarized",
+    preview: { bg: "#fdf6e3", fg: "#4a5a60", accent: "#268bd2", secondary: "#eee8d5" },
+    vars: {
+      "--bg-primary": "#fdf6e3", "--bg-secondary": "#eee8d5", "--bg-tertiary": "#e0dbc7", "--bg-elevated": "#fffdf5",
+      "--text-primary": "#4a5a60", "--text-secondary": "#6b7c80", "--accent-blue": "#268bd2", "--accent-green": "#859900",
+      "--accent-purple": "#6c71c4", "--accent-gold": "#b58900", "--accent-rose": "#dc322f",
+      "--border-color": "rgba(0, 0, 0, 0.07)", "--error-color": "#dc322f",
+    },
+  },
+  // ── Pair: Palenight ──
+  {
+    id: "dark-palenight", name: "Palenight", category: "standard", mode: "dark", pairId: "palenight",
+    preview: { bg: "#292d3e", fg: "#a6accd", accent: "#82aaff", secondary: "#34324a" },
+    vars: {
+      "--bg-primary": "#292d3e", "--bg-secondary": "#34324a", "--bg-tertiary": "#3e3c56", "--bg-elevated": "#484660",
+      "--text-primary": "#bfc5e0", "--text-secondary": "#8088b0", "--accent-blue": "#82aaff", "--accent-green": "#c3e88d",
+      "--accent-purple": "#c792ea", "--accent-gold": "#ffcb6b", "--accent-rose": "#f07178",
+      "--border-color": "rgba(255, 255, 255, 0.06)", "--error-color": "#f07178",
+    },
+  },
+  {
+    id: "light-palenight", name: "Palenight", category: "standard", mode: "light", pairId: "palenight",
+    preview: { bg: "#f0f0f8", fg: "#3b3d55", accent: "#5a6acf", secondary: "#e4e4ef" },
+    vars: {
+      "--bg-primary": "#f0f0f8", "--bg-secondary": "#e4e4ef", "--bg-tertiary": "#d4d4e2", "--bg-elevated": "#fafaff",
+      "--text-primary": "#3b3d55", "--text-secondary": "#555b7a", "--accent-blue": "#5a6acf", "--accent-green": "#689d6a",
+      "--accent-purple": "#9c5fb5", "--accent-gold": "#c08b30", "--accent-rose": "#c45060",
+      "--border-color": "rgba(0, 0, 0, 0.07)", "--error-color": "#c45060",
+    },
+  },
+  // ── Pair: Ayu ──
+  {
+    id: "dark-ayu", name: "Ayu", category: "standard", mode: "dark", pairId: "ayu",
+    preview: { bg: "#0a0e14", fg: "#b3b1ad", accent: "#ffb454", secondary: "#1f2430" },
+    vars: {
+      "--bg-primary": "#0a0e14", "--bg-secondary": "#1f2430", "--bg-tertiary": "#272d38", "--bg-elevated": "#2e3440",
+      "--text-primary": "#b3b1ad", "--text-secondary": "#7e8894", "--accent-blue": "#36a3d9", "--accent-green": "#bae67e",
+      "--accent-purple": "#d4bfff", "--accent-gold": "#ffb454", "--accent-rose": "#ff3333",
+      "--border-color": "rgba(255, 255, 255, 0.05)", "--error-color": "#ff3333",
+    },
+  },
+  {
+    id: "light-ayu", name: "Ayu", category: "standard", mode: "light", pairId: "ayu",
+    preview: { bg: "#fafafa", fg: "#575f66", accent: "#ff9940", secondary: "#f0f0f0" },
+    vars: {
+      "--bg-primary": "#fafafa", "--bg-secondary": "#f0f0f0", "--bg-tertiary": "#e1e1e1", "--bg-elevated": "#ffffff",
+      "--text-primary": "#575f66", "--text-secondary": "#6e7478", "--accent-blue": "#399ee6", "--accent-green": "#86b300",
+      "--accent-purple": "#a37acc", "--accent-gold": "#ff9940", "--accent-rose": "#f51818",
+      "--border-color": "rgba(0, 0, 0, 0.08)", "--error-color": "#f51818",
+    },
+  },
+  // ── Pair: Slack (Organization) ──
+  {
+    id: "dark-slack", name: "Slack", category: "standard", mode: "dark", pairId: "slack",
+    preview: { bg: "#1a1d21", fg: "#d1d2d3", accent: "#36c5f0", secondary: "#27242c" },
+    vars: {
+      "--bg-primary": "#1a1d21", "--bg-secondary": "#27242c", "--bg-tertiary": "#332f3b", "--bg-elevated": "#3d3848",
+      "--text-primary": "#d1d2d3", "--text-secondary": "#9a9a9d", "--accent-blue": "#36c5f0", "--accent-green": "#2eb67d",
+      "--accent-purple": "#611f69", "--accent-gold": "#ecb22e", "--accent-rose": "#e01e5a",
+      "--border-color": "rgba(255, 255, 255, 0.06)", "--error-color": "#e01e5a",
+    },
+  },
+  {
+    id: "light-slack", name: "Slack", category: "standard", mode: "light", pairId: "slack",
+    preview: { bg: "#ffffff", fg: "#1d1c1d", accent: "#1264a3", secondary: "#f8f8f8" },
+    vars: {
+      "--bg-primary": "#ffffff", "--bg-secondary": "#f8f8f8", "--bg-tertiary": "#ececec", "--bg-elevated": "#ffffff",
+      "--text-primary": "#1d1c1d", "--text-secondary": "#616061", "--accent-blue": "#1264a3", "--accent-green": "#007a5a",
+      "--accent-purple": "#611f69", "--accent-gold": "#daa520", "--accent-rose": "#e01e5a",
+      "--border-color": "rgba(0, 0, 0, 0.08)", "--error-color": "#e01e5a",
+    },
+  },
+  // ── Pair: Cobalt ──
+  {
+    id: "dark-cobalt", name: "Cobalt", category: "standard", mode: "dark", pairId: "cobalt",
+    preview: { bg: "#193549", fg: "#e1efff", accent: "#ffc600", secondary: "#1f4662" },
+    vars: {
+      "--bg-primary": "#193549", "--bg-secondary": "#1f4662", "--bg-tertiary": "#245170", "--bg-elevated": "#2a5c80",
+      "--text-primary": "#e1efff", "--text-secondary": "#6fa0c7", "--accent-blue": "#80ffbb", "--accent-green": "#3ad900",
+      "--accent-purple": "#fb94ff", "--accent-gold": "#ffc600", "--accent-rose": "#ff628c",
+      "--border-color": "rgba(255, 255, 255, 0.08)", "--error-color": "#ff628c",
+    },
+  },
+  {
+    id: "light-cobalt", name: "Cobalt", category: "standard", mode: "light", pairId: "cobalt",
+    preview: { bg: "#f0f5fa", fg: "#193549", accent: "#b8860b", secondary: "#dfe8f0" },
+    vars: {
+      "--bg-primary": "#f0f5fa", "--bg-secondary": "#dfe8f0", "--bg-tertiary": "#c8d8e4", "--bg-elevated": "#ffffff",
+      "--text-primary": "#193549", "--text-secondary": "#4e7a97", "--accent-blue": "#16825d", "--accent-green": "#2e8b00",
+      "--accent-purple": "#9b42a0", "--accent-gold": "#b8860b", "--accent-rose": "#c0284a",
+      "--border-color": "rgba(0, 0, 0, 0.07)", "--error-color": "#c0284a",
+    },
+  },
+  // ── Pair: Synthwave ──
+  {
+    id: "dark-synthwave", name: "Synthwave '84", category: "standard", mode: "dark", pairId: "synthwave",
+    preview: { bg: "#262335", fg: "#e0def4", accent: "#f97e72", secondary: "#34294f" },
+    vars: {
+      "--bg-primary": "#262335", "--bg-secondary": "#34294f", "--bg-tertiary": "#3e3461", "--bg-elevated": "#4a3f73",
+      "--text-primary": "#e0def4", "--text-secondary": "#9d98b8", "--accent-blue": "#72f1b8", "--accent-green": "#72f1b8",
+      "--accent-purple": "#f97e72", "--accent-gold": "#fede5d", "--accent-rose": "#fe4450",
+      "--border-color": "rgba(255, 255, 255, 0.07)", "--error-color": "#fe4450",
+    },
+  },
+  {
+    id: "light-synthwave", name: "Synthwave '84", category: "standard", mode: "light", pairId: "synthwave",
+    preview: { bg: "#f5f0ff", fg: "#2d2350", accent: "#c44040", secondary: "#e8e0f5" },
+    vars: {
+      "--bg-primary": "#f5f0ff", "--bg-secondary": "#e8e0f5", "--bg-tertiary": "#d8cee8", "--bg-elevated": "#ffffff",
+      "--text-primary": "#2d2350", "--text-secondary": "#504068", "--accent-blue": "#2a8a5e", "--accent-green": "#2a8a5e",
+      "--accent-purple": "#c44040", "--accent-gold": "#a78000", "--accent-rose": "#c02030",
+      "--border-color": "rgba(0, 0, 0, 0.07)", "--error-color": "#c02030",
+    },
+  },
+  // ── Pair: Everforest ──
+  {
+    id: "dark-everforest", name: "Everforest", category: "standard", mode: "dark", pairId: "everforest",
+    preview: { bg: "#2d353b", fg: "#d3c6aa", accent: "#a7c080", secondary: "#343f44" },
+    vars: {
+      "--bg-primary": "#2d353b", "--bg-secondary": "#343f44", "--bg-tertiary": "#3d484d", "--bg-elevated": "#475258",
+      "--text-primary": "#d3c6aa", "--text-secondary": "#859289", "--accent-blue": "#7fbbb3", "--accent-green": "#a7c080",
+      "--accent-purple": "#d699b6", "--accent-gold": "#dbbc7f", "--accent-rose": "#e67e80",
+      "--border-color": "rgba(255, 255, 255, 0.06)", "--error-color": "#e67e80",
+    },
+  },
+  {
+    id: "light-everforest", name: "Everforest", category: "standard", mode: "light", pairId: "everforest",
+    preview: { bg: "#fdf6e3", fg: "#5c6a72", accent: "#8da101", secondary: "#f0ead2" },
+    vars: {
+      "--bg-primary": "#fdf6e3", "--bg-secondary": "#f0ead2", "--bg-tertiary": "#e0dab8", "--bg-elevated": "#fffbf0",
+      "--text-primary": "#5c6a72", "--text-secondary": "#5c6860", "--accent-blue": "#3a94c5", "--accent-green": "#8da101",
+      "--accent-purple": "#df69ba", "--accent-gold": "#dfa000", "--accent-rose": "#f85552",
+      "--border-color": "rgba(0, 0, 0, 0.07)", "--error-color": "#f85552",
+    },
+  },
+  // ── Pair: Kanagawa ──
+  {
+    id: "dark-kanagawa", name: "Kanagawa", category: "standard", mode: "dark", pairId: "kanagawa",
+    preview: { bg: "#1f1f28", fg: "#dcd7ba", accent: "#7e9cd8", secondary: "#2a2a37" },
+    vars: {
+      "--bg-primary": "#1f1f28", "--bg-secondary": "#2a2a37", "--bg-tertiary": "#363646", "--bg-elevated": "#3d3d55",
+      "--text-primary": "#dcd7ba", "--text-secondary": "#908f85", "--accent-blue": "#7e9cd8", "--accent-green": "#98bb6c",
+      "--accent-purple": "#957fb8", "--accent-gold": "#e6c384", "--accent-rose": "#e82424",
+      "--border-color": "rgba(255, 255, 255, 0.06)", "--error-color": "#e82424",
+    },
+  },
+  {
+    id: "light-kanagawa", name: "Kanagawa", category: "standard", mode: "light", pairId: "kanagawa",
+    preview: { bg: "#f2ecbc", fg: "#43436c", accent: "#4d699b", secondary: "#e7dba0" },
+    vars: {
+      "--bg-primary": "#f2ecbc", "--bg-secondary": "#e7dba0", "--bg-tertiary": "#d8cc88", "--bg-elevated": "#faf5d0",
+      "--text-primary": "#43436c", "--text-secondary": "#5e5e50", "--accent-blue": "#4d699b", "--accent-green": "#6f894e",
+      "--accent-purple": "#624c83", "--accent-gold": "#a96b2c", "--accent-rose": "#c84053",
+      "--border-color": "rgba(0, 0, 0, 0.08)", "--error-color": "#c84053",
+    },
+  },
+  // ═══════════════════════════════════════════════════════════════════
+  //  Rivian R1 & R2 — Exterior & Interior Inspired Themes
+  // ═══════════════════════════════════════════════════════════════════
+
+  // ── Pair: Rivian Blue (R1 flagship exterior) ──
+  {
+    id: "dark-rivian-blue", name: "Rivian Blue", category: "standard", mode: "dark", pairId: "rivian-blue",
+    preview: { bg: "#0b1628", fg: "#d4dce8", accent: "#3d7bce", secondary: "#122040" },
+    vars: {
+      "--bg-primary": "#0b1628", "--bg-secondary": "#122040", "--bg-tertiary": "#1a2d52", "--bg-elevated": "#233a64",
+      "--text-primary": "#d4dce8", "--text-secondary": "#7a90ad", "--accent-blue": "#3d7bce", "--accent-green": "#4caf82",
+      "--accent-purple": "#9b8ec7", "--accent-gold": "#e5b84c", "--accent-rose": "#e06070",
+      "--border-color": "rgba(61, 123, 206, 0.12)", "--error-color": "#e06070",
+    },
+  },
+  {
+    id: "light-rivian-blue", name: "Rivian Blue", category: "standard", mode: "light", pairId: "rivian-blue",
+    preview: { bg: "#f4f6f9", fg: "#1a2a42", accent: "#2a5fa0", secondary: "#e6ebf2" },
+    vars: {
+      "--bg-primary": "#f4f6f9", "--bg-secondary": "#e6ebf2", "--bg-tertiary": "#d4dce8", "--bg-elevated": "#ffffff",
+      "--text-primary": "#1a2a42", "--text-secondary": "#5a6e85", "--accent-blue": "#2a5fa0", "--accent-green": "#2d8a5e",
+      "--accent-purple": "#6b5ea0", "--accent-gold": "#b08a20", "--accent-rose": "#c44858",
+      "--border-color": "rgba(42, 95, 160, 0.10)", "--error-color": "#c44858",
+    },
+  },
+  // ── Pair: Forest Green (R1 exterior) / Limestone (R1 warm beige) ──
+  {
+    id: "dark-rivian-forest", name: "Rivian Forest", category: "standard", mode: "dark", pairId: "rivian-forest",
+    preview: { bg: "#0e1a15", fg: "#d0ddd4", accent: "#4a8c6a", secondary: "#162820" },
+    vars: {
+      "--bg-primary": "#0e1a15", "--bg-secondary": "#162820", "--bg-tertiary": "#1e352b", "--bg-elevated": "#274236",
+      "--text-primary": "#d0ddd4", "--text-secondary": "#7a9988", "--accent-blue": "#4a8c6a", "--accent-green": "#5ebd88",
+      "--accent-purple": "#a28db5", "--accent-gold": "#d4a855", "--accent-rose": "#d46a5a",
+      "--border-color": "rgba(74, 140, 106, 0.12)", "--error-color": "#d46a5a",
+    },
+  },
+  {
+    id: "light-rivian-forest", name: "Rivian Forest", category: "standard", mode: "light", pairId: "rivian-forest",
+    preview: { bg: "#f5f0e8", fg: "#2a2820", accent: "#3d7a58", secondary: "#e8e0d2" },
+    vars: {
+      "--bg-primary": "#f5f0e8", "--bg-secondary": "#e8e0d2", "--bg-tertiary": "#d8cebc", "--bg-elevated": "#fdf8f0",
+      "--text-primary": "#2a2820", "--text-secondary": "#6a6456", "--accent-blue": "#3d7a58", "--accent-green": "#4a9060",
+      "--accent-purple": "#7a6690", "--accent-gold": "#a08228", "--accent-rose": "#b84a40",
+      "--border-color": "rgba(61, 122, 88, 0.10)", "--error-color": "#b84a40",
+    },
+  },
+  // ── Pair: El Cap Granite (R1 exterior) / LA Silver (R1 exterior) ──
+  {
+    id: "dark-rivian-granite", name: "Rivian Granite", category: "standard", mode: "dark", pairId: "rivian-granite",
+    preview: { bg: "#161514", fg: "#d5d0ca", accent: "#a09080", secondary: "#221f1d" },
+    vars: {
+      "--bg-primary": "#161514", "--bg-secondary": "#221f1d", "--bg-tertiary": "#2e2a27", "--bg-elevated": "#3a3532",
+      "--text-primary": "#d5d0ca", "--text-secondary": "#8a8278", "--accent-blue": "#a09080", "--accent-green": "#7aaa6c",
+      "--accent-purple": "#b098b8", "--accent-gold": "#d4a855", "--accent-rose": "#cc6a5a",
+      "--border-color": "rgba(160, 144, 128, 0.12)", "--error-color": "#cc6a5a",
+    },
+  },
+  {
+    id: "light-rivian-granite", name: "Rivian Granite", category: "standard", mode: "light", pairId: "rivian-granite",
+    preview: { bg: "#f0eeec", fg: "#2a2624", accent: "#6a6058", secondary: "#e2dedb" },
+    vars: {
+      "--bg-primary": "#f0eeec", "--bg-secondary": "#e2dedb", "--bg-tertiary": "#d0ccc7", "--bg-elevated": "#faf8f6",
+      "--text-primary": "#2a2624", "--text-secondary": "#6e665e", "--accent-blue": "#6a6058", "--accent-green": "#508a48",
+      "--accent-purple": "#7a6880", "--accent-gold": "#9a7a28", "--accent-rose": "#aa4a40",
+      "--border-color": "rgba(106, 96, 88, 0.10)", "--error-color": "#aa4a40",
+    },
+  },
+  // ── Pair: Midnight (R1 exterior) / Ocean Coast (R1 interior) ──
+  {
+    id: "dark-rivian-midnight", name: "Rivian Midnight", category: "standard", mode: "dark", pairId: "rivian-midnight",
+    preview: { bg: "#08090e", fg: "#cdd2dc", accent: "#5a8aaa", secondary: "#10121a" },
+    vars: {
+      "--bg-primary": "#08090e", "--bg-secondary": "#10121a", "--bg-tertiary": "#181c28", "--bg-elevated": "#222838",
+      "--text-primary": "#cdd2dc", "--text-secondary": "#6a7488", "--accent-blue": "#5a8aaa", "--accent-green": "#4aaa80",
+      "--accent-purple": "#8a80b8", "--accent-gold": "#ccaa44", "--accent-rose": "#d85860",
+      "--border-color": "rgba(90, 138, 170, 0.10)", "--error-color": "#d85860",
+    },
+  },
+  {
+    id: "light-rivian-midnight", name: "Rivian Midnight", category: "standard", mode: "light", pairId: "rivian-midnight",
+    preview: { bg: "#f0f6f8", fg: "#1a2830", accent: "#3a7a94", secondary: "#deeef4" },
+    vars: {
+      "--bg-primary": "#f0f6f8", "--bg-secondary": "#deeef4", "--bg-tertiary": "#c8dee8", "--bg-elevated": "#fafcfd",
+      "--text-primary": "#1a2830", "--text-secondary": "#4a6878", "--accent-blue": "#3a7a94", "--accent-green": "#2a8a60",
+      "--accent-purple": "#6a6090", "--accent-gold": "#a08828", "--accent-rose": "#c04850",
+      "--border-color": "rgba(58, 122, 148, 0.10)", "--error-color": "#c04850",
+    },
+  },
+  // ── Pair: Red Canyon (R1 exterior) ──
+  {
+    id: "dark-rivian-canyon", name: "Rivian Canyon", category: "standard", mode: "dark", pairId: "rivian-canyon",
+    preview: { bg: "#140c0a", fg: "#e0d0c8", accent: "#b85a42", secondary: "#221410" },
+    vars: {
+      "--bg-primary": "#140c0a", "--bg-secondary": "#221410", "--bg-tertiary": "#30201a", "--bg-elevated": "#3e2c24",
+      "--text-primary": "#e0d0c8", "--text-secondary": "#a08878", "--accent-blue": "#b85a42", "--accent-green": "#6aaa58",
+      "--accent-purple": "#a87898", "--accent-gold": "#d4a040", "--accent-rose": "#d85040",
+      "--border-color": "rgba(184, 90, 66, 0.14)", "--error-color": "#d85040",
+    },
+  },
+  {
+    id: "light-rivian-canyon", name: "Rivian Canyon", category: "standard", mode: "light", pairId: "rivian-canyon",
+    preview: { bg: "#f8f2ec", fg: "#2e1e18", accent: "#984838", secondary: "#ecddd0" },
+    vars: {
+      "--bg-primary": "#f8f2ec", "--bg-secondary": "#ecddd0", "--bg-tertiary": "#dccabc", "--bg-elevated": "#fffaf5",
+      "--text-primary": "#2e1e18", "--text-secondary": "#7a5e50", "--accent-blue": "#984838", "--accent-green": "#4a8a3e",
+      "--accent-purple": "#804a6a", "--accent-gold": "#a07820", "--accent-rose": "#b83830",
+      "--border-color": "rgba(152, 72, 56, 0.10)", "--error-color": "#b83830",
+    },
+  },
+  // ── Pair: Launch Green (R1 Quad-Motor exclusive) ──
+  {
+    id: "dark-rivian-launch", name: "Rivian Launch", category: "standard", mode: "dark", pairId: "rivian-launch",
+    preview: { bg: "#0a140e", fg: "#d0e0d4", accent: "#66cc6a", secondary: "#142218" },
+    vars: {
+      "--bg-primary": "#0a140e", "--bg-secondary": "#142218", "--bg-tertiary": "#1e3024", "--bg-elevated": "#283e30",
+      "--text-primary": "#d0e0d4", "--text-secondary": "#7aa088", "--accent-blue": "#66cc6a", "--accent-green": "#66cc6a",
+      "--accent-purple": "#a090c0", "--accent-gold": "#ccb040", "--accent-rose": "#e05858",
+      "--border-color": "rgba(76, 175, 80, 0.14)", "--error-color": "#e05858",
+    },
+  },
+  {
+    id: "light-rivian-launch", name: "Rivian Launch", category: "standard", mode: "light", pairId: "rivian-launch",
+    preview: { bg: "#f2f6f2", fg: "#1a2420", accent: "#2e8a38", secondary: "#e0eae2" },
+    vars: {
+      "--bg-primary": "#f2f6f2", "--bg-secondary": "#e0eae2", "--bg-tertiary": "#cddcd0", "--bg-elevated": "#fafcfa",
+      "--text-primary": "#1a2420", "--text-secondary": "#4a6a52", "--accent-blue": "#2e8a38", "--accent-green": "#3aa040",
+      "--accent-purple": "#6a5a8a", "--accent-gold": "#8a7a18", "--accent-rose": "#b84040",
+      "--border-color": "rgba(46, 138, 56, 0.10)", "--error-color": "#b84040",
+    },
+  },
+  // ── Pair: Catalina Cove (R2 exclusive) / Coastal Cloud (R2 interior) ──
+  {
+    id: "dark-rivian-catalina", name: "Rivian Catalina", category: "standard", mode: "dark", pairId: "rivian-catalina",
+    preview: { bg: "#0a1418", fg: "#ccdce0", accent: "#3a9aaa", secondary: "#122028" },
+    vars: {
+      "--bg-primary": "#0a1418", "--bg-secondary": "#122028", "--bg-tertiary": "#1a2e38", "--bg-elevated": "#223c48",
+      "--text-primary": "#ccdce0", "--text-secondary": "#6a8a94", "--accent-blue": "#3a9aaa", "--accent-green": "#4ab888",
+      "--accent-purple": "#8a88c0", "--accent-gold": "#d0a848", "--accent-rose": "#d86068",
+      "--border-color": "rgba(58, 154, 170, 0.12)", "--error-color": "#d86068",
+    },
+  },
+  {
+    id: "light-rivian-catalina", name: "Rivian Catalina", category: "standard", mode: "light", pairId: "rivian-catalina",
+    preview: { bg: "#f2f8f8", fg: "#182828", accent: "#2a808e", secondary: "#dceef0" },
+    vars: {
+      "--bg-primary": "#f2f8f8", "--bg-secondary": "#dceef0", "--bg-tertiary": "#c6e0e4", "--bg-elevated": "#fafefe",
+      "--text-primary": "#182828", "--text-secondary": "#486a70", "--accent-blue": "#2a808e", "--accent-green": "#2a9068",
+      "--accent-purple": "#5a6090", "--accent-gold": "#98841e", "--accent-rose": "#b84850",
+      "--border-color": "rgba(42, 128, 142, 0.10)", "--error-color": "#b84850",
+    },
+  },
+  // ── Pair: Storm Blue (R1 Tri/Quad) / Esker Silver (R2 default) ──
+  {
+    id: "dark-rivian-storm", name: "Rivian Storm", category: "standard", mode: "dark", pairId: "rivian-storm",
+    preview: { bg: "#0c1218", fg: "#ccd4dc", accent: "#4a6a88", secondary: "#141e2a" },
+    vars: {
+      "--bg-primary": "#0c1218", "--bg-secondary": "#141e2a", "--bg-tertiary": "#1e2c3c", "--bg-elevated": "#283a4e",
+      "--text-primary": "#ccd4dc", "--text-secondary": "#6e8098", "--accent-blue": "#4a6a88", "--accent-green": "#58a878",
+      "--accent-purple": "#8878a8", "--accent-gold": "#c8a44a", "--accent-rose": "#cc5860",
+      "--border-color": "rgba(74, 106, 136, 0.12)", "--error-color": "#cc5860",
+    },
+  },
+  {
+    id: "light-rivian-storm", name: "Rivian Storm", category: "standard", mode: "light", pairId: "rivian-storm",
+    preview: { bg: "#f0f2f4", fg: "#1e2830", accent: "#3a5a72", secondary: "#e0e4e8" },
+    vars: {
+      "--bg-primary": "#f0f2f4", "--bg-secondary": "#e0e4e8", "--bg-tertiary": "#ccd2d8", "--bg-elevated": "#fafbfc",
+      "--text-primary": "#1e2830", "--text-secondary": "#546878", "--accent-blue": "#3a5a72", "--accent-green": "#388a58",
+      "--accent-purple": "#605880", "--accent-gold": "#8a7a1e", "--accent-rose": "#a84448",
+      "--border-color": "rgba(58, 90, 114, 0.10)", "--error-color": "#a84448",
+    },
+  },
+  // ── Pair: Half Moon Grey (R2 exterior) / Slate Sky (R1 interior) ──
+  {
+    id: "dark-rivian-halfmoon", name: "Rivian Halfmoon", category: "standard", mode: "dark", pairId: "rivian-halfmoon",
+    preview: { bg: "#121210", fg: "#d2d0cc", accent: "#8a8478", secondary: "#1e1c1a" },
+    vars: {
+      "--bg-primary": "#121210", "--bg-secondary": "#1e1c1a", "--bg-tertiary": "#2a2826", "--bg-elevated": "#363432",
+      "--text-primary": "#d2d0cc", "--text-secondary": "#8a8680", "--accent-blue": "#8a8478", "--accent-green": "#6ea868",
+      "--accent-purple": "#a890b0", "--accent-gold": "#c8a448", "--accent-rose": "#c86058",
+      "--border-color": "rgba(138, 132, 120, 0.12)", "--error-color": "#c86058",
+    },
+  },
+  {
+    id: "light-rivian-halfmoon", name: "Rivian Halfmoon", category: "standard", mode: "light", pairId: "rivian-halfmoon",
+    preview: { bg: "#f0eeec", fg: "#242220", accent: "#6a6460", secondary: "#e0dcda" },
+    vars: {
+      "--bg-primary": "#f0eeec", "--bg-secondary": "#e0dcda", "--bg-tertiary": "#cec8c4", "--bg-elevated": "#faf8f6",
+      "--text-primary": "#242220", "--text-secondary": "#645e58", "--accent-blue": "#6a6460", "--accent-green": "#488a40",
+      "--accent-purple": "#6a5878", "--accent-gold": "#8a7a20", "--accent-rose": "#a84038",
+      "--border-color": "rgba(106, 100, 96, 0.10)", "--error-color": "#a84038",
+    },
+  },
+  // ── Pair: Borealis (R2 Performance exclusive) ──
+  {
+    id: "dark-rivian-borealis", name: "Rivian Borealis", category: "standard", mode: "dark", pairId: "rivian-borealis",
+    preview: { bg: "#0a1210", fg: "#d0e0d8", accent: "#38a088", secondary: "#142220" },
+    vars: {
+      "--bg-primary": "#0a1210", "--bg-secondary": "#142220", "--bg-tertiary": "#1c302c", "--bg-elevated": "#243e38",
+      "--text-primary": "#d0e0d8", "--text-secondary": "#6a9a8c", "--accent-blue": "#38a088", "--accent-green": "#50c898",
+      "--accent-purple": "#8888c0", "--accent-gold": "#c8b048", "--accent-rose": "#d06060",
+      "--border-color": "rgba(56, 160, 136, 0.14)", "--error-color": "#d06060",
+    },
+  },
+  {
+    id: "light-rivian-borealis", name: "Rivian Borealis", category: "standard", mode: "light", pairId: "rivian-borealis",
+    preview: { bg: "#f4f8f6", fg: "#1a2822", accent: "#2a8070", secondary: "#e0ece8" },
+    vars: {
+      "--bg-primary": "#f4f8f6", "--bg-secondary": "#e0ece8", "--bg-tertiary": "#ccdcd6", "--bg-elevated": "#fafefc",
+      "--text-primary": "#1a2822", "--text-secondary": "#466a60", "--accent-blue": "#2a8070", "--accent-green": "#38a06a",
+      "--accent-purple": "#5a5a88", "--accent-gold": "#8a8020", "--accent-rose": "#b04040",
+      "--border-color": "rgba(42, 128, 112, 0.10)", "--error-color": "#b04040",
+    },
+  },
+
+  // ═══════════════════════════════════════════════════════════════════
+  //  Tesla — Vehicle Color Inspired Themes
+  // ═══════════════════════════════════════════════════════════════════
+
+  // ── Pair: Midnight Cherry (Model S/X refresh) / Pearl White (most popular) ──
+  {
+    id: "dark-tesla-cherry", name: "Tesla Cherry", category: "standard", mode: "dark", pairId: "tesla-cherry",
+    preview: { bg: "#140a0e", fg: "#e4d0d6", accent: "#c0485a", secondary: "#221218" },
+    vars: {
+      "--bg-primary": "#140a0e", "--bg-secondary": "#221218", "--bg-tertiary": "#301c22", "--bg-elevated": "#3e262e",
+      "--text-primary": "#e4d0d6", "--text-secondary": "#a07a84", "--accent-blue": "#c0485a", "--accent-green": "#5aaa6a",
+      "--accent-purple": "#9a6aaa", "--accent-gold": "#cc9a30", "--accent-rose": "#e04458",
+      "--border-color": "rgba(192, 72, 90, 0.12)", "--error-color": "#e04458",
+    },
+  },
+  {
+    id: "light-tesla-cherry", name: "Tesla Cherry", category: "standard", mode: "light", pairId: "tesla-cherry",
+    preview: { bg: "#f8f6f6", fg: "#2a1a1e", accent: "#9a2840", secondary: "#ece4e6" },
+    vars: {
+      "--bg-primary": "#f8f6f6", "--bg-secondary": "#ece4e6", "--bg-tertiary": "#dcd0d4", "--bg-elevated": "#ffffff",
+      "--text-primary": "#2a1a1e", "--text-secondary": "#6a4a52", "--accent-blue": "#9a2840", "--accent-green": "#388a48",
+      "--accent-purple": "#7a4a8a", "--accent-gold": "#9a7a18", "--accent-rose": "#c02040",
+      "--border-color": "rgba(154, 40, 64, 0.10)", "--error-color": "#c02040",
+    },
+  },
+  // ── Pair: Ultra Red (Model 3/Y) / Quicksilver (Model S/X/3/Y) ──
+  {
+    id: "dark-tesla-red", name: "Tesla Red", category: "standard", mode: "dark", pairId: "tesla-red",
+    preview: { bg: "#180808", fg: "#e8d0d0", accent: "#e03030", secondary: "#2a1010" },
+    vars: {
+      "--bg-primary": "#180808", "--bg-secondary": "#2a1010", "--bg-tertiary": "#3a1a1a", "--bg-elevated": "#4a2424",
+      "--text-primary": "#e8d0d0", "--text-secondary": "#a88080", "--accent-blue": "#e03030", "--accent-green": "#4aaa5a",
+      "--accent-purple": "#aa68aa", "--accent-gold": "#d0a030", "--accent-rose": "#e03030",
+      "--border-color": "rgba(224, 48, 48, 0.14)", "--error-color": "#e84040",
+    },
+  },
+  {
+    id: "light-tesla-red", name: "Tesla Red", category: "standard", mode: "light", pairId: "tesla-red",
+    preview: { bg: "#f2f2f0", fg: "#222220", accent: "#6a6a68", secondary: "#e4e4e0" },
+    vars: {
+      "--bg-primary": "#f2f2f0", "--bg-secondary": "#e4e4e0", "--bg-tertiary": "#d2d2ce", "--bg-elevated": "#fafaf8",
+      "--text-primary": "#222220", "--text-secondary": "#5a5a56", "--accent-blue": "#6a6a68", "--accent-green": "#488a3a",
+      "--accent-purple": "#6a5a7a", "--accent-gold": "#8a7a20", "--accent-rose": "#a03030",
+      "--border-color": "rgba(106, 106, 104, 0.10)", "--error-color": "#a03030",
+    },
+  },
+  // ── Pair: Deep Blue Metallic (Model S/X) / Solid Black (base color) ──
+  {
+    id: "dark-tesla-blue", name: "Tesla Blue", category: "standard", mode: "dark", pairId: "tesla-blue",
+    preview: { bg: "#080e18", fg: "#d0d8e6", accent: "#4070b0", secondary: "#101828" },
+    vars: {
+      "--bg-primary": "#080e18", "--bg-secondary": "#101828", "--bg-tertiary": "#1a2438", "--bg-elevated": "#243048",
+      "--text-primary": "#d0d8e6", "--text-secondary": "#7088a8", "--accent-blue": "#4070b0", "--accent-green": "#48aa68",
+      "--accent-purple": "#8870b0", "--accent-gold": "#c8a840", "--accent-rose": "#d04858",
+      "--border-color": "rgba(64, 112, 176, 0.12)", "--error-color": "#d04858",
+    },
+  },
+  {
+    id: "light-tesla-blue", name: "Tesla Blue", category: "standard", mode: "light", pairId: "tesla-blue",
+    preview: { bg: "#f0f2f4", fg: "#141618", accent: "#2a4a78", secondary: "#e0e4e8" },
+    vars: {
+      "--bg-primary": "#f0f2f4", "--bg-secondary": "#e0e4e8", "--bg-tertiary": "#ccd2d8", "--bg-elevated": "#fafbfc",
+      "--text-primary": "#141618", "--text-secondary": "#4a5a6a", "--accent-blue": "#2a4a78", "--accent-green": "#2a7a40",
+      "--accent-purple": "#5a4a7a", "--accent-gold": "#7a6a18", "--accent-rose": "#a82838",
+      "--border-color": "rgba(42, 74, 120, 0.10)", "--error-color": "#a82838",
+    },
+  },
+  // ── Pair: Midnight Silver (classic Model 3/Y) / Ultra White Interior ──
+  {
+    id: "dark-tesla-silver", name: "Tesla Silver", category: "standard", mode: "dark", pairId: "tesla-silver",
+    preview: { bg: "#101214", fg: "#d2d4d8", accent: "#7a8898", secondary: "#1a1e22" },
+    vars: {
+      "--bg-primary": "#101214", "--bg-secondary": "#1a1e22", "--bg-tertiary": "#262a30", "--bg-elevated": "#32383e",
+      "--text-primary": "#d2d4d8", "--text-secondary": "#808890", "--accent-blue": "#7a8898", "--accent-green": "#58a068",
+      "--accent-purple": "#9080a8", "--accent-gold": "#baa840", "--accent-rose": "#c85060",
+      "--border-color": "rgba(122, 136, 152, 0.10)", "--error-color": "#c85060",
+    },
+  },
+  {
+    id: "light-tesla-silver", name: "Tesla Silver", category: "standard", mode: "light", pairId: "tesla-silver",
+    preview: { bg: "#fafafa", fg: "#1e2024", accent: "#4a5468", secondary: "#eeeeee" },
+    vars: {
+      "--bg-primary": "#fafafa", "--bg-secondary": "#eeeeee", "--bg-tertiary": "#dcdcdc", "--bg-elevated": "#ffffff",
+      "--text-primary": "#1e2024", "--text-secondary": "#555a64", "--accent-blue": "#4a5468", "--accent-green": "#388a48",
+      "--accent-purple": "#5a4a72", "--accent-gold": "#807020", "--accent-rose": "#a03040",
+      "--border-color": "rgba(74, 84, 104, 0.10)", "--error-color": "#a03040",
+    },
+  },
+  // ── Pair: Stealth Grey (Cybertruck) / Stainless Steel (Cybertruck raw) ──
+  {
+    id: "dark-tesla-stealth", name: "Tesla Stealth", category: "standard", mode: "dark", pairId: "tesla-stealth",
+    preview: { bg: "#0e0e10", fg: "#c8c8cc", accent: "#5a5a62", secondary: "#1a1a1e" },
+    vars: {
+      "--bg-primary": "#0e0e10", "--bg-secondary": "#1a1a1e", "--bg-tertiary": "#26262c", "--bg-elevated": "#32323a",
+      "--text-primary": "#c8c8cc", "--text-secondary": "#7e7e86", "--accent-blue": "#5a5a62", "--accent-green": "#50a060",
+      "--accent-purple": "#8878a0", "--accent-gold": "#b8a838", "--accent-rose": "#c04858",
+      "--border-color": "rgba(90, 90, 98, 0.12)", "--error-color": "#c04858",
+    },
+  },
+  {
+    id: "light-tesla-stealth", name: "Tesla Stealth", category: "standard", mode: "light", pairId: "tesla-stealth",
+    preview: { bg: "#f0f0ee", fg: "#202024", accent: "#707078", secondary: "#e2e2de" },
+    vars: {
+      "--bg-primary": "#f0f0ee", "--bg-secondary": "#e2e2de", "--bg-tertiary": "#d0d0cc", "--bg-elevated": "#fafaf8",
+      "--text-primary": "#202024", "--text-secondary": "#555558", "--accent-blue": "#707078", "--accent-green": "#408a40",
+      "--accent-purple": "#5a5078", "--accent-gold": "#7a7018", "--accent-rose": "#a03040",
+      "--border-color": "rgba(112, 112, 120, 0.10)", "--error-color": "#a03040",
+    },
+  },
+  // ── Pair: Glacier Blue (Model Y Juniper) / Cream Interior (Juniper tan) ──
+  {
+    id: "dark-tesla-glacier", name: "Tesla Glacier", category: "standard", mode: "dark", pairId: "tesla-glacier",
+    preview: { bg: "#0a1218", fg: "#d0dce4", accent: "#5a9abc", secondary: "#142028" },
+    vars: {
+      "--bg-primary": "#0a1218", "--bg-secondary": "#142028", "--bg-tertiary": "#1e2e38", "--bg-elevated": "#283a48",
+      "--text-primary": "#d0dce4", "--text-secondary": "#7898ac", "--accent-blue": "#5a9abc", "--accent-green": "#50aa6a",
+      "--accent-purple": "#8a7ab0", "--accent-gold": "#c8a840", "--accent-rose": "#d05060",
+      "--border-color": "rgba(90, 154, 188, 0.12)", "--error-color": "#d05060",
+    },
+  },
+  {
+    id: "light-tesla-glacier", name: "Tesla Glacier", category: "standard", mode: "light", pairId: "tesla-glacier",
+    preview: { bg: "#f8f4ee", fg: "#2a2418", accent: "#3a7a9a", secondary: "#ece4d8" },
+    vars: {
+      "--bg-primary": "#f8f4ee", "--bg-secondary": "#ece4d8", "--bg-tertiary": "#dcd2c4", "--bg-elevated": "#fffcf6",
+      "--text-primary": "#2a2418", "--text-secondary": "#60584a", "--accent-blue": "#3a7a9a", "--accent-green": "#3a8a4a",
+      "--accent-purple": "#6a5a80", "--accent-gold": "#8a7820", "--accent-rose": "#a83040",
+      "--border-color": "rgba(58, 122, 154, 0.10)", "--error-color": "#a83040",
+    },
+  },
+  // ── Pair: Lunar Silver (Model S Plaid) / Titanium Copper (Model Y Highland) ──
+  {
+    id: "dark-tesla-lunar", name: "Tesla Lunar", category: "standard", mode: "dark", pairId: "tesla-lunar",
+    preview: { bg: "#0e1012", fg: "#d4d6d8", accent: "#8a9098", secondary: "#1a1e20" },
+    vars: {
+      "--bg-primary": "#0e1012", "--bg-secondary": "#1a1e20", "--bg-tertiary": "#282c30", "--bg-elevated": "#343a3e",
+      "--text-primary": "#d4d6d8", "--text-secondary": "#848a90", "--accent-blue": "#8a9098", "--accent-green": "#58a868",
+      "--accent-purple": "#9888a8", "--accent-gold": "#c0a840", "--accent-rose": "#c85060",
+      "--border-color": "rgba(138, 144, 152, 0.10)", "--error-color": "#c85060",
+    },
+  },
+  {
+    id: "light-tesla-lunar", name: "Tesla Lunar", category: "standard", mode: "light", pairId: "tesla-lunar",
+    preview: { bg: "#f6f0ea", fg: "#28201a", accent: "#8a6840", secondary: "#e8dcd0" },
+    vars: {
+      "--bg-primary": "#f6f0ea", "--bg-secondary": "#e8dcd0", "--bg-tertiary": "#d8cab8", "--bg-elevated": "#fefaf4",
+      "--text-primary": "#28201a", "--text-secondary": "#605040", "--accent-blue": "#8a6840", "--accent-green": "#4a8a3a",
+      "--accent-purple": "#6a5470", "--accent-gold": "#8a7420", "--accent-rose": "#a83030",
+      "--border-color": "rgba(138, 104, 64, 0.10)", "--error-color": "#a83030",
+    },
+  },
+  // ── Pair: Ludicrous Red (Performance) / Plaid Neon (Easter egg green) ──
+  {
+    id: "dark-tesla-ludicrous", name: "Tesla Ludicrous", category: "standard", mode: "dark", pairId: "tesla-ludicrous",
+    preview: { bg: "#1a0808", fg: "#e8cccc", accent: "#ff2020", secondary: "#2e1010" },
+    vars: {
+      "--bg-primary": "#1a0808", "--bg-secondary": "#2e1010", "--bg-tertiary": "#401818", "--bg-elevated": "#502222",
+      "--text-primary": "#e8cccc", "--text-secondary": "#a88080", "--accent-blue": "#ff2020", "--accent-green": "#40cc60",
+      "--accent-purple": "#cc60cc", "--accent-gold": "#e0a020", "--accent-rose": "#ff2020",
+      "--border-color": "rgba(255, 32, 32, 0.14)", "--error-color": "#ff3838",
+    },
+  },
+  {
+    id: "light-tesla-ludicrous", name: "Tesla Ludicrous", category: "standard", mode: "light", pairId: "tesla-ludicrous",
+    preview: { bg: "#f0faf2", fg: "#0e2818", accent: "#18aa40", secondary: "#d8f0de" },
+    vars: {
+      "--bg-primary": "#f0faf2", "--bg-secondary": "#d8f0de", "--bg-tertiary": "#c4e2cc", "--bg-elevated": "#fafef8",
+      "--text-primary": "#0e2818", "--text-secondary": "#3a6a48", "--accent-blue": "#18aa40", "--accent-green": "#18aa40",
+      "--accent-purple": "#5a6a90", "--accent-gold": "#7a8020", "--accent-rose": "#c02020",
+      "--border-color": "rgba(24, 170, 64, 0.10)", "--error-color": "#c02020",
+    },
+  },
+  // ── Pair: Cyberbeast Matte Black / Foundation Series Satin ──
+  {
+    id: "dark-tesla-cyberbeast", name: "Tesla Cyberbeast", category: "standard", mode: "dark", pairId: "tesla-cyberbeast",
+    preview: { bg: "#080808", fg: "#c0c0c0", accent: "#e0e0e0", secondary: "#141414" },
+    vars: {
+      "--bg-primary": "#080808", "--bg-secondary": "#141414", "--bg-tertiary": "#1e1e1e", "--bg-elevated": "#2a2a2a",
+      "--text-primary": "#c0c0c0", "--text-secondary": "#7a7a7a", "--accent-blue": "#e0e0e0", "--accent-green": "#48c860",
+      "--accent-purple": "#a090c0", "--accent-gold": "#d0b040", "--accent-rose": "#e04050",
+      "--border-color": "rgba(224, 224, 224, 0.08)", "--error-color": "#e04050",
+    },
+  },
+  {
+    id: "light-tesla-cyberbeast", name: "Tesla Cyberbeast", category: "standard", mode: "light", pairId: "tesla-cyberbeast",
+    preview: { bg: "#f4f4f2", fg: "#1a1a1a", accent: "#404040", secondary: "#e6e6e2" },
+    vars: {
+      "--bg-primary": "#f4f4f2", "--bg-secondary": "#e6e6e2", "--bg-tertiary": "#d4d4d0", "--bg-elevated": "#fcfcfa",
+      "--text-primary": "#1a1a1a", "--text-secondary": "#505050", "--accent-blue": "#404040", "--accent-green": "#2a8a3a",
+      "--accent-purple": "#5a4a70", "--accent-gold": "#7a6a18", "--accent-rose": "#a02030",
+      "--border-color": "rgba(64, 64, 64, 0.10)", "--error-color": "#a02030",
+    },
+  },
+  // ── Pair: Autopilot Blue (UI accent) / Supercharger White ──
+  {
+    id: "dark-tesla-autopilot", name: "Tesla Autopilot", category: "standard", mode: "dark", pairId: "tesla-autopilot",
+    preview: { bg: "#0a0e1a", fg: "#d0d8ea", accent: "#3880e0", secondary: "#121828" },
+    vars: {
+      "--bg-primary": "#0a0e1a", "--bg-secondary": "#121828", "--bg-tertiary": "#1c2638", "--bg-elevated": "#263248",
+      "--text-primary": "#d0d8ea", "--text-secondary": "#7088b0", "--accent-blue": "#3880e0", "--accent-green": "#40b060",
+      "--accent-purple": "#8068c0", "--accent-gold": "#d0a830", "--accent-rose": "#e04858",
+      "--border-color": "rgba(56, 128, 224, 0.12)", "--error-color": "#e04858",
+    },
+  },
+  {
+    id: "light-tesla-autopilot", name: "Tesla Autopilot", category: "standard", mode: "light", pairId: "tesla-autopilot",
+    preview: { bg: "#fafcfe", fg: "#141820", accent: "#2060c0", secondary: "#eaf0f8" },
+    vars: {
+      "--bg-primary": "#fafcfe", "--bg-secondary": "#eaf0f8", "--bg-tertiary": "#d4dfe8", "--bg-elevated": "#ffffff",
+      "--text-primary": "#141820", "--text-secondary": "#445068", "--accent-blue": "#2060c0", "--accent-green": "#288a40",
+      "--accent-purple": "#5848a0", "--accent-gold": "#807018", "--accent-rose": "#b02838",
+      "--border-color": "rgba(32, 96, 192, 0.10)", "--error-color": "#b02838",
+    },
+  },
+
+  // ═══════════════════════════════════════════════════════════════════
+  //  Apple MacBook & iPhone — Product Color Inspired Themes
+  // ═══════════════════════════════════════════════════════════════════
+
+  // ── Pair: Space Black (MacBook Pro M3 Pro/Max) / Silver (MacBook Pro classic) ──
+  {
+    id: "dark-mac-spaceblack", name: "Space Black", category: "standard", mode: "dark", pairId: "mac-spaceblack",
+    preview: { bg: "#0c0c0e", fg: "#d8d8dc", accent: "#6eaadc", secondary: "#18181c" },
+    vars: {
+      "--bg-primary": "#0c0c0e", "--bg-secondary": "#18181c", "--bg-tertiary": "#222228", "--bg-elevated": "#2c2c34",
+      "--text-primary": "#d8d8dc", "--text-secondary": "#7a7a86", "--accent-blue": "#6eaadc", "--accent-green": "#5ec27a",
+      "--accent-purple": "#b48cda", "--accent-gold": "#e2b84a", "--accent-rose": "#e86070",
+      "--border-color": "rgba(110, 170, 220, 0.08)", "--error-color": "#e86070",
+    },
+  },
+  {
+    id: "light-mac-spaceblack", name: "Space Black", category: "standard", mode: "light", pairId: "mac-spaceblack",
+    preview: { bg: "#f4f4f6", fg: "#1c1c22", accent: "#3478f6", secondary: "#e8e8ec" },
+    vars: {
+      "--bg-primary": "#f4f4f6", "--bg-secondary": "#e8e8ec", "--bg-tertiary": "#d8d8de", "--bg-elevated": "#ffffff",
+      "--text-primary": "#1c1c22", "--text-secondary": "#636370", "--accent-blue": "#3478f6", "--accent-green": "#30a856",
+      "--accent-purple": "#8944da", "--accent-gold": "#c08a10", "--accent-rose": "#d63852",
+      "--border-color": "rgba(52, 120, 246, 0.08)", "--error-color": "#d63852",
+    },
+  },
+  // ── Pair: Midnight (MacBook Air M2/M3 — dark navy) / Starlight (MacBook Air warm champagne) ──
+  {
+    id: "dark-mac-midnight", name: "Starlight", category: "standard", mode: "dark", pairId: "mac-midnight",
+    preview: { bg: "#0a0c14", fg: "#d0d4e0", accent: "#4a78c0", secondary: "#141828" },
+    vars: {
+      "--bg-primary": "#0a0c14", "--bg-secondary": "#141828", "--bg-tertiary": "#1c2238", "--bg-elevated": "#262e48",
+      "--text-primary": "#d0d4e0", "--text-secondary": "#6a72a8", "--accent-blue": "#4a78c0", "--accent-green": "#48a870",
+      "--accent-purple": "#9a7cc8", "--accent-gold": "#d4aa3a", "--accent-rose": "#d85868",
+      "--border-color": "rgba(74, 120, 192, 0.10)", "--error-color": "#d85868",
+    },
+  },
+  {
+    id: "light-mac-midnight", name: "Starlight", category: "standard", mode: "light", pairId: "mac-midnight",
+    preview: { bg: "#f8f4ee", fg: "#2a2620", accent: "#a0782a", secondary: "#eee8de" },
+    vars: {
+      "--bg-primary": "#f8f4ee", "--bg-secondary": "#eee8de", "--bg-tertiary": "#e0d8ca", "--bg-elevated": "#fefaf4",
+      "--text-primary": "#2a2620", "--text-secondary": "#706452", "--accent-blue": "#a0782a", "--accent-green": "#5a8a40",
+      "--accent-purple": "#8a6a98", "--accent-gold": "#b08a18", "--accent-rose": "#b84838",
+      "--border-color": "rgba(160, 120, 42, 0.10)", "--error-color": "#b84838",
+    },
+  },
+  // ── Pair: Space Gray (classic MacBook) ──
+  {
+    id: "dark-mac-spacegray", name: "Space Gray", category: "standard", mode: "dark", pairId: "mac-spacegray",
+    preview: { bg: "#111113", fg: "#d4d4d8", accent: "#8c8ca0", secondary: "#1c1c20" },
+    vars: {
+      "--bg-primary": "#111113", "--bg-secondary": "#1c1c20", "--bg-tertiary": "#26262c", "--bg-elevated": "#303038",
+      "--text-primary": "#d4d4d8", "--text-secondary": "#78788a", "--accent-blue": "#8c8ca0", "--accent-green": "#5ab872",
+      "--accent-purple": "#a888c0", "--accent-gold": "#d0a840", "--accent-rose": "#d86068",
+      "--border-color": "rgba(140, 140, 160, 0.10)", "--error-color": "#d86068",
+    },
+  },
+  {
+    id: "light-mac-spacegray", name: "Space Gray", category: "standard", mode: "light", pairId: "mac-spacegray",
+    preview: { bg: "#f6f6f8", fg: "#1e1e24", accent: "#5a5a72", secondary: "#eaeaee" },
+    vars: {
+      "--bg-primary": "#f6f6f8", "--bg-secondary": "#eaeaee", "--bg-tertiary": "#dcdce2", "--bg-elevated": "#ffffff",
+      "--text-primary": "#1e1e24", "--text-secondary": "#5e5e70", "--accent-blue": "#5a5a72", "--accent-green": "#3a8a4e",
+      "--accent-purple": "#6e5a88", "--accent-gold": "#9a8018", "--accent-rose": "#b84048",
+      "--border-color": "rgba(90, 90, 114, 0.08)", "--error-color": "#b84048",
+    },
+  },
+  // ── Pair: Black Titanium (iPhone 15/16 Pro) / White Titanium ──
+  {
+    id: "dark-iphone-blackti", name: "Black Titanium", category: "standard", mode: "dark", pairId: "iphone-blackti",
+    preview: { bg: "#0e0e10", fg: "#d6d4d0", accent: "#8a8680", secondary: "#1a1a1e" },
+    vars: {
+      "--bg-primary": "#0e0e10", "--bg-secondary": "#1a1a1e", "--bg-tertiary": "#24242a", "--bg-elevated": "#2e2e36",
+      "--text-primary": "#d6d4d0", "--text-secondary": "#807c76", "--accent-blue": "#8a8680", "--accent-green": "#68b070",
+      "--accent-purple": "#a090b8", "--accent-gold": "#d0a848", "--accent-rose": "#d46058",
+      "--border-color": "rgba(138, 134, 128, 0.10)", "--error-color": "#d46058",
+    },
+  },
+  {
+    id: "light-iphone-blackti", name: "Black Titanium", category: "standard", mode: "light", pairId: "iphone-blackti",
+    preview: { bg: "#f6f4f2", fg: "#22201e", accent: "#706c68", secondary: "#eae8e4" },
+    vars: {
+      "--bg-primary": "#f6f4f2", "--bg-secondary": "#eae8e4", "--bg-tertiary": "#d8d4d0", "--bg-elevated": "#fcfaf8",
+      "--text-primary": "#22201e", "--text-secondary": "#5e5a56", "--accent-blue": "#706c68", "--accent-green": "#488a42",
+      "--accent-purple": "#685c78", "--accent-gold": "#8a7a1e", "--accent-rose": "#a84038",
+      "--border-color": "rgba(112, 108, 104, 0.08)", "--error-color": "#a84038",
+    },
+  },
+  // ── Pair: Blue Titanium (iPhone 15 Pro) / Natural Titanium ──
+  {
+    id: "dark-iphone-blueti", name: "Blue Titanium", category: "standard", mode: "dark", pairId: "iphone-blueti",
+    preview: { bg: "#0c1018", fg: "#d0d4dc", accent: "#5a7898", secondary: "#141c28" },
+    vars: {
+      "--bg-primary": "#0c1018", "--bg-secondary": "#141c28", "--bg-tertiary": "#1c2838", "--bg-elevated": "#263448",
+      "--text-primary": "#d0d4dc", "--text-secondary": "#6a7a94", "--accent-blue": "#5a7898", "--accent-green": "#50a872",
+      "--accent-purple": "#8a80b0", "--accent-gold": "#c8a040", "--accent-rose": "#cc5860",
+      "--border-color": "rgba(90, 120, 152, 0.10)", "--error-color": "#cc5860",
+    },
+  },
+  {
+    id: "light-iphone-blueti", name: "Blue Titanium", category: "standard", mode: "light", pairId: "iphone-blueti",
+    preview: { bg: "#f2f0ee", fg: "#222020", accent: "#5a6878", secondary: "#e4e2de" },
+    vars: {
+      "--bg-primary": "#f2f0ee", "--bg-secondary": "#e4e2de", "--bg-tertiary": "#d2cec8", "--bg-elevated": "#faf8f6",
+      "--text-primary": "#222020", "--text-secondary": "#5c5854", "--accent-blue": "#5a6878", "--accent-green": "#3e8a48",
+      "--accent-purple": "#645a78", "--accent-gold": "#8a7820", "--accent-rose": "#a84040",
+      "--border-color": "rgba(90, 104, 120, 0.08)", "--error-color": "#a84040",
+    },
+  },
+  // ── Pair: Desert Titanium (iPhone 16 Pro) ──
+  {
+    id: "dark-iphone-desertti", name: "Desert Titanium", category: "standard", mode: "dark", pairId: "iphone-desertti",
+    preview: { bg: "#12100e", fg: "#d8d0c8", accent: "#a89070", secondary: "#1e1a16" },
+    vars: {
+      "--bg-primary": "#12100e", "--bg-secondary": "#1e1a16", "--bg-tertiary": "#2a2620", "--bg-elevated": "#36302a",
+      "--text-primary": "#d8d0c8", "--text-secondary": "#8a8274", "--accent-blue": "#a89070", "--accent-green": "#6aa860",
+      "--accent-purple": "#a890a8", "--accent-gold": "#d0a44a", "--accent-rose": "#cc6050",
+      "--border-color": "rgba(168, 144, 112, 0.12)", "--error-color": "#cc6050",
+    },
+  },
+  {
+    id: "light-iphone-desertti", name: "Desert Titanium", category: "standard", mode: "light", pairId: "iphone-desertti",
+    preview: { bg: "#f6f0ea", fg: "#282218", accent: "#886838", secondary: "#ece2d6" },
+    vars: {
+      "--bg-primary": "#f6f0ea", "--bg-secondary": "#ece2d6", "--bg-tertiary": "#dcd0c0", "--bg-elevated": "#fef8f0",
+      "--text-primary": "#282218", "--text-secondary": "#6e6050", "--accent-blue": "#886838", "--accent-green": "#508838",
+      "--accent-purple": "#7a6680", "--accent-gold": "#9a7a18", "--accent-rose": "#aa4438",
+      "--border-color": "rgba(136, 104, 56, 0.10)", "--error-color": "#aa4438",
+    },
+  },
+  // ── Pair: Ultramarine (iPhone 16) ──
+  {
+    id: "dark-iphone-ultramarine", name: "Ultramarine", category: "standard", mode: "dark", pairId: "iphone-ultramarine",
+    preview: { bg: "#0a0c1a", fg: "#d0d4e8", accent: "#4860d0", secondary: "#141840" },
+    vars: {
+      "--bg-primary": "#0a0c1a", "--bg-secondary": "#141840", "--bg-tertiary": "#1c2258", "--bg-elevated": "#262e68",
+      "--text-primary": "#d0d4e8", "--text-secondary": "#6a70b0", "--accent-blue": "#4860d0", "--accent-green": "#48b878",
+      "--accent-purple": "#8a6ae0", "--accent-gold": "#dab040", "--accent-rose": "#e05868",
+      "--border-color": "rgba(72, 96, 208, 0.12)", "--error-color": "#e05868",
+    },
+  },
+  {
+    id: "light-iphone-ultramarine", name: "Ultramarine", category: "standard", mode: "light", pairId: "iphone-ultramarine",
+    preview: { bg: "#f2f2fa", fg: "#181830", accent: "#3040b0", secondary: "#e2e2f0" },
+    vars: {
+      "--bg-primary": "#f2f2fa", "--bg-secondary": "#e2e2f0", "--bg-tertiary": "#d0d0e2", "--bg-elevated": "#fafaff",
+      "--text-primary": "#181830", "--text-secondary": "#4a4a78", "--accent-blue": "#3040b0", "--accent-green": "#2a8a50",
+      "--accent-purple": "#5a3aaa", "--accent-gold": "#9a8018", "--accent-rose": "#b83848",
+      "--border-color": "rgba(48, 64, 176, 0.10)", "--error-color": "#b83848",
+    },
+  },
+  // ── Pair: Teal (iPhone 16) ──
+  {
+    id: "dark-iphone-teal", name: "iPhone Teal", category: "standard", mode: "dark", pairId: "iphone-teal",
+    preview: { bg: "#0a1214", fg: "#d0dce0", accent: "#3a9aa0", secondary: "#121e22" },
+    vars: {
+      "--bg-primary": "#0a1214", "--bg-secondary": "#121e22", "--bg-tertiary": "#1a2c32", "--bg-elevated": "#223a42",
+      "--text-primary": "#d0dce0", "--text-secondary": "#6a8a90", "--accent-blue": "#3a9aa0", "--accent-green": "#48c088",
+      "--accent-purple": "#8088c0", "--accent-gold": "#c8aa40", "--accent-rose": "#d06060",
+      "--border-color": "rgba(58, 154, 160, 0.12)", "--error-color": "#d06060",
+    },
+  },
+  {
+    id: "light-iphone-teal", name: "iPhone Teal", category: "standard", mode: "light", pairId: "iphone-teal",
+    preview: { bg: "#f0f8f8", fg: "#182828", accent: "#288088", secondary: "#dceef0" },
+    vars: {
+      "--bg-primary": "#f0f8f8", "--bg-secondary": "#dceef0", "--bg-tertiary": "#c8e0e2", "--bg-elevated": "#fafefe",
+      "--text-primary": "#182828", "--text-secondary": "#466a6e", "--accent-blue": "#288088", "--accent-green": "#2a8a5e",
+      "--accent-purple": "#5a6088", "--accent-gold": "#8a8018", "--accent-rose": "#b04848",
+      "--border-color": "rgba(40, 128, 136, 0.10)", "--error-color": "#b04848",
+    },
+  },
+  // ── Pair: iPhone Pink (iPhone 15/16) ──
+  {
+    id: "dark-iphone-pink", name: "iPhone Pink", category: "standard", mode: "dark", pairId: "iphone-pink",
+    preview: { bg: "#140c10", fg: "#e0d4d8", accent: "#c06888", secondary: "#221420" },
+    vars: {
+      "--bg-primary": "#140c10", "--bg-secondary": "#221420", "--bg-tertiary": "#301e2c", "--bg-elevated": "#3e283a",
+      "--text-primary": "#e0d4d8", "--text-secondary": "#9a7888", "--accent-blue": "#c06888", "--accent-green": "#5ab870",
+      "--accent-purple": "#b080c8", "--accent-gold": "#d0a448", "--accent-rose": "#e05070",
+      "--border-color": "rgba(192, 104, 136, 0.12)", "--error-color": "#e05070",
+    },
+  },
+  {
+    id: "light-iphone-pink", name: "iPhone Pink", category: "standard", mode: "light", pairId: "iphone-pink",
+    preview: { bg: "#f8f0f2", fg: "#2a1e22", accent: "#a04868", secondary: "#f0e0e4" },
+    vars: {
+      "--bg-primary": "#f8f0f2", "--bg-secondary": "#f0e0e4", "--bg-tertiary": "#e0ccd2", "--bg-elevated": "#fef8fa",
+      "--text-primary": "#2a1e22", "--text-secondary": "#785060", "--accent-blue": "#a04868", "--accent-green": "#3e8a48",
+      "--accent-purple": "#884880", "--accent-gold": "#9a7a20", "--accent-rose": "#c03050",
+      "--border-color": "rgba(160, 72, 104, 0.10)", "--error-color": "#c03050",
+    },
+  },
+  // ── Pair: iPhone Green (iPhone 15) / iPhone Yellow (iPhone 15) ──
+  {
+    id: "dark-iphone-green", name: "iPhone Green", category: "standard", mode: "dark", pairId: "iphone-green",
+    preview: { bg: "#0c120e", fg: "#d0dcd4", accent: "#58a868", secondary: "#142018" },
+    vars: {
+      "--bg-primary": "#0c120e", "--bg-secondary": "#142018", "--bg-tertiary": "#1e2e22", "--bg-elevated": "#283c2e",
+      "--text-primary": "#d0dcd4", "--text-secondary": "#6e9878", "--accent-blue": "#58a868", "--accent-green": "#68cc78",
+      "--accent-purple": "#9888b8", "--accent-gold": "#c8aa38", "--accent-rose": "#d06058",
+      "--border-color": "rgba(88, 168, 104, 0.12)", "--error-color": "#d06058",
+    },
+  },
+  {
+    id: "light-iphone-green", name: "iPhone Green", category: "standard", mode: "light", pairId: "iphone-green",
+    preview: { bg: "#f8f6ee", fg: "#22201a", accent: "#a09020", secondary: "#eeeadc" },
+    vars: {
+      "--bg-primary": "#f8f6ee", "--bg-secondary": "#eeeadc", "--bg-tertiary": "#dcd6c4", "--bg-elevated": "#fefcf4",
+      "--text-primary": "#22201a", "--text-secondary": "#6a6450", "--accent-blue": "#a09020", "--accent-green": "#4a8a38",
+      "--accent-purple": "#6e5e88", "--accent-gold": "#a08a18", "--accent-rose": "#b04038",
+      "--border-color": "rgba(160, 144, 32, 0.10)", "--error-color": "#b04038",
+    },
+  },
+
+  // ═══════════════════════════════════════════════════════════════════
+  //  Supercar-Inspired Themes
+  // ═══════════════════════════════════════════════════════════════════
+
+  // ── Pair: Pagani (Huayra Silver & Carbon) ──
+  {
+    id: "dark-pagani", name: "Pagani", category: "supercar", mode: "dark", pairId: "pagani",
+    preview: { bg: "#0a0c10", fg: "#c8cdd8", accent: "#7eb8da", secondary: "#141820" },
+    vars: {
+      "--bg-primary": "#0a0c10", "--bg-secondary": "#141820", "--bg-tertiary": "#1c222e", "--bg-elevated": "#242c3a",
+      "--text-primary": "#c8cdd8", "--text-secondary": "#6a7488", "--accent-blue": "#7eb8da", "--accent-green": "#6ecfb0",
+      "--accent-purple": "#9ca8c0", "--accent-gold": "#b8c4d8", "--accent-rose": "#d47888",
+      "--border-color": "rgba(126, 184, 218, 0.08)", "--error-color": "#d47888",
+    },
+  },
+  {
+    id: "light-pagani", name: "Pagani", category: "supercar", mode: "light", pairId: "pagani",
+    preview: { bg: "#f4f6f9", fg: "#0e1218", accent: "#3a7ca5", secondary: "#e4e8ee" },
+    vars: {
+      "--bg-primary": "#f4f6f9", "--bg-secondary": "#e4e8ee", "--bg-tertiary": "#d0d6e0", "--bg-elevated": "#ffffff",
+      "--text-primary": "#0e1218", "--text-secondary": "#5a6478", "--accent-blue": "#3a7ca5", "--accent-green": "#3a9a7c",
+      "--accent-purple": "#6878a0", "--accent-gold": "#5a7a98", "--accent-rose": "#a84858",
+      "--border-color": "rgba(58, 124, 165, 0.10)", "--error-color": "#a84858",
+    },
+  },
+
+  // ── Pair: Lamborghini (Giallo Orion / Verde Mantis) ──
+  {
+    id: "dark-lamborghini", name: "Lamborghini", category: "supercar", mode: "dark", pairId: "lamborghini",
+    preview: { bg: "#0c0a00", fg: "#f0e8c8", accent: "#e8c820", secondary: "#1c1800" },
+    vars: {
+      "--bg-primary": "#0c0a00", "--bg-secondary": "#1c1800", "--bg-tertiary": "#282200", "--bg-elevated": "#342c08",
+      "--text-primary": "#f0e8c8", "--text-secondary": "#8a8260", "--accent-blue": "#e8c820", "--accent-green": "#88c828",
+      "--accent-purple": "#c8a830", "--accent-gold": "#e8c820", "--accent-rose": "#e84830",
+      "--border-color": "rgba(232, 200, 32, 0.10)", "--error-color": "#e84830",
+    },
+  },
+  {
+    id: "light-lamborghini", name: "Lamborghini", category: "supercar", mode: "light", pairId: "lamborghini",
+    preview: { bg: "#fefbe8", fg: "#1a1800", accent: "#b89b00", secondary: "#f5f0c8" },
+    vars: {
+      "--bg-primary": "#fefbe8", "--bg-secondary": "#f5f0c8", "--bg-tertiary": "#e8e2a8", "--bg-elevated": "#fffef0",
+      "--text-primary": "#1a1800", "--text-secondary": "#6a6230", "--accent-blue": "#b89b00", "--accent-green": "#5a8a10",
+      "--accent-purple": "#8a7a18", "--accent-gold": "#b89b00", "--accent-rose": "#c03020",
+      "--border-color": "rgba(184, 155, 0, 0.12)", "--error-color": "#c03020",
+    },
+  },
+
+  // ── Pair: Ferrari (Rosso Corsa / Bianco Avus) ──
+  {
+    id: "dark-ferrari", name: "Ferrari", category: "supercar", mode: "dark", pairId: "ferrari",
+    preview: { bg: "#0e0a0a", fg: "#f2e8e6", accent: "#e12726", secondary: "#1c1414" },
+    vars: {
+      "--bg-primary": "#0e0a0a", "--bg-secondary": "#1c1414", "--bg-tertiary": "#2a1e1e", "--bg-elevated": "#362828",
+      "--text-primary": "#f2e8e6", "--text-secondary": "#9a7e7a", "--accent-blue": "#e12726", "--accent-green": "#f0c808",
+      "--accent-purple": "#cc3838", "--accent-gold": "#f0c808", "--accent-rose": "#ff4040",
+      "--border-color": "rgba(225, 39, 38, 0.14)", "--error-color": "#ff5050",
+      "--success-color": "#f0c808", "--warning-color": "#e89020", "--info-color": "#e12726",
+      "--accent-color": "#e12726", "--glow-accent": "0 0 20px rgba(225, 39, 38, 0.25)",
+    },
+  },
+  {
+    id: "light-ferrari", name: "Ferrari", category: "supercar", mode: "light", pairId: "ferrari",
+    preview: { bg: "#fdf6f5", fg: "#1a0c0a", accent: "#e12726", secondary: "#f8e6e4" },
+    vars: {
+      "--bg-primary": "#fdf6f5", "--bg-secondary": "#f8e6e4", "--bg-tertiary": "#f0d4d0", "--bg-elevated": "#ffffff",
+      "--text-primary": "#1a0c0a", "--text-secondary": "#7a504c", "--accent-blue": "#c82020", "--accent-green": "#b89b00",
+      "--accent-purple": "#a82828", "--accent-gold": "#b89b00", "--accent-rose": "#e12726",
+      "--border-color": "rgba(200, 32, 32, 0.12)", "--error-color": "#b91c1c",
+      "--success-color": "#b89b00", "--warning-color": "#c07818", "--info-color": "#c82020",
+      "--accent-color": "#c82020", "--glow-accent": "0 0 20px rgba(200, 32, 32, 0.15)",
+    },
+  },
+
+  // ── Pair: Porsche (GT Silver / Racing Green) ──
+  {
+    id: "dark-porsche", name: "Porsche", category: "supercar", mode: "dark", pairId: "porsche",
+    preview: { bg: "#08100c", fg: "#d0e0d4", accent: "#2e8b57", secondary: "#142018" },
+    vars: {
+      "--bg-primary": "#08100c", "--bg-secondary": "#142018", "--bg-tertiary": "#1c2e24", "--bg-elevated": "#243a2e",
+      "--text-primary": "#d0e0d4", "--text-secondary": "#6a8a74", "--accent-blue": "#2e8b57", "--accent-green": "#4ade80",
+      "--accent-purple": "#58a878", "--accent-gold": "#c8b830", "--accent-rose": "#d06858",
+      "--border-color": "rgba(46, 139, 87, 0.10)", "--error-color": "#d06858",
+    },
+  },
+  {
+    id: "light-porsche", name: "Porsche", category: "supercar", mode: "light", pairId: "porsche",
+    preview: { bg: "#f2f7f4", fg: "#0a1a10", accent: "#1a6b3c", secondary: "#dceee4" },
+    vars: {
+      "--bg-primary": "#f2f7f4", "--bg-secondary": "#dceee4", "--bg-tertiary": "#c4e0cc", "--bg-elevated": "#ffffff",
+      "--text-primary": "#0a1a10", "--text-secondary": "#4a6a54", "--accent-blue": "#1a6b3c", "--accent-green": "#2a9a58",
+      "--accent-purple": "#3a7a50", "--accent-gold": "#9a8a10", "--accent-rose": "#a85040",
+      "--border-color": "rgba(26, 107, 60, 0.10)", "--error-color": "#a85040",
+    },
+  },
+
+  // ── Pair: Bugatti (Atlantic Blue / Chiron White) ──
+  {
+    id: "dark-bugatti", name: "Bugatti", category: "supercar", mode: "dark", pairId: "bugatti",
+    preview: { bg: "#040810", fg: "#c0c8e0", accent: "#1e3a8a", secondary: "#0c1428" },
+    vars: {
+      "--bg-primary": "#040810", "--bg-secondary": "#0c1428", "--bg-tertiary": "#142040", "--bg-elevated": "#1c2850",
+      "--text-primary": "#c0c8e0", "--text-secondary": "#5868a0", "--accent-blue": "#1e3a8a", "--accent-green": "#38b2ac",
+      "--accent-purple": "#5b6abf", "--accent-gold": "#c0a030", "--accent-rose": "#c84858",
+      "--border-color": "rgba(59, 130, 246, 0.10)", "--error-color": "#c84858",
+    },
+  },
+  {
+    id: "light-bugatti", name: "Bugatti", category: "supercar", mode: "light", pairId: "bugatti",
+    preview: { bg: "#f0f4fc", fg: "#0a1028", accent: "#1e40af", secondary: "#dce4f8" },
+    vars: {
+      "--bg-primary": "#f0f4fc", "--bg-secondary": "#dce4f8", "--bg-tertiary": "#c4d0f0", "--bg-elevated": "#ffffff",
+      "--text-primary": "#0a1028", "--text-secondary": "#4a5888", "--accent-blue": "#1e40af", "--accent-green": "#1a8a80",
+      "--accent-purple": "#3a4a98", "--accent-gold": "#987a10", "--accent-rose": "#a03848",
+      "--border-color": "rgba(30, 64, 175, 0.10)", "--error-color": "#a03848",
+    },
+  },
+
+  // ── Pair: Maserati (Blu Sofisticato / Bianco Eldorado) ──
+  {
+    id: "dark-maserati", name: "Maserati", category: "supercar", mode: "dark", pairId: "maserati",
+    preview: { bg: "#080c18", fg: "#d0d4e8", accent: "#4a6fa5", secondary: "#101828" },
+    vars: {
+      "--bg-primary": "#080c18", "--bg-secondary": "#101828", "--bg-tertiary": "#182438", "--bg-elevated": "#203048",
+      "--text-primary": "#d0d4e8", "--text-secondary": "#6878a0", "--accent-blue": "#4a6fa5", "--accent-green": "#50a878",
+      "--accent-purple": "#7888b8", "--accent-gold": "#b8a050", "--accent-rose": "#b86068",
+      "--border-color": "rgba(74, 111, 165, 0.10)", "--error-color": "#b86068",
+    },
+  },
+  {
+    id: "light-maserati", name: "Maserati", category: "supercar", mode: "light", pairId: "maserati",
+    preview: { bg: "#f4f6fb", fg: "#0c1020", accent: "#2c5282", secondary: "#e0e6f2" },
+    vars: {
+      "--bg-primary": "#f4f6fb", "--bg-secondary": "#e0e6f2", "--bg-tertiary": "#ccd4e6", "--bg-elevated": "#ffffff",
+      "--text-primary": "#0c1020", "--text-secondary": "#4a5a80", "--accent-blue": "#2c5282", "--accent-green": "#2a8060",
+      "--accent-purple": "#4a6098", "--accent-gold": "#8a7820", "--accent-rose": "#984050",
+      "--border-color": "rgba(44, 82, 130, 0.10)", "--error-color": "#984050",
+    },
+  },
+
+  // ── Pair: Sherwood (Fintech Green) ──
+  {
+    id: "dark-sherwood", name: "Sherwood", category: "standard", mode: "dark", pairId: "sherwood",
+    preview: { bg: "#0a0a0a", fg: "#f0f0f0", accent: "#00c805", secondary: "#141414" },
+    vars: {
+      "--bg-primary": "#0a0a0a", "--bg-secondary": "#141414", "--bg-tertiary": "#1c1c1c", "--bg-elevated": "#242424",
+      "--text-primary": "#f0f0f0", "--text-secondary": "#8a8a8a", "--accent-blue": "#00c805", "--accent-green": "#00c805",
+      "--accent-purple": "#9c88ff", "--accent-gold": "#f0c040", "--accent-rose": "#ff4d4d",
+      "--border-color": "rgba(255, 255, 255, 0.07)", "--error-color": "#ff4d4d",
+      "--success-color": "#00c805", "--warning-color": "#f0c040",
+    },
+  },
+  {
+    id: "light-sherwood", name: "Sherwood", category: "standard", mode: "light", pairId: "sherwood",
+    preview: { bg: "#ffffff", fg: "#1a1a1a", accent: "#00c805", secondary: "#f5f5f5" },
+    vars: {
+      "--bg-primary": "#ffffff", "--bg-secondary": "#f5f5f5", "--bg-tertiary": "#ebebeb", "--bg-elevated": "#ffffff",
+      "--text-primary": "#1a1a1a", "--text-secondary": "#6e6e6e", "--accent-blue": "#00a804", "--accent-green": "#00a804",
+      "--accent-purple": "#6c5ce7", "--accent-gold": "#c8960a", "--accent-rose": "#e03030",
+      "--border-color": "rgba(0, 0, 0, 0.09)", "--error-color": "#e03030",
+      "--success-color": "#00a804", "--warning-color": "#c8960a",
+    },
+  },
+
+  // ── Pair: Sport (Stadium Green) ──
+  {
+    id: "dark-sport", name: "Sport", category: "standard", mode: "dark", pairId: "sport",
+    preview: { bg: "#0a0a0a", fg: "#f0f0f0", accent: "rgb(75,158,83)", secondary: "#141414" },
+    vars: {
+      "--bg-primary": "#0a0a0a", "--bg-secondary": "#141414", "--bg-tertiary": "#1c1c1c", "--bg-elevated": "#242424",
+      "--text-primary": "#f0f0f0", "--text-secondary": "#8a8a8a", "--accent-blue": "rgb(75,158,83)", "--accent-green": "rgb(75,158,83)",
+      "--accent-purple": "#9c88ff", "--accent-gold": "#f0c040", "--accent-rose": "#ff4d4d",
+      "--border-color": "rgba(255, 255, 255, 0.07)", "--error-color": "#ff4d4d",
+      "--success-color": "rgb(75,158,83)", "--warning-color": "#f0c040",
+    },
+  },
+  {
+    id: "light-sport", name: "Sport", category: "standard", mode: "light", pairId: "sport",
+    preview: { bg: "#ffffff", fg: "#1a1a1a", accent: "rgb(75,158,83)", secondary: "#f5f5f5" },
+    vars: {
+      "--bg-primary": "#ffffff", "--bg-secondary": "#f5f5f5", "--bg-tertiary": "#ebebeb", "--bg-elevated": "#ffffff",
+      "--text-primary": "#1a1a1a", "--text-secondary": "#6e6e6e", "--accent-blue": "rgb(75,158,83)", "--accent-green": "rgb(75,158,83)",
+      "--accent-purple": "#6c5ce7", "--accent-gold": "#c8960a", "--accent-rose": "#e03030",
+      "--border-color": "rgba(0, 0, 0, 0.09)", "--error-color": "#e03030",
+      "--success-color": "rgb(75,158,83)", "--warning-color": "#c8960a",
+    },
+  },
+
+  // ── Pair: Blaze (Red · Black · Gold) ──
+  {
+    id: "dark-blaze", name: "Blaze", category: "supercar", mode: "dark", pairId: "blaze",
+    preview: { bg: "#0c0806", fg: "#f5e8e0", accent: "#e84428", secondary: "#1c1210" },
+    vars: {
+      "--bg-primary": "#0c0806", "--bg-secondary": "#1c1210", "--bg-tertiary": "#2a1c18", "--bg-elevated": "#362420",
+      "--text-primary": "#f5e8e0", "--text-secondary": "#a08878", "--accent-blue": "#e84428", "--accent-green": "#ffe44d",
+      "--accent-purple": "#d44030", "--accent-gold": "#ffe44d", "--accent-rose": "#e84428",
+      "--border-color": "rgba(232, 68, 40, 0.14)", "--error-color": "#ff5040",
+      "--success-color": "#ffe44d", "--warning-color": "#f0a020", "--info-color": "#e84428",
+      "--accent-color": "#e84428", "--glow-accent": "0 0 20px rgba(232, 68, 40, 0.25)",
+    },
+  },
+  {
+    id: "light-blaze", name: "Blaze", category: "supercar", mode: "light", pairId: "blaze",
+    preview: { bg: "#fef8f5", fg: "#1a0c08", accent: "#d44030", secondary: "#f8e8e2" },
+    vars: {
+      "--bg-primary": "#fef8f5", "--bg-secondary": "#f8e8e2", "--bg-tertiary": "#f0d8cc", "--bg-elevated": "#ffffff",
+      "--text-primary": "#1a0c08", "--text-secondary": "#7a5848", "--accent-blue": "#d44030", "--accent-green": "#c8a010",
+      "--accent-purple": "#b83020", "--accent-gold": "#c8a010", "--accent-rose": "#d44030",
+      "--border-color": "rgba(212, 64, 48, 0.12)", "--error-color": "#b82020",
+      "--success-color": "#c8a010", "--warning-color": "#d08818", "--info-color": "#d44030",
+      "--accent-color": "#d44030", "--glow-accent": "0 0 20px rgba(212, 64, 48, 0.15)",
+    },
+  },
+];
+
+/**
+ * For each theme, ensure adequate contrast for buttons:
+ * - --btn-primary-fg: text color for primary buttons (on accent-blue bg)
+ * - --btn-error-fg: text color for error buttons (on error-color bg)
+ * - --text-secondary must have >=3:1 contrast on --bg-tertiary
+ *
+ * This post-process step auto-corrects any theme missing these.
+ */
+function hexLum(hex: string): number {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.substring(0, 2), 16) / 255;
+  const g = parseInt(h.substring(2, 4), 16) / 255;
+  const b = parseInt(h.substring(4, 6), 16) / 255;
+  const srgb = (c: number) => c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  return 0.2126 * srgb(r) + 0.7152 * srgb(g) + 0.0722 * srgb(b);
+}
+function contrast(h1: string, h2: string): number {
+  const l1 = hexLum(h1), l2 = hexLum(h2);
+  return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+}
+function bestFgForBg(bg: string): string {
+  return contrast("#ffffff", bg) >= contrast("#000000", bg) ? "#ffffff" : "#000000";
+}
+
+// Post-process: add --btn-primary-fg and --btn-error-fg
+for (const t of THEMES) {
+  const accent = t.vars["--accent-blue"];
+  const err = t.vars["--error-color"];
+  if (accent && !accent.startsWith("rgba")) {
+    t.vars["--btn-primary-fg"] = bestFgForBg(accent);
+  }
+  if (err && !err.startsWith("rgba")) {
+    t.vars["--btn-error-fg"] = bestFgForBg(err);
+  }
+  // Fix secondary text if contrast on bg-tertiary is < 3:1
+  const sec = t.vars["--text-secondary"];
+  const tert = t.vars["--bg-tertiary"];
+  if (sec && tert && !sec.startsWith("rgba") && !tert.startsWith("rgba")) {
+    if (contrast(sec, tert) < 3.0) {
+      // Iteratively adjust until ≥3.1:1 contrast
+      const h = sec.replace('#', '');
+      let r = parseInt(h.substring(0, 2), 16);
+      let g = parseInt(h.substring(2, 4), 16);
+      let b = parseInt(h.substring(4, 6), 16);
+      for (let i = 0; i < 60; i++) {
+        if (t.mode === "dark") {
+          r = Math.min(255, r + 3); g = Math.min(255, g + 3); b = Math.min(255, b + 3);
+        } else {
+          r = Math.max(0, r - 3); g = Math.max(0, g - 3); b = Math.max(0, b - 3);
+        }
+        const adj = `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`;
+        if (contrast(adj, tert) >= 3.1) { t.vars["--text-secondary"] = adj; break; }
+      }
+    }
+  }
+  // Fix text-primary on bg-elevated if < 4.5:1
+  const pri = t.vars["--text-primary"];
+  const elev = t.vars["--bg-elevated"];
+  if (pri && elev && !pri.startsWith("rgba") && !elev.startsWith("rgba")) {
+    if (contrast(pri, elev) < 4.5) {
+      const hp = pri.replace('#', '');
+      let r = parseInt(hp.substring(0, 2), 16);
+      let g = parseInt(hp.substring(2, 4), 16);
+      let b = parseInt(hp.substring(4, 6), 16);
+      for (let i = 0; i < 80; i++) {
+        if (t.mode === "dark") {
+          r = Math.min(255, r + 2); g = Math.min(255, g + 2); b = Math.min(255, b + 2);
+        } else {
+          r = Math.max(0, r - 2); g = Math.max(0, g - 2); b = Math.max(0, b - 2);
+        }
+        const adj = `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`;
+        if (contrast(adj, elev) >= 4.5) { t.vars["--text-primary"] = adj; break; }
+      }
+    }
+  }
+}
+
+/** Get the paired theme (dark↔light) for the given theme id */
+export function getPairedTheme(currentId: string): ThemeDef | undefined {
+  const current = THEMES.find(t => t.id === currentId);
+  if (!current) return undefined;
+  const targetMode = current.mode === "dark" ? "light" : "dark";
+  return THEMES.find(t => t.pairId === current.pairId && t.mode === targetMode);
+}
+
+/** Union of every CSS var name any theme can set — used to clear stale inline vars on switch */
+const ALL_THEME_VAR_KEYS: string[] = Array.from(
+  new Set(THEMES.flatMap(t => Object.keys(t.vars)))
+);
+
+/* ── Color helpers (derive peripheral vars from the theme palette) ───── */
+
+type ParsedColor = { r: number; g: number; b: number; a: number };
+
+function parseColor(input: string): ParsedColor | null {
+  const s = input.trim();
+  if (s.startsWith("#")) {
+    let h = s.slice(1);
+    if (h.length === 3) h = h.split("").map(c => c + c).join("");
+    if (h.length !== 6) return null;
+    const r = parseInt(h.slice(0, 2), 16);
+    const g = parseInt(h.slice(2, 4), 16);
+    const b = parseInt(h.slice(4, 6), 16);
+    if ([r, g, b].some(Number.isNaN)) return null;
+    return { r, g, b, a: 1 };
+  }
+  const m = s.match(/^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)(?:\s*,\s*([\d.]+))?\s*\)$/i);
+  if (m) return { r: +m[1], g: +m[2], b: +m[3], a: m[4] !== undefined ? +m[4] : 1 };
+  return null;
+}
+
+function withAlpha(input: string, alpha: number): string {
+  const c = parseColor(input);
+  if (!c) return input;
+  return `rgba(${Math.round(c.r)}, ${Math.round(c.g)}, ${Math.round(c.b)}, ${alpha})`;
+}
+
+function mixColor(a: string, b: string, ratio: number): string {
+  const ca = parseColor(a);
+  const cb = parseColor(b);
+  if (!ca || !cb) return a;
+  const r = Math.round(ca.r + (cb.r - ca.r) * ratio);
+  const g = Math.round(ca.g + (cb.g - ca.g) * ratio);
+  const blu = Math.round(ca.b + (cb.b - ca.b) * ratio);
+  return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${blu.toString(16).padStart(2, "0")}`;
+}
+
+/** Vars derived from the theme's core palette — cleared on switch to prevent bleed-through. */
+const DERIVED_THEME_VAR_KEYS: string[] = [
+  "--accent-color", "--accent-primary",
+  "--success-color", "--warning-color", "--info-color",
+  "--text-color", "--text-success", "--text-danger", "--text-info", "--text-warning", "--text-accent",
+  "--text-tertiary", "--text-muted",
+  "--border-subtle",
+  "--success-bg", "--error-bg", "--warning-bg", "--info-bg", "--accent-bg",
+  "--input-bg", "--bg-input", "--input-border", "--bg-hover",
+  "--git-modified", "--git-added", "--git-deleted", "--git-ignored", "--git-conflicted",
+  "--glass-bg", "--glow-accent",
+];
+
+/** Set every derived var that the theme didn't explicitly override. */
+function applyDerivedVars(root: HTMLElement, theme: ThemeDef): void {
+  const v = theme.vars;
+  const set = (key: string, value: string) => {
+    if (v[key] === undefined) root.style.setProperty(key, value);
+  };
+  const accentBlue = v["--accent-blue"]!;
+  const accentGreen = v["--accent-green"]!;
+  const accentGold = v["--accent-gold"]!;
+  const accentRose = v["--accent-rose"]!;
+  const errorColor = v["--error-color"]!;
+  const textPrimary = v["--text-primary"]!;
+  const textSecondary = v["--text-secondary"]!;
+  const borderColor = v["--border-color"]!;
+  const bgPrimary = v["--bg-primary"]!;
+  const bgSecondary = v["--bg-secondary"]!;
+  const bgTertiary = v["--bg-tertiary"]!;
+  // Signature = the theme's "look at me" color shown in the preview swatch.
+  // Drives primary UI accents (status bar, focus rings, active section text, etc.)
+  // so the UI matches the swatch a user sees in Settings → Appearance.
+  const signature = theme.preview.accent;
+
+  set("--accent-color", signature);
+  set("--accent-primary", signature);
+  set("--success-color", accentGreen);
+  set("--warning-color", accentGold);
+  set("--info-color", signature);
+  set("--text-color", textPrimary);
+  set("--text-success", accentGreen);
+  set("--text-danger", errorColor);
+  set("--text-info", signature);
+  set("--text-warning", accentGold);
+  set("--text-accent", signature);
+
+  set("--text-tertiary", mixColor(textPrimary, textSecondary, 0.5));
+  set("--text-muted", mixColor(textSecondary, bgPrimary, 0.45));
+
+  const borderAlpha = parseColor(borderColor)?.a ?? 0.06;
+  set("--border-subtle", withAlpha(borderColor, borderAlpha / 2));
+
+  set("--success-bg", withAlpha(accentGreen, 0.10));
+  set("--error-bg", withAlpha(errorColor, 0.10));
+  set("--warning-bg", withAlpha(accentGold, 0.10));
+  set("--info-bg", withAlpha(accentBlue, 0.10));
+  set("--accent-bg", withAlpha(signature, 0.15));
+
+  const inputBg = theme.mode === "light" ? "#ffffff" : bgPrimary;
+  set("--input-bg", inputBg);
+  set("--bg-input", inputBg);
+  set("--input-border", borderColor);
+  set("--bg-hover", bgTertiary);
+
+  set("--git-modified", accentGold);
+  set("--git-added", accentGreen);
+  set("--git-deleted", errorColor);
+  set("--git-ignored", mixColor(textSecondary, bgPrimary, 0.5));
+  set("--git-conflicted", accentRose);
+
+  set("--glass-bg", withAlpha(bgSecondary, theme.mode === "light" ? 0.72 : 0.75));
+  set("--glow-accent", `0 0 20px ${withAlpha(signature, 0.15)}`);
+}
+
+/** Apply a theme by id — sets CSS vars, localStorage, and notifies Monaco editor */
+export function applyThemeById(themeId: string): void {
+  const theme = THEMES.find(t => t.id === themeId);
+  if (!theme) return;
+  const root = document.documentElement;
+  // Clear every var any theme could have set so nothing from a previous theme bleeds through
+  ALL_THEME_VAR_KEYS.forEach(key => root.style.removeProperty(key));
+  DERIVED_THEME_VAR_KEYS.forEach(key => root.style.removeProperty(key));
+  localStorage.setItem("vibeui-theme-id", theme.id);
+  localStorage.setItem("vibeui-theme", theme.mode);
+  root.setAttribute("data-theme", theme.mode);
+  for (const [key, value] of Object.entries(theme.vars)) {
+    root.style.setProperty(key, value);
+  }
+  applyDerivedVars(root, theme);
+  // Notify Monaco editor to update its theme
+  window.dispatchEvent(new CustomEvent("vibeui-theme-change", { detail: { themeId: theme.id, mode: theme.mode } }));
+}

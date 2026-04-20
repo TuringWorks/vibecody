@@ -134,15 +134,17 @@ const CloudSandboxPanel: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: 12, fontFamily: "var(--font-family, system-ui, sans-serif)", fontSize: "var(--font-size-md)", flex: 1, minHeight: 0, overflowY: "auto", color: "var(--text-primary)", background: "var(--bg-primary)" }}>
-      <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)", marginBottom: 12 }}>Cloud Sandbox</div>
-
+    <div className="panel-container">
+      <div className="panel-header">
+        <h3>Cloud Sandbox</h3>
+      </div>
+      <div className="panel-body">
       {error && <div className="panel-error"><span>{error}</span><button onClick={() => setError(null)}>&#x2715;</button></div>}
 
       {/* Tab bar */}
-      <div style={{ display: "flex", gap: 2, borderBottom: "1px solid var(--border-color)", padding: "0 16px", flexShrink: 0 }}>
+      <div className="panel-tab-bar" style={{ padding: "0 16px" }}>
         {tabs.map((t) => (
-          <button className="panel-tab" key={t} onClick={() => setTab(t)} style={{ padding: "8px 16px", fontSize: "var(--font-size-base)", background: "none", border: "none", borderBottom: tab === t ? "2px solid var(--accent-blue)" : "2px solid transparent", color: tab === t ? "var(--text-primary)" : "var(--text-secondary)", cursor: "pointer", fontWeight: tab === t ? 600 : 400 }}>
+          <button className={`panel-tab${tab === t ? " active" : ""}`} key={t} onClick={() => setTab(t)}>
             {t}
           </button>
         ))}
@@ -239,6 +241,7 @@ const CloudSandboxPanel: React.FC = () => {
           </button>
         </div>
       )}
+      </div>
     </div>
   );
 };

@@ -624,14 +624,9 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
       )}
 
       {/* Tab bar */}
-      <div style={{ display: "flex", gap: 0, borderBottom: "1px solid var(--border-color)", flexShrink: 0 }}>
+      <div className="panel-tab-bar">
         {tabs.map((t) => (
-          <button className="panel-tab" key={t} onClick={() => setTab(t)} style={{
-            padding: "8px 16px", fontSize: "var(--font-size-base)", background: "none", border: "none",
-            borderBottom: tab === t ? "2px solid var(--accent-blue)" : "2px solid transparent",
-            color: tab === t ? "var(--text-primary)" : "var(--text-secondary)",
-            cursor: "pointer", fontWeight: tab === t ? 600 : 400,
-          }}>
+          <button className={`panel-tab${tab === t ? " active" : ""}`} key={t} onClick={() => setTab(t)}>
             {t} {t === "Findings" && activeFindings.length > 0 ? `(${filteredFindings.length})` : ""}
           </button>
         ))}

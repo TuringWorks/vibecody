@@ -55,8 +55,8 @@ export function NotebookPanel({ workspacePath, provider }: NotebookPanelProps) {
 
  if (!workspacePath) {
  return (
- <div className="panel-container" style={{ padding: 16, opacity: 0.6, textAlign: "center" }}>
- <p>Open a workspace folder to use the notebook.</p>
+ <div className="panel-container">
+ <div className="panel-empty">Open a workspace folder to use the notebook.</div>
  </div>
  );
  }

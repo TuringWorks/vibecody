@@ -119,7 +119,7 @@ describe('Given the panel is loaded', () => {
   describe('When setSetting is called', () => {
     it('Then it invokes panel_settings_set with correct args', async () => {
       setupHappyPath({ existing: 'value' });
-      mockInvoke.mockImplementation(async (cmd: string, args?: Record<string, unknown>) => {
+      mockInvoke.mockImplementation(async (cmd: string, _args?: Record<string, unknown>) => {
         if (cmd === 'panel_settings_get_default_profile') return 'default';
         if (cmd === 'panel_settings_get_all') return { existing: 'value' };
         if (cmd === 'panel_settings_set') return undefined;

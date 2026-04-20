@@ -138,7 +138,7 @@ export function SandboxPanel() {
       {error && <div className="panel-error" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><span>{error}</span><button onClick={() => setError(null)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "var(--font-size-lg)" }}>&#x2715;</button></div>}
 
       {/* Runtime Detection */}
-      <div style={{ marginBottom: 16, padding: "8px 12px", background: "var(--bg-primary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)" }}>
+      <div className="panel-card" style={{ marginBottom: 16 }}>
         <div style={{ fontWeight: 600, marginBottom: 6, color: "var(--text-primary)" }}>Available Runtimes</div>
         {runtimes ? (
           <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
@@ -153,7 +153,7 @@ export function SandboxPanel() {
       </div>
 
       {/* Create Sandbox Form */}
-      <div style={{ marginBottom: 16, padding: "8px 12px", background: "var(--bg-primary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)" }}>
+      <div className="panel-card" style={{ marginBottom: 16 }}>
         <div style={{ fontWeight: 600, marginBottom: 8, color: "var(--text-primary)" }}>Create Sandbox</div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
           <label style={{ display: "flex", flexDirection: "column", gap: 2, fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
@@ -189,7 +189,7 @@ export function SandboxPanel() {
           <button onClick={refreshInstances} className="panel-btn panel-btn-secondary">Refresh</button>
         </div>
         {instances.length === 0 ? (
-          <div style={{ color: "var(--text-secondary)", fontStyle: "italic" }}>No sandbox containers running.</div>
+          <div className="panel-empty">No sandbox containers running.</div>
         ) : (
           <table className="panel-table">
             <thead>
@@ -223,7 +223,7 @@ export function SandboxPanel() {
       </div>
 
       {/* Exec Console */}
-      <div style={{ padding: "8px 12px", background: "var(--bg-primary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)" }}>
+      <div className="panel-card">
         <div style={{ fontWeight: 600, marginBottom: 8, color: "var(--text-primary)" }}>Execute Command</div>
         {instances.length > 0 ? (
           <>
@@ -250,13 +250,15 @@ export function SandboxPanel() {
             </div>
             {execOutput && (
               <pre style={{
-                background: "var(--bg-primary)",
+                background: "var(--bg-secondary)",
                 padding: 8,
                 borderRadius: "var(--radius-xs-plus)",
+                border: "1px solid var(--border-color)",
                 maxHeight: 200,
                 overflow: "auto",
                 fontSize: "var(--font-size-sm)",
-                color: "var(--text-secondary)",
+                fontFamily: "var(--font-mono)",
+                color: "var(--text-primary)",
                 margin: 0,
                 whiteSpace: "pre-wrap",
                 wordBreak: "break-all",

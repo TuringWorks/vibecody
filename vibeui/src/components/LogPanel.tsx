@@ -102,8 +102,8 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
 
   if (!workspacePath) {
     return (
-      <div className="panel-container" style={{ padding: 16, opacity: 0.6, textAlign: "center" }}>
-        <p>Open a workspace folder to view logs.</p>
+      <div className="panel-container">
+        <div className="panel-empty">Open a workspace folder to view logs.</div>
       </div>
     );
   }

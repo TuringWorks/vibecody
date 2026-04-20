@@ -6,6 +6,7 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import type { ReactElement } from 'react';
 import { EmptyState } from '../EmptyState';
 import { ErrorBoundary } from '../ErrorBoundary';
 import { LoadingSpinner } from '../LoadingSpinner';
@@ -61,7 +62,7 @@ describe('EmptyState', () => {
 // ── ErrorBoundary ──────────────────────────────────────────────────────────────
 
 /** Component that throws during render, used to trigger the boundary. */
-function Bomb({ msg }: { msg: string }) {
+function Bomb({ msg }: { msg: string }): ReactElement {
   throw new Error(msg);
 }
 

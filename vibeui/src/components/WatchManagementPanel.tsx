@@ -16,7 +16,7 @@ function detectPlatform(model: string): "apple" | "wear" | "unknown" {
 function PlatformBadge({ model }: { model: string }) {
   const platform = detectPlatform(model);
   const label = platform === "apple" ? "watchOS" : platform === "wear" ? "Wear OS" : "Watch";
-  const color = platform === "apple" ? "var(--accent-color)" : platform === "wear" ? "#4CAF50" : "var(--text-secondary)";
+  const color = platform === "apple" ? "var(--accent-color)" : platform === "wear" ? "var(--accent-green)" : "var(--text-secondary)";
   return (
     <span style={{
       fontSize: 10, fontWeight: 600, color, background: `${color}20`,

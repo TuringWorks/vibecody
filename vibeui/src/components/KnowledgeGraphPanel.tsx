@@ -248,12 +248,9 @@ export default function KnowledgeGraphPanel() {
      </div>
 
      {/* Tabs */}
-     <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
+     <div className="panel-tab-bar" style={{ marginBottom: 12 }}>
        {(["graph", "stats", "export"] as const).map(t => (
-         <button className="panel-tab" key={t} onClick={() => setTab(t)} style={{
-           padding: "4px 12px", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", cursor: "pointer",
-           background: tab === t ? "var(--accent-color)" : "transparent", color: tab === t ? "var(--text-primary)" : "var(--text-primary)",
-         }}>{t.charAt(0).toUpperCase() + t.slice(1)}</button>
+         <button className={`panel-tab${tab === t ? " active" : ""}`} key={t} onClick={() => setTab(t)}>{t.charAt(0).toUpperCase() + t.slice(1)}</button>
        ))}
      </div>
 

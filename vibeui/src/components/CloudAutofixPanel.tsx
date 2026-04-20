@@ -76,12 +76,6 @@ const CloudAutofixPanel: React.FC = () => {
     loadConfig();
   }, [loadFixes, loadStats, loadConfig]);
 
-  const containerStyle: React.CSSProperties = {
-    padding: "16px", color: "var(--text-primary)",
-    backgroundColor: "var(--bg-primary)",
-    fontFamily: "inherit", fontSize: "var(--font-size-md)",
-    height: "100%", overflow: "auto",
-  };
   const tabBar: React.CSSProperties = { display: "flex", gap: 2, borderBottom: "1px solid var(--border-color)", padding: "0 16px", flexShrink: 0 };
   const tab = (active: boolean): React.CSSProperties => ({
     padding: "8px 16px", cursor: "pointer", border: "none",
@@ -160,8 +154,11 @@ const CloudAutofixPanel: React.FC = () => {
   };
 
   return (
-    <div style={containerStyle}>
-      <h3 style={{ margin: "0 0 12px" }}>Cloud Autofix</h3>
+    <div className="panel-container">
+      <div className="panel-header">
+        <h3>Cloud Autofix</h3>
+      </div>
+      <div className="panel-body">
       <div style={tabBar}>
         {["pipeline", "fixes", "stats"].map(t => (
           <button className="panel-tab panel-btn" key={t} style={tab(activeTab === t)} onClick={() => setActiveTab(t)}>
@@ -248,7 +245,7 @@ const CloudAutofixPanel: React.FC = () => {
       {activeTab === "stats" && (
         <div>
           <div style={card}>
-            <h4 style={{ margin: "0 0 12px" }}>Merge Rate</h4>
+            <h4 style={{ margin: "0 0 12px", fontSize: "var(--font-size-md)" }}>Merge Rate</h4>
             <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "8px" }}>
               <div style={{ flex: 1, height: "20px", borderRadius: "var(--radius-md)", backgroundColor: "var(--border-color)" }}>
                 <div style={{ height: "100%", borderRadius: "var(--radius-md)", width: `${Math.round(stats.mergeRate)}%`, backgroundColor: "var(--success-color)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "var(--font-size-sm)", fontWeight: 700, color: "var(--btn-primary-fg)" }}>
@@ -282,6 +279,7 @@ const CloudAutofixPanel: React.FC = () => {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };

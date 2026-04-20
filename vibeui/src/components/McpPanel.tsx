@@ -47,9 +47,6 @@ interface McpPlugin {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const labelStyle: React.CSSProperties = { fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 4 };
-
-const inputStyle: React.CSSProperties = { padding: "5px 8px", fontSize: "var(--font-size-base)", background: "var(--bg-input, var(--bg-primary))", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none", width: "100%", boxSizing: "border-box" };
 const barBg: React.CSSProperties = { height: 8, borderRadius: "var(--radius-xs-plus)", background: "var(--bg-tertiary)", overflow: "hidden" };
 const barFill = (pct: number, color: string): React.CSSProperties => ({ height: "100%", width: `${Math.min(pct, 100)}%`, borderRadius: "var(--radius-xs-plus)", background: color });
 const badgeStyle = (v: string): React.CSSProperties => ({ display: "inline-block", padding: "2px 8px", borderRadius: "var(--radius-md)", fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--btn-primary-fg)", background: v === "loaded" ? "var(--success-color)" : v === "loading" ? "var(--warning-color)" : "var(--text-secondary)" });
@@ -388,7 +385,7 @@ export function McpPanel() {
         <div>
           {/* Search across all tools */}
           <div style={{ marginBottom: 10 }}>
-            <input style={inputStyle} placeholder="Search tools by name or description..." value={toolSearch} onChange={e => setToolSearch(e.target.value)} />
+            <input className="panel-input panel-input-full" placeholder="Search tools by name or description..." value={toolSearch} onChange={e => setToolSearch(e.target.value)} />
           </div>
 
           {toolSearch.trim() ? (
@@ -403,7 +400,7 @@ export function McpPanel() {
                   <div key={t.name} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 600 }}>{t.name} <span style={badgeStyle("loaded")}>built-in</span></div>
-                      <div style={labelStyle}>{t.description}</div>
+                      <div className="panel-label">{t.description}</div>
                     </div>
                     <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>{t.category}</span>
                   </div>
@@ -411,7 +408,7 @@ export function McpPanel() {
               })()}
               {searchResults.map(r => (
                 <div key={r.tool_id} className="panel-card" style={{ display: "flex", justifyContent: "space-between" }}>
-                  <div><div style={{ fontWeight: 600 }}>{r.name}</div><div style={labelStyle}>{r.description}</div></div>
+                  <div><div style={{ fontWeight: 600 }}>{r.name}</div><div className="panel-label">{r.description}</div></div>
                   <div style={{ textAlign: "right" }}><div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Relevance</div><div style={{ fontWeight: 600, color: "var(--accent-primary)" }}>{(r.relevance * 100).toFixed(0)}%</div></div>
                 </div>
               ))}
@@ -431,7 +428,7 @@ export function McpPanel() {
                 <div key={t.name} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderLeft: "3px solid var(--success-color)" }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 600 }}>{t.name}</div>
-                    <div style={labelStyle}>{t.description}</div>
+                    <div className="panel-label">{t.description}</div>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>{t.category}</span>
@@ -518,7 +515,7 @@ export function McpPanel() {
                               borderLeft: isHighlighted ? "3px solid var(--accent-primary)" : undefined, }}>
                               <div style={{ flex: 1 }}>
                                 <div style={{ fontWeight: 600 }}>{m.name} <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>v{m.version}</span></div>
-                                <div style={labelStyle}>{m.description}</div>
+                                <div className="panel-label">{m.description}</div>
                                 <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>
                                   {m.size_kb} KB{m.load_time_ms != null ? ` | ${m.load_time_ms}ms` : ""}
                                 </div>
@@ -538,7 +535,7 @@ export function McpPanel() {
                               borderLeft: isHighlighted ? "3px solid var(--accent-primary)" : "3px solid var(--info-color)", }}>
                               <div style={{ flex: 1 }}>
                                 <div style={{ fontWeight: 600 }}>{t.name}</div>
-                                <div style={labelStyle}>{t.description || "No description"}</div>
+                                <div className="panel-label">{t.description || "No description"}</div>
                               </div>
                               <span style={badgeStyle("loaded")}>live</span>
                             </div>
@@ -606,7 +603,7 @@ export function McpPanel() {
                                 {p.name} <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>v{p.version}</span>
                                 {tools.length > 0 && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginLeft: 8 }}>({tools.length} tools)</span>}
                               </div>
-                              <div style={labelStyle}>{p.description}</div>
+                              <div className="panel-label">{p.description}</div>
                             </div>
                             <span style={badgeStyle("loaded")}>installed</span>
                           </div>
@@ -657,8 +654,8 @@ export function McpPanel() {
       {tab === "directory" && (
         <div>
           <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-            <input style={{ ...inputStyle, flex: 1 }} value={dirSearch} onChange={e => setDirSearch(e.target.value)} placeholder="Search plugins..." />
-            <select style={{ ...inputStyle, width: "auto" }} value={catFilter} onChange={e => setCatFilter(e.target.value)}>
+            <input className="panel-input" style={{ flex: 1 }} value={dirSearch} onChange={e => setDirSearch(e.target.value)} placeholder="Search plugins..." />
+            <select className="panel-input" style={{ width: "auto" }} value={catFilter} onChange={e => setCatFilter(e.target.value)}>
               {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
@@ -711,17 +708,17 @@ export function McpPanel() {
                 {/* Summary bar */}
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
                   <div className="panel-card">
-                    <div style={labelStyle}>Installed</div>
+                    <div className="panel-label">Installed</div>
                     <div className="panel-mono" style={{ fontSize: 20, fontWeight: 700 }}>{installed.length}</div>
                   </div>
                   <div className="panel-card">
-                    <div style={labelStyle}>Updates Available</div>
+                    <div className="panel-label">Updates Available</div>
                     <div className="panel-mono" style={{ fontSize: 20, fontWeight: 700, color: installed.some(p => p.updatable) ? "var(--warning-color)" : "var(--success-color)" }}>
                       {installed.filter(p => p.updatable).length}
                     </div>
                   </div>
                   <div className="panel-card">
-                    <div style={labelStyle}>Categories</div>
+                    <div className="panel-label">Categories</div>
                     <div className="panel-mono" style={{ fontSize: 20, fontWeight: 700 }}>
                       {new Set(installed.map(p => p.category)).size}
                     </div>
@@ -819,17 +816,17 @@ export function McpPanel() {
       {tab === "metrics" && metrics && (
         <div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
-            <div className="panel-card"><div style={labelStyle}>Context Savings</div><div className="panel-mono" style={{ fontSize: 22, fontWeight: 700, color: "var(--success-color)" }}>{metrics.context_savings_pct}%</div></div>
-            <div className="panel-card"><div style={labelStyle}>Cache Hits</div><div className="panel-mono" style={{ fontSize: 22, fontWeight: 700 }}>{metrics.cache_hits.toLocaleString()}</div></div>
-            <div className="panel-card"><div style={labelStyle}>Cache Misses</div><div className="panel-mono" style={{ fontSize: 22, fontWeight: 700, color: "var(--error-color)" }}>{metrics.cache_misses}</div></div>
+            <div className="panel-card"><div className="panel-label">Context Savings</div><div className="panel-mono" style={{ fontSize: 22, fontWeight: 700, color: "var(--success-color)" }}>{metrics.context_savings_pct}%</div></div>
+            <div className="panel-card"><div className="panel-label">Cache Hits</div><div className="panel-mono" style={{ fontSize: 22, fontWeight: 700 }}>{metrics.cache_hits.toLocaleString()}</div></div>
+            <div className="panel-card"><div className="panel-label">Cache Misses</div><div className="panel-mono" style={{ fontSize: 22, fontWeight: 700, color: "var(--error-color)" }}>{metrics.cache_misses}</div></div>
           </div>
           <div className="panel-card">
-            <div style={labelStyle}>Cache Hit Rate</div>
+            <div className="panel-label">Cache Hit Rate</div>
             <div style={barBg}><div style={barFill(metrics.cache_hit_rate, "var(--success-color)")} /></div>
             <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginTop: 4 }}>{metrics.cache_hit_rate.toFixed(1)}%</div>
           </div>
           <div className="panel-card">
-            <div style={labelStyle}>Avg Load Time: {metrics.avg_load_time_ms}ms</div>
+            <div className="panel-label">Avg Load Time: {metrics.avg_load_time_ms}ms</div>
             {metrics.load_times.map(lt => (
               <div key={lt.label} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                 <div style={{ width: 90, fontSize: "var(--font-size-sm)" }}>{lt.label}</div>
@@ -851,9 +848,9 @@ export function McpPanel() {
         <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
           <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm-alt)", padding: 20, width: 360, display: "flex", flexDirection: "column", gap: 10 }}>
             <div style={{ fontSize: "var(--font-size-md)", fontWeight: 600 }}>{editIdx === null ? "Add MCP Server" : "Edit MCP Server"}</div>
-            <label style={{ fontSize: "var(--font-size-base)", display: "flex", flexDirection: "column", gap: 4 }}>Name<input autoFocus type="text" value={editing.name} onChange={e => setEditing({ ...editing, name: e.target.value })} placeholder="e.g. github" style={inputStyle} /></label>
-            <label style={{ fontSize: "var(--font-size-base)", display: "flex", flexDirection: "column", gap: 4 }}>Command<input type="text" value={editing.command} onChange={e => setEditing({ ...editing, command: e.target.value })} placeholder="npx @modelcontextprotocol/server-github" style={inputStyle} /></label>
-            <label style={{ fontSize: "var(--font-size-base)", display: "flex", flexDirection: "column", gap: 4 }}>Args (space-separated)<input type="text" value={editing.args.join(" ")} onChange={e => setEditing({ ...editing, args: e.target.value ? e.target.value.split(" ") : [] })} placeholder="optional" style={inputStyle} /></label>
+            <label style={{ fontSize: "var(--font-size-base)", display: "flex", flexDirection: "column", gap: 4 }}>Name<input autoFocus type="text" value={editing.name} onChange={e => setEditing({ ...editing, name: e.target.value })} placeholder="e.g. github" className="panel-input panel-input-full" /></label>
+            <label style={{ fontSize: "var(--font-size-base)", display: "flex", flexDirection: "column", gap: 4 }}>Command<input type="text" value={editing.command} onChange={e => setEditing({ ...editing, command: e.target.value })} placeholder="npx @modelcontextprotocol/server-github" className="panel-input panel-input-full" /></label>
+            <label style={{ fontSize: "var(--font-size-base)", display: "flex", flexDirection: "column", gap: 4 }}>Args (space-separated)<input type="text" value={editing.args.join(" ")} onChange={e => setEditing({ ...editing, args: e.target.value ? e.target.value.split(" ") : [] })} placeholder="optional" className="panel-input panel-input-full" /></label>
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
               <button onClick={() => { setEditing(null); setEditIdx(null); }} className="panel-btn panel-btn-secondary">Cancel</button>
               <button onClick={commitEdit} disabled={!editing.name.trim() || !editing.command.trim() || saving} className="panel-btn panel-btn-primary">{saving ? "Saving..." : editIdx === null ? "Add" : "Save"}</button>
@@ -867,12 +864,12 @@ export function McpPanel() {
           <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm-alt)", padding: 20, width: 380, display: "flex", flexDirection: "column", gap: 10 }}>
             <div style={{ fontSize: "var(--font-size-md)", fontWeight: 600 }}>OAuth — {oauthForm.serverName}</div>
             {oauthForm.step === "config" ? (<>
-              <label style={{ fontSize: "var(--font-size-base)", display: "flex", flexDirection: "column", gap: 3 }}>Client ID<input type="text" value={oauthForm.clientId} onChange={e => setOauthForm(f => f && { ...f, clientId: e.target.value })} style={inputStyle} /></label>
-              <label style={{ fontSize: "var(--font-size-base)", display: "flex", flexDirection: "column", gap: 3 }}>Auth URL<input type="text" value={oauthForm.authUrl} onChange={e => setOauthForm(f => f && { ...f, authUrl: e.target.value })} style={inputStyle} /></label>
-              <label style={{ fontSize: "var(--font-size-base)", display: "flex", flexDirection: "column", gap: 3 }}>Token URL<input type="text" value={oauthForm.tokenUrl} onChange={e => setOauthForm(f => f && { ...f, tokenUrl: e.target.value })} style={inputStyle} /></label>
-              <label style={{ fontSize: "var(--font-size-base)", display: "flex", flexDirection: "column", gap: 3 }}>Scopes<input type="text" value={oauthForm.scopes} onChange={e => setOauthForm(f => f && { ...f, scopes: e.target.value })} style={inputStyle} /></label>
+              <label style={{ fontSize: "var(--font-size-base)", display: "flex", flexDirection: "column", gap: 3 }}>Client ID<input type="text" value={oauthForm.clientId} onChange={e => setOauthForm(f => f && { ...f, clientId: e.target.value })} className="panel-input panel-input-full" /></label>
+              <label style={{ fontSize: "var(--font-size-base)", display: "flex", flexDirection: "column", gap: 3 }}>Auth URL<input type="text" value={oauthForm.authUrl} onChange={e => setOauthForm(f => f && { ...f, authUrl: e.target.value })} className="panel-input panel-input-full" /></label>
+              <label style={{ fontSize: "var(--font-size-base)", display: "flex", flexDirection: "column", gap: 3 }}>Token URL<input type="text" value={oauthForm.tokenUrl} onChange={e => setOauthForm(f => f && { ...f, tokenUrl: e.target.value })} className="panel-input panel-input-full" /></label>
+              <label style={{ fontSize: "var(--font-size-base)", display: "flex", flexDirection: "column", gap: 3 }}>Scopes<input type="text" value={oauthForm.scopes} onChange={e => setOauthForm(f => f && { ...f, scopes: e.target.value })} className="panel-input panel-input-full" /></label>
             </>) : (
-              <label style={{ fontSize: "var(--font-size-base)", display: "flex", flexDirection: "column", gap: 3 }}>Authorization Code<input autoFocus type="text" value={oauthForm.authCode} onChange={e => setOauthForm(f => f && { ...f, authCode: e.target.value })} style={inputStyle} /></label>
+              <label style={{ fontSize: "var(--font-size-base)", display: "flex", flexDirection: "column", gap: 3 }}>Authorization Code<input autoFocus type="text" value={oauthForm.authCode} onChange={e => setOauthForm(f => f && { ...f, authCode: e.target.value })} className="panel-input panel-input-full" /></label>
             )}
             {oauthForm.msg && <div style={{ fontSize: "var(--font-size-sm)", padding: "8px 8px", borderRadius: "var(--radius-xs-plus)", background: oauthForm.msg.startsWith("Error") ? "color-mix(in srgb, var(--accent-rose) 15%, transparent)" : "color-mix(in srgb, var(--accent-green) 15%, transparent)", color: oauthForm.msg.startsWith("Error") ? "var(--error-color)" : "var(--success-color)" }}>{oauthForm.msg}</div>}
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>

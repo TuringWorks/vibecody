@@ -173,13 +173,6 @@ export function DockerPanel({ workspacePath }: DockerPanelProps) {
  }
  };
 
- const inputStyle: React.CSSProperties = {
- padding: "5px 8px", fontSize: "var(--font-size-base)",
- background: "var(--bg-secondary)", border: "1px solid var(--border-color)",
- borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none",
- };
-
-
  const terminal: React.CSSProperties = {
  background: "var(--bg-primary)", color: "var(--text-primary)",
  border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)",
@@ -292,7 +285,8 @@ export function DockerPanel({ workspacePath }: DockerPanelProps) {
  <>
  <div style={{ display: "flex", gap: 8 }}>
  <input
- style={{ ...inputStyle, flex: 1 }}
+ className="panel-input"
+ style={{ flex: 1 }}
  value={pullImage}
  onChange={(e) => setPullImage(e.target.value)}
  onKeyDown={(e) => e.key === "Enter" && handlePull()}
@@ -317,11 +311,9 @@ export function DockerPanel({ workspacePath }: DockerPanelProps) {
  ) : (
  <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
  {images.map((img) => (
- <div key={img.id} style={{
+ <div key={img.id} className="panel-card" style={{
  display: "flex", alignItems: "center", gap: 10,
- padding: "8px 12px",
- background: "var(--bg-secondary)", border: "1px solid var(--border-color)",
- borderRadius: "var(--radius-sm)", fontSize: "var(--font-size-base)",
+ padding: "8px 12px", fontSize: "var(--font-size-base)",
  }}>
  <span style={{ fontFamily: "var(--font-mono)", flex: 1 }}>
  {img.repository}:{img.tag}
@@ -345,7 +337,8 @@ export function DockerPanel({ workspacePath }: DockerPanelProps) {
 
  <div style={{ display: "flex", gap: 8 }}>
  <input
- style={{ ...inputStyle, flex: 1 }}
+ className="panel-input"
+ style={{ flex: 1 }}
  value={composeService}
  onChange={(e) => setComposeService(e.target.value)}
  placeholder="Service name (optional, leave blank for all)"

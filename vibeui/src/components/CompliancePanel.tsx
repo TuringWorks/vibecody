@@ -64,8 +64,9 @@ export function CompliancePanel() {
  };
 
  return (
- <div className="panel-container" style={{ padding: 16, color: "var(--text-primary)", fontSize: "var(--font-size-md)" }}>
- <h3 style={{ margin: "0 0 12px 0", fontSize: "var(--font-size-xl)" }}>Compliance Report</h3>
+ <div className="panel-container">
+ <div className="panel-header"><h3>Compliance Report</h3></div>
+ <div className="panel-body">
 
  <div style={{ display: "flex", gap: 8, marginBottom: 16, alignItems: "center" }}>
  <select
@@ -175,6 +176,7 @@ export function CompliancePanel() {
  </table>
  </>
  )}
+ </div>
  </div>
  );
 }

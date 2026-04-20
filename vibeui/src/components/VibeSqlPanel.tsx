@@ -236,13 +236,7 @@ export function VibeSqlPanel({ provider }: { workspacePath: string | null; provi
   // ── Tab button helper ───────────────────────────────────────────────────────
 
   const tabBtn = (id: string, lbl: string, disabled = false) => (
-    <button className="panel-tab" key={id} disabled={disabled} onClick={() => !disabled && setTab(id as typeof tab)} style={{
-      padding: "4px 12px", fontSize: "var(--font-size-sm)", fontWeight: tab === id ? 600 : 400, cursor: disabled ? "not-allowed" : "pointer",
-      background: tab === id ? "var(--accent-color)" : "transparent",
-      color: tab === id ? "var(--btn-primary-fg, #fff)" : disabled ? "var(--text-secondary)" : "var(--text-primary)",
-      border: `1px solid ${tab === id ? "var(--accent-color)" : "var(--border-color)"}`,
-      borderRadius: "var(--radius-sm)", opacity: disabled ? 0.5 : 1,
-    }}>{lbl}</button>
+    <button className={`panel-tab${tab === id ? " active" : ""}`} key={id} disabled={disabled} onClick={() => !disabled && setTab(id as typeof tab)}>{lbl}</button>
   );
 
   // ── Connect tab ─────────────────────────────────────────────────────────────
@@ -575,12 +569,14 @@ export function VibeSqlPanel({ provider }: { workspacePath: string | null; provi
           {connected && (
             <button className="panel-btn panel-btn-secondary panel-btn-xs" onClick={handleDisconnect}>Disconnect</button>
           )}
-          {tabBtn("connect", "Connect")}
-          {tabBtn("browser", "Schema", !connected)}
-          {tabBtn("query", "Query", !connected)}
-          {tabBtn("history", "History")}
-          {tabBtn("status", "Status", !connected)}
         </div>
+      </div>
+      <div className="panel-tab-bar">
+        {tabBtn("connect", "Connect")}
+        {tabBtn("browser", "Schema", !connected)}
+        {tabBtn("query", "Query", !connected)}
+        {tabBtn("history", "History")}
+        {tabBtn("status", "Status", !connected)}
       </div>
       <div className="panel-body">
         {tab === "connect" && renderConnect()}

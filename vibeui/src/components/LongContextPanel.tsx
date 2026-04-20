@@ -85,17 +85,16 @@ export function LongContextPanel() {
   const formatTokens = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(0)}k` : String(n);
 
   return (
-    <div className="panel-container" style={{ padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-mono)", flex: 1, minHeight: 0, overflowY: "auto" }}>
-      <div style={{ fontSize: "var(--font-size-xl)", fontWeight: 700, marginBottom: 12 }}>Long Context Router</div>
-
-      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+    <div className="panel-container">
+      <div className="panel-header"><h3>Long Context Router</h3></div>
+      <div className="panel-tab-bar">
         {["routing", "models", "ingest"].map(t => (
-          <button className="panel-tab" key={t} onClick={() => setTab(t)} style={{ padding: "4px 12px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: tab === t ? "var(--accent-color)" : "var(--bg-secondary)", color: tab === t ? "var(--btn-primary-fg)" : "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>{t}</button>
+          <button className={`panel-tab${tab === t ? " active" : ""}`} key={t} onClick={() => setTab(t)}>{t}</button>
         ))}
       </div>
-
-      {loading && <div className="panel-loading" style={{ color: "var(--text-muted)" }}>Loading...</div>}
-      {error && <div style={{ color: "var(--error-color)", marginBottom: 8 }}>{error}</div>}
+      <div className="panel-body">
+      {loading && <div className="panel-loading">Loading...</div>}
+      {error && <div className="panel-error"><span>{error}</span></div>}
 
       {!loading && tab === "routing" && (
         <div style={{ maxWidth: 520 }}>
@@ -203,6 +202,7 @@ export function LongContextPanel() {
           )}
         </div>
       )}
+      </div>
     </div>
   );
 }

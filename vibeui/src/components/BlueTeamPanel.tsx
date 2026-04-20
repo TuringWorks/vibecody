@@ -499,8 +499,8 @@ export function BlueTeamPanel() {
                 <td style={{ fontSize: "var(--font-size-base)" }}>{ioc.value}</td>
                 <td >
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <div style={{ flex: 1, height: 6, background: "var(--bg-tertiary)", borderRadius: 3, overflow: "hidden" }}>
-                      <div style={{ width: `${ioc.confidence}%`, height: "100%", background: ioc.confidence > 75 ? "var(--accent-green)" : ioc.confidence > 40 ? "var(--accent-gold)" : "var(--accent-rose)", borderRadius: 3 }} />
+                    <div className="progress-bar" style={{ flex: 1 }}>
+                      <div className="progress-bar-fill" style={{ width: `${ioc.confidence}%`, background: ioc.confidence > 75 ? "var(--accent-green)" : ioc.confidence > 40 ? "var(--accent-gold)" : "var(--accent-rose)" }} />
                     </div>
                     <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{ioc.confidence}%</span>
                   </div>
@@ -553,7 +553,7 @@ export function BlueTeamPanel() {
           </div>
         )}
 
-        {rules.length === 0 && <p style={{ color: "var(--text-secondary)", textAlign: "center" }}>No detection rules configured.</p>}
+        {rules.length === 0 && <p className="panel-empty">No detection rules configured.</p>}
         {rules.map((rule) => (
           <div key={rule.id} className="panel-card">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -582,7 +582,7 @@ export function BlueTeamPanel() {
     return (
       <div>
         <h3 style={{ margin: "0 0 16px", fontSize: "var(--font-size-xl)" }}>Forensic Cases</h3>
-        {cases.length === 0 && <p style={{ color: "var(--text-secondary)", textAlign: "center" }}>No forensic cases. Cases are created from incident investigations.</p>}
+        {cases.length === 0 && <p className="panel-empty">No forensic cases. Cases are created from incident investigations.</p>}
         <table className="panel-table">
           <thead>
             <tr>
@@ -643,7 +643,7 @@ export function BlueTeamPanel() {
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
           {siemConns.length === 0 && (
-            <p style={{ color: "var(--text-secondary)", gridColumn: "1/-1", textAlign: "center" }}>No SIEM connections configured.</p>
+            <p className="panel-empty" style={{ gridColumn: "1/-1" }}>No SIEM connections configured.</p>
           )}
           {siemConns.map((conn) => (
             <div key={conn.id} className="panel-card">
@@ -672,7 +672,7 @@ export function BlueTeamPanel() {
     return (
       <div>
         <h3 style={{ margin: "0 0 16px", fontSize: "var(--font-size-xl)" }}>Incident Response Playbooks</h3>
-        {playbooks.length === 0 && <p style={{ color: "var(--text-secondary)", textAlign: "center" }}>No playbooks defined.</p>}
+        {playbooks.length === 0 && <p className="panel-empty">No playbooks defined.</p>}
         {playbooks.map((pb) => (
           <div key={pb.id} className="panel-card">
             <div role="button" tabIndex={0} aria-expanded={expandedPlaybook === pb.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }} onClick={() => setExpandedPlaybook(expandedPlaybook === pb.id ? null : pb.id)} onKeyDown={e => e.key === "Enter" && setExpandedPlaybook(expandedPlaybook === pb.id ? null : pb.id)}>
@@ -733,7 +733,7 @@ export function BlueTeamPanel() {
           </div>
         )}
 
-        {hunts.length === 0 && <p style={{ color: "var(--text-secondary)", textAlign: "center" }}>No threat hunts. Start a hypothesis-driven hunt.</p>}
+        {hunts.length === 0 && <p className="panel-empty">No threat hunts. Start a hypothesis-driven hunt.</p>}
         {hunts.map((hunt) => (
           <div key={hunt.id} className="panel-card">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
@@ -787,14 +787,30 @@ export function BlueTeamPanel() {
       </div>
       <div className="panel-body">
         {successMsg && (
-          <div style={{ padding: "8px 12px", marginBottom: 12, background: "var(--success-bg)", border: "1px solid var(--success-color)", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-base)", color: "var(--success-color)" }}>
+          <div
+            style={{
+              padding: "8px 12px",
+              marginBottom: 12,
+              background: "var(--success-bg)",
+              border: "1px solid var(--success-color)",
+              borderRadius: "var(--radius-xs-plus)",
+              fontSize: "var(--font-size-base)",
+              color: "var(--success-color)",
+            }}
+          >
             {successMsg}
           </div>
         )}
         {error && (
-          <div className="panel-error" style={{ marginBottom: 12, display: "flex", justifyContent: "space-between" }}>
+          <div className="panel-error" style={{ marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span>{error}</span>
-            <button className="panel-btn" aria-label="Dismiss error" style={{ background: "none", border: "none", color: "var(--error-color)", cursor: "pointer", display: "flex", alignItems: "center" }} onClick={() => setError(null)}><X size={14} /></button>
+            <button
+              aria-label="Dismiss error"
+              onClick={() => setError(null)}
+              style={{ background: "none", border: "none", color: "var(--error-color)", cursor: "pointer", display: "flex", alignItems: "center" }}
+            >
+              <X size={14} />
+            </button>
           </div>
         )}
         {loading && <div className="panel-loading">Loading...</div>}

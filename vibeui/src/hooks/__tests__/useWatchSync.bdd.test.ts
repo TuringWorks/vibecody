@@ -53,10 +53,11 @@ describe('useWatchSync — initial fetch', () => {
 
     await act(async () => {});
 
-    const seedCall = mockInvoke.mock.calls.find(
-      ([cmd, args]: [string, Record<string, unknown>]) =>
-        cmd === 'watch_get_session_messages' && args?.afterId === null,
-    );
+    const seedCall = mockInvoke.mock.calls.find((call: unknown[]) => {
+      const cmd = call[0] as string;
+      const args = call[1] as Record<string, unknown> | undefined;
+      return cmd === 'watch_get_session_messages' && args?.afterId === null;
+    });
     expect(seedCall).toBeDefined();
     expect(seedCall![1]).toMatchObject({ sessionId: SESSION_A });
   });
@@ -190,12 +191,15 @@ describe('useWatchSync — sessionId changes', () => {
     await act(async () => {}); // seed session B
 
     // Poll under session B should use afterId: 1 (not 100 from A)
-    const bSeedCall = mockInvoke.mock.calls.find(
-      ([cmd, args]: [string, Record<string, unknown>]) =>
+    const bSeedCall = mockInvoke.mock.calls.find((call: unknown[]) => {
+      const cmd = call[0] as string;
+      const args = call[1] as Record<string, unknown> | undefined;
+      return (
         cmd === 'watch_get_session_messages' &&
         args?.sessionId === SESSION_B &&
-        args?.afterId === null,
-    );
+        args?.afterId === null
+      );
+    });
     expect(bSeedCall).toBeDefined();
   });
 
@@ -214,16 +218,18 @@ describe('useWatchSync — sessionId changes', () => {
     await act(async () => {});
 
     // All invokes after the switch should reference SESSION_B
-    const afterSwitch = mockInvoke.mock.calls.filter(
-      ([cmd, args]: [string, Record<string, unknown>]) =>
-        cmd === 'watch_get_session_messages' && args?.sessionId === SESSION_A,
-    );
+    const afterSwitch = mockInvoke.mock.calls.filter((call: unknown[]) => {
+      const cmd = call[0] as string;
+      const args = call[1] as Record<string, unknown> | undefined;
+      return cmd === 'watch_get_session_messages' && args?.sessionId === SESSION_A;
+    });
     // Some A calls may be present from before the switch; that's OK.
     // The important check: poll calls with B exist.
-    const bCalls = mockInvoke.mock.calls.filter(
-      ([cmd, args]: [string, Record<string, unknown>]) =>
-        cmd === 'watch_get_session_messages' && args?.sessionId === SESSION_B,
-    );
+    const bCalls = mockInvoke.mock.calls.filter((call: unknown[]) => {
+      const cmd = call[0] as string;
+      const args = call[1] as Record<string, unknown> | undefined;
+      return cmd === 'watch_get_session_messages' && args?.sessionId === SESSION_B;
+    });
     expect(bCalls.length).toBeGreaterThan(0);
     void afterSwitch;
   });
@@ -261,7 +267,7 @@ describe('useWatchActiveSession', () => {
     await act(async () => {});
 
     const activeCalls = mockInvoke.mock.calls.filter(
-      ([cmd]: [string]) => cmd === 'watch_get_active_session',
+      (call: unknown[]) => (call[0] as string) === 'watch_get_active_session',
     );
     expect(activeCalls.length).toBeGreaterThanOrEqual(1);
   });

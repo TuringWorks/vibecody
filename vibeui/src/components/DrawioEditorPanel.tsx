@@ -44,18 +44,6 @@ const TEMPLATES = [
   { id: "domain_model", label: "Domain Class Diagram", kind: "class_diagram" },
 ];
 
-const tabStyle = (active: boolean): React.CSSProperties => ({
-  padding: "7px 14px",
-  fontSize: "var(--font-size-base)",
-  fontWeight: active ? 600 : 400,
-  cursor: "pointer",
-  border: "none",
-  borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent",
-  background: "transparent",
-  color: active ? "var(--text-primary)" : "var(--text-secondary)",
-  whiteSpace: "nowrap",
-});
-
 export function DrawioEditorPanel({ workspacePath, provider }: DrawioEditorPanelProps) {
   const [activeTab, setActiveTab] = useState<DioTab>("editor");
   const [diagramXml, setDiagramXml] = useState("");
@@ -190,10 +178,10 @@ export function DrawioEditorPanel({ workspacePath, provider }: DrawioEditorPanel
         <span style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", lineHeight: "28px" }}>
           Full draw.io editor — save with Ctrl+S or File → Save
         </span>
-        <button className="panel-tab"
+        <button className="panel-btn panel-btn-secondary panel-btn-sm"
           onClick={() => { setPreviewXml(diagramXml); setActiveTab("preview"); }}
           disabled={!diagramXml}
-          style={{ marginLeft: "auto", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: "4px 12px", cursor: "pointer", color: "inherit", fontSize: "var(--font-size-base)" }}
+          style={{ marginLeft: "auto" }}
         >
           Preview
         </button>
@@ -275,8 +263,8 @@ export function DrawioEditorPanel({ workspacePath, provider }: DrawioEditorPanel
       {generatedXml && (
         <div style={{ marginTop: 16 }}>
           <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-            <button className="panel-tab" onClick={() => setActiveTab("preview")} style={{ flex: 1, background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", padding: "8px 0", cursor: "pointer", color: "inherit", fontSize: "var(--font-size-base)" }}>View Preview</button>
-            <button className="panel-btn" onClick={loadGeneratedInEditor} style={{ flex: 1, background: "var(--accent-blue)", border: "none", borderRadius: "var(--radius-sm)", padding: "8px 0", cursor: "pointer", color: "var(--btn-primary-fg, #fff)", fontSize: "var(--font-size-base)", fontWeight: 600 }}>Open in Editor</button>
+            <button className="panel-btn panel-btn-secondary" onClick={() => setActiveTab("preview")} style={{ flex: 1 }}>View Preview</button>
+            <button className="panel-btn panel-btn-primary" onClick={loadGeneratedInEditor} style={{ flex: 1 }}>Open in Editor</button>
           </div>
           <pre style={{ fontSize: "var(--font-size-sm)", overflow: "auto", maxHeight: 300, whiteSpace: "pre", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: 10, border: "1px solid var(--border-color)", color: "var(--text-success)" }}>
             {generatedXml.slice(0, 800)}{generatedXml.length > 800 ? "\n…" : ""}
@@ -366,9 +354,9 @@ export function DrawioEditorPanel({ workspacePath, provider }: DrawioEditorPanel
 
   return (
     <div className="panel-container">
-      <div className="panel-header" style={{ padding: 0, overflow: "auto", flexShrink: 0 }}>
+      <div className="panel-tab-bar" style={{ overflow: "auto" }}>
         {TAB_DEFS.map(({ id, label }) => (
-          <button className="panel-tab" key={id} onClick={() => setActiveTab(id)} style={tabStyle(activeTab === id)}>
+          <button className={`panel-tab${activeTab === id ? " active" : ""}`} key={id} onClick={() => setActiveTab(id)}>
             {label}
           </button>
         ))}

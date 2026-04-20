@@ -80,8 +80,9 @@ export function CloudAgentPanel() {
   };
 
   return (
-    <div className="panel-container" style={{ padding: 16, flex: 1, minHeight: 0, overflowY: "auto", color: "var(--text-primary)" }}>
-      <h3 style={{ margin: "0 0 12px 0", fontSize: "var(--font-size-xl)" }}>Cloud Agent (Docker)</h3>
+    <div className="panel-container">
+      <div className="panel-header"><h3>Cloud Agent (Docker)</h3></div>
+      <div className="panel-body">
       <p style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 16 }}>
         Run agent tasks inside isolated Docker containers. Requires Docker to be installed and running.
       </p>
@@ -283,6 +284,7 @@ export function CloudAgentPanel() {
           </pre>
         </div>
       )}
+      </div>
     </div>
   );
 }

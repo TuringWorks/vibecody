@@ -63,26 +63,9 @@ export function SecurityPanel() {
   };
 
   return (
-    <div
-      className="panel"
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-        color: "var(--text-primary)",
-        background: "var(--bg-primary)",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "var(--space-2)",
-          padding: "var(--space-3) var(--space-4)",
-          borderBottom: "1px solid var(--border-color)",
-        }}
-      >
-        <h3 style={{ margin: 0, fontSize: "var(--font-size-lg)" }}>Security</h3>
+    <div className="panel-container">
+      <div className="panel-header">
+        <h3>Security</h3>
         <div style={{ flex: 1 }} />
         <button
           className="panel-btn"
@@ -122,7 +105,7 @@ export function SecurityPanel() {
         </div>
       )}
 
-      <div style={{ flex: 1, overflowY: "auto", padding: "var(--space-4)" }}>
+      <div className="panel-body">
         <section
           style={{
             border: "1px solid var(--border-color)",

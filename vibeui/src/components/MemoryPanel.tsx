@@ -606,20 +606,11 @@ export function MemoryPanel({ workspacePath }: MemoryPanelProps) {
  </p>
 
  {/* Tab selector */}
- <div style={{ display: "flex", gap: "4px" }}>
+ <div className="panel-tab-bar">
  {tabs.map((t) => (
- <button className="panel-tab"
+ <button className={`panel-tab${activeTab === t.id ? " active" : ""}`}
  key={t.id}
  onClick={() => setActiveTab(t.id)}
- style={{
- padding: "4px 12px",
- fontSize: "var(--font-size-base)",
- borderRadius: "var(--radius-xs-plus)",
- background: activeTab === t.id ? "var(--accent-color)" : "var(--bg-tertiary)",
- color: activeTab === t.id ? "white" : "var(--text-primary)",
- border: "1px solid var(--border-color)",
- cursor: "pointer",
- }}
  >
  {t.label}
  </button>

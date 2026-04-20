@@ -34,7 +34,7 @@ const badgeStyle = (color: string): React.CSSProperties => ({
 });
 
 const kindColors: Record<string, string> = {
-  function: "var(--accent-color)", struct: "var(--accent-purple)", trait: "var(--error-color)", enum: "var(--warning-color)", type: "var(--success-color)", const: "var(--text-secondary)", module: "#14b8a6",
+  function: "var(--accent-color)", struct: "var(--accent-purple)", trait: "var(--error-color)", enum: "var(--warning-color)", type: "var(--success-color)", const: "var(--text-secondary)", module: "var(--accent-blue)",
 };
 
 const inputStyle: React.CSSProperties = {

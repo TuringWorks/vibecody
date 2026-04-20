@@ -80,21 +80,20 @@ export function IdeBridgePanel() {
   }
 
   return (
-    <div className="panel-container" style={{ padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-mono)", flex: 1, minHeight: 0, overflowY: "auto" }}>
-      <div style={{ fontSize: "var(--font-size-xl)", fontWeight: 700, marginBottom: 12 }}>IDE Bridge</div>
-
-      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+    <div className="panel-container">
+      <div className="panel-header"><h3>IDE Bridge</h3></div>
+      <div className="panel-tab-bar">
         {["status", "context", "sync"].map(t => (
-          <button className="panel-tab" key={t} onClick={() => setTab(t)} style={{ padding: "4px 12px", borderRadius: "var(--radius-sm)", cursor: "pointer", background: tab === t ? "var(--accent-color)" : "var(--bg-secondary)", color: tab === t ? "var(--btn-primary-fg)" : "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}>{t}</button>
+          <button className={`panel-tab${tab === t ? " active" : ""}`} key={t} onClick={() => setTab(t)}>{t}</button>
         ))}
       </div>
-
-      {loading && <div className="panel-loading" style={{ color: "var(--text-muted)" }}>Loading...</div>}
-      {error && <div style={{ color: "var(--error-color)", marginBottom: 8 }}>{error}</div>}
+      <div className="panel-body">
+      {loading && <div className="panel-loading">Loading...</div>}
+      {error && <div className="panel-error"><span>{error}</span></div>}
 
       {!loading && tab === "status" && (
         <div style={{ maxWidth: 480 }}>
-          <div style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-md)", border: "1px solid var(--border-color)", padding: 18, marginBottom: 16 }}>
+          <div className="panel-card" style={{ marginBottom: 16 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
               <div style={{ width: 12, height: 12, borderRadius: "50%", background: bridgeStatus?.connected ? "var(--success-color)" : "var(--error-color)" }} />
               <span style={{ fontSize: "var(--font-size-lg)", fontWeight: 700, color: bridgeStatus?.connected ? "var(--success-color)" : "var(--error-color)" }}>
@@ -117,8 +116,7 @@ export function IdeBridgePanel() {
               )}
             </div>
           </div>
-          <button className="panel-btn" onClick={connect} disabled={connecting || bridgeStatus?.connected}
-            style={{ padding: "8px 24px", borderRadius: "var(--radius-sm)", cursor: connecting || bridgeStatus?.connected ? "not-allowed" : "pointer", background: bridgeStatus?.connected ? "var(--bg-secondary)" : "var(--accent-color)", color: bridgeStatus?.connected ? "var(--text-muted)" : "var(--btn-primary-fg)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-md)", fontWeight: 600, opacity: connecting ? 0.6 : 1 }}>
+          <button className="panel-btn panel-btn-primary" onClick={connect} disabled={connecting || bridgeStatus?.connected}>
             {connecting ? "Connecting…" : bridgeStatus?.connected ? "Already Connected" : "Connect"}
           </button>
         </div>
@@ -130,12 +128,12 @@ export function IdeBridgePanel() {
           {bridgeContext && (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {bridgeContext.workspace_root && (
-                <div style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", border: "1px solid var(--border-color)", padding: 12 }}>
+                <div className="panel-card">
                   <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)", marginBottom: 4 }}>Workspace Root</div>
                   <code style={{ fontSize: "var(--font-size-base)", color: "var(--text-primary)" }}>{bridgeContext.workspace_root}</code>
                 </div>
               )}
-              <div style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", border: "1px solid var(--border-color)", padding: 12 }}>
+              <div className="panel-card">
                 <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)", marginBottom: 8 }}>Open Files ({bridgeContext.open_files.length})</div>
                 {bridgeContext.open_files.length === 0 && <div style={{ color: "var(--text-muted)", fontSize: "var(--font-size-base)" }}>None</div>}
                 <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
@@ -148,7 +146,7 @@ export function IdeBridgePanel() {
                 </div>
               </div>
               {bridgeContext.active_selection && (
-                <div style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", border: "1px solid var(--border-color)", padding: 12 }}>
+                <div className="panel-card">
                   <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)", marginBottom: 6 }}>
                     Active Selection (lines {bridgeContext.active_selection.start_line}–{bridgeContext.active_selection.end_line})
                   </div>
@@ -158,7 +156,7 @@ export function IdeBridgePanel() {
                 </div>
               )}
               {bridgeContext.test_results && (
-                <div style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", border: "1px solid var(--border-color)", padding: 12 }}>
+                <div className="panel-card">
                   <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)", marginBottom: 8 }}>
                     Test Results <span style={{ color: "var(--text-muted)", fontSize: "var(--font-size-xs)" }}>({bridgeContext.test_results.last_run})</span>
                   </div>
@@ -176,7 +174,7 @@ export function IdeBridgePanel() {
 
       {!loading && tab === "sync" && (
         <div style={{ maxWidth: 480 }}>
-          <div style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-md)", border: "1px solid var(--border-color)", padding: 18, marginBottom: 16 }}>
+          <div className="panel-card" style={{ marginBottom: 16 }}>
             <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", rowGap: 10, fontSize: "var(--font-size-base)" }}>
               <span style={{ color: "var(--text-muted)" }}>Last Sync</span>
               <span>{syncInfo?.last_sync_at ?? "Never"}</span>
@@ -188,12 +186,12 @@ export function IdeBridgePanel() {
               <span>{syncInfo?.pending_changes ?? 0}</span>
             </div>
           </div>
-          <button className="panel-btn" onClick={forceSync} disabled={syncing}
-            style={{ padding: "8px 24px", borderRadius: "var(--radius-sm)", cursor: syncing ? "not-allowed" : "pointer", background: "var(--accent-color)", color: "var(--btn-primary-fg, #fff)", border: "none", fontSize: "var(--font-size-md)", fontWeight: 600, opacity: syncing ? 0.6 : 1 }}>
+          <button className="panel-btn panel-btn-primary" onClick={forceSync} disabled={syncing}>
             {syncing ? "Syncing…" : "Force Sync"}
           </button>
         </div>
       )}
+      </div>
     </div>
   );
 }
