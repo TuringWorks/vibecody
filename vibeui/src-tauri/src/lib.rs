@@ -1228,6 +1228,7 @@ pub fn run() {
             commands::autoresearch_delete_session,
             // OpenMemory — Cognitive Memory Engine
             commands::openmemory_stats,
+            commands::openmemory_index_stats,
             commands::openmemory_list,
             commands::openmemory_add,
             commands::openmemory_delete,

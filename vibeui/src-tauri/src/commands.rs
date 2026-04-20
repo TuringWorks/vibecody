@@ -37578,6 +37578,26 @@ pub async fn openmemory_stats() -> Result<serde_json::Value, String> {
     }))
 }
 
+/// Stats about the TurboQuant-compressed embedding index backing OpenMemory.
+///
+/// Loads the live store (so the figures reflect on-disk state, not just the
+/// JSON snapshot read by `openmemory_stats`) and returns the embedding
+/// dimension and the compression ratio vs raw f32. Returns zeros if no store
+/// has been initialised yet.
+#[tauri::command]
+pub async fn openmemory_index_stats() -> Result<serde_json::Value, String> {
+    use vibecli_cli::open_memory::OpenMemoryStore;
+    let dir = openmemory_data_dir();
+    let store = OpenMemoryStore::load(&dir, "default")
+        .unwrap_or_else(|_| OpenMemoryStore::new(&dir, "default"));
+    Ok(serde_json::json!({
+        "embedding_dim": store.embedding_dim(),
+        "compression_ratio": store.embedding_compression_ratio(),
+        "indexed_count": store.total_memories(),
+        "backend": "turboquant",
+    }))
+}
+
 /// Return layered context (L1 essential story + L2 scoped search + L3 verbatim drawers)
 /// for a query. MemPalace-style 4-layer pattern.
 #[tauri::command]
