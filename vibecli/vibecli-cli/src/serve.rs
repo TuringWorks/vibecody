@@ -21,7 +21,7 @@
 //! | POST   | `/memory/add`             | Add a cognitive memory               |
 //! | POST   | `/memory/query`           | Semantic query with composite scoring |
 //! | GET    | `/memory/list`            | List all memories                    |
-//! | GET    | `/memory/stats`           | Sector counts + total_drawers        |
+//! | GET    | `/memory/stats`           | Sector counts + total_drawers + TurboQuant index info |
 //! | POST   | `/memory/fact`            | Add a temporal fact                  |
 //! | GET    | `/memory/facts`           | List active facts                    |
 //! | POST   | `/memory/decay`           | Run salience decay                   |
@@ -2182,6 +2182,9 @@ async fn memory_stats(_state: State<ServeState>) -> Json<serde_json::Value> {
         "total_drawers": store.drawer_store().len(),
         "encryption": false,
         "sectors": sectors,
+        "embedding_dim": store.embedding_dim(),
+        "embedding_compression_ratio": store.embedding_compression_ratio(),
+        "embedding_backend": "turboquant",
     }))
 }
 
