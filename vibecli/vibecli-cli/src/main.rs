@@ -10893,6 +10893,30 @@ async fn main() -> Result<()> {
                                     );
                                     println!("Auto-tunnel complete: {} cross-project waypoints created (threshold {:.2}).\n", created, threshold);
                                 }
+                                "stats" => {
+                                    let store = open_memory::OpenMemoryStore::load(
+                                        dirs::data_dir().unwrap_or_else(|| std::path::PathBuf::from(".")).join("vibecli").join("openmemory"),
+                                        "default",
+                                    ).unwrap_or_else(|_| open_memory::OpenMemoryStore::new(
+                                        dirs::data_dir().unwrap_or_else(|| std::path::PathBuf::from(".")).join("vibecli").join("openmemory"),
+                                        "default",
+                                    ));
+                                    println!("OpenMemory — Stats\n");
+                                    println!("  Memories:    {}", store.total_memories());
+                                    println!("  Waypoints:   {}", store.total_waypoints());
+                                    println!("  Facts:       {}", store.total_facts());
+                                    println!("  Drawers:     {}\n", store.drawer_store().len());
+                                    println!("  Embedding index (TurboQuant)");
+                                    println!("    dim:               {}", store.embedding_dim());
+                                    println!("    compression ratio: {:.2}× vs raw f32\n", store.embedding_compression_ratio());
+                                    for s in store.sector_stats() {
+                                        if s.count > 0 {
+                                            println!("    {} — {} memories, avg salience {:.0}%, {} pinned",
+                                                s.sector, s.count, s.avg_salience * 100.0, s.pinned_count);
+                                        }
+                                    }
+                                    println!();
+                                }
                                 _ => {
                                     println!("VibeCody OpenMemory — Cognitive Memory Engine\n");
                                     println!("  /openmemory add <content>                    — Store a memory (sector auto-classified)");
@@ -10913,7 +10937,7 @@ async fn main() -> Result<()> {
                                     println!("  /openmemory dedup                            — Remove duplicate memories");
                                     println!("  /openmemory ingest <file>                    — Chunk & ingest a document (cognitive)");
                                     println!("  /openmemory import [mem0|zep|openmemory|auto] — Import/migrate memories");
-                                    println!("  /openmemory stats                            — Show sector statistics");
+                                    println!("  /openmemory stats                            — Counts, sector breakdown, TurboQuant compression ratio");
                                     println!("  /openmemory export                           — Export as markdown");
                                     println!("  /openmemory context [query]                  — Get layered agent context (L1+L2+L3)");
                                     println!("  /openmemory layered [query]                  — Same as context (explicit name)");

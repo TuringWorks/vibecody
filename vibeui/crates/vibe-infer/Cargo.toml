@@ -1,0 +1,24 @@
+[package]
+name = "vibe-infer"
+version.workspace = true
+description = "Pure-Rust local inference traits + backends (candle target) for VibeCody"
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+async-trait.workspace = true
+tracing.workspace = true
+
+[features]
+# Default = stub backend only (no ML deps, compiles instantly).
+# `candle` pulls in the actual inference backend; gated to keep CI fast and
+# avoid forcing every workspace consumer to compile ML crates.
+default = []
+candle = []
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt"] }

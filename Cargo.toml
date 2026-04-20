@@ -6,6 +6,7 @@ members = [
     "vibeui/crates/vibe-core",
     "vibeui/crates/vibe-lsp",
     "vibeui/crates/vibe-ai",
+    "vibeui/crates/vibe-infer",
     "vibeui/crates/vibe-extensions",
     "vibeui/crates/vibe-collab",
     "vibeapp/src-tauri",
