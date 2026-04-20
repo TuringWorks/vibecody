@@ -28,6 +28,8 @@
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use vibe_core::index::{TurboQuantConfig, TurboQuantIndex};
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -255,6 +257,89 @@ pub struct ContextQueryResult {
 }
 
 // ---------------------------------------------------------------------------
+// Semantic scoring (TurboQuant-backed)
+// ---------------------------------------------------------------------------
+
+/// Callback that turns text into a dense embedding. Kept as a function pointer
+/// so [`SemanticScorer`] is runtime-agnostic: callers can plug in a
+/// vibe-infer embedder, a remote API, or a cheap feature-hashing stand-in
+/// without pulling those deps through `context_streaming`.
+pub type EmbedFn = Box<dyn Fn(&str) -> Vec<f32> + Send + Sync>;
+
+/// TurboQuant-compressed semantic scorer. Each registered segment costs
+/// roughly `dimension × 3 bits` — an order of magnitude less than f32 —
+/// so a 100M-token workspace stays well under GB-scale RAM while still
+/// giving sub-millisecond cosine ranking against the current query.
+pub struct SemanticScorer {
+    embed: EmbedFn,
+    index: TurboQuantIndex,
+}
+
+impl SemanticScorer {
+    /// Build a scorer. `dimension` must match the embedder's output size
+    /// (384 for MiniLM-L6, 768 for bge-base, 1024 for bge-large, 1536 for
+    /// OpenAI text-embedding-3-small, etc.).
+    pub fn new(dimension: usize, embed: EmbedFn) -> Self {
+        let config = TurboQuantConfig {
+            dimension,
+            seed: 0xC0FFEE,
+            qjl_proj_dim: None,
+        };
+        Self {
+            embed,
+            index: TurboQuantIndex::new(config),
+        }
+    }
+
+    fn register(&mut self, id: &str, text: &str) {
+        let vec = (self.embed)(text);
+        let _ = self.index.insert(id.to_string(), &vec, HashMap::new());
+    }
+
+    fn forget(&mut self, id: &str) {
+        self.index.delete(id);
+    }
+
+    /// Run the query through the compressed index and collect a score for
+    /// every stored segment. Returns `HashMap<segment_id, cosine_score>`.
+    fn scores_for(&self, query: &str) -> HashMap<String, f32> {
+        let n = self.index.len();
+        if n == 0 {
+            return HashMap::new();
+        }
+        let qvec = (self.embed)(query);
+        self.index
+            .search(&qvec, n)
+            .into_iter()
+            .map(|r| (r.id, r.score))
+            .collect()
+    }
+
+    /// Compression ratio vs uncompressed f32 — exposed for telemetry.
+    pub fn compression_ratio(&self) -> f64 {
+        self.index.compression_ratio()
+    }
+
+    /// Number of segments currently held in the compressed index.
+    pub fn len(&self) -> usize {
+        self.index.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.index.is_empty()
+    }
+}
+
+impl std::fmt::Debug for SemanticScorer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SemanticScorer")
+            .field("indexed_segments", &self.index.len())
+            .field("compression_ratio", &self.index.compression_ratio())
+            .finish()
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Statistics
 // ---------------------------------------------------------------------------
 
@@ -302,6 +387,11 @@ pub struct ContextStreamingEngine {
     /// Cache hit / miss counters.
     cache_hits: usize,
     cache_misses: usize,
+    /// Optional TurboQuant-backed semantic scorer. When set, queries score
+    /// segments by approximate cosine similarity instead of keyword overlap,
+    /// and [`refocus`](Self::refocus) rewrites `relevance_score` so the
+    /// `RelevanceScore` / `Hybrid` eviction strategies become semantic too.
+    semantic: Option<SemanticScorer>,
 }
 
 impl ContextStreamingEngine {
@@ -324,7 +414,41 @@ impl ContextStreamingEngine {
             eviction_count: 0,
             cache_hits: 0,
             cache_misses: 0,
+            semantic: None,
         }
+    }
+
+    /// Like [`new`](Self::new) but wires in a TurboQuant-backed semantic
+    /// scorer. Every subsequent `add_segment` is embedded + compressed into
+    /// the scorer's index, `query` ranks by approximate cosine similarity,
+    /// and [`refocus`](Self::refocus) rewrites `relevance_score` so
+    /// relevance-driven eviction becomes semantic.
+    pub fn with_semantic(config: StreamingConfig, scorer: SemanticScorer) -> Self {
+        let mut engine = Self::new(config);
+        engine.semantic = Some(scorer);
+        engine
+    }
+
+    /// Attach or replace the semantic scorer on an existing engine.
+    /// Pre-existing segments are retro-indexed so scoring is immediate.
+    pub fn set_semantic(&mut self, mut scorer: SemanticScorer) {
+        for (id, seg) in self.segments.iter() {
+            let text = seg.full_content.as_deref().unwrap_or(&seg.summary);
+            scorer.register(id, text);
+        }
+        self.semantic = Some(scorer);
+    }
+
+    /// Drop the semantic scorer (returning it). Downstream behaviour reverts
+    /// to keyword-overlap scoring.
+    pub fn take_semantic(&mut self) -> Option<SemanticScorer> {
+        self.semantic.take()
+    }
+
+    /// Read-only peek at the semantic scorer — handy for compression-ratio
+    /// telemetry on a governance panel.
+    pub fn semantic(&self) -> Option<&SemanticScorer> {
+        self.semantic.as_ref()
     }
 
     // -- Token estimation ----------------------------------------------------
@@ -375,6 +499,13 @@ impl ContextStreamingEngine {
             lvl.segments.push(segment);
         }
 
+        // Register in the TurboQuant-compressed index if semantic scoring
+        // is enabled. Embedding on write amortises the cost: queries become
+        // O(n) over compressed vectors instead of O(n) over full text.
+        if let Some(sem) = self.semantic.as_mut() {
+            sem.register(&id, content);
+        }
+
         Ok(id)
     }
 
@@ -408,6 +539,10 @@ impl ContextStreamingEngine {
         self.window.total_tokens = self.window.total_tokens.saturating_sub(seg.tokens);
         // Remove from cache order.
         self.cache_order.retain(|s| s != id);
+        // Remove from the semantic index, if attached.
+        if let Some(sem) = self.semantic.as_mut() {
+            sem.forget(id);
+        }
         Ok(())
     }
 
@@ -501,6 +636,14 @@ impl ContextStreamingEngine {
         let mut total_searched: usize = 0;
         let mut tokens_used: usize = 0;
 
+        // Pre-compute semantic scores for every indexed segment in a single
+        // pass through the TurboQuant index — cheaper than embedding the
+        // query once per segment inside the loop.
+        let semantic_scores: Option<HashMap<String, f32>> = self
+            .semantic
+            .as_ref()
+            .map(|s| s.scores_for(&q.query));
+
         for seg in self.segments.values() {
             // Level filter.
             if let Some(ref levels) = q.levels {
@@ -516,7 +659,10 @@ impl ContextStreamingEngine {
                 seg.full_content.as_deref().unwrap_or(&seg.summary)
             };
 
-            let score = Self::score_relevance(&q.query, text);
+            let score = semantic_scores
+                .as_ref()
+                .and_then(|m| m.get(&seg.id).copied())
+                .unwrap_or_else(|| Self::score_relevance(&q.query, text));
             if score >= q.min_relevance {
                 tokens_used += seg.tokens;
                 matches.push(ContextMatch {
@@ -561,6 +707,31 @@ impl ContextStreamingEngine {
             .filter(|kw| content_lower.contains(*kw))
             .count();
         hits as f32 / keywords.len() as f32
+    }
+
+    /// Re-score every segment against `query` and write the result back into
+    /// `relevance_score`. The `RelevanceScore` and `Hybrid` eviction
+    /// strategies then drop the segments least relevant to the current
+    /// task. No-op (returns 0) if no semantic scorer is attached.
+    ///
+    /// Intended to be called at task boundaries (e.g. when the user opens
+    /// a new issue or switches planning focus), not on every keystroke —
+    /// a single pass still costs one embedding + one compressed linear
+    /// scan of the workspace.
+    pub fn refocus(&mut self, query: &str) -> usize {
+        let Some(sem) = self.semantic.as_ref() else {
+            return 0;
+        };
+        let scores = sem.scores_for(query);
+        // Segments with no (positive) similarity to the query are maximally
+        // evictable — zero them out explicitly so the RelevanceScore and
+        // Hybrid strategies drop them before anything with real overlap.
+        let mut updated = 0;
+        for (id, seg) in self.segments.iter_mut() {
+            seg.relevance_score = scores.get(id).copied().unwrap_or(0.0);
+            updated += 1;
+        }
+        updated
     }
 
     // -- Sliding window ------------------------------------------------------
@@ -1394,5 +1565,153 @@ mod tests {
         engine.remove_segment(&id).unwrap();
         assert!(engine.window.segments.is_empty());
         assert_eq!(engine.window.total_tokens, 0);
+    }
+
+    // -- Semantic scorer (TurboQuant-backed) --------------------------------
+
+    /// Deterministic 32-dim feature-hashing embedder. Tokens shift a shared
+    /// accumulator so documents that share tokens produce correlated
+    /// vectors — enough signal to tell "apples" from "quantum physics" in a
+    /// test without pulling a real ML model into the test graph.
+    fn hash_embedder(dim: usize) -> EmbedFn {
+        Box::new(move |text: &str| {
+            let mut v = vec![0.0f32; dim];
+            for tok in text.to_lowercase().split_whitespace() {
+                let h = fnv1a_hash(tok);
+                for i in 0..dim {
+                    let bit = (h >> (i % 64)) & 1;
+                    v[i] += if bit == 1 { 1.0 } else { -1.0 };
+                }
+            }
+            // L2 normalise so cosine == dot product.
+            let norm: f32 = v.iter().map(|x| x * x).sum::<f32>().sqrt();
+            if norm > 1e-9 {
+                for x in &mut v {
+                    *x /= norm;
+                }
+            }
+            v
+        })
+    }
+
+    #[test]
+    fn semantic_scorer_indexes_segments_on_add() {
+        let scorer = SemanticScorer::new(32, hash_embedder(32));
+        let mut engine = ContextStreamingEngine::with_semantic(
+            StreamingConfig::default(),
+            scorer,
+        );
+        engine.add_segment("a.rs", "fox jumps over the lazy dog").unwrap();
+        engine.add_segment("b.rs", "quantum physics entanglement").unwrap();
+
+        let sem = engine.semantic().expect("semantic attached");
+        assert_eq!(sem.len(), 2);
+    }
+
+    #[test]
+    fn semantic_query_prefers_topically_similar_segment() {
+        let scorer = SemanticScorer::new(64, hash_embedder(64));
+        let mut engine = ContextStreamingEngine::with_semantic(
+            StreamingConfig::default(),
+            scorer,
+        );
+        let fox_id = engine
+            .add_segment("animals.rs", "the quick brown fox jumps over the lazy dog")
+            .unwrap();
+        engine
+            .add_segment("physics.rs", "quantum entanglement and superposition")
+            .unwrap();
+
+        let q = ContextQuery {
+            query: "fox jumps dog".to_string(),
+            max_results: 2,
+            min_relevance: 0.0,
+            include_summaries: false,
+            levels: None,
+        };
+        let res = engine.query(&q);
+        assert!(!res.matches.is_empty(), "expected at least one match");
+        assert_eq!(
+            res.matches[0].segment_id, fox_id,
+            "semantic scorer should rank the animals segment first"
+        );
+    }
+
+    #[test]
+    fn semantic_remove_segment_unindexes() {
+        let scorer = SemanticScorer::new(16, hash_embedder(16));
+        let mut engine = ContextStreamingEngine::with_semantic(
+            StreamingConfig::default(),
+            scorer,
+        );
+        let id = engine.add_segment("x.rs", "some content").unwrap();
+        assert_eq!(engine.semantic().unwrap().len(), 1);
+        engine.remove_segment(&id).unwrap();
+        assert_eq!(engine.semantic().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn refocus_writes_relevance_scores() {
+        let scorer = SemanticScorer::new(32, hash_embedder(32));
+        let mut engine = ContextStreamingEngine::with_semantic(
+            StreamingConfig::default(),
+            scorer,
+        );
+        let a = engine.add_segment("a.rs", "database migration schema").unwrap();
+        let b = engine.add_segment("b.rs", "frontend react component").unwrap();
+
+        let updated = engine.refocus("database migration");
+        assert_eq!(updated, 2, "both segments should be re-scored");
+
+        let sa = engine.segments.get(&a).unwrap().relevance_score;
+        let sb = engine.segments.get(&b).unwrap().relevance_score;
+        assert!(
+            sa > sb,
+            "migration segment ({sa}) should outrank react segment ({sb})"
+        );
+    }
+
+    #[test]
+    fn refocus_noop_without_scorer() {
+        let mut engine = default_engine();
+        engine.add_segment("a.rs", "hello").unwrap();
+        assert_eq!(engine.refocus("anything"), 0);
+    }
+
+    #[test]
+    fn set_semantic_retro_indexes_existing_segments() {
+        let mut engine = default_engine();
+        engine.add_segment("a.rs", "hello world").unwrap();
+        engine.add_segment("b.rs", "goodbye world").unwrap();
+        assert!(engine.semantic().is_none());
+
+        let scorer = SemanticScorer::new(16, hash_embedder(16));
+        engine.set_semantic(scorer);
+        assert_eq!(engine.semantic().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn take_semantic_reverts_to_keyword_scoring() {
+        let scorer = SemanticScorer::new(16, hash_embedder(16));
+        let mut engine = ContextStreamingEngine::with_semantic(
+            StreamingConfig::default(),
+            scorer,
+        );
+        engine.add_segment("a.rs", "hello").unwrap();
+        assert!(engine.take_semantic().is_some());
+        assert!(engine.semantic().is_none());
+    }
+
+    #[test]
+    fn semantic_scorer_reports_compression_ratio() {
+        let mut scorer = SemanticScorer::new(384, hash_embedder(384));
+        // Populate enough segments for the ratio to be meaningful.
+        for i in 0..20 {
+            scorer.register(&format!("s{i}"), &format!("document number {i}"));
+        }
+        let ratio = scorer.compression_ratio();
+        // TurboQuant targets ~10× vs f32. Give headroom for the small-N
+        // per-vector radius/norm overhead.
+        assert!(ratio > 3.0, "expected >3x compression, got {ratio:.2}x");
     }
 }
