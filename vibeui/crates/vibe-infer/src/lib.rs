@@ -139,12 +139,7 @@ impl TextGenerator for StubBackend {
 // ---------------------------------------------------------------------------
 
 #[cfg(feature = "candle")]
-pub mod candle_backend {
-    //! Real candle-backed implementation. Empty until model loading lands;
-    //! the feature flag exists today so downstream crates can already write
-    //! `vibe_infer = { workspace = true, features = ["candle"] }` without a
-    //! second Cargo edit.
-}
+pub mod minilm;
 
 #[cfg(test)]
 mod tests {
