@@ -1567,7 +1567,7 @@ function App() {
               </div>
             )}
             {activeSidebarTab === 'git' && (
-              <GitPanel workspacePath={workspaceFolders[0] || null} onCompareFile={handleCompareFile} />
+              <GitPanel workspacePath={workspaceFolders[0] || null} onCompareFile={handleCompareFile} selectedProvider={selectedProvider} />
             )}
 
             {activeSidebarTab === 'testing' && (

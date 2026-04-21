@@ -8,6 +8,10 @@ import { Toaster } from './Toaster';
 interface GitPanelProps {
  workspacePath: string | null;
  onCompareFile?: (filePath: string, diff: string) => void;
+ /** Provider name from the toolbar dropdown — forwarded to AI git commands so
+  *  the commit-message generator (and friends) use the user's selected model
+  *  instead of whichever provider happens to be active in the chat engine. */
+ selectedProvider?: string;
 }
 
 interface GitStatus {
@@ -22,7 +26,7 @@ interface CommitInfo {
  timestamp: number;
 }
 
-export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
+export function GitPanel({ workspacePath, onCompareFile, selectedProvider }: GitPanelProps) {
  const { toasts, toast, dismiss } = useToast();
  const [gitStatus, setGitStatus] = useState<GitStatus | null>(null);
  const [commitMessage, setCommitMessage] = useState('');
@@ -168,7 +172,10 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  setSuggestingBranch(true);
  setSuggestedBranch(null);
  try {
- const name = await invoke<string>('suggest_branch_name', { taskDescription: branchTask });
+ const name = await invoke<string>('suggest_branch_name', {
+ taskDescription: branchTask,
+ provider: selectedProvider || null,
+ });
  setSuggestedBranch(name);
  } catch (e) {
  toast.error(`Branch suggestion failed: ${e}`);
@@ -185,6 +192,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  const result = await invoke<string>('generate_changelog', {
  workspace: workspacePath,
  sinceRef: changelogRef || null,
+ provider: selectedProvider || null,
  });
  setChangelog(result);
  } catch (e) {
@@ -201,6 +209,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  const resolved = await invoke<string>('resolve_merge_conflict', {
  filePath: conflictFile,
  conflictText,
+ provider: selectedProvider || null,
  });
  setConflictResolution(resolved);
  } catch (e) {
@@ -225,6 +234,9 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  try {
  const msg = await invoke<string>('generate_commit_message', {
  files: selectedFiles.length > 0 ? selectedFiles : null,
+ // Honour the toolbar's model dropdown so the generator uses whatever
+ // provider the user has selected (not the chat engine's default).
+ provider: selectedProvider || null,
  });
  setCommitMessage(msg);
  } catch (e) {

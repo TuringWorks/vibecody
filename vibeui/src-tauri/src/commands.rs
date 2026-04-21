@@ -6114,12 +6114,20 @@ pub async fn run_tests(
 
 // ─── AI Commit Message (Phase 43) ─────────────────────────────────────────────
 
-/// Generate a commit message for the current git diff using the active LLM provider.
-/// Accepts optional `files` list — if provided and nothing is staged, diffs those
-/// specific files (unstaged) so the user doesn't have to manually `git add` first.
+/// Generate a commit message for the current git diff.
+///
+/// `provider` (optional) selects the LLM. When `Some`, the chat engine is
+/// switched to that provider for the duration of this call so the generator
+/// honours the toolbar's model dropdown instead of falling back to whatever
+/// happens to be active (historically Anthropic). When `None`, the engine's
+/// current active provider is used.
+///
+/// `files` (optional) — if nothing is staged, diff these specific files
+/// unstaged so the user doesn't have to `git add` first.
 #[tauri::command]
 pub async fn generate_commit_message(
     files: Option<Vec<String>>,
+    provider: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
     // Get the workspace path
@@ -6206,7 +6214,12 @@ Respond with the commit message only, no explanation."#,
         diff_body.chars().take(4000).collect::<String>()
     );
 
-    let engine = state.chat_engine.lock().await;
+    let mut engine = state.chat_engine.lock().await;
+    if let Some(p) = provider.as_deref().filter(|s| !s.trim().is_empty()) {
+        engine
+            .set_provider_by_name(p)
+            .map_err(|e| format!("provider '{p}' not configured: {e}"))?;
+    }
     let messages = vec![vibe_ai::Message {
         role: vibe_ai::MessageRole::User,
         content: prompt,
@@ -13700,13 +13713,22 @@ pub async fn clear_cost_history() -> Result<(), String> {
 // ══════════════════════════════════════════════════════════════════════════════
 
 /// Suggest a git branch name for a given task description.
+///
+/// `provider` mirrors `generate_commit_message` — when set, the chat engine is
+/// switched to that provider so this honours the toolbar's model dropdown.
 #[tauri::command]
 pub async fn suggest_branch_name(
     state: tauri::State<'_, AppState>,
     task_description: String,
+    provider: Option<String>,
 ) -> Result<String, String> {
     use vibe_ai::provider::{Message, MessageRole};
-    let engine = state.chat_engine.lock().await;
+    let mut engine = state.chat_engine.lock().await;
+    if let Some(p) = provider.as_deref().filter(|s| !s.trim().is_empty()) {
+        engine
+            .set_provider_by_name(p)
+            .map_err(|e| format!("provider '{p}' not configured: {e}"))?;
+    }
     let prompt = format!(
         "Generate a concise, lowercase, hyphen-separated git branch name for this task (no spaces, \
          no special chars except hyphens, max 50 chars, just the name with no explanation):\n\n{}",
@@ -13725,14 +13747,23 @@ pub async fn suggest_branch_name(
 }
 
 /// AI-assisted merge conflict resolution.
+///
+/// `provider` mirrors `generate_commit_message` — when set, the chat engine is
+/// switched to that provider so this honours the toolbar's model dropdown.
 #[tauri::command]
 pub async fn resolve_merge_conflict(
     state: tauri::State<'_, AppState>,
     file_path: String,
     conflict_text: String,
+    provider: Option<String>,
 ) -> Result<String, String> {
     use vibe_ai::provider::{Message, MessageRole};
-    let engine = state.chat_engine.lock().await;
+    let mut engine = state.chat_engine.lock().await;
+    if let Some(p) = provider.as_deref().filter(|s| !s.trim().is_empty()) {
+        engine
+            .set_provider_by_name(p)
+            .map_err(|e| format!("provider '{p}' not configured: {e}"))?;
+    }
     let prompt = format!(
         "You are a code merge conflict resolver. Analyze this merge conflict and return ONLY the \
          resolved code (no explanation, no markdown fences). Choose the best resolution that \
@@ -13745,11 +13776,15 @@ pub async fn resolve_merge_conflict(
 }
 
 /// Generate a CHANGELOG entry from recent git commits.
+///
+/// `provider` mirrors `generate_commit_message` — when set, the chat engine is
+/// switched to that provider so this honours the toolbar's model dropdown.
 #[tauri::command]
 pub async fn generate_changelog(
     state: tauri::State<'_, AppState>,
     workspace: String,
     since_ref: Option<String>,
+    provider: Option<String>,
 ) -> Result<String, String> {
     use vibe_ai::provider::{Message, MessageRole};
     // Get git log
@@ -13765,7 +13800,12 @@ pub async fn generate_changelog(
         return Ok("No new commits found since the specified reference.".to_string());
     }
 
-    let engine = state.chat_engine.lock().await;
+    let mut engine = state.chat_engine.lock().await;
+    if let Some(p) = provider.as_deref().filter(|s| !s.trim().is_empty()) {
+        engine
+            .set_provider_by_name(p)
+            .map_err(|e| format!("provider '{p}' not configured: {e}"))?;
+    }
     let prompt = format!(
         "Convert these git commits into a concise, user-facing CHANGELOG entry in Keep a Changelog \
          format (## [Unreleased] section with ### Added / ### Fixed / ### Changed subsections as \
