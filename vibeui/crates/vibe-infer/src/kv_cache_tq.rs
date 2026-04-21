@@ -308,6 +308,22 @@ impl KvCacheTurboQuant {
         (self.rotation.len() + self.projection.len()) * 4
     }
 
+    /// Row-major rotation matrix R, shape `[head_dim, head_dim]`. Exposed so
+    /// the device-side codec (`NativeTurboQuantCodec`) can upload R to a
+    /// CUDA / Metal device.
+    pub fn rotation_matrix(&self) -> &[f32] {
+        &self.rotation
+    }
+
+    /// Row-major QJL projection basis, shape
+    /// `[max(proj_dim, head_dim), max(proj_dim, head_dim)]`. Callers must
+    /// truncate to `[proj_dim, head_dim]` (take the first `proj_dim` rows of
+    /// `head_dim` columns each) — this matches the truncation used inside
+    /// `QjlSign::encode` / `decode_add`.
+    pub fn projection_matrix(&self) -> &[f32] {
+        &self.projection
+    }
+
     /// Encode a row-major `[num_heads, seq_len, head_dim]` tensor.
     ///
     /// Tensor layout: `tensor[h * seq_len * head_dim + t * head_dim + d]`.

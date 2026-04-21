@@ -35,6 +35,12 @@ tokio = { workspace = true, optional = true }
 # fork advances; we explicitly pin a SHA rather than tracking a branch so
 # local, CI, and release builds stay reproducible. Upstream base at time of
 # pin: `v0.8.1` (upstream SHA 2d4ba4f1).
+#
+# NOTE: NativeTurboQuantCodec (kv_cache_codec.rs) calls
+# `mistralrs::core::turboquant::encode`, which is re-exported on the
+# `vibe/kv-cache-codec-kernels` branch (one commit ahead of this pin). Bump
+# the rev to that branch's tip once it's published to enable the GPU codec
+# path; the default + `candle` features build today regardless.
 mistralrs = { git = "https://github.com/TuringWorks/mistral.rs", rev = "3d422fdeb2deb361861e02a65991fc4acb4b7be4", optional = true }
 futures = { version = "0.3", optional = true }
 

@@ -39,7 +39,7 @@ use mistralrs::{
     IsqType, Model, RequestBuilder, TextMessageRole, TextMessages, TextModelBuilder,
 };
 
-use crate::kv_cache_codec::CandleTurboQuantCodec;
+use crate::kv_cache_codec::{CandleTurboQuantCodec, NativeTurboQuantCodec};
 use crate::{FinishReason, GenerationRequest, GenerationResponse, InferenceError, Result, TextGenerator};
 
 /// KV-cache storage mode selected at load time.
@@ -181,10 +181,28 @@ async fn install_codec_after_load(model: &Model, mode: &KvCacheMode) -> Result<(
         }
     };
 
-    let codec = CandleTurboQuantCodec::shared(head_dim, *seed, *qjl_proj_dim);
+    // Pick the codec backend. Native (CUDA / Metal kernels) is the default —
+    // it auto-routes by device and falls back to the pure-Rust path on CPU,
+    // so it's a strict superset. Set `VIBE_INFER_TURBOQUANT_BACKEND=cpu` to
+    // force the pure-Rust codec everywhere (useful when reproducing the
+    // original spike's numbers or debugging a kernel divergence).
+    let backend = std::env::var("VIBE_INFER_TURBOQUANT_BACKEND")
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    let (codec, codec_kind) = if backend == "cpu" || backend == "candle" {
+        (
+            CandleTurboQuantCodec::shared(head_dim, *seed, *qjl_proj_dim),
+            "candle-cpu",
+        )
+    } else {
+        (
+            NativeTurboQuantCodec::shared(head_dim, *seed, *qjl_proj_dim),
+            "native",
+        )
+    };
     let installed = model.set_kv_cache_codec(codec).await.map_err(be)?;
     tracing::info!(
-        "vibe-infer: installed TurboQuant KV-cache codec on {installed} layer(s) \
+        "vibe-infer: installed TurboQuant KV-cache codec ({codec_kind}) on {installed} layer(s) \
          (head_dim={head_dim}, seed={seed}, qjl_proj_dim={qjl_proj_dim:?})"
     );
     Ok(())

@@ -24,7 +24,7 @@
 //! experiments and small-batch decoding; not a production path. Swap in a
 //! device-side kernel when memory savings start mattering more than latency.
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use candle_core::{DType, Device, Result, Tensor};
 use mistralrs::core::KvCacheCodec;
@@ -110,6 +110,181 @@ impl KvCacheCodec for CandleTurboQuantCodec {
 
     fn name(&self) -> &str {
         "turboquant"
+    }
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Native (device-side) TurboQuant codec
+// ───────────────────────────────────────────────────────────────────────────
+
+/// PolarQuant + QJL codec backed by the fused CUDA / Metal kernels in
+/// `mistralrs-quant`. Falls back to the pure-Rust [`CandleTurboQuantCodec`]
+/// path when the input tensor lives on the CPU.
+///
+/// The kernel needs the rotation `R` and projection `P` matrices on the same
+/// device as the input. We materialise them lazily on the first encode call
+/// and cache the device tensors. If the codec ever sees a different device
+/// (rare — typically a cache lives on one device for its lifetime) the
+/// matrices are rebuilt on the new device.
+pub struct NativeTurboQuantCodec {
+    inner: KvCacheTurboQuant,
+    head_dim: usize,
+    proj_dim: usize,
+    /// Cached `(rotation, projection, device)` triple. The bundled `Device`
+    /// lets us detect device drift cheaply.
+    device_matrices: Mutex<Option<DeviceMatrices>>,
+}
+
+struct DeviceMatrices {
+    rotation: Tensor,
+    projection: Tensor,
+    device: Device,
+}
+
+impl std::fmt::Debug for NativeTurboQuantCodec {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("NativeTurboQuantCodec")
+            .field("head_dim", &self.head_dim)
+            .field("proj_dim", &self.proj_dim)
+            .finish()
+    }
+}
+
+impl NativeTurboQuantCodec {
+    pub fn new(head_dim: usize, seed: u64, qjl_proj_dim: Option<usize>) -> Self {
+        let inner = KvCacheTurboQuant::new(head_dim, seed, qjl_proj_dim);
+        let proj_dim = inner.proj_dim();
+        Self {
+            inner,
+            head_dim,
+            proj_dim,
+            device_matrices: Mutex::new(None),
+        }
+    }
+
+    pub fn shared(head_dim: usize, seed: u64, qjl_proj_dim: Option<usize>) -> Arc<dyn KvCacheCodec> {
+        Arc::new(Self::new(head_dim, seed, qjl_proj_dim))
+    }
+
+    /// Build (rotation, projection) device tensors on `device` from the
+    /// pure-Rust matrices. Truncates the QJL basis to `[proj_dim, head_dim]`
+    /// to match the reference (`qjl_proj_dim` may be smaller than the basis
+    /// returned by `gram_schmidt_rotation(max(proj_dim, head_dim))`).
+    fn build_device_matrices(&self, device: &Device) -> Result<DeviceMatrices> {
+        let rotation_host = self.inner.rotation_matrix();
+        let projection_host = self.inner.projection_matrix();
+
+        let rotation = Tensor::from_vec(
+            rotation_host.to_vec(),
+            (self.head_dim, self.head_dim),
+            device,
+        )?;
+
+        // The pure-Rust impl stores the QJL basis as a square
+        // max(proj_dim, head_dim) × max(proj_dim, head_dim) matrix and
+        // truncates per-row at use time. Mirror that: take the first
+        // `proj_dim` rows of `head_dim` columns each.
+        let basis_dim = (projection_host.len() as f32).sqrt() as usize;
+        debug_assert_eq!(basis_dim * basis_dim, projection_host.len());
+        let mut truncated = Vec::with_capacity(self.proj_dim * self.head_dim);
+        for i in 0..self.proj_dim {
+            let row_start = i * basis_dim;
+            truncated.extend_from_slice(&projection_host[row_start..row_start + self.head_dim]);
+        }
+        let projection = Tensor::from_vec(truncated, (self.proj_dim, self.head_dim), device)?;
+
+        Ok(DeviceMatrices {
+            rotation,
+            projection,
+            device: device.clone(),
+        })
+    }
+
+    fn cpu_encode_fallback(&self, tensor: &Tensor) -> Result<Tensor> {
+        let dtype = tensor.dtype();
+        let device = tensor.device().clone();
+        let total: usize = tensor.dims().iter().product();
+        let num_vectors = total / self.head_dim;
+
+        let flat: Vec<f32> = tensor
+            .to_dtype(DType::F32)?
+            .to_device(&Device::Cpu)?
+            .contiguous()?
+            .flatten_all()?
+            .to_vec1::<f32>()?;
+        let layer = self.inner.encode_layer(&flat, 1, num_vectors);
+        let mut out = vec![0f32; total];
+        for t in 0..num_vectors {
+            let slot = &mut out[t * self.head_dim..(t + 1) * self.head_dim];
+            self.inner.decode_one(&layer, 0, t, slot);
+        }
+
+        Tensor::from_vec(out, (total,), &Device::Cpu)?
+            .reshape(tensor.dims())?
+            .to_dtype(dtype)?
+            .to_device(&device)
+    }
+}
+
+impl KvCacheCodec for NativeTurboQuantCodec {
+    fn encode(&self, tensor: &Tensor) -> Result<Tensor> {
+        let dims = tensor.dims().to_vec();
+        if dims.is_empty() {
+            candle_core::bail!("NativeTurboQuantCodec: expected a ranked tensor, got scalar");
+        }
+        if *dims.last().unwrap() != self.head_dim {
+            candle_core::bail!(
+                "NativeTurboQuantCodec: last-axis must be head_dim={}, got shape {:?}",
+                self.head_dim,
+                dims,
+            );
+        }
+
+        match tensor.device() {
+            Device::Cpu => self.cpu_encode_fallback(tensor),
+            device => {
+                // Materialise / refresh the device matrices.
+                let mut guard = self.device_matrices.lock().unwrap();
+                let needs_rebuild = match &*guard {
+                    Some(dm) => !dm.device.same_device(device),
+                    None => true,
+                };
+                if needs_rebuild {
+                    *guard = Some(self.build_device_matrices(device)?);
+                }
+                let dm = guard.as_ref().expect("device matrices set above");
+
+                // The kernel only handles F32/F16 — promote BF16 if needed.
+                let original_dtype = tensor.dtype();
+                let kernel_input = match original_dtype {
+                    DType::F32 | DType::F16 => tensor.clone(),
+                    DType::BF16 => tensor.to_dtype(DType::F16)?,
+                    other => candle_core::bail!(
+                        "NativeTurboQuantCodec: unsupported dtype {:?} for device path",
+                        other
+                    ),
+                };
+
+                let encoded = mistralrs::core::turboquant::encode(
+                    &kernel_input,
+                    &dm.rotation,
+                    &dm.projection,
+                )?;
+                if encoded.dtype() != original_dtype {
+                    encoded.to_dtype(original_dtype)
+                } else {
+                    Ok(encoded)
+                }
+            }
+        }
+    }
+
+    fn decode(&self, tensor: &Tensor) -> Result<Tensor> {
+        Ok(tensor.clone())
+    }
+
+    fn name(&self) -> &str {
+        "turboquant-native"
     }
 }
 
@@ -241,5 +416,122 @@ mod tests {
         let cos = cos_sim(&a, &b);
         assert!(cos > 0.5, "global cosine should be > 0.5, got {cos}");
         assert!(a != b, "codec must modify values; got bit-identical output");
+    }
+
+    /// Native codec on a CPU tensor must reproduce CandleTurboQuantCodec
+    /// exactly. The CPU fallback path uses the same `KvCacheTurboQuant`
+    /// internals, so the two must be byte-identical for the same seed.
+    #[test]
+    fn native_codec_cpu_path_matches_candle() {
+        let head_dim = 64;
+        let candle = CandleTurboQuantCodec::new(head_dim, 13, None);
+        let native = NativeTurboQuantCodec::new(head_dim, 13, None);
+        let input = sample_tensor(&[2, 3, head_dim]);
+
+        let a: Vec<f32> = candle.encode(&input).unwrap().flatten_all().unwrap().to_vec1().unwrap();
+        let b: Vec<f32> = native.encode(&input).unwrap().flatten_all().unwrap().to_vec1().unwrap();
+
+        assert_eq!(a, b, "native CPU fallback must match CandleTurboQuantCodec exactly");
+    }
+
+    /// Native codec on Metal must match the CPU reference within fp16
+    /// rounding. Skipped on builds without Metal — the GPU is needed to run
+    /// this. Tolerance is loose because the kernel computes everything in
+    /// fp32 inside the threadgroup, but the round-trip writes back through
+    /// the input dtype (typically fp16), so values differ by ~1e-3.
+    #[cfg(all(test, feature = "mistralrs-metal"))]
+    #[test]
+    fn native_codec_metal_matches_cpu_within_fp16_tolerance() {
+        let device = match Device::new_metal(0) {
+            Ok(d) => d,
+            Err(e) => {
+                eprintln!("skipping metal parity test: {e}");
+                return;
+            }
+        };
+
+        let head_dim = 64;
+        let proj_dim = 64;
+        let cpu_codec = CandleTurboQuantCodec::new(head_dim, 99, Some(proj_dim));
+        let native = NativeTurboQuantCodec::new(head_dim, 99, Some(proj_dim));
+
+        let input_cpu = sample_tensor(&[2, 8, head_dim]).to_dtype(DType::F32).unwrap();
+        let input_metal = input_cpu.to_device(&device).unwrap();
+
+        let cpu_out: Vec<f32> = cpu_codec
+            .encode(&input_cpu)
+            .unwrap()
+            .flatten_all()
+            .unwrap()
+            .to_vec1()
+            .unwrap();
+        let metal_out: Vec<f32> = native
+            .encode(&input_metal)
+            .unwrap()
+            .to_device(&Device::Cpu)
+            .unwrap()
+            .flatten_all()
+            .unwrap()
+            .to_vec1()
+            .unwrap();
+
+        assert_eq!(cpu_out.len(), metal_out.len());
+        let mut max_abs = 0.0f32;
+        for (a, b) in cpu_out.iter().zip(metal_out.iter()) {
+            max_abs = max_abs.max((a - b).abs());
+        }
+        assert!(
+            max_abs < 5e-3,
+            "metal vs cpu max abs diff {max_abs} exceeds 5e-3 tolerance"
+        );
+    }
+
+    /// CUDA parity test — same shape as the Metal one. Requires nvcc + a
+    /// CUDA-capable GPU at test time.
+    #[cfg(all(test, feature = "mistralrs-cuda"))]
+    #[test]
+    fn native_codec_cuda_matches_cpu_within_fp16_tolerance() {
+        let device = match Device::new_cuda(0) {
+            Ok(d) => d,
+            Err(e) => {
+                eprintln!("skipping cuda parity test: {e}");
+                return;
+            }
+        };
+
+        let head_dim = 64;
+        let proj_dim = 64;
+        let cpu_codec = CandleTurboQuantCodec::new(head_dim, 17, Some(proj_dim));
+        let native = NativeTurboQuantCodec::new(head_dim, 17, Some(proj_dim));
+
+        let input_cpu = sample_tensor(&[2, 8, head_dim]).to_dtype(DType::F32).unwrap();
+        let input_cuda = input_cpu.to_device(&device).unwrap();
+
+        let cpu_out: Vec<f32> = cpu_codec
+            .encode(&input_cpu)
+            .unwrap()
+            .flatten_all()
+            .unwrap()
+            .to_vec1()
+            .unwrap();
+        let cuda_out: Vec<f32> = native
+            .encode(&input_cuda)
+            .unwrap()
+            .to_device(&Device::Cpu)
+            .unwrap()
+            .flatten_all()
+            .unwrap()
+            .to_vec1()
+            .unwrap();
+
+        assert_eq!(cpu_out.len(), cuda_out.len());
+        let mut max_abs = 0.0f32;
+        for (a, b) in cpu_out.iter().zip(cuda_out.iter()) {
+            max_abs = max_abs.max((a - b).abs());
+        }
+        assert!(
+            max_abs < 5e-3,
+            "cuda vs cpu max abs diff {max_abs} exceeds 5e-3 tolerance"
+        );
     }
 }
