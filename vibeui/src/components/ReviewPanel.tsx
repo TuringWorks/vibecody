@@ -44,6 +44,9 @@ interface ReviewReport {
 interface ReviewPanelProps {
  workspacePath: string | null;
  onOpenFile?: (path: string, line?: number) => void;
+ /** Provider name from the toolbar dropdown — forwarded so the AI reviewer
+  *  uses the user's selected model instead of the chat engine's default. */
+ selectedProvider?: string;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -80,7 +83,7 @@ function ScoreBar({ label, value }: { label: string; value: number }) {
 
 // ── Component ──────────────────────────────────────────────────────────────
 
-export function ReviewPanel({ workspacePath, onOpenFile }: ReviewPanelProps) {
+export function ReviewPanel({ workspacePath, onOpenFile, selectedProvider }: ReviewPanelProps) {
  const [isLoading, setIsLoading] = useState(false);
  const [report, setReport] = useState<ReviewReport | null>(null);
  const [error, setError] = useState<string | null>(null);
@@ -98,6 +101,7 @@ export function ReviewPanel({ workspacePath, onOpenFile }: ReviewPanelProps) {
  workspacePath,
  baseRef: baseRef.trim() || null,
  targetRef: null,
+ provider: selectedProvider || null,
  });
  setReport(result);
  } catch (e) {

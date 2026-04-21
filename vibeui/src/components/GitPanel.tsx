@@ -614,6 +614,7 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider }: Git
  <div style={{ marginTop: 8, height: 420, borderRadius: "var(--radius-sm)", overflow: 'hidden', background: 'var(--bg-secondary)' }}>
  <ReviewPanel
  workspacePath={workspacePath}
+ selectedProvider={selectedProvider}
  onOpenFile={onCompareFile ? (path) => {
  invoke<string>('git_diff', { path: workspacePath, filePath: path })
  .then((diff) => onCompareFile(path, diff))

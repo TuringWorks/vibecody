@@ -75,7 +75,13 @@ const statusBadge: Record<string, { bg: string; color: string }> = {
   failed: { bg: "color-mix(in srgb, var(--accent-rose) 15%, transparent)", color: "var(--error-color)" },
 };
 
-const AgentTeamsPanel: React.FC = () => {
+interface AgentTeamsPanelProps {
+  /** Toolbar-selected provider, forwarded to the Tauri team-creation command so
+   *  decomposition uses the user's chosen model instead of the engine default. */
+  provider?: string;
+}
+
+const AgentTeamsPanel: React.FC<AgentTeamsPanelProps> = ({ provider }) => {
   const [tab, setTab] = useState<Tab>("team");
   const [goal, setGoal] = useState("");
   const [memberCount, setMemberCount] = useState(3);
@@ -128,6 +134,7 @@ const AgentTeamsPanel: React.FC = () => {
       const info = await invoke<TeamInfo>("start_agent_team", {
         goal: goal.trim(),
         memberCount,
+        provider: provider || null,
       });
       teamIdRef.current = info.id;
       setTeam(info);

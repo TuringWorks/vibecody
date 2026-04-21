@@ -53,7 +53,12 @@ const msgTypeColor: Record<string, string> = {
   Ack: "var(--text-secondary)",
 };
 
-export function AgentTeamPanel() {
+interface AgentTeamPanelProps {
+  /** Toolbar-selected provider, forwarded to the Tauri team-creation command. */
+  provider?: string;
+}
+
+export function AgentTeamPanel({ provider }: AgentTeamPanelProps = {}) {
   const [tab, setTab] = useState<SubTab>("overview");
   const [goal, setGoal] = useState("");
   const [memberCount, setMemberCount] = useState(3);
@@ -86,6 +91,7 @@ export function AgentTeamPanel() {
       const info = await invoke<TeamInfo>("start_agent_team", {
         goal: goal.trim(),
         memberCount,
+        provider: provider || null,
       });
       teamIdRef.current = info.id;
       setTeam(info);

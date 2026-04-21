@@ -8006,12 +8006,16 @@ pub async fn merge_agent_branch(
 // ── Code Review ───────────────────────────────────────────────────────────────
 
 /// Run an AI-powered code review and return a structured report.
+///
+/// `provider` mirrors `generate_commit_message` — when set, the chat engine is
+/// switched to that provider so this honours the toolbar's model dropdown.
 #[tauri::command]
 pub async fn run_code_review(
     state: tauri::State<'_, AppState>,
     workspace_path: String,
     base_ref: Option<String>,
     target_ref: Option<String>,
+    provider: Option<String>,
 ) -> Result<serde_json::Value, String> {
     let workspace = PathBuf::from(&workspace_path);
 
@@ -8044,9 +8048,15 @@ pub async fn run_code_review(
         diff
     };
 
-    // Get the active AI provider from the chat engine.
-    let provider = {
-        let engine = state.chat_engine.lock().await;
+    // Get the active AI provider from the chat engine (switching to the toolbar-
+    // selected provider first, if one was passed).
+    let provider_arc = {
+        let mut engine = state.chat_engine.lock().await;
+        if let Some(p) = provider.as_deref().filter(|s| !s.trim().is_empty()) {
+            engine
+                .set_provider_by_name(p)
+                .map_err(|e| format!("provider '{p}' not configured: {e}"))?;
+        }
         engine.active_provider().ok_or("No active AI provider. Set a provider first.")?.clone()
     };
 
@@ -8095,7 +8105,7 @@ Scores are 0–10 (10 = excellent). Only report real issues.
         },
     ];
 
-    let response = provider
+    let response = provider_arc
         .chat(&messages, None)
         .await
         .map_err(|e| format!("AI provider error: {e}"))?;
@@ -20919,10 +20929,14 @@ fn extract_code_files(response: &str) -> Vec<ExtractedFile> {
 
 /// Start an agent team with a goal and member count.
 /// The lead agent decomposes the goal into sub-tasks using AI.
+///
+/// `provider` mirrors `generate_commit_message` — when set, the chat engine is
+/// switched to that provider so decomposition uses the toolbar-selected model.
 #[tauri::command]
 pub async fn start_agent_team(
     goal: String,
     member_count: usize,
+    provider: Option<String>,
     state: tauri::State<'_, AppState>,
     app_handle: tauri::AppHandle,
 ) -> Result<AgentTeamInfo, String> {
@@ -20940,8 +20954,14 @@ pub async fn start_agent_team(
         team.add_member(&format!("{}-worker-{}", team_id, i));
     }
 
-    // Use AI to decompose the goal into sub-tasks
-    let engine = state.chat_engine.lock().await;
+    // Use AI to decompose the goal into sub-tasks. Switch to the toolbar-
+    // selected provider first, if one was passed.
+    let mut engine = state.chat_engine.lock().await;
+    if let Some(p) = provider.as_deref().filter(|s| !s.trim().is_empty()) {
+        engine
+            .set_provider_by_name(p)
+            .map_err(|e| format!("provider '{p}' not configured: {e}"))?;
+    }
     if let Some(provider) = engine.active_provider() {
         let decompose_prompt = format!(
             "Decompose this task into {} sub-tasks for a team of AI agents. \
