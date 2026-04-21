@@ -16222,8 +16222,8 @@ mod tests {
 
 // Pi-mono gap bridge — Phases A1-D1
 #[allow(dead_code)] mod session_tree;
-#[allow(dead_code)] mod parallel_tools;
-#[allow(dead_code)] mod oauth_login;
+mod parallel_tools; // inner `#![allow(dead_code)]` in the file
+mod oauth_login;    // inner `#![allow(dead_code)]` in the file
 #[allow(dead_code)] mod message_queue;
 #[allow(dead_code)] mod stream_tool_args;
 #[allow(dead_code)] mod dual_log;
@@ -16234,7 +16234,7 @@ mod tests {
 #[allow(dead_code)] mod rpc_mode;
 #[allow(dead_code)] mod paste_guard;
 #[allow(dead_code)] mod event_bus;
-#[allow(dead_code)] mod pod_manager;
+mod pod_manager;    // inner `#![allow(dead_code)]` in the file
 
 // Apple Watch + Wear OS bridge
 #[allow(dead_code)] mod watch_auth;

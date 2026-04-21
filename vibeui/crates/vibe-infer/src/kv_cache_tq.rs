@@ -152,11 +152,11 @@ impl PolarCode {
     fn decode(&self, dim: usize, out: &mut [f32]) {
         const CENTROIDS: [f32; 4] = [-0.75, -0.25, 0.25, 0.75];
         let mut unit_sq_sum = 0.0f32;
-        for i in 0..dim {
+        for (i, slot) in out.iter_mut().take(dim).enumerate() {
             let byte = i >> 2;
             let shift = (i & 0b11) << 1;
             let code = ((self.codes[byte] >> shift) & 0b11) as usize;
-            out[i] = CENTROIDS[code];
+            *slot = CENTROIDS[code];
             unit_sq_sum += CENTROIDS[code] * CENTROIDS[code];
         }
         let unit_norm = unit_sq_sum.sqrt().max(1e-10);
@@ -385,7 +385,8 @@ impl KvCacheTurboQuant {
     }
 
     /// Bytes per logical K/V element, averaged across the layer. Useful as a
-    /// sanity check against the `0.375` estimate in [`super::kv_cache`].
+    /// sanity check against the `0.4375` estimate in [`super::kv_cache`]
+    /// (3 bits/dim + 8 B per-vector scalar overhead at head_dim=128).
     pub fn bytes_per_element(&self, layer: &CompressedKvLayer) -> f32 {
         layer.storage_bytes() as f32 / (layer.num_heads * layer.seq_len * self.head_dim) as f32
     }

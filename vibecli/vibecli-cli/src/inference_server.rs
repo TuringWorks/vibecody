@@ -281,14 +281,13 @@ pub fn build_ollama_command(_config: &ServingConfig) -> Vec<String> {
 /// the target host: `mistralrs-metal` on Apple Silicon, `mistralrs-cuda` on
 /// NVIDIA, plain `mistralrs` for CPU.
 pub fn build_mistralrs_command(config: &ServingConfig) -> Vec<String> {
-    let feature = if config.gpu_count == 0 {
-        "mistralrs"
-    } else {
-        // Can't tell CUDA vs Metal from ServingConfig alone — default to
-        // `mistralrs` and let the operator flip the flag. We surface this
-        // in the UI where the distinction is available.
-        "mistralrs"
-    };
+    // `ServingConfig::gpu_count` can't distinguish CUDA from Metal, so this
+    // always emits the CPU-default `mistralrs` feature. The UI exposes a
+    // separate accelerator picker (see InferencePanel) that rewrites the
+    // flag to `mistralrs-cuda` / `mistralrs-metal` / `mistralrs-flash-attn`
+    // before the command is shown to the operator.
+    let _ = config.gpu_count;
+    let feature = "mistralrs";
     let model = if config.model_path.is_empty() {
         "Qwen/Qwen2.5-0.5B-Instruct".to_string()
     } else {
@@ -521,8 +520,11 @@ pub fn estimate_gpu_memory(model_params_b: f64, quantization: &QuantizationMetho
         QuantizationMethod::Int4 | QuantizationMethod::Gptq | QuantizationMethod::Awq
         | QuantizationMethod::GgufQ4Km | QuantizationMethod::GgufQ5Km
         | QuantizationMethod::SqueezeLlm => 0.5,
-        // TurboQuant: ~3 bits/param for KV cache, ~0.375 bytes/param
-        QuantizationMethod::TurboQuant => 0.375,
+        // TurboQuant: 3 bits/dim + 8 B per-vector scalar overhead. At a
+        // typical head_dim=128 that amortises to ~0.4375 B/el — see Phase-3
+        // measurement in `vibe-infer::kv_cache_tq` and the matching
+        // `KvCacheMethod::TurboQuant.bytes_per_element()` constant.
+        QuantizationMethod::TurboQuant => 0.4375,
     };
     let model_mb = (model_params_b * 1_000.0 * bytes_per_param) as u64;
     // Add ~20% overhead for KV cache, activations
